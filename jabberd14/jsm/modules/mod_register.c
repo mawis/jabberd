@@ -82,10 +82,10 @@ mreturn mod_register_server(mapi m, void *arg)
     if(!js_islocal(m->si, m->packet->from)) return M_PASS;
     if(js_config(m->si,"register") == NULL) return M_PASS;
 
-    log_debug("mod_register","updating");
+    log_debug("mod_register","updating server: %s, user %s",m->packet->from->server,jid_full(m->packet->from));
 
     /* check for their registration */
-    reg =  xdb_get(m->si->xc, m->packet->to->server, m->packet->to, NS_REGISTER);
+    reg =  xdb_get(m->si->xc, m->packet->from->server, m->packet->from, NS_REGISTER);
 
     switch(jpacket_subtype(m->packet))
     {
