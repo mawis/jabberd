@@ -116,7 +116,19 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         deliver(dpacket_new(x),r->i);
         break;
 
-    default:
+    case XSTREAM_ERR:
+        pth_write(r->sock,"<stream::error>You sent malformed XML</stream:error>",52);
+    case XSTREAM_CLOSE:
+        if (r->state == state_AUTHD)
+        {
+            /* notify the session manager */
+            h = xmlnode_new_tag("message");
+            jutil_error(h,TERROR_DISCONNECTED);
+            xmlnode_put_attrib(h,"sto",r->host);
+            xmlnode_put_attrib(h,"sfrom",r->id);
+            deliver(dpacket_new(h),r->i);
+        }
+        r->state = state_CLOSING;
     }
 }
 
@@ -124,19 +136,8 @@ int pthsock_client_close(reader r)
 {
     xmlnode x;
     reader cur, prev;
-    int rc;
 
     log_debug(ZONE,"read thread exiting for %d",r->sock);
-
-    rc = xstream_eat(r->xs,NULL,0);
-
-    if (rc == XSTREAM_ERR)
-    {
-        pth_write(r->sock,"<stream::error>You sent malformed XML</stream:error>",52);
-        pth_write(r->sock,"</stream:stream>",16);
-    }
-    else if (rc == XSTREAM_CLOSE || r->state == state_CLOSING)
-        pth_write(r->sock,"</stream:stream>",16);
 
     if (r->state != state_CLOSING)
     {
@@ -146,6 +147,8 @@ int pthsock_client_close(reader r)
         xmlnode_put_attrib(x,"sfrom",r->id);
         deliver(dpacket_new(x),r->i);
     }
+    else
+        pth_write(r->sock,"</stream:stream>",16);
 
     /* remove connection from the list */
     for (cur = pthsock_client__conns,prev = NULL; cur != NULL; prev = cur,cur = cur->next)
@@ -168,13 +171,14 @@ int pthsock_client_write(reader r, dpacket p)
 
     log_debug(ZONE,"incoming message for %d",r->sock);
 
-    /* check to see if it's the session manager killing the session */
+    /* check to see if the session manager killed the session */
     if (*(xmlnode_get_name(p->x)) == 'm')
         if (j_strcmp(xmlnode_get_attrib(p->x,"type"),"error") == 0)
             if (j_strcmp(xmlnode_get_attrib(xmlnode_get_tag(p->x,"error"),"code"),"510") == 0)
             {
                 log_debug(ZONE,"received disconnect message from session manager");
                 r->state = state_CLOSING;
+                pth_write(r->sock,"<stream:error>Disconnected</stream:error>",41);
                 return 0;
             }
 
@@ -211,22 +215,21 @@ int pthsock_client_write(reader r, dpacket p)
 void *pthsock_client_main(void *arg)
 {
     pth_msgport_t wmp = (pth_msgport_t) arg, amp;
+    pth_event_t aevt, wevt, tevt, ering;
     fd_set rfds;
-    int selc;
-    int maxfd = 0;
-    reader cur;
-    char buff[1024], *block;
+    reader cur, r;
     drop d;
-    int len, rc;
-    reader r;
-    pth_event_t aevt, wevt, ering;
+    char buff[1024], *block;
+    int len, selc, maxfd;
 
     amp =  pth_msgport_find("pthsock_client_amp");
     aevt = pth_event(PTH_EVENT_MSG,amp);
     wevt = pth_event(PTH_EVENT_MSG,wmp);
-    ering = pth_event_concat(aevt,wevt,NULL);
+    tevt = pth_event(PTH_EVENT_TIME, pth_timeout(0,10));
+    ering = pth_event_concat(aevt,wevt,tevt,NULL);
 
     FD_ZERO(&rfds);
+    maxfd = 0;
 
     while (1)
     {
@@ -250,8 +253,8 @@ void *pthsock_client_main(void *arg)
                     }
 
                     log_debug(ZONE,"read %d bytes",len);
-                    rc = xstream_eat(cur->xs,buff,len);
-                    if (rc > XSTREAM_NODE || cur->state == state_CLOSING)
+                    xstream_eat(cur->xs,buff,len);
+                    if (cur->state == state_CLOSING)
                     {
                         FD_CLR(cur->sock,&rfds);
                         pthsock_client_close(cur);
@@ -270,8 +273,14 @@ void *pthsock_client_main(void *arg)
             if (d == NULL) break;
 
             log_debug(ZONE,"write");
-            if (pthsock_client_write(d->r,d->p) == 0)
+            r = d->r;
+            if (pthsock_client_write(r,d->p) == 0)
             {
+                if (r->state != state_CLOSING)
+                {
+                    log_debug(ZONE,"pth_write failed");
+                }
+
                 FD_CLR(d->r->sock,&rfds);
                 pthsock_client_close(d->r);
             }
