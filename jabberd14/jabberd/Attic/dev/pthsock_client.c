@@ -203,7 +203,7 @@ void pthsock_client_close(csock c)
 {
     xmlnode x;
 
-    log_debug(ZONE,"read thread exiting for %d",c->sock);
+    log_debug(ZONE,"closing socket '%d'",c->sock);
 
     if (c->state != state_CLOSING)
     {
