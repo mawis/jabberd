@@ -1016,10 +1016,26 @@ xmlnode xmlnode_wrap(xmlnode x,const char *wrapper)
     return wrap;
 }
 
+void _xmlnode_free(xmlnode node)
+{
+    xmlnode cur;
+    /* free all children */
+
+
+    if(node != NULL && node->full != NULL)
+        free(node->full);
+    else
+        return;
+
+    for(cur = xmlnode_get_firstchild(node); cur != NULL; cur = xmlnode_get_nextsibling(cur))
+        _xmlnode_free(cur);    
+}
+
 void xmlnode_free(xmlnode node)
 {
     if(node == NULL)
         return;
 
+    _xmlnode_free(node);
     pool_free(node->p);
 }
