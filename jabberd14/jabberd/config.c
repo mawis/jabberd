@@ -289,7 +289,7 @@ void register_config(char *node, cfhandler f, void *arg)
     cfhandlers__p = jabberd__runtime;
 
     /* create and setup */
-    newg = pmalloc_x(cfhandlers__p, sizeof(_cfg), 0);
+    newg = pmalloco(cfhandlers__p, sizeof(_cfg));
     newg->node = pstrdup(cfhandlers__p,node);
     newg->f = f;
     newg->arg = arg;
@@ -386,7 +386,7 @@ int instance_startup(xmlnode x, int exec)
     {
         jid temp;
         p = pool_new();
-        newi = pmalloc_x(p, sizeof(_instance), 0);
+        newi = pmalloco(p, sizeof(_instance));
         newi->id = pstrdup(p,xmlnode_get_attrib(x,"id"));
         newi->type = type;
         newi->p = p;
