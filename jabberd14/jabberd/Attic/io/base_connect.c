@@ -205,7 +205,7 @@ void* base_connect_process_io(void* arg)
 	  /* Sleep for a bit... */
 	  if (ci->socket < 0) 
 	       pth_nap(pth_time(5, 0));
-     }
+    }
 
     /* Setup initial event ring for this socket */
      ci->e_read = pth_event(PTH_EVENT_FD|PTH_UNTIL_FD_READABLE, ci->socket);
@@ -218,6 +218,7 @@ void* base_connect_process_io(void* arg)
      headernode = xstream_header("jabber:component:accept", ci->inst->id, NULL);
      header = xstream_header_char(headernode);
      pth_write(ci->socket, header, strlen(header));
+     xmlnode_free(headernode);
 
      
      /* Loop on events */
@@ -260,8 +261,6 @@ void* base_connect_process_io(void* arg)
 	and reconnect -- messages in the queue don't need to be bounced */
 
      /* Cleanup.. */
-     if (headernode != NULL)
-        pool_free(headernode->p);
      close(ci->socket);
      ci->state  = conn_CLOSED;
      ci->socket = -1;
