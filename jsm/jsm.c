@@ -48,9 +48,37 @@ result jsm_stat(void *arg)
     return r_DONE;
 }
 
+int __jsm_shutdown(void *arg, const void *key, void *data)
+{
+    udata u = (udata)data;	/* cast the pointer into udata */
+    session cur;
+
+    for(cur = u->sessions; cur != NULL; cur = cur->next)
+    {
+        js_session_end(cur, "JSM shutdown");
+    }
+    return 1;
+}
+
+
+/* callback for walking the host hash tree */
+int _jsm_shutdown(void *arg, const void *key, void *data)
+{
+    HASHTABLE ht = (HASHTABLE)data;
+
+    log_debug(ZONE,"JSM SHUTDOWN: deleting users for host %s",(char*)key);
+
+    ghash_walk(ht,__jsm_shutdown,NULL);
+
+    return 1;
+}
+
 void jsm_shutdown(void *arg)
 {
     jsmi si = (jsmi)arg;
+
+    log_debug(ZONE, "JSM SHUTDOWN: Begining shutdown sequence");
+    ghash_walk(si->hosts,_jsm_shutdown,arg);
     ghash_destroy(si->hosts);
     xmlnode_free(si->config);
 }

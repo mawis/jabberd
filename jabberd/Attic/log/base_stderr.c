@@ -37,13 +37,13 @@ result base_stderr_display(instance i, dpacket p, void* args)
     /* Get the raw data from the packet */
     message = xmlnode_get_data(p->x);
 
-    if (message == NULL)
+    if(message == NULL)
     {
-        log_debug(ZONE,"base_stderr_deliver: no message available to print.\n");
+        log_debug(ZONE,"base_stderr_deliver: no message available to print.");
         return r_ERR;
     }
 
-    // We know message is non-null so fprintf is okay.
+    /* We know message is non-null so fprintf is okay. */
     fprintf(stderr, "%s\n", message);
 
     pool_free(p->p);
@@ -53,30 +53,24 @@ result base_stderr_display(instance i, dpacket p, void* args)
 result base_stderr_config(instance id, xmlnode x, void *arg)
 {
     if(id == NULL)
-    {
-        log_debug(ZONE,"base_stderr_config validating configuration\n");
         return r_PASS;
-    }
 
-    /* XXX this is an ugly hack, but it's better than a bad config */
-    /* XXX needs to be a way to validate this in the checking phase */
-    if(id->type!=p_LOG)
+    if(id->type != p_LOG)
     {
-        fprintf(stderr,"ERROR: <stderr/> element only allowed in log sections\n");
-        exit(1);
+        log_alert(NULL, "ERROR in instance %s: <stderr/> element only allowed in log sections", id->id);
+        return r_ERR;
     }
 
+    log_debug(ZONE,"base_stderr configuring instnace %s",id->id);
 
     /* Register the handler, for this instance */
-    register_phandler(id, o_DELIVER, base_stderr_display, (void*) 0);
+    register_phandler(id, o_DELIVER, base_stderr_display, NULL);
 
-    log_debug(ZONE,"base_stderr_config performing configuration %s\n",xmlnode2str(x));
     return r_DONE;
 }
 
 void base_stderr(void)
 {
-    log_debug(ZONE,"base_stderr loading...\n");
-
-    register_config("stderr",base_stderr_config,NULL);
+    log_debug(ZONE,"base_stderr loading...");
+    register_config("stderr", base_stderr_config, NULL);
 }
