@@ -60,15 +60,15 @@ fi
 # Setup our initial flags
 ##
 if [ -n "$CC" ]; then
-    CC=$CC;
+    CC="$CC";
 else
-    CC=gcc;
+    CC="gcc";
 fi;
-CFLAGS=$CFLAGS "-g -Wall -fPIC -I./ -I../ $XODE_CFLAGS $JABBER_CFLAGS $PTH_CFLAGS"
-MCFLAGS=$MCFLAGS "-shared"
-LDFLAGS=$LDFLAGS "$XODE_LDFLAGS $JABBER_LDFLAGS $PTH_LDFLAGS"
-LIBS=$LIBS "$XODE_LIBS $JABBER_LIBS $PTH_LIBS"
-XLDFLAGS= $XLDFLAGS ""
+CFLAGS="$CFLAGS -g -Wall -fPIC -I./ -I../ $XODE_CFLAGS $JABBER_CFLAGS $PTH_CFLAGS"
+MCFLAGS="$MCFLAGS -shared"
+LDFLAGS="$LDFLAGS $XODE_LDFLAGS $JABBER_LDFLAGS $PTH_LDFLAGS"
+LIBS="$LIBS $XODE_LIBS $JABBER_LIBS $PTH_LIBS"
+XLDFLAGS="$XLDFLAGS "
 
 ##
 # Check the host type and change flags as necessary
