@@ -390,6 +390,12 @@
   <!--
   You might want handle the accounts of your users in SQL using
   a database backend. Uncomment the following section for this.
+
+  You should be able to use your existing database layout if you
+  configure the right SQL queries for it. The example below
+  expects a table "users" with at least two fields "jid" and
+  "password". You are free to have other fields in this table
+  as well, they will be ignored.
   -->
   <!--
   <xdb id="xdbsql">
