@@ -70,42 +70,41 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
     switch(type)
     {
     case XSTREAM_ROOT:
-        if(sd->type==conn_IN)
+        if(sd->type==conn_OUT)
         {
-            if(xmlnode_get_attrib(x,"xmlns:etherx")==NULL&&
-               xmlnode_get_attrib(x,"etherx:secret")==NULL)
-            {
-                to=xmlnode_get_attrib(x,"to");
-                if(sd->to==NULL)
-                    sd->to=pstrdup(c->p,to);
-                if(to==NULL)
-                {
-                    io_write_str(c,"<stream::error>You didn't send your to='host' attribute.</stream:error>");
-                    io_close(c);
-                    sd->type = conn_CLOSED;
-                }
-                else
-                {
-                    h=xstream_header("jabber:server",NULL,to);
-                    block = xstream_header_char(h);
-                    io_write_str(c,block);
-                    xmlnode_free(h);
-                }
-            }
-            else
-            {
-                io_write_str(c,"<stream::error>Transport Access is Denied</stream:error>");
-                io_close((sock)sd->arg);
-                sd->type = conn_CLOSED;   /* it wants to be a transport, to bad */
-            }
-        }
-        else
-        { /* we finnally connected, dump the queue */
             wbq q;
             while((q=(wbq)pth_msgport_get(sd->queue))!=NULL)
                 io_write(c,q->x);
+            xmlnode_free(x);
+            break;
         }
 
+        if(xmlnode_get_attrib(x,"xmlns:etherx")==NULL&&
+           xmlnode_get_attrib(x,"etherx:secret")==NULL)
+        {
+            to=xmlnode_get_attrib(x,"to");
+            if(sd->to==NULL)
+                sd->to=pstrdup(c->p,to);
+            if(to==NULL)
+            {
+                io_write_str(c,"<stream::error>You didn't send your to='host' attribute.</stream:error>");
+                io_close(c);
+                sd->type = conn_CLOSED;
+            }
+            else
+            {
+                h=xstream_header("jabber:server",NULL,to);
+                block = xstream_header_char(h);
+                io_write_str(c,block);
+                xmlnode_free(h);
+            }
+        }
+        else
+        {
+            io_write_str(c,"<stream::error>Transport Access is Denied</stream:error>");
+            io_close((sock)sd->arg);
+            sd->type = conn_CLOSED;   /* it wants to be a transport, to bad */
+        }
         xmlnode_free(x);
         break;
     case XSTREAM_NODE:
@@ -116,7 +115,6 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
             xmlnode_free(x);
             break;
         }
-        log_debug(ZONE,"node received for %d",c->fd);
 
         xmlnode_hide_attrib(x,"etherx:from");
         xmlnode_hide_attrib(x,"etherx:to");
@@ -140,11 +138,10 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
         }
         break;
     case XSTREAM_ERR:
-        log_debug(ZONE,"failed to parse XML for %d",c->fd);
         io_write_str(c,"<stream::error>You sent malformed XML</stream:error>");
     case XSTREAM_CLOSE:
         /* they closed there connections to us */
-        log_debug(ZONE,"closing XML stream for %d",c->fd);
+        log_debug(ZONE,"closing XML stream to %d",sd->to);
         io_close(c);
         xmlnode_free(x);
     }
@@ -161,10 +158,9 @@ void pthsock_server_read(sock c,char *buffer,int bufsz,int flags,void *arg)
     switch(flags)
     {
     case IO_INIT:
-        log_debug(ZONE,"io_select INIT event");
         break;
     case IO_NEW:
-        log_debug(ZONE,"io_select NEW socket connected at %d",c->fd);
+        log_debug(ZONE,"NEW server socket connected at %d",c->fd);
         sd=(sdata)c->arg;
         if(sd==NULL)
         { /* if this is an incoming connection, there is no sdata */
@@ -175,11 +171,12 @@ void pthsock_server_read(sock c,char *buffer,int bufsz,int flags,void *arg)
             sd->i = si;
         }
         else 
-        { /* we already have an sdata for outgoing conns */
+        {   /* we already have an sdata for outgoing conns  */
             /* once we made the connection, send the header */
             xmlnode x=xstream_header("jabber:server",sd->to,NULL);
+            /* notify jabberd's deliver to send us */
+            /* packets to this host                */
             register_instance(si->i,sd->to);
-            log_debug(ZONE,"\n\n\n%s\n\n\n",xstream_header_char(x));
             sd->arg=(void*)c;
             io_write_str(c,xstream_header_char(x));
             xmlnode_free(x);
@@ -188,7 +185,6 @@ void pthsock_server_read(sock c,char *buffer,int bufsz,int flags,void *arg)
         c->xs = xstream_new(c->p,(void*)pthsock_server_in,(void*)c);
         break;
     case IO_NORMAL:
-        log_debug(ZONE,"io_select NORMAL data");
         ret=xstream_eat(c->xs,buffer,bufsz);
         break;
     case IO_CLOSED:
@@ -276,7 +272,6 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
         port=5269;
     }
 
-
     log_debug(ZONE,"pthsock_server looking up %s",ip);
 
     if (from)
@@ -308,6 +303,8 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
         io_select_connect(ip,port,(void*)sd,pthsock_server_read,(void*)si);
     }
 
+    xmlnode_hide_attrib(q->x,"etherx:from");
+    xmlnode_hide_attrib(q->x,"etherx:to");
     xmlnode_hide_attrib(q->x,"sto");
     xmlnode_hide_attrib(q->x,"sfrom");
     xmlnode_hide_attrib(q->x,"ip");
