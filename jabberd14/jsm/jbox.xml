@@ -23,27 +23,7 @@
         <file>util.o</file>
       </macro>
       <macro name='EXOBJECTS'>
-        <file>modules/mod_admin.o</file>
-        <file>modules/mod_agents.o</file>
-        <file>modules/mod_announce.o</file>
-        <file>modules/mod_archive.o</file>
-        <file>modules/mod_auth_0k.o</file>
-        <file>modules/mod_auth_digest.o</file>
-        <file>modules/mod_auth_plain.o</file>
-        <file>modules/mod_browse.o</file>
-        <file>modules/mod_echo.o</file>
-        <file>modules/mod_filter.o</file>
-        <file>modules/mod_groups.o</file>
-        <file>modules/mod_last.o</file>
-        <file>modules/mod_log.o</file>
-        <file>modules/mod_offline.o</file>
-        <file>modules/mod_presence.o</file>
-        <file>modules/mod_register.o</file>
-        <file>modules/mod_roster.o</file>
-        <file>modules/mod_time.o</file>
-        <file>modules/mod_vcard.o</file>
-        <file>modules/mod_version.o</file>
-        <file>modules/mod_xml.o</file>
+	<macro project='modules'>OBJECTS</macro>
       </macro>
       <compile>
  	<objectfile macro='OBJECTS'>
