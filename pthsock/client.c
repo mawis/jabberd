@@ -50,9 +50,8 @@ typedef struct smi_st
 {
     instance i;
     int auth_timeout;
-    xmlnode cfg;
     HASHTABLE aliases;
-    pth_msgport_t wmp;
+    xmlnode cfg;
     char *host;
 } *smi, _smi;
 
@@ -320,7 +319,7 @@ void pthsock_client_read(sock c,char *buffer,int bufsz,int flags,void *arg)
         cd=(cdata)c->arg;
         if(cd == NULL) break;
         log_debug(ZONE,"io_select Socket %d close notification",c->fd);
-        if(cd->state==state_AUTHD)
+        if(cd != NULL && cd->state == state_AUTHD)
         {
             x=pthsock_make_route(NULL,jid_full(cd->host),cd->id,"error");
             deliver(dpacket_new(x),((smi)cd->i)->i);
@@ -328,7 +327,7 @@ void pthsock_client_read(sock c,char *buffer,int bufsz,int flags,void *arg)
         else
         {
             wbq q;
-            if(cd->pre_auth_mp!=NULL)
+            if(cd != NULL && cd->pre_auth_mp != NULL)
             { /* if there is a pre_auth queue still */
                 while((q=(wbq)pth_msgport_get(cd->pre_auth_mp))!=NULL)
                     xmlnode_free(q->x);
@@ -375,6 +374,14 @@ result pthsock_client_heartbeat(void *arg)
     return r_DONE;
 }
 
+/* cleanup function */
+void pthsock_client_shutdown(void *arg)
+{
+    smi si = (smi)arg;
+    ghash_destroy(si->aliases);
+    xmlnode_free(si->cfg);
+}
+
 /* everything starts here */
 void pthsock_client(instance i, xmlnode x)
 {
@@ -390,11 +397,7 @@ void pthsock_client(instance i, xmlnode x)
     si = pmalloco(i->p,sizeof(_smi));
     si->auth_timeout=DEFAULT_AUTH_TIMEOUT;
     si->i = i;
-    si->aliases=ghash_create(20,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
-
-
-    /* write mp */
-    si->wmp = pth_msgport_create("pthsock_client_wmp");
+    si->aliases=ghash_create(27,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
 
     /* get the config */
     xc = xdb_cache(i);
@@ -478,7 +481,9 @@ void pthsock_client(instance i, xmlnode x)
     }
 
     /* register data callbacks */
-    io_select_listen_ex(atoi(port),NULL,pthsock_client_read,(void*)si,rate_time,rate_points,&k);
-    register_phandler(i,o_DELIVER,pthsock_client_packets,(void*)si);
-    register_beat(1,pthsock_client_heartbeat,(void*)si);
+    log_debug(ZONE,"looking at: %s\n",port);
+    io_select_listen_ex(atoi(port), NULL, pthsock_client_read, (void*)si, rate_time, rate_points, &k);
+    register_phandler(i,o_DELIVER,pthsock_client_packets, (void*)si);
+    register_beat(1,pthsock_client_heartbeat, (void*)si);
+    register_shutdown(pthsock_client_shutdown, (void*)si);
 }
