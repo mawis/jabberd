@@ -1,3 +1,11 @@
+2004-04-13  Matthias Wimmer  <m@tthias.net>
+
+    * clients.c: Make the flash hack optional, general cleanup
+    * configure.in: same
+    * conn.c: same
+    * connect.c: same
+    * jadc2s.h: same
+
 2004-04-04  Matthias Wimmer  <m@tthias.net>
 
     * clients.c: Optional autodetection if SSL/TLS is used on port 5223
