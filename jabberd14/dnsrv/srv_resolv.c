@@ -1,4 +1,5 @@
 #include <resolv.h>
+#include <arpa/nameser.h>
 
 #include "jabberd.h"
 #include "srv_resolv.h"
