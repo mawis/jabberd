@@ -1,5 +1,5 @@
 This file contains a short introduction using SQL (MySQL or PostgreSQL)
-as storage for jabberd 1.4.4 beta2.
+as storage for jabberd 1.4.4 RC1.
 
 The xdb_sql storage module does not define any database layout by itself,
 you define how your tables are organized yourself and can create queries
@@ -31,6 +31,17 @@ CREATE TABLE presence (
 
 CREATE UNIQUE INDEX jid ON presence (jid(16));
 
+CREATE TABLE messages (
+    jid TEXT NOT NULL,
+    correspondent TEXT NOT NULL,
+    type ENUM('offline', 'recv', 'sent') NOT NULL,
+    storetime datetime NOT NULL,
+    delivertime datetime,
+    subject TINYTEXT,
+    body TEXT NOT NULL,
+    xml TEXT NOT NULL);
+
+CREATE UNIQUE INDEX jid ON messages (jid(16));
 
 
 If you use virtual hosting of multiple domains on your server, I would
