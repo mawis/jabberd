@@ -186,6 +186,7 @@ void io_write_str(sock c,char *buffer)
 {
     wbq q;
     pool p=pool_new();
+
     if(c->wbuffer!=NULL)
     {
         q=pmalloco(p,sizeof(_wbq));
@@ -336,19 +337,19 @@ void _io_main(void *arg)
                 _io_close(temp);
                 continue;
             }
-            else if(FD_ISSET(cur->fd,&rfds)&&cur->type==type_LISTEN) 
-            {   /* new connection */
-                c=_io_accept(cur);
-                if(c!=NULL) 
+            if(FD_ISSET(cur->fd,&rfds))
+            {
+                /* new connection */
+                if(cur->type==type_LISTEN && (c = _io_accept(cur)) != NULL)
                 {
                     (*(io_cb)c->cb)(c,NULL,0,IO_NEW,c->cb_arg);
                     io_link(c);
                     FD_SET(c->fd,&all_rfds);           
                     if(c->fd>maxfd)maxfd=c->fd;
+                    continue;
                 }
-            }
-            else if (FD_ISSET(cur->fd,&rfds))
-            { /* we need to read from a socket */
+
+                /* we need to read from a socket */
                 maxlen=KARMA_READ_MAX(cur->k.val);
                 len = read(cur->fd,buff,maxlen);
                 if(len==0)
@@ -399,7 +400,7 @@ void _io_main(void *arg)
                     (*(io_cb)cur->cb)(cur,buff,len,IO_NORMAL,cur->cb_arg);
                 }
             }
-            else if(FD_ISSET(cur->fd,&wfds)||cur->xbuffer!=NULL)
+            if(FD_ISSET(cur->fd,&wfds)||cur->xbuffer!=NULL)
             {   /* write the current buffer */
                 int ret=_io_write_dump(cur);
                 if(ret<0)
