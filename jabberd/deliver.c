@@ -292,7 +292,7 @@ void register_instance(instance i, char *host)
     ht = deliver_hashtable(i->type);
     l = ghash_get(ht, host);
     l = ilist_add(l, i);
-    ghash_put(ht, host, (void *)l);
+    ghash_put(ht, pstrdup(i->p,host), (void *)l);
 }
 
 void unregister_instance(instance i, char *host)
@@ -308,7 +308,7 @@ void unregister_instance(instance i, char *host)
     if(l == NULL)
         ghash_remove(ht, host);
     else
-        ghash_put(ht, host, (void *)l);
+        ghash_put(ht, pstrdup(i->p,host), (void *)l);
 }
 
 result deliver_config_host(instance i, xmlnode x, void *arg)
@@ -351,7 +351,9 @@ result deliver_config_ns(instance i, xmlnode x, void *arg)
 
     ns = xmlnode_get_data(x);
     if(ns == NULL)
-        ns = star;
+        ns = pstrdup(xmlnode_pool(x),star);
+
+    log_debug(ZONE,"Registering namespace %s with instance %s",ns,i->id);
 
     if(deliver__ns == NULL)
         deliver__ns =  ghash_create_pool(jabberd__runtime, 401,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
@@ -376,7 +378,9 @@ result deliver_config_logtype(instance i, xmlnode x, void *arg)
 
     type = xmlnode_get_data(x);
     if(type == NULL)
-        type = star;
+        type = pstrdup(xmlnode_pool(x),star);
+
+    log_debug(ZONE,"Registering logtype %s with instance %s",type,i->id);
 
     if(deliver__logtype == NULL)
         deliver__logtype =  ghash_create_pool(jabberd__runtime, 401,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);

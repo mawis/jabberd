@@ -321,7 +321,8 @@ void _js_session_end(void *arg)
     s->u->scount--;
 
     /* make sure the service knows the session is gone */
-    js_session_route(s, NULL);
+    if(s->sid != NULL)
+        js_session_route(s, NULL);
 
     /* let the modules have their heyday */
     js_mapi_call(NULL, es_END, NULL, s->u, s);

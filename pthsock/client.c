@@ -115,12 +115,12 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     { 
         if (j_strcmp(xmlnode_get_attrib(p->x, "type"), "error") == 0)
         { /* we got a 510, but no session to end */
-            log_notice(p->host, "C2S received Session close for non-existant session: %s", xmlnode_get_attrib(p->x, "from"));
+            log_debug(ZONE, "C2S received Session close for non-existant session: %s", xmlnode_get_attrib(p->x, "from"));
             xmlnode_free(p->x);
             return r_DONE;
         }
 
-        log_notice(p->host, "C2S connection not found for %s, closing session", xmlnode_get_attrib(p->x, "from"));
+        log_debug(ZONE, "C2S connection not found for %s, closing session", xmlnode_get_attrib(p->x, "from"));
 
         jutil_tofrom(p->x);
         xmlnode_put_attrib(p->x, "type", "error");
@@ -132,7 +132,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     log_debug(ZONE, "C2S: %s has an active session, delivering packet", xmlnode_get_attrib(p->x, "from"));
     if (j_strcmp(xmlnode_get_attrib(p->x, "type"), "error") == 0)
     { /* <route type="error" means we were disconnected */
-        log_notice(p->host, "C2S closing down session %s at request of session manager", xmlnode_get_attrib(p->x, "from"));
+        log_debug(ZONE, "C2S closing down session %s at request of session manager", xmlnode_get_attrib(p->x, "from"));
         mio_write(m, NULL, "<stream:error>Disconnected</stream:error></stream:stream>", -1);
         mio_close(m);
         xmlnode_free(p->x);
@@ -148,7 +148,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
             log_debug(ZONE, "auth for user successful");
             /* notify SM to start a session */
             x = pthsock_make_route(NULL, jid_full(cdcur->session_id), cdcur->client_id, "session");
-            log_notice(p->host, "C2S requesting Session Start for %s", xmlnode_get_attrib(p->x, "from"));
+            log_debug(ZONE, "C2S requesting Session Start for %s", xmlnode_get_attrib(p->x, "from"));
             deliver(dpacket_new(x), s__i->i);
         } 
         else if(j_strcmp(type,"error") == 0)
