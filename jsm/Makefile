@@ -20,12 +20,9 @@ jsm_OBJECTS = \
 
 jsm_EXOBJECTS = \
 	modules/mod_admin.o \
-	modules/mod_agents.o \
-	modules/mod_browse.o \
 	modules/mod_announce.o \
 	modules/mod_auth_plain.o \
 	modules/mod_auth_digest.o \
-	modules/mod_auth_0k.o \
 	modules/mod_echo.o \
 	modules/mod_filter.o \
 	modules/mod_groups.o \
