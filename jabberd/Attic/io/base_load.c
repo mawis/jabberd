@@ -76,6 +76,9 @@ result base_load_config(instance id, xmlnode x, void *arg)
     {
         if(xmlnode_get_type(so) != NTYPE_TAG) continue;
 
+        if(init == NULL && flag)
+            return r_ERR; /* you can't have two elements in a load w/o a main attrib */
+
         f = base_load_symbol(xmlnode_get_name(so), xmlnode_get_data(so));
         if(f == NULL)
             return r_ERR;
