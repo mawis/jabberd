@@ -1,7 +1,7 @@
 EXTRA_DIST = generateSSLkey UPGRADE jabber.xml.dist.in
 
-SUBDIRS = jabberd dialback dnsrv jsm pthsock xdb_file ac-helpers
-DIST_SUBDIRS = jabberd dialback dnsrv jsm pthsock xdb_file ac-helpers
+SUBDIRS = jabberd dialback dnsrv jsm pthsock xdb_file ac-helpers man
+DIST_SUBDIRS = jabberd dialback dnsrv jsm pthsock xdb_file ac-helpers man
 
 sysconf_DATA = jabber.xml.dist
 
@@ -13,6 +13,10 @@ spooldir = $(localstatedir)/spool/jabberd
 
 spool_DATA =
 
+rundir = $(localstatedir)/run/jabberd
+
+run_DATA =
+
 edit = sed \
        -e 's,\@sysconfdir\@,$(sysconfdir),g' \
        -e 's,\@localstatedir\@,$(localstatedir),g' \
@@ -21,10 +25,6 @@ edit = sed \
 $(sysconf_DATA):
 	@echo "generating $@ from $@.in"; \
 	edit='$(edit)'; \
-	list='$(jabberd_bin)'; for p in $$list; do \
-	bin=`echo "$$p" | sed 's,^.*/,,;$(transform);s/$$/$(EXEEXT)/'`; \
-	edit="$$edit -e s,@jabberd_$$p\_bin\\@,$$bin,g"; \
-	done; \
 	rm -f $@ $@.tmp; \
 	eval "$$edit < $@.in > $@.tmp"; \
 	mv $@.tmp $@
@@ -39,3 +39,6 @@ install-data-hook:
 		$(INSTALL_DATA) $$p $(DESTDIR)$(sysconfdir)/$$dest; \
 	    fi; \
 	done
+
+clean-local:
+	rm -f $(sysconf_DATA)

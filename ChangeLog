@@ -38,6 +38,10 @@
     * jabberd/lib/jabberdlib.h: same (to make it installable)
     * jabberd/lib/snprintf.c: only define TRUE and FALSE if not defined yet
     * jabberd/Makefile.am: merging libjabberd.so and libjabberdlib.so
+    * jabber.xml.dist.in: pidfile in $localstatedir/run/jabberd
+    * man/jabber.xml.5.in: man page for the configuration file
+    * man/jabberd.8.in: man page for the jabber daemon
+    * man/Makefile.am: providing first man pages
 
 2004-05-20  Matthias Wimmer  <m@tthias.net>
 
