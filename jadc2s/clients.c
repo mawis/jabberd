@@ -40,19 +40,14 @@
 
 #include "jadc2s.h"
 
-
-/* these flags are for processing cdata specially */
-#define CDATA_NONE 0
-#define CDATA_USERNAME 1
-#define CDATA_RESOURCE 2
-
+static char header_start[] = "<stream:stream xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams'";
 
 /* handle new elements */
 void _client_startElement(void *arg, const char* name, const char** atts)
 {
     conn_t c = (conn_t)arg;
     int i = 0, error;
-    char *header, *header_start, *header_from, *header_id, *header_end;
+    char *header, *header_from, header_id[30], header_end[3];
     char sid[24];
 
     if (c->flash_hack == 1)
@@ -150,35 +145,22 @@ void _client_startElement(void *arg, const char* name, const char** atts)
         /* XXX fancier algo for id generation? */
         snprintf(sid, 24, "%d", rand());
 
-        header_start = malloc( 85 );
-        sprintf(header_start,"<stream:stream xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams'");
-
         header_from = malloc( 9 + strlen(c->c2s->local_id) );
         sprintf(header_from, " from='%s'", c->c2s->local_id);
 
-        header_id = malloc( 30 );
         sprintf(header_id, " id='%s'", sid);
 
         if (c->type == type_FLASH)
-        {
-            header_end = malloc(3);
-            sprintf(header_end,"/>");
-        }
+            strcpy(header_end,"/>");
         else
-        {
-            header_end = malloc(2);
-            sprintf(header_end,">");
-        }
+            strcpy(header_end,">");
 
         header = malloc( strlen(header_start) + strlen(header_from) + strlen(header_id) + strlen(header_end) + 1);
         sprintf(header,"%s%s%s%s",header_start,header_from,header_id,header_end);
         
         _write_actual(c,c->fd,header,strlen(header));
         free(header);
-        free(header_start);
         free(header_from);
-        free(header_id);
-        free(header_end);
 
         c->sid = strdup(sid);
         /* set up smid based on to="" host */
@@ -258,6 +240,11 @@ void _client_process(conn_t c) {
         return;
     
     log_debug(ZONE, "tag(%s)",NAD_ENAME(chunk->nad, 0));
+
+    //
+    // XXX Fix the register stuff... Right now you can't request the fields
+    // because it requires a username.
+    //
 
     /* handle auth requests */
     if((j_strncmp(NAD_ENAME(chunk->nad, 0), "iq", 2) == 0) && 
