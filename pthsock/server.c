@@ -86,7 +86,7 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
                 sd->to=pstrdup(c->p,to);
             if(to==NULL)
             {
-                io_write_str(c,"<stream::error>You didn't send your to='host' attribute.</stream:error>");
+                io_write_str(c,"<stream:error>You didn't send your to='host' attribute.</stream:error>");
                 io_close(c);
                 sd->type = conn_CLOSED;
             }
@@ -100,7 +100,7 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
         }
         else
         {
-            io_write_str(c,"<stream::error>Transport Access is Denied</stream:error>");
+            io_write_str(c,"<stream:error>Transport Access is Denied</stream:error>");
             io_close((sock)sd->arg);
             sd->type = conn_CLOSED;   /* it wants to be a transport, to bad */
         }
@@ -137,7 +137,7 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
         break;
     case XSTREAM_ERR:
         log_debug(ZONE,"Bad XML: %s",(char*)x);
-        io_write_str(c,"<stream::error>You sent malformed XML</stream:error>");
+        io_write_str(c,"<stream:error>You sent malformed XML</stream:error>");
         x=NULL;
     case XSTREAM_CLOSE:
         /* they closed there connections to us */
