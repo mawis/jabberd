@@ -824,6 +824,6 @@ void mod_filter(jsmi si)
     xmlnode_put_attrib(mod_filter__default, "xmlns", NS_FILTER);
     xmlnode_insert_node(mod_filter__default, xmlnode_get_firstchild(rule));
 
-    log_notice("mod_filter", "mod_filter startup up... default server rule: %s", xmlnode2str(mod_filter__default));
+    log_debug("mod_filter", "mod_filter startup up... default server rule: %s", xmlnode2str(mod_filter__default));
 }
 
