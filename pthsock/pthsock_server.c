@@ -144,7 +144,7 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
     pool p;
     ssock s;
     char *to;
-    drop d, cur;
+    drop d;
     jid from;
 
     to = dp->id->server;
@@ -239,7 +239,7 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
         }
         else
             s->type = conn_CLOSED;   /* it wants to be a transport, to bad */
-
+        xmlnode_free(x);
         break;
 
     case XSTREAM_NODE:
@@ -312,6 +312,7 @@ int pthsock_server_write(ssi si, ssock s, dpacket p)
     {
         s->open = 0;
         pthsock_server_close(si,s);
+        pool_free(p->p);
         return 0;
     }
 
@@ -489,6 +490,7 @@ void *pthsock_server_main(void *arg)
             }
         }
     }
+    return NULL;
 }
 
 /* everything starts here */
