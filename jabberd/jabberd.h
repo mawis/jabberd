@@ -60,6 +60,7 @@ void register_beat(int freq, beathandler f, void *arg); /* register the function
 
 dpacket dpacket_new(xmlnode x); /* create a new delivery packet from source xml */
 dpacket dpacket_copy(dpacket p); /* copy a packet (and it's flags) */
+void deliver_fail(dpacket p, char *err); /* bounce a packet intelligently */
 void deliver(dpacket p, instance i); /* deliver packet from sending instance */
 
 /*** global logging symbols ***/

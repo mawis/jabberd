@@ -41,7 +41,7 @@ void jsm(instance i, xmlnode x)
     modcall module;
     int n;
 
-    log_debug(NULL,"jsm initializing for section '%s'",i->id);
+    log_debug(ZONE,"jsm initializing for section '%s'",i->id);
 
     /* create and init the jsm instance handle */
     si = pmalloco(i->p, sizeof(_jsmi));
