@@ -36,8 +36,7 @@ void _mio_xstream_endElement(mio m, const char* name)
        must be the closing ROOT tag, so notify and exit */
     if (m->stacknode == NULL)
     {
-        if(m->cb != NULL)
-	        (*(mio_std_cb)m->cb)(m, MIO_CLOSED, m->cb_arg);
+        mio_close(m);
     }
     else
     {

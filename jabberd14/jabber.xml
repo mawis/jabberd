@@ -15,6 +15,8 @@
     <!-- 
     Change hostname below to something other than "localhost", or use the "jabberd -h hostname" command line flag.
     Multiple <host>...</host> entries are allowed, each one is a seperate virtual server.
+
+    *********** make sure you change the hostname here, and down farther, under <update/>
     -->
     <host><jabberd:cmdline flag="h">localhost</jabberd:cmdline></host>
 
@@ -77,12 +79,21 @@
 
       <!-- List of IDs with administrative access, all will receive administrator messages
       <admin>
-        <read>support@localhost</read>
-        <write>admin@localhost</write>
+        <read>support</read>
+        <write>admin</write>
       </admin>
       -->
 
       <!-- Server version update notification, set to the server name so that all administrators (above) will be notified, or set to any ID -->
+      <!--
+      *
+      *
+      *
+      **************  Change this to the hostname of the server!!!
+      *
+      *
+      *
+      -->
       <update><jabberd:cmdline flag="h">localhost</jabberd:cmdline></update>
 
     </jsm>
