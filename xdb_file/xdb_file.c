@@ -25,7 +25,7 @@ gcc -fPIC -shared -o xdb_file.so xdb_file.c -I../src
 needs to have a spool section in the config:
 
 <load><xdb_file>../load/xdb_file.so</xdb_file></load>
-<xdb_file xmlns="jabberd:xdb_file:config">
+<xdb_file xmlns="jabber:config:xdb_file">
   <spool>/var/spool/jabber</spool>
 </xdb_file>
 
@@ -160,7 +160,7 @@ void xdb_file(instance i, xmlnode x)
     log_debug(ZONE,"xdb_file loading");
 
     xc = xdb_cache(i);
-    config = xdb_get(xc, NULL, jid_new(xmlnode_pool(x),"config@-internal"),"jabberd:xdb_file:config");
+    config = xdb_get(xc, NULL, jid_new(xmlnode_pool(x),"config@-internal"),"jabber:config:xdb_file");
 
     spl = xmlnode_get_tag_data(config,"spool");
     if(spl == NULL)
