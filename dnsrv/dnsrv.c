@@ -150,7 +150,7 @@ int dnsrv_child_main(dns_io di)
      while (1)
      {
         log_debug(ZONE, "DNSRV CHILD: Reading from buffer");
-       readlen = read(di->in, &readbuf, 1024);
+       readlen = pth_read(di->in, &readbuf, 1024);
        if(readlen > 0)
        {
         log_debug(ZONE, "DNSRV CHILD: eating read buffer");
