@@ -28,7 +28,6 @@
  * 
  * --------------------------------------------------------------------------*/
 
-#include <jabberd.h>
 #include "dialback.h"
 
 /* 
@@ -58,6 +57,7 @@ typedef struct dboq_struct
 typedef struct
 {
     char *ip;
+    int stamp;
     db d;
     jid key;
     xmlnode verifies;
@@ -65,6 +65,8 @@ typedef struct
     dboq q;
     mio m; /* for that short time when we're connected and open, but haven't auth'd ourselves yet */
 } *dboc, _dboc;
+
+void dialback_out_read(mio m, int flags, void *arg, xmlnode x);
 
 /* actually start up the connection */
 void dialback_out_connect(dboc c)
@@ -91,7 +93,7 @@ void dialback_out_connect(dboc c)
     {
         *col = '\0';
         col++;
-        port = atoi(colon);
+        port = atoi(col);
     }
     mio_connect(ip, port, dialback_out_read, (void *)c, 20, MIO_CONNECT_XML);
 }
@@ -100,8 +102,6 @@ dboc dialback_out_connection(db d, jid key, char *ip)
 {
     dboc c;
     pool p;
-    char *col;
-    int port;
 
     if((c = ghash_get(d->out_connecting, jid_full(key))) != NULL)
         return c;
@@ -124,6 +124,36 @@ dboc dialback_out_connection(db d, jid key, char *ip)
 
     /* start the conneciton process */
     dialback_out_connect(c);
+
+    return c;
+}
+
+/* kill the connection stuff */
+void dialback_out_connection_kill(dboc c)
+{
+    dboq cur, next;
+    xmlnode x;
+
+    log_notice(c->key->server,"failed to connect");
+    ghash_remove(c->d->out_connecting,jid_full(c->key));
+
+    /* bounce all queue'd packets */
+    cur = c->q;
+    while(cur != NULL)
+    {
+        next = cur->next;
+        deliver_fail(dpacket_new(cur->x),"Server Connect Timeout");
+        cur = next;
+    }
+
+    /* kill any validations waiting */
+    for(x = xmlnode_get_firstchild(c->verifies); x != NULL; x = xmlnode_get_nextsibling(x))
+    {
+        jutil_tofrom(x);
+        dialback_in_verify(c->d, xmlnode_dup(x)); /* it'll take these verifies and trash them */
+    }
+
+    pool_free(c->p);
 }
 
 void dialback_out_packet(db d, xmlnode x, char *ip)
@@ -178,7 +208,8 @@ void dialback_out_packet(db d, xmlnode x, char *ip)
     {
         if(c == NULL)
         {
-            dialback_in_packet(d, x); /* no connection to send db:verify to, bounce back to in to send failure */
+            jutil_tofrom(x); /* pretend it bounced */
+            dialback_in_verify(d, x); /* no connection to send db:verify to, bounce back to in to send failure */
             return;
         }
 
@@ -212,27 +243,27 @@ void dialback_out_packet(db d, xmlnode x, char *ip)
 
 
 /* handle the events on an outgoing dialback socket, which isn't much of a job */
-void dialback_out_read_db(mio s, int flags, void *arg, xmlnode x)
+void dialback_out_read_db(mio m, int flags, void *arg, xmlnode x)
 {
     db d = (db)arg;
 
     if(flags != MIO_XML_NODE) return;
 
     /* it's either a valid verify response, or bust! */
-    if(j_strcmp(xmlnode_get_name(x),"db:verify") == 0 && dialback_in_verify(d, x) != 0)
-        mio_write(m, NULL, "<stream:error>Invalid Dialback Verify!</stream:error>", -1);
-    else
-        mio_write(m, NULL, "<stream:error>Not Allowed to send data on this socket!</stream:error>", -1);
+    if(j_strcmp(xmlnode_get_name(x),"db:verify") == 0)
+    {
+        dialback_in_verify(d, x);
+        return;
+    }
 
+    mio_write(m, NULL, "<stream:error>Not Allowed to send data on this socket!</stream:error>", -1);
     mio_close(m);
     xmlnode_free(x);
 }
 
 /* handle the events on an outgoing legacy socket, in other words, nothing */
-void dialback_out_read_legacy(mio s, int flags, void *arg, xmlnode x)
+void dialback_out_read_legacy(mio m, int flags, void *arg, xmlnode x)
 {
-    db d = (db)arg;
-
     if(flags != MIO_XML_NODE) return;
 
     /* other data on the stream? naughty you! */
@@ -272,7 +303,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
         xmlnode_put_attrib(cur,"xmlns:db","jabber:server:dialback"); /* flag ourselves as dialback capable */
         mio_write(m, NULL, xstream_header_char(cur), -1);
         xmlnode_free(cur);
-        break;
+        return;
 
     case MIO_XML_ROOT:
         /* validate namespace */
@@ -294,7 +325,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
                 break;
             }
 
-            mio_reset(m, dialback_out_read_legacy, (void *)d); /* different handler now */
+            mio_reset(m, dialback_out_read_legacy, (void *)c->d); /* different handler now */
             md = dialback_miod_new(c->d, m); /* set up the mio wrapper */
             dialback_miod_hash(md, c->d->out_ok_legacy, c->key); /* this registers us to get stuff now */
             _dialback_out_qflush(md, c->q); /* flush the queue of packets */
@@ -302,7 +333,12 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
             break;
         }
 
-        /* XXX generate and send our result */
+        /* create and send our result request to initiate dialback */
+        cur = xmlnode_new_tag("db:result");
+        xmlnode_put_attrib(cur, "to", c->key->server);
+        xmlnode_put_attrib(cur, "from", c->key->resource);
+        xmlnode_insert_cdata(cur,  dialback_merlin(xmlnode_pool(cur), c->d->secret, c->key->server, xmlnode_get_attrib(x,"id")), -1);
+        mio_write(m,cur, NULL, 0);
 
         /* well, we're connected to a dialback server, we can at least send verify requests now */
         c->m = m;
@@ -320,15 +356,15 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
             if(j_strcmp(xmlnode_get_attrib(x,"from"),c->key->server) != 0 || j_strcmp(xmlnode_get_attrib(x,"to"),c->key->resource) != 0)
             { /* naughty... *click* */
                 log_warn(c->d->i->id,"Received illegal dialback validation remote %s != %s or to %s != %s",c->key->server,xmlnode_get_attrib(x,"from"),c->key->resource,xmlnode_get_attrib(x,"to"));
-                mio_write(c->s, NULL, "<stream:error>Invalid Dialback Result</stream:error>", -1);
-                mio_close(c->s);
+                mio_write(m, NULL, "<stream:error>Invalid Dialback Result</stream:error>", -1);
+                mio_close(m);
                 break;
             }
 
             /* process the returned result */
             if(j_strcmp(xmlnode_get_attrib(x,"type"),"valid") == 0)
             {
-                mio_reset(m, dialback_out_read_db, (void *)d); /* different handler now */
+                mio_reset(m, dialback_out_read_db, (void *)(c->d)); /* different handler now */
                 md = dialback_miod_new(c->d, m); /* set up the mio wrapper */
                 dialback_miod_hash(md, c->d->out_ok_db, c->key); /* this registers us to get stuff now */
                 _dialback_out_qflush(md, c->q); /* flush the queue of packets */
@@ -338,10 +374,13 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
         }
 
         /* otherwise it's either a valid verify response, or bust! */
-        if(j_strcmp(xmlnode_get_name(x),"db:verify") == 0 && dialback_in_verify(d, x) != 0)
-            mio_write(m, NULL, "<stream:error>Invalid Dialback Verify!</stream:error>", -1);
-        else
-            mio_write(m, NULL, "<stream:error>Not Allowed to send data on this socket!</stream:error>", -1);
+        if(j_strcmp(xmlnode_get_name(x),"db:verify") == 0)
+        {
+            dialback_in_verify(c->d, x);
+            return;
+        }
+
+        mio_write(m, NULL, "<stream:error>Not Allowed to send data on this socket!</stream:error>", -1);
         mio_close(m);
         break;
 
@@ -351,33 +390,11 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
         else
             dialback_out_connect(c); /* this one failed, try another */
         return;
+
+    default:
+        return;
     }
     xmlnode_free(x);
-}
-
-/* kill the connection stuff */
-void dialback_out_connection_kill(dboc c)
-{
-    dboq cur, next;
-    xmlnode x;
-
-    log_notice(c->key->server,"failed to connect");
-    ghash_remove(c->d->out_connecting,jid_full(c->key));
-
-    /* bounce all queue'd packets */
-    cur = c->q;
-    while(cur != NULL)
-    {
-        next = cur->next;
-        deliver_fail(dpacket_new(cur->x),"Server Connect Timeout");
-        cur = next;
-    }
-
-    /* kill any validations waiting */
-    for(x = xmlnode_get_firstchild(c->verifies); x != NULL; x = xmlnode_get_nextsibling(x))
-        dialback_in_packets(c->d, xmlnode_dup(x)); /* it'll take these verifies and trash them */
-
-    pool_free(c->p);
 }
 
 /* callback for walking the connecting hash tree */
@@ -391,7 +408,7 @@ int _dialback_out_beat_packets(void *arg, const void *key, void *data)
     cur = c->q;
     while(cur != NULL)
     {
-        if((now - cur->stamp) <= c->d->timeout_packet)
+        if((now - cur->stamp) <= c->d->timeout_packets)
         {
             last = cur;
             cur = cur->next;
@@ -411,8 +428,9 @@ int _dialback_out_beat_packets(void *arg, const void *key, void *data)
     return 1;
 }
 
-void dialback_out_beat_packets(d)
+result dialback_out_beat_packets(void *arg)
 {
+    db d = (db)arg;
     ghash_walk(d->out_connecting,_dialback_out_beat_packets,NULL);
     return r_DONE;
 }

@@ -58,7 +58,6 @@ A->B
     B: <db:result type="valid" to=A from=B/>
 */
 
-#include <jabberd.h>
 #include "dialback.h"
 
 /* we need a decently random string in a few places */
@@ -98,6 +97,8 @@ miod dialback_miod_new(db d, mio m)
     md->m = m;
     md->d = d;
     md->last = time(NULL);
+
+    return md;
 }
 
 /******* little wrapper to keep our hash tables in check ****/
@@ -106,7 +107,7 @@ struct miodc
     miod md;
     HASHTABLE ht;
     jid key;
-}
+};
 /* clean up a hashtable entry containing this miod */
 void _dialback_miod_hash_cleanup(void *arg)
 {
@@ -115,19 +116,14 @@ void _dialback_miod_hash_cleanup(void *arg)
         ghash_remove(mdc->ht,jid_full(mdc->key));
 
     /* cool place for logging, eh? interesting way of detecting things too, *g* */
-    switch(mdc->ht)
-    {
-    case mdc->md->d->out_ok_db:
-        log_record();
-        break;
-    case mdc->md->d->out_ok_legacy:
-        log_record();
-        break;
-    case mdc->md->d->in_ok:
-        log_record();
-        break;
-    default:
-        break;
+    if(mdc->ht == mdc->md->d->out_ok_db){
+        log_record(mdc->key->server, "out", "dialback", "%d %s %s", mdc->md->count, mdc->md->m->ip, mdc->key->resource);
+    }else if(mdc->ht == mdc->md->d->out_ok_legacy){
+        log_record(mdc->key->server, "out", "legacy", "%d %s %s", mdc->md->count, mdc->md->m->ip, mdc->key->resource);
+    }else if(mdc->ht == mdc->md->d->in_ok_db){
+        log_record(mdc->key->server, "in", "dialback", "%d %s %s", mdc->md->count, mdc->md->m->ip, mdc->key->resource);
+    }else if(mdc->ht == mdc->md->d->in_ok_legacy){
+        log_record(mdc->key->server, "in", "legacy", "%d %s %s", mdc->md->count, mdc->md->m->ip, mdc->key->resource);
     }
 }
 void dialback_miod_hash(miod md, HASHTABLE ht, jid key)
@@ -148,19 +144,23 @@ result dialback_packets(instance i, dpacket dp, void *arg)
     db d = (db)arg;
     xmlnode x = dp->x;
     char *ip = NULL;
-    pool p;
 
-    /* all packets going to our "id" go to the incoming handler, it uses that id to send out verifies to other servers, and end up here when they bounce */
-    if(j_strcmp(dp->host,d->i->id) == 0)
-    {
-        dialback_in_packet(d, x);
-        return r_DONE;
-    }
-
+    /* routes are from dnsrv w/ the needed ip */
     if(dp->type == p_ROUTE)
     {
         x = xmlnode_get_firstchild(x);
         ip = xmlnode_get_attrib(dp->x,"ip");
+    }
+
+    /* all packets going to our "id" go to the incoming handler, 
+     * it uses that id to send out db:verifies to other servers, 
+     * and end up here when they bounce */
+    if(j_strcmp(dp->host,d->i->id) == 0)
+    {
+        xmlnode_put_attrib(x,"to",xmlnode_get_attrib(x,"ofrom"));
+        xmlnode_hide_attrib(x,"ofrom"); /* repair the addresses */
+        dialback_in_verify(d, x);
+        return r_DONE;
     }
 
     dialback_out_packet(d, x, ip);
@@ -168,17 +168,26 @@ result dialback_packets(instance i, dpacket dp, void *arg)
 }
 
 
-/* callback for walking the host hash tree */
-int _dialback_beat(void *arg, const void *key, void *data)
+/* callback for walking each miod-value host hash tree */
+int _dialback_beat_idle(void *arg, const void *key, void *data)
 {
+    miod md = (miod)data;
+    if(((int)arg - md->last) >= md->d->timeout_idle)
+    {
+        mio_write(md->m, NULL, "<stream:error>Idle Timeout</stream:error>", -1);
+        mio_close(md->m);
+    }
     return 1;
 }
 
-/* heartbeat checker for timed out hosts */
-result dialback_server_beat(void *arg)
+/* heartbeat checker for timed out idle hosts */
+result dialback_beat_idle(void *arg)
 {
     db d = (db)arg;
-//    ghash_walk(d->hosts,_dialback_beat,NULL);    
+    ghash_walk(d->out_ok_db,_dialback_beat_idle,(void*)time(NULL));
+    ghash_walk(d->out_ok_legacy,_dialback_beat_idle,(void*)time(NULL));
+    ghash_walk(d->in_ok_db,_dialback_beat_idle,(void*)time(NULL));
+    ghash_walk(d->in_ok_legacy,_dialback_beat_idle,(void*)time(NULL));
     return r_DONE;
 }
 
@@ -188,21 +197,28 @@ void dialback(instance i, xmlnode x)
     db d;
     xmlnode cfg, cur;
     struct karma k;
+    int max;
 
     log_debug(ZONE,"dialback loading");
     srand(time(NULL));
 
     /* get the config */
-    cfg = xdb_get(xdb_cache(i),jid_new(xmlnode_pool(x),"config@-internal"),"jabber:config:pth-ssock");
+    cfg = xdb_get(xdb_cache(i),jid_new(xmlnode_pool(x),"config@-internal"),"jabber:config:dialback");
 
+    max = j_atoi(xmlnode_get_tag_data(cfg,"maxhosts"),997);
     d = pmalloco(i->p,sizeof(_db));
-    d->ips = ghash_create(j_atoi(xmlnode_get_tag_data(cfg,"maxhosts"),67),(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp); /* keys are "ip:port" */
-    d->hosts = ghash_create(j_atoi(xmlnode_get_tag_data(cfg,"maxhosts"),67),(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp); /* keys are jids: "id@to/from" */
-    d->nscache = ghash_create(j_atoi(xmlnode_get_tag_data(cfg,"maxhosts"),67),(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+    d->out_connecting = ghash_create(67,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+    d->out_ok_db = ghash_create(max,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+    d->out_ok_legacy = ghash_create(max,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+    d->in_id = ghash_create(max,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+    d->in_ok_db = ghash_create(max,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+    d->in_ok_legacy = ghash_create(max,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
     d->i = i;
+    d->timeout_idle = j_atoi(xmlnode_get_tag_data(cfg,"idletimeout"),600);
+    d->timeout_packets = j_atoi(xmlnode_get_tag_data(cfg,"queuetimeout"),30);
     d->secret = xmlnode_get_attrib(cfg,"secret");
     if(d->secret == NULL) /* if there's no configured secret, make one on the fly */
-        d->secret = pstrdup(i->p,_pthsock_server_randstr());
+        d->secret = pstrdup(i->p,dialback_randstr());
     if(xmlnode_get_tag(cfg,"legacy") != NULL)
         d->legacy = 1;
 
@@ -220,7 +236,7 @@ void dialback(instance i, xmlnode x)
         for(;cur != NULL; xmlnode_hide(cur), cur = xmlnode_get_tag(cfg,"ip"))
         {
             mio m;
-            m = mio_listen(j_atoi(xmlnode_get_attrib(cur,"port"),5269),xmlnode_get_data(cur),pthsock_server_inread,(void*)si, MIO_LISTEN_XML);
+            m = mio_listen(j_atoi(xmlnode_get_attrib(cur,"port"),5269),xmlnode_get_data(cur),dialback_in_read,(void*)d, MIO_LISTEN_XML);
             mio_rate(m, j_atoi(xmlnode_get_attrib(xmlnode_get_tag(cfg,"rate"),"time"),5),j_atoi(xmlnode_get_attrib(xmlnode_get_tag(cfg,"rate"),"points"),25));
             mio_karma2(m, &k);
         }
@@ -233,7 +249,8 @@ void dialback(instance i, xmlnode x)
     }
 
     register_phandler(i,o_DELIVER,dialback_packets,(void*)d);
-    register_beat(15, dialback_beat, (void *)d);
+    register_beat(d->timeout_idle, dialback_beat_idle, (void *)d);
+    register_beat(d->timeout_packets, dialback_out_beat_packets, (void *)d);
 
     xmlnode_free(cfg);
 }
