@@ -35,6 +35,8 @@
 	    <pthsock_client>../load/pthsock_client.so</pthsock_client>
       </load>
       <pthcsock xmlns='jabber:config:pth-csock'>
+        <alias to="main.host.com">alias.host.com</alias>
+        <alias to="default.host.com"/>
         <listen>5222</listen>            <!-- Port to listen on -->
         <!-- allow 25 connects per 5 seconts -->
         <rate time="5" points="25"/> 
@@ -60,7 +62,9 @@ typedef enum { state_UNKNOWN, state_AUTHD } user_state;
 typedef struct cdata_st
 {
     smi si;
+    int aliased;
     jid session_id;
+    jid sending_id;
     user_state state;
     char *client_id, *sid, *res, *auth_id;
     time_t connect_time;
@@ -132,12 +136,12 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     { 
         if (j_strcmp(xmlnode_get_attrib(p->x, "type"), "error") == 0)
         { /* we got a 510, but no session to end */
-            log_debug(ZONE, "C2S received Session close for non-existant session: %s", xmlnode_get_attrib(p->x, "from"));
+            log_debug("c2s", "[%s] received Session close for non-existant session: %s", ZONE, xmlnode_get_attrib(p->x, "from"));
             xmlnode_free(p->x);
             return r_DONE;
         }
 
-        log_debug(ZONE, "C2S connection not found for %s, closing session", xmlnode_get_attrib(p->x, "from"));
+        log_debug("c2s", "[%s] connection not found for %s, closing session", ZONE, xmlnode_get_attrib(p->x, "from"));
 
         jutil_tofrom(p->x);
         xmlnode_put_attrib(p->x, "type", "error");
@@ -146,10 +150,10 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
         return r_DONE;
     }
 
-    log_debug(ZONE, "C2S: %s has an active session, delivering packet", xmlnode_get_attrib(p->x, "from"));
+    log_debug("c2s", "[%s] %s has an active session, delivering packet", ZONE, xmlnode_get_attrib(p->x, "from"));
     if (j_strcmp(xmlnode_get_attrib(p->x, "type"), "error") == 0)
     { /* <route type="error" means we were disconnected */
-        log_debug(ZONE, "C2S closing down session %s at request of session manager", xmlnode_get_attrib(p->x, "from"));
+        log_debug("c2s", "[%s] closing down session %s at request of session manager", ZONE, xmlnode_get_attrib(p->x, "from"));
         mio_write(m, NULL, "<stream:error>Disconnected</stream:error></stream:stream>", -1);
         mio_close(m);
         xmlnode_free(p->x);
@@ -162,10 +166,10 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
         if((j_strcmp(type, "result") == 0) && j_strcmp(cdcur->auth_id, id) == 0)
         { /* update the cdata status if it's a successfull auth */
             xmlnode x;
-            log_debug(ZONE, "auth for user successful");
+            log_debug("c2s", "[%s], auth for user successful", ZONE);
             /* notify SM to start a session */
             x = pthsock_make_route(NULL, jid_full(cdcur->session_id), cdcur->client_id, "session");
-            log_debug(ZONE, "C2S requesting Session Start for %s", xmlnode_get_attrib(p->x, "from"));
+            log_debug("c2s", "[%s] requesting Session Start for %s", ZONE, xmlnode_get_attrib(p->x, "from"));
             deliver(dpacket_new(x), s__i->i);
         } 
         else if(j_strcmp(type,"error") == 0)
@@ -200,7 +204,24 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     }
     else
     {
-        log_debug(ZONE, "Writing packet to MIO: %s", xmlnode2str(xmlnode_get_firstchild(p->x)));
+        /* change the to name to match what the client wants to hear */
+        if(cdcur->aliased)
+        {
+            jid j = jid_new(p->p, xmlnode_get_attrib(xmlnode_get_firstchild(p->x), "to"));
+            if(j != NULL && j_strcmp(j->server, cdcur->sending_id->server) != 0)
+            {
+                jid_set(j, cdcur->sending_id->server, JID_SERVER);
+                xmlnode_put_attrib(xmlnode_get_firstchild(p->x), "to", jid_full(j));
+            }
+
+            j = jid_new(p->p, xmlnode_get_attrib(xmlnode_get_firstchild(p->x), "from"));
+            if(j != NULL && j->user == NULL && j_strcmp(j->server, cdcur->session_id->server) == 0)
+            { /* if this is from the aliased server, change it to the clients server */
+                jid_set(j, cdcur->sending_id->server, JID_SERVER);
+                xmlnode_put_attrib(xmlnode_get_firstchild(p->x), "from", jid_full(j));
+            }
+        }
+        log_debug("c2s", "[%s] Writing packet to MIO: %s", ZONE, xmlnode2str(xmlnode_get_firstchild(p->x)));
         mio_write(m, xmlnode_get_firstchild(p->x), NULL, 0);
     }
 
@@ -241,12 +262,12 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
     if(cd == NULL) 
         return;
 
-    log_debug(ZONE, "pthsock_client_read called with: m:%X flag:%d arg:%X", m, flag, arg);
+    log_debug("c2s", "[%s] pthsock_client_read called with: m:%X flag:%d arg:%X", ZONE, m, flag, arg);
     switch(flag)
     {
     case MIO_CLOSED:
 
-        log_debug(ZONE, "io_select Socket %d close notification", m->fd);
+        log_debug("c2s", "[%s] io_select Socket %d close notification", ZONE, m->fd);
         ghash_remove(cd->si->users, cd->client_id);
         if(cd->state == state_AUTHD)
         {
@@ -260,7 +281,7 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
 
             while((q = (mio_wbq)pth_msgport_get(cd->pre_auth_mp)) != NULL)
             {
-                log_debug(ZONE, "freeing unsent packet due to disconnect with no auth: %s", xmlnode2str(q->x));
+                log_debug("c2s", "[%s] freeing unsent packet due to disconnect with no auth: %s", ZONE, xmlnode2str(q->x));
                 xmlnode_free(q->x);
             }
 
@@ -274,15 +295,21 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
 
         break;
     case MIO_XML_ROOT:
-        log_debug(ZONE, "root received for %d", m->fd);
+        log_debug("c2s", "[%s] root received for %d", ZONE, m->fd);
         to = xmlnode_get_attrib(x, "to");
+        cd->sending_id = jid_new(cd->m->p, to);
 
         /* check for a matching alias or use default alias */
+        log_debug("c2s", "[%s] Recieved connection to: %s", ZONE, cd->sending_id->server);
         alias = ghash_get(cd->si->aliases, to);
         alias = alias ? alias : ghash_get(cd->si->aliases, "default");
 
         /* set host to that alias, or to the given host */
         cd->session_id = alias ? jid_new(m->p, alias) : jid_new(m->p, to);
+
+        /* if we are using an alias, set the alias flag */
+        if(j_strcmp(cd->session_id->server, cd->sending_id->server) != 0) cd->aliased = 1;
+        if(cd->aliased) log_debug("c2s", "[%s] using alias %s --> %s", ZONE, cd->sending_id->server, cd->session_id->server);
 
         h = xstream_header("jabber:client", NULL, jid_full(cd->session_id));
         cd->sid = pstrdup(m->p, xmlnode_get_attrib(h, "id"));
@@ -309,6 +336,17 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
         xmlnode_free(x);
         break;
     case MIO_XML_NODE:
+        /* make sure alias is upheld */
+        if(cd->aliased)
+        {
+            jid j = jid_new(xmlnode_pool(x), xmlnode_get_attrib(x, "to"));
+            if(j != NULL && j->user == NULL && j_strcmp(j->server, cd->sending_id->server) == 0)
+            {
+                jid_set(j, cd->session_id->server, JID_SERVER);
+                xmlnode_put_attrib(x, "to", jid_full(j));
+            }
+        }
+
         cd = (cdata)arg;
         if (cd->state == state_UNKNOWN)
         { /* only allow auth and registration queries at this point */
@@ -387,7 +425,7 @@ int _pthsock_client_timeout(void *arg, const void *key, void *data)
         return 1;
 
     timeout = time(NULL) - cd->si->auth_timeout;
-    log_debug(ZONE, "timeout: %d, connect time %d: fd %d", timeout, cd->connect_time, cd->m->fd);
+    log_debug("c2s", "[%s] timeout: %d, connect time %d: fd %d", ZONE, timeout, cd->connect_time, cd->m->fd);
 
     if(cd->connect_time < timeout)
     {
@@ -413,7 +451,7 @@ result pthsock_client_timeout(void *arg)
 int _pthsock_client_shutdown(void *arg, const void *key, void *data)
 {
     cdata cd = (cdata)data;
-    log_debug(ZONE, "C2S closing down user %s from ip: %s", jid_full(cd->session_id), mio_ip(cd->m));
+    log_debug("c2s", "[%s] closing down user %s from ip: %s", ZONE, jid_full(cd->session_id), mio_ip(cd->m));
     mio_close(cd->m);
     return 1;
 }
@@ -423,7 +461,7 @@ void pthsock_client_shutdown(void *arg)
 {
     smi s__i = (smi)arg;
     xmlnode_free(s__i->cfg);
-    log_debug(ZONE, "C2S Shutting Down");
+    log_debug("c2s", "[%s] Shutting Down", ZONE);
     ghash_walk(s__i->users, _pthsock_client_shutdown, NULL);
     s__i->users = NULL;
 }
@@ -441,7 +479,7 @@ void pthsock_client(instance i, xmlnode x)
     struct karma *k = karma_new(i->p); /* Get new inialized karma */
     int set_karma = 0; /* Default false; Did they want to change the karma parameters */
 
-    log_debug(ZONE, "pthsock_client loading");
+    log_debug("c2s", "[%s] pthsock_client loading", ZONE);
 
     s__i               = pmalloco(i->p, sizeof(_smi));
     s__i->auth_timeout = DEFAULT_AUTH_TIMEOUT;
