@@ -310,7 +310,9 @@ mio _mio_accept(mio m)
     /* create a new sock object for this connection */
     new      = mio_new(fd, m->cb, m->cb_arg, mio_handlers_new(m->mh->read, m->mh->write, m->mh->parser));
     new->ip  = pstrdup(new->p, inet_ntoa(serv_addr.sin_addr));
+#ifdef HAVE_SSL
     new->ssl = m->ssl;
+#endif
 
     mio_karma2(new, &m->k);
 
@@ -650,8 +652,10 @@ void mio_init(void)
     pth_attr_t attr;
     xmlnode io = xmlnode_get_tag(greymatter__, "io");
 
+#ifdef HAVESSL
     if(xmlnode_get_tag(io, "ssl") != NULL)
         mio_ssl_init(xmlnode_get_tag(io, "ssl"));
+#endif
 
     KARMA_DEF_INIT = j_atoi(xmlnode_get_tag_data(io, "karma/init"), KARMA_INIT);
     KARMA_DEF_INIT = j_atoi(xmlnode_get_tag_data(io, "karma/max"), KARMA_MAX);
@@ -1005,7 +1009,7 @@ mio mio_listen(int port, char *listen_host, void *cb, void *arg, mio_accept_func
     /* create the sock object, and assign the values */
     new       = mio_new(fd, cb, arg, mh);
     new->type = type_LISTEN;
-    new->ip   = pstrdup(new->p, listen_host, new->p);
+    new->ip   = pstrdup(new->p, listen_host);
 
     log_debug(ZONE, "io_select starting to listen on %d [%s]", port, listen_host);
 
