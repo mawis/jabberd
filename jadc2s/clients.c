@@ -43,6 +43,29 @@
 static char header_start[] = "<stream:stream xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams'";
 static char header_start_flash[] = "<flash:stream xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams'";
 
+/**
+ * check if the host is valid to connect to or a valid alias
+ *
+ * @param config a configuration element containing valid hosts or valid aliases
+ * @param host the host which should be checked
+ * @return -1 if host invalid, if valid the index in the configuration is returned
+ * */
+int _client_check_valid_host(config_elem_t config, const char* host)
+{
+    int id;
+
+    if (config == NULL || host == NULL)
+	return -1;
+
+    /* iterate over the valid hosts and compare */
+    for (id = 0; id < config->nvalues; id++)
+	if (j_strcmp(host, config->values[id]) == 0)
+	    return id;
+
+    /* nothing found, it is invalid */
+    return -1;
+}
+
 /* handle new elements */
 void _client_startElement(void *arg, const char* name, const char** atts)
 {
@@ -94,17 +117,34 @@ void _client_startElement(void *arg, const char* name, const char** atts)
             else if (j_strcmp(atts[i], "to") == 0)
             {
                 int id;
-                log_debug(ZONE, "checking to: %s", atts[i+1]);
-                for( id = 0; id < c->c2s->local_id->nvalues ; id++ )
-                {
-                    if (j_strcmp(atts[i+1], c->c2s->local_id->values[id]) == 0)
-                    {
-                        c->local_id = c->c2s->local_id->values[id];
 
-                        log_debug(ZONE, "matched local id '%s''", c->local_id);
-                        id = c->c2s->local_id->nvalues;
-                    }
-                }
+                log_debug(ZONE, "checking to: %s", atts[i+1]);
+
+		/* check if the to attribute is a real host */
+		id = _client_check_valid_host(c->c2s->local_id, atts[i+1]);
+		if (id != -1)
+		{
+		    c->local_id = c->c2s->local_id->values[id];
+		    log_debug(ZONE, "matched local id '%s''", c->local_id);
+		}
+
+		/* if host not yet confirmed, check if there is an alias */
+		if (c->local_id == NULL)
+		{
+		    id = _client_check_valid_host(c->c2s->local_alias, atts[i+1]);
+		    if (id != -1)
+		    {
+			if (c->c2s->local_alias->attrs == NULL)
+			{
+			    log_write(c->c2s->log, LOG_ERR, "missing to attribute in configuration for alias %s", atts[i+1]);
+			}
+			else
+			{
+			    c->local_id = j_attr((const char **)c->c2s->local_alias->attrs[id], "to");
+			    log_debug(ZONE, "aliased requested id '%s' to '%s'", atts[i+1], c->local_id);
+			}
+		    }
+		}
 
                 if (c->local_id == NULL)
                 {

@@ -22,6 +22,12 @@
         <!--  ID (host) that the session manager thinks it is.             -->
         <id>localhost</id>
 
+	<!--  define aliases for local hosts                               -->
+	<!--  needs support by the client and is not present in newer      -->
+	<!--  protocol documents, but available in jabberd 1.4.x           -->
+	<!--
+	<alias to='jabber.example.com'>example</alias> -->
+
         <!--  IP address to bind to (default: 0.0.0.0)                     -->
         <!-- <ip>0.0.0.0</ip> -->
         
