@@ -423,7 +423,8 @@
       <dnsrv>./dnsrv/dnsrv.so</dnsrv>
     </load>
     <dnsrv xmlns="jabber:config:dnsrv">
-    	<resend service="_jabber._tcp">s2s</resend> <!-- for supporting SRV records -->
+    	<resend service="_jabber-server._tcp">s2s</resend> <!-- for supporting XMPP compliant SRV records -->
+    	<resend service="_jabber._tcp">s2s</resend> <!-- for supporting old style SRV records -->
     	<resend>s2s</resend>
     </dnsrv>
   </service>
