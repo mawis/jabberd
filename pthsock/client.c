@@ -229,13 +229,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         }
         else
         {   /* normal delivery of packets after authed */
-            xmlnode q=xmlnode_get_tag(x,"query");
-            if(q!=NULL&&NSCHECK(q,NS_REGISTER))
-                x=pthsock_make_route(x,jid_full(cd->host),cd->id,"auth");
-            else if(q!=NULL&&NSCHECK(q,NS_AUTH))
-                x=pthsock_make_route(x,jid_full(cd->host),cd->id,"auth");
-            else
-                x=pthsock_make_route(x,jid_full(cd->host),cd->id,NULL);
+            x=pthsock_make_route(x,jid_full(cd->host),cd->id,NULL);
             deliver(dpacket_new(x),((smi)cd->i)->i);
         }
         break;
