@@ -4,6 +4,13 @@
     * jsm/modules/mod_admin.c: same
     * jsm/modules/mod_register.c: same
     * jabberd/base/base_accept.c: don't send <handshake/> after auth failure
+    * jabberd/lib/jutil.c: valid priorities are in range [-128,127]
+    * jsm/sessions.c: same
+    * jsm/util.c: same
+    * jsm/modules/mod_announce.c: same (and do not send to negative priority)
+    * jsm/modules/mod_groups.c: same
+    * jsm/modules/mod_offline.c: same (and do only deliver to non-negative)
+    * jsm/modules/mod_presence.c: same
 
 2004-05-22  Matthias Wimmer  <m@tthias.net>
 

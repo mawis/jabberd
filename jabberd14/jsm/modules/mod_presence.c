@@ -236,7 +236,8 @@ mreturn mod_presence_out(mapi m, void *arg)
     xmlnode pnew, delay;
     modpres mp = (modpres)arg;
     session top;
-    int oldpri;
+    int oldpri, newpri;
+    char *priority;
 
     if(m->packet->type != JPACKET_PRESENCE) return M_IGNORE;
 
@@ -247,6 +248,19 @@ mreturn mod_presence_out(mapi m, void *arg)
     /* pre-existing conditions (no, we are not an insurance company) */
     top = js_session_primary(m->user);
     oldpri = m->s->priority;
+
+    /* check that the priority is in the valid range */
+    priority = xmlnode_get_tag_data(m->packet->x, "priority");
+    if (priority == NULL) {
+	newpri = 0;
+    } else {
+	newpri = j_atoi(priority, 0);
+	if (newpri < -128 || newpri > 127) {
+	    log_notice("mod_presence", "got presence with invalid priority value from %s", jid_full(m->s->id));
+	    xmlnode_free(m->packet->x);
+	    return M_HANDLED;
+	}
+    }
 
     /* invisible mode is special, don't you wish you were special too? */
     if(jpacket_subtype(m->packet) == JPACKET__INVISIBLE)
@@ -264,7 +278,7 @@ mreturn mod_presence_out(mapi m, void *arg)
         /* now, pretend we come online :) */
         mp->invisible = 1;
         mod_presence_roster(m, NULL);
-        m->s->priority = j_atoi(xmlnode_get_tag_data(m->packet->x,"priority"),0);
+        m->s->priority = newpri;
 
         xmlnode_free(m->packet->x);
         return M_HANDLED;
@@ -273,7 +287,7 @@ mreturn mod_presence_out(mapi m, void *arg)
     /* our new presence */
     xmlnode_free(m->s->presence);
     m->s->presence = xmlnode_dup(m->packet->x);
-    m->s->priority = jutil_priority(m->packet->x);
+    m->s->priority = newpri;
 
     /* stamp the sessions presence */
     delay = xmlnode_insert_tag(m->s->presence,"x");
@@ -284,7 +298,7 @@ mreturn mod_presence_out(mapi m, void *arg)
     log_debug(ZONE,"presence oldp %d newp %d top %X",oldpri,m->s->priority,top);
 
     /* if we're going offline now, let everyone know */
-    if(m->s->priority < 0)
+    if(m->s->priority < -128)
     {
         if(!mp->invisible) /* bcc's don't get told if we were invisible */
             _mod_presence_broadcast(m->s,mp->bcc,m->packet->x,NULL);
@@ -411,7 +425,7 @@ mreturn mod_presence_deliver(mapi m, void *arg)
         /* broadcast */
         for(cur = m->user->sessions; cur != NULL; cur = cur->next)
         {
-            if(cur->priority < 0) continue;
+            if(cur->priority < -128) continue;
             js_session_to(cur, jpacket_new(xmlnode_dup(m->packet->x)));
         }
 
