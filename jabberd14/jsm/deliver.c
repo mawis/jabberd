@@ -138,7 +138,7 @@ result js_packet(instance i, dpacket p, void *arg)
         }
         /* As long as we found one process */
         if (child != NULL)
-            jp = jpacket_new(xmlnode_get_firstchild(p->x));
+            jp = jpacket_new(child);
 
         /* auth/reg requests */
         if(jp != NULL && j_strcmp(type,"auth") == 0)
