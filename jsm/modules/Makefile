@@ -7,6 +7,7 @@ jsm_modules_HEADERS=../jsm.h ../../jabberd/jabberd.h
 jsm_modules_OBJECTS=\
 	mod_admin.o \
 	mod_announce.o \
+	mod_auth_crypt.o \
 	mod_auth_plain.o \
 	mod_auth_digest.o \
 	mod_auth_0k.o \
