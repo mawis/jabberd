@@ -27,6 +27,7 @@ int configurate(char *file)
     /* CONFIGXML is the default name for the config file - defined by the build system */
     char def[] = CONFIGXML;
     char *realfile = (char *)def;
+    xmlnode include;
 
     /* if no file name is specified, fall back to the default file */
     if(file != NULL)
@@ -40,6 +41,15 @@ int configurate(char *file)
     {
         printf("Configuration using %s failed\n",realfile);
         return 1;
+    }
+
+    /* check greymatter for additional includes */
+    while((include=xmlnode_get_tag(greymatter__,"include"))!=NULL)
+    {
+        char *include_file=xmlnode_get_data(include);
+        xmlnode include_x=xmlnode_file(include_file);
+        if(include_x!=NULL) xmlnode_insert_node(greymatter__,xmlnode_get_firstchild(include_x));
+        xmlnode_hide(include);
     }
 
     return 0;
