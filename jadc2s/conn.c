@@ -91,21 +91,26 @@ void conn_free(conn_t c)
 /* write errors out and close streams */
 void conn_close(conn_t c, char *err)
 {
+    char *footer;
+
     if(c != NULL)
     {
-        char* footer;
-        footer = malloc( 3 + strlen(c->root_name) );
-        sprintf(footer,"</%s>",c->root_name);
+        /* only close the stream if they actually opened it */
+        if(c->root_name != NULL)
+        {
+            footer = malloc( 3 + strlen(c->root_name) );
+            sprintf(footer,"</%s>",c->root_name);
     
-        log_debug(ZONE,"closing stream with error: %s",err);
-        _write_actual(c, c->fd, "<stream:error>",14);
-        if(err != NULL)
-            _write_actual(c, c->fd, err, strlen(err));
-        else
-            _write_actual(c, c->fd, "Unknown Error", 13);
-        _write_actual(c, c->fd, "</stream:error>",15);
-        _write_actual(c, c->fd, footer, strlen(footer));
-        free(footer);
+            log_debug(ZONE,"closing stream with error: %s",err);
+            _write_actual(c, c->fd, "<stream:error>",14);
+            if(err != NULL)
+                _write_actual(c, c->fd, err, strlen(err));
+            else
+                _write_actual(c, c->fd, "Unknown Error", 13);
+            _write_actual(c, c->fd, "</stream:error>",15);
+            _write_actual(c, c->fd, footer, strlen(footer));
+            free(footer);
+        }
         mio_close(c->c2s->mio, c->fd); /* remember, c is gone after this, re-entrant */
     }
 }
