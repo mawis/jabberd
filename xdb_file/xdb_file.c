@@ -108,10 +108,12 @@ result xdb_file_phandler(instance i, dpacket p, void *arg)
         else
             ret = 1;
     }else{
+        /* a get always returns, data or not */
+        ret = 1;
+
         if(data != NULL)
         { /* cool, send em back a copy of the data */
             xmlnode_hide_attrib(xmlnode_insert_tag_node(p->x, data),"xdbns");
-            ret = 1;
         }
     }
 
@@ -124,7 +126,7 @@ result xdb_file_phandler(instance i, dpacket p, void *arg)
         xmlnode_put_attrib(p->x,"to",xmlnode_get_attrib(p->x,"from"));
         xmlnode_put_attrib(p->x,"from",jid_full(p->id));
         deliver(dpacket_new(p->x), NULL); /* dpacket_new() shouldn't ever return NULL */
-        return r_OK;
+        return r_DONE;
     }else{
         return r_ERR;
     }

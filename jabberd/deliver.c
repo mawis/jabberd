@@ -107,6 +107,9 @@ void register_instance(instance id, char *host)
 /* bounce on the delivery, use the result to better gague what went wrong */
 void deliver_fail(dpacket p, result r)
 {
+
+    log_debug(ZONE,"delivery failed (%d)",r);
+
     switch(p->type)
     {
     case p_LOG:
@@ -128,6 +131,8 @@ result deliver_instance(instance id, dpacket p, result inbest)
     handel h, hlast;
     result r, best = r_NONE;
     dpacket pig = p;
+
+    log_debug(ZONE,"delivering to instance '%s'",id->id);
 
     /* try all the handlers */
     hlast = h = id->hds;
@@ -241,6 +246,8 @@ void deliver(dpacket p, instance i)
     host = p->host;
 
     /* XXX deliver() will have to queue until configuration is done, since threads may have started during config and be delivering already */
+
+    log_debug(ZONE,"DELIVER %d:%s %s",p->type,p->host,xmlnode2str(p->x));
 
     /* based on type, pick instance list */
     switch(p->type)
