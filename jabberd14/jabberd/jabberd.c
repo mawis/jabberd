@@ -128,13 +128,16 @@ int main (int argc, char** argv)
         if(sig != SIGHUP) break;
 
         log_notice(NULL,"SIGHUP recieved.  Reloading config file");
-        /* XXX it was HUP, time to reload the config file */
+        /* XXX this will not destroy/create old/new instances */
+        if(!reload_config(cfgfile))
+        {
+            /* XXX notify modules config file has changed */
+        }
     }
 
     pool_free(cfg_pool);
     log_alert(NULL,"Recieved Kill.  Jabberd shutting down.");
-    /* XXX we left the main loop, so we must have recieved a kill signal */
-
+    /* we left the main loop, so we must have recieved a kill signal */
     /* XXX start the shutdown sequence */
 
     /* one last chance for threads to finish shutting down */

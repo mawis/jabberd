@@ -33,7 +33,6 @@
 
    TODO: 
    - Add packet aging/delivery heartbeat
-   - Handle closing/err'd XML from server connection
 */
 
 /* Connection states */
@@ -160,7 +159,7 @@ void base_connect_handle_xstream_event(int type, xmlnode x, void* arg)
      case XSTREAM_CLOSE:
      case XSTREAM_ERR:
       xmlnode_free(x);
-	  /* FIXME: Who knows? The _SHADOW_ knows. */
+      close(ci->socket); /* close the socket, so we try to reconnect */
      }
 }
 

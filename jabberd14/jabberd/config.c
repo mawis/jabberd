@@ -124,6 +124,22 @@ int configurate(char *file)
     return 0;
 }
 
+int reload_config(char *file)
+{
+    xmlnode old_config=greymatter__;
+    int retval=configurate(file);
+
+    if(retval) /* failed to load config */
+    {
+        greymatter__=old_config; /* restore old config */
+        return 1;
+    }
+    else
+    {
+        xmlnode_free(old_config); /* free the old config */
+        return 0;
+    }
+}
 /* private config handler list */
 typedef struct cfg_struct
 {

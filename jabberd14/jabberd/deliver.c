@@ -389,8 +389,6 @@ void deliver(dpacket p, instance i)
     /* Get the host */
     host = p->host;
 
-    /* XXX deliver() will have to queue until configuration is done, since threads may have started during config and be delivering already */
-
     log_debug(ZONE,"DELIVER %d:%s %s",p->type,p->host,xmlnode2str(p->x));
 
     /* based on type, pick instance list */
@@ -512,7 +510,35 @@ dpacket dpacket_new(xmlnode x)
         return NULL;
     }
 
-    /* XXX be more stringent, make sure each packet has the basics, norm has a to/from, log has a type, xdb has a full id */
+    /* make sure each packet has the basics, norm has a to/from, log has a type, xdb has a full id */
+    switch(p->type)
+    {
+    case p_LOG:
+        if(xmlnode_get_attrib(x,"type")==NULL)
+            p=NULL;
+        break;
+    case p_XDB:
+        if(p->id->user==NULL||p->id->server==NULL||p->id->resource==NULL)
+            p=NULL;
+        break;
+    case p_NORM:
+        if(xmlnode_get_attrib(x,"to")==NULL||xmlnode_get_attrib(x,"from")==NULL)
+            p=NULL;
+        break;
+    case p_ROUTE:
+        if(xmlnode_get_attrib(x,"to")==NULL||xmlnode_get_attrib(x,"from")==NULL)
+            p=NULL;
+        break;
+    case p_NONE:
+        p=NULL;
+        break;
+    }
+    if(p==NULL)
+    {
+        log_error(NULL,"Packet Delivery Failed, invalid packet, dropping %s",xmlnode2str(x));
+        xmlnode_free(x);
+        return NULL;
+    }
 
     p->host = p->id->server;
     return p;
