@@ -14,7 +14,7 @@ lib_HEADERS= \
 	nametab.h \
 	utf8tab.h \
 	xmldef.h \
-	xmlparse.h \
+	expat.h \
 	xmlrole.h \
 	xmltok.h \
 	xmltok_impl.h

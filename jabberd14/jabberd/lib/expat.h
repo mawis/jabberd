@@ -130,6 +130,7 @@ typedef struct {
   void (*free_fcn)(void *ptr);
 } XML_Memory_Handling_Suite;
 
+
 /* Constructs a new parser; encoding is the encoding specified by the external
 protocol or null if there is none specified. */
 

@@ -21,7 +21,7 @@
 #include <ctype.h>
 #include <time.h>
 
-#include "xmlparse.h"
+#include "expat.h"
 
 /*
 **  Arrange to use either varargs or stdargs
