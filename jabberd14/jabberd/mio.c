@@ -997,7 +997,7 @@ void mio_write(mio m, xmlnode x, char *buffer, int len)
             len = strlen(buffer);
 
         /* XXX more hackish code to print the stream header right on a NUL xmlnode socket */
-        if(m->type == type_NUL && strncmp(buffer,"<stream:stream",14))
+        if(m->type == type_NUL && strncmp(buffer,"<?xml ",6) == 0)
         {
             new->data = pmalloco(p,len+2);
             memcpy(new->data,buffer,len);

@@ -315,6 +315,18 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
         /* write header */
         h = xstream_header("jabber:client", NULL, jid_full(cd->session_id));
         cd->sid = pstrdup(m->p, xmlnode_get_attrib(h, "id"));
+        /* XXX hack in the style that jabber.com uses for flash mode support */
+        if(j_strncasecmp(xmlnode_get_attrib(x, "xmlns:flash"), "http://www.jabber.com/streams/flash",35) == 0)
+        {
+            h = xmlnode_new_tag_pool(xmlnode_pool(h),"flash:stream");
+            xmlnode_put_attrib(h, "xmlns:flash", "http://www.jabber.com/streams/flash"); 
+            xmlnode_put_attrib(h, "xmlns:stream", "http://etherx.jabber.org/streams"); 
+            xmlnode_put_attrib(h, "xmlns", "jabber:client"); 
+            xmlnode_put_attrib(h, "id", cd->sid); 
+            xmlnode_put_attrib(h, "from", jid_full(cd->session_id)); 
+            /* put real stream declaration on incoming root */
+            xmlnode_put_attrib(x, "xmlns:stream", "http://etherx.jabber.org/streams"); 
+        }
         mio_write(m, NULL, xstream_header_char(h), -1);
         xmlnode_free(h);
 
