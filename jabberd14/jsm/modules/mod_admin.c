@@ -279,7 +279,7 @@ mreturn mod_admin_message(mapi m, void *arg)
 {
     jpacket p;
     xmlnode cur;
-    char *subject;
+    char *subject, *element_name;
     static char jidlist[1024] = "";
 
     if(m->packet->type != JPACKET_MESSAGE) return M_IGNORE;
@@ -301,7 +301,8 @@ mreturn mod_admin_message(mapi m, void *arg)
 
     for(cur = xmlnode_get_firstchild(js_config(m->si,"admin")); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
-        if(xmlnode_get_name(cur) == NULL || xmlnode_get_data(cur) == NULL) continue;
+	element_name = xmlnode_get_name(cur);
+        if(element_name == NULL || (j_strcmp(element_name, "read")!=NULL && j_strcmp(element_name, "write")!=NULL) || xmlnode_get_data(cur) == NULL) continue;
 
         p = jpacket_new(xmlnode_dup(m->packet->x));
         p->to = jid_new(p->p,xmlnode_get_data(cur));
