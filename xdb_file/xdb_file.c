@@ -72,6 +72,7 @@ typedef struct xdbf_struct
     int timeout;
     xht cache;
     int sizelimit;
+    int use_hashspool;
 } *xdbf, _xdbf;
 
 void _xdb_file_purge(xht h, const char *key, void *data, void *arg)
@@ -276,7 +277,7 @@ result xdb_file_phandler(instance i, dpacket p, void *arg)
 
     /* is this request specific to a user or global data? use that for the file name */
     if(p->id->user != NULL)
-        full = xdb_file_full(flag_set, p->p, xf->spool, p->id->server, p->id->user, "xml", 1);
+        full = xdb_file_full(flag_set, p->p, xf->spool, p->id->server, p->id->user, "xml", xf->use_hashspool);
     else
         full = xdb_file_full(flag_set, p->p, xf->spool, p->id->server, "global", "xdb", 0);
 
@@ -532,8 +533,6 @@ void xdb_file(instance i, xmlnode x)
         return;
     }
 
-    xdb_convert_spool(spl);
-
     sizelimit = j_atoi(xmlnode_get_tag_data(config, "sizelimit"), 0);
     
     to = xmlnode_get_tag_data(config,"timeout");
@@ -546,6 +545,10 @@ void xdb_file(instance i, xmlnode x)
     xf->sizelimit = sizelimit;
     xf->i = i;
     xf->cache = xhash_new(j_atoi(xmlnode_get_tag_data(config,"maxfiles"),FILES_PRIME));
+    xf->use_hashspool = xmlnode_get_tag(config, "use_flat_spool") ? 0 : 1;
+
+    if (xf->use_hashspool)
+	xdb_convert_spool(spl);
 
     register_phandler(i, o_DELIVER, xdb_file_phandler, (void *)xf);
     if(timeout > 0) /* 0 is expired immediately, -1 is cached forever */

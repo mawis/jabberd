@@ -45,6 +45,10 @@ command:
 (Of course replace ${your_spool_directory_root} with the location of your
 spool directory structure configured using the <spool/> element in your
 server's configuration.)
+If you want to keep the old flat layout of the spool directory, you can
+add the <use_flag_spool/> element to your xdb_file configuration and jabberd
+will not convert the spool directory and continue to use the old spool
+layout.
 
 
 Upgrading from 1.4.2 to 1.4.3

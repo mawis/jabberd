@@ -362,6 +362,10 @@
       <!-- <timeout>3600</timeout> -->
       <!-- what is the maximum size of a spool file? -->
       <!-- <sizelimit>500000</sizelimit> -->
+      <!-- remove the following tag if you have many users -->
+      <!-- and your spool is on a file system, that behaves -->
+      <!-- badly with big directories: -->
+      <use_flat_spool/>
     </xdb_file>
   </xdb>
 
