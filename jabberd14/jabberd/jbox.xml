@@ -3,6 +3,7 @@
   <build>
     <variables>
       <var name='DEFINES'><value>-DCONFIGXML="\"jabber.xml\"" -DHOME="\"$(JHOME)\""</value></var>
+      <var name='LIBS'>-lresolv</var>
     </variables>
     <libraries>
       <library priority='required'>
