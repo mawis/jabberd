@@ -11,6 +11,7 @@
 #include <syslog.h>
 #include <strings.h>
 #include <unistd.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
