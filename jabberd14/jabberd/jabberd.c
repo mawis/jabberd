@@ -51,7 +51,6 @@ void deliver_init(void);
 void heartbeat_birth(void);
 void heartbeat_death(void);
 int configo(int exec);
-void config_cleanup(void);
 void shutdown_callbacks(void);
 int config_reload(char *file);
 int  instance_startup(xmlnode x, int exec);
@@ -69,7 +68,7 @@ int main (int argc, char** argv)
 
     /* start by assuming the parameters were entered correctly */
     help = 0;
-    cmd__line=ghash_create(11,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+    cmd__line = ghash_create_pool(jabberd__runtime, 11,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
 
     /* process the parameterss one at a time */
     for(i = 1; i < argc; i++)
@@ -104,7 +103,7 @@ int main (int argc, char** argv)
     if((cmd = ghash_get(cmd__line,"Z")) != NULL)
     {
         debug_flag = 1;
-        debug__zones = ghash_create(11,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+        debug__zones = ghash_create_pool(jabberd__runtime, 11,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
         while(cmd != NULL)
         {
             c = strchr(cmd,',');
@@ -160,7 +159,7 @@ int main (int argc, char** argv)
     deliver_init();
 
     /* everything should be registered for the config pass, validate */
-    deliver__flag=0;
+    deliver__flag = 0; /* pause deliver() while starting up */
     if(configo(0))
         exit(1);
 
@@ -305,8 +304,8 @@ int main (int argc, char** argv)
     log_alert(NULL,"Recieved Kill.  Jabberd shutting down.");
     /* we left the main loop, so we must have recieved a kill signal */
     /* start the shutdown sequence */
+    instance_shutdown(NULL);
     shutdown_callbacks();
-    heartbeat_death();
 
     /* one last chance for threads to finish shutting down */
     pth_sleep(1);
@@ -314,18 +313,17 @@ int main (int argc, char** argv)
     /* stop MIO */
     mio_stop();
 
+    heartbeat_death();
+
     /* kill any leftover threads */
     pth_kill();
 
     pool_free(cfg_pool);
     xmlnode_free(greymatter__);
-    config_cleanup();
 
     /* base modules use jabberd__runtime to know when to shutdown */
     pool_free(jabberd__runtime);
 
-    ghash_destroy(cmd__line);
-    ghash_destroy(debug__zones);
     /* we're done! */
     return 0;
 

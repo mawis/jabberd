@@ -100,6 +100,8 @@ deliver()
 </jer> */
 
 #include "jabberd.h"
+extern pool jabberd__runtime;
+
 int deliver__flag=0;
 pth_msgport_t deliver__mp=NULL;
 typedef struct deliver_mp_st
@@ -348,7 +350,7 @@ result deliver_config_ns(instance i, xmlnode x, void *arg)
         ns = star;
 
     if(deliver__ns == NULL)
-        deliver__ns =  ghash_create(401,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+        deliver__ns =  ghash_create_pool(jabberd__runtime, 401,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
 
     l = ghash_get(deliver__ns, ns);
     l = ilist_add(l, i);
@@ -373,7 +375,7 @@ result deliver_config_logtype(instance i, xmlnode x, void *arg)
         type = star;
 
     if(deliver__logtype == NULL)
-        deliver__logtype =  ghash_create(401,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+        deliver__logtype =  ghash_create_pool(jabberd__runtime, 401,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
 
     l = ghash_get(deliver__logtype, type);
     l = ilist_add(l, i);
@@ -460,9 +462,9 @@ void deliver(dpacket p, instance i)
 
 void deliver_init(void)
 {
-    deliver__hnorm = ghash_create(401,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
-    deliver__hlog = ghash_create(401,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
-    deliver__hxdb = ghash_create(401,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+    deliver__hnorm = ghash_create_pool(jabberd__runtime, 401,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+    deliver__hlog = ghash_create_pool(jabberd__runtime, 401,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+    deliver__hxdb = ghash_create_pool(jabberd__runtime, 401,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
     register_config("host",deliver_config_host,NULL);
     register_config("ns",deliver_config_ns,NULL);
     register_config("logtype",deliver_config_logtype,NULL);
