@@ -294,10 +294,12 @@ int conn_read(conn_t c, char *buf, int len)
     /* if we got </stream:stream>, this is set */
     if(c->depth < 0)
     {
+        size_t footersz;
         char* footer;
-        footer = malloc( 3 + strlen(c->root_name) );
-        sprintf(footer,"</%s>",c->root_name);
-        _write_actual(c, c->fd, footer, strlen(footer));
+        footersz = 3 + strlen(c->root_name);
+        footer = malloc(footersz);
+        snprintf(footer, footersz, "</%s>", c->root_name);
+        _write_actual(c, c->fd, footer, footersz);
         free(footer);
         mio_close(c->c2s->mio, c->fd);
         return 0;
