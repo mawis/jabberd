@@ -141,7 +141,7 @@ void mod_filter_action_offline(mapi m, xmlnode rule)
     log_debug("mod_filter","storing message for %s offline.",m->user->user);
 
     jutil_delay(m->packet->x,"Offline Storage");
-    if(xdb_act(m->si->xc, m->user->id, NS_OFFLINE, "insert", NULL, xmlnode_dup(m->packet->x)))
+    if(xdb_act(m->si->xc, m->user->id, NS_OFFLINE, "insert", NULL, m->packet->x))
         return;
 
     if(cur != NULL)

@@ -75,10 +75,10 @@ void js_authreg(void *arg)
             if(!js_mapi_call(si, e_REGISTER, p, NULL, NULL))
             {
                 jutil_error(p->x, TERROR_NOTIMPL);
-            }else{ /* username/password requirements are built-in */
-                jpacket_reset(p);
+            }else{ /* make a reply and the username requirement is built-in :) */
+                xmlnode_put_attrib(p->x,"type","result");
+                jutil_tofrom(p->x);
                 xmlnode_insert_tag(p->iq,"username");
-                xmlnode_insert_tag(p->iq,"password");
             }
         }else{
             log_debug(ZONE,"registration set request");
@@ -90,7 +90,6 @@ void js_authreg(void *arg)
             }else if(!js_mapi_call(si, e_REGISTER, p, NULL, NULL)){
                 jutil_error(p->x, TERROR_NOTIMPL);
             }
-
         }
 
     }else{ /* unknown namespace or other problem */

@@ -104,6 +104,7 @@ struct jsmi_struct
 struct udata_struct
 {
     char *user;
+    char *pass;
     jid id;
     jsmi si;
     session sessions;

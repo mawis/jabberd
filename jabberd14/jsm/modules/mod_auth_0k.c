@@ -29,6 +29,69 @@
  * --------------------------------------------------------------------------*/
 #include "jsm.h"
 
+int mod_auth_0k_set(mapi m, jid id, char *hash, char *token, char *sequence)
+{
+    xmlnode x;
+
+    if(id == NULL || hash == NULL || token == NULL || sequence == NULL) return 1;
+
+    log_debug(ZONE,"saving 0k data");
+
+    /* when this is a new registration and in case there is no mod_auth_plain, we need to ensure the NS_AUTH flag exists */
+    if(m->user == NULL)
+    {
+        if((x = xdb_get(m->si->xc, id, NS_AUTH)) != NULL)
+        { /* cool, they exist */
+            xmlnode_free(x);
+        }else{ /* make them exist with an empty password */
+            log_debug(ZONE,"NS_AUTH flag doesn't exist, creating");
+            x = xmlnode_new_tag_pool(m->packet->p,"password");
+            xmlnode_put_attrib(x,"xmlns",NS_AUTH);
+            if(xdb_set(m->si->xc, id, NS_AUTH, x))
+                return 1; /* uhoh */
+        }
+    }
+
+    /* save the 0k vars */
+    x = xmlnode_new_tag_pool(m->packet->p,"zerok");
+    xmlnode_put_attrib(x,"xmlns",NS_AUTH_0K);
+    xmlnode_insert_cdata(xmlnode_insert_tag(x,"hash"),hash,-1);
+    xmlnode_insert_cdata(xmlnode_insert_tag(x,"token"),token,-1);
+    xmlnode_insert_cdata(xmlnode_insert_tag(x,"sequence"),sequence,-1);
+    return xdb_set(m->si->xc, id, NS_AUTH_0K, x);
+}
+
+int mod_auth_0k_reset(mapi m, jid id, char *pass)
+{
+    char token[10];
+    char seqs_default[] = "500";
+    int sequence, i;
+    char *seqs, hash[41];
+
+    if(pass == NULL) return 1;
+
+    log_debug(ZONE,"resetting 0k variables");
+
+    /* figure out how many sequences to generate */
+    seqs = xmlnode_get_tag_data(js_config(m->si, "mod_auth_0k"),"sequences");
+    if(seqs == NULL)
+        seqs = seqs_default;
+
+    sequence = atoi(seqs);
+
+    /* generate new token */
+    sprintf(token,"%X",(int)time(NULL));
+
+    /* first, hash the pass */
+    shahash_r(pass,hash);
+    /* next, hash that and the token */
+    shahash_r(spools(m->packet->p,hash,token,m->packet->p),hash);
+    /* we've got hash0, now make as many as the sequence is */
+    for(i = 0; i < sequence; i++, shahash_r(hash,hash));
+
+    return mod_auth_0k_set(m, id, hash, token, seqs);
+}
+
 mreturn mod_auth_0k_go(mapi m, void *arg)
 {
     char *token, *hash, *seqs;
@@ -36,15 +99,19 @@ mreturn mod_auth_0k_go(mapi m, void *arg)
     int sequence = 0;
     xmlnode xdb;
 
-    log_debug("mod_auth_0k","checking");
-
     if(jpacket_subtype(m->packet) == JPACKET__SET && (c_hash = xmlnode_get_tag_data(m->packet->iq,"hash")) == NULL)
         return M_PASS;
 
-    /* first we need to see if this user is using 0k */
-    xdb = xdb_get(m->si->xc, m->user->id, NS_AUTH_0K);
-    if(xdb == NULL)
-        return M_PASS;
+    log_debug(ZONE,"checking");
+
+    /* first we need to see if this user is using or can use 0k */
+    if((xdb = xdb_get(m->si->xc, m->user->id, NS_AUTH_0K)) == NULL)
+    {
+        /* if there's no password or we can't set our own vars, we're doomed for failure */
+        if(mod_auth_0k_reset(m,m->user->id,m->user->pass));
+            return M_PASS;
+        xdb = xdb_get(m->si->xc, m->user->id, NS_AUTH_0K);
+    }
 
     /* extract data */
     seqs = xmlnode_get_tag_data(xdb,"sequence");
@@ -93,62 +160,40 @@ mreturn mod_auth_0k_go(mapi m, void *arg)
     return M_HANDLED;
 }
 
-int mod_auth_0k_reset(mapi m, jid id, xmlnode xpass)
-{
-    char token[10];
-    char seqs_default[] = "500";
-    int sequence, i;
-    char *seqs, *pass, hash[41];
-    xmlnode x;
-
-    log_debug("mod_auth_0k","resetting 0k variables");
-    if((pass = xmlnode_get_data(xpass)) == NULL) return 1;
-
-    /* in case there is no mod_auth_plain, we need to validate the account since xdb's iq:auth is used as flag that a user exists */
-    if((x = xdb_get(m->si->xc, jid_user(id), NS_AUTH)) != NULL)
-    { /* cool, they exist */
-        xmlnode_free(x);
-    }else{ /* make them exist with an empty password */
-        x = xmlnode_new_tag_pool(xmlnode_pool(xpass),"password");
-        xmlnode_put_attrib(x,"xmlns",NS_AUTH);
-        if(xdb_set(m->si->xc, jid_user(id), NS_AUTH, x))
-            return 1; /* uhoh */
-    }
-
-
-    /* figure out how many sequences to generate */
-    seqs = xmlnode_get_tag_data(js_config(m->si, "mod_auth_0k"),"sequences");
-    if(seqs == NULL)
-        seqs = seqs_default;
-
-    sequence = atoi(seqs);
-
-    /* generate new token */
-    sprintf(token,"%X",(int)time(NULL));
-
-    /* first, hash the pass */
-    shahash_r(pass,hash);
-    /* next, hash that and the token */
-    shahash_r(spools(xmlnode_pool(xpass),hash,token,xmlnode_pool(xpass)),hash);
-    /* we've got hash0, now make as many as the sequence is */
-    for(i = 0; i < sequence; i++, shahash_r(hash,hash));
-
-    x = xmlnode_new_tag_pool(xmlnode_pool(xpass),"zerok");
-    xmlnode_put_attrib(x,"xmlns",NS_AUTH_0K);
-    xmlnode_insert_cdata(xmlnode_insert_tag(x,"hash"),hash,-1);
-    xmlnode_insert_cdata(xmlnode_insert_tag(x,"token"),token,-1);
-    xmlnode_insert_cdata(xmlnode_insert_tag(x,"sequence"),seqs,-1);
-    return xdb_set(m->si->xc, jid_user(id), NS_AUTH_0K, x);
-}
-
-/* handle saving the password for registration */
+/* handle saving the 0k data for registrations */
 mreturn mod_auth_0k_reg(mapi m, void *arg)
 {
+    int disable = 0;
+    jid id;
+
+    /* if the admin wants the plain text password for regs, make sure we don't do 0k regs */
+    if(js_config(m->si, "mod_auth_0k/disable_registration") != NULL)
+        disable = 1;
+
+    /* type=get means we flag that the server can do 0k regs */
+    if(jpacket_subtype(m->packet) == JPACKET__GET)
+    {
+        if(!disable)
+            xmlnode_insert_tag(m->packet->iq,"hash");
+        return M_PASS;
+    }
+
+    /* get the jid of the user, depending on how we were called */
+    if(m->user == NULL)
+        id = jid_user(m->packet->to);
+    else
+        id = m->user->id;
+
     if(jpacket_subtype(m->packet) != JPACKET__SET) return M_PASS;
 
-    if(mod_auth_0k_reset(m,m->packet->to,xmlnode_get_tag(m->packet->iq,"password")))
+    /* if the password is to be changed, just remove the old 0k auth vars, they'll get reset on next auth get */
+    if(xmlnode_get_tag_data(m->packet->iq,"password") != NULL)
+        xdb_set(m->si->xc, id, NS_AUTH_0K, NULL);
+
+    /* if we can, set the 0k vars to what the client told us to */
+    if(!disable && xmlnode_get_tag_data(m->packet->iq,"hash") != NULL && mod_auth_0k_set(m,id,xmlnode_get_tag_data(m->packet->iq,"hash"),xmlnode_get_tag_data(m->packet->iq,"token"),xmlnode_get_tag_data(m->packet->iq,"sequence")))
     {
-        jutil_error(m->packet->x,(terror){500,"Password Storage Failed"});
+        jutil_error(m->packet->x,(terror){500,"Authentication Storage Failed"});
         return M_HANDLED;
     }
 
@@ -158,20 +203,19 @@ mreturn mod_auth_0k_reg(mapi m, void *arg)
 /* handle password change requests from a session */
 mreturn mod_auth_0k_server(mapi m, void *arg)
 {
-    xmlnode pass;
+    mreturn ret;
 
-    /* pre-requisites */
+    /* pre-requisites if we're within a session */
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
-    if(jpacket_subtype(m->packet) != JPACKET__SET || !NSCHECK(m->packet->iq,NS_REGISTER)) return M_PASS;
     if(m->user == NULL) return M_PASS;
-    if((pass = xmlnode_get_tag(m->packet->iq,"password")) == NULL) return M_PASS;
+    if(!NSCHECK(m->packet->iq,NS_REGISTER)) return M_PASS;
 
-    if(mod_auth_0k_reset(m,m->user->id,pass))
-    {
-        js_bounce(m->si,m->packet->x,(terror){500,"Password Storage Failed"});
-        return M_HANDLED;
-    }
-    return M_PASS;
+    /* just do normal reg process, but deliver afterwards */
+    ret = mod_auth_0k_reg(m,arg);
+    if(ret == M_HANDLED)
+        js_deliver(m->si, jpacket_reset(m->packet));
+
+    return ret;
 }
 
 void mod_auth_0k(jsmi si)
