@@ -1,0 +1,18 @@
+#!/bin/sh
+
+# Yay a dependancy on sh! J/K
+
+hosttype=`uname -s`
+
+case $hosttype in
+    Linux)
+        echo "We got Linux... We should export it's CFLAGS";;
+    Solaris)
+        echo "Ok Solaris... we need to change the linker mainly";;
+    FreeBSD)
+        echo "FreeBSD... We don't need -ldl";;
+esac
+
+echo -n "Setting Build Parameters..."
+echo "Done"
+echo "You may now type 'make' to build your new Jabber system."
