@@ -3,7 +3,7 @@
 #endif
 
 #include "mio/mio.h"
-#include "xmlparse/xmlparse.h"
+#include <expat.h>
 #include "util/util.h"
 
 #ifdef USE_SSL
