@@ -533,6 +533,20 @@
       -->
       <!-- <secret>somethingSecret</secret> -->
 
+      <!--
+      How long we are waiting for an outgoing connection to be
+      established before we bounce pending messages to this server.
+      Default: 30 seconds
+      -->
+      <!-- <queuetimeout>30</queuetimeout> -->
+
+      <!--
+      Close idle server to server connections after this number of
+      seconds.
+      Default: 900 seconds (15 minutes)
+      -->
+      <!-- <idletimeout>900</idletimeout> -->
+
       <!-- Use these to listen on particular addresses and/or ports.
       <ip port="7000"/>
       <ip port="5269">127.0.0.1</ip>
