@@ -89,7 +89,7 @@ if test "$have_dlopen" = "yes"; then
 else
     AC_CHECK_LIB(dl, dlopen, have_dlopen=yes, have_dlopen=no)
     if test "$have_dlopen" = "yes"; then
-	AC_DEFINE(HAVE_LIBSOCKET, 1, [Define if dlopen is available.])
+	AC_DEFINE(HAVE_DLOPEN, 1, [Define if dlopen is available.])
 	LIBS="$LIBS -ldl"
     fi
 fi
