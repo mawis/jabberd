@@ -185,9 +185,9 @@ void _connect_process(conn_t c) {
             if((attr = nad_find_attr(c->nad, 0, "error", NULL)) >= 0)
             {
                 snprintf(str, 770, "%.*s", NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr));
-                conn_close(target, str);
+                conn_close(target, STREAM_ERR_NOT_AUTHORIZED, str); /* XXX could be other errors */
             }else{
-                conn_close(target, "Server Error");
+                conn_close(target, STREAM_ERR_INTERNAL_SERVER_ERROR, "Server Error");
             }
 
         }

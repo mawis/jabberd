@@ -1,3 +1,11 @@
+2003-12-26  Matthias Wimmer  <m@tthias.net>
+
+    * clients.c: improvements for stream errors
+    * conn.c: same
+    * connect.c: same
+    * jadc2s.c: same
+    * jadc2s.h: same
+
 2003-12-21  Matthias Wimmer  <m@tthias.net>
 
     * configure.in: added IPv6 checks
