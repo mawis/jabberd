@@ -24,7 +24,8 @@ jsm_modules_OBJECTS=\
 	mod_register.o \
 	mod_log.o \
 	mod_last.o \
-	mod_offline.o
+	mod_offline.o \
+	mod_disco.o
 
 $(jsm_modules_OBJECTS): $(jsm_modules_HEADERS)
 
