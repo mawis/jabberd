@@ -67,7 +67,6 @@ void *mod_private();
 void *mod_presence();
 void *mod_auth_plain();
 void *mod_auth_digest();
-void *mod_auth_0k();
 void *mod_register();
 void *mod_log();
 void *mod_xml();
@@ -95,7 +94,6 @@ void *load_symbol(char *func, char *file)
     if(j_strcmp(func,"mod_presence") == 0) return (void (*)(void))mod_presence;
     if(j_strcmp(func,"mod_auth_plain") == 0) return (void (*)(void))mod_auth_plain;
     if(j_strcmp(func,"mod_auth_digest") == 0) return (void (*)(void))mod_auth_digest;
-    if(j_strcmp(func,"mod_auth_0k") == 0) return (void (*)(void))mod_auth_0k;
     if(j_strcmp(func,"mod_register") == 0) return (void (*)(void))mod_register;
     if(j_strcmp(func,"mod_log") == 0) return (void (*)(void))mod_log;
     if(j_strcmp(func,"mod_xml") == 0) return (void (*)(void))mod_xml;

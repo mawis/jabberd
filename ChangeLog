@@ -1,3 +1,12 @@
+2005-02-25 Maqi <maqi@jabberstudio.org>
+
+    * removed mod_auth_0k module
+    * changed version to 1.4.4pre20050225
+    * added info on -U switch
+    * made libidn a requirement
+    * removed authors list from README, see AUTHORS
+    * removed other outdated info from README
+
 2005-02-24  Matthias Wimmer  <m@tthias.net>
 
     * jsm/modules/mod_presence.c: Bugfix: presences with multiple stamps bug
