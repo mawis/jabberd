@@ -109,6 +109,10 @@ struct conn_st
 
     /* Flash Hack */
     int flash_hack;
+
+    /* Traffic counting */
+    unsigned long int in_bytes;
+    unsigned long int out_bytes;
 };
 
 /* conn happy/sad */
