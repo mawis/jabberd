@@ -32,6 +32,7 @@
 /* track our two lists */
 typedef struct modpres_struct
 {
+    int invisible;
     jid avails;
     jid bcc;
 } *modpres, _modpres;
@@ -108,71 +109,12 @@ mreturn mod_presence_in(mapi m, void *arg)
     return M_PASS;
 }
 
-mreturn mod_presence_out(mapi m, void *arg)
+/* process the roster to probe outgoing s10ns, and pre-populate the notify list if given */
+void mod_presence_roster(mapi m, jid notify)
 {
-    xmlnode pnew, roster, cur, delay;
+    xmlnode roster, cur, pnew;
     jid id;
-    modpres mp = (modpres)arg;
-    session top;
-    int from, to, oldpri, local;
-
-    if(m->packet->type != JPACKET_PRESENCE) return M_IGNORE;
-
-    if(m->packet->to != NULL || jpacket_subtype(m->packet) == JPACKET__PROBE) return M_PASS;
-
-    log_debug("mod_presence","new presence from %s of  %s",jid_full(m->s->id),xmlnode2str(m->packet->x));
-
-    /* pre-existing conditions (no, we are not an insurance company) */
-    top = js_session_primary(m->user);
-    oldpri = m->s->priority;
-
-    /* our new presence */
-    xmlnode_free(m->s->presence);
-    m->s->presence = xmlnode_dup(m->packet->x);
-    m->s->priority = jutil_priority(m->packet->x);
-
-    /* check to see if this presence is local only! (it has to="self") */
-    local = 0;
-    if(xmlnode_get_attrib(m->packet->x,"to") != NULL)
-        local = 1;
-
-    /* stamp the sessions presence */
-    delay = xmlnode_insert_tag(m->s->presence,"x");
-    xmlnode_put_attrib(delay,"xmlns",NS_DELAY);
-    xmlnode_put_attrib(delay,"from",jid_full(m->s->id));
-    xmlnode_put_attrib(delay,"stamp",jutil_timestamp());
-
-    log_debug(ZONE,"presence oldp %d newp %d top %X",oldpri,m->s->priority,top);
-
-    /* we handle simple presence changes */
-    if(oldpri >= 0)
-    {
-        /* if we're going offline now, let everyone know */
-        if(m->s->priority < 0)
-        {
-            _mod_presence_broadcast(m->s,mp->bcc,m->packet->x,NULL);
-            _mod_presence_broadcast(m->s,mp->avails,m->packet->x,NULL);
-            mp->avails->next = NULL;
-        }else{ /* just let the trusted know, and just those that think were available at least */
-            _mod_presence_broadcast(m->s,js_trustees(m->user),m->packet->x,mp->avails);
-        }
-        xmlnode_free(m->packet->x);
-        return M_HANDLED;
-    }
-
-    /* if we weren't available before, there's nobody to tell that we're not available again */
-    if(m->s->priority < 0)
-    {
-        xmlnode_free(m->packet->x);
-        return M_HANDLED;
-    }
-
-    /* special internal stuff for when we're becoming available */
-
-    /* make sure we get notified for any presence about ourselves */
-    pnew = jutil_presnew(JPACKET__PROBE,jid_full(jid_user(m->s->id)),NULL);
-    xmlnode_put_attrib(pnew,"from",jid_full(jid_user(m->s->id)));
-    js_session_from(m->s, jpacket_new(pnew));
+    int to, from;
 
     /* do our roster setup stuff */
     roster = xdb_get(m->si->xc, m->user->id, NS_ROSTER);
@@ -181,7 +123,7 @@ mreturn mod_presence_out(mapi m, void *arg)
         id = jid_new(m->packet->p,xmlnode_get_attrib(cur,"jid"));
         if(id == NULL) continue;
 
-        log_debug("mod_presence","roster item %s s10n=%s",jid_full(id),xmlnode_get_attrib(cur,"subscription"));
+        log_debug(ZONE,"roster item %s s10n=%s",jid_full(id),xmlnode_get_attrib(cur,"subscription"));
 
         /* vars */
         to = from = 0;
@@ -195,26 +137,114 @@ mreturn mod_presence_out(mapi m, void *arg)
         /* curiosity phase */
         if(to)
         {
-            log_debug("mod_presence","we're new here, probe them");
+            log_debug(ZONE,"we're new here, probe them");
             pnew = jutil_presnew(JPACKET__PROBE,jid_full(id),NULL);
             xmlnode_put_attrib(pnew,"from",jid_full(jid_user(m->s->id)));
             js_session_from(m->s, jpacket_new(pnew));
         }
 
         /* notify phase, only if it's global presence */
-        if(from && !local)
+        if(from && notify != NULL)
         {
-            log_debug("mod_presence","we need to notify them");
-            jid_append(mp->avails, id);
+            log_debug(ZONE,"we need to notify them");
+            jid_append(notify, id);
         }
 
     }
 
     xmlnode_free(roster);
 
+}
+
+mreturn mod_presence_out(mapi m, void *arg)
+{
+    xmlnode pnew, delay;
+    modpres mp = (modpres)arg;
+    session top;
+    int oldpri;
+
+    if(m->packet->type != JPACKET_PRESENCE) return M_IGNORE;
+
+    if(m->packet->to != NULL || jpacket_subtype(m->packet) == JPACKET__PROBE) return M_PASS;
+
+    log_debug("mod_presence","new presence from %s of  %s",jid_full(m->s->id),xmlnode2str(m->packet->x));
+
+    /* pre-existing conditions (no, we are not an insurance company) */
+    top = js_session_primary(m->user);
+    oldpri = m->s->priority;
+
+    /* invisible mode is special, don't you wish you were special too? */
+    if(jpacket_subtype(m->packet) == JPACKET__INVISIBLE)
+    {
+        log_debug(ZONE,"handling invisible mode request");
+
+        /* if we get this and we're available, it means go unavail first then reprocess this packet, nifty trick :) */
+        if(oldpri >= 0)
+	{
+            js_session_from(m->s, jpacket_new(jutil_presnew(JPACKET__UNAVAILABLE,NULL,NULL)));
+            js_session_from(m->s, m->packet);
+            return M_HANDLED;
+	}
+
+        /* now, pretend we come online :) */
+        mp->invisible = 1;
+        mod_presence_roster(m, NULL); /* probe ppl */
+        m->s->priority = j_atoi(xmlnode_get_tag_data(m->packet->x,"priority"),0);
+        xmlnode_free(m->packet->x);
+        return M_HANDLED;
+    }
+
+    /* our new presence */
+    xmlnode_free(m->s->presence);
+    m->s->presence = xmlnode_dup(m->packet->x);
+    m->s->priority = jutil_priority(m->packet->x);
+
+    /* stamp the sessions presence */
+    delay = xmlnode_insert_tag(m->s->presence,"x");
+    xmlnode_put_attrib(delay,"xmlns",NS_DELAY);
+    xmlnode_put_attrib(delay,"from",jid_full(m->s->id));
+    xmlnode_put_attrib(delay,"stamp",jutil_timestamp());
+
+    log_debug(ZONE,"presence oldp %d newp %d top %X",oldpri,m->s->priority,top);
+
+    /* if we're going offline now, let everyone know */
+    if(m->s->priority < 0)
+    {
+        /* broadcast this if we were online */
+        if(oldpri >= 0)
+        {
+            if(!mp->invisible) /* bcc's don't get told if we were invisible */
+                _mod_presence_broadcast(m->s,mp->bcc,m->packet->x,NULL);
+            _mod_presence_broadcast(m->s,mp->avails,m->packet->x,NULL);
+            mp->avails->next = NULL;
+        }
+        mp->invisible = 0;
+        xmlnode_free(m->packet->x);
+        return M_HANDLED;
+    }
+
+    /* we handle simple presence updates to only the trusted list that still think we're available */
+    if(oldpri >= 0 && !mp->invisible)
+    {
+        _mod_presence_broadcast(m->s,js_trustees(m->user),m->packet->x,mp->avails);
+        xmlnode_free(m->packet->x);
+        return M_HANDLED;
+    }
+
+    /* at this point we're coming out of the closet */
+    mp->invisible = 0;
+
+    /* make sure we get notified for any presence about ourselves */
+    pnew = jutil_presnew(JPACKET__PROBE,jid_full(jid_user(m->s->id)),NULL);
+    xmlnode_put_attrib(pnew,"from",jid_full(jid_user(m->s->id)));
+    js_session_from(m->s, jpacket_new(pnew));
+
+    /* probe s10ns and populate avails */
+    mod_presence_roster(m,mp->avails);
+
     /* we broadcast this baby! */
     _mod_presence_broadcast(m->s,mp->bcc,m->packet->x,NULL);
-    _mod_presence_broadcast(m->s,mp->avails,m->packet->x,NULL); /* avails list is freshly populated from trusted roster */
+    _mod_presence_broadcast(m->s,mp->avails,m->packet->x,NULL);
     xmlnode_free(m->packet->x);
     return M_HANDLED;
 }

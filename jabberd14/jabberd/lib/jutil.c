@@ -56,6 +56,9 @@ xmlnode jutil_presnew(int type, char *to, char *status)
     case JPACKET__UNAVAILABLE:
         xmlnode_put_attrib(pres,"type","unavailable");
         break;
+    case JPACKET__INVISIBLE:
+        xmlnode_put_attrib(pres,"type","invisible");
+        break;
     }
     if(to != NULL)
         xmlnode_put_attrib(pres,"to",to);
