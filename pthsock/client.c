@@ -48,6 +48,7 @@ typedef struct cdata_st
     user_state state;
     char *id, *host, *sid, *res, *auth_id;
     void *arg;
+    pth_msgport_t pre_auth_mp;
     struct cdata_st *next;
 } _cdata,*cdata;
 
@@ -64,6 +65,18 @@ void pthsock_client_close(sock c)
         log_debug(ZONE,"Closing client socket, sending notification to SM: %s",xmlnode2str(x));
         deliver(dpacket_new(x),((smi)cd->i)->i);
     }
+    else
+    {
+        wbq q;
+        if(cd->pre_auth_mp!=NULL)
+        {
+            while((q=(wbq)pth_msgport_get(cd->pre_auth_mp))!=NULL)
+            {
+                xmlnode_free(q->x);
+            }
+            pth_msgport_destroy(cd->pre_auth_mp);
+        } 
+    }
     log_debug(ZONE,"asking socket to close");
     io_close(c);
 }
@@ -75,12 +88,12 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     sock cur;
     int fd=0;
 
-    log_debug(ZONE,"Got a packet from Deliver: %s",xmlnode2str(p->x));
+    log_debug(ZONE,"Got a packet from Deliver[%s]: %s",p->id->user,xmlnode2str(p->x));
 
     if(p->id->user!=NULL)fd = atoi(p->id->user); 
-    if(p->id->user==NULL||p->type!=p_ROUTE||fd==0)
+    if(p->type!=p_ROUTE||fd==0)
     {
-        log_debug(ZONE,"Dropping loser packet: %s",xmlnode2str(p->x));
+        log_debug(ZONE,"Dropping loser packet[%d]: %s",p->type,xmlnode2str(p->x));
         xmlnode_free(p->x);
         return r_DONE;
     }
@@ -106,25 +119,43 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
             xmlnode_free(p->x);
             return r_DONE;
         }
-        else if(cdcur->state==state_UNKNOWN)
+        else if(cdcur->state==state_UNKNOWN&&j_strcmp(xmlnode_get_attrib(p->x,"type"),"auth")==0)
         { /* look for our auth packet back */
-            char *type=xmlnode_get_attrib(p->x,"type");
+            char *type=xmlnode_get_attrib(xmlnode_get_firstchild(p->x),"type");
             char *id=xmlnode_get_attrib(xmlnode_get_tag(p->x,"iq"),"id");
-            if(j_strcmp(type,"auth")==0) type=xmlnode_get_attrib(xmlnode_get_tag(p->x,"iq"),"type");
             if((j_strcmp(type,"result")==0)&&j_strcmp(cdcur->auth_id,id)==0)
             { /* update the cdata status if it's a successfull auth */
+                jid j;
                 xmlnode x;
                 log_debug(ZONE,"auth for user successful");
-                /* change the host id */
-                cdcur->host = pstrdup(cur->p,xmlnode_get_attrib(p->x,"sfrom"));
-                cdcur->state = state_AUTHD;
+
                 log_debug(ZONE,"notifying SM to start session");
                 x=xmlnode_new_tag("route");
                 xmlnode_put_attrib(x,"type","session");
-                xmlnode_put_attrib(x,"to",xmlnode_get_attrib(p->x,"from"));
+                j=jid_new(xmlnode_pool(x),cdcur->host);
+                jid_set(j,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(xmlnode_get_firstchild(p->x),"query?xmlns=jabber:iq:auth"),"username")),JID_USER);
+                jid_set(j,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(xmlnode_get_firstchild(p->x),"query?xmlns=jabber:iq:auth"),"resource")),JID_RESOURCE);
+                xmlnode_put_attrib(x,"to",jid_full(j));
                 xmlnode_put_attrib(x,"from",xmlnode_get_attrib(p->x,"to"));
                 deliver(dpacket_new(x),si->i);
             } else log_debug(ZONE,"Auth not successfull");
+        } else if(cdcur->state==state_UNKNOWN&&j_strcmp(xmlnode_get_attrib(p->x,"type"),"session")==0)
+        { /* got a session reply from the server */
+            wbq q;
+            cdcur->state = state_AUTHD;
+            /* change the host id */
+            cdcur->host = pstrdup(cur->p,xmlnode_get_attrib(p->x,"sfrom"));
+            log_debug(ZONE,"Session Started");
+            /* if we have packets in the queue, write them */
+            while((q=(wbq)pth_msgport_get(cdcur->pre_auth_mp))!=NULL)
+            {
+                q->x=xmlnode_wrap(q->x,"route");
+                xmlnode_put_attrib(q->x,"to",cdcur->host);
+                xmlnode_put_attrib(q->x,"from",cdcur->id);
+                deliver(dpacket_new(q->x),si->i);
+            }
+            pth_msgport_destroy(cdcur->pre_auth_mp);
+            cdcur->pre_auth_mp=NULL;
         }
         log_debug(ZONE,"Writing packet to socket");
         io_write(cur,xmlnode_get_firstchild(p->x));
@@ -174,13 +205,16 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
             xmlnode q = xmlnode_get_tag(x,"query");
             if (!NSCHECK(q,NS_AUTH)&&!NSCHECK(q,NS_REGISTER))
             {
-                log_debug(ZONE,"user tried to send packet in unknown state");
-                xmlnode_free(x);
-                pthsock_client_close(c);
+                wbq q;
+                /* queue packet until authed */
+                q=pmalloco(xmlnode_pool(x),sizeof(_wbq));
+                q->x=x;
+                pth_msgport_put(cd->pre_auth_mp,(void*)q);
                 return;
             }
             else if (NSCHECK(q,NS_AUTH))
             {
+                jid j;
                 xmlnode_put_attrib(xmlnode_get_tag(q,"digest"),"sid",cd->sid);
                 cd->auth_id = pstrdup(c->p,xmlnode_get_attrib(x,"id"));
                 if(cd->auth_id==NULL) 
@@ -188,17 +222,32 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
                     cd->auth_id = pstrdup(c->p,"pthsock_client_auth_ID");
                     xmlnode_put_attrib(x,"id","pthsock_client_auth_ID");
                 }
+                x=xmlnode_wrap(x,"route");
+                j=jid_new(xmlnode_pool(x),cd->host);
+                jid_set(j,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(xmlnode_get_firstchild(x),"query?xmlns=jabber:iq:auth"),"username")),JID_USER);
+                jid_set(j,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(xmlnode_get_firstchild(x),"query?xmlns=jabber:iq:auth"),"resource")),JID_RESOURCE);
+                xmlnode_put_attrib(x,"to",jid_full(j));
+                xmlnode_put_attrib(x,"from",xmlnode_get_attrib(x,"to"));
+                xmlnode_put_attrib(x,"type","auth");
+                xmlnode_put_attrib(x,"from",cd->id);
+                deliver(dpacket_new(x),((smi)cd->i)->i);
+            }
+            else if (NSCHECK(q,NS_REGISTER))
+            {
+                x=xmlnode_wrap(x,"route");
+                xmlnode_put_attrib(x,"type","register");
+                xmlnode_put_attrib(x,"from",cd->id);
+                xmlnode_put_attrib(x,"to",cd->host);
+                deliver(dpacket_new(x),((smi)cd->i)->i);
             }
         }
-        x=xmlnode_wrap(x,"route");
-        if(xmlnode_get_tag(xmlnode_get_firstchild(x),"query?xmlns=jabber:iq:auth")!=NULL)
-            xmlnode_put_attrib(x,"type","auth");
-        else if(xmlnode_get_tag(xmlnode_get_firstchild(x),"query?xmlns=jabber:iq:register")!=NULL)
-            xmlnode_put_attrib(x,"type","register");
-        xmlnode_put_attrib(x,"from",cd->id);
-        xmlnode_put_attrib(x,"to",cd->host);
-        log_debug(ZONE,"wrapped client packet as: %s",xmlnode2str(x));
-        deliver(dpacket_new(x),((smi)cd->i)->i);
+        else
+        {
+            xmlnode_put_attrib(x,"from",cd->id);
+            xmlnode_put_attrib(x,"to",cd->host);
+            log_debug(ZONE,"wrapped client packet as: %s",xmlnode2str(x));
+            deliver(dpacket_new(x),((smi)cd->i)->i);
+        }
         break;
     case XSTREAM_ERR:
         h=xmlnode_new_tag("stream:error");
@@ -218,6 +267,7 @@ cdata pthsock_client_cdata(smi si,sock c)
     char *buf;
 
     cd = pmalloco(c->p, sizeof(_cdata));
+    cd->pre_auth_mp=pth_msgport_create("pre_auth_mp");
     cd->i = (void*)si;
     c->xs = xstream_new(c->p,pthsock_client_stream,(void*)c);
     cd->state = state_UNKNOWN;
