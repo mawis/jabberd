@@ -1,3 +1,7 @@
+2005-03-11  Matthias Wimmer  <m@tthias.net>
+
+    * jsm/modules/mod_auth_plain.c: log new account registrations
+
 2005-03-10  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/base/base_accept.c: we can now generate longer error messages
