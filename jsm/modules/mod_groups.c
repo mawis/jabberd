@@ -131,8 +131,6 @@ xmlnode mod_groups_get_top(mod_groups_i  mi, pool p, char *host)
     if (result == NULL)
         result = xmlnode_new_tag("query");
 
-    log_debug("mod_groups","Inserting from config");
-
     xmlnode_put_vattrib(result,"mi",(void *) mi);
     xmlnode_put_attrib(result,"host",host);
 
@@ -491,11 +489,10 @@ void mod_groups_browse_set(mod_groups_i mi, mapi m)
 
     log_debug(ZONE,"Setting");
 
-    gid = strchr(jp->to->resource,'/') + 1;
-    info = mod_groups_get_info(mi,p,jp->to->server,gid);
-    if (info == NULL ||  xmlnode_get_tag(info,spools(p,"edit/user=",jp->from->user,p)) == NULL)
+    gid = strchr(jp->to->resource,'/');
+    if (gid == NULL || ++gid == NULL);
     {
-        js_bounce(m->si,jp->x,TERROR_NOTALLOWED);
+        js_bounce(m->si,jp->x,TERROR_NOTACCEPTABLE);
         return;
     }
 
@@ -503,14 +500,20 @@ void mod_groups_browse_set(mod_groups_i mi, mapi m)
     uid = jid_new(p,xmlnode_get_attrib(user,"jid"));
     un = xmlnode_get_attrib(user,"name");
 
-    gn = xmlnode_get_tag_data(info,"name");
-
     if (uid == NULL || un == NULL)
     {
         js_bounce(m->si,jp->x,TERROR_NOTACCEPTABLE);
         xmlnode_free(info);
         return;
     }
+
+    info = mod_groups_get_info(mi,p,jp->to->server,gid);
+    if (info == NULL ||  xmlnode_get_tag(info,spools(p,"edit/user=",jp->from->user,p)) == NULL)
+    {
+        js_bounce(m->si,jp->x,TERROR_NOTALLOWED);
+        return;
+    }
+    gn = xmlnode_get_tag_data(info,"name");
 
     if (mod_groups_xdb_add(mi,p,uid,un,gid,gn,1))
     {
@@ -573,17 +576,16 @@ void mod_groups_browse_get(mod_groups_i mi, mapi m)
     log_debug("mod_groups","Browse request");
 
     gid = strchr(jp->to->resource,'/');
-    if (gid != NULL && ++gid)
+    if (gid != NULL && ++gid != NULL)
     {
         group = mod_groups_get_users(mi,p,host,gid);
-
         info = mod_groups_get_info(mi,p,host,gid);
         gn = xmlnode_get_tag_data(info,"name");
     }
     else
     {
         group = mod_groups_get_top(mi,p,host);
-        gn = gid = NULL;
+        gn = NULL;
     }
 
     if (group == NULL && gn == NULL)
