@@ -240,10 +240,6 @@ void _mio_close(mio m)
     /* notify of the close */
     (*(mio_cb)m->cb)(m, NULL, 0, MIO_CLOSED, m->arg);
 
-    /* write our closing stream header
-     * XXX this doesn't really belong here */
-    pth_write(m->fd, "</stream:stream>", 16);
-
     /* close the socket, and free all memory */
     close(m->fd);
 
@@ -382,6 +378,10 @@ void _mio_main(void *arg)
                 if(cur->type == type_LISTEN)
                 {
                     mio m = _mio_accept(cur);
+
+                    if(cur->fd > maxfd)
+                        maxfd = cur->fd;
+
                     if(m != NULL)
                     {
                         (*(mio_cb)m->cb)(m, NULL, 0, MIO_NEW, m->arg);
