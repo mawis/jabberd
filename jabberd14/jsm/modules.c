@@ -46,6 +46,7 @@ void js_mapi_register(jsmi si, event e, mcall c, void *arg)
     newl->c = c;
     newl->arg = arg;
     newl->mask = 0x00;
+    newl->next = NULL;
 
     /* append */
     if(si->events[e] == NULL)
