@@ -18,8 +18,23 @@
  */
 
 #include "jabberd.h"
-
+extern HASHTABLE cmd__line;
 xmlnode greymatter__ = NULL;
+
+void cmdline_replace(xmlnode x)
+{
+    xmlnode cl=xmlnode_get_tag(x,"cl");
+    char *flag;
+    char *replace_text;
+
+    if(cl==NULL) return;
+    flag=xmlnode_get_attrib(cl,"flag");
+    replace_text=ghash_get(cmd__line,flag);
+    if(replace_text==NULL) replace_text=xmlnode_get_data(cl);
+
+    xmlnode_hide(xmlnode_get_firstchild(x));
+    xmlnode_insert_cdata(x,replace_text,-1);
+}
 
 int configurate(char *file)
 {
@@ -144,6 +159,7 @@ int configo(int exec)
         /* loop through all this sections children */
         for(curx2 = xmlnode_get_firstchild(curx); curx2 != NULL; curx2 = xmlnode_get_nextsibling(curx2))
         {
+            if(!exec) cmdline_replace(curx2);
             /* only handle elements in our namespace */
             if(xmlnode_get_type(curx2) != NTYPE_TAG || xmlnode_get_attrib(curx2, "xmlns") != NULL)
                 continue;

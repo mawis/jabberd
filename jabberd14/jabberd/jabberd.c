@@ -28,6 +28,7 @@
  */
 
 #include "jabberd.h"
+HASHTABLE cmd__line;
 
 /*** internal functions ***/
 int configurate(char *file);
@@ -40,9 +41,11 @@ int main (int argc, char** argv)
     sigset_t set;               /* a set of signals to trap */
     int help, sig, i;           /* temporary variables */
     char *cfgfile = NULL, *c;   /* strings used to load the server config */
+    pool cfg_pool=pool_new();
 
     /* start by assuming the parameters were entered correctly */
     help = 0;
+    cmd__line=ghash_create(20,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
 
     /* process the parameterss one at a time */
     for(i = 1; i < argc; i++)
@@ -55,27 +58,22 @@ int main (int argc, char** argv)
         for(c=argv[i]+1;c[0]!='\0';c++)
         {
             /* loop through the characters, like -Dc */
-            switch(*c)
+            if(*c=='D') debug_flag=1;
+            else
             {
-            case 'c': /* get name of config file */
-                /* next arg should be a config file */
-                if(cfgfile!=NULL)
-                    help=1; /* only one -c allowed */
-                else if(i+1<argc)
-                    cfgfile = strdup(argv[++i]);
+                char *cmd=pmalloco(cfg_pool,2);
+                cmd[0]=*c;
+                if(i+1<argc)
+                    ghash_put(cmd__line,cmd,argv[++i]);
                 else
+                {
                     help=1;
-                break;
-            case 'D': /* debug flag */
-                debug_flag = 1;
-                break;
-
-            default: /* unrecognized parameter */
-                help = 1;
+                    break;
+                }
             }
         }
-        if(help)break;
     }
+    cfgfile=ghash_get(cmd__line,"c");
 
     /* were there any bad parameters? */
     if(help)
@@ -88,8 +86,6 @@ int main (int argc, char** argv)
     /* load the config passing the file if it was manually set */
     if(configurate(cfgfile))
         exit(1);
-
-    if(cfgfile!=NULL)free(cfgfile);
 
     /* EPIPE is easier to handle than a signal */
     signal(SIGPIPE, SIG_IGN);
@@ -128,6 +124,7 @@ int main (int argc, char** argv)
         /* XXX it was HUP, time to reload the config file */
     }
 
+    pool_free(cfg_pool);
     log_alert(NULL,"Recieved Kill.  Jabberd shutting down.");
     /* XXX we left the main loop, so we must have recieved a kill signal */
 
