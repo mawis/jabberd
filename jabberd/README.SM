@@ -1,0 +1,46 @@
+Socket Manager README -- so you want to be a jabber socket manager?
+-------------------------------------------------------------------
+
+In the jabberd server model, the Socket manager component is abstracted from the Session Manager.  What this means, is that you can have any component (on any server) managing the incoming sockets for jabberd, while another component (possibly on another server) manages the session for that connection.
+
+What this means is that you have to have some way for the two to talk to each other and pass data back and forth.
+
+---------
+special session routing attribs sto and sfrom
+---------
+
+jabberd routes data based on the hostname in the "to" attrib on the packets... there is also session routing attributes "sto" and "sfrom" that are internal to jabberd, the user will not see these attribs.
+
+these session routing attribs are how jabberd knows to handle the packets between a socket manager and a session manager differently than normal packets.
+
+---------
+special internal error message
+---------
+
+in addition to the special routing, there needs to be a way for one component to tell the other that the session has ended... we use a special internal error message, the 510 "Disconnected" message, to tell the other component that the session has ended.
+
+for example, if the user closes the socket, the socket manager will send a 510 error to the Session manager to let it know that the session is no longer valid.
+
+---------
+How it all works -- The Auth Process
+---------
+
+Asume in the following examples that the jabber server is named "foo.com" and the socket manager is named "foo-sockets".
+
+when a user connects to the server, they are connecting to the socket manager foo-sockets.  the socket manager needs to keep track of whether the user has authenticated or not with the session manager... when they are not authenticated, they are in an Unknown state.
+
+When a user sends the auth request, the socket manager will add sto and sfrom attribs to the packet.  the sto will be "foo.com" (the name of the session manager) and the sfrom will be a unique way of identifying the packet, such as "12@foo-sockets" if the user is using file descriptor #12, etc
+
+the Session manager will check the authentication of the user, and send back a result or error packet.  if it is a result (good Auth), the socket manager needs to store the new sfrom, which uniquly identifies the session, such as "user@foo.com/res"  or "123abc@foo.com" etc.  this attrib will be used from now on, on all outgoing packets to the session manager.  Only Auth packets are sent sto the Session manager.
+
+Once the user is authenticated, no other special handling of packets is required, aside from adding the sto and sfrom attribs, so the packets go to the session manager.
+
+---------
+How it all works -- the 510 error
+---------
+
+When a session needs to end, such as a closed socket on the socket manager, or sending invalid data to the session manager, a 510 error is generated.  This tells the other component that the session should be termintated immediatly.
+
+When a 510 error is generated, the original packet that generated the error (if there is one) needs to be preseved.. the to and from should not be modified, and the type is hidden in the packet (since the new type will be "error").  the old type is added to the <error/> tag, so that it can be preserved later.
+
+the component that receives the 510 error does not need to respond to it in any way, it just needs to close the socket, or invalidate the session.
