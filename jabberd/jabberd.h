@@ -220,8 +220,9 @@ typedef struct mio_st
 } *mio, _mio;
 
 /* MIO SOCKET HANDLERS */
-typedef int     (*mio_read_func)    (mio m); /* calls read on a ready socket */
+typedef ssize_t (*mio_read_func)    (int fd, void*            buf,       size_t     count);
 typedef ssize_t (*mio_write_func)   (int fd, const void*      buf,       size_t     count); 
+typedef void    (*mio_parser_func)  (mio m,  const void*      buf,       size_t     bufsz);
 typedef int     (*mio_accept_func)  (int fd, struct sockaddr* serv_addr, socklen_t* addrlen);
 typedef int     (*mio_connect_func) (int fd, struct sockaddr* serv_addr, socklen_t  addrlen);
 
@@ -232,27 +233,24 @@ typedef struct mio_handlers_st
     mio_read_func   read;
     mio_write_func  write;
     mio_accept_func accept;
+    mio_parser_func parser;
 } _mio_handlers, *mio_handlers; 
 
 /* standard read/write/accept/connect functions */
-#define MIO_READ_FUNC    pth_read
+#define MIO_READ_FUNC    pth_read 
 #define MIO_WRITE_FUNC   pth_write
 #define MIO_ACCEPT_FUNC  pth_accept
 #define MIO_CONNECT_FUNC pth_connect
 
-/* returns -1 on error, 0 on OK */
-int _mio_std_read(mio m);
-#define MIO_STD_READ    (mio_read_func)&_mio_std_read
-#define MIO_STD_WRITE   (mio_write_func)&MIO_WRITE_FUNC
-#define MIO_STD_ACCEPT  (mio_accept_func)&MIO_ACCEPT_FUNC
-#define MIO_STD_CONNECT (mio_connect_func)&MIO_CONNECT_FUNC
+void _mio_raw_parser(mio m, const void *buf, size_t bufsz);
+#define MIO_RAW_READ    (mio_read_func)&MIO_READ_FUNC
+#define MIO_RAW_WRITE   (mio_write_func)&MIO_WRITE_FUNC
+#define MIO_RAW_ACCEPT  (mio_accept_func)&MIO_ACCEPT_FUNC
+#define MIO_RAW_CONNECT (mio_connect_func)&MIO_CONNECT_FUNC
+#define MIO_RAW_PARSER  (mio_parser_func)&_mio_raw_parser
 
-/* returns -1 on error, 0 on OK */
-int _mio_xml_read(mio m);
-#define MIO_XML_READ    (mio_read_func)&_mio_xml_read
-#define MIO_XML_WRITE   MIO_STD_WRITE
-#define MIO_XML_ACCEPT  MIO_STD_ACCEPT
-#define MIO_XML_CONNECT MIO_STD_CONNECT
+void _mio_xml_parser(mio m, const void *buf, size_t bufsz);
+#define MIO_XML_PARSER  (mio_parser_func)&_mio_raw_parser
 
 /* SSL functions */
 int     _mio_ssl_read    (mio m);
@@ -265,7 +263,7 @@ int     _mio_ssl_connect (int fd, struct sockaddr* serv_addr, socklen_t  addrlen
 #define MIO_SSL_CONNECT _mio_ssl_connect
 
 /* MIO handlers helper functions */
-mio_handlers mio_handlers_new(mio_read_func rf, mio_write_func wf);
+mio_handlers mio_handlers_new(mio_read_func rf, mio_write_func wf, mio_parser_func pf);
 void         mio_handlers_free(mio_handlers mh);
 void         mio_set_handlers(mio m, mio_handlers mh);
 
