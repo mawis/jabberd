@@ -19,7 +19,8 @@
  * Copyright (c) 1999-2000 Jabber.com, Inc.  All Rights Reserved.  Contact
  * information for Jabber.com, Inc. is available at http://www.jabber.com/.
  *
- * Portions Copyright (c) 1998-1999 Jeremie Miller.
+ * Portions Copyright (c) 1998-1999 Schuyler Heath.
+ *                    (c) 2001      Philip Anderson.
  * 
  * Acknowledgements
  * 
@@ -349,7 +350,7 @@ int mod_groups_xdb_add(mod_groups_i mi, pool p, jid uid, char *un, char *gid, ch
     xmlnode_put_attrib(user,"jid",jid_full(uid));
     xmlnode_put_attrib(user,"name",un);
 
-    if(xdb_act(mi->xc,xid,NS_XGROUPS,"insert",spools(p,"?jid=",jid_full(uid),p),user))
+    if(both && xdb_act(mi->xc,xid,NS_XGROUPS,"insert",spools(p,"?jid=",jid_full(uid),p),user))
     {
         log_debug(ZONE,"Failed to insert user");
         xmlnode_free(user);
@@ -394,6 +395,52 @@ int mod_groups_xdb_add(mod_groups_i mi, pool p, jid uid, char *un, char *gid, ch
     return 0;
 }
 
+/* removes a user from the master group list and from their personal list */
+int mod_groups_xdb_remove(mod_groups_i mi, pool p, jid uid, char *host, char *gid)
+{
+    xmlnode groups, group, info;
+    jid xid;
+
+    xid = jid_new(p,uid->server);
+    jid_set(xid,gid,JID_RESOURCE);
+
+    if(xdb_act(mi->xc,xid,NS_XGROUPS,"insert",spools(p,"?jid=",jid_full(uid),p),NULL))
+    {
+        log_debug(ZONE,"Failed to remove user");
+        return 1;
+    }
+
+    info = mod_groups_get_info(mi, p, host, gid);
+    if (xmlnode_get_tag(info,"require") != NULL)
+        return 0;
+
+    /* get the groups this user is currently part of */
+    groups = mod_groups_get_current(mi,uid);
+    if (groups == NULL)
+    {
+        groups = xmlnode_new_tag("query");
+        xmlnode_put_attrib(groups,"xmlns",NS_XGROUPS);
+    }
+
+    /* check if the user already as the group listed */
+    group = xmlnode_get_tag(groups,spools(p,"?id=",gid,p));
+    if (group == NULL)
+    {
+        /* the group isn't there */
+        xmlnode_free(groups);
+        return 0;
+    }
+
+    /* Delete Node */
+    xmlnode_hide(group);
+
+    xdb_set(mi->xc,uid,NS_XGROUPS,groups);
+    xmlnode_free(groups);
+
+    return 0;
+}
+
+
 void mod_groups_register_set(mod_groups_i mi, mapi m)
 {
     jpacket jp = m->packet;
@@ -402,6 +449,7 @@ void mod_groups_register_set(mod_groups_i mi, mapi m)
     xmlnode info, roster, users;
     jid uid;
     char *gid, *host, *key, *un, *gn;
+    int add, both;
 
     /* make sure it's a valid register query */
     key = xmlnode_get_tag_data(jp->iq,"key");
@@ -424,32 +472,54 @@ void mod_groups_register_set(mod_groups_i mi, mapi m)
     un = xmlnode_get_tag_data(jp->iq,"name");
     gn = xmlnode_get_tag_data(info,"name");
 
-    log_debug("mod_groups","register GID %s",gid);
+    add = (xmlnode_get_tag(jp->iq, "remove") == NULL);
+    both = (xmlnode_get_tag(info,"static") == NULL);
 
-    if (mod_groups_xdb_add(mi,p,uid,un ? un : jid_full(uid),gid,gn,(xmlnode_get_tag(info,"static") == NULL)))
+    if (add)
     {
-        js_bounce(m->si,jp->x,TERROR_UNAVAIL);
-        xmlnode_free(info);
-        return;
+        log_debug("mod_groups","register GID %s",gid);
+        if (mod_groups_xdb_add(mi,p,uid,un ? un : jid_full(uid),gid,gn,both))
+        {
+            js_bounce(m->si,jp->x,TERROR_UNAVAIL);
+            xmlnode_free(info);
+            return;
+        }
+    }
+    else
+    {
+        log_debug("mod_groups","unregister GID %s",gid);
+        if (mod_groups_xdb_remove(mi,p,uid,host,gid))
+        {
+            js_bounce(m->si,jp->x,TERROR_UNAVAIL);
+            xmlnode_free(info);
+            return;
+        }
     }
 
     gt = GROUP_GET(mi,gid);
 
     /* push the group to the user */
-    users = mod_groups_get_users(mi,p,host,gid);
-    if (users != NULL)
+    if (add || xmlnode_get_tag(info,"require") == NULL)
     {
-        roster = jutil_iqnew(JPACKET__SET,NS_ROSTER);
-        mod_groups_roster_insert(m->user,roster,users,gn,1);
-        mod_groups_roster_push(m->s,roster,1);
+        users = mod_groups_get_users(mi,p,host,gid);
+        if (users != NULL)
+        {
+            roster = jutil_iqnew(JPACKET__SET,NS_ROSTER);
+            mod_groups_roster_insert(m->user,roster,users,gn,add);
+            mod_groups_roster_push(m->s,roster,add);
+        }
     }
 
-    /* push the new user to the other members */
-    mod_groups_update_rosters(gt,uid,un,gn,1);
+    /* push/remove the new user to the other members */
+    if (both)
+        mod_groups_update_rosters(gt,uid,un,gn,add);
 
     /* send presnce to everyone */
-    mod_groups_presence_from(m->s,gt,m->s->presence);
-    mod_groups_presence_to(m->s,gt);
+    if (add && both)
+    {
+        mod_groups_presence_from(m->s,gt,m->s->presence);
+        mod_groups_presence_to(m->s,gt);
+    }
 
     jutil_iqresult(jp->x);
     jpacket_reset(jp);
@@ -462,14 +532,30 @@ void mod_groups_register_get(mod_groups_i mi, mapi m)
 {
     jpacket jp = m->packet;
     xmlnode q;
+    char *gid, *name = "";
+    xmlnode members, user;
+    jid uid = m->user->id;
 
-    if (strchr(jp->to->resource,'/') != NULL)  /* make sure it's somewhat valid */
+    gid = strchr(pstrdup(jp->p, jp->to->resource),'/');
+
+    if (gid != NULL && ++gid != NULL) /* Check that it is somewhat valid */
     {
         jutil_iqresult(jp->x);
         q = xmlnode_insert_tag(jp->x,"query");
         xmlnode_put_attrib(q,"xmlns",NS_REGISTER);
 
-        xmlnode_insert_tag(q,"name"); /* user can choose their name */
+        /* Search to see if this users is already registered */
+        members = mod_groups_get_users(mi,jp->p,jp->from->server,gid);
+        user =  xmlnode_get_tag(members,spools(jp->p,"?jid=",uid->full,jp->p));
+        if (user)
+        {
+            name = xmlnode_get_attrib(user, "name");
+            xmlnode_insert_tag(q,"registered");
+
+        }
+        xmlnode_free(members);
+
+        xmlnode_insert_cdata(xmlnode_insert_tag(q,"name"),name,-1);
         xmlnode_insert_cdata(xmlnode_insert_tag(q,"key"),jutil_regkey(NULL,jid_full(jp->from)),-1);
         xmlnode_insert_cdata(xmlnode_insert_tag(q,"instructions"),mi->inst,-1);
 
@@ -919,7 +1005,7 @@ void mod_groups(jsmi si)
             }
             else if (xhash_get(mi->config,gid) != NULL)
             {
-                log_error("sessions","mod_groups: Error loading, group '%s' configured twice",gid);
+                log_error(si->id,"mod_groups: Error loading, group '%s' configured twice",gid);
                 pool_free(p);
                 return;
             }
