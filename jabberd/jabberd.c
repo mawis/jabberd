@@ -177,7 +177,7 @@ int main (int argc, char** argv)
     /* were there any bad parameters? */
     if(help)
     {
-        fprintf(stderr,"Usage:\n%s [params]\n Optional Parameters:\n -c <file>\tconfiguration file\n -d <typemask>\tenable debug output (disables background)\n -D\t\tenable debug (all types)\n -H <directory>\tlocation of home folder\n -B\t\tbackground the server process\n -Z <zones>\tdebug zones (comma spearated list)\n -v\t\tserver version\n -V\t\tserver version\n", argv[0]);
+        fprintf(stderr,"Usage:\n%s [params]\n Optional Parameters:\n -c <file>\tconfiguration file\n -d <typemask>\tenable debug output (disables background)\n -U user\t Run as user\n -D\t\tenable debug (all types)\n -H\t\tlocation of home folder\n -B\t\tbackground the server process\n -Z <zones>\tdebug zones (comma separated list)\n -v\t\tserver version\n -V\t\tserver version\n", argv[0]);
         exit(0);
     }
 
