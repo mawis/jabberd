@@ -20,6 +20,7 @@ jabberd_OBJECTS = \
 	mio.o \
 	mio_raw.o \
 	mio_xml.o \
+    mio_ssl.o \
 	deliver.o \
 	heartbeat.o \
 	jabberd.o \

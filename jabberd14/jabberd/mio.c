@@ -71,6 +71,7 @@ typedef struct mio_connect_st
 
 /* global object */
 ios mio__data = NULL;
+extern xmlnode greymatter__;
 
 /*
  * callback for Heartbeat, increments karma, and signals the
@@ -612,11 +613,15 @@ void mio_init(void)
 {
     pool p;
     pth_attr_t attr;
+    xmlnode io = xmlnode_get_tag(greymatter__, "io");
+
+    if(xmlnode_get_tag(io, "ssl") != NULL)
+        mio_ssl_init(xmlnode_get_tag(io, "ssl"));
 
 
     if(mio__data == NULL)
     {
-        register_beat(KARMA_HEARTBEAT, _karma_heartbeat, NULL);
+        register_beat(j_atoi(xmlnode_get_tag_data(io, "heartbeat"), KARMA_HEARTBEAT), _karma_heartbeat, NULL);
 
         /* malloc our instance object */
         p            = pool_new();
