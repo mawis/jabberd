@@ -204,7 +204,7 @@ void* base_connect_process_io(void* arg)
      ci->state = conn_OPEN;
 
      /* Transmit stream header */  
-     headernode = xstream_header("jabber:component:connect", ci->inst->id, NULL);
+     headernode = xstream_header("jabber:component:accept", ci->inst->id, NULL);
      header = xstream_header_char(headernode);
      pth_write(ci->socket, header, strlen(header));
 
