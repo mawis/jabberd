@@ -4,14 +4,14 @@
       <load main='pthsock_client'>
 	    <pthsock_client>../load/pthsock_client.so</pthsock_client>
       </load>
-      <pthcsock xmlns='pth-csock'>
+      <pthcsock xmlns='jabberd:pth-csock:config'>
 	    <host>pth-csock.127.0.0.1</host>
         <listen>5222</listen>
       </pthcsock>
     </service>
 */
 
-/* gcc -fPIC -shared -o pthsock_client.so pthsock_client.c -I../src */
+/* gcc -fPIC -shared -o pthsock_client.so pthsock_client.c -I../src -g -O2*/
 
 #include <jabberd.h>
 
@@ -191,12 +191,8 @@ int pthsock_client_write(reader r, dpacket p)
             r->state = state_AUTHD;
         }
         else
-        {
             /* they didn't get authed/registered */
             log_debug(ZONE,"user auth/registration falid");
-            ret = 0;
-            r->state = state_CLOSING;
-        }
 
     xmlnode_hide_attrib(p->x,"sto");
     xmlnode_hide_attrib(p->x,"sfrom");
@@ -204,8 +200,8 @@ int pthsock_client_write(reader r, dpacket p)
     /* write the packet */
     block = xmlnode2str(p->x);
 
-    //log_debug(ZONE,"<<<< %s",r->sock,block);
-
+    //log_debug(ZONE,"<<<< %s",block);
+   
     if(pth_write(r->sock,block,strlen(block)) <= 0)
         return 0;
 
@@ -220,7 +216,6 @@ typedef struct tout_st
     struct timeval timeout;
 } tout;
 
-/* yes, it's true, pth sucks */
 int pthsock_client_time(void *arg)
 {
     tout *t = (tout *) arg;
@@ -291,7 +286,7 @@ void *pthsock_client_main(void *arg)
                     len = pth_read(cur->sock,buff,1024);
                     if(len <= 0)
                     {
-                        log_debug(ZONE,"Error reading on '%d', %s",cur->sock,sterror(errno));
+                        log_debug(ZONE,"Error reading on '%d', %s",cur->sock,strerror(errno));
                         FD_CLR(cur->sock,&rfds);
                         pthsock_client_close(cur);
                     }
@@ -312,13 +307,13 @@ void *pthsock_client_main(void *arg)
         /* handle packets that need to be writen */
         if (pth_event_occurred(wevt))
         {
+            log_debug(ZONE,"write");
             while (1)
             {
                 /* get the packet */
                 d = (drop)pth_msgport_get(wmp);
                 if (d == NULL) break;
 
-                log_debug(ZONE,"write");
                 r = d->r;
                 if (pthsock_client_write(r,d->p) == 0)
                 {
@@ -336,15 +331,16 @@ void *pthsock_client_main(void *arg)
         /* add accepted connections to the fdset */
         if (pth_event_occurred(aevt))
         {
+            log_debug(ZONE,"accept");
             while (1)
             {
                 /* get the packet */
                 d = (drop)pth_msgport_get(amp);
                 if (d == NULL) break;
-                log_debug(ZONE,"accept");
-                FD_SET(d->r->sock,&rfds);
-                if (d->r->sock > maxfd)
-                    maxfd = d->r->sock;
+                r = d->r;
+                FD_SET(r->sock,&rfds);
+                if (r->sock > maxfd)
+                    maxfd = r->sock;
                 log_debug(ZONE,"%d max",maxfd);
             }
         }
@@ -368,7 +364,7 @@ void *pthsock_client_listen(void *arg)
 
     i = (instance) xmlnode_get_vattrib(cfg,"id");
     host = xmlnode_get_tag_data(cfg,"host");
-    port = xmlnode_get_tag_data(cfg,"port");
+    port = xmlnode_get_tag_data(cfg,"listen");
 
     if (host == NULL || port == NULL)
     {
@@ -444,7 +440,7 @@ void pthsock_client(instance i, xmlnode x)
     register_phandler(i,o_DELIVER,pthsock_client_packets,(void*)wmp);
 
     xc = xdb_cache(i);
-    cfg = xdb_get(xc,NULL,jid_new(xmlnode_pool(x),"config@-internal"),"pth-csock");
+    cfg = xdb_get(xc,NULL,jid_new(xmlnode_pool(x),"config@-internal"),"jabberd:pth-csock:config");
     xmlnode_put_vattrib(cfg,"id",(void*)i);
 
     attr = pth_attr_new();
