@@ -1,2 +1,2 @@
-gcc -c *.c -DCONFIGXML="\"./jabberd.xml\""
-gcc -o jabberd *.o -lpth -ljabber -lxode
+gcc -c *.c */*.c -DCONFIGXML="\"./jabberd.xml\"" -I.
+gcc -o jabberd *.o -lpth -ljabber -lxode -ldl

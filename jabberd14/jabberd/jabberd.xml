@@ -1,6 +1,17 @@
 <jabber>
 
+  <base>
+    <!--
+    <base_host>/usr/local/lib/jabber/base_host.so</base_host>
+    <base_alert>/usr/local/lib/jabber/base_alert.so</base_alert>
+    <base_file>/usr/local/lib/jabber/base_file.so</base_file>
+    <base_connect>/usr/local/lib/jabber/base_connect.so</base_connect>
+    <base_load>/usr/local/lib/jabber/base_load.so</base_load>
+    -->
+  </base>
+
   <log id="log example">
+    <host>foo</host> [only logs for this host]
     <format>%s %a %e</format> [alternate format for log line]
     <alert/> [flag filtering to this type, alert/notice/warn]
     <stderr/> [flag, copying to STDERR/STDOUT]
