@@ -1,9 +1,7 @@
 jabberd 1.4.4
 =============
 - fix cygwin build
-- remove cleanup segfault (happens on open connections)
 - clean xdbfiletool, libtool complains that we link against a module
-- compatibility checks for STARTTLS on s2s with other implementations
 - configure STARTTLS per destination (e.g. disabling for some hosts)
 - configuration of TLS (e.g. cipher selection)
 
