@@ -215,12 +215,8 @@ void _js_session_from(void *arg)
     s->c_out++;
 
     /* make sure we have our from set correctly for outgoing packets */
-    if(jid_cmp(p->from,s->uid) != 0 && jid_cmp(p->from,s->id) != 0)
-    {
-        /* nope, fix it */
-        xmlnode_put_attrib(p->x,"from",jid_full(s->id));
-        p->from = jid_new(p->p,jid_full(s->id));
-    }
+    xmlnode_put_attrib(p->x,"from",jid_full(s->id));
+    p->from = jid_new(p->p,jid_full(s->id));
 
     /* let the modules have their heyday */
     if(js_mapi_call(NULL, es_OUT,  p, s->u, s))
