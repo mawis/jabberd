@@ -49,7 +49,7 @@
  	<objectfile macro='OBJECTS'>
 	  <dep><macro>HEADERS</macro></dep>
         </objectfile>
-        <sharedobject name='jsm.so'>
+        <sharedobject name='jsm.so' type='dynamic'>
           <dep filelist='1'>
             <macro>OBJECTS</macro>
             <macro>EXOBJECTS</macro>

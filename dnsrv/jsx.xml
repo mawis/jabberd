@@ -17,7 +17,7 @@
  	<objectfile macro='OBJECTS'>
 	  <dep><macro>HEADERS</macro></dep>
         </objectfile>
-        <sharedobject name='dnsrv.so'>
+        <sharedobject name='dnsrv.so' type='dynamic'>
           <dep filelist='1'>
             <macro>OBJECTS</macro>
           </dep>

@@ -21,12 +21,12 @@
  	<objectfile macro='client_OBJECTS'>
 	  <dep><macro>HEADERS</macro></dep>
         </objectfile>
-        <sharedobject name='pthsock_server.so'>
+        <sharedobject name='pthsock_server.so' type='dynamic'>
           <dep filelist='1'>
             <macro>server_OBJECTS</macro>
           </dep>
         </sharedobject>
-        <sharedobject name='pthsock_client.so'>
+        <sharedobject name='pthsock_client.so' type='dynamic'>
           <dep filelist='1'>
             <macro>client_OBJECTS</macro>
           </dep>

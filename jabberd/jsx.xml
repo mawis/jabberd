@@ -88,12 +88,44 @@
         <file>lib/xstream.o</file>
       </macro>
       <macro name='STATICOBJECTS'>
-        <file>../dnsrv/dnsrv.so</file>
-        <file>../dialback/dialback.so</file>
-        <file>../jsm/jsm.so</file>
-        <file>../pthsock/pthsock_server.so</file>
-        <file>../pthsock/pthsock_client.so</file>
-        <file>../xdb_file/xdb_file.so</file>
+        <file>../dnsrv/dnsrv.o</file>
+        <file>../dnsrv/srv_resolv.o</file>
+        <file>../dialback/dialback.o</file>
+        <file>../dialback/dialback_in.o</file>
+        <file>../dialback/dialback_out.o</file>
+        <file>../jsm/authreg.o</file>
+        <file>../jsm/deliver.o</file>
+        <file>../jsm/jsm.o</file>
+        <file>../jsm/modules.o</file>
+        <file>../jsm/offline.o</file>
+        <file>../jsm/server.o</file>
+        <file>../jsm/sessions.o</file>
+        <file>../jsm/users.o</file>
+        <file>../jsm/util.o</file>
+        <file>../jsm/modules/mod_admin.o</file>
+        <file>../jsm/modules/mod_agents.o</file>
+        <file>../jsm/modules/mod_announce.o</file>
+        <file>../jsm/modules/mod_archive.o</file>
+        <file>../jsm/modules/mod_auth_0k.o</file>
+        <file>../jsm/modules/mod_auth_digest.o</file>
+        <file>../jsm/modules/mod_auth_plain.o</file>
+        <file>../jsm/modules/mod_browse.o</file>
+        <file>../jsm/modules/mod_echo.o</file>
+        <file>../jsm/modules/mod_filter.o</file>
+        <file>../jsm/modules/mod_groups.o</file>
+        <file>../jsm/modules/mod_last.o</file>
+        <file>../jsm/modules/mod_log.o</file>
+        <file>../jsm/modules/mod_offline.o</file>
+        <file>../jsm/modules/mod_presence.o</file>
+        <file>../jsm/modules/mod_register.o</file>
+        <file>../jsm/modules/mod_roster.o</file>
+        <file>../jsm/modules/mod_time.o</file>
+        <file>../jsm/modules/mod_vcard.o</file>
+        <file>../jsm/modules/mod_version.o</file>
+        <file>../jsm/modules/mod_xml.o</file>
+        <file>../pthsock/client.o</file>
+        <file>../pthsock/dialback.o</file>
+        <file>../xdb_file/xdb_file.o</file>
       </macro>
       <compile>
  	<objectfile macro='OBJECTS'>
