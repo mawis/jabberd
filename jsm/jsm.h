@@ -61,7 +61,6 @@ struct jsmi_struct
     instance i;
     xmlnode config;
     HASHTABLE hosts;
-    pth_msgport_t waiting[SESSION_WAITERS];
     pth_msgport_t mpoffline, mpserver;
     xdbcache xc;
     mlist events[e_LAST];
@@ -102,7 +101,7 @@ struct session_struct
     pool p;
     int exit_flag;
     mlist events[es_LAST];
-    pth_msgport_t worker;
+    mtq q; /* thread queue */
 
     /* remote session id */
     jid sid;
@@ -135,7 +134,6 @@ void js_mapi_register(jsmi si, event e, mcall c, void *arg);
 void js_mapi_session(event e, session s, mcall c, void *arg);
 int js_mapi_call(jsmi si, event e, jpacket packet, udata user, session s);
 
-void js_authreg(jpacket p);
-void js_authreg_send(jsmi si, jpacket p);
+void js_authreg(void *arg);
 
 result js_packet(instance i, dpacket p, void *arg);

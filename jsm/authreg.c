@@ -23,15 +23,13 @@
 #include "jsm.h"
 
 
-void js_authreg(jpacket p)
+void js_authreg(void *arg)
 {
+    jpacket p = (jpacket)arg;
     udata user;
     char *ul;
-    jsmi si;
+    jsmi si = (jsmi)(p->aux1);
     xmlnode x;
-
-    /* get si hidden on packet */
-    si = (jsmi)(p->aux1);
 
     /* enforce the username to lowercase */
     if(p->to->user != NULL)

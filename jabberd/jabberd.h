@@ -100,3 +100,29 @@ int xdb_set(xdbcache xc, char *host, jid owner, char *ns, xmlnode data); /* send
 /* base_load initialization function definition */
 typedef void (*base_load_init)(instance id, xmlnode x);
 
+
+/*** managed thread queue utilities, only used by base_load'd extensions and only available when base_load is used  ***/
+
+/* default waiting threads */
+#define MTQ_THREADS 10
+
+/* mtq callback simple function definition */
+typedef void (*mtq_callback)(void *arg);
+
+/* has a pointer to the currently assigned thread for this queue */
+typedef struct mtqueue_struct
+{
+    struct mth_struct *t;
+    mtq_callback f;
+} *mtq, _mtq;
+
+/* has the message port for the running thread, and the current queue it's processing */
+typedef struct mth_struct
+{
+    pth_msgport_t mp;
+    mtq q;
+    pool p;
+} *mth, _mth;
+
+mtq mtq_new(pool p); /* creates a new queue, is automatically cleaned up when p frees */
+void mtq_send(mtq q, pool p, mtq_callback f, void *arg); /* appends the arg to the queue to be run on a thread */
