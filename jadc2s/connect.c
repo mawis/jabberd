@@ -156,7 +156,7 @@ void _connect_process(conn_t c) {
         /* disconnect if they come from a target with matching sender */
         /* simple auth responses that don't have a client connected get dropped */
         attr = nad_find_attr(c->nad, 0, "from", NULL);
-        if(target != NULL && j_strncmp(jid_full(target->smid), NAD_AVAL(c->nad, attr), NAD_AVAL_L(c->nad, attr)))
+        if(target != NULL && j_strncmp(jid_full(target->smid), NAD_AVAL(c->nad, attr), NAD_AVAL_L(c->nad, attr)) == 0)
         {
             attr = nad_find_attr(c->nad, 0, "error", NULL);
             snprintf(str, 770, "%.*s", NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr));
