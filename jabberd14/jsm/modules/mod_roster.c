@@ -357,18 +357,39 @@ mreturn mod_roster_out_iq(mapi m) {
 
 		/* drop you sukkah */
 		if (j_strcmp(xmlnode_get_attrib(cur,"subscription"),"remove") == 0) {
+		    /* if we have to unsubscribe, wait with removing the item until unsubscribe(d) has been sent */
+		    int need_to_wait = 0;
+
 		    /* cancel our subscription to them */
-		    if (j_strcmp(xmlnode_get_attrib(item,"subscription"),"both") == 0 || j_strcmp(xmlnode_get_attrib(item,"subscription"),"to") == 0 || j_strcmp(xmlnode_get_attrib(item,"ask"),"subscribe") == 0)
+		    if (j_strcmp(xmlnode_get_attrib(item,"subscription"),"both") == 0 || j_strcmp(xmlnode_get_attrib(item,"subscription"),"to") == 0 || j_strcmp(xmlnode_get_attrib(item,"ask"),"subscribe") == 0) {
 			js_session_from(m->s,jpacket_new(jutil_presnew(JPACKET__UNSUBSCRIBE,xmlnode_get_attrib(cur,"jid"),NULL)));
+			need_to_wait = 1;
+		    }
 
 		    /* tell them their subscription to us is toast */
-		    if (j_strcmp(xmlnode_get_attrib(item,"subscription"),"both") == 0 || j_strcmp(xmlnode_get_attrib(item,"subscription"),"from") == 0)
+		    if (j_strcmp(xmlnode_get_attrib(item,"subscription"),"both") == 0 || j_strcmp(xmlnode_get_attrib(item,"subscription"),"from") == 0) {
 			js_session_from(m->s,jpacket_new(jutil_presnew(JPACKET__UNSUBSCRIBED,xmlnode_get_attrib(cur,"jid"),NULL)));
+			need_to_wait = 1;
+		    }
 
-		    /* push this remove out */
-		    mod_roster_push(m->user,cur);
+		    if (need_to_wait) {
+			/* resubmit for later removal */
+			log_debug2(ZONE, LOGT_ROSTER, "delaying removal of item until it is unsubscribed");
+			js_session_from(m->s, m->packet);
+			return M_HANDLED;
+		    } else {
+			/* we can remove the item, no subscription exists anymore */
+			xmlnode_hide(item);
+
+			/* push this remove out */
+			mod_roster_push(m->user,cur);
+		    }
+
 		    continue;
 		}
+
+		/* hide the existing item, we replace it */
+		xmlnode_hide(item);
 
 		/* copy the old stuff into the new one and insert it into the roster */
 		xmlnode_put_attrib(cur,"subscription",xmlnode_get_attrib(item,"subscription"));

@@ -112,7 +112,7 @@ int main (int argc, char** argv)
             /* loop through the characters, like -Dc */
             if(*c == 'V' || *c == 'v')
             {
-                printf("Jabberd Version %s\n", VERSION);
+                printf("%s version %s\n", PACKAGE, VERSION);
                 exit(0);
             }
             else if(*c == 'B')
