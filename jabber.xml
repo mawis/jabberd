@@ -198,6 +198,8 @@
       defined in its own <service/> section below. These services 
       will appear in the user interface of Jabber clients that
       connect to your server.
+      The <browse/> tag is also used by mod_disco (see below) for
+      building the disco#items reply.
       -->
 
       <browse>
@@ -236,6 +238,22 @@
         end of <service/> examples -->
 
       </browse>
+
+      <!--
+        "Service Discovery" (disco, JEP-0030) supersedes
+        "Jabber Browsing" (JEP-0011).
+        The <disco/> tag is used for building the disco#info
+        reply.
+      -->
+      <disco>
+        <identity category='services' type='jabber' name='Jabber 1.4 Server'/>
+        <feature var='jabber:iq:browse'/>
+        <feature var='jabber:iq:agents'/>
+        <feature var='jabber:iq:register'/>
+        <feature var='jabber:iq:time'/>
+        <feature var='jabber:iq:last'/>
+        <feature var='jabber:iq:version'/>
+      </disco>
 
     </jsm>
 
@@ -283,6 +301,7 @@
       <!-- mod_auth_crypt: Password encrypted in storage,
            clear text on the wire -->
       <mod_auth_crypt>./jsm/jsm.so</mod_auth_crypt>
+
       <mod_log>./jsm/jsm.so</mod_log>
       <mod_register>./jsm/jsm.so</mod_register>
       <mod_xml>./jsm/jsm.so</mod_xml>
@@ -352,7 +371,8 @@
 
       <!-- 
       Use these to listen on particular addresses and/or ports.
-      <ip port="5222">127.0.0.1</ip>
+      Example: <ip port="5222">127.0.0.1</ip>
+      Remove the <ip/> tag to disable non-ssl client connections.
       -->
       <ip port="5222"/>
 
