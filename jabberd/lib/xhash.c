@@ -28,7 +28,7 @@
  * 
  * --------------------------------------------------------------------------*/
 
-#include "jabberd.h"
+#include "lib.h"
 
 
 /* Generates a hash code for a string.
@@ -88,7 +88,7 @@ xht xhash_new(int prime)
     xht xnew;
     pool p;
 
-    log_debug(ZONE,"creating new hash table of size %d",prime);
+/*    log_debug(ZONE,"creating new hash table of size %d",prime); */
 
     p = pool_heap(sizeof(_xhn)*prime + sizeof(_xht));
     xnew = pmalloco(p, sizeof(_xht));
@@ -112,14 +112,14 @@ void xhash_put(xht h, const char *key, void *val)
     /* if existing key, replace it */
     if((n = _xhash_node_get(h, key, index)) != NULL)
     {
-        log_debug(ZONE,"replacing %s with new val %X",key,val);
+/*        log_debug(ZONE,"replacing %s with new val %X",key,val); */
 
         n->key = key;
         n->val = val;
         return;
     }
 
-    log_debug(ZONE,"saving %s val %X",key,val);
+/*    log_debug(ZONE,"saving %s val %X",key,val); */
 
     /* new node */
     n = _xhash_node_new(h, index);
@@ -134,11 +134,11 @@ void *xhash_get(xht h, const char *key)
 
     if(h == NULL || key == NULL || (n = _xhash_node_get(h, key, _xhasher(key))) == NULL)
     {
-        log_debug(ZONE,"failed lookup of %s",key);
+/*        log_debug(ZONE,"failed lookup of %s",key); */
         return NULL;
     }
 
-    log_debug(ZONE,"found %s returning %X",key,n->val);
+/*    log_debug(ZONE,"found %s returning %X",key,n->val); */
     return n->val;
 }
 
@@ -150,7 +150,7 @@ void xhash_zap(xht h, const char *key)
     if(h == NULL || key == NULL || (n = _xhash_node_get(h, key, _xhasher(key))) == NULL)
         return;
 
-    log_debug(ZONE,"zapping %s",key);
+/*    log_debug(ZONE,"zapping %s",key); */
 
     /* kill an entry by zeroing out the key */
     n->key = NULL;
@@ -159,7 +159,7 @@ void xhash_zap(xht h, const char *key)
 
 void xhash_free(xht h)
 {
-    log_debug(ZONE,"hash free %X",h);
+/*    log_debug(ZONE,"hash free %X",h); */
 
     if(h != NULL)
         pool_free(h->p);
@@ -173,7 +173,7 @@ void xhash_walk(xht h, xhash_walker w, void *arg)
     if(h == NULL || w == NULL)
         return;
 
-    log_debug(ZONE,"walking %X",h);
+/*    log_debug(ZONE,"walking %X",h); */
 
     for(i = 0; i < h->prime; i++)
         for(n = &h->zen[i]; n != NULL; n = n->next)
