@@ -1,3 +1,6 @@
+#ifdef HAVE_CONFIG_H
+#   include <config.h>
+#endif
 
 #include <string.h>
 #include <stdlib.h>
@@ -22,7 +25,7 @@
 #include <time.h>
 #include <pth.h>
 
-#include "xmlparse.h"
+#include <expat.h>
 
 /*
 **  Arrange to use either varargs or stdargs
