@@ -87,6 +87,7 @@ XLDFLAGS=$XLDFLAGS
 PSUBDIR=$PSUBDIR
 PLINK=$PLINK
 JHOME=$JHOME
+VERSION=\"1.4cvs\"
 EOF
 chmod 0700 platform-settings
 printf "   Done.\n\n"
