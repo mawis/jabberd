@@ -100,7 +100,6 @@ void dnsrv_child_process_xstream_io(int type, xmlnode x, void* args)
      char*  resolvestr = NULL;
      char*  response = NULL;
      dns_resend_list iternode = NULL;
-     xmlnode c;
 
      if (type == XSTREAM_NODE)
      {
@@ -109,22 +108,6 @@ void dnsrv_child_process_xstream_io(int type, xmlnode x, void* args)
 	  log_debug(ZONE, "dnsrv: Recv'd lookup request for %s", hostname);
 	  if (hostname != NULL)
 	  {
-               /* try the cache first */
-               if((c = ghash_get(di->cache_table, hostname)) != NULL)
-               {
-                    if((time(NULL) - (int)xmlnode_get_vattrib(c,"t")) > di->cache_timeout)
-                    { /* timed out of the cache, lookup again */
-                        xmlnode_free(c);
-                        ghash_remove(di->cache_table,hostname);
-                    }else{
-                        /* yay, send back right from the cache */
-                        response = xmlnode2str(c);
-                        pth_write(di->out, response, strlen(response));
-                        xmlnode_free(x);
-                        return;
-                    }
-               }
-
 	       /* For each entry in the svclist, try and resolve using
 		  the specified service and resend it to the specified host */
 	       iternode = di->svclist;
@@ -135,18 +118,14 @@ void dnsrv_child_process_xstream_io(int type, xmlnode x, void* args)
 		    {
 			 log_debug(ZONE, "Resolved %s(%s): %s\tresend to:%s", hostname, iternode->service, resolvestr, iternode->host);
 			 xmlnode_put_attrib(x, "ip", resolvestr);
-			 xmlnode_put_attrib(x, "resend", iternode->host);
+			 xmlnode_put_attrib(x, "to", iternode->host);
 			 break;
 		    }
 		    iternode = iternode->next;
 	       }
 	       response = xmlnode2str(x);
 	       pth_write(di->out, response, strlen(response));
-               /* whatever the response was, let's cache it */
-               xmlnode_put_vattrib(x,"t",(void*)time(NULL));
-               ghash_put(di->cache_table,hostname,(void*)x);
-               return;
-	  }
+          }
      }
      xmlnode_free(x);
 }
@@ -231,10 +210,27 @@ int dnsrv_fork_and_capture(RESOLVEFUNC f, dns_io di)
      }
 }
 
+void dnsrv_resend(xmlnode pkt, char *ip, char *to)
+{
+    if(ip != NULL)
+    {
+         pkt = xmlnode_wrap(pkt,"route");
+	 xmlnode_put_attrib(pkt, "to", to);
+	 xmlnode_put_attrib(pkt, "ip", ip);
+    }else{
+	 jutil_error(pkt, (terror){502, "Unable to resolve hostname."});
+	 xmlnode_put_attrib(pkt, "iperror", "");
+    }
+    deliver(dpacket_new(pkt),NULL);
+}
+
 result dnsrv_deliver(instance i, dpacket p, void* args)
 {
      dns_io di = (dns_io)args;
      dns_write_buf wb = NULL;
+     xmlnode c;
+     int timeout = di->cache_timeout;
+     char *ip;
 
      if(p->type==p_ROUTE&&xmlnode_get_firstchild(p->x)!=NULL)
          p->x=xmlnode_get_firstchild(p->x);
@@ -243,6 +239,32 @@ result dnsrv_deliver(instance i, dpacket p, void* args)
          xmlnode_free(p->x);
          return r_DONE;
      }
+
+     /* Ensure this packet doesn't already have an IP */
+     if(xmlnode_get_attrib(p->x, "ip") || xmlnode_get_attrib(p->x, "iperror"))
+     {
+        log_notice(p->host, "dropping looping dns lookup request: %s", xmlnode2str(p->x));
+        xmlnode_free(p->x);
+        return r_DONE;
+     }
+
+     /* try the cache first */
+     if((c = ghash_get(di->cache_table, p->host)) != NULL)
+     {
+         /* if there's no IP, cached failed lookup, time those out 10 times faster! (weird, I know, *shrug*) */
+         if((ip = xmlnode_get_attrib(c,"ip")) == NULL)
+            timeout = timeout / 10;
+         if((time(NULL) - (int)xmlnode_get_vattrib(c,"t")) > timeout)
+         { /* timed out of the cache, lookup again */
+             xmlnode_free(c);
+             ghash_remove(di->cache_table,p->host);
+         }else{
+             /* yay, send back right from the cache */
+             dnsrv_resend(p->x, ip, xmlnode_get_attrib(c,"to"));
+             return r_DONE;
+         }
+     }
+
      /* Allocate a new write buffer */
      wb = pmalloco(p->p, sizeof(_dns_write_buf));
      wb->packet = p;
@@ -265,14 +287,21 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg)
      /* Node Format: <host ip="201.83.28.2">foo.org</host> */
      if (type == XSTREAM_NODE)
      {	  
+          log_debug(ZONE,"incoming resolution: %s",xmlnode2str(x));
 	  hostname = xmlnode_get_data(x);
+
+          /* whatever the response was, let's cache it */
+          xmlnode_free((xmlnode)ghash_get(di->cache_table,hostname)); /* free any old cache, shouldn't ever be any */
+          xmlnode_put_vattrib(x,"t",(void*)time(NULL));
+          ghash_put(di->cache_table,hostname,(void*)x);
+
 	  /* Get the hostname and look it up in the hashtable */
 	  head = ghash_get(di->packet_table, hostname);
 	  /* Process the packet list */
 	  if (head != NULL)
 	  {
 	       ipaddr = xmlnode_get_attrib(x, "ip");
-	       resendhost = xmlnode_get_attrib(x, "resend");
+	       resendhost = xmlnode_get_attrib(x, "to");
 
 	       /* Remove the list from the hashtable */
 	       ghash_remove(di->packet_table, hostname);
@@ -280,32 +309,18 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg)
 	       /* Walk the list and insert IPs */
 	       while(head != NULL)
 	       {
-		    head->packet->x=xmlnode_wrap(head->packet->x,"route");
-		    if (ipaddr != NULL)
-		    {
-			 xmlnode_put_attrib(head->packet->x, "to", resendhost);
-			 xmlnode_put_attrib(head->packet->x, "ip", ipaddr);
-			 /* Fixup the dpacket host ptr */
-			 head->packet->host = resendhost;
-		    }
-		    else
-		    {
-			 log_debug(ZONE, "dnsrv: Unable to resolve ip for %s\n", hostname);
-			 jutil_error(head->packet->x, (terror){502, "Unable to resolve hostname."});
-			 xmlnode_put_attrib(head->packet->x, "iperror", "");
-		    }
-
 		    heado = head;
 		    /* Move to next.. */
 		    head = head->next;
 		    /* Deliver the packet */
-		    deliver(dpacket_new(heado->packet->x), NULL);
+                    dnsrv_resend(heado->packet->x, ipaddr, resendhost);
 	       }
 	  }
 	  /* Host name was not found, something is _TERRIBLY_ wrong! */
 	  else
 	       log_debug(ZONE, "Resolved unknown host/ip request: %s\n", xmlnode2str(x));
 
+          return; /* we cached x above, so we don't free it below :) */
      }
      xmlnode_free(x);
 } 
@@ -367,61 +382,48 @@ void* dnsrv_process_io(void* threadarg)
 
                if (xstream_eat(xs, readbuf, readlen) > XSTREAM_NODE)
                     break;
+          }
 
-	  }
 	  /* Hostname lookup requested */
 	  if (pth_event_occurred(di->e_write))
 	  {
 	       /* Get the packet from the write_queue */
 	       wb = (dns_write_buf)pth_msgport_get(di->write_queue);
 
-	       log_debug(ZONE, "dnsrv: Recv'd a lookup request: %s", wb->packet->host);
+	    /* Attempt to lookup this hostname in the packet table */
+	    lsthead = (dns_packet_list)ghash_get(di->packet_table, wb->packet->host);
+	    
+	    /* IF: hashtable has the hostname, a lookup is already pending,
+	       so stick the packet in the list */
+	    if (lsthead != NULL)
+	    {
+		 log_debug(ZONE, "dnsrv: Adding lookup request for %s to pending queue.", wb->packet->host);
+		 /* Allocate a new list entry */
+		 lst = pmalloco(wb->packet->p, sizeof(_dns_packet_list));
+		 lst->packet   = wb->packet;
+		 lst->stamp    = time(NULL);
+		 lst->next     = lsthead->next;
+		 lsthead->next = lst;		    
+	    }
+	    /* ELSE: insert the packet into the packet_table using the hostname
+	       as the key and send a request to the coprocess */
+	    else
+	    {
+		 log_debug(ZONE, "dnsrv: Creating lookup request queue for %s", wb->packet->host);
+		 /* Allocate a new list head */
+		 lsthead = pmalloco(wb->packet->p, sizeof(_dns_packet_list));
+		 lsthead->packet = wb->packet;
+		 lsthead->stamp  = time(NULL);
+		 lsthead->next   = NULL;
+		 /* Insert the packet list into the hash */
+		 ghash_put(di->packet_table, lsthead->packet->host, lsthead);
+		 /* Spool up a request */
+		 request = spools(lsthead->packet->p, "<host>", lsthead->packet->host, "</host>", lsthead->packet->p);
 
-	       /* Ensure this packet doesn't already have an IP */
-	       if (xmlnode_get_attrib(wb->packet->x, "ip") ||
-		   xmlnode_get_attrib(wb->packet->x, "iperror"))
-	       {
-		    /* Print an error and drop the packet.. */
-		    log_debug(ZONE, "dnsrv: Looping IP lookup on %s\n", xmlnode2str(wb->packet->x));
-		    xmlnode_free(wb->packet->x);
-	       }
-	       else 
-	       {
-		    /* Attempt to lookup this hostname in the packet table */
-		    lsthead = (dns_packet_list)ghash_get(di->packet_table, wb->packet->host);
-		    
-		    /* IF: hashtable has the hostname, a lookup is already pending,
-		       so stick the packet in the list */
-		    if (lsthead != NULL)
-		    {
-			 log_debug(ZONE, "dnsrv: Adding lookup request for %s to pending queue.", wb->packet->host);
-			 /* Allocate a new list entry */
-			 lst = pmalloco(wb->packet->p, sizeof(_dns_packet_list));
-			 lst->packet   = wb->packet;
-			 lst->stamp    = time(NULL);
-			 lst->next     = lsthead->next;
-			 lsthead->next = lst;		    
-		    }
-		    /* ELSE: insert the packet into the packet_table using the hostname
-		       as the key and send a request to the coprocess */
-		    else
-		    {
-			 log_debug(ZONE, "dnsrv: Creating lookup request queue for %s", wb->packet->host);
-			 /* Allocate a new list head */
-			 lsthead = pmalloco(wb->packet->p, sizeof(_dns_packet_list));
-			 lsthead->packet = wb->packet;
-			 lsthead->stamp  = time(NULL);
-			 lsthead->next   = NULL;
-			 /* Insert the packet list into the hash */
-			 ghash_put(di->packet_table, lsthead->packet->host, lsthead);
-			 /* Spool up a request */
-			 request = spools(lsthead->packet->p, "<host>", lsthead->packet->host, "</host>", lsthead->packet->p);
-
-			 log_debug(ZONE, "dnsrv: Transmitting lookup request for %s to coprocess", wb->packet->host);
-			 /* Send a request to the coprocess */
-			 pth_write(di->out, request, strlen(request));
-		    }
-	       }
+		 log_debug(ZONE, "dnsrv: Transmitting lookup request for %s to coprocess", wb->packet->host);
+		 /* Send a request to the coprocess */
+		 pth_write(di->out, request, strlen(request));
+	    }
 	  }
      }
 
