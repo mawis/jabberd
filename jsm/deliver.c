@@ -12,22 +12,26 @@ void js_deliver_local(jsmi si, jpacket p, HASHTABLE ht)
     user = js_user(si, p->to, ht);
     s = js_session_get(user, p->to->resource);
 
+log_debug(ZONE,"");
     /* let some modules fight over it */
     if(js_mapi_call(si, e_DELIVER, p, user, s))
         return;
 
+log_debug(ZONE,"");
     if(p->to->user == NULL)
     { /* this is for the server */
         js_psend(si->mpserver,p);
         return;
     }
 
+log_debug(ZONE,"");
     if(s != NULL)
     { /* it's sent right to the resource */
         js_session_to(s, p);
         return;
     }
 
+log_debug(ZONE,"");
     if(user != NULL)
     { /* valid user, but no session */
         p->aux1 = (void *)user; /* performance hack, we already know the user */
@@ -36,6 +40,7 @@ void js_deliver_local(jsmi si, jpacket p, HASHTABLE ht)
         return;
     }
 
+log_debug(ZONE,"");
     /* no user, so bounce the packet */
     js_bounce(si,p->x,TERROR_NOTFOUND);
 }
@@ -52,14 +57,16 @@ result js_packet(instance i, dpacket p, void *arg)
 
     jp = jpacket_new(p->x);
 
-    log_debug(ZONE,"deliver(to[%s],from[%s],type[%d],packet[%s])",jid_full(jp->to),jid_full(jp->from),jp->type,xmlnode2str(jp->x));
+    log_debug(ZONE,"(%X)incoming packet %s",si,xmlnode2str(jp->x));
 
     /* make sure this hostname is in the master table */
-    if((ht = (HASHTABLE)ghash_get(si->hosts,jp->to->server)) == NULL)
+    if((ht = (HASHTABLE)ghash_get(si->hosts,p->host)) == NULL)
     {
         /* XXX make USERS_PRIME configurable */
         ht = ghash_create(USERS_PRIME,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
-        ghash_put(si->hosts,jp->to->server, (void *)ht);
+        log_debug(ZONE,"creating user hash %X for %s",ht,p->host);
+        ghash_put(si->hosts,p->host, (void *)ht);
+        log_debug(ZONE,"checking %X",ghash_get(si->hosts,p->host));
     }
 
     /* if this is a session packet */
@@ -75,6 +82,9 @@ result js_packet(instance i, dpacket p, void *arg)
         s = js_session_get(js_user(si, sto, ht),sto->resource);
         if(s != NULL)
         {
+            /* hide the session attribs */
+            xmlnode_hide_attrib(jp->x,"sto");
+            xmlnode_hide_attrib(jp->x,"sfrom");
             js_session_from(s, jp);
         }else if(!(jpacket_subtype(jp) == JPACKET__ERROR && j_strcmp(xmlnode_get_attrib(xmlnode_get_tag(jp->x,"error"),"code"),"510") == 0)){ /* no session and not a 510 error */
 
@@ -84,16 +94,16 @@ result js_packet(instance i, dpacket p, void *arg)
             jutil_error(x, TERROR_DISCONNECTED);
             deliver(dpacket_new(x), NULL);
 
-            /* if this is a normal message store as offline */
+            /* XXX (what should we really do here?) if this is a normal message store as offline 
             if(jp->type == JPACKET_MESSAGE)
             {
-                xmlnode_put_attrib(jp->x,"to",jid_full(sto)); /* make sure the to="" is correct */
+                xmlnode_put_attrib(jp->x,"to",jid_full(sto));
                 jpacket_reset(jp);
                 js_psend(si->mpoffline,jp);
-            }else{
+            }else{ */
                 log_notice(sto->server,"Dropping %s packet intended for session %s",xmlnode_get_name(jp->x),jid_full(sto));
                 xmlnode_free(jp->x);
-            }
+            /*}*/
         }
         return r_DONE;
     }

@@ -140,10 +140,10 @@ udata js_user(jsmi si, jid id, HASHTABLE ht)
         *ustr = tolower(*ustr);
 
     /* debug message */
-    log_debug(ZONE,"js_user(%s)",jid_full(id));
+    log_debug(ZONE,"js_user(%s,%X)",jid_full(id),ht);
 
     /* try to get the user data from the hash table */
-    cur = ghash_get(ht,id->user);
+    cur = ghash_get(ht,u);
     if(cur != NULL)
     {
         /* found it, free the search string and return the data */
@@ -170,6 +170,7 @@ udata js_user(jsmi si, jid id, HASHTABLE ht)
 
     /* got the user, add it to the user list */
     ghash_put(ht,newu->user,newu);
+    log_debug(ZONE,"js_user debug %X %X",ghash_get(ht,newu->user),newu);
 
     return newu;
 }

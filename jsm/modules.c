@@ -136,6 +136,8 @@ int js_mapi_call(jsmi si, event e, jpacket packet, udata user, session s)
         }
     }
 
+    log_debug(ZONE,"mapi_call returning unhandled");
+
     /* if we got here, no module handled the packet */
     return 0;
 }

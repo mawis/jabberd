@@ -35,7 +35,7 @@ void *js_offline_main(void *arg)
     log_debug(ZONE,"THREAD:OFFLINE starting");
 
     /* create the message port */
-    mp = pth_msgport_create("js_offline");
+    si->mpoffline = mp = pth_msgport_create("js_offline");
 
     /* create an event ring for messages on the port */
     ev = pth_event(PTH_EVENT_MSG,mp);

@@ -26,10 +26,14 @@
 void js_authreg(jsmi si, jpacket p, HASHTABLE ht)
 {
     udata user;
-    char *u, *ul;
+    char *u, *ul, *from, *to;
     jid id;
 
-   /* get the username supplied by the client */
+    /* setup session trackers */
+    from = xmlnode_get_attrib(p->x,"sfrom");
+    to = xmlnode_get_attrib(p->x,"sto");
+
+    /* get the username supplied by the client */
     u = xmlnode_get_tag_data(p->iq,"username");
     if(u != NULL)
     {
@@ -42,7 +46,7 @@ void js_authreg(jsmi si, jpacket p, HASHTABLE ht)
         jid_set(id,u,JID_USER);
     }
 
-        /* was the username acceptable */
+    /* was the username acceptable */
     if(id == NULL || id->user == NULL)
     {
             jutil_error(p->x, TERROR_NOTACCEPTABLE);
@@ -53,10 +57,19 @@ void js_authreg(jsmi si, jpacket p, HASHTABLE ht)
 
         /* attempt to fetch user data based on the username */
         user = js_user(si, id, ht);
-        if(user == NULL || xmlnode_get_tag_data(p->iq,"resource") == NULL)
+        jid_set(id,xmlnode_get_tag_data(p->iq,"resource"),JID_RESOURCE);
+        if(user == NULL || id->resource == NULL)
             jutil_error(p->x, TERROR_AUTH);
         else if(!js_mapi_call(si, e_AUTH, p, user, NULL))
             jutil_error(p->x, TERROR_INTERNAL);
+
+        /* create session if the auth was ok'd */
+        jpacket_reset(p);
+        if(jpacket_subtype(p) == JPACKET__RESULT)
+        {
+            js_session_new(si, id, jid_new(p->p,from));
+            to = jid_full(id);
+        }
 
     }else if(NSCHECK(p->iq,NS_REGISTER)){ /* is this a registration request? */
 
@@ -72,8 +85,9 @@ void js_authreg(jsmi si, jpacket p, HASHTABLE ht)
     }
 
     /* make sure packet goes back to the other side of the session */
-    xmlnode_put_attrib(p->x,"sto",xmlnode_get_attrib(p->x,"sfrom"));
- 
+    xmlnode_put_attrib(p->x,"sfrom",to);
+    xmlnode_put_attrib(p->x,"sto",from);
+
     deliver(dpacket_new(p->x), si->i);
 }
 

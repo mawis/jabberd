@@ -38,7 +38,6 @@ void jsm(instance i, xmlnode x)
 {
     jsmi si;
     xmlnode cur;
-    char *name;
     modcall module;
     int n;
 
@@ -49,7 +48,7 @@ void jsm(instance i, xmlnode x)
     si->i = i;
     si->p = i->p;
     si->xc = xdb_cache(i); /* getting xdb_* handle and fetching config */
-    si->config = xmlnode_get_firstchild(xdb_get(si->xc, NULL, jid_new(xmlnode_pool(x),"config@-internal"),"test"));
+    si->config = xmlnode_get_firstchild(xdb_get(si->xc, NULL, jid_new(xmlnode_pool(x),"config@-internal"),"jabberd:jsm:config"));
     si->hosts = ghash_create(HOSTS_PRIME,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp); /* XXX hostname hash, make PRIME configurable */
     for(n=0;n<SESSION_WAITERS;n++)
         si->waiting[n] = NULL;
@@ -61,17 +60,21 @@ void jsm(instance i, xmlnode x)
     pth_spawn(PTH_ATTR_DEFAULT, js_server_main, (void *)si);  /* all traffic to server resources */
     pth_spawn(PTH_ATTR_DEFAULT, js_users_main, (void *)si);   /* free cached user data */
 
-    /* fire up the modules */
-    for(cur = xmlnode_get_firstchild(cur); cur != NULL; cur = xmlnode_get_nextsibling(cur))
+    /* fire up the modules by scanning the attribs on the xml we received */
+    for(cur = xmlnode_get_firstattrib(x); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
-        if((name = xmlnode_get_name(cur)) == NULL)
+        /* avoid multiple personality complex */
+        if(j_strcmp(xmlnode_get_name(cur),"jsm") == 0)
             continue;
 
-        module = (modcall)xmlnode_get_vattrib(cur,name);
-        if(module == NULL)
+        /* vattrib is stored as firstchild on an attrib node */
+        if((module = (modcall)xmlnode_get_firstchild(cur)) == NULL)
             continue;
 
         /* call this module for this session instance */
+        log_debug(ZONE,"jsm: loading module %s",xmlnode_get_name(cur));
         (module)(si);
     }
+
+    register_phandler(i, o_DELIVER, js_packet, (void *)si);
 }
