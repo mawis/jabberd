@@ -18,7 +18,6 @@ jabberd_OBJECTS = \
 	log.o \
 	gen/base_fork.o \
 	gen/base_host.o \
-	gen/base_to.o \
 	io/base_connect.o \
 	io/base_exec.o \
 	io/base_stdout.o \
@@ -28,6 +27,7 @@ jabberd_OBJECTS = \
 	log/base_format.o \
 	log/base_logtype.o \
 	log/base_stderr.o \
+	log/base_to.o \
 	xdb/base_cache.o \
 	xdb/base_ns.o
 
