@@ -41,20 +41,35 @@
 #include "jsm.h"
 
 /**
- * structure holding statistics data
+ * @file mod_stat.c
+ * @brief collect statistical information and write it the the log
+ *
+ * this module collects statistical information and writes them every 5 minutes to
+ * the log
+ *
+ * @todo make the statistical information accessible to the administrator requesting
+ * it by a Jabber query.
+ */
+
+/**
+ * @brief structure holding statistics data
+ *
+ * One instance of this structure is used to keep statistical data for a session manager instance.
  */
 typedef struct mod_stat_data_st {
     jsmi si;
 
-    int messages_delivered;
-    int presences_delivered;
-    int iqs_delivered;
-    int subscriptions_delivered;
+    int messages_delivered;	/**< how many messages have been delivered */
+    int presences_delivered;	/**< how many presences have been delivered */
+    int iqs_delivered;		/**< how many iqs have been delivered */
+    int subscriptions_delivered;/**< how many subscriptions have been delivered */
 } *mod_stat_data_t;
 
 /**
  * write statistical information to the log
  *
+ * @param arg pointer to this instance's mod_stat_data_st structure
+ * @return r_UNREG if no mod_stat_data_st has been given, r_DONE else
  */
 result mod_stat_write(void *arg) {
     mod_stat_data_t stat = (mod_stat_data_t)arg;

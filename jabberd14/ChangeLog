@@ -5,6 +5,11 @@
     * jabberd/config.c: portable syslog facilities
     * jabberd/jabberd.h: same
     * jabberd/base/base_syslog.c: same
+    * jabberd/jsm/mod_offline.c: added documentation
+    * jabberd/jsm/mod_presence.c: same
+    * jabberd/jsm/mod_register.c: same
+    * jabberd/jsm/mod_stat.c: same
+    * jabberd/jsm/mod_time.c: same
 
 2004-06-30  Matthias Wimmer  <m@tthias.net>
 
