@@ -77,7 +77,6 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
 
     if (p->id->user == NULL)
     {
-        log_debug(ZONE,"not a user");
         xmlnode_free(p->x);
         return r_DONE;
     }
@@ -89,59 +88,48 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
         return r_DONE;
     }
 
-    /* XXX this for loop is UUUU-GLY */
     for (cur=io_select_get_list(io__instance);cur!=NULL;cur=cur->next)
     {
         cdcur=((cdata)cur->arg);
         if (fd == cur->fd)
-        {
             if (j_strcmp(p->id->resource,cdcur->res) == 0)
-            { /* check to see if the session manager killed the session */
-                if (*(xmlnode_get_name(p->x)) == 'm')
-                {
-                    if (xmlnode_get_tag(p->x,"error?code=510")!=NULL)
-                    {
-                        xmlnode x=xmlnode_new_tag("stream:error");
-                        xmlnode_insert_cdata(x,"Disconnected",-1);
-                        log_debug(ZONE,"received disconnect message from session manager");
-                        io_write(cur,x);
-                        pthsock_client_close(cur);
-                        return -1;
-                    }
-                }
-                if(cdcur->state==state_UNKNOWN&&*(xmlnode_get_name(p->x))=='i')
-                {
-                    if(j_strcmp(xmlnode_get_attrib(p->x,"type"),"result") == 0)
-                    {
-                        if (j_strcmp(cdcur->auth_id,xmlnode_get_attrib(p->x,"id")) == 0)
-                        {
-                            log_debug(ZONE,"auth for user successful");
-                            /* change the host id */
-                            cdcur->host = pstrdup(cur->p,xmlnode_get_attrib(p->x,"sfrom"));
-                            cdcur->state = state_AUTHD;
-                        }
-                        else 
-                            log_debug(ZONE,"reg for user successful");
-                    }
-                    else 
-                        log_debug(ZONE,"user auth/registration falid");
-                }
-                xmlnode_hide_attrib(p->x,"sto");
-                xmlnode_hide_attrib(p->x,"sfrom");
-                io_write(cur,p->x);
-            }
-            else 
                 break;
+    }
+    if(cur!=NULL)
+    { /* check to see if the session manager killed the session */
+        if (xmlnode_get_tag(p->x,"error?code=510")!=NULL)
+        {
+            xmlnode x=xmlnode_new_tag("stream:error");
+            xmlnode_insert_cdata(x,"Disconnected",-1);
+            log_debug(ZONE,"received disconnect message from session manager");
+            io_write(cur,x);
+            pthsock_client_close(cur);
+            xmlnode_free(p->x);
             return r_DONE;
         }
-    }
-    if (*(xmlnode_get_name(p->x)) == 'm')
-        if (j_strcmp(xmlnode_get_attrib(p->x,"type"),"error") == 0)
-            if (j_strcmp(xmlnode_get_attrib(xmlnode_get_tag(p->x,"error"),"code"),"510") == 0)
-            {
-                xmlnode_free(p->x);
-                return r_DONE;
+        else if(cdcur->state==state_UNKNOWN)
+        {
+            char *type=xmlnode_get_attrib(p->x,"type");
+            char *id=xmlnode_get_attrib(p->x,"id");
+            if((j_strcmp(type,"result")==0)&&j_strcmp(cdcur->auth_id,id)==0)
+            { /* update the cdata status if it's a successfull auth */
+                log_debug(ZONE,"auth for user successful");
+                /* change the host id */
+                cdcur->host = pstrdup(cur->p,xmlnode_get_attrib(p->x,"sfrom"));
+                cdcur->state = state_AUTHD;
             }
+        }
+        xmlnode_hide_attrib(p->x,"sto");
+        xmlnode_hide_attrib(p->x,"sfrom");
+        io_write(cur,p->x);
+        return r_DONE;
+    }
+
+    if (xmlnode_get_tag(p->x,"error?code=510")!=NULL)
+    { /* we got a 510, but no session to end */
+        xmlnode_free(p->x);
+        return r_DONE;
+    }
 
     log_debug(ZONE,"pthsock_client connection not found");
 
@@ -156,7 +144,6 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
 
     jutil_tofrom(p->x);
     deliver(dpacket_new(p->x),si->i);
-    xmlnode_free(p->x);
 
     return r_DONE;
 }
@@ -181,14 +168,11 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         xmlnode_free(h);
         xmlnode_free(x);
         break;
-
     case XSTREAM_NODE:
-
-        /* only allow auth and registration queries at this point */
         if (cd->state == state_UNKNOWN)
-        {
+        { /* only allow auth and registration queries at this point */
             xmlnode q = xmlnode_get_tag(x,"query");
-            if (*(xmlnode_get_name(x)) != 'i' || (NSCHECK(q,NS_AUTH) == 0 && NSCHECK(q,NS_REGISTER) == 0))
+            if (!NSCHECK(q,NS_AUTH)&&!NSCHECK(q,NS_REGISTER))
             {
                 log_debug(ZONE,"user tried to send packet in unknown state");
                 xmlnode_free(x);
@@ -199,10 +183,10 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
             {
                 xmlnode_put_attrib(xmlnode_get_tag(q,"digest"),"sid",cd->sid);
                 cd->auth_id = pstrdup(c->p,xmlnode_get_attrib(x,"id"));
-                if (cd->auth_id == NULL) 
+                if(cd->auth_id==NULL) 
                 {
-                    cd->auth_id = pstrdup(c->p,"1234");
-                    xmlnode_put_attrib(x,"id","1234");
+                    cd->auth_id = pstrdup(c->p,"pthsock_client_auth_ID");
+                    xmlnode_put_attrib(x,"id","pthsock_client_auth_ID");
                 }
             }
         }
@@ -211,7 +195,6 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         xmlnode_put_attrib(x,"sto",cd->host);
         deliver(dpacket_new(x),((smi)cd->i)->i);
         break;
-
     case XSTREAM_ERR:
         h=xmlnode_new_tag("stream:error");
         xmlnode_insert_cdata(h,"You sent malformed XML",-1);
@@ -219,6 +202,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
     case XSTREAM_CLOSE:
         log_debug(ZONE,"closing XSTREAM");
         pthsock_client_close(c);
+        xmlnode_free(x);
     }
 }
 
@@ -235,7 +219,6 @@ cdata pthsock_client_cdata(smi si,sock c)
     cd->arg=(void*)c;
 
     buf=pmalloco(c->p,100);
-    memset(buf,0,99);
 
     /* HACK to fix race conditon */
     snprintf(buf,99,"%X",c);
@@ -283,9 +266,9 @@ void pthsock_client_read(sock c,char *buffer,int bufsz,int flags,void *arg)
         }
         break;
     case IO_ERROR:
-        log_debug(ZONE,"error on one of the sockets, bouncing queue");
         if(c->xbuffer!=NULL)
         {
+            log_debug(ZONE,"error on socket %d, bouncing queue",c->fd);
             jutil_error(c->xbuffer,TERROR_EXTERNAL);
             deliver(dpacket_new(c->xbuffer),si->i);
             c->xbuffer=NULL;

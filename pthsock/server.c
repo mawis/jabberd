@@ -37,7 +37,6 @@ typedef struct ssi_st
 {
     instance i;
     HASHTABLE out_tab;
-    int asock;
 } *ssi, _ssi;
 
 typedef struct sdata_st
@@ -58,22 +57,17 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
     xmlnode h;
     char *block, *to;
 
-    log_debug(ZONE,"pthsock_server_stream handling packet type %d",type);
-
     switch(type)
     {
     case XSTREAM_ROOT:
-        log_debug(ZONE,"root received for %d",c->fd);
         if(sd->type==conn_IN)
         {
-            if(xmlnode_get_attrib(x, "xmlns:etherx") == NULL && xmlnode_get_attrib(x,"etherx:secret") == NULL)
+            if(xmlnode_get_attrib(x,"xmlns:etherx")==NULL&&
+               xmlnode_get_attrib(x,"etherx:secret")==NULL)
             {
                 to=xmlnode_get_attrib(x,"to");
                 if(sd->to==NULL)
-                {
                     sd->to=pstrdup(c->p,to);
-                    ghash_put(sd->i->out_tab,sd->to,sd);
-                }
                 if(to==NULL)
                 {
                     io_write_str(c,"<stream::error>You didn't send your to='host' attribute.</stream:error>");
@@ -107,10 +101,11 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
     case XSTREAM_NODE:
         if(sd->type==conn_OUT)
         {
-            xmlnode x=xmlnode_new_tag("stream:error");
+            xmlnode h=xmlnode_new_tag("stream:error");
             log_debug(ZONE,"Outgoing connection tried to receive data!");
-            xmlnode_insert_cdata(x,"This connection does not accept incoming data",-1);
-            io_write(c,x);
+            xmlnode_insert_cdata(h,"This connection does not accept incoming data",-1);
+            io_write(c,h);
+            xmlnode_free(x);
             break;
         }
         log_debug(ZONE,"node received for %d",c->fd);
@@ -132,7 +127,6 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
             deliver(dpacket_new(x),sd->i->i);
         }
         break;
-
     case XSTREAM_ERR:
         log_debug(ZONE,"failed to parse XML for %d",c->fd);
         io_write_str(c,"<stream::error>You sent malformed XML</stream:error>");
@@ -140,6 +134,7 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
         /* they closed there connections to us */
         log_debug(ZONE,"closing XML stream for %d",c->fd);
         io_close(c);
+        xmlnode_free(x);
     }
 }
 
@@ -161,7 +156,7 @@ void pthsock_server_read(sock c,char *buffer,int bufsz,int flags,void *arg)
         log_debug(ZONE,"io_select NEW socket connected at %d",c->fd);
         sd=(sdata)c->arg;
         if(sd==NULL)
-        {
+        { /* if this is an incoming connection, there is no sdata */
             sd = pmalloco(c->p, sizeof(_sdata));
             sd->type=conn_IN;
             sd->arg=(void*)c;
@@ -169,7 +164,8 @@ void pthsock_server_read(sock c,char *buffer,int bufsz,int flags,void *arg)
             sd->i = si;
         }
         else 
-        {
+        { /* we already have an sdata for outgoing conns */
+            /* once we made the connection, send the header */
             xmlnode x=xstream_header("jabber:server",sd->to,NULL);
             sd->arg=(void*)c;
             io_write_str(c,xstream_header_char(x));
@@ -186,12 +182,14 @@ void pthsock_server_read(sock c,char *buffer,int bufsz,int flags,void *arg)
         sd=(sdata)c->arg;
         if (sd->type == conn_OUT)
             ghash_remove(si->out_tab,sd->to);
+        /* if this is outgoing connection, we will have a pool to free */
         if(sd->p!=NULL)pool_free(sd->p);
         break;
     case IO_ERROR:
         /* bounce the write queue */
         /* check the sock queue */
         sd=(sdata)c->arg;
+        log_debug(ZONE,"Socket Error to host %s, bouncing queue",sd->to);
         if(c->xbuffer!=NULL)
         {
             jutil_error(c->xbuffer,TERROR_EXTERNAL);
