@@ -1,4 +1,4 @@
-Welcome to the world of Jabber 1.1.1!
+Welcome to the world of Jabber 1.1.2!
 
 This is going to be short, experts only, to be filled in by later development releases:
 
@@ -20,6 +20,7 @@ Latest CVS is always available as "jabber2" on jabber.org.
 
 Thanks to the following for their important work on this release:
 	Jeremie Miller <jeremie@jabber.org>
+	Keith Minkler <tsbandit@jabber.org>
 	David Smith <dizzyd@jabber.org>
 	Schuyler Heath <sheath@jabber.org>
 	And all the rest of the Jabber developers!

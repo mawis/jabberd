@@ -10,3 +10,4 @@ clean:
 	cd pthsock && make clean
 	cd xdb_file && make clean
 	cd jsm && make clean
+	cd dnsrv && make clean
