@@ -31,6 +31,7 @@
 #include "jabberd.h"
 
 xmlnode base_load__cache = NULL;
+int base_load_ref__count = 0;
 
 /* process entire load element, loading each one (unless already cached) */
 /* if all loaded, exec each one in order */
@@ -88,6 +89,15 @@ void *base_load_symbol(char *func, char *file)
     return func_h;
 }
 
+void base_load_shutdown(void *arg)
+{
+    base_load_ref__count--;
+    if(base_load_ref__count != 0)
+        return;
+
+    xmlnode_free(base_load__cache);
+}
+
 result base_load_config(instance id, xmlnode x, void *arg)
 {
     xmlnode so;
@@ -95,13 +105,19 @@ result base_load_config(instance id, xmlnode x, void *arg)
     void *f;
     int flag = 0;
 
+    if(base_load__cache == NULL)
+        base_load__cache = xmlnode_new_tag("so_cache");
+
     if(id != NULL)
     { /* execution phase */
+        base_load_ref__count++;
+        pool_cleanup(id->p, base_load_shutdown, NULL);
         f = xmlnode_get_vattrib(x, init);
         ((base_load_init)f)(id, x); /* fire up the main function for this extension */
         return r_PASS;
     }
 
+    
     log_debug(ZONE,"base_load_config processing configuration %s\n",xmlnode2str(x));
 
     for(so = xmlnode_get_firstchild(x); so != NULL; so = xmlnode_get_nextsibling(so))
@@ -127,19 +143,10 @@ result base_load_config(instance id, xmlnode x, void *arg)
     return r_PASS;
 }
 
-void base_load_shutdown(void *arg)
-{
-    xmlnode_free(base_load__cache);
-}
 
 void base_load(void)
 {
     log_debug(ZONE,"base_load loading...\n");
-
-    /* init global cache */
-    base_load__cache = xmlnode_new_tag("so_cache");
-
-    register_shutdown(base_load_shutdown, NULL);
     register_config("load",base_load_config,NULL);
 }
 
