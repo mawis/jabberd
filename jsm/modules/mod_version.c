@@ -36,7 +36,7 @@ mreturn mod_version_reply(mapi m, void *arg)
     xmlnode os;
 
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
-    if(!NSCHECK(m->packet->iq,NS_VERSION)) return M_PASS;
+    if(!NSCHECK(m->packet->iq,NS_VERSION) || m->packet->to->resource != NULL) return M_PASS;
 
     /* first, is this a valid request? */
     if(jpacket_subtype(m->packet) != JPACKET__GET)

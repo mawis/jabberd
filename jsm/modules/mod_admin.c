@@ -29,6 +29,70 @@
  * --------------------------------------------------------------------------*/
 #include "jsm.h"
 
+int _mod_admin_browse(void *arg, const void *key, void *data)
+{
+    xmlnode browse = (xmlnode)arg;
+    udata u = (udata)data;
+    xmlnode x;
+    session s = js_session_primary(u);
+    spool sp;
+    int t = time(NULL);
+    char buff[10];
+
+    /* make a user generic entry */
+    x = xmlnode_insert_tag(browse,"user");
+    xmlnode_put_attrib(x,"jid",jid_full(u->id));
+    if(s == NULL)
+    {
+        xmlnode_put_attrib(x,"name",u->user);
+        return 1;
+    }
+    sp = spool_new(xmlnode_pool(browse));
+    spooler(sp,u->user," (",sp);
+
+    /* insert extended data for the primary session */
+    sprintf(buff,"%d", (int)(t - s->started));
+    spooler(sp,buff,", ",sp);
+    sprintf(buff,"%d", s->c_out);
+    spooler(sp,buff,", ",sp);
+    sprintf(buff,"%d", s->c_in);
+    spooler(sp,buff,")",sp);
+
+    xmlnode_put_attrib(x,"name",spool_print(sp));
+
+    return 1;
+}
+
+/* who */
+void mod_admin_browse(jsmi si, jpacket p)
+{
+    xmlnode browse;
+
+    jutil_iqresult(p->x);
+    browse = xmlnode_insert_tag(p->x,"item");
+    xmlnode_put_attrib(browse,"jid",spools(xmlnode_pool(browse),p->to->server,"/admin",xmlnode_pool(browse)));
+    xmlnode_put_attrib(browse,"name","Online Users (seconds, sent, received)");
+    xmlnode_put_attrib(browse,"xmlns",NS_BROWSE);
+
+    if(jpacket_subtype(p) == JPACKET__GET)
+    {
+        log_debug("mod_admin","handling who GET");
+
+        /* walk the users on this host */
+        ghash_walk(ghash_get(si->hosts, p->to->server),_mod_admin_browse,(void *)browse);
+    }
+
+    if(jpacket_subtype(p) == JPACKET__SET)
+    {
+        log_debug("mod_admin","handling who SET");
+
+        /* kick them? */
+    }
+
+    jpacket_reset(p);
+    js_deliver(si,p);
+}
+
 int _mod_admin_who(void *arg, const void *key, void *data)
 {
     xmlnode who = (xmlnode)arg;
@@ -60,16 +124,6 @@ int _mod_admin_who(void *arg, const void *key, void *data)
     return 1;
 }
 
-/* callback for walking the host hash tree */
-int _mod_admin_who_host(void *arg, const void *key, void *data)
-{
-    HASHTABLE ht = (HASHTABLE)data;
-
-    ghash_walk(ht,_mod_admin_who,arg);
-
-    return 1;
-}
-
 /* who */
 mreturn  mod_admin_who(jsmi si, jpacket p)
 {
@@ -79,8 +133,8 @@ mreturn  mod_admin_who(jsmi si, jpacket p)
     {
         log_debug("mod_admin","handling who GET");
 
-        /* walk the users */
-        ghash_walk(si->hosts,_mod_admin_who_host,(void *)who);
+        /* walk the users on this host */
+        ghash_walk(ghash_get(si->hosts, p->to->server),_mod_admin_who,(void *)who);
     }
 
     if(jpacket_subtype(p) == JPACKET__SET)
@@ -174,29 +228,30 @@ mreturn mod_admin_monitor(jsmi si, jpacket p)
 /* dispatch */
 mreturn mod_admin_dispatch(mapi m, void *arg)
 {
-    int f_read = 0, f_write = 0;
-    xmlnode cur;
-
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
+
+    /* first check the /admin browse feature */
+    if(NSCHECK(m->packet->iq,NS_BROWSE) && j_strcmp(m->packet->to->resource,"admin") == 0)
+    {
+        if(js_admin(m->user,ADMIN_READ))
+            mod_admin_browse(m->si, m->packet);
+        else
+            js_bounce(m->si,m->packet->x,TERROR_NOTALLOWED);
+        return M_HANDLED;
+    }
+
+    /* now normal iq:admin stuff */
     if(!NSCHECK(m->packet->iq,NS_ADMIN)) return M_PASS;
 
     log_debug("mod_admin","checking admin request from %s",jid_full(m->packet->from));
 
-    for(cur = xmlnode_get_firstchild(js_config(m->si,"admin")); cur != NULL; cur = xmlnode_get_nextsibling(cur))
-    {
-        if(j_strcmp(xmlnode_get_name(cur),"read") == 0 && jid_cmpx(jid_new(xmlnode_pool(m->packet->x),xmlnode_get_data(cur)),m->packet->from,JID_USER|JID_SERVER) == 0)
-            f_read = 1;
-        if(j_strcmp(xmlnode_get_name(cur),"write") == 0 && jid_cmpx(jid_new(xmlnode_pool(m->packet->x),xmlnode_get_data(cur)),m->packet->from,JID_USER|JID_SERVER) == 0)
-            f_read = f_write = 1;
-    }
-
-    if(f_read)
+    if(js_admin(m->user,ADMIN_READ))
     {
         if(xmlnode_get_tag(m->packet->iq,"who") != NULL) return mod_admin_who(m->si, m->packet);
         if(0 && xmlnode_get_tag(m->packet->iq,"monitor") != NULL) return mod_admin_monitor(m->si, m->packet);
     }
 
-    if(f_write)
+    if(js_admin(m->user,ADMIN_WRITE))
     {
         if(0 && xmlnode_get_tag(m->packet->iq,"user") != NULL) return mod_admin_user(m->si, m->packet);
         if(xmlnode_get_tag(m->packet->iq,"config") != NULL) return mod_admin_config(m->si, m->packet);
@@ -218,8 +273,6 @@ mreturn mod_admin_message(mapi m, void *arg)
     if(m->packet->to->resource != NULL) return M_PASS;
 
     log_debug("mod_admin","delivering admin message from %s",jid_full(m->packet->from));
-
-    /* XXX this should use x:envelope when an admin jid is not local! */
 
     subject=spools(m->packet->p,"Admin: ",xmlnode_get_tag_data(m->packet->x,"subject")," (",m->packet->to->server,")",m->packet->p);
     xmlnode_hide(xmlnode_get_tag(m->packet->x,"subject"));

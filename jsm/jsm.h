@@ -55,6 +55,12 @@ typedef int event;
 /* always add new event types here, to maintain backwards binary compatibility */
 #define es_LAST    3  /* flag for the highest */
 
+/* admin user account flags */
+#define ADMIN_UNKNOWN   0x00
+#define ADMIN_NONE      0x01
+#define ADMIN_READ      0x02
+#define ADMIN_WRITE     0x04
+
 
 typedef enum {M_PASS,   /* we don't want this packet this tim */
               M_IGNORE, /* we don't want this packet ever */
@@ -101,7 +107,7 @@ struct udata_struct
     jid id;
     jsmi si;
     session sessions;
-    int scount, ref;
+    int scount, ref, admin;
     ppdb p_cache;
     pool p;
     struct udata_struct *next;
@@ -164,6 +170,8 @@ void js_mapi_session(event e, session s, mcall c, void *arg);
 int js_mapi_call(jsmi si, event e, jpacket packet, udata user, session s);
 
 void js_authreg(void *arg);
+
+int js_admin(udata u, int flag);
 
 result js_packet(instance i, dpacket p, void *arg);
 int js_islocal(jsmi si, jid id);

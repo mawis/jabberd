@@ -184,10 +184,10 @@ mreturn mod_browse_reply(mapi m, void *arg)
 
 mreturn mod_browse_server(mapi m, void *arg)
 {
-    xmlnode browse, query;
+    xmlnode browse, query, x;
 
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
-    if(jpacket_subtype(m->packet) != JPACKET__GET || !NSCHECK(m->packet->iq,NS_BROWSE)) return M_PASS;
+    if(jpacket_subtype(m->packet) != JPACKET__GET || !NSCHECK(m->packet->iq,NS_BROWSE) || m->packet->to->resource != NULL) return M_PASS;
 
     /* get data from the config file */
     if((browse = js_config(m->si,"browse")) == NULL)
@@ -204,6 +204,15 @@ mreturn mod_browse_server(mapi m, void *arg)
 
     /* copy in the configured services */
     xmlnode_insert_node(query,xmlnode_get_firstchild(browse));
+
+    /* list the admin stuff */
+    if(js_admin(m->user, ADMIN_READ))
+    {
+        x = xmlnode_insert_tag(query,"item");
+        xmlnode_put_attrib(x,"jid",spools(xmlnode_pool(x),m->packet->to->server,"/admin",xmlnode_pool(x)));
+        xmlnode_put_attrib(x,"name","Online Users");
+        xmlnode_insert_cdata(xmlnode_insert_tag(query,"ns"),NS_ADMIN,-1);
+    }
 
     jpacket_reset(m->packet);
     js_deliver(m->si,m->packet);

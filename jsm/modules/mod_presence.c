@@ -51,6 +51,7 @@ int mod_presence_roster(udata user, jid id)
 mreturn mod_presence_in(mapi m, void *arg)
 {
     xmlnode pres;
+    int flag;
 
     if(m->packet->type != JPACKET_PRESENCE) return M_IGNORE;
 
@@ -61,12 +62,15 @@ mreturn mod_presence_in(mapi m, void *arg)
         if(m->s->presence == NULL)
         {
             log_debug("mod_presence","probe from %s and no presence to return",jid_full(m->packet->from));
-        }else if(mod_presence_roster(m->user, m->packet->from) || jid_cmp(m->packet->from,m->s->uid) == 0)
+        }else if(mod_presence_roster(m->user, m->packet->from) || (flag = jid_cmp(m->packet->from,m->s->uid)) == 0)
         {
             log_debug("mod_presence","got a probe, responding to %s",jid_full(m->packet->from));
             pres = xmlnode_dup(m->s->presence);
             xmlnode_put_attrib(pres,"to",jid_full(m->packet->from));
-            js_session_from(m->s,jpacket_new(pres));
+            if(flag) /* this is weird, but, the reason we send through _from() is so that availtracker can snag em */
+                js_session_from(m->s,jpacket_new(pres));
+            else /* but we can't send to ourselves, or that will reset the presence! doh! */
+                js_deliver(m->si,jpacket_new(pres));
         }else{
             log_debug("mod_presence","%s attempted to probe and is not on the roster",jid_full(m->packet->from));
         }
@@ -92,7 +96,7 @@ mreturn mod_presence_out(mapi m, void *arg)
 
     if(m->packet->type != JPACKET_PRESENCE) return M_IGNORE;
 
-    if(m->packet->to != NULL) return M_PASS;
+    if(m->packet->to != NULL || jpacket_subtype(m->packet) == JPACKET__PROBE) return M_PASS;
 
     log_debug("mod_presence","new presence from %s of  %s",jid_full(m->s->id),xmlnode2str(m->packet->x));
 
@@ -110,6 +114,8 @@ mreturn mod_presence_out(mapi m, void *arg)
     xmlnode_put_attrib(delay,"xmlns",NS_DELAY);
     xmlnode_put_attrib(delay,"from",jid_full(m->s->id));
     xmlnode_put_attrib(delay,"stamp",jutil_timestamp());
+
+    log_debug(ZONE,"presence oldp %d newp %d top %X",oldpri,m->s->priority,top);
 
     /* special stuff for when we're available */
     if(m->s->priority >= 0)

@@ -297,7 +297,7 @@ mreturn mod_roster_out_iq(mapi m)
             xmlnode_insert_tag_node(roster,cur);
 
             /* push the new item */
-            mod_roster_push(m->user,item);
+            mod_roster_push(m->user,cur);
         }
 
         /* send to the user */

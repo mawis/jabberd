@@ -104,3 +104,24 @@ int js_islocal(jsmi si, jid id)
     if(ghash_get(si->hosts, id->server) == NULL) return 0;
     return 1;
 }
+
+/* macro to validate a user as an admin */
+int js_admin(udata u, int flag)
+{
+    if(u == NULL || u->admin == ADMIN_NONE) return 0;
+
+    if(u->admin == ADMIN_UNKNOWN)
+    {
+        if(js_config(u->si, spools(u->p,"admin/read=",jid_full(u->id),u->p)) != NULL)
+            u->admin = ADMIN_READ;
+        if(js_config(u->si, spools(u->p,"admin/write=",jid_full(u->id),u->p)) != NULL)
+            u->admin = ADMIN_READ | ADMIN_WRITE;
+    }else{
+        u->admin = ADMIN_NONE;
+    }
+
+    if(u->admin & flag)
+        return 1;
+
+    return 0;
+}
