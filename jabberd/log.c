@@ -43,11 +43,19 @@ char *debug_log_timestamp(void)
 void debug_log(char *zone, const char *msgfmt, ...)
 {
     va_list ap;
+    char message[MAX_LOG_SIZE];
+    char *pos;
+    int offset;
 
-    fprintf(stderr, "%s %s ", debug_log_timestamp(), zone);
+    bzero(message, MAX_LOG_SIZE);
+    snprintf(message, MAX_LOG_SIZE, "%s %s ", debug_log_timestamp(), zone);
+    for (pos = message; *pos != '\0'; pos++); //empty statement
+     
+    offset = pos - message;
+
     va_start(ap, msgfmt);
-    vfprintf(stderr, msgfmt, ap);
-    fprintf(stderr, "\n");
+    vsnprintf(pos, MAX_LOG_SIZE - offset, msgfmt, ap);
+    fprintf(stderr, "%s\n", message);
 
     return;
 }

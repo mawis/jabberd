@@ -66,6 +66,7 @@ void deliver(dpacket p, instance i); /* deliver packet from sending instance */
 result deliver_instance(instance i, dpacket p); /* deliver packet TO the instance, if the result != r_DONE, you have to handle the packet! */
 
 /*** global logging symbols ***/
+#define MAX_LOG_SIZE 1024
 extern int debug_flag;
 void debug_log(char *zone, const char *msgfmt, ...);
 #define log_debug if(debug_flag) debug_log
