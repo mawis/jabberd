@@ -244,12 +244,19 @@ void base_accept_read_packets(int type, xmlnode x, void *arg)
 					{
 						a->s->a = a;
 					}
+					/* Hook up the message port events */
+					a->emp = pth_event(PTH_EVENT_MSG,a->s->mp);
+					if(a->etime != NULL)
+						pth_event_free(a->etime, PTH_FREE_THIS);
+					a->ering = pth_event_concat(a->eread, a->emp, NULL);
 				}
-                /* Hook up the message port events */
-				a->emp = pth_event(PTH_EVENT_MSG,a->s->mp);
-				if(a->etime != NULL)
-					pth_event_free(a->etime, PTH_FREE_THIS);
-				a->ering = pth_event_concat(a->eread, a->emp, NULL);
+				else if (a->state == A_SIMPLEX)
+				{
+					/* Simply disable the timer event and reset events */
+					if (a->etime != NULL)
+						pth_event_free(a->etime, PTH_FREE_THIS);
+					a->ering = pth_event_concat(a->eread, NULL);
+				}
 			}
 			/* Handshake failed */
 			else
