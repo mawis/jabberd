@@ -409,7 +409,7 @@ int conn_write(conn_t c)
     return 0;
 }
 
-int _log_ssl_io_error(log_t l, SSL *ssl, int retcode) {
+int _log_ssl_io_error(log_t l, SSL *ssl, int retcode, int fd) {
     int ssl_error;
 
     ssl_error = SSL_get_error(ssl, retcode);
@@ -417,21 +417,21 @@ int _log_ssl_io_error(log_t l, SSL *ssl, int retcode) {
     if (ssl_error == SSL_ERROR_SYSCALL && errno == 0)
 	return;
 
-    log_write(l, LOG_NOTICE, "SSL_read() returned %i", retcode);
+    log_write(l, LOG_NOTICE, "SSL_read() on fd %i returned %i", fd, retcode);
     switch (ssl_error) {
 	case SSL_ERROR_ZERO_RETURN:
 	    log_write(l, LOG_NOTICE, "TLS/SSL connection has been closed.");
 	    break;
 	case SSL_ERROR_WANT_READ:
 	case SSL_ERROR_WANT_WRITE:
-	    log_write(l, LOG_NOTICE, "SSL/TLS needs more data from BIO");
+	    log_write(l, LOG_DEBUG, "SSL/TLS needs more data from BIO");
 	    break;
 	case SSL_ERROR_WANT_CONNECT:
 	case SSL_ERROR_WANT_ACCEPT:
-	    log_write(l, LOG_NOTICE, "SSL/TLS needs more data from BIO to connect/accept");
+	    log_write(l, LOG_DEBUG, "SSL/TLS needs more data from BIO to connect/accept");
 	    break;
 	case SSL_ERROR_WANT_X509_LOOKUP:
-	    log_write(l, LOG_NOTICE, "want X509 lookup (shout not happen");
+	    log_write(l, LOG_DEBUG, "want X509 lookup (shout not happen");
 	    break;
 	case SSL_ERROR_SYSCALL:
 	    log_write(l, LOG_NOTICE, "syscall error occurred");
