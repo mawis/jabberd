@@ -355,19 +355,6 @@
 
   <service id="s2s">
     <load>
-      <pthsock_server>./pthsock/pthsock_server.so</pthsock_server>
-    </load>
-    <pthssock xmlns='jabber:config:pth-ssock'>
-      <legacy/>
-      <!-- Use these to listen on particular addresses and/or ports.
-      <ip port="7000"/>
-      <ip port="5269">127.0.0.1</ip>
-      -->
-    </pthssock>
-  </service>
-
-  <service id="dialback">
-    <load>
       <dialback>./dialback/dialback.so</dialback>
     </load>
     <dialback xmlns='jabber:config:dialback'>

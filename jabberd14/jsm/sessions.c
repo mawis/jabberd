@@ -223,7 +223,11 @@ void _js_session_from(void *arg)
     /* at least we must have a valid packet */
     if(p->type == JPACKET_UNKNOWN)
     {
-        /* if not,s send an error to the session */
+        /* send an error back */
+        jutil_error(p->x,TERROR_BAD);
+        jpacket_reset(p);
+        js_session_to(s,p);
+        return;
     }
 
     /* debug message */
@@ -240,23 +244,22 @@ void _js_session_from(void *arg)
         p->from = jid_new(p->p,jid_full(s->id));
     }
 
+    /* if you use to="yourself@yourhost" it's the same as not having a to, the modules use the NULL as a self-flag */
+    if(jid_cmp(p->to,s->uid) == 0)
+    {
+        xmlnode_hide_attrib(p->x,"to");
+        p->to = NULL;
+    }
+
     /* let the modules have their heyday */
     if(js_mapi_call(NULL, es_OUT,  p, s->u, s))
         return;
 
-    /* no module handled it, so make sure there's a to attribute */
+    /* no module handled it, so restore the to attrib to us */
     if(p->to == NULL)
     {
-    	/* iq's w/o a to get forwarded to the server handlers */
-    	if(p->type != JPACKET_IQ)
-    	{
-            jutil_error(p->x,TERROR_BAD);
-            jpacket_reset(p);
-            js_session_to(s,p);
-            return;
-        }
-        xmlnode_put_attrib(p->x,"to",p->from->server);
-        p->to = jid_new(p->p,p->from->server);
+        xmlnode_put_attrib(p->x,"to",jid_full(s->uid));
+        p->to = jid_new(p->p,jid_full(s->uid));
     }
 
     /* pass these to the general delivery function */

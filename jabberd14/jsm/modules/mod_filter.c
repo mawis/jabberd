@@ -675,20 +675,8 @@ mreturn mod_filter_handler(mapi m, void *arg)
     }
     else 
     {
-        /* locate a session to deliver to */
-        session s = m->s;
-        s = s ? s : js_session_primary(m->user);
-        if(s!=NULL)
-        { /* last chance to handle the packet */
-            js_session_to(s,jp);
-            pool_free(p);
-            return M_HANDLED;
-        }
-        else
-        { /* no active session, and no matching rule, ignore it */
-            pool_free(p);
-            return M_PASS;
-        }
+        pool_free(p);
+        return M_PASS;
     }
     /* it will never get to this point, but just becuase... */
     return M_PASS;

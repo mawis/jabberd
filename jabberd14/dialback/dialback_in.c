@@ -77,7 +77,7 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
 {
     dbic c = (dbic)arg;
     miod md;
-    jid key;
+    jid key, from;
     xmlnode x2;
 
     if(flags != MIO_XML_NODE) return;
@@ -100,9 +100,17 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
         return;
     }
 
-    /* make a key of the sender/recipient addresses on the packet */
-    key = jid_new(xmlnode_pool(x),xmlnode_get_attrib(x,"to"));
-    jid_set(key,xmlnode_get_attrib(x,"from"),JID_RESOURCE);
+    /* valid sender/recipient jids */
+    if((from = jid_new(xmlnode_pool(x),xmlnode_get_attrib(x,"from"))) == NULL || (key = jid_new(xmlnode_pool(x),xmlnode_get_attrib(x,"to"))) == NULL)
+    {
+        mio_write(m, NULL, "<stream:error>Invalid Packets Recieved!</stream:error>", -1);
+        mio_close(m);
+        xmlnode_free(x);
+        return;
+    }
+
+    /* make our special key */
+    jid_set(key,from->server,JID_RESOURCE);
     jid_set(key,c->id,JID_USER); /* special user of the id attrib makes this key unique */
 
     /* incoming result, track it and forward on */

@@ -85,10 +85,10 @@ mreturn mod_presence_in(mapi m, void *arg)
 
 mreturn mod_presence_out(mapi m, void *arg)
 {
-    xmlnode pres, pnew, roster, cur, delay;
+    xmlnode pnew, roster, cur, delay;
     jid id;
     session top;
-    int from, to, pri, oldpri;
+    int from, to, oldpri;
 
     if(m->packet->type != JPACKET_PRESENCE) return M_IGNORE;
 
@@ -102,23 +102,35 @@ mreturn mod_presence_out(mapi m, void *arg)
 
     /* our new presence */
     xmlnode_free(m->s->presence);
-    m->s->presence = pres = xmlnode_dup(m->packet->x);
-    m->s->priority = pri = jutil_priority(m->packet->x);
+    m->s->presence = xmlnode_dup(m->packet->x);
+    m->s->priority = jutil_priority(m->packet->x);
 
-    /* send to self */
-    pnew = xmlnode_dup(pres);
-    xmlnode_put_attrib(pnew,"to",jid_full(m->s->uid));
-    js_session_from(m->s,jpacket_new(pnew));
+    /* stamp the sessions presence */
+    delay = xmlnode_insert_tag(m->s->presence,"x");
+    xmlnode_put_attrib(delay,"xmlns",NS_DELAY);
+    xmlnode_put_attrib(delay,"from",jid_full(m->s->id));
+    xmlnode_put_attrib(delay,"stamp",jutil_timestamp());
 
-    /* curious about self */
-    if(top == NULL)
+    /* special stuff for when we're available */
+    if(m->s->priority >= 0)
     {
-        pnew = jutil_presnew(JPACKET__PROBE,jid_full(m->s->uid),NULL);
-        xmlnode_put_attrib(pnew,"from",jid_full(m->s->uid));
-        js_session_from(m->s, jpacket_new(pnew));
-    }else if(oldpri < 0){
-        while((pnew = ppdb_get(m->user->p_cache,m->s->uid)) != NULL)
-            js_session_to(m->s,jpacket_new(xmlnode_dup(pnew)));
+        /* curious about self */
+        if(top == NULL)
+        {
+            pnew = jutil_presnew(JPACKET__PROBE,jid_full(m->s->uid),NULL);
+            xmlnode_put_attrib(pnew,"from",jid_full(m->s->uid));
+            js_session_from(m->s, jpacket_new(pnew));
+        }else if(oldpri < 0){ /* we're available already somewhere else, flush any of our existing presence to this new resource */
+            while((pnew = ppdb_get(m->user->p_cache,m->s->uid)) != NULL)
+                js_session_to(m->s,jpacket_new(xmlnode_dup(pnew)));
+        }
+    }else{ /* unavail stuff */
+        /* if we weren't available before, there's nobody to tell that we're not available again */
+        if(oldpri < 0)
+        {
+            xmlnode_free(m->packet->x);
+            return M_HANDLED;
+        }
     }
 
     /* push to roster subscriptions */
@@ -140,7 +152,7 @@ mreturn mod_presence_out(mapi m, void *arg)
             to = from = 1;
 
         /* curiosity phase */
-        if(to && pri >= 0)
+        if(to && m->s->priority >= 0)
         {
             if(top == NULL)
             { /* there's nothing cached, send probes */
@@ -165,7 +177,7 @@ mreturn mod_presence_out(mapi m, void *arg)
                    * ppdb != NULL: if we should know their presence, and they are available, forward
                    */
             log_debug("mod_presence","delivering to them");
-            pnew = xmlnode_dup(pres);
+            pnew = xmlnode_dup(m->packet->x);
             xmlnode_put_attrib(pnew,"to",jid_full(id));
             js_session_from(m->s,jpacket_new(pnew));
         }
@@ -179,15 +191,10 @@ mreturn mod_presence_out(mapi m, void *arg)
         m->user->p_cache = NULL;
     }
 
-    /* stamp the sessions presence */
-    delay = xmlnode_insert_tag(pres,"x");
-    xmlnode_put_attrib(delay,"xmlns",NS_DELAY);
-    xmlnode_put_attrib(delay,"from",jid_full(m->s->id));
-    xmlnode_put_attrib(delay,"stamp",jutil_timestamp());
-
-    xmlnode_free(m->packet->x);
     xmlnode_free(roster);
-    return M_HANDLED;
+
+    /* we let the presence continue on to ourselves! */
+    return M_PASS;
 }
 
 mreturn mod_presence_avails(mapi m, void *arg)
