@@ -40,6 +40,28 @@
  * --------------------------------------------------------------------------*/
 #include "jsm.h"
 
+/**
+ * @file mod_register.c
+ * @brief handles in-band registrations (JEP-0077)
+ *
+ * This module implements the functionality used to register and unregister accounts on the Jabber
+ * server and to change passwords.
+ *
+ * It can be configured to send a welcome message to the user on successful registration.
+ *
+ * @todo allow the admin to change passwords of other users and delete their accounts (JEP-0133?)
+ */
+
+/**
+ * handle new user registration requests
+ *
+ * Handles new user registration requests and sends a welcome message to the new user,
+ * if configured to do so.
+ *
+ * @param m the mapi structure
+ * @param arg unused/ignored
+ * @return M_PASS if registration is not allowed, or iq not of type set or get, M_HANDLED else
+ */
 mreturn mod_register_new(mapi m, void *arg)
 {
     xmlnode reg, x;
@@ -106,6 +128,21 @@ mreturn mod_register_new(mapi m, void *arg)
     return M_HANDLED;
 }
 
+/**
+ * handle jabber:iq:register queries from existing users (removing accounts and changing passwords)
+ *
+ * This function ignores all stanzas but iq stanzas.
+ *
+ * This module only handles queries in the jabber:iq:register namespace for existing users. Requests are not
+ * handled if the <register/> element does not exist in the session manager configuration.
+ *
+ * This handles querying for the existing registration by the user, changing the password and removing
+ * the account.
+ *
+ * @param m the mapi structure
+ * @param arg unused/ignored
+ * @return M_IGNORE if stanza is not of type iq, M_PASS if stanza has not been handled, M_HANDLED if stanza has been handled
+ */
 mreturn mod_register_server(mapi m, void *arg)
 {
     xmlnode reg, cur, check;
@@ -234,6 +271,14 @@ mreturn mod_register_server(mapi m, void *arg)
     return M_HANDLED;
 }
 
+/**
+ * init the module, register callbacks
+ *
+ * registers mod_register_new() as the callback for new user's registration requests,
+ * registers mod_register_server() as the callback for existing user's registration requests (unregister and change password)
+ *
+ * @param si the session manager instance
+ */
 void mod_register(jsmi si)
 {
     log_debug2(ZONE, LOGT_INIT, "init");
