@@ -1005,7 +1005,7 @@ void mod_groups(jsmi si)
             }
             else if (xhash_get(mi->config,gid) != NULL)
             {
-                log_error(si->id,"mod_groups: Error loading, group '%s' configured twice",gid);
+                log_error(si->i->id,"mod_groups: Error loading, group '%s' configured twice",gid);
                 pool_free(p);
                 return;
             }
