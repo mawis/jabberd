@@ -307,7 +307,6 @@ void* base_exec_process_io(void* threadarg)
 result base_exec_config(instance id, xmlnode x, void *arg)
 {
      process_info pi = NULL;
-     int   in, out;
 	  
      if(id == NULL)
      {	 
@@ -326,8 +325,6 @@ result base_exec_config(instance id, xmlnode x, void *arg)
      pi = pmalloco(id->p, sizeof(_process_info));
      pi->inst        = id;
      pi->mempool     = id->p;
-     pi->in          = in;
-     pi->out         = out;
      pi->write_queue = pth_msgport_create(id->id);   
      pi->state       = p_OPEN;
 
