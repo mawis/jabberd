@@ -88,6 +88,7 @@ void register_phandler(instance id, order o, phandler f, void *arg)
 typedef struct hostid_struct
 {
     char *host;
+    pool p;
     instance id;
     struct hostid_struct *next;
 } *hostid, _hostid;
@@ -96,19 +97,74 @@ typedef struct hostid_struct
 hostid deliver__log = NULL;
 hostid deliver__xdb = NULL;
 hostid deliver__norm = NULL;
-pool deliver__p = NULL;
+
+void unregister_instance(instance id,char *host)
+{
+    hostid prev=NULL,cur;
+
+    log_debug(ZONE,"Unregistering %s with instance %s",host,id->id);
+
+    switch(id->type)
+    {
+    case p_LOG:
+        if(deliver__log->id==id&&j_strcmp(deliver__log->host,host)==0)
+        {
+            cur=deliver__log;
+            deliver__log=deliver__log->next;
+            pool_free(cur->p);
+            return;
+        }
+        cur=deliver__log;
+        break;
+    case p_XDB:
+        if(deliver__xdb->id==id&&j_strcmp(deliver__xdb->host,host)==0)
+        {
+            cur=deliver__xdb;
+            deliver__xdb=deliver__xdb->next;
+            pool_free(cur->p);
+            return;
+        }
+        cur=deliver__xdb;
+        break;
+    case p_NORM:
+        if(deliver__norm->id==id&&j_strcmp(deliver__norm->host,host)==0)
+        {
+            cur=deliver__norm;
+            deliver__norm=deliver__norm->next;
+            pool_free(cur->p);
+            return;
+        }
+        cur=deliver__norm;
+        break;
+    default:
+    }
+
+    for(;cur!=NULL;prev=cur,cur=cur->next)
+    {
+        if(cur->id==id&&j_strcmp(cur->host,host)==0)
+        {
+            prev->next=cur->next;
+            cur->next=NULL;
+            pool_free(cur->p);
+            break;
+        }
+    }
+
+}
 
 /* register an instance into the delivery tree */
 void register_instance(instance id, char *host)
 {
     hostid newh;
+    pool p;
 
-    /* if first time */
-    if(deliver__p == NULL) deliver__p = pool_new();
+    log_debug(ZONE,"Registering %s with instance %s",host,id->id);
 
     /* create and setup */
-    newh = pmalloc_x(deliver__p, sizeof(_hostid), 0);
-    newh->host = pstrdup(deliver__p,host);
+    p=pool_new();
+    newh = pmalloc_x(p, sizeof(_hostid), 0);
+    newh->p=p;
+    newh->host = pstrdup(p,host);
     newh->id = id;
 
     /* hook into global */
@@ -356,7 +412,7 @@ void deliver(dpacket p, instance i)
         list = deliver__log;
         break;
     case p_XDB:
-        if(xmlnode_get_attrib(p->x, "from") == NULL && i != NULL && p->id->resource != NULL && strcmp(host,"-internal") == 0 && j_strcmp(p->id->user,"config") == 0)
+        if(xmlnode_get_attrib(p->x, "from") == NULL && i != NULL && p->id->resource != NULL && j_strcmp(host,"-internal") == 0 && j_strcmp(p->id->user,"config") == 0)
         { /* no from="" attrib is a performance flag, and config@-internal means it's a special xdb request to get data from the config file */
             log_debug(ZONE,"processing xdb configuration request %s",xmlnode2str(p->x));
             for(x = xmlnode_get_firstchild(i->x); x != NULL; x = xmlnode_get_nextsibling(x))
@@ -377,6 +433,14 @@ void deliver(dpacket p, instance i)
             deliver_instance(i, p);
             /* XXX i guess we assume that the instance handled it :) should log error */
             return;
+        }
+        else if(xmlnode_get_attrib(p->x, "from") == NULL && i != NULL && p->id->resource != NULL && j_strcmp(host,"-internal") == 0 && j_strcmp(p->id->user,"host") == 0)
+        { /* dynamic register_instance crap */
+            register_instance(i,p->id->resource); 
+        }
+        else if(xmlnode_get_attrib(p->x, "from") == NULL && i != NULL && p->id->resource != NULL && j_strcmp(host,"-internal") == 0 && j_strcmp(p->id->user,"unhost") == 0)
+        { /* dynamic register_instance crap */
+            unregister_instance(i,p->id->resource); 
         }
         list = deliver__xdb;
         break;

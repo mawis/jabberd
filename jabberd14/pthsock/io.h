@@ -66,5 +66,5 @@ void io_select_listen(int port,char *listen_host,io_cb cb,void *arg); /* start l
 void io_write_str(sock c,char *buffer); /* write a str to a socket */
 void io_write(sock c,xmlnode x); /*write and eat an xmlnode to the socket */
 void io_close(sock c); /* request to close the socket */
-void io_select_connect(char *host,int port,io_cb cb,void *arg); /* connect */
+void io_select_connect(char *host,int port,void *arg,io_cb cb,void *cb_arg); /* connect */
 sock io_select_get_list(void); /* returns a list of sockets */
