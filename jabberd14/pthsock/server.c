@@ -64,6 +64,7 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
     sock c=(sock)arg;
     sdata sd = (sdata)c->arg;
     xmlnode h;
+    jid j;
     char *block, *to;
 
     switch(type)
@@ -102,7 +103,7 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
         { /* we finnally connected, dump the queue */
             wbq q;
             while((q=(wbq)pth_msgport_get(sd->queue))!=NULL)
-                io_write(c,q->x);
+                io_write(c,xmlnode_get_firstchild(q->x));
         }
 
         xmlnode_free(x);
@@ -126,15 +127,22 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
         /* make sure we don't get packets on an incoming connection */
         /* that are destined for a connection we have established */
         /* as outgoing.. this is to fix a looping issue */
-        c=ghash_get(sd->i->out_tab,(jid_new(xmlnode_pool(x),xmlnode_get_attrib(x,"to")))->server);
+        j=jid_new(xmlnode_pool(x),xmlnode_get_attrib(x,"to"));
+        if(j!=NULL)c=ghash_get(sd->i->out_tab,j->server);
         if(c==NULL)
         {
-            deliver(dpacket_new(x),sd->i->i);
+            xmlnode r=xmlnode_wrap(x,"route");
+            xmlnode_put_attrib(r,"to",xmlnode_get_attrib(x,"to"));
+            xmlnode_put_attrib(r,"from",xmlnode_get_attrib(x,"from"));
+            deliver(dpacket_new(r),sd->i->i);
         }
         else
         {
+            xmlnode r=xmlnode_wrap(x,"route");
             jutil_error(x,TERROR_EXTERNAL);
-            deliver(dpacket_new(x),sd->i->i);
+            xmlnode_put_attrib(r,"to",xmlnode_get_attrib(x,"to"));
+            xmlnode_put_attrib(r,"from",xmlnode_get_attrib(x,"from"));
+            deliver(dpacket_new(r),sd->i->i);
         }
         break;
     case XSTREAM_ERR:
@@ -208,7 +216,10 @@ void pthsock_server_read(sock c,char *buffer,int bufsz,int flags,void *arg)
         {
             if(((int)c->xbuffer)!=-1)
             {
+                xmlnode r=xmlnode_wrap(c->xbuffer,"route");
                 jutil_error(c->xbuffer,TERROR_EXTERNAL);
+                xmlnode_put_attrib(r,"to",xmlnode_get_attrib(c->xbuffer,"to"));
+                xmlnode_put_attrib(r,"from",xmlnode_get_attrib(c->xbuffer,"from"));
                 deliver(dpacket_new(c->xbuffer),si->i);
             }
             else pool_free(c->pbuffer);
@@ -219,7 +230,10 @@ void pthsock_server_read(sock c,char *buffer,int bufsz,int flags,void *arg)
             {
                 if(q->type==queue_XMLNODE)
                 {
+                    xmlnode r=xmlnode_wrap(q->x,"route");
                     jutil_error(q->x,TERROR_EXTERNAL);
+                    xmlnode_put_attrib(r,"to",xmlnode_get_attrib(q->x,"to"));
+                    xmlnode_put_attrib(r,"from",xmlnode_get_attrib(q->x,"from"));
                     deliver(dpacket_new(q->x),si->i);
                 } else pool_free(q->p);
             }
@@ -227,7 +241,10 @@ void pthsock_server_read(sock c,char *buffer,int bufsz,int flags,void *arg)
         /* as well as our queue */
         while((q=(wbq)pth_msgport_get(sd->queue))!=NULL)
         {
+            xmlnode r=xmlnode_wrap(q->x,"route");
             jutil_error(q->x,TERROR_EXTERNAL);
+            xmlnode_put_attrib(r,"to",xmlnode_get_attrib(q->x,"to"));
+            xmlnode_put_attrib(r,"from",xmlnode_get_attrib(q->x,"from"));
             deliver(dpacket_new(q->x),si->i);
         }
     }
@@ -304,7 +321,7 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
     if(sd->type==conn_CONNECTING)
         pth_msgport_put(sd->queue,(void*)q);
     else
-        io_write((sock)sd->arg,dp->x);
+        io_write((sock)sd->arg,xmlnode_get_firstchild(dp->x));
 
     return r_DONE;
 }
