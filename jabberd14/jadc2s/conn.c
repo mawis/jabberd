@@ -409,6 +409,42 @@ int conn_write(conn_t c)
     return 0;
 }
 
+int _log_ssl_io_error(log_t l, SSL *ssl, int retcode) {
+    int ssl_error;
+
+    ssl_error = SSL_get_error(ssl, retcode);
+
+    if (ssl_error == SSL_ERROR_SYSCALL && errno == 0)
+	return;
+
+    log_write(l, LOG_NOTICE, "SSL_read() returned %i", retcode);
+    switch (ssl_error) {
+	case SSL_ERROR_ZERO_RETURN:
+	    log_write(l, LOG_NOTICE, "TLS/SSL connection has been closed.");
+	    break;
+	case SSL_ERROR_WANT_READ:
+	case SSL_ERROR_WANT_WRITE:
+	    log_write(l, LOG_NOTICE, "SSL/TLS needs more data from BIO");
+	    break;
+	case SSL_ERROR_WANT_CONNECT:
+	case SSL_ERROR_WANT_ACCEPT:
+	    log_write(l, LOG_NOTICE, "SSL/TLS needs more data from BIO to connect/accept");
+	    break;
+	case SSL_ERROR_WANT_X509_LOOKUP:
+	    log_write(l, LOG_NOTICE, "want X509 lookup (shout not happen");
+	    break;
+	case SSL_ERROR_SYSCALL:
+	    log_write(l, LOG_NOTICE, "syscall error occurred");
+	    if (ERR_peek_error() == 0) {
+		log_write(l, LOG_NOTICE, "%s", strerror(errno));
+	    } else {
+		log_ssl_errors(l, LOG_NOTICE);
+	    }
+	    break;
+	case SSL_ERROR_SSL:
+	    log_ssl_errors(l, LOG_NOTICE);
+    }
+}
 
 int _read_actual(conn_t c, int fd, char *buf, size_t count)
 {
@@ -423,6 +459,8 @@ int _read_actual(conn_t c, int fd, char *buf, size_t count)
 	    c->in_bytes += bytes_read;	/* XXX counting decrypted bytes */
 	if (!ssl_init_finished && SSL_is_init_finished(c->ssl))
 	    log_write(c->c2s->log, LOG_NOTICE, "ssl/tls established on fd %i: %s %s", c->fd, SSL_get_version(c->ssl), SSL_get_cipher(c->ssl));
+	if (bytes_read <= 0)
+	    _log_ssl_io_error(c->c2s->log, c->ssl, bytes_read);
         return bytes_read;
     }
 #endif
@@ -435,10 +473,16 @@ int _read_actual(conn_t c, int fd, char *buf, size_t count)
 
 int _peek_actual(conn_t c, int fd, char *buf, size_t count)
 {
+    int bytes_read;
     
 #ifdef USE_SSL
-    if(c->ssl != NULL)
-        return SSL_peek(c->ssl, buf, count);
+    if(c->ssl != NULL) {
+	bytes_read = SSL_peek(c->ssl, buf, count);
+	if (bytes_read <= 0)
+	    _log_ssl_io_error(c->c2s->log, c->ssl, bytes_read);
+
+        return bytes_read;
+    }
 #endif
 
     return recv(fd, buf, count, MSG_PEEK);
@@ -465,6 +509,9 @@ int _write_actual(conn_t c, int fd, const char *buf, size_t count)
 		c->out_bytes += written;
 	    }
 	}
+	else
+	    _log_ssl_io_error(c->c2s->log, c->ssl, written);
+
         return written;
     }
 #endif

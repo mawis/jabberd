@@ -1,3 +1,7 @@
+2004-03-16  Matthias Wimmer  <m@tthias.net>
+
+    * conn.c: Added more SSL error logging
+
 2004-01-17  Matthias Wimmer  <m@tthias.net>
 
     * clients.c: Logging the amout of traffic/stanzas a user generated
