@@ -57,6 +57,16 @@ void hdreg(idnode id, order o, hdgene f, void *arg); /* register a function to h
 void idreg(idnode id, char *host); /* associate an id with a hostname for that packet type */
 dpacket dpacket_new(xmlnode x); /* create a new delivery packet from source xml */
 
+/*** global logging symbols ***/
+extern int debug_flag;
+void debug_log(char *zone, const char *msgfmt, ...);
+#define log_debug if(debug_flag) debug_log
+void log_notice(char *host, const char *msgfmt, ...);
+void log_warn(char *host, const char *msgfmt, ...);
+void log_alert(char *host, const char *msgfmt, ...);
+#define log_error log_alert
+void logger(char *type, char *host, char *message); /* actually creates and delivers the log message */
+
 /*** internal functions ***/
 int configurator(char *cfgfile);
 void loader(void);

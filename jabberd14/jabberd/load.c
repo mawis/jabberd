@@ -1,5 +1,7 @@
+#include <dlfcn.h>
+
 #include "jabberd.h"
-#include "dlfcn.h"
+
 
 extern xmlnode greymatter__;
 

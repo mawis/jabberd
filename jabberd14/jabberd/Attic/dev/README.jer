@@ -28,9 +28,9 @@ Example packets:
 (from="_internal" for logs from entities that are not services, such as an xdb or internally in jabberd or in a base module)
 (never have a to="" attrib, from is set by originator)
 
-<xdb type="get" to="foo@jabber.org" from="jabber.org"><vCard xmlns="jabber:iq:vcard-temp">...</vCard></xdb>
-(all get/set's are routed to the xdb handler based on the to host, all results are sent to the service identified in the from)
-
+<xdb type="get" to="foo@jabber.org/jabber:iq:vcard-temp" id="returnID" from="jabber.org"><vCard xmlns="jabber:iq:vcard-temp">...</vCard></xdb>
+<xdb type="result" id="returnID" to="jabber.org" from="foo@jabber.org/jabber:iq:vcard-temp"><vCard xmlns="jabber:iq:vcard-temp">...</vCard></xdb>
+(all get/set's are routed to the xdb handler based on the to host, all results are delivered to the SERVICE identified in the from)
 
 ---------- RANT on session routing
 for an auth iq, set the from="45a3@10348.polld.jabber.org" to identify the session id within the connection service

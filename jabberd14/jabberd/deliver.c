@@ -83,7 +83,6 @@ void idreg(idnode id, char *host)
         deliver__xdb = newh;
         break;
     case p_NORM:
-    case p_SESS:
         newh->next = deliver__norm;
         deliver__norm = newh;
         break;
@@ -101,8 +100,6 @@ void deliver_fail(dpacket p)
     case p_XDB:
         break;
     case p_NORM:
-        break;
-    case p_SESS:
         break;
     }
 }
@@ -135,6 +132,8 @@ void deliver(dpacket p)
 {
     hostid list, cur;
 
+    /* XXX once we switch to pthreads, deliver() will have to queue until configuration is done, since threads may have started during config and be delivering already */
+
     /* based on type, pick idnode list */
     switch(p->type)
     {
@@ -145,7 +144,6 @@ void deliver(dpacket p)
         list = deliver__xdb;
         break;
     case p_NORM:
-    case p_SESS:
         list = deliver__norm;
         break;
     default:
