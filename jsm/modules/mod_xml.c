@@ -60,7 +60,7 @@
  * callback that handles iq stanzas of the user itself (either set and get requests!)
  *
  * Store and retrieve public and private data by the user itself, but not data in the namespaces that start with 'jabber:' nor in
- * the 'vcard-temp' namespace.
+ * the 'vcard-temp' or 'http://jabberd.org/ns/storedpresence' namespaces.
  *
  * @todo Allow storage of 'jabber:' namespaces and the 'vcard-temp' namespace inside of private XML storage (JEP-0049 recommends this).
  * Not possible at present because we do not store the query element in the jabber:iq:private around the data in xdb and the user
@@ -86,8 +86,8 @@ mreturn mod_xml_set(mapi m, void *arg)
         private = 1;
         inx = xmlnode_get_tag(m->packet->iq,"?xmlns");
         ns = xmlnode_get_attrib(inx,"xmlns");
-        if(ns == NULL || strncmp(ns,"jabber:",7) == 0 || strcmp(ns,"vcard-temp") == 0)
-        { /* uhoh, can't use jabber: namespaces inside iq:private! */
+        if(ns == NULL || strncmp(ns,"jabber:",7) == 0 || strcmp(ns,"vcard-temp") == 0 || strcmp(ns, NS_JABBERD_STOREDPRESENCE) == 0) {
+	    /* uhoh, can't use jabber: namespaces inside iq:private! */
             jutil_error_xmpp(m->packet->x,(xterror){406,"Can't use jabber: namespaces inside iq:private","modify","not-acceptable"});
             js_session_to(m->s,m->packet);
             return M_HANDLED;
@@ -176,8 +176,8 @@ mreturn mod_xml_set(mapi m, void *arg)
 /**
  * callback that handles iq stanzas from other users (either set and get requests)
  *
- * Requests in namespaces starting with "jabber:" and in the "vcard-temp" namespace are not handled,
- * set-requests in other namespaces are explicitly rejected, get-requests are replied with information
+ * Requests in namespaces starting with "jabber:" and in the "vcard-temp" and "http://jabberd.org/ns/storedpresence"
+ * namespaces are not handled, set-requests in other namespaces are explicitly rejected, get-requests are replied with information
  * stored in the user's xdb data if the data is not marked with a j_private_flag attribute of any value.
  *
  * @param m the mapi strcture
@@ -190,7 +190,8 @@ mreturn mod_xml_get(mapi m, void *arg)
     char *ns = xmlnode_get_attrib(m->packet->iq,"xmlns");
 
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
-    if(j_strncmp(ns,"jabber:",7) == 0 || j_strcmp(ns,"vcard-temp") == 0) return M_PASS; /* only handle alternate namespaces */
+    if(j_strncmp(ns,"jabber:",7) == 0 || j_strcmp(ns,"vcard-temp") == 0 || j_strcmp(ns, NS_JABBERD_STOREDPRESENCE) == 0)
+	return M_PASS; /* only handle alternate namespaces */
 
     /* first, is this a valid request? */
     switch(jpacket_subtype(m->packet))

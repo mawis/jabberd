@@ -231,6 +231,19 @@
       </mod_version>
       -->
 
+      <!--
+      Configuration for mod_presence. By using <bcc>jid</bcc> you
+      can send a copy of all presences to the configured Jabber address.
+      By using <presence2xdb/> you can configure that the presence of
+      the top session should be stored to xdb. This is not used by
+      jabberd itself, but might be useful if you direct the
+      http://jabberd.org/ns/storedpresence namespace to xdb_sql and want
+      to use this information to generate webpages.
+      -->
+      <presence>
+          <!-- <bcc>component.example.com</bcc> -->
+	  <!-- <presence2xdb/> -->
+      </presence>
 
     </jsm>
 
