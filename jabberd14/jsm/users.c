@@ -87,30 +87,18 @@ int _js_hosts_del(void *arg, const void *key, void *data)
 }
 
 /*
- *  js_users_main -- entry point for user gc thread
- *  
- *  js_users_main is the main loop for a thread that
+ *  js_users_gc is a heartbeat that
  *  flushes old users from memory.  
- *
  */
-void *js_users_main(void *arg)
+result js_users_gc(void *arg)
 {
     jsmi si = (jsmi)arg;
 
-    /* debug message */
-    log_debug(ZONE,"THREAD:USERS starting");
-
-    /* infinite loop */
-    while(1)
-    {
-        /* XXX sleep for 5 seconds, config me and default higher */
-        pth_sleep(5);
-
-        /* free user struct if we can */
-        js__usercount = 0;
-        ghash_walk(si->hosts,_js_hosts_del,NULL);
-        log_debug("usercount","%d\ttotal users",js__usercount);
-    }
+    /* free user struct if we can */
+    js__usercount = 0;
+    ghash_walk(si->hosts,_js_hosts_del,NULL);
+    log_debug("usercount","%d\ttotal users",js__usercount);
+    return r_DONE;
 }
 
 
