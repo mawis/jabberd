@@ -2,12 +2,12 @@
 <jsx project='jabber2'>
   <build>
     <make>
-      <project>jabberd</project>
-      <project>pthsock</project>
-      <project>xdb_file</project>
+      <project>dialback</project>
       <project>dnsrv</project> 
       <project>jsm</project>
-      <project>dialback</project>
+      <project>pthsock</project>
+      <project>xdb_file</project>
+      <project>jabberd</project>
     </make>
   </build>
 </jsx>
