@@ -543,6 +543,10 @@ int _nad_lp0(nad_t nad, int elem)
         *(nad->cdata + nad->ccur++) = '>';
         _nad_escape(nad, nad->elems[elem].itail, nad->elems[elem].ltail,1);
 
+        /* if the next element is not our sibling, we're done */
+        if(nad->elems[nelem].depth < nad->elems[elem].depth)
+            return nelem;
+
         /* for next sibling in while loop */
         elem = nelem;
     }
