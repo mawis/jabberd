@@ -114,7 +114,7 @@ void base_connect_handle_xstream_event(int type, xmlnode x, void* arg)
      conn_info ci  = (conn_info)arg;
      xmlnode   cur = NULL;
      char*     strbuf = NULL;
-     char      hashbuf[40];     
+      char      hashbuf[40];      
 
      switch(type)
      {
@@ -122,10 +122,12 @@ void base_connect_handle_xstream_event(int type, xmlnode x, void* arg)
 	  /* Extract the stream ID and generate a key to hash*/
 	  strbuf = spools(x->p, xmlnode_get_attrib(x, "id"),ci->secret, x->p);
 	  /* Calculate SHA hash */
-	  shahash_r(strbuf, hashbuf);
+	  shahash_r(strbuf,hashbuf);
+	  log_debug(ZONE, "Hashing: %s\t\nResult: %s\n", strbuf, &hashbuf);
+
 	  /* Build a handshake packet */
 	  cur = xmlnode_new_tag_pool(x->p, "handshake");
-	  xmlnode_insert_cdata(cur, (const char*)&hashbuf, sizeof(hashbuf));
+	  xmlnode_insert_cdata(cur, (const char*) &hashbuf, sizeof(hashbuf));
 	  /* Transmit handshake request */	  
 	  strbuf = xmlnode2str(cur);
 	  pth_write(ci->socket, strbuf, strlen(strbuf));
@@ -272,7 +274,7 @@ result base_connect_config(instance id, xmlnode x, void *arg)
             spooler(sp,"Failed to find 'port' tag\n",sp);
             error=1;
         }
-        else if(port==NULL)
+        else if(xmlnode_get_tag_data(x, "port") == NULL)
         {
             if(sp==NULL) sp=spool_new(xmlnode_pool(x));
             spooler(sp,"No Data in 'port' tag. must contain a port number\n",sp);
@@ -284,7 +286,7 @@ result base_connect_config(instance id, xmlnode x, void *arg)
             spooler(sp,"Failed to find 'ip' tag\n",sp);
             error=1;
         }
-        else if(ip==NULL)
+        else if(xmlnode_get_tag_data(x, "ip") ==NULL)
         {
             if(sp==NULL) sp=spool_new(xmlnode_pool(x));
             spooler(sp,"No Data in 'ip' tag. must contain an IP address to connect to\n",sp);
@@ -296,7 +298,7 @@ result base_connect_config(instance id, xmlnode x, void *arg)
             spooler(sp,"Failed to find 'secret' tag\n",sp);
             error=1;
         }
-        else if(secret==NULL)
+        else if(xmlnode_get_tag_data(x, "secret") == NULL )
         {
             if(sp==NULL) sp=spool_new(xmlnode_pool(x));
             spooler(sp,"No Data in 'secret' tag. must contain a password\n",sp);
