@@ -46,8 +46,8 @@ printf "========================\n\n"
 ##
 # SSL Check
 ##
+printf "Searching for SSL...";
 if [ $WANT_SSL -eq 1 ]; then
-    printf "Searching for SSL...";
     for dir in ${prefix} /usr/local/ssl /usr/lib/ssl /usr/ssl /usr/pkg /usr/local /usr; do
         ssldir="$dir"
         if test -f "$dir/include/openssl/ssl.h"; then
@@ -68,8 +68,10 @@ if [ $WANT_SSL -eq 1 ]; then
         fi
     done
     if test x_$found_ssl != x_yes; then
-        printf "         Not Found.\n"
+        printf "            Not Found.\n"
     fi
+else
+    printf "            Disabled.\n";
 fi;
 
 ##
