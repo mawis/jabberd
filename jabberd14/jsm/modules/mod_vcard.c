@@ -5,7 +5,7 @@ mreturn mod_vcard_jud(mapi m)
     xmlnode vcard, reg, regq;
     char *key;
 
-    vcard = js_xdb_get(m->user, NS_VCARD);
+    vcard = xdb_get(m->si->xc, m->user->id->server, m->user->id, NS_VCARD);
     key = xmlnode_get_tag_data(m->packet->iq,"key");
 
     if(vcard != NULL && key != NULL)
@@ -26,6 +26,7 @@ mreturn mod_vcard_jud(mapi m)
     }
 
     xmlnode_free(m->packet->x);
+    xmlnode_free(vcard);
     return M_HANDLED;
 }
 
@@ -36,7 +37,7 @@ mreturn mod_vcard_set(mapi m, void *arg)
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
     if(m->packet->to != NULL || !NSCHECK(m->packet->iq,NS_VCARD)) return M_PASS;
 
-    vcard = js_xdb_get(m->user, NS_VCARD);
+    vcard = xdb_get(m->si->xc, m->user->id->server, m->user->id, NS_VCARD);
 
     switch(jpacket_subtype(m->packet))
     {
@@ -53,14 +54,17 @@ mreturn mod_vcard_set(mapi m, void *arg)
 
         break;
     case JPACKET__SET:
-        log_debug("mod_vcard","handling set request");
+        log_debug("mod_vcard","handling set request %s",xmlnode2str(m->packet->iq));
 
-        /* save the changes */
-        log_debug(ZONE,"VCARD: %s",xmlnode2str(m->packet->iq));
-        js_xdb_set(m->user,NS_VCARD,xmlnode_dup(m->packet->iq));
+        /* save and send response to the user */
+        if(xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_VCARD, xmlnode_dup(m->packet->iq)))
+        {
+            /* failed */
+            jutil_error(m->packet->x,TERROR_UNAVAIL);
+        }else{
+            jutil_iqresult(m->packet->x);
+        }
 
-        /* send to the user */
-        jutil_iqresult(m->packet->x);
         /* don't need to send the whole thing back */
         xmlnode_hide(xmlnode_get_tag(m->packet->x,"vcard"));
         jpacket_reset(m->packet);
@@ -81,6 +85,7 @@ mreturn mod_vcard_set(mapi m, void *arg)
         xmlnode_free(m->packet->x);
         break;
     }
+    xmlnode_free(vcard);
     return M_HANDLED;
 }
 
@@ -106,7 +111,7 @@ mreturn mod_vcard_reply(mapi m, void *arg)
     log_debug("mod_vcard","handling query for user %s",m->user->user);
 
     /* get this guys vcard info */
-    vcard = js_xdb_get(m->user, NS_VCARD);
+    vcard = xdb_get(m->si->xc, m->user->id->server, m->user->id, NS_VCARD);
 
     /* check permissions, XXX hack for now till vcard draft
     if(xmlnode_get_tag(vcard,"public") == NULL)
@@ -126,6 +131,7 @@ mreturn mod_vcard_reply(mapi m, void *arg)
     xmlnode_insert_tag_node(m->packet->x,vcard);
     js_deliver(m->si,m->packet);
 
+    xmlnode_free(vcard);
     return M_HANDLED;
 }
 

@@ -4,16 +4,18 @@
 int mod_presence_roster(udata user, jid id)
 {
     xmlnode roster, item;
+    int ret = 0;
 
     /* get roster */
-    roster = js_xdb_get(user, NS_ROSTER);
+    roster = xdb_get(user->si->xc, user->id->server, user->id, NS_ROSTER);
 
     item = jid_nodescan(id, roster);
 
     if(item != NULL)
-        return 1;
-    else
-        return 0;
+        ret = 1;
+
+    xmlnode_free(roster);
+    return ret;
 }
 
 /* filter the incoming presence to this session */
@@ -91,7 +93,7 @@ mreturn mod_presence_out(mapi m, void *arg)
     }
 
     /* push to roster subscriptions */
-    roster = js_xdb_get(m->user, NS_ROSTER);
+    roster = xdb_get(m->si->xc, m->user->id->server, m->user->id, NS_ROSTER);
     for(cur = xmlnode_get_firstchild(roster); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
         id = jid_new(m->packet->p,xmlnode_get_attrib(cur,"jid"));
@@ -155,6 +157,7 @@ mreturn mod_presence_out(mapi m, void *arg)
     xmlnode_put_attrib(delay,"stamp",jutil_timestamp());
 
     xmlnode_free(m->packet->x);
+    xmlnode_free(roster);
     return M_HANDLED;
 }
 

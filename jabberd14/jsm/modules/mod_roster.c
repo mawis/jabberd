@@ -7,13 +7,12 @@ xmlnode mod_roster_get(udata u)
     log_debug("mod_roster","getting %s's roster",u->user);
 
     /* get the existing roster */
-    ret = js_xdb_get(u, NS_ROSTER);
+    ret = xdb_get(u->si->xc, u->id->server, u->id, NS_ROSTER);
     if(ret == NULL)
     { /* there isn't one, sucky, create a container node and let xdb manage it */
         log_debug("mod_roster","creating");
         ret = xmlnode_new_tag("query");
         xmlnode_put_attrib(ret,"xmlns",NS_ROSTER);
-        js_xdb_set(u,NS_ROSTER,ret);
     }
 
     return ret;
@@ -164,7 +163,8 @@ mreturn mod_roster_out_s10n(mapi m)
     }
 
     /* save the roster */
-    js_xdb_set(m->user,NS_ROSTER,roster);
+    /* XXX what do we do if the set fails?  hrmf... */
+    xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_ROSTER, roster);
 
     /* send ourselves a probe from them so they can be immediately informed */
     if(probeflag)
@@ -177,6 +177,8 @@ mreturn mod_roster_out_s10n(mapi m)
     /* make sure it's sent from the *user*, not the resource */
     xmlnode_put_attrib(m->packet->x,"from",jid_full(m->s->uid));
     jpacket_reset(m->packet);
+
+    xmlnode_free(roster);
 
     return M_PASS;
 }
@@ -282,7 +284,8 @@ mreturn mod_roster_out_iq(mapi m)
 
         /* save the changes */
         log_debug(ZONE,"SROSTER: %s",xmlnode2str(roster));
-        js_xdb_set(m->user,NS_ROSTER,roster);
+        /* XXX what do we do if the set fails?  hrmf... */
+        xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_ROSTER, roster);
 
         break;
     default:
@@ -290,6 +293,8 @@ mreturn mod_roster_out_iq(mapi m)
         xmlnode_free(m->packet->x);
         break;
     }
+
+    xmlnode_free(roster);
     return M_HANDLED;
 }
 
@@ -409,7 +414,8 @@ mreturn mod_roster_s10n(mapi m, void *arg)
         }
     }
 
-    js_xdb_set(m->user,NS_ROSTER,roster);
+    /* XXX what do we do if the set fails?  hrmf... */
+    xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_ROSTER, roster);
 
     /* these are delayed until after we check the roster back in, avoid rancid race conditions */
     if(reply != NULL)
@@ -429,6 +435,7 @@ mreturn mod_roster_s10n(mapi m, void *arg)
     if(push)
         mod_roster_push(m->user,item);
 
+    xmlnode_free(roster);
     return M_HANDLED;
 }
 

@@ -12,13 +12,12 @@ xmlnode mod_offline_get(udata u)
     log_debug("mod_offline","getting %s's offline options",u->user);
 
     /* get the existing options */
-    ret = js_xdb_get(u, NS_OFFLINE);
+    ret = xdb_get(u->si->xc, u->id->server, u->id, NS_OFFLINE);
     if(ret == NULL)
     {
         log_debug("mod_offline","creating options container");
         ret = xmlnode_new_tag("offline");
         xmlnode_put_attrib(ret,"xmlns",NS_OFFLINE);
-        js_xdb_set(u,NS_OFFLINE,ret);
     }
 
     return ret;
@@ -30,6 +29,14 @@ mreturn mod_offline_message(mapi m)
     xmlnode opts, cur;
     int max = 0;
     session top;
+    int ret = M_PASS;
+
+    /* if there's an existing session, just give it to them */
+    if((top = js_session_primary(m->user)) != NULL)
+    {
+        js_session_to(top,m->packet);
+        return M_HANDLED;
+    }
 
     switch(jpacket_subtype(m->packet))
     {
@@ -46,23 +53,21 @@ mreturn mod_offline_message(mapi m)
     /* get user offline options */
     opts = mod_offline_get(m->user);
 
-    if((top = js_session_primary(m->user)) != NULL){
-        /* there's an existing session, just give it to them */
-        js_session_to(top,m->packet);
-    }else{
-
-        /* ugly, max offline messages stored is 100, finish mod_filter right away */
-        for(cur = xmlnode_get_firstchild(opts); cur != NULL; cur = xmlnode_get_nextsibling(cur)) max++;
-        if(max > 100) return M_PASS;
-
-        /* alone am I */
+    /* ugly, max offline messages stored is 100, finish mod_filter right away */
+    for(cur = xmlnode_get_firstchild(opts); cur != NULL; cur = xmlnode_get_nextsibling(cur)) max++;
+    if(max < 100)
+    {
         jutil_delay(m->packet->x,"Offline Storage");
         xmlnode_insert_tag_node(opts,m->packet->x);
-        js_xdb_set(m->user,NS_OFFLINE,opts);
-        xmlnode_free(m->packet->x);
+        if(!xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_OFFLINE, opts))
+        {
+            xmlnode_free(m->packet->x);
+            ret = M_HANDLED;
+        }
     }
 
-    return M_HANDLED;
+    xmlnode_free(opts);
+    return ret;
 }
 
 /* just breaks out to our message/presence offline handlers */
@@ -92,7 +97,8 @@ void mod_offline_out_available(mapi m)
     }
 
     /* messages are gone, save the new sun-dried opts container */
-    js_xdb_set(m->user, NS_OFFLINE, opts);
+    xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_OFFLINE, opts); /* can't do anything if this fails anyway :) */
+    xmlnode_free(opts);
 }
 
 mreturn mod_offline_out(mapi m, void *arg)
