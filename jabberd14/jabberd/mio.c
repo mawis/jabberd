@@ -426,11 +426,11 @@ result _mio_connect_timeout(void *arg)
         return r_UNREG;
     }
 
-    log_debug(ZONE, "MIO CONNECT TAKING TO LONG, SIGNALLING TO STOP");
+    log_debug(ZONE, "mio_connect taking to long connecting to %s, signaling to stop", cd->ip);
     if(cd->t != NULL)
         pth_raise(cd->t, SIGUSR2);
     
-    return r_UNREG;
+    return r_DONE; /* loop again */
 }
 
 void _mio_connect(void *arg)
@@ -470,6 +470,10 @@ void _mio_connect(void *arg)
         if(cd->cb != NULL)
             (*(mio_std_cb)cd->cb)(new, MIO_CLOSED, cd->cb_arg);
         cd->connected = -1;
+
+        mio_handlers_free(new->mh);
+        if(new->fd > 0)
+            close(new->fd);
         pool_free(p);
         return;
     }
@@ -485,6 +489,10 @@ void _mio_connect(void *arg)
         if(cd->cb != NULL)
             (*(mio_std_cb)cd->cb)(new, MIO_CLOSED, cd->cb_arg);
         cd->connected = -1;
+
+        mio_handlers_free(new->mh);
+        if(new->fd > 0)
+            close(new->fd);
         pool_free(p);
         return;
     }
@@ -496,22 +504,14 @@ void _mio_connect(void *arg)
     log_debug(ZONE, "calling the connect handler for mio object %X", new);
     if((*cd->cf)(new, (struct sockaddr*)&sa, sizeof sa) < 0)
     {
-        int cleanup = 0;
-
-        if(errno == EINTR)  /* if we were flaged to stop (taking too long) */
-            cleanup = 1; /* we need to clean this up ourselves */
-
-        close(new->fd);
-
         if(cd->cb != NULL)
             (*(mio_std_cb)cd->cb)(new, MIO_CLOSED, cd->cb_arg);
-
-        pool_free(p);
         cd->connected = -1;
 
-        if(cleanup) /* if we need to cleanup this connection attempt */
-            pool_free(cd->p);
-
+        if(new->fd > 0)
+            close(new->fd);
+        mio_handlers_free(new->mh);
+        pool_free(p);
         return;
     }
 
