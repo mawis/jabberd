@@ -113,7 +113,7 @@ int main(int argc, char **argv)
     time_t last_log, last_pending, now;
     char optchar;
     int config_loaded = 0;
-    int max_fds;
+    int max_fds, i;
 
     signal(SIGINT, onSignal);
     signal(SIGPIPE, SIG_IGN);
@@ -162,8 +162,10 @@ int main(int argc, char **argv)
     /* conn setup */
     max_fds = j_atoi(config_get_one(c2s->config, "io.max_fds", 0), 1023);
     c2s->mio = mio_new(max_fds);
-    c2s->conns = xhash_new(max_fds);
-    c2s->num_clients = 0;
+    c2s->conns = (struct conn_st *) malloc(sizeof(struct conn_st) * max_fds);
+    memset(c2s->conns, 0, sizeof(struct conn_st) * max_fds);
+    for(i = 0; i < max_fds; i++)
+        c2s->conns[i].fd = -1;      /* -1 == unused */
 
     /* nad cache */
     c2s->nads = nad_cache_new();
@@ -279,7 +281,7 @@ int main(int argc, char **argv)
     mio_free(c2s->mio);
     xhash_free(c2s->connection_rates);
     xhash_free(c2s->pending);
-    xhash_free(c2s->conns);
+    free(c2s->conns);
     nad_cache_free(c2s->nads);
     log_free(c2s->log);
 #ifdef USE_SSL

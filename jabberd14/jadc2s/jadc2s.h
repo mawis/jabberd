@@ -171,7 +171,7 @@ struct c2s_st
     int connection_rate_times;
     int connection_rate_seconds;
     xht pending; /* waiting for auth/session */
-    xht conns; /* all connected conns */
+    struct conn_st *conns; /* all connected conns */
     bad_conn_t bad_conns; /* Karma controlled conns */
     bad_conn_t bad_conns_tail;
     int timeout; /* how long to process mio */

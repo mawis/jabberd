@@ -47,9 +47,8 @@ conn_t conn_new(c2s_t c2s, int fd)
 {
     conn_t c;
     char buf[16];
-    static int up = 0;
 
-    c = (conn_t)malloc(sizeof(struct conn_st));
+    c = &c2s->conns[fd];
     memset(c, 0, sizeof(struct conn_st));
 
     /* set up some basic defaults */
@@ -65,12 +64,11 @@ conn_t conn_new(c2s_t c2s, int fd)
     c->start = time(NULL);
     c->expat = XML_ParserCreate(NULL);
 
-    /* set up our id and put us in the conn hash */
+    /* set up our id */
     c->idp = pool_heap(128);
     c->myid = jid_new(c->idp, c2s->sm_id);
-    snprintf(buf,16,"%d",up++);
+    snprintf(buf,16,"%d",fd);
     jid_set(c->myid, buf, JID_USER);
-    xhash_put(c2s->conns,jid_full(c->myid), (void*)c);
     
     c->flash_hack = 0;
 
@@ -86,9 +84,10 @@ void conn_free(conn_t c)
 #ifdef USE_SSL
     SSL_free(c->ssl);
 #endif
-    xhash_zap(c->c2s->conns,jid_full(c->myid));
     pool_free(c->idp);
-    free(c);
+
+    /* flag it as unused */
+    c->fd = -1;
 }
 
 /* write errors out and close streams */
@@ -145,6 +144,8 @@ void chunk_free(chunk_t chunk)
 /* write a chunk to a conn */
 void chunk_write(conn_t c, chunk_t chunk, char *to, char *from, char *type)
 {
+    int elem;
+
     /* make an empty nad if there isn't one */
     if(chunk->nad == NULL)
         chunk->nad = nad_new(c->c2s->nads);
@@ -152,11 +153,18 @@ void chunk_write(conn_t c, chunk_t chunk, char *to, char *from, char *type)
     /* prepend optional route data */
     if(to != NULL)
     {
-        nad_wrap_elem(chunk->nad, chunk->packet_elem, "route");
-        nad_set_attr(chunk->nad, chunk->packet_elem, "to", to);
-        nad_set_attr(chunk->nad, chunk->packet_elem, "from", from);
+        if(chunk->nad->ecur <= chunk->packet_elem)
+        {
+            nad_append_elem(chunk->nad, "route", 1);
+            elem = 0;
+        } else {
+            nad_wrap_elem(chunk->nad, chunk->packet_elem, "route");
+            elem = chunk->packet_elem;
+        }
+        nad_set_attr(chunk->nad, elem, "to", to);
+        nad_set_attr(chunk->nad, elem, "from", from);
         if(type != NULL)
-            nad_set_attr(chunk->nad, chunk->packet_elem, "type", type);
+            nad_set_attr(chunk->nad, elem, "type", type);
     }
 
     /* turn the nad into xml */

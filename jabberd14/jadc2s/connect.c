@@ -123,8 +123,8 @@ void _connect_charData(void *arg, const char *str, int len)
 void _connect_process(conn_t c) {
     chunk_t chunk;
     int attr;
-    char str[770], cid[770]; /* see jep29, 256(node) + 1(@) + 255(domain) + 1(/) + 256(resource) + 1(\0) */
-    conn_t target;
+    char *chr, str[770], cid[770]; /* see jep29, 256(node) + 1(@) + 255(domain) + 1(/) + 256(resource) + 1(\0) */
+    conn_t target, pending;
 
     log_debug(ZONE, "got packet from sm, processing");
 
@@ -146,17 +146,34 @@ void _connect_process(conn_t c) {
     if((attr = nad_find_attr(c->nad, 0, "to", NULL)) == -1) return;
 
     snprintf(cid, 770, "%.*s", NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr));
-    target = xhash_get(c->c2s->conns, cid);
+    strcpy(str, cid);
+    chr = strchr(str, '@');
+    if(chr == NULL)
+    {
+        log_debug(ZONE, "weird and funky cid from sm: %s", cid);
+        return;
+    }
+    *chr = '\0';
+    target = &c->c2s->conns[atoi(str)];
 
     log_debug(ZONE, "processing route to %s with target %X", cid, target);
 
     attr = nad_find_attr(c->nad, 0, "type", NULL);
     if(attr >= 0 && j_strncmp(NAD_AVAL(c->nad, attr), "error", 5) == 0)
     {
+        /* if our target is in state_SESS, then the sm is telling us about
+         * the end of our old session which has the same cid, so just ignore it */
+        if(target->state == state_SESS)
+        {
+            log_debug(ZONE, "session end for dead session, dropping");
+
+            return;
+        }
+
         /* disconnect if they come from a target with matching sender */
         /* simple auth responses that don't have a client connected get dropped */
         attr = nad_find_attr(c->nad, 0, "from", NULL);
-        if(target != NULL && j_strncmp(jid_full(target->smid), NAD_AVAL(c->nad, attr), NAD_AVAL_L(c->nad, attr)) == 0)
+        if(target->fd >= 0 && j_strncmp(jid_full(target->smid), NAD_AVAL(c->nad, attr), NAD_AVAL_L(c->nad, attr)) == 0)
         {
             attr = nad_find_attr(c->nad, 0, "error", NULL);
             snprintf(str, 770, "%.*s", NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr));
@@ -170,7 +187,7 @@ void _connect_process(conn_t c) {
 
     /* look for session creation responses and change client accordingly 
      * (note: if no target drop through w/ chunk since it'll error in endElement) */
-    if (target != NULL)
+    if (target->fd >= 0)
     {
         attr = nad_find_attr(c->nad, 0, "type", NULL);
         if(attr >= 0 && j_strncmp(NAD_AVAL(c->nad, attr), "session", 7) == 0)
@@ -192,7 +209,7 @@ void _connect_process(conn_t c) {
     chunk->packet_elem = 1;
 
     /* look for iq results for auths */
-    if((target = xhash_get(c->c2s->pending, chunk->to)) != NULL && target->state == state_AUTH)
+    if((pending = xhash_get(c->c2s->pending, chunk->to)) != NULL && target->state == state_AUTH)
     {
         /* got a result, start a session */
         attr = nad_find_attr(chunk->nad, 1, "type", NULL);
@@ -200,12 +217,13 @@ void _connect_process(conn_t c) {
         {
             /* auth was ok, send session request */
             log_debug(ZONE,"client %d authorized, requesting session",target->fd);
-            chunk_write(c, chunk, jid_full(target->smid), jid_full(target->myid), "session");
-            target->state = state_SESS;
+            chunk_write(c, chunk, jid_full(target->smid), jid_full(pending->myid), "session");
+            pending->state = state_SESS;
 
             return;
         }else{ /* start over */
-            target->state = state_NONE;
+            pending->state = state_NONE;
+            target = pending;
         }
     }
 
@@ -213,7 +231,7 @@ void _connect_process(conn_t c) {
     log_debug(ZONE,"sm sent us a chunk for %s",chunk->to);
 
     /* either bounce or send the chunk to the client */
-    if((target = xhash_get(c->c2s->conns,chunk->to)) != NULL)
+    if(target->fd >= 0)
         chunk_write(target, chunk, NULL, NULL, NULL);
     else
         chunk_write(c, chunk, chunk->from, chunk->to, "error");
