@@ -126,6 +126,8 @@ case $hosttype in
     FreeBSD)
 	CFLAGS="$CFLAGS -fPIC"
         XLDFLAGS="$XLDFLAGS -Wl,-E";;
+    NetBSD)
+        XLDFLAGS="$XLDFLAGS -Wl,--export-dynamic";;
     CYGWIN*)
         sh ./cygwin/setup.sh
         CYGWIN="1";;
