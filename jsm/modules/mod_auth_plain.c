@@ -44,17 +44,22 @@ mreturn mod_auth_plain_jane(mapi m, void *arg)
     if((pass = xmlnode_get_tag_data(m->packet->iq, "password")) == NULL)
         return M_PASS;
 
-    /* if no password stored, try a check */
-    if(m->user->pass == NULL)
+    /* if there is a password avail, always handle */
+    if(m->user->pass != NULL)
     {
-        log_debug("mod_auth_plain","using xdb act check");
-        if(xdb_act(m->si->xc, m->user->id, NS_AUTH, "check", NULL, xmlnode_get_tag(m->packet->iq,"password")))
+        if(strcmp(pass, m->user->pass) != 0)
             jutil_error(m->packet->x, TERROR_AUTH);
-    }else if(strcmp(pass, m->user->pass) != 0) {
-        jutil_error(m->packet->x, TERROR_AUTH);
-    }else{
-        jutil_iqresult(m->packet->x);
+        else
+            jutil_iqresult(m->packet->x);
+        return M_HANDLED;
     }
+
+    log_debug("mod_auth_plain","trying xdb act check");
+    /* if the act "check" fails, PASS so that 0k could use the password to try and auth w/ it's data */
+    if(xdb_act(m->si->xc, m->user->id, NS_AUTH, "check", NULL, xmlnode_get_tag(m->packet->iq,"password")))
+        return M_PASS;
+
+    jutil_iqresult(m->packet->x);
     return M_HANDLED;
 }
 

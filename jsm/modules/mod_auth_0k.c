@@ -94,12 +94,15 @@ int mod_auth_0k_reset(mapi m, jid id, char *pass)
 
 mreturn mod_auth_0k_go(mapi m, void *arg)
 {
-    char *token, *hash, *seqs;
+    char *token, *hash, *seqs, *pass;
     char *c_hash = NULL;
-    int sequence = 0;
+    int sequence = 0, i;
+    int enable = (int)arg;
     xmlnode xdb;
 
-    if(jpacket_subtype(m->packet) == JPACKET__SET && (c_hash = xmlnode_get_tag_data(m->packet->iq,"hash")) == NULL)
+    if(   jpacket_subtype(m->packet) == JPACKET__SET && 
+          (c_hash = xmlnode_get_tag_data(m->packet->iq,"hash")) == NULL &&
+          (pass = xmlnode_get_tag_data(m->packet->iq,"password")) == NULL)
         return M_PASS;
 
     log_debug(ZONE,"checking");
@@ -133,6 +136,19 @@ mreturn mod_auth_0k_go(mapi m, void *arg)
         }
         xmlnode_free(xdb);
         return M_PASS;
+    }
+
+    /* by this point if there's no c_hash, then there is a pass, and we need to generate the right c_hash */
+    if(c_hash == NULL && enable)
+    {
+        log_debug(ZONE,"generating our own 0k from the plaintext password to match the stored vars");
+        c_hash = pmalloc(m->packet->p,sizeof(char)*41);
+        /* first, hash the pass */
+        shahash_r(pass,c_hash);
+        /* next, hash that and the token */
+        shahash_r(spools(m->packet->p,c_hash,token,m->packet->p),c_hash);
+        /* we've got hash0, now count up to just less than the sequence */
+        for(i = 1; i < sequence; i++, shahash_r(c_hash,c_hash));
     }
 
     log_debug("mod_auth_0k","got client hash %s for sequence %d and token %s",c_hash,sequence,token);
@@ -220,9 +236,15 @@ mreturn mod_auth_0k_server(mapi m, void *arg)
 
 void mod_auth_0k(jsmi si)
 {
-    log_debug("mod_auth_0k","initing");
+    int enable = 0;
 
-    js_mapi_register(si, e_AUTH, mod_auth_0k_go, NULL);
+    log_debug(ZONE,"there goes the neighborhood");
+
+    /* check once for enabling plaintext->0k auth */
+    if(js_config(si, "mod_auth_0k/enable_plaintext") != NULL)
+        enable = 1;
+
+    js_mapi_register(si, e_AUTH, mod_auth_0k_go, (void*)enable);
     js_mapi_register(si, e_SERVER, mod_auth_0k_server, NULL);
     if (js_config(si,"register") != NULL) js_mapi_register(si, e_REGISTER, mod_auth_0k_reg, NULL);
 }
