@@ -50,6 +50,7 @@ result base_logtype_config(instance id, xmlnode x, void *arg)
         /* Ensure that the name of the tag is either "notice", "warn", or "alert" */
         if (strcmp(name, "notice") && strcmp(name, "warn") && strcmp(name, "alert"))
         {
+            xmlnode_put_attrib(x,"error","Invalid log type filter requested");
             log_debug(ZONE,"base_logtype_config error: invalid log type filter requested (%s)\n", name);
             return r_ERR;
         }
@@ -62,14 +63,14 @@ result base_logtype_config(instance id, xmlnode x, void *arg)
     /* XXX needs to be a way to validate this in the checking phase */
     if(id->type!=p_LOG)
     {
-        log_debug(ZONE,"<file>..</file> element only allowed in log sections");
-        return r_ERR;
+        printf("ERROR: <notice/>,<warn/> and <alert/> elements only allowed in log sections\n");
+        exit(1);
     }
 
     /* Register a conditional handler for this instance, passing the name
      * of the tag as an argument (for comparison in the filter op 
-     * FIXME: don't know if should be strdup'ing */
-    register_phandler(id, o_COND, base_logtype_filter, (void*)strdup(name));
+     */
+    register_phandler(id, o_COND, base_logtype_filter, (void*)name);
 
     log_debug(ZONE,"base_logtype_config performing configuration %s\n",xmlnode2str(x));
 

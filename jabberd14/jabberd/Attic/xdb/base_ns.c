@@ -40,7 +40,10 @@ result base_ns_config(instance id, xmlnode x, void *arg)
     {
         log_debug(ZONE,"base_ns_config validating configuration\n");
         if(xmlnode_get_data(x) == NULL)
+        {
+            xmlnode_put_attrib(x,"error","'ns' tag must contain a valid Namespace to filter by\nSuch as: jabber:iq:auth");
             return r_ERR;
+        }
         return r_PASS;
     }
 
@@ -49,8 +52,8 @@ result base_ns_config(instance id, xmlnode x, void *arg)
     /* XXX uhgly, should figure out how to flag errors like this more consistently, during checking phase or something */
     if(id->type != p_XDB)
     {
-        log_debug(ZONE,"<ns>...</ns> element only allowed in xdb section\n");
-        return r_ERR;
+        printf("ERROR: <ns>...</ns> element only allowed in xdb section\n");
+        exit(1);
     }
 
     /* hack hack away, ugly but effective... we need to correlate all the <ns> elements within an instance, hide them together in an xmlnode in an attrib on the id */

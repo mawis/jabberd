@@ -284,6 +284,7 @@ result base_exec_config(instance id, xmlnode x, void *arg)
 	  if (xmlnode_get_data(x) == NULL)
 	  {
 	       log_debug(ZONE,"base_exec_config error: no script provided\n");
+           xmlnode_put_attrib(x,"error","'exec' tag must contain a command line to run");
 	       return r_ERR;
 	  }
 	  log_debug(ZONE,"base_exec_config validating configuration\n");

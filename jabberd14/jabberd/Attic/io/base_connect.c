@@ -261,13 +261,54 @@ result base_connect_config(instance id, xmlnode x, void *arg)
 
      if(id == NULL)
      {
-	  log_debug(ZONE, "Validating configuration..\n");
-	  if(xmlnode_get_data(xmlnode_get_tag(x, "ip")) == NULL ||
-	     xmlnode_get_data(xmlnode_get_tag(x, "port")) == NULL || 
-	     xmlnode_get_data(xmlnode_get_tag(x, "secret")) == NULL)
-	       return r_ERR;
-	  return r_PASS;
-    }
+        spool sp=NULL;
+        char *secret=xmlnode_get_data(xmlnode_get_tag(x,"secret"));
+        int error=0;
+
+        log_debug(ZONE,"base_accept_config validating configuration\n");
+        if(xmlnode_get_tag(x,"port")==NULL)
+        {
+            if(sp==NULL) sp=spool_new(xmlnode_pool(x));
+            spooler(sp,"Failed to find 'port' tag\n",sp);
+            error=1;
+        }
+        else if(port==NULL)
+        {
+            if(sp==NULL) sp=spool_new(xmlnode_pool(x));
+            spooler(sp,"No Data in 'port' tag. must contain a port number\n",sp);
+            error=1;
+        }
+        if(xmlnode_get_tag(x,"ip")==NULL)
+        {
+            if(sp==NULL) sp=spool_new(xmlnode_pool(x));
+            spooler(sp,"Failed to find 'ip' tag\n",sp);
+            error=1;
+        }
+        else if(ip==NULL)
+        {
+            if(sp==NULL) sp=spool_new(xmlnode_pool(x));
+            spooler(sp,"No Data in 'ip' tag. must contain an IP address to connect to\n",sp);
+            error=1;
+        }
+        if(xmlnode_get_tag(x,"secret")==NULL)
+        {
+            if(sp==NULL) sp=spool_new(xmlnode_pool(x));
+            spooler(sp,"Failed to find 'secret' tag\n",sp);
+            error=1;
+        }
+        else if(secret==NULL)
+        {
+            if(sp==NULL) sp=spool_new(xmlnode_pool(x));
+            spooler(sp,"No Data in 'secret' tag. must contain a password\n",sp);
+            error=1;
+        }
+        if(error) 
+        {
+            xmlnode_put_attrib(x,"error",spool_print(sp));
+            return r_ERR;
+        }
+        return r_PASS;
+     }
      
      /* Extract info */
      ip     = xmlnode_get_data(xmlnode_get_tag(x, "ip"));
