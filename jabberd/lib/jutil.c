@@ -213,87 +213,87 @@ char *jutil_timestamp(void)
     return timestamp;
 }
 
-void jutil_error_map(terror old, xterror mapped)
+void jutil_error_map(terror old, xterror *mapped)
 {
-    mapped.code = old.code;
+    mapped->code = old.code;
     if (old.msg == NULL)
-	mapped.msg[0] = 0;
+	mapped->msg[0] = 0;
     else
-	strncpy(mapped.msg, old.msg, sizeof(mapped.msg));
+	strncpy(mapped->msg, old.msg, sizeof(mapped->msg));
 
     switch (old.code)
     {
 	case 302:
-	    strcpy(mapped.type, "modify");
-	    strcpy(mapped.condition, "redirect");
+	    strcpy(mapped->type, "modify");
+	    strcpy(mapped->condition, "redirect");
 	    break;
 	case 400:
-	    strcpy(mapped.type, "modify");
-	    strcpy(mapped.condition, "bad-request");
+	    strcpy(mapped->type, "modify");
+	    strcpy(mapped->condition, "bad-request");
 	    break;
 	case 401:
-	    strcpy(mapped.type, "auth");
-	    strcpy(mapped.condition, "not-authorized");
+	    strcpy(mapped->type, "auth");
+	    strcpy(mapped->condition, "not-authorized");
 	    break;
 	case 402:
-	    strcpy(mapped.type, "auth");
-	    strcpy(mapped.condition, "payment-required");
+	    strcpy(mapped->type, "auth");
+	    strcpy(mapped->condition, "payment-required");
 	    break;
 	case 403:
-	    strcpy(mapped.type, "auth");
-	    strcpy(mapped.condition, "forbidden");
+	    strcpy(mapped->type, "auth");
+	    strcpy(mapped->condition, "forbidden");
 	    break;
 	case 404:
-	    strcpy(mapped.type, "cancel");
-	    strcpy(mapped.condition, "item-not-found");
+	    strcpy(mapped->type, "cancel");
+	    strcpy(mapped->condition, "item-not-found");
 	    break;
 	case 405:
-	    strcpy(mapped.type, "cancel");
-	    strcpy(mapped.condition, "not-allowed");
+	    strcpy(mapped->type, "cancel");
+	    strcpy(mapped->condition, "not-allowed");
 	    break;
 	case 406:
-	    strcpy(mapped.type, "modify");
-	    strcpy(mapped.condition, "not-acceptable");
+	    strcpy(mapped->type, "modify");
+	    strcpy(mapped->condition, "not-acceptable");
 	    break;
 	case 407:
-	    strcpy(mapped.type, "auth");
-	    strcpy(mapped.condition, "registration-requited");
+	    strcpy(mapped->type, "auth");
+	    strcpy(mapped->condition, "registration-requited");
 	    break;
 	case 408:
-	    strcpy(mapped.type, "wait");
-	    strcpy(mapped.condition, "remote-server-timeout");
+	    strcpy(mapped->type, "wait");
+	    strcpy(mapped->condition, "remote-server-timeout");
 	    break;
 	case 409:
-	    strcpy(mapped.type, "cancel");
-	    strcpy(mapped.condition, "conflict");
+	    strcpy(mapped->type, "cancel");
+	    strcpy(mapped->condition, "conflict");
 	    break;
 	case 500:
-	    strcpy(mapped.type, "wait");
-	    strcpy(mapped.condition, "internal-server-error");
+	    strcpy(mapped->type, "wait");
+	    strcpy(mapped->condition, "internal-server-error");
 	    break;
 	case 501:
-	    strcpy(mapped.type, "cancel");
-	    strcpy(mapped.condition, "feature-not-implemented");
+	    strcpy(mapped->type, "cancel");
+	    strcpy(mapped->condition, "feature-not-implemented");
 	    break;
 	case 502:
-	    strcpy(mapped.type, "wait");
-	    strcpy(mapped.condition, "service-unavailable");
+	    strcpy(mapped->type, "wait");
+	    strcpy(mapped->condition, "service-unavailable");
 	    break;
 	case 503:
-	    strcpy(mapped.type, "cancel");
-	    strcpy(mapped.condition, "service-unavailable");
+	    strcpy(mapped->type, "cancel");
+	    strcpy(mapped->condition, "service-unavailable");
 	    break;
 	case 504:
-	    strcpy(mapped.type, "wait");
-	    strcpy(mapped.condition, "remote-server-timeout");
+	    strcpy(mapped->type, "wait");
+	    strcpy(mapped->condition, "remote-server-timeout");
 	    break;
 	case 510:
-	    strcpy(mapped.type, "cancel");
-	    strcpy(mapped.condition, "service-unavailable");
+	    strcpy(mapped->type, "cancel");
+	    strcpy(mapped->condition, "service-unavailable");
 	    break;
 	default:
-	    strcpy(mapped.type, "wait");
-	    strcpy(mapped.condition, "undefined-condition");
+	    strcpy(mapped->type, "wait");
+	    strcpy(mapped->condition, "undefined-condition");
     }
 }
 
@@ -325,7 +325,7 @@ void jutil_error_xmpp(xmlnode x, xterror E)
 void jutil_error(xmlnode x, terror E)
 {
     xterror xE;
-    jutil_error_map(E, xE);
+    jutil_error_map(E, &xE);
     jutil_error_xmpp(x, xE);
 }
 

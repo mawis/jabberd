@@ -204,6 +204,13 @@ void shahash_r(const char* str, char hashbuf[40]); /* USE ME */
 
 int strprintsha(char *dest, int *hashval);
 
+/* --------------------------------------------------------- */
+/*                                                           */
+/* SHA calculations                                          */
+/*                                                           */
+/* --------------------------------------------------------- */
+
+void crc32_r(const char *str, char crc32buf[9]);
 
 /* --------------------------------------------------------- */
 /*                                                           */
@@ -386,6 +393,7 @@ char*    xmlnode2tstr(xmlnode node);
 int      xmlnode_cmp(xmlnode a, xmlnode b); /* compares a and b for equality */
 
 int      xmlnode2file(char *file, xmlnode node); /* writes node to file */
+int	 xmlnode2file_limited(char *file, xmlnode node, size_t sizelimit);
 
 /* Expat callbacks */
 void expat_startElement(void* userdata, const char* name, const char** atts);
@@ -726,7 +734,7 @@ xmlnode jutil_iqresult(xmlnode x);			 /* Generate a skeleton iq/result, given a 
 char*   jutil_timestamp(void);				 /* Get stringified timestamp */
 void    jutil_error(xmlnode x, terror E);		 /* Append an <error> node to x */
 void    jutil_error_xmpp(xmlnode x, xterror E);		 /* Append an <error> node to x using XMPP syntax */
-void	jutil_error_map(terror old, xterror mapped);	 /* map an old terror structure to a new xterror structure */
+void	jutil_error_map(terror old, xterror *mapped);	 /* map an old terror structure to a new xterror structure */
 void    jutil_delay(xmlnode msg, char *reason);		 /* Append a delay packet to msg */
 char*   jutil_regkey(char *key, char *seed);		 /* pass a seed to generate a key, pass the key again to validate (returns it) */
 
