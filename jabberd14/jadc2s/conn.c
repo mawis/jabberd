@@ -276,6 +276,7 @@ int conn_max_read_len(conn_t c)
 int conn_read(conn_t c, char *buf, int len)
 {
     char *err = NULL;
+    int cur_len = 0;
 
     log_debug(ZONE,"conn_read: len(%d)",len);
 
@@ -310,7 +311,6 @@ int conn_read(conn_t c, char *buf, int len)
      * reatmon@jabber.org
      */
     
-    int cur_len = 0;
     while(cur_len < len)
     {
         /* Look for a shorter buffer based on \0 */
