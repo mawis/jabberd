@@ -40,7 +40,6 @@ Optional Parameters:\n\
       <mod_presence>./jsm/jsm.so</mod_presence> \
       <mod_auth_plain>./jsm/jsm.so</mod_auth_plain> \
       <mod_auth_digest>./jsm/jsm.so</mod_auth_digest> \
-      <mod_auth_0k>./jsm/jsm.so</mod_auth_0k> \
       <mod_log>./jsm/jsm.so</mod_log> \
       <mod_register>./jsm/jsm.so</mod_register> \
       <mod_xml>./jsm/jsm.so</mod_xml> \
