@@ -191,6 +191,96 @@ int _io_write(sock c, xmlnode x)
     return _io_write_dump(c);
 }
 
+typedef struct connect_st
+{
+    pool p;
+    sock c;
+    char *host;
+    int port;
+} _conn_st, *conn_st;
+
+void _io_select_connect(void *arg)
+{
+    conn_st cst=(conn_st)arg;
+    sock c=cst->c;
+    ios io_data=(ios)c->iodata;
+    pth_event_t evt;
+    struct sockaddr_in sa;
+    struct in_addr *saddr;
+    int fd,flag=1;
+    drop d;
+    pool p;
+
+    log_debug(ZONE,"_io_select_connect HOST: %s",cst->host);
+
+    bzero((void*)&sa,sizeof(struct sockaddr_in));
+
+    if((fd=socket(AF_INET,SOCK_STREAM,0))<0)
+    {
+        (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg);
+        return;
+    }
+    if(setsockopt(fd,SOL_SOCKET,SO_REUSEADDR,(char*)&flag,sizeof(flag))<0)
+    {
+        (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg);
+        return;
+    }
+
+    saddr=make_addr(cst->host);
+    if(saddr==NULL)
+    {
+        (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg);
+        return;
+    }
+
+    sa.sin_family=AF_INET;
+    sa.sin_port=htons(cst->port);
+    sa.sin_addr.s_addr=saddr->s_addr;
+
+    evt=pth_event(PTH_EVENT_TIME,pth_timeout(10,0));
+    pth_fdmode(fd,PTH_FDMODE_NONBLOCK);
+    if(pth_connect_ev(fd,(struct sockaddr*)&sa,sizeof sa,evt) < 0)
+    {
+        log_debug(ZONE,"io_select connect failed to connect to: %s",cst->host);
+        close(fd);
+        (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg);
+        return;
+    }
+    else
+    {
+        c->fd=fd;
+        io_link(c);
+        (*(io_cb)c->cb)(c,NULL,0,IO_NEW,c->cb_arg);
+    }
+    /* notify the select loop */
+    p=pool_new();
+    d=pmalloco(p,sizeof(_drop));
+    d->p=p;
+    d->x=NULL;
+    d->c=c;
+    pth_msgport_put(io_data->wmp,(void*)d);
+}
+
+void io_select_connect(iosi io_instance,char *host, int port,void *arg)
+{
+    sock c;
+    ios io_data=(ios)io_instance;
+    pool p=pool_new();
+    conn_st cst=pmalloco(p,sizeof(_conn_st));
+    cst->host=pstrdup(p,host);
+    cst->port=port;
+    c=pmalloco(p,sizeof(_sock));
+    c->p=p;
+    c->arg=arg;
+    c->cb=io_data->cb;
+    c->cb_arg=io_data->cb_arg;
+    c->iodata=io_data;
+    
+    pth_spawn(PTH_ATTR_DEFAULT,(void*)_io_select_connect,(void*)cst);
+
+
+}
+
 sock _io_sock(int fd)
 {
     pool p;
@@ -280,7 +370,7 @@ void _io_main(void *arg)
                 log_debug(ZONE,"write event for %d",c->fd);
                 if(d->x==NULL) 
                 {
-                    ret=_io_write_dump(c);
+                    if(d->c->wbuffer!=NULL) ret=_io_write_dump(c);
                     pool_free(d->p);
                 }
                 else ret=_io_write(c,d->x);
@@ -357,6 +447,15 @@ void _io_main(void *arg)
                     log_debug(ZONE,"read %d bytes: %s",len,buff);
                     (*(io_cb)cur->cb)(cur,buff,len,IO_NORMAL,cur->cb_arg);
                 }
+                if(cur->state==state_CLOSE)
+                {
+                    temp=cur;
+                    cur=cur->next;
+                    _io_close(temp);
+                    FD_CLR(temp->fd,&all_rfds);
+                    FD_CLR(temp->fd,&all_wfds);
+                    continue;
+                }
             }
             else if(FD_ISSET(cur->fd,&wfds))
             { /* ooo, we are ready to dump the rest of the data */
@@ -391,9 +490,10 @@ void _io_main(void *arg)
 }
 
 /* everything starts here */
-void io_select(int port,io_cb cb,void *arg)
+iosi io_select(int port,io_cb cb,void *arg)
 {
     ios io_data;
+    iosi ret;
     pool p=pool_new();
     pth_attr_t attr;
     int fd;
@@ -414,14 +514,14 @@ void io_select(int port,io_cb cb,void *arg)
     {
         log_error(NULL,"io_select is unable to listen on %d",port);
         pool_free(p);
-        return;
+        return NULL;
     }
 
     if(listen(fd,10) < 0)
     {
         log_error(NULL,"pthsock_client is unable to listen on %d",port);
         pool_free(p);
-        return;
+        return NULL;
     }
 
     (flags=fcntl(fd,F_GETFL,0));
@@ -437,4 +537,9 @@ void io_select(int port,io_cb cb,void *arg)
     pth_spawn(attr,(void*)_io_main,(void*)io_data);
 
     pth_attr_destroy(attr);
+
+    ret=pmalloco(p,sizeof(iosi));
+    ret=(iosi)io_data;
+
+    return ret;
 }
