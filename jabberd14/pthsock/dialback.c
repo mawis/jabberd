@@ -379,9 +379,7 @@ void pthsock_server_outread(mio s, char *buffer, int bufsz, int flags, void *arg
 
     switch(flags)
     {
-    case IO_INIT:
-        break; /* umm.. who cares? */
-    case IO_NEW: /* new socket from io_select */
+    case MIO_NEW: /* new socket from io_select */
         log_debug(ZONE,"NEW outgoing server socket connected at %d",s->fd);
         c->xs = xstream_new(c->p, pthsock_server_outx, (void *)c);
         c->s = s;
@@ -394,11 +392,11 @@ void pthsock_server_outread(mio s, char *buffer, int bufsz, int flags, void *arg
         xmlnode_free(x);
 
         break;
-    case IO_NORMAL:
+    case MIO_NORMAL:
         /* yum yum */
         xstream_eat(c->xs,buffer,bufsz);
         break;
-    case IO_CLOSED:
+    case MIO_CLOSED:
 
         /* remove us if we were advertised */
         ghash_remove(c->si->ips, c->ips);
@@ -429,7 +427,7 @@ void pthsock_server_outread(mio s, char *buffer, int bufsz, int flags, void *arg
         pool_free(c->pre);
         pool_free(c->p);
         break;
-    case IO_ERROR:
+    case MIO_ERROR:
         /* bounce the write queue */
         while((x = mio_cleanup(c->s)) != NULL )
             deliver_fail(dpacket_new(x), "External Server Error");
@@ -668,31 +666,19 @@ void pthsock_server_inread(mio s, char *buffer, int bufsz, int flags, void *arg)
 {
     conn c = (conn)arg;
 
-    log_debug(ZONE,"incoming conn %X IO[%d]",c,flags);
-
     switch(flags)
     {
-    case IO_INIT:
-        break; /* umm.. who cares? */
-    case IO_NEW: /* new socket from io_select */
+    case MIO_NEW: /* new socket from io_select */
         log_debug(ZONE,"NEW incoming server socket connected at %d",s->fd);
         c = pmalloco(s->p, sizeof(_conn)); /* we get free'd with the socket */
         c->s = s;
         c->p = s->p;
-        c->si = (ssi)arg; /* old arg is si */
+        c->si = (ssi)arg;
         c->xs = xstream_new(c->p, pthsock_server_inx, (void *)c);
         mio_reset(s, pthsock_server_inread, (void*)c);
         break;
-    case IO_NORMAL:
-        /* yum yum */
+    case MIO_NORMAL:
         xstream_eat(c->xs,buffer,bufsz);
-        break;
-    case IO_CLOSED:
-        /* conn is on the sock pool, will get cleaned up */
-        break;
-    case IO_ERROR:
-        /* we don't care, we don't ever write real packets to an incoming connection! */
-        break;
     }
 }
 
