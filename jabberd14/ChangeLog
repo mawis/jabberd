@@ -1,4 +1,19 @@
-2004-06-xx  Matthias Wimmer  <m@tthias.net>
+2004-06-29  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/config.c: Do not access the global variable cmd__line in
+	config.c, removed unused function config_reload() - functionallity
+	is also implemented in _jabberd_restart()
+    * jabberd/jabberd.c: same
+    * jabberd/base/base_accept.c: removed unused external declaration
+    * jsm/modules/mod_version.c: Disabled update checking on update.jabber.org
+    	added documentation
+    * xdb_file/Makefile.am: build xdbfiletool as well
+    * xdb_file/jabberdxdbfile.h: headers for useful functions in xdb_file.c
+    * xdb_file/xdb_file.c: include the header
+    * xdb_file/xdbfiletool.c: small utility to get the paths inside a spool
+    	directory and to convert spools manually
+
+2004-06-27  Matthias Wimmer  <m@tthias.net>
 
     * UPGRADE: Information how to upgrade from the latest release
     * jabberd/lib/jabberdlib.h: moved service discovery namespaces

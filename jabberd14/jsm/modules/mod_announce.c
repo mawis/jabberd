@@ -58,7 +58,7 @@
  */
 
 /**
- * @brief structure to hold the active message of the day
+ * @brief structure that holds the active message of the day
  *
  * There is one instance of motd_struct per mod_announce instance. It is used to
  * hold the active message of the day in the x element. If this is a NULL pointer
