@@ -6,7 +6,7 @@
  * Version 1.0 (the "JOSL").  You may not copy or use this file, in either
  * source code or executable form, except in compliance with the JOSL. You
  * may obtain a copy of the JOSL at http://www.jabber.org/ or at
- * http://www.opensource.org/.  
+ * http://www.opensource.org/.
  *
  * Software distributed under the JOSL is distributed on an "AS IS" basis,
  * WITHOUT WARRANTY OF ANY KIND, either express or implied.  See the JOSL
@@ -14,18 +14,18 @@
  * JOSL.
  *
  * Copyrights
- * 
- * Portions created by or assigned to Jabber.com, Inc. are 
+ *
+ * Portions created by or assigned to Jabber.com, Inc. are
  * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
  * information for Jabber.com, Inc. is available at http://www.jabber.com/.
  *
  * Portions Copyright (c) 1998-1999 Jeremie Miller.
- * 
+ *
  * Acknowledgements
- * 
+ *
  * Special thanks to the Jabber Open Source Contributors for their
  * suggestions and support of Jabber.
- * 
+ *
  * Alternatively, the contents of this file may be used under the terms of the
  * GNU General Public License Version 2 or later (the "GPL"), in which case
  * the provisions of the GPL are applicable instead of those above.  If you
@@ -34,9 +34,9 @@
  * indicate your decision by deleting the provisions above and replace them
  * with the notice and other provisions required by the GPL.  If you do not
  * delete the provisions above, a recipient may use your version of this file
- * under either the JOSL or the GPL. 
- * 
- * 
+ * under either the JOSL or the GPL.
+ *
+ *
  * --------------------------------------------------------------------------*/
 #include "jabberd.h"
 
@@ -55,12 +55,14 @@ result xdb_results(instance id, dpacket p, void *arg)
 
     idnum = atoi(idstr);
 
+    pth_mutex_acquire(&(xc->mutex), FALSE, NULL);
     for(curx = xc->next; curx->id != idnum && curx != xc; curx = curx->next); /* spin till we are where we started or find our id# */
 
     /* we got an id we didn't have cached, could be a dup, ignore and move on */
     if(curx->id != idnum)
     {
         pool_free(p->p);
+        pth_mutex_release(&(xc->mutex));
         return r_DONE;
     }
 
@@ -74,15 +76,19 @@ result xdb_results(instance id, dpacket p, void *arg)
     curx->prev->next = curx->next;
     curx->next->prev = curx->prev;
 
-    /* free the thread! */
+
+    /* set the flag to not block, and signal */
     curx->preblock = 0;
-    if(curx->cond != NULL)
-        pth_cond_notify(curx->cond, FALSE);
+    pth_cond_notify(curx->cond, FALSE);
+
+    /* Now release the master xc mutex */
+    pth_mutex_release(&(xc->mutex));
 
     return r_DONE; /* we processed it */
 }
 
 /* actually deliver the xdb request */
+/* Should be called while holding the xc mutex */
 void xdb_deliver(instance i, xdbcache xc)
 {
     xmlnode x;
@@ -113,6 +119,7 @@ result xdb_thump(void *arg)
     xdbcache cur, next;
     int now = time(NULL);
 
+    pth_mutex_acquire(&(xc->mutex), FALSE, NULL);
     /* spin through the cache looking for stale requests */
     cur = xc->next;
     while(cur != xc)
@@ -146,6 +153,7 @@ result xdb_thump(void *arg)
         cur = next;
     }
 
+    pth_mutex_release(&(xc->mutex));
     return r_DONE;
 }
 
@@ -162,6 +170,7 @@ xdbcache xdb_cache(instance id)
     newx = pmalloco(id->p, sizeof(_xdbcache));
     newx->i = id; /* flags it as the top of the ring too */
     newx->next = newx->prev = newx; /* init ring */
+    pth_mutex_init(&(newx->mutex));
 
     /* register the handler in the instance to filter out xdb results */
     register_phandler(id, o_PRECOND, xdb_results, (void *)newx);
@@ -177,7 +186,6 @@ xmlnode xdb_get(xdbcache xc, jid owner, char *ns)
 {
     _xdbcache newx;
     xmlnode x;
-    pth_mutex_t mutex = PTH_MUTEX_INIT;
     pth_cond_t cond = PTH_COND_INIT;
 
     if(xc == NULL || owner == NULL || ns == NULL)
@@ -194,31 +202,27 @@ xmlnode xdb_get(xdbcache xc, jid owner, char *ns)
     newx.owner = owner;
     newx.sent = time(NULL);
     newx.preblock = 1; /* flag */
-    newx.cond = NULL;
+    newx.cond = &cond;
 
     /* in the future w/ real threads, would need to lock xc to make these changes to the ring */
+    pth_mutex_acquire(&(xc->mutex), FALSE, NULL);
     newx.id = xc->id++;
     newx.next = xc->next;
     newx.prev = xc;
     newx.next->prev = &newx;
     xc->next = &newx;
 
-    /* send it on it's way */
+    /* send it on it's way, holding the lock */
     xdb_deliver(xc->i, &newx);
 
-    /* if it hasn't already returned, we should block here until it returns */
-    if(newx.preblock)
-    {
-        log_debug(ZONE,"xdb_get() waiting for %s %s",jid_full(owner),ns);
-        newx.cond = &cond;
-        pth_mutex_acquire(&mutex, FALSE, NULL);
-        pth_cond_await(&cond, &mutex, NULL); /* blocks thread */
-        pth_mutex_release(&mutex);
-        log_debug(ZONE,"xdb_get() done waiting for %s %s",jid_full(owner),ns);
-    }
+    log_debug(ZONE,"xdb_get() waiting for %s %s",jid_full(owner),ns);
+    pth_cond_await(&(newx.cond), &(xc->mutex), NULL); /* blocks thread */
+    pth_mutex_release(&(xc->mutex));
+
+    /* we got signalled */
+    log_debug(ZONE,"xdb_get() done waiting for %s %s",jid_full(owner),ns);
 
     /* newx.data is now the returned xml packet */
-
     /* return the xmlnode inside <xdb>...</xdb> */
     for(x = xmlnode_get_firstchild(newx.data); x != NULL && xmlnode_get_type(x) != NTYPE_TAG; x = xmlnode_get_nextsibling(x));
 
@@ -235,7 +239,6 @@ xmlnode xdb_get(xdbcache xc, jid owner, char *ns)
 int xdb_act(xdbcache xc, jid owner, char *ns, char *act, char *match, xmlnode data)
 {
     _xdbcache newx;
-    pth_mutex_t mutex = PTH_MUTEX_INIT;
     pth_cond_t cond = PTH_COND_INIT;
 
     if(xc == NULL || owner == NULL || ns == NULL)
@@ -254,9 +257,10 @@ int xdb_act(xdbcache xc, jid owner, char *ns, char *act, char *match, xmlnode da
     newx.owner = owner;
     newx.sent = time(NULL);
     newx.preblock = 1; /* flag */
-    newx.cond = NULL;
+    newx.cond = &cond;
 
     /* in the future w/ real threads, would need to lock xc to make these changes to the ring */
+    pth_mutex_acquire(&(xc->mutex), FALSE, NULL);
     newx.id = xc->id++;
     newx.next = xc->next;
     newx.prev = xc;
@@ -266,19 +270,15 @@ int xdb_act(xdbcache xc, jid owner, char *ns, char *act, char *match, xmlnode da
     /* send it on it's way */
     xdb_deliver(xc->i, &newx);
 
-    /* if it hasn't already returned, we should block here until it returns */
-    if(newx.preblock)
-    {
-        log_debug(ZONE,"xdb_set() waiting for %s %s",jid_full(owner),ns);
-        newx.cond = &cond;
-        pth_mutex_acquire(&mutex, FALSE, NULL);
-        pth_cond_await(&cond, &mutex, NULL); /* blocks thread */
-        pth_mutex_release(&mutex);
-        log_debug(ZONE,"xdb_set() done waiting for %s %s",jid_full(owner),ns);
-    }
+    /* wait for the condition var */
+    log_debug(ZONE,"xdb_set() waiting for %s %s",jid_full(owner),ns);
+    pth_cond_await(&(newx.cond), &(xc->mutex), NULL); /* blocks thread */
+    pth_mutex_release(&(xc->mutex));
+
+    /* we got signalled */
+    log_debug(ZONE,"xdb_set() done waiting for %s %s",jid_full(owner),ns);
 
     /* newx.data is now the returned xml packet or NULL if it was unsuccessful */
-
     /* if it didn't actually get set, flag that */
     if(newx.data == NULL)
         return 1;
