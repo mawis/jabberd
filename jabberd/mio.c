@@ -567,6 +567,7 @@ void _mio_main(void *arg)
     int         maxlen,
                 len,
                 retval,
+                bcast=-1,
                 maxfd=0;
 
     log_debug(ZONE, "MIO is starting up");
@@ -575,7 +576,16 @@ void _mio_main(void *arg)
     maxfd = mio__data->zzz[0];
     FD_ZERO(&all_wfds);
     FD_ZERO(&all_rfds);
-    
+
+    /* the optional local broadcast receiver */
+    if(xmlnode_get_tag(greymatter__,"io/announce") != NULL)
+    {
+        bcast = make_netsocket(j_atoi(xmlnode_get_tag_data(greymatter__,"io/announce/port"),5222),NULL,NETSOCKET_UDP);
+        if(bcast < 0)
+            log_notice("mio","failed to create network announce handler socket");
+        log_debug(ZONE,"started announcement handler");
+    }
+
     /* loop forever -- will only exit when
      * mio__data->master__list is NULL */
     while (1)
@@ -589,6 +599,8 @@ log_debug(ZONE,"mio while loop top");
 
         /* wait for a socket event */
         FD_SET(mio__data->zzz[0],&rfds); /* include our wakeup socket */
+        if(bcast > 0)
+            FD_SET(bcast,&rfds); /* optionally include our announcements socket */
         retval = pth_select(maxfd+1, &rfds, &wfds, NULL, NULL);
         /* if retval is -1, fd sets are undefined across all platforms */
 
@@ -600,6 +612,13 @@ log_debug(ZONE,"mio while loop, working");
         if(FD_ISSET(mio__data->zzz[0],&rfds))
         {
             pth_read(mio__data->zzz[0],buf,8192);
+        }
+
+        /* check our pending announcements */
+        if(bcast > 0 && FD_ISSET(bcast,&rfds))
+        {
+            len = pth_read(bcast,buf,8192);
+            log_debug(ZONE,"ANNOUNCER: received some data! %d: %s",len,buf);
         }
 
         /* loop through the sockets, check for stuff to do */
