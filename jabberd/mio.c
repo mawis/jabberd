@@ -593,6 +593,7 @@ void _mio_main(void *arg)
 
                     buf[len] = '\0';
 
+                    log_debug(ZONE, "MIO read from socket %d: %s", cur->fd, buf);
                     (*cur->mh->parser)(cur, buf, len);
                 }
             } 
