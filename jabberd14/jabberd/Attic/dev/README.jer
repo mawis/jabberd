@@ -17,6 +17,10 @@ packets are delivered based on ptype, then on the idnode (config file section), 
 
 handlers can either return R_PASS (continue), R_OK (done processing and packet delivered), or R_ERR (stop processing because of failure)
 
+issue: when base modules receive packets to handle, they often need to know which host it was for (because they don't control this, the config does)
+they shouldn't try and check the config, they simply need to look at the dpacket->host or the to="" in the xml, duh :)
+
+base modules should never use libetherx, replace with custom internal pth functions... but for base_load, the so's it loads may require that lib or any other lib
 
 Example packets:
 
@@ -30,9 +34,13 @@ Example packets:
 
 ---------- RANT on session routing
 for an auth iq, set the from="45a3@10348.polld.jabber.org" to identify the session id within the connection service
+set the sid="jabber.org" to identify the hostname that should be handling the service.
 return packets from the manager service can then set sid="" to the from, and set the from="4015@farm03.jabber.org" to identify the session id within the manager service.
 subsequent packets addressed to either session can be identified, and the other's sid is stored within each session.
 sid="" is used in place of the to="" attribute, and only valid within polld.
+if a service receives a packet because of a sid="" and it doesn't handle sessions, it should notice the sid="" attrib and bounce it
+
+all packets are bounced intelligently, xdbs returned empty, logs not bounced, and packets bounced like normal (with type="error", etc)
 
 ----------- RANT ON SERVER2SERVER DIALBACK, IGNORE
 A box(5ae8) on the jabber.com server farm has a packet to send to jabber.org, opens socket and sends:
@@ -44,6 +52,21 @@ Jabber.org responds to the spam, noticing that jabber.com want's to send it some
 The spam="" attrib's latter part is a sha1 hash of the id+start+seq.  Jabber.com
 
 use secret to build start, date in it for auto-expiration, bounce with new 500 error for spam
+
+Phoey!  Making a mountain out of a molehill... 
+When host jabber.com has packets to send to jabber.org: A connects to B and sends:
+<spam to="jabber.org" from="5ae8@jabber.com"/> (asks jabber.org to trust jabber.com, with additional routing information about which server requires the trust)
+<trust to="jabber.org" from="jabber.com"/> (tells jabber.org that jabber.com trusts packets from it over this socket)
+jabber.org receives the spam, and in order to trust packets from jabber.com it does a dns resolve and connects to jabber.com and sends:
+<trust to="5ae8@jabber.com" from="jabber.org"/>
+jabber.org can already send packets to jabber.com from the previous trust on the other socket, so it doesn't need to ask for it.
+The sockets should idle-timeout disconnect as well as disconnect on a regular basis, in case of dns hijacking or changes and new IPs.
+Should each <spam/> result in a new connection, or can a server notice that it already has a socket to that IP and send another trust over it?
+(what if socket is broken and server doesn't know it yet (remote reboot or redundant server kick-in on same IP, or other goofyness?), new socket help?)
+(if new socket, could be a DOS connect attack)
+Limit the # of <spam/>'s sent on a single socket, one or how many? (DOS attack possibilities as well)
+
+A->B (trusts B and passes X) B->A (trusts A and asks for X)  if X matches, B trusts the original connection from A
 
 --------- RANT on mass virtual hosting
 by using a <host/> in a session handler section, it will receive a copy of EVERY outgoing packet (to other servers), and if it uses xdb to lookup the host to see if it handles it, wow, that sucks
