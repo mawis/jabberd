@@ -244,34 +244,13 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
 
 
 /**
- * callback for mio for accepted sockets that are legacy
- *
- * We just accept all stanzas for legacy connections. :-(
- * Hopefully the administrator did not enable this connection type.
- *
- * @param m the connection
- * @param flags mio action, we ignore anything but MIO_XML_NODE
- * @param arg the miod structure
- * @param x the received stanza
- */
-void dialback_in_read_legacy(mio s, int flags, void *arg, xmlnode x)
-{
-    miod md = (miod)arg;
-
-    if(flags != MIO_XML_NODE) return;
-
-    dialback_miod_read(md, x);
-}
-
-/**
  * callback for mio for accepted sockets
  *
  * Our task is:
  * - Verify the stream root element
- * - Check the type of server-to-server stream (we support: legacy, dialback, xmpp+dialback)
- * - For legacy streams: Check if we want to allow them
+ * - Check the type of server-to-server stream (we support: dialback, xmpp+dialback)
  * - For xmpp+dialback: send stream:features (we support: starttls)
- * - Reset the mio callback. Stanzas are handled by dialback_in_read_legacy() or dialback_in_read_db()
+ * - Reset the mio callback. Stanzas are handled by dialback_in_read_db()
  *
  * @param m the connection on which the stream root element has been received
  * @param the mio action, everything but MIO_XML_ROOT is ignored
@@ -309,21 +288,11 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x)
     version = j_atoi(xmlnode_get_attrib(x, "version"), 0);
     dbns = xmlnode_get_attrib(x, "xmlns:db");
 
-    /* legacy, icky */
+    /* deprecated non-dialback protocol, reject connection */
     if(version < 1 && dbns == NULL)
     {
         key = jid_new(xmlnode_pool(x), xmlnode_get_attrib(x, "to"));
         mio_write(m,NULL, xstream_header_char(xstream_header("jabber:server", NULL, jid_full(key))), -1);
-        if(d->legacy && key != NULL)
-        {
-            log_notice(d->i->id,"legacy server incoming connection to %s established from %s",key->server, m->ip);
-            md = dialback_miod_new(d, m);
-            jid_set(key,strid,JID_USER);
-            dialback_miod_hash(md, d->in_ok_legacy, jid_user(key)); /* register 5A55BD@toname for tracking in the hash */
-            mio_reset(m, dialback_in_read_legacy, (void *)md); /* set up legacy handler for all further packets */
-            xmlnode_free(x);
-            return;
-        }
         mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Legacy Access Denied!</text></stream:error>", -1);
         mio_close(m);
         xmlnode_free(x);

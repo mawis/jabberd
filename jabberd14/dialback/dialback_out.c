@@ -282,8 +282,7 @@ void dialback_out_packet(db d, xmlnode x, char *ip)
     jid_set(key, from->server, JID_RESOURCE);
 
     /* try to get an active connection */
-    if((md = xhash_get(d->out_ok_db, jid_full(key))) == NULL && verify == 0)
-        md = xhash_get(d->out_ok_legacy, jid_full(key));
+    md = xhash_get(d->out_ok_db, jid_full(key));
 
     log_debug2(ZONE, LOGT_IO, "outgoing packet with key %s and located existing %X",jid_full(key),md);
 
@@ -374,32 +373,6 @@ void dialback_out_read_db(mio m, int flags, void *arg, xmlnode x)
 }
 
 /**
- * handle the events on an outgoing legacy socket, in other words, nothing
- *
- * @param m the connection the packet has been received on
- * @param flags the mio action, we ignore anything but MIO_XML_NODE
- * @param arg the dialback instance
- * @param the packet that has been received
- */
-void dialback_out_read_legacy(mio m, int flags, void *arg, xmlnode x)
-{
-    db d = (db)arg;
-
-    if(flags != MIO_XML_NODE) return;
-
-    /* other data on the stream? naughty you! */
-    if(j_strcmp(xmlnode_get_name(x),"stream:error") == 0)
-    {
-        log_notice(d->i->id, "reveived stream error on legacy conn: %s",xmlnode_get_data(x));
-    }else{
-        mio_write(m, NULL, "<stream:error><undefined-condition xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Received data on a send-only socket. You are not Allowed to send data on this socket!</text></stream:error>", -1);
-    }
-    
-    mio_close(m);
-    xmlnode_free(x);
-}
-
-/**
  * util to flush queue to mio
  *
  * Take elements from the queue and send it to a miod connection.
@@ -479,22 +452,12 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 	version = j_atoi(xmlnode_get_attrib(x, "version"), 0);
 	dbns = xmlnode_get_attrib(x, "xmlns:db");
 
-        /* check for old servers */
+        /* deprecated non-dialback protocol, reject connection */
 	if (version < 1 && dbns == NULL) {
-            if(!c->d->legacy)
-            { /* Muahahaha!  you suck! *click* */
-                log_notice(c->key->server,"Legacy server access denied due to configuration");
-		mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Legacy Access Denied!</text></stream:error>", -1);
-                mio_close(m);
-                break;
-            }
-
-            mio_reset(m, dialback_out_read_legacy, (void *)c->d); /* different handler now */
-            md = dialback_miod_new(c->d, m); /* set up the mio wrapper */
-            dialback_miod_hash(md, c->d->out_ok_legacy, c->key); /* this registers us to get stuff now */
-            dialback_out_qflush(md, c->q); /* flush the queue of packets */
-            c->q = NULL;
-            dialback_out_connection_cleanup(c); /* we're connected already, trash this */
+            /* Muahahaha!  you suck! *click* */
+            log_notice(c->key->server,"Legacy server access denied");
+            mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Legacy Access Denied!</text></stream:error>", -1);
+            mio_close(m);
             break;
         }
 
