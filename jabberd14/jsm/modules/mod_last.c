@@ -35,7 +35,7 @@ mreturn mod_last_server(mapi m, void *arg)
 
     /* pre-requisites */
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
-    if(jpacket_subtype(m->packet) != JPACKET__GET || !NSCHECK(m->packet->iq,NS_LAST)) return M_PASS;
+    if(jpacket_subtype(m->packet) != JPACKET__GET || !NSCHECK(m->packet->iq,NS_LAST) || m->packet->to->resource != NULL) return M_PASS;
 
     jutil_iqresult(m->packet->x);
     jpacket_reset(m->packet);

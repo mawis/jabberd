@@ -35,7 +35,7 @@ mreturn mod_time_reply(mapi m, void *arg)
     char *tstr;
 
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
-    if(!NSCHECK(m->packet->iq,NS_TIME)) return M_PASS;
+    if(!NSCHECK(m->packet->iq,NS_TIME) || m->packet->to->resource != NULL) return M_PASS;
 
     /* first, is this a valid request? */
     if(jpacket_subtype(m->packet) != JPACKET__GET)

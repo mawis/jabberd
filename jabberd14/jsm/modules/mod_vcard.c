@@ -163,7 +163,7 @@ mreturn mod_vcard_server(mapi m, void *arg)
     xmlnode vcard, query;
 
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
-    if(jpacket_subtype(m->packet) != JPACKET__GET || !NSCHECK(m->packet->iq,NS_VCARD)) return M_PASS;
+    if(jpacket_subtype(m->packet) != JPACKET__GET || !NSCHECK(m->packet->iq,NS_VCARD) || m->packet->to->resource != NULL) return M_PASS;
 
     /* get data from the config file */
     if((vcard = js_config(m->si,"vCard")) == NULL)
