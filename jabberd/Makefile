@@ -7,6 +7,8 @@ CC=gcc
 DEFINES=-DCONFIGXML="\"jabber.xml\""
 CFLAGS:=$(CFLAGS) $(DEFINES)
 
+jabberd_HEADERS=jabberd.h
+
 jabberd_OBJECTS = \
 	config.o \
 	deliver.o \
@@ -14,6 +16,7 @@ jabberd_OBJECTS = \
 	jabberd.o \
 	load.o \
 	log.o
+
 jabberd_EXOBJECTS = \
 	gen/base_host.o \
 	io/base_connect.o \
@@ -34,7 +37,9 @@ all: all-recursive
 
 clean: clean-recursive
 
-all-local: $(jabberd_OBJECTS)
+$(jabberd_OBJECTS): $(jabberd_HEADERS)
+
+all-local: $(jabberd_OBJECTS) $(jabberd_HEADERS)
 	$(CC) $(CFLAGS) -o jabberd $(jabberd_OBJECTS) $(jabberd_EXOBJECTS) $(XLDFLAGS) $(LDFLAGS) $(LIBS)
 
 install-local:

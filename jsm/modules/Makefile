@@ -4,6 +4,8 @@ CC=gcc
 DEFINES=-DVERSION=\"1.1.4\" -DPACKAGE=\"jsm\"
 CFLAGS:=$(CFLAGS) $(DEFINES) -I../../jabberd/
 
+jsm_modules_HEADERS=../jsm.h ../../jabberd/jabberd.h
+
 jsm_modules_OBJECTS=\
 	mod_admin.o \
 	mod_agents.o \
@@ -23,7 +25,9 @@ jsm_modules_OBJECTS=\
 	mod_log.o \
 	mod_offline.o
 
-all: $(jsm_modules_OBJECTS)
+$(jsm_modules_OBJECTS): $(jsm_modules_HEADERS)
+
+all: $(jsm_modules_OBJECTS) $(jsm_modules_HEADERS)
 
 clean:
 	rm -f $(jsm_modules_OBJECTS)

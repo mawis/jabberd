@@ -4,6 +4,8 @@ CFLAGS:=$(CFLAGS) -I../jabberd/
 
 CC=gcc
 
+HEADERS=../jabberd/jabberd.h io.h
+
 pthsock_server_OBJECTS=\
 	io_select.o \
 	server.o
@@ -14,10 +16,14 @@ pthsock_client_OBJECTS=\
 
 all: pthsock_server pthsock_client
 
-pthsock_client: $(pthsock_client_OBJECTS)
+$(pthsock_client_OBJECTS): $(HEADERS)
+
+pthsock_client: $(pthsock_client_OBJECTS) $(HEADERS)
 	$(CC) $(CFLAGS) $(MCFLAGS) -o pthsock_client.so $(pthsock_client_OBJECTS) $(LDFLAGS) $(LIBS)
 
-pthsock_server: $(pthsock_server_OBJECTS)
+$(pthsock_server_OBJECTS): $(HEADERS)
+
+pthsock_server: $(pthsock_server_OBJECTS) $(HEADERS)
 	$(CC) $(CFLAGS) $(MCFLAGS) -o pthsock_server.so $(pthsock_server_OBJECTS) $(LDFLAGS) $(LIBS)
 
 clean:

@@ -2,6 +2,8 @@ include ../../platform-settings
 
 CC=gcc
 
+io_HEADERS=../jabberd.h
+
 io_OBJECTS=\
 	base_connect.o \
 	base_exec.o \
@@ -9,7 +11,9 @@ io_OBJECTS=\
 	base_load.o \
 	base_accept.o
 
-all: $(io_OBJECTS)
+$(io_OBJECTS): $(io_HEADERS)
+
+all: $(io_OBJECTS) $(io_HEADERS)
 
 clean:
 	rm -rf $(io_OBJECTS)

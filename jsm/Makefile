@@ -7,6 +7,8 @@ CC=gcc
 DEFINES=-DVERSION=\"1.1.4\"
 CFLAGS:=$(CFLAGS) $(DEFINES) -I../jabberd/
 
+jsm_HEADERS=jsm.h ../jabberd/jabberd.h
+
 jsm_OBJECTS = \
 	deliver.o \
 	jsm.o \
@@ -43,7 +45,9 @@ all: all-recursive
 
 clean: clean-recursive
 
-all-local: $(jsm_OBJECTS)
+$(jsm_OBJECTS): $(jsm_HEADERS)
+
+all-local: $(jsm_OBJECTS) $(jsm_HEADERS)
 	$(CC) $(CFLAGS) $(MCFLAGS) -o jsm.so $(jsm_OBJECTS) $(jsm_EXOBJECTS) $(LDFLAGS) $(LIBS)
 
 install-local:
