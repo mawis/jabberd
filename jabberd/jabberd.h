@@ -177,6 +177,7 @@ void mtq_send(mtq q, pool p, mtq_callback f, void *arg); /* appends the arg to t
 typedef enum { queue_XMLNODE, queue_CDATA } queue_type;
 typedef struct wb_q_st
 {
+    pth_message_t head;  /* for compatibility */
     pool p;
     queue_type type;
     xmlnode x;
