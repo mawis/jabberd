@@ -1,0 +1,12 @@
+<!--  Jabber2 JSX configuration  -->
+<jsx project='jabber2'>
+  <build>
+    <make>
+      <project>jabberd</project>
+      <project>pthsock</project>
+      <project>xdb_file</project>
+      <project>dnsrv</project> 
+      <project>jsm</project>
+    </make>
+  </build>
+</jsx>

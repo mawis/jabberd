@@ -1,0 +1,37 @@
+<!--  Jabber2 - pthsock JSX configuration  -->
+<jsx project='pthsock'>
+  <build>
+    <variables>
+      <var name='CFLAGS'><value>-I ../jabberd/</value></var>
+    </variables>
+    <make>
+      <macro name='HEADERS'>
+        <file>../jabberd/jabberd.h</file>
+      </macro>
+      <macro name='server_OBJECTS'>
+        <file>dialback.o</file>
+      </macro>
+      <macro name='client_OBJECTS'>
+        <file>client.o</file>
+      </macro>
+      <compile>
+ 	<objectfile macro='server_OBJECTS'>
+	  <dep><macro>HEADERS</macro></dep>
+        </objectfile>
+ 	<objectfile macro='client_OBJECTS'>
+	  <dep><macro>HEADERS</macro></dep>
+        </objectfile>
+        <sharedobject name='pthsock_server.so'>
+          <dep filelist='1'>
+            <macro>server_OBJECTS</macro>
+          </dep>
+        </sharedobject>
+        <sharedobject name='pthsock_client.so'>
+          <dep filelist='1'>
+            <macro>client_OBJECTS</macro>
+          </dep>
+        </sharedobject>
+      </compile>
+    </make>
+  </build>
+</jsx>
