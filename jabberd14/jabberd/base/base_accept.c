@@ -144,7 +144,7 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
 
         case MIO_XML_NODE:
             /* If aio has been authenticated previously, go ahead and deliver the packet */
-            if(ai->state == A_READY)
+            if(ai->state == A_READY  && m == ai->m)
             {
                 /* Hide 1.0 style transports etherx:* attribs */
                 xmlnode_hide_attrib(x, "etherx:to");
