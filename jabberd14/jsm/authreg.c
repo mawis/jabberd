@@ -23,11 +23,15 @@
 #include "jsm.h"
 
 
-void js_authreg(jsmi si, jpacket p, HASHTABLE ht)
+void js_authreg(jpacket p)
 {
     udata user;
     char *u, *ul, *from, *to;
     jid id = NULL;
+    jsmi si;
+
+    /* get si hidden on packet */
+    si = (jsmi)(p->aux1);
 
     /* setup session trackers */
     from = xmlnode_get_attrib(p->x,"sfrom");
@@ -52,7 +56,7 @@ void js_authreg(jsmi si, jpacket p, HASHTABLE ht)
         log_debug(ZONE,"auth request");
 
         /* attempt to fetch user data based on the username */
-        user = js_user(si, id, ht);
+        user = js_user(si, id, NULL);
         jid_set(id,xmlnode_get_tag_data(p->iq,"resource"),JID_RESOURCE);
         if(user == NULL || id->resource == NULL)
             jutil_error(p->x, TERROR_AUTH);
