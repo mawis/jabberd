@@ -303,7 +303,7 @@ mreturn mod_roster_out(mapi m, void *arg)
 
 mreturn mod_roster_session(mapi m, void *arg)
 {
-    js_mapi_session(PS_OUT,m->s,mod_roster_out,NULL);
+    js_mapi_session(es_OUT,m->s,mod_roster_out,NULL);
     return M_PASS;
 }
 
@@ -435,8 +435,8 @@ mreturn mod_roster_s10n(mapi m, void *arg)
 void mod_roster(jsmi i)
 {
     /* we just register for new sessions */
-    js_mapi_register(P_SESSION,mod_roster_session,NULL);
-    js_mapi_register(P_DELIVER,mod_roster_s10n,NULL);
+    js_mapi_register(e_SESSION,mod_roster_session,NULL);
+    js_mapi_register(e_DELIVER,mod_roster_s10n,NULL);
 }
 
 

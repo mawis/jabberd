@@ -78,5 +78,5 @@ mreturn mod_agents_handler(mapi m, void *arg)
 void mod_agents(jsmi i)
 {
     log_debug("mod_agents","init");
-    js_mapi_register(P_SERVER, mod_agents_handler, NULL);
+    js_mapi_register(e_SERVER, mod_agents_handler, NULL);
 }

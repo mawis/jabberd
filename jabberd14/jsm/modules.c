@@ -23,88 +23,33 @@
 #include "jsm.h"
 
 /*
- *  js_mapi_master -- retreive a MAPI master list 
- *  
- *  Fetches a master list which contains the module call-backs
- *  for a particular phase of server operation
- *
- *  parameters
- *  	p -- the phase. values are #defined in jsm.hs
- *
- *  returns
- *      a pointer to the master list for phase p 
- */
-mmaster js_mapi_master(mphase p)
-{
-    static mmaster master = NULL;	/* the master list for all phases */
-    mmaster cur;					/* use to iterate over master */
-
-    /* debug message */
-    log_debug(ZONE,"mapi_master %d",p);
-
-    /* find the master list for phase p */
-    for(cur = master; cur != NULL; cur = cur->next)
-        if(cur->p == p) break;
-
-    /* if it wasn't found, an empty one create one */
-    if(cur == NULL)
-    {
-        cur = malloc(sizeof(_mmaster));
-        cur->p = p;
-        cur->l = NULL;
-        cur->next = master;
-        master = cur;
-    }
-
-    return cur;
-}
-
-/*
- *  js_mapi_master -- let a module register a new call for this phase 
+ *  js_mapi_register -- let a module register a new call for this phase 
  *  
  *  Takes a function pointer and argument and stores them in the
- *  call back list for the phase p
+ *  call back list for the event e
  *
  *  parameters
- *  	p -- the phase. values are #defined in jsm.hs
+ *  	e -- the event type, values are #defined in jsm.hs
+ *  	si -- session instance
  *      c -- pointer to an mcall function
  *      arg -- an argument to pass to c when it is called
  *
  */
-void js_mapi_register(mphase p, mcall c, void *arg)
+void js_mapi_register(event e, jsmi si, mcall c, void *arg)
 {
-    mlist newl, curl;	/* items in a call-back list */
-    mmaster master;		/* the master list for the phase */
+    mlist newl;
 
-    /* ignore illegal calls */
-    if(c == NULL) return;
+    if(c == NULL || si == NULL || e >= e_LAST) return;
 
-    /* debug message */
-    log_debug(ZONE,"mapi_register %d",p);
+    log_debug(ZONE,"mapi_register %d",e);
 
     /* create a new mlist record for the call back */
-    newl = malloc(sizeof(_mlist));
+    newl = pmalloc(si->p, sizeof(_mlist));
     newl->c = c;
     newl->arg = arg;
     newl->mask = 0x00;
-    newl->next = NULL;
-
-    /* fetch the master list for this phase */
-    master = js_mapi_master(p);
-
-    /* if there are no other list items */
-    if(master->l == NULL)
-    {
-        /* add the new list item to the head */
-        master->l = newl;
-
-    }else{
-
-        /* append to end of call list */
-        for(curl = master->l; curl->next != NULL; curl = curl->next);
-        curl->next = newl;
-
-    }
+    newl->next = si->events[e];
+    si->events[e] = newl;
 }
 
 /*
@@ -114,20 +59,18 @@ void js_mapi_register(mphase p, mcall c, void *arg)
  *  applies to the specified session.
  *
  *  parameters
- *  	p -- the phase. values are #defined in jsm.h
- *		s -- the session to register the call with
+ *  	e -- the event type, values are #defined in jsm.hs
+ *      s -- the session to register the call with
  *      c -- pointer to an mcall function
  *      arg -- an argument to pass to c when it is called
  *
  */
-void js_mapi_session(mphase p, session s, mcall c, void *arg)
+void js_mapi_session(event e, session s, mcall c, void *arg)
 {
-    mlist newl, curl, *curs; /* FIXME: why the double indirection here? */
+    mlist newl;
 
-    /* ignore illegal calls */
-    if(c == NULL || s == NULL) return;
+    if(si == NULL || c == NULL || s == NULL || e >= es_LAST) return;
 
-    /* debug message */
     log_debug(ZONE,"mapi_register_session %d",p);
 
     /* create item for the call list */
@@ -135,68 +78,34 @@ void js_mapi_session(mphase p, session s, mcall c, void *arg)
     newl->c = c;
     newl->arg = arg;
     newl->mask = 0x00;
-    newl->next = NULL;
-
-    /* save the new list item in the master list for this phase */
-    switch(p)
-    {
-    case PS_IN:
-        curs = &(s->m_in);
-        break;
-    case PS_OUT:
-        curs = &(s->m_out);
-        break;
-    case PS_END:
-        curs = &(s->m_end);
-        break;
-    default:
-        /* dork */
-        return;
-    }
-
-    /* is the list empty? */
-    if(*curs == NULL)
-    {
-        /* yes, store it at the head of the list */
-        *curs = newl;
-
-    }else{
-
-        /* append to end of call list */
-        for(curl = *curs; curl->next != NULL; curl = curl->next);
-        curl->next = newl;
-
-    }
+    newl->next = s->events[e];
+    s->events[e] = newl;
 }
 
 /*
  *  js_mapi_call -- call all the module call-backs for a phase
  *  
  *  parameters
- *  	phase -- the phase. values are #defined in jsm.h
- *		l -- the list of functions to call
+ *  	e -- th event type, values are #defined in jsm.h
+ *      l -- the list of functions to call
  *      packet -- the packet being processed, may be NULL
  *      user -- the user data for the current session
  *      s -- the session
- *      variant -- the variant of the phase (used for registration)
  *
  */
-int js_mapi_call(mphase phase, mlist l, jpacket packet, udata user, session s, int variant)
+int js_mapi_call(event e, mlist l, jpacket packet, udata user, session s)
 {
     _mapi m;		/* mapi structure to be passed to the call back */
 
-    /* ignore illegal calls  */
     if(l == NULL) return 0;
 
-    /* debug message */
-    log_debug(ZONE,"mapi_call %d",phase);
+    log_debug(ZONE,"mapi_call %d",e);
 
     /* fill in the mapi structure */
-    m.phase = phase;
+    m.e = e;
     m.packet = packet;
     m.user = user;
     m.s = s;
-    m.variant = variant;
 
     /* traverse the list of call backs */
     for(;l != NULL; l = l->next)
@@ -204,20 +113,17 @@ int js_mapi_call(mphase phase, mlist l, jpacket packet, udata user, session s, i
         /* skip call-back if the packet type mask matches */
         if(packet != NULL && (packet->type & l->mask) == packet->type) continue;
 
-
         /* call the function and handle the result */
         switch((*(l->c))(&m, l->arg))
         {
-            /* this module is ignoring this packet->type */
+        /* this module is ignoring this packet->type */
         case M_IGNORE:
             /* add the packet type to the mask */
             l->mask |= packet->type;
             break;
-
-            /* this module handled the packet */
+        /* this module handled the packet */
         case M_HANDLED:
             return 1;
-
         default:
         }
     }

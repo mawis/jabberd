@@ -23,7 +23,7 @@ jsm_OBJECTS = \
     modules.o \
     offline.o \
     server.o \
-    services.o \
+    authreg.o \
     sessions.o \
     shutdown.o \
     users.o \

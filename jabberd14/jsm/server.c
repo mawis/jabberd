@@ -44,7 +44,7 @@ void *js_server_main(void *arg)
     ev = pth_event(PTH_EVENT_MSG,mp);
 
     /* get our server phase master list */
-    ml = js_mapi_master(P_SERVER);
+    ml = js_mapi_master(e_SERVER);
 
     /* infinite loop */
     while(1)
@@ -59,7 +59,7 @@ void *js_server_main(void *arg)
             log_debug(ZONE,"THREAD:SERVER received a packet: %s",xmlnode2str(q->p->x));
 
             /* let the modules have a go at the packet; if nobody handles it... */
-            if(!js_mapi_call(P_SERVER, ml->l, q->p, NULL, NULL, q->p->subtype))
+            if(!js_mapi_call(e_SERVER, ml->l, q->p, NULL, NULL, q->p->subtype))
 
                 /* ...bounce the packet with an error */
                 js_bounce(q->p->x,TERROR_NOTFOUND);

@@ -236,8 +236,8 @@ mreturn mod_admin_message(mapi m, void *arg)
 
 void mod_admin(jsmi i)
 {
-    js_mapi_register(P_SERVER,mod_admin_dispatch,NULL);
-    js_mapi_register(P_SERVER,mod_admin_message,NULL);
+    js_mapi_register(e_SERVER,mod_admin_dispatch,NULL);
+    js_mapi_register(e_SERVER,mod_admin_message,NULL);
 }
 
 

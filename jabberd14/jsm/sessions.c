@@ -340,10 +340,10 @@ void js_session_process(pth_msgport_t mp)
         case SPACKET_START:
 
             /* get the list of module callbacks for sessin start up */
-            master = js_mapi_master(P_SESSION);
+            master = js_mapi_master(e_SESSION);
 
             /* let the modules go to it */
-            js_mapi_call(P_SESSION, master->l, NULL, s->u, s, 0);
+            js_mapi_call(e_SESSION, master->l, NULL, s->u, s, 0);
 
             /* log the start time of the session */
             s->started = time(NULL);
@@ -385,7 +385,7 @@ void js_session_process(pth_msgport_t mp)
             }
 
             /* let the modules have their heyday */
-            if(js_mapi_call(PS_OUT, s->m_out, p, s->u, s, jpacket_subtype(p)))
+            if(js_mapi_call(es_OUT, s->m_out, p, s->u, s, jpacket_subtype(p)))
                 break;
 
             /* no module handled it, so make sure there's a to attribute */
@@ -425,7 +425,7 @@ void js_session_process(pth_msgport_t mp)
             s->c_in++;
 
             /* let the modules have their heyday */
-            if(js_mapi_call(PS_IN, s->m_in, p, s->u, s, jpacket_subtype(p)))
+            if(js_mapi_call(es_IN, s->m_in, p, s->u, s, jpacket_subtype(p)))
                 break;
 
             /* we need to check again, s->exit_flag *could* have changed within the modules at some point */
@@ -456,7 +456,7 @@ void js_session_process(pth_msgport_t mp)
             (s->send)(s, NULL, s->arg);
 
             /* let the modules have their heyday */
-            js_mapi_call(PS_END, s->m_end, NULL, s->u, s, 0);
+            js_mapi_call(es_END, s->m_end, NULL, s->u, s, 0);
 
             /* let the user struct go  */
             s->u->ref--;
