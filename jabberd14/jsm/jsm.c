@@ -35,7 +35,7 @@
  * with the notice and other provisions required by the GPL.  If you do not
  * delete the provisions above, a recipient may use your version of this file
  * under either the JOSL or the GPL. 
- * suggestions and support of Jabber.
+ * 
  * 
  * main.c - entry point for jsm.so
  * --------------------------------------------------------------------------*/
