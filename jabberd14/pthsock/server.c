@@ -193,6 +193,7 @@ void pthsock_server_read(sock c,char *buffer,int bufsz,int flags,void *arg)
             ghash_remove(si->out_tab,sd->to);
             unregister_instance(si->i,sd->to);
         }
+        sd->type=conn_CLOSED;
         /* if this is outgoing connection, we will have a pool to free */
         if(sd->p!=NULL)pool_free(sd->p);
         break;
@@ -278,6 +279,12 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
 
     q=pmalloco(dp->p,sizeof(_wbq));
     q->x=dp->x;
+    xmlnode_hide_attrib(q->x,"etherx:from");
+    xmlnode_hide_attrib(q->x,"etherx:to");
+    xmlnode_hide_attrib(q->x,"sto");
+    xmlnode_hide_attrib(q->x,"sfrom");
+    xmlnode_hide_attrib(q->x,"ip");
+    xmlnode_hide_attrib(q->x,"iperror");
 
     if (sd == NULL)
     {
@@ -292,18 +299,14 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
         sd->queue = pth_msgport_create("queue");
         ghash_put(si->out_tab,sd->to,sd);
 
+        pth_msgport_put(sd->queue,(void*)q);
         io_select_connect(ip,port,(void*)sd,pthsock_server_read,(void*)si);
+        return r_DONE;
     }
-
-    xmlnode_hide_attrib(q->x,"etherx:from");
-    xmlnode_hide_attrib(q->x,"etherx:to");
-    xmlnode_hide_attrib(q->x,"sto");
-    xmlnode_hide_attrib(q->x,"sfrom");
-    xmlnode_hide_attrib(q->x,"ip");
 
     if(sd->type==conn_CONNECTING)
         pth_msgport_put(sd->queue,(void*)q);
-    else
+    else if(sd->type==conn_OUT)
         io_write((sock)sd->arg,dp->x);
 
     return r_DONE;

@@ -305,7 +305,6 @@ mreturn mod_filter_handler(mapi m, void *arg)
                     s=js_session_get(m->user,m->packet->to->resource);
                 else
                     s=js_session_primary(m->user);
-                log_debug(ZONE,"current show is: %s",xmlnode_get_tag_data(s->presence,"show"));
                 cur_action->is_match=0;
                 for(;sh!=NULL;sh=xmlnode_get_tag(rules,"show"))
                 {
