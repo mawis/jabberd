@@ -59,9 +59,11 @@ fi
 ##
 # Setup our initial flags
 ##
-CFLAGS="$XODE_CFLAGS $JABBER_CFLAGS $PTH_CFLAGS"
+CFLAGS="-g -Wall -I./ -I../ $XODE_CFLAGS $JABBER_CFLAGS $PTH_CFLAGS"
+MCFLAGS="-shared"
 LDFLAGS="$XODE_LDFLAGS $JABBER_LDFLAGS $PTH_LDFLAGS"
 LIBS="$XODE_LIBS $JABBER_LIBS $PTH_LIBS"
+XLDFLAGS=""
 
 ##
 # Check the host type and change flags as necessary
@@ -70,8 +72,9 @@ printf "Setting Build Parameters..."
 hosttype=`uname -s`
 case $hosttype in
     Linux)
+        CFLAGS="$CFLAGS -fPIC"
         LIBS="$LIBS -ldl"
-        XLDFLAGS="-Wl,--export-dynamic"
+        XLDFLAGS="$XLDFLAGS -Wl,--export-dynamic"
 esac
 printf "     Done.\n"
 ##
@@ -80,23 +83,11 @@ printf "     Done.\n"
 printf "Generating Settings Script..."
 cat << EOF > platform-settings
 #!/bin/sh
-if [ -z "\$1" ]; then
-    printf "You must specify an argument to this script\n";
-    exit 1;
-fi
-
-case \$1 in
-    --cflags)
-        echo "$CFLAGS";;
-    --ldflags)
-        echo "$LDFLAGS";;
-    --libs)
-        echo "$LIBS";;
-    --xldflags)
-        echo "$XLDFLAGS";;
-    *)
-        printf "Hmmm... No need to run this...\n";;
-esac
+CFLAGS=$CFLAGS
+MCFLAGS=$MCFLAGS
+LDFLAGS=$LDFLAGS
+LIBS=$LIBS
+XLDFLAGS=$XLDFLAGS
 EOF
 chmod 0700 platform-settings
 printf "   Done.\n\n"

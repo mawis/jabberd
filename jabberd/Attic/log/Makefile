@@ -1,6 +1,6 @@
+include ../../platform-settings
+
 CC=gcc
-DEFINES=-DCONFIGXML="\"jabber.xml\""
-CFLAGS=-L/home/craigk/usr/lib/ -I/home/craigk/usr/include/ -fPIC -O $(DEFINES) -I./ -I../ `libxode-config --cflags` -Wall
 
 log_OBJECTS=\
 	base_file.o \

@@ -1,6 +1,8 @@
+include ../../platform-settings
+
 CC=gcc
 DEFINES=-DVERSION=\"1.1.4\" -DPACKAGE=\"jsm\"
-CFLAGS=-fPIC -g $(DEFINES) -I./ -I../ -I../../jabberd `libxode-config --cflags` -Wall
+CFLAGS:=$(CFLAGS) $(DEFINES) -I../../jabberd/
 
 jsm_modules_OBJECTS=\
 	mod_admin.o \
