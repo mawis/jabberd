@@ -22,15 +22,11 @@ int _mio_std_read(mio m)
     if(len < 0)
     {
         if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN) 
-        {
             return 0;
-        }
-        else
-        {
-            if(m->cb != NULL)
-                (*(mio_std_cb)m->cb)(m, MIO_ERROR, m->cb_arg);
-            return -1;
-        }
+
+        if(m->cb != NULL)
+            (*(mio_std_cb)m->cb)(m, MIO_ERROR, m->cb_arg);
+        return -1;
     }
 
     if(karma_check(&m->k, len))
@@ -46,5 +42,6 @@ int _mio_std_read(mio m)
     
     if(m->cb != NULL)
         (*(mio_raw_cb)m->cb)(m, MIO_BUFFER, m->cb_arg, buff, len);
+
     return 0;
 }
