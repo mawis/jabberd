@@ -226,6 +226,23 @@ else
     AC_MSG_RESULT(no)
 fi
 
+dnl check for expat
+AC_ARG_WITH(libexpat, AC_HELP_STRING([--with-expat=DIR],
+            [Where to find libexpat (required)]),
+            libexpat=$withval, libexpat=yes)
+if test "$libexpat" != "no"; then
+    if test "$libexpat" != "yes"; then
+        LDFLAGS="${LDFLAGS} -L$libexpat/lib"
+        CPPFLAGS="${CPPFLAGS} -I$libexpat/include"
+    fi
+    AC_CHECK_HEADER(expat.h,
+                    AC_CHECK_LIB(expat, XML_ParserCreate,
+                                 [libexpat=yes LIBS="${LIBS} -lexpat"], libexpat=no),
+                                 libexpat=no)
+fi
+if test "$libexpat" != "yes"; then
+    AC_MSG_ERROR([Couldn't find required libexpat installation]);
+fi
 
 dnl check for libidn
 AC_ARG_WITH(libidn, AC_HELP_STRING([--with-libidn=DIR],
@@ -257,5 +274,4 @@ dnl Create the makefiles
 AC_OUTPUT(Makefile \
 	  mio/Makefile \
 	  util/Makefile \
-	  xmlparse/Makefile \
 	  ac-helpers/Makefile)
