@@ -280,7 +280,7 @@ char *config_get_attr(config_t c, char *key, int num, char *attr)
     if(elem->attrs == NULL)
         return NULL;
 
-    return j_attr((const char **) elem->attrs, attr);
+    return j_attr((const char **) elem->attrs[num], attr);
 }
 
 /* cleanup helper */
