@@ -191,7 +191,7 @@ struct mio_handlers_st; /* grr.. stupid fsking chicken and egg C definitions */
 
 /* the mio data type */
 typedef enum { state_ACTIVE, state_CLOSE } mio_state;
-typedef enum { type_LISTEN, type_NORMAL } mio_type;
+typedef enum { type_LISTEN, type_NORMAL, type_NUL } mio_type;
 typedef struct mio_st
 {
     pool p;
