@@ -57,6 +57,7 @@ void base_stdin_packets(int type, xmlnode x, void *arg)
     {
     case XSTREAM_ROOT:
         log_debug(ZONE,"stdin opened stream");
+        xmlnode_free(x);
         break;
     case XSTREAM_NODE:
         /* deliver the packets coming on stdin... they aren't associated with an instance really */
@@ -64,6 +65,7 @@ void base_stdin_packets(int type, xmlnode x, void *arg)
         deliver(dpacket_new(x), NULL); 
         break;
     default:
+        xmlnode_free(x);
     }
 
 }
