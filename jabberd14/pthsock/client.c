@@ -481,8 +481,7 @@ void pthsock_client(instance i, xmlnode x)
     xdbcache xc;
     xmlnode cur;
     int set_rate = 0; /* Default false; did they want to change the rate parameters */
-    int rate_time = KARMA_DEF_RATE_T;
-    int rate_points = KARMA_DEF_RATE_P;
+    int rate_time, rate_points;
     char *host;
     struct karma *k = karma_new(i->p); /* Get new inialized karma */
     int set_karma = 0; /* Default false; Did they want to change the karma parameters */
@@ -528,19 +527,19 @@ void pthsock_client(instance i, xmlnode x)
         }
         else if(j_strcmp(xmlnode_get_name(cur), "rate") == 0)
         {
-            rate_time   = j_atoi(xmlnode_get_attrib(cur, "time"), KARMA_DEF_RATE_T);
-            rate_points = j_atoi(xmlnode_get_attrib(cur, "points"), KARMA_DEF_RATE_P);
+            rate_time   = j_atoi(xmlnode_get_attrib(cur, "time"), 0);
+            rate_points = j_atoi(xmlnode_get_attrib(cur, "points"), 0);
             set_rate = 1; /* set to true */
         }
         else if(j_strcmp(xmlnode_get_name(cur), "karma") == 0)
         {
-            k->val     = j_atoi(xmlnode_get_tag_data(cur, "init"), KARMA_DEF_INIT);
+            k->val     = j_atoi(xmlnode_get_tag_data(cur, "init"), KARMA_INIT);
             k->max     = j_atoi(xmlnode_get_tag_data(cur, "max"), KARMA_MAX);
             k->inc     = j_atoi(xmlnode_get_tag_data(cur, "inc"), KARMA_INC);
             k->dec     = j_atoi(xmlnode_get_tag_data(cur, "dec"), KARMA_DEC);
             k->restore = j_atoi(xmlnode_get_tag_data(cur, "restore"), KARMA_RESTORE);
             k->penalty = j_atoi(xmlnode_get_tag_data(cur, "penalty"), KARMA_PENALTY);
-            k->reset_meter = j_atoi(xmlnode_get_tag_data(cur, "resetmeter"), KARMA_DEF_RESETMETER);
+            k->reset_meter = j_atoi(xmlnode_get_tag_data(cur, "resetmeter"), KARMA_RESETMETER);
             set_karma = 1; /* set to true */
         }
     }

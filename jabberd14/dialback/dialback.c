@@ -261,8 +261,7 @@ void dialback(instance i, xmlnode x)
     xmlnode cfg, cur;
     struct karma k;
     int max;
-    int rate_time = KARMA_DEF_RATE_T;
-    int rate_points = KARMA_DEF_RATE_P;
+    int rate_time, rate_points;
     int set_rate = 0, set_karma=0;
 
     log_debug(ZONE,"dialback loading");
@@ -292,21 +291,21 @@ void dialback(instance i, xmlnode x)
     /* Get rate info if it exists */
     if((cur = xmlnode_get_tag(cfg, "rate")) != NULL)
     {
-        rate_time   = j_atoi(xmlnode_get_attrib(cur, "time"), KARMA_DEF_RATE_T);
-        rate_points = j_atoi(xmlnode_get_attrib(cur, "points"), KARMA_DEF_RATE_P);
+        rate_time   = j_atoi(xmlnode_get_attrib(cur, "time"), 0);
+        rate_points = j_atoi(xmlnode_get_attrib(cur, "points"), 0);
         set_rate = 1; /* set to true */
     }
 
     /* Get karma info if it exists */
     if((cur = xmlnode_get_tag(cfg, "karma")) != NULL)
     {
-         k.val         = j_atoi(xmlnode_get_tag_data(cur, "init"), KARMA_DEF_INIT);
-         k.max         = j_atoi(xmlnode_get_tag_data(cur, "max"), KARMA_DEF_MAX);
-         k.inc         = j_atoi(xmlnode_get_tag_data(cur, "inc"), KARMA_DEF_INC);
-         k.dec         = j_atoi(xmlnode_get_tag_data(cur, "dec"), KARMA_DEF_DEC);
-         k.restore     = j_atoi(xmlnode_get_tag_data(cur, "restore"), KARMA_DEF_RESTORE);
-         k.penalty     = j_atoi(xmlnode_get_tag_data(cur, "penalty"), KARMA_DEF_PENALTY);
-         k.reset_meter = j_atoi(xmlnode_get_tag_data(cur, "resetmeter"), KARMA_DEF_RESETMETER);
+         k.val         = j_atoi(xmlnode_get_tag_data(cur, "init"), KARMA_INIT);
+         k.max         = j_atoi(xmlnode_get_tag_data(cur, "max"), KARMA_MAX);
+         k.inc         = j_atoi(xmlnode_get_tag_data(cur, "inc"), KARMA_INC);
+         k.dec         = j_atoi(xmlnode_get_tag_data(cur, "dec"), KARMA_DEC);
+         k.restore     = j_atoi(xmlnode_get_tag_data(cur, "restore"), KARMA_RESTORE);
+         k.penalty     = j_atoi(xmlnode_get_tag_data(cur, "penalty"), KARMA_PENALTY);
+         k.reset_meter = j_atoi(xmlnode_get_tag_data(cur, "resetmeter"), KARMA_RESETMETER);
          set_karma = 1; /* set to true */
     }
 

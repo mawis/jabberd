@@ -578,20 +578,6 @@ void karma_increment(struct karma *k);          /* inteligently increments karma
 void karma_decrement(struct karma *k, long bytes_read); /* inteligently decrements karma */
 int karma_check(struct karma *k,long bytes_read); /* checks to see if we have good karma */
 
-#ifndef MIO_C
-/* global values set in mio.c derived from <io><karma> */
-extern int KARMA_DEF_HEARTBEAT;
-extern int KARMA_DEF_INIT;
-extern int KARMA_DEF_MAX;
-extern int KARMA_DEF_INC;
-extern int KARMA_DEF_DEC;
-extern int KARMA_DEF_PENALTY;
-extern int KARMA_DEF_RESTORE;
-extern int KARMA_DEF_RATE_T;
-extern int KARMA_DEF_RATE_P;
-extern int KARMA_DEF_RESETMETER;
-#endif
-
 
 
 /* --------------------------------------------------------- */
