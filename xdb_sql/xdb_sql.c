@@ -768,7 +768,7 @@ void xdb_sql_handler_read(instance i, xdbsql xq, xmlnode config) {
  * init the xdb_sql module, called by the jabberd module loader
  *
  * @param i jabberd's data about our instance
- * @param x hmm ... ;)
+ * @param x the <load/> xmlnode that instructed the moduleloader to load us
  */
 void xdb_sql(instance i, xmlnode x) {
     xdbcache xc;		/* to fetch our configuration */
