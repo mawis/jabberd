@@ -55,12 +55,22 @@
    * You must specify the services in the order you want them tried
 */
 
+/**
+ * @brief structure to build a list that holds all hosts to which the packets are resent for a service
+ */
+typedef struct __dns_resend_list_host_list {
+    char *host;
+    int weight;
+    struct __dns_resend_list_host_list *next;
+} *dns_resend_list_host_list, _dns_resend_list_host_list;
+
 /* ------------------------------------------------- */
 /* Struct to store list of services and resend hosts */
 typedef struct __dns_resend_list
 {
      char* service;
-     char* host;
+     dns_resend_list_host_list hosts;
+     int weight_sum;
      struct __dns_resend_list* next;
 } *dns_resend_list, _dns_resend_list;
 
@@ -130,9 +140,22 @@ void dnsrv_child_process_xstream_io(int type, xmlnode x, void* args)
 		    str = srv_lookup(x->p, iternode->service, hostname);
 		    if (str != NULL)
 		    {
-			 log_debug2(ZONE, LOGT_IO, "Resolved %s(%s): %s\tresend to:%s", hostname, iternode->service, str, iternode->host);
+			 dns_resend_list_host_list iterhost = iternode->hosts;
+
+			 /* play the dice, to select one of the s2s hosts */
+			 /* XXX should we statically distribute to the hosts using a hash over the destination? */
+			 int host_die = iternode->weight_sum <= 1 ? 0 : rand()%(iternode->weight_sum);
+
+			 /* find the host selected by our host_die */
+			 while (host_die >= iterhost->weight && iterhost->next != NULL) {
+			     /* try next host */
+			     host_die -= iterhost->weight;
+			     iterhost = iterhost->next;
+			 }
+
+			 log_debug2(ZONE, LOGT_IO, "Resolved %s(%s): %s\tresend to:%s", hostname, iternode->service, str, iterhost->host);
 			 xmlnode_put_attrib(x, "ip", str);
-			 xmlnode_put_attrib(x, "to", iternode->host);
+			 xmlnode_put_attrib(x, "to", iterhost->host);
 			 break;
 		    }
 		    iternode = iternode->next;
@@ -232,8 +255,17 @@ void dnsrv_resend(xmlnode pkt, char *ip, char *to)
 {
     if(ip != NULL)
     {
+	 /* maybe the packet as a query by a component, that wants to get the result back to itself */
+	 /* this is needed for handling db:verify by the s2s component: if the component is clustered,
+	  * the result for the db:verify packet has to be the s2s component that verifies the db */
+	 char *dnsresultto = xmlnode_get_attrib(pkt, "dnsqueryby");
+	 if (dnsresultto == NULL)
+	     dnsresultto = to;
+
+	 log_debug2(ZONE, LOGT_IO, "delivering DNS result to: %s", dnsresultto);
+
          pkt = xmlnode_wrap(pkt,"route");
-	 xmlnode_put_attrib(pkt, "to", to);
+	 xmlnode_put_attrib(pkt, "to", dnsresultto);
 	 xmlnode_put_attrib(pkt, "ip", ip);
     }else{
 	 jutil_error_xmpp(pkt, (xterror){502, "Unable to resolve hostname.","wait","service-unavailable"});
@@ -494,8 +526,10 @@ void dnsrv(instance i, xmlnode x)
 {
      xdbcache xc = NULL;
      xmlnode  config = NULL;
-     xmlnode  iternode   = NULL;
+     xmlnode  iternode = NULL;
+     xmlnode  inneriter = NULL;
      dns_resend_list tmplist = NULL;
+     dns_resend_list_host_list tmphost = NULL;
 
      /* Setup a struct to hold dns_io handles */
      dns_io di;
@@ -520,8 +554,44 @@ void dnsrv(instance i, xmlnode x)
 	  /* Allocate a new list node */
 	  tmplist = pmalloco(di->mempool, sizeof(_dns_resend_list));
 	  tmplist->service = pstrdup(di->mempool, xmlnode_get_attrib(iternode, "service"));
-	  tmplist->host    = pstrdup(di->mempool, xmlnode_get_data(iternode));
-	  /* Insert this node into the list */
+	  tmplist->weight_sum = 0;
+
+	  /* check for <partial/> childs */
+	  inneriter = xmlnode_get_lastchild(iternode);
+	  if (inneriter != NULL) {
+	      while (inneriter != NULL) {
+		  if (j_strcmp("partial", xmlnode_get_name(inneriter)) != 0) {
+		      inneriter = xmlnode_get_prevsibling(inneriter);
+		      continue;
+		  }
+
+		  /* build the list entry for this host */
+		  tmphost = pmalloco(di->mempool, sizeof(_dns_resend_list_host_list));
+		  tmphost->host = pstrdup(di->mempool, xmlnode_get_data(inneriter));
+		  tmphost->weight = j_atoi(xmlnode_get_attrib(inneriter, "weight"), 1);
+
+		  /* insert this host into the list for this service */
+		  tmphost->next = tmplist->hosts;
+		  tmplist->hosts = tmphost;
+
+		  /* update the weight sum for this service */
+		  tmplist->weight_sum += tmphost->weight;
+
+		  /* move to the next child */
+		  inneriter = xmlnode_get_prevsibling(inneriter);
+	      }
+	  }
+
+	  /* if there were no <partial/> childs we read the CDATA for the <resend/> element (legacy configuration) */
+	  if (tmplist->hosts == NULL) {
+	      /* legacy configuration withouth <partial/> childs and only a single destination as direct CDATA */
+	      tmplist->hosts = pmalloco(di->mempool, sizeof(_dns_resend_list_host_list));
+	      tmplist->hosts->host = pstrdup(di->mempool, xmlnode_get_data(iternode));
+	      tmplist->hosts->weight = 1;
+	      tmplist->weight_sum = 1;
+	  }
+
+	  /* Insert this node into the list of services */
 	  tmplist->next = di->svclist;	  
 	  di->svclist = tmplist;
 	  /* Move to next child */

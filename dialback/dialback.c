@@ -313,6 +313,7 @@ result dialback_packets(instance i, dpacket dp, void *arg)
     {
         xmlnode_put_attrib(x,"to",xmlnode_get_attrib(x,"ofrom"));
         xmlnode_hide_attrib(x,"ofrom"); /* repair the addresses */
+	xmlnode_hide_attrib(x,"dnsqueryby"); /* not needed anymore */
         dialback_in_verify(d, x);
         return r_DONE;
     }

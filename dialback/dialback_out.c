@@ -223,6 +223,7 @@ void dialback_out_packet(db d, xmlnode x, char *ip)
         /* fix the headers, restore the real from */
         xmlnode_put_attrib(x,"from",xmlnode_get_attrib(x,"ofrom"));
         xmlnode_hide_attrib(x,"ofrom");
+	xmlnode_hide_attrib(x,"dnsqueryby");
         from = jid_new(xmlnode_pool(x),xmlnode_get_attrib(x,"from"));
     }
 

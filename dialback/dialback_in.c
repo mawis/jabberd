@@ -136,6 +136,7 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
         xmlnode_put_attrib(x2,"to",xmlnode_get_attrib(x,"from"));
         xmlnode_put_attrib(x2,"ofrom",xmlnode_get_attrib(x,"to"));
         xmlnode_put_attrib(x2,"from",c->d->i->id); /* so bounces come back to us to get tracked */
+	xmlnode_put_attrib(x2,"dnsqueryby",c->d->i->id); /* so this instance gets the DNS result back */
         xmlnode_put_attrib(x2,"id",c->id);
         xmlnode_insert_node(x2,xmlnode_get_firstchild(x)); /* copy in any children */
         deliver(dpacket_new(x2),c->d->i);

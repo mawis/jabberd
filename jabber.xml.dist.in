@@ -461,6 +461,21 @@
       <dnsrv>@libdir@/libjabberddnsrv.so</dnsrv>
     </load>
     <dnsrv xmlns="jabber:config:dnsrv">
+        <!--
+	You can configure dnsrv to resend packets after resolving
+	to different s2s instances. This allows you to distribute
+	outgoing connections among several s2s instances.
+	With the example below, dnsrv would send 2/3 of the
+	results for a _xmpp-server._tcp resolving to the
+	s2s-1 instance of s2s and 1/3 to the s2s-2 instance.
+	-->
+	<!--
+	<resend service="_xmpp-server._tcp">
+	    <partial weight="2">s2s-1</partial>
+	    <partial weight="1">s2s-2</partial>
+	</resend>
+	-->
+
     	<resend service="_xmpp-server._tcp">s2s</resend> <!-- for supporting XMPP compliant SRV records -->
     	<resend service="_jabber._tcp">s2s</resend> <!-- for supporting old style SRV records -->
     	<resend>s2s</resend>
@@ -487,6 +502,16 @@
       against identity spoofing at all.
       -->
       <!-- <legacy/> -->
+
+      <!--
+      With the <secret/> element you can configure a fixed
+      dialback secret. You will need this to cluster multiple
+      s2s instances in which case all instances have to use
+      the same dialback secret.
+      If no secret is configured, the server will generate
+      a new random secret on each start.
+      -->
+      <!-- <secret>somethingSecret</secret> -->
 
       <!-- Use these to listen on particular addresses and/or ports.
       <ip port="7000"/>
