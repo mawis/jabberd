@@ -1,13 +1,22 @@
-CFLAGS=-fPIC -g $(DEFINES) -I./ -I../ -I../jabberd `libxode-config --cflags` `jabber-config --cflags` -Wall
-LDFLAGS=`libxode-config --ldflags` `libxode-config --libs` `pth-config --libs --ldflags` `jabber-config --ldflags` `jabber-config --libs` -ldl
+CC=gcc
+CFLAGS=-fPIC -g -shared $(DEFINES) -I./ -I../ -I../jabberd `libxode-config --cflags` `jabber-config --cflags` -Wall
+LDFLAGS=`libxode-config --ldflags --libs` `pth-config --libs --ldflags` `jabber-config --ldflags --libs` -ldl
+
+pthsock_server_OBJECTS=\
+	io_select.o \
+	server.o
+
+pthsock_client_OBJECTS=\
+	io_select.o \
+	client.o
 
 all: pthsock_server pthsock_client
 
-pthsock_client:
-	gcc -fPIC -shared -o pthsock_client.so io_select.c client.c $(CFLAGS) $(LDFLAGS)
+pthsock_client: $(pthsock_client_OBJECTS)
+	$(CC) $(CFLAGS) -o pthsock_client.so $(LDFLAGS)
 
-pthsock_server:
-	gcc -fPIC -shared -o pthsock_server.so io_select.c server.c $(CFLAGS) $(LDFLAGS)
+pthsock_server: $(pthsock_server_OBJECTS)
+	$(CC) $(CFLAGS) -o pthsock_server.so $(LDFLAGS)
 
 clean:
 	rm -f pthsock_client.so pthsock_server.so
