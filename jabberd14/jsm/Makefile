@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-fPIC -g -DVERSION=\"1.1.1\" -DPACKAGE=\"jsm\" -I./ -I../ `libxode-config --cflags` -Wall -I../jabberd
+CFLAGS=-fPIC -g -DVERSION=\"1.1.2\" -DPACKAGE=\"jsm\" -I./ -I../ `libxode-config --cflags` -Wall -I../jabberd
 
 SUBDIRS = modules
 
