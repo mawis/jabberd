@@ -61,6 +61,8 @@
                   <body/> [matches the body of the message]
                   <show/> [matches the show tag on the receiver's presence]
                   <type/> [matches the type of the message]
+                  <roster/> [matches if the sender is in your roster]
+                  <group/> [matches if the sender is in the specified group]
               </conditions>
               <actions>
                   <error/> [replys with an error]

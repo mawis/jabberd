@@ -379,6 +379,46 @@ mreturn mod_filter_handler(mapi m, void *arg)
                 }
                 cur = xmlnode_get_nextsibling(cur);
             }
+            else if(j_strcmp(xmlnode_get_name(cur), "roster") == 0)
+            {
+                xmlnode roster = xdb_get(m->user->si->xc, m->user->id, NS_ROSTER);
+                jid j = jid_new(m->packet->p, jid_full(m->packet->from));
+                jid_set(j, NULL, JID_RESOURCE);
+                
+                log_debug(ZONE, "checking roster");
+
+                if(jid_nodescan(j, roster) != NULL)
+                {
+                    cur_action->is_match = 1;
+                    log_debug(ZONE, "MATCH");
+                }
+                xmlnode_free(roster);
+                cur = xmlnode_get_nextsibling(cur);
+            }
+            else if(j_strcmp(xmlnode_get_name(cur), "group") == 0)
+            {
+                xmlnode roster = xdb_get(m->user->si->xc, m->user->id, NS_ROSTER);
+                xmlnode item;
+                char *group = spools(m->packet->p, "item/group=", xmlnode_get_data(cur), m->packet->p);
+                jid j = jid_new(m->packet->p, jid_full(m->packet->from));
+                jid_set(j, NULL, JID_RESOURCE);
+                
+                log_debug(ZONE, "checking for group %s in %s", group, xmlnode2str(roster));
+
+                while((item = xmlnode_get_tag(roster, group)) != NULL)
+                {
+                    log_debug(ZONE, "found match: %s", xmlnode2str(item));
+                    if(jid_cmpx(j, jid_new(xmlnode_pool(item), xmlnode_get_attrib(item->parent, "jid")), JID_USER | JID_SERVER) == 0)
+                    {
+                        cur_action->is_match = 1;
+                        log_debug(ZONE, "MATCH");
+                        break;
+                    }
+                    xmlnode_hide(item);
+                }
+                xmlnode_free(roster);
+                cur = xmlnode_get_nextsibling(cur);
+            }
             else if(j_strcmp(xmlnode_get_name(cur),"unavailable")==0)
             {
                 log_debug(ZONE,"checking unavailalbe");    

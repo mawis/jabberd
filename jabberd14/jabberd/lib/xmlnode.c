@@ -338,9 +338,10 @@ xmlnode xmlnode_get_tag(xmlnode parent, const char* name)
     char *str, *slash, *qmark, *equals;
     xmlnode step, ret;
 
+
     if(parent == NULL || parent->firstchild == NULL || name == NULL || name == '\0') return NULL;
 
-    if(strstr(name, "/") == NULL && strstr(name,"?") == NULL)
+    if(strstr(name, "/") == NULL && strstr(name,"?") == NULL && strstr(name, "=") == NULL)
         return _xmlnode_search(parent->firstchild, name, NTYPE_TAG);
 
     str = strdup(name);
