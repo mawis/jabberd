@@ -45,13 +45,26 @@ typedef enum { state_UNKNOWN, state_AUTHD } user_state;
 typedef struct cdata_st
 {
     smi* i;
-    jid j;
+    jid host;
     user_state state;
-    char *id, *host, *sid, *res, *auth_id;
+    char *id, *sid, *res, *auth_id;
     void *arg;
     pth_msgport_t pre_auth_mp;
     struct cdata_st *next;
 } _cdata,*cdata;
+
+xmlnode pthsock_make_route(xmlnode x,char *to,char *from,char *type)
+{
+    xmlnode new;
+    if(x!=NULL)
+        new=xmlnode_wrap(x,"route");
+    else
+        new=xmlnode_new_tag("route");
+    if(type!=NULL) xmlnode_put_attrib(new,"type",type);
+    if(to!=NULL) xmlnode_put_attrib(new,"to",to);
+    if(from!=NULL) xmlnode_put_attrib(new,"from",from);
+    return new;
+}
 
 void pthsock_client_close(sock c)
 {
@@ -59,22 +72,16 @@ void pthsock_client_close(sock c)
     cdata cd=(cdata)c->arg;
     if(cd->state==state_AUTHD)
     {
-        x = xmlnode_new_tag("route");
-        xmlnode_put_attrib(x,"type","error");
-        xmlnode_put_attrib(x,"to",cd->host);
-        xmlnode_put_attrib(x,"from",cd->id);
-        log_debug(ZONE,"Closing client socket, sending notification to SM: %s",xmlnode2str(x));
+        x=pthsock_make_route(NULL,jid_full(cd->host),cd->id,"error");
         deliver(dpacket_new(x),((smi)cd->i)->i);
     }
     else
     {
         wbq q;
         if(cd->pre_auth_mp!=NULL)
-        {
+        { /* if there is a pre_auth queue still */
             while((q=(wbq)pth_msgport_get(cd->pre_auth_mp))!=NULL)
-            {
                 xmlnode_free(q->x);
-            }
             pth_msgport_destroy(cd->pre_auth_mp);
         } 
     }
@@ -89,92 +96,82 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     sock cur;
     int fd=0;
 
-    log_debug(ZONE,"Got a packet from Deliver[%s]: %s",p->id->user,xmlnode2str(p->x));
-
     if(p->id->user!=NULL)fd = atoi(p->id->user); 
     if(p->type!=p_ROUTE||fd==0)
-    {
+    { /* we only want <route/> packets */
         log_debug(ZONE,"Dropping loser packet[%d]: %s",p->type,xmlnode2str(p->x));
         xmlnode_free(p->x);
         return r_DONE;
     }
 
     for (cur=io_select_get_list();cur!=NULL;cur=cur->next)
-    {
+    { /* find sock for this connection */
         cdcur=((cdata)cur->arg);
         if (fd == cur->fd)
             if (j_strcmp(p->id->resource,cdcur->res) == 0)
                 break;
     }
 
-    if(cur!=NULL)
-    { /* check to see if the session manager killed the session */
-        log_debug(ZONE,"Found the sock for this user");
-        if (j_strcmp(xmlnode_get_attrib(p->x,"type"),"error")==0)
-        { /* <route type="error" means we were disconnected */
-            xmlnode x=xmlnode_new_tag("stream:error");
-            xmlnode_insert_cdata(x,"Disconnected",-1);
-            log_debug(ZONE,"received disconnect message from session manager");
-            io_write(cur,x);
-            pthsock_client_close(cur);
+    if(cur==NULL)
+    { 
+        if (j_strcmp(xmlnode_get_attrib(p->x,"typs"),"error")==0)
+        { /* we got a 510, but no session to end */
+            log_debug(ZONE,"510 ERROR, BUT NO SESSION"); 
             xmlnode_free(p->x);
             return r_DONE;
         }
-        else if(cdcur->state==state_UNKNOWN&&j_strcmp(xmlnode_get_attrib(p->x,"type"),"auth")==0)
-        { /* look for our auth packet back */
-            char *type=xmlnode_get_attrib(xmlnode_get_firstchild(p->x),"type");
-            char *id=xmlnode_get_attrib(xmlnode_get_tag(p->x,"iq"),"id");
-            if((j_strcmp(type,"result")==0)&&j_strcmp(cdcur->auth_id,id)==0)
-            { /* update the cdata status if it's a successfull auth */
-                xmlnode x;
-                log_debug(ZONE,"auth for user successful");
 
-                log_debug(ZONE,"notifying SM to start session");
-                x=xmlnode_new_tag("route");
-                xmlnode_put_attrib(x,"type","session");
-                xmlnode_put_attrib(x,"to",jid_full(cdcur->j));
-                xmlnode_put_attrib(x,"from",xmlnode_get_attrib(p->x,"to"));
-                deliver(dpacket_new(x),si->i);
-            } else log_debug(ZONE,"Auth not successfull");
-        } else if(cdcur->state==state_UNKNOWN&&j_strcmp(xmlnode_get_attrib(p->x,"type"),"session")==0)
-        { /* got a session reply from the server */
-            wbq q;
-            cdcur->state = state_AUTHD;
-            /* change the host id */
-            cdcur->host = pstrdup(cur->p,xmlnode_get_attrib(p->x,"from"));
-            log_debug(ZONE,"Session Started");
-            xmlnode_free(p->x);
-            /* if we have packets in the queue, write them */
-            while((q=(wbq)pth_msgport_get(cdcur->pre_auth_mp))!=NULL)
-            {
-                q->x=xmlnode_wrap(q->x,"route");
-                xmlnode_put_attrib(q->x,"to",cdcur->host);
-                xmlnode_put_attrib(q->x,"from",cdcur->id);
-                deliver(dpacket_new(q->x),si->i);
-            }
-            pth_msgport_destroy(cdcur->pre_auth_mp);
-            cdcur->pre_auth_mp=NULL;
-            return r_DONE;
-        }
-        log_debug(ZONE,"Writing packet to socket");
-        io_write(cur,xmlnode_get_firstchild(p->x));
+        log_debug(ZONE,"pthsock_client connection not found");
+
+        jutil_tofrom(p->x);
+        xmlnode_put_attrib(p->x,"type","error");
+
+        deliver(dpacket_new(p->x),si->i);
         return r_DONE;
     }
 
-    if (j_strcmp(xmlnode_get_attrib(p->x,"typs"),"error")==0)
-    { /* we got a 510, but no session to end */
-        log_debug(ZONE,"510 ERROR, BUT NO SESSION"); 
+    log_debug(ZONE,"Found the sock for this user");
+    if (j_strcmp(xmlnode_get_attrib(p->x,"type"),"error")==0)
+    { /* <route type="error" means we were disconnected */
+        xmlnode x=xmlnode_new_tag("stream:error");
+        xmlnode_insert_cdata(x,"Disconnected",-1);
+        io_write(cur,x);
+        pthsock_client_close(cur);
         xmlnode_free(p->x);
         return r_DONE;
     }
+    else if(cdcur->state==state_UNKNOWN&&j_strcmp(xmlnode_get_attrib(p->x,"type"),"auth")==0)
+    { /* look for our auth packet back */
+        char *type=xmlnode_get_attrib(xmlnode_get_firstchild(p->x),"type");
+        char *id=xmlnode_get_attrib(xmlnode_get_tag(p->x,"iq"),"id");
+        if((j_strcmp(type,"result")==0)&&j_strcmp(cdcur->auth_id,id)==0)
+        { /* update the cdata status if it's a successfull auth */
+            xmlnode x;
+            log_debug(ZONE,"auth for user successful");
+            /* notify SM to start a session */
+            x=pthsock_make_route(NULL,jid_full(cdcur->host),cdcur->id,"session");
+            deliver(dpacket_new(x),si->i);
+        } else log_debug(ZONE,"Auth not successfull");
+    } else if(cdcur->state==state_UNKNOWN&&j_strcmp(xmlnode_get_attrib(p->x,"type"),"session")==0)
+    { /* got a session reply from the server */
+        wbq q;
+        cdcur->state = state_AUTHD;
+        /* change the host id */
+        cdcur->host = jid_new(cur->p,xmlnode_get_attrib(p->x,"from"));
+        log_debug(ZONE,"Session Started");
+        xmlnode_free(p->x);
+        /* if we have packets in the queue, write them */
+        while((q=(wbq)pth_msgport_get(cdcur->pre_auth_mp))!=NULL)
+        {
+            q->x=pthsock_make_route(q->x,jid_full(cdcur->host),cdcur->id,NULL);
+            deliver(dpacket_new(q->x),si->i);
+        }
+        pth_msgport_destroy(cdcur->pre_auth_mp);
+        cdcur->pre_auth_mp=NULL;
+        return r_DONE;
+    }
 
-    log_debug(ZONE,"pthsock_client connection not found");
-
-    jutil_tofrom(p->x);
-    xmlnode_put_attrib(p->x,"type","error");
-
-    deliver(dpacket_new(p->x),si->i);
-
+    io_write(cur,xmlnode_get_firstchild(p->x));
     return r_DONE;
 }
 
@@ -191,8 +188,8 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         log_debug(ZONE,"root received for %d",c->fd);
 
         /* write are stream header */
-        cd->host = pstrdup(c->p,xmlnode_get_attrib(x,"to"));
-        h = xstream_header("jabber:client",NULL,cd->host);
+        cd->host = jid_new(c->p,xmlnode_get_attrib(x,"to"));
+        h = xstream_header("jabber:client",NULL,jid_full(cd->host));
         cd->sid = pstrdup(c->p,xmlnode_get_attrib(h,"id"));
         io_write_str(c,xstream_header_char(h));
         xmlnode_free(h);
@@ -220,33 +217,21 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
                     cd->auth_id = pstrdup(c->p,"pthsock_client_auth_ID");
                     xmlnode_put_attrib(x,"id","pthsock_client_auth_ID");
                 }
-                x=xmlnode_wrap(x,"route");
-                cd->j=jid_new(c->p,cd->host);
-                jid_set(cd->j,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(xmlnode_get_firstchild(x),"query?xmlns=jabber:iq:auth"),"username")),JID_USER);
-                jid_set(cd->j,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(xmlnode_get_firstchild(x),"query?xmlns=jabber:iq:auth"),"resource")),JID_RESOURCE);
-                xmlnode_put_attrib(x,"to",jid_full(cd->j));
-                xmlnode_put_attrib(x,"from",xmlnode_get_attrib(x,"to"));
-                xmlnode_put_attrib(x,"type","auth");
-                xmlnode_put_attrib(x,"from",cd->id);
+                jid_set(cd->host,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(x,"query?xmlns=jabber:iq:auth"),"username")),JID_USER);
+                jid_set(cd->host,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(x,"query?xmlns=jabber:iq:auth"),"resource")),JID_RESOURCE);
+                x=pthsock_make_route(x,jid_full(cd->host),cd->id,"auth");
                 deliver(dpacket_new(x),((smi)cd->i)->i);
             }
             else if (NSCHECK(q,NS_REGISTER))
             {
-                x=xmlnode_wrap(x,"route");
-                cd->j=jid_new(c->p,cd->host);
-                jid_set(cd->j,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(xmlnode_get_firstchild(x),"query?xmlns=jabber:iq:auth"),"username")),JID_USER);
-                xmlnode_put_attrib(x,"to",jid_full(cd->j));
-                xmlnode_put_attrib(x,"type","register");
-                xmlnode_put_attrib(x,"from",cd->id);
+                jid_set(cd->host,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(x,"query?xmlns=jabber:iq:register"),"username")),JID_USER);
+                x=pthsock_make_route(x,jid_full(cd->host),cd->id,"auth");
                 deliver(dpacket_new(x),((smi)cd->i)->i);
             }
         }
         else
-        {
-            x=xmlnode_wrap(x,"route");
-            xmlnode_put_attrib(x,"from",cd->id);
-            xmlnode_put_attrib(x,"to",cd->host);
-            log_debug(ZONE,"wrapped client packet as: %s",xmlnode2str(x));
+        {   /* normal delivery of packets after authed */
+            x=pthsock_make_route(x,jid_full(cd->host),cd->id,NULL);
             deliver(dpacket_new(x),((smi)cd->i)->i);
         }
         break;
@@ -298,7 +283,6 @@ void pthsock_client_read(sock c,char *buffer,int bufsz,int flags,void *arg)
     switch(flags)
     {
     case IO_INIT:
-        log_debug(ZONE,"io_select INIT event");
         break;
     case IO_NEW:
         log_debug(ZONE,"io_select NEW socket connected at %d",c->fd);
@@ -313,53 +297,39 @@ void pthsock_client_read(sock c,char *buffer,int bufsz,int flags,void *arg)
         log_debug(ZONE,"io_select Socket %d close notification",c->fd);
         if(cd->state==state_AUTHD)
         {
-            x = xmlnode_new_tag("route");
-            xmlnode_put_attrib(x,"type","error");
-            xmlnode_put_attrib(x,"to",cd->host);
-            xmlnode_put_attrib(x,"from",cd->id);
-            log_debug(ZONE,"sending SM notification: %s",xmlnode2str(x));
+            x=pthsock_make_route(NULL,jid_full(cd->host),cd->id,"error");
             deliver(dpacket_new(x),((smi)cd->i)->i);
         }
         break;
     case IO_ERROR:
-        if(c->xbuffer!=NULL)
+        if(c->xbuffer==NULL) break;
+
+        if(((int)c->xbuffer)!=-1)
         {
-            if(((int)c->xbuffer)!=-1)
+            char *from=xmlnode_get_attrib(c->xbuffer,"to");
+            char *to=xmlnode_get_attrib(c->xbuffer,"from");
+            jutil_error(c->xbuffer,TERROR_EXTERNAL);
+            c->xbuffer=pthsock_make_route(c->xbuffer,to,from,NULL);
+            deliver(dpacket_new(c->xbuffer),si->i);
+        }
+        else
+            pool_free(c->pbuffer); 
+        c->xbuffer=NULL;
+        c->wbuffer=c->cbuffer=NULL;
+        c->pbuffer=NULL;
+        while((q=(wbq)pth_msgport_get(c->queue))!=NULL)
+        {
+            if(q->type==queue_XMLNODE)
             {
                 char *from=xmlnode_get_attrib(c->xbuffer,"to");
                 char *to=xmlnode_get_attrib(c->xbuffer,"from");
-                jutil_error(c->xbuffer,TERROR_EXTERNAL);
-                c->xbuffer=xmlnode_wrap(c->xbuffer,"route");
-                xmlnode_put_attrib(c->xbuffer,"from",from);
-                xmlnode_put_attrib(c->xbuffer,"to",to);
-                log_debug(ZONE,"bounding xbuffer");
-                deliver(dpacket_new(c->xbuffer),si->i);
+                jutil_error(q->x,TERROR_EXTERNAL);
+                q->x=pthsock_make_route(q->x,to,from,NULL);
+                deliver(dpacket_new(q->x),si->i);
             }
             else
-                pool_free(c->pbuffer); 
-            log_debug(ZONE,"error on socket %d, bouncing queue",c->fd);
-            c->xbuffer=NULL;
-            c->wbuffer=c->cbuffer=NULL;
-            c->pbuffer=NULL;
-            while((q=(wbq)pth_msgport_get(c->queue))!=NULL)
-            {
-                if(q->type==queue_XMLNODE)
-                {
-                    char *from=xmlnode_get_attrib(c->xbuffer,"to");
-                    char *to=xmlnode_get_attrib(c->xbuffer,"from");
-                    jutil_error(q->x,TERROR_EXTERNAL);
-                    c->xbuffer=xmlnode_wrap(c->xbuffer,"route");
-                    xmlnode_put_attrib(c->xbuffer,"from",from);
-                    xmlnode_put_attrib(c->xbuffer,"to",to);
-                    deliver(dpacket_new(q->x),si->i);
-                }
-                else
-                {
-                    pool_free(q->p);
-                }
-            }
+                pool_free(q->p);
         }
-        
     }
 }
 
