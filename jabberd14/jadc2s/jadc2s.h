@@ -74,6 +74,7 @@ struct conn_st
     conn_type_t type;
     time_t start;
     char *root_name;
+    char *local_id;
 
 #ifdef USE_SSL    
     SSL *ssl;
