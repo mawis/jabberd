@@ -57,16 +57,33 @@ void js_authreg(void *arg)
             }
         }
 
-    }else if((jpacket_subtype(p) == JPACKET__GET || p->to->user != NULL) && NSCHECK(p->iq,NS_REGISTER)){ /* is this a registration request? */
+    }else if(NSCHECK(p->iq,NS_REGISTER)){ /* is this a registration request? */
+        if(jpacket_subtype(p) == JPACKET__GET)
+        {
+            log_debug(ZONE,"registration get request");
+            /* let modules try to handle it */
+            if(!js_mapi_call(si, e_REGISTER, p, NULL, NULL))
+            {
+                jutil_error(p->x, TERROR_NOTIMPL);
+            }else{ /* username/password requirements are built-in */
+                jpacket_reset(p);
+                xmlnode_insert_tag(p->iq,"username");
+                xmlnode_insert_tag(p->iq,"password");
+            }
+        }else{
+            log_debug(ZONE,"registration set request");
+            if(p->to->user == NULL || xmlnode_get_tag_data(p->iq,"password") == NULL)
+            {
+                jutil_error(p->x, TERROR_NOTACCEPTABLE);
+            }else if(js_user(si,p->to,NULL) != NULL){
+                jutil_error(p->x, (terror){409,"Username Not Available"});
+            }else if(!js_mapi_call(si, e_REGISTER, p, NULL, NULL)){
+                jutil_error(p->x, TERROR_NOTIMPL);
+            }
 
-        log_debug(ZONE,"registration request");
-
-        /* try to register via a module */
-        if(!js_mapi_call(si, e_REGISTER, p, NULL, NULL))
-            jutil_error(p->x, TERROR_NOTIMPL);
+        }
 
     }else{ /* unknown namespace or other problem */
-
         jutil_error(p->x, TERROR_NOTACCEPTABLE);
     }
 

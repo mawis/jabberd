@@ -137,3 +137,4 @@ int js_mapi_call(jsmi si, event e, jpacket packet, udata user, session s);
 void js_authreg(void *arg);
 
 result js_packet(instance i, dpacket p, void *arg);
+int js_islocal(jsmi si, jid id);
