@@ -186,6 +186,7 @@ int main (int argc, char** argv)
     xmlnode_free(greymatter__);
     config_cleanup();
     ghash_destroy(cmd__line);
+    ghash_destroy(debug__zones);
     /* we're done! */
     return 0;
 
