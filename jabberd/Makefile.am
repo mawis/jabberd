@@ -9,8 +9,6 @@ jabberd_LDADD = $(top_builddir)/jabberd/base/libjabberdbase.la \
 		$(top_builddir)/jabberd/libjabberd.la
 jabberd_LDFLAGS = @LDFLAGS@ -export-dynamic
 
-noinst_HEADERS = single.h
-
 include_HEADERS = jabberd.h
 
 INCLUDES = -DHOME=\".\" -Ilib
