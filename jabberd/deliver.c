@@ -196,6 +196,8 @@ void deliver_fail(dpacket p, char *err)
 
     log_debug(ZONE,"delivery failed (%s)",err);
 
+    if(p==NULL) return;
+
     switch(p->type)
     {
     case p_LOG:
