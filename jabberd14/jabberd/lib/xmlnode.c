@@ -39,7 +39,7 @@
  * 
  * --------------------------------------------------------------------------*/
 
-#include "lib.h"
+#include <jabberdlib.h>
 
 /* Internal routines */
 xmlnode _xmlnode_new(pool p, const char* name, unsigned int type)

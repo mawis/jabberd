@@ -1,4 +1,44 @@
-2004-05-20  Matthias Wimmer i <m@tthias.net>
+2004-05-22  Matthias Wimmer  <m@tthias.net>
+
+    * dialback/Makefile.am: looking for jabberdlib.h at the right place
+    * dnsrv/Makefile.am: same
+    * jsm/Makefile.am: same
+    * jsm/modules/Makefile.am: same
+    * pthsock/Makefile.am: same
+    * xdb_file/Makefile.am: same
+    * jabberd/base/Makefile.am: same
+    * jabberd/jabberd.h: including jabberdlib.h instead of lib/lib.h
+    * jabberd/lib/base64.c: same
+    * jabberd/lib/crc32.c: same
+    * jabberd/lib/expat.c: same
+    * jabberd/lib/genhash.c: same
+    * jabberd/lib/jid.c: same
+    * jabberd/lib/jpacket.c: same
+    * jabberd/lib/jutil.c: same
+    * jabberd/lib/karma.c: same
+    * jabberd/lib/pool.c: same
+    * jabberd/lib/pproxy.c: same
+    * jabberd/lib/rate.c: same
+    * jabberd/lib/sha.c: same
+    * jabberd/lib/socket.c: same
+    * jabberd/lib/str.c: same
+    * jabberd/lib/xhash.c: same
+    * jabberd/lib/xmlnode.c: same
+    * jabberd/lib/xstream.c: same
+    * jabberd/lib/asciitab.h: removed, using installed expat
+    * jabberd/lib/hashtable.c: same
+    * jabberd/lib/hashtable.h: same
+    * jabberd/lib/iasciitab.h: same
+    * jabberd/lib/latin1tab.h: same
+    * jabberd/lib/Makefile.am: same
+    * jabberd/lib/nametab.h: same
+    * jabberd/lib/utf8tab.h: same
+    * jabberd/lib/lib.h: renamed lib.h to jabberdlib.h
+    * jabberd/lib/jabberdlib.h: same (to make it installable)
+    * jabberd/lib/snprintf.c: only define TRUE and FALSE if not defined yet
+    * jabberd/Makefile.am: merging libjabberd.so and libjabberdlib.so
+
+2004-05-20  Matthias Wimmer  <m@tthias.net>
 
     * ac-helpers/ac_define_dir.m4: Macro from the M4 archive
     * ac-helpers/Makefile.am: Makefile for this directory

@@ -39,7 +39,7 @@
  * 
  * --------------------------------------------------------------------------*/
 
-#include "lib.h"
+#include <jabberdlib.h>
 
 /* util for making presence packets */
 xmlnode jutil_presnew(int type, char *to, char *status)

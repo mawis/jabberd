@@ -38,7 +38,7 @@
  * 
  * 
  * --------------------------------------------------------------------------*/
-#include "lib.h"
+#include <jabberdlib.h>
 
 void karma_copy(struct karma *new, struct karma *old)
 {
