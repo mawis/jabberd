@@ -298,7 +298,7 @@ void dialback(instance i, xmlnode x)
     d->i = i;
     d->timeout_idle = j_atoi(xmlnode_get_tag_data(cfg,"idletimeout"),900);
     d->timeout_packets = j_atoi(xmlnode_get_tag_data(cfg,"queuetimeout"),30);
-    d->secret = xmlnode_get_attrib(cfg,"secret");
+    d->secret = pstrdup(i->p,xmlnode_get_tag_data(cfg,"secret"));
     if(d->secret == NULL) /* if there's no configured secret, make one on the fly */
         d->secret = pstrdup(i->p,dialback_randstr());
     if(xmlnode_get_tag(cfg,"legacy") != NULL)
