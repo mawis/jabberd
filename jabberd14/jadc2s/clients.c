@@ -618,7 +618,6 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
                     return 0;
                 }
 
-                printf("Reading %d bytes\n", read_len);
                 len = _read_actual(c, fd, buf, read_len);
                 return conn_read(c, buf, len);
                 
