@@ -50,6 +50,7 @@ void base_to(void);
 void base_stderr(void);
 void base_stdout(void);
 void base_dynamic(void);
+void base_syslog(void);
 
 /* load all base modules */
 void static_init(void)
@@ -63,5 +64,6 @@ void static_init(void)
     base_stderr();
     base_stdout();
     base_dynamic();
+    base_syslog();
 }
 
