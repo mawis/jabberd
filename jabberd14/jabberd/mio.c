@@ -167,8 +167,11 @@ int _mio_write_dump(mio m)
             { 
                 /* bounce the queue */
                 (*(mio_cb)m->cb)(m, NULL, 0, MIO_ERROR, m->arg);
+                return -1;
             }
-            return -1;
+
+            /* blocking issue.. return that there is more to write */
+            return 1;
         }
         /* we didnt' write it all, move the current buffer up */
         else if(len < cur->len)
@@ -182,6 +185,10 @@ int _mio_write_dump(mio m)
         else
         {  
             m->queue = m->queue->next;
+
+            if(m->queue == NULL)
+                m->tail = NULL;
+
             pool_free(cur->p);
         }
     } 
@@ -453,26 +460,21 @@ void _mio_main(void *arg)
                 /* write the current buffer */
                 int ret = _mio_write_dump(cur);
                 /* if an error occured */
-                if(ret < 0)
+                if(ret == -1)
                 {
-                    /* ignore these errors */
-                    if(errno == EWOULDBLOCK || errno == EINTR) 
-                        FD_SET(cur->fd, &all_wfds);
-                    else
-                    {
-                        temp = cur;
-                        cur = cur->next;
-                        FD_CLR(temp->fd, &all_rfds);
-                        FD_CLR(temp->fd, &all_wfds);
-                        _mio_close(temp);
-                        continue;
-                    }
+                    temp = cur;
+                    cur = cur->next;
+                    FD_CLR(temp->fd, &all_rfds);
+                    FD_CLR(temp->fd, &all_wfds);
+                    _mio_close(temp);
+                    continue;
                 }
                 /* if we are done writing */
-                else if(!ret) 
+                else if(ret == 0) 
                     FD_CLR(cur->fd, &all_wfds);
                 /* if we still have more to write */
-                else FD_SET(cur->fd, &all_wfds);
+                else if(ret == 1)
+                    FD_SET(cur->fd, &all_wfds);
             }
 
             /* we may have wanted the socket closed after this operation */
@@ -619,7 +621,7 @@ void mio_close(mio m)
  */
 void mio_write(mio m, xmlnode x, char *buffer, int len)
 {
-    mio_wbq new, cur;
+    mio_wbq new;
     pool p;
 
     if(m == NULL) 
@@ -666,17 +668,15 @@ void mio_write(mio m, xmlnode x, char *buffer, int len)
     }
 
     /* put at end of queue */
-    if(m->queue == NULL)
+    if(m->tail == NULL)
     {
         m->queue = new;
+        m->tail = new;
     }
     else
     {
-        /* find the last queue item */
-        for(cur = m->queue; cur->next != NULL; cur = cur->next);
-
-        /* add to the end */
-        cur->next = new;
+        m->tail->next = new;
+        m->tail = new;
     }
 
     /* notify the select loop that a packet needs writing */
