@@ -27,7 +27,6 @@ jabberd_OBJECTS = \
 	log/base_logtype.o \
 	log/base_stderr.o \
 	log/base_to.o \
-	xdb/base_cache.o \
 	xdb/base_ns.o
 
 all: jabberd_build

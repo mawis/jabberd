@@ -26,7 +26,6 @@ extern xmlnode greymatter__;
 
 void base_host(void);
 void base_accept(void);
-void base_cache(void);
 void base_connect(void);
 void base_exec(void);
 void base_file(void);
@@ -46,7 +45,6 @@ void loader_static(void)
     /* gen_foo(); io_foo(); ... */
     base_host();
     base_accept();
-    base_cache();
     base_connect();
     base_exec();
     base_file();
