@@ -35,6 +35,7 @@ jabberd_OBJECTS = \
 
 jabberd_EXOBJECTS = \
 	lib/expat.o \
+	lib/base64.o \
 	lib/genhash.o \
 	lib/hashtable.o \
 	lib/jid.o \

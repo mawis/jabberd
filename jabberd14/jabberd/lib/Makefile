@@ -21,6 +21,7 @@ lib_HEADERS= \
 
 lib_OBJECTS = \
     expat.o \
+    base64.o \
 	genhash.o \
 	hashtable.o \
 	jid.o \
