@@ -50,7 +50,6 @@
 #include <grp.h>
 
 #include "jabberd.h"
-#include "single.h"
 
 #ifdef HAVE_SYSLOG
 #include <syslog.h>
@@ -188,12 +187,8 @@ int main (int argc, char** argv)
     /* set to debug mode if we have it */
     set_cmdline_debug_flag(do_debug);
 
-#ifdef SINGLE
-    SINGLE_STARTUP
-#else
     if((home = xhash_get(cmd__line,"H")) == NULL)
         home = pstrdup(jabberd__runtime,HOME);
-#endif
     /* Switch to the specified user */
     if ((cmd = xhash_get(cmd__line, "U")) != NULL)
     {

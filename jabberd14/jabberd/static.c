@@ -39,6 +39,11 @@
  * 
  * --------------------------------------------------------------------------*/
 
+/**
+ * @file static.c
+ * @brief load all base modules (components/modules, that are not in their own shared object file)
+ */
+
 #include "jabberd.h"
 
 void base_accept(void);
@@ -52,7 +57,9 @@ void base_stdout(void);
 void base_dynamic(void);
 void base_syslog(void);
 
-/* load all base modules */
+/**
+ * load all base modules
+ */
 void static_init(void)
 {
     base_accept();
@@ -66,4 +73,3 @@ void static_init(void)
     base_dynamic();
     base_syslog();
 }
-
