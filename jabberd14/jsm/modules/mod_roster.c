@@ -171,7 +171,7 @@ void mod_roster_pforce(udata u, jid to, int uflag)
  */
 mreturn mod_roster_out_s10n(mapi m) {
     xmlnode roster, item;
-    int newflag=0, to=0, from=0, p_in=0, p_out=0, route=0;
+    int newflag=0, to=0, from=0, p_in=0, p_out=0, route=0, force_sent=0;
     jid curr;
 
     /* the packet needs a destination */
@@ -206,6 +206,13 @@ mreturn mod_roster_out_s10n(mapi m) {
 	xmlnode_put_attrib(item, "subscription", from ? "from" : "none");
     }
 
+    /* if the packet is flagged with PACKET_FORCE_SENT_MAGIC we have to sent
+     * it out without checking the previous subscription state. The packet
+     * has been generated because a roster item has been removed, so we will
+     * see a state of subscription "none" but we have to inform the other
+     * server that the subscription has just been removed. */
+    force_sent = m->packet->flag == PACKET_FORCE_SENT_MAGIC ? 1 : 0;
+
     switch(jpacket_subtype(m->packet)) {
 	case JPACKET__SUBSCRIBE:
 	    /* is the user already subscribed to this contact? */
@@ -219,7 +226,7 @@ mreturn mod_roster_out_s10n(mapi m) {
 	    route = 1;
 	    break;
 	case JPACKET__SUBSCRIBED:
-	    if (!from && p_in) {
+	    if (force_sent || (!from && p_in)) {
 		/* XMPP IM, sect. 9 states "None + Pending In", "None + Pending Out/In", and "To + Pending In" */
 		route = 1;
 		mod_roster_set_s10n(1, to, item); /* update subscription */
@@ -252,7 +259,7 @@ mreturn mod_roster_out_s10n(mapi m) {
 	    route = 1;
 	    break;
 	case JPACKET__UNSUBSCRIBED:
-	    if (!from && !p_in) {
+	    if (!from && !p_in && !force_sent) {
 		/* XMPP IM, sect. 9 states "None", "None + Pending Out", and "To" */
 		route = 0;
 		/* no state change */
@@ -267,10 +274,12 @@ mreturn mod_roster_out_s10n(mapi m) {
 		    mod_roster_set_s10n(0, to, item); /* update subscription */
 		    mod_roster_pforce(m->user, m->packet->to, 1); /* make us offline */
 		    mod_roster_push(m->user, item);
+		} else if (force_sent) {
+		    mod_roster_pforce(m->user, m->packet->to, 1); /* make us offline */
 		}
 	    }
 
-	    if (!route && newflag || xmlnode_get_attrib(item, "hidden")) {
+	    if ((!route || !from && !p_in && force_sent) && newflag || xmlnode_get_attrib(item, "hidden")) {
 		/* the contact was not on the roster and should not become a roster item */
 		xmlnode_hide(item);
 	    }
@@ -358,12 +367,18 @@ mreturn mod_roster_out_iq(mapi m) {
 		/* drop you sukkah */
 		if (j_strcmp(xmlnode_get_attrib(cur,"subscription"),"remove") == 0) {
 		    /* cancel our subscription to them */
-		    if (j_strcmp(xmlnode_get_attrib(item,"subscription"),"both") == 0 || j_strcmp(xmlnode_get_attrib(item,"subscription"),"to") == 0 || j_strcmp(xmlnode_get_attrib(item,"ask"),"subscribe") == 0)
-			js_session_from(m->s,jpacket_new(jutil_presnew(JPACKET__UNSUBSCRIBE,xmlnode_get_attrib(cur,"jid"),NULL)));
+		    if (j_strcmp(xmlnode_get_attrib(item,"subscription"),"both") == 0 || j_strcmp(xmlnode_get_attrib(item,"subscription"),"to") == 0 || j_strcmp(xmlnode_get_attrib(item,"ask"),"subscribe") == 0) {
+			jpacket jp = jpacket_new(jutil_presnew(JPACKET__UNSUBSCRIBE,xmlnode_get_attrib(cur,"jid"),NULL));
+			jp->flag = PACKET_FORCE_SENT_MAGIC; /* force to sent it, as we already remove the subscription state */
+			js_session_from(m->s, jp);
+		    }
 
 		    /* tell them their subscription to us is toast */
-		    if (j_strcmp(xmlnode_get_attrib(item,"subscription"),"both") == 0 || j_strcmp(xmlnode_get_attrib(item,"subscription"),"from") == 0)
-			js_session_from(m->s,jpacket_new(jutil_presnew(JPACKET__UNSUBSCRIBED,xmlnode_get_attrib(cur,"jid"),NULL)));
+		    if (j_strcmp(xmlnode_get_attrib(item,"subscription"),"both") == 0 || j_strcmp(xmlnode_get_attrib(item,"subscription"),"from") == 0) {
+			jpacket jp = jpacket_new(jutil_presnew(JPACKET__UNSUBSCRIBED,xmlnode_get_attrib(cur,"jid"),NULL));
+			jp->flag = PACKET_FORCE_SENT_MAGIC; /* force to sent it, as we already remove the subscription state */
+			js_session_from(m->s, jp);
+		    }
 
 		    /* push this remove out */
 		    mod_roster_push(m->user,cur);
