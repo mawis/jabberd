@@ -42,7 +42,7 @@ void karma_decrement(struct karma *k)
 int karma_check(struct karma *k,long bytes_read)
 {
     /* first, check for need to update */
-    if( ( k->last_update + KARMA_HEARTBEAT < cur_time ) || k->last_update == 0)
+    if( ( k->last_update + KARMA_HEARTBEAT < time(NULL) ) || k->last_update == 0)
         karma_increment( k );
 
     /* next, add up the total bytes */
