@@ -27,7 +27,7 @@
  * suggestions and support of Jabber.
  * 
  * --------------------------------------------------------------------------*/
-#include <jabber/jabber.h>
+#include "lib/lib.h"
 #include <pth.h>
 
 /* packet types */
@@ -106,7 +106,7 @@ void log_alert(char *host, const char *msgfmt, ...);
 #define log_error log_alert
 void logger(char *type, char *host, char *message); /* actually creates and delivers the log message */
 
-/*** xdb utilities, only used by base_load'd extensions and only available when base_load is used :) ***/
+/*** xdb utilities ***/
 
 /* ring for handling cached structures */
 typedef struct xdbcache_struct
@@ -128,18 +128,12 @@ xdbcache xdb_cache(instance i); /* create a new xdb cache for this instance */
 xmlnode xdb_get(xdbcache xc, char *host, jid owner, char *ns); /* blocks until namespace is retrieved, host must map back to this service! returns xmlnode or NULL if failed */
 int xdb_set(xdbcache xc, char *host, jid owner, char *ns, xmlnode data); /* sends new xml to replace old, returns non-zero if failure */
 
-/* base_load initialization function definition */
-typedef void (*base_load_init)(instance id, xmlnode x);
-
 /* Error messages */
 #define SERROR_NAMESPACE "<stream:error>Invalid namespace specified.</stream:error>"
 #define SERROR_INVALIDHOST "<stream:error>Invalid hostname used.</stream:error>"
 
 /* ------------------------------------
  * Managed Thread Queue (MTQ) utilities 
- *   used only by base_load'd extensions 
- *   and only available when base_load is 
- *   used.
  * ------------------------------------*/
 
 /* default waiting threads */

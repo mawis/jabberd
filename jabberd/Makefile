@@ -10,30 +10,49 @@ jabberd_HEADERS=jabberd.h
 
 jabberd_OBJECTS = \
 	config.o \
-    mio.o \
-    mio_raw.o \
-    mio_xml.o \
+	mio.o \
+	mio_raw.o \
+	mio_xml.o \
 	deliver.o \
 	heartbeat.o \
 	jabberd.o \
 	load.o \
-	log.o
+	xdb.o \
+	mtq.o \
+	static.o \
+	log.o \
+	lib/expat.o \
+	lib/genhash.o \
+	lib/hashtable.o \
+	lib/jid.o \
+	lib/jpacket.o \
+	lib/jutil.o \
+	lib/karma.o \
+	lib/pool.o \
+	lib/pproxy.o \
+	lib/rate.o \
+	lib/sha.o \
+	lib/snprintf.o \
+	lib/socket.o \
+	lib/str.o \
+	lib/xmlnode.o \
+	lib/xmlparse.o \
+	lib/xmlrole.o \
+	lib/xmltok.o \
+	lib/xstream.o \
+	base/base_host.o \
+	base/base_connect.o \
+	base/base_exec.o \
+	base/base_stdout.o \
+	base/base_accept.o \
+	base/base_file.o \
+	base/base_format.o \
+	base/base_logtype.o \
+	base/base_stderr.o \
+	base/base_to.o \
+	base/base_ns.o
 
-jabberd_EXOBJECTS = \
-	gen/base_host.o \
-	io/base_connect.o \
-	io/base_exec.o \
-	io/base_stdout.o \
-	io/base_load.o \
-	io/base_accept.o \
-	log/base_file.o \
-	log/base_format.o \
-	log/base_logtype.o \
-	log/base_stderr.o \
-	log/base_to.o \
-	xdb/base_ns.o
-
-SUBDIRS=gen io log xdb
+SUBDIRS=
 
 all: all-recursive
 
@@ -90,3 +109,5 @@ maintainer-clean-recursive:
 	  (cd $$subdir && $(MAKE) $$local_target) \
 	   || case "$$amf" in *=*) exit 1;; *k*) fail=yes;; *) exit 1;; esac; \
 	done && test -z "$$fail"
+
+
