@@ -70,8 +70,10 @@ mreturn mod_presence_in(mapi m, void *arg)
             log_debug("mod_presence","probe from %s and no presence to return",jid_full(m->packet->from));
         }else if(_mod_presence_notified(m->packet->from,notify))
         {
+            xmlnode pres = xmlnode_dup(m->s->presence);
             log_debug("mod_presence","got a probe, responding to %s",jid_full(m->packet->from));
-            js_deliver(m->si,jpacket_new(xmlnode_dup(m->s->presence)));
+            xmlnode_put_attrib(pres,"to",jid_full(m->packet->from));
+            js_deliver(m->si,jpacket_new(pres));
         }else{
             log_debug("mod_presence","%s attempted to probe by someone not qualified",jid_full(m->packet->from));
         }
@@ -102,6 +104,14 @@ mreturn mod_presence_out(mapi m, void *arg)
     jid id, notify = (jid)arg;
     session top;
     int from, to, oldpri, local;
+
+    /* we need to notify ppl that we accept s10ns from in the same session (if it's not local presence only) */
+    if(m->packet->type == JPACKET_S10N)
+    {
+    	if(jpacket_subtype(m->packet) == JPACKET__SUBSCRIBED && xmlnode_get_attrib(m->s->presence,"to") == NULL && m->packet->to != NULL)
+            jid_append(notify, m->packet->to);
+    	return M_PASS;
+    }
 
     if(m->packet->type != JPACKET_PRESENCE) return M_IGNORE;
 
