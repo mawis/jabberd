@@ -33,10 +33,11 @@ typedef struct csock_st
 typedef struct smi_st
 {
     pth_msgport_t wmp;
-    pth_msgport_t amp;
     csock conns;
     instance i;
     xmlnode cfg;
+    char *host;
+    int asock;  /* sock we accept connections on */
 } *smi, _smi;
 
 /* simple wrapper around the pth messages to pass packets */
@@ -131,7 +132,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
 
     case XSTREAM_NODE:
         log_debug(ZONE,"node received for %d",r->sock);
-        //log_debug(ZONE,">>>> %s",xmlnode2str(x));
+        log_debug(ZONE,">>>> %s",xmlnode2str(x));
 
         /* only allow auth and registration queries at this point */
         if (r->state == state_UNKNOWN)
@@ -161,6 +162,8 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         xmlnode_put_attrib(x,"sfrom",r->id);
         xmlnode_put_attrib(x,"sto",r->host);
         deliver(dpacket_new(x),r->i);
+        log_debug(ZONE,"deliver returned");
+
         break;
 
     case XSTREAM_ERR:
@@ -218,7 +221,6 @@ void pthsock_client_close(smi si, csock r)
 int pthsock_client_write(csock r, dpacket p)
 {
     char *block;
-    int ret = 1;
 
     log_debug(ZONE,"message for %d",r->sock);
 
@@ -258,7 +260,7 @@ int pthsock_client_write(csock r, dpacket p)
     xmlnode_hide_attrib(p->x,"sfrom");
     block = xmlnode2str(p->x);
 
-//  log_debug(ZONE,"<<<< %s",block);
+    log_debug(ZONE,"<<<< %s",block);
 
     /* write the packet */
     if(pth_write(r->sock,block,strlen(block)) <= 0)
@@ -266,7 +268,7 @@ int pthsock_client_write(csock r, dpacket p)
 
     pool_free(p->p);
 
-    return ret;
+    return 1;
 }
 
 typedef struct tout_st
@@ -309,61 +311,99 @@ void *pthsock_client_main(void *arg)
 {
     smi si = (smi) arg;
     tout t;
-    pth_msgport_t wmp, amp;
-    pth_event_t aevt, wevt, tevt, ering;
-    fd_set rfds;
+    pth_msgport_t wmp;
+    pth_event_t wevt, tevt, ering;
+    fd_set rfds, afds;
     csock cur, r;
     drop d;
-    char buff[1024];
-    int len, selc, maxfd;
+    char buff[1024], *buf, *host;
+    int len, bufsz, asock, sock;
+    pool p;
+    struct sockaddr_in sa;
+    size_t sa_size = sizeof(sa);
+   
+    asock = si->asock;
+    host = si->host;
 
-    amp = si->amp;
+    bufsz = strlen(si->host) + 30;
+    buf = malloc(bufsz * sizeof(char));
+
     wmp = si->wmp;
 
     t.timeout.tv_sec = 0;
     t.timeout.tv_usec = 20000;
     t.last.tv_sec = 0;
 
-    aevt = pth_event(PTH_EVENT_MSG,amp);
     wevt = pth_event(PTH_EVENT_MSG,wmp);
     tevt = pth_event(PTH_EVENT_FUNC,pthsock_client_time,&t,pth_time(0,20000));
-    ering = pth_event_concat(aevt,wevt,tevt,NULL);
+    ering = pth_event_concat(wevt,tevt,NULL);
 
     FD_ZERO(&rfds);
-    maxfd = 0;
+    FD_ZERO(&afds);
+
+    FD_SET(asock,&rfds);
 
     while (1)
     {
-        selc = pth_select_ev(maxfd + 1,&rfds,NULL,NULL,NULL,ering);
+        pth_select_ev(FD_SETSIZE,&rfds,NULL,NULL,NULL,ering);
 
-        if (selc > 0)
+        if (pth_select_ev(FD_SETSIZE,&rfds,NULL,NULL,NULL,ering) > 0)
         {
-            log_debug(ZONE,"select %d",selc);
+            log_debug(ZONE,"select");
+
+            if (FD_ISSET(asock,&rfds)) /* new connection */
+            {
+                sock = pth_accept(asock,(struct sockaddr*)&sa,(int*)&sa_size);
+                if(sock < 0)
+                    break;
+
+                log_debug(ZONE,"pthsock_client: new socket accepted (fd: %d, ip: %s, port: %d)",sock,inet_ntoa(sa.sin_addr),ntohs(sa.sin_port));
+
+                p = pool_heap(2*1024);
+                r = pmalloco(p, sizeof(_csock));
+                r->p = p;
+                r->i = si->i;
+                r->xs = xstream_new(p,pthsock_client_stream,(void*)r);
+                r->sock = sock;
+                r->state = state_UNKNOWN;
+                /* we use <fd>@host to identify connetions */
+                snprintf(buf,bufsz,"%d",&r);
+                r->res = pstrdup(p,buf);
+                snprintf(buf,bufsz,"%d@%s/%s",sock,host,r->res);
+                r->id = pstrdup(p,buf);
+
+                FD_SET(sock,&rfds);
+
+                log_debug(ZONE,"socket id:%s",r->id);
+
+                r->next = si->conns;
+                si->conns = r;
+            }
+
+            FD_SET(asock,&afds);
+
             cur = si->conns;
             while(cur != NULL)
             {
                 if (FD_ISSET(cur->sock,&rfds))
                 {
-                    --selc;
                     len = pth_read(cur->sock,buff,1024);
                     if(len <= 0)
                     {
                         log_debug(ZONE,"Error reading on '%d', %s",cur->sock,strerror(errno));
-                        FD_CLR(cur->sock,&rfds);
                         pthsock_client_close(si,cur);
                     }
 
                     log_debug(ZONE,"read %d bytes",len);
                     xstream_eat(cur->xs,buff,len);
                     if (cur->state == state_CLOSING)
-                    {
-                        FD_CLR(cur->sock,&rfds);
                         pthsock_client_close(si,cur);
-                    }
                 }
-                if (selc == 0) break;   /* all done reading */
+                FD_SET(cur->sock,&afds);
                 cur = cur->next;
             }
+            rfds = afds;
+            FD_ZERO(&afds);
         }
 
         /* handle packets that need to be writen */
@@ -384,108 +424,11 @@ void *pthsock_client_main(void *arg)
                         log_debug(ZONE,"pth_write failed");
                         /* bounce d->p */
                     }
-
-                    FD_CLR(d->r->sock,&rfds);
                     pthsock_client_close(si,d->r);
                 }
             }
         }
-
-        /* add accepted connections to the fdset */
-        if (pth_event_occurred(aevt))
-        {
-            log_debug(ZONE,"accept event");
-            while (1)
-            {
-                /* get the packet */
-                d = (drop)pth_msgport_get(amp);
-                if (d == NULL) break;
-                r = d->r;
-                FD_SET(r->sock,&rfds);
-                if (r->sock > maxfd)
-                    maxfd = r->sock;
-            }
-        }
     }
-}
-
-void *pthsock_client_listen(void *arg)
-{
-    smi si = (smi) arg;
-    csock r;
-    drop d;
-    pool p;
-    pth_msgport_t amp;
-    struct sockaddr_in sa;
-    size_t sa_size = sizeof(sa);
-    char *host, *port, *buf;
-    int sock, s, bufsz;
-
-    log_debug(ZONE,"pthsock_client_listen thread starting");
-
-    host = xmlnode_get_tag_data(si->cfg,"host");
-    port = xmlnode_get_tag_data(si->cfg,"listen");
-
-    if (host == NULL || port == NULL)
-    {
-        log_error(ZONE,"pthsock_client invaild config");
-        return NULL;
-    }
-
-    s = make_netsocket(atoi(port),NULL,NETSOCKET_SERVER);
-    if(s < 0)
-    {
-        log_error(NULL,"pthsock_client is unable to listen on %d",atoi(port));
-        return NULL;
-    }
-
-    if(listen(s,10) < 0)
-    {
-        log_error(NULL,"pthsock_client is unable to listen on %d",atoi(port));
-        return NULL;
-    }
-
-    amp = si->amp;
-    bufsz = strlen(host) + 30;
-    log_debug(ZONE,"%d",bufsz);
-    buf = malloc(bufsz * sizeof(char));
-    while(1)
-    {
-        sock = pth_accept(s,(struct sockaddr*)&sa,(int*)&sa_size);
-        if(sock < 0)
-            break;
-
-        log_debug(ZONE,"pthsock_client: new socket accepted (fd: %d, ip: %s, port: %d)",
-                  sock,inet_ntoa(sa.sin_addr),ntohs(sa.sin_port));
-
-        p = pool_heap(2*1024);
-        r = pmalloco(p, sizeof(_csock));
-        r->p = p;
-        r->i = si->i;
-        r->xs = xstream_new(p,pthsock_client_stream,(void*)r);
-        r->sock = sock;
-        r->state = state_UNKNOWN;
-        /* we use <fd>@host to identify connetions */
-        snprintf(buf,bufsz,"%d",&r);
-        r->res = pstrdup(p,buf);
-        snprintf(buf,bufsz,"%d@%s/%s",sock,host,r->res);
-        r->id = pstrdup(p,buf);
-
-        log_debug(ZONE,"socket id:%s",r->id);
-
-        r->next = si->conns;
-        si->conns = r;
-
-        /* tell the main thread we accepted a connection */
-        d = pmalloc(p,sizeof(_drop));
-        d->r = r;
-        pth_msgport_put(amp,(void*)d);
-    }
-
-    free(buf);
-
-    log_error(NULL,"pthsock_client listen on 5222 failed");
-
     return NULL;
 }
 
@@ -495,6 +438,8 @@ void pthsock_client(instance i, xmlnode x)
     smi si;
     xdbcache xc;
     pth_attr_t attr;
+    char *host, *port;
+    int sock;
 
     log_debug(ZONE,"pthsock_client loading");
 
@@ -502,12 +447,34 @@ void pthsock_client(instance i, xmlnode x)
 
     /* write mp */
     si->wmp = pth_msgport_create("pthsock_client_wmp");
-    /* used to notify main thread of a new connection */
-    si->amp = pth_msgport_create("pthsock_client_amp"); 
 
     /* get the config */
     xc = xdb_cache(i);
     si->cfg = xdb_get(xc,NULL,jid_new(xmlnode_pool(x),"config@-internal"),"jabberd:pth-csock:config");
+
+    si->host = host = xmlnode_get_tag_data(si->cfg,"host");
+    port = xmlnode_get_tag_data(si->cfg,"listen");
+
+    if (host == NULL || port == NULL)
+    {
+        log_error(ZONE,"pthsock_client invaild config");
+        return;
+    }
+
+    sock = make_netsocket(atoi(port),NULL,NETSOCKET_SERVER);
+    if(sock < 0)
+    {
+        log_error(NULL,"pthsock_client is unable to listen on %d",atoi(port));
+        return;
+    }
+
+    if(listen(sock,10) < 0)
+    {
+        log_error(NULL,"pthsock_client is unable to listen on %d",atoi(port));
+        return;
+    }
+
+    si->asock = sock;
 
     register_phandler(i,o_DELIVER,pthsock_client_packets,(void*)si);
 
@@ -516,9 +483,6 @@ void pthsock_client(instance i, xmlnode x)
 
     /* state main read/write thread */
     pth_spawn(attr,pthsock_client_main,(void*)si);
-
-    /* start thread to accepted new connections */
-    pth_spawn(attr,pthsock_client_listen,(void*)si);
 
     pth_attr_destroy(attr);
 }
