@@ -1123,6 +1123,7 @@ void mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_
 {
     connect_data cd = NULL;
     pool         p  = NULL;
+    pth_attr_t   attr;
 
     /* verify data */
     if(host == NULL || port == 0) 
@@ -1147,7 +1148,11 @@ void mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_
     cd->cb_arg = cb_arg;
     cd->cf     = f;
     cd->mh     = mh;
-    cd->t      = pth_spawn(PTH_ATTR_DEFAULT, (void*)_mio_connect, (void*)cd);
+
+    attr = pth_attr_new();
+    pth_attr_set(attr,PTH_ATTR_JOINABLE,FALSE);
+    cd->t      = pth_spawn(attr, (void*)_mio_connect, (void*)cd);
+    pth_attr_destroy(attr);
 
     register_beat(timeout, _mio_connect_timeout, (void*)cd);
 
