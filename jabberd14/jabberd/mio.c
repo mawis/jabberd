@@ -82,7 +82,100 @@ int KARMA_DEF_RESTORE = KARMA_RESTORE;
 int KARMA_DEF_RATE_T  = 5;
 int KARMA_DEF_RATE_P  = 25;
 
+int _mio_allow_check(const char *address)
+{
+    xmlnode io = xmlnode_get_tag(greymatter__, "io");
+    xmlnode cur;
 
+    if(xmlnode_get_tag(io, "allow") == NULL)
+        return 1; /* if there is no allow section, allow all */
+
+    for(cur = xmlnode_get_firstchild(io); cur != NULL; cur = xmlnode_get_nextsibling(cur))
+    {
+        char *ip, *netmask;
+        struct in_addr in_address, in_ip, in_netmask;
+        if(xmlnode_get_type(cur) != NTYPE_TAG)
+            continue;
+
+        if(j_strcmp(xmlnode_get_name(cur), "allow") != 0) 
+            continue;
+
+        ip = xmlnode_get_tag_data(cur, "ip");
+        netmask = xmlnode_get_tag_data(cur, "mask");
+
+        if(ip == NULL)
+            continue;
+
+        inet_aton(address, &in_address);
+
+        if(ip != NULL)
+            inet_aton(ip, &in_ip);
+
+        if(netmask != NULL)
+        {
+            inet_aton(netmask, &in_netmask);
+            if((in_address.s_addr & in_netmask.s_addr) == (in_ip.s_addr & in_netmask.s_addr))
+            { /* this ip is in the allow network */
+                return 1;
+            }
+        }
+        else
+        {
+            if(in_ip.s_addr == in_address.s_addr)
+                return 1; /* must be an exact match, if no netmask */
+        }
+    }
+
+    /* deny the rest */
+    return 0;
+}
+
+int _mio_deny_check(const char *address)
+{
+    xmlnode io = xmlnode_get_tag(greymatter__, "io");
+    xmlnode cur;
+
+    if(xmlnode_get_tag(io, "deny") == NULL)
+        return 1; /* if there is no allow section, allow all */
+
+    for(cur = xmlnode_get_firstchild(io); cur != NULL; cur = xmlnode_get_nextsibling(cur))
+    {
+        char *ip, *netmask;
+        struct in_addr in_address, in_ip, in_netmask;
+        if(xmlnode_get_type(cur) != NTYPE_TAG)
+            continue;
+
+        if(j_strcmp(xmlnode_get_name(cur), "deny") != 0) 
+            continue;
+
+        ip = xmlnode_get_tag_data(cur, "ip");
+        netmask = xmlnode_get_tag_data(cur, "mask");
+
+        if(ip == NULL)
+            continue;
+
+        inet_aton(address, &in_address);
+
+        if(ip != NULL)
+            inet_aton(ip, &in_ip);
+
+        if(netmask != NULL)
+        {
+            inet_aton(netmask, &in_netmask);
+            if((in_address.s_addr & in_netmask.s_addr) == (in_ip.s_addr & in_netmask.s_addr))
+            { /* this ip is in the deny network */
+                return 0;
+            }
+        }
+        else
+        {
+            if(in_ip.s_addr == in_address.s_addr)
+                return 0; /* must be an exact match, if no netmask */
+        }
+    }
+
+    return 1;
+}
 
 /*
  * callback for Heartbeat, increments karma, and signals the
@@ -297,6 +390,20 @@ mio _mio_accept(mio m)
     fd = (*m->mh->accept)(m, (struct sockaddr*)&serv_addr, &addrlen);
     if(fd <= 0)
     {
+        return NULL;
+    }
+
+    if(!_mio_allow_check(inet_ntoa(serv_addr.sin_addr)))
+    {
+        log_warn("mio", "%s was denied access, due to the allow list of IPs", inet_ntoa(serv_addr.sin_addr));
+        close(fd);
+        return NULL;
+    }
+
+    if(!_mio_deny_check(inet_ntoa(serv_addr.sin_addr)))
+    {
+        log_warn("mio", "%s was denied access, due to the deny list of IPs", inet_ntoa(serv_addr.sin_addr));
+        close(fd);
         return NULL;
     }
 
