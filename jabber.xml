@@ -28,12 +28,14 @@
     </jsm>
   </service>
 
+  <!-- All xdb lookups go here -->
   <xdb id="xdb file">
     <host/>
     <load><xdb_file>./xdb_file/xdb_file.so</xdb_file></load>
     <xdb_file xmlns="jabberd:xdb_file:config"><spool>/var/tmp</spool></xdb_file>
   </xdb>
 
+  <!-- Service to manage incoming client socket connections -->
   <service id="pthsock client to server manager">
     <host>pth-csock.127.0.0.1</host>
     <load><pthsock_client>./pthsock/pthsock_client.so</pthsock_client></load>
@@ -43,8 +45,19 @@
     </pthcsock>
   </service>
 
-  <service id="pthsock server to server manager">
+
+  <!-- the following two services are for Server to server packets -->
+  <!-- external resolver, so that dns lookups don't block the server -->
+  <service id="External DNS resolver">
     <host/>
+    <load><dnsrv>./dnsrv/dnsrv</dnsrv></load>
+    <dnsrv xmlns="jabberd:dnsrv:config">
+     <replyhost>s2s-127.0.0.1</replyhost>
+    </dnsrv>
+  </service>
+  <!-- performs server connections can also perform blocking dns lookups -->
+  <service id="pthsock server to server manager">
+    <host>s2s-127.0.0.1</host>
     <load><pthsock_server>./pthsock/pthsock_server.so</pthsock_server></load>
   </service>
 
