@@ -167,7 +167,7 @@ mreturn mod_presence_in(mapi m, void *arg)
         return M_HANDLED;
     }
 
-    if(jid_cmp(m->packet->from,m->s->id) == 0)
+    if(m->packet->from == NULL || jid_cmp(m->packet->from,m->s->id) == 0)
     { /* this is our presence, don't send to ourselves */
         xmlnode_free(m->packet->x);
         return M_HANDLED;
@@ -293,7 +293,8 @@ mreturn mod_presence_out(mapi m, void *arg)
 
         /* reset vars */
         mp->invisible = 0;
-        mp->A->next = NULL;
+        if(mp->A != NULL)
+            mp->A->next = NULL;
         mp->I = NULL;
 
         xmlnode_free(m->packet->x);
