@@ -211,7 +211,14 @@ void deliver(dpacket p, instance i)
 {
     hostid list, cur;
     result best = r_NONE;
-    char *host = p->host;
+    char *host;
+
+    /* Ensure the packet & instance is valid */
+    if (p == NULL || i == NULL)
+	 return;
+
+    /* Get the host */
+    host = p->host;
 
     /* XXX once we switch to pthreads, deliver() will have to queue until configuration is done, since threads may have started during config and be delivering already */
 
