@@ -48,6 +48,7 @@ typedef struct
 xmlnode mod_groups_get(mod_groups_i mi, pool p, char *host, char *gid)
 {
      xmlnode group, users;
+     jid id;
 
      if (gid == NULL) return NULL;
 
@@ -63,11 +64,35 @@ xmlnode mod_groups_get(mod_groups_i mi, pool p, char *host, char *gid)
          {
              users = xmlnode_dup(users);
              xmlnode_insert_cdata(xmlnode_insert_tag(users,"name"),xmlnode_get_tag_data(group,"name"),-1);
+             xmlnode_insert_tag(users,"static"); /* we can't change the users if they are in the config */
              return users;
          }
      }
 
-     return xdb_get(mi->xc,jid_new(p,host),spools(p,"jabber:xdb:groups/",gid,p));
+     id = jid_new(p,host);
+     jid_set(id,gid,JID_RESOURCE);
+
+     users = xdb_get(mi->xc,id,NS_XGROUPS);
+
+     if (group)
+     {
+         char *name;
+
+         if (users == NULL)
+             users = xmlnode_new_tag("query");
+
+         name = xmlnode_get_tag_data(group,"name");
+         if (name)
+         {
+             xmlnode_hide(xmlnode_get_tag(users,"name"));
+             xmlnode_insert_cdata(xmlnode_insert_tag(users,"name"),name,-1);
+         }
+
+         if (xmlnode_get_tag(group,"static"))  /* check if the config marked this group as static */
+             xmlnode_insert_tag(users,"static");
+     }
+
+     return users;
 }
 
 int _mod_groups_toplevel(void *arg, const void *gid, void *data)
@@ -130,8 +155,6 @@ int _mod_groups_require(void *arg, const void *gid, void *data)
     if (xmlnode_get_tag(xmlnode_get_tag(gc,"users"),xmlnode_get_attrib(result,"jid")) != NULL)
         xmlnode_put_attrib(group,"subscription","both");
 
-    xmlnode_put_attrib(group,"name",xmlnode_get_tag_data(gc,"name"));
-
     return 1;
 }
 
@@ -141,7 +164,7 @@ xmlnode mod_groups_get_current(mod_groups_i mi, jid id)
     pool p;
 
     result = xdb_get(mi->xc,jid_user(id),NS_XGROUPS);
-    
+
     if (result == NULL)
         result = xmlnode_new_tag("query");
 
@@ -154,22 +177,7 @@ xmlnode mod_groups_get_current(mod_groups_i mi, jid id)
     return result;
 }
 
-void mod_groups_push(session s, xmlnode roster, int all)
-{
-    session cur;
-
-    if (all)
-    {
-        /* send a copy to all session that have a roster */
-        for(cur = s->u->sessions; cur != NULL; cur = cur->next)
-            if(cur->roster)
-                js_session_to(cur,jpacket_new(cur->next ? xmlnode_dup(roster):roster));
-    }
-    else
-        js_session_to(s,jpacket_new(roster));
-}
-
-void mod_groups_roster_add(udata u, xmlnode roster, xmlnode group, int add)
+void mod_groups_roster_insert(udata u, xmlnode roster, xmlnode group, int add)
 {
     xmlnode item, cur, q;
     char *id, *user, *name;
@@ -195,6 +203,63 @@ void mod_groups_roster_add(udata u, xmlnode roster, xmlnode group, int add)
     }
 
     xmlnode_free(group);
+}
+
+void mod_groups_push(session s, xmlnode roster, int all)
+{
+    session cur;
+
+    if (all)
+    {
+        /* send a copy to all session that have a roster */
+        for(cur = s->u->sessions; cur != NULL; cur = cur->next)
+            if(cur->roster)
+                js_session_to(cur,jpacket_new(cur->next ? xmlnode_dup(roster):roster));
+    }
+    else
+        js_session_to(s,jpacket_new(roster));
+}
+
+int _mod_groups_push(void *arg, const void *key, void *data)
+{
+    xmlnode packet = (xmlnode) arg;
+    udata u = (udata) data;
+
+    mod_groups_push(js_session_primary(u),xmlnode_dup(packet),1);
+    return 1;
+}
+
+void mod_groups_push_item(mod_groups_i mi, udata u, char *gid, char *name, int add)
+{
+    grouptab gt;
+    xmlnode packet, item, q;
+
+    gt = (grouptab) ghash_get(mi->groups,gid);
+    if (gt == NULL)
+    {
+        log_debug("mod_groups","new group entry %s",gid);
+
+        gt = pmalloco(u->si->p,sizeof(_grouptab));
+        gt->to = ghash_create(509,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+        gt->from = ghash_create(509,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+
+        ghash_put(mi->groups,pstrdup(u->si->p,gid),gt);
+        return;
+    }
+
+    packet = xmlnode_new_tag("iq");
+    xmlnode_put_attrib(packet, "type", "set");
+    q = xmlnode_insert_tag(packet, "query");
+    xmlnode_put_attrib(q,"xmlns",NS_ROSTER);
+
+    item = xmlnode_insert_tag(q,"item");
+    xmlnode_put_attrib(item,"jid",jid_full(u->id));
+    xmlnode_put_attrib(item,"subscription",add ? "to" : "remove");
+    xmlnode_insert_cdata(xmlnode_insert_tag(item,"group"),name,-1);
+
+    ghash_walk(gt->to,_mod_groups_push,(void *) packet);
+
+    xmlnode_free(packet);
 }
 
 void mod_groups_register_get(mod_groups_i mi, mapi m)
@@ -257,27 +322,9 @@ void mod_groups_register_set(mod_groups_i mi, mapi m)
     {
         group = xmlnode_insert_tag(groups,"group");
         xmlnode_put_attrib(group,"id",gid);
-
-        /* xmlnode_put_attrib(group,"name",name); */
     }
     else if (j_strcmp(xmlnode_get_attrib(group,"subscription"),"both") == 0)
         return;
-
-    if (/* inclusive/not static */0)
-    {
-        /* XXX change and save group */
-        xmlnode_put_attrib(group,"subscription","both");
-    }
-
-    /* save the new group in the users list */
-    if (xdb_set(m->si->xc,u->id,NS_XGROUPS,groups))
-    {
-        xmlnode_free(groups);
-        jutil_error(jp->x,TERROR_UNAVAIL);
-        jpacket_reset(jp);
-        js_session_to(m->s,jp);
-        return;
-    }
 
     /* get the users from the new group */
     users = mod_groups_get(mi,p,host,gid);
@@ -290,9 +337,44 @@ void mod_groups_register_set(mod_groups_i mi, mapi m)
         return;
     }
 
-    /* push the new group */
+    if (xmlnode_get_tag(users,"static") == NULL)
+    {
+        if (xmlnode_get_tag(users,spools(p,"user?jid=",jid_full(u->id),p)) == NULL)
+        {
+            jid id;
+            xmlnode user;
+
+            id = jid_new(p,host);
+            jid_set(id,gid,JID_RESOURCE);
+
+            /* add the user to the group and save */
+            user = xmlnode_insert_tag(users,"user");
+            xmlnode_put_attrib(user,"jid",jid_full(u->id));
+            xmlnode_put_attrib(user,"name",u->id->user);
+            xdb_set(m->si->xc,id,NS_XGROUPS,xmlnode_dup(users));
+
+            /* push the new user */
+            mod_groups_push_item(mi,u,gid,xmlnode_get_tag_data(users,"name"),1);
+        }
+
+        xmlnode_put_attrib(group,"subscription","both");
+    }
+
+    /* save the new group in the users list */
+    if (xdb_set(m->si->xc,u->id,NS_XGROUPS,groups))
+    {
+        xmlnode_free(groups);
+        xmlnode_free(users);
+
+        jutil_error(jp->x,TERROR_UNAVAIL);
+        jpacket_reset(jp);
+        js_session_to(m->s,jp);
+        return;
+    }
+
+    /* push the group to the user */
     roster = jutil_iqnew(JPACKET__SET,NS_ROSTER);
-    mod_groups_roster_add(u,roster,users,1);
+    mod_groups_roster_insert(u,roster,users,1);
     mod_groups_push(m->s,roster,1);
 
     jutil_iqresult(jp->x);
@@ -362,10 +444,7 @@ void mod_groups_browse(mod_groups_i mi, mapi m)
         jpacket_reset(jp);
 
         if (gid)
-        {
-            /* XXX if allowed to register? */
             xmlnode_insert_cdata(xmlnode_insert_tag(jp->iq,"ns"),NS_REGISTER,-1);
-        }
     }
     else
     {
@@ -398,7 +477,7 @@ void mod_groups_roster_push(mod_groups_i mi, mapi m)
         users = mod_groups_get(mi,p,host,xmlnode_get_attrib(cur,"id"));
 
         if (users != NULL)
-            mod_groups_roster_add(u,roster,users,1);
+            mod_groups_roster_insert(u,roster,users,1);
         else
             log_debug("mod_groups","Failed to get users for group");
     }
