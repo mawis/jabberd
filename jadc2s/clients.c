@@ -390,9 +390,20 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
         getsockname(fd, (struct sockaddr *)&sa, &namelen);
         if(ntohs(sa.sin_port) == c->c2s->local_sslport) {
 
-            /* !!! better error checking */
+	    /* enable SSL/TLS on this socket */
             c->ssl = SSL_new(c->c2s->ssl_ctx);
-            SSL_set_fd(c->ssl, fd);
+	    if (c->ssl == NULL)
+	    {
+		log_write(c->c2s->log, LOG_WARNING, "failed to create SSL structure for connection, closing");
+		log_ssl_errors(c->c2s->log, LOG_WARNING);
+		return 1;
+	    }
+            if (!SSL_set_fd(c->ssl, fd))
+	    {
+		log_write(c->c2s->log, LOG_WARNING, "failed to connect SSL object with accepted socket, closing");
+		log_ssl_errors(c->c2s->log, LOG_WARNING);
+		return 1;
+	    }
             SSL_accept(c->ssl);
         }
 #endif
