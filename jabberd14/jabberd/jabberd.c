@@ -20,6 +20,13 @@
  *
  */
 
+/*
+ * Doesn't he wish!
+ *
+ * <ChatBot> jer: Do you sometimes wish you were written in perl?
+ *
+ */
+
 #include "jabberd.h"
 
 /*** internal functions ***/
