@@ -38,6 +38,11 @@
  * 
  * 
  * --------------------------------------------------------------------------*/
+
+/**
+ * @file base_accept.c
+ * @brief opens a socket to handle incoming connections using the component protocol defined in JEP-0114
+ */
  
 #include "jabberd.h"
 

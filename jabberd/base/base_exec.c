@@ -38,13 +38,15 @@
  * 
  * 
  * --------------------------------------------------------------------------*/
+
+/**
+ * @file base_exec.c
+ * @brief Starts a specified coprocess and exchanges xmlnodes with it via piped IO - DEPRICATED
+ *
+ * @depricated Using this module is depricated, support will be removed in future versions of jabberd14
+ */
  
 #include "jabberd.h"
-
-/* ---------------------------------------------------------
-   base_exec - Starts a specified coprocess and exchanges 
-               xmlnodes with it via piped IO
-   ---------------------------------------------------------*/
 
 int exec_and_capture(char* const args[], int* in, int* out)
 {
