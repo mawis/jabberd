@@ -356,7 +356,7 @@ void *pthsock_client_main(void *arg)
     pth_msgport_t wmp;
     pth_event_t wevt, tevt, ering;
     fd_set rfds, afds;
-    csock cur, c;
+    csock cur, c, temp;
     drop d;
     char buff[1024];
     int len, asock, sock;
@@ -410,9 +410,10 @@ void *pthsock_client_main(void *arg)
             {
                 if (cur->state == state_CLOSED)
                 {
-                    /* XXX Potential Bug?? sheath, can you look at this?
-                       cur is being free'd here, but used later on.. */
-                    pthsock_client_release(si,cur);
+                    temp = cur;
+                    cur = cur->next;
+                    pthsock_client_release(si,temp);
+                    continue;
                 }
                 else if (FD_ISSET(cur->sock,&rfds))
                 {
@@ -423,7 +424,7 @@ void *pthsock_client_main(void *arg)
                         pthsock_client_close(cur);
                     }
                     else
-                    { /* XXX sheath: I added this else, and it fixes my PTH errors. -- tsb */
+                    {
                         log_debug(ZONE,"read %d bytes",len);
 
                         xstream_eat(cur->xs,buff,len);
@@ -436,7 +437,6 @@ void *pthsock_client_main(void *arg)
                 else
                     FD_SET(cur->sock,&afds);
 
-                /* XXX used down here, but freed in pthsock_client_release */
                 cur = cur->next;
             }
             rfds = afds;
