@@ -55,6 +55,9 @@ Changes in administration of the server
       jabberd itself, but can be used by other applications.
     * Messages can be dumped to xdb storage, this can be used to implement
       logging of exchanged messages.
+    * It can be configured which types of messages are to be stored offline,
+      e.g. an server administrator can decide not to store headline messages
+      in offline storage.
     * It can be configured which ciphers and versions of SSL/TLS jabberd is
       allowed to use.
 

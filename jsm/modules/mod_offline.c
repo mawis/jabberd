@@ -63,6 +63,17 @@
 /* THIS MODULE will soon be depreciated by mod_filter -- really? */
 
 /**
+ * configuration of mod_offline
+ */
+typedef struct modoffline_conf_struct {
+    int store_type_normal;		/**< store message type normal offline? */
+    int store_type_chat;		/**< store message type chat offline? */
+    int store_type_headline;		/**< store message type headline offline? */
+    int store_type_groupchat;		/**< store message type groupchat offline? */
+    int store_type_error;		/**< store message type error offline? */
+} *modoffline_conf, _modoffline_conf;
+
+/**
  * handle a message to the user
  *
  * checks if the user has an active session, that gets messages (has a non-negative priority) and delivers the message.
@@ -76,7 +87,7 @@
  * @param m the mapi structure
  * @return M_HANDLED if the message has been stored offline or delivered to a user's session, M_PASS if the message is expired or could not be stored offline
  */
-mreturn mod_offline_message(mapi m)
+mreturn mod_offline_message(mapi m, modoffline_conf conf)
 {
     session top;
     xmlnode cur = NULL, cur2;
@@ -110,6 +121,43 @@ mreturn mod_offline_message(mapi m)
         sprintf(str,"%d",(int)time(NULL));
         xmlnode_put_attrib(cur2,"stored",str);
     }
+
+    /* check if the message type should be stored offline */
+    switch (jpacket_subtype(m->packet)) {
+	case JPACKET__CHAT:
+	    if (!conf->store_type_chat) {
+		js_bounce_xmpp(m->si, m->packet->x, XTERROR_RECIPIENTUNAVAIL);
+		return M_HANDLED;
+	    }
+	    break;
+	case JPACKET__GROUPCHAT:
+	    if (!conf->store_type_groupchat) {
+		js_bounce_xmpp(m->si, m->packet->x, XTERROR_RECIPIENTUNAVAIL);
+		return M_HANDLED;
+	    }
+	    break;
+	case JPACKET__HEADLINE:
+	    if (!conf->store_type_headline) {
+		js_bounce_xmpp(m->si, m->packet->x, XTERROR_RECIPIENTUNAVAIL);
+		return M_HANDLED;
+	    }
+	    break;
+	case JPACKET__ERROR:
+	    if (!conf->store_type_error) {
+		/* we shouldn't bouce messages of type error, this could result in loops */
+		xmlnode_free(m->packet->x);
+		return M_HANDLED;
+	    }
+	    break;
+	default:
+	    if (!conf->store_type_normal) {
+		js_bounce_xmpp(m->si, m->packet->x, XTERROR_RECIPIENTUNAVAIL);
+		return M_HANDLED;
+	    }
+	    break;
+    }
+
+    /* stamp the message to keep information when it has been received */
     jutil_delay(m->packet->x,"Offline Storage");
 
     if(xdb_act(m->si->xc, m->user->id, NS_OFFLINE, "insert", NULL, m->packet->x)) /* feed the message itself, and do an xdb insert */
@@ -149,12 +197,11 @@ mreturn mod_offline_message(mapi m)
  * all other stanza types are ignored
  *
  * @param m the mapi structure
- * @param arg unused/ignored
+ * @param arg modoffline_conf configuration structure
  * @return M_IGNORE if no message stanza, M_PASS if the message already expired or could not stored offline, M_HANDLED if it has been delivered or stored offline
  */
-mreturn mod_offline_handler(mapi m, void *arg)
-{
-    if(m->packet->type == JPACKET_MESSAGE) return mod_offline_message(m);
+mreturn mod_offline_handler(mapi m, void *arg) {
+    if(m->packet->type == JPACKET_MESSAGE) return mod_offline_message(m, (modoffline_conf)arg);
 
     return M_IGNORE;
 }
@@ -263,9 +310,27 @@ mreturn mod_offline_session(mapi m, void *arg)
  *
  * @param si the session manager instance
  */
-void mod_offline(jsmi si)
-{
+void mod_offline(jsmi si) {
+    xmlnode cfg = js_config(si, "mod_offline");
+    modoffline_conf conf = (modoffline_conf)pmalloco(si->p, sizeof(_modoffline_conf));
+
+    /* which types of messages should be stored offline? */
+    if (cfg == NULL) {
+	/* default is to store all types */
+	conf->store_type_normal = 1;
+	conf->store_type_chat = 1;
+	conf->store_type_headline = 1;
+	conf->store_type_groupchat = 1;
+	conf->store_type_error = 1;
+    } else {
+	conf->store_type_normal = xmlnode_get_tag(cfg, "normal") == NULL ? 0 : 1;
+	conf->store_type_chat = xmlnode_get_tag(cfg, "chat") == NULL ? 0 : 1;
+	conf->store_type_headline = xmlnode_get_tag(cfg, "headline") == NULL ? 0 : 1;
+	conf->store_type_groupchat = xmlnode_get_tag(cfg, "groupchat") == NULL ? 0 : 1;
+	conf->store_type_error = xmlnode_get_tag(cfg, "error") == NULL ? 0 : 1;
+    }
+
     log_debug2(ZONE, LOGT_INIT, "init");
-    js_mapi_register(si,e_OFFLINE, mod_offline_handler, NULL);
+    js_mapi_register(si,e_OFFLINE, mod_offline_handler, (void*)conf);
     js_mapi_register(si,e_SESSION, mod_offline_session, NULL);
 }

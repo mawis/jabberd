@@ -245,6 +245,58 @@
 	  <!-- <presence2xdb/> -->
       </presence>
 
+      <!--
+      Configuration of mod_offline. This defines which types of messages
+      should be stored offline, if a user has no active connection
+      and new messages are received.
+      The default if there is no mod_offline element is to store all
+      messages, if there is a mod_offline element, only the configured
+      types are stored. To disable offline storage place an empty
+      mod_offline element here.
+      -->
+      <!--
+      <mod_offline>
+      </mod_offline>
+      -->
+
+      <!--
+      The history configuration element can be used to instruct the session
+      manager to store a copy of all messages to xdb.
+      The sent element will enable storage of sent messages, the recv
+      element will enable storage of received messages.
+      By default the session manager will not store messages it read
+      from offline storage (with xdb_sql you could construct a delete
+      query, that does not delete the message, but just flag it as delivered,
+      so we don't have to store the message in the history again.
+      Also messages with type error, headline, or groupchat are not stored
+      in the history. This can be changed by defining the attributes
+      special or offline with the values store.
+
+      This is an experimental feature, it might be removed in future
+      versions of this software or it might get incompatible changes.
+      -->
+      <!--
+      <history>
+	  <sent special='ignore'/>
+	  <recv special='ignore' offline='ignore'/>
+      </history>
+      -->
+
+      <!--
+      Configuration of mod_offline: which types of messages should be
+      stored offline, if a user has no active session.
+      If there is no mod_offline element in the configuration,
+      mod_offline defaults to store all types of messages.
+      -->
+      <!--
+      <mod_offline>
+        <normal/>
+	<chat/>
+	<groupchat/>
+	<headline/>
+	<error/>
+      </mod_offline>
+      -->
     </jsm>
 
     <!--
@@ -300,29 +352,6 @@
       <mod_register>@libdir@/libjabberdsm.so</mod_register>
       <mod_xml>@libdir@/libjabberdsm.so</mod_xml>
     </load>
-
-    <!--
-    The history configuration element can be used to instruct the session
-    manager to store a copy of all messages to xdb.
-    The sent element will enable storage of sent messages, the recv
-    element will enable storage of received messages.
-    By default the session manager will not store messages it read
-    from offline storage (with xdb_sql you could construct a delete
-    query, that does not delete the message, but just flag it as delivered,
-    so we don't have to store the message in the history again.
-    Also messages with type error, headline, or groupchat are not stored
-    in the history. This can be changed by defining the attributes
-    special or offline with the values store.
-
-    This is an experimental feature, it might be removed in future
-    versions of this software or it might get incompatible changes.
-    -->
-    <!--
-    <history>
-        <sent special='ignore'/>
-	<recv special='ignore' offline='ignore'/>
-    </history>
-    -->
 
   </service>
 
