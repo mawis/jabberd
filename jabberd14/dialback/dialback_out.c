@@ -203,6 +203,9 @@ void dialback_out_packet(db d, xmlnode x, char *ip)
     /* yay! that was easy, just send the packet :) */
     if(md != NULL)
     {
+        /* if we've got an ip sent, and a connected host, we should be registered! */
+        if(ip != NULL)
+            register_instance(md->d->i, key->server);
         dialback_miod_write(md, x);
         return;
     }
