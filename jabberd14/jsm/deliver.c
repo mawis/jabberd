@@ -73,7 +73,7 @@ result js_packet(instance i, dpacket p, void *arg)
     session s;
     char *type;
 
-    log_debug(ZONE,"(%X)incoming packet %s",si,xmlnode2str(jp->x));
+    log_debug(ZONE,"(%X)incoming packet %s",si,xmlnode2str(p->x));
 
     /* make sure this hostname is in the master table */
     if((ht = (HASHTABLE)ghash_get(si->hosts,p->host)) == NULL)
