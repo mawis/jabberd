@@ -68,6 +68,7 @@ typedef struct cdata_st
     pth_msgport_t pre_auth_mp;
 } _cdata,*cdata;
 
+
 /* makes a route packet, intelligently */
 xmlnode pthsock_make_route(xmlnode x, char *to, char *from, char *type)
 {
@@ -433,9 +434,12 @@ void pthsock_client(instance i, xmlnode x)
     smi s__i;
     xdbcache xc;
     xmlnode cur;
-    int rate_time = 0, rate_points = 0;
+    int set_rate = 0; /* Default false; did they want to change the rate parameters */
+    int rate_time = KARMA_DEF_RATE_T;
+    int rate_points = KARMA_DEF_RATE_P;
     char *host;
-    struct karma k;
+    struct karma *k = karma_new(i->p); /* Get new inialized karma */
+    int set_karma = 0; /* Default false; Did they want to change the karma parameters */
 
     log_debug(ZONE, "pthsock_client loading");
 
@@ -450,14 +454,6 @@ void pthsock_client(instance i, xmlnode x)
     s__i->cfg = xdb_get(xc, jid_new(xmlnode_pool(x), "config@-internal"), "jabber:config:pth-csock");
 
     s__i->host = host = i->id;
-
-    k.val     =KARMA_INIT;
-    k.bytes   = 0;
-    k.max     = KARMA_MAX;
-    k.inc     = KARMA_INC;
-    k.dec     = KARMA_DEC;
-    k.restore = KARMA_RESTORE;
-    k.penalty = KARMA_PENALTY;
 
     for(cur = xmlnode_get_firstchild(s__i->cfg); cur != NULL; cur = cur->next)
     {
@@ -486,22 +482,20 @@ void pthsock_client(instance i, xmlnode x)
         }
         else if(j_strcmp(xmlnode_get_name(cur), "rate") == 0)
         {
-            char *t, *p;
-            t = xmlnode_get_attrib(cur, "time");
-            p = xmlnode_get_attrib(cur, "points");
-            if(t != NULL && p != NULL)
-            {
-                rate_time   = atoi(t);
-                rate_points = atoi(p);
-            }
+            rate_time   = j_atoi(xmlnode_get_attrib(cur, "time"), KARMA_DEF_RATE_T);
+            rate_points = j_atoi(xmlnode_get_attrib(cur, "points"), KARMA_DEF_RATE_P);
+            set_rate = 1; /* set to true */
         }
         else if(j_strcmp(xmlnode_get_name(cur), "karma") == 0)
         {
-            k.max     = j_atoi(xmlnode_get_tag_data(cur, "max"), KARMA_MAX);
-            k.inc     = j_atoi(xmlnode_get_tag_data(cur, "inc"), KARMA_INC);
-            k.dec     = j_atoi(xmlnode_get_tag_data(cur, "dec"), KARMA_DEC);
-            k.restore = j_atoi(xmlnode_get_tag_data(cur, "restore"), KARMA_RESTORE);
-            k.penalty = j_atoi(xmlnode_get_tag_data(cur, "penalty"), KARMA_PENALTY);
+            k->val     = j_atoi(xmlnode_get_tag_data(cur, "init"), KARMA_DEF_INIT);
+            k->max     = j_atoi(xmlnode_get_tag_data(cur, "max"), KARMA_MAX);
+            k->inc     = j_atoi(xmlnode_get_tag_data(cur, "inc"), KARMA_INC);
+            k->dec     = j_atoi(xmlnode_get_tag_data(cur, "dec"), KARMA_DEC);
+            k->restore = j_atoi(xmlnode_get_tag_data(cur, "restore"), KARMA_RESTORE);
+            k->penalty = j_atoi(xmlnode_get_tag_data(cur, "penalty"), KARMA_PENALTY);
+            k->reset_meter = j_atoi(xmlnode_get_tag_data(cur, "resetmeter"), KARMA_DEF_RESETMETER);
+            set_karma = 1; /* set to true */
         }
     }
 
@@ -514,15 +508,11 @@ void pthsock_client(instance i, xmlnode x)
             m = mio_listen(j_atoi(xmlnode_get_attrib(cur, "port"), 5222), xmlnode_get_data(cur), pthsock_client_listen, (void*)s__i, MIO_LISTEN_XML);
             if(m == NULL)
                 return;
-            /* XXX see below -- same applies for rate */
-            if(rate_time != 0 && rate_points != 0)
-                mio_rate(m, rate_time, rate_points);
-            /* XXX note, this isn't quite what i had in mind for karma
-             * since it's not taking the default from <io/> over the 
-             * internal defaults... it should take the c2s config first
-             * any values not there should come from <io/> and any other
-             * non-matched values should use the internal defaults */
-            mio_karma2(m, &k);
+
+            /* Set New rate and points */
+            if(set_rate == 1) mio_rate(m, rate_time, rate_points);
+            /* Set New karma values */
+            if(set_karma == 1) mio_karma2(m, k);
         }
     }
     else /* no special config, use defaults */
@@ -531,9 +521,10 @@ void pthsock_client(instance i, xmlnode x)
         m = mio_listen(5222, NULL, pthsock_client_listen, (void*)s__i, MIO_LISTEN_XML);
         if(m == NULL)
             return;
-        if(rate_time != 0 && rate_points != 0)
-            mio_rate(m, rate_time, rate_points);
-        mio_karma2(m, &k);
+        /* Set New rate and points */
+        if(set_rate == 1) mio_rate(m, rate_time, rate_points);
+        /* set new karma valuse */
+        if(set_karma == 1) mio_karma2(m, k);
     }
 
 #ifdef HAVE_SSL
@@ -546,10 +537,10 @@ void pthsock_client(instance i, xmlnode x)
             m = mio_listen(j_atoi(xmlnode_get_attrib(cur, "port"), 5223), xmlnode_get_data(cur), pthsock_client_listen, (void*)s__i, MIO_SSL_ACCEPT, mio_handlers_new(MIO_SSL_READ, MIO_SSL_WRITE, MIO_XML_PARSER));
             if(m == NULL)
                 return;
-            if(rate_time != 0 && rate_points != 0)
-                mio_rate(m, rate_time, rate_points);
-
-            mio_karma2(m, &k);
+            /* Set New rate and points */
+            if(set_rate == 1) mio_rate(m, rate_time, rate_points);
+            /* set karma valuse */
+            if(set_karma == 1) mio_karma2(m, &k);
         }
     }
     else
@@ -558,10 +549,10 @@ void pthsock_client(instance i, xmlnode x)
         m = mio_listen(j_atoi(xmlnode_get_attrib(cur, "port"), 5223), xmlnode_get_data(cur), pthsock_client_listen, (void*)s__i, MIO_SSL_ACCEPT, mio_handlers_new(MIO_SSL_READ, MIO_SSL_WRITE, MIO_XML_PARSER));
         if(m == NULL)
             return;
-        if(rate_time != 0 && rate_points != 0)
-            mio_rate(m, rate_time, rate_points);
-    
-        mio_karma2(m, &k);
+        /* Set New rate and points */
+        if(set_rate == 1) mio_rate(m, rate_time, rate_points);
+        /* Set New karma values */ 
+        if(set_karma == 1) mio_karma2(m, &k);
     }
                    
 #endif

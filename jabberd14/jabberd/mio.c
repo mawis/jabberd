@@ -41,7 +41,7 @@
    this way, the component does not have to deal with any complexeties of
    socket functions.
 */
-
+#define MIO
 #include <jabberd.h>
 
 /********************************************************
@@ -73,14 +73,16 @@ typedef struct mio_connect_st
 ios mio__data = NULL;
 extern xmlnode greymatter__;
 
-int KARMA_DEF_INIT    = KARMA_INIT;
-int KARMA_DEF_MAX     = KARMA_MAX;
-int KARMA_DEF_INC     = KARMA_INC;
-int KARMA_DEF_DEC     = KARMA_DEC;
-int KARMA_DEF_PENALTY = KARMA_PENALTY;
-int KARMA_DEF_RESTORE = KARMA_RESTORE;
-int KARMA_DEF_RATE_T  = 5;
-int KARMA_DEF_RATE_P  = 25;
+int KARMA_DEF_HEARTBEAT  = KARMA_HEARTBEAT;
+int KARMA_DEF_INIT       = KARMA_INIT;
+int KARMA_DEF_MAX        = KARMA_MAX;
+int KARMA_DEF_INC        = KARMA_INC;
+int KARMA_DEF_DEC        = KARMA_DEC;
+int KARMA_DEF_PENALTY    = KARMA_PENALTY;
+int KARMA_DEF_RESTORE    = KARMA_RESTORE;
+int KARMA_DEF_RESETMETER = KARMA_RESETMETER;
+int KARMA_DEF_RATE_T     = 5;
+int KARMA_DEF_RATE_P     = 25;
 
 int _mio_allow_check(const char *address)
 {
@@ -192,21 +194,25 @@ result _karma_heartbeat(void*arg)
     /* loop through the list, and add karma where appropriate */
     for(cur = mio__data->master__list; cur != NULL; cur = cur->next)
     {
-        int was_negative = 0;
-        /* don't update if we are closing, or pre-initilized */
-        if(cur->state == state_CLOSE || cur->k.val == KARMA_INIT) 
-            continue;
-
-        /* if we are being punished, set the flag */
-        if(cur->k.val < 0) was_negative = 1; 
-
-        /* possibly increment the karma */
-        karma_increment( &cur->k );
-
-        /* punishment is over */
-        if(was_negative && cur->k.val >= 0)  
-        {
-            pth_raise(mio__data->t, SIGUSR2);
+        if(cur->k.dec != 0)
+        { /* Karma is enabled for this connection */
+            int was_negative = 0;
+            /* don't update if we are closing, or pre-initilized */
+            if(cur->state == state_CLOSE || cur->k.init == 0) 
+                continue;
+     
+            /* if we are being punished, set the flag */
+            if(cur->k.val < 0) was_negative = 1; 
+     
+            /* possibly increment the karma */
+            karma_increment( &cur->k );
+     
+            /* punishment is over */
+            if(was_negative && cur->k.val >= 0)  
+            {
+               log_debug(ZONE, "Punishment Over for socket %d: ", cur->fd);
+               pth_raise(mio__data->t, SIGUSR2);
+            }
         }
     }
 
@@ -617,14 +623,21 @@ void _mio_main(void *arg)
             if(cur->fd > maxfd)
                 maxfd = cur->fd;
 
-            /* if the sock is not in the read set, and has good karma,
+            /* if the sock is not in the read set, and has good karma and we got a non read event,
              * or if we need to initialize this socket */
-            if(cur->k.val == KARMA_INIT || (retval != -1 && !FD_ISSET(cur->fd, &all_rfds) && cur->k.val >= 0) )
+            if(cur->k.init == 0 || (!FD_ISSET(cur->fd, &all_rfds) && cur->k.val >= 0) )
             {
-                log_debug(ZONE, "socket %d has restore karma %d -=> %d", cur->fd, cur->k.val, cur->k.restore);
-                /* reset the karma to restore val */
-                cur->k.val = cur->k.restore;
-
+                if(cur->k.init == 0)
+                {
+                    /* set to intialized */
+                    cur->k.init = 1;
+                    log_debug(ZONE, "socket %d has been intialized with starting karma %d ", cur->fd, cur->k.val);
+                }
+                else
+                {
+                    /* reset the karma to restore val */
+                    log_debug(ZONE, "socket %d has restore karma %d byte meter %d", cur->fd, cur->k.val, cur->k.bytes);
+                }
                 /* and make sure that they are in the read set */
                 FD_SET(cur->fd,&all_rfds);
             }
@@ -684,10 +697,12 @@ void _mio_main(void *arg)
                 }
                 else 
                 {
-                    if(karma_check(&cur->k, len))
-                    { /* they read the max, tsk tsk */
-                        if(cur->k.val <= 0) /* ran out of karma */
-                        {
+                    if(cur->k.dec != 0)
+                    { /* karma is enabled */
+                        karma_decrement(&cur->k, len);
+                        /* Check if that socket ran out of karma */
+                        if(cur->k.val <= 0)
+                        { /* ran out of karma */
                             log_notice("MIO_XML_READ", "socket from %s is out of karma", cur->ip);
                             FD_CLR(cur->fd, &all_rfds); /* this fd is being punished */
                         }
@@ -767,19 +782,23 @@ void mio_init(void)
         mio_ssl_init(xmlnode_get_tag(io, "ssl"));
 #endif
 
-    KARMA_DEF_INIT   = j_atoi(xmlnode_get_tag_data(io, "karma/init"), KARMA_INIT);
-    KARMA_DEF_INIT   = j_atoi(xmlnode_get_tag_data(io, "karma/max"), KARMA_MAX);
-    KARMA_DEF_INIT   = j_atoi(xmlnode_get_tag_data(io, "karma/inc"), KARMA_INC);
-    KARMA_DEF_INIT   = j_atoi(xmlnode_get_tag_data(io, "karma/dec"), KARMA_DEC);
-    KARMA_DEF_INIT   = j_atoi(xmlnode_get_tag_data(io, "karma/penalty"), KARMA_PENALTY);
-    KARMA_DEF_INIT   = j_atoi(xmlnode_get_tag_data(io, "karma/restore"), KARMA_RESTORE);
-    KARMA_DEF_RATE_T = j_atoi(xmlnode_get_attrib(xmlnode_get_tag(io, "rate"), "time"), 5);
-    KARMA_DEF_RATE_P = j_atoi(xmlnode_get_attrib(xmlnode_get_tag(io, "rate"), "points"), 25);
+    KARMA_DEF_INIT       = j_atoi(xmlnode_get_tag_data(io, "karma/init"), KARMA_INIT);
+    KARMA_DEF_MAX        = j_atoi(xmlnode_get_tag_data(io, "karma/max"), KARMA_MAX);
+    KARMA_DEF_INC        = j_atoi(xmlnode_get_tag_data(io, "karma/inc"), KARMA_INC);
+    KARMA_DEF_DEC        = j_atoi(xmlnode_get_tag_data(io, "karma/dec"), KARMA_DEC);
+    KARMA_DEF_PENALTY    = j_atoi(xmlnode_get_tag_data(io, "karma/penalty"), KARMA_PENALTY);
+    KARMA_DEF_RESTORE    = j_atoi(xmlnode_get_tag_data(io, "karma/restore"), KARMA_RESTORE);
+    KARMA_DEF_RATE_T     = j_atoi(xmlnode_get_attrib(xmlnode_get_tag(io, "rate"), "time"), 5);
+    KARMA_DEF_RATE_P     = j_atoi(xmlnode_get_attrib(xmlnode_get_tag(io, "rate"), "points"), 25);
+    KARMA_DEF_RESETMETER = j_atoi(xmlnode_get_tag_data(io, "karma/resetmeter"), KARMA_RESETMETER);
+
+    /* Global settings for karma */
+    KARMA_DEF_HEARTBEAT = j_atoi(xmlnode_get_tag_data(io, "karma/heartbeat"), KARMA_HEARTBEAT);
 
 
     if(mio__data == NULL)
     {
-        register_beat(j_atoi(xmlnode_get_tag_data(io, "heartbeat"), KARMA_HEARTBEAT), _karma_heartbeat, NULL);
+        register_beat(KARMA_DEF_HEARTBEAT, _karma_heartbeat, NULL);
 
         /* malloc our instance object */
         p            = pool_new();
@@ -996,12 +1015,7 @@ void mio_karma2(mio m, struct karma *k)
     if(m == NULL)
        return;
 
-    m->k.val     = k->val;
-    m->k.max     = k->max;
-    m->k.inc     = k->inc;
-    m->k.dec     = k->dec;
-    m->k.penalty = k->penalty;
-    m->k.restore = k->restore;
+    karma_copy(&m->k, k);
 }
 
 /*
