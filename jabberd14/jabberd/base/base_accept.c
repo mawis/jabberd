@@ -271,6 +271,7 @@ void base_accept_offline(accept_instance ai, xmlnode x)
             }
             break;
         default:
+            break;
     }
 
     deliver_fail(dpacket_new(x),"Internal Timeout");

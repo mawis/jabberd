@@ -327,7 +327,7 @@ result deliver_config_host(instance i, xmlnode x, void *arg)
     }
 
     for(c = 0; host[c] != '\0'; c++)
-        if(isspace(host[c]))
+        if(isspace((int)host[c]))
         {
             xmlnode_put_attrib(x,"error","The host tag contains illegal whitespace.");
             return r_ERR;
@@ -441,7 +441,10 @@ void deliver(dpacket p, instance i)
 
     /* catch the @-internal xdb crap */
     if(p->type == p_XDB && *(p->host) == '-')
-        return deliver_internal(p, i);
+    {
+        deliver_internal(p, i);
+        return;
+    }
 
     if(deliver__flag == 0)
     { /* postpone delivery till later */
