@@ -98,7 +98,6 @@ char** tokenize_args(pool p, const char* cmdstr)
      char* result_array[100];
      char* result_data = NULL;
      char* token       = NULL;
-     char* tokenbuf    = NULL;
      int   tokencnt    = 0;
      int   i           = 0;
 
@@ -111,13 +110,11 @@ char** tokenize_args(pool p, const char* cmdstr)
 
      /* Tokenize the string, storing the individual token
 	pointers in the result_array */
-     token = strtok_r(result_data, " ", &tokenbuf);
-     while ( (token != NULL) && (tokencnt < 100) )
+     while ( (token = strchr(result_data,' ')) != NULL && (tokencnt < 100) )
      {
-	  /* Insert this token into the result array, and increment our tokencnt */
+         /* Insert this token into the result array, and increment our tokencnt */
+         *token++ = '\0';
 	  result_array[tokencnt++] = token;
-	  /* Get the next token */
-	  token = strtok_r(NULL, " ", &tokenbuf);
      }
 
      /* Allocate the result -- this was overrunning by 4 bytes, added the +1 */

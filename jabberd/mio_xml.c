@@ -142,14 +142,7 @@ void _mio_xml_parser(mio m, const void *vbuf, size_t bufsz)
         nul += 4;
         bufsz = bufsz - (nul - buf);
         buf = nul;
-        mio_write(m,NULL,"HTTP/1.0 200 Ok
-Server: jabber/xmlstream-hack-0.1
-Expires: Fri, 10 Oct 1997 10:10:10 GMT
-Pragma: no-cache
-Cache-control: private
-Connection: close
-
-",-1);
+        mio_write(m,NULL,"HTTP/1.0 200 Ok\r\nServer: jabber/xmlstream-hack-0.1\r\nExpires: Fri, 10 Oct 1997 10:10:10 GMT\r\nPragma: no-cache\r\nCache-control: private\r\nConnection: close\r\n\r\n",-1);
         m->type = type_NORMAL;
     }
 

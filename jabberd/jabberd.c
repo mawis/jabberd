@@ -178,6 +178,8 @@ int main (int argc, char** argv)
     deliver__flag=1;
     deliver(NULL,NULL);
 
+while(1){ pth_sleep(1); };
+
     /* trap signals HUP, INT and TERM */
     sigemptyset(&set);
     sigaddset(&set, SIGHUP);
@@ -308,7 +310,7 @@ int main (int argc, char** argv)
 
     }
 
-    log_alert(NULL,"Recieved Kill.  Jabberd shutting down.");
+    log_alert(NULL,"Recieved Kill %d.  Jabberd shutting down.",sig);
     /* we left the main loop, so we must have recieved a kill signal */
     /* start the shutdown sequence */
 
