@@ -24,6 +24,17 @@ else
     AC_MSG_RESULT(no)
 fi
 
+dnl check if code that is only present to suport legacy extensions should be included
+AC_MSG_CHECKING(if legacy extensions should be included)
+AC_ARG_ENABLE(legacy, AC_HELP_STRING([--enable-legacy], [Legacy extensions]), legacy=yes)
+if test x-$legacy = "x-yes" ; then
+    AC_MSG_RESULT(yes)
+    AC_DEFINE(INCLUDE_LEGACY, 1, [include code for legacy extensions])
+else
+    AC_MSG_RESULT(no)
+fi
+
+
 dnl Check for programs
 AC_PROG_CC
 AC_PROG_INSTALL
@@ -358,15 +369,16 @@ dnl
 dnl generate the platform-settings file, that is used by some legacy components
 dnl removed this part as soon as we do not need it anymore!
 dnl
-printf "configure: creating ./platform-settings for legacy components\n"
+if test x-$legacy = "x-yes" ; then
+    printf "configure: creating ./platform-settings for legacy components\n"
 
-case $host_os in
-    cygwin*)
-        __CYGWIN__="1"
-	;;
-esac
+    case $host_os in
+	cygwin*)
+	    __CYGWIN__="1"
+	    ;;
+    esac
 
-cat << EOF > platform-settings
+    cat << EOF > platform-settings
 #! /bin/sh
 
 # This file is not used by jabberd itself at all
@@ -385,8 +397,7 @@ __CYGWIN__=$__CYGWIN__
 # traditionally there have been other variables in this file too
 # it seems that they are not used by the above mentioned components
 EOF
-chmod 0700 platform-settings
-
-
+    chmod 0700 platform-settings
+fi
 
 printf "\nYou may now type 'make' to build your new Jabber system.\n\n"
