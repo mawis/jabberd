@@ -176,3 +176,12 @@ void log_record(char *id, char *type, char *action, const char *msgfmt, ...)
     deliver(dpacket_new(log), NULL);
 }
 
+int get_debug_flag()
+{
+    return debug_flag;
+}
+
+void set_debug_flag(int v)
+{
+    debug_flag = v;
+}

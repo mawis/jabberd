@@ -125,7 +125,11 @@ case $hosttype in
         LIBS="$LIBS -ldl -lsocket -lnsl -lresolv";;
     FreeBSD)
         XLDFLAGS="$XLDFLAGS -Wl,-E";;
+    CYGWIN*)
+        sh ./cygwin/setup.sh
+        CYGWIN="1";;
     Darwin)
+        CC="cc"
         CFLAGS="$CFLAGS -DTMZONE"
         MCFLAGS="-bundle -undefined suppress -flat_namespace";
         LIBS="$LIBS -ldl";;
@@ -159,6 +163,7 @@ XLDFLAGS=$XLDFLAGS
 PSUBDIR=$PSUBDIR
 PLINK=$PLINK
 JHOME=$JHOME
+__CYGWIN__=$CYGWIN
 EOF
 chmod 0700 platform-settings
 printf "   Done.\n\n"

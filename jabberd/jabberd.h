@@ -103,8 +103,14 @@ void deliver_instance(instance i, dpacket p); /* deliver packet TO the instance,
 /*** global logging/signal symbols ***/
 #define MAX_LOG_SIZE 1024
 extern int debug_flag;
-void debug_log(char *zone, const char *msgfmt, ...);
+int get_debug_flag(void);
+void set_debug_flag(int v);
+#ifdef __CYGWIN__
+#define log_debug if(get_debug_flag()) debug_log
+#else
 #define log_debug if(debug_flag) debug_log
+#endif
+void debug_log(char *zone, const char *msgfmt, ...);
 void log_notice(char *host, const char *msgfmt, ...);
 void log_warn(char *host, const char *msgfmt, ...);
 void log_alert(char *host, const char *msgfmt, ...);

@@ -86,7 +86,7 @@ int main (int argc, char** argv)
             /* loop through the characters, like -Dc */
             if(*c == 'D')
             {
-                debug_flag = 1;
+                set_debug_flag(1);
                 continue;
             }
             if(*c == 'V' || *c == 'v')
@@ -110,7 +110,7 @@ int main (int argc, char** argv)
     /* the special -Z flag provides a list of zones to filter debug output for, flagged w/ a simple hash */
     if((cmd = ghash_get(cmd__line,"Z")) != NULL)
     {
-        debug_flag = 1;
+        set_debug_flag(1);
         debug__zones = ghash_create_pool(jabberd__runtime, 11,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
         while(cmd != NULL)
         {
