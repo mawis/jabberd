@@ -119,7 +119,11 @@ typedef struct ilist_struct
 
 ilist ilist_add(ilist il, instance i)
 {
-    ilist ilnew;
+    ilist cur, ilnew;
+
+    for(cur = il; cur != NULL; cur = cur->next)
+        if(cur->i == i)
+            return cur;
 
     ilnew = pmalloco(i->p, sizeof(_ilist));
     ilnew->i = i;
@@ -142,7 +146,7 @@ ilist ilist_rem(ilist il, instance i)
             return il;
         }
 
-    return NULL;
+    return il;
 }
 
 /* XXX handle removing things from the list too, yuck */
