@@ -22,13 +22,13 @@ jabberd_OBJECTS = \
 	io/base_connect.o \
 	io/base_exec.o \
 	io/base_load.o \
+	io/base_accept.o \
 	log/base_file.o \
 	log/base_format.o \
 	log/base_logtype.o \
 	log/base_stderr.o \
 	xdb/base_cache.o \
-	xdb/base_ns.c
-	#io/base_accept.o \
+	xdb/base_ns.o
 
 all: jabberd_build
 
