@@ -622,22 +622,6 @@ void pthsock_client(instance i, xmlnode x)
             if(set_karma == 1) mio_karma2(m, k);
         }
     }
-/* XXX Added by temas on Feb 26, 2003:  This makes it actually able to remove
- * port 5222
- */
-#if 0
-    else /* no special config, use defaults */
-    {
-        mio m;
-        m = mio_listen(5222, NULL, pthsock_client_listen, (void*)s__i, MIO_LISTEN_XML);
-        if(m == NULL)
-            return;
-        /* Set New rate and points */
-        if(set_rate == 1) mio_rate(m, rate_time, rate_points);
-        /* set new karma valuse */
-        if(set_karma == 1) mio_karma2(m, k);
-    }
-#endif
 
 #ifdef HAVE_SSL
     /* listen on SSL sockets */
@@ -654,17 +638,6 @@ void pthsock_client(instance i, xmlnode x)
             /* set karma valuse */
             if(set_karma == 1) mio_karma2(m, k);
         }
-    }
-    else
-    {
-        mio m;
-        m = mio_listen(j_atoi(xmlnode_get_attrib(cur, "port"), 5223), xmlnode_get_data(cur), pthsock_client_listen, (void*)s__i, MIO_SSL_ACCEPT, mio_handlers_new(MIO_SSL_READ, MIO_SSL_WRITE, MIO_XML_PARSER));
-        if(m == NULL)
-            return;
-        /* Set New rate and points */
-        if(set_rate == 1) mio_rate(m, rate_time, rate_points);
-        /* Set New karma values */ 
-        if(set_karma == 1) mio_karma2(m, k);
     }
                    
 #endif
