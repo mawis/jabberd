@@ -3,7 +3,7 @@
     if(ghash_get(cmd__line,"h") == NULL || (home == NULL && (ghash_get(cmd__line,"s") == NULL || ghash_get(cmd__line,"l") == NULL))) \
     { /* require hostname, and either a HOME or the spool and logs specifically */ \
         fprintf(stderr, "\
-Usage:
+Usage:\n\
  jabberd -h hostname -s /var/spool/jabber -l /var/log/jabber.log &\n\
 Required Parameters:\n\
  -h \t\t A valid hostname that this server is accessible via\n\

@@ -565,6 +565,7 @@ void register_phandler(instance id, order o, phandler f, void *arg)
         h1->next = newh;
         break;
     default:
+        ;
     }
 }
 
@@ -630,6 +631,7 @@ void deliver_fail(dpacket p, char *err)
         }
         break;
     default:
+        ;
     }
 }
 

@@ -125,6 +125,9 @@ case $hosttype in
         LIBS="$LIBS -ldl -lsocket -lnsl -lresolv";;
     FreeBSD)
         XLDFLAGS="$XLDFLAGS -Wl,-E";;
+    Darwin)
+        MCFLAGS="-bundle -undefined suppress";
+        LIBS="$LIBS -ldl";;
     AIX)
         # create an export file for AIX:
 cat <<EOF >jabberd/jabberd.exp

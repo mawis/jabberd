@@ -54,6 +54,7 @@ typedef struct mio_main_st
     mio master__list;  /* a list of all the socks */
     pth_t t;            /* a pointer to thread for signaling */
     int shutdown;
+    int zzz[2];
 } _ios,*ios;
 
 typedef struct mio_connect_st
@@ -211,7 +212,7 @@ result _karma_heartbeat(void*arg)
             if(was_negative && cur->k.val >= 0)  
             {
                log_debug(ZONE, "Punishment Over for socket %d: ", cur->fd);
-               pth_raise(mio__data->t, SIGUSR2);
+               pth_write(mio__data->zzz[1]," ",1);
             }
         }
     }
@@ -374,7 +375,7 @@ mio _mio_accept(mio m)
     log_debug(ZONE, "_mio_accept calling accept on fd #%d", m->fd);
 
     /* pull a socket off the accept queue */
-    fd = (*m->mh->accept)(m, (struct sockaddr*)&serv_addr, &addrlen);
+    fd = (*m->mh->accept)(m, (struct sockaddr*)&serv_addr, (socklen_t*)&addrlen);
     if(fd <= 0)
     {
         return NULL;
@@ -435,7 +436,7 @@ result _mio_connect_timeout(void *arg)
     log_debug(ZONE, "mio_connect taking too long connecting to %s, signaling to stop", cd->ip);
     if(cd->t != NULL)
         pth_raise(cd->t, SIGUSR2);
-    
+
     return r_DONE; /* loop again */
 }
 
@@ -543,7 +544,7 @@ void _mio_connect(void *arg)
 
     /* notify the select loop */
     if(mio__data != NULL)
-        pth_raise(mio__data->t, SIGUSR2);
+        pth_write(mio__data->zzz[1]," ",1);
 
     /* notify the client that the socket is born */
     if(new->cb != NULL)
@@ -560,49 +561,46 @@ void _mio_main(void *arg)
                 rfds,       /* fd set for current reads    */
                 all_wfds,   /* fd set for all writes       */
                 all_rfds;   /* fd set for all reads        */
-    pth_event_t wevt;       /* pth event ring for signal   */
-    sigset_t    sigs;       /* signal set to catch SIGUSR2 */
     mio         cur,
                 temp;    
     char        buf[8192]; /* max socket read buffer      */
-    int         sig,        /* needed to catch signal      */
-                maxlen,
+    int         maxlen,
                 len,
                 retval,
                 maxfd=0;
 
     log_debug(ZONE, "MIO is starting up");
 
-    /* init the signal junk */
-    sigemptyset(&sigs);
-    sigaddset(&sigs, SIGUSR2);
-    pth_sigmask(SIG_BLOCK, &sigs, NULL);
-
     /* init the socket junk */
-    maxfd = 0;
+    maxfd = mio__data->zzz[0];
     FD_ZERO(&all_wfds);
     FD_ZERO(&all_rfds);
     
-    /* init the pth event */
-    wevt = pth_event(PTH_EVENT_SIGS, &sigs, &sig);
-
     /* loop forever -- will only exit when
      * mio__data->master__list is NULL */
     while (1)
     {
         rfds = all_rfds;
         wfds = all_wfds;
-
+log_debug(ZONE,"mio while loop top");
         /* if we are closing down, exit the loop */
         if(mio__data->shutdown == 1 && mio__data->master__list == NULL)
             break;
 
         /* wait for a socket event */
-        retval = pth_select_ev(maxfd+1, &rfds, &wfds, NULL, NULL, wevt);
+        FD_SET(mio__data->zzz[0],&rfds); /* include our wakeup socket */
+        retval = pth_select(maxfd+1, &rfds, &wfds, NULL, NULL);
         /* if retval is -1, fd sets are undefined across all platforms */
 
+log_debug(ZONE,"mio while loop, working");
         /* reset maxfd, in case it changes */
-        maxfd=0;
+        maxfd=mio__data->zzz[0];
+
+        /* check our zzz */
+        if(FD_ISSET(mio__data->zzz[0],&rfds))
+        {
+            pth_read(mio__data->zzz[0],buf,8192);
+        }
 
         /* loop through the sockets, check for stuff to do */
         for(cur = mio__data->master__list; cur != NULL;)
@@ -804,6 +802,7 @@ void mio_init(void)
         p            = pool_new();
         mio__data    = pmalloco(p, sizeof(_ios));
         mio__data->p = p;
+        pipe(mio__data->zzz);
 
         /* start main accept/read/write thread */
         attr = pth_attr_new();
@@ -886,7 +885,7 @@ mio mio_new(int fd, void *cb, void *arg, mio_handlers mh)
 
     /* notify the select loop */
     if(mio__data != NULL)
-        pth_raise(mio__data->t, SIGUSR2);
+        write(mio__data->zzz[1]," ",1);
 
     return new;
 }
@@ -915,7 +914,7 @@ void mio_close(mio m)
 
     m->state = state_CLOSE;
     if(mio__data != NULL)
-        pth_raise(mio__data->t, SIGUSR2);
+        write(mio__data->zzz[1]," ",1);
 }
 
 /* 
@@ -994,7 +993,7 @@ void mio_write(mio m, xmlnode x, char *buffer, int len)
     log_debug(ZONE, "mio_write called on x: %X buffer: %.*s", x, len, buffer);
     /* notify the select loop that a packet needs writing */
     if(mio__data != NULL)
-        pth_raise(mio__data->t, SIGUSR2);
+        write(mio__data->zzz[1]," ",1);
 }
 
 /*

@@ -35,7 +35,7 @@
  * Simple wrapper to make socket creation easy.
  * type = NETSOCKET_SERVER is local listening socket
  * type = NETSOCKET_CLIENT is connection socket
- * type = NETSOCKET_UDP
+ * type = NETSOCKET_UDP is a UDP connection socket
  */
 
 int make_netsocket(u_short port, char *host, int type)
@@ -56,7 +56,7 @@ int make_netsocket(u_short port, char *host, int type)
         return(-1);
 
     saddr = make_addr(host);
-    if(saddr == NULL)
+    if(saddr == NULL && type != NETSOCKET_UDP)
         return(-1);
     sa.sin_family = AF_INET;
     sa.sin_port = htons(port);
@@ -91,12 +91,15 @@ int make_netsocket(u_short port, char *host, int type)
             return(-1);
         }
 
-        /* specify default recipient for read/write */
-        sa.sin_addr.s_addr = saddr->s_addr;
-        if(connect(s,(struct sockaddr*)&sa,sizeof sa) < 0)
+        /* if specified, use a default recipient for read/write */
+        if(host != NULL && saddr != NULL)
         {
-            close(s);
-            return(-1);
+            sa.sin_addr.s_addr = saddr->s_addr;
+            if(connect(s,(struct sockaddr*)&sa,sizeof sa) < 0)
+            {
+                close(s);
+                return(-1);
+            }
         }
     }
 

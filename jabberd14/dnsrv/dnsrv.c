@@ -172,7 +172,7 @@ int dnsrv_fork_and_capture(RESOLVEFUNC f, dns_io di)
      if (pipe(left_fds) < 0 || pipe(right_fds) < 0)
 	  return -1;
 
-     pid = pth_fork();
+     pid = fork();
      if (pid < 0)
 	  return -1;
      else if (pid > 0)		/* Parent */
@@ -183,6 +183,8 @@ int dnsrv_fork_and_capture(RESOLVEFUNC f, dns_io di)
 	  /* Return the in and out file descriptors */
 	  di->in = right_fds[STDIN_FILENO];
 	  di->out = left_fds[STDOUT_FILENO];
+          /* Transmit root element to coprocess */
+          pth_write(di->out, "<stream>", 8);
 	  return pid;
      }
      else			/* Child */
@@ -372,9 +374,6 @@ void* dnsrv_process_io(void* threadarg)
 
      /* Allocate an xstream for talking to the process */
      xs = xstream_new(di->mempool, dnsrv_process_xstream_io, di);
-
-     /* Transmit root element to coprocess */
-     pth_write(di->out, "<stream>", 8);
 
      /* Loop forever */
      while (1)

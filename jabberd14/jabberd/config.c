@@ -178,7 +178,7 @@ int configurate(char *file)
     /* was the there a read/parse error? */
     if(greymatter__ == NULL)
     {
-        fprintf(stderr, "Configuration parsing using %s failed\n",realfile);
+        fprintf(stderr, "Configuration parsing using %s failed: %s\n",realfile,xmlnode_file_borked(realfile));
         return 1;
     }
 

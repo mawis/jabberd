@@ -105,7 +105,7 @@ void *load_symbol(char *func, char *file)
 void *load_loader(char *file)
 {
     void *so_h;
-    char *dlerr;
+    const char *dlerr;
     char message[MAX_LOG_SIZE];
 
     /* load the dso */
@@ -128,7 +128,8 @@ void *load_symbol(char *func, char *file)
 {
     void (*func_h)(instance i, void *arg);
     void *so_h;
-    char *dlerr, *func2;
+    const char *dlerr;
+    char *func2;
     char message[MAX_LOG_SIZE];
 
     if(func == NULL || file == NULL)
