@@ -1,5 +1,6 @@
 2004-05-22  Matthias Wimmer  <m@tthias.net>
 
+    * configure.in: creating platform-settings file for old transports
     * dialback/Makefile.am: looking for jabberdlib.h at the right place
     * dnsrv/Makefile.am: same
     * jsm/Makefile.am: same

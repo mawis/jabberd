@@ -8,7 +8,9 @@ jabberd_SOURCES = jabberd.c static.c
 jabberd_LDADD = $(top_builddir)/jabberd/base/libjabberdbase.la \
 		$(top_builddir)/jabberd/libjabberd.la
 
-noinst_HEADERS = jabberd.h single.h
+noinst_HEADERS = single.h
+
+include_HEADERS = jabberd.h
 
 INCLUDES = -DHOME=\".\" -Ilib
 
