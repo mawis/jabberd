@@ -10,7 +10,6 @@ AM_CONFIG_HEADER(config.h)
 
 dnl helper macros
 sinclude(ac-helpers/ac_define_dir.m4)
-sinclude(ac-helpers/openssl.m4)
 
 dnl for developers
 AC_MSG_CHECKING(if developer mode enabled)
@@ -228,9 +227,10 @@ AC_ARG_ENABLE(ssl, AC_HELP_STRING([--enable-ssl], [Enable protection with SSL/TL
 if test x-$ssl = "x-yes" ; then
     AC_MSG_RESULT(yes)
     AC_DEFINE(HAVE_SSL,,[SSL/TLS with openssl requested])
-    JABBERD_LIB_OPENSSL(0,9,6,2)
-    CFLAGS="$CFLAGS $JABBERD_SSL_INCLUDES"
-    LDFLAGS="$LDFLAGS $JABBERD_SSL_LIBS"
+    PKG_CHECK_MODULES(OPENSSL, openssl >= 0.9.7)
+dnl    JABBERD_LIB_OPENSSL(0,9,6,2)
+    CFLAGS="$CFLAGS $JABBERD_SSL_INCLUDES $OPENSSL_CFLAGS"
+    LDFLAGS="$LDFLAGS $JABBERD_SSL_LIBS $OPENSSL_LIBS"
 else
     AC_MSG_RESULT(no)
 fi

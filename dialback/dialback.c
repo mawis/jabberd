@@ -39,24 +39,22 @@
  * 
  * --------------------------------------------------------------------------*/
 
+/**
+ * @file dialback.c
+ * @brief main file of the dialback component implementing server to server connections
+ *
+ * This is the main file of the dialback component (module) of the Jabber server.
+ *
+ * The dialback protocol is documented in XMPP-core. This module only supports
+ * identity verification using dialback, SASL and STARTTLS is not supported.
+ *
+ * By adding a <legacy/> element to the dialback configuration you can also enable
+ * the old stone-age server to server protocol which shouldn't be needed anymore.
+ * The stone-age protocol as no protection against identity spoofing.
+ */
+
 /*
-    <!-- For use without an external DNS component -->
-  <service id="127.0.0.1 s2s">
-    <host/>
-    <load main="pthsock_server">
-      <pthsock_server>../load/pthsock_server.so</pthsock_server>
-    </load>
-  </service>
-
-  <!-- for use with an external DNS component -->
-  <service id="127.0.0.1 s2s">
-    <host>pthsock-s2s.127.0.0.1</host> <!-- add this host to DNS config section -->
-    <load main="pthsock_server">
-      <pthsock_server>../load/pthsock_server.so</pthsock_server>
-    </load>
-  </service>
-
-DIALBACK: 
+DIALBACK (see XMPP core for a detailed description of this protocol):
 
 A->B
     A: <db:result to=B from=A>...</db:result>
@@ -71,7 +69,13 @@ A->B
 
 #include "dialback.h"
 
-/* we need a decently random string in a few places */
+/**
+ * generate a random string (not thead-safe)
+ *
+ * This function generates a random ASCII string.
+ *
+ * @returns pointer to a string with 40 characters of random data
+ */
 char *dialback_randstr(void)
 {
     static char ret[41];
@@ -81,7 +85,18 @@ char *dialback_randstr(void)
     return ret;
 }
 
-/* convenience */
+/**
+ * convenience function to generate your dialback key (not thread-safe)
+ *
+ * @todo we don't use our own hostname to generate the dialback key, but xmpp-core
+ * requires that we use both end's hostname to generate the key
+ *
+ * @param p the memory pool used
+ * @param secret our dialback secret
+ * @param to the destination of the stream
+ * @param challenge the stream ID that should be verified
+ * @return the dialback key
+ */
 char *dialback_merlin(pool p, char *secret, char *to, char *challenge)
 {
     static char res[41];
@@ -94,6 +109,12 @@ char *dialback_merlin(pool p, char *secret, char *to, char *challenge)
     return res;
 }
 
+/**
+ * write to a managed I/O connection and update the idle time values
+ *
+ * @param md structure holding the mio handle and the elements to keep track of idle time
+ * @param x the xmlnode that should be written to the connection
+ */
 void dialback_miod_write(miod md, xmlnode x)
 {
     md->count++;
@@ -101,6 +122,12 @@ void dialback_miod_write(miod md, xmlnode x)
     mio_write(md->m, x, NULL, -1);
 }
 
+/**
+ * process a packet that has been read from a managed I/O connection and update the idle time values
+ *
+ * @param md structure holding the elements to keep track of idle time (and other elements)
+ * @param x the xmlnode that has been read from the connection
+ */
 void dialback_miod_read(miod md, xmlnode x)
 {
     jpacket jp = jpacket_new(x);
@@ -119,6 +146,13 @@ void dialback_miod_read(miod md, xmlnode x)
     deliver(dpacket_new(x),md->d->i);
 }
 
+/**
+ * create a new wrapper around a managed I/O connection to be able to keep track about idle connections and the state of the dialback
+ *
+ * @param d structure that holds the context of the dialback component instance 
+ * @param m the managed I/O connection
+ * @return pointer to the allocated miod structure
+ */
 miod dialback_miod_new(db d, mio m)
 {
     miod md;
@@ -131,14 +165,29 @@ miod dialback_miod_new(db d, mio m)
     return md;
 }
 
-/******* little wrapper to keep our hash tables in check ****/
+/**
+ * @brief little wrapper to keep our hash tables in check
+ *
+ * This structure is used to pass everything that is needed to the _dialback_miod_hash_cleanup
+ * callback as only one pointer can be passed to this function (it is registered as a pool cleaner function)
+ * but we need multiple values
+ */
 struct miodc
 {
-    miod md;
-    xht ht;
-    jid key;
+    miod md; /**< structure holding the mio handle, idle time values and valid hosts */
+    xht ht; /**< hash containing outgoing connections */
+    jid key; /**< key of this connection in the ht hash, format "destination/source" */
 };
-/* clean up a hashtable entry containing this miod */
+
+/**
+ * Unregister outgoing routings, that have been routed over this connection, that is closed now.
+ *
+ * clean up a hashtable entry containing this miod
+ *
+ * This function is called if the pool assocciated with the miod is freed.
+ *
+ * @param arg pointer to the miodc structure
+ */
 void _dialback_miod_hash_cleanup(void *arg)
 {
     struct miodc *mdc = (struct miodc *)arg;
@@ -159,6 +208,14 @@ void _dialback_miod_hash_cleanup(void *arg)
         log_record(mdc->key->server, "in", "legacy", "%d %s %s", mdc->md->count, mdc->md->m->ip, mdc->key->resource);
     }
 }
+
+/**
+ * registering a connection in the hash of outgoing connections
+ *
+ * @param md structure representing the outgoing connection
+ * @param ht hash table containing all outgoing s2s connections
+ * @param key destination with our source domain as the resource
+ */
 void dialback_miod_hash(miod md, xht ht, jid key)
 {
     struct miodc *mdc;
@@ -178,6 +235,14 @@ void dialback_miod_hash(miod md, xht ht, jid key)
     }
 }
 
+/**
+ * get the cached IP address for an external server
+ *
+ * @param d db structure which contains the context of the dialback component instance
+ * @param host the host for which we need the IP address
+ * @param ip the IP if the caller already knows it (conveniance parameter)
+ * @return the IP of the external server
+ */
 char *dialback_ip_get(db d, jid host, char *ip)
 {
     char *ret;
@@ -192,6 +257,13 @@ char *dialback_ip_get(db d, jid host, char *ip)
     return ret;
 }
 
+/**
+ * put an IP address in our DNS cache
+ *
+ * @param d db structure which contains the context of the dialback component instance
+ * @param host the host for which we put the IP address
+ * @param ip the IP address
+ */
 void dialback_ip_set(db d, jid host, char *ip)
 {
     xmlnode cache, old;
@@ -213,7 +285,14 @@ void dialback_ip_set(db d, jid host, char *ip)
     xmlnode_free(old);
 }
 
-/* phandler callback, send packets to another server */
+/**
+ * phandler callback, send packets to another server
+ *
+ * @param i the dialback instance we are running in
+ * @param dp the dialback packet
+ * @param arg pointer to the db structure with the context of the dialback component instance
+ * @return always r_DONE
+ */
 result dialback_packets(instance i, dpacket dp, void *arg)
 {
     db d = (db)arg;
@@ -243,7 +322,17 @@ result dialback_packets(instance i, dpacket dp, void *arg)
 }
 
 
-/* callback for walking each miod-value host hash tree */
+/**
+ * callback for walking each miod-value host hash tree, close connections that have been idle to long
+ *
+ * The timeout value is configured in the dialback component configuration using the <idletimeout/>
+ * element.
+ *
+ * @param h the hash table containing all connections
+ * @param key unused/ignored (the key of the value in the hash table)
+ * @param data the value in the hash table = the structure holding the connection
+ * @param arg unused/ignored
+ */
 void _dialback_beat_idle(xht h, const char *key, void *data, void *arg)
 {
     miod md = (miod)data;
@@ -254,7 +343,14 @@ void _dialback_beat_idle(xht h, const char *key, void *data, void *arg)
     }
 }
 
-/* heartbeat checker for timed out idle hosts */
+/**
+ * initiate walking the hash of existing s2s connections to check if they have been idle to long
+ *
+ * called as a heartbeat function
+ *
+ * @param arg pointer to the structure holding the context of the dialback component instance
+ * @return always r_DONE
+ */
 result dialback_beat_idle(void *arg)
 {
     db d = (db)arg;
@@ -269,7 +365,12 @@ result dialback_beat_idle(void *arg)
     return r_DONE;
 }
 
-/*** everything starts here ***/
+/**
+ * init and register the dialback component in the server
+ *
+ * @param i the jabber server's data about this instance
+ * @param x xmlnode of this instances configuration (???)
+ */
 void dialback(instance i, xmlnode x)
 {
     db d;
