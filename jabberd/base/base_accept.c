@@ -20,7 +20,7 @@
 #include "jabberd.h"
 
 /* how many seconds until packets begin to "bounce" that should be delivered */
-#define ACCEPT_PACKET_TIMEOUT 600
+#define ACCEPT_PACKET_TIMEOUT 30
 /* how many seconds a socket has to send a valid handshake */
 #define ACCEPT_HANDSHAKE_TIMEOUT 5
 /* the arg to the listen() call */
@@ -102,11 +102,10 @@ result base_accept_phandler(instance i, dpacket p, void *arg)
     /* hack, we are a filter */
     if(s->filter != NULL)
     {
+        /* let the default handler handle this */
+        /* if there is none, the plumber will bounce it */
         if(j_strcmp(s->filter, p->host) != 0)
             return r_PASS;
-
-        /* yay, we match! continue with a copy of the packet */
-        p = dpacket_new(xmlnode_dup(p->x));
     }
 
     d = pmalloco(p->p, sizeof(_drop));
@@ -146,6 +145,7 @@ void base_accept_read_packets(int type, xmlnode x, void *arg)
 
         if(j_strcmp(xmlnode_get_name(x),"handshake") != 0 || (secret = xmlnode_get_data(x)) == NULL)
         {
+            pth_write(a->sock,"<stream:error>Must send handshake first</stream:error>",54);
             xmlnode_free(x);
             return;
         }
@@ -204,6 +204,8 @@ void base_accept_read_packets(int type, xmlnode x, void *arg)
         xmlnode_free(x);
         break;
     default:
+        xmlnode_free(x);
+        break;
     }
 
 }
@@ -266,6 +268,7 @@ void *base_accept_io(void *arg)
         if(a->emp == NULL && pth_event_occurred(a->etime))
         {
             log_debug(ZONE,"io timeout event for %d",a->sock);
+            log_warn(NULL,"base_accept: Timeout on accepted socket");
             pth_write(a->sock,"<stream:error>Timed Out</stream:error>",38);
             pth_write(a->sock,"</stream:stream>",16);
             break;
@@ -273,6 +276,7 @@ void *base_accept_io(void *arg)
     }
 
     log_debug(ZONE,"read thread exiting for %d: %s",a->sock, strerror(errno));
+    log_notice(NULL,"base_accept: connection died on accepted socket");
 
     /* clean up the write side of things first */
     if(a->emp != NULL)
@@ -284,16 +288,33 @@ void *base_accept_io(void *arg)
         {
             if(p != NULL)
             { /* bounce the unsent packet */
-                /* bounce */
-                pool_free(p->p);
+                log_warn(NULL,"base_accept Bouncing packet intended for %s",xmlnode_get_attrib(p->x,"to"));
+                jutil_error(p->x,TERROR_EXTERNAL);
+                if(xmlnode_get_attrib(p->x,"sto")!=NULL)
+                {
+                    char *sto=xmlnode_get_attrib(p->x,"sto");
+                    char *sfrom=xmlnode_get_attrib(p->x,"sfrom");
+                    xmlnode_put_attrib(p->x,"sfrom",sto);
+                    xmlnode_put_attrib(p->x,"sto",sfrom);
+                    jutil_tofrom(p->x);
+                }
+                deliver(p,a->s->i);
             }
 
             /* bounce any waiting in the mp */
             for(d = (drop)pth_msgport_get(a->s->mp);d != NULL; d = (drop)pth_msgport_get(a->s->mp))
             {
-                p = d->p;
-                /* bounce */
-                pool_free(p->p);
+                log_warn(NULL,"base_accept Bouncing packet intended for %s",xmlnode_get_attrib(d->p->x,"to"));
+                jutil_error(d->p->x,TERROR_EXTERNAL);
+                if(xmlnode_get_attrib(d->p->x,"sto")!=NULL)
+                {
+                    char *sto=xmlnode_get_attrib(d->p->x,"sto");
+                    char *sfrom=xmlnode_get_attrib(d->p->x,"sfrom");
+                    xmlnode_put_attrib(d->p->x,"sfrom",sto);
+                    xmlnode_put_attrib(d->p->x,"sto",sfrom);
+                    jutil_tofrom(d->p->x);
+                }
+                deliver(d->p,a->s->i);
             }
         }else{ /* if we were working on a packet, put it back in the default sink */
             if(p != NULL)
@@ -305,9 +326,8 @@ void *base_accept_io(void *arg)
 
     /* cleanup and quit */
     close(a->sock);
-    pool_free(a->p);
-
     pth_event_free(a->eread, PTH_FREE_THIS);
+    pool_free(a->p);
 
     return NULL;
 }
@@ -329,6 +349,9 @@ void *base_accept_listen(void *arg)
     if(root < 0 || listen(root, ACCEPT_LISTEN_BACKLOG) < 0)
     {
         /* XXX log error! */
+        log_debug(ZONE,"base_accept failed to listen on port %s for ip %s",xmlnode_get_attrib(secrets,"port"),xmlnode_get_attrib(secrets,"ip"));
+        log_alert(NULL,"base_accept failed to listen on port %s for ip %s",xmlnode_get_attrib(secrets,"port"),xmlnode_get_attrib(secrets,"ip"));
+        exit(1); /* don't start the server with a bad config */
         return NULL;
     }
 
@@ -338,7 +361,8 @@ void *base_accept_listen(void *arg)
         sock = pth_accept(root, (struct sockaddr *) &sa, (int *) &sa_size);
         if(sock < 0)
         {
-            /* XXX log error! */
+            log_warn(NULL,"base_accept error accepting: %s",strerror(errno));
+            log_alert(NULL,"base_accept not listening on port %s for ip %s",xmlnode_get_attrib(secrets,"port"),xmlnode_get_attrib(secrets,"ip"));
             break;
         }
 
@@ -350,6 +374,7 @@ void *base_accept_listen(void *arg)
         a->sock = sock;
 
         log_debug(ZONE,"new connection on port %d from ip %s as fd %d",port,inet_ntoa(sa.sin_addr),sock);
+        log_notice(NULL,"base_accept: new connection on port %d from ip %s",port,inet_ntoa(sa.sin_addr),sock);
 
         /* spawn io thread */
         pth_spawn(PTH_ATTR_DEFAULT, base_accept_io, (void *)a);
@@ -362,12 +387,25 @@ void *base_accept_listen(void *arg)
 result base_accept_plumber(void *arg)
 {
     sink s = (sink)arg;
+    drop d;
 
     log_debug(ZONE,"plumber checking on sink %X",s);
-    while(s->flag_busy && (time(NULL) - s->last) > ACCEPT_PACKET_TIMEOUT)
-    {
-        /* XXX get the messages from the sink and bounce them intelligently */
-        fprintf(stderr,"base_accept: bouncing packets\n");
+    if((time(NULL) - s->last) > ACCEPT_PACKET_TIMEOUT)
+    { /* packets timed out without anywhere to send them */
+        while((d=(drop)pth_msgport_get(s->mp))!=NULL)
+        {
+            log_warn(NULL,"base_accept Bouncing packet intended for %s",xmlnode_get_attrib(d->p->x,"to"));
+            jutil_error(d->p->x,TERROR_EXTERNAL);
+            if(xmlnode_get_attrib(d->p->x,"sto")!=NULL)
+            {
+                char *sto=xmlnode_get_attrib(d->p->x,"sto");
+                char *sfrom=xmlnode_get_attrib(d->p->x,"sfrom");
+                xmlnode_put_attrib(d->p->x,"sfrom",sto);
+                xmlnode_put_attrib(d->p->x,"sto",sfrom);
+                jutil_tofrom(d->p->x);
+            }
+            deliver(dpacket_new(d->p->x),s->i);
+        }
     }
 
     return r_DONE;
@@ -395,7 +433,7 @@ result base_accept_config(instance id, xmlnode x, void *arg)
 
     /* look for an existing accept section that is the same */
     for(cur = xmlnode_get_firstchild(base_accept__listeners); cur != NULL; cur = xmlnode_get_nextsibling(cur))
-        if(strcmp(port,xmlnode_get_attrib(cur,"port")) == 0 && ((ip == NULL && xmlnode_get_attrib(cur,"ip") == NULL) || strcmp(ip,xmlnode_get_attrib(cur,"ip")) == 0))
+        if(strcmp(port,xmlnode_get_attrib(cur,"port"))==0&&((ip==NULL&&xmlnode_get_attrib(cur,"ip")==NULL)||strcmp(ip,xmlnode_get_attrib(cur,"ip"))==0))
             break;
 
     /* create a new section for this section */
