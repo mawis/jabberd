@@ -1,3 +1,8 @@
+2005-03-10  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/base/base_accept.c: we can now generate longer error messages
+    * dialback/dialback_out.c: improved error messages
+
 2005-03-09  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/mio.c: send mio signal only if no signal already pending
