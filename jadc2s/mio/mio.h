@@ -45,7 +45,7 @@ extern "C" {
 typedef struct mio_st *mio_t;
 
 /* these are the actions and a handler type assigned by the applicaiton using mio */
-typedef enum { action_ACCEPT, action_READ, action_WRITE, action_CLOSE } mio_action_t;
+typedef enum { action_ACCEPT, action_READ, action_WRITE, action_CLOSE, action_IDLE } mio_action_t;
 typedef int (*mio_handler_t) (mio_t m, mio_action_t a, int fd, void* data, void *arg);
 
 /* create/free the mio subsytem */
