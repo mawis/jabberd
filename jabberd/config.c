@@ -16,32 +16,79 @@
  *  Jabber
  *  Copyright (C) 1998-1999 The Jabber Team http://jabber.org/
  */
-
 #include "jabberd.h"
+#define MAX_INCLUDE_NESTING 20
 extern HASHTABLE cmd__line;
+
+
 xmlnode greymatter__ = NULL;
+
+void do_include(int nesting_level,xmlnode x)
+{
+    xmlnode cur;
+    cur=xmlnode_get_firstchild(x);
+    for(;cur!=NULL;)
+    {
+        if(cur->type!=NTYPE_TAG) 
+        {
+            cur=xmlnode_get_nextsibling(cur);
+            continue;
+        }
+        if(j_strcmp(xmlnode_get_name(cur),"jabberd:include")==0)
+        {
+            xmlnode include;
+            char *include_file=xmlnode_get_data(cur);
+            xmlnode include_x=xmlnode_file(include_file);
+            /* check for bad nesting */
+            if(nesting_level>MAX_INCLUDE_NESTING)
+            {
+                printf("ERROR: Included files nested %d levels deep.  Possible Recursion\n",nesting_level);
+                exit(1);
+            }
+            include=cur;
+            xmlnode_hide(include);
+            /* check to see what to insert...
+             * if root tag matches parent tag of the <include/> -- firstchild
+             * otherwise, insert the whole file
+             */
+             if(j_strcmp(xmlnode_get_name(xmlnode_get_parent(cur)),xmlnode_get_name(include_x))==0)
+                xmlnode_insert_node(x,xmlnode_get_firstchild(include_x));
+             else
+                xmlnode_insert_node(x,include_x);
+             do_include(nesting_level+1,include_x);
+             cur=xmlnode_get_nextsibling(cur);
+             continue;
+        }
+        else 
+        {
+            do_include(nesting_level,cur);
+        }
+        cur=xmlnode_get_nextsibling(cur);
+    }
+}
 
 void cmdline_replace(xmlnode x)
 {
-    xmlnode cl=xmlnode_get_tag(x,"jabberd:cl");
     char *flag;
     char *replace_text;
+    xmlnode cur=xmlnode_get_firstchild(x);
 
-    if(cl==NULL)
+    for(;cur!=NULL;cur=xmlnode_get_nextsibling(cur))
     {
-        xmlnode cur=xmlnode_get_firstchild(x);
-        for(;cur!=NULL;cur=xmlnode_get_nextsibling(cur))
+        if(cur->type!=NTYPE_TAG)continue;
+        if(j_strcmp(xmlnode_get_name(cur),"jabberd:cmdline")!=0)
         {
-            if(cur->type!=NTYPE_TAG) continue;
             cmdline_replace(cur);
+            continue;
         }
-    }
-    flag=xmlnode_get_attrib(cl,"flag");
-    replace_text=ghash_get(cmd__line,flag);
-    if(replace_text==NULL) replace_text=xmlnode_get_data(cl);
+        flag=xmlnode_get_attrib(cur,"flag");
+        replace_text=ghash_get(cmd__line,flag);
+        if(replace_text==NULL) replace_text=xmlnode_get_data(cur);
 
-    xmlnode_hide(xmlnode_get_firstchild(x));
-    xmlnode_insert_cdata(x,replace_text,-1);
+        xmlnode_hide(xmlnode_get_firstchild(x));
+        xmlnode_insert_cdata(x,replace_text,-1);
+        break;
+    }
 }
 
 int configurate(char *file)
@@ -50,7 +97,6 @@ int configurate(char *file)
     /* CONFIGXML is the default name for the config file - defined by the build system */
     char def[] = CONFIGXML;
     char *realfile = (char *)def;
-    xmlnode include;
 
     /* if no file name is specified, fall back to the default file */
     if(file != NULL)
@@ -67,13 +113,9 @@ int configurate(char *file)
     }
 
     /* check greymatter for additional includes */
-    while((include=xmlnode_get_tag(greymatter__,"jabberd:include"))!=NULL)
-    {
-        char *include_file=xmlnode_get_data(include);
-        xmlnode include_x=xmlnode_file(include_file);
-        if(include_x!=NULL) xmlnode_insert_node(greymatter__,xmlnode_get_firstchild(include_x));
-        xmlnode_hide(include);
-    }
+    do_include(0,greymatter__);
+    cmdline_replace(greymatter__);
+    printf("SPILLING GREYMATTER:\n%s\n",xmlnode2str(greymatter__));
 
     return 0;
 }
@@ -167,8 +209,6 @@ int configo(int exec)
         /* loop through all this sections children */
         for(curx2 = xmlnode_get_firstchild(curx); curx2 != NULL; curx2 = xmlnode_get_nextsibling(curx2))
         {
-            if(!exec) cmdline_replace(curx2);
-
             /* only handle elements in our namespace */
             if(xmlnode_get_type(curx2) != NTYPE_TAG || xmlnode_get_attrib(curx2, "xmlns") != NULL)
                 continue;

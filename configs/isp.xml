@@ -1,0 +1,71 @@
+<jabber>
+
+  <!-- All xdb lookups go here                           -->
+  <!-- TODO: Change this to a mySQL or Oracle connection -->
+  <xdb id="xdb file">
+    <host/>
+    <load><xdb_file>xdb_file.so</xdb_file></load>
+    <!-- Change this directory to where you want to store user files -->
+    <xdb_file xmlns="jabberd:xdb_file:config"><spool>/var/tmp</spool></xdb_file>
+  </xdb>
+
+  <service id="session manager">
+    <host>ispname.com</host>
+    <host>virtualhost.com</host>
+    <host>otherhosts.com</host>
+    <host>subdomain.ispname.com</host>
+
+    <load main="jsm">
+      <jsm>jsm.so</jsm>
+      <mod_echo>jsm.so</mod_echo>
+      <mod_roster>jsm.so</mod_roster>
+      <mod_time>jsm.so</mod_time>
+      <mod_vcard>jsm.so</mod_vcard>
+      <mod_version>jsm.so</mod_version>
+      <mod_announce>jsm.so</mod_announce>
+      <mod_agents>jsm.so</mod_agents>
+      <mod_admin>jsm.so</mod_admin>
+      <!-- An ISP may not want the following module -->
+      <!-- it allows storage of arbitrary data on   -->
+      <!-- the ISP's server                         -->
+      <mod_private>jsm.so</mod_private>
+      <mod_register>jsm.so</mod_register>
+      <mod_presence>jsm.so</mod_presence>
+      <mod_auth>jsm.so</mod_auth>
+      <mod_auth_sha1>jsm.so</mod_auth_sha1>
+      <mod_filter>jsm.so</mod_filter>
+    </load>
+    <jsm xmlns="jabberd:jsm:config">
+      <agents><jabberd:include>agents_list.xml</jabberd:include></agents>
+      <register/>
+    </jsm>
+  </service>
+
+  <!-- Service to manage incoming client socket connections -->
+  <!-- TODO: Change this to polld                           -->
+  <service id="pthsock client to server manager">
+    <host>pth-csock.127.0.0.1</host>
+    <load><pthsock_client>pthsock_client.so</pthsock_client></load>
+    <pthcsock xmlns='jabberd:pth-csock:config'>
+      <host>pth-csock.127.0.0.1</host>
+      <listen>5222</listen>
+    </pthcsock>
+  </service>
+
+  <!-- the following two services are for Server to server packets   -->
+  <!-- external resolver, so that dns lookups don't block the server -->
+  <service id="External DNS resolver">
+    <host/>
+    <load><dnsrv>dnsrv.so</dnsrv></load>
+    <dnsrv xmlns="jabberd:dnsrv:config">
+     <resendhost>s2s-127.0.0.1</resendhost>
+    </dnsrv>
+  </service>
+  <!-- performs server connections can also perform blocking dns lookups -->
+  <!-- note, this service listens on port 5269 for server-to-server      -->
+  <service id="pthsock server to server manager">
+    <host>s2s-127.0.0.1</host>
+    <load><pthsock_server>pthsock_server.so</pthsock_server></load>
+  </service>
+
+</jabber>
