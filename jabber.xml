@@ -13,28 +13,6 @@
   necessary or desired.
   -->
 
-  <!-- toplevel mio initilization  
-  <io>
-    <karma>
-      <heartbeat>2</heartbeat>
-      <init>10</init>
-      <max>10</max>
-      <inc>1</inc>
-      <dec>-1</dec>
-      <penalty>-5</penalty>
-      <restore>10</restore>
-    </karma>
-    <ssl/>
-  </io>
-  -->
-
-  <!-- ssl for toplevel io initiliaztion
-    <ssl>
-      <key ip='192.168.1.1'>/path/to/cert_and_key.pem</key>
-      <key ip='192.168.1.100'>/path/to/other/cert_and_key.pem</key>
-    </ssl>
-  -->
-
   <!-- 
   The following <service/> section is for the session manager, 
   the most important component within the server. This section
@@ -214,6 +192,7 @@
       <mod_browse>./jsm/jsm.so</mod_browse>
       <mod_admin>./jsm/jsm.so</mod_admin>
       <mod_filter>./jsm/jsm.so</mod_filter>
+      <mod_offline>./jsm/jsm.so</mod_offline>
       <mod_presence>./jsm/jsm.so</mod_presence>
       <mod_auth_plain>./jsm/jsm.so</mod_auth_plain>
       <mod_auth_digest>./jsm/jsm.so</mod_auth_digest>
@@ -368,5 +347,27 @@
   </service>
 
   end of <service/> examples -->
+
+  <!-- toplevel mio initilization  -->
+  <io>
+    <!-- default karma for *all* sockets
+    <karma>
+      <heartbeat>2</heartbeat>
+      <init>10</init>
+      <max>10</max>
+      <inc>1</inc>
+      <dec>-1</dec>
+      <penalty>-5</penalty>
+      <restore>10</restore>
+    </karma>
+    -->
+    <!-- ssl for toplevel io initiliaztion, only works when the server is compiled with openssl!
+    <ssl>
+      <key ip='192.168.1.1'>/path/to/cert_and_key.pem</key>
+      <key ip='192.168.1.100'>/path/to/other/cert_and_key.pem</key>
+    </ssl>
+    -->
+  </io>
+
 
 </jabber>
