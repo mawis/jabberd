@@ -360,11 +360,11 @@ int main(int argc, char **argv)
     /* close client connections */
     for(i = 0; i < c2s->max_fds; i++)
 	if (c2s->conns[i].fd != -1)
-	    conn_close(&c2s->conns[i], "shutting down jadc2s");
+	    conn_close(&c2s->conns[i], STREAM_ERR_SYSTEM_SHUTDOWN, "shutting down jadc2s");
 
     /* close session manager connection */
     c2s->shutting_down = 1;
-    conn_close(c2s->sm, "shutting down jadc2s");
+    conn_close(c2s->sm, STREAM_ERR_SYSTEM_SHUTDOWN, "shutting down jadc2s");
 
     /* exiting, clean up */
     mio_free(c2s->mio);
