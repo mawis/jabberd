@@ -56,6 +56,17 @@ typedef struct mio_main_st
     int shutdown;
 } _ios,*ios;
 
+typedef struct mio_connect_st
+{
+    pool p;
+    char *ip;
+    int port;
+    void *cb;
+    void *cb_arg;
+    mio_connect_func cf;
+    mio_handlers mh;
+} _connect_data,  *connect_data;
+
 /* global object */
 ios mio__data = NULL;
 
@@ -295,6 +306,79 @@ mio _mio_accept(mio m)
     mio_karma2(new, &m->k);
 
     return new;
+}
+
+/* raise a signal on the connecting thread to time it out */
+result _mio_connect_timeout(void *arg)
+{
+    pth_t id = (pth_t)arg;
+
+    log_debug(ZONE, "MIO CONNECT TAKING TO LONG, SIGNALLING TO STOP");
+    if(id != NULL)
+        pth_raise(id, SIGUSR2);
+    
+    return r_UNREG;
+}
+
+void _mio_connect(void *arg)
+{
+    connect_data cd = (connect_data)arg;
+    struct sockaddr_in sa;
+    struct in_addr     *saddr;
+    int                fd,
+                       flag = 1;
+    mio                new;
+    sigset_t           set;
+
+    sigemptyset(&set);
+    sigaddset(&set, SIGUSR2);
+    pth_sigmask(SIG_BLOCK, &set, NULL);
+
+    bzero((void*)&sa, sizeof(struct sockaddr_in));
+
+    /* create a socket to connect with */
+    fd = socket(AF_INET, SOCK_STREAM,0);
+
+    /* set socket options */
+    if(fd < 0 || setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char*)&flag, sizeof(flag)) < 0)
+    {
+        if(cd->cb != NULL)
+            (*(mio_std_cb)cd->cb)(NULL, MIO_CLOSED, cd->cb_arg);
+        pool_free(cd->p);
+        return;
+    }
+
+
+    saddr = make_addr(cd->ip);
+    if(saddr == NULL)
+    {
+        if(cd->cb != NULL)
+            (*(mio_std_cb)cd->cb)(NULL, MIO_CLOSED, cd->cb_arg);
+        pool_free(cd->p);
+        return;
+    }
+
+    sa.sin_family = AF_INET;
+    sa.sin_port = htons(cd->port);
+    sa.sin_addr.s_addr = saddr->s_addr;
+
+    log_debug(ZONE, "calling connect handler %X", cd->cf);
+    if((*cd->cf)(fd, (struct sockaddr*)&sa, sizeof sa) < 0)
+    {
+        close(fd);
+        /* failed to connect, notify callback */
+        (*(mio_std_cb)cd->cb)(NULL, MIO_CLOSED, cd->cb_arg);
+        pool_free(cd->p);
+        return;
+    }
+
+    /* create the mio for this socket */
+    new = mio_new(fd, cd->cb, cd->cb_arg, cd->mh);
+    pool_free(cd->p);
+
+    /* notify the client that the socket is born */
+    if(new->cb != NULL)
+        (*(mio_std_cb)new->cb)(new, MIO_NEW, new->cb_arg);
 }
 
 /* 
@@ -789,52 +873,34 @@ xmlnode mio_cleanup(mio m)
 /* 
  * request to connect to a remote host 
  */
-mio mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_connect_func f, mio_handlers mh)
+void mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_connect_func f, mio_handlers mh)
 {
-    struct sockaddr_in sa;
-    struct in_addr     *saddr;
-    int                fd,
-                       flag = 1;
-    mio                new;
+    connect_data cd = NULL;
+    pool         p  = NULL;
+
+    /* verify data */
+    if(host == NULL || port == 0) 
+        return;
 
     if(f == NULL)
         f = MIO_RAW_CONNECT;
 
     if(mh == NULL)
-        mh = mio_handlers_new(NULL, NULL, MIO_RAW_PARSER);
+        mh = mio_handlers_new(NULL, NULL, NULL);
 
-    bzero((void*)&sa, sizeof(struct sockaddr_in));
+    /* create the connect struct */
+    p          = pool_new();
+    cd         = pmalloco(p, sizeof(_connect_data));
+    cd->p      = p;
+    cd->ip     = pstrdup(p, host);
+    cd->port   = port;
+    cd->cb     = cb;
+    cd->cb_arg = cb_arg;
+    cd->cf     = f;
+    cd->mh     = mh;
 
-    /* create a socket to connect with */
-    fd = socket(AF_INET, SOCK_STREAM,0);
+    register_beat(timeout, _mio_connect_timeout, (void*)pth_spawn(PTH_ATTR_DEFAULT, (void*)_mio_connect, (void*)cd));
 
-    /* set socket options */
-    if(fd < 0 || setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char*)&flag, sizeof(flag)) < 0)
-        return 0;
-
-    saddr = make_addr(host);
-    if(saddr == NULL)
-        return 0;
-
-    sa.sin_family = AF_INET;
-    sa.sin_port = htons(port);
-    sa.sin_addr.s_addr = saddr->s_addr;
-
-    log_debug(ZONE, "calling connect handler %X", f);
-    if((*f)(fd, (struct sockaddr*)&sa, sizeof sa) < 0)
-    {
-        close(fd);
-        return 0;
-    }
-
-    /* create the mio for this socket */
-    new = mio_new(fd, cb, cb_arg, mh);
-
-    /* notify the client that the socket is born */
-    if(new->cb != NULL)
-        (*(mio_std_cb)new->cb)(new, MIO_NEW, new->cb_arg);
-
-    return new;
 }
 
 /* 

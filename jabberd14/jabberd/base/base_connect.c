@@ -264,11 +264,7 @@ result base_connect_config(instance id, xmlnode x, void *arg)
      register_phandler(id, o_DELIVER, base_connect_deliver, (void*)ci);
      
      /* Make a connection to the host */
-     if((mio_connect(ip, atoi(port), base_connect_process_xml, (void*)ci, timeout, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER))) == NULL)
-     {
-        log_warn("MIO_CONNECT", "failed to connect to %s on port %d for instance %s", ip, port, id->id);
-        exit(1);
-     }
+     mio_connect(ip, atoi(port), base_connect_process_xml, (void*)ci, timeout, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER));
 
      log_debug(ZONE, "Activating configuration: %s\n", xmlnode2str(x));
      return r_DONE;
