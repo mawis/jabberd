@@ -189,7 +189,9 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg)
 	  /* Host name was not found, something is _TERRIBLY_ wrong! */
 	  else
 	       log_debug(ZONE, "Recv'd unknown host/ip request: %s\n", xmlnode2str(x));
+
      }
+     xmlnode_free(x);
 }
 
 void* dnsrv_process_io(void* threadarg)
