@@ -22,6 +22,8 @@ result base_stdout_phandler(instance i, dpacket p, void *arg)
     pth_msgport_t mp = (pth_msgport_t)arg;
     drop d;
 
+    log_debug(ZONE,"stdout packet being queued");
+
     d = pmalloco(p->p, sizeof(_drop));
     d->p = p;
 
@@ -32,79 +34,15 @@ result base_stdout_phandler(instance i, dpacket p, void *arg)
 
 void base_stdin_packets(int type, xmlnode x, void *arg)
 {
-    xmlnode cur;
-
     switch(type)
     {
     case XSTREAM_ROOT:
-        /* create and send header, store the id="" in the stdoutor to validate the secret l8r */
-        cur = xstream_header("jabberd:sockets",NULL,NULL);
-        a->id = pstrdup(a->p,xmlnode_get_attrib(cur,"id"));
-        block = xstream_header_char(cur);
-        pth_write(a->sock,block,strlen(block));
-        xmlnode_free(cur);
+        log_debug(ZONE,"stdin opened stream");
         break;
     case XSTREAM_NODE:
-        if(a->emp != NULL) /* we're full open */
-        {
-            deliver(dpacket_new(x), a->s->i);
-            return;
-        }
-
-        if(j_strcmp(xmlnode_get_name(x),"handshake") != 0 || (secret = xmlnode_get_data(x)) == NULL)
-        {
-            xmlnode_free(x);
-            return;
-        }
-
-        /* check the <handshake>...</handshake> against all known secrets for this port/ip */
-        for(cur = xmlnode_get_firstchild(a->secrets); cur != NULL; cur = xmlnode_get_nextsibling(cur))
-        {
-            s = spool_new(xmlnode_pool(x));
-            spooler(s,a->id,xmlnode_get_data(cur),s);
-            if(j_strcmp(shahash(spool_print(s)),secret) == 0 || j_strcmp(xmlnode_get_data(cur),secret) == 0) /* XXX REMOVE the cleartext option before release! */
-                break;
-        }
-
-        if(cur == NULL)
-        {
-            pth_write(a->sock,"<stream:error>Invalid Handshake</stream:error>",46);
-            pth_write(a->sock,"</stream:stream>",16);
-            a->ering = NULL; /* cancel the io loop */
-            return;
-        }
-
-        /* setup flags in stdoutor now that we're ok */
-        a->s = (sink)xmlnode_get_vattrib(cur,"sink");
-        block = xmlnode_get_attrib(x,"host");
-
-        /* special hack, to totally ignore the "write" side for this connection */
-        if(j_strcmp(block,"void") == 0) return; 
-
-        /* the default sink is in use or we want our own transient one, make it */
-        if(a->s->flag_open || block != NULL)
-        {
-            p = pool_new();
-            snew = pmalloco(p, sizeof(_sink));
-            snew->mp = pth_msgport_create("base_stdout_transient");
-            snew->i = a->s->i;
-            snew->last = time(NULL);
-            snew->p = p;
-            snew->flag_transient = 1;
-            snew->filter = pstrdup(p,block);
-            a->s = snew;
-            if(block != NULL) /* if we're filtering to a specific host, we need to do that BEFORE delivery! ugly... is the o_* crap any use? */
-                register_phandler(a->s->i, o_MODIFY, base_stdout_phandler, (void *)snew);
-            else
-                register_phandler(a->s->i, o_DELIVER, base_stdout_phandler, (void *)snew);
-        }
-
-        pth_write(a->sock,"<handshake/>",12);
-        a->s->flag_open = 1; /* signal that the sink is in use */
-
-        /* set up the mp event into the ring to enable packets to be fed back */
-        a->emp = pth_event(PTH_EVENT_MSG,a->s->mp);
-        a->ering = pth_event_concat(a->eread, a->emp, NULL);
+        /* deliver the packets coming on stdin... they aren't associated with an instance really */
+        log_debug(ZONE,"stdin incoming packet");
+        deliver(dpacket_new(x), NULL); 
         break;
     default:
     }
@@ -112,229 +50,92 @@ void base_stdin_packets(int type, xmlnode x, void *arg)
 }
 
 /* thread to handle io from socket */
-void *base_stdin(void *arg)
+void *base_stdoutin(void *arg)
 {
-    stdoutor a = (stdoutor)arg;
+    pth_msgport_t mp = (pth_msgport_t)arg;
     xstream xs;
     int len;
     char buff[1024], *block;
     dpacket p = NULL;
     drop d;
+    xmlnode x;
+    pth_event_t eread, emp, ering;
+    pool xsp;
 
-    log_debug(ZONE,"io thread starting for %d",a->sock);
+    log_debug(ZONE,"io thread starting");
 
-    xs = xstream_new(a->p, base_stdout_read_packets, arg);
-    a->eread = pth_event(PTH_EVENT_FD|PTH_UNTIL_FD_READABLE,a->sock);
-    a->etime = pth_event(PTH_EVENT_TIME, pth_timeout(stdout_HANDSHAKE_TIMEOUT,0));
-    a->ering = pth_event_concat(a->eread, a->etime, NULL);
+    /* send the header to stdout */
+    x = xstream_header("jabberd:sockets",NULL,NULL);
+    block = xstream_header_char(x);
+    pth_write(STDOUT_FILENO,block,strlen(block));
+    xmlnode_free(x);
 
-    /* spin waiting on data from the socket, feeding to xstream */
-    while(pth_wait(a->ering) > 0)
+    /* start xstream and event for reading packets from stdin */
+    xsp = pool_new();
+    xs = xstream_new(xsp, base_stdin_packets, NULL);
+    eread = pth_event(PTH_EVENT_FD|PTH_UNTIL_FD_READABLE,STDIN_FILENO);
+
+    /* event for packets going to stdout and ring em all together */
+    emp = pth_event(PTH_EVENT_MSG,mp);
+    ering = pth_event_concat(eread, emp, NULL);
+
+    /* spin waiting on the mp(stdout) or read(stdin) events */
+    while(pth_wait(ering) > 0)
     {
         /* handle reading the incoming stream */
-        if(pth_event_occurred(a->eread))
+        if(pth_event_occurred(eread))
         {
-            log_debug(ZONE,"io read event for %d",a->sock);
-            len = pth_read(a->sock, buff, 1024);
+            log_debug(ZONE,"stdin read event");
+            len = pth_read(STDIN_FILENO, buff, 1024);
             if(len <= 0) break;
 
             if(xstream_eat(xs, buff, len) > XSTREAM_NODE) break;
         }
 
         /* handle the packets to be sent to the socket */
-        if(pth_event_occurred(a->emp))
+        if(pth_event_occurred(emp))
         {
-            log_debug(ZONE,"io incoming message event for %d",a->sock);
-
-            /* flag that we're working */
-            a->s->last = time(NULL);
-            a->s->flag_busy = 1;
+            log_debug(ZONE,"io incoming message event for stdout");
 
             /* get packet */
-            d = (drop)pth_msgport_get(a->s->mp);
+            d = (drop)pth_msgport_get(mp);
             p = d->p;
 
             /* write packet phase */
             block = xmlnode2str(p->x);
-            if(pth_write(a->sock, block, strlen(block)) <= 0)
+            if(pth_write(STDOUT_FILENO, block, strlen(block)) <= 0)
                 break;
 
             /* all sent, yay */
             pool_free(p->p);
             p = NULL;
-            a->s->flag_busy = 0;
         }
 
-        /* handle timeout if the handshake hasn't happened yet */
-        if(a->emp == NULL && pth_event_occurred(a->etime))
-        {
-            log_debug(ZONE,"io timeout event for %d",a->sock);
-            pth_write(a->sock,"<stream:error>Timed Out</stream:error>",38);
-            pth_write(a->sock,"</stream:stream>",16);
-            break;
-        }
     }
 
-    log_debug(ZONE,"read thread exiting for %d",a->sock);
+    log_debug(ZONE,"thread exiting");
 
-    /* clean up the write side of things first */
-    if(a->emp != NULL)
-    {
-        a->s->flag_open = a->s->flag_busy = 0;
-
-        /* clean up any waiting packets */
-        if(a->s->flag_transient)
-        {
-            if(p != NULL)
-            { /* bounce the unsent packet */
-                /* bounce */
-                pool_free(p->p);
-            }
-
-            /* bounce any waiting in the mp */
-            for(d = (drop)pth_msgport_get(a->s->mp);d != NULL; d = (drop)pth_msgport_get(a->s->mp))
-            {
-                p = d->p;
-                /* bounce */
-                pool_free(p->p);
-            }
-        }else{ /* if we were working on a packet, put it back in the default sink */
-            if(p != NULL)
-                base_stdout_phandler(a->s->i, p, (void *)(a->s));
-        }
-
-        pth_event_free(a->emp, PTH_FREE_THIS);
-    }
-
-    /* cleanup and quit */
-    close(a->sock);
-    pool_free(a->p);
-
-    pth_event_free(a->eread, PTH_FREE_THIS);
-    pth_event_free(a->etime, PTH_FREE_THIS);
-
-    return NULL;
-}
-
-/* thread to handle io from socket */
-void *base_stdout(void *arg)
-{
-    stdoutor a = (stdoutor)arg;
-    xstream xs;
-    int len;
-    char buff[1024], *block;
-    dpacket p = NULL;
-    drop d;
-
-    log_debug(ZONE,"io thread starting for %d",a->sock);
-
-    xs = xstream_new(a->p, base_stdout_read_packets, arg);
-    a->eread = pth_event(PTH_EVENT_FD|PTH_UNTIL_FD_READABLE,a->sock);
-    a->etime = pth_event(PTH_EVENT_TIME, pth_timeout(stdout_HANDSHAKE_TIMEOUT,0));
-    a->ering = pth_event_concat(a->eread, a->etime, NULL);
-
-    /* spin waiting on data from the socket, feeding to xstream */
-    while(pth_wait(a->ering) > 0)
-    {
-        /* handle reading the incoming stream */
-        if(pth_event_occurred(a->eread))
-        {
-            log_debug(ZONE,"io read event for %d",a->sock);
-            len = pth_read(a->sock, buff, 1024);
-            if(len <= 0) break;
-
-            if(xstream_eat(xs, buff, len) > XSTREAM_NODE) break;
-        }
-
-        /* handle the packets to be sent to the socket */
-        if(pth_event_occurred(a->emp))
-        {
-            log_debug(ZONE,"io incoming message event for %d",a->sock);
-
-            /* flag that we're working */
-            a->s->last = time(NULL);
-            a->s->flag_busy = 1;
-
-            /* get packet */
-            d = (drop)pth_msgport_get(a->s->mp);
-            p = d->p;
-
-            /* write packet phase */
-            block = xmlnode2str(p->x);
-            if(pth_write(a->sock, block, strlen(block)) <= 0)
-                break;
-
-            /* all sent, yay */
-            pool_free(p->p);
-            p = NULL;
-            a->s->flag_busy = 0;
-        }
-
-        /* handle timeout if the handshake hasn't happened yet */
-        if(a->emp == NULL && pth_event_occurred(a->etime))
-        {
-            log_debug(ZONE,"io timeout event for %d",a->sock);
-            pth_write(a->sock,"<stream:error>Timed Out</stream:error>",38);
-            pth_write(a->sock,"</stream:stream>",16);
-            break;
-        }
-    }
-
-    log_debug(ZONE,"read thread exiting for %d",a->sock);
-
-    /* clean up the write side of things first */
-    if(a->emp != NULL)
-    {
-        a->s->flag_open = a->s->flag_busy = 0;
-
-        /* clean up any waiting packets */
-        if(a->s->flag_transient)
-        {
-            if(p != NULL)
-            { /* bounce the unsent packet */
-                /* bounce */
-                pool_free(p->p);
-            }
-
-            /* bounce any waiting in the mp */
-            for(d = (drop)pth_msgport_get(a->s->mp);d != NULL; d = (drop)pth_msgport_get(a->s->mp))
-            {
-                p = d->p;
-                /* bounce */
-                pool_free(p->p);
-            }
-        }else{ /* if we were working on a packet, put it back in the default sink */
-            if(p != NULL)
-                base_stdout_phandler(a->s->i, p, (void *)(a->s));
-        }
-
-        pth_event_free(a->emp, PTH_FREE_THIS);
-    }
-
-    /* cleanup and quit */
-    close(a->sock);
-    pool_free(a->p);
-
-    pth_event_free(a->eread, PTH_FREE_THIS);
-    pth_event_free(a->etime, PTH_FREE_THIS);
+    /* we shouldn't ever get here, I don't think */
+    pth_event_free(emp, PTH_FREE_THIS);
+    pth_event_free(eread, PTH_FREE_THIS);
+    pool_free(xsp);
 
     return NULL;
 }
 
 result base_stdout_config(instance id, xmlnode x, void *arg)
 {
-    static int flag_stdin = 0;
-    static pth_msgport_t mp = pth_msgport_create("base_stdout");
-    xmlnode cur;
+    static pth_msgport_t mp = NULL;
 
     if(id == NULL) return r_PASS;
 
     log_debug(ZONE,"base_stdout_config performing configuration");
 
-    if(!flag_stdin)
+    /* create the mp and start the io thread only once */
+    if(mp == NULL)
     {
-        pth_spawn(PTH_ATTR_DEFAULT, base_stdin, NULL);
-        flag_stdin = 1;
+        mp = pth_msgport_create("base_stdout");
+        pth_spawn(PTH_ATTR_DEFAULT, base_stdoutin, (void *)mp);
     }
 
     /* register phandler with the stdout mp */
