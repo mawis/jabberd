@@ -1,0 +1,652 @@
+/* --------------------------------------------------------------------------
+ *
+ * License
+ *
+ * The contents of this file are subject to the Jabber Open Source License
+ * Version 1.0 (the "JOSL").  You may not copy or use this file, in either
+ * source code or executable form, except in compliance with the JOSL. You
+ * may obtain a copy of the JOSL at http://www.jabber.org/ or at
+ * http://www.opensource.org/.  
+ *
+ * Software distributed under the JOSL is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied.  See the JOSL
+ * for the specific language governing rights and limitations under the
+ * JOSL.
+ *
+ * Copyrights
+ * 
+ * Portions created by or assigned to Jabber.com, Inc. are 
+ * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
+ * information for Jabber.com, Inc. is available at http://www.jabber.com/.
+ *
+ * Portions Copyright (c) 1998-1999 Jeremie Miller.
+ * 
+ * Acknowledgements
+ * 
+ * Special thanks to the Jabber Open Source Contributors for their
+ * suggestions and support of Jabber.
+ * 
+ * Alternatively, the contents of this file may be used under the terms of the
+ * GNU General Public License Version 2 or later (the "GPL"), in which case
+ * the provisions of the GPL are applicable instead of those above.  If you
+ * wish to allow use of your version of this file only under the terms of the
+ * GPL and not to allow others to use your version of this file under the JOSL,
+ * indicate your decision by deleting the provisions above and replace them
+ * with the notice and other provisions required by the GPL.  If you do not
+ * delete the provisions above, a recipient may use your version of this file
+ * under either the JOSL or the GPL. 
+ * 
+ * --------------------------------------------------------------------------*/
+
+#include <jabberd.h>
+
+/** the namespace of variables in templates in the configuration */
+#define NS_XDBSQL "http://jabberd.org/ns/xdbsql"
+
+#ifdef HAVE_MYSQL
+#  include <mysql/mysql.h>
+#  include <mysql/errmsg.h>
+#endif
+
+/**
+ * the maximum number of defined namespaces to handle, can be overridden with
+ * the <maxns/> configuration setting
+ */
+#define XDBSQL_MAXNS_PRIME 101
+
+/**
+ * @file xdb_sql.c
+ * @brief xdb module that handles the requests using a SQL database
+ *
+ * xdb_sql is an implementation of a xdb module for jabberd14, that handles
+ * the xdb requests using an underlying SQL database. Currently only mysql
+ * is supported.
+ */
+
+/**
+ * structure that holds the data used by xdb_sql internally
+ */
+typedef struct xdbsql_struct {
+    xht		namespace_defs;		/**< definitions of queries for the different namespaces */
+#ifdef HAVE_MYSQL
+    int		use_mysql;		/**< if we want to use the mysql driver */
+    MYSQL	*mysql;			/**< our database handle */
+    char	*mysql_user;		/**< username for mysql server */
+    char	*mysql_password;	/**< password for mysql server */
+    char	*mysql_host;		/**< hostname of the mysql server */
+    char	*mysql_database;	/**< database on the mysql server */
+    int		mysql_port;		/**< port of the mysql server */
+    char	*mysql_socket;		/**< socket of the mysql server */
+    unsigned long mysql_flag;		/**< flags for the connection to the mysql server */
+#endif
+} *xdbsql, _xdbsql;
+
+/**
+ * structure that holds the information how to handle a namespace
+ */
+typedef struct xdbsql_ns_def_struct {
+    char	**get_query;		/**< SQL query to handle get requests */
+    xmlnode	get_result;		/**< template for results for get requests */
+    char	**set;			/**< SQL query to handle set requests */
+    char	**delete;		/**< SQL query to delete old values */
+} *xdbsql_ns_def, _xdbsql_ns_def;
+
+/**
+ * connect to the mysql server
+ *
+ * @param i the instance we are running in
+ * @param xq our internal instance data
+ */
+void xdb_sql_mysql_connect(instance i, xdbsql xq) {
+#ifdef HAVE_MYSQL
+    /* connect to the database */
+    if (mysql_real_connect(xq->mysql, xq->mysql_host, xq->mysql_user, xq->mysql_password, xq->mysql_database, xq->mysql_port, xq->mysql_socket, xq->mysql_flag) == NULL) {
+	log_error(i->id, "failed to connect to mysql server: %s", mysql_error(xq->mysql));
+    }
+#else
+    log_debug2(ZONE, LOGT_STRANGE, "xdb_sql_mysql_connect called, but not compiled in.");
+#endif
+}
+
+/**
+ * add a string to a spool while escaping some characters
+ *
+ * @param destination the result spool
+ * @param new_string what should be added (this gets destroyed!!!)
+ */
+void xdb_sql_spool_add_escaped(spool destination, char *new_string) {
+    char *first_to_escape = NULL;
+    char *ptr = NULL;
+    char character_to_escape[2] = "\0\0";
+
+    /* check for ' */
+    first_to_escape = strchr(new_string, '\'');
+
+    /* is there a " earlier? */
+    ptr = strchr(new_string, '"');
+    if (ptr != NULL && (ptr < first_to_escape || first_to_escape == NULL)) {
+	first_to_escape = ptr;
+    }
+
+    /* is there a \ earlier? */
+    ptr = strchr(new_string, '\\');
+    if (ptr != NULL && (ptr < first_to_escape || first_to_escape == NULL)) {
+	first_to_escape = ptr;
+    }
+
+    /* is there something to escape? */
+    if (first_to_escape == NULL) {
+	/* no */
+	spool_add(destination, new_string);
+	return;
+    }
+
+    /* add up to the character that is escaped and this character with escapeing ... */
+    character_to_escape[0] = first_to_escape[0];
+    first_to_escape[0] = 0;
+    spooler(destination, new_string, "\\", character_to_escape, destination);
+    
+    /* and call recursive */
+    xdb_sql_spool_add_escaped(destination, first_to_escape+1);
+}
+
+/**
+ * use the template for a query to construct a real query
+ *
+ * @param template the template to construct the SQL query
+ * @param xdb_query the xdb query
+ * @return SQL query
+ */
+char *xdb_sql_construct_query(char **template, xmlnode xdb_query) {
+    int index = 0;		/* token counter */
+    spool result_spool = spool_new(xdb_query->p); /* where to store the result */
+
+    /* sanity check */
+    if (template == NULL || xdb_query == NULL) {
+	return NULL;
+    }
+
+    /* debugging */
+    log_debug2(ZONE, LOGT_STORAGE, "constructing query using xdb_query %s", xmlnode2str(xdb_query));
+
+    /* construct the result */
+    while (template[index] != NULL) {
+	if (index % 2 == 0) {
+	    /* copy token */
+	    spool_add(result_spool, template[index]);
+	} else {
+	    /* substitute token */
+	    char *subst = NULL;
+
+	    /* XXX very hacky way to select attributes on the root element, xpath in xmlnode would be nice */
+	    if (j_strncmp(template[index], "attribute::", 11) == 0) {
+		subst = xmlnode_get_attrib(xdb_query, template[index]+11);
+	    } else {
+		char *ptr;
+		/* text node or the element? */
+		ptr = strstr(template[index], "/text()");
+		if (ptr == NULL || ptr-template[index] != strlen(template[index])-7) {
+		    /* get the element */
+		    subst = xmlnode2str(xmlnode_get_tag(xdb_query, template[index]));
+		} else {
+		    /* get the text content of the element */
+		    ptr = pstrdup(xdb_query->p, template[index]);
+		    strstr(ptr, "/text()")[0] = 0;
+		    subst = xmlnode_get_tag_data(xdb_query, ptr);
+		}
+	    }
+	    xdb_sql_spool_add_escaped(result_spool, pstrdup(result_spool->p, subst));
+	}
+
+	/* next token */
+	index++;
+    }
+
+    return spool_print(result_spool);
+}
+
+/**
+ * find any node in a xmlnode tree that matches the search
+ *
+ * @todo something like this should become a part of xmlnode
+ *
+ * @param root the root of the tree we search in
+ * @param name which element to search
+ * @return the found element, or NULL if no such element
+ */
+xmlnode xdb_sql_find_node_recursive(xmlnode root, const char *name) {
+    xmlnode ptr = NULL;
+
+    /* is it already this node? */
+    if (j_strcmp(xmlnode_get_name(root), name) == 0) {
+	/* we found it */
+	return root;
+    }
+
+    /* check the child nodes */
+    for (ptr = xmlnode_get_firstchild(root); ptr != NULL; ptr = xmlnode_get_nextsibling(ptr)) {
+	xmlnode result = xdb_sql_find_node_recursive(ptr, name);
+	if (result != NULL) {
+	    return result;
+	}
+    }
+
+    /* found nothing */
+    return NULL;
+}
+
+/**
+ * execute a sql query using mysql
+ *
+ * @param i the instance we are running in
+ * @param xq instance internal data
+ * @param query the SQL query to execute
+ * @param template template to construct the result
+ * @param result where to add the results
+ * @return 0 on success, non zero on failure
+ */
+int xdb_sql_execute_mysql(instance i, xdbsql xq, char *query, xmlnode template, xmlnode result) {
+#ifdef HAVE_MYSQL
+    int ret = 0;
+    MYSQL_RES *res = NULL;
+    MYSQL_ROW row = NULL;
+    
+    /* try to execute the query */
+    ret = mysql_query(xq->mysql, query);
+
+    /* failed and we need to reconnect? */
+    if (ret == CR_SERVER_LOST || ret == CR_SERVER_GONE_ERROR) {
+	xdb_sql_mysql_connect(i, xq);
+
+	ret = mysql_query(xq->mysql, query);
+    }
+
+    /* still an error? log and return */
+    if (ret != 0) {
+	log_error(i->id, "mysql query (%s) failed: %s", query, mysql_error(xq->mysql));
+	return 1;
+    }
+
+    /* the mysql query succeded: fetch results */
+    while (res = mysql_store_result(xq->mysql)) {
+	/* how many fields are in the rows */
+	unsigned int num_fields = mysql_num_fields(res);
+
+	/* fetch rows of the result */
+	while (row = mysql_fetch_row(res)) {
+	    xmlnode variable = NULL;
+	    xmlnode new_instance = NULL;
+
+	    log_debug2(ZONE, LOGT_STORAGE, "we got a result row with %u fields", num_fields);
+	    
+	    /* instantiate a copy of the template */
+	    new_instance = xmlnode_dup_pool(result->p, template);
+
+	    /* find variables in the template and replace them with values */
+	    while (variable = xdb_sql_find_node_recursive(new_instance, "value")) {
+		xmlnode parent = xmlnode_get_parent(variable);
+		int value = j_atoi(xmlnode_get_attrib(variable, "value"), 0);
+
+		/* hide the template variable */
+		xmlnode_hide(variable);
+
+		/* insert the value */
+		if (value > 0 && value <= num_fields) {
+		    xmlnode_insert_cdata(parent, row[value-1], -1);
+		}
+	    }
+
+	    /* insert the result */
+	    log_debug2(ZONE, LOGT_STORAGE, "the row results in: %s", xmlnode2str(new_instance));
+	    xmlnode_insert_node(result, xmlnode_get_firstchild(new_instance));
+	}
+
+	/* free the result again */
+	mysql_free_result(res);
+    }
+
+    return 0;
+#else
+    log_debug2(ZONE, LOGT_STRANGE, "xdb_sql_execute_mysql called, but not compiled in.");
+    return 1;
+#endif
+}
+
+/**
+ * execute a sql query
+ *
+ * @param i the instance we are running in
+ * @param xq instance internal data
+ * @param query the SQL query to execute
+ * @param template template to construct the result
+ * @param result where to add the results
+ * @return 0 on success, non zero on failure
+ */
+int xdb_sql_execute(instance i, xdbsql xq, char *query, xmlnode template, xmlnode result) {
+#ifdef HAVE_MYSQL
+    if (xq->use_mysql) {
+	return xdb_sql_execute_mysql(i, xq, query, template, result);
+    }
+#endif
+    log_error(i->id, "SQL query %s has not been handled by any sql driver", query);
+    return 1;
+}
+
+/**
+ * modify xdb query to be a result, that can be sent back
+ *
+ * @param p the packet that should be modified
+ */
+void xdb_sql_makeresult(dpacket p) {
+    xmlnode_put_attrib(p->x, "type", "result");
+    xmlnode_put_attrib(p->x, "to", xmlnode_get_attrib(p->x, "from"));
+    xmlnode_put_attrib(p->x, "from", jid_full(p->id));
+}
+
+/**
+ * callback function that is called by jabberd to handle xdb requests
+ *
+ * @param i the instance we are for jabberd
+ * @param p the packet containing the xdb query
+ * @param arg pointer to our own internal data
+ * @return r_DONE if we could handle the request, r_ERR otherwise
+ */
+result xdb_sql_phandler(instance i, dpacket p, void *arg) {
+    xdbsql xq = (xdbsql)arg;	/* xdb_sql internal data */
+    char *ns = NULL;		/* namespace of the query */
+    xdbsql_ns_def ns_def = NULL; /* pointer to the namespace definitions */
+    int is_set_request = 0;	/* if this is a set request */
+    char *action = NULL;	/* xdb-set action */
+    char *match = NULL;		/* xdb-set match */
+
+    log_debug2(ZONE, LOGT_STORAGE|LOGT_DELIVER, "handling xdb request %s", xmlnode2str(p->x));
+
+    /* get the namespace of the request */
+    ns = xmlnode_get_attrib(p->x, "ns");
+    if (ns == NULL) {
+	log_debug2(ZONE, LOGT_STORAGE|LOGT_STRANGE, "xdb_sql got a xdb request without namespace");
+	return r_ERR;
+    }
+
+    /* check if we know how to handle this namespace */
+    ns_def = xhash_get(xq->namespace_defs, ns);
+    if (ns_def == NULL) {
+	log_error(i->id, "xdb_sql got a xdb request for an unconfigured namespace %s, use this handler only for selected namespaces.", ns);
+	return r_ERR;
+    }
+
+    /* check the type of xdb request */
+    is_set_request = (j_strcmp(xmlnode_get_attrib(p->x, "type"), "set") == 0);
+    if (is_set_request) {
+	/* set request */
+	action = xmlnode_get_attrib(p->x, "action");
+	match = xmlnode_get_attrib(p->x, "match");
+
+	if (action == NULL) {
+	    /* just a boring set */
+
+	    /* delete old values */
+	    char *query = xdb_sql_construct_query(ns_def->delete, p->x);
+	    log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for deletion: %s", query);
+	    if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
+		/* SQL query failed */
+		return r_ERR;
+	    }
+
+	    /* insert new values */
+	    query = xdb_sql_construct_query(ns_def->set, p->x);
+	    log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for insertion: %s", query);
+	    if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
+		/* SQL query failed */
+		return r_ERR;
+	    }
+
+	    /* send result back */
+	    xdb_sql_makeresult(p);
+	    deliver(dpacket_new(p->x), NULL);
+	    return r_DONE;
+	} else if (j_strcmp(action, "insert") == 0) {
+	    /* insert new values */
+	    char *query = xdb_sql_construct_query(ns_def->set, p->x);
+	    log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for insertion: %s", query);
+	    if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
+		/* SQL query failed */
+		return r_ERR;
+	    }
+
+	    /* send result back */
+	    xdb_sql_makeresult(p);
+	    deliver(dpacket_new(p->x), NULL);
+	    return r_DONE;
+	} else {
+	    /* not supported action, probably check */
+	    log_warn(i->id, "unable to handle unsupported xdb-set action '%s'", action);
+	    return r_ERR;
+	}
+    } else {
+	/* get request */
+
+	/* get the record(s) */
+	char *query = xdb_sql_construct_query(ns_def->get_query, p->x);
+	log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for selection: %s", query);
+	if (xdb_sql_execute(i, xq, query, ns_def->get_result, p->x)) {
+	    /* SQL query failed */
+	    return r_ERR;
+	}
+
+	/* construct the result */
+	xdb_sql_makeresult(p);
+	deliver(dpacket_new(p->x), NULL);
+	return r_DONE;
+    }
+}
+
+/**
+ * init the mysql driver
+ *
+ * @param i the instance we are (jabberd's view)
+ * @param xq our internal instance data
+ * @param config the configuration node of this instance
+ */
+void xdb_sql_mysql_init(instance i, xdbsql xq, xmlnode config) {
+#ifdef HAVE_MYSQL
+    /* create a MYSQL handle */
+    if (xq->mysql == NULL) {
+	xq->mysql = mysql_init(NULL);
+    }
+
+    /* process our own configuration */
+    xq->mysql_user = xmlnode_get_tag_data(config, "mysql/user");
+    xq->mysql_password = xmlnode_get_tag_data(config, "mysql/password");
+    xq->mysql_host = xmlnode_get_tag_data(config, "mysql/host");
+    xq->mysql_database = xmlnode_get_tag_data(config, "mysql/database");
+    xq->mysql_port = j_atoi(xmlnode_get_tag_data(config, "mysql/port"), 0);
+    xq->mysql_socket = xmlnode_get_tag_data(config, "mysql/socket");
+    xq->mysql_flag = j_atoi(xmlnode_get_tag_data(config, "mysql/flag"), 0);
+
+    /* connect to the database server */
+    xdb_sql_mysql_connect(i, xq);
+#else
+    log_debug2(ZONE, LOGT_STRANGE, "xdb_sql_mysql_init called, but not compiled in.");
+#endif
+}
+
+/**
+ * preprocess a SQL query definition
+ *
+ * @param i the instance we are running in
+ * @param query the SQL query definition
+ * @return array of preprocessed query, contains array of strings, odd entries are literals, even entries are variables
+ */
+char **xdb_sql_query_preprocess(instance i, char *query) {
+    int count = 0;
+    char *pos = NULL;
+    char *next = NULL;
+    char **result = NULL;
+
+    /* check provieded parameters */
+    if (i == NULL || query == NULL) {
+	return NULL;
+    }
+
+    /* make a copy of the query that we can tokenize */
+    query = pstrdup(i->p, query);
+
+    /* go to the start of the query */
+    pos = query;
+
+    /* estimate the number of variables in the string */
+    while ( (pos = strstr(pos, "{")) != NULL ) {
+	/* don't find this variable again */
+	pos++;
+
+	/* count the number of variables */
+	count++;
+    }
+
+    /* allocate memory for the array */
+    result = pmalloco(i->p, (count+1)*2*sizeof(char*));
+
+    /* tokenize the query */
+    count = 0;
+    pos = query;
+    while (pos != NULL) {
+	/* find start or end of variable
+	 * if count is odd we search for end of variable
+	 * if count is even we search for the begin of a variable
+	 */
+	next = (count % 2) ? strstr(pos, "}") : strstr(pos, "{");
+
+	/* tokenize */
+	if (next != NULL) {
+	    *next = 0;
+	}
+
+	/* store the pointer to this token */
+	result[count] = pos;
+
+	/* skip the token separator { or } */
+	if (next != NULL) {
+	    next++;
+	}
+
+	/* next search starts where next points to */
+	pos = next;
+	count++;
+    }
+
+    return result;
+}
+
+/**
+ * process a handler definition
+ *
+ * @param i the instance we are running as
+ * @param xq our instance internal data
+ * @param handler the handler definition
+ */
+void xdb_sql_handler_process(instance i, xdbsql xq, xmlnode handler) {
+    char *handled_ns = NULL;	/* which namespace this definition is for */
+    xdbsql_ns_def nsdef = NULL;	/* where to store the processed information */
+    int count = 0;
+    char *temp = NULL;
+    
+    log_debug2(ZONE, LOGT_INIT, "processing handler definition: %s", xmlnode2str(handler));
+
+    nsdef = pmalloco(i->p, sizeof(_xdbsql_ns_def));
+
+    /* query the relevant tags from this handler */
+    handled_ns = pstrdup(i->p, xmlnode_get_attrib(handler, "ns"));
+    temp = xmlnode_get_tag_data(handler, "get/query");
+    nsdef->get_query = xdb_sql_query_preprocess(i, temp);
+    nsdef->get_result = xmlnode_dup_pool(i->p, xmlnode_get_tag(handler, "get/result"));
+    temp = xmlnode_get_tag_data(handler, "set");
+    nsdef->set = xdb_sql_query_preprocess(i, temp);
+    temp = xmlnode_get_tag_data(handler, "delete");
+    nsdef->delete = xdb_sql_query_preprocess(i, temp);
+
+    /* store the read definition */
+    log_debug2(ZONE, LOGT_INIT|LOGT_STORAGE, "registering namespace handler for %s", handled_ns);
+    xhash_put(xq->namespace_defs, handled_ns, nsdef);
+}
+
+/**
+ * read the handler configuration and generate their internal representation
+ *
+ * @param i the instance we are running as
+ * @param xq our instance internal data
+ * @param config the configuration data for this xdb_sql instance
+ */
+void xdb_sql_handler_read(instance i, xdbsql xq, xmlnode config) {
+    xmlnode cur = NULL;		/* used to iterate through <handler/> elements */
+    
+    if (i == NULL || xq == NULL || config == NULL) {
+	log_debug2(ZONE, LOGT_STRANGE|LOGT_INIT|LOGT_STORAGE, "called xdb_sql_handler_read with i, xq, or config as NULL");
+	return;
+    }
+
+    for (cur = xmlnode_get_firstchild(config); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
+	/* we only care for <handler/> elements */
+	char *element_name = xmlnode_get_name(cur);
+	if (j_strcmp(element_name, "handler") != 0) {
+	    continue;
+	}
+
+	/* process this handler definition */
+	xdb_sql_handler_process(i, xq, cur);
+    }
+}
+
+/**
+ * init the xdb_sql module, called by the jabberd module loader
+ *
+ * @param i jabberd's data about our instance
+ * @param x hmm ... ;)
+ */
+void xdb_sql(instance i, xmlnode x) {
+    xdbcache xc;		/* to fetch our configuration */
+    xmlnode config = NULL;	/* our configuration */
+    xdbsql xq = NULL;		/* pointer to instance internal data */
+    char *driver = NULL;	/* database driver to use */
+
+    /* output a first sign of life ... :) */
+    log_debug2(ZONE, LOGT_INIT, "xdb_sql loading");
+
+    /* fetch our own configuration */
+    xc = xdb_cache(i);
+    if (xc != NULL) {
+	config = xdb_get(xc, jid_new(xmlnode_pool(x), "config@-internal"), "jabber:config:xdb_sql");
+    }
+    if (config == NULL) {
+	log_error(i->id, "xdb_sql failed to load its configuration");
+	return;
+    }
+
+    /* create our internal data */
+    xq = pmalloco(i->p, sizeof(_xdbsql));
+    xq->namespace_defs = xhash_new(j_atoi(xmlnode_get_tag_data(config, "maxns"), XDBSQL_MAXNS_PRIME));
+
+    /* use which driver? */
+    driver = xmlnode_get_tag_data(config, "driver");
+    if (driver == NULL) {
+	log_error(i->id, "you have to configure which driver xdb_sql should use");
+	xmlnode_free(config);
+	return;
+#ifdef HAVE_MYSQL
+    } else if (j_strcmp(driver, "mysql") == 0) {
+	xq->use_mysql = 1;		/* use mysql for the queries */
+	xdb_sql_mysql_init(i, xq, config);
+#endif
+    } else {
+	log_error(i->id, "Your xdb_sql is compiled without support for the selected database driver '%s'.", driver);
+    }
+
+    /* read the handler defintions */
+    xdb_sql_handler_read(i, xq, config);
+
+    /* register our packet handler */
+    register_phandler(i, o_DELIVER, xdb_sql_phandler, (void *)xq);
+
+    /* free the configuration we have processed */
+    xmlnode_free(config);
+}

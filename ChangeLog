@@ -1,3 +1,11 @@
+2005-02-21  Matthias Wimmer  <m@tthias.net>
+
+    * jabber.xml.dist.in: added new component xdb_sql
+    * configure.in: same
+    * xdb_sql/Makefile.am: same
+    * xdb_sql/xdb_sql.c: same
+    * Makefile.am: same
+
 2005-02-18  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/xdb.c: added comments about xdb-set check action

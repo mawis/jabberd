@@ -295,6 +295,27 @@ if test "$libexpat" != "yes"; then
     AC_MSG_ERROR([Couldn't find required libexpat installation]);
 fi
 
+
+dnl check for mysql
+AC_ARG_WITH(mysql, AC_HELP_STRING([--with-mysql=DIR],
+	    [Include mysql support for xdb_sql]),
+	    mysql=$withval, mysql=yes)
+if test "$mysql" != "no"; then
+    if test "$mysql" != "yes"; then
+	LDFLAGS="${LDFLAGS} -L$mysql/lib"
+	CPPFLAGS="${CPPFLAGS} -I$mysql/include"
+    fi
+    AC_CHECK_HEADER(mysql/mysql.h,
+		    AC_CHECK_LIB(mysqlclient, mysql_close,
+				 [mysql=yes LIBS="${LIBS} -lmysqlclient"], mysql=no),
+				 mysql=no)
+fi
+AC_MSG_CHECKING([for mysql])
+AC_MSG_RESULT($mysql)
+if test "$mysql" != "no"; then
+    AC_DEFINE(HAVE_MYSQL,,[mysql is available])
+fi
+
 dnl define where the configuration file is located
 AC_DEFINE_DIR(CONFIG_DIR,sysconfdir,[where the configuration file can be found])
 
@@ -310,7 +331,8 @@ AC_OUTPUT(Makefile \
 	  jsm/modules/Makefile \
 	  man/Makefile \
 	  pthsock/Makefile \
-	  xdb_file/Makefile)
+	  xdb_file/Makefile \
+	  xdb_sql/Makefile)
 
 dnl
 dnl generate the platform-settings file, that is used by some legacy components

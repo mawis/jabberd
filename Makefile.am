@@ -1,7 +1,7 @@
 EXTRA_DIST = generateSSLkey UPGRADE jabber.xml.dist.in selfsigned.cnf
 
-SUBDIRS = jabberd dialback dnsrv jsm pthsock xdb_file ac-helpers man
-DIST_SUBDIRS = jabberd dialback dnsrv jsm pthsock xdb_file ac-helpers man
+SUBDIRS = jabberd dialback dnsrv jsm pthsock xdb_file xdb_sql ac-helpers man
+DIST_SUBDIRS = jabberd dialback dnsrv jsm pthsock xdb_file xdb_sql ac-helpers man
 
 sysconf_DATA = jabber.xml.dist
 

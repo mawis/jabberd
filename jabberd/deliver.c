@@ -364,7 +364,7 @@ result deliver_config_ns(instance i, xmlnode x, void *arg)
     if(ns == NULL)
         ns = pstrdup(xmlnode_pool(x),star);
 
-    log_debug2(ZONE, LOGT_REGISTER, "Registering namespace %s with instance %s",ns,i->id);
+    log_debug2(ZONE, LOGT_INIT|LOGT_STORAGE|LOGT_REGISTER, "Registering namespace %s with instance %s",ns,i->id);
 
     if(deliver__ns == NULL)
 	deliver__ns = xhash_new(401);
