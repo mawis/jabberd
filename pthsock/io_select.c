@@ -340,12 +340,17 @@ void _io_main(void *arg)
             if(FD_ISSET(cur->fd,&rfds))
             {
                 /* new connection */
-                if(cur->type==type_LISTEN && (c = _io_accept(cur)) != NULL)
+                if(cur->type==type_LISTEN)
                 {
-                    (*(io_cb)c->cb)(c,NULL,0,IO_NEW,c->cb_arg);
-                    io_link(c);
-                    FD_SET(c->fd,&all_rfds);           
-                    if(c->fd>maxfd)maxfd=c->fd;
+                    c = _io_accept(cur);
+                    if(c != NULL)
+                    {
+                        (*(io_cb)c->cb)(c,NULL,0,IO_NEW,c->cb_arg);
+                        io_link(c); /* it's now at the top of the list */
+                        FD_SET(c->fd,&all_rfds);
+                        if(c->fd>maxfd)maxfd=c->fd;
+                    }
+                    cur = cur->next;
                     continue;
                 }
 
