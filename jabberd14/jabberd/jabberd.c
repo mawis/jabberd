@@ -39,6 +39,7 @@
 HASHTABLE cmd__line, debug__zones;
 extern int deliver__flag;
 extern xmlnode greymatter__;
+pool jabberd__runtime = NULL;
 
 /*** internal functions ***/
 int configurate(char *file);
@@ -62,6 +63,7 @@ int main (int argc, char** argv)
     /* start by assuming the parameters were entered correctly */
     help = 0;
     cmd__line=ghash_create(11,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+
 
     /* process the parameterss one at a time */
     for(i = 1; i < argc; i++)
@@ -120,6 +122,8 @@ int main (int argc, char** argv)
         fprintf(stderr,"Usage:\njabberd [-c config.xml] [-D]\n");
         exit(0);
     }
+
+    jabberd__runtime = pool_new();
 
     /* change the current working directory so everything is "local" */
     if(chdir(HOME))
@@ -231,6 +235,10 @@ int main (int argc, char** argv)
     pool_free(cfg_pool);
     xmlnode_free(greymatter__);
     config_cleanup();
+
+    /* base modules use jabberd__runtime to know when to shutdown */
+    pool_free(jabberd__runtime);
+
     ghash_destroy(cmd__line);
     ghash_destroy(debug__zones);
     /* we're done! */

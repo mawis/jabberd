@@ -59,187 +59,6 @@ typedef struct mio_main_st
 /* global object */
 ios mio__data = NULL;
 
-/* *******************************************
- * Internal Expat Callbacks
- * *******************************************/
-
-void _mio_xstream_startElement(mio m, const char* name, const char** attribs)
-{
-    /* If stacknode is NULL, we are starting a new packet and must
-       setup for by pre-allocating some memory */
-    if (m->stacknode == NULL)
-    {
-	    pool p = pool_heap(5 * 1024); /* 5k, typically 1-2k each, plus copy of self
-				   and workspace */
-	    m->stacknode = xmlnode_new_tag_pool(p, name);
-	    xmlnode_put_expat_attribs(m->stacknode, attribs);
-
-	    /* If the root is 0, this must be the root node.. */
-	    if (m->root == 0)
-	    {
-            if(m->cb != NULL)
-	            (*(mio_xml_cb)m->cb)(m, MIO_XML_ROOT, m->cb_arg, m->stacknode);
-	        m->stacknode = NULL;
-            m->root = 1; 
-	    }
-    }
-    else 
-    {
-	    m->stacknode = xmlnode_insert_tag(m->stacknode, name);
-	    xmlnode_put_expat_attribs(m->stacknode, attribs);
-    }
-}
-
-void _mio_xstream_endElement(mio m, const char* name)
-{
-    /* If the stacknode is already NULL, then this closing element
-       must be the closing ROOT tag, so notify and exit */
-    if (m->stacknode == NULL)
-    {
-        if(m->cb != NULL)
-	        (*(mio_xml_cb)m->cb)(m, MIO_XML_CLOSE, m->cb_arg, NULL);
-    }
-    else
-    {
-	    xmlnode parent = xmlnode_get_parent(m->stacknode);
-	    /* Fire the NODE event if this closing element has no parent */
-	    if (parent == NULL)
-	    {
-            if(m->cb != NULL)
-	            (*(mio_xml_cb)m->cb)(m, MIO_XML_NODE, m->cb_arg, m->stacknode);
-	    }
-	    m->stacknode = parent;
-    }
-}
-
-void _mio_xstream_CDATA(mio m, const char* cdata, int len)
-{
-    if (m->stacknode != NULL)
-	xmlnode_insert_cdata(m->stacknode, cdata, len);
-}
-
-void _mio_xstream_cleanup(void* arg)
-{
-    mio m = (void*)arg;
-
-    xmlnode_free(m->stacknode);
-    XML_ParserFree(m->parser);
-    m->parser = NULL;
-}
-
-mio _mio_xstream_init(mio m)
-{
-    if (m != NULL)
-    {
-	/* Initialize the parser */
-	m->parser = XML_ParserCreate(NULL);
-	XML_SetUserData(m->parser, m);
-	XML_SetElementHandler(m->parser, (void*)_mio_xstream_startElement, 
-			      (void*)_mio_xstream_endElement);
-	XML_SetCharacterDataHandler(m->parser, (void*)_mio_xstream_CDATA);
-	/* Setup a cleanup routine to release the parser when everything
-	   is done */
-	pool_cleanup(m->p, _mio_xstream_cleanup, (void*)m);
-    }
-    return m;
-}
-
-/* ----------------------------------------------------
- * 
- * Internal timer functions and structures
- *
- *------------------------------------------------------ */
-
-typedef struct mio_timer_st
-{
-    int time_left;
-    mio m;
-    struct mio_timer_st *next;
-    struct mio_timer_st *prev;
-    pool mempool;
-} *mio_timer, _mio_timer;
-
-/* GLOBALS */
-pth_mutex_t G_timer_mutex = PTH_MUTEX_INIT;
-mio_timer   G_head        = NULL;
-
-#define _get_timer_lock()     pth_mutex_acquire(&G_timer_mutex, 0, NULL)
-#define _release_timer_lock() pth_mutex_release(&G_timer_mutex);
-
-/*
- * Assumption: Calling function holds the timer lock
- */
-void _mio_remove_timer(mio_timer mt)
-{
-    if (mt == NULL)
-	    return;
-
-    if(mt->prev != NULL)
-	    mt->prev->next = mt->next;
-
-    if(mt->next != NULL)
-	    mt->next->prev = mt->prev;
-
-    if (mt == G_head)
-        G_head = mt->next;
-
-    pool_free(mt->mempool);
-}
-
-/*
- * Assumption: Calling function holds the timer lock
- */
-void _mio_add_timer(mio_timer mt)
-{
-    /* May as well do it the easy way -- insert at head */
-    mt->next = G_head;
-    mt->prev = NULL;
-
-    if(G_head != NULL)
-    {
-	    G_head->prev = mt;
-    }
-
-    G_head = mt;
-}
-
-/* 
- * Check all mio's for which we've registered a timeout.  If any of them
- * have expired, let their callback know about it
- */
-result _timeout_heartbeat(void *arg)
-{
-    mio_timer mt, next_mt;
-
-    _get_timer_lock();
-    
-    /* 
-     * It has been a second since we were last called.  For every mio_timer in the 
-     * global list, decrement their timer and, if it has expired, notify the callback
-     * and remove it from the timer list
-     */
-    mt = G_head;
-    while(mt != NULL) 
-    {
-	    /* Get the next item now before we (possibly) remove mt */
-	    next_mt = mt->next; 
-	    mt->time_left--; /* decrement timer */
-
-	    if (mt->time_left <= 0)
-        { /* It has expired */
-            if(mt->m->cb != NULL)
-	            (*(mio_cb)mt->m->cb)(mt->m, MIO_TIMEOUT, mt->m->cb_arg, NULL, 0);
-	        _mio_remove_timer(mt);
-	    }
-
-	    mt = next_mt;
-    }
-
-    _release_timer_lock();
-    return r_DONE;
-}
-
-
 /*
  * callback for Heartbeat, increments karma, and signals the
  * select loop, whenever a socket's punishment is over
@@ -273,6 +92,41 @@ result _karma_heartbeat(void*arg)
 
     /* always return r_DONE, to keep getting heartbeats */
     return r_DONE;
+}
+
+/* 
+ * unlinks a socket from the master list 
+ */
+void _mio_unlink(mio m)
+{
+    if(mio__data == NULL) 
+        return;
+
+    if(mio__data->master__list == m)
+       mio__data->master__list = mio__data->master__list->next;
+
+    if(m->prev != NULL) 
+        m->prev->next = m->next;
+
+    if(m->next != NULL) 
+        m->next->prev = m->prev;
+}
+
+/* 
+ * links a socket to the master list 
+ */
+void _mio_link(mio m)
+{
+    if(mio__data == NULL) 
+        return;
+
+    m->next = mio__data->master__list;
+    m->prev = NULL;
+
+    if(mio__data->master__list != NULL) 
+        mio__data->master__list->prev = m;
+
+    mio__data->master__list = m;
 }
 
 /* 
@@ -314,27 +168,24 @@ int _mio_write_dump(mio m)
         log_debug(ZONE, "write_dump writing data: %s", cur->cur);
 
         /* write a bit from the current buffer */
-        len = pth_write(m->fd, cur->cur, cur->len);
+        len = (*m->mh->write)(m->fd, cur->cur, cur->len);
+        /* we had an error on the write */
         if(len == 0)
         {
-            /* bounce the queue */
             if(m->cb != NULL)
-                (*(mio_cb)m->cb)(m, MIO_ERROR, m->cb_arg, NULL, 0); 
+                (*(mio_std_cb)m->cb)(m, MIO_ERROR, m->cb_arg);
             return -1;
         }
-        /* we had an error on the write */
-        else if(len < 0)
+        if(len < 0)
         { 
             /* if we have an error, that isn't a blocking issue */ 
             if(errno != EWOULDBLOCK && errno != EINTR && errno != EAGAIN)
             { 
                 /* bounce the queue */
                 if(m->cb != NULL)
-                    (*(mio_cb)m->cb)(m, MIO_ERROR, m->cb_arg, NULL, 0);
+                    (*(mio_std_cb)m->cb)(m, MIO_ERROR, m->cb_arg);
                 return -1;
             }
-
-            /* blocking issue.. return that there is more to write */
             return 1;
         }
         /* we didnt' write it all, move the current buffer up */
@@ -360,42 +211,6 @@ int _mio_write_dump(mio m)
 }
 
 /* 
- * unlinks a socket from the master list 
- */
-void _mio_unlink(mio m)
-{
-    if(mio__data == NULL) 
-        return;
-
-    if(mio__data->master__list == m)
-       mio__data->master__list = mio__data->master__list->next;
-
-    if(m->prev != NULL) 
-        m->prev->next = m->next;
-
-    if(m->next != NULL) 
-        m->next->prev = m->prev;
-}
-
-/* 
- * links a socket to the master list 
- */
-void _mio_link(mio m)
-{
-    if(mio__data == NULL) 
-        return;
-
-    m->next = mio__data->master__list;
-    m->prev = NULL;
-
-    if(mio__data->master__list != NULL) 
-        mio__data->master__list->prev = m;
-
-    mio__data->master__list = m;
-}
-
-
-/* 
  * internal close function 
  * does a final write of the queue, bouncing and freeing all memory
  */
@@ -414,20 +229,22 @@ void _mio_close(mio m)
     if(m->queue != NULL) 
         ret = _mio_write_dump(m);
 
-    /* if we didn't write it all, bounce the current queue */
-    if(ret == 1) 
+    /* call overloaded write function */
+    if(ret == 1) /* still more data, bounce it all */
         if(m->cb != NULL)
-            (*(mio_cb)m->cb)(m, MIO_ERROR, m->cb_arg, NULL, 0);
+            (*(mio_std_cb)m->cb)(m, MIO_ERROR, m->cb);
 
     /* notify of the close */
     if(m->cb != NULL)
-        (*(mio_cb)m->cb)(m, MIO_CLOSED, m->cb_arg, NULL, 0);
+        (*(mio_std_cb)m->cb)(m, MIO_CLOSED, m->cb_arg);
 
     /* close the socket, and free all memory */
     close(m->fd);
 
     if(m->rated) 
         jlimit_free(m->rate);
+
+    pool_free(m->mh->p);
 
     /* cleanup the write queue */
     while((cur = mio_cleanup(m)) != NULL)
@@ -445,42 +262,39 @@ void _mio_close(mio m)
  */
 mio _mio_accept(mio m)
 {
-    struct sockaddr_in sa;
-    size_t sa_size = sizeof(sa);
+    struct sockaddr_in serv_addr;
+    size_t addrlen = sizeof(serv_addr);
     int fd;
     mio new;
 
     log_debug(ZONE, "_mio_accept calling accept on fd #%d", m->fd);
 
     /* pull a socket off the accept queue */
-    fd = accept(m->fd, (struct sockaddr*)&sa, (int*)&sa_size);
+    fd = (*m->mh->accept)(m->fd, (struct sockaddr*)&serv_addr, &addrlen);
     if(fd <= 0)
-    { 
-        /* this will try again eventually, 
-         * if it's a blocking issue */
-        return NULL; 
+    {
+        return NULL;
     }
 
     /* make sure that we aren't rate limiting this IP */
-    if(m->rated && jlimit_check(m->rate, inet_ntoa(sa.sin_addr), 1))
+    if(m->rated && jlimit_check(m->rate, inet_ntoa(serv_addr.sin_addr), 1))
     {
-        log_warn("io_select", "%s is being connection rate limited", inet_ntoa(sa.sin_addr));
+        log_warn("io_select", "%s is being connection rate limited", inet_ntoa(serv_addr.sin_addr));
         close(fd);
         return NULL;
     }
 
-    log_debug(ZONE, "new socket accepted (fd: %d, ip: %s, port: %d)", fd, inet_ntoa(sa.sin_addr), ntohs(sa.sin_port));
+    log_debug(ZONE, "new socket accepted (fd: %d, ip: %s, port: %d)", fd, inet_ntoa(serv_addr.sin_addr), ntohs(serv_addr.sin_port));
 
     /* create a new sock object for this connection */
-    new        = mio_new(fd, m->cb, m->cb_arg);
-    new->ip    = pstrdup(new->p, inet_ntoa(sa.sin_addr));
+    new     = mio_new(fd, m->cb, m->cb_arg, mio_handlers_new(m->mh->read, m->mh->write));
+    new->ip = pstrdup(new->p, inet_ntoa(serv_addr.sin_addr));
 
-    if(m->parser != NULL)
-    { /* if the listener was xml based, make the child that way */
-        _mio_xstream_init(new);
-    }
+    if(m->cb != NULL)
+        (*(mio_std_cb)m->cb)(m, MIO_NEW, m->cb_arg);
 
     mio_karma2(new, &m->k);
+
     return new;
 }
 
@@ -497,11 +311,9 @@ void _mio_main(void *arg)
     sigset_t    sigs;       /* signal set to catch SIGUSR2 */
     mio         cur,
                 temp;    
-    char        buff[8192]; /* max socket read */
-    int         len,
-                sig,        /* needed to catch signal      */
-                maxlen,     /* most data to read from sock */
+    int         sig,        /* needed to catch signal      */
                 retval,
+                readval,
                 maxfd=0;
 
     log_debug(ZONE, "MIO is starting up");
@@ -588,8 +400,6 @@ void _mio_main(void *arg)
 
                     if(m != NULL)
                     {
-                        if(m->cb != NULL)
-                            (*(mio_cb)m->cb)(m, MIO_NEW, m->cb_arg, NULL, 0);
                         FD_SET(m->fd, &all_rfds);
                         if(m->fd > maxfd)
                             maxfd=m->fd;
@@ -599,17 +409,10 @@ void _mio_main(void *arg)
                     continue;
                 }
 
-                /* we need to read from a socket */
-                maxlen = KARMA_READ_MAX(cur->k.val);
-
-                /* leave room for the NULL */
-                if(maxlen > 8191) maxlen = 8191; 
-
-                /* read maxlen data */
-                len = pth_read(cur->fd,buff,maxlen);
+                readval = (*(cur->mh->read))(cur);
 
                 /* if we had a bad read */
-                if(len==0)
+                if(readval == -1)
                 { 
                     /* kill this socket and move on */
                     temp = cur;
@@ -619,61 +422,23 @@ void _mio_main(void *arg)
                     _mio_close(temp);
                     continue;
                 }
-                /* an error occured */
-                else if(len < 0)
-                { 
-                    /* ignore these errors */
-                    if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN) 
-                        FD_SET(cur->fd, &all_rfds);
-                    else
-                    {
-                        temp = cur;
-                        cur = cur->next;
-                        FD_CLR(temp->fd, &all_rfds);
-                        FD_CLR(temp->fd, &all_wfds);
-                        _mio_close(temp);
-                        continue;
-                    }
-                }
-                /* we had a good read */
-                else
+                else 
                 {
-                    if( karma_check( &cur->k, len ) )
-                    { /* they read the max, tsk tsk */
-                        if(cur->k.val <= 0) /* ran out of karma */
-                        {
-                            log_notice("io_select", "socket from %s is out of karma", cur->ip);
-                            /* pay the penence */
-                            FD_CLR(cur->fd, &all_rfds); 
-                            /* let them process this read */
-                        }
-                    }
-                    buff[len] = '\0';
-
-                    /* if this MIO object has a parser available, pass
-                     * the data into the parser */
-                    if(cur->parser != NULL)
-                    {
-                        /* if the parse fails, fire the callback with an
-                         * error event */
-                        if(XML_Parse(cur->parser, buff, len, 0) < 0)
-                        {
-                            if(cur->cb != NULL)
-                                (*(mio_xml_cb)cur->cb)(cur, MIO_XML_ERROR, cur->cb_arg, NULL);
-                        }
-                    }
-                    else
-                    {
-                        if(cur->cb != NULL)
-                            (*(mio_cb)cur->cb)(cur, MIO_BUFFER, cur->cb_arg, buff, len);
+                    /* XXX there must be a better way to do this */
+                    if(cur->k.val <= 0)
+                    { /* if the socket has no more karma, don't read from it */
+                        FD_CLR(cur->fd, &all_rfds); /* ensure this fd is set to read */
                     }
                 }
             } 
             /* if we need to write to this socket */
             if((FD_ISSET(cur->fd, &wfds) || cur->queue != NULL) && retval != -1) /* do not write if select returned error */
             {   
+                int ret;
+
                 /* write the current buffer */
-                int ret = _mio_write_dump(cur);
+                ret = _mio_write_dump(cur);
+
                 /* if an error occured */
                 if(ret == -1)
                 {
@@ -736,7 +501,6 @@ void mio_init(void)
     if(mio__data == NULL)
     {
         register_beat(KARMA_HEARTBEAT, _karma_heartbeat, NULL);
-        register_beat(1, _timeout_heartbeat, NULL);
 
         /* malloc our instance object */
         p            = pool_new();
@@ -788,7 +552,7 @@ void mio_stop(void)
 /* 
    creates a new mio object from a file descriptor
 */
-mio mio_new(int fd, mio_cb cb, void *arg)
+mio mio_new(int fd, void *cb, void *arg, mio_handlers mh)
 {
     mio  new            = NULL;
     pool p              = NULL;
@@ -806,6 +570,7 @@ mio mio_new(int fd, mio_cb cb, void *arg)
     new->fd     = fd;
     new->cb     = (void*)cb;
     new->cb_arg = arg;
+    new->mh     = mh;
 
     /* set the default karma values */
     mio_karma(new, KARMA_INIT, KARMA_MAX, KARMA_INC, KARMA_DEC, KARMA_PENALTY, KARMA_RESTORE);
@@ -1009,16 +774,21 @@ xmlnode mio_cleanup(mio m)
 /* 
  * request to connect to a remote host 
  */
-mio mio_connect(char *host, int port, mio_cb cb, int timeout, void *arg)
+mio mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_connect_func f, mio_handlers mh)
 {
-    mio                new  = NULL;
-    pth_event_t        evt;
     struct sockaddr_in sa;
     struct in_addr     *saddr;
     int                fd,
                        flag = 1;
+    mio                new;
 
-    log_debug(ZONE, "mio_connect Connecting to host: %s:%d", host, port);
+    if(f == NULL)
+        f = (mio_connect_func)&MIO_STD_CONNECT;
+
+    if(mh == NULL)
+        mh = mio_handlers_new((mio_read_func)&MIO_STD_READ, (mio_write_func)&MIO_STD_WRITE);
+
+    log_debug(ZONE, "_mio_std_connect Connecting to host: %s:%d", host, port);
 
     bzero((void*)&sa, sizeof(struct sockaddr_in));
 
@@ -1027,41 +797,29 @@ mio mio_connect(char *host, int port, mio_cb cb, int timeout, void *arg)
 
     /* set socket options */
     if(fd < 0 || setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char*)&flag, sizeof(flag)) < 0)
-        return NULL;
+        return 0;
 
     saddr = make_addr(host);
     if(saddr == NULL)
-        return NULL;
+        return 0;
 
     sa.sin_family = AF_INET;
     sa.sin_port = htons(port);
     sa.sin_addr.s_addr = saddr->s_addr;
 
-    /* wait a max of 5 seconds for this connect */
-    evt = pth_event(PTH_EVENT_TIME, pth_timeout(timeout,0));
-
-    /* attempt to connect to the remote host */
-    if(pth_connect_ev(fd, (struct sockaddr*)&sa, sizeof sa, evt) < 0)
+    if((*f)(fd, (struct sockaddr*)&sa, sizeof sa) < 0)
     {
-        log_debug(ZONE, "io_select connect failed to connect to: %s", host);
+        log_debug(ZONE, "_mio_std_connect failed to connect to: %s", host);
         close(fd);
-        return NULL;
-    }
-
-    /* make sure we got a valid fd */
-    if(fd <= 0)
-    {
-        log_debug(ZONE, "io_select connect failed to connect to: %s", host);
-        close(fd);
-        return NULL;
+        return 0;
     }
 
     /* create the mio for this socket */
-    new = mio_new(fd, cb, arg);
+    new = mio_new(fd, cb, cb_arg, mh);
 
     /* notify the client that the socket is born */
     if(new->cb != NULL)
-        (*(mio_cb)new->cb)(new, MIO_NEW, new->cb_arg, NULL, 0);
+        (*(mio_std_cb)new->cb)(new, MIO_NEW, new->cb_arg);
 
     return new;
 }
@@ -1069,10 +827,18 @@ mio mio_connect(char *host, int port, mio_cb cb, int timeout, void *arg)
 /* 
  * call to start listening with select 
  */
-mio mio_listen(int port, char *listen_host, mio_cb cb, void *arg)
+mio mio_listen(int port, char *listen_host, void *cb, void *arg, mio_accept_func f, mio_handlers mh)
 {
     mio        new;
     int        fd;
+
+    if(f == NULL)
+        f = (mio_accept_func)&MIO_STD_ACCEPT;
+
+    if(mh == NULL)
+        mh = mio_handlers_new((mio_read_func)&MIO_STD_READ, (mio_write_func)&MIO_STD_WRITE);
+
+    mh->accept = f;
 
     log_debug(ZONE, "io_select to listen on %d [%s]",port, listen_host);
 
@@ -1094,7 +860,7 @@ mio mio_listen(int port, char *listen_host, mio_cb cb, void *arg)
     }
 
     /* create the sock object, and assign the values */
-    new       = mio_new(fd, cb, arg);
+    new       = mio_new(fd, cb, arg, mh);
     new->type = type_LISTEN;
 
     log_debug(ZONE, "io_select starting to listen on %d [%s]", port, listen_host);
@@ -1102,55 +868,25 @@ mio mio_listen(int port, char *listen_host, mio_cb cb, void *arg)
     return new;
 }
 
-void mio_add_timer(mio m, int seconds)
+mio_handlers mio_handlers_new(mio_read_func rf, mio_write_func wf)
 {
     pool p = pool_new();
-    mio_timer mt = pmalloco(p, sizeof(_mio_timer));
+    mio_handlers new;
 
-    mt->mempool = p;
-    mt->time_left = seconds;
-    mt->m = m;
+    new = pmalloco(p, sizeof(_mio_handlers));
 
-    _get_timer_lock();
-    _mio_add_timer(mt);
-    _release_timer_lock();
-}
+    new->p = p;
 
-void mio_remove_timer(mio m)
-{
-    mio_timer mt;
-    _get_timer_lock();
-    /* While there's stuff in the list and the current one isn't the one we're looking
-       for, keep walking */
-    for (mt = G_head; (mt != NULL) && (mt->m != m); mt = mt->next); /*empty statement*/
-    if (mt != NULL) 
-    { /* Found it! */
-	_mio_remove_timer(mt);
-    }
-    _release_timer_lock();
-}
+    if(rf == NULL)
+        new->read = (mio_read_func)MIO_STD_READ;
+    else
+        new->read = rf;
 
-/* Create a new MIO object based on existing FD */
-mio mio_new_xml(int fd, mio_xml_cb cb, void* cb_arg)
-{
-    mio result = mio_new(fd, (mio_cb)cb, cb_arg);
+    if(wf == NULL)
+        new->write = (mio_write_func)MIO_STD_WRITE;
+    else
+        new->write = wf;
 
-    return _mio_xstream_init(result);
-}
-
-/* Create a new MIO object by opening a TCP connection */
-mio mio_connect_xml(char* host, int port, mio_xml_cb cb, int timeout, void* cb_arg)
-{
-    mio result = mio_connect(host, port, (mio_cb)cb, timeout, cb_arg);
-    
-    return _mio_xstream_init(result);
-}
-
-/* Create a new MIO object that listens on a TCP port */
-mio mio_listen_xml(int port, char* sourceip, mio_xml_cb cb, void* cb_arg)
-{
-    mio result = mio_listen(port, sourceip, (mio_cb)cb, cb_arg);
-
-    return _mio_xstream_init(result);
+    return new;
 }
 

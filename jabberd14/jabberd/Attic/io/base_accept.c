@@ -30,6 +30,8 @@
  
 #include "jabberd.h"
 
+extern pool jabberd__runtime;
+
 #define A_ERROR  -1
 #define A_DUPLEX  0
 #define A_SIMPLEX 1
@@ -254,23 +256,20 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
 	        xmlnode_free(x);
 	        break;
         }
-        case MIO_XML_ERROR:
+        case MIO_ERROR:
         {
 	        accept_io aio = (accept_io)arg;
+            xmlnode x;
 	    
     log_debug(ZONE, "MIO_XML_ERR: m:%X state:%d, arg:%X, x:%X", m, state, arg, x);
 	        /* Transmit a parse error */
 	        mio_write(aio->io, NULL, "<stream:error>Invalid XML</stream:error>", 39);
-
-	        break;
-        }
-        case MIO_XML_CLOSE:
-        {
-	        accept_io aio = (accept_io)arg;
-
-    log_debug(ZONE, "MIO_XML_CLOSE: m:%X state:%d, arg:%X, x:%X", m, state, arg, x);
-	        /* Close the stream */
 	        mio_write(aio->io, NULL, "</stream:stream>", 16);
+
+	        /* Bounce the current queue */
+            while((x = mio_cleanup(m)) != NULL)
+	            deliver_fail(dpacket_new(x), "External Server Error");
+
 	        mio_close(aio->io);
 
 	        break;
@@ -280,8 +279,6 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
 	        accept_io aio = (accept_io)arg;
 
     log_debug(ZONE, "MIO_CLOSED: m:%X state:%d, arg:%X, x:%X", m, state, arg, x);
-	        /* Bounce the current packet */
-	        deliver_fail(dpacket_new(x), "External Server Error");
 
 	        /* If this AIO object is the default IO object for an instance,
 	        make sure that the instance is notified that the AIO object
@@ -301,6 +298,13 @@ void base_accept_listener_cleanup(void *arg)
 {
     accept_listener al = (accept_listener)arg;
     ghash_remove(G_listeners, al->keybuf);
+}
+
+void base_accept_cleanup(void *arg)
+{
+    /* jabberd is shutting down! */
+    if(G_listeners != NULL)
+        ghash_destroy(G_listeners);
 }
 
 result base_accept_config(instance id, xmlnode x, void *arg)
@@ -327,12 +331,11 @@ result base_accept_config(instance id, xmlnode x, void *arg)
 
 	/* Setup global hash of ip:port->xmlnode */
     if(G_listeners == NULL)
+    {
+        G_pool = jabberd__runtime;
 	    G_listeners = ghash_create(25, (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
-
-	/* Setup global memory pool for misc allocs */
-    if(G_pool == NULL)
-	    G_pool = pool_new();
-
+        pool_cleanup(G_pool,  base_accept_cleanup, NULL);
+    }
 
     log_debug(ZONE,"base_accept_config performing configuration %s\n",xmlnode2str(x));
 
@@ -368,7 +371,7 @@ result base_accept_config(instance id, xmlnode x, void *arg)
         pool_cleanup(id->p, base_accept_listener_cleanup, (void*)al);
 		
         /* Start a new listening thread and associate this <listen> tag with it */
-        mio_listen_xml(j_atoi(port, 0), ip, base_accept_process_xml, (void*)al);
+        mio_listen(j_atoi(port, 0), ip, base_accept_process_xml, (void*)al, NULL, mio_handlers_new(MIO_XML_READ, MIO_XML_WRITE));
     }
 
 	/* Setup the default sink for this instance */ 

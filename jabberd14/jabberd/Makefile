@@ -11,6 +11,8 @@ jabberd_HEADERS=jabberd.h
 jabberd_OBJECTS = \
 	config.o \
     mio.o \
+    mio_std.o \
+    mio_xml.o \
 	deliver.o \
 	heartbeat.o \
 	jabberd.o \
