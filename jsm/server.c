@@ -54,9 +54,15 @@ void js_server_main(void *arg)
     if(js_islocal(q->si, q->p->from))
         u = js_user(q->si, q->p->from, NULL);
 
+    /* don't free the udata while the mapi call is processed */
+    u->ref++;
+
     /* let the modules have a go at the packet; if nobody handles it... */
     if(!js_mapi_call(q->si, e_SERVER, q->p, u, NULL))
         js_bounce_xmpp(q->si,q->p->x,XTERROR_NOTFOUND);
+
+    /* free our lock */
+    u->ref--;
 }
 
 

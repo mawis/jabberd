@@ -1,6 +1,10 @@
 2004-10-12  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/jabberd.c: restored 1.4.3 behaviour of -D option, new one is -d
+    * jsm/authreg.c: locking the udata structure in some cases
+    * jsm/deliver.c: same
+    * jsm/server.c: same
+    * jsm/users.c: We don't have to convert to lowercase if libidn already did
 
 2004-10-06  Matthias Wimmer  <m@tthias.net>
 
