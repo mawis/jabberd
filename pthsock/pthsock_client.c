@@ -207,7 +207,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         }
         else
             c->state = state_CLOSING;
-        xmlnode_free(p->x);
+        xmlnode_free(x);
     }
 }
 
