@@ -148,6 +148,10 @@ mreturn mod_announce_sess_avail(mapi m, void *arg)
     if(!js_online(m))
         return M_PASS;
 
+    /* no announces to sessions with negative priority */
+    if (m->s->priority < 0)
+	return M_PASS;
+
     /* check the last time we were on to see if we haven't gotten the announcement yet */
     last = xdb_get(m->si->xc, m->user->id, NS_LAST);
     lastt = j_atoi(xmlnode_get_attrib(last,"last"),0);

@@ -1,1 +1,3 @@
     * jabberd14 now uses an automake/autoconf build environment
+    * jabberd14 now handles negative priorities and won't consider sessions
+      with negative priority for default delivery

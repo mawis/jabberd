@@ -145,10 +145,10 @@ int jutil_priority(xmlnode x)
     int p;
 
     if(x == NULL)
-        return -1;
+        return -129;
 
     if(xmlnode_get_attrib(x,"type") != NULL)
-        return -1;
+        return -129;
 
     x = xmlnode_get_tag(x,"priority");
     if(x == NULL)
@@ -159,10 +159,8 @@ int jutil_priority(xmlnode x)
         return 0;
 
     p = atoi(str);
-    if(p >= 0)
-        return p;
-    else
-        return 0;
+    /* xmpp-im section 2.2.2.3 */
+    return p<-128 ? -128 : p>127 ? 127 : p;
 }
 
 void jutil_tofrom(xmlnode x)

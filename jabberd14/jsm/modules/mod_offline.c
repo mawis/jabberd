@@ -125,6 +125,11 @@ void mod_offline_out_available(mapi m)
     int expire, stored, diff;
     char str[10];
 
+    if (j_atoi(xmlnode_get_tag_data(m->packet->x, "priority"), 0) < 0) {
+	log_debug("mod_offline", "negative priority, not delivering offline messages");
+	return;
+    }
+
     log_debug("mod_offline","avability established, check for messages");
 
     if((opts = xdb_get(m->si->xc, m->user->id, NS_OFFLINE)) == NULL)
