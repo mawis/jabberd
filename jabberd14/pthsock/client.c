@@ -231,6 +231,9 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
         mio_reset(m, pthsock_client_read, (void*)cd);
         break;
     case MIO_CLOSED:
+        if(m->type == type_LISTEN)
+            return;
+
         cd = (cdata)arg;
         if(cd == NULL) 
             break;
@@ -385,11 +388,21 @@ result pthsock_client_timeout(void *arg)
     return r_DONE;
 }
 
+int _pthsock_client_shutdown(void *arg, const void *key, void *data)
+{
+    cdata cd = (cdata)data;
+    log_debug(ZONE, "C2S closing down user %s from ip: %s", jid_full(cd->session_id), mio_ip(cd->m));
+    mio_close(cd->m);
+    return 1;
+}
+
 /* cleanup function */
 void pthsock_client_shutdown(void *arg)
 {
     smi s__i = (smi)arg;
     xmlnode_free(s__i->cfg);
+    log_debug(ZONE, "C2S Shutting Down");
+    ghash_walk(s__i->users, _pthsock_client_shutdown, NULL);
 }
 
 /* everything starts here */
