@@ -410,6 +410,8 @@ void *pthsock_client_main(void *arg)
             {
                 if (cur->state == state_CLOSED)
                 {
+                    /* XXX Potential Bug?? sheath, can you look at this?
+                       cur is being free'd here, but used later on.. */
                     pthsock_client_release(si,cur);
                 }
                 else if (FD_ISSET(cur->sock,&rfds))
@@ -420,18 +422,21 @@ void *pthsock_client_main(void *arg)
                         log_debug(ZONE,"Error reading on '%d', %s",cur->sock,strerror(errno));
                         pthsock_client_close(cur);
                     }
- 
-                    log_debug(ZONE,"read %d bytes",len);
-
-                    xstream_eat(cur->xs,buff,len);
-                    if (cur->state == state_CLOSING)
-                        pthsock_client_close(cur);
                     else
-                        FD_SET(cur->sock,&afds);
+                    { /* XXX sheath: I added this else, and it fixes my PTH errors. -- tsb */
+                        log_debug(ZONE,"read %d bytes",len);
+
+                        xstream_eat(cur->xs,buff,len);
+                        if (cur->state == state_CLOSING)
+                            pthsock_client_close(cur);
+                        else
+                            FD_SET(cur->sock,&afds);
+                    }
                 }
                 else
                     FD_SET(cur->sock,&afds);
 
+                /* XXX used down here, but freed in pthsock_client_release */
                 cur = cur->next;
             }
             rfds = afds;
