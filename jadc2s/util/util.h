@@ -253,6 +253,41 @@ char *spools(pool p, ...); /* wrap all the spooler stuff in one function, the ha
 #define JID_USER     2
 #define JID_SERVER   4
 
+#ifdef LIBIDN
+
+#  include <stringprep.h>
+
+/**
+ * @brief datastructure to hold the stringprep caches
+ */
+typedef struct _jid_prep_entry_st {
+    char *preped;		/**< the result of the preparation, NULL if unchanged */
+    time_t last_used;		/**< when this result has been used the last time */
+    unsigned int used_count;	/**< how often this result has been used */
+    int size;			/**< the min buffer size needed to hold the result (strlen+1) */
+} *_jid_prep_entry_t;
+
+/**
+ * @brief string preparation cache
+ */
+typedef struct _jid_prep_cache_st {
+    xht hashtable;		/**< the hash table containing the preped strings */
+    const Stringprep_profile *profile;
+    				/**< the stringprep profile used for this cache */
+} *_jid_prep_cache_t;
+
+/**
+ * @brief environment for JID preparation
+ *
+ * This data structure holds the three used caches for JID preparation
+ */
+typedef struct _jid_environment {
+    _jid_prep_cache_t nodes;	/* prepared nodes */
+    _jid_prep_cache_t domains;	/* prepared domains */
+    _jid_prep_cache_t resources;/* prepared resources */
+} *jid_environment_t;
+#endif
+
 typedef struct jid_struct
 { 
     pool               p;
@@ -260,12 +295,18 @@ typedef struct jid_struct
     char*              user;
     char*              server;
     char*              full;
+#ifdef LIBIDN
+    jid_environment_t  environment;	/**< used stringprep caches */
+#endif
     struct jid_struct *next; /* for lists of jids */
 } *jid;
   
-jid     jid_new(pool p, char *idstr);	       /* Creates a jabber id from the idstr */
-jid     jid_newx(pool p, char *idstr, int len);/* same but with given len */
-void    jid_set(jid id, const char *str, int item);  /* Individually sets jid components */
+void	jid_clean_cache(jid_environment_t environment); /* cleanup the stringprep caches */
+void	jid_free_environment(jid_environment_t environment); /* free a jid preparation environment */
+jid_environment_t jid_new_environment();       /* Create a jid preparation environment */
+jid     jid_new(pool p, jid_environment_t environment, char *idstr); /* Creates a jabber id from the idstr */
+jid     jid_newx(pool p, jid_environment_t environment, char *idstr, int len); /* same but with given len */
+void    jid_set(jid id, const char *str, int item); /* Individually sets jid components */
 char*   jid_full(jid id);		       /* Builds a string type=user/resource@server from the jid data */
 int     jid_cmp(jid a, jid b);		       /* Compares two jid's, returns 0 for perfect match */
 int     jid_cmpx(jid a, jid b, int parts);     /* Compares just the parts specified as JID_|JID_ */

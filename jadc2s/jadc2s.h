@@ -215,6 +215,7 @@ struct c2s_st
     /* globals */
     mio_t mio;
     int shutting_down;
+    jid_environment_t jid_environment;
 
     /* setup */
     config_elem_t local_id;
