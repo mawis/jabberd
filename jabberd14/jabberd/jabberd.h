@@ -105,7 +105,7 @@ typedef void (*base_load_init)(instance id, xmlnode x);
 #define SERROR_NAMESPACE "<stream:error>Invalid namespace specified.</stream:error>"
 
 /* ------------------------------------
-/* Managed Thread Queue (MTQ) utilities 
+ * Managed Thread Queue (MTQ) utilities 
  *   used only by base_load'd extensions 
  *   and only available when base_load is 
  *   used.

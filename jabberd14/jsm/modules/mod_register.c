@@ -41,17 +41,15 @@ mreturn mod_register_new(mapi m, void *arg)
         /* copy in the registration fields from the config file */
         xmlnode_insert_node(q,xmlnode_get_firstchild(reg));
 
+        /* make sure we ask for the username and password, otherwise what's the point? */
+        xmlnode_insert_tag(q,"username");
+        xmlnode_insert_tag(q,"password");
+
         /* insert the key, we don't need to check it, but we'll send it :) */
         xmlnode_insert_cdata(xmlnode_insert_tag(q,"key"),jutil_regkey(NULL,"foobar"),-1);
         break;
 
     case JPACKET__SET:
-        /* make sure they sent a username */
-        if(m->packet->to == NULL || m->packet->to->user == NULL)
-        {
-            jutil_error(m->packet->x, TERROR_NOTACCEPTABLE);
-            break;
-        }
 
         /* make sure the username they want isn't in use */
         u = js_user(m->si, m->packet->to, NULL);

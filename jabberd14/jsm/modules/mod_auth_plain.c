@@ -19,7 +19,7 @@
 
 #include "jsm.h"
 
-mreturn mod_auth_plain(mapi m, void *arg)
+mreturn mod_auth_plain_jane(mapi m, void *arg)
 {
     char *passA, *passB;
     xmlnode xdb;
@@ -55,8 +55,8 @@ mreturn mod_auth_plain(mapi m, void *arg)
     return M_HANDLED;
 }
 
-void mod_auth(jsmi si)
+void mod_auth_plain(jsmi si)
 {
-    log_debug("mod_auth","init");
-    js_mapi_register(si,e_AUTH, mod_auth_plain, NULL);
+    log_debug("mod_auth_plain","init");
+    js_mapi_register(si,e_AUTH, mod_auth_plain_jane, NULL);
 }
