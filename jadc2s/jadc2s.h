@@ -148,7 +148,7 @@ struct c2s_st
     /* setup */
     char *local_host;
     char *local_ip;
-     int local_port;
+    int local_port;
 #ifdef USE_SSL
     int local_sslport;
     char *pemfile;
@@ -171,6 +171,8 @@ struct c2s_st
     bad_conn_t bad_conns; /* Karma controlled conns */
     bad_conn_t bad_conns_tail;
     int timeout; /* how long to process mio */
+
+    int num_clients;
 
     /* session manager stuff */
     conn_t sm;

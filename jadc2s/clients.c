@@ -403,6 +403,7 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
         }
 #endif
         /* get read events */
+        c->c2s->num_clients++;
         mio_read(m, fd);
         break;
 
@@ -472,6 +473,7 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
             /* remove from preauth hash */
             xhash_zap(c->c2s->pending,jid_full(c->myid));
         }
+        c->c2s->num_clients--;
         conn_free(c);
         break;
     }

@@ -165,6 +165,7 @@ int main(int argc, char **argv)
     c2s->conns = xhash_new(max_conns);
     c2s->bad_conns = NULL;
     c2s->timeout = 15;
+    c2s->num_clients = 0;
 
     /* nad cache */
     c2s->nads = nad_cache_new();
@@ -248,6 +249,8 @@ int main(int argc, char **argv)
     while(process_conns)
     {
         mio_run(c2s->mio, c2s->timeout);
+
+        log_write(c2s->log, LOG_NOTICE, "current number of clients: %d",c2s->num_clients);
 
         /* !!! XXX Should these be configurable cleanup times? */
         /* every so often check for timed out pending conns */
