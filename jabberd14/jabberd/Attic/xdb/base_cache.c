@@ -30,7 +30,7 @@ result base_cache_config(instance id, xmlnode x, void *arg)
     /* XXX uhgly, should figure out how to flag errors like this more consistently, during checking phase or something */
     if(id->type != p_XDB)
     {
-        printf("ERROR: <cache>...</cache> element only allowed in xdb section\n");
+        fprintf(stderr,"ERROR: <cache>...</cache> element only allowed in xdb section\n");
         exit(1);
     }
 

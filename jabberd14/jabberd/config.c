@@ -19,6 +19,7 @@
 #include "jabberd.h"
 #define MAX_INCLUDE_NESTING 20
 extern HASHTABLE cmd__line;
+HASHTABLE instance__ids;
 
 xmlnode greymatter__ = NULL;
 
@@ -41,7 +42,7 @@ void do_include(int nesting_level,xmlnode x)
             /* check for bad nesting */
             if(nesting_level>MAX_INCLUDE_NESTING)
             {
-                printf("ERROR: Included files nested %d levels deep.  Possible Recursion\n",nesting_level);
+                fprintf(stderr,"ERROR: Included files nested %d levels deep.  Possible Recursion\n",nesting_level);
                 exit(1);
             }
             include=cur;
@@ -107,7 +108,7 @@ int configurate(char *file)
     /* was the there a read/parse error? */
     if(greymatter__ == NULL)
     {
-        printf("Configuration using %s failed\n",realfile);
+        fprintf(stderr,"Configuration using %s failed\n",realfile);
         return 1;
     }
 
@@ -168,6 +169,8 @@ int configo(int exec)
     instance newi = NULL;
     pool p;
 
+    instance__ids=ghash_create(20,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+
     for(curx = xmlnode_get_firstchild(greymatter__); curx != NULL; curx = xmlnode_get_nextsibling(curx))
     {
         if(xmlnode_get_type(curx) != NTYPE_TAG || strcmp(xmlnode_get_name(curx),"base") == 0)
@@ -184,13 +187,20 @@ int configo(int exec)
 
         if(type == p_NONE || xmlnode_get_attrib(curx,"id") == NULL || xmlnode_get_firstchild(curx) == NULL)
         {
-            printf("Configuration error in:\n%s\n",xmlnode2str(curx));
-            if(type==p_NONE) printf("ERROR: Invalid Tag type: %s\n",xmlnode_get_name(curx));
+            fprintf(stderr,"Configuration error in:\n%s\n",xmlnode2str(curx));
+            if(type==p_NONE) fprintf(stderr,"ERROR: Invalid Tag type: %s\n",xmlnode_get_name(curx));
             if(xmlnode_get_attrib(curx,"id")==NULL)
-                printf("ERROR: Section needs an 'id' attribute\n");
+                fprintf(stderr,"ERROR: Section needs an 'id' attribute\n");
             if(xmlnode_get_firstchild(curx)==NULL)
-                printf("ERROR: Section Has no data in it\n");
+                fprintf(stderr,"ERROR: Section Has no data in it\n");
             return 1;
+        }
+
+        newi=ghash_get(instance__ids,xmlnode_get_attrib(curx,"id"));
+        if(newi!=NULL)
+        {
+            fprintf(stderr,"ERROR: Multiple Instances with same id: %s\n",xmlnode_get_attrib(curx,"id"));
+            exit(1);
         }
 
         /* create the instance */
@@ -202,7 +212,9 @@ int configo(int exec)
             newi->type = type;
             newi->p = p;
             newi->x = curx;
+            ghash_put(instance__ids,newi->id,newi);
         }
+
 
         /* loop through all this sections children */
         for(curx2 = xmlnode_get_firstchild(curx); curx2 != NULL; curx2 = xmlnode_get_nextsibling(curx2))
@@ -217,11 +229,11 @@ int configo(int exec)
             {
                 char *error=pstrdup(xmlnode_pool(curx2),xmlnode_get_attrib(curx2,"error"));
                 xmlnode_hide_attrib(curx2,"error");
-                printf("Invalid Configuration in instance '%s':\n%s\n",xmlnode_get_attrib(curx,"id"),xmlnode2str(curx2));
-                if(c==NULL) printf("ERROR: Unknown Base Tag: %s\n",xmlnode_get_name(curx2));
+                fprintf(stderr,"Invalid Configuration in instance '%s':\n%s\n",xmlnode_get_attrib(curx,"id"),xmlnode2str(curx2));
+                if(c==NULL) fprintf(stderr,"ERROR: Unknown Base Tag: %s\n",xmlnode_get_name(curx2));
                 else if(error!=NULL)
                 {
-                    printf("ERROR: Base Handler Returned an Error:\n%s\n",error);
+                    fprintf(stderr,"ERROR: Base Handler Returned an Error:\n%s\n",error);
                 }
                 return 1;
             }

@@ -52,7 +52,7 @@ result base_ns_config(instance id, xmlnode x, void *arg)
     /* XXX uhgly, should figure out how to flag errors like this more consistently, during checking phase or something */
     if(id->type != p_XDB)
     {
-        printf("ERROR: <ns>...</ns> element only allowed in xdb section\n");
+        fprintf(stderr,"ERROR: <ns>...</ns> element only allowed in xdb section\n");
         exit(1);
     }
 

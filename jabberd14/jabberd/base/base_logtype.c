@@ -33,7 +33,7 @@ result base_logtype_config(instance id, xmlnode x, void *arg)
     name = xmlnode_get_name(x);
     if(id == NULL)
     {
-        printf("validating config: %s\n",name);
+        fprintf(stderr,"validating config: %s\n",name);
         /* Ensure that the name of the tag is either "notice", "warn", or "alert" */
         if (strcmp(name, "notice") && strcmp(name, "warn") && strcmp(name, "alert"))
         {
@@ -50,7 +50,7 @@ result base_logtype_config(instance id, xmlnode x, void *arg)
     /* XXX needs to be a way to validate this in the checking phase */
     if(id->type!=p_LOG)
     {
-        printf("ERROR: <notice/>,<warn/> and <alert/> elements only allowed in log sections\n");
+        fprintf(stderr,"ERROR: <notice/>,<warn/> and <alert/> elements only allowed in log sections\n");
         exit(1);
     }
 

@@ -93,7 +93,7 @@ result base_format_config(instance id, xmlnode x, void *arg)
     /* XXX needs to be a way to validate this in the checking phase */
     if(id->type!=p_LOG)
     {
-        printf("ERROR: <format>..</format> element only allowed in log sections\n");
+        fprintf(stderr,"ERROR: <format>..</format> element only allowed in log sections\n");
         exit(1);
     }
 

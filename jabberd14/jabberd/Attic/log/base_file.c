@@ -63,7 +63,7 @@ result base_file_config(instance id, xmlnode x, void *arg)
     /* XXX needs to be a way to validate this in the checking phase */
     if(id->type!=p_LOG)
     {
-        printf("ERROR: <file>..</file> element only allowed in log sections\n");
+        fprintf(stderr,"ERROR: <file>..</file> element only allowed in log sections\n");
         exit(1);
     }
 
