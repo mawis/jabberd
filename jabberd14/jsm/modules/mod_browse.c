@@ -82,10 +82,10 @@ mreturn mod_browse_set(mapi m, void *arg)
     if(to->resource != NULL)
     {
         browse = mod_browse_get(m, to); /* get our browse info */
-        xmlnode_hide_attrib(browse,"xmlns"); /* no xmlns tells xdb to insert it into the existing browse data */
+        xmlnode_hide_attrib(browse,"xmlns"); /* don't need a ns as a child */
         for(cur = xmlnode_get_firstchild(browse); cur != NULL; cur = xmlnode_get_nextsibling(cur))
             xmlnode_hide(cur); /* erase all children */
-        xdb_set(m->si->xc, m->user->id, NS_BROWSE, browse); /* insert into user */
+        xdb_act(m->si->xc, m->user->id, NS_BROWSE, "insert", spools(m->packet->p,"?jid=",jid_full(to),m->packet->p), browse); /* insert and match replace */
         xmlnode_free(browse);
     }
 
@@ -98,7 +98,7 @@ mreturn mod_browse_set(mapi m, void *arg)
 
     /* insert the new item into the resource it was sent to */
     xmlnode_hide_attrib(cur,"xmlns"); /* just in case, to make sure it inserts */
-    if(xdb_set(m->si->xc, to, NS_BROWSE, cur))
+    if(xdb_act(m->si->xc, to, NS_BROWSE, "insert", spools(m->packet->p,"?jid=",jid_full(id),m->packet->p), cur))
     {
         js_bounce(m->si,m->packet->x,TERROR_UNAVAIL);
         return M_HANDLED;

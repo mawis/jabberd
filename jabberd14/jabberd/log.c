@@ -142,3 +142,37 @@ void log_alert(char *host, const char *msgfmt, ...)
     logger("alert",host,logmsg);
 }
 
+/* generic log record support */
+void log_record(char *id, char *type, char *action, const char *msgfmt, ...)
+{
+    va_list ap;
+    char logmsg[512] = "";
+    xmlnode log;
+
+    va_start(ap, msgfmt);
+    vsnprintf(logmsg, 512, msgfmt, ap);
+
+    log = xmlnode_new_tag("log");
+    xmlnode_put_attrib(log,"type","record");
+    if(id != NULL)
+        xmlnode_put_attrib(log,"from",id);
+    else
+        xmlnode_put_attrib(log,"from","-internal");
+
+    /* make log record like "type action rest-of-data" */
+    if(type != NULL)
+        xmlnode_insert_cdata(log,type,strlen(type));
+    else
+        xmlnode_insert_cdata(log,"unknown",7);
+    xmlnode_insert_cdata(log," ",1);
+    if(action != NULL)
+        xmlnode_insert_cdata(log,action,strlen(action));
+    else
+        xmlnode_insert_cdata(log,"unknown",7);
+    xmlnode_insert_cdata(log," ",1);
+    xmlnode_insert_cdata(log,logmsg,strlen(logmsg));
+
+    log_debug(ZONE,"%s",xmlnode2str(log));
+    deliver(dpacket_new(log), NULL);
+}
+

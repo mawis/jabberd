@@ -69,7 +69,7 @@ mreturn mod_offline_message(mapi m)
     log_debug("mod_offline","handling message for %s",m->user->user);
 
     jutil_delay(m->packet->x,"Offline Storage");
-    if(xdb_set(m->si->xc, m->user->id, NS_OFFLINE, m->packet->x)) /* feed the message itself, and xdb inserts it for this namespace */
+    if(xdb_act(m->si->xc, m->user->id, NS_OFFLINE, "insert", NULL, m->packet->x)) /* feed the message itself, and do an xdb insert */
         return M_PASS;
 
     if(cur != NULL)
