@@ -262,10 +262,14 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
 void base_accept_offline(accept_instance ai, xmlnode x)
 {
     jpacket p;
+    char errmsg[64] = "";
 
     if(ai->offline == NULL)
     {
-        deliver_fail(dpacket_new(x),"Internal Timeout");
+	snprintf(errmsg, sizeof(errmsg), "Component '%s' is not connected to server",
+		ai->i==NULL ? "(NULL)" :
+		ai->i->id!= NULL ? ai->i->id : "(null)");
+        deliver_fail(dpacket_new(x), errmsg);
         return;
     }
 
@@ -285,7 +289,9 @@ void base_accept_offline(accept_instance ai, xmlnode x)
             break;
     }
 
-    deliver_fail(dpacket_new(x),"Internal Timeout");
+    snprintf(errmsg, sizeof(errmsg), "delivery to '%s': Internal Timeout",
+	    ai->i==NULL ? "(NULL)" : ai->i->id!= NULL ? ai->i->id : "(null)");
+    deliver_fail(dpacket_new(x), errmsg);
 }
 
 /* check the packet queue for stale packets */
