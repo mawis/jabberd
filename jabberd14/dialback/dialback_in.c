@@ -39,6 +39,20 @@
  * 
  * --------------------------------------------------------------------------*/
 
+/**
+ * @file dialback_in.c
+ * @brief handle incoming server to server connections
+ *
+ * In this file there are the functions used to handle the incoming connections
+ * on the server connection manager.
+ *
+ * After an other server has connected to us, we have to check its identity using
+ * dialback. If the check succeeds, we trust the peer, that it is allowed to send
+ * messages originating at the checked domain.
+ *
+ * How dialback works is documented in XMPP core (RFC 3920)
+ */
+
 #include "dialback.h"
 
 /* 
@@ -51,17 +65,30 @@ We verify w/ the dialback process, then we'll send back:
 
 */
 
-/* db in connections */
+/**
+ * incoming dialback streams
+ */
 typedef struct dbic_struct
 {
-    mio m;
-    char *id;
-    xmlnode results; /* contains all pending results we've sent out */
-    db d;
-    char *we_domain; /* who the other end expects us to be */
+    mio m;		/**< the connection of the incoming stream */
+    char *id;		/**< random id we assigned to this stream */
+    xmlnode results;	/**< db:result elements that we received and
+			  that are not yet fully processed (just doing
+			  dialback on them). We add an additional
+			  attribute "key" to the element:
+			  "streamid@ourdomain/peersdomain" */
+    db d;		/**< the dialback instance */
+    char *we_domain;	/**< who the other end expects us to be
+			  (to attribute of stream head) for selecting
+			  a certificate at STARTTLS */
 } *dbic, _dbic;
 
-/* clean up a hashtable entry containing this miod */
+/**
+ * remove a incoming connection from the hashtable of all incoming connections
+ * waiting to be checked
+ *
+ * @param arg the connection that should be removed from the hash-table (type is dbic)
+ */
 void dialback_in_dbic_cleanup(void *arg)
 {
     dbic c = (dbic)arg;
@@ -69,24 +96,44 @@ void dialback_in_dbic_cleanup(void *arg)
         xhash_zap(c->d->in_id,c->id);
 }
 
-/* nice new dbic */
+/**
+ * create a new instance of dbic, holding information about an incoming s2s stream
+ *
+ * @param d the dialback instance
+ * @param m the connection of this stream
+ * @param we_domain what the other end expects to be our main domain (for STARTTLS)
+ * @return the new instance of dbic
+ */
 dbic dialback_in_dbic_new(db d, mio m, const char *we_domain)
 {
     dbic c;
 
     c = pmalloco(m->p, sizeof(_dbic));
     c->m = m;
-    c->id = pstrdup(m->p,dialback_randstr());
-    c->results = xmlnode_new_tag_pool(m->p,"r");
+    c->id = pstrdup(m->p,dialback_randstr()); /* generate a random id for this incoming stream */
+    c->results = xmlnode_new_tag_pool(m->p,"r"); /* wrapper element, we add the db:result elements inside this one */
     c->d = d;
     c->we_domain = pstrdup(m->p, we_domain);
-    pool_cleanup(m->p,dialback_in_dbic_cleanup, (void *)c);
-    xhash_put(d->in_id, c->id, (void *)c);
+    pool_cleanup(m->p,dialback_in_dbic_cleanup, (void *)c); /* remove us automatically if our memory pool is freed */
+    xhash_put(d->in_id, c->id, (void *)c); /* insert ourself in the hash of not yet verified connections */
     log_debug2(ZONE, LOGT_IO, "created incoming connection %s from %s",c->id,m->ip);
     return c;
 }
 
-/* callback for mio for accepted sockets that are dialback */
+/**
+ * callback for mio for accepted sockets that are dialback
+ *
+ * - We check if the other host wants to switch to using TLS.
+ * - We check if the other host wants to verify a dialback connection we made to them
+ * - We accept db:result element, where the peer wants to authenticate to use a domain
+ * - We accept stanzas send from a sender the peer has been authorized to use
+ * - Else we generate a stream:error
+ *
+ * @param m the connection on which the stanza has been read
+ * @param flags the mio action, should always be MIO_XML_NODE, other actions are ignored
+ * @param arg the dbic instance of the stream on which the stanza has been read
+ * @param x the stanza that has been read
+ */
 void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
 {
     dbic c = (dbic)arg;
@@ -130,10 +177,15 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
     /* incoming verification request, check and respond */
     if(j_strcmp(xmlnode_get_name(x),"db:verify") == 0)
     {
-        if(j_strcmp( xmlnode_get_data(x), dialback_merlin(xmlnode_pool(x), c->d->secret, xmlnode_get_attrib(x,"from"), xmlnode_get_attrib(x,"id"))) == 0)
+	char *is = xmlnode_get_data(x);		/* what the peer tries to verify */
+	char *should = dialback_merlin(xmlnode_pool(x), c->d->secret, xmlnode_get_attrib(x,"from"), xmlnode_get_attrib(x,"id"));
+
+        if(j_strcmp(is, should) == 0) {
             xmlnode_put_attrib(x,"type","valid");
-        else
+	} else {
             xmlnode_put_attrib(x,"type","invalid");
+	    log_notice(c->d->i->id, "Is somebody faking us? %s tried to verify the invalid dialback key %s (should be %s)", xmlnode_get_attrib(x, "from"), is, should);
+	}
 
         /* reformat the packet reply */
         jutil_tofrom(x);
@@ -179,6 +231,8 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
     md = xhash_get(c->d->in_ok_db, jid_full(key));
     if(md == NULL || md->m != m)
     { /* dude, what's your problem!  *click* */
+	log_notice(c->d->i->id, "Received unauthorized stanza for/from %s: %s", jid_full(key), xmlnode2str(x));
+
         mio_write(m, NULL, "<stream:error><invalid-from xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Invalid Packets Recieved!</text></stream:error>", -1);
         mio_close(m);
         xmlnode_free(x);
@@ -189,7 +243,17 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
 }
 
 
-/* callback for mio for accepted sockets that are legacy */
+/**
+ * callback for mio for accepted sockets that are legacy
+ *
+ * We just accept all stanzas for legacy connections. :-(
+ * Hopefully the administrator did not enable this connection type.
+ *
+ * @param m the connection
+ * @param flags mio action, we ignore anything but MIO_XML_NODE
+ * @param arg the miod structure
+ * @param x the received stanza
+ */
 void dialback_in_read_legacy(mio s, int flags, void *arg, xmlnode x)
 {
     miod md = (miod)arg;
@@ -199,7 +263,21 @@ void dialback_in_read_legacy(mio s, int flags, void *arg, xmlnode x)
     dialback_miod_read(md, x);
 }
 
-/* callback for mio for accepted sockets */
+/**
+ * callback for mio for accepted sockets
+ *
+ * Our task is:
+ * - Verify the stream root element
+ * - Check the type of server-to-server stream (we support: legacy, dialback, xmpp+dialback)
+ * - For legacy streams: Check if we want to allow them
+ * - For xmpp+dialback: send stream:features (we support: starttls)
+ * - Reset the mio callback. Stanzas are handled by dialback_in_read_legacy() or dialback_in_read_db()
+ *
+ * @param m the connection on which the stream root element has been received
+ * @param the mio action, everything but MIO_XML_ROOT is ignored
+ * @param arg the db instance
+ * @param x the stream root element
+ */
 void dialback_in_read(mio m, int flags, void *arg, xmlnode x)
 {
     db d = (db)arg;
@@ -298,7 +376,19 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x)
     }
 }
 
-/* we take in db:valid packets that have been processed, and expect the to="" to be our name and from="" to be the remote name */
+/**
+ * Handle db:verify packets, that we got as a result to our dialback to the originating server.
+ *
+ * We expect the to attribute to be our name and the from attribute to be the remote name.
+ *
+ * We have to do:
+ * - Check if there is (still) a connection for this dialback result
+ * - If the we got type='valid' we have to authorize the peer to use the verified sender address
+ * - Inform the peer about the result
+ *
+ * @param d the db instance
+ * @param x the db:verify answer packet
+ */
 void dialback_in_verify(db d, xmlnode x)
 {
     dbic c;
@@ -310,7 +400,7 @@ void dialback_in_verify(db d, xmlnode x)
     /* check for the stored incoming connection first */
     if((c = xhash_get(d->in_id, xmlnode_get_attrib(x,"id"))) == NULL)
     {
-        log_warn(d->i->id, "dropping broken dialback validating request: %s", xmlnode2str(x));
+	log_warn(d->i->id, "Dropping a db:verify answer, we don't have a waiting incoming connection (anymore?) for this id: %s", xmlnode2str(x));
         xmlnode_free(x);
         return;
     }
@@ -322,7 +412,7 @@ void dialback_in_verify(db d, xmlnode x)
 
     if((x2 = xmlnode_get_tag(c->results, spools(xmlnode_pool(x),"?key=",jid_full(key),xmlnode_pool(x)))) == NULL)
     {
-        log_warn(d->i->id, "dropping broken dialback validating request: %s", xmlnode2str(x));
+	log_warn(d->i->id, "Dropping a db:verify answer, we don't have a waiting incoming connection (anymore?) for this to/from pair: %s", xmlnode2str(x));
         xmlnode_free(x);
         return;
     }
@@ -331,6 +421,8 @@ void dialback_in_verify(db d, xmlnode x)
     /* valid requests get the honour of being miod */
     if(j_strcmp(xmlnode_get_attrib(x,"type"),"valid") == 0)
         dialback_miod_hash(dialback_miod_new(c->d, c->m), c->d->in_ok_db, key);
+    else
+	log_warn(d->i->id, "Denying peer to use the domain %s. Dialback failed: %s", key->resource, xmlnode2str(x));
 
     /* rewrite and send on to the socket */
     x2 = xmlnode_new_tag_pool(xmlnode_pool(x),"db:result");
