@@ -263,8 +263,7 @@ void deliver(dpacket p, instance i)
 
             /* reformat packet as a reply */
             xmlnode_put_attrib(p->x,"type","result");
-            xmlnode_put_attrib(p->x,"from",jid_full(p->id));
-            xmlnode_put_attrib(p->x,"to",NULL);
+            jutil_tofrom(p->x);
             p->type = p_NORM;
 
             /* deliver back to the sending instance */
@@ -322,9 +321,9 @@ dpacket dpacket_new(xmlnode x)
     if(p->type == p_XDB && (str = xmlnode_get_attrib(p->x,"type")) != NULL && *str == 'r')
         p->type = p_NORM;
 
-    /* determine who to route it to, overriding the default to="" attrib only for sid special case */
-    if(p->type == p_NORM && xmlnode_get_attrib(x, "sid") != NULL)
-        p->id = jid_new(p->p, xmlnode_get_attrib(x, "sid"));
+    /* determine who to route it to, overriding the default to="" attrib only for sto="" special case */
+    if(p->type == p_NORM && xmlnode_get_attrib(x, "sto") != NULL)
+        p->id = jid_new(p->p, xmlnode_get_attrib(x, "sto"));
     else
         p->id = jid_new(p->p, xmlnode_get_attrib(x, "to"));
 

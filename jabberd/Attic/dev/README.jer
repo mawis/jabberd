@@ -43,12 +43,12 @@ handling is stopped upon an r_ERR or r_LAST, and no change with r_PASS
 r_ERR means the handler actually modified the packet appropriately to represent the error
 
 ---------- RANT on session routing
-for an auth iq, set the from="45a3@10348.polld.jabber.org" to identify the session id within the connection service
-set the sid="jabber.org" to identify the hostname that should be handling the service.
-return packets from the manager service can then set sid="" to the from, and set the from="4015@farm03.jabber.org" to identify the session id within the manager service.
+for an auth iq, set the sfrom="45a3@10348.polld.jabber.org" to identify the session id within the connection service
+set the sto="jabber.org" to identify the hostname that should be handling the service.
+return packets from the manager service can then set sto="" to the sfrom, and set the sfrom="4015@farm03.jabber.org" to identify the session id within the manager service.
 subsequent packets addressed to either session can be identified, and the other's sid is stored within each session.
-sid="" is used in place of the to="" attribute, and only valid within polld.
-if a service receives a packet because of a sid="" and it doesn't handle sessions, it should notice the sid="" attrib and bounce it
+sto="" is used in place of the to="" attribute, and only valid within polld.
+if a service receives a packet because of a sto="" and it doesn't handle sessions, it should notice the sto="" attrib and bounce it
 
 all packets are bounced intelligently, xdbs returned empty, logs not bounced, and packets bounced like normal (with type="error", etc)
 
