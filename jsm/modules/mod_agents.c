@@ -75,7 +75,10 @@ mreturn mod_agents_agents(mapi m)
     }
 
     jpacket_reset(m->packet);
-    js_deliver(m->si,m->packet);
+    if(m->s != NULL) /* XXX null session hack! */
+        js_session_to(m->s,m->packet);
+    else
+        js_deliver(m->si,m->packet);
 
     return M_HANDLED;
 }
@@ -112,7 +115,10 @@ mreturn mod_agents_agent(mapi m)
         xmlnode_insert_tag(retq,"register");
 
     jpacket_reset(m->packet);
-    js_deliver(m->si,m->packet);
+    if(m->s != NULL) /* XXX null session hack! */
+        js_session_to(m->s,m->packet);
+    else
+        js_deliver(m->si,m->packet);
 
     return M_HANDLED;
 }
@@ -129,8 +135,16 @@ mreturn mod_agents_handler(mapi m, void *arg)
     return M_PASS;
 }
 
+/* XXX supid null to workaround! */
+mreturn mod_agents_shack(mapi m, void *arg)
+{
+    js_mapi_session(es_OUT,m->s,mod_agents_handler,NULL);
+    return M_PASS;
+}
+
 void mod_agents(jsmi si)
 {
     log_debug("mod_agents","init");
     js_mapi_register(si,e_SERVER, mod_agents_handler, NULL);
+    js_mapi_register(si,e_SESSION, mod_agents_shack, NULL);
 }
