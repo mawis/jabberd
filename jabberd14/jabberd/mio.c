@@ -110,6 +110,9 @@ void _mio_shutdown(void *arg)
     {
         mio_close(cur);
     }
+
+    /* give some time to close the sockets */
+    pth_yield(NULL);
 }
 
 /* 
@@ -150,7 +153,6 @@ int _mio_write_dump(mio m)
 
         /* write a bit from the current buffer */
         len = pth_write(m->fd, cur->cur, cur->len);
-        log_debug(ZONE, "WRITE: fd(%d), writing node %X full(%s) cur:(%s) wrote len %d of %d\n", m->fd, cur->x, cur->data, cur->cur, len, cur->len);
         if(len == 0)
         {
             /* bounce the queue */
@@ -218,6 +220,7 @@ void _mio_link(mio m)
 void _mio_close(mio m)
 {
     int ret = 0;
+    wbq cur;
 
     /* ensure that the state is set to CLOSED */
     m->state = state_CLOSE;
@@ -245,6 +248,12 @@ void _mio_close(mio m)
 
     if(m->rated) 
         jlimit_free(m->rate);
+
+    /* cleanup the write queue */
+    while((cur = mio_cleanup(m)) != NULL)
+    {
+        pool_free(cur->p);
+    }
 
     pool_free(m->p);
 
@@ -524,6 +533,7 @@ mio mio_new(int fd, mio_cb cb, void *arg)
     static int one_time = 1;
     pth_attr_t attr     = NULL;
     
+    /* create the new MIO object */
     p          = pool_new();
     new        = pmalloco(p, sizeof(_mio));
     new->p     = p;
@@ -533,6 +543,7 @@ mio mio_new(int fd, mio_cb cb, void *arg)
     new->cb    = cb;
     new->arg   = arg;
 
+    /* set the default karma values */
     mio_karma(new, KARMA_INIT, KARMA_MAX, KARMA_INC, KARMA_DEC, KARMA_PENALTY, KARMA_RESTORE);
 
     
@@ -571,7 +582,8 @@ mio mio_new(int fd, mio_cb cb, void *arg)
     _mio_link(new);
 
     /* notify the select loop */
-    pth_raise(mio__data->t, SIGUSR2);
+    if(mio__data != NULL)
+        pth_raise(mio__data->t, SIGUSR2);
 
     return new;
 }
@@ -606,28 +618,41 @@ void mio_write(mio m, xmlnode x, char *buffer, int len)
     wbq new, cur;
     pool p;
 
+    /* if there is nothing to write */
+    if(x == NULL && buffer == NULL)
+        return;
+
+    /* create the pool for this wbq */
     if(x != NULL)
         p = xmlnode_pool(x);
     else
         p = pool_new();
 
-    /* find the last queue item */
+    /* create the wbq */
     new    = pmalloco(p, sizeof(_wbq));
     new->p = p;
 
-    if(x == NULL)
+    /* set the queue item type */
+    if(buffer != NULL)
+    {
         new->type = queue_CDATA;
+    }
     else
+    {
         new->type = queue_XMLNODE;
+    }
 
+    /* assign values */
     new->x    = x;
     new->data = pstrdup(new->p, buffer);
     new->cur  = new->data;
     
+    /* find the len of the queue item */
     if(len == -1 && buffer != NULL)
     {
         new->len = strlen(buffer);
     }
+    /* if this is an xmlnode, this len gets set by the xml2str len prior to writing */
     else
     {
         new->len = len;
@@ -696,23 +721,32 @@ xmlnode mio_cleanup(mio m)
 {
     wbq     cur;
     
-    if(m == NULL) return NULL;
+    if(m == NULL) 
+        return NULL;
 
+    /* find the first queue item with a xmlnode attached */
     for(cur = m->queue; cur != NULL;)
     {
+        /* if there is no node attached */
         if(cur->x == NULL)
         {
+            /* just kill this item, and move on..
+             * only pop xmlnodes 
+             */
             wbq next = cur->next;
             pool_free(cur->p);
             cur = next;
             continue;
         }
 
+        /* move the queue up */
         m->queue = cur->next;
 
+        /* and pop this xmlnode */
         return cur->x;
     }
 
+    /* no xmlnodes found */
     return NULL;
 }
 
@@ -768,7 +802,6 @@ mio mio_connect(char *host, int port, mio_cb cb, void *arg)
 
     /* create the mio for this socket */
     new = mio_new(fd, cb, arg);
-    mio_karma(new, KARMA_INIT, KARMA_MAX, KARMA_INC, KARMA_DEC, KARMA_PENALTY, KARMA_RESTORE);
 
     /* notify the client that the socket is born */
     (*(mio_cb)new->cb)(new, NULL, 0, IO_NEW, new->arg);
@@ -805,7 +838,6 @@ mio mio_listen(int port, char *listen_host, mio_cb cb, void *arg)
 
     /* create the sock object, and assign the values */
     new = mio_new(fd, cb, arg);
-    mio_karma(new, KARMA_INIT, KARMA_MAX, KARMA_INC, KARMA_DEC, KARMA_PENALTY, KARMA_RESTORE);
     new->type      = type_LISTEN;
 
     log_debug(ZONE, "io_select starting to listen on %d [%s]", port, listen_host);
