@@ -342,6 +342,8 @@ mtq mtq_new(pool p)
 
     if(p == NULL) return NULL;
 
+    log_debug(ZONE,"MTQ(new)");
+
     /* create queue */
     q = pmalloco(p, sizeof(_mtq));
 
@@ -379,11 +381,13 @@ mth mtq_threads(mth context)
     /* NULL means that this is a query for a waiting thread */
     if(context == NULL)
     {
+        log_debug(ZONE,"MTQ(locating)");
         for(n=0;n<MTQ_THREADS;n++)
             if(avail[n] != NULL)
             { /* got a waiting thread, clear and return it */
                 t = avail[n];
                 avail[n] = NULL;
+                log_debug(ZONE,"MTQ(%X) located",t->mp);
                 return t;
             }
 
@@ -393,10 +397,12 @@ mth mtq_threads(mth context)
         t->p = p;
         t->mp = pth_msgport_create("mth");
         pth_spawn(PTH_ATTR_DEFAULT, mtq_main, (void *)t);
+        log_debug(ZONE,"MTQ(%X) new",t->mp);
         return t;
     }
 
     /* if we're here, context is a thread looking to go back into the avail array */
+    log_debug(ZONE,"MTQ(%X) saving",context->mp);
 
     /* scan the avail list for an open spot */
     for(n=0;n<MTQ_THREADS && avail[n] != NULL; n++);
@@ -404,6 +410,8 @@ mth mtq_threads(mth context)
     /* if we couldn't get it put back in, return it to flag an exit */
     if(n+1 == MTQ_THREADS)
         return context;
+
+    log_debug(ZONE,"MTQ(%X) saved",context->mp);
 
     avail[n] = context;
     return NULL;
@@ -416,7 +424,7 @@ void *mtq_main(void *arg)
     pth_event_t mpevt;
     mtqcall c;
 
-    log_debug(ZONE,"THREAD:WORKER %X starting",t->mp);
+    log_debug(ZONE,"MTQ(%X) starting",t->mp);
 
     /* create an event ring for receiving messges */
     mpevt = pth_event(PTH_EVENT_MSG,t->mp);
@@ -437,6 +445,7 @@ void *mtq_main(void *arg)
         /* process the waiting packets */
         while((c = (mtqcall)pth_msgport_get(t->mp)) != NULL)
         {
+            log_debug(ZONE,"MTQ(%X) call %X",t->mp,c->arg);
             (*(c->f))(c->arg);
         }
 
@@ -453,7 +462,7 @@ void *mtq_main(void *arg)
             break;
     }
 
-    log_debug(ZONE,"THREAD:WORKER %X exiting",t->mp);
+    log_debug(ZONE,"MTQ(%X) exiting",t->mp);
 
     /* free all memory stuff associated with the thread */
     pth_event_free(mpevt,PTH_FREE_ALL);
@@ -486,6 +495,8 @@ void mtq_send(mtq q, pool p, mtq_callback f, void *arg)
     }else{
         t = mtq_threads(NULL);
     }
+
+    log_debug(ZONE,"MTQ(%X) queue %X getting arg %X ",t->mp,q,arg);
 
     /* send call to the queue */
     pth_msgport_put(t->mp, (pth_message_t *)c);
