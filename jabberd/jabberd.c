@@ -42,6 +42,8 @@ extern HASHTABLE instance__ids;
 extern int deliver__flag;
 extern xmlnode greymatter__;
 pool jabberd__runtime = NULL;
+static char *cfgfile = NULL;
+int jabberd__signalflag = 0;
 
 /*** internal functions ***/
 int configurate(char *file);
@@ -55,16 +57,15 @@ void shutdown_callbacks(void);
 int config_reload(char *file);
 int  instance_startup(xmlnode x, int exec);
 void instance_shutdown(instance i);
+void _jabberd_signal(int sig);
+
 
 int main (int argc, char** argv)
 {
-    sigset_t set;               /* a set of signals to trap */
-    int help, sig, i;           /* temporary variables */
-    char *cfgfile = NULL, *c, *cmd, *home = NULL;   /* strings used to load the server config */
+    int help, i;           /* temporary variables */
+    char *c, *cmd, *home = NULL;   /* strings used to load the server config */
     pool cfg_pool=pool_new();
-    xmlnode temp_greymatter;
-    xmlnode pidfile;
-    char *pidpath;
+    float avload;
 
     jabberd__runtime = pool_new();
 
@@ -152,6 +153,11 @@ int main (int argc, char** argv)
     /* EPIPE is easier to handle than a signal */
     signal(SIGPIPE, SIG_IGN);
 
+    /* handle signals */
+    signal(SIGHUP,_jabberd_signal);
+    signal(SIGINT,_jabberd_signal);
+    signal(SIGTERM,_jabberd_signal);
+
     /* init pth */
     pth_init();
 
@@ -170,6 +176,8 @@ int main (int argc, char** argv)
     if(configo(0))
         exit(1);
 
+    log_notice(NULL,"initializing server");
+
     /* karma granted, rock on */
     if(configo(1))
         exit(1);
@@ -178,153 +186,69 @@ int main (int argc, char** argv)
     deliver__flag=1;
     deliver(NULL,NULL);
 
-while(1){ pth_sleep(1); };
-
-    /* trap signals HUP, INT and TERM */
-    sigemptyset(&set);
-    sigaddset(&set, SIGHUP);
-    sigaddset(&set, SIGINT);
-    sigaddset(&set, SIGTERM);
-    pth_sigmask(SIG_UNBLOCK, &set, NULL);
-
-    /* main server loop */
     while(1)
     {
-        xmlnode cur;
+        pth_ctrl(PTH_CTRL_GETAVLOAD, &avload);
+        log_debug(ZONE,"main load check of %.2f with %ld total threads", avload, pth_ctrl(PTH_CTRL_GETTHREADS));
+        pth_sleep(60);
+    };
 
-        /* wait for a signal */
-        pth_sigwait(&set, &sig);
+    /* we never get here */
+    return 0;
+}
 
-        /* if it's not HUP, exit the loop */
-        if(sig != SIGHUP) break;
+void _jabberd_signal(int sig)
+{
+    log_debug(ZONE,"received signal %d",sig);
+    jabberd__signalflag = sig;
+}
 
-        log_notice(NULL,"SIGHUP recieved.  Reloading config file");
+void _jabberd_restart(void)
+{
+    xmlnode temp_greymatter;
 
-        log_debug(ZONE, "Saving old greymatter");
-        /* keep greymatter around till we are sure the reload is OK */
-        temp_greymatter = greymatter__;
+    log_notice(NULL, "reloading configuration");
 
-        log_debug(ZONE, "Loading new config file");
-        /* try to load the config file */
-        if(configurate(cfgfile))
-        { /* failed to load.. restore the greymatter */
-            log_debug(ZONE, "Failed to load new config, resetting greymatter");
-            log_alert(ZONE, "Failed to reload config!  Resetting internal config -- please check your configuration!");
-            greymatter__ = temp_greymatter;
-            continue;
-        }
+    /* keep greymatter around till we are sure the reload is OK */
+    temp_greymatter = greymatter__;
 
-        /* make sure that this config is okay */
-        log_debug(ZONE, "Validating Instances");
-        if(configo(0))
-        { /* bad config.. reload the old */
-            log_debug(ZONE, "Failed to Validate Instances");
-            log_alert(ZONE, "Failed to Validate Instances!  Resetting internal config -- please check your configuration!");
-            greymatter__ = temp_greymatter;
-            continue; 
-        }
+    log_debug(ZONE, "Loading new config file");
 
-        log_debug(ZONE, "Pausing Deliver()");
-        /* pause deliver() */
-        deliver__flag = 0;
-
-        log_debug(ZONE, "Looking for new instances to startup...");
-        /* look for new instances.. start them up */
-        for(cur = xmlnode_get_firstchild(greymatter__); cur != NULL; cur = xmlnode_get_nextsibling(cur))
-        {
-            char *id;
-            instance i;
-
-            if(xmlnode_get_type(cur) != NTYPE_TAG) continue;
-
-            id = xmlnode_get_attrib(cur, "id");
-            log_debug(ZONE, "Looking at %s...", id);
-            i = ghash_get(instance__ids, id);
-            if(i == NULL)
-            { /* new instance, start it up */
-                log_debug(ZONE, "%s is a new instance! starting it up", id);
-                instance_startup(cur, 1);
-            }
-
-            /* XXX FIXME: do a full sigHUP, not just start new instnaces
-            else
-            {
-                if(xmlnode_cmp(cur, i->x) != 0)
-                {
-                    log_debug(ZONE, "%s is a changed instance! reloading", id);
-                    instance_shutdown(i);
-                    instance_startup(cur, 1);
-                }
-            }
-            */
-        }
-
-        /* XXX FIXME: take this out, and do a full sigHUP, */
-        if(1)
-        {
-            log_debug(ZONE, "Engaging deliver() again");
-            /* engage deliver() drive ensign, full warp ahead! */
-            deliver__flag = 1;
-            deliver(NULL,NULL);
-
-            log_debug(ZONE, "Freeing old greymatter");
-            /* free old greymatter */
-            if(temp_greymatter != NULL)
-                xmlnode_free(temp_greymatter);
-
-            log_debug(ZONE, "Reload process complete, going back to waiting for a signal");
-            continue;
-        }
-
-        log_debug(ZONE, "Looking for stale instances to shut down...");
-        /* look for stale instances to shutdown */
-        for(cur = xmlnode_get_firstchild(temp_greymatter); cur != NULL; cur = xmlnode_get_nextsibling(cur))
-        {
-            char *searchstr;
-            if(xmlnode_get_type(cur) != NTYPE_TAG) continue;
-
-            searchstr = spools(xmlnode_pool(cur), xmlnode_get_name(cur), "?id=", xmlnode_get_attrib(cur, "id"), xmlnode_pool(cur));
-            log_debug(ZONE, "Checking if %s is stale", searchstr);
-
-            if(xmlnode_get_tag(greymatter__, searchstr) == NULL)
-            { /* was in config, but not anymore */
-                instance i;
-                log_alert(NULL, "Shutting Down stale instance %s", xmlnode_get_attrib(cur, "id"));
-                
-                i = ghash_get(instance__ids, xmlnode_get_attrib(cur, "id"));
-                instance_shutdown(i);
-            }
-        }
-
-        log_debug(ZONE, "Engaging deliver() again");
-        /* engage deliver() drive ensign, full warp ahead! */
-        deliver__flag = 1;
-        deliver(NULL,NULL);
-
-        log_debug(ZONE, "Freeing old greymatter");
-        /* free old greymatter */
-        if(temp_greymatter != NULL)
-            xmlnode_free(temp_greymatter);
-
-        log_debug(ZONE, "Reload process complete, going back to waiting for a signal");
-
+    /* try to load the config file */
+    if(configurate(cfgfile))
+    { /* failed to load.. restore the greymatter */
+        log_debug(ZONE, "Failed to load new config, resetting greymatter");
+        log_alert(ZONE, "Failed to reload config!  Resetting internal config -- please check your configuration!");
+        greymatter__ = temp_greymatter;
+        return;
     }
 
-    log_alert(NULL,"Recieved Kill %d.  Jabberd shutting down.",sig);
-    /* we left the main loop, so we must have recieved a kill signal */
-    /* start the shutdown sequence */
+    /* free old greymatter */
+    if(temp_greymatter != NULL)
+        xmlnode_free(temp_greymatter);
 
-    /* XXX pause deliver() this sucks, cuase we lose shutdown messages */
+    /* XXX do more smarts on new config */
+
+    log_debug(ZONE, "reload process complete");
+
+}
+
+void _jabberd_shutdown(void)
+{
+    xmlnode pidfile;
+    char *pidpath;
+
+    log_notice(NULL,"shutting down server");
+
+    /* pause deliver() this sucks, cuase we lose shutdown messages */
     deliver__flag = 0;
-//    instance_shutdown(NULL);
     shutdown_callbacks();
 
     /* one last chance for threads to finish shutting down */
     pth_sleep(1);
 
-    /* stop MIO */
+    /* stop MIO and heartbeats */
     mio_stop();
-
     heartbeat_death();
 
     /* kill any leftover threads */
@@ -338,13 +262,22 @@ while(1){ pth_sleep(1); };
         if(pidpath != NULL)
             unlink(pidpath);
     }
-    pool_free(cfg_pool);
     xmlnode_free(greymatter__);
 
     /* base modules use jabberd__runtime to know when to shutdown */
     pool_free(jabberd__runtime);
 
-    /* we're done! */
-    return 0;
+    exit(0);
+}
 
+/* process the signal */
+void jabberd_signal(void)
+{
+    if(jabberd__signalflag == SIGHUP)
+    {
+        _jabberd_restart();
+        jabberd__signalflag = 0;
+        return;
+    }
+    _jabberd_shutdown();
 }
