@@ -697,11 +697,6 @@ void _mio_connect(void *arg)
         bind(new->fd, (struct sockaddr*)&sa, sizeof(sa));
     }
 
-    /* set the socket to non-blocking */
-    flags =  fcntl(new->fd, F_GETFL, 0);
-    flags |= O_NONBLOCK;
-    fcntl(new->fd, F_SETFL, flags);
-
 #ifdef WITH_IPV6
     saddr = make_addr_ipv6(cd->ip);
 #else
@@ -743,6 +738,11 @@ void _mio_connect(void *arg)
         pool_free(p);
         return;
     }
+
+    /* set the socket to non-blocking */
+    flags =  fcntl(new->fd, F_GETFL, 0);
+    flags |= O_NONBLOCK;
+    fcntl(new->fd, F_SETFL, flags);
 
     /* XXX pthreads race condition.. cd->connected may be checked in the timeout, and cd freed before these calls */
 
