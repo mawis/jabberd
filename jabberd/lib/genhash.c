@@ -53,6 +53,7 @@ typedef struct tagHSLAB
 
 typedef struct tagHASHTABLE_INTERNAL
 {
+    pool p;                            /* if malloc'd from a pool */
     unsigned long sig1;                /* first signature word */
     KEYHASHFUNC hash;                  /* hash function */
     KEYCOMPAREFUNC cmp;                /* comparison function */
@@ -62,6 +63,12 @@ typedef struct tagHASHTABLE_INTERNAL
     unsigned long sig2;                /* second signature word */
 
 } HASHTABLE_INTERNAL;
+
+typedef struct 
+{
+    HASHTABLE ht;
+    char *key;
+} _remove_key_struct, *remove_key_struct;
 
 #define HASH_SIG1      0x68736148UL  /* "Hash" */
 #define HASH_SIG2      0x6F627245UL  /* "Erbo" */
@@ -110,6 +117,43 @@ static HNODE *allocate_node(
 
 } /* end allocate_node */
 
+static HNODE *allocate_node_pool(
+    pool p,            /* pool to malloc from */
+    const void *key,   /* key pointer for this node */
+    void *value)       /* value pointer for this node */
+/*
+    allocate_node allocates a new hash node and fills it.  Returns NULL if the
+    node could not be allocated.
+*/
+{
+    HNODE *rc;   /* return from this function */
+
+    if(p == NULL)
+        return allocate_node(key, value);
+
+    if (!s_free_nodes)
+    { /* allocate a new slabful of nodes and chain them to make a new free list */
+        register int i;  /* loop counter */
+        HSLAB *slab = (HSLAB *)pmalloco(p, sizeof(HSLAB));
+        if (!slab)
+            return NULL;
+        slab->next = s_slabs;
+        for (i=0; i<(SLAB_NUM_NODES-1); i++)
+            slab->nodes[i].next = &(slab->nodes[i+1]);
+        s_free_nodes = &(slab->nodes[0]);
+        s_slabs = slab;
+
+    } /* end if */
+
+    /* grab a node off the fron of the free list and fill it */
+    rc = s_free_nodes;
+    s_free_nodes = rc->next;
+    rc->next = NULL;
+    rc->key = key;
+    rc->value = value;
+    return rc;
+
+} /* end allocate_node */
 static void free_node(
     HNODE *node)   /* node to be freed */
 /*
@@ -203,6 +247,7 @@ HASHTABLE ghash_create(int buckets, KEYHASHFUNC hash, KEYCOMPAREFUNC cmp)
     allocated += sizeof(HASHTABLE_INTERNAL);
     memset(tab,0,sizeof(HASHTABLE_INTERNAL));
     memset(allocated,0,buckets * sizeof(HNODE *));
+    tab->p = NULL;
     tab->sig1 = HASH_SIG1;
     tab->hash = hash;
     tab->cmp = cmp;
@@ -334,7 +379,7 @@ int ghash_put(HASHTABLE tbl, const void *key, void *value)
     node = find_node(tab,key,bucket);
     if (!node)
     { /* OK, try to allocate a new node. */
-        node = allocate_node(key,value);
+        node = allocate_node_pool(tab->p, key,value);
         if (node)
         { /* Chain the new node into the hash table. */
             node->next = tab->buckets[bucket];
@@ -408,6 +453,13 @@ int ghash_remove(HASHTABLE tbl, const void *key)
     return rc;
 
 } /* end ghash_remove */
+
+void _remove_key_pool(void *arg)
+{
+    remove_key_struct rks = (remove_key_struct)arg;
+
+    ghash_remove(rks->ht, rks->key);
+}
 
 int ghash_walk(HASHTABLE tbl, TABLEWALKFUNC func, void *user_data)
 /*
@@ -500,3 +552,115 @@ int str_hash_code(const char *s)
     return (int)h;
 
 }
+
+/* POOL FUNCTIONS */
+HASHTABLE ghash_create_pool(pool p, int buckets, KEYHASHFUNC hash, KEYCOMPAREFUNC cmp)
+/*
+    Description:
+        Creates a new hash table.
+
+    Input:
+        Parameters:
+        buckets - Number of buckets to allocate for the hash table; this value
+                  should be a prime number for maximum efficiency.
+        hash - Key hash code function to use.
+        cmp - Key comparison function to use.
+
+    Output:
+        Returns:
+        NULL - Table could not be allocated.
+        Other - Handle to the new hashtable.
+*/
+{
+    HASHTABLE_INTERNAL *tab;  /* new table structure */
+    char *allocated;
+
+    if (!hash || !cmp)
+        return NULL;  /* bogus! */
+
+    if (buckets<=0)
+        buckets = HASH_NUM_BUCKETS;
+
+    /* allocate a hash table structure */
+    allocated = pmalloco(p, sizeof(HASHTABLE_INTERNAL) + (buckets * sizeof(HNODE *)));
+    if (!allocated)
+        return NULL;  /* memory error */
+
+    /* fill the fields of the hash table */
+    tab = (HASHTABLE_INTERNAL *)allocated;
+    allocated += sizeof(HASHTABLE_INTERNAL);
+    tab->p = p;
+    tab->sig1 = HASH_SIG1;
+    tab->hash = hash;
+    tab->cmp = cmp;
+    tab->bcount = buckets;
+    tab->buckets = (HNODE **)allocated;
+    tab->sig2 = HASH_SIG2;
+
+    return (HASHTABLE)tab;  /* Qa'pla! */
+} /* end ghash_create */
+
+
+int ghash_put_pool(pool p, HASHTABLE tbl, const void *key, void *value)
+/*
+    Description:
+        Associates a key with a value in this hash table.
+
+    Input:
+        Parameters:
+        tbl - Hash table to add.
+        key - Key to use for the value in the table.
+        value - Value to add for this key.
+
+    Output:
+        Returns:
+        1 - Success.
+        0 - Failure.
+
+    Notes:
+        If the specified key is already in the hashtable, its value will be replaced.
+*/
+{
+    HASHTABLE_INTERNAL *tab;  /* internal table pointer */
+    int bucket;               /* bucket value goes into */
+    HNODE *node;              /* hash node */
+    int rc = 1;               /* return from this function */
+    remove_key_struct rks;
+
+    if (!tbl || !key || !value)
+        return 0;  /* bogus! */
+
+    /* Convert the handle to a table pointer. */
+    tab = handle2ptr(tbl);
+    if (!tab)
+        return 0;  /* error */
+
+
+    /* Compute the hash bucket and try to find an existing node. */
+    bucket = do_hash(tab,key);
+    node = find_node(tab,key,bucket);
+    if (!node)
+    { /* OK, try to allocate a new node. */
+        node = allocate_node_pool(tab->p, key,value);
+        if (node)
+        { /* Chain the new node into the hash table. */
+            node->next = tab->buckets[bucket];
+            tab->buckets[bucket] = node;
+            tab->count++;
+
+        } /* end if */
+        else  /* allocation error */
+            rc = 0;
+
+    } /* end if */
+    else  /* already in table - just reassign value */
+        node->value = value;
+
+    rks = pmalloco(p, sizeof(_remove_key_struct));
+    rks->ht = (HASHTABLE)tab;
+    rks->key = pstrdup(p, key);
+    pool_cleanup(p, _remove_key_pool, (void*)rks);
+
+    return rc;
+
+} /* end ghash_put */

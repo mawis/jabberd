@@ -204,9 +204,11 @@ typedef int (*TABLEWALKFUNC)(void *user_data, const void *key, void *data);
 typedef void *HASHTABLE;
 
 HASHTABLE ghash_create(int buckets, KEYHASHFUNC hash, KEYCOMPAREFUNC cmp);
+HASHTABLE ghash_create_pool(pool p, int buckets, KEYHASHFUNC hash, KEYCOMPAREFUNC cmp);
 void ghash_destroy(HASHTABLE tbl);
 void *ghash_get(HASHTABLE tbl, const void *key);
 int ghash_put(HASHTABLE tbl, const void *key, void *value);
+int ghash_put_pool(pool p, HASHTABLE tbl, const void *key, void *value);
 int ghash_remove(HASHTABLE tbl, const void *key);
 int ghash_walk(HASHTABLE tbl, TABLEWALKFUNC func, void *user_data);
 int str_hash_code(const char *s);

@@ -32,6 +32,7 @@
 #include "single.h"
 #define MAX_INCLUDE_NESTING 20
 extern HASHTABLE cmd__line;
+extern pool      jabberd__runtime;
 HASHTABLE instance__ids=NULL;
 
 typedef struct shutdown_list
@@ -173,22 +174,12 @@ typedef struct cfg_struct
 cfg cfhandlers__ = NULL;
 pool cfhandlers__p = NULL;
 
-void _cfhandlers_cleanup(void *arg)
-{
-    pool_free(cfhandlers__p);
-}
-
 /* register a function to handle that node in the config file */
 void register_config(char *node, cfhandler f, void *arg)
 {
     cfg newg;
 
-    /* if first time */
-    if(cfhandlers__p == NULL) 
-    {
-        cfhandlers__p = pool_new();
-        register_shutdown(_cfhandlers_cleanup,NULL);
-    }
+    cfhandlers__p = jabberd__runtime;
 
     /* create and setup */
     newg = pmalloc_x(cfhandlers__p, sizeof(_cfg), 0);
@@ -227,13 +218,6 @@ int _instance_cleanup(void *arg,const void *key,void *data)
     }
     pool_free(i->p);
     return 1;
-}
-
-void config_cleanup(void)
-{
-    /* remove all the instances */
-    ghash_walk(instance__ids,_instance_cleanup,NULL);
-    ghash_destroy(instance__ids);
 }
 
 int instance_startup(xmlnode x, int exec)
@@ -345,7 +329,7 @@ int configo(int exec)
     xmlnode cur;
 
     if(instance__ids==NULL)
-        instance__ids=ghash_create(19,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+        instance__ids = ghash_create_pool(jabberd__runtime, 19,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
 
     for(cur = xmlnode_get_firstchild(greymatter__); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
