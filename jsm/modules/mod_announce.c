@@ -75,6 +75,13 @@ mreturn mod_announce_motd(jsmi si, jpacket p, motd a)
     if(a->x != NULL)
         xmlnode_free(a->x);
 
+    if(j_strcmp(p->to->resource,"announce/motd/delete") == 0)
+    {
+        a->x = NULL;
+        xmlnode_free(p->x);
+        return M_HANDLED;
+    }
+
     /* store new message for all new sessions */
     xmlnode_put_attrib(p->x,"from",p->to->server);
     jutil_delay(p->x,"Announced");
@@ -82,8 +89,9 @@ mreturn mod_announce_motd(jsmi si, jpacket p, motd a)
     a->set = time(NULL);
     a->stamp = pstrdup(p->p, jutil_timestamp());
 
-    /* tell current sessions */
-    ghash_walk(si->hosts, _mod_announce_avail_hosts, (void *)(a->x));
+    /* tell current sessions if this wasn't an update */
+    if(j_strcmp(p->to->resource,"announce/motd/update") != 0)
+        ghash_walk(si->hosts, _mod_announce_avail_hosts, (void *)(a->x));
 
     return M_HANDLED;
 }
