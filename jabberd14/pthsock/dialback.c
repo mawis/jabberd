@@ -103,6 +103,7 @@ typedef struct host_struct
     jid id;         /* the funky id for the hashes, to/from */
     int valid;      /* flag if we've been validated */
     ssi si;         /* instance tracker */
+    int created;    /* when the host entry was created */
 
     /* outgoing connections only */
     conn c;         /* the ip we're connected on */
@@ -154,6 +155,7 @@ void _pthsock_server_host_validated(int valid, host h)
     }
 
     /* invalid host, clean up and dissappear! */
+    unregister_instance(h->si->i, h->id->server);
 
     if(h->mp != NULL)
     {
@@ -172,6 +174,7 @@ void _pthsock_server_host_validated(int valid, host h)
 void _pthsock_server_host_cleanup(void *arg)
 {
     host h = (host)arg;
+
     /* this function cleans up for us as if it were invalid */
     _pthsock_server_host_validated(0,h);
 }
@@ -275,13 +278,14 @@ void pthsock_server_outx(int type, xmlnode x, void *arg)
     switch(type)
     {
     case XSTREAM_ROOT:
-        /* check for old servers */
+        /* validate namespace */
         if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:server") != 0)
         {
             io_write_str(c->s,"<stream:error>Invalid Stream Header!</stream:error>");
             io_close(c->s);
             break;
         }
+        /* check for old servers */
         if(xmlnode_get_attrib(x,"xmlns:db") == NULL)
         {
             if(!c->si->legacy)
@@ -292,6 +296,7 @@ void pthsock_server_outx(int type, xmlnode x, void *arg)
                 break;
             }
             c->legacy = 1;
+            log_notice(c->legacy_to,"legacy server outgoing connection established");
         }else{
             /* db capable, register in main hash of connected ip's */
             ghash_put(c->si->ips, c->ips, c);
@@ -433,15 +438,16 @@ result pthsock_server_packets(instance i, dpacket dp, void *arg)
 {
     ssi si = (ssi) arg;
     pool p;
-    xmlnode x;
+    xmlnode x = dp->x;
     jid to, from, id;
     host h;
     conn c;
-    char *ip, *colon;
+    char *ip = NULL, *colon;
     int port = 5269;
     dpq q;
 
-    if(dp->type != p_ROUTE || (x = xmlnode_get_firstchild(dp->x)) == NULL || (to = jid_new(dp->p,xmlnode_get_attrib(x,"to"))) == NULL || (from = jid_new(dp->p,xmlnode_get_attrib(x,"from"))) == NULL || (ip = xmlnode_get_attrib(dp->x,"ip")) == NULL)
+    /* if it's a route, x is the child and get the ip, and make sure we have all that we need to continue */
+    if((dp->type == p_ROUTE && ((x = xmlnode_get_firstchild(dp->x)) == NULL || (ip = xmlnode_get_attrib(dp->x,"ip")) == NULL)) || (to = jid_new(dp->p,xmlnode_get_attrib(x,"to"))) == NULL || (from = jid_new(dp->p,xmlnode_get_attrib(x,"from"))) == NULL)
     {
         log_notice(dp->host,"Dropping invalid outbound packet: %s",xmlnode2str(dp->x));
         xmlnode_free(dp->x);
@@ -457,6 +463,13 @@ result pthsock_server_packets(instance i, dpacket dp, void *arg)
     /* get the host if there's already one */
     if((h = (host)ghash_get(si->hosts,jid_full(id))) == NULL)
     {
+        /* if we don't have an IP, we're misconfigured or something went awry! */
+        if(ip == NULL)
+        {
+            log_error(dp->host,"s2s received invalid unresolved outbound packet: %s",xmlnode2str(dp->x));
+            deliver_fail(dp, "Unresolved");
+            return r_DONE;
+        }
         /* if there's already a connection to this ip, reuse it */
         if((c = (conn)ghash_get(si->ips,ip)) == NULL)
         {
@@ -491,10 +504,15 @@ result pthsock_server_packets(instance i, dpacket dp, void *arg)
         h->type = htype_OUT;
         h->si = si;
         h->c = c;
+        h->created = time(NULL);
         h->id = jid_new(c->p,jid_full(id));
         ghash_put(si->hosts,jid_full(h->id),h); /* register us */
         pool_cleanup(c->p,_pthsock_server_host_cleanup,(void *)h); /* make sure things get put back to normal afterwards */
         _pthsock_server_host_result((void *)h); /* try to send result to the other side */
+
+        /* register us with this host, for efficiency */
+        register_instance(si->i, id->server);
+
     }
 
     /* write the packet to the socket, it's safe */
@@ -546,11 +564,20 @@ void pthsock_server_inx(int type, xmlnode x, void *arg)
         io_write_str(c->s,xstream_header_char(x2));
         xmlnode_free(x2);
 
+        /* validate namespace */
+        if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:server") != 0)
+        {
+            io_write_str(c->s,"<stream:error>Invalid Stream Header!</stream:error>");
+            io_close(c->s);
+            break;
+        }
+
         if(xmlnode_get_attrib(x,"xmlns:db") == NULL)
         {
             if(c->si->legacy)
             {
                 c->legacy = 1;
+                log_notice(xmlnode_get_attrib(x,"from"),"legacy server incoming connection established");
             }else{
                 io_write_str(c->s,"<stream:error>Legacy Access Denied!</stream:error>");
                 io_close(c->s);
@@ -662,11 +689,34 @@ void pthsock_server_inread(sock s, char *buffer, int bufsz, int flags, void *arg
 }
 
 /* cleanup function */
-void pthsock_shutdown(void *arg)
+void pthsock_server_shutdown(void *arg)
 {
     ssi si = (ssi)arg;
     ghash_destroy(si->ips);
     ghash_destroy(si->hosts);
+}
+
+/* callback for walking the host hash tree */
+int _pthsock_server_beat(void *arg, const void *key, void *data)
+{
+    host h = (host)data;
+
+    /* any invalid hosts older than 15 seconds, timed out */
+    if(!h->valid && (time(NULL) - h->created) > 30)
+    {
+        log_notice(h->id->server,"server connection timed out");
+        _pthsock_server_host_validated(0,h);
+    }
+
+    return 1;
+}
+
+/* heartbeat checker for timed out hosts */
+result pthsock_server_beat(void *arg)
+{
+    ssi si = (ssi)arg;
+    ghash_walk(si->hosts,_pthsock_server_beat,NULL);    
+    return r_DONE;
 }
 
 /*** everything starts here ***/
@@ -709,7 +759,8 @@ void pthsock_server(instance i, xmlnode x)
         io_select_listen_ex(5269,NULL,pthsock_server_inread,(void*)si,j_atoi(xmlnode_get_attrib(xmlnode_get_tag(cfg,"rate"),"time"),5),j_atoi(xmlnode_get_attrib(xmlnode_get_tag(cfg,"rate"),"points"),25),&k);
 
     register_phandler(i,o_DELIVER,pthsock_server_packets,(void*)si);
-    register_shutdown(pthsock_shutdown, (void*)si);
+    register_shutdown(pthsock_server_shutdown, (void*)si);
+    register_beat(15, pthsock_server_beat, (void *)si);
 
     xmlnode_free(cfg);
 }
