@@ -122,7 +122,7 @@ udata js_user(jsmi si, jid id, HASHTABLE ht)
     pool p;
     udata cur, newu;
     char *ustr;
-    xmlnode x;
+    xmlnode x, y;
     jid uid;
 
     if(si == NULL || id == NULL || id->user == NULL) return NULL;
@@ -147,11 +147,17 @@ udata js_user(jsmi si, jid id, HASHTABLE ht)
         return cur;
 
     /* debug message */
-    log_debug(ZONE,"js_user not current");
+    log_debug(ZONE,"## js_user not current ##");
 
     /* try to get the user auth data from xdb */
-    if((x = xdb_get(si->xc, uid, NS_AUTH)) == NULL)
-        return NULL;
+    x = xdb_get(si->xc, uid, NS_AUTH);
+
+    /* try to get hashed user auth data from xdb */
+    y = xdb_get(si->xc, uid, NS_AUTH_CRYPT);
+
+    /* does the user exist? */
+    if (x == NULL && y == NULL)
+	return NULL;
 
     /* create a udata struct */
     p = pool_heap(64);
@@ -159,9 +165,12 @@ udata js_user(jsmi si, jid id, HASHTABLE ht)
     newu->p = p;
     newu->si = si;
     newu->user = pstrdup(p, uid->user);
-    newu->pass = pstrdup(p, xmlnode_get_data(x));
+    newu->pass = x ? pstrdup(p, xmlnode_get_data(x)) : NULL;
     newu->id = jid_new(p,jid_full(uid));
-    xmlnode_free(x);
+    if (x)
+	xmlnode_free(x);
+    if (y)
+	xmlnode_free(y);
 
 
     /* got the user, add it to the user list */
