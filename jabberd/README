@@ -32,7 +32,7 @@ are six basic C files which compose the heart of jabberd:
     1.) jabberd.c   - Starts the hub and loads configuration
     2.) config.c    - Configuration parser and loader
     3.) deliver.c   - Delivery logic for the server; maintains 3 logical delivery trees
-    4.) heartbeat.c - Uh..heartbeat? What the sam shake is this used for?
+    4.) heartbeat.c - Provides a "pulse" for cleanup and time-out errors
     5.) load.c      - intializes base modules and loads any registered shared object libraries
     6.) log.c       - provides interface for logging errors, warnings, etc.
 
@@ -55,7 +55,20 @@ I.) Startup
     1.) xdb     - an XDB component provides a way to store/query xml nodes
     2.) log     - logging components provide storage/output facilities for logging information
     3.) service - ?!
-    
+
+    Each component in the server is represented in the configuration file in a top-level tag known as an
+    "instance". For example:
+
+    <jabber>
+        <xdb id="Instance1">...</xdb>
+        <log id="Instance2">...</log>
+        ...
+    </jabber>
+
+    The above example describes two components which compose a jabber server: an xdb component and a log component.
+    Each component type is identified as a unique instance via the id="" attribute. 
+   
+      
     **WARNING**
     It should be noted that it is quite possible to setup a seriously screwed up server by tinkering with this file. 
     Infinite message loops are the least troublesome of the problems which this amount of flexibilty brings. That 
