@@ -4,24 +4,11 @@
    base_exec - Starts a specified coprocess and exchanges 
                xmlnodes with it via piped IO
 
-   General Theory:
-     For each call to base_exec_config:
-     - Create a new thread
-     - In the new thread, create two pipes
-     - Fork and exec the new process
-
    Questions:
      - How does the child process recover when the pipe gets
        borken from the server shutting down?
+     - Should the server restart a child process if it dies?
    ---------------------------------------------------------*/
-
-typedef struct
-{
-     pool     p;
-     instance i;
-     int      stdin;
-     int      stdout;
-} *exe_info, _exe_info;
 
 int exec_and_capture(const char* exe, int* in, int* out)
 {
@@ -66,42 +53,53 @@ int exec_and_capture(const char* exe, int* in, int* out)
 	  if( execl(exe, exe, (char*) 0) < 0)
 	       exit(1);
      }
+     return 0;
 }
+
+/* Structures -------------------------------------------------------------------------------*/
+
+/* process_info - stores thread data for a coprocess */
+typedef struct
+{
+     pool          mempool;	   /* Memory pool for this structt */
+     instance      inst;	   /* Instance this coprocess is assoc. with */
+     int           stdin;	   /* Coprocess stdin filehandle */
+     int           stdout;	   /* "     "   stdout "      " */
+     pth_msgport_t write_queue;	   /* Queue of write_buf packets which need to be written */
+     pth_event_t   e_write;	   /* Event set when data is available to be written */
+     pth_event_t   e_read;	   /* Event set when data is available to be read */
+     pth_event_t   events;	   /* Event ring for e_write & e_read */
+} *process_info, _process_info;
+
+
+/* process_write_buf - stores a dpacket that needs to be written to the coprocess */
+typedef struct
+{
+     pth_message_t head;
+     dpacket       packet;
+} *process_write_buf, _process_write_buf;
+
+
 
 /* Deliver packets to the coprocess*/
 result base_exec_deliver(instance i, dpacket p, void* args)
 {
-     int result = 0;
-     char* rawxml = NULL;
-     exe_info ei = (exe_info)args;
+     process_info pi = (process_info)args;
+     process_write_buf wb = NULL;
 
-     /* Serialize the node in the dpacket */
-     rawxml = xmlnode2str(p->x);
+     /* Allocate a new write buffer */
+     wb         = pmalloco(p->p, sizeof(_process_write_buf));
+     wb->packet = p;
 
-     printf("base_exec_deliver: %s\n", rawxml);
+     /* Send the buffer to the processing thread */
+     pth_msgport_put(pi->write_queue, (pth_message_t*)wb);
 
-     /* FIXME : this is a blocking write...no ability to queue up data properly */
-     /* Write the raw data to the child process */
-     result = pth_write(ei->stdout, (void*)rawxml, strlen(rawxml));
-     if (result < 0)
-     {
-	  /* If the pipe is broken, go ahead and unregister this handler */
-	  if (errno == EPIPE)
-	  {
-	       close(ei->stdout);
-	       close(ei->stdin);
-	       return r_UNREG;
-	  }
-	  /* Otherwise, return a general error */
-	  else
-	       return r_ERR;
-     }
      return r_OK;          
 }
 
 void base_exec_handle_xstream_event(int type, xmlnode x, void* arg)
 {
-     exe_info ei = (exe_info)arg;
+     process_info pi = (process_info)arg;
 
      switch(type)
      {
@@ -110,7 +108,7 @@ void base_exec_handle_xstream_event(int type, xmlnode x, void* arg)
 	  break;
      case XSTREAM_NODE:
 	  /* Deliver the packet */
-	  deliver(dpacket_new(x), ei->i);
+	  deliver(dpacket_new(x), pi->inst);
 	  break;
      case XSTREAM_CLOSE:
      case XSTREAM_ERR:
@@ -122,62 +120,95 @@ void base_exec_handle_xstream_event(int type, xmlnode x, void* arg)
 /* Process incoming data from the coprocess */
 void* base_exec_process_io(void* threadarg)
 {
-     xstream  xs;
-     exe_info ei = (exe_info)threadarg;
-     int len = 0;
-     char buf[1024];
+     process_info pi = (process_info)threadarg;
+     char     readbuf[1024];	   /* Raw buffer to read into */
+     int      readlen = 0;	   /* Amount of data read into readbuf */
 
-     /* Allocate a xstream for this coprocess */
-     xs = xstream_new(ei->p, base_exec_handle_xstream_event, threadarg);
+     xstream  xs;		   /* XMLStream */
 
-     /* Read from the coprocess until we get an error */
-     while(1)
+     process_write_buf pwb;	   /* Process write buffer */
+     char*             writebuf;   /* Raw buffer to write */
+     
+
+     /* Allocate an xstream for this coprocess */
+     xs = xstream_new(pi->mempool, base_exec_handle_xstream_event, threadarg);
+
+     /* Loop on events */
+     while (pth_wait(pi->events) > 0)
      {
-	  len = pth_read(ei->stdin, buf, sizeof(buf));
-	  if (len < 0)
-	       break;
-	  if (xstream_eat(xs, buf, len) > XSTREAM_NODE)
-	       break;
+	  /* Data is available from coprocess */
+	  if (pth_event_occurred(pi->e_read))
+	  {
+	       readlen = pth_read(pi->stdin, readbuf, sizeof(readbuf));
+	       if (readlen < 0)
+		    break;
+	       if (xstream_eat(xs, readbuf, readlen))
+		    break;
+	  }
+	  /* Data is available to be written to the coprocess */
+	  if (pth_event_occurred(pi->e_write))
+	  {
+	       /* Get the packet.. */
+	       pwb = (process_write_buf)pth_msgport_get(pi->write_queue);
+
+	       /* Serialize the packet.. */
+	       writebuf = xmlnode2tstr(pwb->packet->x);
+
+	       /* Write the raw buffer */
+	       if (pth_write(pi->stdout, writebuf, strlen(writebuf)) <= 0)
+		    break;
+
+	       /* Data is sent, release the packet */
+	       pool_free(pwb->packet->p);
+	  }
      }
 
      /* Cleanup and quit...should be error handling here? */
-     close(ei->stdout);
-     close(ei->stdin);
+     close(pi->stdout);
+     close(pi->stdin);
+     return NULL;
 }
 
 result base_exec_config(instance id, xmlnode x, void *arg)
 {
-    char* exe_name = NULL;
+    process_info pi = NULL;
     int   stdin, stdout;
-    exe_info ei;
 	  
     if(id == NULL)
     {	 
-        printf("base_exec_config validating configuration\n");
-        return r_PASS;
+	 if (xmlnode_get_data(x) == NULL)
+	 {
+	      printf("base_exec_config error: no script provided\n");
+	      return r_ERR;
+	 }
+	 printf("base_exec_config validating configuration\n");
+	 return r_PASS;
     }
 
-    /* Get the executable name from the xmlnode */
-    exe_name = xmlnode_get_data(x);
-    
     /* Exec and capture the STDIN/STDOUT of the child process */
-    exec_and_capture(exe_name, &stdin, &stdout);
+    exec_and_capture(xmlnode_get_data(x), &stdin, &stdout);
 
-    /* Allocate a info structure, and associate with the
+    /* Allocate an info structure, and associate with the
        instance pool */
-    ei = pmalloc(id->p, sizeof(_exe_info));
-    ei->i       = id;
-    ei->p       = id->p;
-    ei->stdin   = stdin;
-    ei->stdout  = stdout;
+    pi = pmalloco(id->p, sizeof(_process_info));
+    pi->inst    = id;
+    pi->mempool = id->p;
+    pi->stdin   = stdin;
+    pi->stdout  = stdout;
+    pi->write_queue = pth_msgport_create("piwq");
+    /* Setup event ring for this coprocess */
+    pi->e_read  = pth_event(PTH_EVENT_FD|PTH_UNTIL_FD_READABLE, pi->stdin);
+    pi->e_write = pth_event(PTH_EVENT_MSG, pi->write_queue);
+    pi->events  = pth_event_concat(pi->e_read, pi->e_write, NULL);
 
     /* Spawn a new thread to handle IO for this coprocess */
-    pth_spawn(PTH_ATTR_DEFAULT, base_exec_process_io, (void*) ei);
+    pth_spawn(PTH_ATTR_DEFAULT, base_exec_process_io, (void*) pi);
 
     /* Register a handler to recieve inbound data */
-    register_phandler(id, o_DELIVER, base_exec_deliver, (void*) ei);
+    register_phandler(id, o_DELIVER, base_exec_deliver, (void*) pi);
 
     printf("base_exec_config performing configuration %s\n",xmlnode2str(x));
+    return r_OK;
 }
 
 void base_exec(void)
