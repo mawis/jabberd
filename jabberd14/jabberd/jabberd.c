@@ -47,23 +47,34 @@ int main (int argc, char** argv)
     /* process the parameterss one at a time */
     for(i = 1; i < argc; i++)
     {
-        /* a pointer to the parameter */
-        c = argv[i] + 1;
-
-        /* check possible values */
-        switch(*c)
-        {
-        case 'c': /* get name of config file */
-            cfgfile = strdup(argv[++i]);
+        if(argv[i][0]!='-')
+        { /* make sure it's a valid command */
+            help=1;
             break;
-
-        case 'D': /* debug flag */
-            debug_flag = 1;
-            break;
-
-        default: /* unrecognized parameter */
-            help = 1;
         }
+        for(c=argv[i]+1;c[0]!='\0';c++)
+        {
+            /* loop through the characters, like -Dc */
+            switch(*c)
+            {
+            case 'c': /* get name of config file */
+                /* next arg should be a config file */
+                if(cfgfile!=NULL)
+                    help=1; /* only one -c allowed */
+                else if(i+1<argc)
+                    cfgfile = strdup(argv[++i]);
+                else
+                    help=1;
+                break;
+            case 'D': /* debug flag */
+                debug_flag = 1;
+                break;
+
+            default: /* unrecognized parameter */
+                help = 1;
+            }
+        }
+        if(help)break;
     }
 
     /* were there any bad parameters? */
