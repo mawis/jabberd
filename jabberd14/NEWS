@@ -10,3 +10,10 @@
     * there is a small utility xdbfiletool that helps accessing xdb_file's
       new directory layout and that can convert old spools to the new
       format
+    * jabberd14 will now try to establish s2s connections not only on the
+      first IPv4/IPv6 address it finds in DNS but on any IPv4/IPv6 address,
+      that can be found for the first matching service. (It will not fall
+      back to pure AAAA or A records if there has been a SRV record for
+      any configured service.)
+      This will now allow a jabberd14, that has been configured with
+      --enable-ipv6, to be used on systems without IPv6 routing as well.
