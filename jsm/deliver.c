@@ -70,11 +70,8 @@ result js_packet(instance i, dpacket p, void *arg)
     jsmi si = (jsmi)arg;
     jpacket jp;
     HASHTABLE ht;
-    jid sto;
     session s;
-    xmlnode x;
-
-    jp = jpacket_new(p->x);
+    char *type;
 
     log_debug(ZONE,"(%X)incoming packet %s",si,xmlnode2str(jp->x));
 
@@ -88,11 +85,33 @@ result js_packet(instance i, dpacket p, void *arg)
         log_debug(ZONE,"checking %X",ghash_get(si->hosts,p->host));
     }
 
-    /* if this is a session packet */
-    if((sto = jid_new(p->p,xmlnode_get_attrib(p->x,"sto"))) != NULL)
+    /* if this is a routed packet */
+    if(p->type == p_ROUTE)
     {
-        if(sto->user == NULL && jp->type == JPACKET_IQ && (jpacket_subtype(jp) == JPACKET__GET || jpacket_subtype(jp) == JPACKET__SET))
-        { /* only valid iq reqs apply */
+        type = xmlnode_get_attrib(p->x,"type");
+
+        /* new session requests */
+        if(j_strcmp(type,"session") == 0 && p->id->user != NULL && p->id->resource != NULL)
+        {
+            /* start session */
+            js_session_new(si, p->id, jid_new(p->p,xmlnode_get_attrib(p->x,"from")));
+
+            /* reply */
+            jutil_tofrom(p->x);
+            deliver(dpacket_new(p->x), i);
+        }
+
+        /* get the internal jpacket */
+        jp = jpacket_new(xmlnode_get_firstchild(p->x));
+
+        /* auth/reg requests */
+        if(jp != NULL && (j_strcmp(type,"auth") == 0 || j_strcmp(type,"register") == 0))
+        {
+            /* internally, hide the route to/from addresses on the authreg request */
+            xmlnode_put_attrib(jp->x,"to",xmlnode_get_attrib(p->x,"to"));
+            xmlnode_put_attrib(jp->x,"from",xmlnode_get_attrib(p->x,"from"));
+            xmlnode_put_attrib(jp->x,"route",xmlnode_get_attrib(p->x,"type"));
+            jpacket_reset(jp);
             js_authreg_send(si, jp);
             return r_DONE;
         }
@@ -100,34 +119,30 @@ result js_packet(instance i, dpacket p, void *arg)
         /* this is a packet to be processed as outgoing for a session */
 
         /* attempt to locate the session */
-        s = js_session_get(js_user(si, sto, ht),sto->resource);
+        s = js_session_get(js_user(si, p->id, ht),p->id->resource);
 
-        /* hide the special session attribs */
-        xmlnode_hide_attrib(jp->x,"sto");
-        xmlnode_hide_attrib(jp->x,"sfrom");
-
-        /* if it's a 510 error */
-        if(jpacket_subtype(jp) == JPACKET__ERROR && (x = xmlnode_get_tag(jp->x,"error?code=510")) != NULL)
+        /* if it's an error */
+        if(j_strcmp(type,"error") == 0)
         {
             if(s != NULL) /* obviously the session should end pronto */
                 js_session_end(s, "Disconnected");
 
             /* if this was a message, it should have been delievered to that session, store offline */
-            if(jp->type == JPACKET_MESSAGE)
+            if(jp != NULL && jp->type == JPACKET_MESSAGE)
             {
-                xmlnode_put_attrib(jp->x,"type",xmlnode_get_attrib(x,"type")); /* restore the original type */
-                xmlnode_hide(x); /* remove our special error type */
-                jpacket_reset(jp);
-                if(jp->to != NULL && jp->from != NULL) /* 510 error msgs from the socket manager itself aren't going to have a to/from */
-                {
-                    js_deliver_local(si, jp, ht); /* (re)deliver it locally again, should go to another session or offline */
-                    return r_DONE;
-                }
+                js_deliver_local(si, jp, ht); /* (re)deliver it locally again, should go to another session or offline */
+                return r_DONE;
             }
-
             /* drop and return */
-            log_notice(p->host, "dropping a bounced session packet to %s", jid_full(sto));
-            xmlnode_free(jp->x);
+            log_notice(p->host, "Dropping a bounced session packet to %s", jid_full(p->id));
+            xmlnode_free(p->x);
+            return r_DONE;
+        }
+
+        if(jp == NULL)
+        { /* uhh, empty packet, *shrug* */
+            log_notice(p->host,"Dropping an invalid or empty route packet intended for session %s",xmlnode2str(p->x),jid_full(p->id));
+            xmlnode_free(p->x);
             return r_DONE;
         }
 
@@ -135,22 +150,24 @@ result js_packet(instance i, dpacket p, void *arg)
         {   /* just pass to the session normally */
             js_session_from(s, jp);
         }else{
-            /* send an error msg to the client manager to make sure it knows there's no session */
-            x = xmlnode_new_tag("message");
-            xmlnode_put_attrib(x,"sto",xmlnode_get_attrib(jp->x,"sfrom"));
-            jutil_error(x, TERROR_DISCONNECTED);
-            deliver(dpacket_new(x), NULL);
-
-            /* XXX what should we really do here? if this is a message the client was trying to send, and there's no session, I'm not sure :) */
-
-            /* drop packets w/o session */
-            log_notice(sto->server,"Dropping %s packet intended for session %s",xmlnode_get_name(jp->x),jid_full(sto));
-            xmlnode_free(jp->x);
+            /* bounce back as an error */
+            log_notice(p->host,"Bouncing %s packet intended for session %s",xmlnode_get_name(jp->x),jid_full(p->id));
+            jutil_tofrom(p->x);
+            xmlnode_put_attrib(p->x,"type","error");
+            xmlnode_put_attrib(p->x,"error","Invalid Session");
+            deliver(dpacket_new(p->x), i);
         }
         return r_DONE;
     }
 
     /* normal server-server packet, should we make sure it's not spoofing us?  if so, if ghash_get(p->to->server) then bounce w/ security error */
+
+    jp = jpacket_new(p->x);
+    {
+        log_notice(p->host,"Dropping invalid incoming packet %s",xmlnode2str(p->x));
+        xmlnode_free(p->x);
+        return r_DONE;
+    }
 
     js_deliver_local(si, jp, ht);
 

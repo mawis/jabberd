@@ -26,71 +26,53 @@
 void js_authreg(jpacket p)
 {
     udata user;
-    char *u, *ul, *from, *to;
-    jid id = NULL;
+    char *ul;
     jsmi si;
+    xmlnode x;
 
     /* get si hidden on packet */
     si = (jsmi)(p->aux1);
 
-    /* setup session trackers */
-    from = xmlnode_get_attrib(p->x,"sfrom");
-    to = xmlnode_get_attrib(p->x,"sto");
-
-    /* get the username supplied by the client */
-    u = xmlnode_get_tag_data(p->iq,"username");
-    if(u != NULL)
-    {
-        /* enforce the username to lowercase */
-        for(ul = u;*ul != '\0'; ul++)
+    /* enforce the username to lowercase */
+    if(p->to->user != NULL)
+        for(ul = p->to->user;*ul != '\0'; ul++)
             *ul = tolower(*ul);
 
-        /* see if the username is valid */
-        id = jid_new(p->p,xmlnode_get_attrib(p->x,"sto"));
-        jid_set(id,u,JID_USER);
-    }
-
-    if(id != NULL && id->user != NULL && NSCHECK(p->iq,NS_AUTH))
+    if(p->to->user != NULL && p->to->resource != NULL && NSCHECK(p->iq,NS_AUTH))
     {   /* is this a valid auth request? */
 
         log_debug(ZONE,"auth request");
 
         /* attempt to fetch user data based on the username */
-        user = js_user(si, id, NULL);
-        jid_set(id,xmlnode_get_tag_data(p->iq,"resource"),JID_RESOURCE);
-        if(user == NULL || id->resource == NULL)
+        user = js_user(si, p->to, NULL);
+        if(user == NULL)
             jutil_error(p->x, TERROR_AUTH);
         else if(!js_mapi_call(si, e_AUTH, p, user, NULL))
             jutil_error(p->x, TERROR_INTERNAL);
 
-        /* create session if the auth was ok'd */
-        jpacket_reset(p);
-        if(jpacket_subtype(p) == JPACKET__RESULT)
-        {
-            js_session_new(si, id, jid_new(p->p,from));
-            to = jid_full(id);
-        }
-
-    }else if(NSCHECK(p->iq,NS_REGISTER)){ /* is this a registration request? */
+    }else if(p->to->user != NULL && NSCHECK(p->iq,NS_REGISTER)){ /* is this a registration request? */
 
         log_debug(ZONE,"registration request");
-
-        /* use the to attrib to store the address we're trying to register, if it's a set */
-        p->to = id;
 
         /* try to register via a module */
         if(!js_mapi_call(si, e_REGISTER, p, NULL, NULL))
             jutil_error(p->x, TERROR_NOTIMPL);
 
-    }else{ /* unknown namespace */
+    }else{ /* unknown namespace or other problem */
 
         jutil_error(p->x, TERROR_NOTACCEPTABLE);
     }
 
-    /* make sure packet goes back to the other side of the session */
-    xmlnode_put_attrib(p->x,"sfrom",to);
-    xmlnode_put_attrib(p->x,"sto",from);
-
-    deliver(dpacket_new(p->x), si->i);
+    /* restore the route packet */
+    x = xmlnode_wrap(p->x,"route");
+    xmlnode_put_attrib(x,"from",xmlnode_get_attrib(p->x,"from"));
+    xmlnode_put_attrib(x,"to",xmlnode_get_attrib(p->x,"to"));
+    xmlnode_put_attrib(x,"type",xmlnode_get_attrib(p->x,"route"));
+    /* hide our uglies */
+    xmlnode_hide_attrib(p->x,"from");
+    xmlnode_hide_attrib(p->x,"to");
+    xmlnode_hide_attrib(p->x,"route");
+    /* reply */
+    deliver(dpacket_new(x), si->i);
 }
 
