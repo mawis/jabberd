@@ -548,8 +548,8 @@ int jlimit_check(jlimit r, char *key, int points);
 
 // #define KARMA_DEBUG
 // default to disable karma 
-#define KARMA_READ_MAX(k) (k*100) /* how much you are allowed to read off the sock */
-#define KARMA_INIT -100   /* internal "init" value, should not be able to get here */
+#define KARMA_READ_MAX(k) (abs(k)*100) /* how much you are allowed to read off the sock */
+#define KARMA_INIT 5   /* internal "init" value */
 #define KARMA_HEARTBEAT 2 /* seconds to register for heartbeat */
 #define KARMA_MAX 10     /* total max karma you can have */
 #define KARMA_INC 1      /* how much to increment every KARMA_HEARTBEAT seconds */
@@ -557,9 +557,12 @@ int jlimit_check(jlimit r, char *key, int points);
                             KARMA_HEARTBEAT seconds */
 #define KARMA_PENALTY -5 /* where you go when you hit 0 karma */
 #define KARMA_RESTORE 5  /* where you go when you payed your penelty or INIT */
+#define KARMA_RESETMETER 0 /* Reset byte meter on restore default is falst */
 
 struct karma
 {
+    int init; /* struct initialized */
+    int reset_meter; /* reset the byte meter on restore */
     int val; /* current karma value */
     long bytes; /* total bytes read (in that time period) */
     int max;  /* max karma you can have */
@@ -571,8 +574,23 @@ struct karma
 struct karma *karma_new(pool p); /* creates a new karma object, with default values */
 void karma_copy(struct karma *new, struct karma *old); /* makes a copy of old in new */
 void karma_increment(struct karma *k);          /* inteligently increments karma */
-void karma_decrement(struct karma *k);          /* inteligently decrements karma */
+void karma_decrement(struct karma *k, long bytes_read); /* inteligently decrements karma */
 int karma_check(struct karma *k,long bytes_read); /* checks to see if we have good karma */
+
+#ifndef MIO_C
+/* global values set in mio.c derived from <io><karma> */
+extern int KARMA_DEF_HEARTBEAT;
+extern int KARMA_DEF_INIT;
+extern int KARMA_DEF_MAX;
+extern int KARMA_DEF_INC;
+extern int KARMA_DEF_DEC;
+extern int KARMA_DEF_PENALTY;
+extern int KARMA_DEF_RESTORE;
+extern int KARMA_DEF_RATE_T;
+extern int KARMA_DEF_RATE_P;
+extern int KARMA_DEF_RESETMETER;
+#endif
+
 
 
 /* --------------------------------------------------------- */

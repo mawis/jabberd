@@ -261,6 +261,9 @@ void dialback(instance i, xmlnode x)
     xmlnode cfg, cur;
     struct karma k;
     int max;
+    int rate_time = KARMA_DEF_RATE_T;
+    int rate_points = KARMA_DEF_RATE_P;
+    int set_rate = 0, set_karma=0;
 
     log_debug(ZONE,"dialback loading");
     srand(time(NULL));
@@ -286,30 +289,48 @@ void dialback(instance i, xmlnode x)
     if(xmlnode_get_tag(cfg,"legacy") != NULL)
         d->legacy = 1;
 
+    /* Get rate info if it exists */
+    if((cur = xmlnode_get_tag(cfg, "rate")) != NULL)
+    {
+        rate_time   = j_atoi(xmlnode_get_attrib(cur, "time"), KARMA_DEF_RATE_T);
+        rate_points = j_atoi(xmlnode_get_attrib(cur, "points"), KARMA_DEF_RATE_P);
+        set_rate = 1; /* set to true */
+    }
 
-    k.val=KARMA_INIT;
-    k.bytes=0;
-    cur = xmlnode_get_tag(cfg,"karma");
-    k.max=j_atoi(xmlnode_get_tag_data(cur,"max"),KARMA_MAX);
-    k.inc=j_atoi(xmlnode_get_tag_data(cur,"inc"),KARMA_INC);
-    k.dec=j_atoi(xmlnode_get_tag_data(cur,"dec"),KARMA_DEC);
-    k.restore=j_atoi(xmlnode_get_tag_data(cur,"restore"),KARMA_RESTORE);
-    k.penalty=j_atoi(xmlnode_get_data(cur),KARMA_PENALTY);
+    /* Get karma info if it exists */
+    if((cur = xmlnode_get_tag(cfg, "karma")) != NULL)
+    {
+         k.val         = j_atoi(xmlnode_get_tag_data(cur, "init"), KARMA_DEF_INIT);
+         k.max         = j_atoi(xmlnode_get_tag_data(cur, "max"), KARMA_DEF_MAX);
+         k.inc         = j_atoi(xmlnode_get_tag_data(cur, "inc"), KARMA_DEF_INC);
+         k.dec         = j_atoi(xmlnode_get_tag_data(cur, "dec"), KARMA_DEF_DEC);
+         k.restore     = j_atoi(xmlnode_get_tag_data(cur, "restore"), KARMA_DEF_RESTORE);
+         k.penalty     = j_atoi(xmlnode_get_tag_data(cur, "penalty"), KARMA_DEF_PENALTY);
+         k.reset_meter = j_atoi(xmlnode_get_tag_data(cur, "resetmeter"), KARMA_DEF_RESETMETER);
+         set_karma = 1; /* set to true */
+    }
 
     if((cur = xmlnode_get_tag(cfg,"ip")) != NULL)
         for(;cur != NULL; xmlnode_hide(cur), cur = xmlnode_get_tag(cfg,"ip"))
         {
             mio m;
             m = mio_listen(j_atoi(xmlnode_get_attrib(cur,"port"),5269),xmlnode_get_data(cur),dialback_in_read,(void*)d, MIO_LISTEN_XML);
-            mio_rate(m, j_atoi(xmlnode_get_attrib(xmlnode_get_tag(cfg,"rate"),"time"),5),j_atoi(xmlnode_get_attrib(xmlnode_get_tag(cfg,"rate"),"points"),25));
-            mio_karma2(m, &k);
+            if(m == NULL)
+                return;
+            /* Set New rate and points */
+            if(set_rate == 1) mio_rate(m, rate_time, rate_points);
+            /* Set New karma values */
+            if(set_karma == 1) mio_karma2(m, &k);
         }
     else /* no special config, use defaults */
     {
         mio m;
         m = mio_listen(5269,NULL,dialback_in_read,(void*)d, MIO_LISTEN_XML);
-        mio_rate(m, j_atoi(xmlnode_get_attrib(xmlnode_get_tag(cfg,"rate"),"time"),5), j_atoi(xmlnode_get_attrib(xmlnode_get_tag(cfg,"rate"),"points"),25));
-        mio_karma2(m, &k);
+        if(m == NULL) return;
+        /* Set New rate and points */
+        if(set_rate == 1) mio_rate(m, rate_time, rate_points);
+        /* Set New karma values */
+        if(set_karma == 1) mio_karma2(m, &k);
     }
 
     register_phandler(i,o_DELIVER,dialback_packets,(void*)d);
