@@ -42,6 +42,21 @@ if a service receives a packet because of a sid="" and it doesn't handle session
 
 all packets are bounced intelligently, xdbs returned empty, logs not bounced, and packets bounced like normal (with type="error", etc)
 
+----------- RANT on groupchat
+clients must ALWAYS send available presence BEFORE the second iq registration w/ the room, so the gcserv knows they are avail and when they go unavail
+actually USING presence is optional, flagged with <presence/>
+mailing list "mode", flagged with <subscribe/> and <unsubscribe/>, requires further integration w/ browsing model for "live bookmarks" and such
+
+----------- RANT on live bookmarks (non-items in roster, browsing model)
+what do we need?  well, some way of making it easy, almost transparent/automatic, for any browsed-to entity to express that they should 
+be "bookmarked", this would be for registered transports, mailing list mode groupchats, etc... 
+BUT, the problem is that the exact time in which the need for the bookmarking happens is not the same, it needs to act like a presence s10n request
+AND, the bookmarked entity needs to retain it's browseable wrapper when stored in the roster, and possible know presence and know when it's removed too
+I could hack up presence to do this, but that's ugly and presence is not always used by the entities
+Clients could also have hardwired the special cases when bookmarking should happen and the entities could flag it in those conversations,
+but that's ugly for client authors and special purpose per-issue, when this seems like a more general problem
+
+
 ----------- RANT ON SERVER2SERVER DIALBACK, IGNORE
 A box(5ae8) on the jabber.com server farm has a packet to send to jabber.org, opens socket and sends:
 <spam to="jabber.org" from="5ae8@jabber.com" id="8f" start="e4ee62250deec8b78e7993f8e4433ce1dec50d7e" seq="1000"/>
@@ -67,6 +82,13 @@ Should each <spam/> result in a new connection, or can a server notice that it a
 Limit the # of <spam/>'s sent on a single socket, one or how many? (DOS attack possibilities as well)
 
 A->B (trusts B and passes X) B->A (trusts A and asks for X)  if X matches, B trusts the original connection from A
+
+oops, went TOO far, if you put a C in the middle it can fake itself easily, let's try something different
+
+we just want to guarantee names, can we use secure-DNS for this stuff?
+or, run a public key service on a standard port which just serves the public key
+A->B and says it wants to spam, "challenge me", B sends A on that socket a text challenge, and at the same time connects to A on the pubkey port to get the public key
+A returns to B the challenge signed, and B can validate w/ the (only secure as the domain name at that time) retrieved public key
 
 --------- RANT on mass virtual hosting
 by using a <host/> in a session handler section, it will receive a copy of EVERY outgoing packet (to other servers), and if it uses xdb to lookup the host to see if it handles it, wow, that sucks

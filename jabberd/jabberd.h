@@ -4,11 +4,11 @@
 /* packet types */
 typedef enum { p_NONE, p_NORM, p_XDB, p_LOG } ptype;
 
-/* ordering types */
-typedef enum { o_FIRST, o_ANY, o_LAST } order;
+/* ordering types, me first me first, managerial, engineer, grunt */
+typedef enum { o_PRECOND, o_COND, o_MODIFY, o_DELIVER } order;
 
-/* result types */
-typedef enum { r_PASS, r_ERR, r_OK } result;
+/* result types, unregister me, I pass, I should be last, I suck, I rock */
+typedef enum { r_UNREG, r_PASS, r_LAST, r_ERR, r_OK } result;
 
 typedef struct instance_struct *instance, _instance;
 
