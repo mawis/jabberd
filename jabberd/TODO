@@ -1,6 +1,5 @@
-fix deliver() to handle built-in xdb requests (namespace in config, no "from" attrib as key so we dont have to check EVERY request)
-
-fix order checking, so that only one o_DELIVERY can be registered for xdb or services, multiple for logging
+fix deliver() to handle built-in xdb requests, from="" attrib is ignored
+	to get config data as a namespace in service config section, use "config@_internal" as the to="" attrib
 
 fix delivery so that when there are multiple deliveries or instances, the packet is copied, so expensive copying is reduced when not needed and modules need not worry about copying, can just OWN the packet if they deliver it
 
@@ -12,8 +11,7 @@ base_accept/connect
 	the write thread can check/block on getting packets from that sink
 	when there is no write thread, they just accumulate
 	heartbeat to check/warn/bounce from sink
-	for accept, always write stream header ASAP to socket w/ id
-	for connect, read stream header and id, then return w/ hashed secret
+	to exchange secret, send <secret>HASH</secret> and accept will respond with <secret/> or disconnect with a stream:error if failed
 	no "host" identity exchanged, must be configured on each side
 	for connect, cleanup on death to attempt reconnect frequently
 
