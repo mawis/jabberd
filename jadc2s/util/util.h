@@ -331,7 +331,7 @@ jid     jid_user(jid a);                       /* returns the same jid but just 
 
 typedef void *log_t;
 
-extern log_t    log_new(char *);
+extern log_t    log_new(const char *);
 extern void     log_write(log_t, int, const char *, ...);
 extern void     log_free(log_t);
 #ifdef USE_SSL
@@ -351,7 +351,7 @@ typedef struct config_elem_st *config_elem_t;
 typedef xht config_t;
 
 extern config_t         config_new(void);
-extern int              config_load(config_t, char *);
+extern int              config_load(config_t, const char *);
 extern config_elem_t    config_get(config_t, char *);
 extern char             *config_get_one(config_t, char *, int);
 extern int              config_count(config_t, char *);

@@ -83,7 +83,7 @@ static void _config_charData(void *arg, const char *str, int len)
 }
 
 /* turn an xml file into a config hash */
-int config_load(config_t c, char *file)
+int config_load(config_t c, const char *file)
 {
     struct build_data bd;
     nad_cache_t cache = nad_cache_new();
