@@ -86,6 +86,11 @@ int main (int argc, char** argv)
                 debug_flag = 1;
                 continue;
             }
+            if(*c == 'V' || *c == 'v')
+            {
+                printf("Jabberd Version %s\n", VERSION);
+                exit(0);
+            }
 
             cmd = pmalloco(cfg_pool,2);
             cmd[0]=*c;
@@ -125,7 +130,7 @@ int main (int argc, char** argv)
     /* were there any bad parameters? */
     if(help)
     {
-        fprintf(stderr,"Usage:\njabberd &\n Optional Parameters:\n -c\t\t configuration file\n -D\t\tenable debug output\n -H\t\tlocation of home folder\n");
+        fprintf(stderr,"Usage:\njabberd &\n Optional Parameters:\n -c\t\t configuration file\n -D\t\tenable debug output\n -H\t\tlocation of home folder\n -v\t\tserver version\n -V\t\tserver version\n");
         exit(0);
     }
 
