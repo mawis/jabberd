@@ -1,3 +1,9 @@
+2004-01-17  Matthias Wimmer  <m@tthias.net>
+
+    * clients.c: Logging the amout of traffic a user generated
+    * conn.c: same
+    * jadc2s.h: same
+
 2004-01-15  Matthias Wimmer  <m@tthias.net>
 
     * jadc2s.c: Connection to sm is closed last, slightly better conf errors

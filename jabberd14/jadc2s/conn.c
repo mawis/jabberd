@@ -73,6 +73,9 @@ conn_t conn_new(c2s_t c2s, int fd)
     
     c->flash_hack = 0;
 
+    c->in_bytes = 0;
+    c->out_bytes = 0;
+
     return c;
 }
 
@@ -407,18 +410,24 @@ int conn_write(conn_t c)
 
 int _read_actual(conn_t c, int fd, char *buf, size_t count)
 {
+    int bytes_read;
 
 #ifdef USE_SSL
     if(c->ssl != NULL)
     {
 	int ssl_init_finished = SSL_is_init_finished(c->ssl);
-	int bytes_read = SSL_read(c->ssl, buf, count);
+	bytes_read = SSL_read(c->ssl, buf, count);
+	if (bytes_read > 0)
+	    c->in_bytes += bytes_read;	/* XXX counting decrypted bytes */
 	if (!ssl_init_finished && SSL_is_init_finished(c->ssl))
 	    log_write(c->c2s->log, LOG_NOTICE, "ssl/tls established on fd %i: %s %s", c->fd, SSL_get_version(c->ssl), SSL_get_cipher(c->ssl));
         return bytes_read;
     }
 #endif
-    return read(fd, buf, count);
+    bytes_read = read(fd, buf, count);
+    if (bytes_read > 0)
+	c->in_bytes += bytes_read;
+    return bytes_read;
 }
 
 
@@ -442,15 +451,35 @@ int _write_actual(conn_t c, int fd, const char *buf, size_t count)
     if(c->ssl != NULL)
     {
         written = SSL_write(c->ssl, buf, count);
-        if (written > 0 && (c->type == type_FLASH))
-            SSL_write(c->ssl, "\0", 1);
+	if (written > 0)
+	{
+	    if (c->type == type_FLASH)
+	    {
+		SSL_write(c->ssl, "\0", 1);
+		c->out_bytes += written+1; /* XXX counting before encryption */
+	    }
+	    else
+	    {
+		c->out_bytes += written;
+	    }
+	}
         return written;
     }
 #endif
         
     written = write(fd, buf, count);
-    if (written > 0 && (c->type == type_FLASH))
-        write(fd, "\0", 1);
+    if (written > 0)
+    {
+	if ((c->type == type_FLASH))
+	{
+	    write(fd, "\0", 1);
+	    c->out_bytes += written+1;
+	}
+	else
+	{
+	    c->out_bytes += written;
+	}
+    }
     return written;
 }
 

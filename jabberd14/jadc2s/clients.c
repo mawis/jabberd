@@ -691,7 +691,7 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
 	if (c->ip && c->userid)
 	{
 	    /* write it to the logfile */
-	    log_write(c->c2s->log, LOG_NOTICE, "user %s disconnected", jid_full(c->userid));
+	    log_write(c->c2s->log, LOG_NOTICE, "user %s disconnected, in=%li B, out=%li B", jid_full(c->userid), c->in_bytes, c->out_bytes);
 
 	    /* send a notification message if requested */
 	    connectionstate_send(c->c2s->config, c->c2s->sm, c, 0);
