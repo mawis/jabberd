@@ -274,6 +274,7 @@ typedef struct _jid_prep_cache_st {
     const Stringprep_profile *profile;
     				/**< the stringprep profile used for this cache */
 } *_jid_prep_cache_t;
+#endif
 
 /**
  * @brief environment for JID preparation
@@ -281,11 +282,12 @@ typedef struct _jid_prep_cache_st {
  * This data structure holds the three used caches for JID preparation
  */
 typedef struct _jid_environment {
+#ifdef LIBIDN
     _jid_prep_cache_t nodes;	/* prepared nodes */
     _jid_prep_cache_t domains;	/* prepared domains */
     _jid_prep_cache_t resources;/* prepared resources */
-} *jid_environment_t;
 #endif
+} *jid_environment_t;
 
 typedef struct jid_struct
 { 
@@ -294,9 +296,7 @@ typedef struct jid_struct
     char*              user;
     char*              server;
     char*              full;
-#ifdef LIBIDN
     jid_environment_t  environment;	/**< used stringprep caches */
-#endif
     struct jid_struct *next; /* for lists of jids */
 } *jid;
   
