@@ -1,0 +1,44 @@
+jabberd Karma demystified
+-------------------------
+
+jabberd uses a "karma" based system to control socket io rate limits.
+The more karma you have, the more you are allowed to write data to your
+socket.
+
+You are allowed to write karma*100 bytes to your socket. In addition to your
+karma, the server keeps track of how much data you have written lately.
+
+The only thing that will raise your karma is time. Karma is raised every
+two seconds. In addition to raising your karma, it will lower your recent
+"bytes out" count by karma*100 bytes.
+
+You are penalized for writing too much data to the socket at once. The lower
+your karma is, the more this penalty has effect. If you have a negative
+karma, the server will not read from your socket at all, until your karma
+is positive again.
+
+If your recent "bytes sent" counter is greater than karma*100, your karma
+is lowered, which will also lower the number of bytes the server will
+read from you.
+
+Most of the karma values are configurable. The only values that cannot
+be configured outside of karma.c, are the rate at which karma regenerates
+(currently 2 seconds), and the karma*100 value. These two values are
+defined in jabberdlib.h as KARMA_HEARTBEAT and as KARMA_READ_MAX(k).
+
+Values that can be changed outside of karma.c on a per-socket basis are:
+current karma, current bytes_read, a max karma (you cannot have more than
+this amount), an "init" value, for the first time init (normal karma
+operation should never hit this value - sets to "restore" value), how much
+karma is incremented/decremented, the "penalty" for dropping to zero
+karma (usually a negative number, karma gets set to this value, when you
+hit zero), the "restore" value for when your karma *raises* to zero (when
+karma is negative and raises to zero, this value becomes the new karma).
+
+By default, these numbers start at: 5, 0, 10, -10, -5, and 5 respectivly.
+Using these numbers a person with maximum karma (10), will be able to send
+1000 bytes every two seconds, without incuring any penalties. They would
+also be able to send a burst of up to 5.5 KiB in two seconds, without
+hitting zero karma. Once the user hits zero karma, they would only be
+able to sustain a rate of about 1.5 KB every 10 seconds, until they wait
+for their karma to raise to a more normal value.
