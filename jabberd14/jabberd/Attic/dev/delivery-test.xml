@@ -1,0 +1,37 @@
+<jabber>
+    <!-- This is a configuration file used to tested v
+         the delivery logic to base modules -->
+    
+    <!-- Packet generator component -->
+    <service id='packetgen'>
+        <host>foo.org</host>
+        <exec>./packetgen.py</exec>
+    </service>        
+
+    <!-- The simplest service component -->
+    <service id='simple_svc'>
+        <host>foo.org</host>
+        <exec>./echo.py --id simple_svc --drop</exec>
+    </service>
+
+    <!-- The simplest xdb component -->
+    <xdb id='simple_xdb'>
+        <host>foo.org</host>
+        <exec>./echo.py --id simple_xdb --drop</exec>
+    </xdb>
+
+    <!-- The simplest log component -->
+    <log id='simple_log'>
+        <host>foo.org</host>
+        <exec>./echo.py --id simple_log --drop</exec>
+    </log>
+
+    <!-- A namespace filtering xdb component -->
+    <xdb id='ns_filter_xdb'>
+        <host>foo.org</host>
+        <ns>xdb:test</ns>
+        <exec>./echo.py --id ns_fiter_xdb --drop</exec>
+    </xdb>
+</jabber>    
+
+    
