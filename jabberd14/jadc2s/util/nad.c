@@ -276,16 +276,17 @@ int nad_insert_elem(nad_t nad, int parent, char *name, char *cdata)
 }
 
 /* wrap an element with another element */
-/* !!! merge with nad_insert_elem */
 void nad_wrap_elem(nad_t nad, int elem, char *name)
 {
-    int e, depth;
+    int cur;
+
+    /* !!! it is your fault if you call this with a bad elem */
+    if(elem >= nad->ecur) return;
 
     NAD_SAFE(nad->elems, (nad->ecur + 1) * sizeof(struct nad_elem_st), nad->elen);
 
-    /* relocate all the rest of the elems (unless we're at the end already) */
-    if(nad->ecur != elem)
-        memmove(&nad->elems[elem + 1], &nad->elems[elem], (nad->ecur - elem) * sizeof(struct nad_elem_st));
+    /* relocate all the rest of the elems after us */
+    memmove(&nad->elems[elem + 1], &nad->elems[elem], (nad->ecur - elem) * sizeof(struct nad_elem_st));
     nad->ecur++;
 
     /* set up req'd parts of new elem */
@@ -293,22 +294,11 @@ void nad_wrap_elem(nad_t nad, int elem, char *name)
     nad->elems[elem].iname = _nad_cdata(nad,name,nad->elems[elem].lname);
     nad->elems[elem].attr = -1;
     nad->elems[elem].itail = nad->elems[elem].ltail = 0;
-    nad->elems[elem].depth = 1;
+    nad->elems[elem].icdata = nad->elems[elem].lcdata = 0;
 
-    /* depths are fine if this is the end */
-    if(nad->ecur == elem + 1) return;
-
-    /* fix up the depths */
-    nad->elems[elem].depth = nad->elems[elem + 1].depth;
-
-    e = elem + 1;
-    while(1)
-    {
-        depth = nad->elems[e].depth;
-        nad->elems[e].depth++;
-        if(nad->elems[e + 1].depth < depth) break;
-        e++;
-    }
+    /* raise the bar on all the children */
+    nad->elems[elem+1].depth++;
+    for(cur = elem + 2; cur < nad->ecur && nad->elems[cur].depth > nad->elems[elem].depth; cur++) nad->elems[cur].depth++;
 }
 
 /* create a new elem on the list */

@@ -185,7 +185,7 @@ void _client_charData(void *arg, const char *str, int len)
 /* process completed nads */
 void _client_process(conn_t c) {
     chunk_t chunk;
-    int elem;
+    int elem, attr, attr2;
     char str[770]; /* see jep29, 256(node) + 1(@) + 255(domain) + 1(/) + 256(resource) + 1(\0) */
 
     log_debug(ZONE, "got packet from client, processing");
@@ -193,43 +193,49 @@ void _client_process(conn_t c) {
     chunk = chunk_new(c);
 
     /* handle auth requests */
-    if(j_strncmp(NAD_ENAME(chunk->nad, 0), "iq", 2) == 0 &&
-       (j_strncmp(NAD_AVAL(chunk->nad, nad_find_attr(chunk->nad, 1, "xmlns", NULL)), "jabber:iq:auth", 14) == 0 ||
-        j_strncmp(NAD_AVAL(chunk->nad, nad_find_attr(chunk->nad, 1, "xmlns", NULL)), "jabber:iq:register", 18) == 0))
+    if((j_strncmp(NAD_ENAME(chunk->nad, 0), "iq", 2) == 0) && 
+            (c->state != state_OPEN))
     {
-        /* sort out the username */
-        elem = nad_find_elem(chunk->nad, 0, "username", 2);
-        if(elem == -1)
+        attr = nad_find_attr(chunk->nad, 1, "xmlns", NULL);
+        if ( (attr >= 0) && ((j_strncmp(NAD_AVAL(chunk->nad, attr), "jabber:iq:auth", 14) == 0) || (j_strncmp(NAD_AVAL(chunk->nad, attr), "jabber:iq:register", 18) == 0)) )
         {
-            log_debug(ZONE, "auth packet with no username, dropping it");
-            chunk_free(chunk);
-            return;
-        }
-
-        snprintf(str, 770, "%.*s", NAD_CDATA_L(chunk->nad, elem), NAD_CDATA(chunk->nad, elem));
-        jid_set(c->smid, str, JID_USER);
-
-        /* and the resource, for sets */
-        if(j_strncmp(NAD_AVAL(chunk->nad, nad_find_attr(chunk->nad, 0, "type", NULL)), "set", 3) == 0 && j_strncmp(NAD_AVAL(chunk->nad, nad_find_attr(chunk->nad, 1, "xmlns", NULL)), "jabber:iq:auth", 14) == 0)
-        {
-            elem = nad_find_elem(chunk->nad, 0, "resource", 2);
+            /* sort out the username */
+            elem = nad_find_elem(chunk->nad, 0, "username", 2);
             if(elem == -1)
             {
-                log_debug(ZONE, "auth packet with no resource, dropping it");
+                log_debug(ZONE, "auth packet with no username, dropping it");
                 chunk_free(chunk);
                 return;
             }
 
             snprintf(str, 770, "%.*s", NAD_CDATA_L(chunk->nad, elem), NAD_CDATA(chunk->nad, elem));
-            jid_set(c->smid, str, JID_RESOURCE);
+            jid_set(c->smid, str, JID_USER);
 
-            /* add the stream id to digest packets */
-            elem = nad_find_elem(chunk->nad, 0, "digest", 2);
-            if(elem >= 0 && c->sid != NULL)
-                nad_set_attr(chunk->nad, elem, "sid", c->sid);
+            /* and the resource, for sets */
+            attr2 = nad_find_attr(chunk->nad, 0, "type", NULL);
+            if(attr2 >= 0 && 
+                    j_strncmp(NAD_AVAL(chunk->nad, attr2), "set", 3) == 0 &&
+                    j_strncmp(NAD_AVAL(chunk->nad, attr), "jabber:iq:auth", 14) == 0)
+            {
+                elem = nad_find_elem(chunk->nad, 0, "resource", 2);
+                if(elem == -1)
+                {
+                    log_debug(ZONE, "auth packet with no resource, dropping it");
+                    chunk_free(chunk);
+                    return;
+                }
 
-            /* we're in the auth state */
-            c->state = state_AUTH;
+                snprintf(str, 770, "%.*s", NAD_CDATA_L(chunk->nad, elem), NAD_CDATA(chunk->nad, elem));
+                jid_set(c->smid, str, JID_RESOURCE);
+
+                /* add the stream id to digest packets */
+                elem = nad_find_elem(chunk->nad, 0, "digest", 2);
+                if(elem >= 0 && c->sid != NULL)
+                    nad_set_attr(chunk->nad, elem, "sid", c->sid);
+
+                /* we're in the auth state */
+                c->state = state_AUTH;
+            }
         }
     }
 
