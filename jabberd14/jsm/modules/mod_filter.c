@@ -286,7 +286,8 @@ void mod_filter_action_forward(mapi m,xmlnode rule,jid j)
             {
                 char *fb=xmlnode_get_attrib(cur,"jid");
                 jid j=jid_new(m->packet->p,fb);
-                if(jid_cmpx(j,m->packet->to,JID_USER|JID_SERVER)==0)
+                if( ( j != NULL ) &&
+                    ( jid_cmpx(j,m->packet->to,JID_USER|JID_SERVER)==0 ) )
                 {
                     x=xmlnode_dup(m->packet->x);
                     xmlnode_put_attrib(x,"to",jid_full(j));
@@ -332,7 +333,7 @@ mreturn mod_filter_handler(mapi m, void *arg)
     pool p;
 
     jp = m->packet;
-    if(m->packet->type == JPACKET_PRESENCE) 
+    if(m->packet->type == JPACKET_PRESENCE)
         return M_IGNORE;
 
     if(m->packet->type == JPACKET_MESSAGE)
@@ -394,14 +395,21 @@ mreturn mod_filter_handler(mapi m, void *arg)
             {
                 xmlnode roster = xdb_get(m->user->si->xc, m->user->id, NS_ROSTER);
                 jid j = jid_new(m->packet->p, jid_full(m->packet->from));
-                jid_set(j, NULL, JID_RESOURCE);
-                
-                log_debug(ZONE, "checking roster");
-
-                if(jid_nodescan(j, roster) != NULL)
+                if ( j != NULL )
                 {
-                    cur_action->is_match = 1;
-                    log_debug(ZONE, "MATCH");
+                    jid_set(j, NULL, JID_RESOURCE);
+
+                    log_debug(ZONE, "checking roster");
+
+                    if(jid_nodescan(j, roster) != NULL)
+                    {
+                        cur_action->is_match = 1;
+                        log_debug(ZONE, "MATCH");
+                    }
+                }
+                else
+                {
+                    log_debug(ZONE, "Bogus return address on message");
                 }
                 xmlnode_free(roster);
                 cur = xmlnode_get_nextsibling(cur);
@@ -412,27 +420,34 @@ mreturn mod_filter_handler(mapi m, void *arg)
                 xmlnode item;
                 char *group = spools(m->packet->p, "item/group=", xmlnode_get_data(cur), m->packet->p);
                 jid j = jid_new(m->packet->p, jid_full(m->packet->from));
-                jid_set(j, NULL, JID_RESOURCE);
-                
-                log_debug(ZONE, "checking for group %s in %s", group, xmlnode2str(roster));
-
-                while((item = xmlnode_get_tag(roster, group)) != NULL)
+                if ( j != NULL )
                 {
-                    log_debug(ZONE, "found match: %s", xmlnode2str(item));
-                    if(jid_cmpx(j, jid_new(xmlnode_pool(item), xmlnode_get_attrib(item->parent, "jid")), JID_USER | JID_SERVER) == 0)
+                    jid_set(j, NULL, JID_RESOURCE);
+
+                    log_debug(ZONE, "checking for group %s in %s", group, xmlnode2str(roster));
+
+                    while((item = xmlnode_get_tag(roster, group)) != NULL)
                     {
-                        cur_action->is_match = 1;
-                        log_debug(ZONE, "MATCH");
-                        break;
+                        log_debug(ZONE, "found match: %s", xmlnode2str(item));
+                        if(jid_cmpx(j, jid_new(xmlnode_pool(item), xmlnode_get_attrib(item->parent, "jid")), JID_USER | JID_SERVER) == 0)
+                        {
+                            cur_action->is_match = 1;
+                            log_debug(ZONE, "MATCH");
+                            break;
+                        }
+                        xmlnode_hide(item);
                     }
-                    xmlnode_hide(item);
+                }
+                else
+                {
+                    log_debug(ZONE, "Bogus Return address on message.");
                 }
                 xmlnode_free(roster);
                 cur = xmlnode_get_nextsibling(cur);
             }
             else if(j_strcmp(xmlnode_get_name(cur),"unavailable")==0)
             {
-                log_debug(ZONE,"checking unavailalbe");    
+                log_debug(ZONE,"checking unavailalbe");
                 if(js_session_primary(m->user)==NULL)
                     cur_action->is_match=1;
                 else
@@ -615,12 +630,30 @@ mreturn mod_filter_handler(mapi m, void *arg)
             else if(j_strcmp(xmlnode_get_name(cur),"forward")==0)
             {
                 jid new=jid_new(p,xmlnode_get_data(cur));
-                if(m->packet->type == JPACKET_IQ)
-                    break;
-                cur_action->has_action=1;
-                new->next=cur_action->forward;
-                cur_action->forward=new;
-                log_debug(ZONE,"forward: %s",xmlnode_get_data(cur));
+                if ( ! new )
+                {
+                    log_debug(ZONE, "Ignoring illegal forwarding address: %s",
+                                      xmlnode_get_data(cur));
+                    //NPS:
+                    //This if statement deals w/ the immediate case of
+                    //the jid specified in the rule is bogus (can't
+                    //be converted to a jid struct.  However, it
+                    //does so by just ignoring that there ever was a
+                    //<forward> tag in the rule, which is probably
+                    //confusing to an end user.  I'd like to see a
+                    //deliver_fail() call used, but util I have a chance
+                    //to figure out an appropriate way to use it,
+                    //this will have to do.
+                }
+                else
+                {
+                    if(m->packet->type == JPACKET_IQ)
+                        break;
+                    cur_action->has_action=1;
+                    new->next=cur_action->forward;
+                    cur_action->forward=new;
+                    log_debug(ZONE,"forward: %s",xmlnode_get_data(cur));
+                }
                 cur=xmlnode_get_nextsibling(cur);
             }
             else if(j_strcmp(xmlnode_get_name(cur),"offline")==0)
@@ -632,7 +665,7 @@ mreturn mod_filter_handler(mapi m, void *arg)
                 log_debug(ZONE,"offline storage");
                 cur=xmlnode_get_nextsibling(cur);
             }
-            else if(j_strcmp(xmlnode_get_name(cur),"continue")==0) 
+            else if(j_strcmp(xmlnode_get_name(cur),"continue")==0)
             {
                 cur_action->has_action=1;
                 cur_action->cont=1;
@@ -651,12 +684,12 @@ mreturn mod_filter_handler(mapi m, void *arg)
                 /* we don't know this tag.. how did we get here then?? */
                 cur=xmlnode_get_nextsibling(cur);
             }
-                    
+
         }
         if(!cur_action->is_match)
         {
             memset(cur_action,0,sizeof(_action));
-            continue;    
+            continue;
         }
 
         if(cur_action->reply)
@@ -678,13 +711,13 @@ mreturn mod_filter_handler(mapi m, void *arg)
     }
 
     xmlnode_free(container);
-    if(cur_action->has_action) 
+    if(cur_action->has_action)
     {
         xmlnode_free(jp->x);
         pool_free(p);
         return M_HANDLED;
     }
-    else 
+    else
     {
         pool_free(p);
         return M_PASS;
