@@ -61,6 +61,7 @@ else
         cd $opwd;
         PSUBDIR="pth-1.3.7";
         PLINK=`pwd`"/jabberd/pth-1.3.7/.libs/libpth.a";
+        CFLAGS="$CFLAGS -I`pwd`/jabberd/pth-1.3.7";
     else
         printf "          Error.\n\n No version of PTH is available on this system\nhttp://www.gnu.org/software/pth/";
     fi
