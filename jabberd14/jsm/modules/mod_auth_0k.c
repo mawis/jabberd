@@ -22,7 +22,7 @@
 mreturn mod_auth_0k_go(mapi m, void *arg)
 {
     char *token, *hash, *seqs;
-    char *c_hash;
+    char *c_hash = NULL;
     int sequence = 0;
     xmlnode xdb;
 
