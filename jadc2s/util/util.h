@@ -286,7 +286,6 @@ jid     jid_user(jid a);                       /* returns the same jid but just 
 # define LOG_INFO    (6)
 # define LOG_DEBUG   (7)
 
-# define MAX_LOG_FILENAME    (16)
 # define MAX_LOG_LINE        (1024)
 #endif
 

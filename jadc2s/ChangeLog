@@ -1,3 +1,8 @@
+2004-01-14  Matthias Wimmer  <m@tthias.net>
+
+    * log.c: Do not limit the length of a filename for the logfile
+    * util.h: same
+
 2004-01-10  Matthias Wimmer  <m@tthias.net>
 
     * connect.c: Flag the root element as sent (for stream error handling)
