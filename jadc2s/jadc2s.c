@@ -217,11 +217,30 @@ int main(int argc, char **argv)
 #endif
 
     /* require some things */
-    /* !!! usage isn't really helpful anymore, need to provide better errors */
-    if(c2s->sm_host == NULL || c2s->sm_port == 0 || c2s->sm_id == NULL || c2s->sm_secret == NULL || c2s->local_id == NULL) {
-        fprintf(stderr, "Configuration error\n");
-        usage();
-        return 1;
+    if(c2s->sm_host == NULL) {
+	fprintf(stderr, "Need the hostname where to find the router in the configuration\n");
+	usage();		/* XXX usage isn't really helpful for this */
+	return 1;
+    }
+    if(c2s->sm_port == 0) {
+	fprintf(stderr, "Need the port number of the router in the configuration\n");
+	usage();		/* XXX usage isn't really helpful for this */
+	return 1;
+    }
+    if(c2s->sm_id == NULL) {
+	fprintf(stderr, "Need our ID on the router in the configuration\n");
+	usage();		/* XXX usage isn't really helpful for this */
+	return 1;
+    }
+    if(c2s->sm_secret == NULL) {
+	fprintf(stderr, "Need the secret for the router in the configuration\n");
+	usage();		/* XXX usage isn't really helpful for this */
+	return 1;
+    }
+    if(c2s->local_id == NULL) {
+	fprintf(stderr, "Need our domain(s) for which connections should be accepted in the config\n");
+	usage();		/* XXX usage isn't really helpful for this */
+	return 1;
     }
 
     /* start logging */
@@ -360,7 +379,7 @@ int main(int argc, char **argv)
 
     /* close client connections */
     for(i = 0; i < c2s->max_fds; i++)
-	if (c2s->conns[i].fd != -1)
+	if (c2s->conns[i].fd != -1 && c2s->conns[i].fd != c2s->sm->fd) 
 	    conn_close(&c2s->conns[i], STREAM_ERR_SYSTEM_SHUTDOWN, "shutting down jadc2s");
 
     /* close session manager connection */
