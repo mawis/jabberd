@@ -217,26 +217,17 @@ cdata pthsock_client_cdata(mio m, smi s__i)
 
 void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
 {
-    smi s__i;
-    cdata cd;
+    cdata cd = (cdata)arg;
     xmlnode h;
     char *alias, *to;
+
+    if(cd == NULL) 
+        return;
 
     log_debug(ZONE, "pthsock_client_read called with: m:%X flag:%d arg:%X", m, flag, arg);
     switch(flag)
     {
-    case MIO_NEW:
-        s__i = (smi)arg;
-        cd = pthsock_client_cdata(m, s__i);
-        mio_reset(m, pthsock_client_read, (void*)cd);
-        break;
     case MIO_CLOSED:
-        if(m->type == type_LISTEN)
-            return;
-
-        cd = (cdata)arg;
-        if(cd == NULL) 
-            break;
 
         log_debug(ZONE, "io_select Socket %d close notification", m->fd);
         if(cd->state == state_AUTHD)
@@ -260,7 +251,6 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
         } 
         break;
     case MIO_ERROR:
-        cd = (cdata)arg;
         if(m->queue == NULL) 
             break;
 
@@ -269,7 +259,6 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
 
         break;
     case MIO_XML_ROOT:
-        cd = (cdata)arg;
         ghash_put_pool(cd->m->p, cd->si->users, cd->client_id, cd);
         log_debug(ZONE, "root received for %d", m->fd);
         to = xmlnode_get_attrib(x, "to");
@@ -359,6 +348,21 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
         break;
     }
 }
+
+
+void pthsock_client_listen(mio m, int flag, void *arg, xmlnode x)
+{
+    smi s__i = (void*)arg;
+    cdata cd;
+
+    if(flag != MIO_NEW)
+        return;
+
+    s__i = (smi)arg;
+    cd = pthsock_client_cdata(m, s__i);
+    mio_reset(m, pthsock_client_read, (void*)cd);
+}
+
 
 int _pthsock_client_timeout(void *arg, const void *key, void *data)
 {
@@ -489,7 +493,7 @@ void pthsock_client(instance i, xmlnode x)
         for(; cur != NULL; xmlnode_hide(cur), cur = xmlnode_get_tag(s__i->cfg, "ip"))
         {
             mio m;
-            m = mio_listen(j_atoi(xmlnode_get_attrib(cur, "port"), 5222), xmlnode_get_data(cur), pthsock_client_read, (void*)s__i, MIO_LISTEN_XML);
+            m = mio_listen(j_atoi(xmlnode_get_attrib(cur, "port"), 5222), xmlnode_get_data(cur), pthsock_client_listen, (void*)s__i, MIO_LISTEN_XML);
             if(m == NULL)
                 return;
             /* XXX see below -- same applies for rate */
@@ -506,7 +510,7 @@ void pthsock_client(instance i, xmlnode x)
     else /* no special config, use defaults */
     {
         mio m;
-        m = mio_listen(5222, NULL, pthsock_client_read, (void*)s__i, MIO_LISTEN_XML);
+        m = mio_listen(5222, NULL, pthsock_client_listen, (void*)s__i, MIO_LISTEN_XML);
         if(m == NULL)
             return;
         if(rate_time != 0 && rate_points != 0)
