@@ -40,7 +40,6 @@
  * --------------------------------------------------------------------------*/
 
 #include "jabberd.h"
-#include "single.h"
 #define MAX_INCLUDE_NESTING 20
 extern pool      jabberd__runtime;
 xht instance__ids=NULL;
@@ -223,11 +222,6 @@ int configurate(char *file, xht cmd_line)
 
     /* read and parse file */
     greymatter__ = xmlnode_file(realfile);
-
-#ifdef SINGLE
-    if(greymatter__ == NULL)
-        greymatter__ = xmlnode_str(SINGLE_CONFIG, strlen(SINGLE_CONFIG));
-#endif
 
     /* was the there a read/parse error? */
     if(greymatter__ == NULL)
