@@ -206,8 +206,12 @@ void pthsock_server_read(sock c,char *buffer,int bufsz,int flags,void *arg)
         {
             if(((int)c->xbuffer)!=-1)
             {
-                jutil_error(c->xbuffer,TERROR_EXTERNAL);
-                deliver(dpacket_new(c->xbuffer),si->i);
+                /* XXX HACK!! Don't bounce if it's already an error */
+                if(xmlnode_get_tag(c->xbuffer,"error")==NULL)
+                {
+                    jutil_error(c->xbuffer,TERROR_EXTERNAL);
+                    deliver(dpacket_new(c->xbuffer),si->i);
+                } else xmlnode_free(c->xbuffer);
             }
             else pool_free(c->pbuffer);
             c->xbuffer=NULL;
@@ -217,16 +221,25 @@ void pthsock_server_read(sock c,char *buffer,int bufsz,int flags,void *arg)
             {
                 if(q->type==queue_XMLNODE)
                 {
-                    jutil_error(q->x,TERROR_EXTERNAL);
-                    deliver(dpacket_new(q->x),si->i);
+                    /* XXX HACK!! Don't bounce if it's already an error */
+                    if(xmlnode_get_tag(c->xbuffer,"error")==NULL)
+                    {
+                        jutil_error(q->x,TERROR_EXTERNAL);
+                        deliver(dpacket_new(q->x),si->i);
+                    }
+                    else xmlnode_free(q->x);
                 } else pool_free(q->p);
             }
         }
         /* as well as our queue */
         while((q=(wbq)pth_msgport_get(sd->queue))!=NULL)
         {
-            jutil_error(q->x,TERROR_EXTERNAL);
-            deliver(dpacket_new(q->x),si->i);
+            /* XXX HACK!! Don't bounce if it's already an error */
+            if(xmlnode_get_tag(c->xbuffer,"error")==NULL)
+            {
+                jutil_error(q->x,TERROR_EXTERNAL);
+                deliver(dpacket_new(q->x),si->i);
+            } else xmlnode_free(q->x);
         }
     }
 }
