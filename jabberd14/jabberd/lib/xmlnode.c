@@ -30,7 +30,7 @@
 
 #include "lib.h"
 
-void debug_log(char *zone, const char *msgfmt, ...);
+//void debug_log(char *zone, const char *msgfmt, ...);
 /* Internal routines */
 typedef struct xml_parse_st
 {
@@ -46,7 +46,7 @@ void __parse_defaultHandler(void *parser, const XML_Char *s, int len)
     if(x->cur_depth < x->max_depth)
         return; /* don't bother building the full text here either, haven't reached desired parse depth */
 
-    debug_log("otfxml", "adding %.*s to node text", len, s);
+    //debug_log("otfxml", "adding %.*s to node text", len, s);
     if(x->current->full == NULL)
     {
         x->current->full = (char*)pmalloc(xmlnode_pool(x->current),len + 1);
@@ -56,19 +56,19 @@ void __parse_defaultHandler(void *parser, const XML_Char *s, int len)
     else
     {
         int old_len = strlen(x->current->full);
-        debug_log("otfxml", "PREEXISTING DATA: %s:%d, + %.*s:%d", x->current->full, old_len, len, s, len);
+        //debug_log("otfxml", "PREEXISTING DATA: %s:%d, + %.*s:%d", x->current->full, old_len, len, s, len);
         x->current->full = (char*)prealloc(xmlnode_pool(x->current), x->current->full, old_len, old_len + len + 1);
         memcpy(x->current->full + old_len, s, len);
         memcpy(x->current->full + old_len + len, "\0", 1);
     }
-    debug_log("otfxml", "full: %s", x->current->full);
+    //debug_log("otfxml", "full: %s", x->current->full);
 }
 
 void __parse_startElement(void *parser, const char *name, const char **atts)
 {
     xmlnode_parse x = (xmlnode_parse)XML_GetUserData(parser);
 
-    debug_log("otfxml", "parsing node, startElement, cd: %d, md: %d",x->cur_depth, x->max_depth);
+    //debug_log("otfxml", "parsing node, startElement, cd: %d, md: %d",x->cur_depth, x->max_depth);
     if(x->cur_depth == 0)
     {
         x->cur_depth++;
@@ -78,7 +78,7 @@ void __parse_startElement(void *parser, const char *name, const char **atts)
     /* if we are too deep to parse, just build the ->full */
     if(x->cur_depth >= x->max_depth && x->max_depth != -1)
     {
-    debug_log("otfxml", "parsing node '%s', startElement, not parsing this depth, just adding to ->full",name);
+    //debug_log("otfxml", "parsing node '%s', startElement, not parsing this depth, just adding to ->full",name);
         if(x->cur_depth == x->max_depth)
         {
             x->current = xmlnode_insert_tag(x->current, name);
@@ -90,7 +90,7 @@ void __parse_startElement(void *parser, const char *name, const char **atts)
         return;
     }
 
-    debug_log("otfxml", "parsing node '%s', startElement, parsing this depth",name);
+    //debug_log("otfxml", "parsing node '%s', startElement, parsing this depth",name);
     x->current = xmlnode_insert_tag(x->current, name);
     xmlnode_put_expat_attribs(x->current, atts);
 
@@ -105,11 +105,11 @@ void __parse_endElement(void *parser, const char *name)
     {
         XML_DefaultCurrent(parser);
         x->current->complete = 0;
-    debug_log("otfxml", "parsing node '%s', created incomplete node, with text of %s", x->current, x->current->full);
+    //debug_log("otfxml", "parsing node '%s', created incomplete node, with text of %s", x->current, x->current->full);
         return;
     }
 
-    debug_log("otfxml", "parsing node '%s', created complete node", x->current);
+    //debug_log("otfxml", "parsing node '%s', created complete node", x->current);
     x->current = xmlnode_get_parent(x->current);
 }
 
@@ -119,13 +119,13 @@ void __parse_cdataHandler(void *parser, const char *s, int len)
 
     if(x->cur_depth > x->max_depth && x->max_depth != -1)
     {
-    debug_log("otfxml", "parsing text '%.*s', cdataHandler, not parsing this depth, just adding to full", len, s);
+    //debug_log("otfxml", "parsing text '%.*s', cdataHandler, not parsing this depth, just adding to full", len, s);
         XML_DefaultCurrent(parser);
         x->current->complete = 0;
         return;
     }
 
-    debug_log("otfxml", "parsing text '%.*s', cdataHandler, parsing this depth", len, s);
+    //debug_log("otfxml", "parsing text '%.*s', cdataHandler, parsing this depth", len, s);
     xmlnode_insert_cdata(x->current, s, len);
 }
 
@@ -140,7 +140,7 @@ void _parse_xmlnode(xmlnode current, int parse_depth)
     if(current == NULL || parse_depth == 0 || current->full == NULL || current->complete == 1)
         return;
 
-    debug_log("otfxml", "xmlnode %X[%s] asked to be parsed to depth %d", current, current->full, parse_depth);
+    //debug_log("otfxml", "xmlnode %X[%s] asked to be parsed to depth %d", current, current->full, parse_depth);
     x = (xmlnode_parse)malloc(sizeof(_xmlnode_parse));
     memset(x, 0, sizeof(_xmlnode_parse));
     x->current = current;
@@ -156,14 +156,14 @@ void _parse_xmlnode(xmlnode current, int parse_depth)
     XML_SetCharacterDataHandler(p, (void*)__parse_cdataHandler);
     XML_SetCommentHandler(p, (void*)__parse_commentHandler);
 
-    debug_log("otfxml", "xmlnode %X being parsed...", current);
+    //debug_log("otfxml", "xmlnode %X being parsed...", current);
     /* perform the parsing */
     if(!XML_Parse(p, current->full, strlen(current->full), 1))
     {
         /* XXX hrmm.. parsing error.. this should never happen,
          * since expat already has parsed this text, and was error free */
     }
-    debug_log("otfxml", "xmlnode %X done parsing", current);
+    //debug_log("otfxml", "xmlnode %X done parsing", current);
 
     /* free the parser and text, flag this xmlnode as complete */
     XML_ParserFree(p);
@@ -356,7 +356,7 @@ spool _xmlnode2spool(xmlnode node)
     if(node->complete == 0)
     {
         spool_add(s, node->full);
-        debug_log("otfxml", "FULL SAVE: %s", node->full);
+        //debug_log("otfxml", "FULL SAVE: %s", node->full);
         return s;
     }
 
@@ -399,10 +399,10 @@ spool _xmlnode2spool(xmlnode node)
         }
     }
 
-    if(!save)
-        debug_log("otfxml", "NO SAVE: %s", spool_print(s));
-    else
-        debug_log("otfxml", "PARTIAL SAVE: %s", spool_print(s));
+    //if(!save)
+        //debug_log("otfxml", "NO SAVE: %s", spool_print(s));
+    //else
+        //debug_log("otfxml", "PARTIAL SAVE: %s", spool_print(s));
 
     return s;
 }
@@ -893,7 +893,7 @@ char *xmlnode2str(xmlnode node)
 {
     if(node != NULL && node->complete == 0)
     {
-        debug_log("otfxml", "FULL SAVE: %s", node->full);
+        //debug_log("otfxml", "FULL SAVE: %s", node->full);
         return node->full;
     }
 
@@ -913,7 +913,7 @@ char *xmlnode2str(xmlnode node)
 char*    xmlnode2tstr(xmlnode node)
 {
     spool s;
-    if(node != NULL) debug_log("otfxml", "xmlnode2tstr: cmp:%d", node->complete);
+    //if(node != NULL) debug_log("otfxml", "xmlnode2tstr: cmp:%d", node->complete);
     if(node != NULL && !node->complete)
      {
                spool_add(s, node->full);
@@ -933,7 +933,7 @@ int xmlnode_cmp(xmlnode a, xmlnode b)
 {
     int ret = 0;
 
-    if(a != NULL && b!= NULL) debug_log("otfxml", "xmlnodecmp: acmp:%d, bcmp:%d", a->complete, b->complete);
+    //if(a != NULL && b!= NULL) debug_log("otfxml", "xmlnodecmp: acmp:%d, bcmp:%d", a->complete, b->complete);
     while(1)
     {
         if(a == NULL && b == NULL)
@@ -981,7 +981,7 @@ xmlnode xmlnode_insert_tag_node(xmlnode parent, xmlnode node)
 {
     xmlnode child;
 
-    if(parent != NULL) debug_log("otfxml", "xmlnode_insert_tag_node: cmp:%d", parent->complete);
+    //if(parent != NULL) debug_log("otfxml", "xmlnode_insert_tag_node: cmp:%d", parent->complete);
     child = xmlnode_insert_tag(parent, xmlnode_get_name(node));
     if (xmlnode_has_attribs(node))
         xmlnode_insert_node(child, xmlnode_get_firstattrib(node));
@@ -997,7 +997,7 @@ void xmlnode_insert_node(xmlnode parent, xmlnode node)
     if(node == NULL || parent == NULL)
         return;
 
-    if(parent != NULL) debug_log("otfxml", "xmlnode_insert_node: cmp:%d", parent->complete);
+    //if(parent != NULL) debug_log("otfxml", "xmlnode_insert_node: cmp:%d", parent->complete);
     while(node != NULL)
     {
         switch(xmlnode_get_type(node))
@@ -1021,7 +1021,7 @@ xmlnode xmlnode_dup(xmlnode x)
 {
     xmlnode x2;
 
-    if(x != NULL) debug_log("otfxml", "xmlnode_dup: cmp:%d", x->complete);
+    //if(x != NULL) debug_log("otfxml", "xmlnode_dup: cmp:%d", x->complete);
     if(x == NULL)
         return NULL;
 
@@ -1039,7 +1039,7 @@ xmlnode xmlnode_dup_pool(pool p, xmlnode x)
 {
     xmlnode x2;
 
-    if(x != NULL) debug_log("otfxml", "xmlnode_dup_pool: cmp:%d", x->complete);
+    //if(x != NULL) debug_log("otfxml", "xmlnode_dup_pool: cmp:%d", x->complete);
     if(x == NULL)
         return NULL;
 
@@ -1056,7 +1056,7 @@ xmlnode xmlnode_dup_pool(pool p, xmlnode x)
 xmlnode xmlnode_wrap(xmlnode x,const char *wrapper)
 {
     xmlnode wrap;
-    if(x != NULL) debug_log("otfxml", "xmlnode_wrap: cmp:%d", x->complete);
+    //if(x != NULL) debug_log("otfxml", "xmlnode_wrap: cmp:%d", x->complete);
     if(x==NULL||wrapper==NULL) return NULL;
     wrap=xmlnode_new_tag_pool(xmlnode_pool(x),wrapper);
     if(wrap==NULL) return NULL;
@@ -1069,7 +1069,7 @@ xmlnode xmlnode_wrap(xmlnode x,const char *wrapper)
 
 void xmlnode_free(xmlnode node)
 {
-    if(node != NULL) debug_log("otfxml", "xmlnode_free: cmp:%d", node->complete);
+    //if(node != NULL) debug_log("otfxml", "xmlnode_free: cmp:%d", node->complete);
     if(node == NULL)
         return;
 
