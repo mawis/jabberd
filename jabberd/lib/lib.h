@@ -23,10 +23,6 @@
 
 #include "xmlparse.h"
 
-#ifdef WITH_IPV6
-#include <resolv.h>
-#endif
-
 /*
 **  Arrange to use either varargs or stdargs
 */
