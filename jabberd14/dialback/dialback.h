@@ -34,6 +34,7 @@
 typedef struct db_struct
 {
     instance i;
+    HASHTABLE nscache; /* host/ip local resolution cache */
     HASHTABLE out_connecting; /* where unvalidated in-progress connections are, key is to/from */
     HASHTABLE out_ok_db; /* hash table of all connected dialback hosts, key is same to/from */
     HASHTABLE out_ok_legacy; /* hash table of all connected legacy hosts, key is same to/from */
@@ -66,4 +67,5 @@ void dialback_miod_hash(miod md, HASHTABLE ht, jid key);
 miod dialback_miod_new(db d, mio m);
 void dialback_miod_write(miod md, xmlnode x);
 void dialback_miod_read(miod md, xmlnode x);
-
+char *dialback_ip_get(db d, jid host, char *ip);
+void dialback_ip_set(db d, jid host, char *ip);

@@ -137,8 +137,10 @@ void _dialback_miod_hash_cleanup(void *arg)
     log_debug(ZONE,"miod cleaning out socket %d with key %s to hash %X",mdc->md->m->fd, jid_full(mdc->key), mdc->ht);
     /* cool place for logging, eh? interesting way of detecting things too, *g* */
     if(mdc->ht == mdc->md->d->out_ok_db){
+        unregister_instance(mdc->md->d->i, mdc->key->server); /* dynamic host resolution thingie */
         log_record(mdc->key->server, "out", "dialback", "%d %s %s", mdc->md->count, mdc->md->m->ip, mdc->key->resource);
     }else if(mdc->ht == mdc->md->d->out_ok_legacy){
+        unregister_instance(mdc->md->d->i, mdc->key->server);
         log_record(mdc->key->server, "out", "legacy", "%d %s %s", mdc->md->count, mdc->md->m->ip, mdc->key->resource);
     }else if(mdc->ht == mdc->md->d->in_ok_db){
         log_record(mdc->key->server, "in", "dialback", "%d %s %s", mdc->md->count, mdc->md->m->ip, mdc->key->resource);
@@ -156,8 +158,47 @@ void dialback_miod_hash(miod md, HASHTABLE ht, jid key)
     mdc->key = jid_new(md->m->p,jid_full(key));
     pool_cleanup(md->m->p, _dialback_miod_hash_cleanup, (void *)mdc);
     ghash_put(ht, jid_full(mdc->key), md);
+
+    /* dns saver, only when registering on outgoing hosts dynamically */
+    if(ht == md->d->out_ok_db || ht == md->d->out_ok_legacy)
+    {
+        dialback_ip_set(md->d, key, md->m->ip); /* save the ip since it won't be going through the dnsrv anymore */
+        register_instance(md->d->i, key->server);
+    }
 }
 
+char *dialback_ip_get(db d, jid host, char *ip)
+{
+    char *ret;
+    if(host == NULL)
+        return NULL;
+
+    if(ip != NULL)
+        return ip;
+
+    ret =  pstrdup(host->p,xmlnode_get_attrib((xmlnode)ghash_get(d->nscache,host->server),"i"));
+    log_debug(ZONE,"returning cached ip %s for %s",ret,host->server);
+    return ret;
+}
+
+void dialback_ip_set(db d, jid host, char *ip)
+{
+    xmlnode cache;
+
+    if(host == NULL || ip == NULL)
+        return;
+
+    /* first, get existing cache */
+    cache = (xmlnode)ghash_get(d->nscache,host->server);
+    xmlnode_free(cache); /* free any existing entry to replace it */
+
+    /* new cache */
+    cache = xmlnode_new_tag("d");
+    xmlnode_put_attrib(cache,"h",host->server);
+    xmlnode_put_attrib(cache,"i",ip);
+    ghash_put(d->nscache,xmlnode_get_attrib(cache,"h"),(void*)cache);
+    log_debug(ZONE,"cached ip %s for %s",ip,host->server);
+}
 
 /* phandler callback, send packets to another server */
 result dialback_packets(instance i, dpacket dp, void *arg)
@@ -229,6 +270,7 @@ void dialback(instance i, xmlnode x)
 
     max = j_atoi(xmlnode_get_tag_data(cfg,"maxhosts"),997);
     d = pmalloco(i->p,sizeof(_db));
+    d->nscache = ghash_create(max,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
     d->out_connecting = ghash_create(67,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
     d->out_ok_db = ghash_create(max,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
     d->out_ok_legacy = ghash_create(max,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
