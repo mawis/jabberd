@@ -37,18 +37,18 @@
 #include <openssl/ssl.h>
 #endif /* HAVE_SSL */
 
-/* packet types */
+/** Packet types */
 typedef enum { p_NONE, p_NORM, p_XDB, p_LOG, p_ROUTE } ptype;
 
-/* ordering types, me first me first, managerial, engineer, grunt */
+/** Ordering types, me first me first, managerial, engineer, grunt */
 typedef enum { o_PRECOND, o_COND, o_PREDELIVER, o_DELIVER } order;
 
-/* result types, unregister me, I pass, I should be last, I suck, I rock */
+/** Result types, unregister me, I pass, I should be last, I suck, I rock */
 typedef enum { r_UNREG, r_NONE, r_PASS, r_LAST, r_ERR, r_DONE } result;
 
 typedef struct instance_struct *instance, _instance;
 
-/* packet wrapper, d as in delivery or daemon, whichever pleases you */
+/** Packet wrapper, d as in delivery or daemon, whichever pleases you */
 typedef struct dpacket_struct
 {
     char *host;
@@ -58,33 +58,33 @@ typedef struct dpacket_struct
     xmlnode x;
 } *dpacket, _dpacket;
 
-/* delivery handler function callback definition */
+/** Delivery handler function callback definition */
 typedef result (*phandler)(instance id, dpacket p, void *arg);
 
-/* delivery handler list */
+/** Delivery handler list. See register_phandler(). */
 typedef struct handel_struct
 {
     pool p;
-    phandler f;
+    phandler f;  /**< pointer to delivery handler callback */
     void *arg;
-    order o; /* for sorting new handlers as they're inserted */
+    order o;     /**< for sorting new handlers as they're inserted */
     struct handel_struct *next;
 } *handel, _handel;
 
-/* wrapper around top-level config file sections */
+/** Wrapper around top-level config file sections (xdb, log, service) */
 struct instance_struct
 {
-    char *id;
+    char *id;   /**< the id of the instance */
     pool p;
-    xmlnode x;
-    ptype type;
-    handel hds;
+    xmlnode x;  /**< the instance's configuration */
+    ptype type; /**< the type of the instance (xdb/log/service) */
+    handel hds; /**< delivery handler */
 };
 
-/* config file handler function callback definition */
+/** Config file handler function callback definition */
 typedef result (*cfhandler)(instance id, xmlnode x, void *arg);
 
-/* heartbeat function callback definition */
+/** Heartbeat function callback definition */
 typedef result (*beathandler)(void *arg);
 
 /*** public functions for base modules ***/
@@ -151,16 +151,16 @@ void jabberd_signal(void); /* process the signal, called from the heartbeat thre
 
 /*** xdb utilities ***/
 
-/* ring for handling cached structures */
+/** Ring for handling cached structures */
 typedef struct xdbcache_struct
 {
     instance i;
     int id;
     char *ns;
-    int set; /* flag that this is a set */
-    char *act; /* for set */
-    char *match; /* for set */
-    xmlnode data; /* for set */
+    int set; /**< flag that this is a set */
+    char *act; /**< for set */
+    char *match; /**< for set */
+    xmlnode data; /**< for set */
     jid owner;
     int sent;
     int preblock;
@@ -170,10 +170,10 @@ typedef struct xdbcache_struct
     struct xdbcache_struct *next;
 } *xdbcache, _xdbcache;
 
-xdbcache xdb_cache(instance i); /* create a new xdb cache for this instance */
-xmlnode xdb_get(xdbcache xc,  jid owner, char *ns); /* blocks until namespace is retrieved, returns xmlnode or NULL if failed */
-int xdb_act(xdbcache xc, jid owner, char *ns, char *act, char *match, xmlnode data); /* sends new xml action, returns non-zero if failure */
-int xdb_set(xdbcache xc, jid owner, char *ns, xmlnode data); /* sends new xml to replace old, returns non-zero if failure */
+xdbcache xdb_cache(instance i); /**< create a new xdb cache for this instance */
+xmlnode xdb_get(xdbcache xc,  jid owner, char *ns); /**< blocks until namespace is retrieved, returns xmlnode or NULL if failed */
+int xdb_act(xdbcache xc, jid owner, char *ns, char *act, char *match, xmlnode data); /**< sends new xml action, returns non-zero if failure */
+int xdb_set(xdbcache xc, jid owner, char *ns, xmlnode data); /**< sends new xml to replace old, returns non-zero if failure */
 
 /* Error messages */
 #define SERROR_NAMESPACE "<stream:error><invalid-namespace xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Invalid namespace specified.</text></stream:error>"
@@ -186,10 +186,10 @@ int xdb_set(xdbcache xc, jid owner, char *ns, xmlnode data); /* sends new xml to
 /* default waiting threads */
 #define MTQ_THREADS 10
 
-/* mtq callback simple function definition */
+/** mtq callback simple function definition */
 typedef void (*mtq_callback)(void *arg);
 
-/* has a pointer to the currently assigned thread for this queue */
+/** Managed thread queue. Has a pointer to the currently assigned thread for this queue. */
 typedef struct mtqueue_struct
 {
     struct mth_struct *t;
@@ -197,7 +197,7 @@ typedef struct mtqueue_struct
     int routed;
 } *mtq, _mtq;
 
-/* has the message port for the running thread, and the current queue it's processing */
+/** Managed thread queue. Has the message port for the running thread, and the current queue it's processing. */
 typedef struct mth_struct
 {
     mtq q;
@@ -207,13 +207,13 @@ typedef struct mth_struct
     int busy;
 } *mth, _mth;
 
-mtq mtq_new(pool p); /* creates a new queue, is automatically cleaned up when p frees */
+mtq mtq_new(pool p); /**< Creates a new queue, is automatically cleaned up when p frees */
 
-void _mtq_send(mtq q, pool p, mtq_callback f, void *arg); /* appends the arg to the queue to be run on a thread */
+void _mtq_send(mtq q, pool p, mtq_callback f, void *arg); /**< appends the arg to the queue to be run on a thread */
 
-/* MIO */
+/* MIO - Managed I/O - TCP functions */
 
-/* struct to handle the write queue */
+/** Struct to handle the write queue */
 typedef enum { queue_XMLNODE, queue_CDATA } mio_queue_type;
 typedef struct mio_wb_q_st
 {
@@ -232,6 +232,8 @@ struct mio_handlers_st; /* grr.. stupid fsking chicken and egg C definitions */
 /* the mio data type */
 typedef enum { state_ACTIVE, state_CLOSE } mio_state;
 typedef enum { type_LISTEN, type_NORMAL, type_NUL, type_HTTP } mio_type;
+
+/** Managed I/O. TCP socket management. */
 typedef struct mio_st
 {
     pool p;
@@ -267,7 +269,7 @@ typedef void    (*mio_parser_func)  (mio m,  const void*      buf,       size_t 
 typedef int     (*mio_accept_func)  (mio m, struct sockaddr* serv_addr, socklen_t* addrlen);
 typedef int     (*mio_connect_func) (mio m, struct sockaddr* serv_addr, socklen_t  addrlen);
 
-/* the MIO handlers data type */
+/** The MIO handlers data type */
 typedef struct mio_handlers_st
 {
     pool  p;
@@ -334,40 +336,41 @@ typedef void (*mio_xml_cb)(mio m, int state, void *arg, xmlnode x);
 typedef void (*mio_raw_cb)(mio m, int state, void *arg, char *buffer,int bufsz);
 typedef void (*mio_ssl_cb)(mio m, int state, void *arg, char *buffer,int bufsz);
 
-/* initializes the MIO subsystem */
+/** Initializes the MIO subsystem */
 void mio_init(void);
 
-/* stops the MIO system */
+/** Stops the MIO system */
 void mio_stop(void);
 
-/* create a new mio object from a file descriptor */
+/** Create a new mio object from a file descriptor */
 mio mio_new(int fd, void *cb, void *cb_arg, mio_handlers mh);
 
-/* reset the callback and argument for an mio object */
+/** Reset the callback and argument for an mio object */
 mio mio_reset(mio m, void *cb, void *arg);
 
-/* request the mio socket be closed */
+/** Request the mio socket be closed */
 void mio_close(mio m);
 
-/* writes an xmlnode to the socket */
+/** Writes an xmlnode to the socket */
 void mio_write(mio m,xmlnode x, char *buffer, int len);
 
-/* sets the karma values for a socket */
+/** Sets the karma values for a socket */
 void mio_karma(mio m, int val, int max, int inc, int dec, int penalty, int restore);
 void mio_karma2(mio m, struct karma *k);
 
-/* sets connection based rate limits */
+/** Sets connection based rate limits */
 void mio_rate(mio m, int rate_time, int max_points);
 
-/* pops the next xmlnode from the queue, or NULL if no more nodes */
+/** Pops the next xmlnode from the queue, or NULL if no more nodes */
 xmlnode mio_cleanup(mio m);
 
-/* connects to an ip */
+/** Connects to an ip */
 void mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_connect_func f, mio_handlers mh);
 
-/* starts listening on a port/ip, returns NULL if failed to listen */
+/** Starts listening on a port/ip, returns NULL if failed to listen */
 mio mio_listen(int port, char *sourceip, void *cb, void *cb_arg, mio_accept_func f, mio_handlers mh);
 
 /* some nice api utilities */
 #define mio_pool(m) (m->p)
 #define mio_ip(m) (m->ip)
+
