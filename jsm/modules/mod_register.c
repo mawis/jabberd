@@ -175,8 +175,10 @@ mreturn mod_register_server(mapi m, void *arg)
         /* copy in the registration fields from the config file */
         xmlnode_insert_node(m->packet->iq,xmlnode_get_firstchild(js_config(m->si,"register")));
 
+#ifdef INCLUDE_LEGACY
         /* insert the key, we don't need to check it, but we'll send it :) */
         xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"key"),jutil_regkey(NULL,"foobar"),-1);
+#endif
 
         /* replace fields with already-registered ones */
         for(cur = xmlnode_get_firstchild(m->packet->iq); cur != NULL; cur = xmlnode_get_nextsibling(cur))
