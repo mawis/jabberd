@@ -390,10 +390,29 @@ void dialback_out_read_db(mio m, int flags, void *arg, xmlnode x)
         return;
     }
 
-    if(j_strcmp(xmlnode_get_name(x),"stream:error") == 0)
-    {
-        log_notice(d->i->id, "reveived stream error on db conn: %s",xmlnode_get_data(x));
-    }else{
+    if(j_strcmp(xmlnode_get_name(x),"stream:error") == 0) {
+	spool s = spool_new(x->p);
+	streamerr errstruct = pmalloco(x->p, sizeof(_streamerr));
+	char *errmsg = NULL;
+
+	xstream_parse_error(x->p, x, errstruct);
+	xstream_format_error(s, errstruct);
+	errmsg = spool_print(s);
+
+	switch (errstruct->severity) {
+	    case normal:
+		log_debug2(ZONE, LOGT_IO, "stream error on outgoing db conn to %s: %s", mio_ip(m), errmsg);
+		break;
+	    case configuration:
+	    case feature_lack:
+	    case unknown:
+		log_warn(d->i->id, "received stream error on outgoing db conn to %s: %s", mio_ip(m), errmsg);
+		break;
+	    case error:
+	    default:
+		log_error(d->i->id, "received stream error on outgoing db conn to %s: %s", mio_ip(m), errmsg);
+	}
+    } else {
         mio_write(m, NULL, "<stream:error><undefined-condition xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Received data on a send-only socket. You are not Allowed to send data on this socket!</text></stream:error>", -1);
     }
     
@@ -536,7 +555,27 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
     case MIO_XML_NODE:
 	/* watch for stream errors */
 	if (j_strcmp(xmlnode_get_name(x), "stream:error") == 0) {
-	    log_warn(c->d->i->id, "Got a stream error on stream %s (%s / %i): %s", c->stream_id, jid_full(c->key), c->xmpp_version, xmlnode2str(x));
+	    spool s = spool_new(x->p);
+	    streamerr errstruct = pmalloco(x->p, sizeof(_streamerr));
+	    char *errmsg = NULL;
+
+	    xstream_parse_error(x->p, x, errstruct);
+	    xstream_format_error(s, errstruct);
+	    errmsg = spool_print(s);
+
+	    switch (errstruct->severity) {
+		case normal:
+		    log_debug2(ZONE, LOGT_IO, "stream error on outgoing %s conn to %s (%s): %s", c->xmpp_version < 1 ? "preXMPP" : "XMPP1.0", mio_ip(m), jid_full(c->key), errmsg);
+		    break;
+		case configuration:
+		case feature_lack:
+		case unknown:
+		    log_warn(c->d->i->id, "received stream error on outgoing %s conn to %s (%s): %s", c->xmpp_version < 1 ? "preXMPP" : "XMPP1.0", mio_ip(m), jid_full(c->key), errmsg);
+		    break;
+		case error:
+		default:
+		    log_error(c->d->i->id, "received stream error on outgoing %s conn to %s (%s): %s", c->xmpp_version < 1 ? "preXMPP" : "XMPP1.0", mio_ip(m), jid_full(c->key), errmsg);
+	    }
 	    mio_close(m);
 	    break;
 	}

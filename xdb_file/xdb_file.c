@@ -115,10 +115,13 @@ xmlnode xdb_file_load(char *host, char *fname, xht cache)
 
     /* test the file first, so we can be more descriptive */
     fd = open(fname,O_RDONLY);
-    if(fd < 0)
-    {
-        log_warn(host,"xdb_file failed to open file %s: %s",fname,strerror(errno));
-    }else{
+    if(fd < 0) {
+	if (errno == ENOENT) {
+	    log_debug2(ZONE, LOGT_STORAGE, "xdb_file failed to open file %s: %s", fname, strerror(errno));
+	} else {
+	    log_warn(host,"xdb_file failed to open file %s: %s",fname,strerror(errno));
+	}
+    } else {
         close(fd);
         data = xmlnode_file(fname);
     }

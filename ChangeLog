@@ -1,3 +1,11 @@
+2005-03-03  Matthias Wimmer  <m@tthias.net>
+
+    * dialback/dialback_in.c: improved stream error logging
+    * dialback/dialback_out.c: same
+    * jabberd/lib/jabberdlib.h: same
+    * jabberd/lib/xstream.c: same
+    * xdb_file/xdb_file.c: Don't log all those "file not found" warnings
+
 2005-03-02  Matthias Wimmer  <m@tthias.net>
 
     * dialback/dialback_in.c: recognize stream errors and log as such
