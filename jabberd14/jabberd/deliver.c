@@ -370,7 +370,7 @@ void deliver(dpacket p, instance i)
     /* XXX optimize by having seperate lists for instances for hosts and general ones (NULL) */
 
     cur = deliver_get_next_hostid(list, host);
-    if(cur == NULL) /* if there are no exact matching ones */
+    if(cur == NULL && xmlnode_get_attrib(p->x,"sto") == NULL) /* if there are no exact matching ones (and this is not a session packet? XXX) */
     {
         host = NULL;
         cur = deliver_get_next_hostid(list, host);
