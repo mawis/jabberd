@@ -154,15 +154,15 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
             x = pthsock_make_route(NULL, jid_full(cdcur->host), cdcur->id, "session");
             log_notice(p->host, "C2S requesting Session Start for %s", xmlnode_get_attrib(p->x, "from"));
             deliver(dpacket_new(x), s__i->i);
-        } else log_notice(p->host, "C2S Authorization failed (%s) for user %s", xmlnode_get_tag_data(p->x, "iq/error"), xmlnode_get_attrib(p->x, "from"));
+        } else log_record(jid_full(jid_user(cdcur->host)), "login", "fail", "%s %s %s", mio_ip(cdcur->m), xmlnode_get_attrib(xmlnode_get_tag(p->x, "iq/error"),"code"), cdcur->host->resource);
     } else if(cdcur->state == state_UNKNOWN && j_strcmp(xmlnode_get_attrib(p->x, "type"), "session") == 0)
     { /* got a session reply from the server */
         mio_wbq q;
 
         cdcur->state = state_AUTHD;
+        log_record(jid_full(jid_user(cdcur->host)), "login", "ok", "%s %s", mio_ip(cdcur->m), cdcur->host->resource);
         /* change the host id */
         cdcur->host = jid_new(m->p, xmlnode_get_attrib(p->x, "from"));
-        log_notice(p->host, "C2S Session Started for %s by session manager", xmlnode_get_attrib(p->x, "from"));
         xmlnode_free(p->x);
         /* if we have packets in the queue, write them */
         while((q = (mio_wbq)pth_msgport_get(cdcur->pre_auth_mp)) != NULL)
