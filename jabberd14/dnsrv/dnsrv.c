@@ -478,5 +478,5 @@ void dnsrv(instance i, xmlnode x)
      /* Register an incoming packet handler */
      register_phandler(i, o_DELIVER, dnsrv_deliver, (void*)di);
      /* register a cleanup function */
-     register_shutdown(dnsrv_shutdown, (void*)di);
+     pool_cleanup(i->p, dnsrv_shutdown, (void*)di);
 }
