@@ -41,9 +41,6 @@ typedef struct c2s_st *c2s_t;
 /* chunk definition */
 typedef struct chunk_st
 {
-    /* vars used for creating the chunk on the fly */
-    char *to, *from;
-
     /* the xml itself */
     nad_t nad;
     int packet_elem;    /* actual packet start element */

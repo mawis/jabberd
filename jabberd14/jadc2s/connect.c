@@ -208,14 +208,12 @@ void _connect_process(conn_t c) {
 
     /* the rest of them we just need a chunk to store until they get sent to the client */
     chunk = chunk_new(c);
-    chunk->to = strdup(cid);
-    chunk->from = strdup(str);
 
     /* its a route, so the packet proper starts at element 1 */
     chunk->packet_elem = 1;
 
     /* look for iq results for auths */
-    if((pending = xhash_get(c->c2s->pending, chunk->to)) != NULL && target->state == state_AUTH)
+    if((pending = xhash_get(c->c2s->pending, cid)) != NULL && target->state == state_AUTH)
     {
         /* got a result, start a session */
         attr = nad_find_attr(chunk->nad, 1, "type", NULL);
@@ -234,13 +232,13 @@ void _connect_process(conn_t c) {
     }
 
     /* now we have to do something with our chunk */
-    log_debug(ZONE,"sm sent us a chunk for %s",chunk->to);
+    log_debug(ZONE,"sm sent us a chunk for %s", cid);
 
     /* either bounce or send the chunk to the client */
     if(target->fd >= 0)
         chunk_write(target, chunk, NULL, NULL, NULL);
     else
-        chunk_write(c, chunk, chunk->from, chunk->to, "error");
+        chunk_write(c, chunk, str, cid, "error");
 }
 
 /* internal handler to read incoming data from the sm and parse/process it */

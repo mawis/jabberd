@@ -24,7 +24,7 @@ jadc2s_OBJECTS = $(EXTRA_OBJECTS) \
 	jadc2s.o
 
 all: $(jadc2s_OBJECTS) $(jadc2s_HEADERS)
-	$(CC) $(CFLAGS) -o jadc2s $(jadc2s_OBJECTS) $(LDFLAGS)
+	$(CC) $(CFLAGS) -o jadc2s $(jadc2s_OBJECTS) $(LDFLAGS) 
 
 $(jadc2s_OBJECTS): $(jadc2s_HEADERS)
 
