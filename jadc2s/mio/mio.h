@@ -29,7 +29,9 @@
 extern "C" {
 #endif
 
-/* mio - manage i/o
+/**
+ * @file mio.h
+ * @brief mio - manage i/o
  * 
  * This used to be something large and all inclusive for 1.2/1.4,
  * but for 1.5 and beyond it is the most simple fd wrapper possible.
@@ -42,42 +44,129 @@ extern "C" {
  *  - tell mio to read or write with a fd
  *  - process accept, read, write, and close requests
  * 
- * Note: normal fd's don't get events unless the app calls mio_read/write() first!
+ * @note normal fd's don't get events unless the app calls mio_read/write() first!
  */
 
-/* the master mio mama, defined internally */
+/**
+ * the master mio mama, defined internally
+ */
 typedef struct mio_st *mio_t;
 
-/* these are the actions and a handler type assigned by the applicaiton using mio */
-typedef enum { action_ACCEPT, action_READ, action_WRITE, action_CLOSE, action_IDLE } mio_action_t;
+/**
+ * these are the actions mio can signal to a handler
+ */
+typedef enum {
+    action_ACCEPT,	/**< a connection has been accepted on this socket */
+    action_READ,	/**< data can be read on this socket */
+    action_WRITE,	/**< data can be written to this socket */
+    action_CLOSE,	/**< the socket has been closed */
+    action_IDLE		/**< the socket is idle */
+} mio_action_t;
+
+/**
+ * handler function for actions on a fd
+ *
+ * @param m the mio that is signalling the action
+ * @param a the action that is signalled
+ * @param fd the fd on which the action happened
+ * @param data action specific data
+ * @param arg user provided argument at registering the callback
+ * @return ?
+ */
 typedef int (*mio_handler_t) (mio_t m, mio_action_t a, int fd, void* data, void *arg);
 
-/* create/free the mio subsytem */
-mio_t mio_new(int maxfd); /* returns NULL if failed */
+/**
+ * create the mio subsystem
+ *
+ * @param maxfd maximum number of fds to handle
+ * @return NULL on failure, pointer to new mio instance else
+ */
+mio_t mio_new(int maxfd);
+
+/**
+ * free a mio instance
+ *
+ * @param m the mio instance to free
+ */
 void mio_free(mio_t m);
 
-/* for creating a new listen socket in this mio (returns new fd or <0) */
+/**
+ * create a new listen socket in this mio
+ *
+ * @param m the mio to use
+ * @param port listen on which port
+ * @param sourceip listen on which IP address
+ * @param app callback to use
+ * @param arg what to pass to the arg argument of the mio_handler_t() function
+ * @return <0 on failure, new fd else
+ */
 int mio_listen(mio_t m, int port, char *sourceip, mio_handler_t app, void *arg);
 
-/* for creating a new socket connected to this ip:port (returns new fd or <0, use mio_read/write first) */
+/**
+ * create a new socket connected to this ip:port
+ *
+ * @note use mio_read()/mio_write() first
+ *
+ * @param m the mio to use
+ * @param port connect to which port
+ * @param hostip connect to which ip address
+ * @param app callback function to use
+ * @param arg what to pass to the arg argument of the mio_handler_t() function
+ * @return new fd or <0
+ */
 int mio_connect(mio_t m, int port, char *hostip, mio_handler_t app, void *arg);
 
-/* tell mio to track this fd (returns new fd or <0) */
+/**
+ * tell mio to track this fd
+ *
+ * @param m the mio to use
+ * @param fd the fd
+ * @param app callback function to use
+ * @param arg argument to pass to the callback function
+ * @return new fd or <0 on failure
+ */
 int mio_fd(mio_t m, int fd, mio_handler_t app, void *arg);
 
-/* re-set the app handler */
+/**
+ * re-set the app handler
+ *
+ * @param m the mio to use
+ * @param fd the fd for which the new callback should be set
+ * @param app the new callback function to use
+ * @param arg argument to pass to the callback function
+ */
 void mio_app(mio_t m, int fd, mio_handler_t app, void *arg);
 
-/* request that mio close this fd */
+/**
+ * request that mio closes this fd
+ *
+ * @param m the mio to use
+ * @param fd which fd to close
+ */
 void mio_close(mio_t m, int fd);
 
-/* mio should try the write action on this fd now */
+/**
+ * mio should try the write action on this fd now
+ *
+ * @param m the mio to use
+ * @param fd which fd to try the write action
+ */
 void mio_write(mio_t m, int fd);
 
-/* process read events for this fd */
+/**
+ * process read events for this fd
+ *
+ * @param m the mio to use
+ * @param fd the fd
+ */
 void mio_read(mio_t m, int fd);
 
-/* give some cpu time to mio to check it's sockets, 0 is non-blocking */
+/**
+ * give some cpu time to mio to check its sockets
+ *
+ * @param m the mio to use
+ * @param timeout how many seconds mio should check its sockets, 0 is non-blocking
+ */
 void mio_run(mio_t m, int timeout);
 
 #ifdef __cplusplus
