@@ -239,3 +239,237 @@ char *xstream_header_char(xmlnode x)
     return head;
 }
 
+/**
+ * format a stream error for logging
+ *
+ * @param s where to spool the result
+ * @param errstruct the information about the error
+ */
+void xstream_format_error(spool s, streamerr errstruct) {
+    /* sanity checks */
+    if (s == NULL)
+	return;
+    if (errstruct == NULL) {
+	spool_add(s, "stream:error=(NULL)");
+	return;
+    }
+
+    switch (errstruct->reason) {
+	case bad_format:
+	    spool_add(s, "sent XML that cannot be processed");
+	    break;
+	case bad_namespace_prefix:
+	    spool_add(s, "sent a namespace prefix that is unsupported");
+	    break;
+	case conflict:
+	    spool_add(s, "new stream has been initiated that confilicts with the existing one");
+	    break;
+	case connection_timeout:
+	    spool_add(s, "not generated any traffic over some time");
+	    break;
+	case host_gone:
+	    spool_add(s, "hostname is no longer hosted by the server");
+	    break;
+	case host_unknown:
+	    spool_add(s, "hostname is not hosted by the server");
+	    break;
+	case improper_addressing:
+	    spool_add(s, "stanza lacks a 'to' or 'from' attribute");
+	    break;
+	case internal_server_error:
+	    spool_add(s, "internal server error: maybe missconfiguration");
+	    break;
+	case invalid_from:
+	    spool_add(s, "from address does not match an authorized JID or validated domain");
+	    break;
+	case invalid_id:
+	    spool_add(s, "stream or dialback id is invalid or does not match a previous one");
+	    break;
+	case invalid_namespace:
+	    spool_add(s, "invalid namespace");
+	    break;
+	case invalid_xml:
+	    spool_add(s, "sent invalid XML, did not pass validation");
+	    break;
+	case not_authorized:
+	    spool_add(s, "tried to send data before stream has been authed");
+	    break;
+	case policy_violation:
+	    spool_add(s, "policy violation");
+	    break;
+	case remote_connection_failed:
+	    spool_add(s, "remote connection failed");
+	    break;
+	case resource_constraint:
+	    spool_add(s, "server lacks resources to service the stream");
+	    break;
+	case restricted_xml:
+	    spool_add(s, "sent XML features that are forbidden by RFC3920");
+	    break;
+	case see_other_host:
+	    spool_add(s, "redirected to other host");
+	    break;
+	case system_shutdown:
+	    spool_add(s, "system is being shut down");
+	    break;
+	case undefined_condition:
+	    spool_add(s, "undefined condition");
+	    break;
+	case unsupported_encoding:
+	    spool_add(s, "unsupported encoding");
+	    break;
+	case unsupported_stanza_type:
+	    spool_add(s, "sent a first-level child element (stanza) that is not supported");
+	    break;
+	case unsupported_version:
+	    spool_add(s, "unsupported stream version");
+	    break;
+	case xml_not_well_formed:
+	    spool_add(s, "sent XML that is not well-formed");
+	    break;
+	default:
+	    spool_add(s, "something else (shut not happen)");
+	    break;
+    }
+
+    if (errstruct->text != NULL) {
+	spool_add(s, ": ");
+	if (errstruct->lang != NULL) {
+	    spool_add(s, "[");
+	    spool_add(s, errstruct->lang);
+	    spool_add(s, "]");
+	}
+	spool_add(s, errstruct->text);
+    }
+}
+
+/**
+ * parse a received stream error
+ *
+ * @param p memory pool used to allocate memory for strings
+ * @param errnode the xmlnode containing the stream error
+ * @param errstruct where to place the results
+ * @return severity of the stream error
+ */
+streamerr_severity xstream_parse_error(pool p, xmlnode errnode, streamerr errstruct) {
+    xmlnode cur = NULL;
+
+    /* sanity checks */
+    if (errstruct == NULL || p == NULL || errnode == NULL)
+	return error;
+
+    /* init the error structure */
+    errstruct->text = NULL;
+    errstruct->lang = NULL;
+    errstruct->reason = undefined_condition;
+    errstruct->severity = error;
+
+    /* iterate over the nodes in the stream error */
+    for (cur = xmlnode_get_firstchild(errnode); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
+	char *ns = NULL;
+	char *name = NULL;
+
+	/* direct CDATA? Then it might be a preXMPP stream error */
+	if (xmlnode_get_type(cur) == NTYPE_CDATA) {
+	    /* only if we did not receive a text element yet */
+	    if (errstruct->text == NULL) {
+		errstruct->text = pstrdup(p, xmlnode_get_data(cur));
+	    }
+	    continue;
+	}
+
+	/* else we only care about elements */
+	if (xmlnode_get_type(cur) != NTYPE_TAG)
+	    continue;
+
+	/* only handle the relevant namespace */
+	ns = xmlnode_get_attrib(cur, "xmlns");
+	if (ns == NULL)
+	    continue;
+	if (j_strcmp(ns, NS_XMPP_STREAMS) != 0)
+	    continue;
+
+	/* check which element it is */
+	name = xmlnode_get_name(cur);
+	if (j_strcmp(name, "text") == 0) {
+	    if (errstruct->text == NULL) {
+		errstruct->text = pstrdup(p, xmlnode_get_data(cur));
+		errstruct->lang = pstrdup(p, xmlnode_get_attrib(cur, "xml:lang"));
+	    }
+	} else if (j_strcmp(name, "bad-format") == 0) {
+	    errstruct->reason = bad_format;
+	    errstruct->severity = error;
+	} else if (j_strcmp(name, "bad-namespace-prefix") == 0) {
+	    errstruct->reason = bad_namespace_prefix;
+	    errstruct->severity = error;
+	} else if (j_strcmp(name, "conflict") == 0) {
+	    errstruct->reason = conflict;
+	    errstruct->severity = configuration;
+	} else if (j_strcmp(name, "connection-timeout") == 0) {
+	    errstruct->reason = connection_timeout;
+	    errstruct->severity = normal;
+	} else if (j_strcmp(name, "host-gone") == 0) {
+	    errstruct->reason = host_gone;
+	    errstruct->severity = configuration;
+	} else if (j_strcmp(name, "host-unknown") == 0) {
+	    errstruct->reason = host_unknown;
+	    errstruct->severity = configuration;
+	} else if (j_strcmp(name, "improper-addressing") == 0) {
+	    errstruct->reason = improper_addressing;
+	    errstruct->severity = error;
+	} else if (j_strcmp(name, "internal-server-error") == 0) {
+	    errstruct->reason = internal_server_error;
+	    errstruct->severity = configuration;
+	} else if (j_strcmp(name, "invalid-from") == 0) {
+	    errstruct->reason = invalid_from;
+	    errstruct->severity = error;
+	} else if (j_strcmp(name, "invalid-id") == 0) {
+	    errstruct->reason = invalid_id;
+	    errstruct->severity = error;
+	} else if (j_strcmp(name, "invalid-namespace") == 0) {
+	    errstruct->reason = invalid_namespace;
+	    errstruct->severity = error;
+	} else if (j_strcmp(name, "invalid-xml") == 0) {
+	    errstruct->reason = invalid_xml;
+	    errstruct->severity = error;
+	} else if (j_strcmp(name, "not-authorized") == 0) {
+	    errstruct->reason = not_authorized;
+	    errstruct->severity = configuration;
+	} else if (j_strcmp(name, "policy-violation") == 0) {
+	    errstruct->reason = policy_violation;
+	    errstruct->severity = configuration;
+	} else if (j_strcmp(name, "remote-connection-failed") == 0) {
+	    errstruct->reason = remote_connection_failed;
+	    errstruct->severity = configuration;
+	} else if (j_strcmp(name, "resource-constraint") == 0) {
+	    errstruct->reason = resource_constraint;
+	    errstruct->severity = normal;
+	} else if (j_strcmp(name, "restricted-xml") == 0) {
+	    errstruct->reason = restricted_xml;
+	    errstruct->severity = error;
+	} else if (j_strcmp(name, "see-other-host") == 0) {
+	    errstruct->reason = see_other_host;
+	    errstruct->severity = configuration;
+	} else if (j_strcmp(name, "system-shutdown") == 0) {
+	    errstruct->reason = system_shutdown;
+	    errstruct->severity = normal;
+	} else if (j_strcmp(name, "undefined-condition") == 0) {
+	    errstruct->reason = undefined_condition;
+	    errstruct->severity = unknown;
+	} else if (j_strcmp(name, "unsupported-encoding") == 0) {
+	    errstruct->reason = unsupported_encoding;
+	    errstruct->severity = feature_lack;
+	} else if (j_strcmp(name, "unsupported-stanza-type") == 0) {
+	    errstruct->reason = unsupported_stanza_type;
+	    errstruct->severity = feature_lack;
+	} else if (j_strcmp(name, "unsupported-version") == 0) {
+	    errstruct->reason = unsupported_version;
+	    errstruct->severity = feature_lack;
+	} else if (j_strcmp(name, "xml-not-well-formed") == 0) {
+	    errstruct->reason = xml_not_well_formed;
+	    errstruct->severity = error;
+	}
+    }
+
+    return errstruct->severity;
+}
