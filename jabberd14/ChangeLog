@@ -1,3 +1,12 @@
+2004-06-15  Matthias Wimmer  <m@tthias.net>
+
+    * configure.in: link against libresolv or libbind if required
+    * dialback/Makefile.am: link against libjabberd
+    * dnsrv/Makefile.am: same
+    * jsm/Makefile.am: same
+    * pthsock/Makefile.am: same
+    * xdb_file/Makefile.am: same
+
 2004-05-26  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/jabberd.c: fix pool debug
