@@ -354,7 +354,7 @@ result _karma_heartbeat(void*arg)
             /* punishment is over */
             if(was_negative && cur->k.val >= 0)  
             {
-               log_debug(ZONE, "Punishment Over for socket %d: ", cur->fd);
+               log_debug2(ZONE, LOGT_IO, "Punishment Over for socket %d: ", cur->fd);
                pth_write(mio__data->zzz[1]," ",1);
             }
         }
@@ -415,7 +415,7 @@ int _mio_write_dump(mio m)
     {
         cur = m->queue;
 
-        log_debug(ZONE, "write_dump writing data: %.*s", cur->len, cur->cur);
+        log_debug2(ZONE, LOGT_IO, "write_dump writing data: %.*s", cur->len, cur->cur);
 
         /* write a bit from the current buffer */
         len = (*m->mh->write)(m, cur->cur, cur->len);
@@ -502,7 +502,7 @@ void _mio_close(mio m)
 
     pool_free(m->p);
 
-    log_debug(ZONE,"freed MIO socket");
+    log_debug2(ZONE, LOGT_IO, "freed MIO socket");
 }
 
 /* 
@@ -521,7 +521,7 @@ mio _mio_accept(mio m)
     int allow, deny;
     mio new;
 
-    log_debug(ZONE, "_mio_accept calling accept on fd #%d", m->fd);
+    log_debug2(ZONE, LOGT_IO, "_mio_accept calling accept on fd #%d", m->fd);
 
     /* pull a socket off the accept queue */
     fd = (*m->mh->accept)(m, (struct sockaddr*)&serv_addr, (socklen_t*)&addrlen);
@@ -564,9 +564,9 @@ mio _mio_accept(mio m)
     }
 
 #ifdef WITH_IPV6
-    log_debug(ZONE, "new socket accepted (fd: %d, ip%s, port: %d)", fd, addr_str, ntohs(serv_addr.sin6_port));
+    log_debug2(ZONE, LOGT_IO, "new socket accepted (fd: %d, ip%s, port: %d)", fd, addr_str, ntohs(serv_addr.sin6_port));
 #else
-    log_debug(ZONE, "new socket accepted (fd: %d, ip: %s, port: %d)", fd, inet_ntoa(serv_addr.sin_addr), ntohs(serv_addr.sin_port));
+    log_debug2(ZONE, LOGT_IO, "new socket accepted (fd: %d, ip: %s, port: %d)", fd, inet_ntoa(serv_addr.sin_addr), ntohs(serv_addr.sin_port));
 #endif
 
     /* create a new sock object for this connection */
@@ -605,7 +605,7 @@ result _mio_connect_timeout(void *arg)
         return r_UNREG;
     }
 
-    log_debug(ZONE, "mio_connect taking too long connecting to %s, signaling to stop", cd->ip);
+    log_debug2(ZONE, LOGT_IO, "mio_connect taking too long connecting to %s, signaling to stop", cd->ip);
     if(cd->t != NULL)
         pth_raise(cd->t, SIGUSR2);
 
@@ -725,7 +725,7 @@ void _mio_connect(void *arg)
     sa.sin_addr.s_addr = saddr->s_addr;
 #endif
 
-    log_debug(ZONE, "calling the connect handler for mio object %X", new);
+    log_debug2(ZONE, LOGT_IO, "calling the connect handler for mio object %X", new);
     if((*cd->cf)(new, (struct sockaddr*)&sa, sizeof sa) < 0)
     {
         if(cd->cb != NULL)
@@ -784,7 +784,7 @@ void _mio_main(void *arg)
     char	addr_str[INET6_ADDRSTRLEN];
 #endif
 
-    log_debug(ZONE, "MIO is starting up");
+    log_debug2(ZONE, LOGT_INIT, "MIO is starting up");
 
     /* init the socket junk */
     maxfd = mio__data->zzz[0];
@@ -801,7 +801,7 @@ void _mio_main(void *arg)
         }else if(bcast > maxfd){
             maxfd = bcast;
         }
-        log_debug(ZONE,"started announcement handler");
+        log_debug2(ZONE, LOGT_IO|LOGT_INIT, "started announcement handler");
     }
 
     /* loop forever -- will only exit when
@@ -813,7 +813,7 @@ void _mio_main(void *arg)
         rfds = all_rfds;
         wfds = all_wfds;
 
-        log_debug(ZONE,"mio while loop top");
+        log_debug2(ZONE, LOGT_EXECFLOW, "mio while loop top");
 
         /* if we are closing down, exit the loop */
         if(mio__data->shutdown == 1 && mio__data->master__list == NULL)
@@ -826,7 +826,7 @@ void _mio_main(void *arg)
         retval = pth_select(maxfd+1, &rfds, &wfds, NULL, NULL);
         /* if retval is -1, fd sets are undefined across all platforms */
 
-        log_debug(ZONE,"mio while loop, working");
+        log_debug2(ZONE, LOGT_EXECFLOW, "mio while loop, working");
 
         /* reset maxfd, in case it changes */
         maxfd=mio__data->zzz[0];
@@ -851,16 +851,16 @@ void _mio_main(void *arg)
             /* XXX pth <1.4 doesn't have pth_* wrapper for recvfrom or sendto! */
             len = recvfrom(bcast,buf,8192,0,(struct sockaddr*)&remote_addr,&addrlen);
 #ifdef WITH_IPV6
-            log_debug(ZONE,"ANNOUNCER: received some data from %s: %.*s",inet_ntop(AF_INET, &remote_addr.sin6_addr, addr_str, sizeof(addr_str)),len,buf);
+            log_debug2(ZONE, LOGT_IO, "ANNOUNCER: received some data from %s: %.*s",inet_ntop(AF_INET, &remote_addr.sin6_addr, addr_str, sizeof(addr_str)),len,buf);
 #else
-            log_debug(ZONE,"ANNOUNCER: received some data from %s: %.*s",inet_ntoa(remote_addr.sin_addr),len,buf);
+            log_debug2(ZONE, LOGT_IO, "ANNOUNCER: received some data from %s: %.*s",inet_ntoa(remote_addr.sin_addr),len,buf);
 #endif
             /* sending our data out */
             for(; curx != NULL; curx = xmlnode_get_nextsibling(curx))
             {
                 if(xmlnode_get_type(curx) != NTYPE_TAG) continue;
                 len = snprintf(buf,8192,"%s",xmlnode2str(curx));
-                log_debug(ZONE,"announcement packet: %.*s",len,buf);
+                log_debug2(ZONE, LOGT_IO, "announcement packet: %.*s",len,buf);
                 sendto(bcast,buf,len,0,(struct sockaddr*)&remote_addr,addrlen);
             }
         }
@@ -892,12 +892,12 @@ void _mio_main(void *arg)
                 {
                     /* set to intialized */
                     cur->k.init = 1;
-                    log_debug(ZONE, "socket %d has been intialized with starting karma %d ", cur->fd, cur->k.val);
+                    log_debug2(ZONE, LOGT_IO, "socket %d has been intialized with starting karma %d ", cur->fd, cur->k.val);
                 }
                 else
                 {
                     /* reset the karma to restore val */
-                    log_debug(ZONE, "socket %d has restore karma %d byte meter %d", cur->fd, cur->k.val, cur->k.bytes);
+                    log_debug2(ZONE, LOGT_IO, "socket %d has restore karma %d byte meter %d", cur->fd, cur->k.val, cur->k.bytes);
                 }
                 /* and make sure that they are in the read set */
                 FD_SET(cur->fd,&all_rfds);
@@ -974,7 +974,7 @@ void _mio_main(void *arg)
 
                         buf[len] = '\0';
 
-                        log_debug(ZONE, "MIO read from socket %d: %s", cur->fd, buf);
+                        log_debug2(ZONE, LOGT_IO, "MIO read from socket %d: %s", cur->fd, buf);
                         (*cur->mh->parser)(cur, buf, len);
                     }
                 }
@@ -1097,7 +1097,7 @@ void mio_stop(void)
 {
     mio cur, mnext;
 
-    log_debug(ZONE, "MIO is shutting down");
+    log_debug2(ZONE, LOGT_CLEANUP, "MIO is shutting down");
 
     /* no need to do anything if mio__data hasn't been used yet */
     if(mio__data == NULL) 
@@ -1205,7 +1205,7 @@ void mio_write(mio m, xmlnode x, char *buffer, int len)
     /* if there is nothing to write */
     if(x == NULL && buffer == NULL)
     {
-        log_debug("mio", "[%s] mio_write called without x or buffer", ZONE);
+        log_debug2("mio", LOGT_IO|LOGT_STRANGE, "[%s] mio_write called without x or buffer", ZONE);
         return;
     }
 
@@ -1271,7 +1271,7 @@ void mio_write(mio m, xmlnode x, char *buffer, int len)
         m->tail->next = new;
     m->tail = new;
 
-    log_debug(ZONE, "mio_write called on x: %X buffer: %.*s", x, len, buffer);
+    log_debug2(ZONE, LOGT_IO, "mio_write called on x: %X buffer: %.*s", x, len, buffer);
     /* notify the select loop that a packet needs writing */
     if(mio__data != NULL)
         write(mio__data->zzz[1]," ",1);
@@ -1425,7 +1425,7 @@ mio mio_listen(int port, char *listen_host, void *cb, void *arg, mio_accept_func
 
     mh->accept = f;
 
-    log_debug(ZONE, "io_select to listen on %d [%s]",port, listen_host);
+    log_debug2(ZONE, LOGT_IO, "io_select to listen on %d [%s]",port, listen_host);
 
     /* attempt to open a listening socket */
     fd = make_netsocket(port, listen_host, NETSOCKET_SERVER);
@@ -1449,7 +1449,7 @@ mio mio_listen(int port, char *listen_host, void *cb, void *arg, mio_accept_func
     new->type = type_LISTEN;
     new->ip   = pstrdup(new->p, listen_host);
 
-    log_debug(ZONE, "io_select starting to listen on %d [%s]", port, listen_host);
+    log_debug2(ZONE, LOGT_IO, "io_select starting to listen on %d [%s]", port, listen_host);
 
     return new;
 }

@@ -112,26 +112,14 @@ int main (int argc, char** argv)
         for(c=argv[i]+1;c[0]!='\0';c++)
         {
             /* loop through the characters, like -Dc */
-            if(*c == 'D')
-            {
-                do_debug = 1;
-                continue;
-            }
-            else if(*c == 'V' || *c == 'v')
+            if(*c == 'V' || *c == 'v')
             {
                 printf("Jabberd Version %s\n", VERSION);
                 exit(0);
             }
             else if(*c == 'B')
             {
-                if (do_debug)
-                {
-                    printf("Debug output is enabled, can not background.\n");
-                }
-                else
-                {
-                    do_background = 1;
-                }
+		do_background = 1;
                 continue;
             }
 
@@ -150,7 +138,7 @@ int main (int argc, char** argv)
     /* the special -Z flag provides a list of zones to filter debug output for, flagged w/ a simple hash */
     if((cmd = xhash_get(cmd__line,"Z")) != NULL)
     {
-        set_debug_flag(1);
+        set_cmdline_debug_flag(-1);
 	debug__zones = xhash_new(11);
         while(cmd != NULL)
         {
@@ -167,10 +155,24 @@ int main (int argc, char** argv)
         debug__zones = NULL;
     }
 
+    /* the -D flag provides a bitmask of debug types the user want to be logged */
+    if((cmd = xhash_get(cmd__line,"D")) != NULL) {
+	do_debug = atoi(cmd);
+
+	if (!do_debug) {
+	    printf("Invalid parameter for the -D flag, specify a bitmask.\n-D ignored\n");
+	}
+	
+	if (do_debug && do_background) {
+	    printf(PACKAGE " will not background with debugging enabled.\n");
+	    do_background=0;
+	}
+    }
+
     /* were there any bad parameters? */
     if(help)
     {
-        fprintf(stderr,"Usage:\n%s [params]\n Optional Parameters:\n -c\t\tconfiguration file\n -D\t\tenable debug output (disables background)\n -H\t\tlocation of home folder\n -B\t\tbackground the server process\n -Z\t\tdebug zones\n -v\t\tserver version\n -V\t\tserver version\n", argv[0]);
+        fprintf(stderr,"Usage:\n%s [params]\n Optional Parameters:\n -c\t\tconfiguration file\n -D <typemask>\tenable debug output (disables background)\n -H\t\tlocation of home folder\n -B\t\tbackground the server process\n -Z <zones>\tdebug zones (comma spearated list)\n -v\t\tserver version\n -V\t\tserver version\n", argv[0]);
         exit(0);
     }
 
@@ -179,7 +181,7 @@ int main (int argc, char** argv)
 #endif
 
     /* set to debug mode if we have it */
-    set_debug_flag(do_debug);
+    set_cmdline_debug_flag(do_debug);
 
 #ifdef SINGLE
     SINGLE_STARTUP
@@ -273,7 +275,7 @@ int main (int argc, char** argv)
     while(1)
     {
         pth_ctrl(PTH_CTRL_GETAVLOAD, &avload);
-        log_debug(ZONE,"main load check of %.2f with %ld total threads", avload, pth_ctrl(PTH_CTRL_GETTHREADS));
+        log_debug2(ZONE, LOGT_STATUS, "main load check of %.2f with %ld total threads", avload, pth_ctrl(PTH_CTRL_GETTHREADS));
 #ifdef POOL_DEBUG
 	pool_stat(0);
 #endif
@@ -289,7 +291,7 @@ int main (int argc, char** argv)
 
 void _jabberd_signal(int sig)
 {
-    log_debug(ZONE,"received signal %d",sig);
+    log_debug2(ZONE, LOGT_EVENT, "received signal %d", sig);
     jabberd__signalflag = sig;
 }
 
@@ -302,12 +304,12 @@ void _jabberd_restart(void)
     /* keep greymatter around till we are sure the reload is OK */
     temp_greymatter = greymatter__;
 
-    log_debug(ZONE, "Loading new config file");
+    log_debug2(ZONE, LOGT_CONFIG, "Loading new config file");
 
     /* try to load the config file */
     if(configurate(cfgfile))
     { /* failed to load.. restore the greymatter */
-        log_debug(ZONE, "Failed to load new config, resetting greymatter");
+        log_debug2(ZONE, LOGT_CONFIG, "Failed to load new config, resetting greymatter");
         log_alert(ZONE, "Failed to reload config!  Resetting internal config -- please check your configuration!");
         greymatter__ = temp_greymatter;
         return;
@@ -319,7 +321,7 @@ void _jabberd_restart(void)
 
     /* XXX do more smarts on new config */
 
-    log_debug(ZONE, "reload process complete");
+    log_debug2(ZONE, LOGT_CONFIG, "reload process complete");
 
 }
 

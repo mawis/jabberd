@@ -71,17 +71,17 @@ result base_to_config(instance id, xmlnode x, void *arg)
     {
         jid j = jid_new(xmlnode_pool(x), xmlnode_get_data(x));
 
-        log_debug(ZONE,"base_to_config validating configuration\n");
+        log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_to_config validating configuration\n");
         if(j == NULL)
         {
             xmlnode_put_attrib(x, "error", "'to' tag must contain a jid to send log data to");
-            log_debug(ZONE, "Invalid Configuration for base_to");
+            log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "Invalid Configuration for base_to");
             return r_ERR;
         }
         return r_PASS;
     }
 
-    log_debug(ZONE, "base_to configuring instance %s", id->id);
+    log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_to configuring instance %s", id->id);
 
     if(id->type != p_LOG)
     {
@@ -96,6 +96,6 @@ result base_to_config(instance id, xmlnode x, void *arg)
 
 void base_to(void)
 {
-    log_debug(ZONE,"base_to loading...");
+    log_debug2(ZONE, LOGT_INIT, "base_to loading...");
     register_config("to",base_to_config,NULL);
 }

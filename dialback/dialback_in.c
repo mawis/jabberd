@@ -80,7 +80,7 @@ dbic dialback_in_dbic_new(db d, mio m)
     c->d = d;
     pool_cleanup(m->p,dialback_in_dbic_cleanup, (void *)c);
     xhash_put(d->in_id, c->id, (void *)c);
-    log_debug(ZONE,"created incoming connection %s from %s",c->id,m->ip);
+    log_debug2(ZONE, LOGT_IO, "created incoming connection %s from %s",c->id,m->ip);
     return c;
 }
 
@@ -94,7 +94,7 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
 
     if(flags != MIO_XML_NODE) return;
 
-    log_debug(ZONE,"dbin read dialback: fd %d packet %s",m->fd, xmlnode2str(x));
+    log_debug2(ZONE, LOGT_IO, "dbin read dialback: fd %d packet %s",m->fd, xmlnode2str(x));
 
     /* incoming verification request, check and respond */
     if(j_strcmp(xmlnode_get_name(x),"db:verify") == 0)
@@ -178,7 +178,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x)
     dbic c;
 
 
-    log_debug(ZONE,"dbin read: fd %d flag %d",m->fd, flags);
+    log_debug2(ZONE, LOGT_IO, "dbin read: fd %d flag %d",m->fd, flags);
 
     if(flags != MIO_XML_ROOT)
         return;
@@ -237,7 +237,7 @@ void dialback_in_verify(db d, xmlnode x)
     xmlnode x2;
     jid key;
 
-    log_debug(ZONE,"dbin validate: %s",xmlnode2str(x));
+    log_debug2(ZONE, LOGT_AUTH, "dbin validate: %s",xmlnode2str(x));
 
     /* check for the stored incoming connection first */
     if((c = xhash_get(d->in_id, xmlnode_get_attrib(x,"id"))) == NULL)

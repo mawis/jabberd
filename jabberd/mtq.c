@@ -73,7 +73,7 @@ void mtq_cleanup(void *arg)
     /* What?  not empty?!?!?! probably a programming/sequencing error! */
     while((c = (mtqcall)pth_msgport_get(q->mp)) != NULL)
     {
-        log_debug("mtq","%X last call %X",q->mp,c->arg);
+        log_debug2(ZONE, LOGT_THREAD|LOGT_STRANGE, "%X last call %X",q->mp,c->arg);
         (*(c->f))(c->arg);
     }
     pth_msgport_destroy(q->mp);
@@ -86,7 +86,7 @@ mtq mtq_new(pool p)
 
     if(p == NULL) return NULL;
 
-    log_debug(ZONE,"MTQ(new)");
+    log_debug2(ZONE, LOGT_THREAD, "MTQ(new)");
 
     /* create queue */
     q = pmalloco(p, sizeof(_mtq));
@@ -107,7 +107,7 @@ void *mtq_main(void *arg)
     pth_event_t mpevt;
     mtqcall c;
 
-    log_debug("mtq","%X starting",t->id);
+    log_debug2(ZONE, LOGT_THREAD|LOGT_INIT, "%X starting",t->id);
 
     /* create an event ring for receiving messges */
     mpevt = pth_event(PTH_EVENT_MSG,t->mp);
@@ -128,14 +128,14 @@ void *mtq_main(void *arg)
             }
         }else{
             /* debug: note that we're waiting for a message */
-            log_debug("mtq","%X leaving to pth",t->id);
+            log_debug2(ZONE, LOGT_THREAD, "%X leaving to pth",t->id);
             t->busy = 0;
 
             /* wait for a master message on the port */
             pth_wait(mpevt);
 
             /* debug: note that we're working */
-            log_debug("mtq","%X entering from pth",t->id);
+            log_debug2(ZONE, LOGT_THREAD, "%X entering from pth",t->id);
             t->busy = 1;
 
             /* get the message */
@@ -147,7 +147,7 @@ void *mtq_main(void *arg)
         /* check for a simple "one-off" call */
         if(c->q == NULL)
         {
-            log_debug("mtq","%X one call %X",t->id,c->arg);
+            log_debug2(ZONE, LOGT_THREAD, "%X one call %X",t->id,c->arg);
             (*(c->f))(c->arg);
             continue;
         }
@@ -157,7 +157,7 @@ void *mtq_main(void *arg)
         t->q->t = t;
         while((c = (mtqcall)pth_msgport_get(t->q->mp)) != NULL)
         {
-            log_debug("mtq","%X queue call %X",t->id,c->arg);
+            log_debug2(ZONE, LOGT_THREAD, "%X queue call %X",t->id,c->arg);
             (*(c->f))(c->arg);
             if(t->q == NULL) break;
         }
@@ -218,7 +218,7 @@ void mtq_send(mtq q, pool p, mtq_callback f, void *arg)
     /* if there's no thread available, dump in the overflow msgport */
     if(mp == NULL)
     {
-        log_debug("mtqoverflow","%d overflowing %X",mtq__master->overflow,arg);
+        log_debug2(ZONE, LOGT_THREAD, "%d overflowing %X",mtq__master->overflow,arg);
         mp = mtq__master->mp;
         /* XXX this is a race condition in pthreads.. if the overflow
          * is not put on the mp, before a worker thread checks the mp
@@ -246,7 +246,7 @@ void mtq_send(mtq q, pool p, mtq_callback f, void *arg)
     pth_msgport_put(q->mp, (pth_message_t *)c);
 
     /*if(pth_msgport_pending(q->mp) > 10)
-        log_debug("mtqoverflow","%d queue overflow on %X",pth_msgport_pending(q->mp),q->mp);*/
+        log_debug2(ZONE, LOGT_THREAD, "%d queue overflow on %X",pth_msgport_pending(q->mp),q->mp);*/
 
     /* if we haven't told anyone to take this queue yet */
     if(q->routed == 0)

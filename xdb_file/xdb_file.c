@@ -82,7 +82,7 @@ void _xdb_file_purge(xht h, const char *key, void *data, void *arg)
 
     if((now - c->lastset) > xf->timeout)
     {
-        log_debug(ZONE,"purging %s",c->fname);
+        log_debug2(ZONE, LOGT_STORAGE, "purging %s",c->fname);
         xhash_zap(xf->cache,c->fname);
         xmlnode_free(c->file);
     }
@@ -93,7 +93,7 @@ result xdb_file_purge(void *arg)
 {
     xdbf xf = (xdbf)arg;
 
-    log_debug(ZONE,"purge check");
+    log_debug2(ZONE, LOGT_STORAGE, "purge check");
     xhash_walk(xf->cache,_xdb_file_purge,(void *)xf);
 
     return r_DONE;
@@ -106,7 +106,7 @@ xmlnode xdb_file_load(char *host, char *fname, xht cache)
     cacher c;
     int fd;
 
-    log_debug(ZONE,"loading %s",fname);
+    log_debug2(ZONE, LOGT_STORAGE, "loading %s",fname);
 
     /* first, check the cache */
     if((c = xhash_get(cache,fname)) != NULL)
@@ -126,7 +126,7 @@ xmlnode xdb_file_load(char *host, char *fname, xht cache)
     if(data == NULL)
         data = xmlnode_new_tag("xdb");
 
-    log_debug(ZONE,"caching %s",fname);
+    log_debug2(ZONE, LOGT_STORAGE, "caching %s",fname);
     c = pmalloco(xmlnode_pool(data),sizeof(_cacher));
     c->fname = pstrdup(xmlnode_pool(data),fname);
     c->lastset = time(NULL);
@@ -152,7 +152,7 @@ void _xdb_get_hashes(const char *filename, char digit01[3], char digit23[3])
     bzero(digit01, sizeof(digit01));
     bzero(digit23, sizeof(digit23));
     crc32_r(filename, hashedfilename);
-    log_debug(ZONE, "hash of %s is %s", filename, hashedfilename);
+    log_debug2(ZONE, LOGT_STORAGE, "hash of %s is %s", filename, hashedfilename);
     memcpy(digit01, hashedfilename+1, 2);
     memcpy(digit23, hashedfilename+4, 2);
 
@@ -266,7 +266,7 @@ result xdb_file_phandler(instance i, dpacket p, void *arg)
     xmlnode file, top, data;
     int ret = 0, flag_set = 0;
 
-    log_debug(ZONE,"handling xdb request %s",xmlnode2str(p->x));
+    log_debug2(ZONE, LOGT_STORAGE|LOGT_DELIVER, "handling xdb request %s",xmlnode2str(p->x));
 
     if((ns = xmlnode_get_attrib(p->x,"ns")) == NULL)
         return r_ERR;
@@ -323,7 +323,7 @@ result xdb_file_phandler(instance i, dpacket p, void *arg)
                     data = xmlnode_get_tag(data,match);
                 if(j_strcmp(xmlnode_get_data(data),xmlnode_get_data(xmlnode_get_firstchild(p->x))) != 0)
                 {
-                    log_debug(ZONE,"xdb check action returning error to signify unsuccessful check");
+                    log_debug2(ZONE, LOGT_STORAGE|LOGT_DELIVER, "xdb check action returning error to signify unsuccessful check");
                     return r_ERR;
                 }
                 flag_set = 0;
@@ -372,7 +372,7 @@ result xdb_file_phandler(instance i, dpacket p, void *arg)
         /* remove the cache'd item if it was a set or we're not configured to cache */
         if(xf->timeout == 0 || flag_set)
         {
-            log_debug(ZONE,"decaching %s",full);
+            log_debug2(ZONE, LOGT_STORAGE, "decaching %s",full);
             xhash_zap(xf->cache,full);
             xmlnode_free(file);
         }
@@ -468,7 +468,7 @@ void _xdb_convert_spool(const char *spoolroot)
     flagfile = spools(p, spoolroot, "/.hashspool", p);
     if (stat(flagfile, &s) == 0)
     {
-	log_debug(ZONE,"there is already a new hashspool");
+	log_debug2(ZONE, LOGT_STORAGE, "there is already a new hashspool");
 	pool_free(p);
 	return;
     }
@@ -520,7 +520,7 @@ void xdb_file(instance i, xmlnode x)
     int timeout = -1; /* defaults to timeout forever */
     int sizelimit = 0; /* defaults to no size limit */
 
-    log_debug(ZONE,"xdb_file loading");
+    log_debug2(ZONE, LOGT_INIT, "xdb_file loading");
 
     xc = xdb_cache(i);
     config = xdb_get(xc, jid_new(xmlnode_pool(x),"config@-internal"),"jabber:config:xdb_file");

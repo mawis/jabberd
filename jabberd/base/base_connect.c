@@ -126,7 +126,7 @@ void base_connect_process_xml(mio m, int state, void* arg, xmlnode x)
     xmlnode cur;
     char  hashbuf[41];
 
-    log_debug(ZONE, "process XML: m:%X state:%d, arg:%X, x:%X", m, state, arg, x);
+    log_debug2(ZONE, LOGT_XML, "process XML: m:%X state:%d, arg:%X, x:%X", m, state, arg, x);
 
     switch (state)
     {
@@ -136,7 +136,7 @@ void base_connect_process_xml(mio m, int state, void* arg, xmlnode x)
             ci->io = m;
 
             /* Send a stream header to the server */
-            log_debug(ZONE, "base_connecting: %X, %X, %s", ci, ci->inst, ci->inst->id); 
+            log_debug2(ZONE, LOGT_IO, "base_connecting: %X, %X, %s", ci, ci->inst, ci->inst->id); 
 
             cur = xstream_header("jabber:component:accept", ci->inst->id, NULL);
             mio_write(m, NULL, xstream_header_char(cur), -1);
@@ -199,7 +199,7 @@ void base_connect_process_xml(mio m, int state, void* arg, xmlnode x)
             }
 
             /* pause 2 seconds, and reconnect */
-            log_debug(ZONE, "Base Connect Failed to connect to %s:%d Retry [%d] in 2 seconds...", ci->hostip, ci->hostport, ci->tries_left);
+            log_debug2(ZONE, LOGT_IO, "Base Connect Failed to connect to %s:%d Retry [%d] in 2 seconds...", ci->hostip, ci->hostport, ci->tries_left);
             mtq_send(NULL,ci->mempool,base_connect_connect,(void *)ci);
 
             return;
@@ -228,7 +228,7 @@ result base_connect_config(instance id, xmlnode x, void *arg)
 
     if(id == NULL)
     {
-        log_debug(ZONE,"base_accept_config validating configuration\n");
+        log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_accept_config validating configuration\n");
         if(port == 0 || (secret == NULL))
         {
             xmlnode_put_attrib(x, "error", "<connect> requires the following subtags: <port>, and <secret>");
@@ -237,7 +237,7 @@ result base_connect_config(instance id, xmlnode x, void *arg)
         return r_PASS;
     }
 
-    log_debug(ZONE, "Activating configuration: %s\n", xmlnode2str(x));
+    log_debug(ZONE, LOGT_INIT|LOGT_CONFIG, "Activating configuration: %s\n", xmlnode2str(x));
 
     /* Allocate a conn structures, using this instances' mempool */
     ci              = pmalloco(id->p, sizeof(_conn_info));
@@ -265,6 +265,6 @@ result base_connect_config(instance id, xmlnode x, void *arg)
 
 void base_connect(void)
 {
-    log_debug(ZONE,"base_connect loading...\n");
+    log_debug2(ZONE, LOGT_INIT, "base_connect loading...\n");
     register_config("connect",base_connect_config,NULL);
 }

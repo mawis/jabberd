@@ -47,7 +47,7 @@ mreturn mod_auth_digest_yum(mapi m, void *arg)
     char *digest;
     char *mydigest;
 
-    log_debug("mod_auth_digest","checking");
+    log_debug2(ZONE, LOGT_AUTH, "checking");
 
     if(jpacket_subtype(m->packet) == JPACKET__GET)
     { /* type=get means we flag that the server can do digest auth */
@@ -63,13 +63,13 @@ mreturn mod_auth_digest_yum(mapi m, void *arg)
 
     /* Concat the stream id and password */
     /* SHA it up */
-    log_debug("mod_auth_digest", "Got SID: %s", sid);
+    log_debug2(ZONE, LOGT_AUTH, "Got SID: %s", sid);
     s = spool_new(m->packet->p);
     spooler(s,sid,m->user->pass,s);
 
     mydigest = shahash(spool_print(s));
 
-    log_debug("mod_auth_digest","comparing %s %s",digest,mydigest);
+    log_debug2(ZONE, LOGT_AUTH, "comparing %s %s",digest,mydigest);
 
     if(m->user->pass == NULL || sid == NULL || mydigest == NULL)
         jutil_error_xmpp(m->packet->x, XTERROR_NOTIMPL);
@@ -83,7 +83,7 @@ mreturn mod_auth_digest_yum(mapi m, void *arg)
 
 int mod_auth_digest_reset(mapi m, jid id, xmlnode pass)
 {
-    log_debug("mod_auth_digest","resetting password");
+    log_debug2(ZONE, LOGT_AUTH, "resetting password");
 
     xmlnode_put_attrib(pass,"xmlns",NS_AUTH);
     return xdb_set(m->si->xc, id, NS_AUTH, pass);
@@ -139,7 +139,7 @@ mreturn mod_auth_digest_server(mapi m, void *arg)
 
 void mod_auth_digest(jsmi si)
 {
-    log_debug("mod_auth_digest","init");
+    log_debug2(ZONE, LOGT_INIT, "init");
     js_mapi_register(si,e_AUTH, mod_auth_digest_yum, NULL);
     js_mapi_register(si,e_SERVER, mod_auth_digest_server, NULL);
     if (js_config(si,"register") != NULL) js_mapi_register(si, e_REGISTER, mod_auth_digest_reg, NULL);

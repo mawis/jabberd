@@ -15,7 +15,7 @@ RSA *_ssl_tmp_rsa_cb(SSL *ssl, int export, int keylength)
 
     rsa_tmp = RSA_generate_key(keylength, RSA_F4, NULL, NULL);
     if(!rsa_tmp) {
-        log_debug(ZONE, "Error generating temp RSA key");
+        log_debug2(ZONE, LOGT_INIT, "Error generating temp RSA key");
         return NULL;
     }
 
@@ -52,16 +52,16 @@ void mio_ssl_init(xmlnode x)
     char *host;
     char *keypath;
 
-    log_debug(ZONE, "MIO SSL init");
+    log_debug2(ZONE, LOGT_INIT, "MIO SSL init");
 
     /* Make sure we have a valid xmlnode to play with */
     if(x == NULL && xmlnode_has_children(x))
     {
-        log_debug(ZONE, "SSL Init called with invalid xmlnode");
+        log_debug2(ZONE, LOGT_INIT|LOGT_STRANGE, "SSL Init called with invalid xmlnode");
         return;
     }
 
-    log_debug(ZONE, "Handling configuration using: %s", xmlnode2str(x));
+    log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "Handling configuration using: %s", xmlnode2str(x));
     /* Generic SSL Inits */
 	OpenSSL_add_all_algorithms();    
     SSL_load_error_strings();
@@ -79,7 +79,7 @@ void mio_ssl_init(xmlnode x)
         if(!host || !keypath)
             continue;
 
-        log_debug(ZONE, "Handling: %s", xmlnode2str(cur));
+        log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "Handling: %s", xmlnode2str(cur));
 
         ctx=SSL_CTX_new(SSLv23_server_method());
         if(ctx == NULL)
@@ -89,12 +89,12 @@ void mio_ssl_init(xmlnode x)
         
             e = ERR_get_error();
             buf = ERR_error_string(e, NULL);
-            log_debug(ZONE, "Could not create SSL Context: %s", buf);
+            log_warn(NULL, "Could not create SSL Context: %s", buf);
             return;
         }
 
 #ifndef NO_RSA
-        log_debug(ZONE, "Setting temporary RSA callback");
+        log_debug2(ZONE, LOGT_INIT, "Setting temporary RSA callback");
         SSL_CTX_set_tmp_rsa_callback(ctx, _ssl_tmp_rsa_cb);
 #endif /* NO_RSA */
 
@@ -106,21 +106,21 @@ void mio_ssl_init(xmlnode x)
          */
 
         /* Setup the keys and certs */
-        log_debug(ZONE, "Loading SSL certificate %s for %s", keypath, host);
+        log_debug2(ZONE, LOGT_INIT, "Loading SSL certificate %s for %s", keypath, host);
         if(!SSL_CTX_use_certificate_file(ctx, keypath,SSL_FILETYPE_PEM)) 
         {
-            log_debug(ZONE, "SSL Error using certificate file");
+            log_warn(NULL, "SSL Error using certificate file");
             SSL_CTX_free(ctx);
             continue;
         }
         if(!SSL_CTX_use_PrivateKey_file(ctx, keypath,SSL_FILETYPE_PEM)) 
         {
-            log_debug(ZONE, "SSL Error using Private Key file");
+            log_warn(NULL, "SSL Error using Private Key file");
             SSL_CTX_free(ctx);
             continue;
         }
         xhash_put(ssl__ctxs, host, ctx);
-        log_debug(ZONE, "Added context %x for %s", ctx, host);
+        log_debug2(ZONE, LOGT_INIT|LOGT_IO, "Added context %x for %s", ctx, host);
     }
         
 }
@@ -129,7 +129,7 @@ void _mio_ssl_cleanup(void *arg)
 {
     SSL *ssl = (SSL *)arg;
 
-    log_debug(ZONE, "SSL Cleanup for %x", ssl);
+    log_debug2(ZONE, LOGT_CLEANUP, "SSL Cleanup for %x", ssl);
     SSL_free(ssl);
 }
 
@@ -144,7 +144,7 @@ ssize_t _mio_ssl_read(mio m, void *buf, size_t count)
     if(count <= 0)
         return 0;
 
-    log_debug(ZONE, "Asked to read %d bytes from %d", count, m->fd);
+    log_debug2(ZONE, LOGT_IO, "Asked to read %d bytes from %d", count, m->fd);
     mio__ssl_reread = 0;
     if(SSL_get_state(ssl) != SSL_ST_OK)
     {
@@ -157,15 +157,15 @@ ssize_t _mio_ssl_read(mio m, void *buf, size_t count)
             if((SSL_get_error(ssl, sret) == SSL_ERROR_WANT_READ) ||
                SSL_get_error(ssl, sret) == SSL_ERROR_WANT_WRITE)
             {
-                log_debug(ZONE, "Read blocked, returning");
+                log_debug2(ZONE, LOGT_IO, "Read blocked, returning");
 
                 mio__errno = EAGAIN;
                 return -1;
             }
             e = ERR_get_error();
             buf = ERR_error_string(e, NULL);
-            log_debug(ZONE, "Error from SSL: %s", buf);
-            log_debug(ZONE, "SSL Error in SSL_accept call");
+            log_debug2(ZONE, LOGT_IO, "Error from SSL: %s", buf);
+            log_debug2(ZONE, LOGT_IO, "SSL Error in SSL_accept call");
             close(m->fd);
             return -1;
         }       
@@ -174,7 +174,7 @@ ssize_t _mio_ssl_read(mio m, void *buf, size_t count)
     if (ret == count)
     {
         mio__ssl_reread = 1;
-        log_debug(ZONE, "SSL Asked to reread from %d", m->fd);
+        log_debug2(ZONE, LOGT_IO, "SSL Asked to reread from %d", m->fd);
     }
     return ret;
 }
@@ -196,15 +196,15 @@ ssize_t _mio_ssl_write(mio m, const void *buf, size_t count)
             if((SSL_get_error(ssl, sret) == SSL_ERROR_WANT_READ) ||
                SSL_get_error(ssl, sret) == SSL_ERROR_WANT_WRITE)
             {
-                log_debug(ZONE, "Write blocked, returning");
+                log_debug2(ZONE, LOGT_IO, "Write blocked, returning");
                 
                 mio__errno = EAGAIN;
                 return -1;
             }
             e = ERR_get_error();
             buf = ERR_error_string(e, NULL);
-            log_debug(ZONE, "Error from SSL: %s", buf);
-            log_debug(ZONE, "SSL Error in SSL_accept call");
+            log_debug2(ZONE, LOGT_IO, "Error from SSL: %s", buf);
+            log_debug2(ZONE, LOGT_IO, "SSL Error in SSL_accept call");
             close(m->fd);
             return -1;
         }       
@@ -237,11 +237,11 @@ int _mio_ssl_accept(mio m, struct sockaddr *serv_addr, socklen_t *addrlen)
     ctx = xhash_get(ssl__ctxs, m->ip);
     if(ctx == NULL)
     {
-        log_debug(ZONE, "No SSL key configured for IP %s", m->ip);
+        log_warn(NULL, "No SSL key configured for IP %s", m->ip);
         return -1;
     }
     ssl = SSL_new(ctx);
-    log_debug(ZONE, "SSL accepting socket from %s with new session %x",
+    log_debug2(ZONE, LOGT_IO, "SSL accepting socket from %s with new session %x",
                     m->ip, ssl);
     SSL_set_fd(ssl, fd);
     SSL_set_accept_state(ssl);
@@ -255,13 +255,13 @@ int _mio_ssl_accept(mio m, struct sockaddr *serv_addr, socklen_t *addrlen)
            (SSL_get_error(ssl, sret) == SSL_ERROR_WANT_WRITE))
         {
             m->ssl = ssl;
-            log_debug(ZONE, "Accept blocked, returning");
+            log_debug2(ZONE, LOGT_IO, "Accept blocked, returning");
             return fd;
         }
         e = ERR_get_error();
         buf = ERR_error_string(e, NULL);
-        log_debug(ZONE, "Error from SSL: %s", buf);
-        log_debug(ZONE, "SSL Error in SSL_accept call");
+        log_debug2(ZONE, LOGT_IO, "Error from SSL: %s", buf);
+        log_debug2(ZONE, LOGT_IO, "SSL Error in SSL_accept call");
         SSL_free(ssl);
         close(fd);
         return -1;
@@ -270,7 +270,7 @@ int _mio_ssl_accept(mio m, struct sockaddr *serv_addr, socklen_t *addrlen)
     m->k.val = 100;
     m->ssl = ssl;
 
-    log_debug(ZONE, "Accepted new SSL socket %d for %s", fd, m->ip);
+    log_debug2(ZONE, LOGT_IO, "Accepted new SSL socket %d for %s", fd, m->ip);
 
     return fd;
 }
@@ -286,13 +286,13 @@ int _mio_ssl_connect(mio m, struct sockaddr *serv_addr, socklen_t addrlen)
     SSL_CTX *ctx = NULL;
     int fd;
 
-    log_debug(ZONE, "Connecting new SSL socket for %s", m->ip);
+    log_debug2(ZONE, LOGT_IO, "Connecting new SSL socket for %s", m->ip);
     ctx = xhash_get(ssl__ctxs, m->ip);
     
     fd = connect(m->fd, serv_addr, addrlen);
     SSL_set_fd(ssl, fd);
     if(SSL_connect(ssl) <= 0){
-        log_debug(ZONE, "SSL Error in SSL_connect call");
+        log_debug2(ZONE, LOGT_IO, "SSL Error in SSL_connect call");
         SSL_free(ssl);
         close(fd);
         return -1;

@@ -671,6 +671,20 @@
   </io>
 
   <!--
+  Debugging settings. You can change these settings while jabberd is running
+  and notify the running process with a SIGHUP to reread these settings
+  -->
+  <debug>
+      <!-- which debug messages to activate -->
+      <!-- ORed with the mask given on the command line -->
+      <mask>0</mask>
+
+      <!-- activate logging to syslog and specify facility -->
+      <!-- default is to log to the standard output -->
+      <!-- <facility>local0</facility> -->
+  </debug>
+
+  <!--
   This specifies the file to store the pid of the process in.
   -->
   <pidfile>@localstatedir@/run/jabberd/jabber.pid</pidfile>

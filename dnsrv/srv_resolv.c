@@ -111,7 +111,7 @@ char* srv_lookup(pool p, const char* service, const char* domain)
      /* If no service is specified, use a standard gethostbyname call */
      if (service == NULL)
      {
-	  log_debug(ZONE, "srv: Standard resolution of %s", domain);
+	  log_debug2(ZONE, LOGT_IO, "srv: Standard resolution of %s", domain);
 #ifdef WITH_IPV6
 	  hints.ai_flags = 0;
 	  hints.ai_family = PF_UNSPEC;
@@ -125,7 +125,7 @@ char* srv_lookup(pool p, const char* service, const char* domain)
 	  error_code = getaddrinfo(domain, NULL, &hints, &addr_res);
 	  if (error_code)
 	  {
-	      log_debug(ZONE, "srv: Error while resolving %s: %s", domain, gai_strerror(error_code));
+	      log_debug2(ZONE, LOGT_IO, "srv: Error while resolving %s: %s", domain, gai_strerror(error_code));
 	      return NULL;
 	  }
 
@@ -142,13 +142,13 @@ char* srv_lookup(pool p, const char* service, const char* domain)
 	  }
 
 	  freeaddrinfo(addr_res);
-	  log_debug(ZONE, "srv: Resolved %s to: %s", domain, ipaddr);
+	  log_debug2(ZONE, LOGT_IO, "srv: Resolved %s to: %s", domain, ipaddr);
 	  return ipaddr;
 #else
 	  hp = gethostbyname(domain);
 	  if (!hp)
 	  {
-	       log_debug(ZONE, "srv: Unable to resolve: %s", domain);
+	       log_debug2(ZONE, LOGT_IO, "srv: Unable to resolve: %s", domain);
 	       return NULL;
 	  }
 	  else
@@ -158,7 +158,7 @@ char* srv_lookup(pool p, const char* service, const char* domain)
 #endif
      }
 
-     log_debug(ZONE, "srv: SRV resolution of %s.%s", service, domain);
+     log_debug2(ZONE, LOGT_IO, "srv: SRV resolution of %s.%s", service, domain);
 
      /* Setup A record hash table */
      arr_table = xhash_new(11);
@@ -166,7 +166,7 @@ char* srv_lookup(pool p, const char* service, const char* domain)
      /* Initialize lookup system if needed (check global _res structure) */
      if (((_res.options & RES_INIT) == 0) && (res_init() == -1))
      {
-	  log_debug(ZONE, "srv: initialization failed on res_init.");
+	  log_debug2(ZONE, LOGT_IO, "srv: initialization failed on res_init.");
 	  return NULL;
      }
 
@@ -195,7 +195,7 @@ char* srv_lookup(pool p, const char* service, const char* domain)
 			    host, sizeof(host));      /* Dest buffer for expansion */
 	  if (exprc < 0)
 	  {
-	       log_debug(ZONE, "srv: DN expansion failed for Question section.");
+	       log_debug2(ZONE, LOGT_IO, "srv: DN expansion failed for Question section.");
 	       return NULL;
 	  }
 
@@ -209,7 +209,7 @@ char* srv_lookup(pool p, const char* service, const char* domain)
 	       exprc = dn_expand(reply, reply + replylen, rrptr, host, sizeof(host));
 	       if (exprc < 0)
 	       {
-		    log_debug(ZONE, "srv: Whoa nelly! DN expansion failed for RR.");
+		    log_debug2(ZONE, LOGT_IO, "srv: Whoa nelly! DN expansion failed for RR.");
 		    return NULL;
 	       }
 
@@ -252,7 +252,7 @@ char* srv_lookup(pool p, const char* service, const char* domain)
 		    exprc = dn_expand(reply, reply + replylen, rrptr + 6, host, sizeof(host));
 		    if (exprc < 0)
 		    {
-			 log_debug(ZONE, "srv: DN expansion failed for SRV.");
+			 log_debug2(ZONE, LOGT_IO, "srv: DN expansion failed for SRV.");
 			 return NULL;
 		    }
 
@@ -321,7 +321,7 @@ char* srv_lookup(pool p, const char* service, const char* domain)
 	       else
 	       {
 #ifdef WITH_IPV6
-		    log_debug(ZONE, "srv: attempting A / AAAA record lookup.");
+		    log_debug2(ZONE, LOGT_IO, "srv: attempting A / AAAA record lookup.");
 
 		    hints.ai_flags = 0;
 		    hints.ai_family = PF_UNSPEC;
@@ -335,7 +335,7 @@ char* srv_lookup(pool p, const char* service, const char* domain)
 		    error_code = getaddrinfo(iternode->host, NULL, &hints, &addr_res);
 		    if (error_code)
 		    {
-			log_debug(ZONE, "srv: Error while resolving %s: %s", domain, gai_strerror(error_code));
+			log_debug2(ZONE, LOGT_IO, "srv: Error while resolving %s: %s", domain, gai_strerror(error_code));
 		    }
 		    else
 		    {
@@ -358,12 +358,12 @@ char* srv_lookup(pool p, const char* service, const char* domain)
 			freeaddrinfo(addr_res);
 		    }
 #else
-		    log_debug(ZONE, "srv: attempting A record lookup.");
+		    log_debug2(ZONE, LOGT_IO, "srv: attempting A record lookup.");
 		    /* FIXME: Is this really retrv'ing A record? */
 		    hp = gethostbyname(iternode->host);
 		    if (!hp)
 		    {
-			 log_debug(ZONE, "srv: Unable to resolve SRV reference to: %s\n", iternode->host);
+			 log_debug2(ZONE, LOGT_IO, "srv: Unable to resolve SRV reference to: %s\n", iternode->host);
 		    }
 		    else
 		    {

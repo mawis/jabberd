@@ -104,16 +104,40 @@ void deliver_instance(instance i, dpacket p); /* deliver packet TO the instance,
 instance deliver_hostcheck(char *host); /* util that returns the instance handling this hostname for normal packets */
 
 /*** global logging/signal symbols ***/
+#define LOGT_LEGACY 1
+#define LOGT_DELIVER 2
+#define LOGT_REGISTER 4
+#define LOGT_STATUS 8
+#define LOGT_EVENT 16
+#define LOGT_CONFIG 32
+#define LOGT_DYNAMIC 64
+#define LOGT_IO 128
+#define LOGT_INIT 256
+#define LOGT_EXECFLOW 512
+#define LOGT_CLEANUP 1024
+#define LOGT_STRANGE 2048
+#define LOGT_XML 4096
+#define LOGT_THREAD 8192
+#define LOGT_STORAGE 16384
+#define LOGT_AUTH 32768
+#define LOGT_SESSION 65536
+#define LOGT_ROSTER 131072
+
 #define MAX_LOG_SIZE 1024
 extern int debug_flag;
-int get_debug_flag(void);
+inline int get_debug_flag(void);
 void set_debug_flag(int v);
+void set_cmdline_debug_flag(int v);
+void set_debug_facility(int facility);
 #ifdef __CYGWIN__
-#define log_debug if(get_debug_flag()) debug_log
+#define log_debug if(get_debug_flag()&1) debug_log
+#define log_debug2 if(get_debug_flag()) debug_log2
 #else
-#define log_debug if(debug_flag) debug_log
+#define log_debug if(debug_flag&1) debug_log
+#define log_debug2 if(debug_flag) debug_log2
 #endif
 void debug_log(char *zone, const char *msgfmt, ...);
+void debug_log2(char *zone, const int type, const char *msgfmt, ...);
 void log_notice(char *host, const char *msgfmt, ...);
 void log_warn(char *host, const char *msgfmt, ...);
 void log_alert(char *host, const char *msgfmt, ...);

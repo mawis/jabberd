@@ -263,7 +263,7 @@ void* base_exec_process_io(void* threadarg)
 	       readlen = MIO_READ_FUNC(pi->in, readbuf, sizeof(readbuf));
 	       if (readlen <= 0)
 	       {
-		    log_debug(ZONE,"base_exec_process_io Read error on process!\n");
+		    log_debug2(ZONE, LOGT_IO, "base_exec_process_io Read error on process!\n");
 		    break;
 	       }
 
@@ -292,7 +292,7 @@ void* base_exec_process_io(void* threadarg)
 	       {
 		    /* FIXME: it would be cool to make this completely safe by reinserting
 		       the message back in the queue until the the process is restarted */
-		    log_debug(ZONE,"base_exec_process_io Write error.\n");
+		    log_debug2(ZONE, LOGT_IO, "base_exec_process_io Write error.\n");
 		    pool_free(pwb->packet->p);
 		    break;
 	       }
@@ -337,11 +337,11 @@ result base_exec_config(instance id, xmlnode x, void *arg)
      {	 
 	  if (xmlnode_get_data(x) == NULL)
 	  {
-	       log_debug(ZONE,"base_exec_config error: no script provided\n");
-           xmlnode_put_attrib(x,"error","'exec' tag must contain a command line to run");
+	       log_debug2(ZONE, LOGT_INIT, "base_exec_config error: no script provided\n");
+	       xmlnode_put_attrib(x,"error","'exec' tag must contain a command line to run");
 	       return r_ERR;
 	  }
-	  log_debug(ZONE,"base_exec_config validating configuration\n");
+	  log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_exec_config validating configuration\n");
 	  return r_PASS;
      }
 
@@ -365,13 +365,13 @@ result base_exec_config(instance id, xmlnode x, void *arg)
      /* Register a handler to recieve inbound data */
      register_phandler(id, o_DELIVER, base_exec_deliver, (void*) pi);
 
-     log_debug(ZONE,"base_exec_config performing configuration %s\n",xmlnode2str(x));
+     log_debug2(ZONE, LOGT_CONFIG|LOGT_INIT, "base_exec_config performing configuration %s\n",xmlnode2str(x));
      return r_DONE;
 }
 
 void base_exec(void)
 {
-     log_debug(ZONE,"base_exec loading...\n");
+     log_debug2(ZONE, LOGT_INIT, "base_exec loading...\n");
      register_config("exec",base_exec_config,NULL);
 }
 
