@@ -18,7 +18,6 @@
  */
 
 #include "io.h"
-
 /* struct to hold data for our instance */
 
 typedef struct io_st
@@ -318,6 +317,7 @@ void _io_main(void *arg)
         cur=io__data->master__list;
         while(cur != NULL)
         {
+            log_debug(ZONE,"io_main looping on %d state %d",cur->fd,cur->state);
             if((!FD_ISSET(cur->fd,&all_rfds)&&cur->k.val==0)||cur->k.val==KARMA_INIT)
             {
 #ifdef KARMA_DEBUG
@@ -461,7 +461,7 @@ void _io_select_connect(void *arg)
     int fd,flag=1;
     int flags;
 
-    log_debug(ZONE,"io_select Connecting to host: %s",cst->host);
+    log_debug(ZONE,"io_select Connecting to host: %s:%d",cst->host,cst->port);
 
     bzero((void*)&sa,sizeof(struct sockaddr_in));
 
@@ -553,6 +553,7 @@ void io_select_connect_ex(char *host, int port,void* arg,io_cb cb,void *cb_arg,s
     c->k.max=k->max;
     c->k.inc=k->inc;
     c->k.dec=k->dec;
+    c->k.restore=k->restore;
     c->queue=pth_msgport_create("queue");
     c->type=type_NORMAL;
     c->state=state_ACTIVE;
