@@ -5,7 +5,7 @@
     <host/>
     <load><xdb_file>xdb_file.so</xdb_file></load>
     <!-- Change this directory to where you want to store user files -->
-    <xdb_file xmlns="jabberd:xdb_file:config"><spool><jabberd:cmdline flag="s">/var/tmp</jabberd:cmdline></spool></xdb_file>
+    <xdb_file xmlns="jabber:config:xdb_file"><spool><jabberd:cmdline flag="s">/var/tmp</jabberd:cmdline></spool></xdb_file>
   </xdb>
 
   <service id="sessions">
@@ -25,7 +25,7 @@
       <mod_auth_sha1>jsm.so</mod_auth_sha1>
       <mod_filter>jsm.so</mod_filter>
     </load>
-    <jsm xmlns="jabberd:jsm:config">
+    <jsm xmlns="jabber:config:jsm">
       <agents>
         <jabberd:include>./configs/agents_list.xml</jabberd:include>
       </agents>
@@ -37,7 +37,7 @@
   <service id="c2s">
     <host>pth-csock.127.0.0.1</host>
     <load><pthsock_client>pthsock_client.so</pthsock_client></load>
-    <pthcsock xmlns='jabberd:pth-csock:config'>
+    <pthcsock xmlns='jabber:config:pth-csock'>
       <host>pth-csock.127.0.0.1</host>
       <listen><jabberd:cmdline flag="p">5222</jabberd:cmdline></listen>
     </pthcsock>
@@ -48,7 +48,7 @@
   <service id="dnsrv">
     <host/>
     <load><dnsrv>dnsrv.so</dnsrv></load>
-    <dnsrv xmlns="jabberd:dnsrv:config">
+    <dnsrv xmlns="jabber:config:dnsrv">
      <resendhost>s2s-127.0.0.1</resendhost>
     </dnsrv>
   </service>
