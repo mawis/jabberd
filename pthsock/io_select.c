@@ -20,28 +20,17 @@
 #include "io.h"
 
 /* struct to hold data for our instance */
-struct rlimit_struct;
 
 typedef struct io_st
 {
     pool p;             /* pool to hold this data */
     sock master__list;  /* a list of all the socks */
     pth_t t;            /* a pointer to thread for signaling */
-    struct rlimit_struct *rate_ip;
 } _ios,*ios;
 
 ios io__data=NULL;
 
 /* RATE LIMIT STUFF */
-typedef struct rlimit_struct
-{
-    char *key;
-    int start;
-    int points;
-    int maxt, maxp;
-    pool p;
-} *rlimit, _rlimit;
-
 rlimit rate_new(int maxt, int maxp)
 {
     pool p;
@@ -222,6 +211,7 @@ void _io_close(sock c)
     write(c->fd,"</stream:stream>",16);
 
     close(c->fd);
+    if(c->rated) rate_free(c->rate);
     pool_free(c->p);
 }
 
@@ -291,14 +281,13 @@ sock _io_accept(sock s)
     flags|=O_NONBLOCK;
     fcntl(fd,F_SETFL,flags);
 
-#ifndef NORATELIMITS
-    if(rate_check(io__data->rate_ip,inet_ntoa(sa.sin_addr),1))
+
+    if(s->rated&&rate_check(s->rate,inet_ntoa(sa.sin_addr),1))
     {
         log_warn("io_select","%s is being connection rate limited",inet_ntoa(sa.sin_addr));
         close(fd);
         return NULL;
     }
-#endif
 
     log_debug(ZONE,"new socket accepted (fd: %d, ip: %s, port: %d)",fd,inet_ntoa(sa.sin_addr),ntohs(sa.sin_port));
 
@@ -326,11 +315,6 @@ void _io_main(void *arg)
     char buff[1024];
     int len;
     int maxfd=0;
-
-#ifndef NORATELIMITS
-    /* init the rate limit junk */
-    io__data->rate_ip=rate_new(5,25); /* 25 connects per 5 seconds, per IP in a row */
-#endif
 
     /* init the signal junk */
     sigemptyset(&sigs);
@@ -579,7 +563,7 @@ void io_select_connect(char *host, int port,void* arg,io_cb cb,void *cb_arg)
 }
 
 /* call to start listening with select */
-void io_select_listen(int port,char *listen_host,io_cb cb,void *arg)
+void io_select_listen(int port,char *listen_host,io_cb cb,void *arg,int rate_time,int max_points)
 {
     sock new;
     pool p;
@@ -614,6 +598,11 @@ void io_select_listen(int port,char *listen_host,io_cb cb,void *arg)
     new->queue=pth_msgport_create("queue");
     new->cb=cb;
     new->cb_arg=arg;
+    if(rate_time!=0)
+    {
+        new->rated=1;
+        new->rate=rate_new(rate_time,max_points);
+    }
 
     log_notice(NULL,"io_select starting to listen on %d [%s]",port,listen_host);
     if(io__data==NULL)

@@ -327,6 +327,6 @@ void pthsock_server(instance i, xmlnode x)
     si->out_tab = ghash_create(20,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
     si->i=i;
 
-    io_select_listen(5269,NULL,pthsock_server_read,(void*)si);
+    io_select_listen(5269,NULL,pthsock_server_read,(void*)si,5,25);
     register_phandler(i,o_DELIVER,pthsock_server_packets,(void*)si);
 }

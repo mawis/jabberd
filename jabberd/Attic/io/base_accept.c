@@ -361,7 +361,7 @@ void *base_accept_io(void *arg)
 	/* If the acceptor's sink still points back to this acceptor, we can
 	 * be confident that it is the primary handler for this instance and
 	 * as such should be cleaned up appropriately */
-	if ( (a->state == A_DUPLEX) && (a->s->a == a) )
+	if (a->s!=NULL && (a->state == A_DUPLEX) && (a->s->a == a) )
 	{
 		/* Bounce current message */
 		if(p != NULL)
@@ -379,7 +379,7 @@ void *base_accept_io(void *arg)
         a->s->a = NULL;
 	}
 	/* Cleanup a simplex socket */
-	else if (a->state == A_SIMPLEX)
+	else if (a->s!=NULL &&a->state == A_SIMPLEX)
 	{
 		if(p != NULL)
         	base_accept_phandler(a->s->i, p, (void *)(a->s));

@@ -264,7 +264,9 @@ mreturn mod_presence_deliver(mapi m, void *arg)
         for(cur = m->user->sessions; cur != NULL; cur = cur->next)
         {
             if(cur->priority < 0) continue;
+            log_debug(ZONE,"!!1 cur %X cur->next %X\n",cur,cur->next);
             js_session_to(cur, jpacket_new(xmlnode_dup(m->packet->x)));
+            log_debug(ZONE,"!!2 cur %X cur->next %X\n",cur,cur->next);
         }
 
         if(jpacket_subtype(m->packet) != JPACKET__PROBE)
