@@ -123,6 +123,8 @@ chunk_t chunk_new(conn_t c)
     chunk_t chunk = (chunk_t) malloc(sizeof(struct chunk_st));
     memset(chunk, 0, sizeof(struct chunk_st));
 
+    chunk->next = NULL;
+
     /* nad gets tranferred from the conn to the chunk */
     chunk->nad = c->nad;
     c->nad = NULL;
@@ -192,7 +194,8 @@ void chunk_write(conn_t c, chunk_t chunk, char *to, char *from, char *type)
 int conn_max_read_len(conn_t c)
 {
     c2s_t c2s = c->c2s;
-    int max_bits_per_sec = j_atoi(xhash_get(c2s->config, "max_bps"), 0);
+    int max_bits_per_sec = j_atoi(config_get_one(c2s->config, "io.max_bps", 0),
+            1024);
     time_t now;
     int bytes;
 
