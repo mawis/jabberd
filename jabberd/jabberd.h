@@ -122,6 +122,7 @@ typedef struct xdbcache_struct
     instance i;
     int id;
     char *ns;
+    int set; /* flag that this is a set */
     char *act; /* for set */
     char *match; /* for set */
     xmlnode data; /* for set */

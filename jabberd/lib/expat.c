@@ -170,13 +170,14 @@ char* xmlnode_file_borked(char *file)
 
 int xmlnode2file(char *file, xmlnode node)
 {
-    char *doc;
+    char *doc, *ftmp;
     int fd, i;
 
     if(file == NULL || node == NULL)
         return -1;
 
-    fd = open(file, O_CREAT | O_WRONLY | O_TRUNC, 0600);
+    ftmp = spools(xmlnode_pool(node),file,".t.m.p",xmlnode_pool(node));
+    fd = open(ftmp, O_CREAT | O_WRONLY | O_TRUNC, 0600);
     if(fd < 0)
         return -1;
 
@@ -186,6 +187,12 @@ int xmlnode2file(char *file, xmlnode node)
         return -1;
 
     close(fd);
+
+    if(rename(ftmp,file) < 0)
+    {
+        unlink(ftmp);
+        return -1;
+    }
     return 1;
 }
 
