@@ -480,6 +480,8 @@ mreturn mod_filter_handler(mapi m, void *arg)
             else if(j_strcmp(xmlnode_get_name(cur),"subject")==0)
             {
                 xmlnode s=cur;
+                if(m->packet->type == JPACKET_IQ) 
+                    break;
                 log_debug(ZONE,"checking subject");
                 cur_action->is_match=0;
                 for(;s!=NULL;s=xmlnode_get_tag(rules,"subject"))
@@ -503,6 +505,8 @@ mreturn mod_filter_handler(mapi m, void *arg)
             else if(j_strcmp(xmlnode_get_name(cur),"body")==0)
             {
                 xmlnode b=cur;
+                if(m->packet->type == JPACKET_IQ)
+                    break;
                 log_debug(ZONE,"checking body");
                 cur_action->is_match=0;
                 for(;b!=NULL;b=xmlnode_get_tag(rules,"body"))
@@ -555,6 +559,9 @@ mreturn mod_filter_handler(mapi m, void *arg)
                 xmlnode t=cur;
                 char norm[7]="normal\0";
                 char *xtype=xmlnode_get_attrib(jp->x,"type");
+
+                if(m->packet->type == JPACKET_IQ)
+                    break;
                 log_debug(ZONE,"checking type");
                 if(xtype==NULL) xtype=norm;
                 cur_action->is_match=0;
@@ -578,6 +585,8 @@ mreturn mod_filter_handler(mapi m, void *arg)
             }
             else if(j_strcmp(xmlnode_get_name(cur),"settype")==0)
             {
+                if(m->packet->type == JPACKET_IQ)
+                    break;
                 cur_action->has_action=1;
                 cur_action->settype=1;
                 log_debug(ZONE,"settype: %s",xmlnode_get_data(cur));
@@ -585,6 +594,8 @@ mreturn mod_filter_handler(mapi m, void *arg)
             }
             else if(j_strcmp(xmlnode_get_name(cur),"reply")==0)
             {
+                if(m->packet->type == JPACKET_IQ)
+                    break;
                 cur_action->has_action=1;
                 cur_action->reply=1;
                 log_debug(ZONE,"reply: %s",xmlnode_get_data(cur));
@@ -593,6 +604,8 @@ mreturn mod_filter_handler(mapi m, void *arg)
             else if(j_strcmp(xmlnode_get_name(cur),"forward")==0)
             {
                 jid new=jid_new(p,xmlnode_get_data(cur));
+                if(m->packet->type == JPACKET_IQ)
+                    break;
                 cur_action->has_action=1;
                 new->next=cur_action->forward;
                 cur_action->forward=new;
@@ -601,6 +614,8 @@ mreturn mod_filter_handler(mapi m, void *arg)
             }
             else if(j_strcmp(xmlnode_get_name(cur),"offline")==0)
             {
+                if(m->packet->type == JPACKET_IQ)
+                    break;
                 cur_action->has_action=1;
                 cur_action->offline=1;
                 log_debug(ZONE,"offline storage");
@@ -632,13 +647,6 @@ mreturn mod_filter_handler(mapi m, void *arg)
             memset(cur_action,0,sizeof(_action));
             continue;    
         }
-        if(!cur_action->has_action)
-        {
-            xmlnode_free(jp->x);
-            pool_free(p);
-            xmlnode_free(container);
-            return M_HANDLED;
-        }
 
         if(cur_action->reply)
             mod_filter_action_reply(m,rules);
@@ -657,6 +665,7 @@ mreturn mod_filter_handler(mapi m, void *arg)
         }
         else break;
     }
+
     xmlnode_free(container);
     if(cur_action->has_action) 
     {
@@ -688,12 +697,14 @@ mreturn mod_filter_handler(mapi m, void *arg)
 mreturn mod_filter_iq(mapi m)
 {
     xmlnode opts, cur;
-    int max_rule_size = j_atoi(xmlnode_get_tag_data(js_config(mod_filter__jsmi, "filter"), "max_size"), MOD_FILTER_MAX_SIZE);
+    int max_rule_size;
     pool p;
-    log_debug(ZONE, "FILTER RULE SET: iq %s", xmlnode2str(m->packet->x));
 
     if(!NSCHECK(m->packet->iq, NS_FILTER) || m->packet->to != NULL)
         return M_PASS;
+
+    log_debug(ZONE, "FILTER RULE SET: iq %s", xmlnode2str(m->packet->x));
+    max_rule_size = j_atoi(xmlnode_get_tag_data(js_config(mod_filter__jsmi, "filter"), "max_size"), MOD_FILTER_MAX_SIZE);
 
     switch(jpacket_subtype(m->packet))
     {
