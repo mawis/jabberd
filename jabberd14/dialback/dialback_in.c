@@ -286,7 +286,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x)
     mio_reset(m, dialback_in_read_db, (void *)c);
 
     /* write stream features */
-    if (version >= 0) {
+    if (version >= 1) {
 	xmlnode features = xmlnode_new_tag("stream:features");
 	if (mio_ssl_starttls_possible(m, c->we_domain)) {
 	    xmlnode starttls = NULL;
