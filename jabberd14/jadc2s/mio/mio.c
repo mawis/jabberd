@@ -89,7 +89,10 @@ struct mio_st
 /* temp debug outputter */
 #define ZONE __LINE__
 #ifndef DEBUG
-#define DEBUG 0
+# define DEBUG 0
+#else
+# undef DEBUG
+# define DEBUG 1
 #endif
 #define mio_debug if(DEBUG) _mio_debug
 void _mio_debug(int line, const char *msgfmt, ...)
