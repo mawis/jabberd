@@ -164,7 +164,7 @@ void base_connect_process_xml(mio m, int state, void* arg, xmlnode x)
                 {
                     /* Flush all packets queued up for delivery */
                     conn_write_buf b;
-                    while ((b = (conn_write_buf) pth_msgport_get(ci->write_queue)) != NULL);
+                    while ((b = (conn_write_buf) pth_msgport_get(ci->write_queue)) != NULL)
                         mio_write(ci->io, b->packet->x, NULL, 0);
                     /* Update connection state flag */
                     ci->state = conn_AUTHD;
