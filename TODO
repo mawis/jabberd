@@ -9,10 +9,6 @@ jer
 dialback hostname authentication using sha
 jsm should manage stateless sessions too
 
-keith
-base_accept plumber algorithm needs improvement..
-perhaps a timout for each individual packet?
-
 ?
 base_farm meshing and hashed jid distribution
 
@@ -24,7 +20,7 @@ rate limits
 Code Double Checks
 ===================================
 
-consistent jabber:* namespaces and checks
+consistent jabber:* namespaces and checks -- TSB 10/11/00 OK
 clean up log_* calls, make sure right type, looks sane
 check XXX/TODO comment flags
 check error codes, use timeout ones?
@@ -39,7 +35,7 @@ base modules:
 	base_connect, chaining, queueing and reconnecting
 	base_exec, restarting, proper shutdown?
 	base_stdout, chaining, xdb/log/stderr/debug handling?
-	logging: file, formatting, forwarding
+	logging: file, formatting, forwarding -- TSB 10/11/00 OK
 	xdb: seperating namespaces
 
 overall:
@@ -51,7 +47,7 @@ components:
 	s2s, timeouts, drops, 1.0/1.2
 	jsm, virtual hosting
 	xdb_file, io error handling, heavy load?
-	c2s, bad streams/ids, bad auth, bad reg, queueing, timeouts
+	c2s, bad streams/ids, bad auth, bad reg, queueing, timeouts -- TSB 10/11/00 OK
 	jud/privacy
 
 builds:
