@@ -858,6 +858,10 @@
 (define %indent-literallayout-lines% 
   #f)
 
+;;Specify rules before and after example
+(define %example-rules%
+  #f)
+
 ;;Indent Programlistings?
 (define %indent-programlisting-lines%
   #f)
@@ -922,6 +926,31 @@
                  ("ALIGN" "CENTER")
                  ("COLOR" "#000000")
                  ("SIZE" "1"))))
+
+
+;; ===========================
+;; Custom handler for example
+;; ===========================
+(element example
+	 (make element gi: "TABLE"
+	       attributes: '(("BORDER" "1")
+			     ("BGCOLOR" "#F0F0F0")
+			     ("WIDTH" "75%")
+			     ("CELLSPACING" "0")
+			     ("CELLPADDING" "5"))
+	       (make element gi: "TR"
+		     (make element gi: "TD"
+			   attributes: '(("VALIGN" "TOP"))
+			   (make element gi: "B"
+				 (process-first-descendant 'title))))
+	       (make element gi: "TR"
+		     (make element gi: "TD"
+			   attributes: '(("VALIGN" "TOP"))
+			   (process-matching-children 'para)))))
+
+(element (example title)
+	 (make sequence (literal "Case-study: ")
+	       (process-children)))
 
 </style-specification-body>
 </style-specification>

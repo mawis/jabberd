@@ -27,7 +27,8 @@
 		while providing significant freedom in the implementation of the pieces
 		which compose a server. 
 
-		<example><title>Integrating LDAP</title>
+		<example width=50>
+			<title>Integrating LDAP</title>
 			<para>As an example of the flexibility which the 2.0 architecture
 			provides, consider the integration of an LDAP server for authentication
 			and vcard lookupes. An existing LDAP server can be fitted with a
