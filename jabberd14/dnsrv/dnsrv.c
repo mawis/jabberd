@@ -152,6 +152,7 @@ int dnsrv_child_main(dns_io di)
        }
      }	  
      /* child is out of loop... normal exit so parent will start us again */
+     pool_free(p);
      exit(0);
      return 0;
 }
@@ -309,6 +310,10 @@ void* dnsrv_process_io(void* threadarg)
                if (readlen <= 0)
                {
                     log_debug(ZONE,"dnsrv: Read error on coprocess!\n");
+	                while((wb = (dns_write_buf)pth_msgport_get(di->write_queue)) != NULL)
+                    {
+                        pool_free(wb->packet->p);
+                    }
                     break;
                }
 
@@ -391,6 +396,7 @@ void* dnsrv_process_io(void* threadarg)
         pth_spawn(PTH_ATTR_DEFAULT, dnsrv_process_io, (void*)di);
      }
 
+     pth_msgport_destroy(di->write_queue);
      return NULL;
 }
 
@@ -401,6 +407,15 @@ void *dnsrv_thread(void *arg)
      di->pid = dnsrv_fork_and_capture(dnsrv_child_main, di);
      return NULL;
 }
+
+void dnsrv_shutdown(void *arg)
+{
+     dns_io di=(dns_io)arg;
+     ghash_destroy(di->packet_table);
+
+     /* spawn a thread that get's forked, and wait for it since it sets up the fd's */
+}
+
 
 void dnsrv(instance i, xmlnode x)
 {
@@ -439,6 +454,7 @@ void dnsrv(instance i, xmlnode x)
 	  /* Move to next child */
 	  iternode = xmlnode_get_prevsibling(iternode);
      }
+     xmlnode_free(config);
      log_debug(ZONE, "dnsrv debug: %s\n", xmlnode2str(config));
 
      /* Initialize a message port to handle incoming dpackets */
@@ -461,4 +477,6 @@ void dnsrv(instance i, xmlnode x)
 
      /* Register an incoming packet handler */
      register_phandler(i, o_DELIVER, dnsrv_deliver, (void*)di);
+     /* register a cleanup function */
+     register_shutdown(dnsrv_shutdown, (void*)di);
 }
