@@ -25,7 +25,7 @@
     <jsm xmlns="jabberd:jsm:config">
       <agents>
        <agent jid="users.jabber.org">
-        <name>Jabber User Directory</namd>
+        <name>Jabber User Directory</name>
         <description>You may register and create a public searchable profile, and search for other registered Jabber users.</description>
         <service>jud</service>
         <register/>
