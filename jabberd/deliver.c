@@ -518,7 +518,7 @@ dpacket dpacket_new(xmlnode x)
             p=NULL;
         break;
     case p_XDB:
-        if(p->id->user==NULL||p->id->server==NULL||p->id->resource==NULL)
+        if(p->id->server==NULL||p->id->resource==NULL)
             p=NULL;
         break;
     case p_NORM:
