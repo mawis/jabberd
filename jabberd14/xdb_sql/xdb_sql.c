@@ -196,7 +196,9 @@ char *xdb_sql_construct_query(char **template, xmlnode xdb_query) {
 		ptr = strstr(template[index], "/text()");
 		if (ptr == NULL || ptr-template[index] != strlen(template[index])-7) {
 		    /* get the element */
-		    subst = xmlnode2str(xmlnode_get_tag(xdb_query, template[index]));
+		    xmlnode subst_node = (xmlnode_get_tag(xdb_query, template[index]));
+		    if (subst_node != NULL)
+			subst = xmlnode2str(subst_node);
 		} else {
 		    /* get the text content of the element */
 		    ptr = pstrdup(xdb_query->p, template[index]);
@@ -204,7 +206,7 @@ char *xdb_sql_construct_query(char **template, xmlnode xdb_query) {
 		    subst = xmlnode_get_tag_data(xdb_query, ptr);
 		}
 	    }
-	    xdb_sql_spool_add_escaped(result_spool, pstrdup(result_spool->p, subst));
+	    xdb_sql_spool_add_escaped(result_spool, pstrdup(result_spool->p, subst!=NULL ? subst : ""));
 	}
 
 	/* next token */
