@@ -3,7 +3,7 @@
 #include <sys/wait.h>
 
 /* Config format:
-   <dnsrv xmlns='jabberd:config:dnsrv'>
+   <dnsrv xmlns='jabber:config:dnsrv'>
       <resend service="_jabber._tcp">foo.org</resend>
       ...
    </dnsrv>
@@ -388,7 +388,7 @@ void dnsrv(instance i, xmlnode x)
 
      /* Load config from xdb */
      xc = xdb_cache(i);
-     config = xdb_get(xc, NULL, jid_new(xmlnode_pool(x), "config@-internal"), "jabberd:dnsrv:config");
+     config = xdb_get(xc, NULL, jid_new(xmlnode_pool(x), "config@-internal"), "jabber:config:dnsrv");
 
      /* Build a list of services/resend hosts */
      iternode = xmlnode_get_lastchild(config);

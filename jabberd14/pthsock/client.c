@@ -23,7 +23,7 @@
       <load>
 	    <pthsock_client>../load/pthsock_client.so</pthsock_client>
       </load>
-      <pthcsock xmlns='jabberd:pth-csock:config'>
+      <pthcsock xmlns='jabber:config:pth-csock'>
         <listen>5222</listen>            <!-- Port to listen on -->
       </pthcsock>
     </service>
@@ -346,7 +346,7 @@ void pthsock_client(instance i, xmlnode x)
 
     /* get the config */
     xc = xdb_cache(i);
-    si->cfg = xdb_get(xc,NULL,jid_new(xmlnode_pool(x),"config@-internal"),"jabberd:pth-csock:config");
+    si->cfg = xdb_get(xc,NULL,jid_new(xmlnode_pool(x),"config@-internal"),"jabber:config:pth-csock");
 
     si->host = host = i->id;
 
