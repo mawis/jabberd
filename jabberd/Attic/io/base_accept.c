@@ -437,7 +437,7 @@ void *base_accept_listen(void *arg)
 
 		/* XXX: Non-thread safe func used (inet_ntoa) */
         log_debug(ZONE,"new connection on port %d from ip %s as fd %d",li->port,inet_ntoa(sa.sin_addr),sock);
-        log_notice(NULL,"base_accept: new connection on port %d from ip %s",li->port,inet_ntoa(sa.sin_addr),sock);
+        log_notice(NULL,"base_accept: new connection on port %d from ip %s as fd %d",li->port,inet_ntoa(sa.sin_addr),sock);
 
         /* spawn io thread */
         pth_spawn(PTH_ATTR_DEFAULT, base_accept_io, (void *)a);
