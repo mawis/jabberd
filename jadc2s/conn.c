@@ -181,6 +181,9 @@ void chunk_write(conn_t c, chunk_t chunk, char *to, char *from, char *type)
         c->qtail = chunk;
     }
 
+    /* ensure that this chunk is alone */
+    chunk->next = NULL;
+
     /* tell mio to process write events on this fd */
     mio_write(c->c2s->mio, c->fd);
 }
