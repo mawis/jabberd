@@ -19,14 +19,18 @@
 
 #include <jabberd.h>
 
-typedef enum { state_UNKNOWN, state_AUTHD, state_CLOSE } conn_state;
 
+typedef enum { queue_XMLNODE, queue_TEXT } queue_type;
 typedef struct wb_q_st
 {
     pth_message_t head; /* the standard pth message header */
+    pool p;
+    queue_type type;
     xmlnode x;
+    char *data;
 } _wbq,*wbq;
 
+typedef enum { state_ACTIVE, state_CLOSE } conn_state;
 typedef struct sock_st
 {
     pool p;
@@ -37,22 +41,13 @@ typedef struct sock_st
     xmlnode xbuffer;     /* current xmlnode */
     char *wbuffer;       /* current write buffer */
     char *cbuffer;       /* position in write buffer */
+    pool pbuffer;        /* a pointer to the pool this buffer is using */
     struct sock_st *prev,*next;
     void *arg;    /* yours to define */
     void *cb;     /* do not modify directly */
     void *cb_arg; /* do not modify directly */
     void *iodata; /* do not modify directly */
 } *sock, _sock;
-
-/* simple wrapper around the pth messages to pass packets */
-typedef struct
-{
-    pth_message_t head; /* the standard pth message header */
-    pool p;
-    xmlnode x;
-    sock c;
-    void *arg;
-} *drop, _drop;
 
 typedef void *iosi;
 

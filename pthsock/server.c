@@ -100,9 +100,9 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
         }
         else
         { /* we finnally connected, dump the queue */
-            drop d;
-            while((d=(drop)pth_msgport_get(sd->queue))!=NULL)
-                io_write(c,d->x);
+            wbq q;
+            while((q=(wbq)pth_msgport_get(sd->queue))!=NULL)
+                io_write(c,q->x);
         }
 
         xmlnode_free(x);
@@ -153,7 +153,6 @@ void pthsock_server_read(sock c,char *buffer,int bufsz,int flags,void *arg)
 {
     ssi si=(ssi)arg;
     sdata sd;
-    drop d;
     wbq q;
     int ret;
 
@@ -202,21 +201,29 @@ void pthsock_server_read(sock c,char *buffer,int bufsz,int flags,void *arg)
         log_debug(ZONE,"Socket Error to host %s, bouncing queue",sd->to);
         if(c->xbuffer!=NULL)
         {
-            jutil_error(c->xbuffer,TERROR_EXTERNAL);
-            deliver(dpacket_new(c->xbuffer),si->i);
+            if(((int)c->xbuffer)!=-1)
+            {
+                jutil_error(c->xbuffer,TERROR_EXTERNAL);
+                deliver(dpacket_new(c->xbuffer),si->i);
+            }
+            else pool_free(c->pbuffer);
             c->xbuffer=NULL;
             c->wbuffer=c->cbuffer=NULL;
+            c->pbuffer=NULL;
             while((q=(wbq)pth_msgport_get(c->queue))!=NULL)
             {
-                jutil_error(q->x,TERROR_EXTERNAL);
-                deliver(dpacket_new(q->x),si->i);
+                if(q->type==queue_XMLNODE)
+                {
+                    jutil_error(q->x,TERROR_EXTERNAL);
+                    deliver(dpacket_new(q->x),si->i);
+                } else pool_free(q->p);
             }
         }
         /* as well as our queue */
-        while((d=(drop)pth_msgport_get(sd->queue))!=NULL)
+        while((q=(wbq)pth_msgport_get(sd->queue))!=NULL)
         {
-            jutil_error(d->x,TERROR_EXTERNAL);
-            deliver(dpacket_new(d->x),si->i);
+            jutil_error(q->x,TERROR_EXTERNAL);
+            deliver(dpacket_new(q->x),si->i);
         }
     }
 }
@@ -228,7 +235,7 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
     sdata sd;
     char *ip;
     int port;
-    drop d;
+    wbq q;
     jid from,to;
 
     to=jid_new(xmlnode_pool(dp->x),xmlnode_get_attrib(dp->x,"to"));
@@ -266,8 +273,8 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
         if (sd->type == conn_CLOSED)
             sd = NULL;
 
-    d=pmalloco(dp->p,sizeof(_drop));
-    d->x=dp->x;
+    q=pmalloco(dp->p,sizeof(_wbq));
+    q->x=dp->x;
 
     if (sd == NULL)
     {
@@ -285,12 +292,12 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
         io_select_connect(io__instance,ip,port,(void*)sd);
     }
 
-    xmlnode_hide_attrib(d->x,"sto");
-    xmlnode_hide_attrib(d->x,"sfrom");
-    xmlnode_hide_attrib(d->x,"ip");
+    xmlnode_hide_attrib(q->x,"sto");
+    xmlnode_hide_attrib(q->x,"sfrom");
+    xmlnode_hide_attrib(q->x,"ip");
 
     if(sd->type==conn_CONNECTING)
-        pth_msgport_put(sd->queue,(void*)d);
+        pth_msgport_put(sd->queue,(void*)q);
     else
         io_write((sock)sd->arg,dp->x);
 

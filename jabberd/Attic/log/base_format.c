@@ -88,6 +88,14 @@ result base_format_config(instance id, xmlnode x, void *arg)
         return r_PASS;
     }
 
+    /* XXX this is an ugly hack, but it's better than a bad config */
+    /* XXX needs to be a way to validate this in the checking phase */
+    if(id->type!=p_LOG)
+    {
+        log_debug(ZONE,"<file>..</file> element only allowed in log sections");
+        return r_ERR;
+    }
+
     log_debug(ZONE,"base_format_config performing configuration %s\n",xmlnode2str(x));
     register_phandler(id,o_PREDELIVER,base_format_modify,(void*)strdup(xmlnode_get_data(x)));
     return r_DONE;

@@ -102,8 +102,6 @@ int configo(int exec)
 
         type = p_NONE;
 
-        /* XXX-temas:  are these the only available types?  If not do we want
-         * this in the configure stuff as well? */
         if(strcmp(xmlnode_get_name(curx),"log") == 0)
             type = p_LOG;
         if(strcmp(xmlnode_get_name(curx),"xdb") == 0)
@@ -113,8 +111,12 @@ int configo(int exec)
 
         if(type == p_NONE || xmlnode_get_attrib(curx,"id") == NULL || xmlnode_get_firstchild(curx) == NULL)
         {
-            /* XXX be more helpful here */
             printf("Configuration error in:\n%s\n",xmlnode2str(curx));
+            if(type==p_NONE) printf("ERROR: Invalid Tag type: %s\n",xmlnode_get_name(curx));
+            if(xmlnode_get_attrib(curx,"id")==NULL)
+                printf("ERROR: Section needs an 'id' attribute\n");
+            if(xmlnode_get_firstchild(curx)==NULL)
+                printf("ERROR: Section Has no data in it\n");
             return 1;
         }
 
@@ -140,8 +142,12 @@ int configo(int exec)
             c = cfget(xmlnode_get_name(curx2));
             if(c == NULL || (c->f)(newi, curx2, c->arg) == r_ERR)
             {
-                /* XXX be more helpful here */
-                printf("Configuration error in:\n%s\nSpecifically:\n%s\n",xmlnode2str(curx),xmlnode2str(curx2));
+                printf("Invalid Configuration in instance '%s':\n%s\n",xmlnode_get_attrib(curx,"id"),xmlnode2str(curx2));
+                if(c==NULL) printf("ERROR: Unknown Base Tag: %s\n",xmlnode_get_name(curx2));
+                else printf("ERROR: Base Handler Returned an Error\n");
+                /* TODO: would be nice for the base handler to pass an error
+                 * tag back here, eh?
+                 */
                 return 1;
             }
         }
