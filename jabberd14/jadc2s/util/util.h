@@ -265,7 +265,7 @@ typedef struct jid_struct
   
 jid     jid_new(pool p, char *idstr);	       /* Creates a jabber id from the idstr */
 jid     jid_newx(pool p, char *idstr, int len);/* same but with given len */
-void    jid_set(jid id, char *str, int item);  /* Individually sets jid components */
+void    jid_set(jid id, const char *str, int item);  /* Individually sets jid components */
 char*   jid_full(jid id);		       /* Builds a string type=user/resource@server from the jid data */
 int     jid_cmp(jid a, jid b);		       /* Compares two jid's, returns 0 for perfect match */
 int     jid_cmpx(jid a, jid b, int parts);     /* Compares just the parts specified as JID_|JID_ */
@@ -398,7 +398,7 @@ int nad_append_elem(nad_t nad, char *name, int depth);
 int nad_append_attr(nad_t nad, char *name, char *val);
 
 /* append more cdata to the last element */
-void nad_append_cdata(nad_t nad, char *cdata, int len, int depth);
+void nad_append_cdata(nad_t nad, const char *cdata, int len, int depth);
 
 /* create a string representation of the given element (and children), point references to it */
 void nad_print(nad_t nad, int elem, char **xml, int *len);

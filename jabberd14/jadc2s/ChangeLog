@@ -3,6 +3,12 @@
     * configure.in: Check for Libidn
     * util/jid.c: Nameprep/nodeprep/resourceprep JIDs
     * clients.c: fixed debugging message formating
+    * conn.c: Don't send a stream error on close to the router
+    * jadc2s.c: same
+    * clients.c: update possible JID length to xmpp-core
+    * connect.c: same
+    * util/util.h: let jit_set() and nad_append_cdata() take const strings
+    * util/nad.c: same
 
 2004-03-26  Matthias Wimmer  <m@tthias.net>
 

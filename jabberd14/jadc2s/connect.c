@@ -123,7 +123,7 @@ void _connect_charData(void *arg, const char *str, int len)
 void _connect_process(conn_t c) {
     chunk_t chunk;
     int attr, id;
-    char *chr, str[770], cid[770]; /* see jep29, 256(node) + 1(@) + 255(domain) + 1(/) + 256(resource) + 1(\0) */
+    char *chr, str[3072], cid[3072]; /* see xmpp-core, 1023(node) + 1(@) + 1023(domain) + 1(/) + 1023(resource) + 1(\0) */
     conn_t target, pending;
 
     log_debug(ZONE, "got packet from sm, processing");
@@ -145,7 +145,7 @@ void _connect_process(conn_t c) {
     /* every route must have a target client id */
     if((attr = nad_find_attr(c->nad, 0, "to", NULL)) == -1) return;
 
-    snprintf(cid, 770, "%.*s", NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr));
+    snprintf(cid, sizeof(cid), "%.*s", NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr));
     strcpy(str, cid);
     chr = strchr(str, '@');
     if(chr == NULL)
@@ -183,9 +183,9 @@ void _connect_process(conn_t c) {
         {
             /* not all errors have error attributes */
             if((attr = nad_find_attr(c->nad, 0, "error", NULL)) >= 0)
-                snprintf(str, 770, "%.*s", NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr));
+                snprintf(str, sizeof(str), "%.*s", NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr));
 	    else
-		snprintf(str, 770, "Server Error");
+		snprintf(str, sizeof(str), "Server Error");
 
 	    if (target->state == state_OPEN)
 	    {
@@ -210,7 +210,7 @@ void _connect_process(conn_t c) {
         log_debug(ZONE, "missing sender on route?");
         return;
     }
-    snprintf(str, 770, "%.*s", NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr));
+    snprintf(str, sizeof(str), "%.*s", NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr));
 
     /* look for session creation responses and change client accordingly 
      * (note: if no target drop through w/ chunk since it'll error in endElement) */
