@@ -472,7 +472,7 @@ void *pthsock_client_main(void *arg)
                 }
 
                 /* handle packets that need to be written */
-                if (cur->write_flag)
+                if (cur->write_flag && FD_ISSET(cur->sock,&wfds))
                 {
                     /* get and write the packets */
                     while ((d = (drop)pth_msgport_get(cur->queue)) != NULL)
