@@ -58,6 +58,8 @@ void register_phandler(instance id, order o, phandler f, void *arg); /* register
 void register_instance(instance id, char *host); /* associate an id with a hostname for that packet type */
 void unregister_instance(instance id, char *host); /* disassociate an id with a hostname for that packet type */
 void register_beat(int freq, beathandler f, void *arg); /* register the function to be called from the heartbeat, freq is how often, 0 is always */
+typedef void(*shutdown_func)(void*arg);
+void register_shutdown(shutdown_func f,void *arg); /* register to be notified when the server is shutting down */
 
 dpacket dpacket_new(xmlnode x); /* create a new delivery packet from source xml */
 dpacket dpacket_copy(dpacket p); /* copy a packet (and it's flags) */
