@@ -31,6 +31,7 @@ result base_to_deliver(instance id,dpacket p,void* arg)
     message=xmlnode_new_tag("message");
     xmlnode_insert_cdata(xmlnode_insert_tag(message,"body"),log_data,-1);
     subject=spools(xmlnode_pool(message),"Log Packet from ",xmlnode_get_attrib(p->x,"from"),xmlnode_pool(message));
+    xmlnode_insert_cdata(xmlnode_insert_tag(message,"thread"),shahash(subject),-1);
     xmlnode_insert_cdata(xmlnode_insert_tag(message,"subject"),subject,-1);
     xmlnode_put_attrib(message,"from",xmlnode_get_attrib(p->x,"from"));
     xmlnode_put_attrib(message,"to",(char*)arg);

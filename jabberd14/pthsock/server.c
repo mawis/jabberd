@@ -250,7 +250,7 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
     }
 
 
-    log_debug(ZONE,"pthsock_server looking up %s",to);
+    log_debug(ZONE,"pthsock_server looking up %s",ip);
 
     if (from)
         xmlnode_put_attrib(dp->x,"etherx:from",from->server);
