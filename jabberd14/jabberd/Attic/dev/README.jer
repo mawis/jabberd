@@ -1,0 +1,18 @@
+log/
+	Base modules specific to logging
+xdb/
+	Base modules specific to xdb
+io/
+	Base modules providing new IO methods
+gen/
+	Base modules providing general functionality
+
+
+once config is loaded, all base modules are (loaded and) initialized.  during init, they use cfreg("node",my_func,arg) to receive config file commands.
+
+config file is then checked to make sure it's valid and fully handled, then registered handlers in the base modules are executed.  they then start any threads or do any init they need to do, and register handlers for incoming packets.
+(packets come in from the base modules too, passed to deliver())
+
+packets are delivered based on ptype, then on the idnode (config file section), then on the registered handlers for that section.
+
+handlers can either return R_PASS (continue), R_OK (done processing and packet delivered), or R_ERR (stop processing because of failure)

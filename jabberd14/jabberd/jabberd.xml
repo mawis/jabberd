@@ -1,0 +1,61 @@
+<jabber>
+
+  <log id="log example">
+    <format>%s %a %e</format> [alternate format for log line]
+    <alert/> [flag filtering to this type, alert/notice/warn]
+    <stderr/> [flag, copying to STDERR/STDOUT]
+    <host>foo.org</host> [filtering to host]
+    <to>admin@host</to> [flag, copying as a message to the jid]
+    <file>/var/log/jabber.log</file> [copy to file]
+    <exec>/usr/local/bin/jlog.pl server</exec> [copy to STDIN of app]
+  </log>
+
+  <xdb id="foo.org auth">
+    <ns>jabber:iq:auth</ns> [namespace filters]
+    <host>foo.org</host> [filtering to host]
+    <cache/> [data is cacheable (contain int for # of seconds to timeout?)
+    <connect> [remote server handles foo.org auth]
+      <ip>12.34.56.1</ip>
+      <name>myname</name>
+      <secret>foo</secret>
+    </connect>
+  </xdb>
+
+  <service id="foo.org sessions"> <!-- example internal session handler -->
+    <host>foo.org</host>
+    <host>oldfoo.org</host> <!-- use <host/> to gather all names -->
+    <load>
+      <main>/usr/local/lib/jabber/jsm.so</main>
+      <mod_time>/usr/local/lib/jabber/mod_time.so</mod_time>
+      <mod_version>/usr/local/lib/jabber/mod_version.so</mod_version>
+      <mod_echo>/usr/local/lib/jabber/mod_echo.so</mod_echo>
+    </load>
+    <!-- <fork/> optional, for added stability if jsm.so is unstable -->
+
+    <!-- jsm.so specific config also included -->
+    <jsm xmlns="http://jabber.org/jsm/config.dtd">
+      <name>Jabber Server</name>
+      <description>A Jabber Server!</description>
+      <url>http://foo.bar/</url>
+      <admin>
+        <read>support</read>
+        <write>root</write>
+      </admin>
+    </jsm>
+  </service>
+
+  <service id="example1"> <!-- example service using STDIN/OUT of app as transport -->
+    <host>example1.foo.org</host>
+    <exec>/bin/app arg</exec>
+  </service>
+
+  <service id="example2"> <!-- example service using traditional incoming tcp connect + secret -->
+    <host>example2.foo.org</host>
+    <accept>
+      <ip>12.34.56.1</ip>
+      <port>5252</port>
+      <secret>foo2</secret>
+    </accept>
+  </service>
+
+</jabber>
