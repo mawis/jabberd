@@ -391,6 +391,7 @@ void* dnsrv_process_io(void* threadarg)
      close(di->in);
      close(di->out);
      di->out = 0;
+     waitpid(di->pid, &readlen, WNOHANG); /* reap any dead children */
 
      /* silly to restart it if it died cuz we're shutting down, pretty hackish to do it this way tho... must be hackish when the comment is longer than the code itself, but I'm rambling */
      if(jabberd__signalflag == SIGTERM || jabberd__signalflag == SIGINT) return NULL;
