@@ -114,7 +114,6 @@ int main(int argc, char **argv)
     char optchar;
     int config_loaded = 0;
     int max_fds;
-    int i;
 
     signal(SIGINT, onSignal);
     signal(SIGPIPE, SIG_IGN);
@@ -170,10 +169,10 @@ int main(int argc, char **argv)
     c2s->nads = nad_cache_new();
 
     /* session manager */
-    c2s->sm_host = j_strdup(config_get_one(c2s->config, "sm.host", 0));
+    c2s->sm_host = config_get_one(c2s->config, "sm.host", 0);
     c2s->sm_port = j_atoi(config_get_one(c2s->config, "sm.port", 0), 0);
-    c2s->sm_id = j_strdup(config_get_one(c2s->config, "sm.id", 0));
-    c2s->sm_secret = j_strdup(config_get_one(c2s->config, "sm.secret", 0));
+    c2s->sm_id = config_get_one(c2s->config, "sm.id", 0);
+    c2s->sm_secret = config_get_one(c2s->config, "sm.secret", 0);
 
     c2s->connection_rate_times =
         j_atoi(config_get_one(c2s->config, "io.connection_limits.connects", 0), 0);
@@ -181,20 +180,16 @@ int main(int argc, char **argv)
         j_atoi(config_get_one(c2s->config, "io.connection_limits.seconds", 0), 0);
     
     /* XXX Change before release */
-    c2s->local_id_count = config_count(c2s->config,"local.id");
-    c2s->local_id = (char **)malloc( c2s->local_id_count );
-    for(i = 0 ; i < c2s->local_id_count ; i++)
-    {
-        c2s->local_id[i] = j_strdup(config_get_one(c2s->config, "local.id", i));
-    }
-    c2s->local_ip = j_strdup(config_get_one(c2s->config, "local.ip", 0));
+    c2s->local_id = config_get(c2s->config,"local.id");
+    c2s->local_ip = config_get_one(c2s->config, "local.ip", 0);
     c2s->local_port = j_atoi(config_get_one(c2s->config, "local.port", 0), 5222);
 #ifdef USE_SSL
     c2s->local_sslport = j_atoi(config_get_one(c2s->config, "local.ssl.port", 0), 5223);
-    c2s->pemfile = j_strdup(config_get_one(c2s->config, "local.ssl.pemfile", 0));
+    c2s->pemfile = config_get_one(c2s->config, "local.ssl.pemfile", 0);
 #endif
 
     /* require some things */
+    /* !!! usage isn't really helpful anymore, need to provide better errors */
     if(c2s->sm_host == NULL || c2s->sm_port == 0 || c2s->sm_id == NULL || c2s->sm_secret == NULL || c2s->local_id == NULL) {
         usage();
         return 1;
@@ -287,15 +282,8 @@ int main(int argc, char **argv)
     xhash_free(c2s->conns);
     nad_cache_free(c2s->nads);
     log_free(c2s->log);
-    free(c2s->sm_host);
-    free(c2s->sm_id);
-    free(c2s->sm_secret);
-    for(i = 0 ; i < c2s->local_id_count ; i++)
-        free(c2s->local_id[i]);
-    free(c2s->local_id);
 #ifdef USE_SSL
     SSL_CTX_free(c2s->ssl_ctx);
-    free(c2s->pemfile);
 #endif
     xhash_free(c2s->config);
     free(c2s);

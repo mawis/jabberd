@@ -297,6 +297,7 @@ struct config_elem_st
 {
     char **values;
     int nvalues;
+    char ***attrs;
 };
 typedef struct config_elem_st *config_elem_t;
 
@@ -308,6 +309,7 @@ extern int              config_load(config_t, char *);
 extern config_elem_t    config_get(config_t, char *);
 extern char             *config_get_one(config_t, char *, int);
 extern int              config_count(config_t, char *);
+extern char             *config_get_attr(config_t, char *, int, char *);
 extern void             config_free(config_t);
 
 

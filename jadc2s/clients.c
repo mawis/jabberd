@@ -87,10 +87,15 @@ void _client_startElement(void *arg, const char* name, const char** atts)
             {
                 int id;
                 log_debug(ZONE, "checking to: %s", atts[i+1]);
-                for( id = 0; id < c->c2s->local_id_count ; id++ )
+                for( id = 0; id < c->c2s->local_id->nvalues ; id++ )
                 {
-                    if (j_strcmp(atts[i+1], c->c2s->local_id[id]) == 0)
-                        c->local_id = j_strdup( c->c2s->local_id[id] );
+                    if (j_strcmp(atts[i+1], c->c2s->local_id->values[id]) == 0)
+                    {
+                        c->local_id = c->c2s->local_id->values[id];
+
+                        log_debug(ZONE, "matched local id '%s''", c->local_id);
+                        id = c->c2s->local_id->nvalues;
+                    }
                 }
 
                 if (c->local_id == NULL)
