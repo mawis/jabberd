@@ -1,27 +1,61 @@
 ===================================
-Post-1.2
+1.4
+===================================
+dialback
+	idle timeout
+	whitespace keepalive
+	log_record
+	ssl
+evaluate escaped cdata performance (xstream and file parsing)
+compiled-in config
+c2s ssl
+roster browse items
+
+
+===================================
+Testing
+===================================
+dialback
+user browsing
+vcard+jud+server-vcard
+last + unavail pres
+registration & unreg + welcome
+browse editing
+agent[s]
+iq:private
+public xml + ns
+filter + ns
+offline msg event
+all auth
+log record
+base accept/connect
+base exec/stdout
+jabberd ns/logtype filtering
+get_tag("foo=bar")
+xdb errors
+static
+admin + config edit
+announce/motd
+groups
+
+
+===================================
+Post-1.4
 ===================================
 
-base_farm meshing and hashed jid distribution
-managed IO: mio_* w/ pluggable select/poll/aio in the background and smart xmlnode/char* write buffering
-pth_msgport replacement w/ socketpair and fd events for easier pthread handling
-pthreads
-mod_welcome, mod_announce, & last xdb
-stateless jsm
-xmlnode_get_tag("tag/=data")
-s2s idle timeout & whitespace keepalive
-re-evaluate escaped cdata performance (xstream and file parsing)
-compiled-in config
+farming: meshing and hashed jid distribution
 c2s socket ioctl tweaks, r/w buffers, reduce data loss, shorten timeouts
 
 
 ===================================
-1.3/1.4+
+2.0+
 ===================================
 
+pthreads
+poll
+custom xml parser and smarter xmlnodes
+new hash-based filtering and event registration jsm module api
 config: register a command description like apache?
-admin/snmp
-dynamic config
+admin/snmp across all components
+true dynamic config
 smarter failure handling and detection (component keepalive?)
-
-
