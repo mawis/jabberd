@@ -114,7 +114,7 @@ static: static-recursive
 $(jabberd_OBJECTS): $(jabberd_HEADERS)
 
 all-local: $(jabberd_OBJECTS)
-	$(CC) $(CFLAGS) -o jabberd $(jabberd_OBJECTS) $(jabberd_EXOBJECTS) $(XLDFLAGS) $(LDFLAGS) $(LIBS)
+	$(CC) $(CFLAGS) -o jabberd $(jabberd_OBJECTS) $(jabberd_EXOBJECTS) $(XLDFLAGS) $(LDFLAGS) $(LIBS) $(PLINK)
 
 static-local: $(jabberd_OBJECTS)
 	$(CC) $(CFLAGS) -o jabberd $(jabberd_OBJECTS) $(jabberd_EXOBJECTS) $(jabberd_STATICOBJS) $(LDFLAGS) $(LIBS) $(PLINK)
