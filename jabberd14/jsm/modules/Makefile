@@ -5,6 +5,7 @@ CFLAGS=$(CCFLAGS) $(DEFINES) -I../../jabberd/
 jsm_modules_HEADERS=../jsm.h ../../jabberd/jabberd.h
 
 jsm_modules_OBJECTS=\
+	mod_stat.o \
 	mod_admin.o \
 	mod_announce.o \
 	mod_auth_crypt.o \
