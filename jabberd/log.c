@@ -274,7 +274,7 @@ void log_record(char *id, char *type, char *action, const char *msgfmt, ...) {
     va_start(ap, msgfmt);
     vsnprintf(logmsg, sizeof(logmsg), msgfmt, ap);
 
-    log_generic("record", type, action, "%s", logmsg);
+    log_generic("record", id, type, action, "%s", logmsg);
 }
 
 inline int get_debug_flag()
