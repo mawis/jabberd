@@ -3,11 +3,17 @@
 #
 include ../platform-settings
 
-# add -DSTATIC for a rudimentary static build, and make sure all the needed .o's are linked in below!
-DEFINES=-DCONFIGXML="\"jabber.xml\"" -DHOME="\"$(JHOME)\""
+ifeq ($(ISSTATIC),1)
+	DEFINES=-DCONFIGXML="\"jabber.xml\"" -DHOME="\"$(JHOME)\"" -DSTATIC
+else
+	DEFINES=-DCONFIGXML="\"jabber.xml\"" -DHOME="\"$(JHOME)\""
+endif
+
 CFLAGS:=$(CFLAGS) $(DEFINES)
 
 jabberd_HEADERS=jabberd.h
+
+SUBDIRS=base lib
 
 jabberd_OBJECTS = \
 	config.o \
@@ -22,6 +28,7 @@ jabberd_OBJECTS = \
 	mtq.o \
 	static.o \
 	log.o
+
 jabberd_EXOBJECTS = \
 	lib/expat.o \
 	lib/genhash.o \
@@ -51,25 +58,61 @@ jabberd_EXOBJECTS = \
 	base/base_format.o \
 	base/base_stderr.o \
 	base/base_to.o
-
-SUBDIRS = base lib
+	
+jabberd_STATICOBJS=\
+	$(JHOME)/jsm/deliver.o \
+	$(JHOME)/jsm/jsm.o \
+	$(JHOME)/jsm/modules.o \
+	$(JHOME)/jsm/offline.o \
+	$(JHOME)/jsm/server.o \
+	$(JHOME)/jsm/authreg.o \
+	$(JHOME)/jsm/sessions.o \
+	$(JHOME)/jsm/users.o \
+	$(JHOME)/jsm/util.o \
+	$(JHOME)/jsm/modules/mod_admin.o \
+	$(JHOME)/jsm/modules/mod_agents.o \
+	$(JHOME)/jsm/modules/mod_archive.o \
+	$(JHOME)/jsm/modules/mod_announce.o \
+	$(JHOME)/jsm/modules/mod_auth_plain.o \
+	$(JHOME)/jsm/modules/mod_auth_digest.o \
+	$(JHOME)/jsm/modules/mod_auth_0k.o \
+	$(JHOME)/jsm/modules/mod_echo.o \
+	$(JHOME)/jsm/modules/mod_filter.o \
+	$(JHOME)/jsm/modules/mod_groups.o \
+	$(JHOME)/jsm/modules/mod_presence.o \
+	$(JHOME)/jsm/modules/mod_private.o \
+	$(JHOME)/jsm/modules/mod_roster.o \
+	$(JHOME)/jsm/modules/mod_time.o \
+	$(JHOME)/jsm/modules/mod_vcard.o \
+	$(JHOME)/jsm/modules/mod_version.o \
+	$(JHOME)/jsm/modules/mod_register.o \
+	$(JHOME)/jsm/modules/mod_log.o \
+	$(JHOME)/jsm/modules/mod_offline.o \
+	$(JHOME)/dnsrv/dnsrv.o \
+	$(JHOME)/dnsrv/srv_resolv.o \
+	$(JHOME)/pthsock/dialback.o \
+	$(JHOME)/pthsock/client.o \
+	$(JHOME)/xdb_file/xdb_file.o
 
 all: all-recursive
 
 clean: clean-recursive
 
+static: static-recursive
+
 $(jabberd_OBJECTS): $(jabberd_HEADERS)
 
-all-local: $(jabberd_OBJECTS) $(jabberd_HEADERS)
+all-local: $(jabberd_OBJECTS)
 	$(CC) $(CFLAGS) -o jabberd $(jabberd_OBJECTS) $(jabberd_EXOBJECTS) $(XLDFLAGS) $(LDFLAGS) $(LIBS)
 
-#STATIC: ../jsm/*.o ../jsm/modules/*.o ../xdb_file/xdb_file.o ../pthsock/client.o ../pthsock/dialback.o ../dnsrv/*.o
+static-local: $(jabberd_OBJECTS)
+	$(CC) $(CFLAGS) -o jabberd $(jabberd_OBJECTS) $(jabberd_EXOBJECTS) $(jabberd_STATICOBJS) $(LDFLAGS) $(LIBS)
 
 install-local:
 
 all-recursive install-data-recursive install-exec-recursive \
 installdirs-recursive install-recursive uninstall-recursive  \
-check-recursive installcheck-recursive info-recursive dvi-recursive:
+check-recursive installcheck-recursive info-recursive static-recursive:
 	@set fnord $(MAKEFLAGS); amf=$$2; \
 	dot_seen=no; \
 	target=`echo $@ | sed s/-recursive//`; \
@@ -85,6 +128,7 @@ check-recursive installcheck-recursive info-recursive dvi-recursive:
 	   || case "$$amf" in *=*) exit 1;; *k*) fail=yes;; *) exit 1;; esac; \
 	done; \
 	if test "$$dot_seen" = "no"; then \
+	  echo "Making $$target"; \
 	  $(MAKE) "$$target-local" || exit 1; \
 	fi; test -z "$$fail"
 
@@ -112,4 +156,4 @@ maintainer-clean-recursive:
 	   || case "$$amf" in *=*) exit 1;; *k*) fail=yes;; *) exit 1;; esac; \
 	done && test -z "$$fail"
 
-
+.PHONY: clean static

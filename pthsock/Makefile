@@ -22,5 +22,7 @@ $(pthsock_server_OBJECTS): $(HEADERS)
 pthsock_server: $(pthsock_server_OBJECTS) $(HEADERS)
 	$(CC) $(CFLAGS) $(MCFLAGS) -o pthsock_server.so $(pthsock_server_OBJECTS) $(LDFLAGS) $(LIBS)
 
+static: $(pthsock_client_OBJECTS) $(pthsock_server_OBJECTS) $(HEADERS)
+
 clean:
 	rm -f $(pthsock_server_OBJECTS) $(pthsock_client_OBJECTS) pthsock_client.so pthsock_server.so

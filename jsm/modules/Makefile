@@ -30,5 +30,7 @@ $(jsm_modules_OBJECTS): $(jsm_modules_HEADERS)
 
 all: $(jsm_modules_OBJECTS) $(jsm_modules_HEADERS)
 
+static: $(jsm_modules_OBJECTS) $(jsm_modules_HEADERS)
+
 clean:
 	rm -f $(jsm_modules_OBJECTS)
