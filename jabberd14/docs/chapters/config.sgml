@@ -1,0 +1,177 @@
+<chapter id="chconfigfile" xreflabel="Configuration File">
+	<title>Configuration File</title>
+	<para>The Jabberd config file is the heart of the jabberd server.  The
+    Jabberd config file "describes" each of the components in the server,
+    and defines how they will be loaded, and how to deliver information
+    to them.</para>
+    <para>Becuase of the amazing flexability in the config file, it is
+    very easy to create a config file that doesn't work right, or has slight
+    problems that are not easy to detect at first glance.</para>
+    <para>The purpose of this document is to describe the basis of the
+    Jabberd config file, as well as describe all of the base modules that
+    have a hand at shaping the jabberd server.</para>
+	
+    <section>
+        <title>Instances</title>
+        <para>A Jabberd instance is one "component" of jabberd, that is
+        described in the config file.  Each Instance, at a minimum, has
+        a unique identifier.  They may also register for one or more host
+        names (or register for ANY host name).</para>
+        <para>Instances describe a component.  It Defines where it will 
+        get packets from the delivery tree (see below), describe how the 
+        component will connect to jabberd, and also set configuration details
+        that the component can look at</para>
+    </section>
+	<section>
+		<title>Delivery Trees</title>
+		<para>The Jabberd config file contains 3 main Delivery Trees:</para>
+		<itemizedlist>
+			<listitem><para>log Tree</para></listitem>
+			<listitem><para>xdb Tree</para></listitem>
+			<listitem><para>service Tree</para></listitem>
+		</itemizedlist>
+        <para>Each tree only handles certain types of packets within jabberd.
+        The Log Tree will only handle packets of type &lt;log/&gt;, the xdb
+        Tree only handles &lt;xdb/&gt; type packets, and the service tree
+        handles all the others: &lt;message/&gt;, &lt;presence/&gt;, &lt;iq/&gt;,
+        and the internal &lt;route/&gt; packets.</para>
+        <para>Each tree is further divided by host name.  An instance in the
+        tree may register for a certain host, or it may register with &lt;host/&gt;
+        to recieve packets for ANY host.  If an incoming packet cannot find a
+        delivery tree, the packet is bounced with a 502 error.</para>
+        <para>If more than one instance register for the same host name, each
+        instance will get a copy of the packet, and the "best" return value
+        will be used for that packet.  In this case, if all instances r_PASS
+        on the packet, it will bounce with a 502, but if at least one instance
+        handles the packet, then it is handled.</para>
+        <para>Furthermore, an instance may register more than once for the same
+        host name, and packets are delivered based on the order the instance
+        wants.  The orders are: o_PRECOND,o_COND,o_PREDELIVER, and o_DELIVER</para>
+	</section>
+    <section>
+        <title>Base Modules</title>
+        <para>Base Modules help Jabberd components talk with the jabberd
+        server, as well as describe how the component will load, and what
+        host names it will respond to</para>
+        <section><title>General Base Modules</title>
+            <section>
+                <title>base_host</title>
+                <para>Base host defines a way to associate an instance with
+                a certain hostname in the delivery tree.</para>
+                <example width="50">
+                    <para>&lt;host&gt;jabber.org&lt;/host&gt;</para>
+                    <para>&lt;host&gt;*.jabber.org&lt;/host&gt;</para>
+                    <para>&lt;host/&gt;</para>
+                </example>
+                <para>The above example shows a few ways that base_host
+                can be used in a config file.  The first will simply
+                register that instance to recieve packets for jabber.org.
+                NOTE that you can have any number of &lt;host/&gt; tags in
+                an instance.</para>
+                <para>The Second example will register the instance to match
+                ANY subdomain of jabber.org.  i.e. aim.jabber.org will match,
+                and so will icq.jabber.org.  Note that this isn't REAL regex
+                matching, it will only work to match any subdomain</para>
+                <para>The last example shows how to register an instance
+                to recieve packets for ANY host.  this is usefull for a
+                server-to-server component, for example, where it will be
+                able to send out any packets for a host that isn't its own.</para>
+            </section>
+        </section>
+        <section><title>I/O Base Modules</title>
+            <section>
+                <title>base_load</title>
+                <para>base_load will dynamically load a .so file into the
+                process at run time.  NOTE that the .so must have been written
+                to work with jabberd.  It also provides several utility functions
+                for the .so file to work with when it is loaded.</para>
+                <example width="50">
+                    <para>&lt;load&gt;
+                      &lt;my_func&gt;example.so&lt;/my_func&gt;
+                    &lt;/load&gt;</para>
+                    <para>&lt;load main="loader"&gt;
+                      &lt;loader&gt;example.so&lt;/loader&gt;
+                      &lt;module&gt;module.so&lt;/module&gt;
+                    &lt;/load&gt;</para>
+                </example>
+                <para>In the first example above, we have a simple load
+                statement.  Jabberd will simply load the example.so file into
+                the current process (in memory) and call the my_func() function
+                inside of the .so</para>
+                <para>The second example is slightly more complex, and could
+                have consisted of any number of module.so files/functions.  
+                in this case, the loader() function will get a copy of all the
+                other modules, and loader() will be responsible for loading them
+                all, and calling the init functions</para>
+            </section>
+            <section>
+                <title>base_connect</title>
+                <para>Base_connect's main job is to link seperate jabberd 
+                processes together.  These processes may or may not be on the
+                same servers.  Used in this way, the other jabberd process
+                would have a matching base_accept instance to accept the 
+                incoming connection</para>
+                <para>This may also be used to connect to any type of other
+                component that is set to listen on a port for the jabberd 
+                connection, but it's more often used to link jabberds together</para>
+                <example width="50">
+                    <para>&lt;connect&gt;
+                      &lt;ip&gt;12.34.56.78&lt;/ip&gt;
+                      &lt;port&gt;7001&lt;/port&gt;
+                      &lt;secret&gt;shh..&lt;/secret&gt;
+                    &lt;/connect&gt;</para>
+                </example>
+                <para>In this example, we are setting base_connect to make
+                a socket connection to 12.34.56.78 on port 7001.  it will use
+                the secret "shh.." to handshake with the listener on the other
+                end.</para>
+                <para>Note, this CANNOT be used to talk with previous versions
+                of the jabber server.  (pre 1.1)</para>
+            </section>
+            <section>
+                <title>base_accept</title>
+                <para>base_accept is the opposite of base_connect.  it is used
+                to listen on a certain port and ip for an incoming connection.
+                When a connection is received, it verifies the caller knows the
+                correct secret, and then starts sending the caller packets.</para>
+                <exmple width="50">
+                    <para>See base_connect for the syntax of &lt;connect/&gt;
+                    sections.</para>
+                </example>
+                <para>In addition to being able to recieve base_connect connections,
+                this can also be used to listen for libetherx connections (on a 
+                port other than 5269).  This can be used to connect older (1.0)
+                transports to Jabberd</para>
+            </section>
+            <section>
+                <title>base_exec</title>
+            </section>
+        </section>
+        <section><title>Log Base Modules</title>
+            <section>
+                <title>base_file</title>
+            </section>
+            <section>
+                <title>base_logtypes</title>
+            </section>
+            <section>
+                <title>base_to</title>
+            </section>
+            <section>
+                <title>base_format</title>
+            </section>
+            <section>
+                <title>base_stderr</title>
+            </section>
+        </section>
+        <section><title>xdb Base Modules</title>
+            <section>
+                <title>base_cache</title>
+            </section>
+            <section>
+                <title>base_ns</title>
+            </section>
+        </section>
+    </section>
+			
+</chapter>

@@ -6,6 +6,7 @@
 
 <!ENTITY chintro      SYSTEM "chapters/intro.sgml">
 <!ENTITY chbackground SYSTEM "chapters/background.sgml">
+<!ENTITY chconfigfile SYSTEM "chapters/background.sgml">
 <!ENTITY chgoals      SYSTEM "chapters/goals.sgml">
 <!ENTITY charchitecture SYSTEM "chapters/arch.sgml">
 
@@ -48,6 +49,7 @@
 &chintro;
 &chbackground;
 &chgoals;
+&chconfigfile;
 &charchitecture;
 
 </book>
