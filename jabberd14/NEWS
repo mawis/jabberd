@@ -1,15 +1,36 @@
-    * Jabberd14 now uses an automake/autoconf build environment.
-    * Jabberd14 now handles negative priorities and won't consider sessions
-      with negative priority for default delivery.
-    * The server will now unsubscribe all subscriptions when an user
-      unregisters his account.
-    * Jabberd14 is now able to send log messages to the syslog.
+Changes in compiling and installing jabberd
+    * Jabberd14 now uses an automake/autoconf build environment, so you
+      will use "make install" after compiling jabberd and after that
+      you can now delete the source.
+    * Jabberd14 now requires at least openssl version 0.9.7 to be build with
+      support for SSL.
+
+Changes in administration of the server
+    * Jabberd14 now supports encrypted connections using the STARTTLS
+      stream feature of XMPP.
     * The activation of debugging output has been changed: you can either
       activate debugging in the configuration file or in the command line
-      using the -D option (that now takes an argument).
+      using the -D option (that now takes an argument). You can even change
+      the debugging settings at the configuration file while jabberd is
+      running. After you changed them send a HUP signal to jabberd and
+      it will reread them from the configuration.
+    * The size of the files handled by xdb_file can be limited. This prevents
+      spool files from getting to big if a user subscribes to a feed and stops
+      using his account. Incoming messages will get bounced with an error if
+      the spool file of this user is full.
+    * The xdb_file module allows two directory layouts. The classic jabberd14
+      layout with one big directory containing all files for one domain, and
+      the layout adopted from wpjabber, where the files are distributed over
+      256 * 256 different directories, improoving performance on filesystems,
+      that are not well suited for large directories.
     * There is a small utility xdbfiletool that helps accessing xdb_file's
       new directory layout and that can convert old spools to the new
       format.
+    * jabberd14 has a new xdb module for storing data in SQL databases,
+      currently mysql and postgresql are supported
+    * Support for legacy jabberd 1.0 server to server connections is now
+      removed completely as this old protocol allowed spoofing of sender
+      addresses. You should not need this protocol anymore anyway.
     * Jabberd14 will now try to establish s2s connections not only on the
       first IPv4/IPv6 address it finds in DNS but on any IPv4/IPv6 address,
       that can be found for the first matching service. (It will not fall
@@ -17,44 +38,37 @@
       any configured service.)
       This will now allow a jabberd14, that has been configured with
       --enable-ipv6, to be used on systems without IPv6 routing as well.
-    * Jabberd14 now requires at least openssl version 0.9.7 to be build with
-      support for SSL.
-    * Support for legacy jabberd 1.0 server to server communication is now
-      disabled by default as it has no protection against identity spoofing.
     * Jabberd14 now supports clustering of the s2s component. The distribution
       among the components for incoming connections has to be managed using
       DNS records. For outgoing connections the DNS resolver (dnsrv) is
       responsible for distributing the connections among the components.
-    * Better XMPP compatibility: JIDs are prepared by the applicable
-      stringprep profiles; internationalized domain names (IDNs) are
-      supported; subscription state changes are only made if allowed, contacts
-      cannot push themself on a user's roster; correct stanza errors are
-      created.
-    * Jabberd14 now supports encrypted connections using the STARTTLS
-      stream feature of XMPP.
+    * The logging of s2s failures has been improved.
+    * Jabberd14 is now able to send log messages to the syslog.
     * The welcome and the auto-reply message in the jabberd14 configuration
       file can be configured in additional languages and an XMPP compatible
       client will display the appropriate version.
-    * The xdb_file module allows two directory layouts. The classic jabberd14
-      layout with one big directory containing all files for one domain, and
-      the layout adopted from wpjabber, where the files are distributed over
-      256 * 256 different directories, improoving performance on filesystems,
-      that are not well suited for large directories.
-    * The size of the files handled by xdb_file can be limited. This prevents
-      spool files from getting to big if a user subscribes to a feed and stops
-      using his account. Incoming messages will get bounced with an error if
-      the spool file of this user is full.
-    * jabberd14 now detects HTTP requests and bounces the user to a configured
-      URI. This might be especially useful for Jabber servers running on
-      port 80.
-    * jabberd14 has a new xdb module for storing data in SQL databases,
-      currently mysql and postgresql is supported
-    * FIX: earlier version of jabberd14 sent out two presences for a user
-      that came online, this is fixed - as well as that presences got
-      stamped several times if the user was online with multiple resources.
     * New base handler <unsubscribe/> which bounces messages and iqs and sends
       unsubscribes/unsubscribeds as reply to presence stanzas. Intended to be
       used as a replacement for deinstalled transports.
     * Presence information can be stored in xdb and therefore (using xdb_sql)
       in an SQL table. The stored presence information is not used by
       jabberd itself, but can be used by other applications.
+
+Changes in features visible to the user
+    * Better XMPP compatibility: JIDs are prepared by the applicable
+      stringprep profiles; internationalized domain names (IDNs) are
+      supported; subscription state changes are only made if allowed, contacts
+      cannot push themself on a user's roster; correct stanza errors are
+      created.
+    * Jabberd14 now handles negative priorities and won't consider sessions
+      with negative priority for default delivery.
+    * The server will now unsubscribe all subscriptions when an user
+      unregisters his account.
+    * If a stanza could not delivered to the recipient, the error message
+      that is sent back to the user will contain more information on why
+      this happened.
+
+Problem fixes:
+    * earlier version of jabberd14 sent out two presences for a user
+      that came online, this is fixed - as well as that presences got
+      stamped several times if the user was online with multiple resources.
