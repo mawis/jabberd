@@ -64,18 +64,26 @@ void js_authreg(void *arg)
 
         /* attempt to fetch user data based on the username */
         user = js_user(si, p->to, NULL);
-        if(user == NULL)
-        {
+        if(user == NULL) {
             jutil_error_xmpp(p->x, XTERROR_AUTH);
-        }else if(!js_mapi_call(si, e_AUTH, p, user, NULL)){
-            if(jpacket_subtype(p) == JPACKET__GET)
-            { /* if it's a type="get" for auth, everybody mods it and we result and return it */
-                xmlnode_insert_tag(p->iq,"resource"); /* of course, resource is required :) */
-                xmlnode_put_attrib(p->x,"type","result");
-                jutil_tofrom(p->x);
-            }else{ /* type="set" that didn't get handled used to be a problem, but now auth_plain passes on failed checks so it might be normal */
-                jutil_error_xmpp(p->x, XTERROR_AUTH);
-            }
+        } else {
+	    /* lock the udata structure, so it does not get freed in the mapi call */
+	    user->ref++;
+
+	    if(!js_mapi_call(si, e_AUTH, p, user, NULL)) {
+		if(jpacket_subtype(p) == JPACKET__GET) {
+		    /* if it's a type="get" for auth, everybody mods it and we result and return it */
+		    xmlnode_insert_tag(p->iq,"resource"); /* of course, resource is required :) */
+		    xmlnode_put_attrib(p->x,"type","result");
+		    jutil_tofrom(p->x);
+		} else {
+		    /* type="set" that didn't get handled used to be a problem, but now auth_plain passes on failed checks so it might be normal */
+		    jutil_error_xmpp(p->x, XTERROR_AUTH);
+		}
+	    }
+
+	    /* release the lock */
+	    user->ref--;
         }
 
     }else if(NSCHECK(p->iq,NS_REGISTER)){ /* is this a registration request? */

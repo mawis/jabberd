@@ -52,30 +52,40 @@ void js_deliver_local(jsmi si, jpacket p, xht ht)
     user = js_user(si, p->to, ht);
     s = js_session_get(user, p->to->resource);
 
+    /* lock the udata from being freed while we are working on it */
+    user->ref++;
+
     log_debug2(ZONE, LOGT_DELIVER, "delivering locally to %s",jid_full(p->to));
     /* let some modules fight over it */
-    if(js_mapi_call(si, e_DELIVER, p, user, s))
+    if(js_mapi_call(si, e_DELIVER, p, user, s)) {
+	user->ref--;	/* release lock */
         return;
+    }
 
     if(p->to->user == NULL)
     { /* this is for the server */
         js_psend(si,p,js_server_main);
+	user->ref--;	/* release lock */
         return;
     }
 
     if(s != NULL)
     { /* it's sent right to the resource */
         js_session_to(s, p);
+	user->ref--;	/* release lock */
         return;
     }
 
     if(user != NULL)
     { /* valid user, but no session */
         p->aux1 = (void *)user; /* performance hack, we already know the user */
-        user->ref++; /* so it doesn't get cleaned up before the offline thread gets it */
         js_psend(si,p,js_offline_main);
+	/* the offline thread will release our lock on the udata structure */
         return;
     }
+
+    /* release lock on the udata structure */
+    user->ref--;
 
     /* no user, so bounce the packet */
     js_bounce_xmpp(si,p->x,XTERROR_NOTFOUND);

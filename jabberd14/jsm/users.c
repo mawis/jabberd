@@ -128,10 +128,12 @@ udata js_user(jsmi si, jid id, xht ht)
     /* hrm, like, this isn't our user! */
     if(ht == NULL) return NULL;
 
-    /* copy the id and convert user to lower case */
+    /* copy the id and convert user to lower case (if not done by libidn) */
     uid = jid_new(id->p, jid_full(jid_user(id)));
+#ifndef LIBIDN
     for(ustr = uid->user; *ustr != '\0'; ustr++)
         *ustr = tolower(*ustr);
+#endif
 
     /* debug message */
     log_debug2(ZONE, LOGT_SESSION, "js_user(%s,%X)",jid_full(uid),ht);
