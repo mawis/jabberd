@@ -31,7 +31,9 @@
 
 mreturn mod_last_server(mapi m, void *arg)
 {
-    xmlnode last = (xmlnode)arg;
+    int start = time(NULL) - (int)arg;
+    char str[10];
+    xmlnode last;
 
     /* pre-requisites */
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
@@ -39,7 +41,12 @@ mreturn mod_last_server(mapi m, void *arg)
 
     jutil_iqresult(m->packet->x);
     jpacket_reset(m->packet);
-    xmlnode_insert_tag_node(m->packet->x,last);
+
+    last = xmlnode_insert_tag(m->packet->x,"query");
+    xmlnode_put_attrib(last,"xmlns",NS_LAST);
+    sprintf(str,"%d",start);
+    xmlnode_put_attrib(last,"seconds",str);
+
     js_deliver(m->si,m->packet);
 
     return M_HANDLED;
@@ -48,13 +55,15 @@ mreturn mod_last_server(mapi m, void *arg)
 void mod_last_set(mapi m, jid to, char *reason)
 {
     xmlnode last;
+    char str[10];
 
     log_debug("mod_last","storing last for user %s",jid_full(to));
 
     /* make a generic last chunk and store it */
     last = xmlnode_new_tag("query");
     xmlnode_put_attrib(last,"xmlns",NS_LAST);
-    xmlnode_put_attrib(last,"stamp",jutil_timestamp());
+    sprintf(str,"%d",(int)time(NULL));
+    xmlnode_put_attrib(last,"last",str);
     xmlnode_insert_cdata(last,reason,-1);
     xdb_set(m->si->xc, jid_user(to), NS_LAST, last);
     xmlnode_free(last);
@@ -87,6 +96,8 @@ mreturn mod_last_sess(mapi m, void *arg)
 mreturn mod_last_reply(mapi m, void *arg)
 {
     xmlnode last;
+    int lastt;
+    char str[10];
 
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
     if(!NSCHECK(m->packet->iq,NS_LAST)) return M_PASS;
@@ -102,13 +113,28 @@ mreturn mod_last_reply(mapi m, void *arg)
         return M_HANDLED;
     }
 
+    /* make sure they're in the roster */
+    if(!js_s10n(m->si,m->user,m->packet->from))
+    {
+        js_bounce(m->si,m->packet->x,TERROR_FORBIDDEN);
+        return M_HANDLED;
+    }
+
     log_debug("mod_last","handling query for user %s",m->user->user);
 
     last = xdb_get(m->si->xc, m->user->id, NS_LAST);
 
     jutil_iqresult(m->packet->x);
     jpacket_reset(m->packet);
-    xmlnode_insert_tag_node(m->packet->x,last);
+    lastt = j_atoi(xmlnode_get_attrib(last,"last"),0);
+    if(lastt > 0)
+    {
+        xmlnode_hide_attrib(last,"last");
+        lastt = time(NULL) - lastt;
+        sprintf(str,"%d",lastt);
+        xmlnode_put_attrib(last,"seconds",str);
+        xmlnode_insert_tag_node(m->packet->x,last);
+    }
     js_deliver(m->si,m->packet);
 
     xmlnode_free(last);
@@ -118,17 +144,12 @@ mreturn mod_last_reply(mapi m, void *arg)
 
 void mod_last(jsmi si)
 {
-    xmlnode last;
-
     log_debug("mod_last","initing");
     js_mapi_register(si, e_REGISTER, mod_last_init, NULL);
     js_mapi_register(si, e_SESSION, mod_last_sess, NULL);
     js_mapi_register(si, e_OFFLINE, mod_last_reply, NULL);
 
     /* set up the server responce, giving the startup time :) */
-    last = xmlnode_new_tag_pool(si->p,"query");
-    xmlnode_put_attrib(last,"xmlns",NS_LAST);
-    xmlnode_put_attrib(last,"stamp",jutil_timestamp());
-    js_mapi_register(si, e_SERVER, mod_last_server, (void *)last);
+    js_mapi_register(si, e_SERVER, mod_last_server, (void *)time(NULL));
 }
 
