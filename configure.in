@@ -316,6 +316,26 @@ if test "$mysql" != "no"; then
     AC_DEFINE(HAVE_MYSQL,,[mysql is available])
 fi
 
+dnl check for postgresql
+AC_ARG_WITH(postgresql, AC_HELP_STRING([--with-postgresql=DIR],
+	    [Include postgresql support for xdb_sql]),
+	    postgresql=$withval, postgresql=yes)
+if test "$postgresql" != "no"; then
+    if test "$postgresql" != "yes"; then
+	LDFLAGS="${LDFLAGS} -L$postgresql/lib"
+	CPPFLAGS="${CPPFLAGS} -I$postgresql/include"
+    fi
+    AC_CHECK_HEADER(postgresql/libpq-fe.h,
+		    AC_CHECK_LIB(pq, PQconnectdb,
+				 [postgresql=yes LIBS="${LIBS} -lpq"], postgresql=no),
+				 postgresql=no)
+fi
+AC_MSG_CHECKING([for postgresql])
+AC_MSG_RESULT($postgresql)
+if test "$postgresql" != "no"; then
+    AC_DEFINE(HAVE_POSTGRESQL,,[postgresql is available])
+fi
+
 dnl define where the configuration file is located
 AC_DEFINE_DIR(CONFIG_DIR,sysconfdir,[where the configuration file can be found])
 
