@@ -298,6 +298,19 @@ void mod_presence_roster(mapi m, jid notify)
 }
 
 /**
+ * store the top presence information to xdb
+ *
+ * @param m the mapi struct
+ */
+void mod_presence_store(mapi m) {
+    /* get the top session */
+    session top = js_session_primary(m->user);
+
+    /* store to xdb */
+    xdb_set(m->si->xc, m->user->id, NS_JABBERD_STOREDPRESENCE, top ? top->presence : NULL);
+}
+
+/**
  * handles undirected outgoing presences (presences with no to attribute)
  *
  * checks that the presence's priority is in the valid range
@@ -331,7 +344,6 @@ mreturn mod_presence_out(mapi m, void *arg)
 {
     xmlnode pnew, delay;
     modpres mp = (modpres)arg;
-    session top;
     session cur = NULL;
     int oldpri, newpri;
     char *priority;
@@ -343,17 +355,7 @@ mreturn mod_presence_out(mapi m, void *arg)
     log_debug2(ZONE, LOGT_DELIVER, "new presence from %s of %s",jid_full(m->s->id),xmlnode2str(m->packet->x));
 
     /* pre-existing conditions (no, we are not an insurance company) */
-    top = js_session_primary(m->user);
     oldpri = m->s->priority;
-
-    /* are we configured to store the primary presence in xdb? */
-    if (mp->conf->pres_to_xdb > 0) {
-	if (top == NULL) {
-	    log_debug2(ZONE, LOGT_STORAGE, "XXX top == NULL");
-	} else {
-	    log_debug2(ZONE, LOGT_STORAGE, "XXX would store presence: %s", xmlnode2str(top->presence));
-	}
-    }
 
     /* check that the priority is in the valid range */
     priority = xmlnode_get_tag_data(m->packet->x, "priority");
@@ -388,7 +390,12 @@ mreturn mod_presence_out(mapi m, void *arg)
         mod_presence_roster(m, NULL); /* send out probes to users we are subscribed to */
         m->s->priority = newpri;
 
+	/* store presence in xdb? */
+	if (mp->conf->pres_to_xdb > 0)
+	    mod_presence_store(m);
+
         xmlnode_free(m->packet->x); /* we do not broadcast invisible presences without a to attribute */
+
         return M_HANDLED;
     }
 
@@ -397,13 +404,17 @@ mreturn mod_presence_out(mapi m, void *arg)
     m->s->presence = xmlnode_dup(m->packet->x);
     m->s->priority = jutil_priority(m->packet->x);
 
+    /* store presence in xdb? */
+    if (mp->conf->pres_to_xdb > 0)
+	mod_presence_store(m);
+
     /* stamp the sessions presence */
     delay = xmlnode_insert_tag(m->s->presence,"x");
     xmlnode_put_attrib(delay,"xmlns",NS_DELAY);
     xmlnode_put_attrib(delay,"from",jid_full(m->s->id));
     xmlnode_put_attrib(delay,"stamp",jutil_timestamp());
 
-    log_debug2(ZONE, LOGT_DELIVER, "presence oldp %d newp %d top %X",oldpri,m->s->priority,top);
+    log_debug2(ZONE, LOGT_DELIVER, "presence oldp %d newp %d",oldpri,m->s->priority);
 
     /* if we're going offline now, let everyone know */
     if(m->s->priority < -128) {
