@@ -19,7 +19,6 @@
 
 #include "io.h"
 
-pth_mutex_t m_sync=PTH_MUTEX_INIT;
 
 typedef struct io_st
 {
@@ -39,47 +38,52 @@ sock io_select_get_list(iosi io_instance)
 
 int _io_write_dump(sock c)
 {
-    int len,retval;
+    int len;
     wbq q;
 
-    pth_mutex_acquire(&m_sync,0,NULL);
-    if(c->wbuffer==NULL) {
-        if(c->xbuffer!=NULL) xmlnode_free(c->xbuffer);
+    /* if there is nothing currently being written... */
+    if(c->xbuffer==NULL) {
+        /* grab the next packet from the queue */
         q=(wbq)pth_msgport_get(c->queue);
         if(q==NULL) return 0;
         c->xbuffer=q->x;
         c->wbuffer=xmlnode2str(c->xbuffer);
         c->cbuffer=c->wbuffer;
     }
-
-    while(1) /* while there is more in the queue */
+    else
     {
+        /* if we haven't started writing, setup to write */
+        if(c->wbuffer==NULL) c->wbuffer=xmlnode2str(c->xbuffer);
+        if(c->cbuffer==NULL) c->cbuffer=c->wbuffer;
+    }
+
+    while(1)
+    {
+        /* write a bit from the current buffer */
         len=write(c->fd,c->cbuffer,strlen(c->cbuffer));
-        log_debug(ZONE,"dumped %d bytes of %d",len,strlen(c->wbuffer));
+        log_debug(ZONE,"wrote %d bytes to socket",len);
         if(len<=0)
-        { /* error occured while writing the packet */
+        { 
             if(errno!=EWOULDBLOCK)
-            { /* error writing to the socket, bounce the queue */
-                (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg);
+            { /* if we have an error, that isn't a blocking issue */ 
+                (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg); /* bounce the queue */
             }
-            pth_mutex_release(&m_sync);
             return -1;
         }
         else if(len<strlen(c->cbuffer))
-        { /* we didn't write the whole thing.. wait till later */
+        {  /* we didnt' write it all, move the current buffer up */
             c->cbuffer+=len;
-            pth_mutex_release(&m_sync);
             return 1;
         } 
         else
-        { /* current write buffer is empty, keep going */
+        {  /* all this was written, kill this node */
             xmlnode_free(c->xbuffer);
+            /* and grab the next... */
             q=(wbq)pth_msgport_get(c->queue);
             if(q==NULL)
-            {
+            { /* we are done writing nodes */
                 c->xbuffer=NULL;
                 c->wbuffer=c->cbuffer=NULL;
-                pth_mutex_release(&m_sync);
                 return 0;
             }
             c->xbuffer=q->x;
@@ -87,72 +91,65 @@ int _io_write_dump(sock c)
             c->cbuffer=c->wbuffer;
         }
     }
-
-    pth_mutex_release(&m_sync);
-    return retval;
 }
 
 void io_unlink(sock c)
 {
     ios io_data=(ios)c->iodata;
-    log_debug(ZONE,"Unlinking sock %d from master__list",c->fd);
+    log_debug(ZONE,"Unlinking %X from %X",c,io_data->master__list);
 
     if(io_data->master__list==c) io_data->master__list=io_data->master__list->next;
+    log_debug(ZONE,"prev is %X",c->prev);
     if(c->prev!=NULL) c->prev->next=c->next;
+    log_debug(ZONE,"next is %X",c->next);
     if(c->next!=NULL) c->next->prev=c->prev;
+    log_debug(ZONE,"Unlinked %X from %X",c,io_data->master__list);
+
 }
 
 void io_link(sock c)
 {
     ios io_data=(ios)c->iodata;
+    log_debug(ZONE,"Linking %X to %X",c,io_data->master__list);
 
-    pth_mutex_acquire(&m_sync,0,NULL);
-    log_debug(ZONE,"Linking %d, welcome aboard!",c->fd);
     c->next=io_data->master__list;
     c->prev=NULL;
+    if(io_data->master__list!=NULL) io_data->master__list->prev=c;
     io_data->master__list=c;
-    pth_mutex_release(&m_sync);
+    log_debug(ZONE,"Linked %X, next is %X",c,c->next);
 }
 
 void io_close(sock c) 
 {
-    log_debug(ZONE,"client requesting close socket %d",c->fd);
     c->state=state_CLOSE;
 }
 
 void _io_close(sock c)
 {
-    c->state=state_UNKNOWN;
-    pth_mutex_acquire(&m_sync,0,NULL);
     io_unlink(c);
-    log_debug(ZONE,"closing socket '%d'",c->fd);
+    log_debug(ZONE,"closing socket %X",c);
 
-    /* if we still have packets in our buffer, bounce them */
+    /* bounce the current queue */
     if(c->xbuffer!=NULL)
         (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg);
 
+    /* notify of the close */
     (*(io_cb)c->cb)(c,NULL,0,IO_CLOSED,c->cb_arg);
 
     write(c->fd,"</stream:stream>",16);
 
     close(c->fd);
+    log_debug(ZONE,"freeing pool for %X",c);
     pool_free(c->p);
-    pth_mutex_release(&m_sync);
 }
 
 /* write a str to the client socket */
 void io_write_str(sock c,char *buffer)
 {
-    pool p=pool_heap(2*1024);
-    drop d=pmalloco(p,sizeof(_drop));
-    d->p=p;
-
-    d->x=NULL;
-    d->c=c;
-    pth_mutex_acquire(&m_sync,0,NULL);
-    if(c->wbuffer!=NULL) _io_write_dump(c);
+    /* write a string Immediatly to the socket */
+    /* flush the current queue first, if not empty */
+    if(c->wbuffer!=NULL)_io_write_dump(c);
     write(c->fd,buffer,strlen(buffer));
-    pth_mutex_release(&m_sync);
 }
 
 /* write an xmlnode */
@@ -163,17 +160,17 @@ void io_write(sock c,xmlnode x)
 
     q=pmalloco(xmlnode_pool(x),sizeof(_wbq));
     if(c->xbuffer!=NULL)
-    {
+    { /* if there is alredy a packet being written */
         q->x=x;
-        pth_msgport_put(c->queue,(void*)q); /* write packet to queue */
+        /* add it to the queue */
+        pth_msgport_put(c->queue,(void*)q); 
     }
     else
-    {
+    { /* otherwise, just make it our current packet */
         c->xbuffer=x;
-        c->wbuffer=xmlnode2str(x);
-        c->cbuffer=c->wbuffer;
     }
-    pth_msgport_put(io_data->wmp,(void*)q); /* notify select */
+    /* notify the select loop that a packet needs writing */
+    pth_msgport_put(io_data->wmp,(void*)q); 
 }
 
 typedef struct connect_st
@@ -195,7 +192,6 @@ void _io_select_connect(void *arg)
     int fd,flag=1;
     int flags;
     drop d;
-    pool p;
 
     log_debug(ZONE,"_io_select_connect HOST: %s",cst->host);
 
@@ -204,11 +200,15 @@ void _io_select_connect(void *arg)
     if((fd=socket(AF_INET,SOCK_STREAM,0))<0)
     {
         (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg);
+        (*(io_cb)c->cb)(c,NULL,0,IO_CLOSED,c->cb_arg);
+        pool_free(c->p);
         return;
     }
     if(setsockopt(fd,SOL_SOCKET,SO_REUSEADDR,(char*)&flag,sizeof(flag))<0)
     {
         (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg);
+        (*(io_cb)c->cb)(c,NULL,0,IO_CLOSED,c->cb_arg);
+        pool_free(c->p);
         return;
     }
 
@@ -216,6 +216,8 @@ void _io_select_connect(void *arg)
     if(saddr==NULL)
     {
         (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg);
+        (*(io_cb)c->cb)(c,NULL,0,IO_CLOSED,c->cb_arg);
+        pool_free(c->p);
         return;
     }
 
@@ -230,6 +232,8 @@ void _io_select_connect(void *arg)
         log_debug(ZONE,"io_select connect failed to connect to: %s",cst->host);
         close(fd);
         (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg);
+        (*(io_cb)c->cb)(c,NULL,0,IO_CLOSED,c->cb_arg);
+        pool_free(c->p);
         return;
     }
     else
@@ -243,11 +247,7 @@ void _io_select_connect(void *arg)
         (*(io_cb)c->cb)(c,NULL,0,IO_NEW,c->cb_arg);
     }
     /* notify the select loop */
-    p=pool_heap(2*1024);
-    d=pmalloco(p,sizeof(_drop));
-    d->p=p;
-    d->x=NULL;
-    d->c=c;
+    d=pmalloco(c->p,sizeof(_drop));
     pth_msgport_put(io_data->wmp,(void*)d);
 }
 
@@ -255,7 +255,7 @@ void io_select_connect(iosi io_instance,char *host, int port,void *arg)
 {
     sock c;
     ios io_data=(ios)io_instance;
-    pool p=pool_heap(2*1024);
+    pool p=pool_heap(3*1024);
     conn_st cst=pmalloco(p,sizeof(_conn_st));
     cst->host=pstrdup(p,host);
     cst->port=port;
@@ -270,33 +270,19 @@ void io_select_connect(iosi io_instance,char *host, int port,void *arg)
     pth_spawn(PTH_ATTR_DEFAULT,(void*)_io_select_connect,(void*)cst);
 }
 
-sock _io_sock(int fd)
-{
-    pool p;
-    sock c;
-
-    p = pool_heap(2*1024);
-    c = pmalloco(p, sizeof(_sock));
-    c->p = p;
-    c->fd = fd;
-    c->state = state_UNKNOWN;
-
-    log_debug(ZONE,"new socket created for fd: %d",fd);
-
-    return c;
-}
-
 sock _io_accept(ios io_data,int asock)
 {
     struct sockaddr_in sa;
     size_t sa_size = sizeof(sa);
     int fd,flags;
     sock c;
-    pth_mutex_acquire(&m_sync,0,NULL);
+    pool p;
+
+    log_debug(ZONE,"Accepting socket from fd %d",asock);
+
     fd = accept(asock,(struct sockaddr*)&sa,(int*)&sa_size);
-    if(fd < 0)
+    if(fd <= 0)
     {
-        pth_mutex_release(&m_sync);
         return NULL; 
     }
 
@@ -306,12 +292,19 @@ sock _io_accept(ios io_data,int asock)
 
     log_debug(ZONE,"pthsock_client: new socket accepted (fd: %d, ip: %s, port: %d)",fd,inet_ntoa(sa.sin_addr),ntohs(sa.sin_port));
 
-    c = _io_sock(fd);
+
+    p = pool_heap(3*1024);
+    c = pmalloco(p, sizeof(_sock));
+    log_debug(ZONE,"new sock created as %X",c);
+    c->p = p;
+    c->fd = fd;
+    c->state = state_UNKNOWN;
     c->iodata=(void*)io_data;
     c->cb=io_data->cb;
     c->cb_arg=io_data->cb_arg;
-    if(c!=NULL) io_link(c);
-    pth_mutex_release(&m_sync);
+    io_link(c);
+    c->p = p;
+    log_debug(ZONE,"returning accepted socket %X",c);
     return c;
 }
 
@@ -321,7 +314,6 @@ void _io_main(void *arg)
     pth_event_t wevt;       /* the pth event for the mp */
     fd_set wfds,rfds, all_wfds,all_rfds; /* writes, reads, all */
     sock cur, c,temp;    
-    drop d;
     char buff[1024];
     int len, asock;
     int maxfd=0;
@@ -339,19 +331,20 @@ void _io_main(void *arg)
 
     while (1)
     {
-        log_debug(ZONE,"%d:%d Watching %d total sockets",asock,maxfd,maxfd-asock);
+        sock cur_debug;
         rfds=all_rfds;
         wfds=all_wfds;
+        for(cur_debug=io_data->master__list;cur_debug!=NULL;cur_debug=cur_debug->next)
+            log_debug(ZONE,"selecting for %X",cur_debug);
         pth_select_ev(maxfd+1,&rfds,&wfds,NULL,NULL,wevt);
 
-        pth_mutex_acquire(&m_sync,0,NULL); 
 
         /* handle packets that need to be written */
         if (pth_event_occurred(wevt))
         {
             log_debug(ZONE,"Select notified of a write waiting");
             /* do nothing, this was just to get out of select */
-            while ((d=(drop)pth_msgport_get(io_data->wmp))!=NULL);
+            while (pth_msgport_get(io_data->wmp)!=NULL);
         }
 
         maxfd=asock;
@@ -361,7 +354,9 @@ void _io_main(void *arg)
 
         if (FD_ISSET(asock,&rfds)) /* new connection */
         {
+            log_debug(ZONE,"master fd %d readable",asock);
             c=_io_accept(io_data,asock);
+            log_debug(ZONE,"io_accept returned %X",c);
             if(c!=NULL) 
             {
                (*(io_cb)c->cb)(c,NULL,0,IO_NEW,c->cb_arg);
@@ -369,29 +364,31 @@ void _io_main(void *arg)
                if(c->fd>maxfd)maxfd=c->fd;
             }
         }
+        log_debug(ZONE,"maxfd: %d asock: %d master__list: %X",maxfd,asock,io_data->master__list);
 
         cur = io_data->master__list;
         log_debug(ZONE,"looping through sockets");
         while(cur != NULL)
         {
-            log_debug(ZONE,"Checking socket %d",cur->fd);
-            FD_SET(cur->fd,&all_rfds);
+            log_debug(ZONE,"looking at socket %X",cur);
             if(cur->state==state_CLOSE)
             {
+                log_debug(ZONE,"State is CLOSED");
                 temp=cur;
                 cur=cur->next;
-                _io_close(temp);
                 FD_CLR(temp->fd,&all_rfds);
                 FD_CLR(temp->fd,&all_wfds);
+                _io_close(temp);
                 continue;
             }
+            FD_SET(cur->fd,&all_rfds);
             if (FD_ISSET(cur->fd,&rfds))
             { /* we need to read from a socket */
-                log_debug(ZONE,"read event for %d",cur->fd);
+                log_debug(ZONE,"Socket is readable, reading");
                 len = read(cur->fd,buff,sizeof(buff));
                 if(len<=0)
                 {
-                    if(errno==EWOULDBLOCK){log_debug(ZONE,"Not Blocking read");}
+                    if(errno==EWOULDBLOCK) FD_SET(cur->fd,&all_rfds);
                     else
                     {
                         temp=cur;
@@ -405,21 +402,14 @@ void _io_main(void *arg)
                 }
                 else
                 {
-                    log_debug(ZONE,"read %d bytes: %s",len,buff);
+                    buff[len]='\0';
+                    log_debug(ZONE,"read %d bytes",len);
                     (*(io_cb)cur->cb)(cur,buff,len,IO_NORMAL,cur->cb_arg);
-                }
-                if(cur->state==state_CLOSE)
-                {
-                    temp=cur;
-                    cur=cur->next;
-                    _io_close(temp);
-                    FD_CLR(temp->fd,&all_rfds);
-                    FD_CLR(temp->fd,&all_wfds);
-                    continue;
                 }
             }
             else if(FD_ISSET(cur->fd,&wfds))
-            { /* ooo, we are ready to dump the rest of the data */
+            { 
+                /* write the current buffer */
                 int ret=_io_write_dump(cur);
                 if(ret<0)
                 {
@@ -438,13 +428,23 @@ void _io_main(void *arg)
                 else if(!ret) FD_CLR(cur->fd,&all_wfds);
                 else FD_SET(cur->fd,&all_wfds);
             }
-
-            if(cur->wbuffer!=NULL) FD_SET(cur->fd,&all_wfds);
+            /* we may have wanted the socket closed after this operation */
+            if(cur->state==state_CLOSE)
+            {
+                temp=cur;
+                cur=cur->next;
+                FD_CLR(temp->fd,&all_rfds);
+                FD_CLR(temp->fd,&all_wfds);
+                _io_close(temp);
+                continue;
+            }
+            /* if there are packets to be written, wait for a write slot */
+            if(cur->xbuffer!=NULL) FD_SET(cur->fd,&all_wfds);
             else FD_CLR(cur->fd,&all_wfds);
+
             if(cur->fd>maxfd)maxfd=cur->fd;
             cur = cur->next;
         }
-        pth_mutex_release(&m_sync);
     }
     log_debug(ZONE,"This will never get here");
     pth_event_free(wevt,PTH_FREE_THIS);
@@ -455,7 +455,7 @@ iosi io_select(int port,io_cb cb,void *arg)
 {
     ios io_data;
     iosi ret;
-    pool p=pool_heap(2*1024);
+    pool p=pool_heap(3*1024);
     pth_attr_t attr;
     int fd;
     int flags;
