@@ -153,7 +153,7 @@ void dialback_in_read_legacy(mio s, int flags, void *arg, xmlnode x)
 
     if(flags != MIO_XML_NODE) return;
 
-    dialback_miod_write(md, x);
+    dialback_miod_read(md, x);
 }
 
 /* callback for mio for accepted sockets */
