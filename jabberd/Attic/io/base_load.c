@@ -181,6 +181,7 @@ xmlnode xdb_get(xdbcache xc, char *host, jid owner, char *ns)
     char ids[9];
     pth_mutex_t mutex = PTH_MUTEX_INIT;
     pth_cond_t cond = PTH_COND_INIT;
+    char *oldres;
 
     if(xc == NULL || owner == NULL || ns == NULL)
     {
@@ -206,6 +207,7 @@ xmlnode xdb_get(xdbcache xc, char *host, jid owner, char *ns)
     xc->next = &newx;
 
     /* create the xml and deliver the xdb get request */
+    oldres = owner->resource;
     jid_set(owner,ns,JID_RESOURCE);
     x = xmlnode_new_tag("xdb");
     xmlnode_put_attrib(x,"type","get");
@@ -222,6 +224,9 @@ xmlnode xdb_get(xdbcache xc, char *host, jid owner, char *ns)
         pth_mutex_acquire(&mutex, FALSE, NULL);
         pth_cond_await(&cond, &mutex, NULL); /* blocks thread */
     }
+
+    /* restore the resource (if any) */
+    jid_set(owner,oldres,JID_RESOURCE);
 
     /* newx.data is now the returned xml packet or NULL if it was unsuccessful */
 
@@ -240,15 +245,16 @@ xmlnode xdb_get(xdbcache xc, char *host, jid owner, char *ns)
 }
 
 /* sends new xml to replace old, data is NOT freed, app responsible for freeing it */
-int xdb_set(xdbcache xc, char *host, jid owner, xmlnode data)
+int xdb_set(xdbcache xc, char *host, jid owner, char *ns, xmlnode data)
 {
     _xdbcache newx;
     xmlnode x;
     char ids[9];
     pth_mutex_t mutex = PTH_MUTEX_INIT;
     pth_cond_t cond = PTH_COND_INIT;
+    char *oldres; = owner->resource;
 
-    if(xc == NULL || host == NULL || owner == NULL || data == NULL)
+    if(xc == NULL || host == NULL || owner == NULL || ns == NULL || data == NULL)
     {
         fprintf(stderr,"Programming Error: xdb_set() called with NULL\n");
         return 1;
@@ -258,7 +264,7 @@ int xdb_set(xdbcache xc, char *host, jid owner, xmlnode data)
     newx.i = NULL;
     newx.data = data;
     newx.host = host;
-    newx.ns = NULL;
+    newx.ns = ns;
     newx.owner = owner;
     newx.sent = time(NULL);
     newx.preblock = 1; /* flag */
@@ -272,6 +278,8 @@ int xdb_set(xdbcache xc, char *host, jid owner, xmlnode data)
     xc->next = &newx;
 
     /* create the xml and deliver the xdb get request */
+    oldres = owner->resource;
+    jid_set(owner,ns,JID_RESOURCE);
     x = xmlnode_new_tag("xdb");
     xmlnode_put_attrib(x,"type","set");
     xmlnode_put_attrib(x,"to",jid_full(owner));
@@ -288,6 +296,9 @@ int xdb_set(xdbcache xc, char *host, jid owner, xmlnode data)
         pth_mutex_acquire(&mutex, FALSE, NULL);
         pth_cond_await(&cond, &mutex, NULL); /* blocks thread */
     }
+
+    /* restore the resource (if any) */
+    jid_set(owner,oldres,JID_RESOURCE);
 
     /* newx.data is now the returned xml packet or NULL if it was unsuccessful */
 
