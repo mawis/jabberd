@@ -1,7 +1,8 @@
 2005-02-23  Matthias Wimmer  <m@tthias.net>
 
-    * jabberd/lib/genhash.c: only include ghash if requested
-    * jabberd/lib/jabberdlib.h: same
+    * jabberd/lib/jabberdlib.h: make unused code optional
+    * jabberd/lib/genhash.c: same
+    * jabberd/lib/pproxy.c: same
     * configure.in: added --enable-legacy switch
 
 2005-02-22  Matthias Wimmer  <m@tthias.net>

@@ -41,6 +41,8 @@
 
 #include <jabberdlib.h>
 
+#ifdef INCLUDE_LEGACY
+
 /**
  * @file pproxy.c
  * @brief presence proxy database - DEPRECATED
@@ -218,3 +220,4 @@ void ppdb_free(ppdb db)
     pool_free(db->p);
 }
 
+#endif
