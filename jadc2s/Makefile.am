@@ -1,4 +1,4 @@
-sysconf_DATA = jadc2s.xml
+sysconf_DATA = jadc2s.xml.dist
 EXTRA_DIST = PROTO
 
 SUBDIRS = ac-helpers mio util xmlparse
@@ -12,3 +12,15 @@ noinst_HEADERS = jadc2s.h
 jadc2s_LDADD = $(top_builddir)/mio/libmio.la \
             $(top_builddir)/util/libutil.la \
             $(top_builddir)/xmlparse/libxmlparse.la
+
+install-data-hook:
+	@list='$(sysconf_DATA)'; for p in $$list; do \
+      dest=`echo $$p | sed -e s/.dist//`; \
+	  if test -f $(DESTDIR)$(sysconfdir)/$$dest; then \
+        echo "$@ will not overwrite existing $(DESTDIR)$(sysconfdir)/$$dest"; \
+      else \
+	    echo " $(INSTALL_DATA) $$p $(DESTDIR)$(sysconfdir)/$$dest"; \
+	    $(INSTALL_DATA) $$p $(DESTDIR)$(sysconfdir)/$$dest; \
+	  fi; \
+	done
+

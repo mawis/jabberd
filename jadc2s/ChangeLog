@@ -1,3 +1,15 @@
+2003-12-17  Matthias Wimmer  <m@tthias.net>
+
+    * Makefile.am: do overwrite existing configuration file
+    * jadc2s.xml.dist: renamed file jadc2s.xml
+    * NEWS: send and log connection information
+    * PROTO: same
+    * TODO: same
+    * clients.c: same
+    * conn.c: same
+    * connect.c: same
+    * jadc2s.h: same
+
 2003-12-16  Matthias Wimmer  <m@tthias.net>
 
     * jadc2s.c: the -c option to select a configuration file did not work
