@@ -174,6 +174,7 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
                 mio_write(m, q->x, NULL, 0);
                 q = q2;
             }
+            ai->q = NULL;
 
             break;
 
