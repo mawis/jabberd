@@ -16,3 +16,36 @@ config file is then checked to make sure it's valid and fully handled, then regi
 packets are delivered based on ptype, then on the idnode (config file section), then on the registered handlers for that section.
 
 handlers can either return R_PASS (continue), R_OK (done processing and packet delivered), or R_ERR (stop processing because of failure)
+
+
+Example packets:
+
+<log type="notice" from="jabber.org">User foo@jabber.org hit message rate limit</log>
+(from="_internal" for logs from entities that are not services, such as an xdb or internally in jabberd or in a base module)
+(never have a to="" attrib, from is set by originator)
+
+<xdb type="get" to="foo@jabber.org" from="jabber.org"><vCard xmlns="jabber:iq:vcard-temp">...</vCard></xdb>
+(all get/set's are routed to the xdb handler based on the to host, all results are sent to the service identified in the from)
+
+
+---------- RANT on session routing
+for an auth iq, set the from="45a3@10348.polld.jabber.org" to identify the session id within the connection service
+return packets from the manager service can then set sid="" to the from, and set the from="4015@farm03.jabber.org" to identify the session id within the manager service.
+subsequent packets addressed to either session can be identified, and the other's sid is stored within each session.
+sid="" is used in place of the to="" attribute, and only valid within polld.
+
+----------- RANT ON SERVER2SERVER DIALBACK, IGNORE
+A box(5ae8) on the jabber.com server farm has a packet to send to jabber.org, opens socket and sends:
+<spam to="jabber.org" from="5ae8@jabber.com" id="8f" start="e4ee62250deec8b78e7993f8e4433ce1dec50d7e" seq="1000"/>
+The jabber.com server stores the id and sequence associated with "jabber.org" for later validation.
+
+Jabber.org responds to the spam, noticing that jabber.com want's to send it some data, and allows by sending it some spam:
+<spam to="5ae8@jabber.com" from="jabber.org" id="c2" start="b8dd9a886e4286e4528d935134b62f536605e305" seq="500" spam="8f:56454c9898256fd425e1af3c898f953a89d52be5"/>
+The spam="" attrib's latter part is a sha1 hash of the id+start+seq.  Jabber.com
+
+use secret to build start, date in it for auto-expiration, bounce with new 500 error for spam
+
+--------- RANT on mass virtual hosting
+by using a <host/> in a session handler section, it will receive a copy of EVERY outgoing packet (to other servers), and if it uses xdb to lookup the host to see if it handles it, wow, that sucks
+better way would be to write a base module that does the db lookup (and can update when it changes) and registers the idnode w/ the right hostnames in the db.
+
