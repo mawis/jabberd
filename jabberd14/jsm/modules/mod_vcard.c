@@ -37,7 +37,7 @@ mreturn mod_vcard_jud(mapi m)
     vcard = xdb_get(m->si->xc, m->user->id, NS_VCARD);
     key = xmlnode_get_tag_data(m->packet->iq,"key");
 
-    if(vcard != NULL && key != NULL)
+    if(vcard != NULL)
     {
         log_debug("mod_vcard_jud","sending registration for %s",jid_full(m->packet->to));
         reg = jutil_iqnew(JPACKET__SET,NS_REGISTER);
@@ -99,6 +99,9 @@ mreturn mod_vcard_set(mapi m, void *arg)
         jpacket_reset(m->packet);
         js_session_to(m->s,m->packet);
 
+        if(js_config(m->si,"vcard2jud") == NULL)
+            break;
+
         /* send a get request to the jud services */
         for(cur = xmlnode_get_firstchild(js_config(m->si,"browse")); cur != NULL; cur = xmlnode_get_nextsibling(cur))
         {
@@ -108,6 +111,9 @@ mreturn mod_vcard_set(mapi m, void *arg)
             xmlnode_put_attrib(judreg,"to",xmlnode_get_attrib(cur,"jid"));
             xmlnode_put_attrib(judreg,"id","mod_vcard_jud");
             js_session_from(m->s,jpacket_new(judreg));
+
+            /* added this in so it only does the first one */
+            break;
         }
         break;
     default:

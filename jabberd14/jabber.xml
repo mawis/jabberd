@@ -189,6 +189,16 @@
       <update><jabberd:cmdline flag="h">localhost</jabberd:cmdline></update>
 
       <!--
+      This enables the server to automatically update the 
+      user directory when a vcard is edited.  The update is
+      only sent to the first listed jud service below.  It is
+      safe to remove this flag if you do not want any users
+      automatically added to the directory.
+      -->
+
+      <vcard2jud/>
+
+      <!--
       The <browse/> section identifies the transports and other
       services that are available from this server. Note that each
       entity identified here must exist elsewhere or be further 

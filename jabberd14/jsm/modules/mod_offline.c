@@ -38,6 +38,7 @@ mreturn mod_offline_message(mapi m)
 {
     session top;
     xmlnode cur = NULL, cur2;
+    char str[10];
 
     /* if there's an existing session, just give it to them */
     if((top = js_session_primary(m->user)) != NULL)
@@ -68,7 +69,13 @@ mreturn mod_offline_message(mapi m)
 
     log_debug("mod_offline","handling message for %s",m->user->user);
 
+    if((cur2 = xmlnode_get_tag(m->packet->x,"x?xmlns=" NS_EXPIRE)) != NULL)
+    {
+        sprintf(str,"%d",(int)time(NULL));
+        xmlnode_put_attrib(cur2,"stored",str);
+    }
     jutil_delay(m->packet->x,"Offline Storage");
+
     if(xdb_act(m->si->xc, m->user->id, NS_OFFLINE, "insert", NULL, m->packet->x)) /* feed the message itself, and do an xdb insert */
         return M_PASS;
 
@@ -109,7 +116,10 @@ mreturn mod_offline_handler(mapi m, void *arg)
 /* watches for when the user is available and sends out offline messages */
 void mod_offline_out_available(mapi m)
 {
-    xmlnode opts, cur;
+    xmlnode opts, cur, x;
+    int now = time(NULL);
+    int expire, stored, diff;
+    char str[10];
 
     log_debug("mod_offline","avability established, check for messages");
 
@@ -119,10 +129,25 @@ void mod_offline_out_available(mapi m)
     /* check for msgs */
     for(cur = xmlnode_get_firstchild(opts); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
+        /* check for expired stuff */
+        if((x = xmlnode_get_tag(cur,"x?xmlns=" NS_EXPIRE)) != NULL)
+        {
+            expire = j_atoi(xmlnode_get_attrib(x,"seconds"),0);
+            stored = j_atoi(xmlnode_get_attrib(x,"stored"),now);
+            diff = now - stored;
+            if(diff >= expire)
+            {
+                log_debug(ZONE,"dropping expired message %s",xmlnode2str(cur));
+                xmlnode_hide(cur);
+                continue;
+            }
+            sprintf(str,"%d",expire - diff);
+            xmlnode_put_attrib(x,"seconds",str);
+            xmlnode_hide_attrib(x,"stored");
+        }
         js_session_to(m->s,jpacket_new(xmlnode_dup(cur)));
         xmlnode_hide(cur);
     }
-
     /* messages are gone, save the new sun-dried opts container */
     xdb_set(m->si->xc, m->user->id, NS_OFFLINE, opts); /* can't do anything if this fails anyway :) */
     xmlnode_free(opts);
