@@ -83,6 +83,7 @@ void js_mapi_session(event e, session s, mcall c, void *arg)
     newl->c = c;
     newl->arg = arg;
     newl->mask = 0x00;
+    newl->next = NULL;
 
     /* append */
     if(s->events[e] == NULL)
