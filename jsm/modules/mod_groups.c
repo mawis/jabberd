@@ -657,25 +657,23 @@ void mod_groups(jsmi si)
     log_debug("mod_groups","initing");
 
     config = js_config(si,"groups");
-    if (config == NULL)
-    {
-        return;
-    }
-
     mi = pmalloco(si->p,sizeof(_mod_groups_i));
 
-    mi->config = ghash_create(67,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
-    for (cur = xmlnode_get_firstchild(config); cur != NULL; cur = xmlnode_get_nextsibling(cur))
+    if (config != NULL)
     {
-        if (j_strcmp(xmlnode_get_name(cur),"group") != 0) continue;
-        gid = xmlnode_get_attrib(cur,"id");
-        if (gid == NULL)
+        mi->config = ghash_create(67,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+        for (cur = xmlnode_get_firstchild(config); cur != NULL; cur = xmlnode_get_nextsibling(cur))
         {
-            log_error("sessions","Error loading shared group config");
-            return;
-        }
+            if (j_strcmp(xmlnode_get_name(cur),"group") != 0) continue;
+            gid = xmlnode_get_attrib(cur,"id");
+            if (gid == NULL)
+            {
+                log_error("sessions","Error loading shared group config");
+                return;
+            }
 
-        ghash_put(mi->config,pstrdup(si->p,gid),cur);
+            ghash_put(mi->config,pstrdup(si->p,gid),cur);
+        }
     }
 
     mi->groups = ghash_create(67,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
