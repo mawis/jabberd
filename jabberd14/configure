@@ -76,6 +76,9 @@ case $hosttype in
         LIBS="$LIBS -ldl -lresolv"
         XLDFLAGS="$XLDFLAGS -Wl,--export-dynamic";;
     SunOS)
+        if [ -n `ld -V | grep GNU` ]; then
+            XLDFLAGS="$XLDFLAGS -Wl,-export-dynamic"
+        fi
         CFLAGS="$CFLAGS"
         LIBS="$LIBS -ldl -lsocket -lnsl -lresolv";;
 esac
