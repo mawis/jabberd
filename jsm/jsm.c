@@ -59,7 +59,7 @@ result jsm_stat(void *arg)
     return r_DONE;
 }
 
-int __jsm_shutdown(void *arg, const void *key, void *data)
+void __jsm_shutdown(xht h, const char *key, void *data, void *arg)
 {
     udata u = (udata)data;	/* cast the pointer into udata */
     session cur;
@@ -68,20 +68,19 @@ int __jsm_shutdown(void *arg, const void *key, void *data)
     {
         js_session_end(cur, "JSM shutdown");
     }
-    return 1;
 }
 
 
 /* callback for walking the host hash tree */
-int _jsm_shutdown(void *arg, const void *key, void *data)
+void _jsm_shutdown(xht h, const char *key, void *data, void *arg)
 {
-    HASHTABLE ht = (HASHTABLE)data;
+    xht ht = (xht)data;
 
     log_debug(ZONE,"JSM SHUTDOWN: deleting users for host %s",(char*)key);
 
-    ghash_walk(ht,__jsm_shutdown,NULL);
+    xhash_walk(ht,__jsm_shutdown,NULL);
 
-    return 1;
+    xhash_free(ht);
 }
 
 void jsm_shutdown(void *arg)
@@ -89,8 +88,10 @@ void jsm_shutdown(void *arg)
     jsmi si = (jsmi)arg;
 
     log_debug(ZONE, "JSM SHUTDOWN: Begining shutdown sequence");
-    ghash_walk(si->hosts,_jsm_shutdown,arg);
-    ghash_destroy(si->hosts);
+    js_mapi_call(si, e_SHUTDOWN, NULL, NULL, NULL);
+
+    xhash_walk(si->hosts,_jsm_shutdown,arg);
+    xhash_free(si->hosts);
     xmlnode_free(si->config);
 }
 
@@ -109,7 +110,7 @@ void jsm(instance i, xmlnode x)
     si->p = i->p;
     si->xc = xdb_cache(i); /* getting xdb_* handle and fetching config */
     si->config = xdb_get(si->xc, jid_new(xmlnode_pool(x),"config@-internal"),"jabber:config:jsm");
-    si->hosts = ghash_create(j_atoi(xmlnode_get_tag_data(si->config,"maxhosts"),HOSTS_PRIME),(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+    si->hosts = xhash_new(j_atoi(xmlnode_get_tag_data(si->config,"maxhosts"),HOSTS_PRIME));
     for(n=0;n<e_LAST;n++)
         si->events[n] = NULL;
 

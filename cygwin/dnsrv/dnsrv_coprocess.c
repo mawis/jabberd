@@ -71,9 +71,9 @@ typedef struct
      int             in;                 /* Inbound data handle */
      int             out;                /* Outbound data handle */
      int             pid;                /* Coprocess PID */
-     HASHTABLE       packet_table; /* Hash of dns_packet_lists */
+     xht	     packet_table; /* Hash of dns_packet_lists */
      int             packet_timeout; /* how long to keep packets in the queue */
-     HASHTABLE       cache_table; /* Hash of resolved IPs */
+     xht	     cache_table; /* Hash of resolved IPs */
      int             cache_timeout; /* how long to keep resolutions in the cache */
      pool            mempool;
      dns_resend_list svclist;

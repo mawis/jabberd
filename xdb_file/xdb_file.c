@@ -70,11 +70,11 @@ typedef struct xdbf_struct
     char *spool;
     instance i;
     int timeout;
-    HASHTABLE cache;
+    xht cache;
     int sizelimit;
 } *xdbf, _xdbf;
 
-int _xdb_file_purge(void *arg, const void *key, void *data)
+void _xdb_file_purge(xht h, const char *key, void *data, void *arg)
 {
     xdbf xf = (xdbf)arg;
     cacher c = (cacher)data;
@@ -83,11 +83,9 @@ int _xdb_file_purge(void *arg, const void *key, void *data)
     if((now - c->lastset) > xf->timeout)
     {
         log_debug(ZONE,"purging %s",c->fname);
-        ghash_remove(xf->cache,c->fname);
+        xhash_zap(xf->cache,c->fname);
         xmlnode_free(c->file);
     }
-
-    return 1;
 }
 
 /* walk the table looking for stale files to expire */
@@ -96,13 +94,13 @@ result xdb_file_purge(void *arg)
     xdbf xf = (xdbf)arg;
 
     log_debug(ZONE,"purge check");
-    ghash_walk(xf->cache,_xdb_file_purge,(void *)xf);
+    xhash_walk(xf->cache,_xdb_file_purge,(void *)xf);
 
     return r_DONE;
 }
 
 /* this function acts as a loader, getting xml data from a file */
-xmlnode xdb_file_load(char *host, char *fname, HASHTABLE cache)
+xmlnode xdb_file_load(char *host, char *fname, xht cache)
 {
     xmlnode data = NULL;
     cacher c;
@@ -111,7 +109,7 @@ xmlnode xdb_file_load(char *host, char *fname, HASHTABLE cache)
     log_debug(ZONE,"loading %s",fname);
 
     /* first, check the cache */
-    if((c = ghash_get(cache,fname)) != NULL)
+    if((c = xhash_get(cache,fname)) != NULL)
         return c->file;
 
     /* test the file first, so we can be more descriptive */
@@ -133,7 +131,7 @@ xmlnode xdb_file_load(char *host, char *fname, HASHTABLE cache)
     c->fname = pstrdup(xmlnode_pool(data),fname);
     c->lastset = time(NULL);
     c->file = data;
-    ghash_put(cache,c->fname,c);
+    xhash_put(cache,c->fname,c);
 
     return data;
 }
@@ -375,7 +373,7 @@ result xdb_file_phandler(instance i, dpacket p, void *arg)
         if(xf->timeout == 0 || flag_set)
         {
             log_debug(ZONE,"decaching %s",full);
-            ghash_remove(xf->cache,full);
+            xhash_zap(xf->cache,full);
             xmlnode_free(file);
         }
         return r_DONE;
@@ -387,7 +385,7 @@ result xdb_file_phandler(instance i, dpacket p, void *arg)
 void xdb_file_cleanup(void *arg)
 {
     xdbf xf = (xdbf)arg;
-    ghash_destroy(xf->cache);
+    xhash_free(xf->cache);
 }
 
 /**
@@ -547,7 +545,7 @@ void xdb_file(instance i, xmlnode x)
     xf->timeout = timeout;
     xf->sizelimit = sizelimit;
     xf->i = i;
-    xf->cache = ghash_create(j_atoi(xmlnode_get_tag_data(config,"maxfiles"),FILES_PRIME),(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+    xf->cache = xhash_new(j_atoi(xmlnode_get_tag_data(config,"maxfiles"),FILES_PRIME));
 
     register_phandler(i, o_DELIVER, xdb_file_phandler, (void *)xf);
     if(timeout > 0) /* 0 is expired immediately, -1 is cached forever */

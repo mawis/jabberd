@@ -51,25 +51,27 @@
 
 #include "jabberd.h"
 #include "single.h"
-HASHTABLE cmd__line, debug__zones;
-extern HASHTABLE instance__ids;
+
+xht cmd__line, debug__zones;
 extern int deliver__flag;
 extern xmlnode greymatter__;
 pool jabberd__runtime = NULL;
 static char *cfgfile = NULL;
 int jabberd__signalflag = 0;
 
+extern xht instance__ids;
+
 /*** internal functions ***/
 int configurate(char *file);
 void static_init(void);
 void dynamic_init(void);
 void deliver_init(void);
+void deliver_shutdown(void);
 void heartbeat_birth(void);
 void heartbeat_death(void);
 int configo(int exec);
 void shutdown_callbacks(void);
 int config_reload(char *file);
-int  instance_startup(xmlnode x, int exec);
 void instance_shutdown(instance i);
 void _jabberd_signal(int sig);
 void _jabberd_atexit(void);
@@ -84,6 +86,8 @@ int main (int argc, char** argv)
     int do_debug = 0;           /* Debug output option, default no */
     int do_background = 0;      /* Daemonize option, default no */
 
+    register_shutdown((shutdown_func)pool_free, cfg_pool);
+
     jabberd__runtime = pool_new();
 
     /* register this handler to remove our pidfile at exit */
@@ -91,7 +95,7 @@ int main (int argc, char** argv)
 
     /* start by assuming the parameters were entered correctly */
     help = 0;
-    cmd__line = ghash_create_pool(jabberd__runtime, 11,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+    cmd__line = xhash_new(11);
 
     /* process the parameterss one at a time */
     for(i = 1; i < argc; i++)
@@ -131,7 +135,7 @@ int main (int argc, char** argv)
             cmd[0]=*c;
             if(i+1<argc)
             {
-               ghash_put(cmd__line,cmd,argv[++i]);
+               xhash_put(cmd__line,cmd,argv[++i]);
             }else{
                 help=1;
                 break;
@@ -140,10 +144,10 @@ int main (int argc, char** argv)
     }
 
     /* the special -Z flag provides a list of zones to filter debug output for, flagged w/ a simple hash */
-    if((cmd = ghash_get(cmd__line,"Z")) != NULL)
+    if((cmd = xhash_get(cmd__line,"Z")) != NULL)
     {
         set_debug_flag(1);
-        debug__zones = ghash_create_pool(jabberd__runtime, 11,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+	debug__zones = xhash_new(11);
         while(cmd != NULL)
         {
             c = strchr(cmd,',');
@@ -152,7 +156,7 @@ int main (int argc, char** argv)
                 *c = '\0';
                 c++;
             }
-            ghash_put(debug__zones,cmd,cmd);
+            xhash_put(debug__zones,cmd,cmd);
             cmd = c;
         }
     }else{
@@ -172,11 +176,11 @@ int main (int argc, char** argv)
 #ifdef SINGLE
     SINGLE_STARTUP
 #else
-    if((home = ghash_get(cmd__line,"H")) == NULL)
+    if((home = xhash_get(cmd__line,"H")) == NULL)
         home = pstrdup(jabberd__runtime,HOME);
 #endif
     /* Switch to the specified user */
-    if ((cmd = ghash_get(cmd__line, "U")) != NULL)
+    if ((cmd = xhash_get(cmd__line, "U")) != NULL)
     {
         struct passwd* user = NULL;
 
@@ -213,7 +217,7 @@ int main (int argc, char** argv)
     }
 
     /* load the config passing the file if it was manually set */
-    cfgfile=ghash_get(cmd__line,"c");
+    cfgfile=xhash_get(cmd__line,"c");
     if(configurate(cfgfile))
         exit(1);
 
@@ -329,10 +333,6 @@ void _jabberd_shutdown(void)
     /* kill any leftover threads */
     pth_kill();
 
-#ifdef POOL_DEBUG
-    pool_stat(1);
-#endif
-
     /* exit jabberd, _jabberd_atexit() will be called */
     exit(0);
 }
@@ -355,8 +355,30 @@ void _jabberd_atexit(void)
     }
     xmlnode_free(greymatter__);
 
-    /* base modules use jabberd__runtime to know when to shutdown */
-    pool_free(jabberd__runtime);
+    /* free delivery hashes */
+    deliver_shutdown();
+
+#ifdef LIBIDN
+    /* free stringprep caches */
+    jid_stop_caching();
+#endif
+
+    /* free instances hash table */
+    if (instance__ids != NULL)
+	xhash_free(instance__ids);
+
+    /* free command line options */
+    if (cmd__line != NULL)
+	xhash_free(cmd__line);
+
+    /* free remaining global memory pools */
+    if (jabberd__runtime != NULL)
+	pool_free(jabberd__runtime);
+    
+#ifdef POOL_DEBUG
+    /* print final pool statistics ... what we missed to free */
+    pool_stat(1);
+#endif
 }
 
 /* process the signal */

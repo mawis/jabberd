@@ -52,7 +52,7 @@ typedef struct dcfg_struct
 {
     int match;
     char *folder;
-    HASHTABLE cache;
+    xht cache;
 } *dcfg, _dcfg;
 
 typedef struct dfile_struct
@@ -82,7 +82,7 @@ result base_dynamic_deliver(instance i, dpacket p, void* arg)
         match = p->id->user;
 
     /* check for an existing instance */
-    f = ghash_get(d->cache, match);
+    f = xhash_get(d->cache, match);
 
     /* if this is a new match or the old one dissappeared or was replaced */
     if(f == NULL || stat(f->file, &m) != 0 || m.st_mtime > f->mtime)
@@ -122,10 +122,10 @@ result base_dynamic_deliver(instance i, dpacket p, void* arg)
         if(d->match)
         {
             jid_set(f->id,NULL,JID_USER);
-            ghash_put(d->cache, f->id->resource, (void *)f);
+            xhash_put(d->cache, f->id->resource, (void *)f);
         }else{
             jid_set(f->id,NULL,JID_RESOURCE);
-            ghash_put(d->cache, f->id->user, (void *)f);
+            xhash_put(d->cache, f->id->user, (void *)f);
         }
         f->i.p = pnew;
         f->i.id = jid_full(f->id);
@@ -148,7 +148,7 @@ result base_dynamic_deliver(instance i, dpacket p, void* arg)
             log_alert(p->host,"Dynamic initialization failed for %s",file);
             deliver_fail(p,"Unable to start handler");
             pool_free(pnew);
-            ghash_remove(d->cache, match);
+            xhash_zap(d->cache, match);
             return r_DONE;
         }
     }
@@ -183,7 +183,7 @@ result base_dynamic_config(instance i, xmlnode x, void *arg)
 
     d = pmalloco(i->p, sizeof(_dcfg));
     d->folder = xmlnode_get_tag_data(x,"folder");
-    d->cache = ghash_create(j_atoi(xmlnode_get_tag_data(x,"maxfiles"),101),(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+    d->cache = xhash_new(j_atoi(xmlnode_get_tag_data(x,"maxfiles"),101));
     if(j_strcmp(xmlnode_get_tag_data(x,"match"),"resource") == 0)
         d->match = 1;
 

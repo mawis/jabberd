@@ -45,13 +45,13 @@
 typedef struct db_struct
 {
     instance i;
-    HASHTABLE nscache; /* host/ip local resolution cache */
-    HASHTABLE out_connecting; /* where unvalidated in-progress connections are, key is to/from */
-    HASHTABLE out_ok_db; /* hash table of all connected dialback hosts, key is same to/from */
-    HASHTABLE out_ok_legacy; /* hash table of all connected legacy hosts, key is same to/from */
-    HASHTABLE in_id; /* all the incoming connections waiting to be checked, rand id attrib is key */
-    HASHTABLE in_ok_db; /* all the incoming dialback connections that are ok, ID@to/from is key  */
-    HASHTABLE in_ok_legacy; /* all the incoming legacy connections that are ok, ID@to is key */
+    xht nscache; /* host/ip local resolution cache */
+    xht out_connecting; /* where unvalidated in-progress connections are, key is to/from */
+    xht out_ok_db; /* hash table of all connected dialback hosts, key is same to/from */
+    xht out_ok_legacy; /* hash table of all connected legacy hosts, key is same to/from */
+    xht in_id; /* all the incoming connections waiting to be checked, rand id attrib is key */
+    xht in_ok_db; /* all the incoming dialback connections that are ok, ID@to/from is key  */
+    xht in_ok_legacy; /* all the incoming legacy connections that are ok, ID@to is key */
     char *secret; /* our dialback secret */
     int legacy; /* flag to allow old servers */
     int timeout_packets;
@@ -74,7 +74,7 @@ void dialback_in_verify(db d, xmlnode x);
 
 char *dialback_randstr(void);
 char *dialback_merlin(pool p, char *secret, char *to, char *challenge);
-void dialback_miod_hash(miod md, HASHTABLE ht, jid key);
+void dialback_miod_hash(miod md, xht ht, jid key);
 miod dialback_miod_new(db d, mio m);
 void dialback_miod_write(miod md, xmlnode x);
 void dialback_miod_read(miod md, xmlnode x);
