@@ -19,6 +19,8 @@ void _mio_xstream_startElement(mio m, const char* name, const char** attribs)
 	    {
             if(m->cb != NULL)
 	            (*(mio_xml_cb)m->cb)(m, MIO_XML_ROOT, m->cb_arg, m->stacknode);
+            else
+                xmlnode_free(m->stacknode);
 	        m->stacknode = NULL;
             m->root = 1; 
 	    }
@@ -46,6 +48,8 @@ void _mio_xstream_endElement(mio m, const char* name)
 	    {
             if(m->cb != NULL)
 	            (*(mio_xml_cb)m->cb)(m, MIO_XML_NODE, m->cb_arg, m->stacknode);
+            else
+                xmlnode_free(m->stacknode);
 	    }
 	    m->stacknode = parent;
     }
@@ -66,7 +70,7 @@ void _mio_xstream_cleanup(void* arg)
     m->parser = NULL;
 }
 
-mio _mio_xstream_init(mio m)
+void _mio_xstream_init(mio m)
 {
     if (m != NULL)
     {
@@ -78,11 +82,9 @@ mio _mio_xstream_init(mio m)
 	    /* Setup a cleanup routine to release the parser when everything is done */
 	    pool_cleanup(m->p, _mio_xstream_cleanup, (void*)m);
     }
-
-    return m;
 }
 
-/* this function is called on a readable socket */
+/* this function is called when a socket reads data */
 void _mio_xml_parser(mio m, const void *buf, size_t bufsz)
 {
     /* init the parser if this is the first read call */
@@ -90,9 +92,6 @@ void _mio_xml_parser(mio m, const void *buf, size_t bufsz)
         _mio_xstream_init(m);
 
     if(XML_Parse(m->parser, buf, bufsz, 0) < 0)
-    {
         if(m->cb != NULL)
             (*(mio_std_cb)m->cb)(m, MIO_ERROR, m->cb_arg);
-        return;
-    }
 }
