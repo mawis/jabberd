@@ -221,12 +221,6 @@ int _mio_ssl_accept(mio m, struct sockaddr *serv_addr, socklen_t *addrlen)
     int sret;
     int flags;
 
-    if(m->ip == NULL)
-    {
-        log_warn(ZONE, "SSL accept without an IP");
-        return -1;
-    }
-
     fd = accept(m->fd, serv_addr, addrlen);
 
     /* set the socket to non-blocking as this is not
@@ -234,6 +228,12 @@ int _mio_ssl_accept(mio m, struct sockaddr *serv_addr, socklen_t *addrlen)
     flags =  fcntl(fd, F_GETFL, 0);
     flags |= O_NONBLOCK;
     fcntl(fd, F_SETFL, flags);
+
+    if(m->ip == NULL)
+    {
+        log_warn(ZONE, "SSL accept but no IP given in configuration");
+        return -1;
+    }
 
     ctx = ghash_get(ssl__ctxs, m->ip);
     if(ctx == NULL)
