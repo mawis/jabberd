@@ -72,9 +72,9 @@ mreturn mod_auth_digest_yum(mapi m, void *arg)
     log_debug("mod_auth_digest","comparing %s %s",digest,mydigest);
 
     if(m->user->pass == NULL || sid == NULL || mydigest == NULL)
-        jutil_error(m->packet->x, TERROR_NOTIMPL);
+        jutil_error_xmpp(m->packet->x, XTERROR_NOTIMPL);
     else if(j_strcasecmp(digest, mydigest) != 0)
-        jutil_error(m->packet->x, TERROR_AUTH);
+        jutil_error_xmpp(m->packet->x, XTERROR_AUTH);
     else
         jutil_iqresult(m->packet->x);
 
@@ -112,7 +112,7 @@ mreturn mod_auth_digest_reg(mapi m, void *arg)
     /* tuck away for a rainy day */
     if(mod_auth_digest_reset(m,id,pass))
     {
-        jutil_error(m->packet->x,(terror){500,"Password Storage Failed"});
+        jutil_error_xmpp(m->packet->x,(xterror){500,"Password Storage Failed","wait","internal-server-error"});
         return M_HANDLED;
     }
 

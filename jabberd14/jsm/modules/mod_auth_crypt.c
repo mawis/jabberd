@@ -106,7 +106,7 @@ mreturn mod_auth_crypt_jane(mapi m, void *arg)
     }
 
     if(strcmp(passA, passB) != 0)
-	jutil_error(m->packet->x, TERROR_AUTH);
+	jutil_error_xmpp(m->packet->x, XTERROR_AUTH);
     else
 	jutil_iqresult(m->packet->x);
 
@@ -180,7 +180,7 @@ mreturn mod_auth_crypt_reg(mapi m, void *arg)
 
     if(mod_auth_crypt_reset(m,m->packet->to,xmlnode_get_tag(m->packet->iq,"password")))
     {
-        jutil_error(m->packet->x,(terror){500,"Password Storage Failed"});
+        jutil_error_xmpp(m->packet->x,(xterror){500,"Password Storage Failed","wait","internal-server-error"});
         return M_HANDLED;
     }
 
@@ -200,7 +200,7 @@ mreturn mod_auth_crypt_server(mapi m, void *arg)
 
     if(mod_auth_crypt_reset(m,m->user->id,pass))
     {
-        js_bounce(m->si,m->packet->x,(terror){500,"Password Storage Failed"});
+        js_bounce_xmpp(m->si,m->packet->x,(xterror){500,"Password Storage Failed","wait","internal-server-error"});
         return M_HANDLED;
     }
     return M_PASS;

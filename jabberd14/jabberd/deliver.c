@@ -600,7 +600,7 @@ void register_phandler(instance id, order o, phandler f, void *arg)
 /* bounce on the delivery, use the result to better gague what went wrong */
 void deliver_fail(dpacket p, char *err)
 {
-    terror t;
+    xterror xt;
     char message[MAX_LOG_SIZE];
 
     log_debug(ZONE,"delivery failed (%s)",err);
@@ -647,12 +647,12 @@ void deliver_fail(dpacket p, char *err)
             /* turn into an error */
             if(err == NULL)
             {
-                jutil_error(p->x,TERROR_EXTERNAL);
+                jutil_error_xmpp(p->x,XTERROR_EXTERNAL);
             }else{
-                t.code = 502;
-                t.msg[0] = '\0';
-                strcat(t.msg,err); /* c sucks */
-                jutil_error(p->x,t);
+		xt = XTERROR_EXTERNAL;
+                xt.msg[0] = '\0';
+                strcat(xt.msg,err); /* c sucks */
+                jutil_error_xmpp(p->x,xt);
             }
             deliver(dpacket_new(p->x),NULL);
         }

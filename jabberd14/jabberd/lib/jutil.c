@@ -213,20 +213,120 @@ char *jutil_timestamp(void)
     return timestamp;
 }
 
-void jutil_error(xmlnode x, terror E)
+void jutil_error_map(terror old, xterror mapped)
+{
+    mapped.code = old.code;
+    if (old.msg == NULL)
+	mapped.msg[0] = 0;
+    else
+	strncpy(mapped.msg, old.msg, sizeof(mapped.msg));
+
+    switch (old.code)
+    {
+	case 302:
+	    strcpy(mapped.type, "modify");
+	    strcpy(mapped.condition, "redirect");
+	    break;
+	case 400:
+	    strcpy(mapped.type, "modify");
+	    strcpy(mapped.condition, "bad-request");
+	    break;
+	case 401:
+	    strcpy(mapped.type, "auth");
+	    strcpy(mapped.condition, "not-authorized");
+	    break;
+	case 402:
+	    strcpy(mapped.type, "auth");
+	    strcpy(mapped.condition, "payment-required");
+	    break;
+	case 403:
+	    strcpy(mapped.type, "auth");
+	    strcpy(mapped.condition, "forbidden");
+	    break;
+	case 404:
+	    strcpy(mapped.type, "cancel");
+	    strcpy(mapped.condition, "item-not-found");
+	    break;
+	case 405:
+	    strcpy(mapped.type, "cancel");
+	    strcpy(mapped.condition, "not-allowed");
+	    break;
+	case 406:
+	    strcpy(mapped.type, "modify");
+	    strcpy(mapped.condition, "not-acceptable");
+	    break;
+	case 407:
+	    strcpy(mapped.type, "auth");
+	    strcpy(mapped.condition, "registration-requited");
+	    break;
+	case 408:
+	    strcpy(mapped.type, "wait");
+	    strcpy(mapped.condition, "remote-server-timeout");
+	    break;
+	case 409:
+	    strcpy(mapped.type, "cancel");
+	    strcpy(mapped.condition, "conflict");
+	    break;
+	case 500:
+	    strcpy(mapped.type, "wait");
+	    strcpy(mapped.condition, "internal-server-error");
+	    break;
+	case 501:
+	    strcpy(mapped.type, "cancel");
+	    strcpy(mapped.condition, "feature-not-implemented");
+	    break;
+	case 502:
+	    strcpy(mapped.type, "wait");
+	    strcpy(mapped.condition, "service-unavailable");
+	    break;
+	case 503:
+	    strcpy(mapped.type, "cancel");
+	    strcpy(mapped.condition, "service-unavailable");
+	    break;
+	case 504:
+	    strcpy(mapped.type, "wait");
+	    strcpy(mapped.condition, "remote-server-timeout");
+	    break;
+	case 510:
+	    strcpy(mapped.type, "cancel");
+	    strcpy(mapped.condition, "service-unavailable");
+	    break;
+	default:
+	    strcpy(mapped.type, "wait");
+	    strcpy(mapped.condition, "undefined-condition");
+    }
+}
+
+void jutil_error_xmpp(xmlnode x, xterror E)
 {
     xmlnode err;
     char code[4];
 
-    xmlnode_put_attrib(x,"type","error");
-    err = xmlnode_insert_tag(x,"error");
+    xmlnode_put_attrib(x, "type", "error");
+    err = xmlnode_insert_tag(x, "error");
 
-    snprintf(code,4,"%d",E.code);
-    xmlnode_put_attrib(err,"code",code);
-    if(E.msg != NULL)
-        xmlnode_insert_cdata(err,E.msg,strlen(E.msg));
+    snprintf(code, sizeof(code), "%d", E.code);
+    xmlnode_put_attrib(err, "code", code);
+    if (E.type != NULL)
+	xmlnode_put_attrib(err, "type", E.type);
+    if (E.condition != NULL)
+	xmlnode_put_attrib(xmlnode_insert_tag(err, E.condition), "xmlns", NS_XMPP_STANZAS);
+    if (E.msg != NULL)
+    {
+	xmlnode text;
+	text = xmlnode_insert_tag(err, "text");
+	xmlnode_put_attrib(text, "xmlns", NS_XMPP_STANZAS);
+	xmlnode_insert_cdata(text, E.msg, strlen(E.msg));
+    }
 
     jutil_tofrom(x);
+}
+
+void jutil_error(xmlnode x, terror E)
+{
+    xterror xE;
+    jutil_error_map(E, xE);
+    jutil_error_xmpp(x, xE);
 }
 
 void jutil_delay(xmlnode msg, char *reason)

@@ -222,7 +222,7 @@ void dnsrv_resend(xmlnode pkt, char *ip, char *to)
 	 xmlnode_put_attrib(pkt, "to", to);
 	 xmlnode_put_attrib(pkt, "ip", ip);
     }else{
-	 jutil_error(pkt, (terror){502, "Unable to resolve hostname."});
+	 jutil_error_xmpp(pkt, (xterror){502, "Unable to resolve hostname.","wait","service-unavailable"});
 	 xmlnode_put_attrib(pkt, "iperror", "");
     }
     deliver(dpacket_new(pkt),NULL);

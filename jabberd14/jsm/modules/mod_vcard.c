@@ -100,7 +100,7 @@ mreturn mod_vcard_set(mapi m, void *arg)
         if(xdb_set(m->si->xc, m->user->id, NS_VCARD, m->packet->iq))
         {
             /* failed */
-            jutil_error(m->packet->x,TERROR_UNAVAIL);
+            jutil_error_xmpp(m->packet->x,XTERROR_UNAVAIL);
         }else{
             jutil_iqresult(m->packet->x);
         }
@@ -150,7 +150,7 @@ mreturn mod_vcard_reply(mapi m, void *arg)
     case JPACKET__ERROR:
         return M_PASS;
     case JPACKET__SET:
-        js_bounce(m->si,m->packet->x,TERROR_NOTALLOWED);
+        js_bounce_xmpp(m->si,m->packet->x,XTERROR_NOTALLOWED);
         return M_HANDLED;
     }
 

@@ -66,7 +66,7 @@ void js_authreg(void *arg)
         user = js_user(si, p->to, NULL);
         if(user == NULL)
         {
-            jutil_error(p->x, TERROR_AUTH);
+            jutil_error_xmpp(p->x, XTERROR_AUTH);
         }else if(!js_mapi_call(si, e_AUTH, p, user, NULL)){
             if(jpacket_subtype(p) == JPACKET__GET)
             { /* if it's a type="get" for auth, everybody mods it and we result and return it */
@@ -74,7 +74,7 @@ void js_authreg(void *arg)
                 xmlnode_put_attrib(p->x,"type","result");
                 jutil_tofrom(p->x);
             }else{ /* type="set" that didn't get handled used to be a problem, but now auth_plain passes on failed checks so it might be normal */
-                jutil_error(p->x, TERROR_AUTH);
+                jutil_error_xmpp(p->x, XTERROR_AUTH);
             }
         }
 
@@ -85,7 +85,7 @@ void js_authreg(void *arg)
             /* let modules try to handle it */
             if(!js_mapi_call(si, e_REGISTER, p, NULL, NULL))
             {
-                jutil_error(p->x, TERROR_NOTIMPL);
+                jutil_error_xmpp(p->x, XTERROR_NOTIMPL);
             }else{ /* make a reply and the username requirement is built-in :) */
                 xmlnode_put_attrib(p->x,"type","result");
                 jutil_tofrom(p->x);
@@ -95,16 +95,16 @@ void js_authreg(void *arg)
             log_debug(ZONE,"registration set request");
             if(p->to->user == NULL || xmlnode_get_tag_data(p->iq,"password") == NULL)
             {
-                jutil_error(p->x, TERROR_NOTACCEPTABLE);
+                jutil_error_xmpp(p->x, XTERROR_NOTACCEPTABLE);
             }else if(js_user(si,p->to,NULL) != NULL){
-                jutil_error(p->x, (terror){409,"Username Not Available"});
+                jutil_error_xmpp(p->x, (xterror){409,"Username Not Available","cancel","conflict"});
             }else if(!js_mapi_call(si, e_REGISTER, p, NULL, NULL)){
-                jutil_error(p->x, TERROR_NOTIMPL);
+                jutil_error_xmpp(p->x, XTERROR_NOTIMPL);
             }
         }
 
     }else{ /* unknown namespace or other problem */
-        jutil_error(p->x, TERROR_NOTACCEPTABLE);
+        jutil_error_xmpp(p->x, XTERROR_NOTACCEPTABLE);
     }
 
     /* restore the route packet */

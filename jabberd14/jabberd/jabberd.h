@@ -33,7 +33,7 @@
 #include <ssl.h>
 #endif /* HAVE_SSL */
 
-#define VERSION "1.4.3"
+#define VERSION "1.4cvs"
 
 /* packet types */
 typedef enum { p_NONE, p_NORM, p_XDB, p_LOG, p_ROUTE } ptype;
@@ -148,8 +148,8 @@ int xdb_act(xdbcache xc, jid owner, char *ns, char *act, char *match, xmlnode da
 int xdb_set(xdbcache xc, jid owner, char *ns, xmlnode data); /* sends new xml to replace old, returns non-zero if failure */
 
 /* Error messages */
-#define SERROR_NAMESPACE "<stream:error>Invalid namespace specified.</stream:error>"
-#define SERROR_INVALIDHOST "<stream:error>Invalid hostname used.</stream:error>"
+#define SERROR_NAMESPACE "<stream:error><invalid-namespace xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Invalid namespace specified.</text></stream:error>"
+#define SERROR_INVALIDHOST "<stream:error><invalid-from xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Invalid hostname used.</text></stream:error>"
 
 /* ------------------------------------
  * Managed Thread Queue (MTQ) utilities 
