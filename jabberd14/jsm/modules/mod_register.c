@@ -63,6 +63,8 @@ mreturn mod_register_new(mapi m, void *arg)
 
         /* save the registration data */
         jutil_delay(m->packet->iq,"registered");
+        /* don't store password in clear text in the NS_REGISTER namespace */
+        xmlnode_hide(xmlnode_get_tag(m->packet->iq,"password"));
         xdb_set(m->si->xc, jid_user(m->packet->to), NS_REGISTER, m->packet->iq);
 
         /* if configured to, send admins a notice */
