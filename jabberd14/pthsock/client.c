@@ -384,6 +384,10 @@ int _pthsock_client_timeout(void *arg, const void *key, void *data)
 result pthsock_client_timeout(void *arg)
 {
     smi s__i = (smi)arg;
+
+    if(s__i->users == NULL)
+        return r_UNREG;
+
     ghash_walk(s__i->users, _pthsock_client_timeout, NULL);
     return r_DONE;
 }
@@ -403,6 +407,7 @@ void pthsock_client_shutdown(void *arg)
     xmlnode_free(s__i->cfg);
     log_debug(ZONE, "C2S Shutting Down");
     ghash_walk(s__i->users, _pthsock_client_shutdown, NULL);
+    s__i->users = NULL;
 }
 
 /* everything starts here */
