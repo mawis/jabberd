@@ -54,6 +54,14 @@ result base_to_config(instance id, xmlnode x, void *arg)
         return r_PASS;
     }
 
+    /* XXX this is an ugly hack, but it's better than a bad config */
+    /* XXX needs to be a way to validate this in the checking phase */
+    if(id->type!=p_LOG)
+    {
+        log_debug(ZONE,"<file>..</file> element only allowed in log sections");
+        return r_ERR;
+    }
+
     register_phandler(id,o_DELIVER,base_to_deliver,(void*)strdup(xmlnode_get_data(x)));
     return r_DONE;
 }

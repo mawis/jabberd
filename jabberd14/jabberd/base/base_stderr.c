@@ -46,6 +46,15 @@ result base_stderr_config(instance id, xmlnode x, void *arg)
         return r_PASS;
     }
 
+    /* XXX this is an ugly hack, but it's better than a bad config */
+    /* XXX needs to be a way to validate this in the checking phase */
+    if(id->type!=p_LOG)
+    {
+        log_debug(ZONE,"<file>..</file> element only allowed in log sections");
+        return r_ERR;
+    }
+
+
     /* Register the handler, for this instance */
     register_phandler(id, o_DELIVER, base_stderr_display, (void*) 0);
 

@@ -44,23 +44,18 @@ int _io_write_dump(sock c)
     int len;
     wbq q;
 
-    log_debug(ZONE,"IO WRITE DUMP FOR SOCK %X",c);
     /* if there is nothing currently being written... */
     if(c->xbuffer==NULL) {
-        log_debug(ZONE,"Current xbuffer NULL");
         /* grab the next packet from the queue */
         c->wbuffer=c->cbuffer=NULL;
         q=(wbq)pth_msgport_get(c->queue);
-        log_debug(ZONE,"Grabbed %X queue item",q);
         if(q==NULL) return 0;
-        log_debug(ZONE,"Making %X packet current xbuffer",q->x);
         c->xbuffer=q->x;
         c->wbuffer=xmlnode2str(c->xbuffer);
         c->cbuffer=c->wbuffer;
     }
-    else
+    else if(((int)c->xbuffer)!=-1)
     {
-        log_debug(ZONE,"packet %X is already in queue",c->xbuffer);
         /* if we haven't started writing, setup to write */
         if(c->wbuffer==NULL) c->wbuffer=xmlnode2str(c->xbuffer);
         if(c->cbuffer==NULL) c->cbuffer=c->wbuffer;
@@ -68,7 +63,6 @@ int _io_write_dump(sock c)
 
     while(1)
     {
-        log_debug(ZONE,"Calling write on %X",c->xbuffer);
         /* write a bit from the current buffer */
         len=write(c->fd,c->cbuffer,strlen(c->cbuffer));
         if(len==0)
@@ -78,38 +72,41 @@ int _io_write_dump(sock c)
         }
         if(len<0)
         { 
-            log_debug(ZONE,"Error while writing %X",c->xbuffer);
             if(errno!=EWOULDBLOCK&&errno!=EINTR&&errno!=EAGAIN)
             { /* if we have an error, that isn't a blocking issue */ 
-                log_debug(ZONE,"bouncing queue");
+                log_debug(ZONE,"Error while writing %X",c->xbuffer);
                 (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg); /* bounce the queue */
             }
             return -1;
         }
         else if(len<strlen(c->cbuffer))
         {  /* we didnt' write it all, move the current buffer up */
-            log_debug(ZONE,"Not finished writing %X",c->xbuffer);
             c->cbuffer+=len;
             return 1;
         } 
         else
         {  /* all this was written, kill this node */
-            log_debug(ZONE,"Freeing %X, pool %X",c->xbuffer,xmlnode_pool(c->xbuffer));
-            xmlnode_free(c->xbuffer);
+            pool_free(c->pbuffer);
             /* and grab the next... */
-            log_debug(ZONE,"Looking for more packets");
             q=(wbq)pth_msgport_get(c->queue);
-            log_debug(ZONE,"Grabbed queue item %X",q);
             if(q==NULL)
             { /* we are done writing nodes */
-                log_debug(ZONE,"Done with io dump");
                 c->xbuffer=NULL;
                 c->wbuffer=c->cbuffer=NULL;
                 return 0;
             }
-            log_debug(ZONE,"current packet set to %X",q->x);
-            c->xbuffer=q->x;
-            c->wbuffer=xmlnode2str(c->xbuffer);
+            if(q->type==queue_XMLNODE)
+            {
+                c->xbuffer=q->x;
+                c->wbuffer=xmlnode2str(c->xbuffer);
+                c->pbuffer=xmlnode_pool(q->x);
+            }
+            else /* if type is queue_TEXT */
+            {
+                ((int)c->xbuffer)=-1;
+                c->wbuffer=q->data;
+                c->pbuffer=q->p;
+            }
             c->cbuffer=c->wbuffer;
         }
     }
@@ -148,7 +145,6 @@ void io_close(sock c)
 void _io_close(sock c)
 {
     io_unlink(c);
-    log_debug(ZONE,"closing socket %X",c);
 
     /* bounce the current queue */
     if(c->xbuffer!=NULL)
@@ -166,12 +162,26 @@ void _io_close(sock c)
 /* write a str to the client socket */
 void io_write_str(sock c,char *buffer)
 {
-    /* write a string Immediatly to the socket */
-    /* flush the current queue first, if not empty */
-    log_debug(ZONE,"io_write_str called while wbuffer is %X",c->wbuffer);
-    if(c->wbuffer!=NULL)_io_write_dump(c);
-    log_debug(ZONE,"wbuffer is %X after dump",c->wbuffer);
-    write(c->fd,buffer,strlen(buffer));
+    ios io_data=(ios)c->iodata;
+    wbq q;
+    pool p=pool_new();
+    if(c->wbuffer!=NULL)
+    {
+        q=pmalloco(p,sizeof(_wbq));
+        q->data=pstrdup(p,buffer);
+        q->p=p;
+        q->type=queue_TEXT;
+        pth_msgport_put(c->queue,(void*)q); 
+    }
+    else
+    { /* otherwise, just make it our current packet */
+        ((int)c->xbuffer)=-1; /* hack to write text, so xbuffer != NULL */
+        c->wbuffer=pstrdup(p,buffer);
+        c->cbuffer=c->wbuffer;
+        c->pbuffer=p;
+    }
+    /* notify the select loop that a packet needs writing */
+    pth_raise(io_data->t,SIGUSR2);
 }
 
 /* adds an xmlnode to the write buffer */
@@ -180,19 +190,19 @@ void io_write(sock c,xmlnode x)
     ios io_data=(ios)c->iodata;
     wbq q;
 
-    log_debug(ZONE,"IO_WRITE CALLED ON %X",x);
     if(c->xbuffer!=NULL)
     { /* if there is alredy a packet being written */
-        log_debug(ZONE,"Data in xbuffer already, adding %X to queue",x);
         q=pmalloco(xmlnode_pool(x),sizeof(_wbq));
+        q->type=queue_XMLNODE;
+        q->p=xmlnode_pool(x);
         q->x=x;
         /* add it to the queue */
         pth_msgport_put(c->queue,(void*)q); 
     }
     else
     { /* otherwise, just make it our current packet */
-        log_debug(ZONE,"No xbuffer, making %X current xbuffer",x);
         c->xbuffer=x;
+        c->pbuffer=xmlnode_pool(x);
     }
     /* notify the select loop that a packet needs writing */
     pth_raise(io_data->t,SIGUSR2);
@@ -317,15 +327,14 @@ sock _io_accept(ios io_data,int asock)
     flags|=O_NONBLOCK;
     fcntl(fd,F_SETFL,flags);
 
-    log_debug(ZONE,"pthsock_client: new socket accepted (fd: %d, ip: %s, port: %d)",fd,inet_ntoa(sa.sin_addr),ntohs(sa.sin_port));
+    log_debug(ZONE,"new socket accepted (fd: %d, ip: %s, port: %d)",fd,inet_ntoa(sa.sin_addr),ntohs(sa.sin_port));
 
     p = pool_new();
     c = pmalloco(p, sizeof(_sock));
-    log_debug(ZONE,"new sock created as %X",c);
     c->queue=pth_msgport_create("queue");
     c->p = p;
     c->fd = fd;
-    c->state = state_UNKNOWN;
+    c->state = state_ACTIVE;
     c->iodata=(void*)io_data;
     c->cb=io_data->cb;
     c->cb_arg=io_data->cb_arg;
@@ -494,14 +503,14 @@ iosi io_select(int port,io_cb cb,void *arg)
     fd = make_netsocket(port,NULL,NETSOCKET_SERVER);
     if(fd < 0)
     {
-        log_error(NULL,"io_select is unable to listen on %d",port);
+        log_alert(NULL,"io_select is unable to listen on %d",port);
         pool_free(p);
         return NULL;
     }
 
     if(listen(fd,10) < 0)
     {
-        log_error(NULL,"io_select is unable to listen on %d",port);
+        log_alert(NULL,"io_select is unable to listen on %d",port);
         pool_free(p);
         return NULL;
     }
@@ -523,5 +532,6 @@ iosi io_select(int port,io_cb cb,void *arg)
     ret=pmalloco(p,sizeof(iosi));
     ret=(iosi)io_data;
 
+    log_notice(NULL,"io_select starting to listen on %d",port);
     return ret;
 }

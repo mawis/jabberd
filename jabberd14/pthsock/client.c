@@ -42,10 +42,11 @@ typedef struct smi_st
     char *host;
 } *smi, _smi;
 
+typedef enum { state_UNKNOWN, state_AUTHD } user_state;
 typedef struct cdata_st
 {
     smi* i;
-    int state;
+    user_state state;
     char *id, *host, *sid, *res, *auth_id;
     void *arg;
     struct cdata_st *next;
@@ -275,16 +276,28 @@ void pthsock_client_read(sock c,char *buffer,int bufsz,int flags,void *arg)
     case IO_ERROR:
         if(c->xbuffer!=NULL)
         {
+            if(((int)c->xbuffer)!=-1)
+            {
+                jutil_error(c->xbuffer,TERROR_EXTERNAL);
+                deliver(dpacket_new(c->xbuffer),si->i);
+            }
+            else
+                pool_free(c->pbuffer); 
             log_debug(ZONE,"error on socket %d, bouncing queue",c->fd);
-            jutil_error(c->xbuffer,TERROR_EXTERNAL);
-            deliver(dpacket_new(c->xbuffer),si->i);
             c->xbuffer=NULL;
-            c->wbuffer=NULL;
-            c->cbuffer=NULL;
+            c->wbuffer=c->cbuffer=NULL;
+            c->pbuffer=NULL;
             while((q=(wbq)pth_msgport_get(c->queue))!=NULL)
             {
-                jutil_error(q->x,TERROR_EXTERNAL);
-                deliver(dpacket_new(q->x),si->i);
+                if(q->type==queue_XMLNODE)
+                {
+                    jutil_error(q->x,TERROR_EXTERNAL);
+                    deliver(dpacket_new(q->x),si->i);
+                }
+                else
+                {
+                    pool_free(q->p);
+                }
             }
         }
         
