@@ -81,6 +81,14 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
             xmlnode_free(x);
             break;
         }
+        if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:server")!=0)
+        { /* if they sent something other than jabber:client */
+            io_write_str(c,"<stream:error>Invalid Namespace</stream:error>");
+            io_close((sock)sd->arg);
+            sd->type = conn_CLOSED;   /* why you tawkin' gibberish?  */
+            xmlnode_free(x);
+            break;
+        }
 
         if(xmlnode_get_attrib(x,"xmlns:etherx")==NULL&& /* verify header */
            xmlnode_get_attrib(x,"etherx:secret")==NULL)
