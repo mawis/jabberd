@@ -103,83 +103,22 @@ int base64_encode(unsigned char *source, size_t sourcelen, char *target, size_t 
 }
 
 /**
- * determine the value of a base64 encoding character
+ * decode a base64 string and put the result in the same buffer as the source
  *
- * @param base64char the character of which the value is searched
- * @return the value in case of success (0-63), -1 on failure
- */
-int _base64_char_value(char base64char)
-{
-    if (base64char >= 'A' && base64char <= 'Z')
-	return base64char-'A';
-    if (base64char >= 'a' && base64char <= 'z')
-	return base64char-'a'+26;
-    if (base64char >= '0' && base64char <= '9')
-	return base64char-'0'+2*26;
-    if (base64char == '+')
-	return 2*26+10;
-    if (base64char == '/')
-	return 2*26+11;
-    return -1;
-}
-
-/**
- * decode a 4 char base64 encoded byte triple
+ * This function does not handle decoded data that contains the null byte
+ * very well as the size of the decoded data is not returned.
  *
- * @param quadruple the 4 characters that should be decoded
- * @param result the decoded data
- * @return lenth of the result (1, 2 or 3), 0 on failure
+ * The result will be zero terminated.
+ *
+ * @deprecated use base64_decode instead
+ *
+ * @param str buffer for the source and the result
  */
-int _base64_decode_triple(char quadruple[4], unsigned char *result)
-{
-    int i, triple_value, bytes_to_decode = 3, only_equals_yet = 1;
-    int char_value[4];
+void str_b64decode(char* str) {
+    size_t decoded_length;
 
-    for (i=0; i<4; i++)
-	char_value[i] = _base64_char_value(quadruple[i]);
-
-    /* check if the characters are valid */
-    for (i=3; i>=0; i--)
-    {
-	if (char_value[i]<0)
-	{
-	    if (only_equals_yet && quadruple[i]=='=')
-	    {
-		/* we will ignore this character anyway, make it something
-		 * that does not break our calculations */
-		char_value[i]=0;
-		bytes_to_decode--;
-		continue;
-	    }
-	    return 0;
-	}
-	/* after we got a real character, no other '=' are allowed anymore */
-	only_equals_yet = 0;
-    }
-
-    /* if we got "====" as input, bytes_to_decode is -1 */
-    if (bytes_to_decode < 0)
-	bytes_to_decode = 0;
-
-    /* make one big value out of the partial values */
-    triple_value = char_value[0];
-    triple_value *= 64;
-    triple_value += char_value[1];
-    triple_value *= 64;
-    triple_value += char_value[2];
-    triple_value *= 64;
-    triple_value += char_value[3];
-
-    /* break the big value into bytes */
-    for (i=bytes_to_decode; i<3; i++)
-	triple_value /= 256;
-    for (i=bytes_to_decode-1; i>=0; i--)
-    {
-	result[i] = triple_value%256;
-	triple_value /= 256;
-    }
-
-    return bytes_to_decode;
+    decoded_length = base64_decode(str, str, strlen(str));
+    str[decoded_length] = '\0';
 }
 
 /**
@@ -190,51 +129,66 @@ int _base64_decode_triple(char quadruple[4], unsigned char *result)
  * @param targetlen length of the target buffer
  * @return length of converted data on success, -1 otherwise
  */
-size_t base64_decode(char *source, unsigned char *target, size_t targetlen)
-{
-    char *src, *tmpptr;
-    char quadruple[4], tmpresult[3];
-    int i, tmplen = 3;
-    size_t converted = 0;
+size_t base64_decode(char *source, unsigned char *target, size_t targetlen) {
+    char *cur;
+    unsigned char *dest, *max_dest;
+    int d, dlast, phase;
+    unsigned char c;
+    static int table[256] = {
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,  /* 00-0F */
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,  /* 10-1F */
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,62,-1,-1,-1,63,  /* 20-2F */
+        52,53,54,55,56,57,58,59,60,61,-1,-1,-1,-1,-1,-1,  /* 30-3F */
+        -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,  /* 40-4F */
+        15,16,17,18,19,20,21,22,23,24,25,-1,-1,-1,-1,-1,  /* 50-5F */
+        -1,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,  /* 60-6F */
+        41,42,43,44,45,46,47,48,49,50,51,-1,-1,-1,-1,-1,  /* 70-7F */
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,  /* 80-8F */
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,  /* 90-9F */
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,  /* A0-AF */
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,  /* B0-BF */
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,  /* C0-CF */
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,  /* D0-DF */
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,  /* E0-EF */
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1   /* F0-FF */
+    };
 
-    /* concatinate '===' to the source to handle unpadded base64 data */
-    src = (char *)malloc(strlen(source)+5);
-    if (src == NULL)
-	return -1;
-    strcpy(src, source);
-    strcat(src, "====");
-    tmpptr = src;
+    d = dlast = phase = 0;
+    dest = target;
+    max_dest = dest+targetlen;
 
-    /* convert as long as we get a full result */
-    while (tmplen == 3)
-    {
-	/* get 4 characters to convert */
-	for (i=0; i<4; i++)
-	{
-	    /* skip invalid characters - we won't reach the end */
-	    while (*tmpptr != '=' && _base64_char_value(*tmpptr)<0)
-		tmpptr++;
-
-	    quadruple[i] = *(tmpptr++);
-	}
-
-	/* convert the characters */
-	tmplen = _base64_decode_triple(quadruple, tmpresult);
-
-	/* check if the fit in the result buffer */
-	if (targetlen < tmplen)
-	{
-	    free(src);
-	    return -1;
-	}
-
-	/* put the partial result in the result buffer */
-	memcpy(target, tmpresult, tmplen);
-	target += tmplen;
-	targetlen -= tmplen;
-	converted += tmplen;
+    for (cur = source; *cur != '\0' && dest<max_dest; ++cur ) {
+        d = table[(int)*cur];
+        if(d != -1) {
+            switch(phase) {
+		case 0:
+		    ++phase;
+		    break;
+		case 1:
+		    c = ((dlast << 2) | ((d & 0x30) >> 4));
+		    *dest++ = c;
+		    ++phase;
+		    break;
+		case 2:
+		    c = (((dlast & 0xf) << 4) | ((d & 0x3c) >> 2));
+		    *dest++ = c;
+		    ++phase;
+		    break;
+		case 3:
+		    c = (((dlast & 0x03 ) << 6) | d);
+		    *dest++ = c;
+		    phase = 0;
+		    break;
+	    }
+            dlast = d;
+        }
     }
 
-    free(src);
-    return converted;
+    /* we decoded the whole buffer */
+    if (*cur == '\0') {
+	return dest-target;
+    }
+
+    /* we did not convert the whole data, buffer was to small */
+    return -1;
 }

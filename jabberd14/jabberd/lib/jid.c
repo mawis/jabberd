@@ -38,6 +38,11 @@
  * 
  * --------------------------------------------------------------------------*/
 
+/**
+ * @file jid.c
+ * @brief representation and normalization of JabberIDs
+ */
+
 #include <jabberdlib.h>
 
 #ifdef LIBIDN
@@ -46,7 +51,7 @@
 
 
 /**
- * datastructure to build the stringprep caches
+ * @brief datastructure to build the stringprep caches
  */
 typedef struct _jid_prep_entry_st {
     char *preped;	/**< the result of the preparation, NULL if unchanged */
@@ -56,7 +61,7 @@ typedef struct _jid_prep_entry_st {
 } *_jid_prep_entry_t;
 
 /**
- * string preparation cache
+ * @brief string preparation cache
  */
 typedef struct _jid_prep_cache_st {
     xht hashtable;	/**< the hash table containing the preped strings */
@@ -262,6 +267,8 @@ void _jid_stop_single_cache(_jid_prep_cache_t *cache) {
     
     pth_mutex_acquire(&((*cache)->mutex), FALSE, NULL);
     xhash_free((*cache)->hashtable);
+
+    free(*cache);
 
     *cache = NULL;
 }
