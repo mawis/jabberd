@@ -15,7 +15,6 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <arpa/inet.h>
-#include <resolv.h>
 #include <sys/time.h>
 #include <stdarg.h>
 #include <ctype.h>
