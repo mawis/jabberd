@@ -50,6 +50,10 @@ void _client_startElement(void *arg, const char* name, const char** atts)
     char *header, *header_from, header_id[30], header_end[3];
     char sid[24];
 
+    /* don't do anything if we're about to bail out */
+    if(c->depth < 0)
+        return;
+
     if (c->flash_hack == 1)
         return;
 
@@ -209,6 +213,10 @@ void _client_endElement(void *arg, const char* name)
 {
     conn_t c = (conn_t)arg;
 
+    /* don't do anything if we're about to bail out */
+    if(c->depth < 0)
+        return;
+
     /* going up for air */
     c->depth--;
 
@@ -230,6 +238,10 @@ void _client_endElement(void *arg, const char* name)
 void _client_charData(void *arg, const char *str, int len)
 {
     conn_t c = (conn_t)arg;
+
+    /* don't do anything if we're about to bail out */
+    if(c->depth < 0)
+        return;
 
     /* if we're in the root of the stream the CDATA is irrelevant */
     if(c->nad == NULL) return;
