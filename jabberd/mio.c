@@ -426,7 +426,7 @@ result _mio_connect_timeout(void *arg)
         return r_UNREG;
     }
 
-    log_debug(ZONE, "mio_connect taking to long connecting to %s, signaling to stop", cd->ip);
+    log_debug(ZONE, "mio_connect taking too long connecting to %s, signaling to stop", cd->ip);
     if(cd->t != NULL)
         pth_raise(cd->t, SIGUSR2);
     
@@ -439,7 +439,8 @@ void _mio_connect(void *arg)
     struct sockaddr_in sa;
     struct in_addr     *saddr;
     int                flag = 1,
-                       flags;
+                       flags,
+                       sig;
     mio                new;
     pool               p;
     sigset_t           set;
@@ -447,6 +448,7 @@ void _mio_connect(void *arg)
     sigemptyset(&set);
     sigaddset(&set, SIGUSR2);
     pth_sigmask(SIG_BLOCK, &set, NULL);
+
 
     bzero((void*)&sa, sizeof(struct sockaddr_in));
 
@@ -478,11 +480,11 @@ void _mio_connect(void *arg)
         return;
     }
 
-    /* set the socket to non-blocking */
+    /* set the socket to non-blocking 
     flags =  fcntl(new->fd, F_GETFL, 0);
     flags |= O_NONBLOCK;
     fcntl(new->fd, F_SETFL, flags);
-
+*/
     saddr = make_addr(cd->ip);
     if(saddr == NULL)
     {
