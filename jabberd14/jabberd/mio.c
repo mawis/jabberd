@@ -74,13 +74,13 @@ void _mio_xstream_startElement(mio m, const char* name, const char** attribs)
 	    m->stacknode = xmlnode_new_tag_pool(p, name);
 	    xmlnode_put_expat_attribs(m->stacknode, attribs);
 
-	    /* If the parser_depth is 0, this must be the root node.. */
-	    if (m->parser_depth == 0)
+	    /* If the root is 0, this must be the root node.. */
+	    if (m->root == 0)
 	    {
-	        m->parser_depth++;
             if(m->cb != NULL)
 	            (*(mio_xml_cb)m->cb)(m, MIO_XML_ROOT, m->cb_arg, m->stacknode);
 	        m->stacknode = NULL;
+            m->root = 1; 
 	    }
     }
     else 
@@ -110,7 +110,6 @@ void _mio_xstream_endElement(mio m, const char* name)
 	    }
 	    m->stacknode = parent;
     }
-    m->parser_depth--;
 }
 
 void _mio_xstream_CDATA(mio m, const char* cdata, int len)
@@ -829,7 +828,7 @@ mio mio_new(int fd, mio_cb cb, void *arg)
 /*
    resets the callback function
 */
-mio mio_reset(mio m, mio_cb cb, void *arg)
+mio mio_reset(mio m, void *cb, void *arg)
 {
     if(m == NULL) 
         return NULL;
