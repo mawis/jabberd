@@ -100,7 +100,7 @@ hostid deliver__norm = NULL;
 
 void unregister_instance(instance id,char *host)
 {
-    hostid prev=NULL,cur;
+    hostid prev=NULL,cur=NULL;
 
     log_debug(ZONE,"Unregistering %s with instance %s",host,id->id);
 
@@ -403,7 +403,7 @@ result deliver_hostid(hostid cur, char *host, dpacket inp, result inbest)
 /* deliver the packet, where all the smarts happen, take the sending instance as well */
 void deliver(dpacket p, instance i)
 {
-    hostid list, cur;
+    hostid list = NULL, cur;
     result best = r_NONE;
     char *host;
     xmlnode x;
