@@ -49,6 +49,7 @@ void _client_startElement(void *arg, const char* name, const char** atts)
     int i = 0, error;
     char *header, *header_from, header_id[30], header_end[3];
     char sid[24];
+    char *local_id;
 
     if (c->flash_hack == 1)
         return;
@@ -85,8 +86,19 @@ void _client_startElement(void *arg, const char* name, const char** atts)
             /* to attribute */
             if (j_strcmp(atts[i], "to") == 0)
             {
+                int matched_one = 0;
+                int id;
                 log_debug(ZONE, "checking to: %s", atts[i+1]);
-                if (j_strcmp(atts[i+1], c->c2s->local_id) != 0)
+                for( id = 0; id < c->c2s->local_id_count ; id++ )
+                {
+                    if (j_strcmp(atts[i+1], c->c2s->local_id[id]) == 0)
+                    {
+                        local_id = j_strdup( c->c2s->local_id[id] );
+                        matched_one = 1;
+                    }
+                }
+
+                if (matched_one != 1)
                 {
                     _write_actual(c, c->fd, "<stream:error>Invalid to address</stream:error>", 47);
                     c->depth = -1;
@@ -145,8 +157,9 @@ void _client_startElement(void *arg, const char* name, const char** atts)
         /* XXX fancier algo for id generation? */
         snprintf(sid, 24, "%d", rand());
 
-        header_from = malloc( 9 + strlen(c->c2s->local_id) );
-        sprintf(header_from, " from='%s'", c->c2s->local_id);
+        header_from = malloc( 9 + strlen( local_id ) );
+        sprintf(header_from, " from='%s'", local_id);
+        free(local_id);
 
         sprintf(header_id, " id='%s'", sid);
 
