@@ -15,6 +15,11 @@
   be careful with your XML. :)
   -->
 
+  <!--
+  This specifies the file to store the pid of the process in.
+  -->
+  <pidfile>./jabber.pid</pidfile>
+
   <!-- 
   The following <service/> section is for the session manager, 
   the most important component within the server. This section
@@ -317,8 +322,9 @@
       <ip port="5222"/>
       <!--
       The <ssl/> tag acts just like the <ip/> tag.  Except SSL is used
-      on the ports and ips specified.  Defaults are port 5223 and all
-      ips.
+      on the ports and ips specified.  You must specify an IP here, or the
+      connections will fail.
+
       <ssl port='5223'>127.0.0.1</ip>
       <ssl port='5224'>192.168.1.100</ip>
       <ssl/>

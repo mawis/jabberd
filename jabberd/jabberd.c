@@ -63,6 +63,8 @@ int main (int argc, char** argv)
     char *cfgfile = NULL, *c, *cmd, *home = NULL;   /* strings used to load the server config */
     pool cfg_pool=pool_new();
     xmlnode temp_greymatter;
+    xmlnode pidfile;
+    char *pidpath;
 
     jabberd__runtime = pool_new();
 
@@ -326,6 +328,14 @@ int main (int argc, char** argv)
     /* kill any leftover threads */
     pth_kill();
 
+    /* Get rid of our pid file */
+    pidfile = xmlnode_get_tag(greymatter__, "pidfile");
+    if(pidfile != NULL)
+    {
+        pidpath = xmlnode_get_data(pidfile);
+        if(pidpath != NULL)
+            unlink(pidpath);
+    }
     pool_free(cfg_pool);
     xmlnode_free(greymatter__);
 
