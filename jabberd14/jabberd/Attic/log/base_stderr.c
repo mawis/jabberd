@@ -1,5 +1,23 @@
 #include "jabberd.h"
 
+result base_stderr_display(instance i, dpacket p, void* args)
+{   
+    char* message = NULL;
+    
+    /* Get the raw data from the packet */
+    message = xmlnode_get_data(p->x);
+
+    if (message == NULL)
+    {
+        printf("base_stderr_deliver: no message available to print.\n");
+        return r_ERR;
+    }
+
+    fprintf((FILE*)STDERR_FILENO, "%s\n", message);
+    pool_free(p->p);
+    return r_OK;
+}
+
 result base_stderr_config(instance id, xmlnode x, void *arg)
 {
     if(id == NULL)
@@ -7,6 +25,9 @@ result base_stderr_config(instance id, xmlnode x, void *arg)
         printf("base_stderr_config validating configuration\n");
         return r_PASS;
     }
+
+    /* Register the handler, for this instance */
+    register_phandler(id, o_DELIVER, base_stderr_display, (void*) 0);
 
     printf("base_stderr_config performing configuration %s\n",xmlnode2str(x));
 }
