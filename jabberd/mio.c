@@ -55,7 +55,7 @@ typedef struct mio_main_st
     pth_t t;            /* a pointer to thread for signaling */
     int shutdown;
     int zzz[2];
-    struct karma k; /* default karma */
+    struct karma *k; /* default karma */
     int rate_t, rate_p; /* default rate, if any */
 } _ios,*ios;
 
@@ -529,7 +529,7 @@ void _mio_connect(void *arg)
     /* XXX pthreads race condition.. cd->connected may be checked in the timeout, and cd freed before these calls */
 
     /* set the default karma values */
-    mio_karma2(new, &mio__data->k);
+    mio_karma2(new, mio__data->k);
     
     /* add to the select loop */
     _mio_link(new);
@@ -809,6 +809,7 @@ void mio_init(void)
     pool p;
     pth_attr_t attr;
     xmlnode io = xmlnode_get_tag(greymatter__, "io");
+    xmlnode karma = xmlnode_get_tag(io, "karma");
 
 #ifdef HAVE_SSL
     if(xmlnode_get_tag(io, "ssl") != NULL)
@@ -823,6 +824,7 @@ void mio_init(void)
         p            = pool_new();
         mio__data    = pmalloco(p, sizeof(_ios));
         mio__data->p = p;
+        mio__data->k = karma_new(p);
         pipe(mio__data->zzz);
 
         /* start main accept/read/write thread */
@@ -834,13 +836,17 @@ void mio_init(void)
         /* give time to init the signal handlers */
         pth_yield(NULL);
     }
-    mio__data->k.init        = j_atoi(xmlnode_get_tag_data(io, "karma/init"), KARMA_INIT);
-    mio__data->k.max         = j_atoi(xmlnode_get_tag_data(io, "karma/max"), KARMA_MAX);
-    mio__data->k.inc         = j_atoi(xmlnode_get_tag_data(io, "karma/inc"), KARMA_INC);
-    mio__data->k.dec         = j_atoi(xmlnode_get_tag_data(io, "karma/dec"), KARMA_DEC);
-    mio__data->k.penalty     = j_atoi(xmlnode_get_tag_data(io, "karma/penalty"), KARMA_PENALTY);
-    mio__data->k.restore     = j_atoi(xmlnode_get_tag_data(io, "karma/restore"), KARMA_RESTORE);
-    mio__data->k.reset_meter = j_atoi(xmlnode_get_tag_data(io, "karma/resetmeter"), KARMA_RESETMETER);
+
+    if(karma != NULL)
+    {
+        mio__data->k->val        = j_atoi(xmlnode_get_tag_data(karma, "init"), KARMA_INIT);
+        mio__data->k->max         = j_atoi(xmlnode_get_tag_data(karma, "max"), KARMA_MAX);
+        mio__data->k->inc         = j_atoi(xmlnode_get_tag_data(karma, "inc"), KARMA_INC);
+        mio__data->k->dec         = j_atoi(xmlnode_get_tag_data(karma, "dec"), KARMA_DEC);
+        mio__data->k->penalty     = j_atoi(xmlnode_get_tag_data(karma, "penalty"), KARMA_PENALTY);
+        mio__data->k->restore     = j_atoi(xmlnode_get_tag_data(karma, "restore"), KARMA_RESTORE);
+        mio__data->k->reset_meter = j_atoi(xmlnode_get_tag_data(karma, "resetmeter"), KARMA_RESETMETER);
+    }
     mio__data->rate_t        = j_atoi(xmlnode_get_attrib(xmlnode_get_tag(io, "rate"), "time"), 0);
     mio__data->rate_p        = j_atoi(xmlnode_get_attrib(xmlnode_get_tag(io, "rate"), "points"), 0);
 
@@ -903,7 +909,7 @@ mio mio_new(int fd, void *cb, void *arg, mio_handlers mh)
     mio_set_handlers(new, mh);
 
     /* set the default karma values */
-    mio_karma2(new, &mio__data->k);
+    mio_karma2(new, mio__data->k);
     mio_rate(new, mio__data->rate_t, mio__data->rate_p);
     
     /* set the socket to non-blocking */
