@@ -270,7 +270,7 @@ void *pthsock_client_listen(void *arg)
 
         /* start thread with this socket */
         attr = pth_attr_new();
-        pth_attr_set(attr,PTH_ATTR_JOINABLE FALSE);
+        pth_attr_set(attr,PTH_ATTR_JOINABLE,FALSE);
         pth_spawn(attr, pthsock_client_reader,(void *)r);
         pth_attr_destroy(attr);
     }
