@@ -24,9 +24,8 @@ value as the subdirectory that you created:
 
     <host><jabberd:cmdline flag="h">foo</jabberd:cmdline></host>
 
-Next, remove any modules you don't wish to use from the module list (many people
-commonly have mod_version removed, although this should now be safe for use).  
-The next large section is the <jsm/> section.  It contains most of the same
+Next, remove any modules you don't wish to use from the module list.  The
+next large section is the <jsm/> section.  It contains most of the same
 tags as those found in jserver.xml, and should be fairly self explanatory.
 
 Once the jsm setup is complete you need to edit the <xdb/> settings to point

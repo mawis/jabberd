@@ -246,7 +246,7 @@ int configo(int exec)
     char message[MAX_LOG_SIZE];
 
     if(instance__ids==NULL)
-        instance__ids=ghash_create(20,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+        instance__ids=ghash_create(19,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
 
     for(curx = xmlnode_get_firstchild(greymatter__); curx != NULL; curx = xmlnode_get_nextsibling(curx))
     {

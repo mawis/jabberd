@@ -2,7 +2,7 @@
 
   <service id="sessions">
 
-    <!-- change hostname below! -->
+    <!-- change hostname below to something other than "localhost", or use the "jabberd -h hostname" command line flag, multiple hosts allowed -->
     <host><jabberd:cmdline flag="h">localhost</jabberd:cmdline></host>
 
     <load main="jsm">
@@ -24,25 +24,73 @@
       <mod_register>./jsm/jsm.so</mod_register>
       <mod_log>./jsm/jsm.so</mod_log>
     </load>
+
     <jsm xmlns="jabber:config:jsm">
-      <maxoffline>100</maxoffline> <!-- limit # of offline msgs allowed -->
-      <agents>
-       <agent jid="users.jabber.org">
-        <name>Jabber User Directory</name>
-        <description>You may register and create a public searchable profile, and search for other registered Jabber users.</description>
-        <service>jud</service>
-        <register/>
-        <search/>
-       </agent>
-      </agents>
+
+      <info>
+        <name>Jabber Server</name>
+        <description>A Jabber Server!</description>
+        <url>http://foo.bar/</url>
+      </info>
+
       <register>
         <instructions>Choose a username and password to register with this server.</instructions>
         <name/><email/>
       </register>
+
+      <agents>
+
+        <!-- this is the default agent for the master jabber user directory -->
+        <agent jid="users.jabber.org">
+          <name>Jabber User Directory</name>
+          <description>You may register and create a public searchable profile, and search for other registered Jabber users.</description>
+          <service>jud</service>
+          <register/>
+          <search/>
+        </agent>
+
+        <!-- these are just examples, you will receive instructions on what to place here when you install a real agent
+        <agent jid="aim.jabber.org">
+          <name>AIM Transport</name>
+          <description>This is the AIM Transport</description>
+          <transport>AIM/AOL ScreenName</transport>
+          <service>aim</service>
+          <register/>
+        </agent>
+        <agent jid="icq.jabber.org">
+          <name>ICQ Transport</name>
+          <description>This is the ICQ Transport</description>
+          <transport>ICQ#</transport>
+          <service>icq</service>
+          <register/>
+        </agent>
+        <agent jid="conference.jabber.org">
+          <name>Group Conferencing</name>
+          <description>You can create and participate in private chatrooms.</description>
+          <service>privatechat</service>
+          <groupchat/>
+          <register/>
+        </agent>
+        -->
+
+      </agents>
+
+      <!-- session log file -->
       <log>
-        <file>/tmp/jsession.log</file>
+        <file>/var/tmp/jsession.log</file>
         <type>session</type>
       </log>
+
+      <!-- list of ids with administrative access and will receive administrator messages
+      <admin>
+        <read>support@localhost</read>
+        <write>admin@localhost</write>
+      </admin>
+      -->
+
+      <!-- server version update notification, set to the server name so that all administrators (above) will be notified, or any id -->
+      <update><jabberd:cmdline flag="h">localhost</jabberd:cmdline></update>
+
     </jsm>
   </service>
 
@@ -50,7 +98,7 @@
   <xdb id="xdb">
     <host/>
     <load><xdb_file>./xdb_file/xdb_file.so</xdb_file></load>
-    <xdb_file xmlns="jabber:config:xdb_file"><spool><jabberd:cmdline flag="s">/var/tmp</jabberd:cmdline></spool></xdb_file>
+    <xdb_file xmlns="jabber:config:xdb_file"><spool>/var/tmp</spool></xdb_file>
   </xdb>
 
   <!-- Service to manage incoming client socket connections -->
@@ -103,5 +151,14 @@
       -->
     </pthssock>
   </service>
+
+   <service id='nobody'>
+     <accept>
+	<ip/>
+       <port>7002</port> <!-- arbitrary high port -->
+       <secret>j4bb3r0rg-1rc</secret>
+     </accept>
+   </service>
+
 
 </jabber>

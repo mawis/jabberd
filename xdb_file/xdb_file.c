@@ -249,7 +249,7 @@ void xdb_file(instance i, xmlnode x)
     xf->spool = pstrdup(i->p,spl);
     xf->timeout = timeout;
     xf->i = i;
-    xf->cache = ghash_create(FILES_PRIME,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+    xf->cache = ghash_create(j_atoi(xmlnode_get_tag_data(config,"maxfiles"),FILES_PRIME),(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
 
     register_phandler(i, o_DELIVER, xdb_file_phandler, (void *)xf);
     if(timeout > 0) /* 0 is expired immediately, -1 is cached forever */

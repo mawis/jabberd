@@ -80,9 +80,6 @@
  * FUTURE ACTIONS: edit,error,settype
  */
 
-#define DEFAULT_MAX_OFFLINE 100
-int max__offline=DEFAULT_MAX_OFFLINE;
-
 xmlnode mod_filter__default = NULL;
 typedef struct action_struct 
 {
@@ -129,6 +126,7 @@ void mod_filter_action_offline(mapi m,xmlnode rule)
 {
     xmlnode opts,cur;
     int num_tags=0;
+    static int max_offline = -1;
 
     /* only store normal, error, or chat */
     switch(jpacket_subtype(m->packet))
@@ -141,9 +139,13 @@ void mod_filter_action_offline(mapi m,xmlnode rule)
         return;
     }
 
+    /* XXX this is a hack for now, global maxoffline setting across all instances */
+    if(max_offline == -1)
+        max_offline = j_atoi(xmlnode_get_data(js_config(m->si,"maxoffline")),100);
+
     opts=mod_filter_get_offline(m->user);
     for(cur=xmlnode_get_firstchild(opts);cur!=NULL;cur=xmlnode_get_nextsibling(cur))num_tags++;
-    if(num_tags<max__offline)
+    if(num_tags<max_offline)
     {
         jutil_delay(m->packet->x,"Offline Storage");
         xmlnode_insert_tag_node(opts,m->packet->x);
@@ -590,9 +592,6 @@ mreturn mod_filter_session(mapi m, void *arg)
 void mod_filter(jsmi si)
 {
     xmlnode rule;
-
-    rule=js_config(si,"maxoffline");
-    if(xmlnode_get_data(rule)!=NULL) max__offline=atoi(xmlnode_get_data(rule));
 
     log_debug(ZONE,"FILTER init");
     js_mapi_register(si,e_DELIVER, mod_filter_handler, NULL);

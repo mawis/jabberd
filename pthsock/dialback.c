@@ -701,8 +701,8 @@ int _pthsock_server_beat(void *arg, const void *key, void *data)
 {
     host h = (host)data;
 
-    /* any invalid hosts older than 15 seconds, timed out */
-    if(!h->valid && (time(NULL) - h->created) > 30)
+    /* any invalid hosts older than 60 seconds, timed out */
+    if(!h->valid && (time(NULL) - h->created) > 60)
     {
         log_notice(h->id->server,"server connection timed out");
         _pthsock_server_host_validated(0,h);
@@ -733,8 +733,8 @@ void pthsock_server(instance i, xmlnode x)
     cfg = xdb_get(xdb_cache(i),NULL,jid_new(xmlnode_pool(x),"config@-internal"),"jabber:config:pth-ssock");
 
     si = pmalloco(i->p,sizeof(_ssi));
-    si->ips = ghash_create(j_atoi(xmlnode_get_attrib(cfg,"prime"),67),(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp); /* keys are "ip:port" */
-    si->hosts = ghash_create(j_atoi(xmlnode_get_attrib(cfg,"prime"),67),(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp); /* keys are jids: "id@to/from" */
+    si->ips = ghash_create(j_atoi(xmlnode_get_tag_data(cfg,"maxhosts"),67),(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp); /* keys are "ip:port" */
+    si->hosts = ghash_create(j_atoi(xmlnode_get_tag_data(cfg,"maxhosts"),67),(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp); /* keys are jids: "id@to/from" */
     si->i = i;
     si->secret = xmlnode_get_attrib(cfg,"secret");
     if(si->secret == NULL) /* if there's no configured secret, make one on the fly */

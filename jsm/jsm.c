@@ -63,7 +63,7 @@ void jsm(instance i, xmlnode x)
     si->p = i->p;
     si->xc = xdb_cache(i); /* getting xdb_* handle and fetching config */
     si->config = xdb_get(si->xc, NULL, jid_new(xmlnode_pool(x),"config@-internal"),"jabber:config:jsm");
-    si->hosts = ghash_create(HOSTS_PRIME,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp); /* XXX hostname hash, make PRIME configurable */
+    si->hosts = ghash_create(j_atoi(xmlnode_get_tag_data(si->config,"maxhosts"),HOSTS_PRIME),(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
     for(n=0;n<e_LAST;n++)
         si->events[n] = NULL;
 

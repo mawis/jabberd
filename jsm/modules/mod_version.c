@@ -66,7 +66,18 @@ mreturn mod_version_reply(mapi m, void *arg)
 
 void mod_version(jsmi si)
 {
-    js_mapi_register(si,e_SERVER,mod_version_reply,NULL);
-}
+    char *from;
+    xmlnode x;
 
+    js_mapi_register(si,e_SERVER,mod_version_reply,NULL);
+
+    /* check for updates */
+    from = xmlnode_get_data(js_config(si,"update"));
+    if(from == NULL) return;
+
+    x = xmlnode_new_tag("presence");
+    xmlnode_put_attrib(x,"from",from);
+    xmlnode_put_attrib(x,"to","jsm@update.jabber.org/" VERSION);
+    deliver(dpacket_new(x), si->i);
+}
 

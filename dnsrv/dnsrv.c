@@ -41,7 +41,7 @@
    * You must specify the services in the order you want them tried
 */
 
-#define DNS_PACKET_TABLE_SZ 100
+#define DNS_PACKET_TABLE_SZ 101
 
 /* ------------------------------------------------- */
 /* Struct to store list of services and resend hosts */
