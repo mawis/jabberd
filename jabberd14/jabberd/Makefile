@@ -10,7 +10,9 @@ jabberd_HEADERS=jabberd.h
 
 jabberd_OBJECTS = \
 	config.o \
+    mio.o \
 	deliver.o \
+    memwatch.o \
 	heartbeat.o \
 	jabberd.o \
 	load.o \
