@@ -1,6 +1,9 @@
 2005-03-15  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/base/base_unsubscribe.c: new base handler
+    * jabberd/lib/jabberdlib.h: optional: store presence in xdb
+    * jsm/modules/mod_presence.c: same
+    * jsm/modules/mod_xml.c: same
 
 2005-03-13  Matthias Wimmer  <m@tthias.net>
 
