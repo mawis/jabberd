@@ -45,7 +45,7 @@ result base_ns_config(instance id, xmlnode x, void *arg)
 
     register_phandler(id, o_COND, base_ns_filter, (void *)ns);
 
-    return r_OK;
+    return r_DONE;
 }
 
 void base_ns(void)

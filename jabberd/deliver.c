@@ -38,8 +38,8 @@ void register_phandler(instance id, order o, phandler f, void *arg)
             h1->next = newh;
         }
         break;
-    case o_MODIFY:
-        for(h1 = id->hds; h1->next != NULL && h1->next->o != o_MODIFY; h1 = h1->next);
+    case o_PREDELIVER:
+        for(h1 = id->hds; h1->next != NULL && h1->next->o != o_PREDELIVER; h1 = h1->next);
         if(h1->next == NULL)
         {
             h1->next = newh;
@@ -123,25 +123,44 @@ void deliver_fail(dpacket p, result r)
 }
 
 /* actually perform the delivery to an instance */
-result deliver_instance(instance id, dpacket p, result best)
+result deliver_instance(instance id, dpacket p, result inbest)
 {
     handel h, hlast;
-    result r;
+    result r, best = r_NONE;
     dpacket pig = p;
 
     /* try all the handlers */
     hlast = h = id->hds;
     while(h != NULL)
     {
+        /* there may be multiple delivery handlers, make a backup copy first if we have to */
         if(h->o == o_DELIVER && h->next != NULL)
-            pig = dpacket_copy(p); /* make a backup copy first if we have to */
+            pig = dpacket_copy(p);
+
+        /* call the handler */
         r = (h->f)(id,p,h->arg);
+
         if(r > best) /* track the best result */
             best = r;
 
-        if(h->o == o_DELIVER && h->next != NULL)
-            p = pig; /* use that backup copy since the delivery handler ate it */
+        /* if a non-delivery handler says it handled it, we have to be done */
+        if(h->o != o_DELIVER && r == r_DONE)
+            break;
 
+        /* if a conditional handler wants to halt processing */
+        if(h->o == o_COND && r == r_LAST)
+            break;
+
+        /* deal with that backup copy we made */
+        if(h->o == o_DELIVER && h->next != NULL)
+        {
+            if(r == r_DONE) /* they ate it, use copy */
+                p = pig;
+            else
+                pool_free(pig->p); /* they never used it, trash copy */
+        }
+
+        /* unregister this handler */
         if(r == r_UNREG)
         {
             if(h == id->hds)
@@ -154,21 +173,20 @@ result deliver_instance(instance id, dpacket p, result best)
                 pool_free(h->p);
                 h = hlast->next;
             }
-            continue; /* skip to next handler */
         }
 
-        /* only try another one if this one passed */
-        if(r == r_PASS)
-        {
-            hlast = h;
-            h = h->next;
-            continue;
-        }
-
-        break;
+        hlast = h;
+        h = h->next;
     }
 
-    return best;
+    /* if this instance never handled the packet, we still need to free it since we're expected to have delivered it */
+    if(best != r_DONE)
+        pool_free(p->p);
+
+    if(best > inbest)
+        return best;
+    else
+        return inbest;
 }
 
 hostid deliver_get_next_hostid(hostid cur, char *host)
@@ -222,7 +240,7 @@ void deliver(dpacket p, instance i)
     /* Get the host */
     host = p->host;
 
-    /* XXX once we switch to pthreads, deliver() will have to queue until configuration is done, since threads may have started during config and be delivering already */
+    /* XXX deliver() will have to queue until configuration is done, since threads may have started during config and be delivering already */
 
     /* based on type, pick instance list */
     switch(p->type)
@@ -251,7 +269,7 @@ void deliver(dpacket p, instance i)
 
             /* deliver back to the sending instance */
             deliver_instance(i, p, best);
-            /* i guess we assume that the instance handled it :) */
+            /* XXX i guess we assume that the instance handled it :) should log error */
             return;
         }
         list = deliver__xdb;
@@ -275,7 +293,7 @@ void deliver(dpacket p, instance i)
         best = deliver_hostid(cur, host, p, best);
 
     /* if nobody actually handled it, we've got problems */
-    if(best != r_OK)
+    if(best != r_DONE)
         deliver_fail(p, best);
     
 }

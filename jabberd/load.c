@@ -17,7 +17,6 @@ void loader_static(void)
     base_connect();
     base_exec();
     base_file();
-    base_fork();
     base_format();
     base_load();
     base_logtype();

@@ -130,7 +130,7 @@ result xdb_results(instance id, dpacket p, void *arg)
 
     for(curx = xc->next; curx->id != idnum && curx != xc; curx = curx->next); /* spin till we are where we started or find our id# */
 
-    if(curx->id != idnum) return r_OK; /* we got an id we didn't have cached, could be a dup, ignore and move on */
+    if(curx->id != idnum) return r_DONE; /* we got an id we didn't have cached, could be a dup, ignore and move on */
 
     /* associte packet w/ waiting cache */
     curx->data = p->x;
@@ -144,7 +144,7 @@ result xdb_results(instance id, dpacket p, void *arg)
     if(curx->cond != NULL)
         pth_cond_notify(curx->cond, FALSE);
 
-    return r_OK; /* we processed it */
+    return r_DONE; /* we processed it */
 }
 
 xdbcache xdb_cache(instance id)

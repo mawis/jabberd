@@ -45,6 +45,8 @@ result base_logtype_config(instance id, xmlnode x, void *arg)
     register_phandler(id, o_COND, base_logtype_filter, (void*)strdup(name));
 
     printf("base_logtype_config performing configuration %s\n",xmlnode2str(x));
+
+    return r_PASS;
 }
 
 void base_logtype(void)

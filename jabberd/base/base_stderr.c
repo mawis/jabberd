@@ -16,7 +16,7 @@ result base_stderr_display(instance i, dpacket p, void* args)
     fprintf(stderr, "%s\n", message);
 
     pool_free(p->p);
-    return r_OK;
+    return r_DONE;
 }
 
 result base_stderr_config(instance id, xmlnode x, void *arg)
@@ -31,7 +31,7 @@ result base_stderr_config(instance id, xmlnode x, void *arg)
     register_phandler(id, o_DELIVER, base_stderr_display, (void*) 0);
 
     printf("base_stderr_config performing configuration %s\n",xmlnode2str(x));
-    return r_OK;
+    return r_DONE;
 }
 
 void base_stderr(void)

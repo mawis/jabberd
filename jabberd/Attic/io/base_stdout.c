@@ -29,7 +29,7 @@ result base_stdout_phandler(instance i, dpacket p, void *arg)
 
     pth_msgport_put(mp, (pth_message_t *)d);
 
-    return r_OK;
+    return r_DONE;
 }
 
 void base_stdin_packets(int type, xmlnode x, void *arg)
@@ -141,7 +141,7 @@ result base_stdout_config(instance id, xmlnode x, void *arg)
     /* register phandler with the stdout mp */
     register_phandler(id, o_DELIVER, base_stdout_phandler, (void *)mp);
 
-    return r_OK;
+    return r_DONE;
 }
 
 void base_stdout(void)
