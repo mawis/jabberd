@@ -123,7 +123,7 @@ mreturn mod_stat_deliver(mapi m, void *arg) {
  * @param si the session manager instance
  */
 void mod_stat(jsmi si) {
-    mod_stat_data_t stat_data = (mod_stat_data_t)malloc(sizeof(struct mod_stat_data_st));
+    mod_stat_data_t stat_data = (mod_stat_data_t)pmalloco(si->p, sizeof(struct mod_stat_data_st));
     stat_data->si = si;
 
     register_beat(300, mod_stat_write, (void*)stat_data);
