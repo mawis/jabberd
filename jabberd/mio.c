@@ -229,7 +229,6 @@ void _mio_close(mio m)
     if(m->queue != NULL) 
         ret = _mio_write_dump(m);
 
-    /* call overloaded write function */
     if(ret == 1) /* still more data, bounce it all */
         if(m->cb != NULL)
             (*(mio_std_cb)m->cb)(m, MIO_ERROR, m->cb);
@@ -342,15 +341,12 @@ void _mio_main(void *arg)
         if(mio__data->shutdown == 1 && mio__data->master__list == NULL)
             break;
 
-        log_debug(ZONE, "mio_main Entering Select");
         /* wait for a socket event */
         retval = pth_select_ev(maxfd+1, &rfds, &wfds, NULL, NULL, wevt);
         /* if retval is -1, fd sets are undefined across all platforms */
 
         /* reset maxfd, in case it changes */
         maxfd=0;
-
-        log_debug(ZONE,"mio_main checking sockets");
 
         /* loop through the sockets, check for stuff to do */
         for(cur = mio__data->master__list; cur != NULL;)
@@ -359,7 +355,6 @@ void _mio_main(void *arg)
             /* if this socket needs to close */
             if(cur->state == state_CLOSE)
             {
-                log_debug(ZONE, "closing socket");
                 temp = cur;
                 cur = cur->next;
                 FD_CLR(temp->fd, &all_rfds);
@@ -410,7 +405,6 @@ void _mio_main(void *arg)
                 }
 
                 readval = (*(cur->mh->read))(cur);
-
                 /* if we had a bad read */
                 if(readval == -1)
                 { 
@@ -554,9 +548,9 @@ void mio_stop(void)
 */
 mio mio_new(int fd, void *cb, void *arg, mio_handlers mh)
 {
-    mio  new            = NULL;
-    pool p              = NULL;
-    int flags           = 0;
+    mio  new   = NULL;
+    pool p     = NULL;
+    int  flags = 0;
 
     if(fd <= 0) 
         return NULL;
@@ -598,7 +592,7 @@ mio mio_reset(mio m, void *cb, void *arg)
     if(m == NULL) 
         return NULL;
 
-    m->cb     = (void*)cb;
+    m->cb     = cb;
     m->cb_arg = arg;
 
     return m;
@@ -782,15 +776,11 @@ mio mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_c
                        flag = 1;
     mio                new;
 
-    log_debug(ZONE, "MIO: %X, %X, %X", cb, cb_arg, mh);
-
     if(f == NULL)
         f = MIO_STD_CONNECT;
 
     if(mh == NULL)
         mh = mio_handlers_new(MIO_STD_READ, MIO_STD_WRITE);
-
-    log_debug(ZONE, "_mio_std_connect Connecting to host: %s:%d", host, port);
 
     bzero((void*)&sa, sizeof(struct sockaddr_in));
 
@@ -812,16 +802,13 @@ mio mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_c
     log_debug(ZONE, "calling connect handler %X", f);
     if((*f)(fd, (struct sockaddr*)&sa, sizeof sa) < 0)
     {
-        log_debug(ZONE, "_mio_std_connect failed to connect to: %s", host);
         close(fd);
         return 0;
     }
-    log_debug(ZONE, "connected on socket %d", fd);
 
     /* create the mio for this socket */
     new = mio_new(fd, cb, cb_arg, mh);
 
-    log_debug(ZONE, "MIO: %X, %X, %X, %X, %X", new->cb, new->cb_arg, new->mh, new->mh->read, new->mh->write);
     /* notify the client that the socket is born */
     if(new->cb != NULL)
         (*(mio_std_cb)new->cb)(new, MIO_NEW, new->cb_arg);
@@ -882,7 +869,6 @@ mio_handlers mio_handlers_new(mio_read_func rf, mio_write_func wf)
 
     new->p = p;
 
-    log_debug(ZONE, "new handlers: %X and %X", rf, wf);
     if(rf == NULL)
         new->read = MIO_STD_READ;
     else

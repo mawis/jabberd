@@ -10,8 +10,7 @@ void _mio_xstream_startElement(mio m, const char* name, const char** attribs)
        setup for by pre-allocating some memory */
     if (m->stacknode == NULL)
     {
-	    pool p = pool_heap(5 * 1024); /* 5k, typically 1-2k each, plus copy of self
-				   and workspace */
+	    pool p = pool_heap(5 * 1024); /* 5k, typically 1-2k each, plus copy of self and workspace */
 	    m->stacknode = xmlnode_new_tag_pool(p, name);
 	    xmlnode_put_expat_attribs(m->stacknode, attribs);
 
@@ -56,7 +55,7 @@ void _mio_xstream_endElement(mio m, const char* name)
 void _mio_xstream_CDATA(mio m, const char* cdata, int len)
 {
     if (m->stacknode != NULL)
-	xmlnode_insert_cdata(m->stacknode, cdata, len);
+	    xmlnode_insert_cdata(m->stacknode, cdata, len);
 }
 
 void _mio_xstream_cleanup(void* arg)
@@ -70,19 +69,17 @@ void _mio_xstream_cleanup(void* arg)
 
 mio _mio_xstream_init(mio m)
 {
-    log_debug(ZONE, "INIT EXPAT FOR SOCKET %d", m->fd);
     if (m != NULL)
     {
-	/* Initialize the parser */
-	m->parser = XML_ParserCreate(NULL);
-	XML_SetUserData(m->parser, m);
-	XML_SetElementHandler(m->parser, (void*)_mio_xstream_startElement, 
-			      (void*)_mio_xstream_endElement);
-	XML_SetCharacterDataHandler(m->parser, (void*)_mio_xstream_CDATA);
-	/* Setup a cleanup routine to release the parser when everything
-	   is done */
-	pool_cleanup(m->p, _mio_xstream_cleanup, (void*)m);
+	    /* Initialize the parser */
+	    m->parser = XML_ParserCreate(NULL);
+	    XML_SetUserData(m->parser, m);
+	    XML_SetElementHandler(m->parser, (void*)_mio_xstream_startElement, (void*)_mio_xstream_endElement);
+	    XML_SetCharacterDataHandler(m->parser, (void*)_mio_xstream_CDATA);
+	    /* Setup a cleanup routine to release the parser when everything is done */
+	    pool_cleanup(m->p, _mio_xstream_cleanup, (void*)m);
     }
+
     return m;
 }
 
@@ -92,8 +89,6 @@ int _mio_xml_read(mio m)
     int  maxlen, 
          len;
     char buff[8192]; /* max socket read */
-
-    log_debug(ZONE, "READING FROM XML_READ");
 
     maxlen = KARMA_READ_MAX(m->k.val);
 
@@ -106,7 +101,6 @@ int _mio_xml_read(mio m)
 
     if(len < 0)
     {
-    log_debug(ZONE, "ERROR READING FROM XML_READ");
         if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN) 
             return 0;
         else
@@ -130,7 +124,6 @@ int _mio_xml_read(mio m)
 
     if(XML_Parse(m->parser, buff, len, 0) < 0)
     {
-    log_debug(ZONE, "ERROR READING FROM XML_READ");
         if(m->cb != NULL)
             (*(mio_std_cb)m->cb)(m, MIO_ERROR, m->cb_arg);
         return -1;
