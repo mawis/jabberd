@@ -349,11 +349,17 @@
   expects a table "users" with at least two fields "jid" and
   "password". You are free to have other fields in this table
   as well, they will be ignored.
+
+  You may also store presence information of users in SQL tables.
+  Uncomment the <presence2xdb/> element in the session manager
+  configuration above and create a table presence with the following
+  fields in it: jid, presence, priority, status.
   -->
   <!--
   <xdb id="xdbsql">
     <host/>
     <ns>jabber:iq:auth</ns>
+    <ns>http://jabberd.org/ns/storedpresence</ns>
     <load>
       <xdb_sql>@libdir@/libjabberdxdbsql.so</xdb_sql>
     </load>
@@ -375,6 +381,14 @@
 	 </get>
 	 <set>INSERT INTO users (jid,password) VALUES ('{attribute::to}', '{password/text()}')</set>
 	 <delete>DELETE FROM users WHERE jid='{attribute::to}'</delete>
+      </handler>
+      <handler ns="http://jabberd.org/ns/storedpresence">
+        <get>
+          <query>SELECT 'this namespace is never selected'</query>
+          <result><this-namespace-is-never-selected/></result>
+        </get>
+        <set>INSERT INTO presence (jid,presence,priority,status) VALUES ('{attribute::to}', IF ('{presence}'='','unavailable', IF ('{presence/show/text()}'='','available', '{presence/show/text()}')), IF ('{presence/priority/text()}'='', '0', '{presence/priority/text()}'), '{presence/status/text()}')</set>
+        <delete>DELETE FROM presence WHERE jid='{attribute::to}'</delete>
       </handler>
     </xdb_sql>
   </xdb>
