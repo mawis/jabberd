@@ -63,7 +63,7 @@ void logger(char *type, char *host, char *message)
     }
 
     log = xmlnode_new_tag("log");
-    xmlnode_put_attrib(log,"tyoe",type);
+    xmlnode_put_attrib(log,"type",type);
     if(host != NULL)
         xmlnode_put_attrib(log,"from",host);
     else
