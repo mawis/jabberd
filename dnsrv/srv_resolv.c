@@ -214,7 +214,7 @@ int srv_lookup_aaaa_a(spool result, const char* domain) {
 	return 1;
     }
     
-    snprintf(addr_str, sizeof(addr_str), "%d.%d.%d.%d", hp->h_addr[0], hp->h_addr[1], hp->h_addr[2], hp->h_addr[3]);
+    snprintf(addr_str, sizeof(addr_str), "%u.%u.%u.%u", (unsigned char)(hp->h_addr[0]), (unsigned char)hp->h_addr[1], (unsigned char)hp->h_addr[2], (unsigned char)hp->h_addr[3]);
     spooler(result, addr_str, result);
     return 0;
 #endif
@@ -262,7 +262,7 @@ char* srv_lookup(pool p, const char* service, const char* domain)
     /* If no service is specified, use a standard gethostbyname call */
     if (service == NULL) {
 	result = spool_new(p);
-	if (srv_lookup_aaaa_a(result, domain)) {
+	if (srv_lookup_aaaa_a(result, domain) == 0) {
 	    return spool_print(result);
 	} else {
 	    return NULL;
