@@ -1,6 +1,48 @@
 <chapter id="charchitecture" xreflabel="Component Architecture">
 	<title>Component Architecture</title>
-	<para>In keeping with the design goals of a highly-scalable and modular server, 
-	a typical 2.0 server is composed of a conglomeration of components. 
+	<para>In keeping with the design goals of a highly-scalable and modular server,
+	the 2.0 design utilizes a distributed component architecture. As such, a Jabber
+	server is no longer a monolithic entity (i.e. single process) -- a server is
+	simply a composition of various XML processing devices, which may or may not be
+	distributed across a network. At the center of these devices is a central hub which
+	manages the routing and delivery of XML packets between devices. This is a natural
+	evolution of the original Jabber server designed, the primary difference being that
+	the components/modules which make up a server have been re-arranged to permit
+	extended flexibility.
+	
+	<section>
+		<title>jabberd - Component Hub</title>
+		
+		<para>jabberd is the hub of a distributed system of components, which,
+		collectively, form a single Jabber server. Currently, these components
+		connect to the server via the following methods:
+		<itemizedlist>
+			<listitem><para>TCP sockets</para></listitem>
+			<listitem><para>Child process I/O (stdin/out)</para></listitem>
+			<listitem><para>Shared objects/libraries</para></listitem>
+		</itemizedlist>
+		jabberd acts as a central-coordinator between these components by routing
+		and delivering the XML packets which components exchange. This design 
+		permits the Jabber server to be effectively scaled across a server farm,
+		while providing significant freedom in the implementation of the pieces
+		which compose a server. 
+
+		<example><title>Integrating LDAP</title>
+			<para>As an example of the flexibility which the 2.0 architecture
+			provides, consider the integration of an LDAP server for authentication
+			and vcard lookupes. An existing LDAP server can be fitted with a
+			component which connects to the jabberd hub via a TCP socket. On 
+			connection, the component registers itself with the hub as the handler 
+			of XDB authentication requests. When another component needs to 
+			authenticate a user, it simply transmits an internal XDB packet to 
+			the jabberd with the appropriate authentication namespace. The 
+			jabberd process, in turn, delivers the packet to the TCP socket 
+			connected to the LDAP server. Once the XML packet arrives at the
+			LDAP component, LDAP-based authentication is done and the result
+		        </para>	
+		</example>
+		</para>
+	</section>
+			
 </chapter>
 
