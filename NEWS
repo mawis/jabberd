@@ -53,6 +53,8 @@ Changes in administration of the server
     * Presence information can be stored in xdb and therefore (using xdb_sql)
       in an SQL table. The stored presence information is not used by
       jabberd itself, but can be used by other applications.
+    * It can be configured which ciphers and versions of SSL/TLS jabberd is
+      allowed to use.
 
 Changes in features visible to the user
     * Better XMPP compatibility: JIDs are prepared by the applicable

@@ -750,6 +750,15 @@
     - and IP address for usage with client conns on port 5223
     - a host name for usage with the STARTTLS feature
     - a star ("*") as a default for the STARTTLS feature
+
+    The following attributes can be defined using any value:
+    - no-ssl-v2: disable usage of SSLv2
+    - no-ssl-v3: disable usage of SSLv3
+    - no-tls-v1: disable usage of TLSv1 (= SSLv3.1)
+    - enable-workarounds: should not be needed
+
+    By using the ciphers attribute you can select which ciphers
+    are allowed to be used.
     -->
     <!--
     <ssl>
