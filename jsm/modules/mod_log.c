@@ -126,7 +126,7 @@ mreturn mod_log_session_end(mapi m, void *arg)
 
     if(l->fd == -1)
     { /* fd is dead */
-        log_notice(m->s->id->server,"failed session log message: %s",log);
+        log_warn(m->s->id->server,"failed session log message: %s",log);
         return M_PASS;
     }
     if(pth_write(l->fd, log, size) <= 0)
@@ -200,7 +200,7 @@ mreturn mod_log_packet(mapi m, void *arg)
 
     if(l->fd == -1)
     { /* fd is dead */
-        log_notice(m->packet->to->server,"failed session log message: %s",log);
+        log_warn(m->packet->to->server,"failed session log message: %s",log);
         return M_PASS;
     }
     if(pth_write(l->fd, log, size) <= 0)

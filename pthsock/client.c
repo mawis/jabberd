@@ -476,7 +476,7 @@ void pthsock_client(instance i, xmlnode x)
 
     if (host == NULL || port == NULL)
     {
-        log_error(ZONE,"pthsock_client invaild config");
+        log_error(ZONE,"pthsock_client invalid config");
         return;
     }
 

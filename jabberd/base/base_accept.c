@@ -162,8 +162,8 @@ void base_accept_read_packets(int type, xmlnode x, void *arg)
         /* Ensure requested namespace is correct.. */
         if (j_strcmp(xmlnode_get_attrib(x, "xmlns"), "jabber:component:accept") != 0)
         {
-                /* Log that this component sent an invalid namespace */
-                log_alert("base_accept_undetermined", "Recv'd invalid namespace. Closing connection.");
+                /* Log that the connected component sent an invalid namespace */
+                log_warn("base_accept_undetermined", "Recv'd invalid namespace. Closing connection.");
                 /* Notify component with stream:error */
                 pth_write(a->sock, SERROR_NAMESPACE, strlen(SERROR_NAMESPACE));
                 /* Set status code and return */
@@ -187,7 +187,7 @@ void base_accept_read_packets(int type, xmlnode x, void *arg)
 			if (snew == NULL) 
 			{
 				/* Log that a socket requested an invalid hostname */
-				log_error("base_accept_undetermined", "Request for invalid host: %s", xmlnode_get_attrib(x, "to"));
+				log_warn("base_accept_undetermined", "Request for invalid host: %s", xmlnode_get_attrib(x, "to"));
 				/* Notify socket with stream:error */
 				pth_write(a->sock, SERROR_INVALIDHOST, strlen(SERROR_INVALIDHOST));
 				/* Set status code and return */
@@ -370,7 +370,7 @@ void *base_accept_io(void *arg)
     }
 
     log_debug(ZONE,"read thread exiting for %d: %s",a->sock, strerror(errno));
-    log_notice(NULL,"base_accept: connection died on accepted socket");
+    log_warn(NULL,"base_accept: connection died on accepted socket");
 
 	/* If the acceptor's sink still points back to this acceptor, we can
 	 * be confident that it is the primary handler for this instance and
@@ -380,7 +380,7 @@ void *base_accept_io(void *arg)
 		/* Bounce current message */
 		if(p != NULL)
 		{
-			log_warn(NULL,"base_accept Bouncing packet intended for %s",xmlnode_get_attrib(p->x,"to"));
+			log_notice(NULL,"base_accept Bouncing packet intended for %s",xmlnode_get_attrib(p->x,"to"));
 			deliver_fail(p,"External Server Error");
 		}
 
@@ -426,7 +426,7 @@ void *base_accept_listen(void *arg)
     if(root < 0 || listen(root, ACCEPT_LISTEN_BACKLOG) < 0)
     {
         log_debug(ZONE,"base_accept failed to listen on port %d for ip %s",li->port, li->ip);
-        log_alert(NULL,"base_accept failed to listen on port %d for ip %s",li->port, li->ip);
+        log_error(NULL,"base_accept failed to listen on port %d for ip %s",li->port, li->ip);
         exit(1); /* don't start the server with a bad config */
         return NULL;
     }
@@ -438,7 +438,7 @@ void *base_accept_listen(void *arg)
         if(sock < 0)
         {
             log_warn(NULL,"base_accept error accepting: %s",strerror(errno));
-            log_alert(NULL,"base_accept not listening on port %d for ip %s",li->port, li->ip);
+            log_error(NULL,"base_accept not listening on port %d for ip %s",li->port, li->ip);
             break;
         }
 

@@ -585,7 +585,7 @@ dpacket dpacket_new(xmlnode x)
 
     if(p->id == NULL)
     {
-        log_error(NULL,"Packet Delivery Failed, invalid packet, dropping %s",xmlnode2str(x));
+        log_warn(NULL,"Packet Delivery Failed, invalid packet, dropping %s",xmlnode2str(x));
         xmlnode_free(x);
         return NULL;
     }
@@ -615,7 +615,7 @@ dpacket dpacket_new(xmlnode x)
     }
     if(p==NULL)
     {
-        log_error(NULL,"Packet Delivery Failed, invalid packet, dropping %s",xmlnode2str(x));
+        log_warn(NULL,"Packet Delivery Failed, invalid packet, dropping %s",xmlnode2str(x));
         xmlnode_free(x);
         return NULL;
     }

@@ -313,7 +313,7 @@ void pthsock_server_outx(int type, xmlnode x, void *arg)
             h = ghash_get(c->si->hosts,spools(xmlnode_pool(x),xmlnode_get_attrib(x,"from"),"/",xmlnode_get_attrib(x,"to"),xmlnode_pool(x)));
             if(h == NULL || h->c != c)
             { /* naughty... *click* */
-                log_notice(c->legacy_to,"Received illegal dialback validation from %s to %s",xmlnode_get_attrib(x,"from"),xmlnode_get_attrib(x,"to"));
+                log_warn(c->legacy_to,"Received illegal dialback validation from %s to %s",xmlnode_get_attrib(x,"from"),xmlnode_get_attrib(x,"to"));
                 io_write_str(c->s,"<stream:error>Invalid Dialback Result!</stream:error>");
                 io_close(c->s);
                 break;
@@ -333,7 +333,7 @@ void pthsock_server_outx(int type, xmlnode x, void *arg)
             h = ghash_get(c->si->hosts,spools(xmlnode_pool(x),xmlnode_get_attrib(x,"from"),"/",xmlnode_get_attrib(x,"to"),xmlnode_pool(x)));
             if(h == NULL || h->c != c)
             { /* naughty... *click* */
-                log_notice(c->legacy_to,"Received illegal dialback verification from %s to %s",xmlnode_get_attrib(x,"from"),xmlnode_get_attrib(x,"to"));
+                log_warn(c->legacy_to,"Received illegal dialback verification from %s to %s",xmlnode_get_attrib(x,"from"),xmlnode_get_attrib(x,"to"));
                 io_write_str(c->s,"<stream:error>Invalid Dialback Verify!</stream:error>");
                 io_close(c->s);
                 break;
@@ -466,7 +466,7 @@ result pthsock_server_packets(instance i, dpacket dp, void *arg)
         /* if we don't have an IP, we're misconfigured or something went awry! */
         if(ip == NULL)
         {
-            log_error(dp->host,"s2s received invalid unresolved outbound packet: %s",xmlnode2str(dp->x));
+            log_error(dp->host,"s2s received invalid, unresolved, outbound packet: %s",xmlnode2str(dp->x));
             deliver_fail(dp, "Unresolved");
             return r_DONE;
         }

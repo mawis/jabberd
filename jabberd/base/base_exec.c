@@ -195,7 +195,7 @@ void base_exec_handle_xstream_event(int type, xmlnode x, void* arg)
       if ( j_strcmp(xmlnode_get_attrib(x, "xmlns"), "jabber:component:exec") != 0)
       {
             /* Log that this component sent an invalid namespace... */
-            log_alert(pi->inst->id, "Recv'd invalid namespace. Stopping component.");
+            log_warn(pi->inst->id, "Recv'd invalid namespace. Stopping component.");
             /* Notify component with stream:error */
             pth_write(pi->out, SERROR_NAMESPACE, strlen(SERROR_NAMESPACE)); 
             pi->state = p_CLOSED;
