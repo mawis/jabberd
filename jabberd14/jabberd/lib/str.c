@@ -53,8 +53,12 @@ int j_strcmp(const char *a, const char *b)
 {
     if(a == NULL || b == NULL)
         return -1;
-    else
-        return strcmp(a, b);
+
+    while(*a == *b && *a != '\0' && *b != '\0'){ a++; b++; }
+
+    if(*a == *b) return 0;
+
+    return -1;
 }
 
 int j_strcasecmp(const char *a, const char *b)
