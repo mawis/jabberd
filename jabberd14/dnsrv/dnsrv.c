@@ -166,8 +166,10 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg)
 	       /* Walk the list and insert IPs */
 	       while(head != NULL)
 	       {
-		    xmlnode_put_attrib(head->packet->x, "ip", ipaddr);
 		    xmlnode_put_attrib(head->packet->x, "sto", di->resend_host);
+		    xmlnode_put_attrib(head->packet->x, "ip", ipaddr);
+		    /* Fixup the dpacket host ptr */
+		    head->packet->host = di->resend_host;
 		    /* Deliver the packet */
 		    deliver(head->packet, NULL);
 		    /* Move to next.. */
@@ -303,6 +305,7 @@ void dnsrv(instance i, xmlnode x)
 
      /* Extract destination host from config */
      di->resend_host = pstrdup(di->mempool, xmlnode_get_tag_data(config, "resendhost"));
+     log_debug(ZONE, "dnsrv debug: %s\n", xmlnode2str(config));
 
      /* Initialize a message port to handle incoming dpackets */
      di->write_queue = pth_msgport_create(i->id);
