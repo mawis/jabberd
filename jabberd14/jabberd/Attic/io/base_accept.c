@@ -318,7 +318,7 @@ result base_accept_config(instance id, xmlnode x, void *arg)
 
     if(id == NULL)
     {
-        log_debug(ZONE,"base_accept_config validating configuration");
+        log_debug(ZONE,"base_accept_config validating configuration...");
 		if ((xmlnode_get_tag(x, "ip") == NULL) || 
 		    (xmlnode_get_tag(x, "port") == NULL) || 
 		    (xmlnode_get_tag(x,"secret") == NULL))

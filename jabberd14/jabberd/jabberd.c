@@ -37,6 +37,7 @@
 
 #include "jabberd.h"
 HASHTABLE cmd__line, debug__zones;
+extern HASHTABLE instance__ids;
 extern int deliver__flag;
 extern xmlnode greymatter__;
 pool jabberd__runtime = NULL;
@@ -50,6 +51,7 @@ int configo(int exec);
 void config_cleanup(void);
 void shutdown_callbacks(void);
 int config_reload(char *file);
+int  instance_startup(xmlnode x, int exec);
 void instance_shutdown(instance i);
 
 int main (int argc, char** argv)
@@ -170,6 +172,8 @@ int main (int argc, char** argv)
     /* main server loop */
     while(1)
     {
+        xmlnode cur;
+
         /* wait for a signal */
         pth_sigwait(&set, &sig);
 
@@ -178,43 +182,114 @@ int main (int argc, char** argv)
 
         log_notice(NULL,"SIGHUP recieved.  Reloading config file");
 
+        log_debug(ZONE, "Saving old greymatter");
         /* keep greymatter around till we are sure the reload is OK */
         temp_greymatter = greymatter__;
 
+        log_debug(ZONE, "Loading new config file");
         /* try to load the config file */
         if(configurate(cfgfile))
         { /* failed to load.. restore the greymatter */
+            log_debug(ZONE, "Failed to load new config, resetting greymatter");
+            log_alert(ZONE, "Failed to reload config!  Resetting internal config -- please check your configuration!");
             greymatter__ = temp_greymatter;
             continue;
         }
 
-        /* file loaded okay.. kill all the instances, and reload them from the config */
-        instance_shutdown(NULL);
-        
+        /* make sure that this config is okay */
+        log_debug(ZONE, "Validating Instances");
+        if(configo(0))
+        { /* bad config.. reload the old */
+            log_debug(ZONE, "Failed to Validate Instances");
+            log_alert(ZONE, "Failed to Validate Instances!  Resetting internal config -- please check your configuration!");
+            greymatter__ = temp_greymatter;
+            continue; 
+        }
+
+        log_debug(ZONE, "Pausing Deliver()");
         /* pause deliver() */
         deliver__flag = 0;
 
-        /* verify the new config */
-        if(configo(0))
+        log_debug(ZONE, "Looking for new instances to startup...");
+        /* look for new instances.. start them up */
+        for(cur = xmlnode_get_firstchild(greymatter__); cur != NULL; cur = xmlnode_get_nextsibling(cur))
         {
-            /* something is wrong, reload old config, and go again */
-            greymatter__ = temp_greymatter;
-            if(configo(0))
-                exit(1); /* unrecoverable */
+            char *id;
+            instance i;
 
-            temp_greymatter = NULL;
+            if(xmlnode_get_type(cur) != NTYPE_TAG) continue;
+
+            id = xmlnode_get_attrib(cur, "id");
+            log_debug(ZONE, "Looking at %s...", id);
+            i = ghash_get(instance__ids, id);
+            if(i == NULL)
+            { /* new instance, start it up */
+                log_debug(ZONE, "%s is a new instance! starting it up", id);
+                instance_startup(cur, 1);
+            }
+
+            /* XXX FIXME: do a full sigHUP, not just start new instnaces
+            else
+            {
+                if(xmlnode_cmp(cur, i->x) != 0)
+                {
+                    log_debug(ZONE, "%s is a changed instance! reloading", id);
+                    instance_shutdown(i);
+                    instance_startup(cur, 1);
+                }
+            }
+            */
         }
 
-        /* everything is ok, load all the instances */
-        configo(1);
+        /* XXX FIXME: take this out, and do a full sigHUP, */
+        if(1)
+        {
+            log_debug(ZONE, "Engaging deliver() again");
+            /* engage deliver() drive ensign, full warp ahead! */
+            deliver__flag = 1;
+            deliver(NULL,NULL);
 
-        /* restart deliver() */
+            log_debug(ZONE, "Freeing old greymatter");
+            /* free old greymatter */
+            if(temp_greymatter != NULL)
+                xmlnode_free(temp_greymatter);
+
+            log_debug(ZONE, "Reload process complete, going back to waiting for a signal");
+            continue;
+        }
+
+        log_debug(ZONE, "Looking for stale instances to shut down...");
+        /* look for stale instances to shutdown */
+        for(cur = xmlnode_get_firstchild(temp_greymatter); cur != NULL; cur = xmlnode_get_nextsibling(cur))
+        {
+            char *searchstr;
+            if(xmlnode_get_type(cur) != NTYPE_TAG) continue;
+
+            searchstr = spools(xmlnode_pool(cur), xmlnode_get_name(cur), "?id=", xmlnode_get_attrib(cur, "id"), xmlnode_pool(cur));
+            log_debug(ZONE, "Checking if %s is stale", searchstr);
+
+            if(xmlnode_get_tag(greymatter__, searchstr) == NULL)
+            { /* was in config, but not anymore */
+                instance i;
+                log_alert(NULL, "Shutting Down stale instance %s", xmlnode_get_attrib(cur, "id"));
+                
+                i = ghash_get(instance__ids, xmlnode_get_attrib(cur, "id"));
+                instance_shutdown(i);
+            }
+        }
+
+        log_debug(ZONE, "Engaging deliver() again");
+        /* engage deliver() drive ensign, full warp ahead! */
         deliver__flag = 1;
         deliver(NULL,NULL);
 
+        log_debug(ZONE, "Freeing old greymatter");
         /* free old greymatter */
         if(temp_greymatter != NULL)
             xmlnode_free(temp_greymatter);
+
+        log_debug(ZONE, "Reload process complete, going back to waiting for a signal");
+
     }
 
     log_alert(NULL,"Recieved Kill.  Jabberd shutting down.");

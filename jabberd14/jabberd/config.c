@@ -236,113 +236,122 @@ void config_cleanup(void)
     ghash_destroy(instance__ids);
 }
 
+int instance_startup(xmlnode x, int exec)
+{
+
+    ptype type;
+    xmlnode cur;
+    cfg c;
+    instance newi = NULL;
+    pool p;
+
+    type = p_NONE;
+
+    if(strcmp(xmlnode_get_name(x), "log") == 0)
+        type = p_LOG;
+    if(strcmp(xmlnode_get_name(x), "xdb") == 0)
+        type = p_XDB;
+    if(strcmp(xmlnode_get_name(x), "service") == 0)
+        type = p_NORM;
+
+    if(type == p_NONE || xmlnode_get_attrib(x, "id") == NULL || xmlnode_get_firstchild(x) == NULL)
+    {
+        log_alert(NULL, "Configuration error in:\n%s\n", xmlnode2str(x));
+        if(type == p_NONE) 
+        {
+            log_alert(NULL, "ERROR: Invalid Tag type: %s\n",xmlnode_get_name(x));
+        }
+        if(xmlnode_get_attrib(x, "id") == NULL)
+        {
+            log_alert(NULL, "ERROR: Section needs an 'id' attribute\n");
+        }
+        if(xmlnode_get_firstchild(x)==NULL)
+        {
+            log_alert(NULL, "ERROR: Section Has no data in it\n");
+	    }
+        return -1;
+    }
+
+    if(exec == 1)
+    {
+        newi = ghash_get(instance__ids, xmlnode_get_attrib(x,"id"));
+        if(newi != NULL)
+        {
+            log_alert(NULL, "ERROR: Multiple Instances with same id: %s\n",xmlnode_get_attrib(x,"id"));
+            return -1;
+        }
+    }
+
+    /* create the instance */
+    if(exec)
+    {
+        jid temp;
+        p = pool_new();
+        newi = pmalloc_x(p, sizeof(_instance), 0);
+        newi->id = pstrdup(p,xmlnode_get_attrib(x,"id"));
+        newi->type = type;
+        newi->p = p;
+        newi->x = x;
+        /* make sure the id is valid for a hostname */
+        temp = jid_new(p, newi->id);
+        if(temp == NULL || j_strcmp(temp->server, newi->id) != 0)
+        {
+            log_alert(NULL, "ERROR: Invalid id name: %s\n",newi->id);
+            pool_free(p);
+            return -1;
+        }
+        ghash_put(instance__ids,newi->id,newi);
+        register_instance(newi,newi->id);
+    }
+
+
+    /* loop through all this sections children */
+    for(cur = xmlnode_get_firstchild(x); cur != NULL; cur = xmlnode_get_nextsibling(cur))
+    {
+        /* only handle elements in our namespace */
+        if(xmlnode_get_type(cur) != NTYPE_TAG || xmlnode_get_attrib(cur, "xmlns") != NULL)
+            continue;
+
+        /* run the registered function for this element */
+        c = cfget(xmlnode_get_name(cur));
+        if(c == NULL || (c->f)(newi, cur, c->arg) == r_ERR)
+        {
+            char *error = pstrdup(xmlnode_pool(cur), xmlnode_get_attrib(cur,"error"));
+            xmlnode_hide_attrib(cur, "error");
+            log_alert(NULL, "Invalid Configuration in instance '%s':\n%s\n",xmlnode_get_attrib(x,"id"),xmlnode2str(cur));
+            if(c == NULL) 
+            {
+			    log_alert(NULL, "ERROR: Unknown Base Tag: %s\n",xmlnode_get_name(cur));
+		    }
+            else if(error != NULL)
+            {
+                log_alert(NULL, "ERROR: Base Handler Returned an Error:\n%s\n", error);
+            }
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 /* execute configuration file */
 int configo(int exec)
 {
-    cfg c;
-    xmlnode curx, curx2;
-    ptype type;
-    instance newi = NULL;
-    pool p;
-    char message[MAX_LOG_SIZE];
+    xmlnode cur;
 
     if(instance__ids==NULL)
         instance__ids=ghash_create(19,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
 
-    for(curx = xmlnode_get_firstchild(greymatter__); curx != NULL; curx = xmlnode_get_nextsibling(curx))
+    for(cur = xmlnode_get_firstchild(greymatter__); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
-        if(xmlnode_get_type(curx) != NTYPE_TAG || strcmp(xmlnode_get_name(curx),"base") == 0)
+        if(xmlnode_get_type(cur) != NTYPE_TAG || strcmp(xmlnode_get_name(cur),"base") == 0)
             continue;
 
-        type = p_NONE;
-
-        if(strcmp(xmlnode_get_name(curx),"log") == 0)
-            type = p_LOG;
-        if(strcmp(xmlnode_get_name(curx),"xdb") == 0)
-            type = p_XDB;
-        if(strcmp(xmlnode_get_name(curx),"service") == 0)
-            type = p_NORM;
-
-        if(type == p_NONE || xmlnode_get_attrib(curx,"id") == NULL || xmlnode_get_firstchild(curx) == NULL)
+        if(instance_startup(cur, exec))
         {
-            snprintf(message, MAX_LOG_SIZE, "Configuration error in:\n%s\n",xmlnode2str(curx));
-            fprintf(stderr, "%s\n", message);
-            if(type==p_NONE) {
-	    	snprintf(message, MAX_LOG_SIZE, "ERROR: Invalid Tag type: %s\n",xmlnode_get_name(curx));
-	    	fprintf(stderr, "%s\n", message);
-	    }
-            if(xmlnode_get_attrib(curx,"id")==NULL){
-            	snprintf(message, MAX_LOG_SIZE, "ERROR: Section needs an 'id' attribute\n");
-                fprintf(stderr, "%s\n", message);
-	    }
-            if(xmlnode_get_firstchild(curx)==NULL){
-                snprintf(message, MAX_LOG_SIZE, "ERROR: Section Has no data in it\n");
-                fprintf(stderr, "%s\n", message);
-	    }
             return 1;
-	   
         }
 
-        newi=ghash_get(instance__ids,xmlnode_get_attrib(curx,"id"));
-        if(newi!=NULL)
-        {
-            snprintf(message, MAX_LOG_SIZE, "ERROR: Multiple Instances with same id: %s\n",xmlnode_get_attrib(curx,"id"));
-            fprintf(stderr, "%s\n", message);
-            exit(1);
-        }
-
-        /* create the instance */
-        if(exec)
-        {
-            jid temp;
-            p = pool_new();
-            newi = pmalloc_x(p, sizeof(_instance), 0);
-            newi->id = pstrdup(p,xmlnode_get_attrib(curx,"id"));
-            newi->type = type;
-            newi->p = p;
-            newi->x = curx;
-            /* make sure the id is valid for a hostname */
-            temp=jid_new(p,newi->id);
-            if(temp==NULL||j_strcmp(temp->server,newi->id)!=0)
-            {
-                snprintf(message, MAX_LOG_SIZE, "ERROR: Invalid id name: %s\n",newi->id);
-                fprintf(stderr, "%s\n", message);
-                pool_free(p);
-                exit(1);
-            }
-
-            ghash_put(instance__ids,newi->id,newi);
-            register_instance(newi,newi->id);
-        }
-
-
-        /* loop through all this sections children */
-        for(curx2 = xmlnode_get_firstchild(curx); curx2 != NULL; curx2 = xmlnode_get_nextsibling(curx2))
-        {
-            /* only handle elements in our namespace */
-            if(xmlnode_get_type(curx2) != NTYPE_TAG || xmlnode_get_attrib(curx2, "xmlns") != NULL)
-                continue;
-
-            /* run the registered function for this element */
-            c = cfget(xmlnode_get_name(curx2));
-            if(c == NULL || (c->f)(newi, curx2, c->arg) == r_ERR)
-            {
-                char *error=pstrdup(xmlnode_pool(curx2),xmlnode_get_attrib(curx2,"error"));
-                xmlnode_hide_attrib(curx2,"error");
-                snprintf(message, MAX_LOG_SIZE, "Invalid Configuration in instance '%s':\n%s\n",xmlnode_get_attrib(curx,"id"),xmlnode2str(curx2));
-                fprintf(stderr, "%s\n", message);
-                if(c==NULL) {
-			snprintf(message, MAX_LOG_SIZE, "ERROR: Unknown Base Tag: %s\n",xmlnode_get_name(curx2));
-			fprintf(stderr, "%s\n", message);
-		}
-                else if(error!=NULL)
-                {
-                    snprintf(message, MAX_LOG_SIZE, "ERROR: Base Handler Returned an Error:\n%s\n",error);
-                    fprintf(stderr, "%s\n", message);
-                }
-                return 1;
-            }
-        }
     }
 
     return 0;

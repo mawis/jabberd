@@ -41,8 +41,7 @@ result base_file_deliver(instance id, dpacket p, void* arg)
        log_debug(ZONE,"base_file_deliver error: no message available to print.\n");
        return r_ERR;
     }
-    // I'm allowing the following fprintf because message is known 
-    // to be non-null at this point.
+
     if (fprintf(f,"%s\n", message) == EOF)
     {
         log_debug(ZONE,"base_file_deliver error: error writing to file(%d).\n", errno);
@@ -67,42 +66,43 @@ result base_file_config(instance id, xmlnode x, void *arg)
         
     if(id == NULL)
     {
+        log_debug(ZONE,"base_file_config validating configuration");
+
         if (xmlnode_get_data(x) == NULL)
         {
-            log_debug(ZONE,"base_file_config error: no filename provided.\n");
+            log_debug(ZONE,"base_file_config error: no filename provided.");
             xmlnode_put_attrib(x,"error","'file' tag must contain a filename to write to");
             return r_ERR;
         }
-        log_debug(ZONE,"base_file_config validating configuration\n");
         return r_PASS;
     }
 
-    /* XXX this is an ugly hack, but it's better than a bad config */
-    /* XXX needs to be a way to validate this in the checking phase */
-    if(id->type!=p_LOG)
+    log_debug(ZONE,"base_file configuring instance %s",id->id);
+
+    if(id->type != p_LOG)
     {
-        fprintf(stderr,"ERROR: <file>..</file> element only allowed in log sections\n");
-        exit(1);
+        log_alert(NULL,"ERROR in instance %s: <file>..</file> element only allowed in log sections", id->id);
+        return r_ERR;
     }
 
     /* Attempt to open/create the file */
     filehandle = fopen(xmlnode_get_data(x), "a");
     if (filehandle == NULL)
     {
-        log_debug(ZONE,"base_file_config error: error opening file (%d)\n", errno);
+        log_alert(NULL,"base_file_config error: error opening file (%d): %s", errno, strerror(errno));
         return r_ERR;
     }
 
     /* Register a handler for this instance... */
     register_phandler(id, o_DELIVER, base_file_deliver, (void*)filehandle); 
+
     pool_cleanup(id->p, _base_file_shutdown, (void*)filehandle); 
     
-    log_debug(ZONE,"base_file_config performing configuration %s\n",xmlnode2str(x));
     return r_DONE;
 }
 
 void base_file(void)
 {
-    log_debug(ZONE,"base_file loading...\n");
+    log_debug(ZONE,"base_file loading...");
     register_config("file",base_file_config,NULL);
 }

@@ -134,24 +134,38 @@ int dnsrv_child_main(dns_io di)
      xstream xs  = xstream_new(p, dnsrv_child_process_xstream_io, di);
      int     readlen = 0;
      char    readbuf[1024];
+     sigset_t sigs;
+
+
+     sigemptyset(&sigs);
+     sigaddset(&sigs, SIGHUP);
+     sigprocmask(SIG_BLOCK, &sigs, NULL);
 
      /* Transmit stream header */
-     pth_write(di->out, "<stream>", strlen("<stream>"));
+     write(di->out, "<stream>", 8);
 
      /* Loop forever, processing requests and feeding them to the xstream*/     
      while (1)
      {
-       readlen = pth_read(di->in, &readbuf, 1024);
+        log_debug(ZONE, "DNSRV CHILD: Reading from buffer");
+       readlen = read(di->in, &readbuf, 1024);
        if(readlen > 0)
        {
+        log_debug(ZONE, "DNSRV CHILD: eating read buffer");
         xstream_eat(xs, readbuf, readlen);
        }
        else
        {
+        if(errno == EINTR)
+        {
+            log_debug(ZONE, "DNSRV CHILD: EINTR");
+        }
+        log_debug(ZONE, "DNSRV CHILD: error on read");
          if(getppid()==1) break; /* our parent has died */
        }
      }	  
      /* child is out of loop... normal exit so parent will start us again */
+        log_debug(ZONE, "DNSRV CHILD: out of loop.. exiting normal");
      pool_free(p);
      exit(0);
      return 0;
@@ -184,7 +198,10 @@ int dnsrv_fork_and_capture(RESOLVEFUNC f, dns_io di)
      }
      else			/* Child */
      {
-	  /* Close unneeded file handles */
+      if(!pth_kill())
+      {
+        log_debug(ZONE,"\n\n\n\n\n\nPTH KILL FAILED MISERABLY\n\n\n\n\n\n");
+      } /* Close unneeded file handles */
 	  close(left_fds[STDOUT_FILENO]);
 	  close(right_fds[STDIN_FILENO]);
 	  /* Start the specified function, passing the in/out descriptors */
@@ -278,6 +295,7 @@ void* dnsrv_process_io(void* threadarg)
      dns_io di = (dns_io)threadarg;
 
      int  retcode       = 0;
+     int  pid           = 0;
      int  readlen       = 0;
      char readbuf[1024];
 
@@ -287,6 +305,11 @@ void* dnsrv_process_io(void* threadarg)
 
      xstream  xs       = NULL;       
      char*    request  = NULL;
+     sigset_t sigs;
+
+     sigemptyset(&sigs);
+     sigaddset(&sigs, SIGHUP);
+     sigprocmask(SIG_BLOCK, &sigs, NULL);
 
      /* Allocate an xstream for talking to the process */
      xs = xstream_new(di->mempool, dnsrv_process_xstream_io, di);
@@ -309,6 +332,10 @@ void* dnsrv_process_io(void* threadarg)
 	       readlen = pth_read(di->in, readbuf, sizeof(readbuf));
                if (readlen <= 0)
                {
+                    if(errno == EINTR) 
+                    {
+                        log_debug(ZONE, "socket interupted");
+                    }
                     log_debug(ZONE,"dnsrv: Read error on coprocess!\n");
 	                while((wb = (dns_write_buf)pth_msgport_get(di->write_queue)) != NULL)
                     {
@@ -377,26 +404,46 @@ void* dnsrv_process_io(void* threadarg)
 
      /* If we reached this point, the coprocess probably is dead, so 
 	process the SIG_CHLD */
-     pth_waitpid(di->pid, &retcode, 0);
+     pid = pth_waitpid(di->pid, &retcode, 0);
+
+     if(pid == -1)
+     {
+        log_debug(ZONE, "pth_waitpid returned -1: %s", strerror(errno));
+     }
+     else if(pid == 0)
+     {
+        log_debug(ZONE, "no child available to call waitpid on");
+     }
+     else
+     {
+        log_debug(ZONE, "pid %d, exit status: %d", pid, WEXITSTATUS(retcode));
+     }
 
      /* Cleanup */
      close(di->in);
      close(di->out);
-     pth_event_free(di->e_read, PTH_FREE_THIS);
-     pth_event_free(di->e_write, PTH_FREE_THIS);
 
      log_debug(ZONE,"child returned %d",WEXITSTATUS(retcode));
 
-     if(WIFEXITED(retcode)&&!WIFSIGNALED(retcode)) /* if the child exited normally */
+     if(WIFEXITED(retcode)&&WIFSIGNALED(retcode)) /* if the child exited normally */
      {
+        log_debug(ZONE, "child being restarted...");
         /* Fork out resolver function/process */
         di->pid = dnsrv_fork_and_capture(dnsrv_child_main, di);
 
         /* Start IO thread */
         pth_spawn(PTH_ATTR_DEFAULT, dnsrv_process_io, (void*)di);
+        return NULL;
      }
 
+     log_debug(ZONE, "child dying...4");
+     log_debug(ZONE, "child dying...3");
+     pth_event_free(di->e_read, PTH_FREE_THIS);
+     log_debug(ZONE, "child dying...2");
+     pth_event_free(di->e_write, PTH_FREE_THIS);
+     log_debug(ZONE, "child dying...1");
      pth_msgport_destroy(di->write_queue);
+     log_debug(ZONE, "child dying...0");
      return NULL;
 }
 

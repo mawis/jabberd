@@ -32,55 +32,40 @@
 
 result base_logtype_filter(instance id, dpacket p, void* arg)
 {
-    char* packettype     = xmlnode_get_attrib(p->x, "type");
-    if(xmlnode_get_tag(xmlnode_get_parent((xmlnode)arg),packettype)!=NULL)
+    char* packettype = xmlnode_get_attrib(p->x, "type");
+
+    /* look at the xmlnode parent,.. if it has one of the flags set
+     * for this flag type (packettype) then allow it */
+    if(xmlnode_get_tag(xmlnode_get_parent((xmlnode)arg), packettype) != NULL)
         return r_PASS;
+
     return r_LAST;
 }
 
 result base_logtype_config(instance id, xmlnode x, void *arg)
 {
-    char* name = NULL;
-    char message[MAX_LOG_SIZE];
-    name = xmlnode_get_name(x);
-    if(id == NULL)
-    {
-        snprintf(message, MAX_LOG_SIZE, "validating config: %s\n",name);
-        fprintf(stderr, "%s\n", message);
-        /* Ensure that the name of the tag is either "notice", "warn", or "alert" */
-        if (strcmp(name, "notice") && strcmp(name, "warn") && strcmp(name, "alert"))
-        {
-            xmlnode_put_attrib(x,"error","Invalid log type filter requested");
-            log_debug(ZONE,"base_logtype_config error: invalid log type filter requested (%s)\n", name);
-            return r_ERR;
-        }
-        
-        log_debug(ZONE,"base_logtype_config validating configuration\n");
+    if(id == NULL) /* no config checking needed */
         return r_PASS;
+
+    if(id->type != p_LOG)
+    {
+        log_alert(NULL, "ERROR in instance %s: <notice/>,<warn/> and <alert/> elements only allowed in log sections", id->id);
+        return r_ERR;
     }
 
-    /* XXX this is an ugly hack, but it's better than a bad config */
-    /* XXX needs to be a way to validate this in the checking phase */
-    if(id->type!=p_LOG)
-    {
-        fprintf(stderr,"ERROR: <notice/>,<warn/> and <alert/> elements only allowed in log sections\n");
-        exit(1);
-    }
+    log_debug(ZONE,"base_logtype configuring instance %s",id->id);
 
     /* Register a conditional handler for this instance, passing the name
-     * of the tag as an argument (for comparison in the filter op 
-     */
+     * of the tag as an argument (for comparison in the filter op */
     register_phandler(id, o_COND, base_logtype_filter, (void*)x);
 
-    log_debug(ZONE,"base_logtype_config performing configuration %s\n",xmlnode2str(x));
 
     return r_PASS;
 }
 
 void base_logtype(void)
 {
-    log_debug(ZONE,"base_logtype loading...\n");
-
+    log_debug(ZONE,"base_logtype loading...");
     register_config("notice",base_logtype_config,NULL);
     register_config("warn",base_logtype_config,NULL);
     register_config("alert",base_logtype_config,NULL);

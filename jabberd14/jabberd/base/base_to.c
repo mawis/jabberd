@@ -32,23 +32,25 @@
 
 result base_to_deliver(instance id,dpacket p,void* arg)
 {
-    char* log_data=xmlnode_get_data(p->x);
+    char* log_data = xmlnode_get_data(p->x);
     char* subject;
     xmlnode message;
 
-    if(log_data==NULL)
+    if(log_data == NULL)
         return r_ERR;
 
-    message=xmlnode_new_tag("message");
-    xmlnode_insert_cdata(xmlnode_insert_tag(message,"body"),log_data,-1);
-    subject=spools(xmlnode_pool(message),"Log Packet from ",xmlnode_get_attrib(p->x,"from"),xmlnode_pool(message));
-    xmlnode_insert_cdata(xmlnode_insert_tag(message,"thread"),shahash(subject),-1);
-    xmlnode_insert_cdata(xmlnode_insert_tag(message,"subject"),subject,-1);
-    xmlnode_put_attrib(message,"from",xmlnode_get_attrib(p->x,"from"));
-    xmlnode_put_attrib(message,"to",(char*)arg);
-    deliver(dpacket_new(message),id);
+    message = xmlnode_new_tag("message");
+    
+    xmlnode_insert_cdata(xmlnode_insert_tag(message,"body"), log_data, -1);
+    subject=spools(xmlnode_pool(message), "Log Packet from ", xmlnode_get_attrib(p->x, "from"), xmlnode_pool(message));
+    xmlnode_insert_cdata(xmlnode_insert_tag(message, "thread"), shahash(subject), -1);
+    xmlnode_insert_cdata(xmlnode_insert_tag(message, "subject"), subject, -1);
+    xmlnode_put_attrib(message, "from", xmlnode_get_attrib(p->x, "from"));
+    xmlnode_put_attrib(message, "to", (char*)arg);
 
+    deliver(dpacket_new(message), id);
     pool_free(p->p);
+
     return r_DONE;
 }
 
@@ -56,31 +58,33 @@ result base_to_config(instance id, xmlnode x, void *arg)
 {
     if(id == NULL)
     {
+        jid j = jid_new(id->p, xmlnode_get_data(x));
+
         log_debug(ZONE,"base_to_config validating configuration\n");
-        if(xmlnode_get_data(x)==NULL)
+        if(j == NULL)
         {
-            xmlnode_put_attrib(x,"error","'to' tag must contain a jid to send log data to");
-            log_error(ZONE,"Invalid Configuration for base_to");
+            xmlnode_put_attrib(x, "error", "'to' tag must contain a jid to send log data to");
+            log_debug(ZONE, "Invalid Configuration for base_to");
             return r_ERR;
         }
         return r_PASS;
     }
 
-    /* XXX this is an ugly hack, but it's better than a bad config */
-    /* XXX needs to be a way to validate this in the checking phase */
-    if(id->type!=p_LOG)
+    log_debug(ZONE, "base_to configuring instance %s", id->id);
+
+    if(id->type != p_LOG)
     {
-        fprintf(stderr,"ERROR: <to>..</to> element only allowed in log sections\n");
-        exit(1);
+        log_alert(NULL, "ERROR in instance %s: <to>..</to> element only allowed in log sections", id->id);
+        return r_ERR;
     }
 
-    register_phandler(id,o_DELIVER,base_to_deliver,(void*)xmlnode_get_data(x));
+    register_phandler(id, o_DELIVER, base_to_deliver, (void*)xmlnode_get_data(x));
+
     return r_DONE;
 }
 
 void base_to(void)
 {
-    log_debug(ZONE,"base_to loading...\n");
-
+    log_debug(ZONE,"base_to loading...");
     register_config("to",base_to_config,NULL);
 }
