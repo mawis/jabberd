@@ -245,8 +245,6 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
     wbq q;
     jid from,to;
 
-    to=jid_new(xmlnode_pool(dp->x),xmlnode_get_attrib(dp->x,"to"));
-    from=jid_new(xmlnode_pool(dp->x),xmlnode_get_attrib(dp->x,"from"));
     ip=xmlnode_get_attrib(dp->x,"ip"); /* look for ip="12.34.56.78:5269" header */ 
 
     if(dp->type==p_ROUTE&&xmlnode_get_firstchild(dp->x)!=NULL)
@@ -256,6 +254,9 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
         xmlnode_free(dp->x);
         return r_DONE;
     }
+
+    to=jid_new(xmlnode_pool(dp->x),xmlnode_get_attrib(dp->x,"to"));
+    from=jid_new(xmlnode_pool(dp->x),xmlnode_get_attrib(dp->x,"from"));
 
     if(ip!=NULL)
     {
