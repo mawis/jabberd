@@ -15,7 +15,7 @@
  	<objectfile macro='OBJECTS'>
 	  <dep><macro>HEADERS</macro></dep>
         </objectfile>
-        <sharedobject name='xdb_file.so'>
+        <sharedobject name='xdb_file.so' type='dynamic'>
           <dep filelist='1'>
             <macro>OBJECTS</macro>
           </dep>
