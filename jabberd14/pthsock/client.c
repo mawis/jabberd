@@ -74,10 +74,7 @@ typedef struct cdata_st
 xmlnode pthsock_make_route(xmlnode x, char *to, char *from, char *type)
 {
     xmlnode new;
-    if(x != NULL)
-        new = xmlnode_wrap(x, "route");
-    else
-        new = xmlnode_new_tag("route");
+    new = x ? xmlnode_wrap(x, "route") : xmlnode_new_tag("route");
 
     if(type != NULL) 
         xmlnode_put_attrib(new, "type", type);
@@ -223,7 +220,6 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
         break;
     case MIO_CLOSED:
         if(cd == NULL) break;
-        ghash_remove(s__i->users, cd->id);
         log_debug(ZONE, "io_select Socket %d close notification", m->fd);
         if(cd->state == state_AUTHD)
         {
@@ -248,17 +244,14 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
             deliver_fail(dpacket_new(h), "Socket Error to Client");
         break;
     case MIO_XML_ROOT:
-        ghash_put(s__i->users, cd->id,cd);
+        ghash_put_pool(cd->m->p, s__i->users, cd->id,cd);
         log_debug(ZONE, "root received for %d", m->fd);
         to = xmlnode_get_attrib(x, "to");
-        alias = ghash_get(s__i->aliases, xmlnode_get_attrib(x, "to"));
 
-        if(alias == NULL) 
-            alias = ghash_get(s__i->aliases, "default");
-        if(alias != NULL)
-            cd->host = jid_new(m->p, alias);
-        else
-            cd->host = jid_new(m->p, to);
+        alias = ghash_get(s__i->aliases, xmlnode_get_attrib(x, "to"));
+        alias = alias ? alias : ghash_get(s__i->aliases, "default");
+
+        cd->host = alias ? jid_new(m->p, alias) : jid_new(m->p, to);
 
         h = xstream_header("jabber:client", NULL, jid_full(cd->host));
         cd->sid = pstrdup(m->p, xmlnode_get_attrib(h, "id"));
@@ -339,8 +332,6 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
 /* cleanup function */
 void pthsock_client_shutdown(void *arg)
 {
-    ghash_destroy(s__i->aliases);
-    ghash_destroy(s__i->users);
     xmlnode_free(s__i->cfg);
 }
 
@@ -350,7 +341,7 @@ void pthsock_client(instance i, xmlnode x)
     xdbcache xc;
     xmlnode cur;
     int rate_time = 0, rate_points = 0;
-    char *host, *port = 0;
+    char *host;
     struct karma k;
 
     log_debug(ZONE, "pthsock_client loading");
@@ -358,8 +349,8 @@ void pthsock_client(instance i, xmlnode x)
     s__i               = pmalloco(i->p, sizeof(_smi));
     s__i->auth_timeout = DEFAULT_AUTH_TIMEOUT;
     s__i->i            = i;
-    s__i->aliases      = ghash_create(7, (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
-    s__i->users        = ghash_create(7, (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
+    s__i->aliases      = ghash_create_pool(i->p, 7, (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
+    s__i->users        = ghash_create_pool(i->p, 7, (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
 
     /* get the config */
     xc = xdb_cache(i);
@@ -389,11 +380,11 @@ void pthsock_client(instance i, xmlnode x)
            host = xmlnode_get_data(cur);
            if(host != NULL)
            {
-               ghash_put(s__i->aliases, host, to);
+               ghash_put_pool(s__i->i->p, s__i->aliases, host, to);
            }
            else
            {
-               ghash_put(s__i->aliases, "default", to);
+               ghash_put_pool(s__i->i->p, s__i->aliases, "default", to);
            }
         }
         else if(j_strcmp(xmlnode_get_name(cur), "authtime") == 0)
@@ -451,7 +442,6 @@ void pthsock_client(instance i, xmlnode x)
     }
 
     /* register data callbacks */
-    log_debug(ZONE, "looking at: %s\n", port);
     register_phandler(i, o_DELIVER, pthsock_client_packets, NULL);
     pool_cleanup(i->p, pthsock_client_shutdown, (void*)s__i);
 }
