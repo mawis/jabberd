@@ -1,35 +1,34 @@
-#include <jabber/jabber.h>
+#include "jabberd.h"
 
-#define HASH_PRIME 509 /* set to a prime number larger then the average max # of users, for the master hash */
+/* worker thread max waiting pool size */
+#define SESSION_WAITERS 10
 
-#define MAPI_VARAUTH -10
-#define MAPI_VARREGISTER -11
+/* set to a prime number larger then the average max # of hosts, and another for the max # of users for any single host */
+#define HOSTS_PRIME 5
+#define USERS_PRIME 509
 
-typedef enum {C_SET, 
-              C_GET, 
-              C_DEL, 
-              C_CHECK, 
-              C_INIT
-             } command;
+/* master event types */
+typedef int event;
+#define e_SESSION  0  /* when a session is starting up */
+#define e_OFFLINE  1  /* data for an offline user */
+#define e_SERVER   2  /* packets for the server.host */
+#define e_DELIVER  3  /* about to deliver a packet to an mp */
+#define e_SHUTDOWN 4  /* server is shutting down, last chance! */
+#define e_AUTH     5  /* authentication handlers */
+#define e_REGISTER 6  /* registration request */
+/* always add new event types here, to maintain backwards binary compatibility */
+#define e_LAST     7  /* flag for the highest */
 
-typedef enum {S_BOUNCE, 
-              S_IGNORE, 
-              S_AUTHED
-             } sreturn;
+/* session event types */
+#define es_IN      0  /* for packets coming into the session */
+#define es_OUT     1  /* for packets originating from the session */
+#define es_END     2  /* when a session ends */
+/* always add new event types here, to maintain backwards binary compatibility */
+#define es_LAST    3  /* flag for the highest */
 
-typedef enum {P_SESSION, /* sent when a session is starting up */
-              P_UNKNOWN, /* packets jserver doesn't know to handle */
-              P_OFFLINE, /* data for an offline user?? */
-              P_SERVER,  /* packets for the server.host */
-              P_DELIVER, /* about to deliver a packet to an mp */
-              P_SHUTDOWN,/* server is shutting down, last chance! */ 
-              PS_IN,     /* for packets coming into the session */
-              PS_OUT,    /* for packets originating from the session */
-              PS_END     /* when a session ends */
-             } mphase;
 
 typedef enum {M_PASS,   /* we don't want this packet this tim */
-              M_IGNORE, /* we don't want this packet ever */ 
+              M_IGNORE, /* we don't want this packet ever */
               M_HANDLED /* stop mapi processing on this packet */
              } mreturn;
 
@@ -38,11 +37,11 @@ typedef struct session_struct *session, _session;
 
 typedef struct mapi_struct
 {
+    jsmi si;
     jpacket packet;
-    mphase phase;
+    event e;
     udata user;
     session s;
-    int variant;
 } *mapi, _mapi;
 
 typedef mreturn (*mcall)(mapi m, void *arg);
@@ -55,44 +54,15 @@ typedef struct mlist_struct
     struct mlist_struct *next;
 } *mlist, _mlist;
 
-/* contains a list of module function pointers */
-typedef struct mapi_master
-{
-    mphase p;
-    mlist l;
-    struct mapi_master *next;
-} *mmaster, _mmaster;
-
-mmaster js_mapi_master(mphase p);
-
-typedef struct xdb_struct
-{
-    char *ns;
-    xmlnode data;
-    int cache;
-    struct xdb_struct *next;
-} *xdb, _xdb;
-
-typedef int (*xcall)(int set, xdb x, udata u, void *arg);
-
-/* contains a list of xdb handler function pointers */
-typedef struct xlist_struct
-{
-    xcall c;
-    void *arg;
-    struct xlist_struct *next;
-} *xlist, _xlist;
-
-/* worker thread max waiting pool size */
-#define SESSION_WAITERS 10
-
 /* globals for this instance of jsm */
 typedef struct jsmi_struct
 {
     xmlnode config;
     HASHTABLE hosts;
     pth_msgport_t waiting[SESSION_WAITERS];
-    /* hold the lists of registrations here */
+    pth_msgport_t mpoffline, mpserver;
+    xdbcache xc;
+    mlist events[e_LAST];
 } *jsmi, _jsmi;
 
 void js_xdb_register(xcall c, void *arg);
@@ -103,6 +73,8 @@ void js_xdb_set(udata user, char *ns, xmlnode x);
 struct udata_struct
 {
     char *user;
+    jid id;
+    jsmi si;
     session sessions;
     int scount, ref;
     ppdb p_cache;
@@ -123,6 +95,7 @@ typedef void (*session_onSend)(session s, jpacket p, void *arg);
 struct session_struct
 {
     /* general session data */
+    jsmi si;
     char *res;
     jid id, uid;
     udata u;
@@ -134,7 +107,7 @@ struct session_struct
     /* mechanics */
     pool p;
     int exit_flag;
-    mlist m_in, m_out, m_end;
+    mlist events[es_LAST];
     pth_msgport_t worker;
 
     /* send handler */
@@ -181,6 +154,5 @@ void js_mapi_register(mphase p, mcall c, void *arg);
 void js_mapi_session(mphase p, session s, mcall c, void *arg);
 int js_mapi_call(mphase phase, mlist l, jpacket packet, udata user, session s, int variant);
 
-void js_static(void);
 
 

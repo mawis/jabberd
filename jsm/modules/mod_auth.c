@@ -27,5 +27,5 @@ mreturn mod_auth_plain(mapi m, void *arg)
 void mod_auth(jsmi i)
 {
     log_debug("mod_auth","init");
-    js_mapi_register(P_OFFLINE, mod_auth_plain, NULL);
+    js_mapi_register(e_OFFLINE, mod_auth_plain, NULL);
 }

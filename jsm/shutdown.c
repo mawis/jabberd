@@ -33,10 +33,10 @@ void jabber_transport_exit()
     mmaster m; /* MAPI master callback list */
 
     /* get the call back list for the the shutdown phase */
-    m = js_mapi_master(P_SHUTDOWN);
+    m = js_mapi_master(e_SHUTDOWN);
 
     /* call all the shutdown functions */
-    js_mapi_call(P_SHUTDOWN, m->l, NULL, NULL, NULL, 0);
+    js_mapi_call(e_SHUTDOWN, m->l, NULL, NULL, NULL, 0);
 
     /* close all user sessions */
     js_users_exit();

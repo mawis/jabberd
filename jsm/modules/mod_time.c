@@ -36,7 +36,7 @@ mreturn mod_time_reply(mapi m, void *arg)
 
 void mod_time(jsmi i)
 {
-    js_mapi_register(P_SERVER,mod_time_reply,NULL);
+    js_mapi_register(e_SERVER,mod_time_reply,NULL);
 }
 
 

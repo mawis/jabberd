@@ -66,7 +66,7 @@ mreturn mod_announce_dispatch(mapi m, void *arg)
 
 void mod_announce(jsmi i)
 {
-    js_mapi_register(P_SERVER,mod_announce_dispatch,NULL);
+    js_mapi_register(e_SERVER,mod_announce_dispatch,NULL);
 }
 
 

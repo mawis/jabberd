@@ -46,7 +46,7 @@ sreturn js_service_prescreen(jpacket p)
     jid test;                   /* a jid to attempt to retreive user data with */
 
     /* initialize the call back list if necessary */
-    if(om == NULL) om = js_mapi_master(P_OFFLINE);
+    if(om == NULL) om = js_mapi_master(e_OFFLINE);
 
     /* if there was no packet, skip authentiction */
     if(p == NULL) return S_IGNORE;
@@ -91,7 +91,7 @@ sreturn js_service_prescreen(jpacket p)
         }else{
 
             /* found the user data, try to authenticate */
-            if(js_mapi_call(P_OFFLINE, om->l, p, user, NULL, MAPI_VARAUTH))
+            if(js_mapi_call(e_OFFLINE, om->l, p, user, NULL, MAPI_VARAUTH))
             {
                 /*
                  * some module handled the auth packet, so rebuild
@@ -122,7 +122,7 @@ sreturn js_service_prescreen(jpacket p)
         log_debug(ZONE,"registration request");
 
         /* try to register via a module */
-        if(!js_mapi_call(P_OFFLINE, om->l, p, NULL, NULL, MAPI_VARREGISTER))
+        if(!js_mapi_call(e_OFFLINE, om->l, p, NULL, NULL, MAPI_VARREGISTER))
 
             /* registration failed, transform node into an error node */
             jutil_error(p->x, TERROR_NOTIMPL);

@@ -137,7 +137,7 @@ mreturn mod_log_packet(mapi m, void *arg)
 /* log session */
 mreturn mod_log_session(mapi m, void *arg)
 {
-    js_mapi_session(PS_END, m->s, mod_log_session_end, NULL);
+    js_mapi_session(es_END, m->s, mod_log_session_end, NULL);
 
     return M_PASS;
 }
@@ -147,8 +147,8 @@ void mod_log(jsmi i)
     log_debug(ZONE,"init");
     mod_log_init();
     if(mod_log__session != NULL)
-        js_mapi_register(P_SESSION, mod_log_session, NULL);
+        js_mapi_register(e_SESSION, mod_log_session, NULL);
     if(mod_log__packet != NULL)
-        js_mapi_register(P_DELIVER, mod_log_packet, NULL);
+        js_mapi_register(e_DELIVER, mod_log_packet, NULL);
 }
 

@@ -110,7 +110,7 @@ mreturn mod_offline_session(mapi m, void *arg)
 {
     log_debug(ZONE,"session init");
 
-    js_mapi_session(PS_OUT, m->s, mod_offline_out, NULL);
+    js_mapi_session(es_OUT, m->s, mod_offline_out, NULL);
 
     return M_PASS;
 }
@@ -118,7 +118,7 @@ mreturn mod_offline_session(mapi m, void *arg)
 void mod_offline(jsmi i)
 {
     log_debug("mod_offline","init");
-    js_mapi_register(P_OFFLINE, mod_offline_handler, NULL);
-    js_mapi_register(P_SESSION, mod_offline_session, NULL);
+    js_mapi_register(e_OFFLINE, mod_offline_handler, NULL);
+    js_mapi_register(e_SESSION, mod_offline_session, NULL);
 }
 

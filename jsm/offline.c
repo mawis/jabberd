@@ -50,7 +50,7 @@ void *js_offline_main(void *arg)
     ev = pth_event(PTH_EVENT_MSG,mp);
 
     /* get our offline phase master list */
-    ml = js_mapi_master(P_OFFLINE);
+    ml = js_mapi_master(e_OFFLINE);
 
     /* infinite loop */
     while(1)
@@ -68,7 +68,7 @@ void *js_offline_main(void *arg)
             log_debug(ZONE,"THREAD:OFFLINE received %s's packet: %s",user->user,xmlnode2str(q->p->x));
 
             /* let the modules handle the packet */
-            if(!js_mapi_call(P_OFFLINE, ml->l, q->p, user, NULL, q->p->subtype))
+            if(!js_mapi_call(e_OFFLINE, ml->l, q->p, user, NULL, q->p->subtype))
                 js_bounce(q->p->x,TERROR_UNAVAIL);
 
             /* it can be cleaned up now */

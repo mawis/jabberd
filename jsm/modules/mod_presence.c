@@ -217,10 +217,10 @@ mreturn mod_presence_session(mapi m, void *arg)
     avails = pmalloc(m->s->p, sizeof(jid *));
     *avails = NULL;
 
-    js_mapi_session(PS_IN, m->s, mod_presence_in, NULL);
-    js_mapi_session(PS_OUT, m->s, mod_presence_avails, avails); /* must come first, it passes, _out handles */
-    js_mapi_session(PS_OUT, m->s, mod_presence_out, NULL);
-    js_mapi_session(PS_END, m->s, mod_presence_avails_end, avails);
+    js_mapi_session(es_IN, m->s, mod_presence_in, NULL);
+    js_mapi_session(es_OUT, m->s, mod_presence_avails, avails); /* must come first, it passes, _out handles */
+    js_mapi_session(es_OUT, m->s, mod_presence_out, NULL);
+    js_mapi_session(es_END, m->s, mod_presence_avails_end, avails);
 
     return M_PASS;
 }
@@ -260,7 +260,7 @@ mreturn mod_presence_deliver(mapi m, void *arg)
 void mod_presence(jsmi i)
 {
     log_debug("mod_presence","init");
-    js_mapi_register(P_DELIVER, mod_presence_deliver, NULL);
-    js_mapi_register(P_SESSION, mod_presence_session, NULL);
+    js_mapi_register(e_DELIVER, mod_presence_deliver, NULL);
+    js_mapi_register(e_SESSION, mod_presence_session, NULL);
 }
 

@@ -47,8 +47,11 @@ void jsm(instance i, xmlnode x)
     si->i = i;
     si->xc = xdb_cache(i); /* getting xdb_* handle and fetching config */
     si->config = xmlnode_get_firstchild(xdb_get(si->xc, NULL, jid_new(xmlnode_pool(x),"config@-internal"),"test"));
+    si->hosts = ghash_create(HOSTS_PRIME,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp); /* hostname hash */
     for(n=0;i<SESSION_WAITERS;n++)
         si->waiting[n] = NULL;
+    for(n=0;i<e_LAST;n++)
+        si->events[n] = NULL;
 
     /* start threads */
     pth_spawn(attr, js_offline_main, (void *)si); /* the thread handling all offline packets */

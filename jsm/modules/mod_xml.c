@@ -60,13 +60,13 @@ mreturn mod_private_set(mapi m, void *arg)
 
 mreturn mod_private_session(mapi m, void *arg)
 {
-    js_mapi_session(PS_OUT,m->s,mod_private_set,NULL);
+    js_mapi_session(es_OUT,m->s,mod_private_set,NULL);
     return M_PASS;
 }
 
 void mod_private(jsmi i)
 {
-    js_mapi_register(P_SESSION,mod_private_session,NULL);
+    js_mapi_register(e_SESSION,mod_private_session,NULL);
 }
 
 

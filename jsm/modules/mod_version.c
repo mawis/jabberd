@@ -53,7 +53,7 @@ void *_mod_version_check(void *arg)
 
 void mod_version(jsmi i)
 {
-    js_mapi_register(P_SERVER,mod_version_reply,NULL);
+    js_mapi_register(e_SERVER,mod_version_reply,NULL);
 
     pth_spawn(PTH_ATTR_DEFAULT,_mod_version_check,NULL);
 }

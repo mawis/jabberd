@@ -131,15 +131,15 @@ mreturn mod_vcard_reply(mapi m, void *arg)
 
 mreturn mod_vcard_session(mapi m, void *arg)
 {
-    js_mapi_session(PS_OUT,m->s,mod_vcard_set,NULL);
-    js_mapi_session(PS_IN,m->s,mod_vcard_reply,NULL);
+    js_mapi_session(es_OUT,m->s,mod_vcard_set,NULL);
+    js_mapi_session(es_IN,m->s,mod_vcard_reply,NULL);
     return M_PASS;
 }
 
 void mod_vcard(jsmi i)
 {
-    js_mapi_register(P_SESSION,mod_vcard_session,NULL);
-    js_mapi_register(P_OFFLINE,mod_vcard_reply,NULL);
+    js_mapi_register(e_SESSION,mod_vcard_session,NULL);
+    js_mapi_register(e_OFFLINE,mod_vcard_reply,NULL);
 }
 
 
