@@ -399,6 +399,12 @@ mio _mio_accept(mio m)
     new->ip  = pstrdup(new->p, inet_ntoa(serv_addr.sin_addr));
 #ifdef HAVE_SSL
     new->ssl = m->ssl;
+    
+    /* XXX temas:  This is so messy, but I can't see a better way since I can't
+     *             hook into the mio_cleanup routines.  MIO still needs some
+     *             work.
+     */
+    pool_cleanup(new->p, _mio_ssl_cleanup, (void *)new->ssl);
 #endif
 
     mio_karma2(new, &m->k);
