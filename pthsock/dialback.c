@@ -165,6 +165,19 @@ void _pthsock_server_host_cleanup(void *arg)
     _pthsock_server_host_validated(0,h);
 }
 
+/* convenience */
+char *_pthsock_server_merlin(pool p, char *secret, char *to, char *challenge)
+{
+    static char res[41];
+    char *ret;
+
+    shahash_r(secret,                       res);
+    shahash_r(spools(p, res, to, p),        res);
+    shahash_r(spools(p, res, challenge, p), res);
+
+    return ret;
+}
+
 /* send the db:result to the other side, can be called as a failure (from pool_cleanup) or directly to queue the result, reacts intelligently */
 void _pthsock_server_host_result(void *arg)
 {
@@ -186,7 +199,7 @@ void _pthsock_server_host_result(void *arg)
         x = xmlnode_new_tag("db:result");
         xmlnode_put_attrib(x, "to", h->id->server);
         xmlnode_put_attrib(x, "from", h->id->resource);
-        xmlnode_insert_cdata(x,  shahash( spools(xmlnode_pool(x),shahash( spools(xmlnode_pool(x),shahash(h->si->secret),h->id->server,xmlnode_pool(x)) ),h->c->id,xmlnode_pool(x)) ), -1);
+        xmlnode_insert_cdata(x,  _pthsock_server_merlin(xmlnode_pool(x), h->si->secret, h->id->server, h->c->id), -1);
         log_debug(ZONE,"host result generated %s",xmlnode2str(x));
         io_write_str(h->c->s,xmlnode2str(x));
         xmlnode_free(x);
@@ -210,7 +223,7 @@ void _pthsock_server_host_verify(void *arg)
     conn c = xmlnode_get_vattrib(x,"c"); /* hidden c on the xmlnode */
     host h;
 
-    log_debug(ZONE,"host verify queuer %s",xmlnode2str(x));
+    log_debug(ZONE,"host verify QR %s",xmlnode2str(x));
 
     /* send it */
     if(!c->legacy && c->connected)
@@ -419,6 +432,8 @@ result pthsock_server_packets(instance i, dpacket dp, void *arg)
         return r_DONE;
     }
 
+    log_debug(ZONE,"Dr. Pepper Says: %s",xmlnode2str(dp->x));
+
     /* make this special id for the hash */
     id = jid_new(dp->p,to->server);
     jid_set(id,from->server,JID_RESOURCE);
@@ -469,11 +484,11 @@ result pthsock_server_packets(instance i, dpacket dp, void *arg)
     /* write the packet to the socket, it's safe */
     if(h->valid)
     {
-        io_write(h->c->s, dp->x);
+        io_write(h->c->s, x);
         return r_DONE;
     }
 
-    if(j_strcmp(xmlnode_get_name(dp->x),"db:verify") != 0)
+    if(j_strcmp(xmlnode_get_name(x),"db:verify") != 0)
     {
         if(h->mp == NULL)
             h->mp = pth_msgport_create(jid_full(id));
@@ -485,7 +500,7 @@ result pthsock_server_packets(instance i, dpacket dp, void *arg)
     }
 
     /* all we have left is db:verify packets */
-    xmlnode_put_vattrib(x,"c",(void *)c); /* ugly, but hide the c on the xmlnode */
+    xmlnode_put_vattrib(x,"c",(void *)(h->c)); /* ugly, but hide the c on the xmlnode */
     _pthsock_server_host_verify((void *)(x));
 
     return r_DONE;
@@ -499,7 +514,8 @@ void pthsock_server_inx(int type, xmlnode x, void *arg)
 {
     conn c = (conn)arg;
     xmlnode x2;
-    host h;
+    host h = NULL;
+    jid to, from;
 
     log_debug(ZONE,"incoming conn %X XML[%d]: %s",c,type,xmlnode2str(x));
 
@@ -538,11 +554,11 @@ void pthsock_server_inx(int type, xmlnode x, void *arg)
         /* incoming verification request, check and respond */
         if(j_strcmp(xmlnode_get_name(x),"db:verify") == 0)
         {
-            jutil_tofrom(x);
-            if(j_strcmp( xmlnode_get_data(x), shahash( spools(xmlnode_pool(x), shahash( spools(xmlnode_pool(x),shahash(c->si->secret),xmlnode_get_attrib(x,"from"),xmlnode_pool(x))), c->id,xmlnode_pool(x)))) == 0)
+            if(j_strcmp( xmlnode_get_data(x), _pthsock_server_merlin(xmlnode_pool(x), c->si->secret, xmlnode_get_attrib(x,"from"), xmlnode_get_attrib(x,"id"))) == 0)
                 xmlnode_put_attrib(x,"type","valid");
             else
                 xmlnode_put_attrib(x,"type","invalid");
+            jutil_tofrom(x);
             io_write_str(c->s,xmlnode2str(x));
             break;
         }
@@ -565,6 +581,7 @@ void pthsock_server_inx(int type, xmlnode x, void *arg)
             x2 = xmlnode_new_tag_pool(xmlnode_pool(x),"db:verify");
             xmlnode_put_attrib(x2,"to",xmlnode_get_attrib(x,"from"));
             xmlnode_put_attrib(x2,"from",xmlnode_get_attrib(x,"to"));
+            xmlnode_put_attrib(x2,"id",c->id);
             xmlnode_insert_node(x2,xmlnode_get_firstchild(x)); /* copy in any children */
             deliver(dpacket_new(x2),c->si->i);
 
@@ -572,10 +589,13 @@ void pthsock_server_inx(int type, xmlnode x, void *arg)
         }
 
         /* hmm, incoming packet on dialback line, there better be a host for it or else! */
-        h = ghash_get(c->si->hosts, spools(xmlnode_pool(x),c->id,"@",xmlnode_get_attrib(x,"to"),"/",xmlnode_get_attrib(x,"from"),xmlnode_pool(x)));
+        to = jid_new(xmlnode_pool(x),xmlnode_get_attrib(x,"to"));
+        from = jid_new(xmlnode_pool(x),xmlnode_get_attrib(x,"from"));
+        if(to != NULL && from != NULL)
+            h = ghash_get(c->si->hosts, spools(xmlnode_pool(x),c->id,"@",to->server,"/",from->server,xmlnode_pool(x)));
         if(h == NULL || !h->valid || h->c != c)
         { /* dude, what's your problem!  *click* */
-            io_write_str(c->s,"<stream:error>Invalided Packets Recieved!</stream:error>");
+            io_write_str(c->s,"<stream:error>Invalid Packets Recieved!</stream:error>");
             io_close(c->s);
             break;
         }
@@ -631,7 +651,7 @@ void pthsock_server_inread(sock s, char *buffer, int bufsz, int flags, void *arg
 void pthsock_server(instance i, xmlnode x)
 {
     ssi si;
-    xmlnode cfg;
+    xmlnode cfg, cur;
 
     log_debug(ZONE,"pthsock_server loading");
     srand(time(NULL));
@@ -650,7 +670,12 @@ void pthsock_server(instance i, xmlnode x)
         si->legacy = 1;
 
     /* XXX make configurable rate limits */
-    io_select_listen(j_atoi(xmlnode_get_tag_data(cfg,"port"),5269),NULL,pthsock_server_inread,(void*)si,5,25);
+    if((cur = xmlnode_get_tag(cfg,"ip")) != NULL)
+        for(;cur != NULL; xmlnode_hide(cur), cur = xmlnode_get_tag(cfg,"ip"))
+            io_select_listen(j_atoi(xmlnode_get_attrib(cur,"port"),5269),xmlnode_get_data(cur),pthsock_server_inread,(void*)si,5,25);
+    else /* no special config, use defaults */
+        io_select_listen(5269,NULL,pthsock_server_inread,(void*)si,5,25);
+
     register_phandler(i,o_DELIVER,pthsock_server_packets,(void*)si);
 
     xmlnode_free(cfg);
