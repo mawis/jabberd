@@ -251,7 +251,7 @@ if test "$ssllegacy" != "no"; then
     else
 	AC_DEFINE(HAVE_SSL,,[SSL/TLS with openssl requested])
 	CFLAGS="$CFLAGS -I$ssllegacy"
-	LDFLAGS="$LDFLAGS -L$ssllegacy -lssl -lcrypto -ldl"
+	LDFLAGS="$LDFLAGS -L$ssllegacy -lssl -lcrypto"
     fi
     
 else
