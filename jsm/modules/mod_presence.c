@@ -267,7 +267,7 @@ mreturn mod_presence_avails(mapi m, void *arg)
     /* remove from the list */
     if(jpacket_subtype(m->packet) == JPACKET__UNAVAILABLE)
     {
-        for(curr = mp->avails->next;curr != NULL && jid_cmp(curr->next,m->packet->to) != 0;curr = curr->next);
+        for(curr = mp->avails;curr != NULL && jid_cmp(curr->next,m->packet->to) != 0;curr = curr->next);
         if(curr != NULL && curr->next != NULL)
             curr->next = curr->next->next;
     }
