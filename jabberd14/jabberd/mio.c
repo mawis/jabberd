@@ -839,7 +839,7 @@ void mio_stop(void)
     {
         mnext = cur->next;
         _mio_close(cur);
-	cur = mnext;
+    	cur = mnext;
     }
 
     /* signal the loop to end */
@@ -926,14 +926,16 @@ void mio_write(mio m, xmlnode x, char *buffer, int len)
     mio_wbq new;
     pool p;
 
-    log_debug(ZONE, "mio_write called on x: %X buffer: %.*s", x, len, buffer);
 
     if(m == NULL) 
         return;
 
     /* if there is nothing to write */
     if(x == NULL && buffer == NULL)
+    {
+        log_debug("mio", "[%s] mio_write called without x or buffer", ZONE);
         return;
+    }
 
     /* create the pool for this wbq */
     if(x != NULL)
@@ -989,6 +991,7 @@ void mio_write(mio m, xmlnode x, char *buffer, int len)
         m->tail->next = new;
     m->tail = new;
 
+    log_debug(ZONE, "mio_write called on x: %X buffer: %.*s", x, len, buffer);
     /* notify the select loop that a packet needs writing */
     if(mio__data != NULL)
         pth_raise(mio__data->t, SIGUSR2);
