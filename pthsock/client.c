@@ -314,6 +314,7 @@ void pthsock_client(instance i, xmlnode x)
     log_debug(ZONE,"pthsock_client loading");
 
     si = pmalloco(i->p,sizeof(_smi));
+    si->i = i;
 
     /* write mp */
     si->wmp = pth_msgport_create("pthsock_client_wmp");
