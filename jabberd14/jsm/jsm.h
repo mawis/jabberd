@@ -33,12 +33,6 @@ typedef enum {M_PASS,   /* we don't want this packet this tim */
               M_HANDLED /* stop mapi processing on this packet */
              } mreturn;
 
-/* globals for this instance of jsm */
-typedef struct jsmi_struct
-{
-    /* hold the lists of registrations here */
-} *jsmi, _jsmi;
-
 typedef struct udata_struct *udata, _udata;
 typedef struct session_struct *session, _session;
 
@@ -89,13 +83,21 @@ typedef struct xlist_struct
     struct xlist_struct *next;
 } *xlist, _xlist;
 
+/* worker thread max waiting pool size */
+#define SESSION_WAITERS 10
+
+/* globals for this instance of jsm */
+typedef struct jsmi_struct
+{
+    xmlnode config;
+    HASHTABLE hosts;
+    pth_msgport_t waiting[SESSION_WAITERS];
+    /* hold the lists of registrations here */
+} *jsmi, _jsmi;
+
 void js_xdb_register(xcall c, void *arg);
 xmlnode js_xdb_get(udata user, char *ns);
 void js_xdb_set(udata user, char *ns, xmlnode x);
-
-void js_service_listen(char *svc, tlisten_onConnect evt);
-
-ehandler js_names(int cmd, char *name);
 
 
 struct udata_struct
@@ -103,7 +105,6 @@ struct udata_struct
     char *user;
     session sessions;
     int scount, ref;
-    xdb x_cache;
     ppdb p_cache;
     rlimit rate;
     pool p;
@@ -112,7 +113,6 @@ struct udata_struct
 
 xmlnode js_config(char *query);
 
-extern HASHTABLE js__users;
 udata js_user(char *user);
 void js_users_exit(void);
 void js_deliver(jpacket p);
@@ -172,7 +172,7 @@ void js_psend(pth_msgport_t mp, jpacket p); /* sends p to a pth message port */
 void js_bounce(xmlnode x, terror terr); /* logic to bounce packets w/o looping, eats x and delivers error */
 
 int js_config_name(command cmd, char *name);
-int js_config_load(char *file); /* load the config file */
+xmlnode js_config_load(instance i); /* fetch/check the config file */
 extern char *js__hostname; /* server name */
 extern xmlnode js__config; /* loaded server config */
 
@@ -182,4 +182,5 @@ void js_mapi_session(mphase p, session s, mcall c, void *arg);
 int js_mapi_call(mphase phase, mlist l, jpacket packet, udata user, session s, int variant);
 
 void js_static(void);
+
 

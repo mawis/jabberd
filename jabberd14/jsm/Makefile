@@ -18,9 +18,7 @@ jsm_OBJECTS = \
     modules/mod_time.o \
     modules/mod_vcard.o \
     modules/mod_version.o \
-    config.o \
     deliver.o \
-    init.o \
     jsm.o \
     modules.o \
     offline.o \
@@ -28,7 +26,6 @@ jsm_OBJECTS = \
     services.o \
     sessions.o \
     shutdown.o \
-    unknown.o \
     users.o \
     util.o
 

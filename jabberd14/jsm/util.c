@@ -14,7 +14,7 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  *  Jabber
- *  Copyright (C) 1998-1999 The Jabber Team http://jabber.org/
+ *  Copyright (C) 1998-2000 The Jabber Team http://jabber.org/
  *
  *  util.c -- utility functions for jsm
  *
@@ -60,5 +60,30 @@ void js_bounce(xmlnode x, terror terr)
     jutil_error(x, terr);
     js_deliver(jpacket_new(x));
 
+}
+
+
+/*
+ *  js_config -- get a configuration node
+ *
+ *  parameters
+ *      si -- session instance
+ *      query -- the path through the tag hierarchy of the desired tag
+ *               eg. for the conf file <foo><bar>bar value</bar><baz/><foo>
+ *               use "foo/bar" to retreive the bar node
+ *
+ *  returns
+ *      a pointer to the xmlnode specified in query
+ *      or the root config node if query is null
+ */
+xmlnode js_config(jsmi si, char *query)
+{
+
+    log_debug(ZONE,"config query %s",query);
+
+    if(query == NULL)
+        return si->config;
+    else
+        return xmlnode_get_tag(si->config, query);
 }
 
