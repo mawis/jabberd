@@ -87,14 +87,29 @@
         <file>lib/xmltok.o</file>
         <file>lib/xstream.o</file>
       </macro>
+      <macro name='STATICOBJECTS'>
+        <file>../dnsrv/dnsrv.so</file>
+        <file>../dialback/dialback.so</file>
+        <file>../jsm/jsm.so</file>
+        <file>../pthsock/pthsock_server.so</file>
+        <file>../pthsock/pthsock_client.so</file>
+        <file>../xdb_file/xdb_file.so</file>
+      </macro>
       <compile>
  	<objectfile macro='OBJECTS'>
 	  <dep><macro>HEADERS</macro></dep>
         </objectfile>
-        <binary name='jabberd'>
+        <binary name='jabberd' type='dynamic'>
           <dep filelist='1'>
             <macro>OBJECTS</macro>
             <macro>EXOBJECTS</macro>
+          </dep>
+        </binary>
+        <binary name='jabberd' type='static'>
+          <dep filelist='1'>
+            <macro>OBJECTS</macro>
+            <macro>EXOBJECTS</macro>
+            <macro>STATICOBJECTS</macro>
           </dep>
         </binary>
       </compile>
