@@ -1,55 +1,69 @@
-<!-- jadc2s config -->
+<!-- jadc2s config                                                         -->
 <jadc2s>
 
-  <!-- Session Manager                     -->
-  <!--   We need to know where jabberd is  -->
-  <!-- and how to talk to it.              -->
-  <sm>
-    <host>localhost</host>
-    <port>5111</port>
-    <id>jadc2s</id>
-    <secret>secret</secret>
-    <!-- How many times to try and reconnect
-           Default: 5
-           Uncomment to enable
-    <retries>3</retries>
-    -->
-  </sm>
+    <!--  session manager configuration                                    -->
+    <sm>
+        <!--  host and port of the SM                                      -->
+        <host>localhost</host>
+        <port>5111</port>
+        <!--  shared secret, for authenticating us                         -->
+        <secret>secret</secret>
 
-  <!-- C2S Settings                        -->
-  <!--   Where does jadc2s listen for      -->
-  <!-- incoming connections?               -->
-  <local>
-    <host>localhost</host>
-    <!-- If you need to bind to a specifc IP -->
-    <!-- <ip>www.xxx.yyy.zzz</ip> -->
-    <port>5221</port>
-    <!--
-    <ssl>
-      <port>5224</port>
-      <pemfile>./key.pem</pemfile>
-    </ssl>
-    -->
-    <!-- max number of connections.  This should be -->
-    <!-- a prime number. They system will use seven -->
-    <!-- (7) of these sockets.  Default:  1023      -->
-    <max_conns>3001</max_conns>
-  </local>
+        <!--  our ID, for authenticating us to the sm                      -->
+        <id>jadc2s</id>
 
-  <!-- 
-  Connection rate limits:
-    How many connections may happen in the following number of seconds
-    Uncomment to enable
-  <connection_limits>
-    <connects>5</connects>
-    <seconds>10</seconds>
-  </connection_limits>
-  -->
-  
-  <!-- 
-  Max Bits Per Second:
-    Uncomment to enable 
-  <max_bps>48</max_bps>
-  -->
+        <!--  how many times to try to connect to the sm (default: 5)      -->
+        <retries>5</retries>
+    </sm>
+
+    <!--  local network settings                                           -->
+    <local>
+        <!--  who we identify ourselves as. This should correspond to the  -->
+        <!--  ID (host) that the session manager thinks it is.             -->
+        <id>localhost</id>
+
+        <!--  IP address to bind to (default: 0.0.0.0)                     -->
+        <!-- <ip>0.0.0.0</ip> -->
+        
+        <!--  port to bind to (default: 5222)                              -->
+        <port>5222</port>
+
+        <!--  SSL configuration                                            -->
+        <!--  Specify the port to listen on, and the key file to use for   -->
+        <!--  the certificate.                                             -->
+        <!--  <port/>     (default: 5223)                                  -->
+        <!--  <pemfile/>  (default: ./server.pem)                          -->
+        <!--
+        <ssl>
+            <port>5223</port>
+            <pemfile>./server.pem</pemfile>
+        </ssl>
+        -->
+    </local>
+
+
+    <!--  input/output settings                                            -->
+    <io>
+        <!--  maximum number of file descriptors. Should be a prime        -->
+        <!--  number. At least four will be used by jadc2s itself,         -->
+        <!--  usually around six or seven (default: 1023)                  -->
+        <!--  For a list of prime numbers:                                 -->
+        <!--    http://www.utm.edu/research/primes/lists/small/10000.txt   -->
+        <max_fds>1023</max_fds>
+
+        <!--  maximum bits per second allowed over a single connection,    -->
+        <!--  0 for no limit (default: 0)                                  -->
+        <max_bps>0</max_bps>
+
+        <!--  connection rate limiting. Maximum connects from a single IP  -->
+        <!--  address within a number of seconds. Set both to 0 for no     -->
+        <!--  limit.                                                       -->
+        <!--    <connects/> (defualt: 0)                                   -->
+        <!--    <seconds/>  (default: 0)                                   -->
+        <connection_limits>
+            <connects>0</connects>
+            <seconds>0</seconds>
+        </connection_limits>
+    </io>
 
 </jadc2s>

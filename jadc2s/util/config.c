@@ -1,87 +1,100 @@
+/* --------------------------------------------------------------------------
+ *
+ * License
+ *
+ * The contents of this file are subject to the Jabber Open Source License
+ * Version 1.0 (the "JOSL").  You may not copy or use this file, in either
+ * source code or executable form, except in compliance with the JOSL. You
+ * may obtain a copy of the JOSL at http://www.jabber.org/ or at
+ * http://www.opensource.org/.  
+ *
+ * Software distributed under the JOSL is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied.  See the JOSL
+ * for the specific language governing rights and limitations under the
+ * JOSL.
+ *
+ * Copyrights
+ * 
+ * Portions created by or assigned to Jabber.com, Inc. are 
+ * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
+ * information for Jabber.com, Inc. is available at http://www.jabber.com/.
+ *
+ * Portions Copyright (c) 1998-1999 Jeremie Miller.
+ * 
+ * Acknowledgements
+ * 
+ * Special thanks to the Jabber Open Source Contributors for their
+ * suggestions and support of Jabber.
+ * 
+ * Alternatively, the contents of this file may be used under the terms of the
+ * GNU General Public License Version 2 or later (the "GPL"), in which case
+ * the provisions of the GPL are applicable instead of those above.  If you
+ * wish to allow use of your version of this file only under the terms of the
+ * GPL and not to allow others to use your version of this file under the JOSL,
+ * indicate your decision by deleting the provisions above and replace them
+ * with the notice and other provisions required by the GPL.  If you do not
+ * delete the provisions above, a recipient may use your version of this file
+ * under either the JOSL or the GPL. 
+ * 
+ * --------------------------------------------------------------------------*/
+
 #include "util.h"
 #include "xmlparse/xmlparse.h"
 
-/* if we're building keys longer than this, something is wrong */
-#define MAX_KEY_LENGTH (1024)
-
-struct config_data
+/* new config structure */
+config_t config_new(void)
 {
-    xht h;
-    char key[MAX_KEY_LENGTH];
-    int first;
+    return xhash_new(501);
+}
+
+struct build_data
+{
+    nad_t               nad;
+    int                 depth;
 };
 
-typedef struct rkey_st
+static void _config_startElement(void *arg, const char *name, const char **atts)
 {
-    int flag;
-    char *def;
-    char *hint;
-} *rkey_t;
-
-static void _config_startElement(void *data, const char *name, const char **attrs)
-{
-    struct config_data *d = (struct config_data *) data;
-    char *end;
-
-    /* first one */
-    if(d->key[0] == '\0')
-        if(!d->first)
-            d->first = 1;
-        else
-            strcpy(d->key, name);
-
-    /* otherwise, append it */
-    else
+    struct build_data *bd = (struct build_data *) arg;
+    int i = 0;
+    
+    nad_append_elem(bd->nad, (char *) name, bd->depth);
+    while(atts[i] != '\0')
     {
-        end = strchr(d->key, '\0');
-        *end = '.';
-        end++;
-        strcpy(end, name);
+        nad_append_attr(bd->nad, (char *) atts[i], (char *) atts[i + 1]);
+        i += 2;
     }
+
+    bd->depth++;
 }
 
-static void _config_endElement(void *data, const char *name)
+static void _config_endElement(void *arg, const char *name)
 {
-    struct config_data *d = (struct config_data *) data;
-    char *end;
+    struct build_data *bd = (struct build_data *) arg;
 
-    if(*d->key == '\0' && d->first)
-        d->first = 0;
-
-    /* backtrack and chop off the rightmost bit */
-    for(end = strchr(d->key, '\0'); end != d->key && *end != '.'; end--);
-
-    *end = '\0';
+    bd->depth--;
 }
 
-static void _config_charData(void *data, const char *s, int len)
+static void _config_charData(void *arg, const char *str, int len)
 {
-    struct config_data *d = (struct config_data *) data;
-    char *val;
+    struct build_data *bd = (struct build_data *) arg;
 
-    val = malloc(sizeof(char) * (len + 1));
-    memset(val, 0, len + 1);
-    strncpy(val, s, len);
-
-    /* !!! should move this to endElement, charData may get called multiple times for one element */
-    if(*d->key != '\0' && xhash_get(d->h, d->key) == NULL)
-        xhash_put(d->h, pstrdup(xhash_pool(d->h), d->key), pstrdup(xhash_pool(d->h), val));
-
-    free(val);
+    nad_append_cdata(bd->nad, (char *) str, len, bd->depth);
 }
 
-int config_load(xht h, char *file)
+/* turn an xml file into a config hash */
+int config_load(config_t c, char *file)
 {
-    struct config_data d;
+    struct build_data bd;
+    nad_cache_t cache = nad_cache_new();
     FILE *f;
     XML_Parser p;
-    int done, len;
-    char buf[1024];
+    int done, len, end, i, j;
+    char buf[1024], *next;
+    struct nad_elem_st **path;
+    config_elem_t elem;
 
-    d.h = h;
-    memset(d.key, 0, MAX_KEY_LENGTH);
-    d.first = 0;
-
+    /* open the file */
     f = fopen(file, "r");
     if(f == NULL)
     {
@@ -89,6 +102,7 @@ int config_load(xht h, char *file)
         return 1;
     }
 
+    /* new parser */
     p = XML_ParserCreate(NULL);
     if(p == NULL)
     {
@@ -97,27 +111,36 @@ int config_load(xht h, char *file)
         return 1;
     }
 
-    XML_SetUserData(p, (void *) &d);
+    /* nice new nad to parse it into */
+    bd.nad = nad_new(cache);
+    bd.depth = 0;
+
+    /* setup the parser */
+    XML_SetUserData(p, (void *) &bd);
     XML_SetElementHandler(p, _config_startElement, _config_endElement);
     XML_SetCharacterDataHandler(p, _config_charData);
 
     for(;;)
     {
+        /* read that file */
         len = fread(buf, 1, 1024, f);
         if(ferror(f))
         {
             fprintf(stderr, "config_load: read error: %s\n", strerror(errno));
             XML_ParserFree(p);
             fclose(f);
+            nad_cache_free(cache);
             return 1;
         }
         done = feof(f);
 
+        /* parse it */
         if(!XML_Parse(p, buf, len, done))
         {
             fprintf(stderr, "config_load: parse error at line %d: %s\n", XML_GetCurrentLineNumber(p), XML_ErrorString(XML_GetErrorCode(p)));
             XML_ParserFree(p);
             fclose(f);
+            nad_cache_free(cache);
             return 1;
         }
 
@@ -125,79 +148,111 @@ int config_load(xht h, char *file)
             break;
     }
 
+    /* done reading */
     XML_ParserFree(p);
     fclose(f);
 
+    /* now, turn the nad into a config hash */
+    path = NULL;
+    len = 0, end = 0;
+    /* start at 1, so we skip the root element */
+    for(i = 1; i < bd.nad->ecur; i++)
+    {
+        /* make sure we have enough room to add this element to our path */
+        if(end <= bd.nad->elems[i].depth)
+        {
+            end = bd.nad->elems[i].depth + 1;
+            path = (struct nad_elem_st **) realloc((void *) path, sizeof(struct nad_elem_st *) * end);
+        }
+
+        /* save this path element */
+        path[bd.nad->elems[i].depth] = &bd.nad->elems[i];
+        len = bd.nad->elems[i].depth + 1;
+
+        /* construct the key from the current path */
+        next = buf;
+        for(j = 1; j < len; j++)
+        {
+            strncpy(next, bd.nad->cdata + path[j]->iname, path[j]->lname);
+            next = next + path[j]->lname;
+            *next = '.';
+            next++;
+        }
+        next--;
+        *next = '\0';
+
+        /* find the config element for this key */
+        elem = xhash_get(c, buf);
+        if(elem == NULL)
+        {
+            /* haven't seen it before, so create it */
+            elem = pmalloco(xhash_pool(c), sizeof(struct config_elem_st));
+            xhash_put(c, pstrdup(xhash_pool(c), buf), elem);
+        }
+
+        /* make room for this value .. can't easily realloc off a pool, so
+         * we do it this way and let _config_reaper clean up */
+        elem->values = realloc((void *) elem->values, sizeof(char *) * (elem->nvalues + 1));
+
+        /* and copy it in */
+        if(NAD_CDATA_L(bd.nad, i) > 0)
+            elem->values[elem->nvalues] = pstrdupx(xhash_pool(c), NAD_CDATA(bd.nad, i), NAD_CDATA_L(bd.nad, i));
+        else
+            elem->values[elem->nvalues] = "1";
+
+        elem->nvalues++;
+    }
+
+    if(path != NULL)
+        free(path);
+
+    nad_cache_free(cache);
+
     return 0;
 }
 
-int config_cmdline(xht h, char *pair) {
-    char *key, *val;
-
-    key = pair;
-    val = strchr(pair, '=');
-    if(val != NULL)
-    {
-        *val = '\0';
-        val++;
-    }
-    
-    if(key == NULL || val == NULL || *key == '\0' || *val =='\0')
-    {
-        fprintf(stderr, "config_cmdline: malformed option, ignoring\n");
-        return 1;
-    }
-
-    xhash_put(h, pstrdup(xhash_pool(h), key), pstrdup(xhash_pool(h), val));
-
-    return 0;
-}
-
-char *config_validate(xht cfg, xht reg)
+/* get the config element for this key */
+config_elem_t config_get(config_t c, char *key)
 {
-    /* !!! spin through reg, checking against cfg to make sure require flags are set */
-    /* !!! return string describing which required ones aren't set? */
-    return NULL;
+    return xhash_get(c, key);
 }
 
-void config_reg(xht reg, char *key, int flag, char *def, char *hint)
+/* get config value n for this key */
+char *config_get_one(config_t c, char *key, int num)
 {
-    rkey_t rkey;
+    config_elem_t elem = xhash_get(c, key);
 
-    if(reg == NULL || key == NULL) return;
+    if(elem == NULL)
+        return NULL;
 
-    rkey = pmalloco(xhash_pool(reg),sizeof(struct rkey_st));
-    rkey->flag = flag;
-    if(def != NULL)
-        rkey->def = pstrdup(xhash_pool(reg),def);
-    if(hint != NULL)
-        rkey->hint = pstrdup(xhash_pool(reg),hint);
+    if(num >= elem->nvalues)
+        return NULL;
 
-    xhash_put(reg, pstrdup(xhash_pool(reg), key), (void*)rkey);
+    return elem->values[num];
 }
 
-char *config_template(xht reg)
+/* how many values for this key? */
+int config_count(config_t c, char *key)
 {
-    /* !!! generate a nice config template, like:
-    <foo>
+    config_elem_t elem = xhash_get(c, key);
 
-        <bar>
-        
-            <!-- this is a required field -->
-            <test>foobar</test>
+    if(elem == NULL)
+        return 0;
 
-            <!-- this is an optional field
-            <foobar>test</foobar>
-            -->
-
-            <!-- this is a required field with no default -->
-            <field></field>
-
-        </bar>
-
-    </foo>
-    */
-
-    /* !!! other template outputs, like foo.bar.test=foobar? */
-    return NULL;
+    return elem->nvalues;
 }
+
+/* cleanup helper */
+static void _config_reaper(xht h, const char *key, void *val, void *arg)
+{
+    free(((config_elem_t) val)->values);
+}
+
+/* cleanup */
+void config_free(config_t c)
+{
+    xhash_walk(c, _config_reaper, NULL);
+
+    xhash_free(c);
+}
+
