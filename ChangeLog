@@ -1,3 +1,10 @@
+2005-03-05  Matthias Wimmer  <m@tthias.net>
+
+    * jabber.xml.dist.in: added example for a write-only admin
+    * jsm/modules/mod_announce.c: added write-only admins
+    * jsm/modules/mod_register.c: same
+    * jsm/util.c: same
+
 2005-03-04  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/jabberd.h: better dialback error logging
