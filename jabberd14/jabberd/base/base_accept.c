@@ -226,9 +226,9 @@ result base_accept_beat(void *arg)
     cur = ai->q;
     while(cur != NULL)
     {
+        last = cur;
         if( (now - cur->stamp) <= ai->timeout)
         {
-            last = cur;
             cur = cur->next;
             continue;
         }
