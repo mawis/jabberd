@@ -201,7 +201,6 @@ void mtq_send(mtq q, pool p, mtq_callback f, void *arg)
         if(mtq__master->all[n]->busy == 0)
         {
             mp = mtq__master->all[n]->mp;
-            mtq__master->all[n]->busy = 1;
             break;
         }
 
@@ -226,6 +225,9 @@ void mtq_send(mtq q, pool p, mtq_callback f, void *arg)
     if(q == NULL)
     {
         pth_msgport_put(mp, (pth_message_t *)c);
+        /* if we use a thread, mark it busy */
+        if(mp != mtq__master->mp)
+            mtq__master->all[n]->busy = 1;
         return;
     }
 
@@ -241,6 +243,9 @@ void mtq_send(mtq q, pool p, mtq_callback f, void *arg)
         c = pmalloco(p, sizeof(_mtqcall));
         c->q = q;
         pth_msgport_put(mp, (pth_message_t *)c);
+        /* if we use a thread, mark it busy */
+        if(mp != mtq__master->mp)
+            mtq__master->all[n]->busy = 1;
         q->routed = 1;
     }
 }
