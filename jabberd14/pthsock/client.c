@@ -172,19 +172,72 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     return r_DONE;
 }
 
-/* callback for xstream */
-void pthsock_client_stream(int type, xmlnode x, void *arg)
+cdata pthsock_client_cdata(mio m)
 {
-    cdata cd=(cdata)arg;
-    mio m = cd->m;
-    char *alias,*to;
+    cdata cd;
+    char *buf;
+
+    cd = pmalloco(m->p, sizeof(_cdata));
+    cd->pre_auth_mp=pth_msgport_create("pre_auth_mp");
+
+    cd->state = state_UNKNOWN;
+    cd->connect_time=time(NULL);
+    cd->m=m;
+
+    buf=pmalloco(m->p,100);
+
+    /* HACK to fix race conditon */
+    snprintf(buf,99,"%X",m);
+    cd->res = pstrdup(m->p,buf);
+
+    /* we use <fd>@host to identify connetions */
+    snprintf(buf,99,"%d@%s/%s",m->fd,s__i->host,cd->res);
+    cd->id = pstrdup(m->p,buf);
+
+    return cd;
+}
+
+void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
+{
+    cdata cd = (cdata)arg;
     xmlnode h;
+    char *alias,*to;
 
-
-    switch(type)
+    log_debug(ZONE,"pthsock_client_read called with: m:%X flag:%d arg:%X",m, flag, arg);
+    switch(flag)
     {
-    case XSTREAM_ROOT:
-        ghash_put(s__i->users,cd->id,cd);
+    case MIO_NEW:
+        cd = pthsock_client_cdata(m);
+        mio_reset(m, pthsock_client_read, (void*)cd);
+        break;
+    case MIO_CLOSED:
+        if(cd == NULL) break;
+        ghash_remove(s__i->users, cd->id);
+        log_debug(ZONE,"io_select Socket %d close notification",m->fd);
+        if(cd->state == state_AUTHD)
+        {
+            h = pthsock_make_route(NULL,jid_full(cd->host),cd->id,"error");
+            deliver(dpacket_new(h), s__i->i);
+        }
+        else
+        {
+            mio_wbq q;
+            if(cd != NULL && cd->pre_auth_mp != NULL)
+            { /* if there is a pre_auth queue still */
+                while((q = (mio_wbq)pth_msgport_get(cd->pre_auth_mp)) != NULL)
+                    xmlnode_free(q->x);
+                pth_msgport_destroy(cd->pre_auth_mp);
+            } 
+        }
+        break;
+    case MIO_ERROR:
+        if(m->queue == NULL) break;
+
+        while((h = mio_cleanup(m)) != NULL)
+            deliver_fail(dpacket_new(h),"Socket Error to Client");
+        break;
+    case MIO_XML_ROOT:
+        ghash_put(s__i->users, cd->id,cd);
         log_debug(ZONE,"root received for %d",m->fd);
         to=xmlnode_get_attrib(x,"to");
         alias=ghash_get(s__i->aliases,xmlnode_get_attrib(x,"to"));
@@ -215,7 +268,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         xmlnode_free(h);
         xmlnode_free(x);
         break;
-    case XSTREAM_NODE:
+    case MIO_XML_NODE:
         if (cd->state == state_UNKNOWN)
         { /* only allow auth and registration queries at this point */
             xmlnode q = xmlnode_get_tag(x,"query");
@@ -266,87 +319,6 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
             deliver(dpacket_new(x),s__i->i);
         }
         break;
-    case XSTREAM_ERR:
-        log_debug(ZONE,"bad xml: %s",xmlnode2str(x));
-        h=xmlnode_new_tag("stream:error");
-        xmlnode_insert_cdata(h,"You sent malformed XML",-1);
-        mio_write(m,h,NULL,0);
-    case XSTREAM_CLOSE:
-        log_debug(ZONE,"closing XSTREAM");
-        mio_write(m, NULL, "</stream:stream>", -1);
-        mio_close(m);
-        xmlnode_free(x);
-    }
-}
-
-
-cdata pthsock_client_cdata(mio m)
-{
-    cdata cd;
-    char *buf;
-
-    cd = pmalloco(m->p, sizeof(_cdata));
-    cd->pre_auth_mp=pth_msgport_create("pre_auth_mp");
-    m->xs = xstream_new(m->p,(void*)pthsock_client_stream,(void*)cd);
-
-    cd->state = state_UNKNOWN;
-    cd->connect_time=time(NULL);
-    cd->m=m;
-
-    buf=pmalloco(m->p,100);
-
-    /* HACK to fix race conditon */
-    snprintf(buf,99,"%X",m);
-    cd->res = pstrdup(m->p,buf);
-
-    /* we use <fd>@host to identify connetions */
-    snprintf(buf,99,"%d@%s/%s",m->fd,s__i->host,cd->res);
-    cd->id = pstrdup(m->p,buf);
-
-    return cd;
-}
-
-void pthsock_client_read(mio m, int flag, void *arg, char *buffer,int bufsz)
-{
-    cdata cd = (cdata)arg;
-    xmlnode x;
-    int ret;
-
-    log_debug(ZONE,"pthsock_client_read called with: m:%X buffer:%s bufsz:%d flag:%d arg:%X",m, buffer, bufsz, flag, arg);
-    switch(flag)
-    {
-    case MIO_NEW:
-        cd=pthsock_client_cdata(m);
-        mio_reset(m, pthsock_client_read, (void*)cd);
-        break;
-    case MIO_BUFFER:
-        ret=xstream_eat(m->xs,buffer,bufsz);
-        break;
-    case MIO_CLOSED:
-        if(cd == NULL) break;
-        ghash_remove(s__i->users, cd->id);
-        log_debug(ZONE,"io_select Socket %d close notification",m->fd);
-        if(cd->state == state_AUTHD)
-        {
-            x=pthsock_make_route(NULL,jid_full(cd->host),cd->id,"error");
-            deliver(dpacket_new(x),s__i->i);
-        }
-        else
-        {
-            mio_wbq q;
-            if(cd != NULL && cd->pre_auth_mp != NULL)
-            { /* if there is a pre_auth queue still */
-                while((q=(mio_wbq)pth_msgport_get(cd->pre_auth_mp))!=NULL)
-                    xmlnode_free(q->x);
-                pth_msgport_destroy(cd->pre_auth_mp);
-            } 
-        }
-        break;
-    case MIO_ERROR:
-        if(m->queue==NULL) break;
-
-        while((x = mio_cleanup(m)) != NULL)
-            deliver_fail(dpacket_new(x),"Socket Error to Client");
     }
 }
 
@@ -451,7 +423,7 @@ void pthsock_client(instance i, xmlnode x)
         for(;cur != NULL; xmlnode_hide(cur), cur = xmlnode_get_tag(s__i->cfg,"ip"))
         {
             mio m;
-            m = mio_listen(j_atoi(xmlnode_get_attrib(cur,"port"),5222), xmlnode_get_data(cur), pthsock_client_read, NULL, NULL, NULL);
+            m = mio_listen(j_atoi(xmlnode_get_attrib(cur,"port"),5222), xmlnode_get_data(cur), pthsock_client_read, NULL, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER));
             if(m == NULL)
                 return;
             mio_rate(m, rate_time, rate_points);
@@ -460,7 +432,7 @@ void pthsock_client(instance i, xmlnode x)
     else /* no special config, use defaults */
     {
         mio m;
-        m = mio_listen(5222, NULL, pthsock_client_read, NULL, NULL, NULL);
+        m = mio_listen(5222, NULL, pthsock_client_read, NULL, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER));
         if(m == NULL)
             return;
         mio_rate(m, rate_time, rate_points);
