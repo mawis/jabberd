@@ -1,3 +1,13 @@
+Upgrading from 1.4.2 to 1.4.3
+-----------------------------
+
+There should be no issues upgrading from 1.4.2 to 1.4.3. Be aware the
+new mod_auth_crypt module can not run in parallel with mod_auth_plain
+and you can not simply replace mod_auth_plain by mod_auth_crypt in an
+existing installation. So stick with your mod_auth_* setup you used
+in jabberd 1.4.2 if you need plaintext authentification.
+
+
 Upgrading from 1.2 to 1.4
 -------------------------
 
