@@ -80,7 +80,7 @@ int main (int argc, char** argv)
     if(help)
     {
         /* bad param, provide help message */
-        printf("Usage:\njabberd [-c config.xml] [-D]\n");
+        fprintf(stderr,"Usage:\njabberd [-c config.xml] [-D]\n");
         exit(0);
     }
 

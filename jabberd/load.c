@@ -75,7 +75,7 @@ void loader_dso(char *so, char *init)
     dlerr = dlerror();
     if(dlerr != NULL)
     {
-        printf("Loading %s failed: %s\n",so,dlerr);
+        fprintf(stderr,"Loading %s failed: %s\n",so,dlerr);
         exit(1);
     }
 
@@ -86,7 +86,7 @@ void loader_dso(char *so, char *init)
     dlerr = dlerror();
     if(dlerr != NULL)
     {
-        printf("Executing %s in %s failed: %s",init,so,dlerr);
+        fprintf(stderr,"Executing %s in %s failed: %s",init,so,dlerr);
         exit(1);
     }
 
