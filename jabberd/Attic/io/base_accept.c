@@ -289,32 +289,14 @@ void *base_accept_io(void *arg)
             if(p != NULL)
             { /* bounce the unsent packet */
                 log_warn(NULL,"base_accept Bouncing packet intended for %s",xmlnode_get_attrib(p->x,"to"));
-                jutil_error(p->x,TERROR_EXTERNAL);
-                if(xmlnode_get_attrib(p->x,"sto")!=NULL)
-                {
-                    char *sto=xmlnode_get_attrib(p->x,"sto");
-                    char *sfrom=xmlnode_get_attrib(p->x,"sfrom");
-                    xmlnode_put_attrib(p->x,"sfrom",sto);
-                    xmlnode_put_attrib(p->x,"sto",sfrom);
-                    jutil_tofrom(p->x);
-                }
-                deliver(p,a->s->i);
+                deliver_fail(p,"External Server Error");
             }
 
             /* bounce any waiting in the mp */
             for(d = (drop)pth_msgport_get(a->s->mp);d != NULL; d = (drop)pth_msgport_get(a->s->mp))
             {
                 log_warn(NULL,"base_accept Bouncing packet intended for %s",xmlnode_get_attrib(d->p->x,"to"));
-                jutil_error(d->p->x,TERROR_EXTERNAL);
-                if(xmlnode_get_attrib(d->p->x,"sto")!=NULL)
-                {
-                    char *sto=xmlnode_get_attrib(d->p->x,"sto");
-                    char *sfrom=xmlnode_get_attrib(d->p->x,"sfrom");
-                    xmlnode_put_attrib(d->p->x,"sfrom",sto);
-                    xmlnode_put_attrib(d->p->x,"sto",sfrom);
-                    jutil_tofrom(d->p->x);
-                }
-                deliver(d->p,a->s->i);
+                deliver_fail(d->p,"External Server Error");
             }
         }else{ /* if we were working on a packet, put it back in the default sink */
             if(p != NULL)
@@ -395,16 +377,7 @@ result base_accept_plumber(void *arg)
         while((d=(drop)pth_msgport_get(s->mp))!=NULL)
         {
             log_warn(NULL,"base_accept Bouncing packet intended for %s",xmlnode_get_attrib(d->p->x,"to"));
-            jutil_error(d->p->x,TERROR_EXTERNAL);
-            if(xmlnode_get_attrib(d->p->x,"sto")!=NULL)
-            {
-                char *sto=xmlnode_get_attrib(d->p->x,"sto");
-                char *sfrom=xmlnode_get_attrib(d->p->x,"sfrom");
-                xmlnode_put_attrib(d->p->x,"sfrom",sto);
-                xmlnode_put_attrib(d->p->x,"sto",sfrom);
-                jutil_tofrom(d->p->x);
-            }
-            deliver(dpacket_new(d->p->x),s->i);
+            deliver_fail(d->p,"External Server Error");
         }
     }
 
