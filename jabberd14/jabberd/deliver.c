@@ -154,8 +154,8 @@ void deliver_fail(dpacket p, char *err)
                 log_notice(p->host,"bouncing a session packet to %s from %s",xmlnode_get_attrib(p->x,"sto"),xmlnode_get_attrib(p->x,"sfrom"));
 
                 /* reverse the session routing attribs */
-                to = xmlnode_get_attrib(p->x,"to");
-                xmlnode_put_attrib(p->x,"sto",xmlnode_get_attrib(p->x,"from"));
+                to = xmlnode_get_attrib(p->x,"sto");
+                xmlnode_put_attrib(p->x,"sto",xmlnode_get_attrib(p->x,"sfrom"));
                 xmlnode_put_attrib(p->x,"sfrom",to);
 
                 /* turn into an error */
