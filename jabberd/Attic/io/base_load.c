@@ -297,7 +297,7 @@ int xdb_set(xdbcache xc, char *host, jid owner, char *ns, xmlnode data)
     dude = jid_new(xmlnode_pool(x),jid_full(owner));
     jid_set(dude,ns,JID_RESOURCE);
     xmlnode_put_attrib(x,"type","set");
-    xmlnode_put_attrib(x,"to",jid_full(owner));
+    xmlnode_put_attrib(x,"to",jid_full(dude));
     xmlnode_put_attrib(x,"from",host);
     sprintf(ids,"%d",newx.id);
     xmlnode_put_attrib(x,"id",ids); /* to track response */
