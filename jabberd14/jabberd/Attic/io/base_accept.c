@@ -79,6 +79,7 @@ typedef struct
     int sock;
     sink s;
     pool p;
+	int error;
     char *id;
     xmlnode secrets;
     pth_event_t emp, eread, etime, ering;
@@ -136,15 +137,18 @@ void base_accept_read_packets(int type, xmlnode x, void *arg)
                 /* Notify component with stream:error */
                 pth_write(a->sock, SERROR_NAMESPACE, strlen(SERROR_NAMESPACE));
                 /* Set status code and return */
-                /* FIXME: DO THIS! */
+				a->error = 1;
         }
-        /* Send header w/ proper namespace, using instance id (acceptor->sink->instance->id) */
-        cur = xstream_header("jabber:component:accept",NULL,a->s->i->id);
-        /* Save stream ID for auth'ing later */
-        a->id = pstrdup(a->p,xmlnode_get_attrib(cur,"id"));
-        block = xstream_header_char(cur);
-        log_debug(ZONE,"socket connected, sending xstream header: %s",block);
-        pth_write(a->sock,block,strlen(block));
+		else 
+		{
+        	/* Send header w/ proper namespace, using instance id (acceptor->sink->instance->id) */
+        	cur = xstream_header("jabber:component:accept",NULL,NULL);
+        	/* Save stream ID for auth'ing later */
+        	a->id = pstrdup(a->p,xmlnode_get_attrib(cur,"id"));
+        	block = xstream_header_char(cur);
+        	log_debug(ZONE,"socket connected, sending xstream header: %s",block);
+        	pth_write(a->sock,block,strlen(block));
+		}
         xmlnode_free(cur);
         xmlnode_free(x);
         break;
@@ -251,6 +255,9 @@ void *base_accept_io(void *arg)
             if(len <= 0) break;
 
             if(xstream_eat(xs, buff, len) > XSTREAM_NODE) break;
+
+			if (a->error != 0)
+				break;
         }
 
         /* handle the packets to be sent to the socket */
