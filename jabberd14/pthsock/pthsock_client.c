@@ -536,6 +536,15 @@ void *pthsock_client_main(void *arg)
                     log_debug(ZONE,"read %d bytes",len);
                     xstream_eat(cur->xs,buff,len);
                 }
+                if(cur->state==state_CLOSE)
+                {
+                    temp=cur;
+                    cur=cur->next;
+                    pthsock_client_close(si,temp);
+                    FD_CLR(temp->sock,&all_rfds);
+                    FD_CLR(temp->sock,&all_wfds);
+                    continue;
+                }
             }
             else if(FD_ISSET(cur->sock,&wfds))
             { /* ooo, we are ready to dump the rest of the data */
