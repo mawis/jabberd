@@ -21,17 +21,28 @@
 
 result base_cache_config(instance id, xmlnode x, void *arg)
 {
+    int timeout = -1;
+    char *tstr;
+
+    /* get the timeout value */
+    tstr = xmlnode_get_data(x);
+    if(tstr != NULL)
+        timeout = atoi(tstr);
+
     if(id == NULL)
     {
         log_debug(ZONE,"base_cache_config validating configuration\n");
+        if(j_strcmp(xmlnode_get_name(xmlnode_get_parent(x)),"xdb") != 0)
+        {
+            xmlnode_put_attrib(x,"error","'cache' is only valid in an xdb section");
+            return r_ERR;
+        }
+        if(tstr != NULL && timeout <= 0)
+        {
+            xmlnode_put_attrib(x,"error","'cache' must contain an integer greater than zero for the number of seconds to cache xdb data");
+            return r_ERR;
+        }
         return r_PASS;
-    }
-
-    /* XXX uhgly, should figure out how to flag errors like this more consistently, during checking phase or something */
-    if(id->type != p_XDB)
-    {
-        fprintf(stderr,"ERROR: <cache>...</cache> element only allowed in xdb section\n");
-        exit(1);
     }
 
     log_debug(ZONE,"base_cache_config performing configuration %s\n",xmlnode2str(x));
