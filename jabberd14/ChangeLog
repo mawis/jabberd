@@ -1,3 +1,9 @@
+2004-10-06  Matthias Wimmer  <m@tthias.net>
+
+    * dialback/dialback_in.c: When trashing timed-out db queries, we sent
+	invalid db:results, that did not contain a type='invalid' attribute
+    * jsm/modules/mod_stat.c: Use instance memory pool for memory allocation
+
 2004-10-05  Matthias Wimmer  <m@tthias.net>
 
     * dialback/dialback_in.c: Changed duplicate error messages
