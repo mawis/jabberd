@@ -1,18 +1,93 @@
 #!/bin/sh
 
-# Yay a dependancy on sh! J/K
+# You only need to run this once to setup your platforms options
+printf "Running Jabber Configure\n"
+printf "========================\n\n"
 
+##
+# Libxode check
+##
+printf "Getting libxode settings..."
+XODE_CFLAGS=`libxode-config --cflags`
+XODE_LDFLAGS=`libxode-config --ldflags`
+XODE_LIBS=`libxode-config --libs`
+if [ -n "$XODE_CFLAGS" ]; then
+    printf "     Done.\n";
+else
+    printf "You are missing libxode-config.  This is obtained from the libxode package that can be found at http://download.jabber.org.  Please installed this package and then run configure again.\n";
+    exit 1;
+fi
+
+##
+# Libjabber check
+##
+printf "Getting libjabber settings..."
+JABBER_CFLAGS=`jabber-config --cflags`
+JABBER_LDFLAGS=`jabber-config --ldflags`
+JABBER_LIBS=`jabber-config --libs`
+if [ -n "$JABBER_CFLAGS" ]; then
+    printf "   Done.\n";
+else
+    printf "You are missing jabber-config.  This is obtained from the libjabber package that can be found at http://download.jabber.org.  Please installed this package and then run configure again.\n";
+    exit 1;
+fi
+
+##
+# Pth check
+##
+printf "Getting pth settings..."
+PTH_CFLAGS=`pth-config --cflags`
+PTH_LDFLAGS=`pth-config --ldflags`
+PTH_LIBS=`pth-config --libs`
+if [ -n "$PTH_CFLAGS" ]; then
+    printf "         Done.\n";
+else
+    printf "You are missing pth-config.  This is obtained from the pth package that can be found at http://www.gnu.org.  Please install this package and then run configure again.\n";
+    exit 1;
+fi
+
+##
+# Setup our initial flags
+##
+CFLAGS="$XODE_CFLAGS $JABBER_CFLAGS $PTH_CFLAGS"
+LDFLAGS="$XODE_LDFLAGS $JABBER_LDFLAGS $PTH_LDFLAGS"
+LIBS="$XODE_LIBS $JABBER_LIBS $PTH_LIBS"
+
+##
+# Check the host type and change flags as necessary
+##
+printf "Setting Build Parameters..."
 hosttype=`uname -s`
-
 case $hosttype in
     Linux)
-        echo "We got Linux... We should export it's CFLAGS";;
-    Solaris)
-        echo "Ok Solaris... we need to change the linker mainly";;
-    FreeBSD)
-        echo "FreeBSD... We don't need -ldl";;
+        LIBS="$LIBS -ldl"
+        XLDFLAGS="-Wl,--export-dynamic"
 esac
+printf "     Done.\n"
+##
+# Output our settings for usage
+##
+printf "Generating Settings Script..."
+cat << EOF > platform-settings
+#!/bin/sh
+if [ -z "\$1" ]; then
+    printf "You must specify an argument to this script\n";
+    exit 1;
+fi
 
-echo -n "Setting Build Parameters..."
-echo "Done"
-echo "You may now type 'make' to build your new Jabber system."
+case \$1 in
+    --cflags)
+        echo "$CFLAGS";;
+    --ldflags)
+        echo "$LDFLAGS";;
+    --libs)
+        echo "$LIBS";;
+    --xldflags)
+        echo "$XLDFLAGS";;
+    *)
+        printf "Hmmm... No need to run this...\n";;
+esac
+EOF
+chmod 0700 platform-settings
+printf "   Done.\n\n"
+printf "You may now type 'make' to build your new Jabber system.\n\n"
