@@ -2,6 +2,9 @@
 
     * jabberd/log.c: Fix for broken log messages of type 'record'. Bug could
     	be used for DoS, but existed only in CVS since 2004-05-14.
+    * jabberd/config.c: portable syslog facilities
+    * jabberd/jabberd.h: same
+    * jabberd/base/base_syslog.c: same
 
 2004-06-30  Matthias Wimmer  <m@tthias.net>
 

@@ -50,7 +50,7 @@ result base_syslog_deliver(instance id, dpacket p, void* arg)
     int facility = (int)arg;
     char* message = NULL;
     char* type_s = NULL;
-    int type = LOG_INFO;
+    int type;
 
     message = xmlnode_get_data(p->x);
     if (message == NULL) {
@@ -64,15 +64,9 @@ result base_syslog_deliver(instance id, dpacket p, void* arg)
 	return r_ERR;
     }
 
-    if (j_strcmp(type_s, "notice") == 0) type = LOG_NOTICE;
-    else if (j_strcmp(type_s, "warn") == 0) type = LOG_WARNING;
-    else if (j_strcmp(type_s, "alert") == 0) type = LOG_ALERT;
-    else if (j_strcmp(type_s, "stat") == 0) type = LOG_INFO;
-    else if (j_strcmp(type_s, "info") == 0) type = LOG_INFO;
-    else if (j_strcmp(type_s, "emerg") == 0) type = LOG_EMERG;
-    else if (j_strcmp(type_s, "crit") == 0) type = LOG_CRIT;
-    else if (j_strcmp(type_s, "err") == 0) type = LOG_ERR;
-    else if (j_strcmp(type_s, "debug") == 0) type = LOG_DEBUG;
+    type = log_get_level(type_s);
+    if (type == -1)
+	type = LOG_INFO;
 
     syslog(facility|type, "%s", message);
     
@@ -109,27 +103,9 @@ result base_syslog_config(instance id, xmlnode x, void *arg)
 
     /* check which facility to use */
     facility_str = xmlnode_get_data(x);
+    facility = log_get_facility(facility_str);
 
-    if (j_strcmp(facility_str, "daemon") == 0) facility = LOG_DAEMON;
-    else if (j_strcmp(facility_str, "local0") == 0) facility = LOG_LOCAL0;
-    else if (j_strcmp(facility_str, "local1") == 0) facility = LOG_LOCAL1;
-    else if (j_strcmp(facility_str, "local2") == 0) facility = LOG_LOCAL2;
-    else if (j_strcmp(facility_str, "local3") == 0) facility = LOG_LOCAL3;
-    else if (j_strcmp(facility_str, "local4") == 0) facility = LOG_LOCAL4;
-    else if (j_strcmp(facility_str, "local5") == 0) facility = LOG_LOCAL5;
-    else if (j_strcmp(facility_str, "local6") == 0) facility = LOG_LOCAL6;
-    else if (j_strcmp(facility_str, "local7") == 0) facility = LOG_LOCAL7;
-    else if (j_strcmp(facility_str, "auth") == 0) facility = LOG_AUTH;
-    else if (j_strcmp(facility_str, "authpriv") == 0) facility = LOG_AUTHPRIV;
-    else if (j_strcmp(facility_str, "cron") == 0) facility = LOG_CRON;
-    else if (j_strcmp(facility_str, "kern") == 0) facility = LOG_KERN;
-    else if (j_strcmp(facility_str, "lpr") == 0) facility = LOG_LPR;
-    else if (j_strcmp(facility_str, "mail") == 0) facility = LOG_MAIL;
-    else if (j_strcmp(facility_str, "news") == 0) facility = LOG_NEWS;
-    else if (j_strcmp(facility_str, "syslog") == 0) facility = LOG_SYSLOG;
-    else if (j_strcmp(facility_str, "user") == 0) facility = LOG_USER;
-    else if (j_strcmp(facility_str, "uucp") == 0) facility = LOG_UUCP;
-    else {
+    if (facility == -1) {
 	log_alert(NULL, "base_syslog_config error: unknown syslog facility: %s", facility_str);
 	return r_ERR;
     }
