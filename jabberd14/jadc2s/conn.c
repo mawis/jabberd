@@ -356,7 +356,13 @@ int _read_actual(conn_t c, int fd, char *buf, size_t count)
 
 #ifdef USE_SSL
     if(c->ssl != NULL)
-        return SSL_read(c->ssl, buf, count);
+    {
+	int ssl_init_finished = SSL_is_init_finished(c->ssl);
+	int bytes_read = SSL_read(c->ssl, buf, count);
+	if (!ssl_init_finished && SSL_is_init_finished(c->ssl))
+	    log_write(c->c2s->log, LOG_NOTICE, "ssl/tls established on fd %i: %s %s", c->fd, SSL_get_version(c->ssl), SSL_get_cipher(c->ssl));
+        return bytes_read;
+    }
 #endif
     return read(fd, buf, count);
 }

@@ -93,3 +93,13 @@ void log_free(log_t l)
         fclose(f);
 }
 #endif
+
+#ifdef USE_SSL
+void log_ssl_errors(log_t l, int level)
+{
+    unsigned long sslerr;
+
+    while ((sslerr = ERR_get_error()) != 0)
+	log_write(l, level, "ssl: %s", ERR_error_string(sslerr, NULL));
+}
+#endif

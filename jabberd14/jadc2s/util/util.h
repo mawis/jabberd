@@ -10,6 +10,9 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include <time.h>
+#ifdef USE_SSL
+# include <openssl/err.h>
+#endif
 
 /*
 **  Arrange to use either varargs or stdargs
@@ -290,7 +293,9 @@ typedef void *log_t;
 extern log_t    log_new(char *);
 extern void     log_write(log_t, int, const char *, ...);
 extern void     log_free(log_t);
-
+#ifdef USE_SSL
+void log_ssl_errors(log_t l, int level);
+#endif
 
 /* config files */
 struct config_elem_st

@@ -4,6 +4,7 @@
 
 #ifdef USE_SSL
 # include <openssl/ssl.h>
+# include <openssl/err.h>
 #endif
 
 /****** First notes by jer on 2002/03/17: ******
@@ -151,6 +152,11 @@ struct c2s_st
 #ifdef USE_SSL
     int local_sslport;
     char *pemfile;
+    char *ciphers;
+    int ssl_no_ssl_v2;
+    int ssl_no_ssl_v3;
+    int ssl_no_tls_v1;
+    int ssl_enable_workarounds;
 
     SSL_CTX *ssl_ctx;
 #endif
