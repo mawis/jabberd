@@ -48,7 +48,7 @@ void jsm(instance i, xmlnode x)
     si->i = i;
     si->p = i->p;
     si->xc = xdb_cache(i); /* getting xdb_* handle and fetching config */
-    si->config = xmlnode_get_firstchild(xdb_get(si->xc, NULL, jid_new(xmlnode_pool(x),"config@-internal"),"jabberd:jsm:config"));
+    si->config = xdb_get(si->xc, NULL, jid_new(xmlnode_pool(x),"config@-internal"),"jabberd:jsm:config");
     si->hosts = ghash_create(HOSTS_PRIME,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp); /* XXX hostname hash, make PRIME configurable */
     for(n=0;n<SESSION_WAITERS;n++)
         si->waiting[n] = NULL;

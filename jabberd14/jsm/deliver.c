@@ -72,38 +72,61 @@ result js_packet(instance i, dpacket p, void *arg)
     /* if this is a session packet */
     if((sto = jid_new(p->p,xmlnode_get_attrib(p->x,"sto"))) != NULL)
     {
-        if(sto->user == NULL && jp->type == JPACKET_IQ)
-        {
+        if(sto->user == NULL && jp->type == JPACKET_IQ && (jpacket_subtype(jp) == JPACKET__GET || jpacket_subtype(jp) == JPACKET__SET))
+        { /* only valid iq reqs apply */
             js_authreg(si, jp, ht);
             return r_DONE;
         }
 
-        /* this is a packet to be processed as outgoing for this session */
-        s = js_session_get(js_user(si, sto, ht),sto->resource);
-        if(s != NULL)
-        {
-            /* hide the session attribs */
-            xmlnode_hide_attrib(jp->x,"sto");
-            xmlnode_hide_attrib(jp->x,"sfrom");
-            js_session_from(s, jp);
-        }else if(!(jpacket_subtype(jp) == JPACKET__ERROR && j_strcmp(xmlnode_get_attrib(xmlnode_get_tag(jp->x,"error"),"code"),"510") == 0)){ /* no session and not a 510 error */
+        /* this is a packet to be processed as outgoing for a session */
 
+        /* attempt to locate the session */
+        s = js_session_get(js_user(si, sto, ht),sto->resource);
+
+        /* hide the special session attribs */
+        xmlnode_hide_attrib(jp->x,"sto");
+        xmlnode_hide_attrib(jp->x,"sfrom");
+
+        /* if it's a 510 error */
+        if(jpacket_subtype(jp) == JPACKET__ERROR && (x = xmlnode_get_tag(jp->x,"error?code=510")) != NULL)
+        {
+            if(s != NULL) /* obviously the session should end pronto */
+                js_session_end(s, "Disconnected");
+
+            /* if this was a message, it should have been delievered to that session, store offline */
+            if(jp->type == JPACKET_MESSAGE)
+            {
+                xmlnode_put_attrib(jp->x,"type",xmlnode_get_attrib(x,"type")); /* restore the original type */
+                xmlnode_hide(x); /* remove our special error type */
+                jpacket_reset(jp);
+                if(jp->to != NULL && jp->from != NULL) /* 510 error msgs from the socket manager itself aren't going to have a to/from */
+                {
+                    js_deliver_local(si, jp, ht); /* (re)deliver it locally again, should go to another session or offline */
+                    return r_DONE;
+                }
+            }
+
+            /* drop and return */
+            log_notice(p->host, "dropping a bounced session packet to %s", jid_full(sto));
+            xmlnode_free(jp->x);
+            return r_DONE;
+        }
+
+        if(s != NULL)
+        {   /* just pass to the session normally */
+            js_session_from(s, jp);
+        }else{
             /* send an error msg to the client manager to make sure it knows there's no session */
             x = xmlnode_new_tag("message");
             xmlnode_put_attrib(x,"sto",xmlnode_get_attrib(jp->x,"sfrom"));
             jutil_error(x, TERROR_DISCONNECTED);
             deliver(dpacket_new(x), NULL);
 
-            /* XXX (what should we really do here?) if this is a normal message store as offline 
-            if(jp->type == JPACKET_MESSAGE)
-            {
-                xmlnode_put_attrib(jp->x,"to",jid_full(sto));
-                jpacket_reset(jp);
-                js_psend(si->mpoffline,jp);
-            }else{ */
-                log_notice(sto->server,"Dropping %s packet intended for session %s",xmlnode_get_name(jp->x),jid_full(sto));
-                xmlnode_free(jp->x);
-            /*}*/
+            /* XXX what should we really do here? if this is a message the client was trying to send, and there's no session, I'm not sure :) */
+
+            /* drop packets w/o session */
+            log_notice(sto->server,"Dropping %s packet intended for session %s",xmlnode_get_name(jp->x),jid_full(sto));
+            xmlnode_free(jp->x);
         }
         return r_DONE;
     }
