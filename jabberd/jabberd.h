@@ -33,7 +33,7 @@
 #include <ssl.h>
 #endif /* HAVE_SSL */
 
-#define VERSION "1.4CVS"
+#define VERSION "1.4.3CVS"
 
 /* packet types */
 typedef enum { p_NONE, p_NORM, p_XDB, p_LOG, p_ROUTE } ptype;
