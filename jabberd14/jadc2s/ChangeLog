@@ -1,7 +1,8 @@
 2004-01-17  Matthias Wimmer  <m@tthias.net>
 
-    * clients.c: Logging the amout of traffic a user generated
+    * clients.c: Logging the amout of traffic/stanzas a user generated
     * conn.c: same
+    * connect.c: same
     * jadc2s.h: same
 
 2004-01-15  Matthias Wimmer  <m@tthias.net>
