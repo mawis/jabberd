@@ -504,13 +504,15 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
 	match = xmlnode_get_attrib(p->x, "match");
 
 	if (action == NULL) {
+	    char *query = NULL;
+	    
 	    /* just a boring set */
 
 	    /* start the transaction */
 	    xdb_sql_execute(i, xq, "BEGIN", NULL, NULL);
 
 	    /* delete old values */
-	    char *query = xdb_sql_construct_query(ns_def->delete, p->x);
+	    query = xdb_sql_construct_query(ns_def->delete, p->x);
 	    log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for deletion: %s", query);
 	    if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
 		/* SQL query failed */

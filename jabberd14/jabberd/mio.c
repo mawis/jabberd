@@ -72,6 +72,7 @@ typedef struct mio_main_st
     pth_t t;            /**< a pointer to thread for signaling */
     int shutdown;	/**< flag that the select loop can be left (if value is 1) */
     int zzz[2];		/**< pipe used to send signals to the select loop */
+    int zzz_active;	/**< if set to something else then 1, there has been sent a signal already, that is not yet processed */
     struct karma *k;	/**< default karma */
     int rate_t, rate_p; /**< default rate, if any */
 } _ios,*ios;
@@ -395,10 +396,13 @@ result _karma_heartbeat(void*arg)
             karma_increment( &cur->k );
      
             /* punishment is over */
-            if(was_negative && cur->k.val >= 0)  
-            {
+            if(was_negative && cur->k.val >= 0)  {
                log_debug2(ZONE, LOGT_IO, "Punishment Over for socket %d: ", cur->fd);
-               pth_write(mio__data->zzz[1]," ",1);
+	       /* we don't have to signal again, if a signal is pending */
+	       if (mio__data->zzz_active <= 0) {
+		   mio__data->zzz_active++;
+		   pth_write(mio__data->zzz[1]," ",1);
+	       }
             }
         }
     }
@@ -817,8 +821,13 @@ void _mio_connect(void *arg)
     cd->connected = 1; 
 
     /* notify the select loop */
-    if(mio__data != NULL)
-        pth_write(mio__data->zzz[1]," ",1);
+    if(mio__data != NULL) {
+	/* we don't have to send multiple signals */
+	if (mio__data->zzz_active <= 0) {
+	    mio__data->zzz_active++;
+	    pth_write(mio__data->zzz[1]," ",1);
+	}
+    }
 
     /* notify the client that the socket is born */
     if(new->cb != NULL)
@@ -899,6 +908,7 @@ void _mio_main(void *arg)
         {
 	    log_debug2(ZONE, LOGT_EXECFLOW, "got a notify on zzz");
             pth_read(mio__data->zzz[0],buf,8192);
+	    mio__data->zzz_active = 0;
         }
 
         /* check our pending announcements */
@@ -1226,8 +1236,20 @@ mio mio_new(int fd, void *cb, void *arg, mio_handlers mh)
     /* notify the select loop */
     if(mio__data != NULL) {
 	log_debug2(ZONE, LOGT_EXECFLOW, "sending zzz notify to the select loop in mio_new()");
-        write(mio__data->zzz[1]," ",1);
-	log_debug2(ZONE, LOGT_EXECFLOW, "notify sent");
+	/* if there has been already sent a signal, that is not yet processed, we don't
+	 * have to send this signal twice. Else we could get blocking here at the write() call
+	 * if we send really many signals, what seems to be possible for large rosters as
+	 * reported by Marco Balmer. I have yet really tried to reproduce this, but it seems
+	 * logical and I don't see where it can hurt to send only one signal.
+	 * I have also considered using pth_write() here, but as I remember, there was a reason
+	 * why a real write is used here. It would be really nice, if pth would be documented
+	 * better ... and it would be even nicer not to use pth at all ...
+	 */
+	if (mio__data->zzz_active <= 0) {
+	    mio__data->zzz_active++;
+	    write(mio__data->zzz[1]," ",1);
+	    log_debug2(ZONE, LOGT_EXECFLOW, "notify sent");
+	}
     }
 
     return new;
@@ -1258,8 +1280,12 @@ void mio_close(mio m)
     m->state = state_CLOSE;
     if(mio__data != NULL) {
 	log_debug2(ZONE, LOGT_EXECFLOW, "sending zzz notify to the select loop in mio_close()");
-        write(mio__data->zzz[1]," ",1);
-	log_debug2(ZONE, LOGT_EXECFLOW, "notify sent");
+	/* there needs to be only one pending signal */
+	if (mio__data->zzz_active <= 0) {
+	    mio__data->zzz_active++;
+	    write(mio__data->zzz[1]," ",1);
+	    log_debug2(ZONE, LOGT_EXECFLOW, "notify sent");
+	}
     }
 }
 
@@ -1348,8 +1374,12 @@ void mio_write(mio m, xmlnode x, char *buffer, int len)
     /* notify the select loop that a packet needs writing */
     if(mio__data != NULL) {
 	log_debug2(ZONE, LOGT_EXECFLOW, "sending zzz notify to the select loop in mio_write()");
-        write(mio__data->zzz[1]," ",1);
-	log_debug2(ZONE, LOGT_EXECFLOW, "notify sent");
+	/* there only needs to be one pending signal */
+	if (mio__data->zzz_active <= 0) {
+	    mio__data->zzz_active++;
+	    write(mio__data->zzz[1]," ",1);
+	    log_debug2(ZONE, LOGT_EXECFLOW, "notify sent");
+	}
     }
 }
 

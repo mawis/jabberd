@@ -40,17 +40,15 @@
  * --------------------------------------------------------------------------*/
 #include "jabberd.h"
 
+/**
+ * @file base_stdout.c
+ * @brief this handler will cause all packets to be delivered to standard out (STDOUT) from the jabberd process, it also flags a thread to read on STDIN for incoming packets - DEPRICATED
+ *
+ * @depricated using this handler is depricated, it will be removed from future versions of jabberd14
+ */
+
 /* for cleanup signalling */
 pth_t main__thread = NULL;
-
-/*
-
-<stdout/>
-
-with this flag in any instance of any type, it causes all packets to be delivered to standard out (STDOUT) from the jabberd process
-it also flags a thread to read on STDIN for incoming packets
-
-*/
 
 /* simple wrapper around the pth messages to pass packets */
 typedef struct
