@@ -40,17 +40,14 @@ jabberd_OBJECTS = \
 	lib/xmlrole.o \
 	lib/xmltok.o \
 	lib/xstream.o \
-	base/base_host.o \
 	base/base_connect.o \
 	base/base_exec.o \
 	base/base_stdout.o \
 	base/base_accept.o \
 	base/base_file.o \
 	base/base_format.o \
-	base/base_logtype.o \
 	base/base_stderr.o \
-	base/base_to.o \
-	base/base_ns.o
+	base/base_to.o
 
 SUBDIRS=
 
