@@ -171,3 +171,35 @@ void deliver(dpacket p)
     /* we cleanup the packet */
     pool_free(p->p);        
 }
+
+dpacket dpacket_new(xmlnode x)
+{
+    dpacket p;
+
+    if(x == NULL)
+        return NULL;
+
+    /* create the new packet */
+    p = pmalloc_x(xmlnode_pool(x),sizeof(_dpacket),0);
+    p->x = x;
+    p->p = xmlnode_pool(x);
+
+    /* determine it's type */
+    p->type = p_NORM;
+    if(*(xmlnode_get_name(x)) == 'l')
+        p->type = p_LOG;
+    else if(*(xmlnode_get_name(x)) == 'x')
+        p->type = p_XDB;
+
+    /* determine who to route it to, overriding the default to="" attrib only for sid special case */
+    if(p->type == p_NORM && xmlnode_get_attrib(x, "sid") != NULL)
+        p->id = jid_new(p->p, xmlnode_get_attrib(x, "sid"));
+    else
+        p->id = jid_new(p->p, xmlnode_get_attrib(x, "to"));
+
+    if(p->id == NULL)
+        return NULL;
+
+    p->host = p->id->server;
+    return p;
+}
