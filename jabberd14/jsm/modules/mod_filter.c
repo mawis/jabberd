@@ -81,11 +81,14 @@
  */
 
 xmlnode mod_filter__default = NULL;
+jsmi    mod_filter__jsmi    = NULL;
+#define MOD_FILTER_MAX_SIZE 100
+
 typedef struct action_struct 
 {
     pool p;
-    int is_match,has_action;
-    int offline,reply,settype,cont;
+    int is_match, has_action;
+    int offline, reply, settype, cont;
     jid forward;
     mapi m;
 } _action, *action;
@@ -97,36 +100,19 @@ xmlnode mod_filter_get(udata u)
     xmlnode ret;
 
     /* get the existing rules */
-    ret = xdb_get(u->si->xc,u->id, NS_FILTER);
+    ret = xdb_get(u->si->xc, u->id, NS_FILTER);
     if(ret == NULL)
     {
-        ret = xmlnode_dup(mod_filter__default);
+        ret = xmlnode_new_tag("query");
+        xmlnode_put_attrib(ret, "xmlns", NS_FILTER);
     }
 
     return ret;
 }
 
-/* get the user's offline data */
-xmlnode mod_filter_get_offline(udata u)
+void mod_filter_action_offline(mapi m, xmlnode rule)
 {
-    xmlnode ret;
-
-    /* get the existing */
-    ret = xdb_get(u->si->xc,u->id, NS_OFFLINE);
-    if(ret == NULL)
-    {
-        ret = xmlnode_new_tag("offline");
-        xmlnode_put_attrib(ret,"xmlns",NS_OFFLINE);
-    }
-
-    return ret;
-}
-
-void mod_filter_action_offline(mapi m,xmlnode rule)
-{
-    xmlnode opts,cur;
-    int num_tags=0;
-    static int max_offline = -1;
+    xmlnode cur;
 
     /* only store normal, error, or chat */
     switch(jpacket_subtype(m->packet))
@@ -139,19 +125,41 @@ void mod_filter_action_offline(mapi m,xmlnode rule)
         return;
     }
 
-    /* XXX this is a hack for now, global maxoffline setting across all instances */
-    if(max_offline == -1)
-        max_offline = j_atoi(xmlnode_get_data(js_config(m->si,"maxoffline")),100);
+   /* look for event messages */
+    for(cur = xmlnode_get_firstchild(m->packet->x); cur != NULL; cur = xmlnode_get_nextsibling(cur))
+        if(NSCHECK(cur, NS_EVENT))
+        {
+            if(xmlnode_get_tag(cur, "id") != NULL)
+                return; /* bah, we don't want to store events offline (XXX: do we?) */
+            if(xmlnode_get_tag(cur, "offline") != NULL)
+                break; /* cur remaining set is the flag */
+        }
 
-    opts=mod_filter_get_offline(m->user);
-    for(cur=xmlnode_get_firstchild(opts);cur!=NULL;cur=xmlnode_get_nextsibling(cur))num_tags++;
-    if(num_tags<max_offline)
-    {
-        jutil_delay(m->packet->x,"Offline Storage");
-        xmlnode_insert_tag_node(opts,m->packet->x);
-        xdb_set(m->si->xc,m->user->id,NS_OFFLINE,opts);
+    log_debug("mod_filter","storing message for %s offline.",m->user->user);
+
+    jutil_delay(m->packet->x,"Offline Storage");
+    if(xdb_set(m->si->xc, m->user->id, NS_OFFLINE, xmlnode_dup(m->packet->x)))
+        return;
+
+    if(cur != NULL)
+    { /* if there was an offline event to be sent, send it for gosh sakes! */
+        xmlnode cur2;
+        jutil_tofrom(m->packet->x);
+
+        /* erease everything else in the message */
+        for(cur2 = xmlnode_get_firstchild(m->packet->x); cur2 != NULL; cur2 = xmlnode_get_nextsibling(cur2))
+            if(cur2 != cur)
+                xmlnode_hide(cur2);
+
+        /* erase any other events */
+        for(cur2 = xmlnode_get_firstchild(cur); cur2 != NULL; cur2 = xmlnode_get_nextsibling(cur2))
+            xmlnode_hide(cur2);
+
+        /* fill it in and send it on */
+        xmlnode_insert_tag(cur,"offline");
+        xmlnode_insert_cdata(xmlnode_insert_tag(cur,"id"),xmlnode_get_attrib(m->packet->x,"id"), -1);
+        js_deliver(m->si, jpacket_reset(m->packet));
     }
-    xmlnode_free(opts);
 }
 
 void mod_filter_action_error(mapi m,xmlnode rule)
@@ -164,11 +172,38 @@ void mod_filter_action_reply(mapi m,xmlnode rule)
     char *reply=xmlnode_get_tag_data(rule,"reply");
     xmlnode x;
 
-    if(reply==NULL) return;
-    x=xmlnode_dup(m->packet->x);
+    if(reply == NULL) 
+        return;
+
+    if(jid_cmpx(m->packet->to, m->packet->from, JID_USER | JID_SERVER) == 0)
+    { /* special case, we sent a msg to ourselves */
+        /* try to find a session to deliver to... */
+        session s = js_session_get(m->user, m->packet->to->resource);
+        s = s ? s : js_session_primary(m->user);
+        s = s ? s : m->s;
+
+        if(s == NULL)
+        { /* can't find a deliverable session, store offline */
+            mod_filter_action_offline(m, rule);
+            return;
+        }
+        
+        /* just deliver to the session */
+        x = xmlnode_dup(m->packet->x);
+        jutil_tofrom(x);
+        if(xmlnode_get_tag(x, "body") != NULL) 
+            xmlnode_hide(xmlnode_get_tag(x, "body"));
+        xmlnode_insert_cdata(xmlnode_insert_tag(x, "body"), reply, -1);
+        js_session_to(s, jpacket_new(x));
+        return;
+    }
+
+
+    x = xmlnode_dup(m->packet->x);
     jutil_tofrom(x);
-    if(xmlnode_get_tag(x,"body")!=NULL) xmlnode_hide(xmlnode_get_tag(x,"body"));
-    xmlnode_insert_cdata(xmlnode_insert_tag(x,"body"),reply,-1);
+    if(xmlnode_get_tag(x, "body") != NULL) 
+        xmlnode_hide(xmlnode_get_tag(x, "body"));
+    xmlnode_insert_cdata(xmlnode_insert_tag(x, "body"), reply, -1);
     deliver(dpacket_new(x),m->si->i);
 }
 
@@ -252,11 +287,22 @@ mreturn mod_filter_handler(mapi m, void *arg)
     cur_action=pmalloc(p,sizeof(_action));
     memset(cur_action,0,sizeof(_action));
     /* look through the user's rule set for a matching cond */
-    log_debug(ZONE,"Looking at rules");
 
-    rules=xmlnode_get_tag(container=mod_filter_get(m->user),"rule");
+    container = mod_filter_get(m->user);
+    xmlnode_insert_node(container, xmlnode_get_firstchild(mod_filter__default));
+
+    rules = xmlnode_get_firstchild(container);
+
+
+    log_debug(ZONE,"Looking at rules: %s", xmlnode2str(container));
+
     for(;rules!=NULL;rules=xmlnode_get_nextsibling(rules))
     {
+        log_debug(ZONE, "rule: %s", xmlnode2str(rules));
+
+        if(xmlnode_get_type(rules) != NTYPE_TAG)
+            continue;
+
         cur=xmlnode_get_firstchild(rules);
         for(;cur!=NULL;)
         {
@@ -527,10 +573,14 @@ void mod_filter_offline_check(mapi m)
 
     
     /* check for ones saved for this resource */
-    opts=mod_filter_get_offline(m->user);
-    for(message=xmlnode_get_firstchild(opts);message!=NULL;message=xmlnode_get_nextsibling(message))
+    if((opts = xdb_get(m->si->xc, m->user->id, NS_OFFLINE)) == NULL)
+        return;
+
+    for(message = xmlnode_get_firstchild(opts); message != NULL; message = xmlnode_get_nextsibling(message))
     {
-        if(j_strcmp(xmlnode_get_name(message),"message")!=0) continue;
+        if(j_strcmp(xmlnode_get_name(message),"message")!=0) 
+            continue;
+
         js_session_to(m->s,jpacket_new(xmlnode_dup(message)));
         xmlnode_hide(message);
     }
@@ -541,25 +591,82 @@ void mod_filter_offline_check(mapi m)
 
 mreturn mod_filter_iq(mapi m)
 {
-    xmlnode opts;
+    xmlnode opts, cur;
+    int max_rule_size = j_atoi(xmlnode_get_tag_data(js_config(mod_filter__jsmi, "filter"), "max_size"), MOD_FILTER_MAX_SIZE);
+    pool p;
 
-    if(!NSCHECK(m->packet->iq,NS_FILTER)||m->packet->to!=NULL)
+    if(!NSCHECK(m->packet->iq, NS_FILTER) || m->packet->to != NULL)
         return M_PASS;
+
     switch(jpacket_subtype(m->packet))
     {
     case JPACKET__SET:
-        xdb_set(m->si->xc,m->user->id,NS_FILTER,m->packet->iq);
+        /* check packet max size, and validity */
+
+        log_debug(ZONE, "FILTER RULE SET: rule max size %d: %s", max_rule_size, xmlnode2str(m->packet->x));
+
+        p = pool_new();
+        for(cur = xmlnode_get_firstchild(m->packet->iq); cur != NULL; cur = xmlnode_get_nextsibling(cur))
+        {
+            xmlnode tag;
+            if(xmlnode_get_type(cur) != NTYPE_TAG)
+                continue;
+
+            max_rule_size--;
+            log_debug(ZONE, "only %d left..", max_rule_size);
+
+            if(max_rule_size <= 0 || j_strcmp(xmlnode_get_name(cur), "rule") != 0)
+            { /* invalid tag used */
+                jutil_iqresult(m->packet->x);
+                xmlnode_put_attrib(m->packet->x, "type", "error");
+                xmlnode_put_attrib(xmlnode_insert_tag(m->packet->x, "error"), "code", "406");
+                xmlnode_insert_cdata(xmlnode_get_tag(m->packet->x, "error"), "Invalid rule, check rule size and tags", -1);
+                xmlnode_hide(m->packet->iq);
+                jpacket_reset(m->packet);
+                js_session_to(m->s, m->packet);
+                pool_free(p);
+                return M_HANDLED;
+            }
+
+            for(tag = xmlnode_get_firstchild(cur); tag != NULL; tag = xmlnode_get_nextsibling(tag))
+            {
+                char *c, *a;
+                xmlnode config;
+                if(xmlnode_get_type(tag) != NTYPE_TAG)
+                    continue;
+                config = js_config(mod_filter__jsmi, "filter");
+                config = xmlnode_get_tag(config, "allow");
+
+                c = spools(p, "conditions/", xmlnode_get_name(tag), p);
+                a = spools(p, "actions/", xmlnode_get_name(tag), p);
+                if(xmlnode_get_tag(config, c) == NULL && xmlnode_get_tag(config, a) == NULL)
+                { /* invalid tag used */
+                    jutil_iqresult(m->packet->x);
+                    xmlnode_put_attrib(m->packet->x, "type", "error");
+                    xmlnode_put_attrib(xmlnode_insert_tag(m->packet->x, "error"), "code", "406");
+                    xmlnode_insert_cdata(xmlnode_get_tag(m->packet->x, "error"), spools(p, "tag type '", xmlnode_get_name(tag), "' can not be used on this server", p), -1);
+                    xmlnode_hide(m->packet->iq);
+                    jpacket_reset(m->packet);
+                    js_session_to(m->s, m->packet);
+                    pool_free(p);
+                    return M_HANDLED;
+                }
+            }
+        }
+        pool_free(p);
+
+        xdb_set(m->si->xc, m->user->id, NS_FILTER, m->packet->iq);
         jutil_iqresult(m->packet->x);
         xmlnode_hide(m->packet->iq);
         jpacket_reset(m->packet);
-        js_session_to(m->s,m->packet);
+        js_session_to(m->s, m->packet);
         break;
     case JPACKET__GET:
-        opts=mod_filter_get(m->user);
-        xmlnode_put_attrib(m->packet->x,"type","result");
-        xmlnode_insert_node(m->packet->iq,xmlnode_get_firstchild(opts));
+        opts = mod_filter_get(m->user);
+        xmlnode_put_attrib(m->packet->x, "type", "result");
+        xmlnode_insert_node(m->packet->iq, xmlnode_get_firstchild(opts));
         jpacket_reset(m->packet);
-        js_session_to(m->s,m->packet);
+        js_session_to(m->s, m->packet);
         xmlnode_free(opts);
         break;
     default:
@@ -576,7 +683,7 @@ mreturn mod_filter_out(mapi m, void *arg)
         switch(jpacket_subtype(m->packet))
         {
         case JPACKET__AVAILABLE:
-            if(m->s->priority<0&&m->packet->to==NULL)
+            if(m->s->priority < 0 && m->packet->to == NULL)
                 mod_filter_offline_check(m);
             break;
         }
@@ -593,9 +700,7 @@ mreturn mod_filter_out(mapi m, void *arg)
 /* sets up the per-session listeners */
 mreturn mod_filter_session(mapi m, void *arg)
 {
-    log_debug(ZONE,"FILTER session init");
-
-    js_mapi_session(es_OUT,m->s,mod_filter_out,NULL);
+    js_mapi_session(es_OUT, m->s, mod_filter_out, NULL);
 
     return M_PASS;
 }
@@ -603,18 +708,30 @@ mreturn mod_filter_session(mapi m, void *arg)
 void mod_filter(jsmi si)
 {
     xmlnode rule;
+    mod_filter__jsmi = si;
 
-    log_debug(ZONE,"FILTER init");
-    js_mapi_register(si,e_DELIVER, mod_filter_handler, NULL);
-    js_mapi_register(si,e_OFFLINE, mod_filter_handler, NULL);
-    js_mapi_register(si,e_SESSION, mod_filter_session, NULL);
+    js_mapi_register(si, e_DELIVER, mod_filter_handler, NULL);
+    js_mapi_register(si, e_SESSION, mod_filter_session, NULL);
 
     /* setup the default built-in rule */
+    rule = js_config(si, "filter");
+    rule = xmlnode_get_tag(rule, "default");
+
     mod_filter__default = xmlnode_new_tag("query");
-    xmlnode_put_attrib(mod_filter__default,"xmlns",NS_FILTER);
-    rule = xmlnode_insert_tag(mod_filter__default,"rule");
-    xmlnode_put_attrib(rule,"name","default rule");
-    xmlnode_insert_tag(rule,"unavailable");
-    xmlnode_insert_tag(rule,"offline");
+    xmlnode_put_attrib(mod_filter__default, "xmlns", NS_FILTER);
+
+    if(rule == NULL)
+    {
+        rule = xmlnode_insert_tag(mod_filter__default, "rule");
+        xmlnode_put_attrib(rule, "name", "default rule");
+        xmlnode_insert_tag(rule, "unavailable");
+        xmlnode_insert_tag(rule, "offline");
+    }
+    else
+    {
+        xmlnode_insert_node(mod_filter__default, xmlnode_get_firstchild(rule));
+    }
+
+    log_notice("mod_filter", "mod_filter startup up... default server rule: %s", xmlnode2str(mod_filter__default));
 }
 

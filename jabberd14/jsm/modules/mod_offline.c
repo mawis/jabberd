@@ -56,7 +56,7 @@ mreturn mod_offline_message(mapi m)
         return M_PASS;
     }
 
-    /* look for event messages */
+   /* look for event messages */
     for(cur = xmlnode_get_firstchild(m->packet->x); cur != NULL; cur = xmlnode_get_nextsibling(cur))
         if(NSCHECK(cur,NS_EVENT))
         {
@@ -95,6 +95,7 @@ mreturn mod_offline_message(mapi m)
         xmlnode_free(m->packet->x);
     }
     return M_HANDLED;
+
 }
 
 /* just breaks out to our message/presence offline handlers */
