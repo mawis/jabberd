@@ -804,7 +804,7 @@ void mio_init(void)
  */
 void mio_stop(void)
 {
-    mio cur;
+    mio cur, mnext;
 
     log_debug(ZONE, "MIO is shutting down");
 
@@ -816,9 +816,11 @@ void mio_stop(void)
     mio__data->shutdown = 1;
 
     /* loop each socket, and close it */
-    for(cur = mio__data->master__list; cur != NULL; cur = cur->next)
+    for(cur = mio__data->master__list; cur != NULL;)
     {
+        mnext = cur->next;
         _mio_close(cur);
+	cur = mnext;
     }
 
     /* signal the loop to end */
