@@ -250,7 +250,11 @@ mreturn mod_presence_avails_end(mapi m, void *arg)
 
 mreturn mod_presence_session(mapi m, void *arg)
 {
+    jid bcc = (jid)arg;
     jid notify = jid_new(m->s->p, jid_full(jid_user(m->s->id)));
+
+    /* hack!  attach instance-wide configured bcc's to the end if any */
+    notify->next = bcc;
 
     js_mapi_session(es_IN, m->s, mod_presence_in, notify);
     js_mapi_session(es_OUT, m->s, mod_presence_avails, notify); /* must come first, it passes, _out handles */
@@ -292,8 +296,21 @@ mreturn mod_presence_deliver(mapi m, void *arg)
 
 void mod_presence(jsmi si)
 {
+    xmlnode cfg = js_config(si, "presence");
+    jid bcc = NULL;
+
     log_debug("mod_presence","init");
+
+    for(cfg = xmlnode_get_firstchild(cfg); cfg != NULL; cfg = xmlnode_get_nextsibling(cfg))
+    {
+        if(xmlnode_get_type(cfg) != NTYPE_TAG || j_strcmp(xmlnode_get_name(cfg),"bcc") != 0) continue;
+        if(bcc == NULL)
+            bcc = jid_new(si->p,xmlnode_get_data(cfg));
+        else
+            jid_append(bcc,jid_new(si->p,xmlnode_get_data(cfg)));
+    }
+
     js_mapi_register(si,e_DELIVER, mod_presence_deliver, NULL);
-    js_mapi_register(si,e_SESSION, mod_presence_session, NULL);
+    js_mapi_register(si,e_SESSION, mod_presence_session, (void*)bcc);
 }
 

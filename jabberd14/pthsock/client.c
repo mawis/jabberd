@@ -300,21 +300,21 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
         cd->sending_id = jid_new(cd->m->p, to);
 
         /* check for a matching alias or use default alias */
-        log_debug("c2s", "[%s] Recieved connection to: %s", ZONE, cd->sending_id->server);
+        log_debug("c2s", "[%s] Recieved connection to: %s", ZONE, jid_full(cd->sending_id));
         alias = ghash_get(cd->si->aliases, to);
         alias = alias ? alias : ghash_get(cd->si->aliases, "default");
 
         /* set host to that alias, or to the given host */
-        cd->session_id = alias ? jid_new(m->p, alias) : jid_new(m->p, to);
+        cd->session_id = alias ? jid_new(m->p, alias) : cd->sending_id;
 
         /* if we are using an alias, set the alias flag */
-        if(j_strcmp(cd->session_id->server, cd->sending_id->server) != 0) cd->aliased = 1;
-        if(cd->aliased) log_debug("c2s", "[%s] using alias %s --> %s", ZONE, cd->sending_id->server, cd->session_id->server);
+        if(j_strcmp(jid_full(cd->session_id), jid_full(cd->sending_id)) != 0) cd->aliased = 1;
+        if(cd->aliased) log_debug("c2s", "[%s] using alias %s --> %s", ZONE, jid_full(cd->sending_id), jid_full(cd->session_id));
 
+        /* write header */
         h = xstream_header("jabber:client", NULL, jid_full(cd->session_id));
         cd->sid = pstrdup(m->p, xmlnode_get_attrib(h, "id"));
         mio_write(m, NULL, xstream_header_char(h), -1);
-
         xmlnode_free(h);
 
         if(j_strcmp(xmlnode_get_attrib(x, "xmlns"), "jabber:client") != 0)
@@ -332,6 +332,7 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
             mio_write(m, NULL, "<stream:error>Invalid Stream Namespace</stream:error></stream:stream>", -1);
             mio_close(m);
         }
+
 
         xmlnode_free(x);
         break;
