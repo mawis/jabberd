@@ -312,18 +312,15 @@ void* dnsrv_process_io(void* threadarg)
      return NULL;
 }
 
-typedef struct dnsrv_st
-{
-    instance i;
-    xmlnode x;
-} _dnsrv_data,*dnsrv_data;
-
 void dnsrv_thread(void *arg)
 {
-     dnsrv_data d=(dnsrv_data)arg;
-     instance i=d->i;
-     xmlnode x=d->x;
+     dns_io di=(dns_io)arg;
+     /* Fork out resolver function/process */
+     di->pid = dnsrv_fork_and_capture(dnsrv_child_main, &(di->in), &(di->out));
+}
 
+void dnsrv(instance i, xmlnode x)
+{
      xdbcache xc = NULL;
      xmlnode  config = NULL;
 
@@ -347,20 +344,11 @@ void dnsrv_thread(void *arg)
      /* Setup the hash of dns_packet_list */
      di->packet_table = ghash_create(DNS_PACKET_TABLE_SZ, (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
 
-     /* Fork out resolver function/process */
-     di->pid = dnsrv_fork_and_capture(dnsrv_child_main, &(di->in), &(di->out));
+     pth_spawn(PTH_ATTR_DEFAULT,(void*)dnsrv_thread,(void*)di);
 
      /* Start IO thread */
      pth_spawn(PTH_ATTR_DEFAULT, dnsrv_process_io, di);
 
      /* Register an incoming packet handler */
      register_phandler(i, o_DELIVER, dnsrv_deliver, (void*)di);
-}
-
-void dnsrv(instance i, xmlnode x)
-{
-    dnsrv_data d=pmalloco(xmlnode_pool(x),sizeof(_dnsrv_data));
-    d->x=x;
-    d->i=i;
-    pth_spawn(PTH_ATTR_DEFAULT,(void*)dnsrv_thread,(void*)d);
 }
