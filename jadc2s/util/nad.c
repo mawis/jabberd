@@ -121,6 +121,7 @@ nad_t nad_new(nad_cache_t cache)
 {
     nad_t nad;
 
+#ifndef NAD_DISABLE_CACHE
     if(*cache != NULL)
     {
         nad = *cache;
@@ -130,6 +131,7 @@ nad_t nad_new(nad_cache_t cache)
         nad->next = NULL;
         return nad;
     }
+#endif
 
     while((nad = malloc(sizeof(struct nad_st))) == NULL) sleep(1);
     memset(nad,0,sizeof(struct nad_st));
@@ -169,8 +171,16 @@ void nad_free(nad_t nad)
 {
     if(nad == NULL) return;
 
+#ifdef NAD_DISABLE_CACHE
+    free(nad->elems);
+    free(nad->attrs);
+    free(nad->cdata);
+    free(nad->depths);
+    free(nad);
+#else
     nad->next = *(nad->cache);
     *(nad->cache) = nad;
+#endif
 }
 
 /* locate the next elem at a given depth with an optional matching name */
