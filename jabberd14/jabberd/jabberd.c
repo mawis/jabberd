@@ -52,6 +52,10 @@
 #include "jabberd.h"
 #include "single.h"
 
+#ifdef HAVE_SYSLOG
+#include <syslog.h>
+#endif
+
 xht cmd__line, debug__zones;
 extern int deliver__flag;
 extern xmlnode greymatter__;
@@ -169,6 +173,10 @@ int main (int argc, char** argv)
         fprintf(stderr,"Usage:\n%s [params]\n Optional Parameters:\n -c\t\tconfiguration file\n -D\t\tenable debug output (disables background)\n -H\t\tlocation of home folder\n -B\t\tbackground the server process\n -Z\t\tdebug zones\n -v\t\tserver version\n -V\t\tserver version\n", argv[0]);
         exit(0);
     }
+
+#ifdef HAVE_SYSLOG
+    openlog(PACKAGE, LOG_PID, LOG_DAEMON);
+#endif
 
     /* set to debug mode if we have it */
     set_debug_flag(do_debug);

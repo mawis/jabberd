@@ -112,6 +112,15 @@ else
     fi
 fi
 
+AC_MSG_CHECKING(for syslog)
+AC_TRY_COMPILE([#include <syslog.h>], [syslog(LOG_ERR, "jabber")], has_syslog=yes, has_syslog=no)
+if test "$has_syslog" = yes; then
+    AC_MSG_RESULT(yes)
+    AC_DEFINE(HAVE_SYSLOG,,[Syslog functionality enabled])
+else
+    AC_MSG_RESULT(no)
+fi
+
 dnl check for needed functions to enable IPv6
 
 AC_MSG_CHECKING(for inet_pton)
@@ -211,19 +220,6 @@ else
 fi
 
 AC_SUBST(POOL_DEBUG)
-
-dnl check where to log
-dnl AC_MSG_CHECKING(if logging to syslog wanted)
-dnl AC_ARG_ENABLE(syslog, AC_HELP_STRING([--enable-syslog], [Enable logging to syslog]), syslog=yes)
-dnl if test x-$syslog = "x-yes" ; then
-dnl     AC_MSG_RESULT(yes)
-dnl     AC_DEFINE(USE_SYSLOG,,[logging to syslog enabled])
-dnl else
-dnl     AC_MSG_RESULT(no)
-dnl fi
-dnl
-dnl AC_SUBST(USE_SYSLOG)
-
 
 dnl check if SSL/TLS is requested
 AC_MSG_CHECKING(if OpenSSL is requsted)

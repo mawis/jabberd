@@ -1,3 +1,11 @@
+2004-06-25  Matthias Wimmer  <m@tthias.net>
+
+    * configure.in: jabberd can not log to the syslog
+    * jabberd/jabberd.c: same
+    * jabberd/static.c: same
+    * jabberd/base/Makefile.am: same
+    * jabberd/base/base_syslog.c: same
+
 2004-06-24  Matthias Wimmer  <m@tthias.net>
 
     * cygwin/dnsrv/dnsrv.c: use xhash instead of ghash
