@@ -293,7 +293,7 @@ int _connect_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
 
         /* try to connect again */
         c2s = c->c2s;
-        retries = j_atoi(xhash_get(c2s->config, "sm.retries"), 5);
+        retries = j_atoi(config_get_one(c2s->config, "sm.retries", 0), 5);
         for (x = 0; x < retries; x++)
         {
             if (connect_new(c2s))
