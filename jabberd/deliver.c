@@ -526,7 +526,7 @@ dpacket dpacket_new(xmlnode x)
             p=NULL;
         break;
     case p_ROUTE:
-        if(xmlnode_get_attrib(x,"to")==NULL||xmlnode_get_attrib(x,"from")==NULL)
+        if(xmlnode_get_attrib(x,"to")==NULL)
             p=NULL;
         break;
     case p_NONE:
