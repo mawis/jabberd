@@ -2,8 +2,6 @@ include ../platform-settings
 
 CFLAGS:=$(CFLAGS) -I../jabberd/
 
-CC=gcc
-
 dnsrv_HEADERS=srv_resolv.h ../jabberd/jabberd.h
 
 dnsrv_OBJECTS=dnsrv.o srv_resolv.o
