@@ -71,9 +71,46 @@ typedef struct chunk_st
 } *chunk_t;
 
 /* connection data */
-typedef enum { state_NONE, state_NEGO, state_AUTH, state_SESS, state_OPEN } conn_state_t;
-typedef enum { type_NORMAL, type_HTTP, type_FLASH } conn_type_t;
-typedef enum { autodetect_NONE, autodetect_READY, autodetect_PLAIN, autodetect_TLS } autodetect_state_t;
+
+/**
+ * at which state this connection is
+ */
+typedef enum {
+    state_NONE,	/**< no connection on this socket yet, or waiting for client auth */
+    state_NEGO, /**< we have to determine what sort of connection we accepted */
+    state_AUTH, /**< we are waiting for the session manager to accept the authentication */
+    state_SESS, /**< we are waiting for the session manager to start the session */
+    state_OPEN	/**< the session has been started, normal operation */
+} conn_state_t;
+
+/**
+ * protocol variant we are using on this socket
+ */
+typedef enum {
+    type_NORMAL,/**< stone age Jabber protocol connection */
+    type_HTTP,	/**< stone age Jabber packet in a single HTTP request */
+    type_FLASH	/**< stone age Jabber using the flash hack */
+} conn_type_t;
+
+/**
+ * possible states of the Jabber over SSL/TLS autodetection
+ */
+typedef enum {
+    autodetect_NONE,	/**< we don't have to autodetect SSL/TLS */
+    autodetect_READY,	/**< we now have to autodetect if SSL/TLS is used */
+    autodetect_PLAIN,	/**< we detected that there is no SSL/TLS (or STARTTLS is used later) */
+    autodetect_TLS	/**< we detected that SSL/TLS is used (no STARTTLS)*/
+} autodetect_state_t;
+
+/**
+ * which element name has been used for the root element
+ */
+typedef enum {
+    root_element_NONE,		/**< no root element has been sent yet */
+    root_element_NORMAL,	/**< a normal stream:stream element has been sent */
+    root_element_FLASH		/**< a flash:stream element has been sent */
+} root_element_t;
+
 struct conn_st
 {
     c2s_t c2s;
@@ -86,7 +123,7 @@ struct conn_st
     conn_state_t state;
     conn_type_t type;
     time_t start;
-    char *root_name;
+    root_element_t root_element;
     char *local_id;
 
 #ifdef USE_SSL    
@@ -109,8 +146,10 @@ struct conn_st
     /* the nad currently being built */
     nad_t nad;
 
+#ifdef FLASH_HACK
     /* Flash Hack */
     int flash_hack;
+#endif
 
     /* Traffic counting */
     unsigned long int in_bytes;
