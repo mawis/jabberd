@@ -92,10 +92,17 @@ mreturn mod_register_new(mapi m, void *arg)
         /* if configured to, send admins a notice */
         if(xmlnode_get_attrib(reg,"notify") != NULL)
         {
-            x = jutil_msgnew(NULL,
-                m->packet->to->server,
-                "Registration Notice",
-                spools(m->packet->p,"The user ",jid_full(m->packet->to)," was just created with the following registration data: ",xmlnode2str(m->packet->iq),m->packet->p));
+	    char *email = xmlnode_get_tag_data(m->packet->iq, "email");
+	    spool msg_body = spool_new(m->packet->p);
+
+	    spool_add(msg_body, "A new user has just been created!\n");
+	    spool_add(msg_body, "User: ");
+	    spool_add(msg_body, jid_full(m->packet->to));
+	    spool_add(msg_body, "\n");
+	    spool_add(msg_body, "E-Mail: ");
+	    spool_add(msg_body, email ? email : "no address provided");
+
+            x = jutil_msgnew("chat", m->packet->to->server, "Registration Notice", spool_print(msg_body));
             xmlnode_put_attrib(x, "from", m->packet->to->server);
             js_deliver(m->si,jpacket_new(x));
         }

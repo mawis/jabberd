@@ -183,9 +183,10 @@ mreturn mod_announce_dispatch(mapi m, void *arg)
     log_debug2(ZONE, LOGT_DELIVER, "handling announce message from %s",jid_full(m->packet->from));
 
     /* check if the user is allowed to update a motd or to send a broadcast message */
-    for(cur = xmlnode_get_firstchild(js_config(m->si,"admin")); cur != NULL; cur = xmlnode_get_nextsibling(cur))
-    {
+    for(cur = xmlnode_get_firstchild(js_config(m->si,"admin")); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
         if(j_strcmp(xmlnode_get_name(cur),"write") == 0 && jid_cmpx(jid_new(xmlnode_pool(m->packet->x),xmlnode_get_data(cur)),m->packet->from,JID_USER|JID_SERVER) == 0)
+            admin = 1;
+	else if(j_strcmp(xmlnode_get_name(cur),"write-only") == 0 && jid_cmpx(jid_new(xmlnode_pool(m->packet->x),xmlnode_get_data(cur)),m->packet->from,JID_USER|JID_SERVER) == 0)
             admin = 1;
     }
 
