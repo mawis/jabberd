@@ -23,11 +23,19 @@ xmlnode greymatter__ = NULL;
 
 void cmdline_replace(xmlnode x)
 {
-    xmlnode cl=xmlnode_get_tag(x,"cl");
+    xmlnode cl=xmlnode_get_tag(x,"jabberd:cl");
     char *flag;
     char *replace_text;
 
-    if(cl==NULL) return;
+    if(cl==NULL)
+    {
+        xmlnode cur=xmlnode_get_firstchild(x);
+        for(;cur!=NULL;cur=xmlnode_get_nextsibling(cur))
+        {
+            if(cur->type!=NTYPE_TAG) continue;
+            cmdline_replace(cur);
+        }
+    }
     flag=xmlnode_get_attrib(cl,"flag");
     replace_text=ghash_get(cmd__line,flag);
     if(replace_text==NULL) replace_text=xmlnode_get_data(cl);
@@ -59,7 +67,7 @@ int configurate(char *file)
     }
 
     /* check greymatter for additional includes */
-    while((include=xmlnode_get_tag(greymatter__,"include"))!=NULL)
+    while((include=xmlnode_get_tag(greymatter__,"jabberd:include"))!=NULL)
     {
         char *include_file=xmlnode_get_data(include);
         xmlnode include_x=xmlnode_file(include_file);
@@ -160,6 +168,7 @@ int configo(int exec)
         for(curx2 = xmlnode_get_firstchild(curx); curx2 != NULL; curx2 = xmlnode_get_nextsibling(curx2))
         {
             if(!exec) cmdline_replace(curx2);
+
             /* only handle elements in our namespace */
             if(xmlnode_get_type(curx2) != NTYPE_TAG || xmlnode_get_attrib(curx2, "xmlns") != NULL)
                 continue;
