@@ -677,12 +677,18 @@
     <!-- 
     The following section initializes SSL for top-level I/O.
     This works only when the server is compiled with openssl!
-    Use IPs here or connections will fail.
+
+    As the id, use one of the following things:
+    - and IP address for usage with client conns on port 5223
+    - a host name for usage with the STARTTLS feature (s2s)
+    - a star ("*") as a default for the STARTTLS feature
     -->
     <!--
     <ssl>
-      <key ip='192.168.1.1'>@sysconfdir@/cert_and_key.pem</key>
-      <key ip='192.168.1.100'>@sysconfdir@/other_cert_and_key.pem</key>
+      <key id='192.168.1.1'>@sysconfdir@/cert_and_key.pem</key>
+      <key id='192.168.1.100'>@sysconfdir@/other_cert_and_key.pem</key>
+      <key id='localhost'>@sysconfdir@/localhost.pem</key>
+      <key id='*'>@sysconfdir@/default-STARTTLS.pem</key>
     </ssl>
     -->
 

@@ -1,3 +1,13 @@
+2004-09-27  Matthias Wimmer  <m@tthias.net>
+
+    * dialback/dialback_in.c: added STARTTLS support for s2s conns
+    * dialback/dialback_out.c: same
+    * jabberd/jabberd.h: added support in MIO to enable TLS on existing conn
+    * jabberd/mio_ssl.c: same
+    * jabberd/mio_xml.c: same
+    * jabberd/lib/jabberdlib.h: added namespace decl for STARTTLS feature
+    * jsm/modules/mod_auth_plain.c: username check only for updates
+
 2004-09-24  Matthias Wimmer  <m@tthias.net>
 
     * jsm/modules/mod_auth_digest.c: Bugfix. jabber:iq:register set with empty
