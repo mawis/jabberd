@@ -112,7 +112,7 @@ void _mio_shutdown(void *arg)
     }
 
     /* give some time to close the sockets */
-    pth_yield(NULL);
+    pth_yield(mio__data->t);
 }
 
 /* 
@@ -200,11 +200,17 @@ int _mio_write_dump(mio m)
  */
 void _mio_unlink(mio m)
 {
-    if(mio__data == NULL) return;
+    if(mio__data == NULL) 
+        return;
+
     if(mio__data->master__list == m)
        mio__data->master__list = mio__data->master__list->next;
-    if(m->prev != NULL) m->prev->next = m->next;
-    if(m->next != NULL) m->next->prev = m->prev;
+
+    if(m->prev != NULL) 
+        m->prev->next = m->next;
+
+    if(m->next != NULL) 
+        m->next->prev = m->prev;
 }
 
 /* 
@@ -212,11 +218,15 @@ void _mio_unlink(mio m)
  */
 void _mio_link(mio m)
 {
-    if(mio__data == NULL) return;
+    if(mio__data == NULL) 
+        return;
+
     m->next = mio__data->master__list;
     m->prev = NULL;
+
     if(mio__data->master__list != NULL) 
         mio__data->master__list->prev = m;
+
     mio__data->master__list = m;
 }
 
@@ -352,6 +362,23 @@ void _mio_main(void *arg)
         /* loop through the sockets, check for stuff to do */
         for(cur = mio__data->master__list; cur != NULL;)
         {
+
+            /* if this socket needs to close */
+            if(cur->state == state_CLOSE)
+            {
+                log_debug(ZONE, "closing socket");
+                temp = cur;
+                cur = cur->next;
+                FD_CLR(temp->fd, &all_rfds);
+                FD_CLR(temp->fd, &all_wfds);
+                _mio_close(temp);
+                continue;
+            }
+
+            /* find the max fd */
+            if(cur->fd > maxfd)
+                maxfd = cur->fd;
+
             /* if the sock is not in the read set, and has good karma,
              * or if we need to initialize this socket */
             if((!FD_ISSET(cur->fd,&all_rfds) && cur->k.val > 0) || cur->k.val == KARMA_INIT)
@@ -366,18 +393,6 @@ void _mio_main(void *arg)
             /* pause while the rest of jabberd catches up */
             pth_yield(NULL);
 
-            /* if this socket needs to close */
-            if(cur->state == state_CLOSE)
-            {
-                log_debug(ZONE, "closing socket");
-                temp = cur;
-                cur = cur->next;
-                FD_CLR(temp->fd, &all_rfds);
-                FD_CLR(temp->fd, &all_wfds);
-                _mio_close(temp);
-                continue;
-            }
-
             /* if this socket needs to be read from */
             if(FD_ISSET(cur->fd, &rfds))
             {
@@ -385,9 +400,6 @@ void _mio_main(void *arg)
                 if(cur->type == type_LISTEN)
                 {
                     mio m = _mio_accept(cur);
-
-                    if(cur->fd > maxfd)
-                        maxfd = cur->fd;
 
                     if(m != NULL)
                     {
@@ -403,8 +415,9 @@ void _mio_main(void *arg)
 
                 /* we need to read from a socket */
                 maxlen = KARMA_READ_MAX(cur->k.val);
+
                 /* leave room for the NULL */
-                if(maxlen >= 8192) maxlen = 8191; 
+                if(maxlen > 8191) maxlen = 8191; 
 
                 /* read maxlen data */
                 len = pth_read(cur->fd,buff,maxlen);
@@ -443,7 +456,7 @@ void _mio_main(void *arg)
                     { /* they read the max, tsk tsk */
                         if(cur->k.val <= 0) /* ran out of karma */
                         {
-                            log_notice("io_select", "socket #%d is out of karma", cur->fd);
+                            log_notice("io_select", "socket from %s is out of karma", cur->ip);
                             /* pay the penence */
                             FD_CLR(cur->fd, &all_rfds); 
                             /* let them process this read */
@@ -487,17 +500,13 @@ void _mio_main(void *arg)
                 _mio_close(temp);
                 continue;
             }
-            
-            /* find the max fd */
-            if(cur->fd > maxfd)
-                maxfd = cur->fd;
 
             /* check the next socket */
             cur = cur->next;
-
         } 
         
         /* XXX 
+         * *tsbandit pokes jer: Why are we doing this again? i forget
          * yes, spin through the entire list again, 
          * otherwise you can't write to a socket 
          * from another socket's read call) if 
@@ -536,13 +545,13 @@ mio mio_new(int fd, mio_cb cb, void *arg)
         return NULL;
     
     /* create the new MIO object */
-    p          = pool_new();
+    p          = pool_heap(8192);
     new        = pmalloco(p, sizeof(_mio));
     new->p     = p;
     new->type  = type_NORMAL;
     new->state = state_ACTIVE;
     new->fd    = fd;
-    new->cb    = cb;
+    new->cb    = (void*)cb;
     new->arg   = arg;
 
     /* set the default karma values */
@@ -593,14 +602,13 @@ mio mio_new(int fd, mio_cb cb, void *arg)
 /*
    resets the callback function
 */
-mio mio_reset(mio m, mio_cb cb, void *arg)
+void mio_reset(mio m, mio_cb cb, void *arg)
 {
     if(m == NULL) 
         return NULL;
 
-    m->cb  = cb;
+    m->cb  = (void*)cb;
     m->arg = arg;
-    return m;
 }
 
 /* 
@@ -755,6 +763,10 @@ xmlnode mio_cleanup(mio m)
 
         /* move the queue up */
         m->queue = cur->next;
+
+        /* set the tail pointer if needed */
+        if(m->queue == NULL)
+            m->tail = NULL;
 
         /* and pop this xmlnode */
         return cur->x;

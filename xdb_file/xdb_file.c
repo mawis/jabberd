@@ -222,6 +222,12 @@ result xdb_file_phandler(instance i, dpacket p, void *arg)
     }
 }
 
+void xdb_file_cleanup(void *arg)
+{
+    xdbf xf = (xdbf)arg;
+    ghash_destroy(xf->cache);
+}
+
 void xdb_file(instance i, xmlnode x)
 {
     char *spl, *to;
@@ -256,5 +262,6 @@ void xdb_file(instance i, xmlnode x)
         register_beat(30, xdb_file_purge, (void *)xf);
 
     xmlnode_free(config);
+    pool_cleanup(i->p, xdb_file_cleanup, (void*)xf);
 }
 

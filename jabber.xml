@@ -16,8 +16,7 @@
     Change hostname below to something other than "localhost", or use the "jabberd -h hostname" command line flag.
     Multiple <host>...</host> entries are allowed, each one is a seperate virtual server.
     -->
-    <host>localhost</host>
-    <host><jabberd:cmdline flag="h"/></host>
+    <host><jabberd:cmdline flag="h">localhost</jabberd:cmdline></host>
 
     <!-- This is the custom configuration section for the session manager. -->
     <jsm xmlns="jabber:config:jsm">
@@ -84,7 +83,7 @@
       -->
 
       <!-- Server version update notification, set to the server name so that all administrators (above) will be notified, or set to any ID -->
-      <update><jabberd:cmdline flag="h"/></update>
+      <update><jabberd:cmdline flag="h">localhost</jabberd:cmdline></update>
 
     </jsm>
 
@@ -116,7 +115,7 @@
   <xdb id="xdb">
     <host/>
     <load><xdb_file>./xdb_file/xdb_file.so</xdb_file></load>
-    <xdb_file xmlns="jabber:config:xdb_file"><spool>./spool</spool></xdb_file>
+    <xdb_file xmlns="jabber:config:xdb_file"><spool><jabberd:cmdline flag='s'>./spool</jabberd:cmdline></spool></xdb_file>
   </xdb>
 
 

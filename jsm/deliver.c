@@ -151,10 +151,7 @@ result js_packet(instance i, dpacket p, void *arg)
         {
             /* no user!?!?! */
             log_notice(p->host,"Bouncing packet intended for nonexistant user: %s",xmlnode2str(p->x));
-            jutil_tofrom(p->x);
-            xmlnode_put_attrib(p->x,"type","error");
-            xmlnode_put_attrib(p->x,"error","Invalid User");
-            deliver(dpacket_new(p->x), i);
+            deliver_fail(dpacket_new(p->x), "Invalid User");
             return r_DONE;
         }
 
@@ -214,10 +211,7 @@ result js_packet(instance i, dpacket p, void *arg)
         }else{
             /* bounce back as an error */
             log_notice(p->host,"Bouncing %s packet intended for session %s",xmlnode_get_name(jp->x),jid_full(p->id));
-            jutil_tofrom(p->x);
-            xmlnode_put_attrib(p->x,"type","error");
-            xmlnode_put_attrib(p->x,"error","Invalid Session");
-            deliver(dpacket_new(p->x), i);
+            deliver_fail(dpacket_new(p->x), "Invalid Session");
         }
         return r_DONE;
     }

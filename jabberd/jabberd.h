@@ -194,19 +194,22 @@ typedef enum { type_LISTEN, type_NORMAL } mio_type;
 typedef struct mio_st
 {
     pool p;
-    mio_type type;
-    int rated;   /* is this socket rate limted? */
-    jlimit rate; /* if so, what is the rate?    */
-    mio_state state;
-    xstream xs;
     int fd;
-    mio_wbq queue; /* write buffer queue */
-    mio_wbq tail;  /* the last buffer queue item */
-    struct mio_st *prev,*next;
+    mio_type type;
+    mio_state state;
+    char *ip;
     void *arg;    /* do not modify directly */
     void *cb;     /* do not modify directly */
+
+    int rated;   /* is this socket rate limted? */
+    jlimit rate; /* if so, what is the rate?    */
     struct karma k;
-    char *ip;
+
+    xstream xs;
+    mio_wbq queue; /* write buffer queue */
+    mio_wbq tail;  /* the last buffer queue item */
+
+    struct mio_st *prev,*next;
 } *mio, _mio;
 
 /* callback flags */
@@ -222,7 +225,7 @@ typedef void (*mio_cb)(mio c,char *buffer,int bufsz,int flag,void *arg);
 mio mio_new(int fd, mio_cb cb, void *arg);
 
 /* reset the callback and argument for an mio object */
-mio mio_reset(mio m, mio_cb cb, void *arg);
+void mio_reset(mio m, mio_cb cb, void *arg);
 
 /* request the mio socket be closed */
 void mio_close(mio m);

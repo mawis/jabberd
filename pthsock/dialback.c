@@ -765,7 +765,7 @@ void pthsock_server(instance i, xmlnode x)
     }
 
     register_phandler(i,o_DELIVER,pthsock_server_packets,(void*)si);
-    register_shutdown(pthsock_server_shutdown, (void*)si);
+    pool_cleanup(i->p, pthsock_server_shutdown, (void*)si);
     register_beat(15, pthsock_server_beat, (void *)si);
 
     xmlnode_free(cfg);

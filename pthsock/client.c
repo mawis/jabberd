@@ -88,7 +88,6 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     cdata cdcur;
     mio m;
     int fd=0;
-    xmlnode x;
 
     if(p->id->user!=NULL)fd = atoi(p->id->user); 
     if(p->type!=p_ROUTE||fd==0)
@@ -147,6 +146,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     } else if(cdcur->state==state_UNKNOWN&&j_strcmp(xmlnode_get_attrib(p->x,"type"),"session")==0)
     { /* got a session reply from the server */
         mio_wbq q;
+
         cdcur->state = state_AUTHD;
         /* change the host id */
         cdcur->host = jid_new(m->p,xmlnode_get_attrib(p->x,"from"));
@@ -175,8 +175,8 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
 /* callback for xstream */
 void pthsock_client_stream(int type, xmlnode x, void *arg)
 {
-    mio m = (mio)arg;
-    cdata cd=(cdata)m->arg;
+    cdata cd=(cdata)arg;
+    mio m = cd->m;
     char *alias,*to;
     xmlnode h;
 
@@ -241,6 +241,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
                     }
                     jid_set(cd->host,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(x,"query?xmlns=jabber:iq:auth"),"username")),JID_USER);
                     jid_set(cd->host,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(x,"query?xmlns=jabber:iq:auth"),"resource")),JID_RESOURCE);
+
                     x=pthsock_make_route(x,jid_full(cd->host),cd->id,"auth");
                     deliver(dpacket_new(x),s__i->i);
                 }
@@ -286,8 +287,10 @@ cdata pthsock_client_cdata(mio m)
 
     cd = pmalloco(m->p, sizeof(_cdata));
     cd->pre_auth_mp=pth_msgport_create("pre_auth_mp");
-    m->xs = xstream_new(m->p,(void*)pthsock_client_stream,(void*)m);
+    m->xs = xstream_new(m->p,(void*)pthsock_client_stream,(void*)cd);
+
     cd->state = state_UNKNOWN;
+    cd->connect_time=time(NULL);
     cd->m=m;
 
     buf=pmalloco(m->p,100);
@@ -309,13 +312,11 @@ void pthsock_client_read(mio m,char *buffer,int bufsz,int flag,void *arg)
     xmlnode x;
     int ret;
 
+    log_debug(ZONE,"pthsock_client_read called with: m:%X buffer:%s bufsz:%d flag:%d arg:%X",m, buffer, bufsz, flag, arg);
     switch(flag)
     {
     case MIO_NEW:
-        log_debug(ZONE,"io_select NEW socket connected at %d",m->fd);
-        if(cd == NULL)
-            cd=pthsock_client_cdata(m);
-        cd->connect_time=time(NULL);
+        cd=pthsock_client_cdata(m);
         mio_reset(m, pthsock_client_read, (void*)cd);
         break;
     case MIO_NORMAL:
@@ -450,7 +451,7 @@ void pthsock_client(instance i, xmlnode x)
         for(;cur != NULL; xmlnode_hide(cur), cur = xmlnode_get_tag(s__i->cfg,"ip"))
         {
             mio m;
-            m = mio_listen(j_atoi(xmlnode_get_attrib(cur,"port"),5222), xmlnode_get_data(cur), pthsock_client_read, (void*)s__i);
+            m = mio_listen(j_atoi(xmlnode_get_attrib(cur,"port"),5222), xmlnode_get_data(cur), pthsock_client_read, NULL);
             if(m == NULL)
                 return;
             mio_rate(m, rate_time, rate_points);
@@ -469,6 +470,6 @@ void pthsock_client(instance i, xmlnode x)
     /* register data callbacks */
     log_debug(ZONE,"looking at: %s\n",port);
     register_phandler(i,o_DELIVER,pthsock_client_packets, NULL);
-    register_shutdown(pthsock_client_shutdown, (void*)s__i);
+    pool_cleanup(i->p, pthsock_client_shutdown, (void*)s__i);
 }
 

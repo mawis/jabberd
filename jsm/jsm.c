@@ -48,6 +48,13 @@ result jsm_stat(void *arg)
     return r_DONE;
 }
 
+void jsm_shutdown(void *arg)
+{
+    jsmi si = (jsmi)arg;
+    ghash_destroy(si->hosts);
+    xmlnode_free(si->config);
+}
+
 void jsm(instance i, xmlnode x)
 {
     jsmi si;
@@ -88,6 +95,7 @@ void jsm(instance i, xmlnode x)
         (module)(si);
     }
 
+    pool_cleanup(i->p, jsm_shutdown, (void*)si);
     register_phandler(i, o_DELIVER, js_packet, (void *)si);
     register_beat(5,jsm_stat,NULL);
 }
