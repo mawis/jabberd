@@ -32,7 +32,7 @@
 
 jid jid_safe(jid id)
 {
-    char *str;
+    unsigned char *str;
 
     if(strlen(id->server) == 0 || strlen(id->server) > 255)
         return NULL;
