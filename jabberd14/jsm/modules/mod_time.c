@@ -52,7 +52,7 @@ mreturn mod_time_reply(mapi m, void *arg)
     /* first, is this a valid request? */
     if(jpacket_subtype(m->packet) != JPACKET__GET)
     {
-        js_bounce(m->si,m->packet->x,TERROR_NOTALLOWED);
+        js_bounce_xmpp(m->si,m->packet->x,XTERROR_NOTALLOWED);
         return M_HANDLED;
     }
 

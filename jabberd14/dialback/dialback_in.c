@@ -115,7 +115,7 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
     /* valid sender/recipient jids */
     if((from = jid_new(xmlnode_pool(x),xmlnode_get_attrib(x,"from"))) == NULL || (key = jid_new(xmlnode_pool(x),xmlnode_get_attrib(x,"to"))) == NULL)
     {
-        mio_write(m, NULL, "<stream:error>Invalid Packets Recieved!</stream:error>", -1);
+        mio_write(m, NULL, "<stream:error><improper-addressing xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Invalid Packets Recieved!</text></stream:error>", -1);
         mio_close(m);
         xmlnode_free(x);
         return;
@@ -147,7 +147,7 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
     md = ghash_get(c->d->in_ok_db, jid_full(key));
     if(md == NULL || md->m != m)
     { /* dude, what's your problem!  *click* */
-        mio_write(m, NULL, "<stream:error>Invalid Packets Recieved!</stream:error>", -1);
+        mio_write(m, NULL, "<stream:error><invalid-from xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Invalid Packets Recieved!</text></stream:error>", -1);
         mio_close(m);
         xmlnode_free(x);
         return;
@@ -186,7 +186,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x)
     /* validate namespace */
     if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:server") != 0)
     {
-        mio_write(m, NULL, "<stream:stream><stream:error>Invalid Stream Header!</stream:error>", -1);
+        mio_write(m, NULL, "<stream:stream><stream:error><bad-namespace-prefix xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Invalid Stream Header!</text></stream:error>", -1);
         mio_close(m);
         xmlnode_free(x);
         return;
@@ -209,7 +209,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x)
             xmlnode_free(x);
             return;
         }
-        mio_write(m, NULL, "<stream:error>Legacy Access Denied!</stream:error>", -1);
+        mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Legacy Access Denied!</text></stream:error>", -1);
         mio_close(m);
         xmlnode_free(x);
         return;

@@ -306,7 +306,7 @@ void dialback_out_read_db(mio m, int flags, void *arg, xmlnode x)
     {
         log_debug(ZONE,"reveived stream error: %s",xmlnode_get_data(x));
     }else{
-        mio_write(m, NULL, "<stream:error>Not Allowed to send data on this socket!</stream:error>", -1);
+        mio_write(m, NULL, "<stream:error><undefined-condition xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Not Allowed to send data on this socket!</text></stream:error>", -1);
     }
     
     mio_close(m);
@@ -323,7 +323,7 @@ void dialback_out_read_legacy(mio m, int flags, void *arg, xmlnode x)
     {
         log_debug(ZONE,"reveived stream error: %s",xmlnode_get_data(x));
     }else{
-        mio_write(m, NULL, "<stream:error>Not Allowed to send data on this socket!</stream:error>", -1);
+        mio_write(m, NULL, "<stream:error><undefined-condition xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Not Allowed to send data on this socket!</text></stream:error>", -1);
     }
     
     mio_close(m);
@@ -370,7 +370,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
         /* validate namespace */
         if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:server") != 0)
         {
-            mio_write(m, NULL, "<stream:error>Invalid Stream Header!</stream:error>", -1);
+            mio_write(m, NULL, "<stream:error><invalid-namespace xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Invalid Stream Header!</text></stream:error>", -1);
             mio_close(m);
             break;
         }
@@ -379,7 +379,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
         if(ghash_get(c->d->in_id,xmlnode_get_attrib(x,"id")) != NULL)
         {
             log_alert(c->key->server,"hostname maps back to ourselves!- No service defined for this hostname, can not handle request. Check jabberd configuration.");
-            mio_write(m, NULL, "<stream:error>Mirror Mirror on the wall</stream:error>", -1);
+            mio_write(m, NULL, "<stream:error><internal-server-error xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Mirror Mirror on the wall (we connected to ourself)</text></stream:error>", -1);
             mio_close(m);
             break;
         }
@@ -390,7 +390,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
             if(!c->d->legacy)
             { /* Muahahaha!  you suck! *click* */
                 log_notice(c->key->server,"Legacy server access denied due to configuration");
-                mio_write(m, NULL, "<stream:error>Legacy Access Denied!</stream:error>", -1);
+		mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Legacy Access Denied!</text></stream:error>", -1);
                 mio_close(m);
                 break;
             }
@@ -427,7 +427,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
             if(j_strcmp(xmlnode_get_attrib(x,"from"),c->key->server) != 0 || j_strcmp(xmlnode_get_attrib(x,"to"),c->key->resource) != 0)
             { /* naughty... *click* */
                 log_warn(c->d->i->id,"Received illegal dialback validation remote %s != %s or to %s != %s",c->key->server,xmlnode_get_attrib(x,"from"),c->key->resource,xmlnode_get_attrib(x,"to"));
-                mio_write(m, NULL, "<stream:error>Invalid Dialback Result</stream:error>", -1);
+                mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Invalid Dialback Result</text></stream:error>", -1);
                 mio_close(m);
                 break;
             }
@@ -449,7 +449,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
             }
             /* something went wrong, we were invalid? */
             log_alert(c->d->i->id,"We were told by %s that our sending name %s is invalid, either something went wrong on their end, we tried using that name improperly, or dns does not resolve to us",c->key->server,c->key->resource);
-            mio_write(m, NULL, "<stream:error>I guess we're trying to use the wrong name, sorry</stream:error>", -1);
+            mio_write(m, NULL, "<stream:error><remote-connection-failed xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>I guess we're trying to use the wrong name, sorry</text></stream:error>", -1);
             mio_close(m);
             break;
         }
@@ -462,7 +462,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
         }
 
         log_warn(c->d->i->id,"Dropping connection due to illegal incoming packet on an unverified socket from %s to %s (%s): %s",c->key->resource,c->key->server,m->ip,xmlnode2str(x));
-        mio_write(m, NULL, "<stream:error>Not Allowed to send data on this socket!</stream:error>", -1);
+        mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Not Allowed to send data on this socket!</text></stream:error>", -1);
         mio_close(m);
         break;
 

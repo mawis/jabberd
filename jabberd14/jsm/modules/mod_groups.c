@@ -456,7 +456,7 @@ void mod_groups_register_set(mod_groups_i mi, mapi m)
     gid = strchr(pstrdup(p,jp->to->resource),'/') + 1;
     if (gid == NULL || key == NULL || jutil_regkey(key,jid_full(jp->from)) == NULL)
     {
-        js_bounce(m->si,jp->x,TERROR_NOTACCEPTABLE);
+        js_bounce_xmpp(m->si,jp->x,XTERROR_NOTACCEPTABLE);
         return;
     }
 
@@ -464,7 +464,7 @@ void mod_groups_register_set(mod_groups_i mi, mapi m)
     info = mod_groups_get_info(mi,p,host,gid);
     if (info == NULL)
     {
-        js_bounce(m->si,jp->x,TERROR_NOTFOUND);
+        js_bounce_xmpp(m->si,jp->x,XTERROR_NOTFOUND);
         return;
     }
 
@@ -480,7 +480,7 @@ void mod_groups_register_set(mod_groups_i mi, mapi m)
         log_debug("mod_groups","register GID %s",gid);
         if (mod_groups_xdb_add(mi,p,uid,un ? un : jid_full(uid),gid,gn,both))
         {
-            js_bounce(m->si,jp->x,TERROR_UNAVAIL);
+            js_bounce_xmpp(m->si,jp->x,XTERROR_UNAVAIL);
             xmlnode_free(info);
             return;
         }
@@ -490,7 +490,7 @@ void mod_groups_register_set(mod_groups_i mi, mapi m)
         log_debug("mod_groups","unregister GID %s",gid);
         if (mod_groups_xdb_remove(mi,p,uid,host,gid))
         {
-            js_bounce(m->si,jp->x,TERROR_UNAVAIL);
+            js_bounce_xmpp(m->si,jp->x,XTERROR_UNAVAIL);
             xmlnode_free(info);
             return;
         }
@@ -563,7 +563,7 @@ void mod_groups_register_get(mod_groups_i mi, mapi m)
         js_session_to(m->s,jp);
     }
     else
-        js_bounce(m->si,jp->x,TERROR_NOTACCEPTABLE);
+        js_bounce_xmpp(m->si,jp->x,XTERROR_NOTACCEPTABLE);
 }
 
 void mod_groups_browse_set(mod_groups_i mi, mapi m)
@@ -581,7 +581,7 @@ void mod_groups_browse_set(mod_groups_i mi, mapi m)
     gid = strchr(jp->to->resource,'/');
     if (gid == NULL || ++gid == NULL)
     {
-        js_bounce(m->si,jp->x,TERROR_NOTACCEPTABLE);
+        js_bounce_xmpp(m->si,jp->x,XTERROR_NOTACCEPTABLE);
         return;
     }
 
@@ -593,14 +593,14 @@ void mod_groups_browse_set(mod_groups_i mi, mapi m)
 
     if (uid == NULL || un == NULL)
     {
-        js_bounce(m->si,jp->x,TERROR_NOTACCEPTABLE);
+        js_bounce_xmpp(m->si,jp->x,XTERROR_NOTACCEPTABLE);
         return;
     }
 
     info = mod_groups_get_info(mi,p,jp->to->server,gid);
     if (info == NULL ||  xmlnode_get_tag(info,spools(p,"edit/user=",jid_full(jp->from),p)) == NULL)
     {
-        js_bounce(m->si,jp->x,TERROR_NOTALLOWED);
+        js_bounce_xmpp(m->si,jp->x,XTERROR_NOTALLOWED);
         return;
     }
     gn = xmlnode_get_tag_data(info,"name");
@@ -610,7 +610,7 @@ void mod_groups_browse_set(mod_groups_i mi, mapi m)
         log_debug("mod_groups", "Adding");
         if (mod_groups_xdb_add(mi,p,uid,un,gid,gn,1))
         {
-            js_bounce(m->si,jp->x,TERROR_UNAVAIL);
+            js_bounce_xmpp(m->si,jp->x,XTERROR_UNAVAIL);
             xmlnode_free(info);
             return;
         }
@@ -621,7 +621,7 @@ void mod_groups_browse_set(mod_groups_i mi, mapi m)
         host = jp->from->server;
         if (mod_groups_xdb_remove(mi,p,uid,host,gid))
         {
-            js_bounce(m->si,jp->x,TERROR_UNAVAIL);
+            js_bounce_xmpp(m->si,jp->x,XTERROR_UNAVAIL);
             xmlnode_free(info);
             return;
         }
@@ -695,7 +695,7 @@ void mod_groups_browse_get(mod_groups_i mi, mapi m)
 
     if (group == NULL && gn == NULL)
     {
-        js_bounce(m->si,jp->x,TERROR_NOTFOUND);
+        js_bounce_xmpp(m->si,jp->x,XTERROR_NOTFOUND);
         return;
     }
 
@@ -811,7 +811,7 @@ mreturn mod_groups_iq(mod_groups_i mi, mapi m)
                 xmlnode_free(m->packet->x);
         }
         else
-            js_bounce(m->si,m->packet->x,TERROR_NOTALLOWED);
+            js_bounce_xmpp(m->si,m->packet->x,XTERROR_NOTALLOWED);
 
         return M_HANDLED;
     }
@@ -947,21 +947,21 @@ mreturn mod_groups_message(mapi m, void *arg)
     gid = strchr(jp->to->resource,'/');
     if (gid == NULL || ++gid == NULL)
     {
-        js_bounce(m->si,jp->x,TERROR_NOTACCEPTABLE);
+        js_bounce_xmpp(m->si,jp->x,XTERROR_NOTACCEPTABLE);
         return M_HANDLED;
     }
 
     info = mod_groups_get_info(mi,jp->p,jp->to->server,gid);
     if (info == NULL)
     {
-        js_bounce(m->si,jp->x,TERROR_NOTFOUND);
+        js_bounce_xmpp(m->si,jp->x,XTERROR_NOTFOUND);
         return M_HANDLED;
     }
 
     if (xmlnode_get_tag(info,spools(jp->p,"write/user=",jid_full(jp->from),jp->p)) != NULL)
         mod_groups_message_online(mi,jp->x,gid);
     else
-        js_bounce(m->si,jp->x,TERROR_NOTALLOWED);
+        js_bounce_xmpp(m->si,jp->x,XTERROR_NOTALLOWED);
 
     xmlnode_free(info);
     return M_HANDLED;

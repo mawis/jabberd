@@ -129,7 +129,7 @@ mreturn mod_announce_dispatch(mapi m, void *arg)
         if(j_strncmp(m->packet->to->resource,"announce/motd",13) == 0) return mod_announce_motd(m->si, m->packet, (motd)arg);
     }
 
-    js_bounce(m->si,m->packet->x,TERROR_NOTALLOWED);
+    js_bounce_xmpp(m->si,m->packet->x,XTERROR_NOTALLOWED);
     return M_HANDLED;
 }
 

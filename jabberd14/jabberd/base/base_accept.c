@@ -162,7 +162,7 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
                     jp = jpacket_new(x);
                     if(jp->type == JPACKET_UNKNOWN || jp->to == NULL || jp->from == NULL || deliver_hostcheck(jp->from->server) != ai->i)
                     {
-                        jutil_error(x,TERROR_INTERNAL);
+                        jutil_error_xmpp(x,XTERROR_INTERNAL);
                         mio_write(m,x,NULL,0);
                         return;
                     }
@@ -175,7 +175,7 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
             /* only other packets are handshakes */
             if(j_strcmp(xmlnode_get_name(x), "handshake") != 0)
             {
-                mio_write(m, NULL, "<stream:error>Must send handshake first.</stream:error>", -1);
+                mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Must send handshake first.</text></stream:error>", -1);
                 mio_close(m);
                 break;
             }
@@ -184,7 +184,7 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
             shahash_r(spools(xmlnode_pool(x), ai->id, ai->secret, xmlnode_pool(x)), hashbuf);
             if(j_strcmp(hashbuf, xmlnode_get_data(x)) != 0)
             {
-                mio_write(m, NULL, "<stream:error>Invalid handshake</stream:error>", -1);
+                mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Invalid handshake</text></stream:error>", -1);
                 mio_close(m);
             }
 
@@ -195,7 +195,7 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
             if(ai->m != NULL)
             {
                 log_warn(ai->i->id, "Socket override by another connection from %s",mio_ip(m));
-                mio_write(ai->m, NULL, "<stream:error>Socket override by another connection.</stream:error>", -1);
+		mio_write(ai->m, NULL, "<stream:error><conflict xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Socket override by another connection.</text></stream:error>", -1);
                 mio_close(ai->m);
             }
 
