@@ -3,6 +3,6 @@ EXTRA_DIST = CREDITS README.pthsock_client
 lib_LTLIBRARIES = libjabberdpthsock.la
 
 libjabberdpthsock_la_SOURCES = client.c
-libjabberdpthsock_la_LIBADD = @LDFLAGS@
+libjabberdpthsock_la_LIBADD = @LDFLAGS@ $(top_builddir)/jabberd/libjabberd.la
 
 INCLUDES = -I../jabberd -I../jabberd/lib
