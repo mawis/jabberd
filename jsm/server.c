@@ -45,6 +45,7 @@
 
 void js_server_main(void *arg)
 {
+    int incremented=0;
     jpq q = (jpq)arg;
     udata u = NULL;
 
@@ -55,14 +56,19 @@ void js_server_main(void *arg)
         u = js_user(q->si, q->p->from, NULL);
 
     /* don't free the udata while the mapi call is processed */
-    u->ref++;
+    if (u != NULL) {
+	u->ref++;
+	incremented++;
+    }
 
     /* let the modules have a go at the packet; if nobody handles it... */
     if(!js_mapi_call(q->si, e_SERVER, q->p, u, NULL))
         js_bounce_xmpp(q->si,q->p->x,XTERROR_NOTFOUND);
 
     /* free our lock */
-    u->ref--;
+    if (incremented != 0) {
+	u->ref--;
+    }
 }
 
 

@@ -45,6 +45,7 @@
 /* must have a valid to/from address already before getting here */
 void js_deliver_local(jsmi si, jpacket p, xht ht)
 {
+    int incremented = 0;
     udata user = NULL;
     session s = NULL;
 
@@ -53,26 +54,35 @@ void js_deliver_local(jsmi si, jpacket p, xht ht)
     s = js_session_get(user, p->to->resource);
 
     /* lock the udata from being freed while we are working on it */
-    user->ref++;
+    if (user != NULL) {
+	user->ref++;
+	incremented++;
+    }
 
     log_debug2(ZONE, LOGT_DELIVER, "delivering locally to %s",jid_full(p->to));
     /* let some modules fight over it */
     if(js_mapi_call(si, e_DELIVER, p, user, s)) {
-	user->ref--;	/* release lock */
+	if (incremented != 0) {
+	    user->ref--;	/* release lock */
+	}
         return;
     }
 
     if(p->to->user == NULL)
     { /* this is for the server */
         js_psend(si,p,js_server_main);
-	user->ref--;	/* release lock */
+	if (incremented != 0) {
+	    user->ref--;	/* release lock */
+	}
         return;
     }
 
     if(s != NULL)
     { /* it's sent right to the resource */
         js_session_to(s, p);
-	user->ref--;	/* release lock */
+	if (incremented != 0) {
+	    user->ref--;	/* release lock */
+	}
         return;
     }
 
@@ -85,7 +95,9 @@ void js_deliver_local(jsmi si, jpacket p, xht ht)
     }
 
     /* release lock on the udata structure */
-    user->ref--;
+    if (incremented != 0) {
+	user->ref--;
+    }
 
     /* no user, so bounce the packet */
     js_bounce_xmpp(si,p->x,XTERROR_NOTFOUND);

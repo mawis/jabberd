@@ -123,7 +123,7 @@ struct udata_struct
     jsmi si;                   /**< the session manager instance the user is associated with */
     session sessions;          /**< the user's session */
     int scount;                /**< the number of sessions associated to this user (w/ different JID ressource parts) */
-    int ref;                   /**< ? */
+    int ref;                   /**< reference counter */
     int admin;                 /**< 1 if the user is configured to be an admin. Do not access directly, use js_admin() instead. */
     pool p;
     struct udata_struct *next;
