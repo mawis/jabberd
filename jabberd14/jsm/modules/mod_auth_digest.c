@@ -101,7 +101,12 @@ mreturn mod_auth_digest_reg(mapi m, void *arg)
         return M_PASS;
     }
 
-    if(jpacket_subtype(m->packet) != JPACKET__SET || (pass = xmlnode_get_tag(m->packet->iq,"password")) == NULL) return M_PASS;
+    /* ignore all but set requests (gets have already been handled) and
+     * take care, that there is a new password */
+    if(jpacket_subtype(m->packet) != JPACKET__SET
+	    || (pass = xmlnode_get_tag(m->packet->iq,"password")) == NULL
+	    || xmlnode_get_data(pass) == NULL)
+	return M_PASS;
 
     /* get the jid of the user, depending on how we were called */
     if(m->user == NULL)

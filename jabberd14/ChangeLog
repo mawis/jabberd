@@ -1,3 +1,10 @@
+2004-09-24  Matthias Wimmer  <m@tthias.net>
+
+    * jsm/modules/mod_auth_digest.c: Bugfix. jabber:iq:register set with empty
+	<password/> element made an existing account unusable, as it lost its
+	password.
+    * jsm/modules/mod_auth_plain.c: same
+
 2004-09-21  Matthias Wimmer  <m@tthias.net>
 
     * xdb_file/xdb_file.c: Make hashed spool directories optional
