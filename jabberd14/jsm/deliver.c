@@ -104,7 +104,7 @@ result js_packet(instance i, dpacket p, void *arg)
             if((s = js_session_new(si, p)) == NULL)
             {
                 /* session start failed */
-                log_notice(p->host,"Unable to create session %s",jid_full(p->id));
+                log_warn(p->host,"Unable to create session %s",jid_full(p->id));
                 xmlnode_put_attrib(p->x,"type","error");
                 xmlnode_put_attrib(p->x,"error","Session Failed");
             }else{
@@ -228,7 +228,7 @@ result js_packet(instance i, dpacket p, void *arg)
     jp = jpacket_new(p->x);
     if(jp == NULL)
     {
-        log_notice(p->host,"Dropping invalid incoming packet: %s",xmlnode2str(p->x));
+        log_warn(p->host,"Dropping invalid incoming packet: %s",xmlnode2str(p->x));
         xmlnode_free(p->x);
         return r_DONE;
     }

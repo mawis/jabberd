@@ -613,13 +613,13 @@ void io_select_listen_ex(int port,char *listen_host,io_cb cb,void *arg,int rate_
     fd = make_netsocket(port,listen_host,NETSOCKET_SERVER);
     if(fd < 0)
     {
-        log_alert(NULL,"io_select unable to listen on %d [%s]",port,listen_host);
+        log_error(NULL,"io_select unable to listen on %d [%s]",port,listen_host);
         return;
     }
 
     if(listen(fd,10) < 0)
     {
-        log_alert(NULL,"io_select unable to listen on %d [%s]",port,listen_host);
+        log_error(NULL,"io_select unable to listen on %d [%s]",port,listen_host);
         return;
     }
 
