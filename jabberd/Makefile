@@ -13,7 +13,7 @@ CFLAGS:=$(CFLAGS) $(DEFINES)
 
 jabberd_HEADERS=jabberd.h
 
-SUBDIRS=base lib
+SUBDIRS=base lib $(PSUBDIR)
 
 jabberd_OBJECTS = \
 	config.o \
@@ -106,7 +106,7 @@ all-local: $(jabberd_OBJECTS)
 	$(CC) $(CFLAGS) -o jabberd $(jabberd_OBJECTS) $(jabberd_EXOBJECTS) $(XLDFLAGS) $(LDFLAGS) $(LIBS)
 
 static-local: $(jabberd_OBJECTS)
-	$(CC) $(CFLAGS) -o jabberd $(jabberd_OBJECTS) $(jabberd_EXOBJECTS) $(jabberd_STATICOBJS) $(LDFLAGS) $(LIBS)
+	$(CC) $(CFLAGS) -o jabberd $(jabberd_OBJECTS) $(jabberd_EXOBJECTS) $(jabberd_STATICOBJS) $(LDFLAGS) $(LIBS) $(PLINK)
 
 install-local:
 
@@ -124,6 +124,9 @@ check-recursive installcheck-recursive info-recursive static-recursive:
 	  else \
 	    local_target="$$target"; \
 	  fi; \
+      if test "$$subdir" = "pth-1.3.7"; then \
+        local_target="all"; \
+      fi; \
 	  (cd $$subdir && $(MAKE) $$local_target) \
 	   || case "$$amf" in *=*) exit 1;; *k*) fail=yes;; *) exit 1;; esac; \
 	done; \
