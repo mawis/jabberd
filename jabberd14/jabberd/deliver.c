@@ -185,16 +185,16 @@ void deliver_fail(dpacket p, char *err)
 }
 
 /* actually perform the delivery to an instance */
-result deliver_instance(instance id, dpacket p, result inbest)
+result deliver_instance(instance i, dpacket p)
 {
     handel h, hlast;
     result r, best = r_NONE;
     dpacket pig = p;
 
-    log_debug(ZONE,"delivering to instance '%s'",id->id);
+    log_debug(ZONE,"delivering to instance '%s'",i->id);
 
     /* try all the handlers */
-    hlast = h = id->hds;
+    hlast = h = i->hds;
     while(h != NULL)
     {
         /* there may be multiple delivery handlers, make a backup copy first if we have to */
@@ -202,7 +202,7 @@ result deliver_instance(instance id, dpacket p, result inbest)
             pig = dpacket_copy(p);
 
         /* call the handler */
-        r = (h->f)(id,p,h->arg);
+        r = (h->f)(i,p,h->arg);
 
         if(r > best) /* track the best result */
             best = r;
@@ -227,11 +227,11 @@ result deliver_instance(instance id, dpacket p, result inbest)
         /* unregister this handler */
         if(r == r_UNREG)
         {
-            if(h == id->hds)
+            if(h == i->hds)
             { /* removing the first in the list */
-                id->hds = h->next;
+                i->hds = h->next;
                 pool_free(h->p);
-                hlast = h = id->hds;
+                hlast = h = i->hds;
             }else{ /* removing from anywhere in the list */
                 hlast->next = h->next;
                 pool_free(h->p);
@@ -243,14 +243,8 @@ result deliver_instance(instance id, dpacket p, result inbest)
         h = h->next;
     }
 
-    /* if this instance never handled the packet, we still need to free it since we're expected to have delivered it */
-    if(best != r_DONE)
-        pool_free(p->p);
-
-    if(best > inbest)
-        return best;
-    else
-        return inbest;
+    /* the packet is still valid if best != r_DONE */
+    return best;
 }
 
 hostid deliver_get_next_hostid(hostid cur, char *host)
@@ -267,26 +261,35 @@ hostid deliver_get_next_hostid(hostid cur, char *host)
     return cur;
 }
 
-result deliver_hostid(hostid cur, char *host, dpacket p, result best)
+result deliver_hostid(hostid cur, char *host, dpacket inp, result inbest)
 {
     hostid next;
-    dpacket pig;
+    result best = r_NONE;
+    dpacket p = inp;
 
-    if(cur == NULL || p == NULL) return best;
+    if(cur == NULL || p == NULL) return inbest;
 
     /* get the next match, if there is one make a copy of the packet */
     next = deliver_get_next_hostid(cur->next, host);
     if(next != NULL)
-        pig = dpacket_copy(p);
+        p = dpacket_copy(p);
 
     /* deliver to the current one */
-    best = deliver_instance(cur->id, p, best);
+    best = deliver_instance(cur->id, p);
+
+    /* if we made a copy and it was not used */
+    if(next != NULL && best != r_DONE)
+        pool_free(p->p);
+
+    /* track the highest result */
+    if(best > inbest)
+        inbest = best;
 
     if(next == NULL)
         return best;
 
     /* if there was another match, (tail) recurse to it with the copy */
-    return deliver_hostid(next, host, pig, best);
+    return deliver_hostid(next, host, inp, best);
 }
 
 /* deliver the packet, where all the smarts happen, take the sending instance as well */
@@ -333,7 +336,7 @@ void deliver(dpacket p, instance i)
             p->type = p_NORM;
 
             /* deliver back to the sending instance */
-            deliver_instance(i, p, best);
+            deliver_instance(i, p);
             /* XXX i guess we assume that the instance handled it :) should log error */
             return;
         }
