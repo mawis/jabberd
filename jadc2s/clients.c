@@ -452,7 +452,7 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
 
         case state_NONE:
             /* before the client is authorized, we tip-toe through the data to find the auth packets */
-            while(c->state == state_NONE || c->state == state_AUTH)
+            while(c->state == state_NONE)
             {
                 len = _read_actual(c, fd, buf, 10);
                 if((ret = conn_read(c, buf, len)) == 0) return 0;
