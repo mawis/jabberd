@@ -78,7 +78,6 @@ typedef struct conn_struct
     /* used for in and out connections */
     ssi si;
     mio s;          /* socket once it's connected */
-    xstream xs;     /* xml stream */
     int legacy;     /* flag that we're in legacy mode */
     char *id;       /* the id="" attrib from the other side or the one we sent */
 
@@ -146,6 +145,7 @@ void _pthsock_server_host_validated(int valid, host h)
             /* dequeue and send the waiting packets */
             while((q = (dpq)pth_msgport_get(h->mp)) != NULL)
                 mio_write(h->c->s,q->x, NULL, 0);
+
             pth_msgport_destroy(h->mp);
             h->mp = NULL;
         }
@@ -160,6 +160,7 @@ void _pthsock_server_host_validated(int valid, host h)
         /* dequeue and bounce the waiting packets */
         while((q = (dpq)pth_msgport_get(h->mp)) != NULL)
             deliver_fail(dpacket_new(q->x),NULL);
+
         pth_msgport_destroy(h->mp);
         h->mp = NULL;
     }
@@ -195,12 +196,10 @@ void _pthsock_server_host_result(void *arg)
     host h = (host)arg;
     xmlnode x;
 
-    log_debug(ZONE,"S2S: host result check for %s",jid_full(h->id));
 
     /* if this is a legacy connect, just validate the host */
     if(h->c->legacy)
     {
-        log_debug(ZONE, "S2S: validating legacy host");
         _pthsock_server_host_validated(1,h);
         return;
     }
@@ -208,12 +207,10 @@ void _pthsock_server_host_result(void *arg)
     /* if we're CTS, generate and send result */
     if(h->c->connected)
     {
-        log_debug(ZONE, "S2S: sending db:result to connected host");
         x = xmlnode_new_tag("db:result");
         xmlnode_put_attrib(x, "to", h->id->server);
         xmlnode_put_attrib(x, "from", h->id->resource);
         xmlnode_insert_cdata(x,  _pthsock_server_merlin(xmlnode_pool(x), h->si->secret, h->id->server, h->c->id), -1);
-        log_debug(ZONE,"host result generated %s",xmlnode2str(x));
         mio_write(h->c->s,x, NULL, 0);
         return;
     }
@@ -221,13 +218,11 @@ void _pthsock_server_host_result(void *arg)
     /* no socket yet, queue the packet */
     if(h->c->s == NULL)
     {
-        log_debug(ZONE, "S2S: no socket yet.. queueing packet");
         pool_cleanup(h->c->pre, _pthsock_server_host_result, arg);
         return;
     }
 
     /* we're only here if something went wrong, couldn't connect, legacy connect, etc, just quit */
-    log_debug(ZONE, "S2S: something is really wrong.. we shouldn't be here!");
 }
 
 /* send the db:verify to the other side, can be called as a pool_cleanup or directly, reacts intelligently */
@@ -286,17 +281,15 @@ void pthsock_server_outread(mio s, int flags, void *arg, xmlnode x)
         /* outgoing conneciton, write the header */
         header = xstream_header("jabber:server", c->legacy_to, NULL);
         xmlnode_put_attrib(header,"xmlns:db","jabber:server:dialback"); /* flag ourselves as dialback capable */
-        log_debug(ZONE,"writing header to server: %s",xmlnode2str(header));
+
         mio_write(c->s, NULL, xstream_header_char(header), -1);
         xmlnode_free(header);
 
         break;
     case MIO_XML_ROOT:
         /* validate namespace */
-        log_debug(ZONE, "MIO_XML_ROOT: outgoing conn got root");
         if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:server") != 0)
         {
-            log_debug(ZONE, "MIO_XML_ROOT: outgoing conn got bad root");
             mio_write(c->s, NULL, "<stream:error>Invalid Stream Header!</stream:error>", -1);
             mio_close(c->s);
             xmlnode_free(x);
@@ -307,24 +300,23 @@ void pthsock_server_outread(mio s, int flags, void *arg, xmlnode x)
         {
             if(!c->si->legacy)
             { /* Muahahaha!  you suck! *click* */
-            log_debug(ZONE, "MIO_XML_ROOT: outgoing conn got bad root");
-                log_notice(c->legacy_to,"Legacy server access denied to do configuration");
+                log_notice(c->legacy_to,"Legacy server access denied due to configuration");
                 mio_write(c->s, NULL, "<stream:error>Legacy Access Denied!</stream:error>", -1);
                 mio_close(c->s);
                 xmlnode_free(x);
                 break;
             }
+
             c->legacy = 1;
             log_notice(c->legacy_to,"legacy server outgoing connection established");
-        }else{
+        }
+        else
+        {
             /* db capable, register in main hash of connected ip's */
             ghash_put(c->si->ips, c->ips, c);
         }
-            log_debug(ZONE, "MIO_XML_ROOT: setting connected flag!");
         c->connected = 1;
         c->id = pstrdup(c->p,xmlnode_get_attrib(x,"id")); /* store this for the result generation */
-            log_debug(ZONE, "MIO_XML_ROOT: storing id %s for result gen", c->id);
-            log_debug(ZONE, "MIO_XML_ROOT: clearing pre pool");
         pool_free(c->pre); /* flag that we're clear-to-send */
         c->pre = NULL;
         xmlnode_free(x);
@@ -337,7 +329,7 @@ void pthsock_server_outread(mio s, int flags, void *arg, xmlnode x)
             if(h == NULL || h->c != c)
             { /* naughty... *click* */
                 log_warn(c->legacy_to,"Received illegal dialback validation from %s to %s",xmlnode_get_attrib(x,"from"),xmlnode_get_attrib(x,"to"));
-                mio_write(c->s, NULL, "<stream:error>Invalid Dialback Result!</stream:error>", -1);
+                mio_write(c->s, NULL, "<stream:error>Invalid Dialback Result</stream:error>", -1);
                 mio_close(c->s);
                 xmlnode_free(x);
                 break;
@@ -359,7 +351,7 @@ void pthsock_server_outread(mio s, int flags, void *arg, xmlnode x)
             if(h == NULL || h->c != c)
             { /* naughty... *click* */
                 log_warn(c->legacy_to,"Received illegal dialback verification from %s to %s",xmlnode_get_attrib(x,"from"),xmlnode_get_attrib(x,"to"));
-                mio_write(c->s, NULL, "<stream:error>Invalid Dialback Verify!</stream:error>", -1);
+                mio_write(c->s, NULL, "<stream:error>Invalid Dialback Verify</stream:error>", -1);
                 mio_close(c->s);
                 xmlnode_free(x);
                 break;
@@ -386,7 +378,13 @@ void pthsock_server_outread(mio s, int flags, void *arg, xmlnode x)
             xmlnode_free(x);
             break;
         }
+
         /* other data on the stream? */
+        x2 = xmlnode_new_tag_pool(xmlnode_pool(x), "stream:error");
+        xmlnode_insert_cdata(x2, "Not Allowed to send data on this socket", -1);
+        mio_write(h->c->s, NULL, xmlnode2str(x2), -1);
+        xmlnode_free(x);
+        break;
     case MIO_CLOSED:
         /* remove us if we were advertised */
         ghash_remove(c->si->ips, c->ips);
@@ -409,10 +407,11 @@ void pthsock_server_outread(mio s, int flags, void *arg, xmlnode x)
                 colon++;
                 port=atoi(colon);
             }
-            mio_connect(ip, port, pthsock_server_outread, (void *)c, 10, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER));
+            mio_connect(ip, port, pthsock_server_outread, (void *)c, 20, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER));
             return;
         }
 
+        log_debug(ZONE, "MIO_CLOSED: freeing c->p (watch for more than 1 of these in a row)");
         /* hrm, we're here, so this means we're giving up on connecting */
         pool_free(c->pre);
         pool_free(c->p);
@@ -441,13 +440,11 @@ result pthsock_server_packets(instance i, dpacket dp, void *arg)
         return r_DONE;
     }
 
-    log_debug(ZONE,"S2S: Outgoing packet %X needs to be sent: %s", dp->x, xmlnode2str(dp->x));
 
     /* make this special id for the hash */
     id = jid_new(dp->p,to->server);
     jid_set(id,from->server,JID_RESOURCE);
 
-    log_debug(ZONE, "S2S: Looking for id: %s", jid_full(id));
 
     /* get the host if there's already one */
     if((h = (host)ghash_get(si->hosts,jid_full(id))) == NULL)
@@ -462,7 +459,6 @@ result pthsock_server_packets(instance i, dpacket dp, void *arg)
         /* if there's already a connection to this ip, reuse it */
         if((c = (conn)ghash_get(si->ips,ip)) == NULL)
         {
-            log_debug(ZONE, "S2S: creating new connection item");
             /* new conn struct */
             p = pool_new();
             c = pmalloco(p, sizeof(_conn));
@@ -475,7 +471,6 @@ result pthsock_server_packets(instance i, dpacket dp, void *arg)
                 c->ipn++;
                 c->ipn = pstrdup(p,c->ipn); /* for future reference to the succeding ip's */
             }
-            log_debug(ZONE, "S2S: ips: %s, ipn: %s", c->ips, c->ipn);
             c->p = p;
             c->si = si;
             c->pre = pool_new();
@@ -487,11 +482,9 @@ result pthsock_server_packets(instance i, dpacket dp, void *arg)
                 colon++;
                 port=atoi(colon);
             }
-            log_debug(ZONE, "S2S: calling mio_connect(%s, %d, %X, %X, 10, NULL, (NULL, NULL, MIO_XML_PARSER))", ip, port, pthsock_server_outread, c);
-            mio_connect(ip, port, pthsock_server_outread, (void *)c, 10, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER));
+            mio_connect(ip, port, pthsock_server_outread, (void *)c, 20, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER));
         }
 
-        log_debug(ZONE, "S2S: creating a new host");
         /* make a new host */
         h = pmalloco(c->p, sizeof(_host));
         h->type = htype_OUT;
@@ -501,16 +494,13 @@ result pthsock_server_packets(instance i, dpacket dp, void *arg)
         h->id = jid_new(c->p,jid_full(id));
         ghash_put(si->hosts,jid_full(h->id),h); /* register us */
         pool_cleanup(c->p,_pthsock_server_host_cleanup,(void *)h); /* make sure things get put back to normal afterwards */
-        log_debug(ZONE, "S2S: trying to send result");
         _pthsock_server_host_result((void *)h); /* try to send result to the other side */
 
         /* cache the name/ip since we'll get unresolved packets directly now (below) */
-        log_debug(ZONE, "S2S: caching %s", to->server);
         if(j_strcmp(ghash_get(si->nscache,to->server),ip) != 0)
             ghash_put(si->nscache,pstrdup(si->i->p,to->server),pstrdup(si->i->p,ip)); /* XXX yes, I know this leaks everytime the IP changes and there's a new sender, should be infrequent enough for now :) */
 
         /* register us with this host, for efficiency */
-        log_debug(ZONE, "S2S: calling register_instance");
         register_instance(si->i, id->server);
 
     }
@@ -518,14 +508,12 @@ result pthsock_server_packets(instance i, dpacket dp, void *arg)
     /* write the packet to the socket, it's safe */
     if(h->valid)
     {
-        log_debug(ZONE, "S2S: we are valid, just write the packet...");
         mio_write(h->c->s, x, NULL, 0);
         return r_DONE;
     }
 
     if(j_strcmp(xmlnode_get_name(x),"db:verify") != 0)
     {
-        log_debug(ZONE, "S2S: got non db:verify packet: %s", xmlnode2str(x));
         if(h->mp == NULL)
             h->mp = pth_msgport_create(jid_full(id));
 
@@ -535,12 +523,10 @@ result pthsock_server_packets(instance i, dpacket dp, void *arg)
         return r_DONE;
     }
 
-    log_debug(ZONE, "S2S: got db:verify packet: %s", xmlnode2str(x));
 
     /* all we have left is db:verify packets */
     xmlnode_put_vattrib(x,"c",(void *)(h->c)); /* ugly, but hide the c on the xmlnode */
 
-    log_debug(ZONE, "S2S: calling host_verify");
     _pthsock_server_host_verify((void *)(x));
 
     return r_DONE;
@@ -557,8 +543,6 @@ void pthsock_server_inread(mio s, int flags, void *arg, xmlnode x)
     host h = NULL;
     jid to, from;
 
-    log_debug(ZONE,"incoming conn %X IO[%d]",c,flags);
-
     switch(flags)
     {
     case MIO_NEW: /* new socket from io_select */
@@ -567,7 +551,7 @@ void pthsock_server_inread(mio s, int flags, void *arg, xmlnode x)
         c->s = s;
         c->p = s->p;
         c->si = (ssi)arg; /* old arg is si */
-        s->cb_arg = (void *)c; /* the new arg is c */
+        mio_reset(s, pthsock_server_inread, (void*)c);
         break;
     case MIO_XML_ROOT:
         /* new incoming connection sent a header, write our header */
@@ -671,6 +655,7 @@ void pthsock_server_inread(mio s, int flags, void *arg, xmlnode x)
 void pthsock_server_shutdown(void *arg)
 {
     ssi si = (ssi)arg;
+    log_debug(ZONE, "S2S Shutting Down");
     ghash_destroy(si->ips);
     ghash_destroy(si->hosts);
     ghash_destroy(si->nscache);

@@ -65,6 +65,8 @@ typedef struct mio_connect_st
     void *cb_arg;
     mio_connect_func cf;
     mio_handlers mh;
+    pth_t t;
+    int connected;
 } _connect_data,  *connect_data;
 
 /* global object */
@@ -311,11 +313,17 @@ mio _mio_accept(mio m)
 /* raise a signal on the connecting thread to time it out */
 result _mio_connect_timeout(void *arg)
 {
-    pth_t id = (pth_t)arg;
+    connect_data cd = (connect_data)arg;
+
+    if(cd->connected)
+    {
+        pool_free(cd->p);
+        return r_UNREG;
+    }
 
     log_debug(ZONE, "MIO CONNECT TAKING TO LONG, SIGNALLING TO STOP");
-    if(id != NULL)
-        pth_raise(id, SIGUSR2);
+    if(cd->t != NULL)
+        pth_raise(cd->t, SIGUSR2);
     
     return r_UNREG;
 }
@@ -374,11 +382,12 @@ void _mio_connect(void *arg)
 
     /* create the mio for this socket */
     new = mio_new(fd, cd->cb, cd->cb_arg, cd->mh);
-    pool_free(cd->p);
+    cd->connected = 1;
 
     /* notify the client that the socket is born */
     if(new->cb != NULL)
         (*(mio_std_cb)new->cb)(new, MIO_NEW, new->cb_arg);
+
 }
 
 /* 
@@ -882,6 +891,9 @@ void mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_
     if(host == NULL || port == 0) 
         return;
 
+    if(timeout <= 0)
+        timeout = 30; /* default timeout */
+
     if(f == NULL)
         f = MIO_RAW_CONNECT;
 
@@ -898,8 +910,9 @@ void mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_
     cd->cb_arg = cb_arg;
     cd->cf     = f;
     cd->mh     = mh;
+    cd->t      = pth_spawn(PTH_ATTR_DEFAULT, (void*)_mio_connect, (void*)cd);
 
-    register_beat(timeout, _mio_connect_timeout, (void*)pth_spawn(PTH_ATTR_DEFAULT, (void*)_mio_connect, (void*)cd));
+    register_beat(timeout, _mio_connect_timeout, (void*)cd);
 
 }
 
