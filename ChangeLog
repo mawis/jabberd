@@ -1,3 +1,8 @@
+2004-07-01  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/log.c: Fix for broken log messages of type 'record'. Bug could
+    	be used for DoS, but existed only in CVS since 2004-05-14.
+
 2004-06-30  Matthias Wimmer  <m@tthias.net>
 
     * dnsrv/srv_resolv.c: allow multiple results for a DNS query
