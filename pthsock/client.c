@@ -100,15 +100,15 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     if(p->id->user!=NULL)fd = atoi(p->id->user); 
     if(p->type!=p_ROUTE||fd==0)
     { /* we only want <route/> packets */
-        log_debug(ZONE,"Dropping loser packet[%d]: %s",p->type,xmlnode2str(p->x));
-        xmlnode_free(p->x);
+        log_warn(p->host,"pthsock_client bouncing invalid %s packet from %s",xmlnode_get_name(p->x),xmlnode_get_attrib(p->x,"from"));
+        deliver_fail(p,"invalid client packet");
         return r_DONE;
     }
 
     for (cur=io_select_get_list();cur!=NULL;cur=cur->next)
     { /* find sock for this connection */
         cdcur=((cdata)cur->arg);
-        if (fd == cur->fd)
+        if (fd == cur->fd && cur->state == state_ACTIVE) /* we can't match a closing socket! */
             if (j_strcmp(p->id->resource,cdcur->res) == 0)
                 break;
     }
