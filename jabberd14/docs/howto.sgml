@@ -1,0 +1,457 @@
+<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook V3.1//EN">
+<article id="index">
+<artheader>
+  <title>Jabberd Server Howto</title>
+  <author>
+    <firstname>Peter</firstname>
+    <surname>Saint-Andre</surname>
+    <affiliation>
+      <address><email>stpeter@jabber.org</email></address>
+    </affiliation>
+  </author>
+  <pubdate>2002-03-03</pubdate>
+  <copyright>
+    <year>2000</year>
+    <year>2001</year>
+    <year>2002</year>
+    <holder>Peter Saint-Andre</holder>
+  </copyright>
+  <!--
+  <revhistory>
+    <revision>
+      <revnumber>3.0</revnumber>
+      <date>2002-03-03</date>
+      <authorinitials>psa</authorinitials>
+      <revremark>Thoroughly updated to cover jabberd 1.4.2, including SSL configuration, updated information about the transports, etc. Also, document format converted to SGML.</revremark>
+    </revision>
+    <revision>
+      <revnumber>2.0</revnumber>
+      <date>2001-02-07</date>
+      <authorinitials>psa</authorinitials>
+      <revremark>Thoroughly updated to cover jabberd 1.4, including information about transports.</revremark>
+    </revision>
+    <revision>
+      <revnumber>1.0</revnumber>
+      <date>2000-12-10</date>
+      <authorinitials>psa</authorinitials>
+      <revremark>Initial release, covering version 1.2 of the jabberd server.</revremark>
+    </revision>
+  </revhistory>
+  -->
+  <abstract><para>How to install, configure, and administer the jabberd server.</para></abstract>
+</artheader>
+<section id="introduction"><title>Introduction</title>
+  <important><para>As of 2002-03-03, this document is undergoing heavy revision in order to make it more complete. It should become more stable very shortly.</para></important>
+  <para>This document describes how to install, configure, and administer the jabberd server. The jabberd server is the original open-source implementation of the Jabber protocols. (For further information about the Jabber protocols, refer to <xref linkend="references">.) In brief, jabberd is a Jabber server which provides at least the following core functionality:
+  <itemizedlist>
+    <listitem><para>accepts TCP socket connections from compatible clients and server-side components</para></listitem>
+    <listitem><para>manages XML streams to and from those clients and components</para></listitem>
+    <listitem><para>delivers packets (called "XML chunks") to authorized clients and components</para></listitem>
+    <listitem><para>if necessary, opens connections to and validates connections from other Jabber servers, then routes data to them</para></listitem>
+    <listitem><para>stores information on behalf of components and especially IM users -- each user's "roster" (contact list), preferences, vCard, and so on (as we shall see, some of this functionality requires the installation of components beyond the core server)</para></listitem>
+  </itemizedlist>
+  <para>This document attempts to provide complete information about installing, configuring, and administering the jabberd server. Inevitably, there is information I have neglected to include, late-breaking news about add-on server components, and so on. For that reason, there is a mailing list entitled JADMIN that is dedicated to discussion of Jabber server administration. I urge you to subscribe to that mailing list if you need the most up-to-date information, or if you are interested in helping other server admins. The URL is: <ulink url="http://mailman.jabber.org/listinfo/jadmin/">http://mailman.jabber.org/listinfo/jadmin/</ulink>. While I welcome direct communications, my workload is such that you will usually receive a faster reply by sending your question to the JADMIN list.</para>
+</section>
+<section id="requirements"><title>System Requirements</title>
+  <section id="requirements-os"><title>Operating System</title>
+    <para>While the jabberd server was developed mainly on Linux, it has been tested on a wide variety of operating systems. The 1.4.2 version of jabberd will run on the following:</para>
+    <itemizedlist>
+      <listitem><para>Linux (all flavors)</para></listitem>
+      <listitem><para>FreeBSD</para></listitem>
+      <listitem><para>Solaris 2.6, 7, 8</para></listitem>
+      <listitem><para>IRIX</para></listitem>
+      <listitem><para>AIX</para></listitem>
+      <listitem><para>Mac OS X</para></listitem>
+      <listitem><para>Windows NT, 2000, and XP (with Cygwin)</para></listitem>
+    </itemizedlist>
+    <note><title>OS Note</title><para>Particular requirements and instructions specific to each operating system will be noted throughout this document. In general, non-GNU Unix operating systems will require the use of GNU make instead of your operating system's native make program. Compatible Windows operating systems will require the Cygwin package, which is installed with the Windows executable described under <xref linkend="install-windows">.</para></note>
+    <important><para>It is the core jabberd server which has been tested on the above platforms. There is no guarantee that add-on components such as the Jabber User Directory (JUD) and the IM gateways will run on your operating system if you are using a non-GNU OS.</para></important>
+  </section>
+  <section id="requirements-hardware"><title>Hardware</title>
+    <para>Your hardware requirements will depend on the number of users you expect. In the author's experience, the majority of jabberd deployments are intended for use as pilot projects, intranet servers, development platforms, and the like, with perhaps 100 to 1,000 registered users. Since it is unlikely that even 50% of users will be online at any one time (e.g., the jabberd server running at jabber.org usually has only 2% of its registered users online), we can conservatively estimate that you will probably have a maximum of 500 simultaneous users. For a deployment of this kind, hardware requirements are minimal: perhaps a Pentium-class workstation with 512 megs of RAM.</para>
+    <para>If you are expecting to run a much larger deployment, you will need to make some adjustments. While the jabberd server has been tested up to 10,000 simultaneous users, it was designed as a proof of concept and not as an industrial-strength server for large Internet service providers. For example, depending on which operating system you are using, you may need to modify OS-level settings that limit the number of simultaneous TCP connections or file descriptors that the operating system can handle (in Linux, which by default is limited to 1024 file descriptors, this is done with proc settings). Because large deployments are outside the usual range of most Jabber server deployments, I will not discuss them directly in this document, although I hope to add more information about scaling the server in a future revision.</para>
+  </section>
+  <section id="requirements-dns"><title>DNS</title>
+    <para>As described below, you will probably want to run your jabberd server as a fully-qualified domain name. This is not necessary in all cases, but if you want to communicate with other Jabber servers or enable people outside your local network to access your machine, you will almost certainly want to ensure that your server's hostname is a fully-qualified domain name. This is also true of subdomains for services assocated with your jabberd server (e.g., a Jabber User Directory or conferencing service that you run on your Jabber server). For this reason, you may want to ask your system administrator to add your hostname and all relevant subdomains to the DNS tables for your domain.</para>
+  </section>
+  <section id="requirements-ports"><title>Ports</title>
+    <para>The IANA has approved two ports for use by Jabber services: one port for client-to-server communications (port 5222) and one for server-to-server communications (port 5269). If you want Jabber clients to be able to connect to your server, you will need to ensure that TCP port 5222 is open. If you want users of your Jabber server to be able to send messages to users on other Jabber servers, you will need to ensure that TCP port 5269 is open.</para>
+    <para>In addition, if you will be installing gateways to other IM systems, you will need to open ports that are specific to those systems. These ports are as follows:</para>
+    <itemizedlist>
+      <listitem><para>AIM -- no incoming ports and the outgoing port is any random port (not specified in the configuration)</para></listitem>
+      <listitem><para>ICQ -- UDP port 4000, TCP listening ports as determined by the &#60;ports/&#62; element in jabber.xml (TCP outgoing ports for client-to-client connections are determined by the ICQ client you're talking to and can't be easily predicted). If you're behind a firewall, open the UDP port.</para></listitem>
+      <listitem><para>MSN -- TCP port 1863 (outgoing)</para></listitem>
+      <listitem><para>Yahoo! -- TCP ports 5050 (bidirectional) and 80 (outgoing)</para></listitem>
+    </itemizedlist>
+  </section>
+</section>
+<section id="install"><title>Server Installation</title>
+<para>The 1.4.2 version of the jabberd server can be downloaded at <ulink url="http://jabberd.jabberstudio.org/downloads/">http://jabberd.jabberstudio.org/downloads/</ulink>. This directory includes any builds that have been made for specialized platforms (Solaris builds, RPMs, .debs, etc.). Note again that this includes the core jabberd server only -- additional components are to be found elsewhere as described later in this document.</para>
+<para>I here describe the process of building the server from source. The only file you need to download is <ulink url="http://jabberd.jabberstudio.org/downloads/jabber-1.4.2.tar.gz">http://jabberd.jabberstudio.org/downloads/jabber-1.4.2.tar.gz</ulink>. To install it, do the following:</para>
+<orderedlist>
+<listitem><para>save the file to /tmp/ (or your directory of choice)</para></listitem>
+<listitem><para>open a console window and create the directory where you would like to install jabberd -- I'll refer to this as /path/to/jabber/, but an example might be /usr/local/jabber/ (note that you might need to log in as root or use sudo to do this)</para></listitem>
+<listitem><para>mv /tmp/jabber-1.4.2.tar.gz /path/to/jabber/</para></listitem>
+<listitem><para>cd /path/to/jabber/</para></listitem>
+<listitem><para>gzip -d jabber-1.4.2.tar.gz</para></listitem>
+<listitem><para>tar -xvf jabber-1.4.2.tar (this creates a jabber-1.4.2/ directory containing various files and subdirectories)</para></listitem>
+<listitem><para>cd jabber-1.4.2/</para></listitem>
+<listitem><para>./configure</para></listitem>
+<listitem><para>make</para></listitem>
+</orderedlist>
+<note><title>OS Note</title><para>If you are running Solaris or some other non-GNU system, be sure to use GNU make (<ulink url="http://www.gnu.org/software/make/make.html">http://www.gnu.org/software/make/make.html</ulink>), not your native version of make.</para></note>
+  <section id="install-windows"><title>Windows Installation</title>
+    <para>Beginning with version 1.4.2 of the jabberd server, there is now an executable file that will install jabberd onto compatible Windows operating systems.</para>
+    <note><title>OS Note</title><para>Compatible Windows operating systems include Windows NT, Windows 2000, and Windows XP. Because of problems with the GNU pth library, you cannot run jabberd on Windows 95 or Windows 98.</para></note>
+    <para>The file you need is to download is <ulink url="http://jabberd.jabberstudio.org/downloads/JabberD-1.4.2.exe">http://jabberd.jabberstudio.org/downloads/JabberD-1.4.2.exe</ulink>. To install it, do the following:</para>
+    <orderedlist>
+    <listitem><para>save the file to C:\temp\ (or your directory of choice)</para></listitem>
+    <listitem><para>double-click JabberD-1.4.2.exe</para></listitem>
+    <listitem><para>follow the instructions presented by the installer</para></listitem>
+    </orderedlist>
+  </section>
+</section>
+<section id="config"><title>Basic Configuration</title>
+<para>The jabberd server should now be installed on your system. The next step is to configure the server so that you can run it. Most of the configuration happens in a file named jabber.xml, which contains a lot of comments that help you understand what each configuration option does. Since things are explained quite well in jabber.xml, the only changes we'll make here are the ones you need in order to get the server running. So open jabber.xml in your favorite text editor and follow the instructions below.</para>
+  <section id="config-host"><title>Hostname</title>
+   <para>The only change you absolutely need to make in order to run jabberd is to specify the hostname of your server. The default contained within the jabber.xml configuration file is 'localhost':</para>
+    <para><programlisting>
+      &#60;host&#62;localhost&#60;/host&#62;
+    </programlisting></para>
+    <note><para>The default in the jabber.xml file is actually &#60;host&#62;&#60;jabberd:cmdline flag="h"&#62;localhost&#60;/jabberd:cmdline&#62;. However, if you don't need to run the server with the -h flag (not that many people do), you can remove the jabberd:cmdline element and simply have &#60;host&#62;localhost&#60;/host&#62; as shown above.</para></note>
+    <para>If you are playing with jabberd on your local machine, you will be able successfully run jabberd with a hostname of 'localhost'. However, in this case you will not be able to connect to the jabberd server with a Jabber client (or component) that is running on any machine other than the physical machine where jabberd is running. This can be useful for development purposes, but if you want to log in from another machine or enable people on your network or the open Internet to connect to your server, you will have to change 'localhost' to the name of your host machine. </para>
+    <para>So what is your machine's hostname? If you're running jabberd on a small intranet and you don't want or need to communicate with other Jabber servers, you can change 'localhost' to the IP address of your machine. If your machine has a local name (e.g., mine is 'squire' in honor of bassist Chris Squire), you cannot just change 'localhost' to that machine name and expect other people, even people on the same subnet, to log in to your server. In this instance you will need to change 'localhost' either to your IP address or to a fully-qualified domain name or FQDN (in my case this is squire.jabber.com). So in general you will want the &lt;host&gt; element to specify a fully-qualified domain name, but in certain circumstances you can get away with specifying your IP address.</para>
+    <para>Furthermore, if you want to be able to communicate with other Jabber servers, the &#60;host/&#62; must be a fully qualified domain name. This is because server-to-server communication uses something called "dialback" (see <xref linkend="references"> for details) to ensure that servers are not being spoofed. The dialback protocol depends on the DNS infrastructure, so if your hostname is not a fully-qualified domain name, you will not be able to communicate with other Jabber servers.</para>
+  </section>
+  <section id="config-filesystem"><title>Filesystem Setup</title>
+    <para>As mentioned above, one of the core functions performed by the jabberd server is the storage of user-related information. This information includes the user's authentication credentials (username and password), contact list (called in Jabber a "roster"), vCard, and client preferences. By default, this information is stored on the filesystem (although it can be stored in a database). Therefore, you need to create a directory in which this information can be stored, and that directory needs to be writable by jabberd. Specifically, jabberd expects this directory to be /path/to/jabber/spool/yourhostname/ (where 'yourhostname' is the exact string contained in the &lt;host&gt; element of your jabber.xml file). So if the hostname of your Jabber server is jabber.foobar.com, you will need to create a directory /path/to/jabber/spool/jabber.foobar.com/ that is writable by the system user who runs the server.</para>
+    <warning><para>Unless you are running jabberd as localhost on a development machine, good security practices dictate that you set up a system group that has permissions to start and stop the jabberd process. <emphasis>It is a security hazard to run any major piece of software,  including jabberd, as root!</emphasis> You can change the ownership rights to the entire Jabber server directory by typing, as root, something like chown -R jabberusergroup.jabberusergroup /path/to/jabber/.</para></warning>
+    <para>OK, now that you're practicing safe computing, it is time to test things out...</para>
+  </section>
+  <section id="config-test1"><title>Testing Basic Configuration</title>
+    <para>Once you have correctly set up the hostname and the filesystem, you can start your Jabber server and test out your basic configuration by logging in using your favorite Jabber client (Jabber clients are outside the scope of this howto; refer to the Jabber User Guide located at <ulink url="http://www.saint-andre.com/jabber/userguide/">http://www.saint-andre.com/jabber/userguide/</ulink>). Here is how to start the server (this is usually done from /path/to/jabber/, i.e., the directory that is the default location of your jabber.xml file):</para>
+    <itemizedlist>
+      <listitem><para>Type ./jabberd/jabberd</para></listitem>
+      <listitem><para>To run the server in debug mode, type ./jabberd/jabberd -D</para></listitem>
+      <listitem><para>To monitor server activity, type tail -f error.log</para></listitem>
+    </itemizedlist>
+    <para>To test your server, log in with your preferred username, and make sure that the server name you specify is the same as that in the &lt;host&gt; element of your jabber.xml file (e.g., localhost, your IP address, or the fully qualified domain name of your jabberd server). You can then log in as a second Jabber user (e.g., by starting another instance of your favorite Jabber client) and send messages back and forth between them.</para>
+  </section>
+  <section id="config-further"><title>More Basic Configuration</title>
+    <para>The configuration steps described above are you need to do in order to have a functioning Jabber server. This section describes some optional basic configuration settings you may want to adjust.</para>
+    <section id="config-further-welcome"><title>Welcome Text</title>
+      <para>You can change the text contained in the &#60;welcome/&#62; element of the jabber.xml. This text determines the message that is sent to first-time users of your server.</para>
+    </section>
+    <section id="config-further-update"><title>Update Server</title>
+      <para>The jabberd server will automatically search for updated versions of the software. If you would like to disable this feature, you change the update server to 'localhost' or your domain name, or you can comment out entirely the line that reads as follows:</para>
+      <para><programlisting>
+        &#60;update&#62;&#60;jabberd:cmdline flag="h"&#62;localhost&#60;/jabberd:cmdline&#62;&#60;/update&#62;
+      </programlisting></para>
+    </section>
+    <section id="config-further-admin"><title>Administrative Privileges</title>
+      <para>The jabberd server enables you to grant certain administrative privileges specific users of the server by defining appropriate entries in the &lt;admin&gt; section of the jabber.xml configuration file. There are two main administrative priviliges at this time:</para>
+      <orderedlist>
+        <listitem><para>The ability to read Jabber messages that are sent to the special administrative address of admin@yourjabberhostname.</para></listitem>
+        <listitem><para>The ability to send Jabber messages to all online users (e.g., informing users that the server needs to be rebooted) or to send out a "message of the day" to anyone who logs in. (For information about how to use these privileges, see below.)</para></listitem>
+      </orderedlist>
+      <para>The first privilege is granted to any user who is listed in a &lt;read&gt; element within the &lt;admin&gt; section of the jabber.xml configuration file. The second privilege is granted to any user who is listed in a &lt;write&gt; element. Here is an example, using the mythical shakespeare.com Jabber server:</para>
+      <para><programlisting>
+      &lt;admin&gt;
+        &lt;read&gt;hamlet@shakespeare.com&lt;/read&gt;
+        &lt;read&gt;macbeth@shakespeare.com&lt;/read&gt;
+        &lt;read&gt;kinglear@shakespeare.com&lt;/read&gt;
+        &lt;write&gt;kinglear@shakespeare.com&lt;/write&gt;
+      &lt;/admin&gt;
+      </programlisting></para>
+      <para>In this example, Hamlet, Macbeth, and King Lear all can read messages sent to the admin address, but only King Lear can send out broadcast messages.</para>
+    </section>
+  </section>
+</section>
+<section id="services"><title>Adding Services</title>
+  <warning><para>I have not yet revised the following sections of this document.</para></warning>
+  <para>Jabber is pretty cool all by itself, and personally I don't use any other messaging system. However, a lot of people are interested in Jabber because it can enable you to talk with users of other IM systems. What makes this possible is the existence of gateways (also called "transports") to those other IM systems. In addition to the gateways, the core jabberd server can be extended to provide facilities for multi-user chat (a.k.a. conferencing or groupchat) and user directories. This section of the document describes how to install these additional services. We'll cover conferencing and JUD first, then delve into the transports.</para>
+  <note><para>Just as with your base hostname, in order to get these services to work you need to make sure that each relevant subdomain (e.g., aim.yourdomain.com) is a fully qualified domain name!</para></note>
+  <note><para>For each component discussed below, the first &#60;service/&#62; section related to the component must be included in the &#60;browse/&#62; section of your jabber.xml -- this &#60;service/&#62; element <emphasis>identifies</emphasis> the component as something that a user can browse to and interact with (e.g., by registering with it). The actual <emphasis>definition</emphasis> of this component, where you point to a .so file or link off to a separate XML config file, must not go inside the &#60;browse/&#62; section -- usually I recommend that you put the service definitions right before the closing &#60;/jabber&#62; tag at the end of the file just to make sure that they are not within the &#60;browse/&#62; element. If you are confused about this, please refer to the XML configuration file examples I have posted at <ulink url="http://www.saint-andre.com/jabber/xml/">http://www.saint-andre.com/jabber/xml/</ulink>.</para></note>
+<section id="conferencing"><title>Adding Conferencing</title>
+<para>The conferencing module has been rewritten specifically to work with the 1.4 server, so forget everything you ever knew about groupchat! (D.J. Adams has written a helpful <ulink url="http://www.pipetree.com/jabber/gc.html">groupchat roundup</ulink> to help you sort things out.)
+<para>First, note that if you want your conference rooms to be accessible to users of other Jabber servers, the sub-domain conference.your.domain.name must be resolvable to a DNS address (probably to the same IP as your.domain.name). You may need to have your local DNS tables updated with this information. If you're using a dynamic DNS service like dyndns.org, make sure you enable the wildcard option so that subdomains will be resolved.</para>
+<para>The new conferencing code is available at <ulink url="http://download.jabber.org/dists/1.4/final/">http://download.jabber.org/dists/1.4/final/</ulink>. As of this writing, the current version is 0.4, so download conference-0.4.tar.gz to your jabber-1.4/ directory. Then do the following:</para>
+<orderedlist>
+<listitem><para>gzip -d conference-0.4.tar.gz</para></listitem>
+<listitem><para>tar -xvf conference-0.4.tar (this will create a conference-0.4/ sub-directory)</para></listitem>
+<listitem><para>cd conference-0.4/</para></listitem>
+<listitem><para>make (for non-GNU systems, see note above about using gmake)</para></listitem>
+</orderedlist>
+<para>The conferencing code should now be installed on your system (you'll know if that's the case if you see a conference.so file in the conference-0.4/ directory). The next step is to configure your Jabber server to run conferencing, so open jabber.xml and make the following edits...</para>
+<para>First, in what will become a familiar pattern as you add services on top of your core server, you need to identify the conferencing service in the &#60;browse/&#62; section of jabber.xml so that users of your server can discover that you offer conferencing. You do this by adding the following line to the &#60;browse/&#62; section of your jabber.xml file:</para>
+<blockquote>
+<para>
+&#60;conference type="private" jid="conference.localhost" name="Conferencing"/&#62;
+</para>
+</blockquote>
+<para>Of course, you'll need to replace 'localhost' with the hostname of your Jabber server.</para>
+<para>Next, you need to actually define the service you're offering by adding a &#60;service/&#62; element to jabber.xml (I usually put it right after the &#60service/&#62; definition for the s2s component). 
+<blockquote>
+<para>
+&#60;service id="conference.localhost"&#62;
+  &#60;load&#62;&#60;conference&#62;./conference-0.4/conference.so&#60;/conference&#62;&#60;/load&#62;
+  &#60;conference xmlns="jabber:config:conference"&#62;
+    &#60;vCard&#62;
+      &#60;FN&#62;Conferencing Service&#60;/FN&#62;
+      &#60;DESC&#62;This service is for private chatrooms.&#60;/DESC&#62;
+      &#60;URL&#62;http://localhost/&#60;/URL&#62;
+    &#60;/vCard&#62;
+    &#60;history&#62;20&#60;/history&#62;
+    &#60;notice&#62;
+      &#60;join&#62; has joined&#60;/join&#62;
+      &#60;leave&#62; has left&#60;/leave&#62;
+      &#60;rename&#62; is now known as &#60;/rename&#62;
+    &#60;/notice&#62;
+  &#60;/conference&#62;
+&#60;/service&#62;
+</para>
+</blockquote>
+<para>Here again you'll need to replace 'localhost' with the hostname of your Jabber server.</para>
+<para>OK, now you're ready to restart the Jabber server and take conferencing for a spin! You should see "Conferencing" as a service on the server when you connect with a Jabber client. You should also be able to type a conference room name into the interface for joining a conference room and then join that room. Invite a friend or two into a conference room and jabber away!</para>
+</section>
+<section id="jud"><title>Adding JUD</title>
+<para>JUD stands for Jabber User Directory. The main instance of JUD lives at jabber.org, and anyone can add their name to the user database there so that people can find them (note that JUD is an opt-in database, user information is never added to JUD automatically on registration). In addition to the JUD instance at jabber.org (or to supersede it), you can define a JUD instance that lives on your Jabber server so that your users can register with a directory on your server. To do that, you can use the re-written JUD code that is available at <ulink url="http://download.jabber.org/dists/1.4/final/">http://download.jabber.org/dists/1.4/final/</ulink>. Here's how:</para>
+<orderedlist>
+<listitem><para>gzip -d jud-0.4.tar.gz</para></listitem>
+<listitem><para>tar -xvf jud-0.4.tar (this will create a jud-0.4/ sub-directory)</para></listitem>
+<listitem><para>cd jud-0.4/</para></listitem>
+<listitem><para>make (for non-GNU systems, see note above about using gmake)</para></listitem>
+</orderedlist>
+<para>The JUD code should now be installed on your system (you'll know if that's the case if you see a jud.so file in the jud-0.4/ directory). The next step is to configure your Jabber server to run JUD, so open jabber.xml and make the following edits...</para>
+<para>As we saw with conferencing, first you need to identify the Jabber User Directory in the &#60;browse/&#62; section of jabber.xml so that users of your server can discover that you have an instance of JUD on your server (of course replacing 'localhost' with the hostname of your Jabber server as you go along). You do this by adding the following line to the &#60;browse/&#62; section of your jabber.xml file:</para>
+<blockquote>
+<para>
+&#60;service type="jud" jid="jud.localhost" name="localhost User Directory"&#62;
+  &#60;ns&#62;jabber:iq:search&#60;/ns&#62;
+  &#60;ns&#62;jabber:iq:register&#60;/ns&#62;
+&#60;/service&#62;
+</para>
+</blockquote>
+<para>Here again, you need to actually define the service you're offering by adding a &#60;service/&#62; element to jabber.xml (a good place for this would be right after the &#60service/&#62; definition for conferencing that we added above). 
+<blockquote>
+<para>
+&#60;service id="jud"&#62;
+  &#60;host&#62;jud.localhost&#60;/host&#62;
+  &#60;load&#62;&#60;jud&#62;./jud-0.4/jud.so&#60;/jud&#62;&#60;/load&#62;
+  &#60;jud xmlns="jabber:config:jud"&#62;
+    &#60;vCard&#62;
+      &#60;FN&#62;User Directory on localhost&#60;/FN&#62;
+      &#60;DESC&#62;This service provides a simple user directory service.&#60;/DESC&#62;
+      &#60;URL&#62;http://localhost/&#60;/URL&#62;
+    &#60;/vCard&#62;
+  &#60;/jud&#62;
+&#60;/service&#62;
+</para>
+</blockquote>
+<para>Restart your Jabber server and give JUD a try by adding your own user information to your JUD instance.</para> 
+</section>
+<section id="aim"><title>Adding the AIM Transport</title>
+<para><emphasis>The following instructions will not yield a working AIM Transport, because since the time this HOWTO was written, AOL made serious protocol changes in order to block Jabber servers from connecting to the AIM network. I will endeavor to update these instructions as soon as possible.</emphasis></para>
+<para>Although aim-transport-0.9.0 was released at the same time as the 1.4 server, developer Thomas Muldowney has since released aim-transport-0.9.5, which fixes a number of bugs in 0.9.0. So the code you want to download is located at <ulink url="http://download.jabber.org/dists/transports/aim-transport/">http://download.jabber.org/dists/transports/aim-transport/</ulink>. Download aim-transport-0.9.5.tar.gz to your jabber-1.4/ directory and then do the following:</para>
+<orderedlist>
+<listitem><para>gzip -d aim-transport-0.9.5.tar.gz</para></listitem>
+<listitem><para>tar -xvf aim-transport-0.9.5.tar (this will create a aim-transport-0.9.5/ sub-directory)</para></listitem>
+<listitem><para>cd aim-transport-0.9.5/</para></listitem>
+<listitem><para>./configure --with-jabberd=/full/path/to/your/jabberd/directory (while the --with-jabberd option may not be necessary, I find it helps with compilation)</para></listitem>
+<listitem><para>if you did not previously have pth installed, edit the Makefile so that the JABBERD_INC entry includes the full path to your installation of pth-1.3.7 in addition to the full path to the jabberd/ directory; mine looks like this:JABBERD_INC = -I/usr/local/jabber/jabber-1.4/jabberd -I/usr/local/jabber/jabber-1.4/jabberd/pth-1.3.7</para></listitem>
+<listitem><para>make (for non-GNU systems, see note above about using gmake)</para></listitem>
+</orderedlist>
+<para>The AIM Transport code should now be installed on your system (you'll know if that's the case if you see a aimtrans.so file in the aim-transport-0.9.5/ directory). The next step is to configure your Jabber server to run the AIM Transport, so it's time for more surgery on jabber.xml...</para>
+<para>Once again, first you need to identify the AIM Transport in the &#60;browse/&#62; section of jabber.xml so that users of your server can discover that you have the AIM Transport installed on your server (of course replacing 'localhost' with the hostname of your Jabber server as you go along). You do this by adding the following line to the &#60;browse/&#62; section of your jabber.xml file:</para>
+<blockquote>
+<para>
+&#60;service type="aim" jid="aim.localhost" name="AIM Transport"&#62;
+  &#60;ns&#62;jabber:iq:gateway&#60;/ns&#62;
+  &#60;ns&#62;jabber:iq:register&#60;/ns&#62;
+&#60;/service&#62;
+</para>
+</blockquote>
+<para>Here again, you need to actually define the service you're offering by adding a &#60;service/&#62; element to jabber.xml (a good place for this would be right after the &#60service/&#62; definition for JUD that we added above). 
+<blockquote>
+<para>
+&#60;service id='aim.localhost'&#62;
+  &#60;aimtrans xmlns='jabber:config:aimtrans'&#62;
+    &#60;vCard&#62;
+      &#60;FN&#62;AIM Transport&#60;/FN&#62;
+      &#60;DESC&#62;An AIM Transport!&#60;/DESC&#62;
+      &#60;URL&#62;http://localhost/&#60;/URL&#62;
+    &#60;/vCard&#62;
+  &#60;/aimtrans&#62;
+  &#60;load&#62;
+  &#60;aim_transport&#62;./aim-transport-0.9.5/src/aimtrans.so&#60;/aim_transport&#62;
+  &#60;/load&#62;
+&#60;/service&#62;
+</para>
+</blockquote>
+<para>Restart your Jabber server and register with the AIM transport to test it out.</para> 
+</section>
+<section id="icq"><title>Adding the ICQ Transport</title>
+<para>From <ulink url="http://download.jabber.org/cvs/">http://download.jabber.org/cvs/</ulink>, download icq-transport.tgz (this is actually 0.9.1, which contains improvements over 0.9 -- the latter no longer works with the ICQ network because of protocol changes by ICQ) to your jabber-1.4/ directory and then do the following:</para>
+<orderedlist>
+<listitem><para>gzip -d icq-transport.tgz</para></listitem>
+<listitem><para>tar -xvf icq-transport.tar (this will create an icq-transport/ sub-directory)</para></listitem>
+<listitem><para>cd icq-transport/</para></listitem>
+<listitem><para>make (for non-GNU systems, see note above about using gmake)</para></listitem>
+</orderedlist>
+<para>The ICQ Transport code should now be installed on your system (you'll know if that's the case if you see a icqtrans.so file in the icq-transport/ directory). The next step is to configure your Jabber server to run the ICQ Transport, so open jabber.xml once again...</para>
+<para>First let's identify the ICQ Transport in the &#60;browse/&#62; section of jabber.xml so that users of your server can discover that you have the ICQ Transport installed on your server (of course replacing 'localhost' with the hostname of your Jabber server as you go along). You do this by adding the following line to the &#60;browse/&#62; section of your jabber.xml file:</para>
+<blockquote>
+<para>
+&#60;service type="icq" jid="icq.localhost" name="ICQ Transport"&#62;
+  &#60;ns&#62;jabber:iq:gateway&#60;/ns&#62;
+  &#60;ns&#62;jabber:iq:register&#60;/ns&#62;
+  &#60;ns&#62;jabber:iq:search&#60;/ns&#62;
+&#60;/service&#62;
+</para>
+</blockquote>
+<para><emphasis>Note:</emphasis> Including the jabber:iq:search line above caused me to get a 405 Not Allowed error when I tried to register with the ICQ Transport, so you may not want to include it. However, this was platform-specific: including search worked on Red Hat 7 for me, but not on Debian.</para>
+<para>Here again, you need to actually define the service you're offering by adding a &#60;service/&#62; element to jabber.xml (a good place for this would be right after the &#60service/&#62; definition for the AIM Transport that we added above). 
+<blockquote>
+<para>
+&#60;service id="icq.localhost"&#62;
+  &#60;icqtrans xmlns="jabber:config:icqtrans"&#62;
+    &#60;instructions&#62;Please enter your ICQ number (in the "username" field),
+                  nickname, and password.  Leave the "username" field blank
+                  to create a new ICQ number.&#60;/instructions&#62;
+    &#60;search&#62;Search for ICQ users&#60;/search&#62;
+    &#60;vCard&#62;
+      &#60;FN&#62;ICQ Transport&#60;/FN&#62;
+      &#60;DESC&#62;This is the ICQ Transport&#60;/DESC&#62;
+      &#60;URL&#62;http://localhost/&#60;/URL&#62;
+    &#60;/vCard&#62;
+    &#60;prime&#62;37&#60;/prime&#62;
+    &#60;ports&#62;
+      &#60;min&#62;2000&#60;/min&#62;
+      &#60;max&#62;3000&#60;/max&#62;
+    &#60;/ports&#62;
+  &#60;/icqtrans&#62;
+  &#60;load&#62;
+    &#60;icqtrans&#62;./icq-transport/icqtrans.so&#60;/icqtrans&#62;
+  &#60;/load&#62;
+&#60;/service&#62;
+</para>
+</blockquote>
+<para><emphasis>Note:</emphasis> If you deleted the jabber:iq:search line in your &#60;browse/&#62; section, make sure you delete the &#60;search/&#62; line above. Also, note that there is a typo in the README, it has &#60;/port&#62; instead of &#60;/ports&#62;!</para>
+<para>Also, if you are using the ICQ Transport behind a firewall and are experiencing problems with delivery of messages to users within the firewall, you may want to add a &#60;disable-tcp/&#62; tag right after the &#60;prime/&#62; entry, as explained in a <ulink url="http://mailman.jabber.org/pipermail/jadmin/2001-February/000121.html">JADMIN post</ulink> from ICQ Transport developer Schuyler Heath.</para>
+<para>Restart your Jabber server and register with the ICQ transport to test it out. And if you expect to have many people using the ICQ Transport on your Jabber server, make sure you change the &#60;prime/&#62; entry to some number higher than 37!</para> 
+</section>
+<section id="msn"><title>Adding the MSN Transport</title>
+<para>From <ulink url="http://download.jabber.org/dists/1.4/final/">http://download.jabber.org/dists/1.4/final/</ulink>, download msn-transport-1.1.tar.gz to your jabber-1.4/ directory and then do the following:</para>
+<orderedlist>
+<listitem><para>gzip -d msn-transport-1.1.tar.gz</para></listitem>
+<listitem><para>tar -xvf msn-transport-1.1.tar (this will create a msn-transport-1.1/ sub-directory)</para></listitem>
+<listitem><para>cd msn-transport-1.1/</para></listitem>
+<listitem><para>make (for non-GNU systems, see note above about using gmake)</para></listitem>
+</orderedlist>
+<para>The MSN Transport code should now be installed on your system (you'll know if that's the case if you see a msntrans.so file in the msn-transport-1.1/ directory). The next step is to configure your Jabber server to run the MSN Transport, so open jabber.xml once again...</para>
+<para>First let's identify the MSN Transport in the &#60;browse/&#62; section of jabber.xml so that users of your server can discover that you have the MSN Transport installed on your server (of course replacing 'localhost' with the hostname of your Jabber server as you go along). You do this by adding the following line to the &#60;browse/&#62; section of your jabber.xml file:</para>
+<blockquote>
+<para>
+&#60;service type="msn" jid="msn.localhost" name="MSN Transport"&#62;
+  &#60;ns&#62;jabber:iq:gateway&#60;/ns&#62;
+  &#60;ns&#62;jabber:iq:register&#60;/ns&#62;
+&#60;/service&#62;
+</para>
+</blockquote>
+<para>Here again, you need to actually define the service you're offering by adding a &#60;service/&#62; element to jabber.xml (a good place for this would be right after the &#60service/&#62; definition for JUD that we added above).</para>
+<blockquote>
+<para>
+&#60;service id="msn.localhost"&#62;
+  &#60;msntrans xmlns="jabber:config:msntrans"&#62;
+      &#60;instructions&#62;Enter your MSN Messenger account and password. Example: user1@hotmail.com.  Nickname is optional.&#60;/instructions&#62;
+    &#60;vCard&#62;
+      &#60;FN&#62;MSN Transport&#60;/FN&#62;
+      &#60;DESC&#62;This is the MSN Transport&#60;/DESC&#62;
+      &#60;URL&#62;http://localhost/&#60;/URL&#62;
+    &#60;/vCard&#62;
+  &#60;/msntrans&#62;
+  &#60;load&#62;
+    &#60;msntrans&#62;./msn-transport-1.1/msntrans.so&#60;/msntrans&#62;
+  &#60;/load&#62;
+&#60;/service&#62;
+</para>
+</blockquote>
+<para>Restart your Jabber server and register with the MSN transport to test it out.</para> 
+</section>
+<section id="yahoo"><title>Adding the Yahoo Transport</title>
+<para>From <ulink url="http://download.jabber.org/dists/1.4/final/">http://download.jabber.org/dists/1.4/final/</ulink>, download yahoo-transport-0.8-1.4.tar.gz to your jabber-1.4/ directory and then do the following:</para>
+<orderedlist>
+<listitem><para>gzip -d yahoo-transport-0.8-1.4.linux.tar.gz</para></listitem>
+<listitem><para>tar -xvf yahoo-transport-0.8-1.4.linux.tar (this will create a yahoo-transport-0.8-1.4/ sub-directory)</para></listitem>
+<listitem><para>cd yahoo-transport-0.8-1.4/</para></listitem>
+<listitem><para>./configure --with-jabberd=/full/path/to/jabber1.4/ (this seems to work on Red Hat and FreeBSD, but not Debian)</para></listitem>
+<listitem><para>make (for non-GNU systems, see note above about using gmake)</para></listitem>
+</orderedlist>
+<para>The above instructions worked fine for me on RedHat. However, in order to get Yahoo Transport to compile on Debian, I needed to edit jabberd/jabberd.h so that the include statement for pth.h explicitly pointed to pth-1.3.7/pth.h, as so:</para>
+<blockquote>
+<para>#include "pth-1.3.7/pth.h"</para>
+</blockquote>
+<para>I've heard that the Yahoo Transport is difficult to build on Solaris. For Solaris 8 on Intel you might need to add -fPIC to the CFLAGS variable in the Makefile for yahootrans.a and then do 'make'. For Solaris 2.6, 2.7, and 8 on Sparc, you might want to try a pre-built binary I've placed on my website at <ulink url="http://www.saint-andre.com/jabber/yahoo_sol6.tar.gz">http://www.saint-andre.com/jabber/yahoo_sol6.tar.gz</ulink>.</para>
+<para>The Yahoo Transport code should now be installed on your system (you'll know if that's the case if you see a yahootrans.so file in the yahoo-transport-0.8-1.4/src/ directory). The next step is to configure your Jabber server to run the Yahoo Transport, so open jabber.xml once again...</para>
+<para>First let's identify the Yahoo Transport in the &#60;browse/&#62; section of jabber.xml so that users of your server can discover that you have the Yahoo Transport installed on your server (of course replacing 'localhost' with the hostname of your Jabber server as you go along). You do this by adding the following line to the &#60;browse/&#62; section of your jabber.xml file:</para>
+<blockquote>
+<para>
+&#60;service type="yahoo" jid="yahoo.localhost" name="Yahoo Transport"&#62;
+  &#60;ns&#62;jabber:iq:gateway&#60;/ns&#62;
+  &#60;ns&#62;jabber:iq:register&#60;/ns&#62;
+&#60;/service&#62;
+</para>
+</blockquote>
+<para>Here again, you need to actually define the service you're offering by adding a &#60;service/&#62; element to jabber.xml (a good place for this would be right after the &#60service/&#62; definition for JUD that we added above). 
+<blockquote>
+<para>
+&#60;service id="yahoo.localhost"&#62;
+  &#60;load&#62;
+    &#60;yahoo_transport&#62;./yahoo-transport-0.8-1.4/src/yahootrans.so&#60;/yahoo_transport&#62;
+  &#60;/load&#62;
+&#60;/service&#62;
+</para>
+</blockquote>
+<para>Finally, note that in order for the Yahoo transport to work, you will need to make sure that you can connect to the following hosts from your server:</para>
+<itemizedlist>
+<listitem><para>cs.yahoo.com:5050</para></listitem>
+<listitem><para>msg.edit.yahoo.com:80</para></listitem>
+</itemizedlist>
+<para>Restart your Jabber server and register with the Yahoo transport to test it out.</para> 
+</section>
+<section id="separate"><title>Running Services in Separate Processes</title>
+<para>The foregoing discussion assumed that you wanted to run conferencing, JUD, and the transports in the same jabberd process as the main server. While that will get you up and running quickly, you might need a more scalable solution or just want to isolate these services from your core server (e.g., enabling you to stop and start services without stopping the core server). Jabber 1.4 makes this fairly easy by enabling you to run each service in its own process.</para>
+<para>I'll be adding more to this section soon, but for now you might want to look at the XML config files that I'm using on my private Jabber server at jabber.to. I've put these files on the web at <ulink url="http://www.saint-andre.com/jabber/xml/">http://www.saint-andre.com/jabber/xml/</ulink> for your reading pleasure. To run these processes, I first start the main jabberd by typing ./jabberd/jabberd -c multiple.xml and then start up each of the child processes by typing ./jabberd/jabberd -c aimtrans.xml and such.</para>
+<para>More detailed information to follow!</para>
+</section>
+</section>
+<section id="upgrade"><title>Upgrading from Earlier Versions</title>
+<para>To upgrade from any earlier version of jabberd (e.g., 1.4.1), you'll probably want to do the following:</para>
+<orderedlist>
+<listitem><para>Create a tarball of user.xml files from the /path/to/oldjabber/spool/yourhostname/ directory.</para></listitem>
+<listitem><para>Archive your those old files so you have them to fall back on if needed.</para></listitem>
+<listitem><para>Install the 1.4.2 server as described above, copying over your old jabber.xml file for use in the new install.</para></listitem>
+<listitem><para>Move the roster tarball to the /path/to/newjabber/spool/yourhostname/ directory and untar it.</para></listitem>
+</orderedlist>
+<para>That's it!</para>
+</section>
+<section id="assistance"><title>Getting Assistance</title>
+  <para>There are two ways to get help with installation and configuration issues:</para>
+  <itemizedlist>
+    <listitem><para>For real-time assistance, fire up your favorite Jabber client and join the ongoing discussion in the jdev@conference.jabber.org chatroom (i.e., the room is entitled "jdev" and the conferencing service is entitled "conference.jabber.org").</para></listitem>
+    <listitem><para>As recommended above, subscribe to the JADMIN mailing list for Jabber server administrators and send your questions to the list. To subscribe, visit <ulink url="http://mailman.jabber.org/listinfo/jadmin/">http://mailman.jabber.org/listinfo/jadmin/</ulink>.</para></listitem>
+  </itemizedlist>
+  <para>If you have tried those two and cannot get answers there, feel free to contact the author of this document via email or Jabber.</para>
+</section>
+<section id="feedback"><title>Reporting Bugs and Providing Patches</title>
+  <para>If you think you've found a bug in the jabberd server, please report it by sending an email to bugs@jabber.org, and make sure to include detailed information about your platform and the behavior of the server. If you've not only found a bug but have a solution, post your patch and a description of the bug to the jabberd development mailing list: <ulink url="http://jabberd.jabberstudio.org/cgi-bin/mailman/listinfo/jabberd/">http://jabberd.jabberstudio.org/cgi-bin/mailman/listinfo/jabberd/</ulink>.</para>
+</section>
+<section id="acknowledgements"><title>Acknowledgements</title>
+  <para>Thanks are due above all to the Jabber developers who created the jabberd code you're running, especially Jeremie Miller (jer) and Thomas Muldowney (temas).</para>
+  <para>Thanks also to the members of the JADMIN and JDEV mailing lists for their answers to questions posted, and for putting those answers to the test on servers across the Internet.</para>
+</section>
+<section id="references"><title>References</title>
+  <para>The best reference document regarding Jabber is the submission made by the Jabber Software Foundation to the Internet Engineering Task Force in February 2002. This document defines the fundamental protocols and architectures on which all Jabber technologies, including the jabberd server, are based. You can find this document at <ulink url="http://www.jabber.org/ietf/">http://www.jabber.org/ietf/</ulink>.</para>
+  <para>The Jabber IETF submission defines the Jabber protocols as of jabberd 1.2; however, the 1.4 series server includes support for several draft and experimental protocols in addition to those defined in the IETF submission, such as the jabber:iq:browse, jabber:iq:last, and jabber:iq:private namespaces, as well as zero-knowledge authentication. A full list of the features and namespaces supported by jabberd will be forthcoming.</para>
+</section>
+</article>
