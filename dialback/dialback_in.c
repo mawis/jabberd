@@ -82,6 +82,8 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
 
     if(flags != MIO_XML_NODE) return;
 
+    log_debug(ZONE,"dbin read dialback: fd %d packet %s",m->fd, xmlnode2str(x));
+
     /* incoming verification request, check and respond */
     if(j_strcmp(xmlnode_get_name(x),"db:verify") == 0)
     {
@@ -151,11 +153,8 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x)
     char strid[10];
     dbic c;
 
-    if(flags == MIO_NEW)
-    {
-        log_debug(ZONE,"NEW incoming server socket connected at %d",m->fd);
-        return;
-    }
+
+    log_debug(ZONE,"dbin read: fd %d flag %d",m->fd, flags);
 
     if(flags != MIO_XML_ROOT)
         return;
@@ -208,11 +207,13 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x)
 }
 
 /* we take in db:valid packets that have been processed, and expect the to="" to be our name and from="" to be the remote name */
-void dialback_in_validate(db d, xmlnode x)
+void dialback_in_verify(db d, xmlnode x)
 {
     dbic c;
     xmlnode x2;
     jid key;
+
+    log_debug(ZONE,"dbin validate: %s",xmlnode2str(x));
 
     /* check for the stored incoming connection first */
     if((c = ghash_get(d->in_id, xmlnode_get_attrib(x,"id"))) == NULL)

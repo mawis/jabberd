@@ -455,8 +455,7 @@ void _mio_connect(void *arg)
     connect_data cd = (connect_data)arg;
     struct sockaddr_in sa;
     struct in_addr     *saddr;
-    int                fd,
-                       flag = 1,
+    int                flag = 1,
                        flags;
     mio                new;
     pool               p;
@@ -468,15 +467,27 @@ void _mio_connect(void *arg)
 
     bzero((void*)&sa, sizeof(struct sockaddr_in));
 
+    /* create the new mio object, can't call mio_new.. don't want it in select yet */
+    p           = pool_new();
+    new         = pmalloco(p, sizeof(_mio));
+    new->p      = p;
+    new->type   = type_NORMAL;
+    new->state  = state_ACTIVE;
+    new->ip     = pstrdup(p,cd->ip);
+    new->cb     = (void*)cd->cb;
+    new->cb_arg = cd->cb_arg;
+    mio_set_handlers(new, cd->mh);
+
     /* create a socket to connect with */
-    fd = socket(AF_INET, SOCK_STREAM,0);
+    new->fd = socket(AF_INET, SOCK_STREAM,0);
 
     /* set socket options */
-    if(fd < 0 || setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char*)&flag, sizeof(flag)) < 0)
+    if(new->fd < 0 || setsockopt(new->fd, SOL_SOCKET, SO_REUSEADDR, (char*)&flag, sizeof(flag)) < 0)
     {
         if(cd->cb != NULL)
-            (*(mio_std_cb)cd->cb)(NULL, MIO_CLOSED, cd->cb_arg);
+            (*(mio_std_cb)cd->cb)(new, MIO_CLOSED, cd->cb_arg);
         cd->connected = -1;
+        pool_free(p);
         return;
     }
 
@@ -484,26 +495,15 @@ void _mio_connect(void *arg)
     if(saddr == NULL)
     {
         if(cd->cb != NULL)
-            (*(mio_std_cb)cd->cb)(NULL, MIO_CLOSED, cd->cb_arg);
-
+            (*(mio_std_cb)cd->cb)(new, MIO_CLOSED, cd->cb_arg);
         cd->connected = -1;
+        pool_free(p);
         return;
     }
 
     sa.sin_family = AF_INET;
     sa.sin_port = htons(cd->port);
     sa.sin_addr.s_addr = saddr->s_addr;
-
-    /* create the new mio object, can't call mio_new.. don't want it in select yet */
-    p           = pool_new();
-    new         = pmalloco(p, sizeof(_mio));
-    new->p      = p;
-    new->type   = type_NORMAL;
-    new->state  = state_ACTIVE;
-    new->fd     = fd;
-    new->cb     = (void*)cd->cb;
-    new->cb_arg = cd->cb_arg;
-    mio_set_handlers(new, cd->mh);
 
     log_debug(ZONE, "calling the connect handler for mio object %X", new);
     if((*cd->cf)(new, (struct sockaddr*)&sa, sizeof sa) < 0)
@@ -513,13 +513,12 @@ void _mio_connect(void *arg)
         if(errno == EINTR)  /* if we were flaged to stop (taking too long) */
             cleanup = 1; /* we need to clean this up ourselves */
 
-        close(fd);
-
-        pool_free(p);
+        close(new->fd);
 
         if(cd->cb != NULL)
-            (*(mio_std_cb)cd->cb)(NULL, MIO_CLOSED, cd->cb_arg);
+            (*(mio_std_cb)cd->cb)(new, MIO_CLOSED, cd->cb_arg);
 
+        pool_free(p);
         cd->connected = -1;
 
         if(cleanup) /* if we need to cleanup this connection attempt */
@@ -534,13 +533,12 @@ void _mio_connect(void *arg)
     mio_karma(new, KARMA_INIT, KARMA_MAX, KARMA_INC, KARMA_DEC, KARMA_PENALTY, KARMA_RESTORE);
     
     /* set the socket to non-blocking */
-    flags =  fcntl(fd, F_GETFL, 0);
+    flags =  fcntl(new->fd, F_GETFL, 0);
     flags |= O_NONBLOCK;
-    fcntl(fd, F_SETFL, flags);
+    fcntl(new->fd, F_SETFL, flags);
 
     /* add to the select loop */
     _mio_link(new);
-    new->ip = pstrdup(new->p, cd->ip);
     cd->connected = 1; 
 
     /* notify the select loop */

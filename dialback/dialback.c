@@ -79,6 +79,7 @@ char *dialback_merlin(pool p, char *secret, char *to, char *challenge)
     shahash_r(spools(p, res, to, p),        res);
     shahash_r(spools(p, res, challenge, p), res);
 
+    log_debug(ZONE,"merlin casts his spell(%s+%s+%s) %s",secret,to,challenge,res);
     return res;
 }
 
@@ -115,6 +116,7 @@ void _dialback_miod_hash_cleanup(void *arg)
     if(ghash_get(mdc->ht,jid_full(mdc->key)) == mdc->md)
         ghash_remove(mdc->ht,jid_full(mdc->key));
 
+    log_debug(ZONE,"miod cleaning out socket %d with key %s to hash %X",mdc->md->m->fd, jid_full(mdc->key), mdc->ht);
     /* cool place for logging, eh? interesting way of detecting things too, *g* */
     if(mdc->ht == mdc->md->d->out_ok_db){
         log_record(mdc->key->server, "out", "dialback", "%d %s %s", mdc->md->count, mdc->md->m->ip, mdc->key->resource);
@@ -129,6 +131,7 @@ void _dialback_miod_hash_cleanup(void *arg)
 void dialback_miod_hash(miod md, HASHTABLE ht, jid key)
 {
     struct miodc *mdc;
+    log_debug(ZONE,"miod registering socket %d with key %s to hash %X",md->m->fd, jid_full(key), ht);
     mdc = pmalloco(md->m->p,sizeof(struct miodc));
     mdc->md = md;
     mdc->ht = ht;
@@ -155,7 +158,7 @@ result dialback_packets(instance i, dpacket dp, void *arg)
     /* all packets going to our "id" go to the incoming handler, 
      * it uses that id to send out db:verifies to other servers, 
      * and end up here when they bounce */
-    if(j_strcmp(dp->host,d->i->id) == 0)
+    if(j_strcmp(xmlnode_get_attrib(x,"to"),d->i->id) == 0)
     {
         xmlnode_put_attrib(x,"to",xmlnode_get_attrib(x,"ofrom"));
         xmlnode_hide_attrib(x,"ofrom"); /* repair the addresses */
@@ -184,6 +187,7 @@ int _dialback_beat_idle(void *arg, const void *key, void *data)
 result dialback_beat_idle(void *arg)
 {
     db d = (db)arg;
+    log_debug(ZONE,"dialback idle check");
     ghash_walk(d->out_ok_db,_dialback_beat_idle,(void*)time(NULL));
     ghash_walk(d->out_ok_legacy,_dialback_beat_idle,(void*)time(NULL));
     ghash_walk(d->in_ok_db,_dialback_beat_idle,(void*)time(NULL));

@@ -142,7 +142,7 @@ void dialback_out_connection_kill(dboc c)
     while(cur != NULL)
     {
         next = cur->next;
-        deliver_fail(dpacket_new(cur->x),"Server Connect Timeout");
+        deliver_fail(dpacket_new(cur->x),"Server Connect Failed");
         cur = next;
     }
 
@@ -172,6 +172,8 @@ void dialback_out_packet(db d, xmlnode x, char *ip)
         xmlnode_free(x);
         return;
     }
+
+    log_debug(ZONE,"dbout packet[%s]: %s",ip,xmlnode2str(x));
 
     /* db:verify packets come in with us as the sender */
     if(j_strcmp(from->server,d->i->id) == 0)
@@ -293,6 +295,8 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
     xmlnode cur;
     miod md;
 
+    log_debug(ZONE,"dbout read: fd %d flag %d key %s",m->fd, flags, jid_full(c->key));
+
     switch(flags)
     {
     case MIO_NEW:
@@ -310,6 +314,15 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
         if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:server") != 0)
         {
             mio_write(m, NULL, "<stream:error>Invalid Stream Header!</stream:error>", -1);
+            mio_close(m);
+            break;
+        }
+
+        /* make sure we're not connecting to ourselves */
+        if(ghash_get(c->d->in_id,xmlnode_get_attrib(x,"id")) != NULL)
+        {
+            log_alert(c->key->server,"hostname maps back to ourselves!");
+            mio_write(m, NULL, "<stream:error>Mirror Mirror on the wall</stream:error>", -1);
             mio_close(m);
             break;
         }
