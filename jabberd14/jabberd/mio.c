@@ -580,9 +580,13 @@ void _mio_main(void *arg)
     /* the optional local broadcast receiver */
     if(xmlnode_get_tag(greymatter__,"io/announce") != NULL)
     {
-        bcast = make_netsocket(j_atoi(xmlnode_get_tag_data(greymatter__,"io/announce/port"),5222),NULL,NETSOCKET_UDP);
+        bcast = make_netsocket(j_atoi(xmlnode_get_attrib(xmlnode_get_tag(greymatter__,"io/announce"),"port"),5222),NULL,NETSOCKET_UDP);
         if(bcast < 0)
+        {
             log_notice("mio","failed to create network announce handler socket");
+        }else if(bcast > maxfd){
+            maxfd = bcast;
+        }
         log_debug(ZONE,"started announcement handler");
     }
 
@@ -592,7 +596,9 @@ void _mio_main(void *arg)
     {
         rfds = all_rfds;
         wfds = all_wfds;
-log_debug(ZONE,"mio while loop top");
+
+        log_debug(ZONE,"mio while loop top");
+
         /* if we are closing down, exit the loop */
         if(mio__data->shutdown == 1 && mio__data->master__list == NULL)
             break;
@@ -604,7 +610,8 @@ log_debug(ZONE,"mio while loop top");
         retval = pth_select(maxfd+1, &rfds, &wfds, NULL, NULL);
         /* if retval is -1, fd sets are undefined across all platforms */
 
-log_debug(ZONE,"mio while loop, working");
+        log_debug(ZONE,"mio while loop, working");
+
         /* reset maxfd, in case it changes */
         maxfd=mio__data->zzz[0];
 
@@ -617,8 +624,20 @@ log_debug(ZONE,"mio while loop, working");
         /* check our pending announcements */
         if(bcast > 0 && FD_ISSET(bcast,&rfds))
         {
-            len = pth_read(bcast,buf,8192);
-            log_debug(ZONE,"ANNOUNCER: received some data! %d: %s",len,buf);
+            struct sockaddr_in remote_addr;
+            int addrlen = sizeof(remote_addr);
+            xmlnode curx;
+            curx = xmlnode_get_firstchild(xmlnode_get_tag(greymatter__,"io/announce"));
+            len = pth_recvfrom(bcast,buf,8192,0,(struct sockaddr*)&remote_addr,&addrlen);
+            log_debug(ZONE,"ANNOUNCER: received some data from %s: %.*s",inet_ntoa(remote_addr.sin_addr),len,buf);
+            /* sending our data out */
+            for(; curx != NULL; curx = xmlnode_get_nextsibling(curx))
+            {
+                if(xmlnode_get_type(curx) != NTYPE_TAG) continue;
+                len = snprintf(buf,8192,"%s",xmlnode2str(curx));
+                log_debug(ZONE,"announcement packet: %.*s",len,buf);
+                pth_sendto(bcast,buf,len,0,(struct sockaddr*)&remote_addr,addrlen);
+            }
         }
 
         /* loop through the sockets, check for stuff to do */
