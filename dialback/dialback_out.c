@@ -682,7 +682,8 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
             }
             /* something went wrong, we were invalid? */
             log_alert(c->d->i->id,"We were told by %s that our sending name %s is invalid, either something went wrong on their end, we tried using that name improperly, or dns does not resolve to us",c->key->server,c->key->resource);
-            mio_write(m, NULL, "<stream:error><remote-connection-failed xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>I guess we're trying to use the wrong name, sorry</text></stream:error>", -1);
+	    /* close the stream (in former times we sent a stream error, but I think we shouldn't. There is stream fault by the other entity!) */ 
+            mio_write(m, NULL, "</stream:stream>", -1);
             mio_close(m);
             break;
         }
