@@ -31,7 +31,7 @@ mreturn mod_auth_plain(mapi m, void *arg)
 
     /* make sure we can get the auth packet and that it contains a password */
     xdb = xdb_get(m->si->xc, m->user->id->server, m->user->id, NS_AUTH);
-    if(xdb == NULL || (passB = xmlnode_get_data(xdb_get(m->si->xc, m->user->id->server, m->user->id, NS_AUTH))) == NULL)
+    if(xdb == NULL || (passB = xmlnode_get_data(xdb)) == NULL)
     {
         xmlnode_free(xdb);
         return M_PASS;
