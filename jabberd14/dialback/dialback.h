@@ -39,31 +39,37 @@
  * 
  * --------------------------------------------------------------------------*/
 
+/**
+ * @file dialback.h
+ * @brief header for the dialback implementation
+ */
+
 #include <jabberd.h>
 
-/* s2s instance */
+/** s2s instance */
 typedef struct db_struct
 {
-    instance i;
-    xht nscache; /* host/ip local resolution cache */
-    xht out_connecting; /* where unvalidated in-progress connections are, key is to/from */
-    xht out_ok_db; /* hash table of all connected dialback hosts, key is same to/from */
-    xht out_ok_legacy; /* hash table of all connected legacy hosts, key is same to/from */
-    xht in_id; /* all the incoming connections waiting to be checked, rand id attrib is key */
-    xht in_ok_db; /* all the incoming dialback connections that are ok, ID@to/from is key  */
-    xht in_ok_legacy; /* all the incoming legacy connections that are ok, ID@to is key */
-    char *secret; /* our dialback secret */
-    int legacy; /* flag to allow old servers */
-    int timeout_packets;
-    int timeout_idle;
+    instance i;		/**< data jabberd hold for each instance */
+    xht nscache;	/**< host/ip local resolution cache */
+    xht out_connecting;	/**< where unvalidated in-progress connections are, key is to/from */
+    xht out_ok_db;	/**< hash table of all connected dialback hosts, key is same to/from */
+    xht out_ok_legacy;	/**< hash table of all connected legacy hosts, key is same to/from */
+    xht in_id;		/**< all the incoming connections waiting to be checked, rand id attrib is key */
+    xht in_ok_db;	/**< all the incoming dialback connections that are ok, ID@to/from is key */
+    xht in_ok_legacy;	/**< all the incoming legacy connections that are ok, ID@to is key */
+    char *secret;	/**< our dialback secret */
+    int legacy;		/**< flag to allow old servers */
+    int timeout_packets;/**< configuration option <queuetimeout/> */
+    int timeout_idle;	/**< configuration option <idletimeout/> */
 } *db, _db;
 
-/* wrap an mio and track the idle time of it */
+/** wrap an mio and track the idle time of it */
 typedef struct miod_struct
 {
-    mio m;
-    int last, count;
-    db d;
+    mio m;		/**< the mio connection */
+    int last;		/**< last time this connection has been used */
+    int count;		/**< number of sent stanzas on the connection */
+    db d;		/**< the dialback instance */
 } *miod, _miod;
 
 void dialback_out_packet(db d, xmlnode x, char *ip);

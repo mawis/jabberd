@@ -39,22 +39,29 @@
  * 
  * --------------------------------------------------------------------------*/
 
+/**
+ * @file dialback_out.c
+ * @brief handle outgoing server to server connections
+ *
+ * This is where the server to server connection manager handles outgoing connections.
+ *
+ * There might be two types of outgoing connections:
+ * - We want to send stanzas to the user of an other server, we then have to
+ *   convince the peer, that we are who we claim to be (using dialback)
+ * - We want to verify the identity of a peer that connected to us, using the
+ *   dialback protocol. (We might reuse an outgoing connection of the other type
+ *   if there is already one.)
+ *
+ * On outgoing connections, we need to send:
+ * - An initial db:result element to tell the peer, that we want to authorize for
+ *   the use of a domain, that the peer should verify that we are allowed to use
+ *   this sending domain - and watch for the results to this
+ * - db:verify elements to verify if a peer is allowed to use a domain as
+ *   sender - and watch for the results
+ * - After we are authorized by the peer to send stanzas from a domain, we send them.
+ * - The starttls command, if the peer and we are supporting TLS.
+ */
 #include "dialback.h"
-
-/* 
-On outgoing connections, we need to send a result and any verifies, and watch for their responses 
-
-We'll send:
-    <db:result to=B from=A>...</db:result>
-We'll get back:
-    <db:result type="valid" to=A from=B/>
-
-We'll send:
-    <db:verify to=B from=A id=asdf>...</db:verify>
-We'll get back:
-    <db:verify type="valid" to=A from=B id=asdf/>
-
-*/
 
 /* simple queue for out_queue */
 typedef struct dboq_struct
@@ -65,24 +72,35 @@ typedef struct dboq_struct
 } *dboq, _dboq;
 
 /* for connecting db sockets */
+/**
+ * structure holding information about an outgoing connection
+ */
 typedef struct
 {
-    char *ip;
-    int stamp;
-    db d;
-    jid key;
-    xmlnode verifies;
-    pool p;
-    dboq q;
-    mio m; /* for that short time when we're connected and open, but haven't auth'd ourselves yet */
-    int xmpp_version;
-    int xmpp_no_tls;
-    xmlnode outstanding_db;
+    char *ip;	/**< where to connect to (list of comma separated addresses of the format [ip]:port, [ip], ip:port, or ip) */
+    int stamp;	/**< when we started to connect to this peer */
+    db d;	/**< our dialback instance */
+    jid key;	/**< destination and source for this connection, format: dest/src */
+    xmlnode verifies; /**< waiting db:verify elements we have to send to the peer */
+    pool p;	/**< memory pool we are using for this connections data */
+    dboq q;	/**< pending stanzas, that need to be sent to the peer */
+    mio m;	/**< the mio connection this outgoing stream is using */
+    		/* original comment: for that short time when we're connected and open, but haven't auth'd ourselves yet */
+    int xmpp_version; /**< 0 if no version should be advertized, 1 if XMPP 1.0 should be advertized */
+    int xmpp_no_tls; /**< 0 if starting TLS is allowed, 1 if TLS should not be established */
+    xmlnode outstanding_db; /**< if we establish a XMPP 1.0 stream, we have to wait until we received the stream:features before we can send the db:result element, here we store this xmlnode in the meantime */
 } *dboc, _dboc;
 
+/* forward declaration */
 void dialback_out_read(mio m, int flags, void *arg, xmlnode x);
 
-/* try to start a connection based upon this connect object */
+/**
+ * try to start a connection based upon a given connect object
+ *
+ * Tell mio to connect to the peer and make dialback_out_read() the first mio handler
+ *
+ * @param c the connect object
+ */
 void dialback_out_connect(dboc c)
 {
     char *ip, *col;
@@ -137,7 +155,14 @@ void dialback_out_connect(dboc c)
     mio_connect(ip, port, dialback_out_read, (void *)c, 20, MIO_CONNECT_XML);
 }
 
-/* new connection object */
+/**
+ * make a new outgoing connect(ion) object, and start to connect to the peer
+ *
+ * @param d the dialback instance
+ * @param key destination and source for this connection
+ * @param ip where to connect to (format see description to the _dboc structure)
+ * @return the newly created object
+ */
 dboc dialback_out_connection(db d, jid key, char *ip)
 {
     dboc c;
@@ -170,7 +195,13 @@ dboc dialback_out_connection(db d, jid key, char *ip)
     return c;
 }
 
-/* either we're connected, or failed, or something like that, but the connection process is kaput */
+/**
+ * handle failed connection attempts, bounce pending stanzas and db:verify elements
+ *
+ * either we're connected, or failed, or something like that, but the connection process is kaput
+ *
+ * @param c the outgoing connect that failed
+ */
 void dialback_out_connection_cleanup(dboc c)
 {
     dboq cur, next;
@@ -180,14 +211,14 @@ void dialback_out_connection_cleanup(dboc c)
 
     /* if there was never any ->m set but there's a queue yet, then we probably never got connected, just make a note of it */
     if(c->m == NULL && c->q != NULL)
-        log_notice(c->key->server,"failed to establish connection");
+	log_notice(c->d->i->id, "failed to establish connection to %s", c->key->server);
 
     /* if there's any packets in the queue, flush them! */
     cur = c->q;
     while(cur != NULL)
     {
         next = cur->next;
-        deliver_fail(dpacket_new(cur->x),"Server Connect Failed");
+        deliver_fail(dpacket_new(cur->x), c->m == NULL ? "Could not connect to server" : "Could not authorize with server");
         cur = next;
     }
 
@@ -201,7 +232,20 @@ void dialback_out_connection_cleanup(dboc c)
     pool_free(c->p);
 }
 
-
+/**
+ * handle packets we receive from our router for other hosts
+ *
+ * (packets to our instances address are not handled here, but in dialback_in_verify())
+ *
+ * We have to:
+ * - revert some magic we are using to talk to the dns resolver for db:verify packets
+ * - check if there is already a connection and establish one else
+ * - send or queue the packet (depending if we already authorized and if it's a db:verify)
+ *
+ * @param d the dialback instance
+ * @param x the packet
+ * @param ip where to connect to (if necessary)
+ */
 void dialback_out_packet(db d, xmlnode x, char *ip)
 {
     jid to, from, key;
@@ -226,6 +270,7 @@ void dialback_out_packet(db d, xmlnode x, char *ip)
     {
         verify = 1;
         /* fix the headers, restore the real from */
+	/* (I think we wouldn't need to from/ofrom thing anymore because we have dnsqueryby, that we need for s2s clustering) */
         xmlnode_put_attrib(x,"from",xmlnode_get_attrib(x,"ofrom"));
         xmlnode_hide_attrib(x,"ofrom");
 	xmlnode_hide_attrib(x,"dnsqueryby");
@@ -294,7 +339,16 @@ void dialback_out_packet(db d, xmlnode x, char *ip)
 }
 
 
-/* handle the events on an outgoing dialback socket, which isn't much of a job */
+/**
+ * handle the events (incoming stanzas) on an outgoing dialback socket, which isn't much of a job
+ *
+ * The only packets we have to expect on an outgoing dialback socket are db:verify and maybe stream:error
+ *
+ * @param m the connection the packet has been received on
+ * @param flags the mio action, we ignore anything but MIO_XML_NODE
+ * @param arg the dialback instance
+ * @param the packet that has been received
+ */
 void dialback_out_read_db(mio m, int flags, void *arg, xmlnode x)
 {
     db d = (db)arg;
@@ -310,7 +364,7 @@ void dialback_out_read_db(mio m, int flags, void *arg, xmlnode x)
 
     if(j_strcmp(xmlnode_get_name(x),"stream:error") == 0)
     {
-        log_debug2(ZONE, LOGT_IO, "reveived stream error: %s",xmlnode_get_data(x));
+        log_notice(d->i->id, "reveived stream error on db conn: %s",xmlnode_get_data(x));
     }else{
         mio_write(m, NULL, "<stream:error><undefined-condition xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Received data on a send-only socket. You are not Allowed to send data on this socket!</text></stream:error>", -1);
     }
@@ -319,15 +373,24 @@ void dialback_out_read_db(mio m, int flags, void *arg, xmlnode x)
     xmlnode_free(x);
 }
 
-/* handle the events on an outgoing legacy socket, in other words, nothing */
+/**
+ * handle the events on an outgoing legacy socket, in other words, nothing
+ *
+ * @param m the connection the packet has been received on
+ * @param flags the mio action, we ignore anything but MIO_XML_NODE
+ * @param arg the dialback instance
+ * @param the packet that has been received
+ */
 void dialback_out_read_legacy(mio m, int flags, void *arg, xmlnode x)
 {
+    db d = (db)arg;
+
     if(flags != MIO_XML_NODE) return;
 
     /* other data on the stream? naughty you! */
     if(j_strcmp(xmlnode_get_name(x),"stream:error") == 0)
     {
-        log_debug2(ZONE, LOGT_IO, "reveived stream error: %s",xmlnode_get_data(x));
+        log_notice(d->i->id, "reveived stream error on legacy conn: %s",xmlnode_get_data(x));
     }else{
         mio_write(m, NULL, "<stream:error><undefined-condition xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Received data on a send-only socket. You are not Allowed to send data on this socket!</text></stream:error>", -1);
     }
@@ -336,7 +399,14 @@ void dialback_out_read_legacy(mio m, int flags, void *arg, xmlnode x)
     xmlnode_free(x);
 }
 
-/* util to flush queue to mio */
+/**
+ * util to flush queue to mio
+ *
+ * Take elements from the queue and send it to a miod connection.
+ *
+ * @param md the miod connection
+ * @param q the queue to flush
+ */
 void dialback_out_qflush(miod md, dboq q)
 {
     dboq cur, next;
@@ -350,7 +420,17 @@ void dialback_out_qflush(miod md, dboq q)
     }
 }
 
-/* handle the early connection process */
+/**
+ * handle the early connection process
+ *
+ * What to do:
+ * - Send stream header after mio connected a socket for us
+ * - Process the incoming stream header
+ * - Check for incoming stream:features
+ * - Generate db:result queries to start authorizing for a domain
+ * - Process incoming db:verify queries
+ * - Process incoming db:result responses (flush/send queue of waiting stanzas)
+ */
 void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 {
     dboc c = (dboc)arg;
@@ -578,7 +658,16 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
     xmlnode_free(x);
 }
 
-/* callback for walking the connecting hash tree */
+/**
+ * callback for walking the connecting hash tree: timing out connections that did not get
+ * authorized in time (default is 30 seconds, can be configured with <queuetimeout/> in
+ * the configuration file)
+ *
+ * @param h the hash containing all pending connections
+ * @param key destination/source address
+ * @param data the dboc
+ * @param arg unused/ignored
+ */
 void _dialback_out_beat_packets(xht h, const char *key, void *data, void *arg)
 {
     dboc c = (dboc)data;
@@ -607,6 +696,12 @@ void _dialback_out_beat_packets(xht h, const char *key, void *data, void *arg)
     }
 }
 
+/**
+ * start walking the connection hash tree, to see if connections dig not get authorizsed in time
+ *
+ * @param db the dialback instance
+ * @return allways r_DONE
+ */
 result dialback_out_beat_packets(void *arg)
 {
     db d = (db)arg;
