@@ -1063,6 +1063,9 @@ void mio_init(void)
         /* start main accept/read/write thread */
         attr = pth_attr_new();
         pth_attr_set(attr,PTH_ATTR_JOINABLE,FALSE);
+#ifdef __CYGWIN__
+        pth_attr_set(attr,PTH_ATTR_STACK_SIZE, 128*1024);
+#endif
         mio__data->t=pth_spawn(attr,(void*)_mio_main,NULL);
         pth_attr_destroy(attr);
 
