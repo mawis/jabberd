@@ -69,4 +69,8 @@
     </accept>
   </service>
 
+  <service id="server connections">
+    <host/>
+    <load>/usr/local/lib/jabber/mod_s2s.so</load>
+  </service>
 </jabber>

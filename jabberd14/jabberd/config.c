@@ -4,6 +4,7 @@ xmlnode greymatter__ = NULL;
 
 int configurate(char *file)
 {
+    /* XXX-temas:  do this one */
     /* CONFIGXML is the default name for the config file - defined by the build system */
     char def[] = CONFIGXML;
     char *realfile = (char *)def;
@@ -82,6 +83,8 @@ int configo(int exec)
 
         type = p_NONE;
 
+        /* XXX-temas:  are these the only available types?  If not do we want
+         * this in the configure stuff as well? */
         if(strcmp(xmlnode_get_name(curx),"log") == 0)
             type = p_LOG;
         if(strcmp(xmlnode_get_name(curx),"xdb") == 0)
