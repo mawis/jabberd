@@ -63,7 +63,7 @@
  */
 #include "dialback.h"
 
-/* simple queue for out_queue */
+/** simple queue for out_queue */
 typedef struct dboq_struct
 {
     int stamp;
@@ -71,12 +71,21 @@ typedef struct dboq_struct
     struct dboq_struct *next;
 } *dboq, _dboq;
 
+/**
+ * enumeration of dialback request states an outgoing connection can have
+ */
+typedef enum {
+    not_requested,	/**< there was no packet yet, for that we want to request doing dialback (just sending db:verifys), and we could not yet send them  */
+    could_request,	/**< there was no packet yet, that requested doing dialback, but we could send out dialback requests */
+    want_request,	/**< we want to send a dialback request */
+    sent_request	/**< we did sent a dialback request */
+} db_request;
+
 /* for connecting db sockets */
 /**
  * structure holding information about an outgoing connection
  */
-typedef struct
-{
+typedef struct {
     char *ip;	/**< where to connect to (list of comma separated addresses of the format [ip]:port, [ip], ip:port, or ip) */
     int stamp;	/**< when we started to connect to this peer */
     db d;	/**< our dialback instance */
@@ -88,7 +97,8 @@ typedef struct
     		/* original comment: for that short time when we're connected and open, but haven't auth'd ourselves yet */
     int xmpp_version; /**< 0 if no version should be advertized, 1 if XMPP 1.0 should be advertized */
     int xmpp_no_tls; /**< 0 if starting TLS is allowed, 1 if TLS should not be established */
-    xmlnode outstanding_db; /**< if we establish a XMPP 1.0 stream, we have to wait until we received the stream:features before we can send the db:result element, here we store this xmlnode in the meantime */
+    char *stream_id; /**< the stream id the connected entity assigned */
+    db_request db_state; /**< if we want to send a <db:result/> and if we already did */
 } *dboc, _dboc;
 
 /* forward declaration */
@@ -161,15 +171,32 @@ void dialback_out_connect(dboc c)
  * @param d the dialback instance
  * @param key destination and source for this connection
  * @param ip where to connect to (format see description to the _dboc structure)
+ * @param db_state if sending a <db:result/> is requested
  * @return the newly created object
  */
-dboc dialback_out_connection(db d, jid key, char *ip)
-{
+dboc dialback_out_connection(db d, jid key, char *ip, db_request db_state) {
     dboc c;
     pool p;
 
-    if((c = xhash_get(d->out_connecting, jid_full(key))) != NULL)
+    if((c = xhash_get(d->out_connecting, jid_full(key))) != NULL) {
+	/* db:request now wanted? */
+	if (db_state == want_request) {
+	    if (c->db_state == not_requested) {
+		log_debug2(ZONE, LOGT_IO, "packet for existing connection: state change not_requested -> want_request");
+		c->db_state = want_request;
+	    } else if (c->db_state == could_request) {
+		/* send <db:result/> to request dialback */
+		xmlnode db_result = xmlnode_new_tag("db:result");
+		xmlnode_put_attrib(db_result, "to", c->key->server);
+		xmlnode_put_attrib(db_result, "from", c->key->resource);
+		xmlnode_insert_cdata(db_result,  dialback_merlin(xmlnode_pool(db_result), c->d->secret, c->key->server, c->stream_id), -1);
+		mio_write(c->m,db_result, NULL, 0);
+		c->db_state = sent_request;
+		log_debug2(ZONE, LOGT_IO, "packet for existing connection: state change could_request -> sent_request");
+	    }
+	}
         return c;
+    }
 
     if(ip == NULL)
         return NULL;
@@ -185,6 +212,7 @@ dboc dialback_out_connection(db d, jid key, char *ip)
     c->ip = pstrdup(p,ip);
     /* XXX add config option, to disable XMPP for configured hosts */
     c->xmpp_version = 1;
+    c->db_state = db_state;
 
     /* insert in the hash */
     xhash_put(d->out_connecting, jid_full(c->key), (void *)c);
@@ -297,7 +325,8 @@ void dialback_out_packet(db d, xmlnode x, char *ip)
     }
 
     /* get a connection to the other server */
-    c = dialback_out_connection(d, key, dialback_ip_get(d, key, ip));
+    c = dialback_out_connection(d, key, dialback_ip_get(d, key, ip), verify ? not_requested : want_request);
+    log_debug2(ZONE, LOGT_IO, "got connection %x for request %s (%s)", c, jid_full(key), verify ? "not_requested" : "want_request");
 
     /* verify requests can't be queued, they need to be sent outright */
     if(verify)
@@ -421,6 +450,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 
         /* outgoing conneciton, write the header */
         cur = xstream_header("jabber:server", c->key->server, NULL);
+	xmlnode_hide_attrib(cur, "id");					/* no, we don't need the id on this stream */
         xmlnode_put_attrib(cur,"xmlns:db","jabber:server:dialback");	/* flag ourselves as dialback capable */
 	if (c->xmpp_version == 1) {					/* should we flag XMPP support? */
 	    xmlnode_put_attrib(cur, "version", "1.0");
@@ -432,15 +462,22 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
     case MIO_XML_ROOT:
         log_debug2(ZONE, LOGT_IO, "Incoming root %s",xmlnode2str(x));
         /* validate namespace */
-        if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:server") != 0)
-        {
+        if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:server") != 0) {
             mio_write(m, NULL, "<stream:error><invalid-namespace xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Invalid Stream Header!</text></stream:error>", -1);
             mio_close(m);
             break;
         }
 
+	/* remember the stream id the connected entity assigned ... required to do dialback */
+	c->stream_id = pstrdup(c->p, xmlnode_get_attrib(x,"id"));
+	if (c->stream_id == NULL) {
+            mio_write(m, NULL, "<stream:error><invalid-id xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>You are missing the id attribute in your stream header!</text></stream:error>", -1);
+            mio_close(m);
+            break;
+	}
+
         /* make sure we're not connecting to ourselves */
-        if(xhash_get(c->d->in_id,xmlnode_get_attrib(x,"id")) != NULL)
+        if(xhash_get(c->d->in_id,c->stream_id) != NULL)
         {
             log_alert(c->key->server,"hostname maps back to ourselves!- No service defined for this hostname, can not handle request. Check jabberd configuration.");
             mio_write(m, NULL, "<stream:error><internal-server-error xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Mirror Mirror on the wall (we connected to ourself)</text></stream:error>", -1);
@@ -469,15 +506,21 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 	    break;
 	}
 
-        /* create and send our result request to initiate dialback */
-        cur = xmlnode_new_tag("db:result");
-        xmlnode_put_attrib(cur, "to", c->key->server);
-        xmlnode_put_attrib(cur, "from", c->key->resource);
-        xmlnode_insert_cdata(cur,  dialback_merlin(xmlnode_pool(cur), c->d->secret, c->key->server, xmlnode_get_attrib(x,"id")), -1);
-	if (version && c->outstanding_db == NULL) {
-	    c->outstanding_db = cur;
-	} else {
-	    mio_write(m,cur, NULL, 0);
+        /* create and send our result request to initiate dialback for non XMPP-sessions (XMPP has to wait for stream features) */
+	if (version < 1) {
+	    log_debug2(ZONE, LOGT_IO, "pre-XMPP stream could now send <db:result/>");
+	    if (c->db_state == want_request) {
+		cur = xmlnode_new_tag("db:result");
+		xmlnode_put_attrib(cur, "to", c->key->server);
+		xmlnode_put_attrib(cur, "from", c->key->resource);
+		xmlnode_insert_cdata(cur,  dialback_merlin(xmlnode_pool(cur), c->d->secret, c->key->server, c->stream_id), -1);
+		mio_write(m,cur, NULL, 0);
+		c->db_state = sent_request;
+		log_debug2(ZONE, LOGT_IO, "... and we wanted ... and we sent <db:result/>");
+	    } else if (c->db_state == not_requested) {
+		c->db_state = could_request;
+		log_debug2(ZONE, LOGT_IO, "... but we didn't want yet");
+	    }
 	}
 
         /* well, we're connected to a dialback server, we can at least send verify requests now */
@@ -491,6 +534,12 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 
         break;
     case MIO_XML_NODE:
+	/* watch for stream errors */
+	if (j_strcmp(xmlnode_get_name(x), "stream:error") == 0) {
+	    log_warn(c->d->i->id, "Got a stream error on stream %s (%s / %i): %s", c->stream_id, jid_full(c->key), c->xmpp_version, xmlnode2str(x));
+	    mio_close(m);
+	    break;
+	}
 	/* watch for stream:features */
 	if (j_strcmp(xmlnode_get_name(x), "stream:features") == 0) {
 #ifdef HAVE_SSL
@@ -517,10 +566,19 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 	    }
 #endif /* HAVE_SSL */
 
-	    /* no stream:feature we'd like to use, we can now send the outstanding db:result */
-	    if (c->outstanding_db) {
-		mio_write(m, c->outstanding_db, NULL, 0);
-		c->outstanding_db = NULL;
+	    /* no stream:feature we'd like to use, we can now send the outstanding db:result - or we could, if we did not want */
+	    log_debug2(ZONE, LOGT_IO, "XMPP-stream: we could now send <db:result/>s");
+	    if (c->db_state == want_request) {
+		cur = xmlnode_new_tag("db:result");
+		xmlnode_put_attrib(cur, "to", c->key->server);
+		xmlnode_put_attrib(cur, "from", c->key->resource);
+		xmlnode_insert_cdata(cur,  dialback_merlin(xmlnode_pool(cur), c->d->secret, c->key->server, c->stream_id), -1);
+		mio_write(m,cur, NULL, 0);
+		c->db_state = sent_request;
+		log_debug2(ZONE, LOGT_IO, "... and we wanted ... and we did sent a <db:result/>");
+	    } else if (c->db_state == not_requested) {
+		c->db_state = could_request;
+		log_debug2(ZONE, LOGT_IO, "... but we did not want to");
 	    }
 
 	    /* and we can send the verify requests */
@@ -541,12 +599,6 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 		/* starting tls failed */
 		log_warn(c->d->i->id, "Starting TLS on an outgoing s2s to %s failed on our side (%s).", c->key->server, c->key->resource);
 		mio_close(m);
-	    }
-
-	    /* forget outstanding <db:result/>, stream state is reset */
-	    if (c->outstanding_db != NULL) {
-		xmlnode_free(c->outstanding_db);
-		c->outstanding_db = NULL;
 	    }
 
 	    /* send stream header again */

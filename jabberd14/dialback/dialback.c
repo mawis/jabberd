@@ -279,6 +279,8 @@ void dialback_ip_set(db d, jid host, char *ip)
 /**
  * phandler callback, send packets to another server
  *
+ * This is where the dialback instance receives packets from the jabberd framework
+ *
  * @param i the dialback instance we are running in
  * @param dp the dialback packet
  * @param arg pointer to the db structure with the context of the dialback component instance
@@ -416,7 +418,7 @@ void dialback(instance i, xmlnode x)
          set_karma = 1; /* set to true */
     }
 
-    if((cur = xmlnode_get_tag(cfg,"ip")) != NULL)
+    if((cur = xmlnode_get_tag(cfg,"ip")) != NULL) {
         for(;cur != NULL; xmlnode_hide(cur), cur = xmlnode_get_tag(cfg,"ip"))
         {
             mio m;
@@ -428,8 +430,8 @@ void dialback(instance i, xmlnode x)
             /* Set New karma values */
             if(set_karma == 1) mio_karma2(m, &k);
         }
-    else /* no special config, use defaults */
-    {
+    } else {
+	/* no special config, use defaults */
         mio m;
         m = mio_listen(5269,NULL,dialback_in_read,(void*)d, MIO_LISTEN_XML);
         if(m == NULL) return;
