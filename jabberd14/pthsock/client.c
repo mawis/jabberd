@@ -53,7 +53,6 @@ typedef struct cdata_st
     time_t connect_time;
     void *arg;
     pth_msgport_t pre_auth_mp;
-    struct cdata_st *next;
 } _cdata,*cdata;
 
 xmlnode pthsock_make_route(xmlnode x,char *to,char *from,char *type)
@@ -67,29 +66,6 @@ xmlnode pthsock_make_route(xmlnode x,char *to,char *from,char *type)
     if(to!=NULL) xmlnode_put_attrib(new,"to",to);
     if(from!=NULL) xmlnode_put_attrib(new,"from",from);
     return new;
-}
-
-void pthsock_client_close(sock c)
-{
-    xmlnode x;
-    cdata cd=(cdata)c->arg;
-    if(cd->state==state_AUTHD)
-    {
-        x=pthsock_make_route(NULL,jid_full(cd->host),cd->id,"error");
-        deliver(dpacket_new(x),((smi)cd->i)->i);
-    }
-    else
-    {
-        wbq q;
-        if(cd->pre_auth_mp!=NULL)
-        { /* if there is a pre_auth queue still */
-            while((q=(wbq)pth_msgport_get(cd->pre_auth_mp))!=NULL)
-                xmlnode_free(q->x);
-            pth_msgport_destroy(cd->pre_auth_mp);
-        } 
-    }
-    log_debug(ZONE,"asking socket to close");
-    io_close(c);
 }
 
 result pthsock_client_packets(instance id, dpacket p, void *arg)
@@ -138,7 +114,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
         xmlnode x=xmlnode_new_tag("stream:error");
         xmlnode_insert_cdata(x,"Disconnected",-1);
         io_write(cur,x);
-        pthsock_client_close(cur);
+        io_close(cur);
         xmlnode_free(p->x);
         return r_DONE;
     }
@@ -253,7 +229,13 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         }
         else
         {   /* normal delivery of packets after authed */
-            x=pthsock_make_route(x,jid_full(cd->host),cd->id,NULL);
+            xmlnode q=xmlnode_get_tag(x,"query");
+            if(q!=NULL&&NSCHECK(q,NS_REGISTER))
+                x=pthsock_make_route(x,jid_full(cd->host),cd->id,"auth");
+            else if(q!=NULL&&NSCHECK(q,NS_AUTH))
+                x=pthsock_make_route(x,jid_full(cd->host),cd->id,"auth");
+            else
+                x=pthsock_make_route(x,jid_full(cd->host),cd->id,NULL);
             deliver(dpacket_new(x),((smi)cd->i)->i);
         }
         break;
@@ -264,7 +246,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         io_write(c,h);
     case XSTREAM_CLOSE:
         log_debug(ZONE,"closing XSTREAM");
-        pthsock_client_close(c);
+        io_close(c);
         xmlnode_free(x);
     }
 }
@@ -323,6 +305,16 @@ void pthsock_client_read(sock c,char *buffer,int bufsz,int flags,void *arg)
         {
             x=pthsock_make_route(NULL,jid_full(cd->host),cd->id,"error");
             deliver(dpacket_new(x),((smi)cd->i)->i);
+        }
+        else
+        {
+            wbq q;
+            if(cd->pre_auth_mp!=NULL)
+            { /* if there is a pre_auth queue still */
+                while((q=(wbq)pth_msgport_get(cd->pre_auth_mp))!=NULL)
+                    xmlnode_free(q->x);
+                pth_msgport_destroy(cd->pre_auth_mp);
+            } 
         }
         break;
     case IO_ERROR:

@@ -175,6 +175,7 @@ void pthsock_server_read(sock c,char *buffer,int bufsz,int flags,void *arg)
             xmlnode x=xstream_header("jabber:server",sd->to,NULL);
             /* notify jabberd's deliver to send us */
             /* packets to this host                */
+            log_debug(ZONE,"Created outgoing socket type: %d",c->type);
             register_instance(si->i,sd->to);
             sd->arg=(void*)c;
             io_write_str(c,xstream_header_char(x));
@@ -240,6 +241,7 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
         dp->x=xmlnode_get_firstchild(dp->x);
     else if(dp->type==p_ROUTE)
     { /* bad route packet */
+        log_notice(si->i->id,"Dropping Invalid Incoming packet: %s",xmlnode2str(dp->x));
         xmlnode_free(dp->x);
         return r_DONE;
     }
@@ -273,8 +275,8 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
 
     sd = ghash_get(si->out_tab,to->server);
 
-    if (sd != NULL)
-        if (sd->type == conn_CLOSED)
+    if (sd != NULL) /* make sure we found a valid outgoing socket */
+        if (sd->type!=conn_OUT||sd->arg==NULL||((sock)sd->arg)->state!=state_ACTIVE)
             sd = NULL;
 
     q=pmalloco(dp->p,sizeof(_wbq));

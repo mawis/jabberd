@@ -236,7 +236,6 @@ sock _io_accept(sock s)
     c->type=type_NORMAL;
     c->cb=s->cb;
     c->cb_arg=s->cb_arg;
-    io_link(c);
     c->p = p;
     return c;
 }
@@ -299,6 +298,7 @@ void _io_main(void *arg)
                 if(c!=NULL) 
                 {
                     (*(io_cb)c->cb)(c,NULL,0,IO_NEW,c->cb_arg);
+                    io_link(c);
                     FD_SET(c->fd,&all_rfds);           
                     if(c->fd>maxfd)maxfd=c->fd;
                 }
@@ -468,8 +468,8 @@ void _io_select_connect(void *arg)
         pth_yield(NULL);
     }
 
-    io_link(c);
     (*(io_cb)c->cb)(c,NULL,0,IO_NEW,c->cb_arg);
+    io_link(c); /* link after we call new, to avoid race conditions */
     /* notify the select loop */
     pth_raise(io__data->t,SIGUSR2);
 }
