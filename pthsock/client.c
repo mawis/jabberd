@@ -114,6 +114,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
             deliver(dpacket_new(p->x), s__i->i);
         } else {
             xmlnode_free(p->x);
+        }
         return r_DONE;
     }
 
@@ -192,7 +193,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     }
 
 
-    if(xmlnode_get_firstchild(p->x) == NULL || hash_get(s__i->users, xmlnode_get_attrib(p->x, "to")) == NULL)
+    if(xmlnode_get_firstchild(p->x) == NULL || ghash_get(s__i->users, xmlnode_get_attrib(p->x, "to")) == NULL)
     {
         xmlnode_free(p->x);
     }
