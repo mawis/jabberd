@@ -1,13 +1,10 @@
+#
+# Ok this is taken from an automaked file and tweaked out
+#
 CC=gcc
 DEFINES=-DCONFIGXML="\"jabber.xml\""
 CFLAGS=-fPIC -g $(DEFINES) -I./ -I../ `libxode-config --cflags` -Wall
 LDFLAGS=`libxode-config --ldflags` `libxode-config --libs` `pth-config --libs --ldflags` `jabber-config --ldflags` `jabber-config --libs` -ldl
-
-SUBDIRS = \
-	gen \
-	io \
-	log \
-	xdb
 
 jabberd_OBJECTS = \
 	config.o \
@@ -15,10 +12,12 @@ jabberd_OBJECTS = \
 	heartbeat.o \
 	jabberd.o \
 	load.o \
-	log.o \
+	log.o
+jabberd_EXOBJECTS = \
 	gen/base_host.o \
 	io/base_connect.o \
 	io/base_exec.o \
+	io/base_farm.o \
 	io/base_stdout.o \
 	io/base_load.o \
 	io/base_accept.o \
@@ -29,10 +28,58 @@ jabberd_OBJECTS = \
 	log/base_to.o \
 	xdb/base_ns.o
 
-all: jabberd_build
+SUBDIRS=gen io log xdb
 
-jabberd_build: $(jabberd_OBJECTS)
-	$(CC) -fPIC -export-dynamic -o jabberd $(jabberd_OBJECTS) $(LDFLAGS)
+all: all-recursive
 
-clean:
-	rm $(jabberd_OBJECTS) jabberd
+clean: clean-recursive
+
+all-local: $(jabberd_OBJECTS)
+	$(CC) -fPIC -Wl,--export-dynamic -o jabberd $(jabberd_OBJECTS) $(jabberd_EXOBJECTS) $(LDFLAGS)
+
+install-local:
+
+all-recursive install-data-recursive install-exec-recursive \
+installdirs-recursive install-recursive uninstall-recursive  \
+check-recursive installcheck-recursive info-recursive dvi-recursive:
+	@set fnord $(MAKEFLAGS); amf=$$2; \
+	dot_seen=no; \
+	target=`echo $@ | sed s/-recursive//`; \
+	list='$(SUBDIRS)'; for subdir in $$list; do \
+	  echo "Making $$target in $$subdir"; \
+	  if test "$$subdir" = "."; then \
+	    dot_seen=yes; \
+	    local_target="$$target-local"; \
+	  else \
+	    local_target="$$target"; \
+	  fi; \
+	  (cd $$subdir && $(MAKE) $$local_target) \
+	   || case "$$amf" in *=*) exit 1;; *k*) fail=yes;; *) exit 1;; esac; \
+	done; \
+	if test "$$dot_seen" = "no"; then \
+	  $(MAKE) "$$target-local" || exit 1; \
+	fi; test -z "$$fail"
+
+clean-local:
+	rm -f $(jabberd_OBJECTS) jabberd
+
+mostlyclean-recursive clean-recursive distclean-recursive \
+maintainer-clean-recursive:
+	@set fnord $(MAKEFLAGS); amf=$$2; \
+	dot_seen=no; \
+	rev=''; list='$(SUBDIRS)'; for subdir in $$list; do \
+	  rev="$$subdir $$rev"; \
+	  test "$$subdir" = "." && dot_seen=yes; \
+	done; \
+	test "$$dot_seen" = "no" && rev=". $$rev"; \
+	target=`echo $@ | sed s/-recursive//`; \
+	for subdir in $$rev; do \
+	  echo "Making $$target in $$subdir"; \
+	  if test "$$subdir" = "."; then \
+	    local_target="$$target-local"; \
+	  else \
+	    local_target="$$target"; \
+	  fi; \
+	  (cd $$subdir && $(MAKE) $$local_target) \
+	   || case "$$amf" in *=*) exit 1;; *k*) fail=yes;; *) exit 1;; esac; \
+	done && test -z "$$fail"
