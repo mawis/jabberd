@@ -14,18 +14,18 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  *  Jabber
- *  Copyright (C) 1998-1999 The Jabber Team http://jabber.org/
+ *  Copyright (C) 1998-2000 The Jabber Team http://jabber.org/
  */
 
 /*
     <service id="pthsock client">
-      <host>pth-csock.127.0.0.1</host>
+      <host>pth-csock.127.0.0.1</host> <!-- Can be anything -->
       <load>
 	    <pthsock_client>../load/pthsock_client.so</pthsock_client>
       </load>
       <pthcsock xmlns='jabberd:pth-csock:config'>
-	    <host>pth-csock.127.0.0.1</host>
-        <listen>5222</listen>
+	    <host>pth-csock.127.0.0.1</host> <!-- our host, from above -->
+        <listen>5222</listen>            <!-- Port to listen on -->
       </pthcsock>
     </service>
 */
