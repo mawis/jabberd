@@ -1,25 +1,60 @@
 #include "jabberd.h"
 
-/* seperate ports for each section, hostnames validated */
-/* the connected app normaly gets all packets delivered to it, but can connect again and only send (but in the same name) */
-/* if registered as * for the host, then any name can be used as sender, and module delivers appropriately */
-/* module must scan config for <host/> elements and configure itself appropriately */
-
-/* each <accept> can contain an additional <host> section that will limit it to accepting those hosts w/ that secret, but they must exist at the parent level as well (as likely in <host/>) */
-
 /* each instance can share ports */
 
-/* struct that contains meta-info for each accept: instance, host (start local, then parent, is a list) */
+/*
+
+<accept>
+  <ip>1.2.3.4</ip>
+  <port>2020</port>
+  <secret>foobar</secret>
+</accept>
+
+*/
+
+base_accept_phandler(instance, packet, sink)
+{
+    /* write packets to sink */
+}
+
+void *base_accept_write(void *arg)
+{
+    /* first, block on a condition from the read thread, then write the header and block on the sink */
+    /* second, block on a condition from the read thread for success/failure of secret negotiation, write <secret/> or stream:error & close */
+    /* if the write() fails, return the packet to the sink */
+}
+
+void base_accept_read_packets(xstream...)
+{
+    /* after getting a root, send header */
+    /* check status on socket, if it's sent a secret, then deliver the packet, otherwise only validate a secret */
+    /* based on secret, store instance this socket is associated with */
+    /* need the ring of secrets for validation from the parent listen thread */
+}
+
+void *base_accept_read(void *arg)
+{
+    /* thread to read from socket */
+    /* create/deliver to xstream */
+    /* spawn base_accept_write */
+    /* if error on read(), just cleanup and quit */
+}
+
 
 result base_accept_config(instance id, xmlnode x, void *arg)
 {
     if(id == NULL)
     {
         printf("base_accept_config validating configuration\n");
+	if(xmlnode_get_data(xmlnode_get_tag(x, "port")) == NULL || xmlnode_get_data(xmlnode_get_tag(x, "secret")) == NULL)
+	    return r_ERR;
         return r_PASS;
     }
 
     printf("base_accept_config performing configuration %s\n",xmlnode2str(x));
+    /* find existing listen thread (or create) */
+    /* add secret+instance to listen thread ring */
+    /* create sink and register phandler, and register cleanup heartbeat */
 }
 
 void base_accept(void)
