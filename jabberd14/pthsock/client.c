@@ -230,6 +230,7 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
     case MIO_CLOSED:
 
         log_debug(ZONE, "io_select Socket %d close notification", m->fd);
+        ghash_remove(cd->si->users, cd->client_id);
         if(cd->state == state_AUTHD)
         {
             h = pthsock_make_route(NULL, jid_full(cd->session_id), cd->client_id, "error");
