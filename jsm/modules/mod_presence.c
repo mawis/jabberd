@@ -160,6 +160,10 @@ mreturn mod_presence_in(mapi m, void *arg)
     if(jpacket_subtype(m->packet) == JPACKET__ERROR)
         mp->A = _mod_presence_whack(m->packet->from, mp->A);
 
+    /* doh! this is a user, they should see invisibles as unavailables */
+    if(jpacket_subtype(m->packet) == JPACKET__INVISIBLE)
+        xmlnode_put_attrib(m->packet->x,"type","unavailable");
+
     return M_PASS;
 }
 
