@@ -443,11 +443,14 @@ void js_session_process(pth_msgport_t mp)
             s->u->scount--;
 
             /* make sure the service knows the session is gone */
-            x = xmlnode_new_tag("message");
-            jutil_error(x, TERROR_DISCONNECTED);
-            xmlnode_put_attrib(x, "sto", jid_full(s->sid));
-            xmlnode_put_attrib(x, "sfrom", jid_full(s->uid));
-            deliver(dpacket_new(x), s->si->i);
+            if(j_strcmp(xmlnode_get_tag_data(s->presence,"state"),"Disconnected") != 0)
+            {   /* if the offline presence was "Disconnected", that implies that it was the client service, and we don't really need to tell it again */
+                x = xmlnode_new_tag("message");
+                jutil_error(x, TERROR_DISCONNECTED);
+                xmlnode_put_attrib(x, "sto", jid_full(s->sid));
+                xmlnode_put_attrib(x, "sfrom", jid_full(s->id));
+                deliver(dpacket_new(x), s->si->i);
+            }
 
             /* let the modules have their heyday */
             js_mapi_call(NULL, es_END, NULL, s->u, s);

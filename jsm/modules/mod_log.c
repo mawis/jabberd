@@ -1,5 +1,22 @@
 #include "jsm.h"
 
+/* XXX logging needs to be majorly rewritten for jsm
+
+would be cool to do something like:
+<log>
+  <file>/foo/bar</file>
+  <type>session</type> (or packet?)
+  <format>%f %x %d</format> (whatever the vars are, you get the idea)
+</log>
+
+each section would create a thread that blocked on an mp
+every time something needed to be logged, it would be sent via the mp to the thread(s)
+
+actually, on second thought... we already have lots in place for logging, couldn't we reuse <log type="session"> or something like that in jabberd?
+
+*/
+
+
 thread mod_log__session = NULL;
 thread mod_log__packet = NULL;
 

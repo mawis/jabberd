@@ -25,7 +25,8 @@ jsm_OBJECTS = \
     modules/mod_roster.o \
     modules/mod_time.o \
     modules/mod_vcard.o \
-    modules/mod_version.o
+    modules/mod_version.o \
+    modules/mod_register.o
 #    modules/mod_log.o \
 
 all: jsm_build

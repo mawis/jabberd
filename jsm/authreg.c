@@ -27,7 +27,7 @@ void js_authreg(jsmi si, jpacket p, HASHTABLE ht)
 {
     udata user;
     char *u, *ul, *from, *to;
-    jid id;
+    jid id = NULL;
 
     /* setup session trackers */
     from = xmlnode_get_attrib(p->x,"sfrom");
@@ -37,7 +37,7 @@ void js_authreg(jsmi si, jpacket p, HASHTABLE ht)
     u = xmlnode_get_tag_data(p->iq,"username");
     if(u != NULL)
     {
-        /* enforce the username to lowercase for registration */
+        /* enforce the username to lowercase */
         for(ul = u;*ul != '\0'; ul++)
             *ul = tolower(*ul);
 
@@ -46,12 +46,8 @@ void js_authreg(jsmi si, jpacket p, HASHTABLE ht)
         jid_set(id,u,JID_USER);
     }
 
-    /* was the username acceptable */
-    if(id == NULL || id->user == NULL)
-    {
-            jutil_error(p->x, TERROR_NOTACCEPTABLE);
-
-    }else if(NSCHECK(p->iq,NS_AUTH)){ /* is this an auth request? */
+    if(id != NULL && id->user != NULL && NSCHECK(p->iq,NS_AUTH))
+    {   /* is this a valid auth request? */
 
         log_debug(ZONE,"auth request");
 
@@ -75,13 +71,16 @@ void js_authreg(jsmi si, jpacket p, HASHTABLE ht)
 
         log_debug(ZONE,"registration request");
 
+        /* use the to attrib to store the address we're trying to register, if it's a set */
+        p->to = id;
+
         /* try to register via a module */
         if(!js_mapi_call(si, e_REGISTER, p, NULL, NULL))
             jutil_error(p->x, TERROR_NOTIMPL);
 
     }else{ /* unknown namespace */
 
-        jutil_error(p->x, TERROR_AUTH);
+        jutil_error(p->x, TERROR_NOTACCEPTABLE);
     }
 
     /* make sure packet goes back to the other side of the session */
