@@ -88,7 +88,7 @@ typedef struct action_struct
 {
     pool p;
     int is_match, has_action;
-    int offline, reply, settype, cont;
+    int offline, reply, settype, cont, error;
     jid forward;
     mapi m;
 } _action, *action;
@@ -141,7 +141,7 @@ void mod_filter_action_offline(mapi m, xmlnode rule)
     log_debug("mod_filter","storing message for %s offline.",m->user->user);
 
     jutil_delay(m->packet->x,"Offline Storage");
-    if(xdb_set(m->si->xc, m->user->id, NS_OFFLINE, xmlnode_dup(m->packet->x)))
+    if(xdb_act(m->si->xc, m->user->id, NS_OFFLINE, "insert", NULL, xmlnode_dup(m->packet->x)))
         return;
 
     if(cur != NULL)
@@ -163,11 +163,6 @@ void mod_filter_action_offline(mapi m, xmlnode rule)
         xmlnode_insert_cdata(xmlnode_insert_tag(cur,"id"),xmlnode_get_attrib(m->packet->x,"id"), -1);
         js_deliver(m->si, jpacket_reset(m->packet));
     }
-}
-
-void mod_filter_action_error(mapi m,xmlnode rule)
-{
-    log_debug(ZONE,"sending an error reply");
 }
 
 void mod_filter_action_reply(mapi m,xmlnode rule)
@@ -209,9 +204,6 @@ void mod_filter_action_reply(mapi m,xmlnode rule)
     xmlnode_put_attrib(xmlnode_insert_tag(x, "from"), "jid", jid_full(m->packet->to));
     xmlnode_put_attrib(xmlnode_insert_tag(x, "to"), "jid", jid_full(m->packet->from));
 
-    if(reply == NULL) 
-        return;
-
     if(jid_cmpx(m->packet->to, m->packet->from, JID_USER | JID_SERVER) == 0)
     { /* special case, we sent a msg to ourselves */
         /* try to find a session to deliver to... */
@@ -230,7 +222,8 @@ void mod_filter_action_reply(mapi m,xmlnode rule)
         jutil_tofrom(x);
         if(xmlnode_get_tag(x, "body") != NULL) 
             xmlnode_hide(xmlnode_get_tag(x, "body"));
-        xmlnode_insert_cdata(xmlnode_insert_tag(x, "body"), reply, -1);
+        if(reply != NULL)
+            xmlnode_insert_cdata(xmlnode_insert_tag(x, "body"), reply, -1);
         js_session_to(s, jpacket_new(x));
         return;
     }
@@ -240,8 +233,25 @@ void mod_filter_action_reply(mapi m,xmlnode rule)
     jutil_tofrom(x);
     if(xmlnode_get_tag(x, "body") != NULL) 
         xmlnode_hide(xmlnode_get_tag(x, "body"));
-    xmlnode_insert_cdata(xmlnode_insert_tag(x, "body"), reply, -1);
+    if(reply != NULL)
+        xmlnode_insert_cdata(xmlnode_insert_tag(x, "body"), reply, -1);
     deliver(dpacket_new(x),m->si->i);
+}
+
+
+void mod_filter_action_error(mapi m,xmlnode rule)
+{
+    xmlnode err = xmlnode_get_tag(rule, "error");
+    log_debug(ZONE,"sending an error reply");
+    
+    if(err != NULL)
+    {
+        xmlnode_insert_tag_node(m->packet->x, err);
+        xmlnode_put_attrib(m->packet->x, "type", "error");
+        jpacket_reset(m->packet);
+    }
+
+    mod_filter_action_reply(m, rule);
 }
 
 void mod_filter_action_forward(mapi m,xmlnode rule,jid j)
@@ -563,6 +573,13 @@ mreturn mod_filter_handler(mapi m, void *arg)
                 log_debug(ZONE,"continue processing");
                 cur=xmlnode_get_nextsibling(cur);
             }
+            else if(j_strcmp(xmlnode_get_name(cur), "error") == 0)
+            {
+                cur_action->has_action = 1;
+                cur_action->error = 1;
+                log_debug(ZONE, "reply with error");
+                cur = xmlnode_get_nextsibling(cur);
+            }
             else
             {
                 /* we don't know this tag.. how did we get here then?? */
@@ -585,6 +602,8 @@ mreturn mod_filter_handler(mapi m, void *arg)
 
         if(cur_action->reply)
             mod_filter_action_reply(m,rules);
+        if(cur_action->error)
+            mod_filter_action_error(m, rules);
         if(cur_action->settype)
             mod_filter_action_settype(m,rules);
         if(cur_action->forward!=NULL)
@@ -631,6 +650,7 @@ mreturn mod_filter_iq(mapi m)
     xmlnode opts, cur;
     int max_rule_size = j_atoi(xmlnode_get_tag_data(js_config(mod_filter__jsmi, "filter"), "max_size"), MOD_FILTER_MAX_SIZE);
     pool p;
+    log_debug(ZONE, "FILTER RULE SET: iq %s", xmlnode2str(m->packet->x));
 
     if(!NSCHECK(m->packet->iq, NS_FILTER) || m->packet->to != NULL)
         return M_PASS;
@@ -729,6 +749,7 @@ mreturn mod_filter_iq(mapi m)
 
 mreturn mod_filter_out(mapi m, void *arg)
 {
+    log_debug(ZONE, "\n packet out from mod_filter\n");
     switch(m->packet->type)
     {
     case JPACKET_IQ:
