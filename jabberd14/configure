@@ -11,63 +11,14 @@
 ##
 # You only need to run this once to setup your platforms options
 ##
-printf "Running Jabber Configure\n"
-printf "========================\n\n"
+WANT_SSL=0;
 
-##
-# SSL Check
-##
-printf "Searching for SSL...";
-for dir in ${prefix} /usr/local/ssl /usr/lib/ssl /usr/ssl /usr/pkg /usr/local /usr; do
-    ssldir="$dir"
-    if test -f "$dir/include/openssl/ssl.h"; then
-        found_ssl="yes";
-        printf "            Found.\n";
-	    CFLAGS="$CFLAGS -I$ssldir/include/openssl -DHAVE_SSL";
-	    LIBS="$LIBS -lssl -lcrypto";
-        LDFLAGS="$LDFLAGS -L$ssldir/lib";
-        break;
-    fi
-    if test -f "$dir/include/ssl.h"; then
-        found_ssl="yes";
-        printf "            Found.\n";
-	    CFLAGS="$CFLAGS -I$ssldir/include/ -DHAVE_SSL";
-	    LIBS="$LIBS -lssl -lcrypto";
-        LDFLAGS="$LDFLAGS -L$ssldir/lib";
-        break
-    fi
-done
-if test x_$found_ssl != x_yes; then
-    printf "         Not Found.\n"
-fi
-
-##
-# Pth check
-##
-printf "Getting pth settings..."
-PTH_CFLAGS=`pth-config --cflags`
-PTH_LDFLAGS=`pth-config --ldflags`
-PTH_LIBS=`pth-config --libs`
-if [ -n "$PTH_CFLAGS" ]; then
-    CFLAGS="$CFLAGS $PTH_CFLAGS";
-    LDFLAGS="$LDFLAGS $PTH_LDFLAGS";
-    LIBS="$LIBS $PTH_LIBS";
-    printf "         Done.\n";
-else
-    if [ -d "jabberd/pth-1.3.7" ]; then
-        opwd=`pwd`
-        cd jabberd/pth-1.3.7;
-        ./configure || (printf "Error Configuring pth"; exit 1);
-        cd $opwd;
-        PSUBDIR="pth-1.3.7";
-        PTHP=`pwd`"/jabberd/pth-1.3.7";
-        PLINK="$PTHP/pth_*.o";
-        CFLAGS="$CFLAGS -I`pwd`/jabberd/pth-1.3.7";
-    else
-        printf "          Error.\n\n No version of PTH is available on this system\nhttp://www.gnu.org/software/pth/";
-    fi
-fi
-
+for x in $@; do
+    case x$x in
+      x--enable-ssl)
+        WANT_SSL="1";;
+    esac;
+done;
 ##
 # Setup our initial flags
 ##
@@ -84,6 +35,76 @@ XLDFLAGS="$XLDFLAGS "
 JHOME=`pwd`
 
 ##
+# Print a cool header
+##
+printf "Running Jabber Configure\n"
+printf "========================\n\n"
+
+##
+# SSL Check
+##
+if [ $WANT_SSL == 1 ]; then
+    printf "Searching for SSL...";
+    for dir in ${prefix} /usr/local/ssl /usr/lib/ssl /usr/ssl /usr/pkg /usr/local /usr; do
+        ssldir="$dir"
+        if test -f "$dir/include/openssl/ssl.h"; then
+            found_ssl="yes";
+            printf "            Found.\n";
+    	    CFLAGS="$CFLAGS -I$ssldir/include/openssl -DHAVE_SSL";
+	        LIBS="$LIBS -lssl -lcrypto";
+            LDFLAGS="$LDFLAGS -L$ssldir/lib";
+            break;
+        fi
+        if test -f "$dir/include/ssl.h"; then
+            found_ssl="yes";
+            printf "            Found.\n";
+    	    CFLAGS="$CFLAGS -I$ssldir/include/ -DHAVE_SSL";
+	        LIBS="$LIBS -lssl -lcrypto";
+            LDFLAGS="$LDFLAGS -L$ssldir/lib";
+            break
+        fi
+    done
+    if test x_$found_ssl != x_yes; then
+        printf "         Not Found.\n"
+    fi
+fi;
+
+##
+# Resolv Settings
+##
+
+##
+# Pth check
+##
+printf "Getting pth settings..."
+PTH_CFLAGS=`pth-config --cflags`
+PTH_LDFLAGS=`pth-config --ldflags`
+PTH_LIBS=`pth-config --libs`
+PTH_LIBDIR=`pth-config --libdir`
+if [ -n "$PTH_CFLAGS" ]; then
+    CFLAGS="$CFLAGS $PTH_CFLAGS";
+    LDFLAGS="$LDFLAGS $PTH_LDFLAGS";
+    LIBS="$LIBS $PTH_LIBS";
+    SLIBS="$SLIBS $PTH_LIBDIR/libpth.a";
+    printf "         Done.\n";
+else
+    if [ -d "jabberd/pth-1.3.7" ]; then
+        opwd=`pwd`
+        cd jabberd/pth-1.3.7;
+        ./configure || (printf "Error Configuring pth"; exit 1);
+        cd $opwd;
+        PSUBDIR="pth-1.3.7";
+        PTHP=`pwd`"/jabberd/pth-1.3.7";
+        PLINK="$PTHP/pth_*.o";
+        CFLAGS="$CFLAGS -I`pwd`/jabberd/pth-1.3.7";
+    else
+        printf "          Error.\n\n No version of PTH is available on this system\nhttp://www.gnu.org/software/pth/";
+    fi
+fi
+
+
+
+##
 # Check the host type and change flags as necessary
 ##
 printf "Setting Build Parameters..."
@@ -92,6 +113,7 @@ case $hosttype in
     Linux)
         CFLAGS="$CFLAGS"
         LIBS="$LIBS -ldl -lresolv"
+        SLIBS="$SLIBS /usr/lib/libresolv.a";
         XLDFLAGS="$XLDFLAGS -Wl,--export-dynamic";;
     SunOS)
         LDTEST=`gcc -Wl,-V 2>&1 | grep GNU`
@@ -99,6 +121,7 @@ case $hosttype in
             XLDFLAGS="$XLDFLAGS -Wl,-export-dynamic"
         fi
         CFLAGS="$CFLAGS -D_REENTRANT"
+        SLIBS="$SLIBS /usr/lib/libresolv.a";
         LIBS="$LIBS -ldl -lsocket -lnsl -lresolv";;
     FreeBSD)
         XLDFLAGS="$XLDFLAGS -Wl,-E";;
@@ -115,6 +138,7 @@ CFLAGS=$CFLAGS
 MCFLAGS=$MCFLAGS
 LDFLAGS=$LDFLAGS
 LIBS=$LIBS
+SLIBS=$SLIBS
 XLDFLAGS=$XLDFLAGS
 PSUBDIR=$PSUBDIR
 PLINK=$PLINK
