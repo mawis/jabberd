@@ -78,7 +78,10 @@ xmlnode mod_groups_get(mod_groups_i mi, pool p, char *host, char *gid)
          char *name;
 
          if (users == NULL)
+         {
              users = xmlnode_new_tag("query");
+             xmlnode_put_attrib(users,"xmlns",NS_XGROUPS);
+         }
 
          name = xmlnode_get_tag_data(group,"name");
          if (name)

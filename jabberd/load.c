@@ -42,7 +42,6 @@ void *xdb_file();
 void *dnsrv();
 void *dialback();
 void *mod_admin();
-void *mod_archive();
 void *mod_agents();
 void *mod_browse();
 void *mod_filter();
@@ -72,7 +71,6 @@ void *load_symbol(char *func, char *file)
     if(j_strcmp(func,"dnsrv") == 0) return (void (*)(instance,xmlnode))dnsrv;
     if(j_strcmp(func,"dialback") == 0) return (void (*)(instance,xmlnode))dialback;
     if(j_strcmp(func,"mod_browse") == 0) return (void (*)(void))mod_browse;
-    if(j_strcmp(func,"mod_archive") == 0) return (void (*)(void))mod_archive;
     if(j_strcmp(func,"mod_echo") == 0) return (void (*)(void))mod_echo;
     if(j_strcmp(func,"mod_groups") == 0) return (void (*)(void))mod_groups;
     if(j_strcmp(func,"mod_roster") == 0) return (void (*)(void))mod_roster;
