@@ -126,22 +126,24 @@ nad_t nad_new(nad_cache_t cache)
         nad = *cache;
         *cache = nad->next;
         nad->ccur = nad->ecur = nad->acur = 0;
+        nad->cache = cache;
         return nad;
     }
 
     while((nad = malloc(sizeof(struct nad_st))) == NULL) sleep(1);
     memset(nad,0,sizeof(struct nad_st));
+    nad->cache = cache;
     return nad;
 }
 
-nad_t nad_copy(nad_cache_t cache, nad_t nad)
+nad_t nad_copy(nad_t nad)
 {
     nad_t copy;
 
     if(nad == NULL) return NULL;
 
     /* get one from the cache */
-    copy = nad_new(cache);
+    copy = nad_new(nad->cache);
 
     /* if it's not large enough, make bigger */
     NAD_SAFE(copy->elems, nad->elen, copy->elen);
@@ -162,12 +164,12 @@ nad_t nad_copy(nad_cache_t cache, nad_t nad)
 }
 
 /* plug a nad back in the cache */
-void nad_free(nad_cache_t cache, nad_t nad)
+void nad_free(nad_t nad)
 {
     if(nad == NULL) return;
 
-    nad->next = *cache;
-    *cache = nad;
+    nad->next = *(nad->cache);
+    *(nad->cache) = nad;
 }
 
 /* locate the next elem at a given depth with an optional matching name */
@@ -386,9 +388,25 @@ void _nad_escape(nad_t nad, int data, int len, int flag)
         ic = c - nad->cdata;
         _nad_escape(nad, data, ic - data, 0);
 
-        /* ensure enough space, and add our escaped &apos; */
+        /* ensure enough space, and add our escaped &lt; */
         NAD_SAFE(nad->cdata, nad->ccur + 4, nad->clen);
         memcpy(nad->cdata + nad->ccur, "&lt;", 4);
+        nad->ccur += 4;
+
+        /* just update and loop for more */
+        len -= (ic+1) - data;
+        data = ic+1;
+    }
+
+    /* and > */
+    while(flag >= 1 && (c = memchr(nad->cdata + data,'>',len)) != NULL)
+    {
+        ic = c - nad->cdata;
+        _nad_escape(nad, data, ic - data, 0);
+
+        /* ensure enough space, and add our escaped &gt; */
+        NAD_SAFE(nad->cdata, nad->ccur + 4, nad->clen);
+        memcpy(nad->cdata + nad->ccur, "&gt;", 4);
         nad->ccur += 4;
 
         /* just update and loop for more */
@@ -547,7 +565,7 @@ void nad_print(nad_t nad, int elem, char **xml, int *len)
 /*
  * nads serialize to a buffer of this form:
  *
- * [buflen][elen][alen][clen][dlen][ecur][acur][ccur][elems][attrs][cdata][depths]
+ * [buflen][ecur][acur][ccur][elems][attrs][cdata]
  *
  * nothing is done with endianness or word length, so the nad must be
  * serialized and deserialized on the same platform
@@ -555,60 +573,54 @@ void nad_print(nad_t nad, int elem, char **xml, int *len)
  * buflen is not actually used by deserialize(), but is provided as a
  * convenience to the application so it knows how many bytes to read before
  * passing them in to deserialize()
+ *
+ * the depths array is not stored, so after deserialization
+ * nad_append_elem() and nad_append_cdata() will not work. this is rarely
+ * a problem
  */
 
 void nad_serialize(nad_t nad, char **buf, int *len) {
     char *pos;
 
-    *len = sizeof(int) * 8 + /* 7 ints in nad_t, plus one for len */
-           sizeof(struct nad_elem_st) * nad->elen +
-           sizeof(struct nad_attr_st) * nad->alen +
-           sizeof(char) * nad->clen +
-           sizeof(int) * nad->dlen;
+    *len = sizeof(int) * 4 + /* 3 ints in nad_t, plus one for len */
+           sizeof(struct nad_elem_st) * nad->ecur +
+           sizeof(struct nad_attr_st) * nad->acur +
+           sizeof(char) * nad->ccur;
 
     *buf = (char *) malloc(*len);
 
     pos = *buf;         * (int *) pos = *len;
-    pos += sizeof(int); * (int *) pos = nad->elen;
-    pos += sizeof(int); * (int *) pos = nad->alen;
-    pos += sizeof(int); * (int *) pos = nad->clen;
-    pos += sizeof(int); * (int *) pos = nad->dlen;
     pos += sizeof(int); * (int *) pos = nad->ecur;
     pos += sizeof(int); * (int *) pos = nad->acur;
     pos += sizeof(int); * (int *) pos = nad->ccur;
 
-    pos += sizeof(int);                            memcpy(pos, nad->elems, sizeof(struct nad_elem_st) * nad->elen);
-    pos += sizeof(struct nad_elem_st) * nad->elen; memcpy(pos, nad->attrs, sizeof(struct nad_attr_st) * nad->alen);
-    pos += sizeof(struct nad_attr_st) * nad->alen; memcpy(pos, nad->cdata, sizeof(char) * nad->clen);
-    pos += sizeof(char) * nad->clen;               memcpy(pos, nad->depths, sizeof(int) * nad->dlen);
+    pos += sizeof(int);                            memcpy(pos, nad->elems, sizeof(struct nad_elem_st) * nad->ecur);
+    pos += sizeof(struct nad_elem_st) * nad->ecur; memcpy(pos, nad->attrs, sizeof(struct nad_attr_st) * nad->acur);
+    pos += sizeof(struct nad_attr_st) * nad->acur; memcpy(pos, nad->cdata, sizeof(char) * nad->ccur);
 }
 
 nad_t nad_deserialize(nad_cache_t cache, char *buf) {
     nad_t nad = nad_new(cache);
     char *pos = buf + sizeof(int);  /* skip len */
 
-    nad->elen = * (int *) pos; pos += sizeof(int);
-    nad->alen = * (int *) pos; pos += sizeof(int);
-    nad->clen = * (int *) pos; pos += sizeof(int);
-    nad->dlen = * (int *) pos; pos += sizeof(int);
     nad->ecur = * (int *) pos; pos += sizeof(int);
     nad->acur = * (int *) pos; pos += sizeof(int);
     nad->ccur = * (int *) pos; pos += sizeof(int);
+    nad->elen = nad->ecur;
+    nad->alen = nad->acur;
+    nad->clen = nad->ccur;
 
-    nad->elems = (struct nad_elem_st *) malloc(sizeof(struct nad_elem_st) * nad->elen);
-    memcpy(nad->elems, pos, sizeof(struct nad_elem_st) * nad->elen);
-    pos += sizeof(struct nad_elem_st) * nad->elen;
+    nad->elems = (struct nad_elem_st *) malloc(sizeof(struct nad_elem_st) * nad->ecur);
+    memcpy(nad->elems, pos, sizeof(struct nad_elem_st) * nad->ecur);
+    pos += sizeof(struct nad_elem_st) * nad->ecur;
 
-    nad->attrs = (struct nad_attr_st *) malloc(sizeof(struct nad_attr_st) * nad->alen);
-    memcpy(nad->attrs, pos, sizeof(struct nad_attr_st) * nad->alen);
-    pos += sizeof(struct nad_attr_st) * nad->alen;
+    nad->attrs = (struct nad_attr_st *) malloc(sizeof(struct nad_attr_st) * nad->acur);
+    memcpy(nad->attrs, pos, sizeof(struct nad_attr_st) * nad->acur);
+    pos += sizeof(struct nad_attr_st) * nad->acur;
 
-    nad->cdata = (char *) malloc(sizeof(char) * nad->clen);
-    memcpy(nad->cdata, pos, sizeof(char) * nad->clen);
-    pos += sizeof(char) * nad->clen;
-
-    nad->depths = (int *) malloc(sizeof(int) * nad->dlen);
-    memcpy(nad->depths, pos, sizeof(int) * nad->dlen);
+    nad->cdata = (char *) malloc(sizeof(char) * nad->ccur);
+    memcpy(nad->cdata, pos, sizeof(char) * nad->ccur);
+    pos += sizeof(char) * nad->ccur;
 
     return nad;
 }
