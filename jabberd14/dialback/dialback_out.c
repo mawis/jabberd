@@ -348,6 +348,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
             md = dialback_miod_new(c->d, m); /* set up the mio wrapper */
             dialback_miod_hash(md, c->d->out_ok_legacy, c->key); /* this registers us to get stuff now */
             dialback_out_qflush(md, c->q); /* flush the queue of packets */
+            c->q = NULL;
             dialback_out_connection_cleanup(c); /* we're connected already, trash this */
             break;
         }
