@@ -1,3 +1,9 @@
+2005-02-23  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/lib/genhash.c: only include ghash if requested
+    * jabberd/lib/jabberdlib.h: same
+    * configure.in: added --enable-legacy switch
+
 2005-02-22  Matthias Wimmer  <m@tthias.net>
 
     * xdb_sql/xdb_sql.c: added possibility to load XML fron database,

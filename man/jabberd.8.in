@@ -47,7 +47,7 @@ correspond to the zone 'jabberd'.)
 jabberd exited normally
 .TP
 .B 1
-jabberd exited while starting out, probably the configuration is broken
+jabberd exited while starting up, probably the configuration is broken
 .TP
 .B 999
 jabberd exited because the server ran up of memory
