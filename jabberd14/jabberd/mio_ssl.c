@@ -146,14 +146,17 @@ ssize_t _mio_ssl_read(mio m, void *buf, size_t count)
     log_debug(ZONE, "Asked to read %d bytes from %d", count, m->fd);
     if(SSL_get_state(ssl) != SSL_ST_OK)
     {
+        int sret; 
+
         SSL_set_accept_state(ssl);
-        if(SSL_accept(ssl) <= 0){
+        sret = SSL_accept(ssl)
+        if(sret <= 0){
             unsigned long e;
             int ret;
             static char *buf;
             
-            if((SSL_get_error(ssl, ret) == SSL_ERROR_WANT_READ) ||
-               SSL_get_error(ssl, ret) == SSL_ERROR_WANT_WRITE)
+            if((SSL_get_error(ssl, sret) == SSL_ERROR_WANT_READ) ||
+               SSL_get_error(ssl, sret) == SSL_ERROR_WANT_WRITE)
             {
                 log_debug(ZONE, "Read blocked, returning");
 
@@ -178,14 +181,17 @@ ssize_t _mio_ssl_write(mio m, const void *buf, size_t count)
     
     if(SSL_get_state(ssl) != SSL_ST_OK)
     {
+        int sret;
+
         SSL_set_accept_state(ssl);
-        if(SSL_accept(ssl) <= 0){
+        sret = SSL_accept(ssl);
+        if(sret <= 0){
             unsigned long e;
             int ret;
             static char *buf;
             
-            if((SSL_get_error(ssl, ret) == SSL_ERROR_WANT_READ) ||
-               SSL_get_error(ssl, ret) == SSL_ERROR_WANT_WRITE)
+            if((SSL_get_error(ssl, sret) == SSL_ERROR_WANT_READ) ||
+               SSL_get_error(ssl, sret) == SSL_ERROR_WANT_WRITE)
             {
                 log_debug(ZONE, "Write blocked, returning");
                 
@@ -208,6 +214,7 @@ int _mio_ssl_accept(mio m, struct sockaddr *serv_addr, socklen_t *addrlen)
     SSL *ssl=NULL;
     SSL_CTX *ctx = NULL;
     int fd;
+    int sret;
 
     if(m->ip == NULL)
     {
@@ -227,13 +234,14 @@ int _mio_ssl_accept(mio m, struct sockaddr *serv_addr, socklen_t *addrlen)
     log_debug(ZONE, "SSL accepting socket with new session %x", ssl);
     SSL_set_fd(ssl, fd);
     SSL_set_accept_state(ssl);
-    if(SSL_accept(ssl) <= 0){
+    sret = SSL_accept(ssl);
+    if(sret <= 0)
+    {
         unsigned long e;
-        int ret;
         static char *buf;
         
-        if((SSL_get_error(ssl, ret) == SSL_ERROR_WANT_READ) ||
-           (SSL_get_error(ssl, ret) == SSL_ERROR_WANT_WRITE))
+        if((SSL_get_error(ssl, sret) == SSL_ERROR_WANT_READ) ||
+           (SSL_get_error(ssl, sret) == SSL_ERROR_WANT_WRITE))
         {
             m->ssl = ssl;
             log_debug(ZONE, "Accept blocked, returning");
