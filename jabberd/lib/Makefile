@@ -42,6 +42,8 @@ lib_OBJECTS = \
 
 $(lib_OBJECTS): $(lib_HEADERS)
 
+single: static
+
 static: $(lib_OBJECTS) $(lib_HEADERS)
 
 all: $(lib_OBJECTS) $(lib_HEADERS)

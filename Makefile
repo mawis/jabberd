@@ -11,6 +11,8 @@ clean: clean-recursive
 
 static: static-recursive
 
+single: single-recursive
+
 install:
 	printf "\n\nNo actual make install, you just run it out of the directory!\n"
 
@@ -20,11 +22,16 @@ install-local:
 
 static-local:
 
+single-local:
+
 all-recursive install-data-recursive install-exec-recursive \
 installdirs-recursive install-recursive uninstall-recursive  \
-check-recursive installcheck-recursive info-recursive static-recursive:
+check-recursive installcheck-recursive single-recursive static-recursive:
 	@set fnord $(MAKEFLAGS); amf=$$2; \
 	dot_seen=no; \
+    if test "$@" = "single-recursive"; then \
+      export ISSINGLE=1; \
+    fi; \
 	if test "$@" = "static-recursive"; then \
       export ISSTATIC=1; \
 	fi; \

@@ -44,6 +44,8 @@ jsm_EXOBJECTS = \
 
 SUBDIRS=modules
 
+single: static
+
 all: all-recursive
 
 clean: clean-recursive

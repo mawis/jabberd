@@ -10,6 +10,8 @@ pthsock_server_OBJECTS=\
 pthsock_client_OBJECTS=\
 	client.o
 
+single: static
+
 all: pthsock_server pthsock_client
 
 $(pthsock_client_OBJECTS): $(HEADERS)
