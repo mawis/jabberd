@@ -121,7 +121,11 @@ void _mio_xml_parser(mio m, const void *buf, size_t bufsz)
     if(m->parser == NULL)
         _mio_xstream_init(m);
 
-    if(XML_Parse(m->parser, buf, bufsz, 0) < 0)
+    if(XML_Parse(m->parser, buf, bufsz, 0) == 0)
         if(m->cb != NULL)
+        {
             (*(mio_std_cb)m->cb)(m, MIO_ERROR, m->cb_arg);
+            mio_write(m, NULL, "<stream:error>Invalid XML</stream:error>", -1);
+            mio_close(m);
+        }
 }
