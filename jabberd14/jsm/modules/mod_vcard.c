@@ -22,7 +22,7 @@ mreturn mod_vcard_jud(mapi m)
         xmlnode_insert_cdata(xmlnode_insert_tag(regq,"last"),xmlnode_get_tag_data(vcard,"N/FAMILY"),-1);
         xmlnode_insert_cdata(xmlnode_insert_tag(regq,"nick"),xmlnode_get_tag_data(vcard,"NICKNAME"),-1);
         xmlnode_insert_cdata(xmlnode_insert_tag(regq,"email"),xmlnode_get_tag_data(vcard,"EMAIL"),-1);
-        js_deliver(jpacket_new(reg));
+        js_deliver(m->si,jpacket_new(reg));
     }
 
     xmlnode_free(m->packet->x);
@@ -67,7 +67,7 @@ mreturn mod_vcard_set(mapi m, void *arg)
         js_session_to(m->s,m->packet);
 
         /* send a get request to the jud services */
-        for(cur = xmlnode_get_firstchild(js_config("agents")); cur != NULL; cur = xmlnode_get_nextsibling(cur))
+        for(cur = xmlnode_get_firstchild(js_config(m->si,"agents")); cur != NULL; cur = xmlnode_get_nextsibling(cur))
         {
             if(j_strcmp(xmlnode_get_tag_data(cur,"service"),"jud") != 0) continue;
 
@@ -99,7 +99,7 @@ mreturn mod_vcard_reply(mapi m, void *arg)
     case JPACKET__ERROR:
         return M_PASS;
     case JPACKET__SET:
-        js_bounce(m->packet->x,TERROR_NOTALLOWED);
+        js_bounce(m->si,m->packet->x,TERROR_NOTALLOWED);
         return M_HANDLED;
     }
 
@@ -116,7 +116,7 @@ mreturn mod_vcard_reply(mapi m, void *arg)
         sub = xmlnode_get_attrib(item,"subscription");
         if(sub == NULL || j_strcmp(sub,"none") == 0 || j_strcmp(sub,"to") == 0)
         {
-            js_bounce(m->packet->x,TERROR_FORBIDDEN);
+            js_bounce(m->si,m->packet->x,TERROR_FORBIDDEN);
             return;
         }
 }*/
@@ -124,7 +124,7 @@ mreturn mod_vcard_reply(mapi m, void *arg)
     jutil_iqresult(m->packet->x);
     jpacket_reset(m->packet);
     xmlnode_insert_tag_node(m->packet->x,vcard);
-    js_deliver(m->packet);
+    js_deliver(m->si,m->packet);
 
     return M_HANDLED;
 }
@@ -136,10 +136,10 @@ mreturn mod_vcard_session(mapi m, void *arg)
     return M_PASS;
 }
 
-void mod_vcard(jsmi i)
+void mod_vcard(jsmi si)
 {
-    js_mapi_register(e_SESSION,mod_vcard_session,NULL);
-    js_mapi_register(e_OFFLINE,mod_vcard_reply,NULL);
+    js_mapi_register(si,e_SESSION,mod_vcard_session,NULL);
+    js_mapi_register(si,e_OFFLINE,mod_vcard_reply,NULL);
 }
 
 

@@ -12,14 +12,14 @@ mreturn mod_echo_reply(mapi m, void *arg)
     xmlnode_put_attrib(m->packet->x,"from",jid_full(m->packet->to));
     xmlnode_put_attrib(m->packet->x,"to",jid_full(m->packet->from));
     jpacket_reset(m->packet);
-    js_deliver(m->packet);
+    js_deliver(m->si,m->packet);
 
     return M_HANDLED;
 }
 
-void mod_echo(jsmi i)
+void mod_echo(jsmi si)
 {
-    js_mapi_register(e_SERVER,mod_echo_reply,NULL);
+    js_mapi_register(si,e_SERVER,mod_echo_reply,NULL);
 }
 
 

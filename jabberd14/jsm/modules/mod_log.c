@@ -25,7 +25,7 @@ void mod_log_init()
     int fd;
     char *file;
 
-    file = xmlnode_get_data(js_config("log/session"));
+    file = xmlnode_get_data(js_config(m->si,"log/session"));
     fd = open(file, O_WRONLY | O_CREAT | O_APPEND, 0600);
     if(file == NULL || fd < 0)
     {
@@ -36,7 +36,7 @@ void mod_log_init()
     mod_log__session = tstream_new(fd,"sessionlogger",NULL,NULL,NULL);
     pool_cleanup(mod_log__session->p, _mod_log_cleanup, (void *)mod_log__session);
 
-    file = xmlnode_get_data(js_config("log/packet"));
+    file = xmlnode_get_data(js_config(m->si,"log/packet"));
     fd = open(file, O_WRONLY | O_CREAT | O_APPEND, 0600);
     if(file == NULL || fd < 0)
     {
@@ -142,13 +142,13 @@ mreturn mod_log_session(mapi m, void *arg)
     return M_PASS;
 }
 
-void mod_log(jsmi i)
+void mod_log(jsmi si)
 {
     log_debug(ZONE,"init");
     mod_log_init();
     if(mod_log__session != NULL)
-        js_mapi_register(e_SESSION, mod_log_session, NULL);
+        js_mapi_register(si,e_SESSION, mod_log_session, NULL);
     if(mod_log__packet != NULL)
-        js_mapi_register(e_DELIVER, mod_log_packet, NULL);
+        js_mapi_register(si,e_DELIVER, mod_log_packet, NULL);
 }
 

@@ -31,8 +31,18 @@ int _mod_admin_who(void *arg, const void *key, void *data)
     return 1;
 }
 
+/* callback for walking the host hash tree */
+int _mod_admin_who_host(void *arg, const void *key, void *data)
+{
+    HASHTABLE ht = (HASHTABLE)data;
+
+    ghash_walk(ht,_mod_admin_who,arg);
+
+    return 1;
+}
+
 /* who */
-mreturn  mod_admin_who(jpacket p)
+mreturn  mod_admin_who(jsmi si, jpacket p)
 {
     xmlnode who = xmlnode_get_tag(p->iq,"who");
 
@@ -41,7 +51,7 @@ mreturn  mod_admin_who(jpacket p)
         log_debug("mod_admin","handling who GET");
 
         /* walk the users */
-        ghash_walk(js__users,_mod_admin_who,(void *)who);
+        ghash_walk(si->hosts,_mod_admin_who_host,(void *)who);
     }
 
     if(jpacket_subtype(p) == JPACKET__SET)
@@ -54,82 +64,12 @@ mreturn  mod_admin_who(jpacket p)
     jutil_tofrom(p->x);
     xmlnode_put_attrib(p->x,"type","result");
     jpacket_reset(p);
-    js_deliver(p);
-    return M_HANDLED;
-}
-
-/* monitor */
-mreturn mod_admin_monitor(jpacket p)
-{
-    xmlnode config = xmlnode_get_tag(p->iq,"config");
-    xmlnode cur;
-
-    if(jpacket_subtype(p) == JPACKET__GET)
-    {
-        log_debug("mod_admin","handling config GET");
-
-        /* insert the loaded config file */
-        xmlnode_insert_node(config,xmlnode_get_firstchild(js__config));
-    }
-
-    if(jpacket_subtype(p) == JPACKET__SET)
-    {
-        log_debug("mod_admin","handling config SET");
-
-        /* set the new config file */
-        js__config = xmlnode_dup(config);
-
-        /* !!! like do init stuff for the new config */
-
-        /* empty the iq result */
-        for(cur = xmlnode_get_firstchild(p->x); cur != NULL; cur = xmlnode_get_nextsibling(cur))
-            xmlnode_hide(cur);
-    }
-
-    jutil_tofrom(p->x);
-    xmlnode_put_attrib(p->x,"type","result");
-    jpacket_reset(p);
-    js_deliver(p);
-    return M_HANDLED;
-}
-
-/* user */
-mreturn mod_admin_user(jpacket p)
-{
-    xmlnode config = xmlnode_get_tag(p->iq,"config");
-    xmlnode cur;
-
-    if(jpacket_subtype(p) == JPACKET__GET)
-    {
-        log_debug("mod_admin","handling config GET");
-
-        /* insert the loaded config file */
-        xmlnode_insert_node(config,xmlnode_get_firstchild(js__config));
-    }
-
-    if(jpacket_subtype(p) == JPACKET__SET)
-    {
-        log_debug("mod_admin","handling config SET");
-
-        /* set the new config file */
-        js__config = xmlnode_dup(config);
-
-        /* !!! like do init stuff for the new config */
-
-        /* empty the iq result */
-        for(cur = xmlnode_get_firstchild(p->x); cur != NULL; cur = xmlnode_get_nextsibling(cur))
-            xmlnode_hide(cur);
-    }
-
-    jutil_tofrom(p->x);
-    xmlnode_put_attrib(p->x,"type","result");
-    jpacket_reset(p);
-    js_deliver(p);
+    js_deliver(si,p);
     return M_HANDLED;
 }
 
 /* config */
-mreturn mod_admin_config(jpacket p)
+mreturn mod_admin_config(jsmi si, jpacket p)
 {
     xmlnode config = xmlnode_get_tag(p->iq,"config");
     xmlnode cur;
@@ -139,17 +79,16 @@ mreturn mod_admin_config(jpacket p)
         log_debug("mod_admin","handling config GET");
 
         /* insert the loaded config file */
-        xmlnode_insert_node(config,xmlnode_get_firstchild(js__config));
+        xmlnode_insert_node(config,xmlnode_get_firstchild(si->config));
     }
 
     if(jpacket_subtype(p) == JPACKET__SET)
     {
         log_debug("mod_admin","handling config SET");
 
-        /* set the new config file */
-        js__config = xmlnode_dup(config);
+        /* XXX FIX ME, like do init stuff for the new config, etc */
+        si->config = xmlnode_dup(config);
 
-        /* !!! like do init stuff for the new config */
 
         /* empty the iq result */
         for(cur = xmlnode_get_firstchild(p->x); cur != NULL; cur = xmlnode_get_nextsibling(cur))
@@ -159,7 +98,47 @@ mreturn mod_admin_config(jpacket p)
     jutil_tofrom(p->x);
     xmlnode_put_attrib(p->x,"type","result");
     jpacket_reset(p);
-    js_deliver(p);
+    js_deliver(si,p);
+    return M_HANDLED;
+}
+
+/* user */
+mreturn mod_admin_user(jsmi si, jpacket p)
+{
+    if(jpacket_subtype(p) == JPACKET__GET)
+    {
+        log_debug("mod_admin","handling user GET");
+    }
+
+    if(jpacket_subtype(p) == JPACKET__SET)
+    {
+        log_debug("mod_admin","handling user SET");
+    }
+
+    jutil_tofrom(p->x);
+    xmlnode_put_attrib(p->x,"type","result");
+    jpacket_reset(p);
+    js_deliver(si,p);
+    return M_HANDLED;
+}
+
+/* monitor */
+mreturn mod_admin_monitor(jsmi si, jpacket p)
+{
+    if(jpacket_subtype(p) == JPACKET__GET)
+    {
+        log_debug("mod_admin","handling monitor GET");
+    }
+
+    if(jpacket_subtype(p) == JPACKET__SET)
+    {
+        log_debug("mod_admin","handling monitor SET");
+    }
+
+    jutil_tofrom(p->x);
+    xmlnode_put_attrib(p->x,"type","result");
+    jpacket_reset(p);
+    js_deliver(si,p);
     return M_HANDLED;
 }
 
@@ -173,15 +152,15 @@ mreturn mod_admin_dispatch(mapi m, void *arg)
     if(!NSCHECK(m->packet->iq,NS_ADMIN)) return M_PASS;
 
     /* ensure that the user is local */
-    if(js_config("admin") == NULL || m->packet->from == NULL || m->packet->from->user == NULL || j_strcmp(m->packet->from->server,js__hostname) != 0)
+    if(js_config(m->si,"admin") == NULL || m->packet->from == NULL || m->packet->from->user == NULL || ghash_get(m->si->hosts, m->packet->from->server) == NULL)
     {
-        js_bounce(m->packet->x,TERROR_NOTALLOWED);
+        js_bounce(m->si,m->packet->x,TERROR_NOTALLOWED);
         return M_HANDLED;
     }
 
     log_debug("mod_admin","checking admin request from %s",jid_full(m->packet->from));
 
-    for(cur = xmlnode_get_firstchild(js_config("admin")); cur != NULL; cur = xmlnode_get_nextsibling(cur))
+    for(cur = xmlnode_get_firstchild(js_config(m->si,"admin")); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
         if(j_strcmp(xmlnode_get_name(cur),"read") == 0 && xmlnode_get_data(cur) != NULL && strcasecmp(m->packet->from->user,xmlnode_get_data(cur)) == 0)
             f_read = 1;
@@ -191,17 +170,17 @@ mreturn mod_admin_dispatch(mapi m, void *arg)
 
     if(f_read)
     {
-        if(xmlnode_get_tag(m->packet->iq,"who") != NULL) return mod_admin_who(m->packet);
-        if(0 && xmlnode_get_tag(m->packet->iq,"monitor") != NULL) return mod_admin_monitor(m->packet);
+        if(xmlnode_get_tag(m->packet->iq,"who") != NULL) return mod_admin_who(m->si, m->packet);
+        if(0 && xmlnode_get_tag(m->packet->iq,"monitor") != NULL) return mod_admin_monitor(m->si, m->packet);
     }
 
     if(f_write)
     {
-        if(0 && xmlnode_get_tag(m->packet->iq,"user") != NULL) return mod_admin_user(m->packet);
-        if(xmlnode_get_tag(m->packet->iq,"config") != NULL) return mod_admin_config(m->packet);
+        if(0 && xmlnode_get_tag(m->packet->iq,"user") != NULL) return mod_admin_user(m->si, m->packet);
+        if(xmlnode_get_tag(m->packet->iq,"config") != NULL) return mod_admin_config(m->si, m->packet);
     }
 
-    js_bounce(m->packet->x,TERROR_NOTALLOWED);
+    js_bounce(m->si,m->packet->x,TERROR_NOTALLOWED);
     return M_HANDLED;
 }
 
@@ -218,7 +197,7 @@ mreturn mod_admin_message(mapi m, void *arg)
     log_debug("mod_admin","delivering admin message from %s",jid_full(m->packet->from));
     xmlnode_put_attrib(m->packet->x,"type","headline");
 
-    for(cur = xmlnode_get_firstchild(js_config("admin")); cur != NULL; cur = xmlnode_get_nextsibling(cur))
+    for(cur = xmlnode_get_firstchild(js_config(m->si,"admin")); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
         if(xmlnode_get_name(cur) == NULL || xmlnode_get_data(cur) == NULL) continue;
 
@@ -227,17 +206,17 @@ mreturn mod_admin_message(mapi m, void *arg)
         jid_set(p->to,xmlnode_get_data(cur),JID_USER);
         xmlnode_put_attrib(p->x,"to",jid_full(p->to));
         jpacket_reset(p);
-        js_deliver(p);
+        js_deliver(m->si,p);
     }
 
     xmlnode_free(m->packet->x);
     return M_HANDLED;
 }
 
-void mod_admin(jsmi i)
+void mod_admin(jsmi si)
 {
-    js_mapi_register(e_SERVER,mod_admin_dispatch,NULL);
-    js_mapi_register(e_SERVER,mod_admin_message,NULL);
+    js_mapi_register(si,e_SERVER,mod_admin_dispatch,NULL);
+    js_mapi_register(si,e_SERVER,mod_admin_message,NULL);
 }
 
 

@@ -204,7 +204,7 @@ mreturn mod_presence_avails_end(mapi m, void *arg)
     {
         pres = xmlnode_dup(m->s->presence);
         xmlnode_put_attrib(pres, "to",jid_full(curr));
-        js_deliver(jpacket_new(pres));
+        js_deliver(m->si,jpacket_new(pres));
     }
 
     return M_PASS;
@@ -257,10 +257,10 @@ mreturn mod_presence_deliver(mapi m, void *arg)
     return M_PASS;
 }
 
-void mod_presence(jsmi i)
+void mod_presence(jsmi si)
 {
     log_debug("mod_presence","init");
-    js_mapi_register(e_DELIVER, mod_presence_deliver, NULL);
-    js_mapi_register(e_SESSION, mod_presence_session, NULL);
+    js_mapi_register(si,e_DELIVER, mod_presence_deliver, NULL);
+    js_mapi_register(si,e_SESSION, mod_presence_session, NULL);
 }
 

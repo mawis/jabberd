@@ -11,7 +11,7 @@ mreturn mod_time_reply(mapi m, void *arg)
     /* first, is this a valid request? */
     if(jpacket_subtype(m->packet) != JPACKET__GET)
     {
-        js_bounce(m->packet->x,TERROR_NOTALLOWED);
+        js_bounce(m->si,m->packet->x,TERROR_NOTALLOWED);
         return M_HANDLED;
     }
 
@@ -29,14 +29,14 @@ mreturn mod_time_reply(mapi m, void *arg)
     tstr[strlen(tstr) - 1] = '\0'; /* cut off newline */
     xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"display"),tstr,-1);
 
-    js_deliver(m->packet);
+    js_deliver(m->si,m->packet);
 
     return M_HANDLED;
 }
 
-void mod_time(jsmi i)
+void mod_time(jsmi si)
 {
-    js_mapi_register(e_SERVER,mod_time_reply,NULL);
+    js_mapi_register(si,e_SERVER,mod_time_reply,NULL);
 }
 
 

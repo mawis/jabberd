@@ -64,9 +64,9 @@ mreturn mod_private_session(mapi m, void *arg)
     return M_PASS;
 }
 
-void mod_private(jsmi i)
+void mod_private(jsmi si)
 {
-    js_mapi_register(e_SESSION,mod_private_session,NULL);
+    js_mapi_register(si,e_SESSION,mod_private_session,NULL);
 }
 
 

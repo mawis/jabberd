@@ -171,7 +171,7 @@ mreturn mod_roster_out_s10n(mapi m)
     {
         item = jutil_presnew(JPACKET__PROBE,jid_full(m->s->uid),NULL);
         xmlnode_put_attrib(item,"from",jid_full(m->packet->to));
-        js_deliver(jpacket_new(item));
+        js_deliver(m->si,jpacket_new(item));
     }
 
     /* make sure it's sent from the *user*, not the resource */
@@ -413,9 +413,9 @@ mreturn mod_roster_s10n(mapi m, void *arg)
 
     /* these are delayed until after we check the roster back in, avoid rancid race conditions */
     if(reply != NULL)
-        js_deliver(jpacket_new(reply));
+        js_deliver(m->si,jpacket_new(reply));
     if(reply2 != NULL)
-        js_deliver(jpacket_new(reply2));
+        js_deliver(m->si,jpacket_new(reply2));
 
     /* find primary session */
     top = js_session_primary(m->user);
@@ -432,11 +432,11 @@ mreturn mod_roster_s10n(mapi m, void *arg)
     return M_HANDLED;
 }
 
-void mod_roster(jsmi i)
+void mod_roster(jsmi si)
 {
     /* we just register for new sessions */
-    js_mapi_register(e_SESSION,mod_roster_session,NULL);
-    js_mapi_register(e_DELIVER,mod_roster_s10n,NULL);
+    js_mapi_register(si,e_SESSION,mod_roster_session,NULL);
+    js_mapi_register(si,e_DELIVER,mod_roster_s10n,NULL);
 }
 
 

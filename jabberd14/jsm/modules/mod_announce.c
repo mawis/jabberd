@@ -15,14 +15,24 @@ int _mod_announce_avail(void *arg, const void *key, void *data)
     return 1;
 }
 
-mreturn mod_announce_avail(jpacket p)
+/* callback for walking the host hash tree */
+int _mod_announce_avail_hosts(void *arg, const void *key, void *data)
 {
-    xmlnode_put_attrib(p->x,"from",js__hostname);
-    ghash_walk(js__users,_mod_announce_avail,(void *)(p->x));
+    HASHTABLE ht = (HASHTABLE)data;
+
+    ghash_walk(ht,_mod_announce_avail,arg);
+
+    return 1;
+}
+
+mreturn mod_announce_avail(jsmi si, jpacket p)
+{
+    xmlnode_put_attrib(p->x,"from",p->to->server);
+    ghash_walk(si->hosts,_mod_announce_avail_hosts,(void *)(p->x));
     return M_HANDLED;
 }
 
-mreturn mod_announce_all(jpacket p)
+mreturn mod_announce_all(jsmi si, jpacket p)
 {
     /* store the message in XDB, and feed to all online.
      * mark off users that got it, feed to new ones that come online
@@ -40,15 +50,15 @@ mreturn mod_announce_dispatch(mapi m, void *arg)
     if(j_strncmp(m->packet->to->resource,"announce/",9) != 0) return M_PASS;
 
     /* ensure that the user is local */
-    if(js_config("admin") == NULL || m->packet->from == NULL || m->packet->from->user == NULL || j_strcmp(m->packet->from->server,js__hostname) != 0)
+    if(js_config(m->si,"admin") == NULL || m->packet->from == NULL || m->packet->from->user == NULL || ghash_get(m->si->hosts, m->packet->from->server) != NULL)
     {
-        js_bounce(m->packet->x,TERROR_NOTALLOWED);
+        js_bounce(m->si,m->packet->x,TERROR_NOTALLOWED);
         return M_HANDLED;
     }
 
     log_debug("mod_announce","handling announce message from %s",jid_full(m->packet->from));
 
-    for(cur = xmlnode_get_firstchild(js_config("admin")); cur != NULL; cur = xmlnode_get_nextsibling(cur))
+    for(cur = xmlnode_get_firstchild(js_config(m->si,"admin")); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
         if(j_strcmp(xmlnode_get_name(cur),"write") == 0 && xmlnode_get_data(cur) != NULL && strcasecmp(m->packet->from->user,xmlnode_get_data(cur)) == 0)
             admin = 1;
@@ -56,17 +66,17 @@ mreturn mod_announce_dispatch(mapi m, void *arg)
 
     if(admin)
     {
-        if(j_strncmp(m->packet->to->resource,"announce/online",15) == 0) return mod_announce_avail(m->packet);
-        if(j_strncmp(m->packet->to->resource,"announce/all",12) == 0) return mod_announce_all(m->packet);
+        if(j_strncmp(m->packet->to->resource,"announce/online",15) == 0) return mod_announce_avail(m->si, m->packet);
+        if(j_strncmp(m->packet->to->resource,"announce/all",12) == 0) return mod_announce_all(m->si, m->packet);
     }
 
-    js_bounce(m->packet->x,TERROR_NOTALLOWED);
+    js_bounce(m->si,m->packet->x,TERROR_NOTALLOWED);
     return M_HANDLED;
 }
 
-void mod_announce(jsmi i)
+void mod_announce(jsmi si)
 {
-    js_mapi_register(e_SERVER,mod_announce_dispatch,NULL);
+    js_mapi_register(si,e_SERVER,mod_announce_dispatch,NULL);
 }
 
 

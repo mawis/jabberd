@@ -7,13 +7,12 @@ mreturn mod_auth_digest(mapi m, void *arg)
     char *digest;
     char *passxdb;
     char *mydigest;
-
-    if(m->packet->type != JPACKET_IQ) return M_IGNORE;
-    if(m->variant != MAPI_VARAUTH) return M_PASS;
+    xmlnode xdb;
 
     log_debug("mod_auth_sha1","checking");
 
-    passxdb = xmlnode_get_data(js_xdb_get(m->user, NS_AUTH));
+    xdb = xdb_get(m->si->xc, m->user->id->server, m->user->id, NS_AUTH);
+    passxdb = xmlnode_get_data(xdb);
     digest = xmlnode_get_tag_data(m->packet->iq, "digest");
     sid = xmlnode_get_attrib(m->packet->x, "sid");
 
@@ -24,6 +23,9 @@ mreturn mod_auth_digest(mapi m, void *arg)
     spooler(s,sid,passxdb,s);
 
     mydigest = shahash(spool_print(s));
+
+    /* don't need the xdb data anymore */
+    xmlnode_free(xdb);
 
     log_debug("mod_auth_sha1","comparing %s %s",digest,mydigest);
 
@@ -37,8 +39,8 @@ mreturn mod_auth_digest(mapi m, void *arg)
     return M_HANDLED;
 }
 
-void mod_auth_sha1(jsmi i)
+void mod_auth_sha1(jsmi si)
 {
     log_debug("mod_auth_sha1","init");
-    js_mapi_register(e_OFFLINE, mod_auth_digest, NULL);
+    js_mapi_register(si,e_OFFLINE, mod_auth_digest, NULL);
 }
