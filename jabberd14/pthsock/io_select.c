@@ -44,6 +44,7 @@ typedef struct io_st
 
 /* global object */
 ios io__data = NULL;
+int io__timeout = 0;
 
 /*
  * callback for Heartbeat, increments karma, and signals the
@@ -61,6 +62,9 @@ result karma_heartbeat(void*arg)
     /* loop through the list, and add karma where appropriate */
     for(cur = io__data->master__list; cur != NULL; cur = cur->next)
     {
+        if(io__timeout > 0 && cur->type == type_NORMAL && cur->activity > 0 && (time(NULL) - cur->activity > io__timeout))
+            io_close(cur);
+
         /* don't update if we are closing, or pre-initilized */
         if(cur->state == state_CLOSE || cur->k.val == KARMA_INIT) 
             continue;
@@ -416,6 +420,9 @@ void _io_main(void *arg)
                     continue;
                 }
 
+                /* update activity timer */
+                cur->activity = time(NULL);
+
                 /* we need to read from a socket */
                 maxlen = KARMA_READ_MAX(cur->k.val);
                 /* leave room for the NULL */
@@ -474,6 +481,10 @@ void _io_main(void *arg)
             {   
                 /* write the current buffer */
                 int ret = _io_write_dump(cur);
+
+                /* update activity timer */
+                cur->activity = time(NULL);
+
                 /* if an error occured */
                 if(ret < 0)
                 {

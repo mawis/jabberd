@@ -52,6 +52,7 @@ typedef struct sock_st
     conn_state state;
     xstream xs;
     int fd;
+    int activity;
     pth_msgport_t queue; /* write buffer queue */
     xmlnode xbuffer;     /* current xmlnode */
     char *wbuffer;       /* current write buffer */

@@ -122,6 +122,7 @@ typedef struct
     xmlnode x;
 } _dpq, *dpq;
 
+extern int io__timeout;
 
 /************************ UTILITIES ****************************/
 
@@ -764,6 +765,9 @@ void pthsock_server(instance i, xmlnode x)
             io_select_listen_ex(j_atoi(xmlnode_get_attrib(cur,"port"),5269),xmlnode_get_data(cur),pthsock_server_inread,(void*)si,j_atoi(xmlnode_get_attrib(xmlnode_get_tag(cfg,"rate"),"time"),5),j_atoi(xmlnode_get_attrib(xmlnode_get_tag(cfg,"rate"),"points"),25),&k);
     else /* no special config, use defaults */
         io_select_listen_ex(5269,NULL,pthsock_server_inread,(void*)si,j_atoi(xmlnode_get_attrib(xmlnode_get_tag(cfg,"rate"),"time"),5),j_atoi(xmlnode_get_attrib(xmlnode_get_tag(cfg,"rate"),"points"),25),&k);
+
+    /* s2s idle timeouts */
+    io__timeout = j_atoi(xmlnode_get_tag_data(cfg,"idletimeout"), 600);
 
     register_phandler(i,o_DELIVER,pthsock_server_packets,(void*)si);
     register_shutdown(pthsock_server_shutdown, (void*)si);
