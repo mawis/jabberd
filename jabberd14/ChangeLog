@@ -1,3 +1,7 @@
+2004-10-12  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/jabberd.c: restored 1.4.3 behaviour of -D option, new one is -d
+
 2004-10-06  Matthias Wimmer  <m@tthias.net>
 
     * dialback/dialback_in.c: When trashing timed-out db queries, we sent
