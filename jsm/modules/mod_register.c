@@ -153,7 +153,53 @@ mreturn mod_register_server(mapi m, void *arg)
     case JPACKET__SET:
         if(xmlnode_get_tag(m->packet->iq,"remove") != NULL)
         {
+	    xmlnode roster, cur;
+	    
             log_notice(m->user->id->server,"User Unregistered: %s",m->user->user);
+
+	    /* remove subscriptions */
+	    roster = xdb_get(m->si->xc, m->user->id, NS_ROSTER);
+	    for (cur = xmlnode_get_firstchild(roster); cur!=NULL; cur=xmlnode_get_nextsibling(cur)) {
+		int unsubscribe = 0, unsubscribed = 0;
+		jid peer;
+		char *subscription;
+
+		peer = jid_new(m->packet->p, xmlnode_get_attrib(cur, "jid"));
+		subscription = xmlnode_get_attrib(cur, "subscription");
+
+		log_debug(ZONE, "removing subscription %s (%s)", subscription, jid_full(peer));
+
+		if (subscription == NULL)
+		    continue;
+
+		/* unsubscribe for existing subscriptions */
+		if (j_strcmp(subscription, "to") == 0)
+		    unsubscribe = 1;
+		else if (j_strcmp(subscription, "from") == 0)
+		    unsubscribed = 1;
+		else if (j_strcmp(subscription, "both") == 0)
+		    unsubscribe = unsubscribed = 1;
+	
+		/* unsubscribe for requested subscriptions */
+		if (xmlnode_get_attrib(cur, "ask"))
+		    unsubscribe = 1;
+		if (xmlnode_get_attrib(cur, "subscribe"))
+		    unsubscribed = 1;
+
+		/* send the unsubscribe/unsubscribed requests */
+		if (unsubscribe) {
+		    xmlnode pp = jutil_presnew(JPACKET__UNSUBSCRIBE, jid_full(peer), NULL);
+		    xmlnode_put_attrib(pp, "from", jid_full(m->user->id));
+		    js_deliver(m->si, jpacket_new(pp));
+		}
+		if (unsubscribed) {
+		    /* XXX send unavailable presence first */
+
+		    xmlnode pp = jutil_presnew(JPACKET__UNSUBSCRIBED, jid_full(peer), NULL);
+		    xmlnode_put_attrib(pp, "from", jid_full(m->user->id));
+		    js_deliver(m->si, jpacket_new(pp));
+		}
+	    }
 
             /* XXX BRUTE FORCE: remove the registration and auth and any misc data */
             xdb_set(m->si->xc, m->user->id, NS_REGISTER, NULL);

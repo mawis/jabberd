@@ -1,3 +1,9 @@
+2004-05-26  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/jabberd.c: fix pool debug
+    * jabberd/lib/jabberdlib.h: same
+    * jabberd/lib/pool.c: same
+
 2004-05-23  Matthias Wimmer  <m@tthias.net>
 
     * jabber.xml.dist.in: send an xml:lang attribute in messages
@@ -11,6 +17,7 @@
     * jsm/modules/mod_groups.c: same
     * jsm/modules/mod_offline.c: same (and do only deliver to non-negative)
     * jsm/modules/mod_presence.c: same
+    * jsm/modules/mod_register.c: unsubscribe subscriptions when unregistering
 
 2004-05-22  Matthias Wimmer  <m@tthias.net>
 
