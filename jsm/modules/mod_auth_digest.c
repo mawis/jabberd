@@ -19,7 +19,7 @@
 
 #include <jsm.h>
 
-mreturn mod_auth_digest(mapi m, void *arg)
+mreturn mod_auth_digest_yum(mapi m, void *arg)
 {
     spool s;
     char *sid;
@@ -28,7 +28,7 @@ mreturn mod_auth_digest(mapi m, void *arg)
     char *mydigest;
     xmlnode xdb;
 
-    log_debug("mod_auth_sha1","checking");
+    log_debug("mod_auth_digest","checking");
 
     if(jpacket_subtype(m->packet) == JPACKET__GET)
     { /* type=get means we flag that the server can do digest auth */
@@ -36,14 +36,16 @@ mreturn mod_auth_digest(mapi m, void *arg)
         return M_PASS;
     }
 
+    if((digest = xmlnode_get_tag_data(m->packet->iq,"digest")) == NULL)
+        return M_PASS;
+
     xdb = xdb_get(m->si->xc, m->user->id->server, m->user->id, NS_AUTH);
     passxdb = xmlnode_get_data(xdb);
-    digest = xmlnode_get_tag_data(m->packet->iq, "digest");
     sid = xmlnode_get_attrib(xmlnode_get_tag(m->packet->iq,"digest"), "sid");
 
     /* Concat the stream id and password */
     /* SHA it up */
-    log_debug("mod_auth_sha1", "Got SID: %s", sid);
+    log_debug("mod_auth_digest", "Got SID: %s", sid);
     s = spool_new(m->packet->p);
     spooler(s,sid,passxdb,s);
 
@@ -52,7 +54,7 @@ mreturn mod_auth_digest(mapi m, void *arg)
     /* don't need the xdb data anymore */
     xmlnode_free(xdb);
 
-    log_debug("mod_auth_sha1","comparing %s %s",digest,mydigest);
+    log_debug("mod_auth_digest","comparing %s %s",digest,mydigest);
 
     if(digest == NULL || sid == NULL || mydigest == NULL) return M_PASS;
 
@@ -64,8 +66,8 @@ mreturn mod_auth_digest(mapi m, void *arg)
     return M_HANDLED;
 }
 
-void mod_auth_sha1(jsmi si)
+void mod_auth_digest(jsmi si)
 {
-    log_debug("mod_auth_sha1","init");
-    js_mapi_register(si,e_AUTH, mod_auth_digest, NULL);
+    log_debug("mod_auth_digest","init");
+    js_mapi_register(si,e_AUTH, mod_auth_digest_yum, NULL);
 }

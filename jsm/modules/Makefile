@@ -6,8 +6,9 @@ jsm_modules_OBJECTS=\
 	mod_admin.o \
 	mod_agents.o \
 	mod_announce.o \
-	mod_auth.o \
-	mod_auth_sha1.o \
+	mod_auth_plain.o \
+	mod_auth_digest.o \
+	mod_auth_0k.o \
 	mod_echo.o \
 	mod_filter.o \
 	mod_presence.o \
@@ -18,7 +19,6 @@ jsm_modules_OBJECTS=\
 	mod_version.o \
 	mod_register.o \
 	mod_log.o \
-	mod_auth_0k.o \
 	mod_offline.o
 
 all: $(jsm_modules_OBJECTS)
