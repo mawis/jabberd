@@ -76,6 +76,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     cdata cdcur;
     sock cur;
     int fd=0;
+    xmlnode x;
 
     if(p->id->user!=NULL)fd = atoi(p->id->user); 
     if(p->type!=p_ROUTE||fd==0)
@@ -113,6 +114,9 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     log_debug(ZONE,"Found the sock for this user");
     if (j_strcmp(xmlnode_get_attrib(p->x,"type"),"error")==0)
     { /* <route type="error" means we were disconnected */
+        x = xmlnode_new_tag("stream:error");
+        xmlnode_insert_cdata(x,"Disconnected",-1);
+        io_write(cur,x);
         io_close(cur);
         xmlnode_free(p->x);
         return r_DONE;
@@ -319,9 +323,6 @@ void pthsock_client_read(sock c,char *buffer,int bufsz,int flags,void *arg)
                 pth_msgport_destroy(cd->pre_auth_mp);
             } 
         }
-        x=xmlnode_new_tag("stream:error");
-        xmlnode_insert_cdata(x,"Disconnected",-1);
-        io_write(c,x);
         break;
     case IO_ERROR:
         if(c->xbuffer==NULL) break;
