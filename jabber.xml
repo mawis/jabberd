@@ -299,6 +299,17 @@
       limit the amount of time allowed for authentication to be
       completed, e.g., <authtime>10</authtime> for 10 seconds
 
+    * heartbeat - default is to not send out heartbeat packets
+      to the clients.  This option allows you to specify that
+      you want heartbeats to happen every x seconds.  This is
+      useful if you have a lot of dial-up or laptop users who
+      may drop their connection without logging off of jabber.
+      Otherwise the server won't notice that they are offline until
+      someone tries to send a packet to them (and the message is
+      lost).  Example: <heartbeat>60</heartbeat>
+      NOTE: Exodus 0.6.0.0 will stop working if you turn this 
+      feature on!  There is a fix in Exodus's CVS for this.
+
     * karma - this is an input/output rate limiting system that
       the Jabber team came up with to prevent bandwidth hogging.
       For details about karma, read the io section at the bottom.
@@ -312,6 +323,7 @@
     </load>
     <pthcsock xmlns='jabber:config:pth-csock'>
       <authtime/>
+      <heartbeat/>
       <karma>
         <init>10</init>
         <max>10</max>
