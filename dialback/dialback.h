@@ -65,4 +65,5 @@ char *dialback_merlin(pool p, char *secret, char *to, char *challenge);
 void dialback_miod_hash(miod md, HASHTABLE ht, jid key);
 miod dialback_miod_new(db d, mio m);
 void dialback_miod_write(miod md, xmlnode x);
+void dialback_miod_read(miod md, xmlnode x);
 
