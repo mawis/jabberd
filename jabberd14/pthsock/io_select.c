@@ -20,15 +20,81 @@
 #include "io.h"
 
 /* struct to hold data for our instance */
+struct rlimit_struct;
+
 typedef struct io_st
 {
     pool p;             /* pool to hold this data */
     sock master__list;  /* a list of all the socks */
     pth_t t;            /* a pointer to thread for signaling */
-    void *arg;          /* hanging data */
+    struct rlimit_struct *rate_ip;
 } _ios,*ios;
 
 ios io__data=NULL;
+
+/* RATE LIMIT STUFF */
+typedef struct rlimit_struct
+{
+    char *key;
+    int start;
+    int points;
+    int maxt, maxp;
+    pool p;
+} *rlimit, _rlimit;
+
+rlimit rate_new(int maxt, int maxp)
+{
+    pool p;
+    rlimit r;
+
+    p = pool_new();
+    r = pmalloc(p,sizeof(_rlimit));
+    r->key = NULL;
+    r->start = r->points = 0;
+    r->maxt = maxt;
+    r->maxp = maxp;
+    r->p = p;
+
+    return r;
+}
+
+void rate_free(rlimit r)
+{
+    if(r != NULL)
+    {
+        free(r->key);
+        pool_free(r->p);
+    }
+}
+
+int rate_check(rlimit r, char *key, int points)
+{
+    int now = time(NULL);
+
+    if(r == NULL) return 0;
+
+    /* make sure we didn't go over the time frame or get a null/new key */
+    if((now - r->start) > r->maxt || key == NULL || j_strcmp(key,r->key) != 0)
+    { /* start a new key */
+        free(r->key);
+        if(key != NULL)
+            r->key = strdup(key);
+        else
+            r->key = NULL;
+        r->start = now;
+        r->points = 0;
+    }
+
+    r->points += points;
+
+    /* if we're within the time frame and over the point limit */
+    if(r->points > r->maxp && (now - r->start) < r->maxt)
+    {
+        return 1; /* we don't reset the rate here, so that it remains rated until the time runs out */
+    }
+
+    return 0;
+}
 
 /* returns a list of all the sockets in this instance */
 sock io_select_get_list(void)
@@ -225,6 +291,15 @@ sock _io_accept(sock s)
     flags|=O_NONBLOCK;
     fcntl(fd,F_SETFL,flags);
 
+#ifndef NORATELIMITS
+    if(rate_check(io__data->rate_ip,inet_ntoa(sa.sin_addr),1))
+    {
+        log_warn("io_select","%s is being connection rate limited",inet_ntoa(sa.sin_addr));
+        close(fd);
+        return NULL;
+    }
+#endif
+
     log_debug(ZONE,"new socket accepted (fd: %d, ip: %s, port: %d)",fd,inet_ntoa(sa.sin_addr),ntohs(sa.sin_port));
 
     p = pool_new();
@@ -251,6 +326,11 @@ void _io_main(void *arg)
     char buff[1024];
     int len;
     int maxfd=0;
+
+#ifndef NORATELIMITS
+    /* init the rate limit junk */
+    io__data->rate_ip=rate_new(5,25); /* 25 connects per 5 seconds, per IP in a row */
+#endif
 
     /* init the signal junk */
     sigemptyset(&sigs);
