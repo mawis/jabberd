@@ -36,10 +36,87 @@
  * delete the provisions above, a recipient may use your version of this file
  * under either the JOSL or the GPL. 
  * 
- * 
  * --------------------------------------------------------------------------*/
 
 #include "lib.h"
+
+#ifdef LIBIDN
+
+#  include <stringprep.h>
+
+jid jid_safe(jid id)
+{
+    int result=0;
+    
+    /* there must be a domain identifier */
+    if (j_strlen(id->server) == 0)
+	return NULL;
+
+    /* nameprep the domain identifier */
+    result = stringprep_nameprep_no_unassigned(id->server, strlen(id->server)+1);
+    if (result == STRINGPREP_TOO_SMALL_BUFFER) {
+	/* nameprep wants to expand the string, e.g. conversion from &szlig; to ss */
+	size_t biggerbuffersize = strlen(id->server)*2+1; /* XXX: could we need more? */
+	char *biggerbuffer = pmalloc(id->p, biggerbuffersize);
+	if (biggerbuffer == NULL)
+	    return NULL;
+	strcpy(biggerbuffer, id->server);
+	result = stringprep_nameprep_no_unassigned(biggerbuffer, biggerbuffersize);
+	id->server = biggerbuffer;
+    }
+    if (result != STRINGPREP_OK)
+	return NULL;
+
+    /* the namepreped domain must not be longer than 1023 bytes */
+    if (j_strlen(id->server) > 1023)
+	return NULL;
+
+    /* if there is a user we need to nodeprep it */
+    if (id->user != NULL) {
+	result = stringprep_xmpp_nodeprep(id->user, strlen(id->user)+1);
+	if (result == STRINGPREP_TOO_SMALL_BUFFER) {
+	    /* nodeprep wants to expand the string, e.g. conversion from &szlig; to ss */
+	    size_t biggerbuffersize = strlen(id->user)*2+1; /* XXX: could we need more? */
+	    char *biggerbuffer = pmalloc(id->p, biggerbuffersize);
+	    if (biggerbuffer == NULL)
+		return NULL;
+	    strcpy(biggerbuffer, id->user);
+	    result = stringprep_xmpp_nodeprep(biggerbuffer, biggerbuffersize);
+	    id->user = biggerbuffer;
+	}
+	if (result != STRINGPREP_OK)
+	    return NULL;
+
+	/* the nodepreped node must not be longer than 1023 bytes */
+	if (j_strlen(id->user) > 1023)
+	    return NULL;
+    }
+
+    /* if there is a resource we need to resourceprep it */
+    if (id->resource != NULL) {
+	result = stringprep_xmpp_resourceprep(id->resource, strlen(id->resource)+1);
+	if (result == STRINGPREP_TOO_SMALL_BUFFER) {
+	    /* resourceprep wants to expand the string, e.g. conversion from &szlig; to ss */
+	    size_t biggerbuffersize = strlen(id->resource)*2+1; /* XXX: could we need more? */
+	    char *biggerbuffer = pmalloc(id->p, biggerbuffersize);
+	    if (biggerbuffer == NULL)
+		return NULL;
+	    strcpy(biggerbuffer, id->resource);
+	    result = stringprep_xmpp_resourceprep(biggerbuffer, biggerbuffersize);
+	    id->resource = biggerbuffer;
+	}
+	if (result != STRINGPREP_OK)
+	    return NULL;
+
+	/* the resourcepreped node must not be longer than 1023 bytes */
+	if (j_strlen(id->resource) > 1023)
+	    return NULL;
+    }
+
+    return id;
+}
+
+#else /* no LIBIDN */
 
 jid jid_safe(jid id)
 {
@@ -66,6 +143,7 @@ jid jid_safe(jid id)
 
     return id;
 }
+#endif
 
 jid jid_new(pool p, char *idstr)
 {
@@ -129,10 +207,13 @@ void jid_set(jid id, char *str, int item)
     switch(item)
     {
     case JID_RESOURCE:
+	old = id->resource;
         if(str != NULL && strlen(str) != 0)
             id->resource = pstrdup(id->p, str);
         else
             id->resource = NULL;
+        if(jid_safe(id) == NULL)
+            id->resource = old; /* revert if invalid */
         break;
     case JID_USER:
         old = id->user;
