@@ -1,5 +1,8 @@
 #include "jabberd.h"
 
+/* theoretically, by including a <fork/> in a section, that instance would run via a seperate process and talk over an internal socket */
+/* this is hard and not immediately useful (if ever) */
+
 result base_fork_config(instance id, xmlnode x, void *arg)
 {
     if(id == NULL)

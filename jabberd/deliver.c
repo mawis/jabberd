@@ -106,10 +106,13 @@ void deliver_fail(dpacket p)
     switch(p->type)
     {
     case p_LOG:
+        /* stderr and drop */
         break;
     case p_XDB:
+        /* empty result */
         break;
     case p_NORM:
+        /* normal packet bounce */
         break;
     }
 }
