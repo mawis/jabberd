@@ -42,7 +42,7 @@
     be on one line, the server doesn't like it otherwise! :)
     -->
 
-    <host><jabberd:cmdline flag="h">localhost</jabberd:cmdline></host>
+    <host><jabberd:cmdline flag="h">plateau.obelisk.net</jabberd:cmdline></host>
 
     <!-- 
     This is the custom configuration section for the 
