@@ -46,7 +46,7 @@ overall:
 components:
 	dnsrv, general SRV and A testing
 	s2s, timeouts, drops, 1.0/1.2
-	jsm, virtual hosting
+	jsm, virtual hosting, mod_admin doesn't work
 	xdb_file, io error handling, heavy load?
 	c2s, bad streams/ids, bad auth, bad reg, queueing, timeouts -- TSB 10/11/00 OK
 	jud/privacy
