@@ -334,7 +334,7 @@ void* dnsrv_process_io(void* threadarg)
 			 /* Spool up a request */
 			 request = spools(lsthead->packet->p, "<host>", lsthead->packet->host, "</host>", lsthead->packet->p);
 
-			 log_debug(ZONE, "dnsrv: Transmitting lookup request for %s to coprocess", wb->packet-host);
+			 log_debug(ZONE, "dnsrv: Transmitting lookup request for %s to coprocess", wb->packet->host);
 			 /* Send a request to the coprocess */
 			 pth_write(di->out, request, strlen(request));
 		    }
