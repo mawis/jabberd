@@ -82,6 +82,8 @@ result base_connect_deliver(instance i, dpacket p, void* arg)
      wb = pmalloco(p->p, sizeof(_conn_write_buf));
      wb->packet = p;
 
+     log_debug(ZONE, "deliver packet to base_connect msgport: %s", xmlnode2str(p->x));
+
      /* Put the buffer in the io thread's message port */
      pth_msgport_put(ci->write_queue, (pth_message_t*)wb);
 
@@ -118,9 +120,14 @@ void base_connect_handle_xstream_event(int type, xmlnode x, void* arg)
 	  else
 	  {
 	       /* If a handshake packet is recv'd from the server, we
-		  have successfully auth'd */
+		  have successfully auth'd -- go ahead and hook msgport events */
 	       if (strcmp(xmlnode_get_name(x), "handshake") == 0)
+	       {
 		    ci->state = conn_AUTHD;
+		    /* Hook the event for delivering messages to the coprocess */
+		    ci->e_write = pth_event(PTH_EVENT_MSG, ci->write_queue);  
+		    ci->events  = pth_event_concat(ci->e_read, ci->e_write, NULL);  
+	       }
 	       /* Drop the packet, regardless */
 	       pool_free(x->p);
 	  }
