@@ -14,7 +14,7 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  *  Jabber
- *  Copyright (C) 1998-1999 The Jabber Team http://jabber.org/
+ *  Copyright (C) 1998-2000 The Jabber Team http://jabber.org/
  */
 
 #include "io.h"

@@ -14,12 +14,21 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  *  Jabber
- *  Copyright (C) 1998-1999 The Jabber Team http://jabber.org/
+ *  Copyright (C) 1998-2000 The Jabber Team http://jabber.org/
  */
 
 /*
+    <!-- For use without an external DNS component -->
   <service id="127.0.0.1 s2s">
     <host/>
+    <load main="pthsock_server">
+      <pthsock_server>../load/pthsock_server.so</pthsock_server>
+    </load>
+  </service>
+
+  <!-- for use with an external DNS component -->
+  <service id="127.0.0.1 s2s">
+    <host>pthsock-s2s.127.0.0.1</host> <!-- add this host to DNS config section -->
     <load main="pthsock_server">
       <pthsock_server>../load/pthsock_server.so</pthsock_server>
     </load>
