@@ -25,3 +25,7 @@
       among the components for incoming connections has to be managed using
       DNS records. For outgoing connections the DNS resolver (dnsrv) is
       responsible for distributing the connections among the components
+    * Better XMPP compatibility: JIDs are prepared by the applicable stringprep
+      profiles; subscription state changes are only made if allowed,
+      contacts cannot push themself on a user's roster; correct stanza errors
+      are created
