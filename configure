@@ -59,7 +59,7 @@ fi
 ##
 # Setup our initial flags
 ##
-CFLAGS="-g -Wall -I./ -I../ $XODE_CFLAGS $JABBER_CFLAGS $PTH_CFLAGS"
+CFLAGS="-g -Wall -fPIC -I./ -I../ $XODE_CFLAGS $JABBER_CFLAGS $PTH_CFLAGS"
 MCFLAGS="-shared"
 LDFLAGS="$XODE_LDFLAGS $JABBER_LDFLAGS $PTH_LDFLAGS"
 LIBS="$XODE_LIBS $JABBER_LIBS $PTH_LIBS"
@@ -72,11 +72,11 @@ printf "Setting Build Parameters..."
 hosttype=`uname -s`
 case $hosttype in
     Linux)
-        CFLAGS="$CFLAGS -fPIC"
+        CFLAGS="$CFLAGS"
         LIBS="$LIBS -ldl"
         XLDFLAGS="$XLDFLAGS -Wl,--export-dynamic";;
     SunOS)
-        CFLAGS="$CFLAGS -fPIC"
+        CFLAGS="$CFLAGS"
         LIBS="$LIBS -ldl -lsocket -lnsl";;
 esac
 printf "     Done.\n"
