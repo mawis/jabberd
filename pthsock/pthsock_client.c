@@ -261,6 +261,7 @@ int pthsock_client_write(csock c, dpacket p)
                 }
                 else
                     log_debug(ZONE,"socket already closed");
+                xmlnode_free(p->p);
                 return 0;
             }
 
@@ -296,10 +297,11 @@ int pthsock_client_write(csock c, dpacket p)
     {
         c->state = state_CLOSED;
         /* bounce p->p */
+        xmlnode_free(p->p);
         return 0;
     }
 
-    pool_free(p->p);;
+    pool_free(p->p);
     return 1;
 }
 
@@ -397,7 +399,7 @@ void *pthsock_client_main(void *arg)
                 }
                 else if (FD_ISSET(cur->sock,&rfds))
                 {
-                    len = pth_read(cur->sock,buff,1024);
+                    len = pth_read(cur->sock,buff,sizeof(buff));
                     if(len <= 0)
                     {
                         log_debug(ZONE,"Error reading on '%d', %s",cur->sock,strerror(errno));
