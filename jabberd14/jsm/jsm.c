@@ -150,12 +150,27 @@ void jsm(instance i, xmlnode x)
     /* initialize globally trusted ids */
     for(cur = xmlnode_get_firstchild(xmlnode_get_tag(si->config,"admin")); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
+	char *tagname = NULL;
+	jid newjid = NULL;
+
         if(xmlnode_get_type(cur) != NTYPE_TAG) continue;
+
+	tagname = xmlnode_get_name(cur);
+
+	if (j_strcmp(tagname, "read") != 0 && j_strcmp(tagname, "write") != 0)
+	    continue;
+
+	newjid = jid_new(si->p, xmlnode_get_data(cur));
+
+	if (newjid == NULL)
+	    continue;
 
         if(si->gtrust == NULL)
             si->gtrust = jid_new(si->p,xmlnode_get_data(cur));
         else
             jid_append(si->gtrust,jid_new(si->p,xmlnode_get_data(cur)));
+
+	log_debug2(ZONE, LOGT_INIT, "XXX appended %s to list of global trust", jid_full(jid_new(si->p,xmlnode_get_data(cur))));
     }
 
     /* fire up the modules by scanning the attribs on the xml we received */
