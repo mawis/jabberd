@@ -312,9 +312,18 @@ void* dnsrv_process_io(void* threadarg)
      return NULL;
 }
 
-
-void dnsrv(instance i, xmlnode x)
+typedef struct dnsrv_st
 {
+    instance i;
+    xmlnode x;
+} _dnsrv_data,*dnsrv_data;
+
+void dnsrv_thread(void *arg)
+{
+     dnsrv_data d=(dnsrv_data)arg;
+     instance i=d->i;
+     xmlnode x=d->x;
+
      xdbcache xc = NULL;
      xmlnode  config = NULL;
 
@@ -346,4 +355,12 @@ void dnsrv(instance i, xmlnode x)
 
      /* Register an incoming packet handler */
      register_phandler(i, o_DELIVER, dnsrv_deliver, (void*)di);
+}
+
+void dnsrv(instance i, xmlnode x)
+{
+    dnsrv_data d=pmalloco(xmlnode_pool(x),sizeof(_dnsrv_data));
+    d->x=x;
+    d->i=i;
+    pth_spawn(PTH_ATTR_DEFAULT,(void*)dnsrv_thread,(void*)d);
 }
