@@ -2,6 +2,9 @@
 Crit/Bugs/Strangeness
 ===================================
 
+dizzyd?? 10/1/00 ...
+Base_exec and chaining jabberd's together MUST work correctly..
+
 jer	9/15/00 owner
 config: register a command description like apache?
 
