@@ -34,6 +34,10 @@ Do not forget to update the path to these shared objects!
 (The names have changed because we are installing jabberd and do not want
 to clash with the file names of other libraries.)
 
+The mod_auth_0k module has been removed from jabberd. Please remove the
+<mod_auth_0k/> element inside the <load/> element for the session manager,
+else jabberd will not start.
+
 jabberd will not change to its build directory anymore but start running
 in the current directory. If you are using relative paths in your
 configuration file, change to the right directory before starting jabberd
