@@ -308,7 +308,7 @@ void mio_rate(mio m, int rate_time, int max_points);
 xmlnode mio_cleanup(mio m);
 
 /* connects to an ip */
-mio mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_connect_func f, mio_handlers mh);
+void mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_connect_func f, mio_handlers mh);
 
 /* starts listening on a port/ip, returns NULL if failed to listen */
 mio mio_listen(int port, char *sourceip, void *cb, void *cb_arg, mio_accept_func f, mio_handlers mh);
