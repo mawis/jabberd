@@ -21,3 +21,6 @@ cp cygwin/dllinit.c jabberd/
 cp cygwin/dllfixup.c jabberd/
 
 # hmm, I guess that's it?
+# Not quite, a new config file...
+mv jabber.xml jabber.xml.orig
+cp cygwin/jabber.xml .
