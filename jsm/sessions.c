@@ -109,7 +109,7 @@ session js_session_new(jsmi si, dpacket dp)
     /* default settings */
     s->exit_flag = 0;
     s->roster = 0;
-    s->priority = -1;
+    s->priority = -129;
     s->presence = jutil_presnew(JPACKET__UNAVAILABLE,NULL,NULL);
     xmlnode_put_attrib(s->presence,"from",jid_full(s->id));
     s->c_in = s->c_out = 0;
@@ -162,7 +162,7 @@ void js_session_end(session s, char *reason)
     s->exit_flag = 1;
 
     /* make sure we're not the primary session */
-    s->priority = -1;
+    s->priority = -129;
 
     /* if the last known presence was available, update it */
     if(s->presence != NULL && j_strcmp(xmlnode_get_attrib(s->presence, "type"), "unavailable") != 0)
