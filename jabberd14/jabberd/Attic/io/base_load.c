@@ -252,7 +252,7 @@ int xdb_set(xdbcache xc, char *host, jid owner, char *ns, xmlnode data)
     char ids[9];
     pth_mutex_t mutex = PTH_MUTEX_INIT;
     pth_cond_t cond = PTH_COND_INIT;
-    char *oldres; = owner->resource;
+    char *oldres;
 
     if(xc == NULL || host == NULL || owner == NULL || ns == NULL || data == NULL)
     {
