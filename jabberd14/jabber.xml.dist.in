@@ -264,13 +264,14 @@
       manager to store a copy of all messages to xdb.
       The sent element will enable storage of sent messages, the recv
       element will enable storage of received messages.
-      By default the session manager will not store messages it read
-      from offline storage (with xdb_sql you could construct a delete
-      query, that does not delete the message, but just flag it as delivered,
-      so we don't have to store the message in the history again.
-      Also messages with type error, headline, or groupchat are not stored
+      You can configure the session manager to not store messages it reads
+      from offline storage. With xdb_sql you can then construct a delete
+      query, that does not delete the message, but just flags it as
+      delivered, so we don't have to store the message in the
+      history again.
+      Messages with type error, headline, or groupchat are not stored
       in the history. This can be changed by defining the attributes
-      special or offline with the values store.
+      special or offline with the values 'store' or 'ignore'.
 
       This is an experimental feature, it might be removed in future
       versions of this software or it might get incompatible changes.
@@ -278,7 +279,7 @@
       <!--
       <history>
 	  <sent special='ignore'/>
-	  <recv special='ignore' offline='ignore'/>
+	  <recv special='ignore' offline='store'/>
       </history>
       -->
 
@@ -406,11 +407,20 @@
   Uncomment the <presence2xdb/> element in the session manager
   configuration above and create a table presence with the following
   fields in it: jid, presence, priority, status.
+
+  The two other configured examples here handle offline message
+  storage and storage of message history. These are only considered
+  to be examples. For more information read README.sql.
+
+  In README.sql you will also find how to create the tables that can
+  be used together with these examples.
   -->
   <!--
   <xdb id="xdbsql">
     <host/>
     <ns>jabber:iq:auth</ns>
+    <ns>jabber:x:offline</ns>
+    <ns>http://jabberd.org/ns/history</ns>
     <ns>http://jabberd.org/ns/storedpresence</ns>
     <load>
       <xdb_sql>@libdir@/libjabberdxdbsql.so</xdb_sql>
@@ -433,6 +443,22 @@
 	 </get>
 	 <set>INSERT INTO users (jid,password) VALUES ('{attribute::to}', '{password/text()}')</set>
 	 <delete>DELETE FROM users WHERE jid='{attribute::to}'</delete>
+      </handler>
+      <handler ns="jabber:x:offline">
+        <get>
+          <query>SELECT xml FROM messages WHERE jid='{attribute::to}' AND type='offline'</query>
+          <result group='foo'><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
+        </get>
+        <set>INSERT INTO messages (jid, correspondent, type, storetime, subject, body, xml) VALUES ('{attribute::to}', '{message/attribute::from}', 'offline', now(), IF ('{message/subject}'='', NULL, '{message/subject/text()}'), '{message/body/text()}', '{message}')</set>
+        <delete>DELETE FROM messages WHERE jid='{attribute::to}' AND type='offline'</delete>
+      </handler>
+      <handler ns="http://jabberd.org/ns/history">
+        <get>
+          <query>SELECT xml FROM messages WHERE jid='{attribute::to}' AND type!='offline'</query>
+          <result group='foo'><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
+        </get>
+        <set>INSERT INTO messages (jid, correspondent, type, storetime, delivertime, subject, body, xml) VALUES ('{attribute::to}', IF ('{message/attribute::direction}'='sent', '{message/attribute::to}', '{message/attribute::from}'), IF ('{message/attribute::direction}'='sent', 'sent', 'recv'), now(), IF ('{message/attribute::direction}'='sent', NULL, now()), '{message/subject/text()}', '{message/body/text()}', '{message}')</set>
+        <delete>DELETE FROM messages WHERE jid='{attribute::to}'AND type!='offline'</delete>
       </handler>
       <handler ns="http://jabberd.org/ns/storedpresence">
         <get>
