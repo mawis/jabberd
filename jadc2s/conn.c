@@ -132,9 +132,6 @@ chunk_t chunk_new(conn_t c)
 /* free a chunk */
 void chunk_free(chunk_t chunk)
 {
-    if(chunk->to != NULL) free(chunk->to);
-    if(chunk->from != NULL) free(chunk->from);
-
     nad_free(chunk->nad);
 
     free(chunk);
