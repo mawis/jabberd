@@ -31,7 +31,7 @@
 
 mreturn mod_register_new(mapi m, void *arg)
 {
-    xmlnode q, reg;
+    xmlnode reg, x;
 
     if((reg = js_config(m->si, "register")) == NULL) return M_PASS;
 
@@ -40,15 +40,9 @@ mreturn mod_register_new(mapi m, void *arg)
     switch(jpacket_subtype(m->packet))
     {
     case JPACKET__GET:
-        /* create reply to the get */
-        jutil_iqresult(m->packet->x);
-
-        /* create a new query */
-        q = xmlnode_insert_tag(m->packet->x, "query");
-        xmlnode_put_attrib(q,"xmlns",NS_REGISTER);
 
         /* copy in the registration fields from the config file */
-        xmlnode_insert_node(q,xmlnode_get_firstchild(reg));
+        xmlnode_insert_node(m->packet->iq,xmlnode_get_firstchild(reg));
 
         break;
 
@@ -56,38 +50,29 @@ mreturn mod_register_new(mapi m, void *arg)
 
         log_debug(ZONE,"processing valid registration for %s",jid_full(m->packet->to));
 
-        /* try to save the auth data */
-        if(xdb_set(m->si->xc, jid_user(m->packet->to), NS_AUTH, xmlnode_get_tag(m->packet->iq,"password")))
-        {
-            jutil_error(m->packet->x, TERROR_FORBIDDEN); /* or 503? */
-            break;
-        }
-
         /* save the registration data */
-        xmlnode_hide(xmlnode_get_tag(m->packet->iq,"password")); /* hide the username/password from the reg db */
-        xmlnode_hide(xmlnode_get_tag(m->packet->iq,"username"));
         jutil_delay(m->packet->iq,"registered");
         xdb_set(m->si->xc, jid_user(m->packet->to), NS_REGISTER, m->packet->iq);
 
         /* if configured to, send admins a notice */
         if(xmlnode_get_attrib(reg,"notify") != NULL)
         {
-            q = jutil_msgnew(NULL,
+            x = jutil_msgnew(NULL,
                 m->packet->to->server,
                 "Registration Notice",
                 spools(m->packet->p,"The user ",jid_full(m->packet->to)," was just created with the following registration data: ",xmlnode2str(m->packet->iq),m->packet->p));
-            xmlnode_put_attrib(q, "from", m->packet->to->server);
-            js_deliver(m->si,jpacket_new(q));
+            xmlnode_put_attrib(x, "from", m->packet->to->server);
+            js_deliver(m->si,jpacket_new(x));
         }
 
         /* if also configured, send the new user a welcome message */
         if((reg = js_config(m->si, "welcome")) != NULL)
         {
-            q = xmlnode_new_tag("message");
-            xmlnode_put_attrib(q, "from", m->packet->to->server);
-            xmlnode_put_attrib(q, "to", jid_full(m->packet->to));
-            xmlnode_insert_node(q, xmlnode_get_firstchild(reg));
-            js_deliver(m->si,jpacket_new(q));
+            x = xmlnode_new_tag("message");
+            xmlnode_put_attrib(x, "from", m->packet->to->server);
+            xmlnode_put_attrib(x, "to", jid_full(m->packet->to));
+            xmlnode_insert_node(x, xmlnode_get_firstchild(reg));
+            js_deliver(m->si,jpacket_new(x));
         }
 
         /* clean up and respond */
@@ -103,7 +88,7 @@ mreturn mod_register_new(mapi m, void *arg)
 
 mreturn mod_register_server(mapi m, void *arg)
 {
-    xmlnode q, reg, cur, check;
+    xmlnode reg, cur, check;
 
     /* pre-requisites */
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
@@ -120,21 +105,17 @@ mreturn mod_register_server(mapi m, void *arg)
     {
     case JPACKET__GET:
         /* create reply to the get */
-        jutil_iqresult(m->packet->x);
-
-        /* create a new query */
-        q = xmlnode_insert_tag(m->packet->x, "query");
-        xmlnode_put_attrib(q,"xmlns",NS_REGISTER);
-        xmlnode_insert_tag(q,"password");
+        xmlnode_put_attrib(m->packet->x,"type","result");
+        jutil_tofrom(m->packet->x);
 
         /* copy in the registration fields from the config file */
-        xmlnode_insert_node(q,xmlnode_get_firstchild(js_config(m->si,"register")));
+        xmlnode_insert_node(m->packet->iq,xmlnode_get_firstchild(js_config(m->si,"register")));
 
         /* insert the key, we don't need to check it, but we'll send it :) */
-        xmlnode_insert_cdata(xmlnode_insert_tag(q,"key"),jutil_regkey(NULL,"foobar"),-1);
+        xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"key"),jutil_regkey(NULL,"foobar"),-1);
 
         /* replace fields with already-registered ones */
-        for(cur = xmlnode_get_firstchild(q); cur != NULL; cur = xmlnode_get_nextsibling(cur))
+        for(cur = xmlnode_get_firstchild(m->packet->iq); cur != NULL; cur = xmlnode_get_nextsibling(cur))
         {
             if(xmlnode_get_type(cur) != NTYPE_TAG) continue;
 
@@ -144,8 +125,8 @@ mreturn mod_register_server(mapi m, void *arg)
             xmlnode_insert_node(cur,xmlnode_get_firstchild(check));
         }
 
-        /* add the registered flag and hide the username flag */
-        xmlnode_insert_tag(q,"registered");
+        /* add the registered flag */
+        xmlnode_insert_tag(m->packet->iq,"registered");
 
         break;
 

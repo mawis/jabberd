@@ -34,41 +34,35 @@ mreturn mod_auth_digest_yum(mapi m, void *arg)
     spool s;
     char *sid;
     char *digest;
-    char *passxdb;
     char *mydigest;
-    xmlnode xdb;
 
     log_debug("mod_auth_digest","checking");
 
     if(jpacket_subtype(m->packet) == JPACKET__GET)
     { /* type=get means we flag that the server can do digest auth */
-        xmlnode_insert_tag(m->packet->iq,"digest");
+        if(m->user->pass != NULL)
+            xmlnode_insert_tag(m->packet->iq,"digest");
         return M_PASS;
     }
 
     if((digest = xmlnode_get_tag_data(m->packet->iq,"digest")) == NULL)
         return M_PASS;
 
-    xdb = xdb_get(m->si->xc, m->user->id, NS_AUTH);
-    passxdb = xmlnode_get_data(xdb);
     sid = xmlnode_get_attrib(xmlnode_get_tag(m->packet->iq,"digest"), "sid");
 
     /* Concat the stream id and password */
     /* SHA it up */
     log_debug("mod_auth_digest", "Got SID: %s", sid);
     s = spool_new(m->packet->p);
-    spooler(s,sid,passxdb,s);
+    spooler(s,sid,m->user->pass,s);
 
     mydigest = shahash(spool_print(s));
 
-    /* don't need the xdb data anymore */
-    xmlnode_free(xdb);
-
     log_debug("mod_auth_digest","comparing %s %s",digest,mydigest);
 
-    if(digest == NULL || sid == NULL || mydigest == NULL) return M_PASS;
-
-    if(j_strcasecmp(digest, mydigest) != 0)
+    if(m->user->pass == NULL || sid == NULL || mydigest == NULL)
+        jutil_error(m->packet->x, TERROR_NOTIMPL);
+    else if(j_strcasecmp(digest, mydigest) != 0)
         jutil_error(m->packet->x, TERROR_AUTH);
     else
         jutil_iqresult(m->packet->x);

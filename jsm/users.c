@@ -141,8 +141,6 @@ udata js_user(jsmi si, jid id, HASHTABLE ht)
     /* try to get the user auth data from xdb */
     if((x = xdb_get(si->xc, uid, NS_AUTH)) == NULL)
         return NULL;
-    else
-        xmlnode_free(x);
 
     /* create a udata struct */
     p = pool_heap(64);
@@ -150,7 +148,10 @@ udata js_user(jsmi si, jid id, HASHTABLE ht)
     newu->p = p;
     newu->si = si;
     newu->user = pstrdup(p, uid->user);
+    newu->pass = pstrdup(p, xmlnode_get_data(x));
     newu->id = jid_new(p,jid_full(uid));
+    xmlnode_free(x);
+
 
     /* got the user, add it to the user list */
     ghash_put(ht,newu->user,newu);
