@@ -125,7 +125,7 @@ int mod_auth_plain_reset(mapi m, jid id, xmlnode pass)
  * set requests are used to set the password
  *
  * @param m the mapi instance containing the query
- * @param arg unused/ignored
+ * @param arg type of action (password change or register request) for logging
  * @return M_HANDLED if we handled the request (or rejected it), H_PASS else
  */
 mreturn mod_auth_plain_reg(mapi m, void *arg)
@@ -172,11 +172,11 @@ mreturn mod_auth_plain_reg(mapi m, void *arg)
         id = m->user->id;
 
     /* tuck away for a rainy day */
-    if(mod_auth_plain_reset(m,id,pass))
-    {
+    if(mod_auth_plain_reset(m,id,pass)) {
         jutil_error_xmpp(m->packet->x,(xterror){500,"Password Storage Failed","wait","internal-server-error"});
         return M_HANDLED;
     }
+    log_notice(m->si->i->id, "user %s %s", jid_full(id), arg);
 
     return M_PASS;
 }
@@ -201,7 +201,7 @@ mreturn mod_auth_plain_server(mapi m, void *arg) {
     if(!NSCHECK(m->packet->iq,NS_REGISTER)) return M_PASS;
 
     /* just do normal reg process, but deliver afterwards */
-    ret = mod_auth_plain_reg(m,arg);
+    ret = mod_auth_plain_reg(m, "changed password");
     if(ret == M_HANDLED)
         js_deliver(m->si, jpacket_reset(m->packet));
 
@@ -226,5 +226,5 @@ void mod_auth_plain(jsmi si)
 
     js_mapi_register(si, e_AUTH, mod_auth_plain_jane, NULL);
     js_mapi_register(si, e_SERVER, mod_auth_plain_server, NULL);
-    if (js_config(si,"register") != NULL) js_mapi_register(si, e_REGISTER, mod_auth_plain_reg, NULL);
+    if (js_config(si,"register") != NULL) js_mapi_register(si, e_REGISTER, mod_auth_plain_reg, "registered account");
 }
