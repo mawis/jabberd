@@ -77,18 +77,23 @@ int configo(int exec);
 /* ring for handling cached structures */
 typedef struct xdbcache_struct
 {
+    instance i;
     int id;
     char *host;
     char *ns; /* for get */
     xmlnode data; /* for set */
     jid owner;
     int sent;
-    /* pth condition to block thread */
-    struct xdb_cache_struct *prev;
-    struct xdb_cache_struct *next;
+    int preblock;
+    pth_cond_t *cond;
+    struct xdbcache_struct *prev;
+    struct xdbcache_struct *next;
 } *xdbcache, _xdbcache;
 
 xdbcache xdb_cache(instance i); /* create a new xdb cache for this instance */
 xmlnode xdb_get(xdbcache xc, char *host, jid owner, char *ns); /* blocks until namespace is retrieved, host must map back to this service! returns xmlnode or NULL if failed */
 int xdb_set(xdbcache xc, char *host, jid owner, xmlnode data); /* sends new xml to replace old, returns non-zero if failure */
+
+/* base_load initialization function definition */
+typedef void (*base_load_init)(instance id, xmlnode x);
 

@@ -35,11 +35,11 @@
   <service id="foo.org sessions"> <!-- example internal session handler -->
     <host>foo.org</host>
     <host>oldfoo.org</host> <!-- use <host/> to gather all names -->
-    <load>
-      <main>/usr/local/lib/jabber/jsm.so</main>
-      <mod_time>/usr/local/lib/jabber/mod_time.so</mod_time>
-      <mod_version>/usr/local/lib/jabber/mod_version.so</mod_version>
-      <mod_echo>/usr/local/lib/jabber/mod_echo.so</mod_echo>
+    <load main="jsm">
+      <jsm>/usr/local/lib/jabber/jsm.so</jsm>
+      <js_mod_time>/usr/local/lib/jabber/mod_time.so</js_mod_time>
+      <js_mod_version>/usr/local/lib/jabber/mod_version.so</js_mod_version>
+      <js_mod_echo>/usr/local/lib/jabber/mod_echo.so</js_mod_echo>
     </load>
     <!-- <fork/> optional, for added stability if jsm.so is unstable -->
 
