@@ -121,7 +121,6 @@ void pthsock_server_out(int type, xmlnode x, void *arg)
     case XSTREAM_CLOSE:
         log_debug(ZONE,"close");
         /* the other server shouldn't do this */
-        log_debug(ZONE,"closing XSTREAM");
     }
 }
 
@@ -424,7 +423,9 @@ void *pthsock_server_main(void *arg)
                 log_debug(ZONE,"checking cur->sock %d",cur->sock);
                 if (cur->type == conn_CLOSED)
                 {
-                    pthsock_client_release(si,cur);
+                    s = cur;
+                    cur = cur->next;
+                    pthsock_client_release(si,s);
                 }
                 if (FD_ISSET(cur->sock,&rfds))
                 {
