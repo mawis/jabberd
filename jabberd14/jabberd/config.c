@@ -247,6 +247,9 @@ int instance_startup(xmlnode x, int exec)
 
     type = p_NONE;
 
+    if(strcmp(xmlnode_get_name(x), "io") == 0)
+        return 0;
+
     if(strcmp(xmlnode_get_name(x), "log") == 0)
         type = p_LOG;
     if(strcmp(xmlnode_get_name(x), "xdb") == 0)

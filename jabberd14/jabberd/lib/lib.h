@@ -519,12 +519,13 @@ int jlimit_check(jlimit r, char *key, int points);
 
 
 // #define KARMA_DEBUG
+// default to disable karma 
 #define KARMA_READ_MAX(k) (k*100) /* how much you are allowed to read off the sock */
 #define KARMA_INIT -100   /* internal "init" value, should not be able to get here */
 #define KARMA_HEARTBEAT 2 /* seconds to register for heartbeat */
 #define KARMA_MAX 10     /* total max karma you can have */
 #define KARMA_INC 1      /* how much to increment every KARMA_HEARTBEAT seconds */
-#define KARMA_DEC 1      /* how much to penalize for reading KARMA_READ_MAX in
+#define KARMA_DEC 0      /* how much to penalize for reading KARMA_READ_MAX in
                             KARMA_HEARTBEAT seconds */
 #define KARMA_PENALTY -5 /* where you go when you hit 0 karma */
 #define KARMA_RESTORE 5  /* where you go when you payed your penelty or INIT */

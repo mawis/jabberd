@@ -73,6 +73,14 @@ typedef struct mio_connect_st
 ios mio__data = NULL;
 extern xmlnode greymatter__;
 
+int KARMA_DEF_INIT    = KARMA_INIT;
+int KARMA_DEF_MAX     = KARMA_MAX;
+int KARMA_DEF_INC     = KARMA_INC;
+int KARMA_DEF_DEC     = KARMA_DEC;
+int KARMA_DEF_PENALTY = KARMA_PENALTY;
+int KARMA_DEF_RESTORE = KARMA_RESTORE;
+
+
 /*
  * callback for Heartbeat, increments karma, and signals the
  * select loop, whenever a socket's punishment is over
@@ -300,8 +308,9 @@ mio _mio_accept(mio m)
     log_debug(ZONE, "new socket accepted (fd: %d, ip: %s, port: %d)", fd, inet_ntoa(serv_addr.sin_addr), ntohs(serv_addr.sin_port));
 
     /* create a new sock object for this connection */
-    new     = mio_new(fd, m->cb, m->cb_arg, mio_handlers_new(m->mh->read, m->mh->write, m->mh->parser));
-    new->ip = pstrdup(new->p, inet_ntoa(serv_addr.sin_addr));
+    new      = mio_new(fd, m->cb, m->cb_arg, mio_handlers_new(m->mh->read, m->mh->write, m->mh->parser));
+    new->ip  = pstrdup(new->p, inet_ntoa(serv_addr.sin_addr));
+    new->ssl = m->ssl;
 
     mio_karma2(new, &m->k);
 
@@ -643,6 +652,13 @@ void mio_init(void)
 
     if(xmlnode_get_tag(io, "ssl") != NULL)
         mio_ssl_init(xmlnode_get_tag(io, "ssl"));
+
+    KARMA_DEF_INIT = j_atoi(xmlnode_get_tag_data(io, "karma/init"), KARMA_INIT);
+    KARMA_DEF_INIT = j_atoi(xmlnode_get_tag_data(io, "karma/max"), KARMA_MAX);
+    KARMA_DEF_INIT = j_atoi(xmlnode_get_tag_data(io, "karma/inc"), KARMA_INC);
+    KARMA_DEF_INIT = j_atoi(xmlnode_get_tag_data(io, "karma/dec"), KARMA_DEC);
+    KARMA_DEF_INIT = j_atoi(xmlnode_get_tag_data(io, "karma/penalty"), KARMA_PENALTY);
+    KARMA_DEF_INIT = j_atoi(xmlnode_get_tag_data(io, "karma/restore"), KARMA_RESTORE);
 
 
     if(mio__data == NULL)
@@ -989,6 +1005,7 @@ mio mio_listen(int port, char *listen_host, void *cb, void *arg, mio_accept_func
     /* create the sock object, and assign the values */
     new       = mio_new(fd, cb, arg, mh);
     new->type = type_LISTEN;
+    new->ip   = pstrdup(new->p, listen_host, new->p);
 
     log_debug(ZONE, "io_select starting to listen on %d [%s]", port, listen_host);
 

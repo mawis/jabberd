@@ -13,6 +13,21 @@
   necessary or desired.
   -->
 
+  <!-- toplevel mio initilization  
+  <io>
+    <karma>
+      <heartbeat>2</heartbeat>
+      <init>10</init>
+      <max>10</max>
+      <inc>1</inc>
+      <dec>-1</dec>
+      <penalty>-5</penalty>
+      <restore>10</restore>
+    </karma>
+    <ssl/>
+  </io>
+  -->
+
   <!-- 
   The following <service/> section is for the session manager, 
   the most important component within the server. This section
@@ -245,11 +260,7 @@
       <authtime/>
       <rate time="5" points="25"/>
       <karma>
-        <max>10</max>
-        <inc>1</inc>
         <dec>1</dec>
-        <restore>5</restore>
-        <penalty>-5</penalty>
       </karma>
       <!-- 
       Use these to listen on particular addresses and/or ports.
@@ -302,13 +313,6 @@
     <pthssock xmlns='jabber:config:pth-ssock'>
       <legacy/>
       <rate time="5" points="25"/>
-      <karma>
-        <max>30</max>
-        <inc>2</inc>
-        <dec>1</dec>
-        <restore>15</restore>
-        <penalty>-1</penalty>
-      </karma>
       <!-- Use these to listen on particular addresses and/or ports.
       <ip port="7000"/>
       <ip port="5269">127.0.0.1</ip>
