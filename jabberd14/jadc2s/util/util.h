@@ -292,7 +292,7 @@ extern void     log_write(log_t, int, const char *, ...);
 extern void     log_free(log_t);
 
 
-/* Config files */
+/* config files */
 struct config_elem_st
 {
     char **values;
@@ -324,6 +324,8 @@ extern void             config_free(config_t);
  * to access cdata on an elem or attr, use nad->cdata + nad->xxx[index].ixxx for the start, and .lxxx for len.
  */
 
+typedef struct nad_st **nad_cache_t;
+
 struct nad_elem_st
 {
     int iname, lname;
@@ -342,6 +344,7 @@ struct nad_attr_st
 
 typedef struct nad_st
 {
+    nad_cache_t cache;   /* he who gave us life */
     struct nad_elem_st *elems;
     struct nad_attr_st *attrs;
     char *cdata;
@@ -350,8 +353,6 @@ typedef struct nad_st
     int ecur, acur, ccur;
     struct nad_st *next; /* for keeping a list of nads */
 } *nad_t;
-
-typedef struct nad_st **nad_cache_t;
 
 /* create a new cache for nads */
 nad_cache_t nad_cache_new(void);
@@ -363,10 +364,10 @@ void nad_cache_free(nad_cache_t cache);
 nad_t nad_new(nad_cache_t cache);
 
 /* copy a nad */
-nad_t nad_copy(nad_cache_t cache, nad_t nad);
+nad_t nad_copy(nad_t nad);
 
 /* free that nad */
-void nad_free(nad_cache_t cache, nad_t nad);
+void nad_free(nad_t nad);
 
 /* find the next element with this name/depth */
 /* 0 for siblings, 1 for children and so on */

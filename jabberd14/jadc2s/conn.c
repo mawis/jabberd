@@ -124,7 +124,6 @@ chunk_t chunk_new(conn_t c)
 
     /* nad gets tranferred from the conn to the chunk */
     chunk->nad = c->nad;
-    chunk->nads = c->c2s->nads;
     c->nad = NULL;
 
     return chunk;
@@ -136,7 +135,7 @@ void chunk_free(chunk_t chunk)
     if(chunk->to != NULL) free(chunk->to);
     if(chunk->from != NULL) free(chunk->from);
 
-    nad_free(chunk->nads, chunk->nad);
+    nad_free(chunk->nad);
 
     free(chunk);
 }
