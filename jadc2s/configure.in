@@ -5,6 +5,7 @@ AM_INIT_AUTOMAKE(jadc2s,0.9cvs)
 AM_CONFIG_HEADER(config.h)
 
 dnl helper macros
+sinclude(ac-helpers/ac_define_dir.m4)
 sinclude(ac-helpers/openssl.m4)
 
 dnl for developers
@@ -155,25 +156,8 @@ fi
 
 AC_SUBST(USE_SSL)
 
-
-
-
-
-dnl AC_MSG_CHECKING(if SSL and TLS is requested)
-dnl AC_ARG_ENABLE(ssltls, AC_HELP_STRING([--enable-ssl], [Enable SSL and TLS]), ssltls=yes)
-dnl if test x-$ssltls = "x-yes" ; then
-dnl     AC_MSG_RESULT(yes)
-dnl     JADC2S_LIB_OPENSSL(0,9,6,2)
-dnl     CFLAGS="$CFLAGS $JADC2S_SSL_INCLUDES"
-dnl     LDFLAGS="$LDFLAGS $JADC2S_SSL_LIBS"
-dnl     AC_DEFINE(USE_SSL,,[connection protection with SSL/TLS enabled])
-dnl else
-dnl     AC_MSG_RESULT(no)
-dnl     echo $ssltls
-dnl fi
-dnl 
-dnl AC_SUBST(USE_SSL)
-
+dnl define where the configuration file is located
+AC_DEFINE_DIR(CONFIG_DIR,sysconfdir,[where the configuration file can be found])
 
 dnl Create the makefiles
 AC_OUTPUT(Makefile \
