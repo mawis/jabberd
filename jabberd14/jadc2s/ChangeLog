@@ -1,3 +1,16 @@
+2004-07-15  Matthias Wimmer  <m@tthias.net>
+
+    * README.maintainer: Reminder not to generate broken distributions
+    * clients.c: Cache stringprep results
+    * conn.c: same
+    * connect.c: same
+    * jadc2s.c: same
+    * jadc2s.h: same
+    * util/jid.c: same
+    * util/util.h: same
+    * configure.in: Use pkg-config to check for openssl
+    * ac-helpers/Makefile.am: same
+
 2004-04-13  Matthias Wimmer  <m@tthias.net>
 
     * clients.c: Make the flash hack optional, general cleanup

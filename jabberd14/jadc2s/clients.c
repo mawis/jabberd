@@ -226,7 +226,7 @@ void _client_stream_send_root(conn_t c) {
     free(header_from);
 
     /* set up smid based on to="" host */
-    c->userid = c->smid = jid_new(c->idp,c->local_id);
+    c->userid = c->smid = jid_new(c->idp,c->c2s->jid_environment, c->local_id);
 }
 
 /**
