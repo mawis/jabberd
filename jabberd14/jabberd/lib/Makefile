@@ -1,67 +1,56 @@
 #
 # Ok this is taken from an automaked file and tweaked out
 #
-include ../platform-settings
+include ../../platform-settings
 
 # add -DSTATIC for a rudimentary static build, and make sure all the needed .o's are linked in below!
 DEFINES=-DCONFIGXML="\"jabber.xml\"" -DHOME="\"$(JHOME)\""
 CFLAGS:=$(CFLAGS) $(DEFINES)
 
-jabberd_HEADERS=jabberd.h
+lib_HEADERS= \
+	asciitab.h \
+	hashtable.h \
+	iasciitab.h \
+	latin1tab.h \
+	lib.h \
+	nametab.h \
+	utf8tab.h \
+	xmldef.h \
+	xmlparse.h \
+	xmlrole.h \
+	xmltok.h \
+	xmltok_impl.h
 
-jabberd_OBJECTS = \
-	config.o \
-	mio.o \
-	mio_raw.o \
-	mio_xml.o \
-	deliver.o \
-	heartbeat.o \
-	jabberd.o \
-	load.o \
-	xdb.o \
-	mtq.o \
-	static.o \
-	log.o
-jabberd_EXOBJECTS = \
-	lib/expat.o \
-	lib/genhash.o \
-	lib/hashtable.o \
-	lib/jid.o \
-	lib/jpacket.o \
-	lib/jutil.o \
-	lib/karma.o \
-	lib/pool.o \
-	lib/pproxy.o \
-	lib/rate.o \
-	lib/sha.o \
-	lib/snprintf.o \
-	lib/socket.o \
-	lib/str.o \
-	lib/xmlnode.o \
-	lib/xmlparse.o \
-	lib/xmlrole.o \
-	lib/xmltok.o \
-	lib/xstream.o \
-	base/base_connect.o \
-	base/base_dynamic.o \
-	base/base_exec.o \
-	base/base_stdout.o \
-	base/base_accept.o \
-	base/base_file.o \
-	base/base_format.o \
-	base/base_stderr.o \
-	base/base_to.o
+lib_OBJECTS = \
+    expat.o \
+	genhash.o \
+	hashtable.o \
+	jid.o \
+	jpacket.o \
+	jutil.o \
+	karma.o \
+	pool.o \
+	pproxy.o \
+	rate.o \
+	sha.o \
+	snprintf.o \
+	socket.o \
+	str.o \
+	xmlnode.o \
+	xmlparse.o \
+	xmlrole.o \
+	xmltok.o \
+	xstream.o
 
-SUBDIRS = base lib
+SUBDIRS=
 
 all: all-recursive
 
 clean: clean-recursive
 
-$(jabberd_OBJECTS): $(jabberd_HEADERS)
+$(lib_OBJECTS): $(lib_HEADERS)
 
-all-local: $(jabberd_OBJECTS) $(jabberd_HEADERS)
-	$(CC) $(CFLAGS) -o jabberd $(jabberd_OBJECTS) $(jabberd_EXOBJECTS) $(XLDFLAGS) $(LDFLAGS) $(LIBS)
+all-local: $(lib_OBJECTS) $(lib_HEADERS)
 
 #STATIC: ../jsm/*.o ../jsm/modules/*.o ../xdb_file/xdb_file.o ../pthsock/client.o ../pthsock/dialback.o ../dnsrv/*.o
 
@@ -89,7 +78,7 @@ check-recursive installcheck-recursive info-recursive dvi-recursive:
 	fi; test -z "$$fail"
 
 clean-local:
-	rm -f $(jabberd_OBJECTS) jabberd
+	rm -f $(lib_OBJECTS) jabberd
 
 mostlyclean-recursive clean-recursive distclean-recursive \
 maintainer-clean-recursive:
