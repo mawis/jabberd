@@ -3,7 +3,7 @@
   <service id="session manager">
 
     <!-- change hostname below! -->
-    <host>localhost</host>
+    <host><cl flag="h">localhost</cl></host>
 
     <load main="jsm">
       <jsm>./jsm/jsm.so</jsm>
