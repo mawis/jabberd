@@ -224,10 +224,6 @@ void _js_session_from(void *arg)
     if(p->type == JPACKET_UNKNOWN)
     {
         /* if not,s send an error to the session */
-        jutil_error(p->x,TERROR_BAD);
-        jpacket_reset(p);
-        js_session_to(s,p);
-        return;
     }
 
     /* debug message */
@@ -251,7 +247,14 @@ void _js_session_from(void *arg)
     /* no module handled it, so make sure there's a to attribute */
     if(p->to == NULL)
     {
-        /* nope, make one based on the from attribute */
+    	/* iq's w/o a to get forwarded to the server handlers */
+    	if(p->type != JPACKET_IQ)
+    	{
+            jutil_error(p->x,TERROR_BAD);
+            jpacket_reset(p);
+            js_session_to(s,p);
+            return;
+        }
         xmlnode_put_attrib(p->x,"to",p->from->server);
         p->to = jid_new(p->p,p->from->server);
     }

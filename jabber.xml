@@ -45,15 +45,15 @@
 
     <jsm xmlns="jabber:config:jsm">
 
-      <!-- basic server information -->
+      <!-- The server vCard -->
 
-      <info>
-        <name>Jabber Server</name>
-        <description>A Jabber Server!</description>
-        <url>http://foo.bar/</url>
-      </info>
+      <vCard>
+        <FN>Jabber Server</FN>
+        <DESC>A Jabber Server!</DESC>
+        <URL>http://foo.bar/</URL>
+      </vCard>
 
-      <!-- registration instructions, the notify attribute will send the server administrator(s) a message after a valid registration -->
+      <!-- registration instructions and required fields, the notify attribute will send the server administrator(s) a message after a valid registration -->
 
       <register notify="yes">
         <instructions>Choose a username and password to register with this server.</instructions>
@@ -96,75 +96,52 @@
       <update><jabberd:cmdline flag="h">localhost</jabberd:cmdline></update>
 
       <!--
-      The <agents/> section identifies the transports and other
-      agents that are available on this server. Note that each
-      agent identified here must be further defined in its own 
-      <service/> section below. These agents will appear in the
+      The <browse/> section identifies the transports and other
+      services that are available from this server. Note that each
+      entity identified here must exist elsewhere or be further defined in its own 
+      <service/> section below. These services will appear in the
       user interface of Jabber clients that connect to your
       server.
       -->
 
-      <agents>
+      <browse>
 
         <!-- 
         This is the default agent for the master Jabber User 
         Directory, a.k.a. "JUD", which is located at jabber.org.
-        You can add separate <agent/> sections for additional
+        You can add seperate <service/> sections for additional
         directories, e.g., one for a company intranet.
         -->
 
-        <agent jid="users.jabber.org">
-          <name>Jabber User Directory</name>
-          <description>You may register and create a public searchable profile, and search for other registered Jabber users.</description>
-          <service>jud</service>
-          <register/>
-          <search/>
-        </agent>
+        <service type="jud" jid="users.jabber.org" name="Jabber User Directory">
+          <ns>jabber:iq:search</ns>
+          <ns>jabber:iq:register</ns>
+        </service>
 
         <!--
-        The following agents are examples only, you will need to
+        The following services are examples only, you will need to
         create/modify them to get them working on your Jabber 
-        server. See the README files for each agent and/or the 
+        server. See the README files for each service and/or the 
         server howto for further information. 
         -->
 
         <!-- we're commenting these out, of course :)
 
-        <agent jid="conference.localhost">
-          <name>Conferencing</name>
-          <description>groupchat on localhost</description>
-          <service>conferencing</service>
-          <groupchat/>
-          <register/>
-        </agent>
+        <conference type="private" jid="conference.localhost" name="Private Conferencing"/>
 
-        <agent jid="irc.localhost">
-          <name>IRC Transport</name>
-          <description>irc-t on localhost</description>
-          <service>irc</service>
-          <register/>
-          <groupchat/>
-        </agent>
+        <service type="aim" jid="aim.localhost" name="AIM Transport">
+          <ns>jabber:iq:gateway</ns>
+          <ns>jabber:iq:register</ns>
+        </service>
 
-        <agent jid="aim.localhost">
-          <name>AIM Transport</name>
-          <description>This is the AIM Transport</description>
-          <transport>AIM/AOL ScreenName</transport>
-          <service>aim</service>
-          <register/>
-        </agent>
+        <service type="yahoo" jid="yahoo.localhost" name="Yahoo! Transport">
+          <ns>jabber:iq:gateway</ns>
+          <ns>jabber:iq:register</ns>
+        </service>
 
-        <agent jid="yahoo.localhost">
-          <name>Yahoo Transport</name>
-          <description>Gateway to the Yahoo! Messenger Protocol</description>
-          <transport>Yahoo! ID</transport>
-          <service>yahoo</service>
-          <register/>
-        </agent>
+        end of <service/> examples -->
 
-        end of <agent/> examples -->
-
-      </agents>
+      </browse>
 
     </jsm>
 
@@ -184,6 +161,7 @@
       <mod_version>./jsm/jsm.so</mod_version>
       <mod_announce>./jsm/jsm.so</mod_announce>
       <mod_agents>./jsm/jsm.so</mod_agents>
+      <mod_browse>./jsm/jsm.so</mod_browse>
       <mod_admin>./jsm/jsm.so</mod_admin>
       <mod_private>./jsm/jsm.so</mod_private>
       <mod_filter>./jsm/jsm.so</mod_filter>

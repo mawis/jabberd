@@ -1,0 +1,201 @@
+/* --------------------------------------------------------------------------
+ *
+ * License
+ *
+ * The contents of this file are subject to the Jabber Open Source License
+ * Version 1.0 (the "License").  You may not copy or use this file, in either
+ * source code or executable form, except in compliance with the License.  You
+ * may obtain a copy of the License at http://www.jabber.com/license/ or at
+ * http://www.opensource.org/.  
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied.  See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * Copyrights
+ * 
+ * Portions created by or assigned to Jabber.com, Inc. are 
+ * Copyright (c) 1999-2000 Jabber.com, Inc.  All Rights Reserved.  Contact
+ * information for Jabber.com, Inc. is available at http://www.jabber.com/.
+ *
+ * Portions Copyright (c) 1998-1999 Jeremie Miller.
+ * 
+ * Acknowledgements
+ * 
+ * Special thanks to the Jabber Open Source Contributors for their
+ * suggestions and support of Jabber.
+ * 
+ * --------------------------------------------------------------------------*/
+#include "jsm.h"
+
+xmlnode mod_browse_get(mapi m, jid id)
+{
+    xmlnode browse, x;
+
+    if(id == NULL) /* use the user id as a backup */
+        id = m->user->id;
+
+    /* get main account browse */
+    if((browse = xdb_get(m->si->xc, id, NS_BROWSE)) == NULL)
+    { /* no browse is set up yet, we must create one for this user! */
+        if(id->resource == NULL)
+        { /* a user is only the user@host */
+            browse = xmlnode_new_tag("user");
+            /* get the friendly name for this user from somewhere */
+            if((x = xdb_get(m->si->xc, m->user->id, NS_VCARD)) != NULL)
+                xmlnode_put_attrib(browse,"name",xmlnode_get_tag_data(x,"/FN"));
+            else if((x = xdb_get(m->si->xc, m->user->id, NS_REGISTER)) != NULL)
+                xmlnode_put_attrib(browse,"name",xmlnode_get_tag_data(x,"/name"));
+            xmlnode_free(x);
+        }else{ /* everything else is generic unless set by the user */
+            browse = xmlnode_new_tag("item");
+        }
+
+        xmlnode_put_attrib(browse,"xmlns",NS_BROWSE);
+        xmlnode_put_attrib(browse,"jid",jid_full(id));
+
+        xdb_set(m->si->xc, id, NS_BROWSE, browse);
+    }
+
+    return browse;
+}
+
+mreturn mod_browse_set(mapi m, void *arg)
+{
+    xmlnode browse, cur;
+    jid id, to;
+
+    if(m->packet->type != JPACKET_IQ) return M_IGNORE;
+    if(!NSCHECK(m->packet->iq,NS_BROWSE) || jpacket_subtype(m->packet) != JPACKET__SET) return M_PASS;
+    if(m->packet->to != NULL && jid_cmpx(m->packet->to,m->user->id, JID_USER|JID_SERVER) != 0) return M_PASS; /* if its to someone other than ourselves */
+
+    log_debug("mod_browse","handling set request %s",xmlnode2str(m->packet->iq));
+
+    /* no to implies to ourselves */
+    if(m->packet->to != NULL)
+        to = m->packet->to;
+    else
+        to = m->user->id;
+
+    /* if we set to a resource, we need to make sure that resource's browse is in the users browse */
+    if(to->resource != NULL)
+    {
+        browse = mod_browse_get(m, to); /* get our browse info */
+        xmlnode_hide_attrib(browse,"xmlns"); /* no xmlns tells xdb to insert it into the existing browse data */
+        for(cur = xmlnode_get_firstchild(browse); cur != NULL; cur = xmlnode_get_nextsibling(cur))
+            xmlnode_hide(cur); /* erase all children */
+        xdb_set(m->si->xc, m->user->id, NS_BROWSE, browse); /* insert into user */
+        xmlnode_free(browse);
+    }
+
+    /* get the id of the new browse item */
+    if((cur = xmlnode_get_firstchild(m->packet->iq)) == NULL || (id = jid_new(m->packet->p, xmlnode_get_attrib(cur,"jid"))) == NULL)
+    {
+        js_bounce(m->si,m->packet->x,TERROR_NOTACCEPTABLE);
+        return M_HANDLED;
+    }
+
+    /* insert the new item into the resource it was sent to */
+    xmlnode_hide_attrib(cur,"xmlns"); /* just in case, to make sure it inserts */
+    if(xdb_set(m->si->xc, to, NS_BROWSE, cur))
+    {
+        js_bounce(m->si,m->packet->x,TERROR_UNAVAIL);
+        return M_HANDLED;
+    }
+        
+    /* if the new data we're inserting is to one of our resources, update that resource's browse */
+    if(jid_cmpx(m->user->id, id, JID_USER|JID_SERVER) == 0 && id->resource != NULL)
+    {
+        /* get the old */
+        browse = mod_browse_get(m, id);
+        /* transform the new one into the old one */
+        xmlnode_put_attrib(cur, "xmlns", NS_BROWSE);
+        xmlnode_insert_node(cur, xmlnode_get_firstchild(browse));
+        xdb_set(m->si->xc, id, NS_BROWSE, cur); /* replace the resource's browse w/ this one */
+        xmlnode_free(browse);
+    }
+
+    /* send response to the user */
+    jutil_iqresult(m->packet->x);
+    jpacket_reset(m->packet);
+    js_session_to(m->s,m->packet);
+
+    return M_HANDLED;
+}
+
+mreturn mod_browse_session(mapi m, void *arg)
+{
+    js_mapi_session(es_OUT,m->s,mod_browse_set,NULL);
+    return M_PASS;
+}
+
+mreturn mod_browse_reply(mapi m, void *arg)
+{
+    xmlnode browse;
+
+    if(m->packet->type != JPACKET_IQ) return M_IGNORE;
+    if(!NSCHECK(m->packet->iq,NS_BROWSE)) return M_PASS;
+
+    /* first, is this a valid request? */
+    switch(jpacket_subtype(m->packet))
+    {
+    case JPACKET__RESULT:
+    case JPACKET__ERROR:
+        return M_PASS;
+    case JPACKET__SET:
+        js_bounce(m->si,m->packet->x,TERROR_NOTALLOWED);
+        return M_HANDLED;
+    }
+
+    log_debug("mod_browse","handling query for user %s",m->user->user);
+
+    /* get this guys browse info */
+    browse = mod_browse_get(m, m->packet->to);
+
+    jutil_iqresult(m->packet->x);
+    jpacket_reset(m->packet);
+    xmlnode_insert_tag_node(m->packet->x,browse);
+    js_deliver(m->si,m->packet);
+
+    xmlnode_free(browse);
+    return M_HANDLED;
+}
+
+mreturn mod_browse_server(mapi m, void *arg)
+{
+    xmlnode browse, query;
+
+    if(m->packet->type != JPACKET_IQ) return M_IGNORE;
+    if(jpacket_subtype(m->packet) != JPACKET__GET || !NSCHECK(m->packet->iq,NS_BROWSE)) return M_PASS;
+
+    /* get data from the config file */
+    if((browse = js_config(m->si,"browse")) == NULL)
+        return M_PASS;
+
+    log_debug("mod_browse","handling browse query");
+
+    /* build the result IQ */
+    query = xmlnode_insert_tag(jutil_iqresult(m->packet->x),"service");
+    xmlnode_put_attrib(query,"xmlns",NS_BROWSE);
+    xmlnode_put_attrib(query,"type","jabber");
+    xmlnode_put_attrib(query,"jid",m->packet->to->server);
+    xmlnode_put_attrib(query,"name",xmlnode_get_data(js_config(m->si,"vCard/FN"))); /* pull name from the server vCard */
+
+    /* copy in the configured services */
+    xmlnode_insert_node(query,xmlnode_get_firstchild(browse));
+
+    jpacket_reset(m->packet);
+    js_deliver(m->si,m->packet);
+
+    return M_HANDLED;
+}
+
+void mod_browse(jsmi si)
+{
+    js_mapi_register(si,e_SESSION,mod_browse_session,NULL);
+    js_mapi_register(si,e_OFFLINE,mod_browse_reply,NULL);
+    js_mapi_register(si,e_SERVER,mod_browse_server,NULL);
+}
+
+
