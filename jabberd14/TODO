@@ -52,6 +52,7 @@ components:
 	jsm, virtual hosting
 	xdb_file, io error handling, heavy load?
 	c2s, bad streams/ids, bad auth, bad reg, queueing, timeouts
+	jud/privacy
 
 builds:
 	XP to gcc on linux/solaris2.6+/*bsd

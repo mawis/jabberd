@@ -103,19 +103,23 @@ struct session_struct
     mlist events[es_LAST];
     mtq q; /* thread queue */
 
-    /* remote session id */
-    jid sid;
+    /* our routed id, remote session ids to get copies, and the authorative id */
+    jid route;
+    jid sids;
+    jid aid;
 
     struct session_struct *next;
 };
 
-session js_session_new(jsmi si, jid owner, jid sid);
+session js_session_new(jsmi si, dpacket p);
 void *js_session_main(void *arg);
 void js_session_end(session s, char *reason);
 session js_session_get(udata user, char *res);
 session js_session_primary(udata user);
 void js_session_to(session s, jpacket p);
 void js_session_from(session s, jpacket p);
+void js_session_dup(session s, jid id);
+void js_session_dedup(session s, jid id);
 
 void *js_server_main(void *arg);
 void *js_offline_main(void *arg);

@@ -34,6 +34,63 @@ void _js_session_to(void *arg);
 void _js_session_from(void *arg);
 void _js_session_end(void *arg);
 
+/* adds a new jid to be dup'd session packets */
+void js_session_dup(session s, jid id)
+{
+    if(s->sids == NULL)
+        s->sids = jid_new(s->p,jid_full(id));
+    else
+        jid_append(s->sids,id);
+}
+
+/* removes jid from list */
+void js_session_dedup(session s, jid id)
+{
+    jid cur, prev;
+
+    for(prev = cur = s->sids; cur != NULL; prev = cur, cur = cur->next)
+    {
+        if(jid_cmp(cur,id) == 0)
+        {
+            if(cur == s->sids)
+                s->sids = cur->next;
+            else
+                prev->next = cur->next;
+            /* can't free it, its' session mem */
+        }
+    }
+}
+
+/* delivers a route packet to all listeners for this session */
+void js_session_route(session s, xmlnode in)
+{
+    jid id;
+    xmlnode x;
+
+    if(s->sids == NULL) return;
+
+    /* NULL means this is an error from the session ending */
+    if(in == NULL)
+    {
+         in = xmlnode_new_tag("route");
+         xmlnode_put_attrib(in, "type", "error");
+         xmlnode_put_attrib(in, "error", "Disconnected");
+    }else{
+        in = xmlnode_wrap(in,"route");
+    }
+
+    for(id = s->sids; id != NULL; id = id->next)
+    {
+        if(id->next != NULL)
+            x = xmlnode_dup(in);
+        else
+            x = in;
+        xmlnode_put_attrib(x, "from", jid_full(s->route));
+        xmlnode_put_attrib(x, "to", jid_full(id));
+        deliver(dpacket_new(x), s->si->i);
+    }
+}
+
 /*
  *  js_session_new -- creates a new session, registers the resource for it
  *  
@@ -43,36 +100,41 @@ void _js_session_end(void *arg);
  *  returns
  *      a pointer to the new session 
  */
-session js_session_new(jsmi si, jid owner, jid sid)
+session js_session_new(jsmi si, dpacket dp)
 {
     pool p;         /* a memory pool for the session */
     session s;      /* the session being created */
-    jid uid;        /* a general jid for the session - ie with no resource */
     int i;
     udata u;
+    char routeres[10];
 
     /* screen out illegal calls */
-    if(sid == NULL || owner == NULL || owner->resource == NULL || (u = js_user(si,owner,NULL)) == NULL)
+    if(dp == NULL || dp->id->user == NULL || dp->id->resource == NULL || xmlnode_get_attrib(dp->x,"from") == NULL || (u = js_user(si,dp->id,NULL)) == NULL)
         return NULL;
 
-    log_debug(ZONE,"session_create %s at %s",jid_full(owner),jid_full(sid));
+    log_debug(ZONE,"session_create %s",jid_full(dp->id));
 
     /* create session */
     p = pool_heap(2*1024);
-    pool_label(p,jid_full(owner),0);
-    s = pmalloc(p, sizeof(struct session_struct));
+    s = pmalloco(p, sizeof(struct session_struct));
     s->p = p;
     s->si = si;
 
-    /* save the remote session id */
-    s->sid = jid_new(p, jid_full(sid));
+    /* save authorative id */
+    s->aid = jid_new(p, xmlnode_get_attrib(dp->x,"from"));
+
+    /* if they want to receive data too */
+    if(j_strcmp(xmlnode_get_attrib(dp->x,"type"),"session") == 0)
+        js_session_dup(s, s->aid);
 
     /* session identity */
-    s->id = jid_new(p, jid_full(owner));
-    uid = jid_new(p, jid_full(owner));
-    jid_set(uid, NULL, JID_RESOURCE);
-    s->uid = uid;
-    s->res = pstrdup(p, owner->resource);
+    s->id = jid_new(p, jid_full(dp->id));
+    s->uid = jid_new(p, jid_full(dp->id));
+    jid_set(s->uid, NULL, JID_RESOURCE);
+    s->route = jid_new(p, jid_full(dp->id));
+    snprintf(routeres,9,"%X",s);
+    jid_set(s->route, routeres, JID_RESOURCE);
+    s->res = pstrdup(p, dp->id->resource);
     s->u = u;
 
     /* default settings */
@@ -87,7 +149,7 @@ session js_session_new(jsmi si, jid owner, jid sid)
         s->events[i] = NULL;
 
     /* remove any other session w/ this resource */
-    js_session_end(js_session_get(s->u, owner->resource), "Replaced by new connection");
+    js_session_end(js_session_get(s->u, dp->id->resource), "Replaced by new connection");
 
     /* make sure we're linked with the user */
     s->next = s->u->sessions;
@@ -277,18 +339,14 @@ void _js_session_to(void *arg)
         return;
     }
 
-    /* wrap in a route and deliver outgoing for this session */
-    p->x = xmlnode_wrap(p->x,"route");
-    xmlnode_put_attrib(p->x, "to", jid_full(s->sid));
-    xmlnode_put_attrib(p->x, "from", jid_full(s->uid));
-    deliver(dpacket_new(p->x), s->si->i);
+    /* deliver to listeners on session */
+    js_session_route(s, p->x);
 }
 
 /* child that cleans up a session */
 void _js_session_end(void *arg)
 {
     session s = (session)arg;
-    xmlnode x;
 
     /* debug message */
     log_debug(ZONE,"THREAD:SESSION exiting");
@@ -297,14 +355,7 @@ void _js_session_end(void *arg)
     s->u->scount--;
 
     /* make sure the service knows the session is gone */
-    if(j_strcmp(xmlnode_get_tag_data(s->presence,"state"),"Disconnected") != 0)
-    {   /* if the offline presence was "Disconnected", that implies that it was the client service, and we don't really need to tell it again */
-         x = xmlnode_new_tag("route");
-         xmlnode_put_attrib(x, "type", "error");
-         xmlnode_put_attrib(x, "to", jid_full(s->sid));
-         xmlnode_put_attrib(x, "from", jid_full(s->id));
-         deliver(dpacket_new(x), s->si->i);
-    }
+    js_session_route(s, NULL);
 
     /* let the modules have their heyday */
     js_mapi_call(NULL, es_END, NULL, s->u, s);
