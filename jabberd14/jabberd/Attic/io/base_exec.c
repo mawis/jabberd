@@ -168,7 +168,7 @@ void base_exec_handle_xstream_event(int type, xmlnode x, void* arg)
      {
      case XSTREAM_ROOT:
 	  /* Return a fake root tag */
-	  pth_write(pi->out, "<root>\n", strlen("<root>\n"));
+	  pth_write(pi->out, "<stream:stream xmlns='jabber:server'>\n", strlen("<stream:stream xmlns='jabber:server'>\n"));
 	  /* Hook the event for delivering messages to the coprocess */
   	  pi->e_write = pth_event(PTH_EVENT_MSG, pi->write_queue);  
   	  pi->events  = pth_event_concat(pi->e_read, pi->e_write, NULL);  
