@@ -21,6 +21,6 @@ cp cygwin/dllinit.c jabberd/
 cp cygwin/dllfixup.c jabberd/
 
 # hmm, I guess that's it?
-# Not quite, a new config file...
+# Not quite, create a new config file using .dll's instead of .so's
 mv jabber.xml jabber.xml.orig
-cp cygwin/jabber.xml .
+cat jabber.xml.orig | sed 's/\.so/\.dll/g' > jabber.xml
