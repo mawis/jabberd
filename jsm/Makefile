@@ -27,8 +27,8 @@ jsm_OBJECTS = \
     modules/mod_vcard.o \
     modules/mod_version.o \
     modules/mod_register.o \
-    modules/mod_log.o 
-#   modules/mod_offline.o \
+    modules/mod_log.o \
+    modules/mod_offline.o 
 
 all: jsm_build
 
