@@ -22,19 +22,16 @@ documentation on it as well as review the sample configurations found in the
 configs/ subdirectory.  First you will want to set the host name to the same
 value as the subdirectory that you created:
 
-    <host><jabberd:cmdline flag="h">foo</jabberd:cmdline></host>
+    <host>jabber.org</host>
 
-Next, remove any modules you don't wish to use from the module list.  The
-next large section is the <jsm/> section.  It contains most of the same
+The next large section is the <jsm/> section.  It contains most of the same
 tags as those found in jserver.xml, and should be fairly self explanatory.
 
 Once the jsm setup is complete you need to edit the <xdb/> settings to point
 to the correct spool directory, an example as might be done on jabber.org:
 
     <xdb_file xmlns="jabber:config:xdb_file">
-      <spool>
-        <jabberd:cmdline flag="s">/home/jabber/1.2/spool</jabberd:cmdline>
-      </spool>
+      <spool>/home/jabber/1.2/spool</spool>
     </xdb_file>
 
 It is important to note that this is the directory that contains the 
@@ -43,7 +40,7 @@ the host name.
 
 Now you should be on the c2s (client to server) service.  This is the default
 method for people to enter the server, the only items you may wish to edit
-here are the <listen/>, <authtime/>, and <rate/>.  If you wish to play with
+here are the <ip/>, <authtime/>, and <rate/>.  If you wish to play with
 karma, I suggest you read the documentation on karma that is included in the 
 docs/ subdirectory.
 
