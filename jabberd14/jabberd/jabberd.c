@@ -29,6 +29,7 @@
 
 #include "jabberd.h"
 HASHTABLE cmd__line;
+extern int deliver__flag;
 
 /*** internal functions ***/
 int configurate(char *file);
@@ -98,11 +99,17 @@ int main (int argc, char** argv)
     loader();
 
     /* everything should be registered for the config pass, validate */
+    deliver__flag=0;
     if(configo(0))
         exit(1);
 
     /* karma granted, rock on */
+
     configo(1);
+
+    /* begin delivery of queued msgs */
+    deliver__flag=1;
+    deliver(NULL,NULL);
 
     /* trap signals HUP, INT and TERM */
     sigemptyset(&set);

@@ -18,6 +18,14 @@
  */
 
 #include "jabberd.h"
+int deliver__flag=0;
+pth_msgport_t deliver__mp=NULL;
+typedef struct deliver_mp_st
+{
+    pth_message_t head;
+    instance i;
+    dpacket p;
+} _deliver_msg,*deliver_msg;
 
 /* register a function to handle delivery for this instance */
 void register_phandler(instance id, order o, phandler f, void *arg)
@@ -319,6 +327,16 @@ void deliver(dpacket p, instance i)
     char *host;
     xmlnode x;
 
+    if(deliver__flag&&p==NULL&&i==NULL)
+    { /* begin delivery of postponed messages */
+        deliver_msg d;
+        while((d=(deliver_msg)pth_msgport_get(deliver__mp))!=NULL)
+        {
+            deliver(d->p,d->i);
+        }
+        pth_msgport_destroy(deliver__mp);
+    }
+
     /* Ensure the packet is valid */
     if (p == NULL)
 	 return;
@@ -365,6 +383,17 @@ void deliver(dpacket p, instance i)
         list = deliver__norm;
         break;
     default:
+    }
+
+
+    if(!deliver__flag)
+    { /* postpone delivery till later */
+        deliver_msg d=pmalloco(xmlnode_pool(p->x),sizeof(_deliver_msg));
+        if(deliver__mp==NULL)deliver__mp=pth_msgport_create("deliver__");
+        d->i=i;
+        d->p=p;
+        pth_msgport_put(deliver__mp,(void*)d);
+        return;
     }
 
     /* XXX optimize by having seperate lists for instances for hosts and general ones (NULL) */

@@ -27,18 +27,21 @@ result base_logtype_filter(instance id, dpacket p, void* arg)
     if (comparisontype == NULL || packettype == NULL)
     {
         /* FIXME: this might not be an error if <log>'s don't require a type */
+        printf("NULL VALUE\n");
         log_debug(ZONE,"base_logtype_filter error: invalid data; unable to filter.\n");
-        return r_ERR;
+        return r_LAST;
     }
 
     /* If comparison fails, return ok..*/
-    if (strcmp(packettype, comparisontype) == 0)
+    if (j_strcmp(packettype, comparisontype) == 0)
     {
+        printf("values match %s %s\n",packettype,comparisontype);
         return r_PASS;
     }
 
     /* Otherwise, the filter failed */
-    return r_ERR;
+    printf("no match %s %s\n",packettype,comparisontype);
+    return r_LAST;
 }
 
 result base_logtype_config(instance id, xmlnode x, void *arg)
@@ -47,6 +50,7 @@ result base_logtype_config(instance id, xmlnode x, void *arg)
     name = xmlnode_get_name(x);
     if(id == NULL)
     {
+        printf("validating config: %s\n",name);
         /* Ensure that the name of the tag is either "notice", "warn", or "alert" */
         if (strcmp(name, "notice") && strcmp(name, "warn") && strcmp(name, "alert"))
         {
