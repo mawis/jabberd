@@ -23,9 +23,8 @@ typedef struct csock_st
     pool p;
     conn_state state;
     xstream xs;
-    pth_msgport_t mp;
     pth_event_t ering;
-    char *id, *host, *sid;
+    char *id, *host, *sid, *res;
     int sock;
     struct csock_st *next;
 } *csock, _csock;
@@ -53,32 +52,60 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     smi si = (smi) arg;
     csock cur;
     drop d;
+    char *type;
     int sock;
 
     if (p->id->user == NULL)
     {
         log_debug(ZONE,"not a user %s",xmlnode2str(p->x));
-        return r_ERR;
+        return r_DONE;
     }
 
     sock = atoi(p->id->user); 
     if (sock == 0)
-        return r_ERR;
+        return r_DONE;
 
     log_debug(ZONE,"pthsock_client looking up %d",sock);
 
     for (cur = si->conns; cur != NULL; cur = cur->next)
         if (sock == cur->sock)
         {
-            d = pmalloc(xmlnode_pool(p->x),sizeof(_drop));
-            d->p = p;
-            d->r = cur;
-            pth_msgport_put(si->wmp,(void*)d);
+            if (j_strcmp(p->id->resource,cur->res) == 0)
+            {
+                d = pmalloc(xmlnode_pool(p->x),sizeof(_drop));
+                d->p = p;
+                d->r = cur;
+                pth_msgport_put(si->wmp,(void*)d);
+            }
+            else
+            {
+                
+                deliver(dpacket_new(p->x),si->i);
+            }
             return r_DONE;
         }
 
+    if (*(xmlnode_get_name(p->x)) == 'm')
+        if (j_strcmp(xmlnode_get_attrib(p->x,"type"),"error") == 0)
+            if (j_strcmp(xmlnode_get_attrib(xmlnode_get_tag(p->x,"error"),"code"),"510") == 0)
+                return r_DONE;
+
     log_debug(ZONE,"pthsock_client connection not found");
-    return r_ERR;
+
+    xmlnode_put_attrib(p->x,"sto",xmlnode_get_attrib(p->x,"sfrom"));
+    xmlnode_put_attrib(p->x,"sfrom",jid_full(p->id));
+    type = xmlnode_get_attrib(p->x,"type");
+
+    jutil_error(p->x,TERROR_DISCONNECTED);
+
+    if (type != NULL)
+        /* HACK: hide the old type on the 510 error node */
+        xmlnode_put_attrib(xmlnode_get_tag(p->x,"error?code=510"),"type",type);
+
+    jutil_tofrom(p->x);
+    deliver(dpacket_new(p->x),si->i);
+
+    return r_DONE;
 }
 
 void pthsock_client_stream(int type, xmlnode x, void *arg)
@@ -138,6 +165,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
             /* notify the session manager */
             h = xmlnode_new_tag("message");
             jutil_error(h,TERROR_DISCONNECTED);
+            jutil_tofrom(h);
             xmlnode_put_attrib(h,"sto",r->host);
             xmlnode_put_attrib(h,"sfrom",r->id);
             deliver(dpacket_new(h),r->i);
@@ -157,6 +185,7 @@ void pthsock_client_close(smi si, csock r)
     {
         x = xmlnode_new_tag("message");
         jutil_error(x,TERROR_DISCONNECTED);
+        jutil_tofrom(x);
         xmlnode_put_attrib(x,"sto",r->host);
         xmlnode_put_attrib(x,"sfrom",r->id);
         deliver(dpacket_new(x),r->i);
@@ -377,8 +406,8 @@ void *pthsock_client_listen(void *arg)
     pth_msgport_t amp;
     struct sockaddr_in sa;
     size_t sa_size = sizeof(sa);
-    char *host, *port;
-    int sock, s;
+    char *host, *port, *buf;
+    int sock, s, bufsz;
 
     log_debug(ZONE,"pthsock_client_listen thread starting");
 
@@ -405,6 +434,9 @@ void *pthsock_client_listen(void *arg)
     }
 
     amp = si->amp;
+    bufsz = strlen(host) + 30;
+    log_debug(ZONE,"%d",bufsz);
+    buf = malloc(bufsz * sizeof(char));
     while(1)
     {
         sock = pth_accept(s,(struct sockaddr*)&sa,(int*)&sa_size);
@@ -421,10 +453,11 @@ void *pthsock_client_listen(void *arg)
         r->xs = xstream_new(p,pthsock_client_stream,(void*)r);
         r->sock = sock;
         r->state = state_UNKNOWN;
-        r->mp = pth_msgport_create("pthcsock");
         /* we use <fd>@host to identify connetions */
-        r->id = pmalloco(p,strlen(host) + 11 * sizeof(char));
-        snprintf(r->id,strlen(host) + 10 * sizeof(char),"%d@%s",sock,host);
+        snprintf(buf,bufsz,"%d",&r);
+        r->res = pstrdup(p,buf);
+        snprintf(buf,bufsz,"%d@%s/%s",sock,host,r->res);
+        r->id = pstrdup(p,buf);
 
         log_debug(ZONE,"socket id:%s",r->id);
 
@@ -436,6 +469,8 @@ void *pthsock_client_listen(void *arg)
         d->r = r;
         pth_msgport_put(amp,(void*)d);
     }
+
+    free(buf);
 
     log_error(NULL,"pthsock_client listen on 5222 failed");
 
