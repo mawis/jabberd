@@ -624,6 +624,7 @@ typedef struct terror_struct
 #define NS_CLIENT    "jabber:client"
 #define NS_SERVER    "jabber:server"
 #define NS_AUTH      "jabber:iq:auth"
+#define NS_AUTH_CRYPT "jabber:iq:auth:crypt"
 #define NS_REGISTER  "jabber:iq:register"
 #define NS_ROSTER    "jabber:iq:roster"
 #define NS_OFFLINE   "jabber:x:offline"
