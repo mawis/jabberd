@@ -377,7 +377,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x)
 }
 
 /**
- * Handle db:verify packets, that we got as a result to our dialback to the originating server.
+ * Handle db:verify packets, that we got as a result to our dialback to the authoritive server.
  *
  * We expect the to attribute to be our name and the from attribute to be the remote name.
  *
@@ -385,6 +385,9 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x)
  * - Check if there is (still) a connection for this dialback result
  * - If the we got type='valid' we have to authorize the peer to use the verified sender address
  * - Inform the peer about the result
+ *
+ * @note dialback_out_connection_cleanup() calls this function as well to trash pending verifies.
+ * In that case we don't get the db:verify result, but the db:verify query (no type attribute set).
  *
  * @param d the db instance
  * @param x the db:verify answer packet
@@ -394,6 +397,7 @@ void dialback_in_verify(db d, xmlnode x)
     dbic c;
     xmlnode x2;
     jid key;
+    const char *type = NULL;
 
     log_debug2(ZONE, LOGT_AUTH, "dbin validate: %s",xmlnode2str(x));
 
@@ -412,22 +416,30 @@ void dialback_in_verify(db d, xmlnode x)
 
     if((x2 = xmlnode_get_tag(c->results, spools(xmlnode_pool(x),"?key=",jid_full(key),xmlnode_pool(x)))) == NULL)
     {
-	log_warn(d->i->id, "Dropping a db:verify answer, we don't have a waiting incoming connection (anymore?) for this to/from pair: %s", xmlnode2str(x));
+	log_warn(d->i->id, "Dropping a db:verify answer, we don't have a waiting incoming <db:result/> query (anymore?) for this to/from pair: %s", xmlnode2str(x));
         xmlnode_free(x);
         return;
     }
+
+    /* hide the waiting db:result, it has been processed now */
     xmlnode_hide(x2);
 
-    /* valid requests get the honour of being miod */
-    if(j_strcmp(xmlnode_get_attrib(x,"type"),"valid") == 0)
-        dialback_miod_hash(dialback_miod_new(c->d, c->m), c->d->in_ok_db, key);
-    else
-	log_warn(d->i->id, "Denying peer to use the domain %s. Dialback failed: %s", key->resource, xmlnode2str(x));
+    /* get type of db:verify result */
+    type = xmlnode_get_attrib(x, "type");
 
-    /* rewrite and send on to the socket */
+    /* rewrite the result */
     x2 = xmlnode_new_tag_pool(xmlnode_pool(x),"db:result");
     xmlnode_put_attrib(x2,"to",xmlnode_get_attrib(x,"from"));
     xmlnode_put_attrib(x2,"from",xmlnode_get_attrib(x,"to"));
-    xmlnode_put_attrib(x2,"type",xmlnode_get_attrib(x,"type"));
+    xmlnode_put_attrib(x2,"type", type != NULL ? type : "invalid");
+
+    /* valid requests get the honour of being miod */
+    type = xmlnode_get_attrib(x, "type");
+    if(j_strcmp(type,"valid") == 0)
+        dialback_miod_hash(dialback_miod_new(c->d, c->m), c->d->in_ok_db, key);
+    else
+	log_warn(d->i->id, "Denying peer to use the domain %s. Dialback failed (%s): %s", key->resource, type ? type : "timeout", xmlnode2str(x2));
+
+    /* rewrite and send on to the socket */
     mio_write(c->m, x2, NULL, -1);
 }
