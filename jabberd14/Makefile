@@ -23,11 +23,11 @@ static-local:
 all-recursive install-data-recursive install-exec-recursive \
 installdirs-recursive install-recursive uninstall-recursive  \
 check-recursive installcheck-recursive info-recursive static-recursive:
+	@set fnord $(MAKEFLAGS); amf=$$2; \
+	dot_seen=no; \
 	if test "$@" = "static-recursive"; then \
       export ISSTATIC=1; \
 	fi; \
-	@set fnord $(MAKEFLAGS); amf=$$2; \
-	dot_seen=no; \
 	target=`echo $@ | sed s/-recursive//`; \
 	list='$(SUBDIRS)'; for subdir in $$list; do \
 	  echo "Making $$target in $$subdir"; \
