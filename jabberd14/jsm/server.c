@@ -28,6 +28,7 @@ void *js_server_main(void *arg)
     pth_event_t ev;		/* event ring for receiving messages */
     pth_msgport_t mp;	/* message port for receiving messages */
     jpq q;				/* a jabber packet */
+    udata u = NULL;
 
     /* debug message */
     log_debug(ZONE,"THREAD:SERVER starting");
@@ -48,8 +49,12 @@ void *js_server_main(void *arg)
             /* debug message */
             log_debug(ZONE,"THREAD:SERVER received a packet: %s",xmlnode2str(q->p->x));
 
+            /* get the user struct for convience if the sender was local */
+            if(js_islocal(si, q->p->from))
+                u = js_user(si, q->p->from, NULL);
+
             /* let the modules have a go at the packet; if nobody handles it... */
-            if(!js_mapi_call(si, e_SERVER, q->p, NULL, NULL))
+            if(!js_mapi_call(si, e_SERVER, q->p, u, NULL))
                 js_bounce(si,q->p->x,TERROR_NOTFOUND);
 
         }

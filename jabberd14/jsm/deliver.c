@@ -70,7 +70,7 @@ result js_packet(instance i, dpacket p, void *arg)
     jsmi si = (jsmi)arg;
     jpacket jp = NULL;
     HASHTABLE ht;
-    session s;
+    session s = NULL;
     udata u;
     char *type, *authto;
     jid from;
@@ -142,6 +142,17 @@ result js_packet(instance i, dpacket p, void *arg)
 
         /* attempt to locate the session by matching the special resource */
         u = js_user(si, p->id, ht);
+        if(u == NULL)
+        {
+            /* no user!?!?! */
+            log_notice(p->host,"Bouncing %s packet intended for nonexistant user %s",xmlnode_get_name(jp->x),jid_full(p->id));
+            jutil_tofrom(p->x);
+            xmlnode_put_attrib(p->x,"type","error");
+            xmlnode_put_attrib(p->x,"error","Invalid User");
+            deliver(dpacket_new(p->x), i);
+            return r_DONE;
+        }
+
         for(s = u->sessions; s != NULL; s = s->next)
             if(j_strcmp(p->id->resource, s->route->resource) == 0)
                 break;
