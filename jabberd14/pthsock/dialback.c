@@ -127,6 +127,7 @@ void _pthsock_server_host_validated(int valid, host h)
 {
     dpq q;
 
+    log_debug(ZONE,"host valid check %d for %s",valid,jid_full(h->id));
     if(valid)
     {
         h->valid = 1;
@@ -153,7 +154,7 @@ void _pthsock_server_host_validated(int valid, host h)
     }
 
     /* remove from hash */
-    ghash_remove(h->si->hosts,h->id);
+    ghash_remove(h->si->hosts,jid_full(h->id));
 }
 
 /* called when the host goes bye bye */
@@ -170,6 +171,8 @@ void _pthsock_server_host_result(void *arg)
     host h = (host)arg;
     xmlnode x;
 
+    log_debug(ZONE,"host result check for %s",jid_full(h->id));
+
     /* if this is a legacy connect, just validate the host */
     if(h->c->legacy)
     {
@@ -184,6 +187,7 @@ void _pthsock_server_host_result(void *arg)
         xmlnode_put_attrib(x, "to", h->id->server);
         xmlnode_put_attrib(x, "from", h->id->resource);
         xmlnode_insert_cdata(x,  shahash( spools(xmlnode_pool(x),shahash( spools(xmlnode_pool(x),shahash(h->si->secret),h->id->server,xmlnode_pool(x)) ),h->c->id,xmlnode_pool(x)) ), -1);
+        log_debug(ZONE,"host result generated %s",xmlnode2str(x));
         io_write_str(h->c->s,xmlnode2str(x));
         xmlnode_free(x);
         return;
@@ -205,6 +209,8 @@ void _pthsock_server_host_verify(void *arg)
     xmlnode x = (xmlnode)arg;
     conn c = xmlnode_get_vattrib(x,"c"); /* hidden c on the xmlnode */
     host h;
+
+    log_debug(ZONE,"host verify queuer %s",xmlnode2str(x));
 
     /* send it */
     if(!c->legacy && c->connected)
@@ -240,6 +246,8 @@ void pthsock_server_outx(int type, xmlnode x, void *arg)
     conn c = (conn)arg;
     host h;
     xmlnode x2;
+
+    log_debug(ZONE,"outgoing conn %s XML[%d]: %s",c->ips,type,xmlnode2str(x));
 
     switch(type)
     {
@@ -331,6 +339,8 @@ void pthsock_server_outread(sock s, char *buffer, int bufsz, int flags, void *ar
     char *ip, *colon;
     int port = 5269;
 
+    log_debug(ZONE,"outgoing conn %s IO[%d]",c->ips,flags);
+
     switch(flags)
     {
     case IO_INIT:
@@ -341,8 +351,9 @@ void pthsock_server_outread(sock s, char *buffer, int bufsz, int flags, void *ar
         c->s = s;
 
         /* outgoing conneciton, write the header */
-        x = xstream_header("jabber:server", NULL, c->legacy_to);
+        x = xstream_header("jabber:server", c->legacy_to, NULL);
         xmlnode_put_attrib(x,"xmlns:db","jabber:server:dialback"); /* flag ourselves as dialback capable */
+        log_debug(ZONE,"writing header to server: %s",xmlnode2str(x));
         io_write_str(c->s,xstream_header_char(x));
         xmlnode_free(x);
 
@@ -360,8 +371,7 @@ void pthsock_server_outread(sock s, char *buffer, int bufsz, int flags, void *ar
         if(c->s == NULL && c->ipn != NULL)
         {
             ip = c->ipn;
-            c->ips = pstrdup(c->p,c->ipn);
-            c->ipn = strchr(c->ips,',');
+            c->ipn = strchr(ip,',');
             if(c->ipn != NULL)
             { /* chop off this ip if there is another, track the other */
                 *c->ipn = '\0';
@@ -421,12 +431,14 @@ result pthsock_server_packets(instance i, dpacket dp, void *arg)
             /* new conn struct */
             p = pool_new();
             c = pmalloco(p, sizeof(_conn));
+            c->legacy_to = pstrdup(p, to->server); /* legacy crap, conn tied to recipient host */
             c->ips = pstrdup(p,ip);
-            c->ipn = strchr(c->ips,',');
+            c->ipn = strchr(ip,',');
             if(c->ipn != NULL)
             { /* chop off this ip if there is another, track the other */
                 *c->ipn = '\0';
                 c->ipn++;
+                c->ipn = pstrdup(p,c->ipn); /* for future reference to the succeding ip's */
             }
             c->p = p;
             c->si = si;
@@ -448,7 +460,7 @@ result pthsock_server_packets(instance i, dpacket dp, void *arg)
         h->si = si;
         h->c = c;
         h->id = jid_new(c->p,jid_full(id));
-        ghash_put(si->hosts,h->id,h); /* register us */
+        ghash_put(si->hosts,jid_full(h->id),h); /* register us */
         pool_cleanup(c->p,_pthsock_server_host_cleanup,(void *)h); /* make sure things get put back to normal afterwards */
         _pthsock_server_host_result((void *)h); /* try to send result to the other side */
     }
@@ -473,7 +485,7 @@ result pthsock_server_packets(instance i, dpacket dp, void *arg)
 
     /* all we have left is db:verify packets */
     xmlnode_put_vattrib(dp->x,"c",(void *)c); /* ugly, but hide the c on the xmlnode */
-    _pthsock_server_host_verify((void *)(dp->x));
+    _pthsock_server_host_verify((void *)(x));
 
     return r_DONE;
 }
@@ -488,11 +500,13 @@ void pthsock_server_inx(int type, xmlnode x, void *arg)
     xmlnode x2;
     host h;
 
+    log_debug(ZONE,"incoming conn %X XML[%d]: %s",c,type,xmlnode2str(x));
+
     switch(type)
     {
     case XSTREAM_ROOT:
         /* new incoming connection sent a header, write our header */
-        x2 = xstream_header("jabber:server", xmlnode_get_attrib(x,"to"), NULL);
+        x2 = xstream_header("jabber:server", NULL, xmlnode_get_attrib(x,"to"));
         xmlnode_put_attrib(x2,"xmlns:db","jabber:server:dialback"); /* flag ourselves as dialback capable */
         c->id = pstrdup(c->p,_pthsock_server_randstr());
         xmlnode_put_attrib(x2,"id",c->id); /* send random id as a challenge */
@@ -581,6 +595,8 @@ void pthsock_server_inx(int type, xmlnode x, void *arg)
 void pthsock_server_inread(sock s, char *buffer, int bufsz, int flags, void *arg)
 {
     conn c = (conn)arg;
+
+    log_debug(ZONE,"outgoing conn %X IO[%d]",c,flags);
 
     switch(flags)
     {
