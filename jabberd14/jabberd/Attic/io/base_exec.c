@@ -40,30 +40,30 @@ int exec_and_capture(char* const args[], int* in, int* out)
      else if (pid > 0)		/* Parent */
      {
 	  /* Close unneeded file handles */
-	  close(left_fds[STDIN_FILENO]);
-	  close(right_fds[STDOUT_FILENO]);
+	  close(left_fds[0]);
+	  close(right_fds[1]);
 	  /* Return the in and out file descriptors */
-	  *in = right_fds[STDIN_FILENO];
-	  *out = left_fds[STDOUT_FILENO];
+	  *in = right_fds[0];
+	  *out = left_fds[1];
 	  return pid;
      }
      else			/* Child */
      {
       char *last,*cur;
 	  /* Close unneeded file handles */
-	  close(left_fds[STDOUT_FILENO]);
-	  close(right_fds[STDIN_FILENO]);
+	  close(left_fds[1]);
+	  close(right_fds[0]);
 	  /* Map left's STDIN to the child's STDIN */
-	  if (left_fds[STDIN_FILENO] != STDIN_FILENO)
+	  if (left_fds[0] != 0)
 	  {
-	       dup2(left_fds[STDIN_FILENO], STDIN_FILENO);
-	       close(left_fds[STDIN_FILENO]);
+	       dup2(left_fds[0], 0);
+	       close(left_fds[0]);
 	  }
 	  /* Map right's STDOUT to the child's STDOUT */
-	  if (right_fds[STDOUT_FILENO] != STDOUT_FILENO)
+	  if (right_fds[1] != 1)
 	  {
-	       dup2(right_fds[STDOUT_FILENO], STDOUT_FILENO);
-	       close(right_fds[STDOUT_FILENO]);
+	       dup2(right_fds[1], 1);
+	       close(right_fds[1]);
 	  }
 	  /* Execute another process */
       for(last=NULL,cur=strchr(args[0],'/');cur!=NULL;last=cur+1,cur=strchr(last,'/'));
@@ -180,8 +180,21 @@ void base_exec_handle_xstream_event(int type, xmlnode x, void* arg)
      switch(type)
      {
      case XSTREAM_ROOT:
-	  headernode = xstream_header("jabber:server",NULL, NULL);
-	  header     = xstream_header_char(headernode);
+      /* Check incoming root node and verify the namespace */
+      if ( j_strcmp(xmlnode_get_attrib(x, "xmlns"), "jabber:component:exec") != 0)
+      {
+            /* Log that this component sent an invalid namespace... */
+            log_alert(pi->inst->id, "Recv'd invalid namespace. Stopping component.");
+            /* Notify component with stream:error */
+            pth_write(pi->out, SERROR_NAMESPACE, strlen(SERROR_NAMESPACE)); 
+            pi->state = p_CLOSED;
+            xmlnode_free(x);
+            return;
+      }
+      /* Send a corresponding root node */
+	  headernode = xstream_header("jabber:component:exec",NULL, pi->inst->id);
+      header     = xstream_header_char(headernode);
+      xmlnode_free(headernode);
 	  /* Return a fake root tag */
 	  pth_write(pi->out, header, strlen(header));
 	  /* Hook the event for delivering messages to the coprocess */
@@ -237,6 +250,11 @@ void* base_exec_process_io(void* threadarg)
 
 	       if (xstream_eat(xs, readbuf, readlen) > XSTREAM_NODE)
 		    break;
+
+           /* Check state of the process..if it is now p_CLOSED, go ahead and kick out
+            * of the while loop */
+           if (pi->state == p_CLOSED)
+                   break;
 	  }
 	  /* Data is available to be written to the coprocess, and the coprocess is ready */
 	  if (pth_event_occurred(pi->e_write))
@@ -262,25 +280,26 @@ void* base_exec_process_io(void* threadarg)
 	  }
      }
 
-     /* If we've reached this point, it's reasonable to assume that the coprocess is 
-	messed up somehow. As such, we'll wait for a termination status.
-	FIXME: Should this exist in a seperate thread? */
-     pth_waitpid(pi->pid, &retcode, 0);
-
      /* Cleanup... */
      close(pi->out);
      close(pi->in);
      pth_event_free(pi->e_read, PTH_FREE_THIS);
      pth_event_free(pi->e_write, PTH_FREE_THIS);
 
-     /* FIXME: Future optimization is that the exec'd process should not be restarted
-	if the server is in the middle of shutting down */
+     /* Get return code from our coprocess */
+     pth_waitpid(pi->pid, &retcode, 0); 
 
-     /* Exec and capture the STDIN/STDOUT */
-     pi->pid = exec_and_capture(pi->args, &(pi->in), &(pi->out));
+     /* If the state is set to close, an error must have occurred and we won't
+      * want to restart the the thread. Otherwise (as shown below) we want to
+      * keep the ball rolling and restart the thread */
+     if (pi->state != p_CLOSED)
+     {
+        /* Exec and capture the STDIN/STDOUT */
+        pi->pid = exec_and_capture(pi->args, &(pi->in), &(pi->out));
 
-     /* Recreate the thread */
-     pth_spawn(PTH_ATTR_DEFAULT, base_exec_process_io, (void*) pi);
+        /* Recreate the thread */
+        pth_spawn(PTH_ATTR_DEFAULT, base_exec_process_io, (void*) pi);
+     }
 
      return NULL;
 }

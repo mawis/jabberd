@@ -128,8 +128,19 @@ void base_accept_read_packets(int type, xmlnode x, void *arg)
     switch(type)
     {
     case XSTREAM_ROOT:
-        /* create and send header, store the id="" in the acceptor to validate the secret l8r */
-        cur = xstream_header("jabberd:sockets",NULL,NULL);
+        /* Ensure requested namespace is correct.. */
+        if (j_strcmp(xmlnode_get_attrib(x, "xmlns"), "jabber:component:accept") != 0)
+        {
+                /* Log that this component sent an invalid namespace */
+                log_alert(a->s->i->id, "Recv'd invalid namespace. Closing connection.");
+                /* Notify component with stream:error */
+                pth_write(a->sock, SERROR_NAMESPACE, strlen(SERROR_NAMESPACE));
+                /* Set status code and return */
+                /* FIXME: DO THIS! */
+        }
+        /* Send header w/ proper namespace, using instance id (acceptor->sink->instance->id) */
+        cur = xstream_header("jabber:component:accept",NULL,a->s->i->id);
+        /* Save stream ID for auth'ing later */
         a->id = pstrdup(a->p,xmlnode_get_attrib(cur,"id"));
         block = xstream_header_char(cur);
         log_debug(ZONE,"socket connected, sending xstream header: %s",block);
@@ -157,7 +168,7 @@ void base_accept_read_packets(int type, xmlnode x, void *arg)
         {
             s = spool_new(xmlnode_pool(x));
             spooler(s,a->id,xmlnode_get_data(cur),s);
-            if(j_strcmp(shahash(spool_print(s)),secret) == 0 || j_strcmp(xmlnode_get_data(cur),secret) == 0) /* XXX REMOVE the cleartext option before release! */
+            if(j_strcmp(shahash(spool_print(s)),secret) == 0)
                 break;
         }
 
