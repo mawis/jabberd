@@ -198,6 +198,8 @@ void base_accept_read_packets(int type, xmlnode x, void *arg)
 
         /* set up the mp event into the ring to enable packets to be fed back */
         a->emp = pth_event(PTH_EVENT_MSG,a->s->mp);
+        if(a->etime != NULL)
+            pth_event_free(a->etime, PTH_FREE_THIS);
         a->ering = pth_event_concat(a->eread, a->emp, NULL);
         xmlnode_free(x);
         break;
@@ -261,17 +263,12 @@ void *base_accept_io(void *arg)
         }
 
         /* handle timeout if the handshake hasn't happened yet */
-        if(pth_event_occurred(a->etime))
+        if(a->emp == NULL && pth_event_occurred(a->etime))
         {
-            if(a->emp != NULL)
-            {
-                a->ering = pth_event_isolate(a->etime);
-            } else {
-                log_debug(ZONE,"io timeout event for %d",a->sock);
-                pth_write(a->sock,"<stream:error>Timed Out</stream:error>",38);
-                pth_write(a->sock,"</stream:stream>",16);
-                break;
-            }
+            log_debug(ZONE,"io timeout event for %d",a->sock);
+            pth_write(a->sock,"<stream:error>Timed Out</stream:error>",38);
+            pth_write(a->sock,"</stream:stream>",16);
+            break;
         }
     }
 
