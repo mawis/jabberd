@@ -81,9 +81,16 @@ mreturn mod_register_new(mapi m, void *arg)
         /* if also configured, send the new user a welcome message */
         if((reg = js_config(m->si, "welcome")) != NULL)
         {
+	    char *lang = NULL;
+
+	    lang = xmlnode_get_attrib(reg, "xml:lang");
+
             x = xmlnode_new_tag("message");
             xmlnode_put_attrib(x, "from", m->packet->to->server);
             xmlnode_put_attrib(x, "to", jid_full(m->packet->to));
+	    if (lang != NULL) {
+		xmlnode_put_attrib(x, "xml:lang", lang);
+	    }
             xmlnode_insert_node(x, xmlnode_get_firstchild(reg));
             js_deliver(m->si,jpacket_new(x));
         }
