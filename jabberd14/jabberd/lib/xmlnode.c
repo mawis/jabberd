@@ -30,6 +30,8 @@
 
 #include "lib.h"
 
+XML_Parser __xmlnode_parser = NULL;
+
 //void debug_log(char *zone, const char *msgfmt, ...);
 /* Internal routines */
 typedef struct xml_parse_st
@@ -147,18 +149,21 @@ void _parse_xmlnode(xmlnode current, int parse_depth)
     x->max_depth = parse_depth;
     
     /* create a expat parser, and parse the xmlnode */
-    p = XML_ParserCreate(NULL);
-    current->complete = parse_depth; /* flag for how far to traverse the nodes */
-    XML_SetUserData(p, (void*)x);
-    XML_UseParserAsHandlerArg(p);
-    XML_SetElementHandler(p, (void*)__parse_startElement, (void*)__parse_endElement);
-    XML_SetDefaultHandler(p, (void*)__parse_defaultHandler);
-    XML_SetCharacterDataHandler(p, (void*)__parse_cdataHandler);
-    XML_SetCommentHandler(p, (void*)__parse_commentHandler);
+    if(__xmlnode_parser == NULL) 
+    {
+        __xmlnode_parser = XML_ParserCreate(NULL);
+        current->complete = parse_depth; /* flag for how far to traverse the nodes */
+        XML_SetUserData(__xmlnode_parser, (void*)x);
+        XML_UseParserAsHandlerArg(__xmlnode_parser);
+        XML_SetElementHandler(__xmlnode_parser, (void*)__parse_startElement, (void*)__parse_endElement);
+        XML_SetDefaultHandler(__xmlnode_parser, (void*)__parse_defaultHandler);
+        XML_SetCharacterDataHandler(__xmlnode_parser, (void*)__parse_cdataHandler);
+        XML_SetCommentHandler(__xmlnode_parser, (void*)__parse_commentHandler);
+    }
 
     //debug_log("otfxml", "xmlnode %X being parsed...", current);
     /* perform the parsing */
-    if(!XML_Parse(p, current->full, strlen(current->full), 1))
+    if(!XML_Parse(__xmlnode_parser, current->full, strlen(current->full), 1))
     {
         /* XXX hrmm.. parsing error.. this should never happen,
          * since expat already has parsed this text, and was error free */
@@ -166,7 +171,6 @@ void _parse_xmlnode(xmlnode current, int parse_depth)
     //debug_log("otfxml", "xmlnode %X done parsing", current);
 
     /* free the parser and text, flag this xmlnode as complete */
-    XML_ParserFree(p);
     current->complete = 1;
     current->full = NULL;
     free(x);
