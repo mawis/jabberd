@@ -44,9 +44,9 @@ xmlnode mod_browse_get(mapi m, jid id)
             browse = xmlnode_new_tag("user");
             /* get the friendly name for this user from somewhere */
             if((x = xdb_get(m->si->xc, m->user->id, NS_VCARD)) != NULL)
-                xmlnode_put_attrib(browse,"name",xmlnode_get_tag_data(x,"/FN"));
+                xmlnode_put_attrib(browse,"name",xmlnode_get_tag_data(x,"FN"));
             else if((x = xdb_get(m->si->xc, m->user->id, NS_REGISTER)) != NULL)
-                xmlnode_put_attrib(browse,"name",xmlnode_get_tag_data(x,"/name"));
+                xmlnode_put_attrib(browse,"name",xmlnode_get_tag_data(x,"name"));
             xmlnode_free(x);
         }else{ /* everything else is generic unless set by the user */
             browse = xmlnode_new_tag("item");
@@ -132,7 +132,8 @@ mreturn mod_browse_session(mapi m, void *arg)
 
 mreturn mod_browse_reply(mapi m, void *arg)
 {
-    xmlnode browse;
+    xmlnode browse, ns, cur;
+    session s;
 
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
     if(!NSCHECK(m->packet->iq,NS_BROWSE)) return M_PASS;
@@ -150,8 +151,26 @@ mreturn mod_browse_reply(mapi m, void *arg)
 
     log_debug("mod_browse","handling query for user %s",m->user->user);
 
-    /* get this guys browse info */
+    /* get this dudes browse info */
     browse = mod_browse_get(m, m->packet->to);
+
+    /* insert the namespaces */
+    ns = xdb_get(m->si->xc, m->packet->to, NS_XDBNSLIST);
+    for(cur = xmlnode_get_firstchild(ns); cur != NULL; cur = xmlnode_get_nextsibling(cur))
+        if(xmlnode_get_attrib(cur,"tyoe") == NULL)
+            xmlnode_insert_tag_node(browse,cur); /* only include the generic <ns>foo</ns> */
+    xmlnode_free(ns);
+
+    /* include any connected resources */
+    for(s = m->user->sessions; s != NULL; s = s->next)
+    {
+        /* if(s->priority < 0) continue; *** include all resources I guess */
+        cur = xmlnode_insert_tag(browse,"user");
+        xmlnode_put_attrib(cur,"type", "client");
+        xmlnode_put_attrib(cur,"jid", jid_full(s->id));
+    }
+
+    /* XXX include iq:filter forwards */
 
     jutil_iqresult(m->packet->x);
     jpacket_reset(m->packet);

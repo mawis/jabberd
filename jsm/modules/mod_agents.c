@@ -31,10 +31,10 @@
 
 mreturn mod_agents_agents(mapi m)
 {
-    xmlnode ret, retq, agents;
+    xmlnode ret, retq, agents, cur, a, cur2;
 
     /* get data from the config file */
-    agents = js_config(m->si,"agents");
+    agents = js_config(m->si,"browse");
 
     /* if we don't have anything to say, bounce */
     if(agents == NULL)
@@ -47,8 +47,32 @@ mreturn mod_agents_agents(mapi m)
     retq = xmlnode_insert_tag(ret,"query");
     xmlnode_put_attrib(retq,"xmlns",NS_AGENTS);
 
-    /* copy in the agents */
-    xmlnode_insert_node(retq,xmlnode_get_firstchild(agents));
+    /* parse the new browse data into old agents format */
+    for(cur = xmlnode_get_firstchild(agents); cur != NULL; cur = xmlnode_get_nextsibling(cur))
+    {
+        if(xmlnode_get_type(cur) != NTYPE_TAG) continue;
+
+        /* generic <agent> part */
+        a = xmlnode_insert_tag(retq,"agent");
+        xmlnode_put_attrib(a, "jid", xmlnode_get_attrib(cur,"jid"));
+        xmlnode_insert_cdata(xmlnode_insert_tag(a,"name"), xmlnode_get_attrib(cur,"name"), -1);
+        xmlnode_insert_cdata(xmlnode_insert_tag(a,"service"), xmlnode_get_attrib(cur,"type"), -1);
+
+        if(j_strcmp(xmlnode_get_name(cur),"conference") == 0)
+            xmlnode_insert_tag(a,"groupchat");
+
+        /* map the included <ns>'s in browse to the old agent flags */
+        for(cur2 = xmlnode_get_firstchild(cur); cur2 != NULL; cur2 = xmlnode_get_nextsibling(cur2))
+        {
+            if(j_strcmp(xmlnode_get_name(cur2),"ns") != 0) continue;
+            if(j_strcmp(xmlnode_get_data(cur2),"jabber:iq:register") == 0)
+                xmlnode_insert_tag(a,"register");
+            if(j_strcmp(xmlnode_get_data(cur2),"jabber:iq:search") == 0)
+                xmlnode_insert_tag(a,"search");
+            if(j_strcmp(xmlnode_get_data(cur2),"jabber:iq:gateway") == 0)
+                xmlnode_insert_cdata(xmlnode_insert_tag(a,"transport"),"Enter ID", -1);
+        }
+    }
 
     jpacket_reset(m->packet);
     js_deliver(m->si,m->packet);
@@ -61,7 +85,7 @@ mreturn mod_agents_agent(mapi m)
     xmlnode ret, retq, info, agents, reg;
 
     /* get data from the config file */
-    info = js_config(m->si,"info");
+    info = js_config(m->si,"vCard");
     agents = js_config(m->si,"agents");
     reg = js_config(m->si,"register");
 
@@ -76,8 +100,9 @@ mreturn mod_agents_agent(mapi m)
     retq = xmlnode_insert_tag(ret,"query");
     xmlnode_put_attrib(retq,"xmlns",NS_AGENT);
 
-    /* copy in the info */
-    xmlnode_insert_node(retq,xmlnode_get_firstchild(info));
+    /* copy in the vCard info */
+    xmlnode_insert_cdata(xmlnode_insert_tag(retq,"name"),xmlnode_get_tag_data(info,"FN"),-1);
+    xmlnode_insert_cdata(xmlnode_insert_tag(retq,"url"),xmlnode_get_tag_data(info,"URL"),-1);
     xmlnode_insert_cdata(xmlnode_insert_tag(retq,"service"),"jabber",6);
 
     /* set the flags */

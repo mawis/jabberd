@@ -29,55 +29,94 @@
  * --------------------------------------------------------------------------*/
 #include "jsm.h"
 
-mreturn mod_private_set(mapi m, void *arg)
+mreturn mod_xml_set(mapi m, void *arg)
 {
-    xmlnode inx, storedx;
-    char *ns;
+    xmlnode storedx, inx = m->packet->iq;
+    char *ns = xmlnode_get_attrib(m->packet->iq,"xmlns");
+    jid to = m->packet->to;
+    int private = 0;
+    jpacket jp;
 
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
-    if(m->packet->to != NULL || !NSCHECK(m->packet->iq,NS_PRIVATE)) return M_PASS;
 
-    /* get the namespace of the chunk within the iq:private query */
-    inx = xmlnode_get_tag(m->packet->iq,"?xmlns");
-    ns = xmlnode_get_attrib(inx,"xmlns");
-    if(ns == NULL || strncmp(ns,"jabber:",7) == 0)
+    /* check for a private request */
+    if(NSCHECK(m->packet->iq,NS_PRIVATE))
     {
-        jutil_error(m->packet->x,TERROR_NOTACCEPTABLE);
-        js_session_to(m->s,m->packet);
-        return M_HANDLED;
+        private = 1;
+        inx = xmlnode_get_tag(m->packet->iq,"?xmlns");
+        ns = xmlnode_get_attrib(inx,"xmlns");
+        if(ns == NULL || strncmp(ns,"jabber:",7) == 0)
+        { /* uhoh, can't use jabber: namespaces inside iq:private! */
+            jutil_error(m->packet->x,TERROR_NOTACCEPTABLE);
+            js_session_to(m->s,m->packet);
+            return M_HANDLED;
+        }
+    }else if(j_strncmp(ns,"jabber:",7) == 0){ /* cant set public xml jabber: namespaces either! */
+         return M_PASS;
     }
 
-    storedx = xdb_get(m->si->xc, m->user->id, ns);
+    /* if its to someone other than ourselves */
+    if(m->packet->to != NULL && jid_cmpx(m->packet->to,m->user->id, JID_USER|JID_SERVER) != 0) return M_PASS;
+
+    log_debug(ZONE,"handling user request %s",xmlnode2str(m->packet->iq));
+
+    /* no to implies to ourselves */
+    if(to == NULL)
+        to = m->user->id;
 
     switch(jpacket_subtype(m->packet))
     {
     case JPACKET__GET:
-        log_debug("mod_private","handling get request for %s",ns);
+        log_debug("mod_xml","handling get request for %s",ns);
         xmlnode_put_attrib(m->packet->x,"type","result");
 
-        /* insert the chunk into the result */
-        if(storedx != NULL)
+        /* insert the chunk into the parent, that being either the iq:private container or the iq itself */
+        if((storedx = xdb_get(m->si->xc, to, ns)) != NULL)
         {
-            xmlnode_insert_tag_node(m->packet->iq, storedx);
+            if(private) /* hack, ick! */
+                xmlnode_hide_attrib(storedx,"j_private_flag");
+            xmlnode_insert_tag_node(xmlnode_get_parent(inx), storedx);
             xmlnode_hide(inx);
         }
 
         /* send to the user */
         jpacket_reset(m->packet);
         js_session_to(m->s,m->packet);
+        xmlnode_free(storedx);
 
         break;
+
     case JPACKET__SET:
-        log_debug("mod_private","handling set request for %s",ns);
+        log_debug("mod_xml","handling set request for %s with data %s",ns,xmlnode2str(inx));
 
         /* save the changes */
-        log_debug(ZONE,"PRIVATE: %s",xmlnode2str(m->packet->iq));
-        if(xdb_set(m->si->xc, m->user->id, ns,xmlnode_dup(inx)))
-        {
-            /* failed */
+        if(private) /* hack, ick! */
+            xmlnode_put_attrib(inx,"j_private_flag","1");
+        if(xdb_set(m->si->xc, to, ns, inx))
             jutil_error(m->packet->x,TERROR_UNAVAIL);
-        }else{
+        else
             jutil_iqresult(m->packet->x);
+
+        /* insert the namespace on the list */
+        storedx = xmlnode_new_tag("ns");
+        xmlnode_insert_cdata(storedx,ns,-1);
+        if(private)
+            xmlnode_put_attrib(storedx,"type","private");
+        xdb_set(m->si->xc, to, NS_XDBNSLIST, storedx);
+        xmlnode_free(storedx);
+
+        /* if it's to a resource that isn't browseable yet, fix that */
+        if(to->resource != NULL)
+        {
+            if((storedx = xdb_get(m->si->xc, to, NS_BROWSE)) == NULL)
+            { /* send an iq set w/ a generic browse item for this resource */
+                jp = jpacket_new(jutil_iqnew(JPACKET__SET,NS_BROWSE));
+                storedx = xmlnode_insert_tag(jp->iq, "item");
+                xmlnode_put_attrib(storedx, "jid", jid_full(to));
+                js_session_from(m->s, jp);
+            }else{
+                xmlnode_free(storedx);
+            }
         }
 
         /* send to the user */
@@ -85,24 +124,64 @@ mreturn mod_private_set(mapi m, void *arg)
         js_session_to(m->s,m->packet);
 
         break;
+
     default:
-        xmlnode_free(m->packet->x);
-        break;
+        return M_PASS;
     }
-    xmlnode_free(storedx);
 
     return M_HANDLED;
 }
 
-mreturn mod_private_session(mapi m, void *arg)
+mreturn mod_xml_get(mapi m, void *arg)
 {
-    js_mapi_session(es_OUT,m->s,mod_private_set,NULL);
+    xmlnode xns;
+    char *ns = xmlnode_get_attrib(m->packet->iq,"xmlns");
+
+    if(m->packet->type != JPACKET_IQ) return M_IGNORE;
+    if(j_strncmp(ns,"jabber:",7) == 0) return M_PASS; /* only handle alternate namespaces */
+
+    /* first, is this a valid request? */
+    switch(jpacket_subtype(m->packet))
+    {
+    case JPACKET__RESULT:
+    case JPACKET__ERROR:
+        return M_PASS;
+    case JPACKET__SET:
+        js_bounce(m->si,m->packet->x,TERROR_NOTALLOWED);
+        return M_HANDLED;
+    }
+
+    log_debug("mod_xml","handling %s request for user %s",ns,jid_full(m->packet->to));
+
+    /* get the foreign namespace */
+    xns = xdb_get(m->si->xc, m->packet->to, ns);
+
+    if(xmlnode_get_attrib(xns,"j_private_flag") != NULL)
+    { /* uhoh, set from a private namespace */
+        js_bounce(m->si,m->packet->x,TERROR_NOTALLOWED);
+        return M_HANDLED;
+    }
+
+    /* reply to the request w/ any data */
+    jutil_iqresult(m->packet->x);
+    jpacket_reset(m->packet);
+    xmlnode_insert_tag_node(m->packet->x,xns);
+    js_deliver(m->si,m->packet);
+
+    xmlnode_free(xns);
+    return M_HANDLED;
+}
+
+mreturn mod_xml_session(mapi m, void *arg)
+{
+    js_mapi_session(es_OUT,m->s,mod_xml_set,NULL);
     return M_PASS;
 }
 
-void mod_private(jsmi si)
+void mod_xml(jsmi si)
 {
-    js_mapi_register(si,e_SESSION,mod_private_session,NULL);
+    js_mapi_register(si,e_SESSION,mod_xml_session,NULL);
+    js_mapi_register(si,e_OFFLINE,mod_xml_get,NULL);
 }
 
 
