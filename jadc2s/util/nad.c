@@ -127,6 +127,7 @@ nad_t nad_new(nad_cache_t cache)
         *cache = nad->next;
         nad->ccur = nad->ecur = nad->acur = 0;
         nad->cache = cache;
+        nad->next = NULL;
         return nad;
     }
 
