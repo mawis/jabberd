@@ -203,10 +203,11 @@ typedef struct mio_st
     void *cb;     /* do not modify directly */
     struct mio_handlers_st *mh;
 
-    xstream xs;   /* XXX kill me, I suck */
+    xstream    xs;   /* XXX kill me, I suck */
     XML_Parser parser;
     int        root;
     xmlnode    stacknode;
+    void       *ssl;
 
     struct karma k;
     int rated;   /* is this socket rate limted? */
@@ -246,6 +247,12 @@ void _mio_raw_parser(mio m, const void *buf, size_t bufsz);
 
 void _mio_xml_parser(mio m, const void *buf, size_t bufsz);
 #define MIO_XML_PARSER  (mio_parser_func)&_mio_xml_parser
+
+/* function helpers */
+#define MIO_LISTEN_RAW NULL, mio_handlers_new(NULL, NULL, NULL)
+#define MIO_CONNECT_RAW  NULL, mio_handlers_new(NULL, NULL, NULL)
+#define MIO_LISTEN_XML NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER)
+#define MIO_CONNECT_XML  NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER)
 
 /* SSL functions */
 int     _mio_ssl_read    (mio m);

@@ -582,8 +582,9 @@ mreturn mod_filter_handler(mapi m, void *arg)
     }
     else 
     {
-        session s=m->s;
-        if(s==NULL) s=js_session_primary(m->user);
+        /* locate a session to deliver to */
+        session s = m->s;
+        s = s ? s : js_session_primary(m->user);
         if(s!=NULL)
         { /* last chance to handle the packet */
             js_session_to(s,jp);
@@ -591,40 +592,13 @@ mreturn mod_filter_handler(mapi m, void *arg)
             return M_HANDLED;
         }
         else
-        { /* no active session, and no matching rule, destroy this packet */
-            xmlnode_free(m->packet->x);
+        { /* no active session, and no matching rule, ignore it */
             pool_free(p);
-            return M_HANDLED;
+            return M_PASS;
         }
     }
     /* it will never get to this point, but just becuase... */
     return M_PASS;
-}
-
-/* watches for when the user is available and sends out offline messages */
-void mod_filter_offline_check(mapi m)
-{
-    xmlnode opts;
-    xmlnode message;
-
-    log_debug("mod_filter","avability established, check for messages");
-
-    
-    /* check for ones saved for this resource */
-    if((opts = xdb_get(m->si->xc, m->user->id, NS_OFFLINE)) == NULL)
-        return;
-
-    for(message = xmlnode_get_firstchild(opts); message != NULL; message = xmlnode_get_nextsibling(message))
-    {
-        if(j_strcmp(xmlnode_get_name(message),"message")!=0) 
-            continue;
-
-        js_session_to(m->s,jpacket_new(xmlnode_dup(message)));
-        xmlnode_hide(message);
-    }
-    /* messages are gone, save the new sun-dried opts container */
-    xdb_set(m->si->xc,m->user->id, NS_OFFLINE, opts);
-    xmlnode_free(opts);
 }
 
 mreturn mod_filter_iq(mapi m)
@@ -717,15 +691,6 @@ mreturn mod_filter_out(mapi m, void *arg)
 {
     switch(m->packet->type)
     {
-    case JPACKET_PRESENCE:
-        switch(jpacket_subtype(m->packet))
-        {
-        case JPACKET__AVAILABLE:
-            if(m->s->priority < 0 && m->packet->to == NULL)
-                mod_filter_offline_check(m);
-            break;
-        }
-        break;
     case JPACKET_IQ:
         return mod_filter_iq(m);
         break;
