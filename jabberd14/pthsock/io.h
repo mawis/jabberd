@@ -19,16 +19,6 @@
 
 #include <jabberd.h>
 
-/* RATE LIMIT STUFF */
-typedef struct rlimit_struct
-{
-    char *key;
-    int start;
-    int points;
-    int maxt, maxp;
-    pool p;
-} *rlimit, _rlimit;
-
 typedef enum { queue_XMLNODE, queue_TEXT } queue_type;
 typedef struct wb_q_st
 {
@@ -46,7 +36,7 @@ typedef struct sock_st
     pool p;
     sock_type type;
     int rated;   /* is this socket rate limted? */
-    rlimit rate; /* if so, what is the rate?    */
+    jlimit rate; /* if so, what is the rate?    */
     conn_state state;
     xstream xs;
     int fd;
@@ -71,7 +61,6 @@ typedef void *iosi;
 
 typedef void (*io_onNode)(int type, xmlnode x, void *arg);
 typedef void (*io_cb)(sock c,char *buffer,int bufsz,int flags,void *arg);
-
 void io_select_listen(int port,char *listen_host,io_cb cb,void *arg,int rate_time,int max_points); /* start listening with select */
 void io_write_str(sock c,char *buffer); /* write a str to a socket */
 void io_write(sock c,xmlnode x); /*write and eat an xmlnode to the socket */

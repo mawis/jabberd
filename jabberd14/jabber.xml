@@ -25,6 +25,7 @@
       <mod_log>./jsm/jsm.so</mod_log>
     </load>
     <jsm xmlns="jabber:config:jsm">
+      <maxoffline>100</maxoffline> <!-- limit # of offline msgs allowed -->
       <agents>
        <agent jid="users.jabber.org">
         <name>Jabber User Directory</name>
