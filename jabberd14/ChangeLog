@@ -1,5 +1,6 @@
 2005-03-30  Matthias Wimmer  <m@tthias.net>
 
+    * jsm/modules/mod_offline.c: config which types of messages are stored
     * xdb_file/xdbfiletool.c: don't link against libjabberdxdbfile, but load
     	the module at runtime
     * xdb_file/jabberdxdbfile.h: header not used anymore
