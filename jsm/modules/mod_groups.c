@@ -351,6 +351,7 @@ int mod_groups_xdb_add(mod_groups_i mi, pool p, jid uid, char *un, char *gid, ch
         xmlnode_free(user);
         return 1;
     }
+    xmlnode_free(user);
 
     /* get the groups this user is currently part of */
     groups = mod_groups_get_current(mi,uid);
@@ -383,11 +384,8 @@ int mod_groups_xdb_add(mod_groups_i mi, pool p, jid uid, char *un, char *gid, ch
     if (both)
         xmlnode_put_attrib(group,"type","both");
 
-    if (xdb_set(mi->xc,uid,NS_XGROUPS,groups))
-    {
-        xmlnode_free(groups);
-        return 1;
-    }
+    xdb_set(mi->xc,uid,NS_XGROUPS,groups);
+    xmlnode_free(groups);
 
     return 0;
 }
@@ -882,7 +880,6 @@ mreturn mod_groups_shutdown(mapi m, void *arg)
     return M_PASS;
 }
 
-/* init */
 void mod_groups(jsmi si)
 {
     pool p;
@@ -928,7 +925,7 @@ void mod_groups(jsmi si)
             {
                 if (xmlnode_get_tag_data(info,"name") == NULL)
                 {
-                    log_error(id,"mod_groups: Error laoding, name required in info");
+                    log_error(id,"mod_groups: Error loading, name required in info");
                     return;
                 }
 
