@@ -425,7 +425,7 @@ void *pthsock_server_main(void *arg)
                 {
                     s = cur;
                     cur = cur->next;
-                    pthsock_client_release(si,s);
+                    pthsock_server_remove(si,s);
                     continue;
                 }
                 if (FD_ISSET(cur->sock,&rfds))
