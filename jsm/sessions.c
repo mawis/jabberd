@@ -236,7 +236,7 @@ void _js_session_from(void *arg)
     if(p->type == JPACKET_UNKNOWN)
     {
         /* send an error back */
-        jutil_error(p->x,TERROR_BAD);
+        jutil_error_xmpp(p->x,XTERROR_BAD);
         jpacket_reset(p);
         js_session_to(s,p);
         return;

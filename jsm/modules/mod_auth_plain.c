@@ -59,7 +59,7 @@ mreturn mod_auth_plain_jane(mapi m, void *arg)
     if(m->user->pass != NULL)
     {
         if(strcmp(pass, m->user->pass) != 0)
-            jutil_error(m->packet->x, TERROR_AUTH);
+            jutil_error_xmpp(m->packet->x, XTERROR_AUTH);
         else
             jutil_iqresult(m->packet->x);
         return M_HANDLED;
@@ -105,7 +105,7 @@ mreturn mod_auth_plain_reg(mapi m, void *arg)
     /* tuck away for a rainy day */
     if(mod_auth_plain_reset(m,id,pass))
     {
-        jutil_error(m->packet->x,(terror){500,"Password Storage Failed"});
+        jutil_error_xmpp(m->packet->x,(xterror){500,"Password Storage Failed","wait","internal-server-error"});
         return M_HANDLED;
     }
 

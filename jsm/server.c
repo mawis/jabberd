@@ -56,7 +56,7 @@ void js_server_main(void *arg)
 
     /* let the modules have a go at the packet; if nobody handles it... */
     if(!js_mapi_call(q->si, e_SERVER, q->p, u, NULL))
-        js_bounce(q->si,q->p->x,TERROR_NOTFOUND);
+        js_bounce_xmpp(q->si,q->p->x,XTERROR_NOTFOUND);
 }
 
 
