@@ -182,7 +182,7 @@ void io_write(sock c,xmlnode x)
         c->xbuffer=x;
     }
     /* notify the select loop that a packet needs writing */
-    pth_raise(io_data->t,SIGUSR1);
+    pth_raise(io_data->t,SIGUSR2);
 }
 
 typedef struct connect_st
@@ -258,7 +258,7 @@ void _io_select_connect(void *arg)
         (*(io_cb)c->cb)(c,NULL,0,IO_NEW,c->cb_arg);
     }
     /* notify the select loop */
-    pth_raise(io_data->t,SIGUSR1);
+    pth_raise(io_data->t,SIGUSR2);
 }
 
 void io_select_connect(iosi io_instance,char *host, int port,void *arg)
@@ -326,6 +326,9 @@ void _io_main(void *arg)
 {
     ios io_data=(ios)arg;
     fd_set wfds,rfds, all_wfds,all_rfds; /* writes, reads, all */
+    pth_event_t wevt;
+    sigset_t sigs;
+    int sig;
     sock cur, c,temp;    
     char buff[1024];
     int len, asock;
@@ -333,6 +336,10 @@ void _io_main(void *arg)
 
     asock = io_data->master_fd;
     maxfd=asock;
+    sigemptyset(&sigs);
+    sigaddset(&sigs,SIGUSR2);
+    
+    wevt=pth_event(PTH_EVENT_SIGS,&sigs,&sig);
 
     FD_ZERO(&all_wfds);
     FD_ZERO(&all_rfds);
@@ -344,12 +351,8 @@ void _io_main(void *arg)
     {
         rfds=all_rfds;
         wfds=all_wfds;
-        if(signal(SIGUSR1,&sig_handler)==SIG_ERR)
-        {
-            log_debug(ZONE,"Unable to listen for SIGUSR1");
-            exit(1);
-        }
-        select(maxfd+1,&rfds,&wfds,NULL,NULL);
+        pth_select_ev(maxfd+1,&rfds,&wfds,NULL,NULL,wevt);
+        pth_sigmask(SIG_BLOCK,&sigs,NULL);
 
         maxfd=asock;
 
