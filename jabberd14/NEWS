@@ -3,3 +3,4 @@
       with negative priority for default delivery
     * the server will now unsubscribe all subscriptions when an user
       unregisters his account
+    * jabberd14 is now able to send log messages to the syslog
