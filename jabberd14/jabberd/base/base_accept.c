@@ -261,16 +261,21 @@ void *base_accept_io(void *arg)
         }
 
         /* handle timeout if the handshake hasn't happened yet */
-        if(a->emp == NULL && pth_event_occurred(a->etime))
+        if(pth_event_occurred(a->etime))
         {
-            log_debug(ZONE,"io timeout event for %d",a->sock);
-            pth_write(a->sock,"<stream:error>Timed Out</stream:error>",38);
-            pth_write(a->sock,"</stream:stream>",16);
-            break;
+            if(a->emp != NULL)
+            {
+                a->ering = pth_event_isolate(a->etime);
+            } else {
+                log_debug(ZONE,"io timeout event for %d",a->sock);
+                pth_write(a->sock,"<stream:error>Timed Out</stream:error>",38);
+                pth_write(a->sock,"</stream:stream>",16);
+                break;
+            }
         }
     }
 
-    log_debug(ZONE,"read thread exiting for %d",a->sock);
+    log_debug(ZONE,"read thread exiting for %d: %s",a->sock, strerror(errno));
 
     /* clean up the write side of things first */
     if(a->emp != NULL)
