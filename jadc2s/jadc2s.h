@@ -57,7 +57,7 @@ typedef struct chunk_st
 } *chunk_t;
 
 /* connection data */
-typedef enum { state_NONE, state_AUTH, state_SESS, state_OPEN } conn_state_t;
+typedef enum { state_NONE, state_NEGO, state_AUTH, state_SESS, state_OPEN } conn_state_t;
 typedef enum { type_NORMAL, type_HTTP, type_FLASH } conn_type_t;
 struct conn_st
 {
