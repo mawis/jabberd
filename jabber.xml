@@ -68,6 +68,7 @@
         <dec>1</dec>
         <restore>5</restore>
         <penalty>-5</penalty>
+      </karma>
     </pthcsock>
   </service>
 

@@ -133,7 +133,7 @@ int configurate(char *file)
     return 0;
 }
 
-int reload_config(char *file)
+int config_reload(char *file)
 {
     xmlnode old_config=greymatter__;
     int retval=configurate(file);

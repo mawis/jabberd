@@ -20,6 +20,7 @@
 #include "jabberd.h"
 
 int debug_flag = 0;
+extern HASHTABLE debug__zones, cmd__line;
 
 char *debug_log_timestamp(void)
 {
@@ -44,8 +45,23 @@ void debug_log(char *zone, const char *msgfmt, ...)
 {
     va_list ap;
     char message[MAX_LOG_SIZE];
-    char *pos;
+    char *pos, c;
     int offset;
+
+    /* special per-zone filtering */
+    if(zone != NULL && debug__zones != NULL)
+    {
+        pos = strchr(zone,'.');
+        if(pos != NULL)
+        {
+            c = *pos;
+            *pos = '\0'; /* chop */
+        }
+        if(ghash_get(debug__zones,zone) == NULL)
+            return;
+        if(pos != NULL)
+            *pos = c; /* restore */
+    }
 
     snprintf(message, MAX_LOG_SIZE, "%s %s ", debug_log_timestamp(), zone);
     for (pos = message; *pos != '\0'; pos++); //empty statement
