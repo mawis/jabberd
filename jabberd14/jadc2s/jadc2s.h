@@ -11,33 +11,42 @@
 # include <openssl/err.h>
 #endif
 
-/****** First notes by jer on 2002/03/17: ******
+/**
+ * @file jadc2s.h
+ * @brief the main header file of jadc2s, mainly defining data structures
+ */
 
-This is jadc2s, the jabberd client-to-server socket manager.
-
-Ultimately we only have one task here, to multiplex incoming connections from clients
-and relay their packets to a session manager (sm).  Due to the less-than-perfect protocol (see PROTO)
-used to talk to a session manager a bit more work is required: watching authentication transactions
-between the client and sm and starting sessions for the client with the sm.
-
-All of the system I/O event handling is in mio/, all XML parsing (expat) in xml/, and the rest
-of the common utilities (from 1.4) are in util/.
-
-To accomplish our goals, we have two basic data types, a conn(ection) and a chunk.
-The connection wraps the data we need for every client.  The chunk wraps the xml as 
-it's being parsed from or written to a connection.  The common conn/chunk utilities
-are in conn.c.
-
-There is one connection back to the sm at all times, all of it's processing logic is in
-connection.c.  All of the incoming client connection processing logic is in clients.c.
-
-Each of these two files consists of an I/O event callback (*_io) where the data is
-read/written, and the expat callbacks for that conn where the conn state is updated
-based on the incoming xml and chunks are created/routed.
-
-All clients are hashed based on their unique id in a master hash table.
-
-*/
+/**
+ * @mainpage
+ *
+ * @section jer_comments First notes by jer on 2002-03-17
+ *
+ * This is jadc2s, the jabberd client-to-server socket manager.
+ *
+ * Ultimately we only have one task here, to multiplex incoming connections
+ * from clients and relay their packets to a session manager (sm).  Due to
+ * the less-than-perfect protocol (see PROTO) used to talk to a session
+ * manager a bit more work is required: watching authentication transactions
+ * between the client and sm and starting sessions for the client with the sm.
+ *
+ * All of the system I/O event handling is in mio/, and the rest of the common
+ * utilities (from 1.4) are in util/.
+ *
+ * To accomplish our goals, we have two basic data types, a conn(ection) and a
+ * chunk.  The connection wraps the data we need for every client.  The chunk
+ * wraps the xml as it's being parsed from or written to a connection.  The
+ * common conn/chunk utilities are in conn.c.
+ *
+ * There is one connection back to the sm at all times, all of it's processing
+ * logic is in connection.c.  All of the incoming client connection processing
+ * logic is in clients.c.
+ *
+ * Each of these two files consists of an I/O event callback (*_io) where the
+ * data is read/written, and the expat callbacks for that conn where the conn
+ * state is updated based on the incoming xml and chunks are created/routed.
+ *
+ * All clients are hashed based on their unique id in a master hash table.
+ */
 
 /* stream error conditions */
 #define STREAM_ERR_BAD_FORMAT		 "<bad-format xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
@@ -55,19 +64,21 @@ All clients are hashed based on their unique id in a master hash table.
 typedef struct conn_st *conn_t;
 typedef struct c2s_st *c2s_t;
 
-/* chunk definition */
+/**
+ * chunk definition
+ *
+ * A chunk wraps the xml as it's being parsed from or written to a connection.
+ */
 typedef struct chunk_st
 {
-    /* the xml itself */
-    nad_t nad;
-    int packet_elem;    /* actual packet start element */
+    nad_t nad;		/**< the xml itself */
+    int packet_elem;    /**< actual packet start element */
 
     /* and the char representation, for writing */
-    char *wcur;
-    int wlen;
+    char *wcur;		/**< the char representation for writing */
+    int wlen;		/**< length of the char representation */
 
-    /* for linking chunks together */
-    struct chunk_st *next;
+    struct chunk_st *next;	/**< for linking chunks together */
 } *chunk_t;
 
 /* connection data */
@@ -111,8 +122,10 @@ typedef enum {
     root_element_FLASH		/**< a flash:stream element has been sent */
 } root_element_t;
 
-struct conn_st
-{
+/**
+ * The conn(ection) wraps the data we need for every client
+ */
+struct conn_st {
     c2s_t c2s;			/**< the jadc2s instance we are running in */
 
     /* vars for this conn */
@@ -177,23 +190,23 @@ struct conn_st
 conn_t conn_new(c2s_t c2s, int fd);
 void conn_free(conn_t c);
 
-/* send a stream error */
+/** send a stream error */
 void conn_error(conn_t c, char *condition, char *err);
 
-/* close a conn with error (conn_t becomes invalid after this is called!) */
+/** close a conn with error (conn_t becomes invalid after this is called!) */
 void conn_close(conn_t c, char *condition, char *err);
 
-/* create a new chunk */
+/** create a new chunk */
 chunk_t chunk_new(conn_t c);
 
-/* and free one */
+/** and free one */
 void chunk_free(chunk_t chunk);
 
-/* write a chunk to a conn, optinally wrap with route */
+/** write a chunk to a conn, optinally wrap with route */
 void chunk_write(conn_t c, chunk_t chunk, char *to, char *from, char *rtype);
 
-/* transfer rate limitting, returns the max number of 
- * elements that can be read
+/**
+ * transfer rate limitting, returns the max number of elements that can be read
  */
 int conn_max_read_len(conn_t c);
 
@@ -205,11 +218,11 @@ int conn_write(conn_t c);
 void connectionstate_fillnad(nad_t nad, char *from, char *to, char *user, int is_login, char *ip, const char *ssl_version, const char *ssl_cipher, char *ssl_size_secret, char *ssl_size_algorithm);
 void connectionstate_send(config_t config, conn_t c, conn_t client, int is_login);
 
-/* maximum number of xml children in a chunk (checked by conn_read) */
+/** maximum number of xml children in a chunk (checked by conn_read) */
 #define MAXDEPTH 10000
-#define MAXDEPTH_ERR "maximum node depth reached"
+#define MAXDEPTH_ERR "maximum node depth reached" /**< error to generate if MAXDEPTH reached */
 
-/* maximum number of fd for daemonize */
+/** maximum number of fd for daemonize */
 #define MAXFD 255
 
 /** IP Connection Rate Limit Functions **/
@@ -224,7 +237,7 @@ struct bad_conn_st
     bad_conn_t next;
 };
 
-/* c2s master data type */
+/** c2s master data type */
 struct c2s_st
 {
     /* globals */
@@ -250,21 +263,19 @@ struct c2s_st
     SSL_CTX *ssl_ctx;
 #endif
 
-    /* our config */
-    xht config;
+    xht config;			/**< our configuration */
 
-    /* nad cache */
-    nad_cache_t nads;
+    nad_cache_t nads;		/**< nad cache */
 
     /* client conn stuff */
-    xht connection_rates; /* our current rate limit checks */
+    xht connection_rates; /**< our current rate limit checks */
     int connection_rate_times;
     int connection_rate_seconds;
-    xht pending; /* waiting for auth/session */
-    struct conn_st *conns; /* all connected conns */
-    bad_conn_t bad_conns; /* Karma controlled conns */
+    xht pending; /**< waiting for auth/session */
+    struct conn_st *conns; /**< all connected conns */
+    bad_conn_t bad_conns; /**< Karma controlled conns */
     bad_conn_t bad_conns_tail;
-    int timeout; /* how long to process mio */
+    int timeout; /**< how long to process mio */
 
     int max_fds;
 
@@ -280,13 +291,13 @@ struct c2s_st
     int iplog;
 };
 
-/* the handler for client mio events */
+/** the handler for client mio events */
 int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg);
 
-/* create a sm connection (block until it's connected) */
+/** create a sm connection (block until it's connected) */
 int connect_new(c2s_t c2s);
 
-/* run in daemon mode */ 
+/** run in daemon mode */ 
 int daemonize(void);
 int ignore_term_signals(void);
 
@@ -295,7 +306,7 @@ int _read_actual(conn_t c, int fd, char *buf, size_t count);
 int _peek_actual(conn_t c, int fd, char *buf, size_t count);
 int _write_actual(conn_t c, int fd, const char *buf, size_t count);
 
-/* debug logging */
+/** debug logging */
 void debug_log(char *file, int line, const char *msgfmt, ...);
 #define ZONE __FILE__,__LINE__
 #define MAX_DEBUG 1024
