@@ -62,6 +62,7 @@ dpacket dpacket_new(xmlnode x); /* create a new delivery packet from source xml 
 dpacket dpacket_copy(dpacket p); /* copy a packet (and it's flags) */
 void deliver_fail(dpacket p, char *err); /* bounce a packet intelligently */
 void deliver(dpacket p, instance i); /* deliver packet from sending instance */
+result deliver_instance(instance i, dpacket p); /* deliver packet TO the instance, if the result != r_DONE, you have to handle the packet! */
 
 /*** global logging symbols ***/
 extern int debug_flag;
