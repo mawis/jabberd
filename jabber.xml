@@ -323,15 +323,16 @@
       existing accounts, the reverse is not possible.
       http://jabberd.jabberstudio.org/1.4/doc/adminguide#security
       -->
+      <!-- mod_auth_digest: Password in clear text in storage,
+           encrypted/hashed on the wire -->
+      <mod_auth_digest>./jsm/jsm.so</mod_auth_digest>
       <!-- mod_auth_plain: Password in clear text in storage
            and on the wire. Disable this if you do not use clients
            that need plaintext auth -->
       <mod_auth_plain>./jsm/jsm.so</mod_auth_plain>
-      <!-- mod_auth_digest: Password in clear text in storage,
-           encrypted on the wire -->
-      <mod_auth_digest>./jsm/jsm.so</mod_auth_digest>
-      <!-- mod_auth_crypt: Password encrypted in storage,
-           clear text on the wire
+      <!-- mod_auth_crypt: Password encrypted/hashed in storage,
+           clear text on the wire. Disabled as this only makes
+           sense when used exclusively and with SSL mandatory
       <mod_auth_crypt>./jsm/jsm.so</mod_auth_crypt> -->
 
       <mod_log>./jsm/jsm.so</mod_log>
