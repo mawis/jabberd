@@ -1,30 +1,10 @@
-<!--  Jabber2 - jabberd JSX configuration  -->
-<jsx project='jabberd'>
+<!--  Jabber2 - jabberd JBOX configuration  -->
+<jbox project='jabberd'>
   <build>
     <variables>
       <var name='DEFINES'><value>-DCONFIGXML="\"jabber.xml\"" -DHOME="\"$(JHOME)\""</value></var>
     </variables>
     <libraries>
-      <library priority='required'>
-        <name>xode</name>
-        <version>
-	  <needed>1.2</needed>
-	  <command>libxode-config --version</command>
-        </version>
-	<var name='CFLAGS'><command>libxode-config --cflags</command></var>
-	<var name='LDFLAGS'><command>libxode-config --ldflags</command></var>
-	<var name='LIBS'><command>libxode-config --libs</command></var>
-      </library>
-      <library priority='required'>
-        <name>jabber</name>
-        <version>
-	  <needed>1.2</needed>
-	  <command>jabber-config --version</command>
-        </version>
-	<var name='CFLAGS'><command>jabber-config --cflags</command></var>
-	<var name='LDFLAGS'><command>jabber-config --ldflags</command></var>
-	<var name='LIBS'><command>jabber-config --libs</command></var>
-      </library>
       <library priority='required'>
         <name>pth</name>
         <version>
@@ -144,7 +124,14 @@
             <macro>STATICOBJECTS</macro>
           </dep>
         </binary>
+        <binary name='jabberd' type='single'>
+          <dep filelist='1'>
+            <macro>OBJECTS</macro>
+            <macro>EXOBJECTS</macro>
+            <macro>STATICOBJECTS</macro>
+          </dep>
+        </binary>
       </compile>
     </make>
   </build>
-</jsx>
+</jbox>

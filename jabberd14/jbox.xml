@@ -1,5 +1,5 @@
-<!--  Jabber2 JSX configuration  -->
-<jsx project='jabber2'>
+<!--  Jabber2 JBOX configuration  -->
+<jbox project='jabber2'>
   <build>
     <make>
       <project>dialback</project>
@@ -10,4 +10,4 @@
       <project>jabberd</project>
     </make>
   </build>
-</jsx>
+</jbox>

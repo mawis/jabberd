@@ -1,5 +1,5 @@
-<!--  Jabber2 - jsm JSX configuration  -->
-<jsx project='jsm'>
+<!--  Jabber2 - jsm JBOX configuration  -->
+<jbox project='jsm'>
   <build>
     <variables>
       <var name='DEFINES'><value>-DVERSION=\"1.2\"</value></var>
@@ -58,4 +58,4 @@
       </compile>
     </make>
   </build>
-</jsx>
+</jbox>

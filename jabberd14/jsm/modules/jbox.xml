@@ -1,5 +1,5 @@
-<!--  Jabber2 - jsm/modules JSX configuration  -->
-<jsx project='modules'>
+<!--  Jabber2 - jsm/modules JBOX configuration  -->
+<jbox project='modules'>
   <build>
     <variables>
       <var name='DEFINES'><value>-DPACKAGE=\"jsm\"</value></var>
@@ -40,4 +40,4 @@
       </compile>
     </make>
   </build>
-</jsx>
+</jbox>
