@@ -188,6 +188,9 @@ struct session_struct {
 /** this value is set as a flag to a jpacket, for a message that has been read from offline storage */
 #define PACKET_FROM_OFFLINE_MAGIC 1768189505
 
+/** this value is set as a flag to a jpacket for a subscription state change, that should be sent out in any case */
+#define PACKET_FORCE_SENT_MAGIC 1836017748
+
 session js_session_new(jsmi si, dpacket p);
 void js_session_end(session s, char *reason);
 session js_session_get(udata user, char *res);
