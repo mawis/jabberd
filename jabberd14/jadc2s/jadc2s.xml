@@ -1,4 +1,3 @@
-
 <!-- jadc2s config -->
 <jadc2s>
 
@@ -21,14 +20,16 @@
   <!--   Where does jadc2s listen for      -->
   <!-- incoming connections?               -->
   <local>
-    <host>crevice.sc.ti.com</host>
+    <host>localhost</host>
     <!-- If you need to bind to a specifc IP -->
     <!-- <ip>www.xxx.yyy.zzz</ip> -->
     <port>5221</port>
+    <!--
     <ssl>
       <port>5224</port>
-      <pemfile>../key.pem</pemfile>
+      <pemfile>./key.pem</pemfile>
     </ssl>
+    -->
     <!-- max number of connections.  This should be -->
     <!-- a prime number. They system will use seven -->
     <!-- (7) of these sockets.  Default:  1023      -->
@@ -50,6 +51,5 @@
     Uncomment to enable 
   <max_bps>48</max_bps>
   -->
-
 
 </jadc2s>

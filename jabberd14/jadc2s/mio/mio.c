@@ -132,6 +132,7 @@ void _mio_accept(mio_t m, int fd)
     size_t addrlen = sizeof(serv_addr);
     int newfd, dupfd;
     char ip[16];
+    int firstchar;
 
     mio_debug(ZONE, "accepting on fd #%d", fd);
 
@@ -158,6 +159,12 @@ void _mio_accept(mio_t m, int fd)
 
         newfd = dupfd;
     }
+
+    firstchar = getc(newfd);
+    if ((char*) firstchar == 'P')
+        write(newfd,"HTTP/1.0 200 Ok\r\nServer: jabber/xmlstream-hack-0.1\r\nExpires: Fri, 10 Oct 1997 10:10:10 GMT\r\nPragma: no-cache\r\nCache-control: private\r\nConnection: close\r\n\r\n",-1);
+    else
+        ungetc(firstchar,newfd);
 
     /* tell the app about the new socket, if they reject it clean up */
     if (ACT(m, newfd, action_ACCEPT, ip))
