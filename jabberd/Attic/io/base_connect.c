@@ -29,6 +29,7 @@
  * --------------------------------------------------------------------------*/
  
 #include "jabberd.h"
+extern pool jabberd__runtime;
 
 /* ---------------------------------------------------------
    base_connect - Connects to a specified host/port and 
@@ -188,6 +189,11 @@ void base_connect_conn_cleanup(void *arg)
     ghash_remove(G_conns, ci->keybuf);
 }
 
+void base_connect_cleanup(void *arg)
+{
+    ghash_destroy(G_conns);
+}
+
 result base_connect_config(instance id, xmlnode x, void *arg)
 {
      char*     ip     = NULL;
@@ -215,6 +221,13 @@ result base_connect_config(instance id, xmlnode x, void *arg)
             return r_ERR;
         }
         return r_PASS;
+     }
+
+     if(G_conns == NULL)
+     {
+        G_conns = ghash_create(23, (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
+        G_pool = jabberd__runtime;
+        pool_cleanup(G_pool, base_connect_cleanup, NULL);
      }
      
      /* Format ip:port into a key */
