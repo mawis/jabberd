@@ -255,6 +255,7 @@ typedef struct mio_st
     int        root;
     xmlnode    stacknode;
     void       *ssl;
+    int	       reset_stream; /**< set to 1, if stream has to be resetted */
 
     struct karma k;
     int rated;   /* is this socket rate limted? */
@@ -296,6 +297,7 @@ int _mio_raw_connect(mio m, struct sockaddr* serv_addr, socklen_t  addrlen);
 #define MIO_RAW_CONNECT (mio_connect_func)&_mio_raw_connect
 #define MIO_RAW_PARSER  (mio_parser_func)&_mio_raw_parser
 
+int  mio_xml_starttls(mio m, int originator, const char *identity);
 void _mio_xml_parser(mio m, const void *buf, size_t bufsz);
 #define MIO_XML_PARSER  (mio_parser_func)&_mio_xml_parser
 
@@ -307,6 +309,8 @@ void _mio_xml_parser(mio m, const void *buf, size_t bufsz);
 
 /* SSL functions */
 void    mio_ssl_init     (xmlnode x);
+int	mio_ssl_starttls (mio m, int originator, const char* identity);
+int	mio_ssl_starttls_possible (mio m, const char* identity);
 void    _mio_ssl_cleanup (void *arg);
 ssize_t _mio_ssl_read    (mio m, void *buf, size_t count);
 ssize_t _mio_ssl_write   (mio m, const void*      buf,       size_t     count);
