@@ -463,7 +463,7 @@ mth mtq_threads(mth context)
     for(n=0;n<MTQ_THREADS && avail[n] != NULL; n++);
 
     /* if we couldn't get it put back in, return it to flag an exit */
-    if(n+1 == MTQ_THREADS)
+    if(n == MTQ_THREADS)
         return context;
 
     log_debug(ZONE,"MTQ(%X) saved",context->mp);
