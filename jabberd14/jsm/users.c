@@ -115,6 +115,7 @@ udata js_user(jsmi si, jid id, HASHTABLE ht)
     pool p;
     udata cur, newu;
     char *ustr, *u;
+    xmlnode x;
 
     if(si == NULL || id == NULL || id->user == NULL) return NULL;
 
@@ -145,8 +146,10 @@ udata js_user(jsmi si, jid id, HASHTABLE ht)
     log_debug(ZONE,"js_user not current");
 
     /* try to get the user auth data from xdb */
-    if(!xdb_get(si->xc, id->server, id, NS_AUTH))
+    if((x = xdb_get(si->xc, id->server, id, NS_AUTH)) == NULL)
         return NULL;
+    else
+        xmlnode_free(x);
 
     /* create a udata struct */
     p = pool_heap(64);

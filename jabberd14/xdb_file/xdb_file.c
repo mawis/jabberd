@@ -169,7 +169,7 @@ void xdb_file(instance i, xmlnode x)
         return;
     }
 
-    register_phandler(i, o_DELIVER, xdb_file_phandler, (void *)pstrdup(spl));
+    register_phandler(i, o_DELIVER, xdb_file_phandler, (void *)pstrdup(i->p,spl));
     xmlnode_free(config);
 }
 
