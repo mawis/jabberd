@@ -12,6 +12,8 @@ Required Parameters:\n\
 Optional Parameters:\n\
  -H \t\t A 'home' folder, which can be used instead of the -s and -l above as the parent folder\n\
  -c \t\t Location of a configuration file to use instead of the built-in configuration\n\
+ -v \t\tserver version\n\
+ -V \t\tserver version\n\
  -D \t\t Enable verbose debug output\n"); \
         exit(0); \
     }
