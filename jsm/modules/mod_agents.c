@@ -76,9 +76,12 @@ mreturn mod_agents_agents(mapi m)
 
     jpacket_reset(m->packet);
     if(m->s != NULL) /* XXX null session hack! */
+    {
+        xmlnode_put_attrib(m->packet->x,"from",m->packet->from->server);
         js_session_to(m->s,m->packet);
-    else
+    }else{
         js_deliver(m->si,m->packet);
+    }
 
     return M_HANDLED;
 }
@@ -116,9 +119,12 @@ mreturn mod_agents_agent(mapi m)
 
     jpacket_reset(m->packet);
     if(m->s != NULL) /* XXX null session hack! */
+    {
+        xmlnode_put_attrib(m->packet->x,"from",m->packet->from->server);
         js_session_to(m->s,m->packet);
-    else
+    }else{
         js_deliver(m->si,m->packet);
+    }
 
     return M_HANDLED;
 }
@@ -128,6 +134,7 @@ mreturn mod_agents_handler(mapi m, void *arg)
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
 
     if(jpacket_subtype(m->packet) != JPACKET__GET) return M_PASS;
+    if(m->packet->to != NULL && j_strcmp(jid_full(m->packet->to),m->packet->from->server) != 0) return M_PASS; /* only answer to=NULL or to=server */
 
     if(NSCHECK(m->packet->iq,NS_AGENT)) return mod_agents_agent(m);
     if(NSCHECK(m->packet->iq,NS_AGENTS)) return mod_agents_agents(m);
