@@ -200,6 +200,8 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
 
     case XSTREAM_ERR:
         pth_write(s->sock,"<stream::error>You sent malformed XML</stream:error>",52);
+        log_debug(ZONE,"error XSTREAM");
+        s->type = conn_CLOSE;
     case XSTREAM_CLOSE:
         /* they closed there connections to us */
         log_debug(ZONE,"closing XSTREAM");
@@ -327,6 +329,7 @@ void *pthsock_server_main(void *arg)
             cur = si->conns;
             while(cur != NULL)
             {
+log_debug(ZONE,"checking cur->sock %d",cur->sock);
                 if (FD_ISSET(cur->sock,&rfds))
                 {
                     --selc;
@@ -338,7 +341,7 @@ void *pthsock_server_main(void *arg)
                         pthsock_server_close(si,cur);
                     }
 
-                    log_debug(ZONE,"read %d bytes",len);
+                    log_debug(ZONE,"read %d bytes on %d:",len,cur->sock);
                     xstream_eat(cur->xs,buff,len);
                     if (cur->type == conn_CLOSE)
                     {

@@ -19,8 +19,13 @@
     <load><pthsock_client>../load/pthsock_client.so</pthsock_client></load>
     <pthcsock xmlns='jabberd:pth-csock:config'>
       <host>pth-csock.127.0.0.1</host>
-      <listen>5225</listen>
+      <listen>5222</listen>
     </pthcsock>
+  </service>
+
+  <service id="s2s">
+    <host/>
+    <load><pthsock_server>../load/pthsock_server.so</pthsock_server></load>
   </service>
 
   <service id="session manager">
@@ -28,10 +33,7 @@
     <load main="jsm">
       <jsm>../../jsm/jsm.so</jsm>
       <mod_echo>../../jsm/jsm.so</mod_echo>
-      <mod_auth>../../jsm/jsm.so</mod_auth>
-      <mod_auth_sha1>../../jsm/jsm.so</mod_auth_sha1>
       <mod_offline>../../jsm/jsm.so</mod_offline>
-      <mod_presence>../../jsm/jsm.so</mod_presence>
       <mod_roster>../../jsm/jsm.so</mod_roster>
       <mod_time>../../jsm/jsm.so</mod_time>
       <mod_vcard>../../jsm/jsm.so</mod_vcard>
@@ -41,6 +43,9 @@
       <mod_admin>../../jsm/jsm.so</mod_admin>
       <mod_private>../../jsm/jsm.so</mod_private>
       <mod_register>../../jsm/jsm.so</mod_register>
+      <mod_presence>../../jsm/jsm.so</mod_presence>
+      <mod_auth>../../jsm/jsm.so</mod_auth>
+      <mod_auth_sha1>../../jsm/jsm.so</mod_auth_sha1>
     </load>
     <jsm xmlns="jabberd:jsm:config">
       <agents/>
