@@ -184,7 +184,7 @@ typedef struct mio_wb_q_st
     void *data;
     void *cur;
     int len;
-    struct wb_q_st *next;
+    struct mio_wb_q_st *next;
 } _mio_wbq,*mio_wbq;
 
 /* the mio data type */
