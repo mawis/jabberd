@@ -8,6 +8,7 @@ extern xmlnode greymatter__;
 /* load all base modules */
 void loader_static(void)
 {
+    /* XXX-temas:  this will need to be auto defined by configure */
     /* call static modules */
     /* gen_foo(); io_foo(); ... */
     base_host();
