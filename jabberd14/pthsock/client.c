@@ -30,12 +30,13 @@
 */
 
 #include "io.h"
-iosi io__instance=NULL;
+#define DEFAULT_AUTH_TIMEOUT 60
 
 /* socket manager instance */
 typedef struct smi_st
 {
     instance i;
+    int auth_timeout;
     xmlnode cfg;
     HASHTABLE aliases;
     pth_msgport_t wmp;
@@ -49,6 +50,7 @@ typedef struct cdata_st
     jid host;
     user_state state;
     char *id, *sid, *res, *auth_id;
+    time_t connect_time;
     void *arg;
     pth_msgport_t pre_auth_mp;
     struct cdata_st *next;
@@ -256,13 +258,15 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         }
         break;
     case XSTREAM_ERR:
+        log_debug(ZONE,"bad xml: %s",(char*)x);
         h=xmlnode_new_tag("stream:error");
         xmlnode_insert_cdata(h,"You sent malformed XML",-1);
         io_write(c,h);
+        x=NULL;
     case XSTREAM_CLOSE:
         log_debug(ZONE,"closing XSTREAM");
         pthsock_client_close(c);
-        xmlnode_free(x);
+        if(x!=NULL)xmlnode_free(x);
     }
 }
 
@@ -307,6 +311,7 @@ void pthsock_client_read(sock c,char *buffer,int bufsz,int flags,void *arg)
     case IO_NEW:
         log_debug(ZONE,"io_select NEW socket connected at %d",c->fd);
         cd=pthsock_client_cdata(si,c);
+        cd->connect_time=time(NULL);
         c->arg=(void*)cd;
         break;
     case IO_NORMAL:
@@ -341,6 +346,25 @@ void pthsock_client_read(sock c,char *buffer,int bufsz,int flags,void *arg)
     }
 }
 
+result pthsock_client_heartbeat(void *arg)
+{
+    smi si=(smi)arg;
+    sock c;
+    cdata cd;
+    for(c=io_select_get_list();c!=NULL;c=c->next)
+    {
+        if(c->state!=state_ACTIVE) continue;
+        cd=(cdata)c->arg;
+        if(cd==NULL||cd->state==state_AUTHD) continue;
+        if(si->auth_timeout!=-1&&(time(NULL)-cd->connect_time)>si->auth_timeout)
+        {
+            io_write_str(c,"<stream:error>Auth Timeout</stream:error>");
+            io_close(c);
+        }
+    }
+    return r_DONE;
+}
+
 /* everything starts here */
 void pthsock_client(instance i, xmlnode x)
 {
@@ -352,6 +376,7 @@ void pthsock_client(instance i, xmlnode x)
     log_debug(ZONE,"pthsock_client loading");
 
     si = pmalloco(i->p,sizeof(_smi));
+    si->auth_timeout=DEFAULT_AUTH_TIMEOUT;
     si->i = i;
     si->aliases=ghash_create(20,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
 
@@ -386,6 +411,14 @@ void pthsock_client(instance i, xmlnode x)
                ghash_put(si->aliases,"default",to);
            }
         }
+        else if(j_strcmp(xmlnode_get_name(cur),"authtime")==0)
+        {
+            int timeout=0;
+            if(xmlnode_get_data(cur)!=NULL)
+                timeout=atoi(xmlnode_get_data(cur));
+            else timeout=-1;
+            if(timeout!=0)si->auth_timeout=timeout;
+        }
     }
 
     if (host == NULL || port == NULL)
@@ -397,4 +430,5 @@ void pthsock_client(instance i, xmlnode x)
     /* register data callbacks */
     io_select_listen(atoi(port),NULL,pthsock_client_read,(void*)si);
     register_phandler(i,o_DELIVER,pthsock_client_packets,(void*)si);
+    register_beat(1,pthsock_client_heartbeat,(void*)si);
 }
