@@ -125,20 +125,6 @@ void mod_filter_action_offline(mapi m, xmlnode rule)
 {
     xmlnode cur;
 
-    /* only store normal, error, or chat */
-    if(m->packet->type == JPACKET_MESSAGE)
-    {
-        switch(jpacket_subtype(m->packet))
-        {
-        case JPACKET__NONE:
-        case JPACKET__ERROR:
-        case JPACKET__CHAT:
-            break;
-        default:
-            return;
-        }
-    }
-
    /* look for event messages */
     for(cur = xmlnode_get_firstchild(m->packet->x); cur != NULL; cur = xmlnode_get_nextsibling(cur))
         if(NSCHECK(cur, NS_EVENT))
@@ -335,19 +321,6 @@ mreturn mod_filter_handler(mapi m, void *arg)
     jp = m->packet;
     if(m->packet->type == JPACKET_PRESENCE)
         return M_IGNORE;
-
-    if(m->packet->type == JPACKET_MESSAGE)
-    {
-        switch(jpacket_subtype(m->packet))
-        {
-        case JPACKET__NONE:
-        case JPACKET__ERROR:
-        case JPACKET__CHAT:
-            break;
-        default:
-            return M_PASS;
-        }
-    }
 
     if(m->user == NULL) 
         return M_PASS;
