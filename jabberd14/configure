@@ -15,34 +15,6 @@ printf "Running Jabber Configure\n"
 printf "========================\n\n"
 
 ##
-# Libxode check
-##
-printf "Getting libxode settings..."
-XODE_CFLAGS=`libxode-config --cflags`
-XODE_LDFLAGS=`libxode-config --ldflags`
-XODE_LIBS=`libxode-config --libs`
-if [ -n "$XODE_CFLAGS" ]; then
-    printf "     Done.\n";
-else
-    printf "You are missing libxode-config.  This is obtained from the libxode package that can be found at http://download.jabber.org.  Please installed this package and then run configure again.\n";
-    exit 1;
-fi
-
-##
-# Libjabber check
-##
-printf "Getting libjabber settings..."
-JABBER_CFLAGS=`jabber-config --cflags`
-JABBER_LDFLAGS=`jabber-config --ldflags`
-JABBER_LIBS=`jabber-config --libs`
-if [ -n "$JABBER_CFLAGS" ]; then
-    printf "   Done.\n";
-else
-    printf "You are missing jabber-config.  This is obtained from the libjabber package that can be found at http://download.jabber.org.  Please installed this package and then run configure again.\n";
-    exit 1;
-fi
-
-##
 # Pth check
 ##
 printf "Getting pth settings..."
@@ -64,10 +36,10 @@ if [ -n "$CC" ]; then
 else
     CC="gcc";
 fi;
-CFLAGS="$CFLAGS -g -Wall -fPIC -I./ -I../ $XODE_CFLAGS $JABBER_CFLAGS $PTH_CFLAGS"
+CFLAGS="$CFLAGS -g -Wall -fPIC -I./ -I../ $PTH_CFLAGS"
 MCFLAGS="$MCFLAGS -shared"
-LDFLAGS="$LDFLAGS $XODE_LDFLAGS $JABBER_LDFLAGS $PTH_LDFLAGS"
-LIBS="$LIBS $XODE_LIBS $JABBER_LIBS $PTH_LIBS"
+LDFLAGS="$LDFLAGS $PTH_LDFLAGS"
+LIBS="$LIBS $PTH_LIBS"
 XLDFLAGS="$XLDFLAGS "
 JHOME=`pwd`
 
