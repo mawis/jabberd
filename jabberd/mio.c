@@ -994,20 +994,28 @@ void mio_write(mio m, xmlnode x, char *buffer, int len)
         /* XXX more hackish code to print the stream header right on a NUL xmlnode socket */
         if(m->type == type_NUL && strncmp(buffer,"<stream:stream",14))
         {
+            new->data = pmalloco(p,len+2);
+            memcpy(new->data,buffer,len);
+            memcpy((new->data + len) - 1, "/>",3);
             len++;
-            new->data = pmalloco(p,len);
-            sprintf(new->data,"%.*s/>",len-2,buffer);
+            /* THIS WAS DUMB, I'm just leaving it here to remind me of how dumb it was :)
+            sprintf(new->data,"%.*s/>",len-2,buffer); */
         }else{
-            new->data = pmalloco(p,len);
+            new->data = pmalloco(p,len+1);
             memcpy(new->data,buffer,len);
         }
     }
     else
     {
         new->type = queue_XMLNODE;
-        new->data = xmlnode2str(x);
-        len = new->data ? strlen(new->data) : 0;
+        if((new->data = xmlnode2str(x)) == NULL)
+        {
+            pool_free(p);
+            return;
+        }
+        len = strlen(new->data);
     }
+
     /* include the \0 if we're special */
     if(m->type == type_NUL)
     {
