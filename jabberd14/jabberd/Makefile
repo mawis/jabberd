@@ -3,6 +3,7 @@
 #
 include ../platform-settings
 
+# add -DSTATIC for a rudimentary static build, and make sure all the needed .o's are linked in below!
 DEFINES=-DCONFIGXML="\"jabber.xml\"" -DHOME="\"$(JHOME)\""
 CFLAGS:=$(CFLAGS) $(DEFINES)
 
@@ -59,6 +60,8 @@ $(jabberd_OBJECTS): $(jabberd_HEADERS)
 
 all-local: $(jabberd_OBJECTS) $(jabberd_HEADERS)
 	$(CC) $(CFLAGS) -o jabberd $(jabberd_OBJECTS) $(jabberd_EXOBJECTS) $(XLDFLAGS) $(LDFLAGS) $(LIBS)
+
+#STATIC: ../jsm/*.o ../jsm/modules/*.o ../xdb_file/xdb_file.o ../pthsock/client.o ../pthsock/dialback.o ../dnsrv/*.o
 
 install-local:
 
