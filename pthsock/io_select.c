@@ -30,55 +30,21 @@ typedef struct io_st
 
 ios io__data=NULL;
 
-/****************************************
- * PER SOCKET RATE LIMIT GARBAGE        *
- ****************************************/
-
-/* no more than 2000 bytes sent per second */
-#define HARDLIMIT 2000
-/* naughty people have to wait 5 seconds */
-#define TIMEOUT_PERIOD 5
-
-typedef struct bad_boys
+result karma_heartbeat(void*arg)
 {
-    pool p;
-    sock s;
-    time_t timeout;
-    struct bad_boys *next;
-} _nl,*nl;
-nl naughty__list=NULL;
-nl second__chance=NULL;
-
-result naughty_heartbeat(void*arg)
-{
-    nl last=NULL,cur=naughty__list;
-    for(;cur!=NULL;)
+    sock cur;
+    if(io__data==NULL||io__data->master__list==NULL) return r_DONE;
+    for(cur=io__data->master__list;cur!=NULL;cur=cur->next)
     {
-        if(cur->timeout<time(NULL))
-        {
-            /* santa knows who's naughty or nice */
-            if(last==NULL)
-            {
-                naughty__list=naughty__list->next;
-                cur->next=second__chance;
-                second__chance=cur;
-                cur=naughty__list;
-            }
-            else
-            {
-                last->next=cur->next;
-                cur->next=second__chance;
-                second__chance=cur;
-                /* start over */
-                last=NULL;
-                cur=naughty__list;
-            }
-            continue;
-        }
-        last=cur;
-        cur=cur->next;
+        if(cur->state==state_CLOSE) continue;
+        cur->karma++;
+        if(cur->karma>0)cur->read_bytes-=(cur->karma*100);
+        if(cur->read_bytes<0)cur->read_bytes=0;
+        if(cur->karma==0) 
+            pth_raise(io__data->t,SIGUSR2);
+        if(cur->karma>10)cur->karma=10; /* can only be so good */
+        if(cur->karma<0)log_notice("karma","sock %d is getting karma, now %d",cur->fd,cur->karma);
     }
-    if(second__chance!=NULL&&io__data!=NULL) pth_raise(io__data->t,SIGUSR2);
     return r_DONE;
 }
 
@@ -291,6 +257,7 @@ sock _io_accept(sock s)
 
     p = pool_new();
     c = pmalloco(p, sizeof(_sock));
+    c->karma=-10;
     c->queue=pth_msgport_create("queue");
     c->p = p;
     c->fd = fd;
@@ -310,9 +277,8 @@ void _io_main(void *arg)
     sigset_t sigs;
     int sig;
     sock cur, c,temp;    
-    nl curnl;
     char buff[1024];
-    int len;
+    int len,maxlen;
     int maxfd=0;
 
     /* init the signal junk */
@@ -340,22 +306,17 @@ void _io_main(void *arg)
         pth_select_ev(maxfd+1,&rfds,&wfds,NULL,NULL,wevt);
 
         maxfd=0;
-        FD_ZERO(&all_rfds); /* reset our "all" set */
-
-        while(second__chance!=NULL)
-        { /* check for punished sockets */
-            curnl=second__chance;
-            second__chance=second__chance->next;
-            log_notice("io_select","by the power of greyskull, sock %d is now allowed to read data again",curnl->s->fd,TIMEOUT_PERIOD);
-            FD_SET(curnl->s->fd,&all_rfds);
-            pool_free(curnl->p);
-        }
 
         cur=io__data->master__list;
         while(cur != NULL)
         {
+            if((!FD_ISSET(cur->fd,&all_rfds)&&cur->karma==0)||cur->karma==-10)
+            {
+                cur->karma=5;
+                log_notice("io_select","socket #%d has karma again",cur->fd);
+                FD_SET(cur->fd,&all_rfds); /* they can read again */
+            }
             pth_yield(NULL);
-            FD_SET(cur->fd,&all_rfds);
             if(cur->state==state_CLOSE)
             {
                 temp=cur;
@@ -378,7 +339,8 @@ void _io_main(void *arg)
             }
             else if (FD_ISSET(cur->fd,&rfds))
             { /* we need to read from a socket */
-                len = read(cur->fd,buff,sizeof(buff));
+                maxlen=cur->karma*100;
+                len = read(cur->fd,buff,maxlen);
                 if(len==0)
                 { /* i don't care what the errno is.. */
                   /* if we read 0, you're outta here! */
@@ -406,29 +368,18 @@ void _io_main(void *arg)
                 }
                 else
                 {
-                    if(cur->lr+1<time(NULL))
-                    { /* reset our hard limit */
-                        cur->lrsz=len;
-                        cur->lr=time(NULL);
-                    }
-                    else
-                    {
-                        cur->lrsz+=len;
-                        if(cur->lrsz>=HARDLIMIT)
-                        { /* they are hammering the server */
-                            /* they can process data this time, but
-                             * they won't be read from again until
-                             * TIMOUT_PERIOD has expired */
-                            pool p=pool_new();
-                            nl new=pmalloco(p,sizeof(_nl));
-                            new->p=p;
-                            new->s=cur;
-                            new->timeout=time(NULL)+TIMEOUT_PERIOD;
-                            new->next=naughty__list;
-                            naughty__list=new;
-                            FD_CLR(cur->fd,&all_rfds);
-                            log_notice("io_select","sock %d is being i/o rate limited.  not reading data for %d seconds",cur->fd,TIMEOUT_PERIOD);
+                    log_notice("io_select","%d: read: %d, max: %d, karma: %d, read_bytes: %d",cur->fd,len,maxlen,cur->karma,cur->read_bytes);
+                    cur->read_bytes+=len;
+                    if(cur->read_bytes>=maxlen)
+                    { /* they read the max, tsk tsk */
+                        cur->karma--;
+                        if(cur->karma<=0) /* ran out of karma */
+                        {
+                            log_notice("io_select","socket #%d is out of karma",cur->fd);
+                            cur->karma=-5; /* pay the penence */
+                            FD_CLR(cur->fd,&all_rfds); 
                         }
+                        log_notice("karma","sock %d lost karma, now %d",cur->fd,cur->karma);
                     }
                     buff[len]='\0';
                     (*(io_cb)cur->cb)(cur,buff,len,IO_NORMAL,cur->cb_arg);
@@ -553,7 +504,7 @@ void _io_select_connect(void *arg)
 
     if(io__data==NULL)
     {
-        register_beat(1,naughty_heartbeat,NULL);
+        register_beat(2,karma_heartbeat,NULL);
         p=pool_new();
         io__data = pmalloco(p,sizeof(_ios));
         io__data->p=p;
@@ -583,6 +534,7 @@ void io_select_connect(char *host, int port,void* arg,io_cb cb,void *cb_arg)
     cst->port=port;
 
     c=pmalloco(p,sizeof(_sock));
+    c->karma=-10;
     c->queue=pth_msgport_create("queue");
     c->type=type_NORMAL;
     c->state=state_ACTIVE;
@@ -625,6 +577,7 @@ void io_select_listen(int port,char *listen_host,io_cb cb,void *arg,int rate_tim
 
     p=pool_new();
     new=pmalloco(p,sizeof(_sock));
+    new->karma=-10;
     new->fd=fd;
     new->p=p;
     new->type=type_LISTEN;
@@ -641,7 +594,7 @@ void io_select_listen(int port,char *listen_host,io_cb cb,void *arg,int rate_tim
     log_notice(NULL,"io_select starting to listen on %d [%s]",port,listen_host);
     if(io__data==NULL)
     {
-        register_beat(1,naughty_heartbeat,NULL);
+        register_beat(2,karma_heartbeat,NULL);
         p=pool_new();
         io__data = pmalloco(p,sizeof(_ios));
         io__data->p=p;
