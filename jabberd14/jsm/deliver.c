@@ -90,6 +90,7 @@ result js_packet(instance i, dpacket p, void *arg)
     session s = NULL;
     udata u;
     char *type, *authto;
+    xmlnode child;
 
     log_debug(ZONE,"(%X)incoming packet %s",si,xmlnode2str(p->x));
 
@@ -127,8 +128,16 @@ result js_packet(instance i, dpacket p, void *arg)
             return r_DONE;
         }
 
-        /* get the internal jpacket */
-        if(xmlnode_get_firstchild(p->x) != NULL) /* XXX old libjabber jpacket_new() wasn't null safe, this is just safety */
+        /* Find the first real element */
+        child = xmlnode_get_firstchild(p->x);
+        while (child != NULL)
+        {
+            if (xmlnode_get_type(child) == NTYPE_TAG)
+                break;
+            child = xmlnode_get_nextsibling(child);
+        }
+        /* As long as we found one process */
+        if (child != NULL)
             jp = jpacket_new(xmlnode_get_firstchild(p->x));
 
         /* auth/reg requests */
