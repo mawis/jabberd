@@ -121,7 +121,7 @@ mreturn mod_auth_0k_go(mapi m, void *enable)
     if((xdb = xdb_get(m->si->xc, m->user->id, NS_AUTH_0K)) == NULL)
     {
         /* if there's no password or we can't set our own vars, we're doomed for failure */
-        if(mod_auth_0k_reset(m,m->user->id,m->user->pass));
+        if(mod_auth_0k_reset(m,m->user->id,m->user->pass))
             return M_PASS;
         xdb = xdb_get(m->si->xc, m->user->id, NS_AUTH_0K);
     }
