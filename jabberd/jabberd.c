@@ -342,7 +342,10 @@ void _jabberd_shutdown(void)
     pth_sleep(1);
 
     /* stop MIO and heartbeats */
-    mio_stop();
+    /* XXX disabled for jabberd 1.4.4 release, we get crashes with it
+     * on shutdown. Care for it later
+     */
+    /* mio_stop(); */
     heartbeat_death();
 
     /* kill any leftover threads */

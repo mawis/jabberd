@@ -667,8 +667,8 @@ void deliver_fail(dpacket p, char *err)
                 jutil_error_xmpp(p->x,XTERROR_EXTERNAL);
             }else{
 		xt = XTERROR_EXTERNAL;
-                xt.msg[0] = '\0';
-                strcat(xt.msg,err); /* c sucks */
+		strncpy(xt.msg, err, sizeof(xt.msg));
+		xt.msg[sizeof(xt.msg)-1] = 0;
                 jutil_error_xmpp(p->x,xt);
             }
             deliver(dpacket_new(p->x),NULL);

@@ -261,6 +261,7 @@ typedef struct mio_st
     int rated;   /* is this socket rate limted? */
     jlimit rate; /* if so, what is the rate?    */
     char *ip;
+    char *connect_errmsg; /**< error message on failed connects (don't free messages) */
 } *mio, _mio;
 
 /* MIO SOCKET HANDLERS */
@@ -377,4 +378,5 @@ mio mio_listen(int port, char *sourceip, void *cb, void *cb_arg, mio_accept_func
 /* some nice api utilities */
 #define mio_pool(m) (m->p)
 #define mio_ip(m) (m->ip)
+#define mio_connect_errmsg(m) (m->connect_errmsg)
 
