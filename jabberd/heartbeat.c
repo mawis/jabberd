@@ -95,7 +95,7 @@ void register_beat(int freq, beathandler f, void *arg)
 {
     beat newb;
 
-    if(freq<=0||f==NULL) return; /* uhh, probbably don't want to allow negative heartbeats, since the counter will count infinitly to a core */
+    if(freq <= 0 || f == NULL || heartbeat__ring == NULL) return; /* uhh, probbably don't want to allow negative heartbeats, since the counter will count infinitly to a core */
 
     /* setup the new beat */
     newb = new_beat();

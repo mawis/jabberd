@@ -176,6 +176,9 @@ void base_connect_process_xml(mio m, int state, void* arg, xmlnode x)
         case MIO_CLOSED:
 	        /* Always restart the connection after it closes for any reason */
 	        ci->state = conn_CLOSED;
+            /* pause 2 seconds, and reconnect */
+            log_debug(ZONE, "Base Connect Failed to connect to %s:%d Retry in 2 seconds...", ci->hostip, ci->hostport);
+            pth_sleep(2);
 	        mio_connect(ci->hostip, ci->hostport, base_connect_process_xml, (void*)ci, ci->timeout, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER));
     }
 }
