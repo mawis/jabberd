@@ -15,10 +15,6 @@
   be careful with your XML. :)
   -->
 
-  <!--
-  This specifies the file to store the pid of the process in.
-  -->
-  <pidfile>./jabber.pid</pidfile>
 
   <!-- 
   The following <service/> section is for the session manager, 
@@ -146,13 +142,6 @@
         <subject>Welcome!</subject>
         <body>Welcome to the Jabber server at localhost -- we hope you enjoy this service! For information about how to use Jabber, visit the Jabber User's Guide at http://docs.jabber.org/</body>
       </welcome>
-
-      <!-- The location of the session log file. -->
-
-      <log>
-        <file>session.log</file>
-        <type>session</type>
-      </log>
 
       <!-- 
       IDs with admin access - these people will receive admin 
@@ -360,15 +349,28 @@
   </service>
 
   <!-- 
-  This is the default server logging component, 
+  This is the default server error logging component, 
   which copies to a file and to STDERR. 
   -->
 
-  <log id='logger'>
+  <log id='elogger'>
     <host/>
+    <logtype/>
     <format>%d: [%t] (%h): %s</format>
     <file>error.log</file>
     <stderr/>
+  </log>
+
+  <!-- 
+  This is the default server record logging component, 
+  which logs general statistical/tracking data. 
+  -->
+
+  <log id='rlogger'>
+    <host/>
+    <logtype>record</logtype>
+    <format>%d %h %s</format>
+    <file>record.log</file>
   </log>
 
   <!-- The following two services are for handling server-to-server traffic. -->
@@ -570,6 +572,11 @@
     -->
 
   </io>
+
+  <!--
+  This specifies the file to store the pid of the process in.
+  -->
+  <pidfile>./jabber.pid</pidfile>
 
 
 </jabber>
