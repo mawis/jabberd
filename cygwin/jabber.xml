@@ -4,15 +4,19 @@
   This is the Jabber server configuration file. The file is 
   broken into different sections based on the services being 
   managed by jabberd, the server daemon. Most of the important 
-  sections have comments and are easy to modify. You can find
-  full instructions in the server howto, which is available at
-  http://docs.jabber.org/. Note that when you see a tag like 
-  "jabberd:cmdline", it's automatically replaced on startup 
-  with the command line flag passed in to jabberd. This enables
-  you to override parameters set in this configuration file if 
-  necessary or desired. Also note as you comment things in and
-  out that jabberd does not like comments within comments, so
-  be careful with your XML. :)
+  sections have comments and are easy to modify.
+
+  At http://jabberd.jabberstudio.org/1.4/ you find further
+  instructions including an annotated version of this con-
+  figuration file and an installation guide.
+  
+  Note that when you see a tag like "jabberd:cmdline", it's
+  automatically replaced on startup with the command line flag
+  passed in to jabberd. This enables you to override para-
+  meters set in this configuration file if necessary or de-
+  sired. Also note as you comment things in and out that
+  jabberd does not like comments within comments, so be care-
+  ful with your XML. :)
   -->
 
 
@@ -25,7 +29,6 @@
     * other basic server information
     * the location of the session log file
     * email addresses for server administrators 
-    * the location of the server that provides update information
     * registration instructions for new users
     * a welcome message for new users
     * a list of agents with which users can register
@@ -36,11 +39,16 @@
   <service id="sessions">
 
     <!-- 
-    Change hostname below to something other than "localhost", 
-    i.e., to the hostname or IP address of your Jabber server. 
+    Replace all occurrences of "localhost" in this file by
+    the hostname of your Jabber server. Be aware changing
+    the server's name is all but impossible once users start
+    to use the server. So choose a name that is permanent
+    (especially no Intranet hostnames or IP addresses).
+
     Multiple <host/> entries are allowed - each one is for a 
     separate virtual server. Note that each host entry must 
     be on one line, the server doesn't like it otherwise! :)
+    Use lowercase for the hostname.
     -->
 
     <host><jabberd:cmdline flag="h">localhost</jabberd:cmdline></host>
@@ -57,10 +65,9 @@
       for mod_filter, a server-side module built into
       JSM that enables users to set delivery rules for
       messages they receive (not yet supported by all
-      clients. The <allow/> subsection specifies which
+      clients). The <allow/> subsection specifies which
       conditions and actions to enable. High-level 
-      descriptions of each setting can be found below 
-      (see docs.jabber.org for full details):
+      descriptions of each setting can be found below:
 
       * <default/> - a user cannot delete this one, it's
         the default rule for delivering messages
@@ -117,14 +124,14 @@
       <vCard>
         <FN>Jabber Server</FN>
         <DESC>A Jabber Server!</DESC>
-        <URL>http://foo.bar/</URL>
+        <URL>http://localhost/</URL>
       </vCard>
 
       <!-- 
       Registration instructions and required fields. The 
       notify attribute will send the server administrator(s)
-      a message after each valid registration if it is set
-      to "yes".
+      a message after each valid registration if the notify
+      attribute is present.
       -->
 
       <register notify="yes">
@@ -140,7 +147,7 @@
 
       <welcome>
         <subject>Welcome!</subject>
-        <body>Welcome to the Jabber server at localhost -- we hope you enjoy this service! For information about how to use Jabber, visit the Jabber User's Guide at http://docs.jabber.org/</body>
+        <body>Welcome to the Jabber server at localhost -- we hope you enjoy this service! For information about how to use Jabber, visit the Jabber User's Guide at http://jabbermanual.jabberstudio.org/</body>
       </welcome>
 
       <!-- 
@@ -183,19 +190,6 @@
       -->
 
       <!--
-      This is the resource that checks for updated versions 
-      of the Jabber server software. Note that you don't lose 
-      any functionality if you comment this out. Removing the
-      <update/> config is especially a good strategy if your 
-      server is behind a firewall. If you want to use this 
-      feature, change 'localhost' to the hostname or IP address 
-      of your server, making sure that it is the same as your 
-      entry for <host/> above.
-      -->
-
-      <update><jabberd:cmdline flag="h">localhost</jabberd:cmdline></update>
-
-      <!--
       This enables the server to automatically update the 
       user directory when a vcard is edited.  The update is
       only sent to the first listed jud service below.  It is
@@ -212,6 +206,8 @@
       defined in its own <service/> section below. These services 
       will appear in the user interface of Jabber clients that
       connect to your server.
+      The <browse/> section is also used by mod_disco (see below)
+      for building the disco#items reply.
       -->
 
       <browse>
@@ -237,8 +233,6 @@
 
         <!-- we're commenting these out, of course :)
 
-        <conference type="private" jid="conference.localhost" name="Private Conferencing"/>
-
         <service type="aim" jid="aim.localhost" name="AIM Transport">
           <ns>jabber:iq:gateway</ns>
           <ns>jabber:iq:register</ns>
@@ -252,6 +246,33 @@
         end of <service/> examples -->
 
       </browse>
+
+      <!--
+        "Service Discovery" (disco, JEP-0030) supersedes
+        "Jabber Browsing" (JEP-0011).
+        The <disco/> section is used for building the disco#info
+        reply.
+      -->
+      <disco>
+        <identity category='services' type='jabber' name='Jabber 1.4 Server'/>
+        <feature var='jabber:iq:browse'/>
+        <feature var='jabber:iq:agents'/>
+        <feature var='jabber:iq:register'/>
+        <feature var='jabber:iq:time'/>
+        <feature var='jabber:iq:last'/>
+        <feature var='jabber:iq:version'/>
+      </disco>
+
+      <!--
+      Select the hashing algorithm that mod_auth_crypt uses
+      for storing passwords
+      Possible values:
+      crypt ... traditional hashing as implemented in crypt()
+      SHA1  ... using SHA1 hashes
+      -->
+      <mod_auth_crypt>
+        <hash>SHA1</hash>
+      </mod_auth_crypt>
 
     </jsm>
 
@@ -274,13 +295,32 @@
       <mod_announce>./jsm/jsm.dll</mod_announce>
       <mod_agents>./jsm/jsm.dll</mod_agents>
       <mod_browse>./jsm/jsm.dll</mod_browse>
+      <mod_disco>./jsm/jsm.dll</mod_disco>
       <mod_admin>./jsm/jsm.dll</mod_admin>
       <mod_filter>./jsm/jsm.dll</mod_filter>
       <mod_offline>./jsm/jsm.dll</mod_offline>
       <mod_presence>./jsm/jsm.dll</mod_presence>
-      <mod_auth_plain>./jsm/jsm.dll</mod_auth_plain>
+
+      <!--
+      Authentification. For standard setups mod_auth_digest is recommended.
+      For maximum security, force SSL connections and use mod_auth_crypt.
+      Be aware encrypted password storage can lead to problems when
+      migrating to other authentification mechanisms (LDAP...).
+      Switching from plain/digest to crypt needs manual work for
+      existing accounts, the reverse is not possible.
+      You may enable multiple authentification mechanisms.
+      See http://jabberd.jabberstudio.org/1.4/ for details.
+      -->
+      <!-- mod_auth_plain: Password in clear text in storage
+           and on the wire. Disabled as this is not recommended.
+      <mod_auth_plain>./jsm/jsm.dll</mod_auth_plain> -->
+      <!-- mod_auth_digest: Password in clear text in storage,
+           encrypted on the wire -->
       <mod_auth_digest>./jsm/jsm.dll</mod_auth_digest>
-      <mod_auth_0k>./jsm/jsm.dll</mod_auth_0k>
+      <!-- mod_auth_crypt: Password encrypted in storage,
+           clear text on the wire -->
+      <mod_auth_crypt>./jsm/jsm.dll</mod_auth_crypt>
+
       <mod_log>./jsm/jsm.dll</mod_log>
       <mod_register>./jsm/jsm.dll</mod_register>
       <mod_xml>./jsm/jsm.dll</mod_xml>
@@ -290,7 +330,11 @@
 
   <!-- OK, we've finished defining the Jabber Session Manager. -->
 
-  <!-- The <xdb/> component handles all data storage, using the filesystem. -->
+  <!--
+  The <xdb/> component handles all data storage, using the filesystem.
+  Make sure the spool directory defined here exists and has proper
+  permissions.
+  -->
 
   <xdb id="xdb">
     <host/>
@@ -310,11 +354,21 @@
       limit the amount of time allowed for authentication to be
       completed, e.g., <authtime>10</authtime> for 10 seconds
 
+    * heartbeat - default is to not send out heartbeat packets
+      to the clients.  This option allows you to specify that
+      you want heartbeats to happen every x seconds.  This is
+      useful if you have a lot of dial-up or laptop users who
+      may drop their connection without logging off of jabber.
+      Otherwise the server won't notice that they are offline until
+      someone tries to send a packet to them (and the message is
+      lost).  Example: <heartbeat>60</heartbeat>
+
     * karma - this is an input/output rate limiting system that
       the Jabber team came up with to prevent bandwidth hogging.
-      For details about karma, read the io section at the bottom 
-      and/or see docs.jabber.org. These are the low settings and
-      apply per connection/socket and can be changed as desired.
+      For details about karma, read the io section at the bottom.
+      These are the low settings and apply per connection/socket
+      and can be changed as desired.
+      To disable rate limiting just delete the <karma/> section.
   -->
 
   <service id="c2s">
@@ -323,6 +377,7 @@
     </load>
     <pthcsock xmlns='jabber:config:pth-csock'>
       <authtime/>
+      <heartbeat/>
       <karma>
         <init>10</init>
         <max>10</max>
@@ -334,7 +389,9 @@
 
       <!-- 
       Use these to listen on particular addresses and/or ports.
-      <ip port="5222">127.0.0.1</ip>
+      Example: <ip port="5222">127.0.0.1</ip>
+      Default is to listen on port 5222 on every interface.
+      Remove the <ip/> section to disable non-ssl client connections.
       -->
       <ip port="5222"/>
 
@@ -385,7 +442,8 @@
       <dnsrv>./dnsrv/dnsrv.dll</dnsrv>
     </load>
     <dnsrv xmlns="jabber:config:dnsrv">
-    	<resend service="_jabber._tcp">s2s</resend> <!-- for supporting SRV records -->
+    	<resend service="_xmpp-server._tcp">s2s</resend> <!-- for supporting XMPP compliant SRV records -->
+    	<resend service="_jabber._tcp">s2s</resend> <!-- for supporting old style SRV records -->
     	<resend>s2s</resend>
     </dnsrv>
   </service>
@@ -422,6 +480,16 @@
   </service>
 
   <!-- 
+  update.jabber.org is long dead but some clients still
+  request update information. In order to avoid errors
+  in the logs, just drop packages for update.jabber.org.
+  -->
+  <service id="update.jabber.org">
+    <host>update.jabber.org</host>
+    <null/>
+  </service>
+
+  <!-- 
   If you identified additional agents in the main <service/> 
   section (see examples above), you'll need to define each 
   of them here using a separate <service/> section for each 
@@ -436,17 +504,6 @@
   -->
 
   <!-- we're commenting these out, of course :)
-
-  <service id="conference">
-    <load>
-      <groupchat>/path/to/groupchat.dll</groupchat>
-    </load>
-    <host>conference.localhost</host>
-  </service>
-
-  <service id="irc">
-    <host>irc.localhost</host>
-  </service>
 
   <service id="aim.localhost">
     <accept>
@@ -566,6 +623,7 @@
     <!-- 
     The following section initializes SSL for top-level I/O.
     This works only when the server is compiled with openssl!
+    Use IPs here or connections will fail.
     -->
     <!--
     <ssl>
