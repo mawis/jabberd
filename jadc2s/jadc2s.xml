@@ -33,12 +33,19 @@
         <!--  SSL configuration                                            -->
         <!--  Specify the port to listen on, and the key file to use for   -->
         <!--  the certificate.                                             -->
-        <!--  <port/>     (default: 5223)                                  -->
-        <!--  <pemfile/>  (default: ./server.pem)                          -->
+	<!--  <port/>      (default: 5223)                                 -->
+	<!--  <pemfile/>   (default: ./server.pem)                         -->
+	<!--  <no_ssl_v2/> (disables SSL protocol version 2)		   -->
+	<!--  <no_ssl_v3/> (disables SSL protocol version 3)		   -->
+	<!--  <no_tls_v1/> (disables TLS protocol version 1, aka SSL 3.1)  -->
+	<!--  <ciphers/>   (set list of available ciphers, man 1 ciphers)  -->
+	<!--  <enable_workarounds/> (should not be needed)                 -->
         <!--
         <ssl>
             <port>5223</port>
-            <pemfile>./server.pem</pemfile>
+	    <pemfile>./server.pem</pemfile>
+	    <no_ssl_v2/>
+	    <ciphers>ALL:!ADH:!LOW</ciphers>
         </ssl>
         -->
     </local>
