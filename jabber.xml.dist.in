@@ -364,14 +364,16 @@
     </load>
     <xdb_file xmlns="jabber:config:xdb_file">
       <spool><jabberd:cmdline flag='s'>@localstatedir@/spool/jabberd</jabberd:cmdline></spool>
-      <!-- how long should results be kept in memory? -->
-      <!-- <timeout>3600</timeout> -->
-      <!-- what is the maximum size of a spool file? -->
-      <!-- <sizelimit>500000</sizelimit> -->
-      <!-- remove the following tag if you have many users -->
-      <!-- and your spool is on a file system, that behaves -->
-      <!-- badly with big directories: -->
-      <use_flat_spool/>
+      <!-- How long should XDB data be kept in memory?
+           Default: 3600 seconds. Change to <timeout/> to disable. -->
+      <timeout>3600</timeout>
+      <!-- What is the maximum size of a spool file?
+           Default: 500000 bytes. Change to <sizelimit/> to disable. -->
+      <sizelimit>500000</sizelimit>
+      <!-- Enable hierarchical spool dir layout if you have
+           many users and your spool is on a file system that
+           behaves badly with big directories.
+      <use_hierarchical_spool/> -->
     </xdb_file>
   </xdb>
 
@@ -379,18 +381,17 @@
   The following service manages incoming client socket connections.
   There are several items you can set here to optimize performance:
 
-    * authtime - default is unlimited, but you can set this to
-      limit the amount of time allowed for authentication to be
-      completed, e.g., <authtime>10</authtime> for 10 seconds
+    * authtime - default is 120 seconds of time allowed for
+      authentication to be completed. Change to <authtime/> to
+      disable limit.
 
-    * heartbeat - default is to not send out heartbeat packets
-      to the clients.  This option allows you to specify that
-      you want heartbeats to happen every x seconds.  This is
-      useful if you have a lot of dial-up or laptop users who
+    * heartbeat - default is to send out heartbeat packets
+      to the clients every 60 seconds. This is useful if
+      you have a lot of dial-up or laptop users who
       may drop their connection without logging off of jabber.
       Otherwise the server won't notice that they are offline until
       someone tries to send a packet to them (and the message is
-      lost).  Example: <heartbeat>60</heartbeat>
+      lost). Change to <heartbeat/> to disable.
 
     * karma - this is an input/output rate limiting system that
       the Jabber team came up with to prevent bandwidth hogging.
@@ -405,8 +406,8 @@
       <pthsock_client>@libdir@/libjabberdpthsock.so</pthsock_client>
     </load>
     <pthcsock xmlns='jabber:config:pth-csock'>
-      <authtime/>
-      <heartbeat/>
+      <authtime>120</authtime>
+      <heartbeat>60</heartbeat>
       <karma>
         <init>10</init>
         <max>10</max>
@@ -515,14 +516,6 @@
       <dialback>@libdir@/libjabberddialback.so</dialback>
     </load>
     <dialback xmlns='jabber:config:dialback'>
-      <!--
-      With the <legacy/> element you can enable compatibility
-      with very old version 1.0 servers. You shoudn't need
-      this anymore. If you enable it, you have no protection
-      against identity spoofing at all.
-      -->
-      <!-- <legacy/> -->
-
       <!--
       With the <secret/> element you can configure a fixed
       dialback secret. You will need this to cluster multiple

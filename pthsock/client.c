@@ -56,8 +56,8 @@
 */
 
 #include <jabberd.h>
-#define DEFAULT_AUTH_TIMEOUT 0
-#define DEFAULT_HEARTBEAT 0
+#define DEFAULT_AUTH_TIMEOUT 120
+#define DEFAULT_HEARTBEAT 60
 
 /* socket manager instance */
 typedef struct smi_st

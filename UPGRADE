@@ -1,6 +1,19 @@
 Upgrading from 1.4.3 to 1.?.?
 -----------------------------
 
+Some configuration defaults have been changed in the binary.
+  xdb_file: keep data in memory for 3600 seconds (previously unlimited)
+  xdb_file: limit spool file size to 500000 bytes (new feature)
+  pthsock: Authentication timeout 120 seconds (previously unlimited)
+  pthsock: Heartbeat every 60 seconds (previously disabled)
+  dialback: Legacy s2s connections without identity verification
+    are not supported anymore (have been accepted previously)
+These defaults should be far more reasonable.
+If you use an old config file, you should update the pthsock
+settings (<authtime>120</authtime>, <hearbeat>60</heartbeat>). Also,
+make sure there is a <resend service="_xmpp-server._tcp">s2s</resend>
+entry in the dnsrv section of the config file.
+
 The makefile now has an 'install' target which installs all files
 required at runtime to the places specified using the configure script
 (the default is to place the server in the /usr/local filesystem tree).
@@ -31,13 +44,14 @@ debugging messages. The argument is a numerical value interpreted as a
 bit field. To get all debugging output (the old behaviour) use '-1' as the
 argument of this option.
 
-The spool directory structure has been changed. The user's spool files will
-now distributed over 256 times 256 directories to speed up access on some
-UNIX filesystems that are slow in accessing big directories. The structure
+Optionally, a new hierarchical spool directory structure is supported which
+distributes the user's spool files over 256 times 256 directories to speed
+up access on some UNIX filesystems that are slow in accessing big
+directories (e.g., standard ext2/ext3 without htree support). The structure
 has been taken from wpjabber and should be compatible with this server.
-jabberd will convert an existing spool directory of the old format to the
-new format at startup automatically, note that this can take some time.
-If you want to convert it back to the old structure, you can use the following
+jabberd can convert an existing spool directory of the (old) flat format to the
+hierarchical format at startup automatically, note that this can take some time.
+If you want to convert it back to the flat structure, you can use the following
 command:
 	cd ${your_spool_directory_root}; \
 	for f in * ; do find $f -name "*.xml" -exec mv {} $f \; ; done; \
@@ -45,10 +59,9 @@ command:
 (Of course replace ${your_spool_directory_root} with the location of your
 spool directory structure configured using the <spool/> element in your
 server's configuration.)
-If you want to keep the old flat layout of the spool directory, you can
-add the <use_flag_spool/> element to your xdb_file configuration and jabberd
-will not convert the spool directory and continue to use the old spool
-layout.
+Default is flat spool directory structure. To enable hierarchical
+spools, add the <use_hierarchical_spool/> element to your xdb_file
+configuration.
 
 
 Upgrading from 1.4.2 to 1.4.3
