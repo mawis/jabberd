@@ -48,7 +48,7 @@
       URI. This might be especially useful for Jabber servers running on
       port 80.
     * jabberd14 has a new xdb module for storing data in SQL databases,
-      currently only mysql is supported yet
+      currently mysql and postgresql is supported
     * FIX: earlier version of jabberd14 sent out two presences for a user
       that came online, this is fixed - as well as that presences got
       stamped several times if the user was online with multiple resources.
