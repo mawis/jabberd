@@ -127,9 +127,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     log_debug(ZONE,"Found the sock for this user");
     if (j_strcmp(xmlnode_get_attrib(p->x,"type"),"error")==0)
     { /* <route type="error" means we were disconnected */
-        x = xmlnode_new_tag("stream:error");
-        xmlnode_insert_cdata(x,"Disconnected",-1);
-        mio_write(m,x,NULL,0);
+        mio_write(m, NULL, "<stream:error>Disconnected</stream:error></stream:stream>", -1);
         mio_close(m);
         xmlnode_free(p->x);
         return r_DONE;
@@ -201,17 +199,17 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
 
         if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:client")!=0)
         { /* if they sent something other than jabber:client */
-            mio_write(m,NULL,"<stream:error>Invalid Namespace</stream:error>",-1);
+            mio_write(m,NULL,"<stream:error>Invalid Namespace</stream:error></stream:stream>",-1);
             mio_close(m);
         }
         else if(cd->host==NULL)
         { /* they didn't send a to="" and no valid alias */
-            mio_write(m,NULL,"<stream:error>Did not specify a valid to argument</stream:error>",-1);
+            mio_write(m,NULL,"<stream:error>Did not specify a valid to argument</stream:error></stream:stream>",-1);
             mio_close(m);
         }
         else if(j_strcmp(xmlnode_get_attrib(x,"xmlns:stream"),"http://etherx.jabber.org/streams")!=0)
         {
-            mio_write(m,NULL,"<stream:error>Invalid Stream Namespace</stream:error>",-1);
+            mio_write(m,NULL,"<stream:error>Invalid Stream Namespace</stream:error></stream:stream>",-1);
             mio_close(m);
         }
         xmlnode_free(h);
@@ -274,6 +272,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         mio_write(m,h,NULL,0);
     case XSTREAM_CLOSE:
         log_debug(ZONE,"closing XSTREAM");
+        mio_write(m, NULL, "</stream:stream>", -1);
         mio_close(m);
         xmlnode_free(x);
     }

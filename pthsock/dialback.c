@@ -282,7 +282,7 @@ void pthsock_server_outx(int type, xmlnode x, void *arg)
         /* validate namespace */
         if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:server") != 0)
         {
-            mio_write(c->s, NULL, "<stream:error>Invalid Stream Header!</stream:error>", -1);
+            mio_write(c->s, NULL, "<stream:error>Invalid Stream Header!</stream:error></stream:stream>", -1);
             mio_close(c->s);
             break;
         }
@@ -292,7 +292,7 @@ void pthsock_server_outx(int type, xmlnode x, void *arg)
             if(!c->si->legacy)
             { /* Muahahaha!  you suck! *click* */
                 log_notice(c->legacy_to,"Legacy server access denied to do configuration");
-                mio_write(c->s, NULL, "<stream:error>Legacy Access Denied!</stream:error>", -1);
+                mio_write(c->s, NULL, "<stream:error>Legacy Access Denied!</stream:error></stream:stream>", -1);
                 mio_close(c->s);
                 break;
             }
@@ -315,7 +315,7 @@ void pthsock_server_outx(int type, xmlnode x, void *arg)
             if(h == NULL || h->c != c)
             { /* naughty... *click* */
                 log_warn(c->legacy_to,"Received illegal dialback validation from %s to %s",xmlnode_get_attrib(x,"from"),xmlnode_get_attrib(x,"to"));
-                mio_write(c->s, NULL, "<stream:error>Invalid Dialback Result!</stream:error>", -1);
+                mio_write(c->s, NULL, "<stream:error>Invalid Dialback Result!</stream:error></stream:stream>", -1);
                 mio_close(c->s);
                 break;
             }
@@ -335,7 +335,7 @@ void pthsock_server_outx(int type, xmlnode x, void *arg)
             if(h == NULL || h->c != c)
             { /* naughty... *click* */
                 log_warn(c->legacy_to,"Received illegal dialback verification from %s to %s",xmlnode_get_attrib(x,"from"),xmlnode_get_attrib(x,"to"));
-                mio_write(c->s,NULL, "<stream:error>Invalid Dialback Verify!</stream:error>", -1);
+                mio_write(c->s,NULL, "<stream:error>Invalid Dialback Verify!</stream:error></stream:stream>", -1);
                 mio_close(c->s);
                 break;
             }
@@ -361,6 +361,7 @@ void pthsock_server_outx(int type, xmlnode x, void *arg)
     case XSTREAM_ERR:
     case XSTREAM_CLOSE:
         /* IO cleanup will take care of everything else */
+        mio_write(c->s, NULL, "</stream:stream>", -1);
         mio_close(c->s);
         break;
     }
@@ -573,7 +574,7 @@ void pthsock_server_inx(int type, xmlnode x, void *arg)
         /* validate namespace */
         if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:server") != 0)
         {
-            mio_write(c->s, NULL, "<stream:error>Invalid Stream Header!</stream:error>", -1);
+            mio_write(c->s, NULL, "<stream:error>Invalid Stream Header!</stream:error></stream:stream>", -1);
             mio_close(c->s);
             break;
         }
@@ -585,7 +586,7 @@ void pthsock_server_inx(int type, xmlnode x, void *arg)
                 c->legacy = 1;
                 log_notice(xmlnode_get_attrib(x,"to"),"legacy server incoming connection established from %s",c->s->ip);
             }else{
-                mio_write(c->s, NULL, "<stream:error>Legacy Access Denied!</stream:error>", -1);
+                mio_write(c->s, NULL, "<stream:error>Legacy Access Denied!</stream:error></stream:stream>", -1);
                 mio_close(c->s);
                 break;
             }
@@ -644,7 +645,7 @@ void pthsock_server_inx(int type, xmlnode x, void *arg)
             h = ghash_get(c->si->hosts, spools(xmlnode_pool(x),c->id,"@",to->server,"/",from->server,xmlnode_pool(x)));
         if(h == NULL || !h->valid || h->c != c)
         { /* dude, what's your problem!  *click* */
-            mio_write(c->s, NULL, "<stream:error>Invalid Packets Recieved!</stream:error>", -1);
+            mio_write(c->s, NULL, "<stream:error>Invalid Packets Recieved!</stream:error></stream:stream>", -1);
             mio_close(c->s);
             break;
         }
@@ -655,6 +656,7 @@ void pthsock_server_inx(int type, xmlnode x, void *arg)
     case XSTREAM_ERR:
     case XSTREAM_CLOSE:
         /* things clean up for themselves */
+        mio_write(c->s, NULL, "</stream:stream>", -1);
         mio_close(c->s);
         break;
     }
