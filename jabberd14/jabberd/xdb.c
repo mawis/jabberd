@@ -78,10 +78,9 @@ void xdb_deliver(instance i, xdbcache xc)
     char ids[9];
 
     x = xmlnode_new_tag("xdb");
-    if(xc->data == NULL)
+    xmlnode_put_attrib(x,"type","get");
+    if(xc->set)
     {
-        xmlnode_put_attrib(x,"type","get");
-    }else{
         xmlnode_put_attrib(x,"type","set");
         xmlnode_insert_tag_node(x,xc->data); /* copy in the data */
         if(xc->act != NULL)
@@ -178,6 +177,7 @@ xmlnode xdb_get(xdbcache xc, jid owner, char *ns)
 
     /* init this newx */
     newx.i = NULL;
+    newx.set = 0;
     newx.data = NULL;
     newx.ns = ns;
     newx.owner = owner;
@@ -227,7 +227,7 @@ int xdb_act(xdbcache xc, jid owner, char *ns, char *act, char *match, xmlnode da
     pth_mutex_t mutex = PTH_MUTEX_INIT;
     pth_cond_t cond = PTH_COND_INIT;
 
-    if(xc == NULL || owner == NULL || ns == NULL || data == NULL)
+    if(xc == NULL || owner == NULL || ns == NULL)
     {
         fprintf(stderr,"Programming Error: xdb_set() called with NULL\n");
         return 1;
@@ -235,6 +235,7 @@ int xdb_act(xdbcache xc, jid owner, char *ns, char *act, char *match, xmlnode da
 
     /* init this newx */
     newx.i = NULL;
+    newx.set = 1;
     newx.data = data;
     newx.ns = ns;
     newx.act = act;

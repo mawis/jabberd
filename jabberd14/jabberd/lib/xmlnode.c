@@ -783,7 +783,7 @@ void xmlnode_insert_node(xmlnode parent, xmlnode node)
             xmlnode_insert_tag_node(parent, node);
             break;
         case NTYPE_CDATA:
-            xmlnode_insert_cdata(parent, xmlnode_get_data(node), xmlnode_get_datasz(node));
+            xmlnode_insert_cdata(parent, xmlnode_get_data(node), -1);
         }
         node = xmlnode_get_nextsibling(node);
     }

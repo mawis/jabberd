@@ -199,7 +199,7 @@ result xdb_file_phandler(instance i, dpacket p, void *arg)
         {
             switch(*act)
             {
-            case 'i':
+            case 'i': /* insert action */
                 if(data == NULL)
                 { /* we're inserting into something that doesn't exist?!?!? */
                     data = xmlnode_insert_tag(top,"foo");
@@ -209,6 +209,16 @@ result xdb_file_phandler(instance i, dpacket p, void *arg)
                 xmlnode_hide(xmlnode_get_tag(data,match)); /* any match is a goner */
                 /* insert the new chunk into the existing data */
                 xmlnode_insert_tag_node(data, xmlnode_get_firstchild(p->x));
+                break;
+            case 'c': /* check action */
+                if(match != NULL)
+                    data = xmlnode_get_tag(data,match);
+                if(j_strcmp(xmlnode_get_data(data),xmlnode_get_data(xmlnode_get_firstchild(p->x))) != 0)
+                {
+                    log_debug(ZONE,"xdb check action returning error to signify unsuccessful check");
+                    return r_ERR;
+                }
+                flag_set = 0;
                 break;
             default:
                 log_warn("xdb_file","unable to handle unknown xdb action '%s'",act);
@@ -223,8 +233,8 @@ result xdb_file_phandler(instance i, dpacket p, void *arg)
             xmlnode_put_attrib(data,"xdbns",ns);
         }
 
-        /* save the file */
-        if(xmlnode2file(full,file) < 0)
+        /* save the file if we still want to */
+        if(flag_set && xmlnode2file(full,file) < 0)
             log_error(p->id->server,"xdb request failed, unable to save to file %s",full);
         else
             ret = 1;
