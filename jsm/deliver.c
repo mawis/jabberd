@@ -78,7 +78,7 @@ void js_deliver_local(jsmi si, jpacket p, HASHTABLE ht)
     }
 
     /* no user, so bounce the packet */
-    js_bounce(si,p->x,TERROR_NOTFOUND);
+    js_bounce_xmpp(si,p->x,XTERROR_NOTFOUND);
 }
 
 
@@ -252,7 +252,7 @@ void js_deliver(jsmi si, jpacket p)
     if(p->to == NULL)
     {
         log_warn(NULL,"jsm: Invalid Recipient, returning data %s",xmlnode2str(p->x));
-        js_bounce(si,p->x,TERROR_BAD);
+        js_bounce_xmpp(si,p->x,XTERROR_BAD);
         return;
     }
 

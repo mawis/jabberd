@@ -623,6 +623,49 @@ typedef struct terror_struct
 #define TERROR_EXTTIMEOUT (terror){504,"Remote Server Timeout"}
 #define TERROR_DISCONNECTED (terror){510,"Disconnected"}
 
+/* we define this to signal that we support xterror */
+#define HAS_XTERROR
+
+typedef struct xterror_struct
+{
+    int  code;
+    char msg[64];
+    char type[9];
+    char condition[64];
+} xterror;
+
+#define XTERROR_BAD		(xterror){400,"Bad Request","modify","bad-request"}
+#define XTERROR_CONFLICT	(xterror){409,"Conflict","cancel","conflict"}
+#define XTERROR_NOTIMPL		(xterror){501,"Not Implemented","cancel","feature-not-implemented"}
+#define XTERROR_FORBIDDEN	(xterror){403,"Forbidden","auth","forbidden"}
+#define XTERROR_GONE		(xterror){302,"Gone","modify","gone"}
+#define XTERROR_INTERNAL	(xterror){500,"Internal Server Error","wait","internal-server-error"}
+#define XTERROR_NOTFOUND	(xterror){404,"Not Found","cancel","item-not-found"}
+#define XTERROR_JIDMALFORMED	(xterror){400,"Bad Request","modify","jid-malformed"}
+#define XTERROR_NOTACCEPTABLE	(xterror){406,"Not Acceptable","modify","not-acceptable"}
+#define XTERROR_NOTALLOWED	(xterror){405,"Not Allowed","cancel","not-allowed"}
+#define XTERROR_AUTH		(xterror){401,"Unauthorized","auth","not-authorized"}
+#define XTERROR_PAY		(xterror){402,"Payment Required","auth","payment-required"}
+#define XTERROR_RECIPIENTUNAVAIL (xterror){404,"Receipient Is Unavailable","wait","recipient-unavailable"}
+#define XTERROR_REDIRECT	(xterror){302,"Redirect","modify","redirect"}
+#define XTERROR_REGISTER	(xterror){407,"Registration Required","auth","registration-required"}
+#define XTERROR_REMOTENOTFOUND	(xterror){404,"Remote Server Not Found","cancel","remote-server-not-found"}
+#define XTERROR_REMOTETIMEOUT	(xterror){504,"Remote Server Timeout","wait","remote-server-timeout"}
+#define XTERROR_RESCONSTRAINT	(xterror){500,"Resource Constraint","wait","resource-constraint"}
+#define XTERROR_UNAVAIL		(xterror){503,"Service Unavailable","cancel","service-unavailable"}
+#define XTERROR_SUBSCRIPTIONREQ	(xterror){407,"Subscription Required","auth","subscription-required"}
+#define XTERROR_UNDEF_CANCEL	(xterror){500,NULL,"cancel","undefined-condition"}
+#define XTERROR_UNDEF_CONTINUE	(xterror){500,NULL,"continue","undefined-condition"}
+#define XTERROR_UNDEF_MODIFY	(xterror){500,NULL,"modify","undefined-condition"}
+#define XTERROR_UNDEF_AUTH	(xterror){500,NULL,"auth","undefined-condition"}
+#define XTERROR_UNDEF_WAIT	(xterror){500,NULL,"wait","undefined-condition"}
+#define XTERROR_UNEXPECTED	(xterror){400,"Unexpected Request","wait","unexpected-request"}
+
+#define XTERROR_REQTIMEOUT	(xterror){408,"Request Timeout","wait","remote-server-timeout"}
+#define XTERROR_EXTERNAL	(xterror){502,"Remote Server Error","wait","service-unavailable"}
+#define XTERROR_EXTTIMEOUT	(xterror){504,"Remote Server Timeout","wait","remote-server-timeout"}
+#define XTERROR_DISCONNECTED	(xterror){510,"Disconnected","cancel","service-unavailable"}
+
 /* --------------------------------------------------------- */
 /*                                                           */
 /* Namespace constants                                       */
@@ -664,6 +707,8 @@ typedef struct terror_struct
 #define NS_XDBGINSERT "jabber:xdb:ginsert"
 #define NS_XDBNSLIST  "jabber:xdb:nslist"
 
+#define NS_XMPP_STANZAS "urn:ietf:params:xml:ns:xmpp-stanzas"
+
 
 /* --------------------------------------------------------- */
 /*                                                           */
@@ -680,6 +725,8 @@ void    jutil_tofrom(xmlnode x);			 /* Swaps to/from fields on a packet */
 xmlnode jutil_iqresult(xmlnode x);			 /* Generate a skeleton iq/result, given a iq/query */
 char*   jutil_timestamp(void);				 /* Get stringified timestamp */
 void    jutil_error(xmlnode x, terror E);		 /* Append an <error> node to x */
+void    jutil_error_xmpp(xmlnode x, xterror E);		 /* Append an <error> node to x using XMPP syntax */
+void	jutil_error_map(terror old, xterror mapped);	 /* map an old terror structure to a new xterror structure */
 void    jutil_delay(xmlnode msg, char *reason);		 /* Append a delay packet to msg */
 char*   jutil_regkey(char *key, char *seed);		 /* pass a seed to generate a key, pass the key again to validate (returns it) */
 

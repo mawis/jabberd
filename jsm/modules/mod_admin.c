@@ -248,7 +248,7 @@ mreturn mod_admin_dispatch(mapi m, void *arg)
         if(js_admin(m->user,ADMIN_READ))
             mod_admin_browse(m->si, m->packet);
         else
-            js_bounce(m->si,m->packet->x,TERROR_NOTALLOWED);
+            js_bounce_xmpp(m->si,m->packet->x,XTERROR_NOTALLOWED);
         return M_HANDLED;
     }
 
@@ -269,7 +269,7 @@ mreturn mod_admin_dispatch(mapi m, void *arg)
         if(xmlnode_get_tag(m->packet->iq,"config") != NULL) return mod_admin_config(m->si, m->packet);
     }
 
-    js_bounce(m->si,m->packet->x,TERROR_NOTALLOWED);
+    js_bounce_xmpp(m->si,m->packet->x,XTERROR_NOTALLOWED);
     return M_HANDLED;
 }
 

@@ -166,7 +166,7 @@ mreturn mod_auth_0k_go(mapi m, void *enable)
     /* only way this passes is if they got a valid get result from above, and had the pass to generate this new hash */
     if(j_strcmp(shahash(c_hash), hash) != 0)
     {
-        jutil_error(m->packet->x, TERROR_AUTH);
+        jutil_error_xmpp(m->packet->x, XTERROR_AUTH);
     }else{
         /* store the new current hash/sequence */
         xmlnode_hide(xmlnode_get_tag(xdb,"sequence"));
@@ -176,7 +176,7 @@ mreturn mod_auth_0k_go(mapi m, void *enable)
 
         xmlnode_put_attrib(xdb,"xmlns",NS_AUTH_0K);
         if(xdb_set(m->si->xc, m->user->id, NS_AUTH_0K, xdb))
-            jutil_error(m->packet->x, TERROR_REQTIMEOUT);
+            jutil_error_xmpp(m->packet->x, XTERROR_REQTIMEOUT);
         else
             jutil_iqresult(m->packet->x);
     }
@@ -219,7 +219,7 @@ mreturn mod_auth_0k_reg(mapi m, void *arg)
     /* if we can, set the 0k vars to what the client told us to */
     if(!disable && xmlnode_get_tag_data(m->packet->iq,"hash") != NULL && mod_auth_0k_set(m,id,xmlnode_get_tag_data(m->packet->iq,"hash"),xmlnode_get_tag_data(m->packet->iq,"token"),xmlnode_get_tag_data(m->packet->iq,"sequence")))
     {
-        jutil_error(m->packet->x,(terror){500,"Authentication Storage Failed"});
+        jutil_error_xmpp(m->packet->x,(xterror){500,"Authentication Storage Failed","wait","internal-server-error"});
         return M_HANDLED;
     }
 

@@ -44,6 +44,47 @@
 #include "jsm.h"
 
 /*
+ *  js_bounce_xmpp -- short_desc
+ *  
+ *  Long_description
+ *
+ *  parameters
+ *  	x -- the node to bounce
+ *      xterr - the error code describing the reason for the bounce
+ *
+ */
+void js_bounce_xmpp(jsmi si, xmlnode x, xterror xterr)
+{
+    /* if the node is a subscription */
+    if(j_strcmp(xmlnode_get_name(x),"presence") == 0 && j_strcmp(xmlnode_get_attrib(x,"type"),"subscribe") == 0)
+    {
+        /* turn the node into a result tag. it's a hack, but it get's the job done */
+        jutil_iqresult(x);
+        xmlnode_put_attrib(x,"type","unsubscribed");
+        xmlnode_insert_cdata(xmlnode_insert_tag(x,"status"),xterr.msg,-1);
+
+        /* deliver it back to the client */
+        js_deliver(si, jpacket_new(x));
+        return;
+
+    }
+
+    /* if it's a presence packet, just drop it */
+    if(j_strcmp(xmlnode_get_name(x),"presence") == 0 || j_strcmp(xmlnode_get_attrib(x,"type"),"error") == 0)
+    {
+        log_debug(ZONE,"dropping %d packet %s",xterr.code,xmlnode2str(x));
+        xmlnode_free(x);
+        return;
+    }
+
+    /* if it's neither of these, make an error message an deliver it */
+    jutil_error_xmpp(x, xterr);
+    js_deliver(si, jpacket_new(x));
+
+}
+
+
+/*
  *  js_bounce -- short_desc
  *  
  *  Long_description
@@ -55,32 +96,10 @@
  */
 void js_bounce(jsmi si, xmlnode x, terror terr)
 {
-    /* if the node is a subscription */
-    if(j_strcmp(xmlnode_get_name(x),"presence") == 0 && j_strcmp(xmlnode_get_attrib(x,"type"),"subscribe") == 0)
-    {
-        /* turn the node into a result tag. it's a hack, but it get's the job done */
-        jutil_iqresult(x);
-        xmlnode_put_attrib(x,"type","unsubscribed");
-        xmlnode_insert_cdata(xmlnode_insert_tag(x,"status"),terr.msg,-1);
+    xterror xterr;
 
-        /* deliver it back to the client */
-        js_deliver(si, jpacket_new(x));
-        return;
-
-    }
-
-    /* if it's a presence packet, just drop it */
-    if(j_strcmp(xmlnode_get_name(x),"presence") == 0 || j_strcmp(xmlnode_get_attrib(x,"type"),"error") == 0)
-    {
-        log_debug(ZONE,"dropping %d packet %s",terr.code,xmlnode2str(x));
-        xmlnode_free(x);
-        return;
-    }
-
-    /* if it's neither of these, make an error message an deliver it */
-    jutil_error(x, terr);
-    js_deliver(si, jpacket_new(x));
-
+    jutil_error_map(terr, xterr);
+    js_bounce_xmpp(si, x, xterr);
 }
 
 

@@ -120,14 +120,14 @@ mreturn mod_last_reply(mapi m, void *arg)
     case JPACKET__ERROR:
         return M_PASS;
     case JPACKET__SET:
-        js_bounce(m->si,m->packet->x,TERROR_NOTALLOWED);
+        js_bounce_xmpp(m->si,m->packet->x,XTERROR_NOTALLOWED);
         return M_HANDLED;
     }
 
     /* make sure they're in the roster */
     if(!js_trust(m->user,m->packet->from))
     {
-        js_bounce(m->si,m->packet->x,TERROR_FORBIDDEN);
+        js_bounce_xmpp(m->si,m->packet->x,XTERROR_FORBIDDEN);
         return M_HANDLED;
     }
 

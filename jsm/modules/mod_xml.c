@@ -58,7 +58,7 @@ mreturn mod_xml_set(mapi m, void *arg)
         ns = xmlnode_get_attrib(inx,"xmlns");
         if(ns == NULL || strncmp(ns,"jabber:",7) == 0 || strcmp(ns,"vcard-temp") == 0)
         { /* uhoh, can't use jabber: namespaces inside iq:private! */
-            jutil_error(m->packet->x,TERROR_NOTACCEPTABLE);
+            jutil_error_xmpp(m->packet->x,(xterror){406,"Can't use jabber: namespaces inside iq:private","modify","not-acceptable"});
             js_session_to(m->s,m->packet);
             return M_HANDLED;
         }
@@ -104,7 +104,7 @@ mreturn mod_xml_set(mapi m, void *arg)
         if(private) /* hack, ick! */
             xmlnode_put_attrib(inx,"j_private_flag","1");
         if(xdb_set(m->si->xc, to, ns, inx))
-            jutil_error(m->packet->x,TERROR_UNAVAIL);
+            jutil_error_xmpp(m->packet->x,XTERROR_UNAVAIL);
         else
             jutil_iqresult(m->packet->x);
 
@@ -158,7 +158,7 @@ mreturn mod_xml_get(mapi m, void *arg)
     case JPACKET__ERROR:
         return M_PASS;
     case JPACKET__SET:
-        js_bounce(m->si,m->packet->x,TERROR_NOTALLOWED);
+        js_bounce_xmpp(m->si,m->packet->x,XTERROR_NOTALLOWED);
         return M_HANDLED;
     }
 
@@ -169,7 +169,7 @@ mreturn mod_xml_get(mapi m, void *arg)
 
     if(xmlnode_get_attrib(xns,"j_private_flag") != NULL)
     { /* uhoh, set from a private namespace */
-        js_bounce(m->si,m->packet->x,TERROR_NOTALLOWED);
+        js_bounce_xmpp(m->si,m->packet->x,XTERROR_NOTALLOWED);
         return M_HANDLED;
     }
 

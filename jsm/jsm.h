@@ -176,6 +176,7 @@ typedef struct jpq_struct
 void js_psend(jsmi si, jpacket p, mtq_callback f); /* sends p to a function */
 
 void js_bounce(jsmi si, xmlnode x, terror terr); /* logic to bounce packets w/o looping, eats x and delivers error */
+void js_bounce_xmpp(jsmi si, xmlnode x, xterror xterr); /* logic to bounce packets w/o looping, eats x and delivers error */
 
 void js_mapi_register(jsmi si, event e, mcall c, void *arg);
 void js_mapi_session(event e, session s, mcall c, void *arg);
