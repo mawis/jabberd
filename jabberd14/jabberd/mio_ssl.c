@@ -123,6 +123,28 @@ void mio_ssl_init(xmlnode x)
             SSL_CTX_free(ctx);
             continue;
         }
+
+	/* setup options */
+	if (xmlnode_get_attrib(cur, "no-ssl-v2") != NULL) {
+	    SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2);
+	}
+	if (xmlnode_get_attrib(cur, "no-ssl-v3") != NULL) {
+	    SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv3);
+	}
+	if (xmlnode_get_attrib(cur, "no-tls-v1") != NULL) {
+	    SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1);
+	}
+	if (xmlnode_get_attrib(cur, "enable-workarounds") != NULL) {
+	    SSL_CTX_set_options(ctx, SSL_OP_ALL);
+	}
+	if (xmlnode_get_attrib(cur, "ciphers") != NULL) {
+	    if (!SSL_CTX_set_cipher_list(ctx, xmlnode_get_attrib(cur, "ciphers"))) {
+		log_warn(NULL, "SSL Error selecting ciphers");
+		SSL_CTX_free(ctx);
+		continue;
+	    }
+	}
+	
         xhash_put(ssl__ctxs, host, ctx);
         log_debug2(ZONE, LOGT_INIT|LOGT_IO, "Added context %x for %s", ctx, host);
     }
