@@ -327,7 +327,7 @@ void deliver(dpacket p, instance i)
     char *host;
     xmlnode x;
 
-    if(deliver__flag&&p==NULL&&i==NULL)
+    if(deliver__flag == 1 && p == NULL && i == NULL)
     { /* begin delivery of postponed messages */
         deliver_msg d;
         while((d=(deliver_msg)pth_msgport_get(deliver__mp))!=NULL)
@@ -335,6 +335,7 @@ void deliver(dpacket p, instance i)
             deliver(d->p,d->i);
         }
         pth_msgport_destroy(deliver__mp);
+        deliver__flag = -1; /* disable all queueing crap */
     }
 
     /* Ensure the packet is valid */
@@ -386,7 +387,7 @@ void deliver(dpacket p, instance i)
     }
 
 
-    if(!deliver__flag)
+    if(deliver__flag == 0)
     { /* postpone delivery till later */
         deliver_msg d=pmalloco(xmlnode_pool(p->x),sizeof(_deliver_msg));
         if(deliver__mp==NULL)deliver__mp=pth_msgport_create("deliver__");

@@ -3,7 +3,7 @@
   <service id="session manager">
 
     <!-- change hostname below! -->
-    <host><cl flag="h">localhost</cl></host>
+    <host><jabberd:cmdline flag="h">localhost</jabberd:cmdline></host>
 
     <load main="jsm">
       <jsm>./jsm/jsm.so</jsm>
@@ -21,6 +21,7 @@
       <mod_auth>./jsm/jsm.so</mod_auth>
       <mod_auth_sha1>./jsm/jsm.so</mod_auth_sha1>
       <mod_filter>./jsm/jsm.so</mod_filter>
+      <mod_log>./jsm/jsm.so</mod_log>
     </load>
     <jsm xmlns="jabberd:jsm:config">
       <agents>
@@ -33,6 +34,10 @@
        </agent>
       </agents>
       <register/>
+      <log>
+        <file>/tmp/jsession.log</file>
+        <type>session</type>
+      </log>
     </jsm>
   </service>
 
