@@ -30,7 +30,7 @@ typedef struct io_st
 
 ios io__data=NULL;
 
-// #define KARMA_DEBUG
+#define KARMA_DEBUG
 #define KARMA_READ_MAX(k) k*100 /* how much you are allowed to read off the sock */
 #define KARMA_PENALTY -5 /* where you go when you hit 0 karma */
 #define KARMA_RESTORE 5  /* where you go when you payed your penelty */
@@ -388,7 +388,7 @@ void _io_main(void *arg)
                     { /* they read the max, tsk tsk */
                         cur->karma-=KARMA_DEC;
 #ifdef KARMA_DEBUG
-                        log_notice("karma","socket #%d lost %d karma, now: %d:%d",cur->fd,KARMA_INC,cur->karma,cur->read_bytes);
+                        log_notice("karma","socket #%d lost %d karma, now: %d:%d",cur->fd,KARMA_DEC,cur->karma,cur->read_bytes);
 #endif
                         if(cur->karma<=0) /* ran out of karma */
                         {
