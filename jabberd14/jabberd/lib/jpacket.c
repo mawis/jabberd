@@ -106,6 +106,7 @@ jpacket jpacket_reset(jpacket p)
             p->type = JPACKET_S10N;
         else if(strcmp(val,"available") == 0) {
 	    /* someone is using type='available' which is frowned upon */
+	    /* XXX better reject this presence? */
             xmlnode_hide_attrib(x,"type");
             p->subtype = JPACKET__AVAILABLE;
         } else

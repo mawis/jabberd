@@ -565,6 +565,18 @@
     <null/>
   </service>
 
+  <!--
+  If you have any former transports, that are not there
+  anymore, you can use the <unsubscribe/> target to
+  unsubscribe all roster itemes for the transport's host
+  from your users.
+  -->
+  <!--
+  <service id='foobar.localhost'>
+    <unsubscribe>The foobar transport at localhost does not exist anymore</unsubscribe>
+  </service>
+  -->
+
   <!-- 
   If you identified additional agents in the main <service/> 
   section (see examples above), you'll need to define each 

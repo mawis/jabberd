@@ -38,6 +38,12 @@
  * 
  * 
  * --------------------------------------------------------------------------*/
+
+/**
+ * @file log.c
+ * @brief functions used to generate log messages
+ */
+
 #include "jabberd.h"
 
 int _debug_facility = -1;

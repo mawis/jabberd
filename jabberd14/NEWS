@@ -52,3 +52,6 @@
     * FIX: earlier version of jabberd14 sent out two presences for a user
       that came online, this is fixed - as well as that presences got
       stamped several times if the user was online with multiple resources.
+    * New base handler <unsubscribe/> which bounces messages and iqs and sends
+      unsubscribes/unsubscribeds as reply to presence stanzas. Intended to be
+      used as a replacement for deinstalled transports.
