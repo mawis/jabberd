@@ -32,17 +32,21 @@
 mreturn mod_archive_redirect(mapi m, void* arg)
 {
     char* redirecthost = (char*)arg;
+    xmlnode redirectpkt= NULL;
     
     /* Ensure that we only archive messages */
     if (m->packet->type != JPACKET_MESSAGE) 
         return M_IGNORE;
 
-    /* Transmit the message as xdb message to redirect host */
-    log_debug(ZONE, "redirecting to %s: %s", redirecthost, xmlnode2str(m->packet->x));
+    redirectpkt = xmlnode_wrap(m->packet->x, "route");
+    xmlnode_put_attrib(redirectpkt, "to", redirecthost);
 
-    xdb_set(m->si->xc, m->user->id->server, jid_new(m->packet->p, redirecthost), "jabber:x:archive", xmlnode_dup(m->packet->x));
+    /* Transmit the message as route message to redirect host */
+    log_debug(ZONE, "redirecting to %s: %s", redirecthost, xmlnode2str(redirectpkt));
+
+    deliver(dpacket_new(redirectpkt), NULL);
  
-	log_debug(ZONE, "done");
+    log_debug(ZONE, "done");
     return M_PASS;
 }
 
