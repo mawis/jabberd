@@ -296,8 +296,10 @@ void dialback_out_connection_cleanup(dboc c)
 
     xhash_zap(c->d->out_connecting,jid_full(c->key));
 
-    /* */
-    connect_results = spool_print(c->connect_results);
+    /* get the results of connection attempts */
+    if (c->connect_results != NULL) {
+	connect_results = spool_print(c->connect_results);
+    }
 
     /* if there was never any ->m set but there's a queue yet, then we probably never got connected, just make a note of it */
     if(c->m == NULL && c->q != NULL) {
@@ -436,7 +438,6 @@ void dialback_out_packet(db d, xmlnode x, char *ip)
 
 }
 
-
 /**
  * handle the events (incoming stanzas) on an outgoing dialback socket, which isn't much of a job
  *
@@ -447,15 +448,13 @@ void dialback_out_packet(db d, xmlnode x, char *ip)
  * @param arg the dialback instance
  * @param the packet that has been received
  */
-void dialback_out_read_db(mio m, int flags, void *arg, xmlnode x)
-{
+void dialback_out_read_db(mio m, int flags, void *arg, xmlnode x) {
     db d = (db)arg;
 
     if(flags != MIO_XML_NODE) return;
 
     /* it's either a valid verify response, or bust! */
-    if(j_strcmp(xmlnode_get_name(x),"db:verify") == 0)
-    {
+    if(j_strcmp(xmlnode_get_name(x),"db:verify") == 0) {
         dialback_in_verify(d, x);
         return;
     }
@@ -465,10 +464,12 @@ void dialback_out_read_db(mio m, int flags, void *arg, xmlnode x)
 	streamerr errstruct = pmalloco(x->p, sizeof(_streamerr));
 	char *errmsg = NULL;
 
+	/* generate the error message */
 	xstream_parse_error(x->p, x, errstruct);
 	xstream_format_error(s, errstruct);
 	errmsg = spool_print(s);
 
+	/* logging */
 	switch (errstruct->severity) {
 	    case normal:
 		log_debug2(ZONE, LOGT_IO, "stream error on outgoing db conn to %s: %s", mio_ip(m), errmsg);
@@ -639,10 +640,19 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 		streamerr errstruct = pmalloco(x->p, sizeof(_streamerr));
 		char *errmsg = NULL;
 
+		/* generate error message */
 		xstream_parse_error(x->p, x, errstruct);
 		xstream_format_error(s, errstruct);
 		errmsg = spool_print(s);
 
+		/* append error message to connect_results */
+		if (c->connect_results != NULL && errmsg != NULL) {
+		    spool_add(c->connect_results, " (");
+		    spool_add(c->connect_results, pstrdup(c->connect_results->p, errmsg));
+		    spool_add(c->connect_results, ")");
+		}
+
+		/* logging */
 		switch (errstruct->severity) {
 		    case normal:
 			log_debug2(ZONE, LOGT_IO, "stream error on outgoing %s conn to %s (%s): %s", c->xmpp_version < 1 ? "preXMPP" : "XMPP1.0", mio_ip(m), jid_full(c->key), errmsg);
@@ -768,6 +778,12 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 		}
 		/* something went wrong, we were invalid? */
 		c->connection_state = db_failed;
+		if (c->connect_results != NULL) {
+		    char *type_attribute = pstrdup(c->connect_results->p, xmlnode_get_attrib(x, "type"));
+		    spool_add(c->connect_results, " (dialback result: ");
+		    spool_add(c->connect_results, type_attribute ? type_attribute : "no type attribute");
+		    spool_add(c->connect_results, ")");
+		}
 		log_alert(c->d->i->id,"We were told by %s that our sending name %s is invalid, either something went wrong on their end, we tried using that name improperly, or dns does not resolve to us",c->key->server,c->key->resource);
 		/* close the stream (in former times we sent a stream error, but I think we shouldn't. There is stream fault by the other entity!) */ 
 		mio_write(m, NULL, "</stream:stream>", -1);
@@ -823,13 +839,12 @@ void _dialback_out_beat_packets(xht h, const char *key, void *data, void *arg)
     dboc c = (dboc)data;
     dboq cur, next, last;
     int now = time(NULL);
+    char *bounce_reason = NULL;
 
     /* time out individual queue'd packets */
     cur = c->q;
-    while(cur != NULL)
-    {
-        if((now - cur->stamp) <= c->d->timeout_packets)
-        {
+    while(cur != NULL) {
+        if((now - cur->stamp) <= c->d->timeout_packets) {
             last = cur;
             cur = cur->next;
             continue;
@@ -841,7 +856,19 @@ void _dialback_out_beat_packets(xht h, const char *key, void *data, void *arg)
             c->q = next;
         else
             last->next = next;
-        deliver_fail(dpacket_new(cur->x),"Server Connect Timeout");
+
+	if (bounce_reason == NULL) {
+	    spool errmsg = spool_new(c->p);
+	    spool_add(errmsg, "Server connect timeout while ");
+	    spool_add(errmsg, dialback_out_connection_state_string(c->connection_state));
+	    if (c->connect_results != NULL) {
+		spool_add(errmsg, ": ");
+		spool_add(errmsg, spool_print(c->connect_results));
+	    }
+	    bounce_reason = spool_print(errmsg);
+	}
+
+        deliver_fail(dpacket_new(cur->x), bounce_reason ? bounce_reason : "Server Connect Timeout");
         cur = next;
     }
 }
