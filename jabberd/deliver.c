@@ -127,6 +127,7 @@ void unregister_instance(instance id,char *host)
         cur=deliver__xdb;
         break;
     case p_NORM:
+    case p_ROUTE:
         if(deliver__norm->id==id&&j_strcmp(deliver__norm->host,host)==0)
         {
             cur=deliver__norm;
@@ -179,6 +180,7 @@ void register_instance(instance id, char *host)
         deliver__xdb = newh;
         break;
     case p_NORM:
+    case p_ROUTE:
         newh->next = deliver__norm;
         deliver__norm = newh;
         break;
@@ -190,7 +192,6 @@ void register_instance(instance id, char *host)
 /* bounce on the delivery, use the result to better gague what went wrong */
 void deliver_fail(dpacket p, char *err)
 {
-    char *to, *type;
     terror t;
 
     log_debug(ZONE,"delivery failed (%s)",err);
@@ -207,60 +208,45 @@ void deliver_fail(dpacket p, char *err)
         log_warn(p->host,"dropping an xdb request for %s",xmlnode_get_attrib(p->x,"to"));
         pool_free(p->p);
         break;
-    case p_NORM:
-        if(xmlnode_get_attrib(p->x,"sto") != NULL)
-        {   /* session packet bounce */
-            if(xmlnode_get_tag(p->x,"error?code=510") != NULL)
-            {   /* already bounced once, drop */
-                log_warn(p->host,"dropping a session packet to %s from %s",xmlnode_get_attrib(p->x,"sto"),xmlnode_get_attrib(p->x,"sfrom"));
-                pool_free(p->p);
-            }else{
-                log_notice(p->host,"bouncing a session packet to %s from %s",xmlnode_get_attrib(p->x,"sto"),xmlnode_get_attrib(p->x,"sfrom"));
-
-                /* reverse the session routing attribs */
-                to = xmlnode_get_attrib(p->x,"sto");
-                xmlnode_put_attrib(p->x,"sto",xmlnode_get_attrib(p->x,"sfrom"));
-                xmlnode_put_attrib(p->x,"sfrom",to);
-
-                /* turn into an error */
-                type = xmlnode_get_attrib(p->x,"type");
-                if(err == NULL)
-                {
-                    jutil_error(p->x,TERROR_DISCONNECTED);
-                }else{
-                    t.code = 510;
-                    t.msg[0] = '\0';
-                    strcat(t.msg,err); /* why do I have to do this?  uhgly */
-                    jutil_error(p->x,t);
-                }
-                xmlnode_put_attrib(xmlnode_get_tag(p->x,"error?code=510"),"type",type); /* HACK: hide the old type on the 510 error node */
-                jutil_tofrom(p->x); /* _error flipped them, we're flipping back :) */
-                deliver(dpacket_new(p->x),NULL);
-            }
+    case p_ROUTE:
+        /* route packet bounce */
+        if(j_strcmp(xmlnode_get_attrib(p->x,"type"),"error") == 0)
+        {   /* already bounced once, drop */
+            log_warn(p->host,"dropping a routed packet to %s from %s",xmlnode_get_attrib(p->x,"to"),xmlnode_get_attrib(p->x,"from"));
+            pool_free(p->p);
         }else{
-            /* normal packet bounce */
-            if(j_strcmp(xmlnode_get_attrib(p->x,"type"),"error") == 0)
-            { /* can't bounce an error */
-                log_warn(p->host,"dropping a packet to %s from %s",xmlnode_get_attrib(p->x,"to"),xmlnode_get_attrib(p->x,"from"));
-                pool_free(p->p);
-            }else{
-                log_warn(p->host,"dropping a packet to %s from %s",xmlnode_get_attrib(p->x,"to"),xmlnode_get_attrib(p->x,"from"));
+            log_notice(p->host,"bouncing a routed packet to %s from %s",xmlnode_get_attrib(p->x,"to"),xmlnode_get_attrib(p->x,"from"));
 
-                /* turn into an error */
+            /* turn into an error and bounce */
+            jutil_tofrom(p->x);
+            xmlnode_put_attrib(p->x,"type","error");
+            xmlnode_put_attrib(p->x,"error",err);
+            deliver(dpacket_new(p->x),NULL);
+        }
+        break;
+    case p_NORM:
+        /* normal packet bounce */
+        if(j_strcmp(xmlnode_get_attrib(p->x,"type"),"error") == 0)
+        { /* can't bounce an error */
+            log_warn(p->host,"dropping a packet to %s from %s",xmlnode_get_attrib(p->x,"to"),xmlnode_get_attrib(p->x,"from"));
+            pool_free(p->p);
+        }else{
+            log_warn(p->host,"dropping a packet to %s from %s",xmlnode_get_attrib(p->x,"to"),xmlnode_get_attrib(p->x,"from"));
+
+            /* turn into an error */
+            t.code = 502;
+            t.msg[0] = '\0';
+            strcat(t.msg,err);
+            if(err == NULL)
+            {
+                jutil_error(p->x,TERROR_EXTERNAL);
+            }else{
                 t.code = 502;
                 t.msg[0] = '\0';
-                strcat(t.msg,err);
-                if(err == NULL)
-                {
-                    jutil_error(p->x,TERROR_EXTERNAL);
-                }else{
-                    t.code = 502;
-                    t.msg[0] = '\0';
-                    strcat(t.msg,err); /* why do I have to do this?  uhgly */
-                    jutil_error(p->x,t);
-                }
-                deliver(dpacket_new(p->x),NULL);
+                strcat(t.msg,err); /* why do I have to do this?  uhgly */
+                jutil_error(p->x,t);
             }
+            deliver(dpacket_new(p->x),NULL);
         }
         break;
     default:
@@ -445,6 +431,7 @@ void deliver(dpacket p, instance i)
         list = deliver__xdb;
         break;
     case p_NORM:
+    case p_ROUTE:
         list = deliver__norm;
         break;
     default:
@@ -464,7 +451,7 @@ void deliver(dpacket p, instance i)
     /* XXX optimize by having seperate lists for instances for hosts and general ones (NULL) */
 
     cur = deliver_get_next_hostid(list, host);
-    if(cur == NULL && xmlnode_get_attrib(p->x,"sto") == NULL) /* if there are no exact matching ones (and this is not a session packet? XXX) */
+    if(cur == NULL && p->type != p_ROUTE) /* if there are no exact matching ones (and this is not a routed packet) */
     {
         host = NULL;
         cur = deliver_get_next_hostid(list, host);
@@ -499,19 +486,19 @@ dpacket dpacket_new(xmlnode x)
 
     /* determine it's type */
     p->type = p_NORM;
-    if(*(xmlnode_get_name(x)) == 'l')
-        p->type = p_LOG;
+    if(*(xmlnode_get_name(x)) == 'r')
+        p->type = p_ROUTE;
     else if(*(xmlnode_get_name(x)) == 'x')
         p->type = p_XDB;
+    else if(*(xmlnode_get_name(x)) == 'l')
+        p->type = p_LOG;
 
     /* xdb results are shipped as normal packets */
     if(p->type == p_XDB && (str = xmlnode_get_attrib(p->x,"type")) != NULL && *str == 'r')
         p->type = p_NORM;
 
-    /* determine who to route it to, overriding the default to="" attrib only for sto="" special case */
-    if(p->type == p_NORM && xmlnode_get_attrib(x, "sto") != NULL)
-        p->id = jid_new(p->p, xmlnode_get_attrib(x, "sto"));
-    else if(p->type == p_LOG)
+    /* determine who to route it to, overriding the default to="" attrib only for logs where we use from */
+    if(p->type == p_LOG)
         p->id = jid_new(p->p, xmlnode_get_attrib(x, "from"));
     else
         p->id = jid_new(p->p, xmlnode_get_attrib(x, "to"));

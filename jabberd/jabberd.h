@@ -2,7 +2,7 @@
 #include <pth.h>
 
 /* packet types */
-typedef enum { p_NONE, p_NORM, p_XDB, p_LOG } ptype;
+typedef enum { p_NONE, p_NORM, p_XDB, p_LOG, p_ROUTE } ptype;
 
 /* ordering types, me first me first, managerial, engineer, grunt */
 typedef enum { o_PRECOND, o_COND, o_PREDELIVER, o_DELIVER } order;
