@@ -99,6 +99,7 @@ result js_packet(instance i, dpacket p, void *arg)
             /* reply */
             jutil_tofrom(p->x);
             deliver(dpacket_new(p->x), i);
+            return r_DONE;
         }
 
         /* get the internal jpacket */
@@ -141,7 +142,7 @@ result js_packet(instance i, dpacket p, void *arg)
 
         if(jp == NULL)
         { /* uhh, empty packet, *shrug* */
-            log_notice(p->host,"Dropping an invalid or empty route packet intended for session %s",xmlnode2str(p->x),jid_full(p->id));
+            log_notice(p->host,"Dropping an invalid or empty route packet: %s",xmlnode2str(p->x),jid_full(p->id));
             xmlnode_free(p->x);
             return r_DONE;
         }
@@ -164,7 +165,7 @@ result js_packet(instance i, dpacket p, void *arg)
 
     jp = jpacket_new(p->x);
     {
-        log_notice(p->host,"Dropping invalid incoming packet %s",xmlnode2str(p->x));
+        log_notice(p->host,"Dropping invalid incoming packet: %s",xmlnode2str(p->x));
         xmlnode_free(p->x);
         return r_DONE;
     }
