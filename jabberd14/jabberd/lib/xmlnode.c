@@ -31,6 +31,134 @@
 #include "lib.h"
 
 /* Internal routines */
+typedef struct xml_parse_st
+{
+    xmlnode current;
+    int cur_depth;
+    int max_depth;
+} _xmlnode_parse, *xmlnode_parse;
+
+void __parse_defaultHandler(void *parser, const XML_Char *s, int len)
+{
+    xmlnode_parse x = (xmlnode_parse)XML_GetUserData(parser);
+
+    if(x->cur_depth < x->max_depth)
+        return; /* don't bother building the full text here either, haven't reached desired parse depth */
+
+    if(x->current->full == NULL)
+    {
+        x->current->full = (char*)malloc(len + 1);
+        memcpy(x->current->full, s, len);
+        memcpy(x->current->full + len, "\0", 1);
+    }
+    else
+    {
+        int old_len = strlen(x->current->full);
+        x->current->full = (char*)realloc(x->current->full,old_len + len + 1);
+        memcpy(x->current->full + old_len, s, len);
+        memcpy(x->current->full + old_len + 1, "\0", 1);
+    }
+}
+
+void __parse_startElement(void *parser, const char *name, const char **atts)
+{
+    xmlnode_parse x = (xmlnode_parse)XML_GetUserData(parser);
+
+    if(x->cur_depth == 0)
+    {
+        x->cur_depth++;
+        return;
+    }
+
+    /* if we are too deep to parse, just build the ->full */
+    if(x->cur_depth >= x->max_depth && x->max_depth != -1)
+    {
+        if(x->cur_depth == x->max_depth)
+        {
+            x->current = xmlnode_insert_tag(x->current, name);
+            xmlnode_put_expat_attribs(x->current, atts);
+        }
+        XML_DefaultCurrent(parser);
+        x->current->complete = 0;
+        x->cur_depth++;
+        return;
+    }
+
+    x->current = xmlnode_insert_tag(x->current, name);
+    xmlnode_put_expat_attribs(x->current, atts);
+
+    x->cur_depth++;
+}
+
+void __parse_endElement(void *parser, const char *name)
+{
+    xmlnode_parse x = (xmlnode_parse)XML_GetUserData(parser);
+
+    if(--x->cur_depth > x->max_depth && x->max_depth != -1)
+    {
+        XML_DefaultCurrent(parser);
+        x->current->complete = 0;
+        return;
+    }
+
+    x->current = xmlnode_get_parent(x->current);
+}
+
+void __parse_cdataHandler(void *parser, const char *s, int len)
+{
+    xmlnode_parse x = (xmlnode_parse)XML_GetUserData(parser);
+
+    if(x->cur_depth > x->max_depth && x->max_depth != -1)
+    {
+        XML_DefaultCurrent(parser);
+        x->current->complete = 0;
+        return;
+    }
+
+    xmlnode_insert_cdata(x->current, s, len);
+}
+
+void __parse_commentHandler(void *parser, const XML_Char *data) { }
+
+void _parse_xmlnode(xmlnode current, int parse_depth)
+{
+    XML_Parser p;
+    xmlnode_parse x;
+
+    /* do not need to parse for any of these conditions */
+    if(current == NULL || parse_depth == 0 || current->full == NULL || current->complete == 1)
+        return;
+
+    x = (xmlnode_parse)malloc(sizeof(_xmlnode_parse));
+    memset(x, 0, sizeof(_xmlnode_parse));
+    x->current = current;
+    x->max_depth = parse_depth;
+    
+    /* create a expat parser, and parse the xmlnode */
+    p = XML_ParserCreate(NULL);
+    current->complete = parse_depth; /* flag for how far to traverse the nodes */
+    XML_SetUserData(p, (void*)x);
+    XML_UseParserAsHandlerArg(p);
+    XML_SetElementHandler(p, (void*)__parse_startElement, (void*)__parse_endElement);
+    XML_SetDefaultHandler(p, (void*)__parse_defaultHandler);
+    XML_SetCharacterDataHandler(p, (void*)__parse_cdataHandler);
+    XML_SetCommentHandler(p, (void*)__parse_commentHandler);
+
+    /* perform the parsing */
+    if(!XML_Parse(p, current->full, strlen(current->full), 1))
+    {
+        /* XXX hrmm.. parsing error.. this should never happen,
+         * since expat already has parsed this text, and was error free */
+    }
+
+    /* free the parser and text, flag this xmlnode as complete */
+    XML_ParserFree(p);
+    current->complete = 1;
+    free(current->full);
+    free(x);
+    current->full = NULL;
+}
+
 xmlnode _xmlnode_new(pool p, const char* name, unsigned int type)
 {
     xmlnode result = NULL;
@@ -53,6 +181,7 @@ xmlnode _xmlnode_new(pool p, const char* name, unsigned int type)
         result->name = pstrdup(p,name);
     result->type = type;
     result->p = p;
+    result->complete = 1;
     return result;
 }
 
@@ -76,6 +205,9 @@ static xmlnode _xmlnode_insert(xmlnode parent, const char* name, unsigned int ty
 
     if(parent == NULL || (type != NTYPE_CDATA && name == NULL)) return NULL;
 
+    if(!parent->complete)
+        _parse_xmlnode(parent, 1);
+
     /* If parent->firstchild is NULL, simply create a new node for the first child */
     if (parent->firstchild == NULL)
     {
@@ -97,7 +229,10 @@ static xmlnode _xmlnode_search(xmlnode firstsibling, const char* name, unsigned 
 {
     xmlnode current;
 
-    /* Walk the sibling list, looking for a NTYPE_TAG xmlnode with
+    if(firstsibling != NULL && type != NTYPE_ATTRIB && firstsibling->parent != NULL && firstsibling->parent->complete == 0)
+        _parse_xmlnode(firstsibling->parent, 1);
+
+    /* Walk the sibling list, looking for the given type of xmlnode with
     the specified name */
     current = firstsibling;
     while (current != NULL)
@@ -115,6 +250,9 @@ void _xmlnode_merge(xmlnode data)
     xmlnode cur;
     char *merge, *scur;
     int imerge;
+
+    if(data != NULL && data->parent != NULL && data->parent->complete == 0)
+        _parse_xmlnode(data->parent, 1);
 
     /* get total size of all merged cdata */
     imerge = 0;
@@ -148,6 +286,9 @@ static void _xmlnode_hide_sibling(xmlnode child)
     if(child == NULL)
         return;
 
+    if(child->parent != NULL && child->parent->complete == 0)
+        _parse_xmlnode(child->parent, 1);
+
     if(child->prev != NULL)
         child->prev->next = child->next;
     if(child->next != NULL)
@@ -157,6 +298,12 @@ static void _xmlnode_hide_sibling(xmlnode child)
 void _xmlnode_tag2str(spool s, xmlnode node, int flag)
 {
     xmlnode tmp;
+
+    if(node == NULL)
+        return;
+
+    if(node->complete == 0)
+        _parse_xmlnode(node, -1);
 
     if(flag==0 || flag==1)
     {
@@ -188,6 +335,9 @@ spool _xmlnode2spool(xmlnode node)
 
     s = spool_new(xmlnode_pool(node));
     if(!s) return(NULL);
+
+    if(node->complete == 0)
+        _parse_xmlnode(node, -1);
 
     while(1)
     {
@@ -338,11 +488,13 @@ xmlnode xmlnode_get_tag(xmlnode parent, const char* name)
     char *str, *slash, *qmark, *equals;
     xmlnode step, ret;
 
-
     if(parent == NULL || parent->firstchild == NULL || name == NULL || name == '\0') return NULL;
 
     if(strstr(name, "/") == NULL && strstr(name,"?") == NULL && strstr(name, "=") == NULL)
         return _xmlnode_search(parent->firstchild, name, NTYPE_TAG);
+
+    if(parent->complete == 0)
+        _parse_xmlnode(parent, 1);
 
     str = strdup(name);
     slash = strstr(str, "/");
@@ -449,7 +601,7 @@ void xmlnode_put_attrib(xmlnode owner, const char* name, const char* value)
     xmlnode attrib;
 
     if(owner == NULL || name == NULL || value == NULL) return;
-
+    
     /* If there are no existing attributs, allocate a new one to start
     the list */
     if (owner->firstattrib == NULL)
@@ -518,6 +670,9 @@ void* xmlnode_get_vattrib(xmlnode owner, const char* name)
 
 xmlnode xmlnode_get_firstattrib(xmlnode parent)
 {
+    if(parent != NULL && parent->complete == 0)
+        _parse_xmlnode(parent, 1);
+
     if (parent != NULL)
         return parent->firstattrib;
     return NULL;
@@ -525,6 +680,9 @@ xmlnode xmlnode_get_firstattrib(xmlnode parent)
 
 xmlnode xmlnode_get_firstchild(xmlnode parent)
 {
+    if(parent != NULL && parent->complete == 0)
+        _parse_xmlnode(parent, 1);
+
     if (parent != NULL)
         return parent->firstchild;
     return NULL;
@@ -532,6 +690,9 @@ xmlnode xmlnode_get_firstchild(xmlnode parent)
 
 xmlnode xmlnode_get_lastchild(xmlnode parent)
 {
+    if(parent != NULL && parent->complete == 0)
+        _parse_xmlnode(parent, 1);
+
     if (parent != NULL)
         return parent->lastchild;
     return NULL;
@@ -539,6 +700,9 @@ xmlnode xmlnode_get_lastchild(xmlnode parent)
 
 xmlnode xmlnode_get_nextsibling(xmlnode sibling)
 {
+    if(sibling != NULL && sibling->parent != NULL && sibling->parent->complete == 0)
+        _parse_xmlnode(sibling->parent, 1);
+
     if (sibling != NULL)
         return sibling->next;
     return NULL;
@@ -546,6 +710,9 @@ xmlnode xmlnode_get_nextsibling(xmlnode sibling)
 
 xmlnode xmlnode_get_prevsibling(xmlnode sibling)
 {
+    if(sibling != NULL && sibling->parent != NULL && sibling->parent->complete == 0)
+        _parse_xmlnode(sibling->parent, 1);
+
     if (sibling != NULL)
         return sibling->prev;
     return NULL;
@@ -571,6 +738,9 @@ char* xmlnode_get_data(xmlnode node)
 
     if(node == NULL) return NULL;
 
+    if(node->complete == 0)
+        _parse_xmlnode(node, 1);
+
     if(xmlnode_get_type(node) == NTYPE_TAG) /* loop till we find a CDATA */
     {
         for(cur = xmlnode_get_firstchild(node); cur != NULL; cur = xmlnode_get_nextsibling(cur))
@@ -593,6 +763,9 @@ int xmlnode_get_datasz(xmlnode node)
 {
     if (node != NULL)
     {
+        if(node->complete == 0)
+            _parse_xmlnode(node, 1);
+
         /* check for a dirty node w/ unassembled cdata chunks */
         if(xmlnode_get_type(node->next) == NTYPE_CDATA)
             _xmlnode_merge(node);
@@ -610,6 +783,9 @@ int xmlnode_get_type(xmlnode node)
 
 int xmlnode_has_children(xmlnode node)
 {
+    if(node != NULL && node->complete == 0)
+        _parse_xmlnode(node, 1);
+
     if ((node != NULL) && (node->firstchild != NULL))
         return 1;
     return 0;
@@ -637,6 +813,9 @@ void xmlnode_hide(xmlnode child)
         return;
 
     parent = child->parent;
+
+    if(parent->complete == 0)
+        _parse_xmlnode(parent, 1);
 
     /* first fix up at the child level */
     _xmlnode_hide_sibling(child);

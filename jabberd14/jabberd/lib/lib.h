@@ -297,8 +297,9 @@ typedef struct xmlnode_t
      char*               name;
      unsigned short      type;
      char*               data;
+     char*               full; /* hehe.. char* full .. "careful" */
      int                 data_sz;
-     int                 complete;
+     int                 complete; /* NOTE: if complete != 1, then this must be parsed one more level before accessing anything */
      pool               p;
      struct xmlnode_t*  parent;
      struct xmlnode_t*  firstchild; 

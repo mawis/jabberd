@@ -33,10 +33,38 @@
 /* xstream is a way to have a consistent method of handling incoming XML Stream based events... it doesn't handle the generation of an XML Stream, but provides some facilities to help do that */
 
 /******* internal expat callbacks *********/
-void _xstream_startElement(xstream xs, const char* name, const char** atts)
+void _xstream_defaultHandler(void *parser, const XML_Char *s, int len)
 {
-    pool p;
+    xstream xs = (xstream)XML_GetUserData(parser);
+    xmlnode x = xs->node;
+    
+    //printf("_xstream_defaultHandler(%X, %.*s, %d) called\n", parser, len, s, len);
+    /* if xstream is bad, get outa here */
+    if(xs->status > XSTREAM_NODE) return;
 
+    if(x->full == NULL)
+    {
+        x->full = (char*)malloc(len + 1);
+        memcpy(x->full, s, len);
+        memcpy(x->full + len, "\0", 1);
+        //printf("_xstream_defaultHandler() creating new ->full: %s\n", x->full);
+    }
+    else
+    {
+        int old_len = strlen(x->full);
+        x->full = (char*)realloc(x->full, old_len + len + 1);
+        memcpy(x->full + old_len, s, len);
+        memcpy(x->full + old_len + len, "\0", 1);
+        //printf("_xstream_defaultHandler() adding to ->full: %s\n", x->full);
+    }
+}
+
+void _xstream_startElement(void *parser, const char* name, const char** atts)
+{
+    xstream xs = (xstream)XML_GetUserData(parser);
+    pool p;
+ 
+    //printf("_xstream_startElement(%X, %s, %s) called\n", parser, name, *atts);
     /* if xstream is bad, get outa here */
     if(xs->status > XSTREAM_NODE) return;
 
@@ -52,9 +80,16 @@ void _xstream_startElement(xstream xs, const char* name, const char** atts)
             (xs->f)(XSTREAM_ROOT, xs->node, xs->arg); /* send the root, f must free all nodes */
             xs->node = NULL;
         }
+        else
+        {
+            /* this is a node.. not the root node, but a new parent node.. start building the ->full text */
+            XML_DefaultCurrent(parser);
+        }
     }else{
-        xs->node = xmlnode_insert_tag(xs->node, name);
-        xmlnode_put_expat_attribs(xs->node, atts);
+        /* this is more children for the node.. don't build the tree, just add on to the ->full text */
+        XML_DefaultCurrent(parser);        XML_DefaultCurrent(parser);
+        xs->node->complete++; /* temporary depth counter */
+        //printf("_xstream_startElement() xs->node->complete == %d\n", xs->node->complete);
     }
 
     /* depth check */
@@ -64,10 +99,11 @@ void _xstream_startElement(xstream xs, const char* name, const char** atts)
 }
 
 
-void _xstream_endElement(xstream xs, const char* name)
+void _xstream_endElement(void *parser, const char* name)
 {
-    xmlnode parent;
+    xstream xs = (xstream)XML_GetUserData(parser);
 
+     //printf("_xstream_endElement(%X, %s) called\n", parser, name);
     /* if xstream is bad, get outa here */
     if(xs->status > XSTREAM_NODE) return;
 
@@ -77,32 +113,24 @@ void _xstream_endElement(xstream xs, const char* name)
         xs->status = XSTREAM_CLOSE;
         (xs->f)(XSTREAM_CLOSE, NULL, xs->arg);
     }else{
-        parent = xmlnode_get_parent(xs->node);
+        /* add the final bits onto the ->full pointer */
+        XML_DefaultCurrent(parser);
 
-        /* we are the top-most node, feed to the app who is responsible to delete it */
-        if(parent == NULL)
+        /* temporary xmlnode depth counter--when complete is 0, xmlnode is done parsing */
+        xs->node->complete--;
+
+        //printf("_xstream_endElement() xs->node->complete = %d\n", xs->node->complete);
+        if(!xs->node->complete)
+        {
             (xs->f)(XSTREAM_NODE, xs->node, xs->arg);
-
-        xs->node = parent;
+            xs->node = NULL;
+        }
     }
     xs->depth--;
 }
 
-
-void _xstream_charData(xstream xs, const char *str, int len)
-{
-    /* if xstream is bad, get outa here */
-    if(xs->status > XSTREAM_NODE) return;
-
-    if(xs->node == NULL)
-    {
-        /* we must be in the root of the stream where CDATA is irrelevant */
-        return;
-    }
-
-    xmlnode_insert_cdata(xs->node, str, len);
-}
-
+/* empty comment handler, so that comments do not get added to ->full */
+void _xstream_comment(void *parser, const XML_Char *data) { }
 
 void _xstream_cleanup(void *arg)
 {
@@ -132,8 +160,10 @@ xstream xstream_new(pool p, xstream_onNode f, void *arg)
     /* create expat parser and ensure cleanup */
     newx->parser = XML_ParserCreate(NULL);
     XML_SetUserData(newx->parser, (void *)newx);
+    XML_UseParserAsHandlerArg(newx->parser);
     XML_SetElementHandler(newx->parser, (void *)_xstream_startElement, (void *)_xstream_endElement);
-    XML_SetCharacterDataHandler(newx->parser, (void *)_xstream_charData);
+    XML_SetDefaultHandler(newx->parser, (void *)_xstream_defaultHandler);
+    XML_SetCommentHandler(newx->parser, (void *)_xstream_comment);
     pool_cleanup(p, _xstream_cleanup, (void *)newx);
 
     return newx;
