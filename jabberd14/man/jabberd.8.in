@@ -1,0 +1,60 @@
+.TH jabberd 8 "12 Oct 2004" "@VERSION@" "jabberd14 project"
+.SH NAME
+jabberd \- jabberd daemon
+.SH SYNOPSIS
+.B jabberd
+.I [-B] [-c config] [-d mask | -D] [-H dir] [-v] [-V] [-Z zone(s)]
+.SH DESCRIPTION
+.BR jabberd
+is the core of the jabber server containing the routing functionality that
+is extended by specific logic, that is loaded from shared objects specified
+in the configuration file.
+.SH OPTIONS
+.TP
+.B \-B
+Background the jabberd process. (This option is disabled in debugging mode.)
+.TP
+.B \-c
+Specify an alternate configuration file. Default is to use
+@sysconfdir@/jabber.xml
+.TP
+.B \-U <user>
+Run jabberd as <user>.
+.TP
+.B \-d <mask>
+Output debugging information while running. This option disabled
+backgrounding of the jabberd process. The debugging output is either
+written to syslog or to the standard error output (configured in
+jabber.xml). The given mask is ORed with the mask given in the
+configuration file and each bit in the result enables a category of
+debug logging messages. You can further limit the information that
+is printed by using the -Z option.
+.TP
+.B \-D
+Like -d but enables debugging output of all types.
+.TP
+.B \-H
+Resolve paths relative to this directory.
+.TP
+.B \-v \-V
+Print jabberd version information.
+.TP
+.B \-Z <zones>
+Limit the debugging output to a given set of zones in the source code.
+Comma separated list of zones. Zones are the file names of the source
+files without the extension. (E.g. debugging statements in 'jabberd.c'
+correspond to the zone 'jabberd'.)
+.SS Exit states
+.TP
+.B 0
+jabberd exited normally
+.TP
+.B 1
+jabberd exited while starting up, probably the configuration is broken
+.TP
+.B 999
+jabberd exited because the server ran up of memory
+.SH SEE ALSO
+.BR jabber.xml (5)
+.SH AUTHOR
+Jabber Software Foundation

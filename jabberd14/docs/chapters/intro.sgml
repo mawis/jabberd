@@ -1,0 +1,28 @@
+<chapter id="chintro">
+	<title>Introduction</title>
+
+	<para>With the tremendous growth and adoption rate of Jabber as messaging system,
+	it has become increasingly important to clearly document the various applications
+	and protocols which form the Jabber architecture. Historically, the server has had
+	little documentation, save comments found within the code. The intent of this 
+	document is to change that situation, and provide clear insight into the philosophy
+	and implementation of the 2.0 server architecture.</para>
+
+	<para>This guide will cover the following topics:
+		<itemizedlist>
+			<listitem><para>
+				<xref linkend="chbackground"> - historical design notes 
+			</para></listitem>
+			<listitem><para>
+				<xref linkend="chgoals"> - an overview of the goals which 
+				influenced server design				
+			</para></listitem>
+			<listitem><para>
+				<xref linkend="charchitecture"> - an in-depth look at the
+				various components which form a typical server
+			</para></listitem>		
+		</itemizedlist>
+	</para>
+
+	<para>
+</chapter>	

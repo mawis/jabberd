@@ -1,0 +1,48 @@
+jabberd 1.4.4
+=============
+http://jabberd.jabberstudio.org/1.4/
+
+Welcome to the world of Jabber 1.4!
+
+This README is very sparse. Visit jabberd's homepage for further
+documentation including an installation guide and configuration
+hints.
+
+For quick information on what has to be changed if you upgrade
+from an older version of this software, please look at the
+UPGRADE file. In the NEWS file you get a list of what has changed
+in the server functionality. Both files might be of interest for
+users of prior versions of this software.
+
+-----------------------
+
+  Installation instructions
+
+    Read
+    http://jabberd.jabberstudio.org/1.4/doc/adminguide
+    for an in-depth installation guide!
+
+  First, untar or move this folder into the final install location
+  (such as /usr/local/jabber).
+
+  To build, run "./configure" and then type "make".
+
+  To install on your system, run "make install".
+
+  Edit jabber.xml, replace "localhost" by the host name of your
+  server throughout the file. Edit other values as desired.
+
+  To start:
+    jabberd -h your.domain.name -B
+
+  Optional: for lots of debug output, use the -D flag
+
+  Optional: to specify a config file other than ./jabber.xml, use
+  -c /path/to/file.xml
+
+  Error messages are written to the ./error.log and copied to STDERR.
+
+  To test operation, connect to the domain name you used with any
+  client and register new users.
+
+-----------------------

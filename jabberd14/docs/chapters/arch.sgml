@@ -1,0 +1,87 @@
+<chapter id="charchitecture" xreflabel="Component Architecture">
+	<title>Component Architecture</title>
+	<para>In keeping with the design goals of a highly-scalable and modular server,
+	the 2.0 design utilizes a distributed component architecture. As such, a Jabber
+	server is no longer a monolithic entity (i.e. single process) -- a server is
+	simply a composition of various XML processing devices, which may or may not be
+	distributed across a network. At the center of these devices is a central hub which
+	manages the routing and delivery of XML packets between devices. This is a natural
+	evolution of the original Jabber server designed, the primary difference being that
+	the components/modules which make up a server have been re-arranged to permit
+	extended flexibility.
+	
+	<section>
+		<title>jabberd - Component Hub</title>
+		
+		<para>jabberd is the hub of a distributed system of components, which,
+		collectively, form a single Jabber server. Currently, these components
+		connect to the server via the following methods:
+		<itemizedlist>
+			<listitem><para>TCP sockets</para></listitem>
+			<listitem><para>Child process I/O (stdin/out)</para></listitem>
+			<listitem><para>Shared objects/libraries</para></listitem>
+		</itemizedlist>
+		jabberd acts as a central-coordinator between these components by routing
+		and delivering the XML packets which components exchange. This design 
+		permits the Jabber server to be effectively scaled across a server farm,
+		while providing significant freedom in the implementation of the pieces
+		which compose a server. 
+
+		<example width=50>
+			<title>Integrating LDAP</title>
+			<para>As an example of the flexibility which the 2.0 architecture
+			provides, consider the integration of an LDAP server for authentication
+			and vcard lookupes. An existing LDAP server can be fitted with a
+			component which connects to the jabberd hub via a TCP socket. On 
+			connection, the component registers itself with the hub as the handler 
+			of XDB authentication requests. When another component needs to 
+			authenticate a user, it simply transmits an internal XDB packet to 
+			the jabberd with the appropriate authentication namespace. The 
+			jabberd process, in turn, delivers the packet to the TCP socket 
+			connected to the LDAP server. Once the XML packet arrives at the
+			LDAP component, LDAP-based authentication is done and the result
+		        </para>	
+		</example>
+		</para>
+	</section>
+    <section>
+		<title>Deliver - How data is moved about</title>
+		
+		<para>Deliver handles all the routing among the seperate jabberd
+        components.  A component registers with Deliver for a certain
+        phase of delivery, and then receives packets that are meant for
+        it.</para>
+        <para>A jabberd module may register for a number of different 
+        packet handler types.  The types specify *when* the handler will
+        get called, i.e. in what order, along with the other handlers.  
+        The orders are:</para>
+        <example width=50>
+            <title>Deliver Phases</title>
+            <para>o_PRECOND, o_COND, o_PREDELIVER, and o_DELIVER</para>
+        </example>
+        <para>in order.  The return values are different for each type, 
+        and must be obeyed, to prevent erroneous behavior.  Here are the 
+        correct return types allowed:</para>
+        <example width=50>
+            <title>Deliver Phases Return Types</title>
+            <para>o_PRECOND and o_PREDELIVER: r_DONE, r_PASS</para>
+            <para>o_COND: r_PASS, r_LAST</para>
+            <para>0_DELIVER: r_PASS, r_DONE</para>
+        </example>
+        <para>The return types are tracked on a "best value" basis.  
+        i.e. if more than one handler returns different values, the 
+        "best" value will be the return value for that packet.  if 
+        no packet has handled it, r_NONE will be the return value.</para>
+        <para>If a o_PRECOND or o_PREDELIVER handler returns r_DONE, 
+        then delivery of the packet will stop, deliver will free 
+        the packet.</para>
+        <para>if a o_COND handler returns r_LAST, then delivery of 
+        the packet will stop, and deliver will free the packet.</para>
+        <para>if a o_DELIVER handler returns r_DONE, then deliver 
+        will assume that the packet was handled (and freed).</para>
+        <para>any handler my return r_UNREG to remove itself from 
+        the list of packet handlers</para>
+    </section>
+			
+</chapter>
+
