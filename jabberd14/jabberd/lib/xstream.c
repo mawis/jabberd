@@ -38,7 +38,7 @@ void _xstream_defaultHandler(void *parser, const XML_Char *s, int len)
     xstream xs = (xstream)XML_GetUserData(parser);
     xmlnode x = xs->node;
     
-    printf("_xstream_defaultHandler(%X, %.*s, %d) called\n", parser, len, s, len);
+    //printf("_xstream_defaultHandler(%X, %.*s, %d) called\n", parser, len, s, len);
     /* if xstream is bad, get outa here */
     if(x == NULL || xs->status > XSTREAM_NODE) return;
 
@@ -47,7 +47,7 @@ void _xstream_defaultHandler(void *parser, const XML_Char *s, int len)
         x->full = (char*)pmalloc(xmlnode_pool(x), len + 1);
         memcpy(x->full, s, len);
         memcpy(x->full + len, "\0", 1);
-        printf("_xstream_defaultHandler() creating new ->full: %s\n", x->full);
+        //printf("_xstream_defaultHandler() creating new ->full: %s\n", x->full);
     }
     else
     {
@@ -55,7 +55,7 @@ void _xstream_defaultHandler(void *parser, const XML_Char *s, int len)
         x->full = (char*)prealloc(xmlnode_pool(x), x->full, old_len, old_len + len + 1);
         memcpy(x->full + old_len, s, len);
         memcpy(x->full + old_len + len, "\0", 1);
-        printf("_xstream_defaultHandler() adding to ->full: %s\n", x->full);
+        //printf("_xstream_defaultHandler() adding to ->full: %s\n", x->full);
     }
 }
 
@@ -64,7 +64,7 @@ void _xstream_startElement(void *parser, const char* name, const char** atts)
     xstream xs = (xstream)XML_GetUserData(parser);
     pool p;
  
-    printf("_xstream_startElement(%X, %s, %s) called\n", parser, name, *atts);
+    //printf("_xstream_startElement(%X, %s, %s) called\n", parser, name, *atts);
     /* if xstream is bad, get outa here */
     if(xs->status > XSTREAM_NODE) return;
 
@@ -89,7 +89,7 @@ void _xstream_startElement(void *parser, const char* name, const char** atts)
         /* this is more children for the node.. don't build the tree, just add on to the ->full text */
         XML_DefaultCurrent(parser);
         xs->node->complete++; /* temporary depth counter */
-        printf("_xstream_startElement() xs->node->complete == %d\n", xs->node->complete);
+        //printf("_xstream_startElement() xs->node->complete == %d\n", xs->node->complete);
     }
 
     /* depth check */
@@ -103,7 +103,7 @@ void _xstream_endElement(void *parser, const char* name)
 {
     xstream xs = (xstream)XML_GetUserData(parser);
 
-     printf("_xstream_endElement(%X, %s) called\n", parser, name);
+     //printf("_xstream_endElement(%X, %s) called\n", parser, name);
     /* if xstream is bad, get outa here */
     if(xs->status > XSTREAM_NODE) return;
 
@@ -119,7 +119,7 @@ void _xstream_endElement(void *parser, const char* name)
         /* temporary xmlnode depth counter--when complete is 0, xmlnode is done parsing */
         xs->node->complete--;
 
-        printf("_xstream_endElement() xs->node->complete = %d\n", xs->node->complete);
+        //printf("_xstream_endElement() xs->node->complete = %d\n", xs->node->complete);
         if(!xs->node->complete)
         {
             (xs->f)(XSTREAM_NODE, xs->node, xs->arg);
