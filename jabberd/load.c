@@ -38,7 +38,6 @@ int load_ref__count = 0;
 /* optionally use static hardcoded symbols and don't compile in the dlopen stuff */
 void *jsm();
 void *pthsock_client();
-void *pthsock_server();
 void *xdb_file();
 void *dnsrv();
 void *dialback();
@@ -69,7 +68,6 @@ void *load_symbol(char *func, char *file)
 {
     if(j_strcmp(func,"jsm") == 0) return (void (*)(instance,xmlnode))jsm;
     if(j_strcmp(func,"pthsock_client") == 0) return (void (*)(instance,xmlnode))pthsock_client;
-    if(j_strcmp(func,"pthsock_server") == 0) return (void (*)(instance,xmlnode))pthsock_server;
     if(j_strcmp(func,"xdb_file") == 0) return (void (*)(instance,xmlnode))xdb_file;
     if(j_strcmp(func,"dnsrv") == 0) return (void (*)(instance,xmlnode))dnsrv;
     if(j_strcmp(func,"dialback") == 0) return (void (*)(instance,xmlnode))dialback;

@@ -4,7 +4,7 @@
 include ../platform-settings
 
 ifeq ($(ISSINGLE),1)
-	DEFINES=-DHOME="\"$(JHOME)\"" -DSINGLE
+	DEFINES=-DHOME="\"$(JHOME)\"" -DSINGLE -DSTATIC
 else
 	DEFINES=-DHOME="\"$(JHOME)\"" -DCONFIGXML="\"jabber.xml\""
 endif
@@ -100,7 +100,6 @@ jabberd_STATICOBJS=\
     $(JHOME)/dialback/dialback.o \
     $(JHOME)/dialback/dialback_out.o \
     $(JHOME)/dialback/dialback_in.o \
-	$(JHOME)/pthsock/dialback.o \
 	$(JHOME)/pthsock/client.o \
 	$(JHOME)/xdb_file/xdb_file.o
 
@@ -118,7 +117,7 @@ all-local: $(jabberd_OBJECTS)
 	$(CC) $(CFLAGS) -o jabberd $(jabberd_OBJECTS) $(jabberd_EXOBJECTS) $(XLDFLAGS) $(LDFLAGS) $(LIBS) $(PLINK)
 
 static-local: $(jabberd_OBJECTS)
-	$(CC) $(CFLAGS) -o jabberd $(jabberd_OBJECTS) $(jabberd_EXOBJECTS) $(jabberd_STATICOBJS) $(LDFLAGS) $(LIBS) $(PLINK)
+	$(CC) $(CFLAGS) -o jabberd $(jabberd_OBJECTS) $(jabberd_EXOBJECTS) $(jabberd_STATICOBJS) $(LDFLAGS) $(SLIBS) $(PLINK)
 
 install-local:
 
