@@ -84,24 +84,32 @@ void js_mapi_session(event e, session s, mcall c, void *arg)
 
 /*
  *  js_mapi_call -- call all the module call-backs for a phase
- *  
+ *
  *  parameters
- *  	e -- th event type, values are #defined in jsm.h
- *      l -- the list of functions to call
+ *  	e -- event type, values are #defined in jsm.h
  *      packet -- the packet being processed, may be NULL
  *      user -- the user data for the current session
  *      s -- the session
  *
  */
-int js_mapi_call(event e, mlist l, jpacket packet, udata user, session s)
+int js_mapi_call(jsmi si, event e, jpacket packet, udata user, session s)
 {
+    mlist l;
     _mapi m;		/* mapi structure to be passed to the call back */
-
-    if(l == NULL) return 0;
 
     log_debug(ZONE,"mapi_call %d",e);
 
+    /* this is a session event */
+    if(si == NULL && s != NULL)
+    {
+        si = s->si;
+        l = s->events[e];
+    }else{
+        l = si->events[e];
+    }
+
     /* fill in the mapi structure */
+    m.si = si;
     m.e = e;
     m.packet = packet;
     m.user = user;

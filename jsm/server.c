@@ -22,15 +22,9 @@
 
 #include "jsm.h"
 
-/*
- *  js_server_main -- entry point for the server thread
- *  
- *  parameters
- *  	arg -- not used
- *
- */
 void *js_server_main(void *arg)
 {
+    jsmi si = (jsmi)arg;
     pth_event_t ev;		/* event ring for receiving messages */
     pth_msgport_t mp;	/* message port for receiving messages */
     jpq q;				/* a jabber packet */
@@ -42,9 +36,6 @@ void *js_server_main(void *arg)
     /* create the message port and event ring */
     mp = pth_msgport_create("js_server");
     ev = pth_event(PTH_EVENT_MSG,mp);
-
-    /* get our server phase master list */
-    ml = js_mapi_master(e_SERVER);
 
     /* infinite loop */
     while(1)
@@ -59,9 +50,7 @@ void *js_server_main(void *arg)
             log_debug(ZONE,"THREAD:SERVER received a packet: %s",xmlnode2str(q->p->x));
 
             /* let the modules have a go at the packet; if nobody handles it... */
-            if(!js_mapi_call(e_SERVER, ml->l, q->p, NULL, NULL, q->p->subtype))
-
-                /* ...bounce the packet with an error */
+            if(!js_mapi_call(si, e_SERVER, q->p, NULL, NULL))
                 js_bounce(q->p->x,TERROR_NOTFOUND);
 
         }
