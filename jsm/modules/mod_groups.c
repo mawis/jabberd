@@ -843,8 +843,8 @@ void mod_groups_presence(mod_groups_i mi, mapi m)
         if(j_strcmp(xmlnode_get_attrib(cur,"type"),"both") == 0)
             mod_groups_presence_from(s,gt,m->packet->x);
 
-        /* if we are new or our old priority was less then zero then "probe" the group members */
-        if (js_session_primary(m->user) || m->s->priority < 0)
+        /* if we are new or our old priority was less then -128 then "probe" the group members */
+        if (js_session_primary(m->user) || m->s->priority < -128)
             mod_groups_presence_to(s,gt);
     }
 
