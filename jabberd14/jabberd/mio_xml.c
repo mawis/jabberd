@@ -136,6 +136,7 @@ void _mio_xstream_cleanup(void* arg)
     mio m = (void*)arg;
 
     xmlnode_free(m->stacknode);
+    m->stacknode = NULL;
     if (m->parser)
 	XML_ParserFree(m->parser);
     m->parser = NULL;
@@ -170,7 +171,6 @@ void _mio_xml_parser(mio m, const void *vbuf, size_t bufsz)
     /* check if the stream has to be resetted (after STARTTLS) */
     if (m->reset_stream > 0) {
 	_mio_xstream_cleanup(m);
-	m->stacknode = NULL;
 	m->root = 0;	/* read root element again */
 	m->reset_stream = 0;
     }
