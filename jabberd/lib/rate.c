@@ -39,8 +39,27 @@
  * 
  * --------------------------------------------------------------------------*/
 
+/**
+ * @file rate.c
+ * @brief calculate rate limits
+ *
+ * Rate limits can be used to limit the number of allowed events in a given interval,
+ * e.g. the number of connects from a single IP to the server
+ *
+ * The events can be weighted.
+ */
+
 #include <jabberdlib.h>
 
+/**
+ * create a new instance of jlimit that is used to limit events
+ *
+ * limit the events to maxp points per maxt seconds
+ *
+ * @param maxt time interval (in seconds) after which the points are cleared
+ * @param maxp maximum number of points available for the time interval given in maxt
+ * @return new instance of jlimit (has to be freed with jlimit_free if not used anymore)
+ */
 jlimit jlimit_new(int maxt, int maxp)
 {
     pool p;
@@ -57,6 +76,11 @@ jlimit jlimit_new(int maxt, int maxp)
     return r;
 }
 
+/**
+ * free a jlimit instance
+ *
+ * @param r the jlimit instance that should be freed
+ */
 void jlimit_free(jlimit r)
 {
     if(r != NULL)
@@ -66,6 +90,17 @@ void jlimit_free(jlimit r)
     }
 }
 
+/**
+ * update/check a key in a jlimit instance
+ *
+ * Each jlimit instance can track many limits (that have the same setup).
+ * The limit is selected by the key, which can be an IP address.
+ *
+ * @param r the jlimit instance
+ * @param key for which key the limit should be checked
+ * @param points how many points of the limit should be consumed
+ * @return 1 if limit reached, 0 if we are still within the rate limit
+ */
 int jlimit_check(jlimit r, char *key, int points)
 {
     int now = time(NULL);

@@ -190,14 +190,6 @@ void *pmalloc(pool p, int size)
     return block;
 }
 
-void *pmalloc_x(pool p, int size, char c)
-{
-   void* result = pmalloc(p, size);
-   if (result != NULL)
-           memset(result, c, size);
-   return result;
-}  
-
 /* easy safety utility (for creating blank mem for structs, etc) */
 void *pmalloco(pool p, int size)
 {

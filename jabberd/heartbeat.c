@@ -96,7 +96,7 @@ beat new_beat(void)
     pool p;
 
     p = pool_new();
-    newb = pmalloc_x(p, sizeof(_beat), 0);
+    newb = pmalloco(p, sizeof(_beat));
     newb->p = p;
 
     return newb;
