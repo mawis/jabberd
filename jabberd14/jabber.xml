@@ -53,13 +53,19 @@
         <url>http://foo.bar/</url>
       </info>
 
-      <!-- registration instructions -->
+      <!-- registration instructions, the notify attribute will send the server administrator(s) a message after a valid registration -->
 
-      <register>
+      <register notify="yes">
         <instructions>Choose a username and password to register with this server.</instructions>
         <name/>
         <email/>
       </register>
+
+      <!-- welcome note, sent to every new registration, remove to disable -->
+      <welcome>
+        <subject>Welcome!</subject>
+        <body>This is a welcome message from your server, and maybe even your first Jabber message.  Please enjoy the service!</body>
+      </welcome>
 
       <!-- location of the session log file -->
 

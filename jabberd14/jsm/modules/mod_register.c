@@ -71,6 +71,27 @@ mreturn mod_register_new(mapi m, void *arg)
         jutil_delay(m->packet->iq,"registered");
         xdb_set(m->si->xc, jid_user(m->packet->to), NS_REGISTER, m->packet->iq);
 
+        /* if configured to, send admins a notice */
+        if(xmlnode_get_attrib(reg,"notify") != NULL)
+        {
+            q = jutil_msgnew(NULL,
+                m->packet->to->server,
+                "Registration Notice",
+                spools(m->packet->p,"The user ",jid_full(m->packet->to)," was just created with the following registration data: ",xmlnode2str(m->packet->iq),m->packet->p));
+            xmlnode_put_attrib(q, "from", m->packet->to->server);
+            js_deliver(m->si,jpacket_new(q));
+        }
+
+        /* if also configured, send the new user a welcome message */
+        if((reg = js_config(m->si, "welcome")) != NULL)
+        {
+            q = xmlnode_new_tag("message");
+            xmlnode_put_attrib(q, "from", m->packet->to->server);
+            xmlnode_put_attrib(q, "to", jid_full(m->packet->to));
+            xmlnode_insert_node(q, xmlnode_get_firstchild(reg));
+            js_deliver(m->si,jpacket_new(q));
+        }
+
         /* clean up and respond */
         jutil_iqresult(m->packet->x);
         break;
