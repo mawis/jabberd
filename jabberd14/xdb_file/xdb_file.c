@@ -102,16 +102,14 @@ xmlnode xdb_file_load(char *host, char *fname, HASHTABLE cache)
 
     /* if there's nothing on disk, create an empty root node */
     if(data == NULL)
-    {
         data = xmlnode_new_tag("xdb");
-    }else{
-        c = pmalloco(xmlnode_pool(data),sizeof(_cacher));
-        c->fname = pstrdup(xmlnode_pool(data),fname);
-        c->lastset = time(NULL);
-        c->file = data;
-        ghash_put(cache,c->fname,c);
-        log_debug(ZONE,"caching %s",c->fname);
-    }
+
+    log_debug(ZONE,"caching %s",fname);
+    c = pmalloco(xmlnode_pool(data),sizeof(_cacher));
+    c->fname = pstrdup(xmlnode_pool(data),fname);
+    c->lastset = time(NULL);
+    c->file = data;
+    ghash_put(cache,c->fname,c);
 
     return data;
 }
