@@ -17,6 +17,12 @@ s2s SRV dns lookup support
 jer	9/15/00 thinking
 consistent usage of namespaces for streams and config sections
 
+keith/temas	10/5/00 oops!
+c2s components must support configurable aliases, <alias to="jabber.org">www.jabber.org</alias>
+so that a client who types in www.jabber.org and that shows up in the stream header, it's translated to just jabber.org internally
+should we probably also have it conifgurable so that all names are forced to one?
+
+
 ===================================
 Pre-FFreeze
 ===================================
@@ -25,7 +31,7 @@ keith --
 mod_filter rule caching
 
 jer --
-jsm roster caching
+jsm roster caching and hashing?
 
 keith 9/26/00 ----
 base_accept plumber algorithm needs improvement..
@@ -50,6 +56,33 @@ base_cache for caching xdb requests in memory
 ?	9/15/00 open, needs some docu from jer
 base_farm for simple hashing name distribution
 
+jer/tsb	10/8/00 grunt
+rate limits
+
+
+===================================
+TESTING
+===================================
+
+base modules:
+	base_accept, filtering, void, queue timeouts
+	base_connect, chaining, queueing and reconnecting
+	base_exec, restarting, proper shutdown?
+	base_stdout, chaining, xdb/log/stderr/debug handling?
+	logging: file, formatting, forwarding
+	xdb: seperating namespaces
+
+overall:
+	mem leaks, watching pool debug
+	performance
+
+components:
+	dnsrv, general SRV and A testing
+	s2s, timeouts, drops, 1.0/1.2
+	jsm, virtual hosting
+	xdb_file, io error handling, heavy load?
+	c2s, bad streams/ids, bad auth, bad reg, queueing, timeouts
+
 
 ===================================
 1.2
@@ -64,19 +97,17 @@ test python scripts, "make test"
 ?	9/15/00
 need nice READMEs and man page(s)
 
-all	9/15/00
-mem leak checks
-performance analysis
-
 jer	9/15/00
 deliver safety, validating routable bits of the packets
 deliver optimization
 
 all	9/15/00
 clean up log_* calls, make sure right type, looks sane
+check XXX/TODO comment flags
 
 jer	9/15/00
 socket ioctl tweaks, r/w buffers, reduce data loss, shorten timeouts
+
 
 ===================================
 1.3/1.4
