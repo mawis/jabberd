@@ -21,8 +21,6 @@
 
 /* how many seconds until packets begin to "bounce" that should be delivered */
 #define ACCEPT_PACKET_TIMEOUT 30
-/* after the packet timeout, how fast to bounce individual packets */
-#define ACCEPT_BOUNCE_RATE 2
 /* how many seconds a socket has to send a valid handshake */
 #define ACCEPT_HANDSHAKE_TIMEOUT 5
 /* the arg to the listen() call */
@@ -454,12 +452,11 @@ result base_accept_plumber(void *arg)
     sink s = (sink)arg;
     if((time(NULL) - s->last) > ACCEPT_PACKET_TIMEOUT)
     { /* packets timed out without anywhere to send them */
-        while((d=(drop)pth_msgport_get(s->mp))!=NULL&&(time(NULL) - s->last)>ACCEPT_BOUNCE_RATE)
+        while((d=(drop)pth_msgport_get(s->mp))!=NULL)
         {
             log_warn(NULL,"base_accept Bouncing packet intended for %s",xmlnode_get_attrib(d->p->x,"to"));
             deliver_fail(d->p,"External Server Error");
         }
-        if(d==NULL) s->last=time(NULL);
     }
 
     return r_DONE;
