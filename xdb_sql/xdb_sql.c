@@ -286,13 +286,21 @@ int xdb_sql_execute_mysql(instance i, xdbsql xq, char *query, xmlnode template, 
 	    while (variable = xdb_sql_find_node_recursive(new_instance, "value")) {
 		xmlnode parent = xmlnode_get_parent(variable);
 		int value = j_atoi(xmlnode_get_attrib(variable, "value"), 0);
+		int parsed = j_strcmp(xmlnode_get_attrib(variable, "parsed"), "parsed") == 0;
 
 		/* hide the template variable */
 		xmlnode_hide(variable);
 
 		/* insert the value */
 		if (value > 0 && value <= num_fields) {
-		    xmlnode_insert_cdata(parent, row[value-1], -1);
+		    if (parsed) {
+			xmlnode fieldvalue = xmlnode_str(row[value-1], j_strlen(row[value-1]));
+			xmlnode fieldcopy = xmlnode_dup_pool(result->p, fieldvalue);
+			xmlnode_free(fieldvalue);
+			xmlnode_insert_tag_node(parent, fieldcopy);
+		    } else {
+			xmlnode_insert_cdata(parent, row[value-1], -1);
+		    }
 		}
 	    }
 
