@@ -67,7 +67,7 @@ void js_session_route(session s, xmlnode in)
 session js_session_new(jsmi si, dpacket dp)
 {
     pool p;         /* a memory pool for the session */
-    session s;      /* the session being created */
+    session s, cur;      /* the session being created */
     int i;
     udata u;
     char routeres[10];
@@ -107,7 +107,9 @@ session js_session_new(jsmi si, dpacket dp)
         s->events[i] = NULL;
 
     /* remove any other session w/ this resource */
-    js_session_end(js_session_get(s->u, dp->id->resource), "Replaced by new connection");
+    for(cur = u->sessions; cur != NULL; cur = cur->next)
+        if(j_strcmp(dp->id->resource, cur->res) == 0)
+            js_session_end(cur, "Replaced by new connection");
 
     /* make sure we're linked with the user */
     s->next = s->u->sessions;
