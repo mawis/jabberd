@@ -210,35 +210,35 @@ int conn_max_read_len(conn_t c)
     {
         c->last_read = now;
         c->read_bytes = 0;
-        bytes = max_bits_per_sec * 8;
+        bytes = max_bits_per_sec / 8;
     }
     else
     {
-        bytes = (max_bits_per_sec * 8) - c->read_bytes;
+        bytes = (max_bits_per_sec / 8) - c->read_bytes;
     }
 
     /* See if the user ate all their karma */
-    if (bytes == 0)
-    {
-        /* Create a new bad conn */
-        bad_conn_t bad_conn;
-        bad_conn = malloc(sizeof(struct bad_conn_st));
-        bad_conn->c = c;
-        bad_conn->last = now;
-        bad_conn->next = NULL;
-        /* Append it to the end of the bad conns list */
-        if (c2s->bad_conns == NULL)
-            c2s->bad_conns = bad_conn;
-        else
-            c2s->bad_conns_tail->next = bad_conn;
-        /* Update the tail */
-        c2s->bad_conns_tail = bad_conn;
-        
-        /* Reset the resolution */
-        c2s->timeout = 1;
-    }
+    if (bytes > 0)
+	return bytes;
 
-    return bytes;
+    /* Create a new bad conn */
+    bad_conn_t bad_conn;
+    bad_conn = malloc(sizeof(struct bad_conn_st));
+    bad_conn->c = c;
+    bad_conn->last = now;
+    bad_conn->next = NULL;
+    /* Append it to the end of the bad conns list */
+    if (c2s->bad_conns == NULL)
+	c2s->bad_conns = bad_conn;
+    else
+	c2s->bad_conns_tail->next = bad_conn;
+    /* Update the tail */
+    c2s->bad_conns_tail = bad_conn;
+    
+    /* Reset the resolution */
+    c2s->timeout = 1;
+
+    return 0;
 }
 
 /* process the xml data that's been read */
