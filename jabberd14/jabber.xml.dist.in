@@ -143,6 +143,9 @@
       <!-- 
       A welcome note that is sent to every new user who registers 
       with your server. Comment it out to disable this function.
+      You can add additional <body/>, and <subject/> elements containing
+      the welcome message in other languages. Mark these additional
+      elements with xml:lang='languagecode'
       -->
 
       <welcome xml:lang='en'>
@@ -176,6 +179,9 @@
 
       The <reply> will be the message that is automatically
       sent in response to any admin messages.
+      You can add additional <body/>, and <subject/> elements containing
+      the reply message in other languages. Mark these additional
+      elements with xml:lang='languagecode'
       -->
 
       <!--
@@ -441,6 +447,16 @@
     <format>%d: [%t] (%h): %s</format>
     <file>@localstatedir@/log/jabberd/error.log</file>
     <stderr/>
+    
+    <!-- if you want to send the messages to the syslog instead of      -->
+    <!-- to a file: replace <format/>, <file/> and <stderr/> with these -->
+    <!-- lines:                                                         -->
+
+    <!--
+    <format>[%t] (%h): %s</format>
+    <syslog>local0</syslog>
+    -->
+
   </log>
 
   <!-- 
@@ -680,7 +696,7 @@
 
     As the id, use one of the following things:
     - and IP address for usage with client conns on port 5223
-    - a host name for usage with the STARTTLS feature (s2s)
+    - a host name for usage with the STARTTLS feature
     - a star ("*") as a default for the STARTTLS feature
     -->
     <!--
@@ -708,6 +724,16 @@
     <allow><ip>12.34.56.78</ip></allow>
     <deny><ip>22.11.44.0</ip><mask>255.255.255.0</mask></deny>
     -->
+
+    <!--
+    The following section is used to configure
+    stream behaviour for individual streams
+    -->
+    <streamconf>
+      <default type='s2s'>
+        <stream-from/>
+      </default>
+    </streamconf>
 
   </io>
 
