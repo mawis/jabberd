@@ -82,6 +82,16 @@
  */
 
 /**
+ * @brief hold configuration data for this module instance
+ *
+ * This structure holds all information about the configuration of this module.
+ */
+typedef struct modpres_conf_struct {
+    jid bcc;		/**< who gets a blind carbon copy of our presences */
+    int pres_to_xdb;	/**< if the (primary) presence of a user should be stored in xdb */
+} *modpres_conf, _modpres_conf;
+
+/**
  * @brief hold all data belonging to this module and a single (online) user
  *
  * This structure holds the A and I (see description of mod_presence.c) list for a user,
@@ -93,7 +103,7 @@ typedef struct modpres_struct
     int invisible;	/**< flags that the user is invisible */
     jid A;		/**< who knows the user is available */
     jid I;		/**< who knows the user is invisible */
-    jid bcc;		/**< who gets a blind carbon copy of our persences */
+    modpres_conf conf;	/**< configuration of this module's instance */
 } *modpres, _modpres;
 
 
@@ -336,6 +346,15 @@ mreturn mod_presence_out(mapi m, void *arg)
     top = js_session_primary(m->user);
     oldpri = m->s->priority;
 
+    /* are we configured to store the primary presence in xdb? */
+    if (mp->conf->pres_to_xdb > 0) {
+	if (top == NULL) {
+	    log_debug2(ZONE, LOGT_STORAGE, "XXX top == NULL");
+	} else {
+	    log_debug2(ZONE, LOGT_STORAGE, "XXX would store presence: %s", xmlnode2str(top->presence));
+	}
+    }
+
     /* check that the priority is in the valid range */
     priority = xmlnode_get_tag_data(m->packet->x, "priority");
     if (priority == NULL) {
@@ -390,7 +409,7 @@ mreturn mod_presence_out(mapi m, void *arg)
     if(m->s->priority < -128) {
         /* jutil_priority returns -129 in case the "type" attribute is missing */
         if(!mp->invisible) /* bcc's don't get told if we were invisible */
-            _mod_presence_broadcast(m->s,mp->bcc,m->packet->x,NULL);
+            _mod_presence_broadcast(m->s,mp->conf->bcc,m->packet->x,NULL);
         _mod_presence_broadcast(m->s,mp->A,m->packet->x,NULL);
         _mod_presence_broadcast(m->s,mp->I,m->packet->x,NULL);
 
@@ -424,7 +443,7 @@ mreturn mod_presence_out(mapi m, void *arg)
     mod_presence_roster(m,mp->A);
 
     /* we broadcast this baby! */
-    _mod_presence_broadcast(m->s,mp->bcc,m->packet->x,NULL);
+    _mod_presence_broadcast(m->s,mp->conf->bcc,m->packet->x,NULL);
     _mod_presence_broadcast(m->s,mp->A,m->packet->x,NULL);
     xmlnode_free(m->packet->x);
     return M_HANDLED;
@@ -498,7 +517,7 @@ mreturn mod_presence_avails_end(mapi m, void *arg)
 
     /* send  the current presence (which the server set to unavail) */
     xmlnode_put_attrib(m->s->presence, "from",jid_full(m->s->id));
-    _mod_presence_broadcast(m->s, mp->bcc, m->s->presence, NULL);
+    _mod_presence_broadcast(m->s, mp->conf->bcc, m->s->presence, NULL);
     _mod_presence_broadcast(m->s, mp->A, m->s->presence, NULL);
     _mod_presence_broadcast(m->s, mp->I, m->s->presence, NULL);
 
@@ -517,13 +536,13 @@ mreturn mod_presence_avails_end(mapi m, void *arg)
  */
 mreturn mod_presence_session(mapi m, void *arg)
 {
-    jid bcc = (jid)arg;
+    modpres_conf conf = (modpres_conf)arg;
     modpres mp;
 
     /* track our session stuff */
     mp = pmalloco(m->s->p, sizeof(_modpres));
     mp->A = jid_user(m->s->id);
-    mp->bcc = bcc; /* no no, it's ok, these live longer than us */
+    mp->conf = conf; /* no no, it's ok, these live longer than us */
 
     js_mapi_session(es_IN, m->s, mod_presence_in, mp);
     js_mapi_session(es_OUT, m->s, mod_presence_avails, mp); /* must come first, it passes, _out handles */
@@ -590,19 +609,27 @@ mreturn mod_presence_deliver(mapi m, void *arg)
 void mod_presence(jsmi si)
 {
     xmlnode cfg = js_config(si, "presence");
-    jid bcc = NULL;
+    modpres_conf conf = (modpres_conf)pmalloco(si->p, sizeof(_modpres_conf));
 
     log_debug2(ZONE, LOGT_INIT, "init");
 
     for(cfg = xmlnode_get_firstchild(cfg); cfg != NULL; cfg = xmlnode_get_nextsibling(cfg))
     {
-        if(xmlnode_get_type(cfg) != NTYPE_TAG || j_strcmp(xmlnode_get_name(cfg),"bcc") != 0) continue;
-        if(bcc == NULL)
-            bcc = jid_new(si->p,xmlnode_get_data(cfg));
-        else
-            jid_append(bcc,jid_new(si->p,xmlnode_get_data(cfg)));
+	char *element_name = NULL;
+
+        if(xmlnode_get_type(cfg) != NTYPE_TAG)
+	    continue;
+	element_name = xmlnode_get_name(cfg);
+	if (j_strcmp(element_name, "bcc") == 0) {
+	    if(conf->bcc == NULL)
+		conf->bcc = jid_new(si->p,xmlnode_get_data(cfg));
+	    else
+		jid_append(conf->bcc,jid_new(si->p,xmlnode_get_data(cfg)));
+	} else if (j_strcmp(element_name, "presence2xdb") == 0) {
+	    conf->pres_to_xdb++;
+	}
     }
 
     js_mapi_register(si,e_DELIVER, mod_presence_deliver, NULL);
-    js_mapi_register(si,e_SESSION, mod_presence_session, (void*)bcc);
+    js_mapi_register(si,e_SESSION, mod_presence_session, (void*)conf);
 }

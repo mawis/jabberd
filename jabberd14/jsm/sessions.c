@@ -439,7 +439,7 @@ session js_session_primary(udata user) {
             top = cur;
 
     /* return it if it's active */
-    if(top->priority >= 0) {
+    if(top->priority >= 0)
         return top;
 
     /* otherwise there's no active session */
