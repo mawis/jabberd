@@ -141,7 +141,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
             wbq q;
             cdcur->state = state_AUTHD;
             /* change the host id */
-            cdcur->host = pstrdup(cur->p,xmlnode_get_attrib(p->x,"sfrom"));
+            cdcur->host = pstrdup(cur->p,xmlnode_get_attrib(p->x,"from"));
             log_debug(ZONE,"Session Started");
             /* if we have packets in the queue, write them */
             while((q=(wbq)pth_msgport_get(cdcur->pre_auth_mp))!=NULL)
@@ -241,6 +241,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         }
         else
         {
+            x=xmlnode_wrap(x,"route");
             xmlnode_put_attrib(x,"from",cd->id);
             xmlnode_put_attrib(x,"to",cd->host);
             log_debug(ZONE,"wrapped client packet as: %s",xmlnode2str(x));
