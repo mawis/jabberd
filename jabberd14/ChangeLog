@@ -1,3 +1,7 @@
+2005-02-22  Matthias Wimmer  <m@tthias.net>
+
+    * xdb_sql/xdb_sql.c: added possibility to load XML fron database
+
 2005-02-21  Matthias Wimmer  <m@tthias.net>
 
     * jabber.xml.dist.in: added new component xdb_sql
