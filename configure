@@ -142,9 +142,14 @@ case $hosttype in
 	CFLAGS="$CFLAGS -fPIC"
         XLDFLAGS="$XLDFLAGS -Wl,-E";;
     NetBSD)
+        if echo __ELF__ | $CC -E - | grep __ELF__ >/dev/null; then
+            MCFLAGS='-nostdlib -Wl,-Bshareable' # hack to make old gcc on a.out work
+        else
+            XLDFLAGS="$XLDFLAGS -Wl,--export-dynamic" # ELFism
+        fi
+        CFLAGS="$CFLAGS -fPIC"
         LIBS="$LIBS -lresolv"
-        SLIBS="$SLIBS /usr/lib/libresolv.a";
-        XLDFLAGS="$XLDFLAGS -Wl,--export-dynamic";;
+        SLIBS="$SLIBS /usr/lib/libresolv.a";;
     CYGWIN*)
         sh ./cygwin/setup.sh
         CYGWIN="1";;
