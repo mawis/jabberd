@@ -71,6 +71,8 @@ conn_t conn_new(c2s_t c2s, int fd)
     jid_set(c->myid, buf, JID_USER);
     xhash_put(c2s->conns,jid_full(c->myid), (void*)c);
     
+    c->flash_hack = 0;
+
     return c;
 }
 
@@ -91,13 +93,12 @@ void conn_free(conn_t c)
 /* write errors out and close streams */
 void conn_close(conn_t c, char *err)
 {
-    char *footer;
-
     if(c != NULL)
     {
         /* only close the stream if they actually opened it */
         if(c->root_name != NULL)
         {
+            char* footer;
             footer = malloc( 3 + strlen(c->root_name) );
             sprintf(footer,"</%s>",c->root_name);
     
@@ -231,7 +232,6 @@ int conn_read(conn_t c, char *buf, int len)
     char *err = NULL;
 
     log_debug(ZONE,"conn_read: len(%d)",len);
-    log_debug(ZONE,"conn_read: errno(%d : %s)",errno,strerror(errno));
 
     /* client gone */
     if(len == 0)
@@ -243,6 +243,8 @@ int conn_read(conn_t c, char *buf, int len)
     /* deal with errors */
     if(len < 0)
     {
+        log_debug(ZONE,"conn_read: errno(%d : %s)",errno,strerror(errno));
+
         if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN)
             return 2; /* flag that we're blocking now */
         mio_close(c->c2s->mio, c->fd);
@@ -251,9 +253,14 @@ int conn_read(conn_t c, char *buf, int len)
 
     log_debug(ZONE,"processing read data from %d: %.*s", c->fd, len, buf);
 
+    /* We can't parse \0... */
+    if (buf[len-1] == '\0')
+        len--;
+
     /* Update how much has been read */
     c->read_bytes += len;
 
+    
     /* parse the xml baby */
     if(!XML_Parse(c->expat, buf, len, 0))
     {
@@ -263,7 +270,7 @@ int conn_read(conn_t c, char *buf, int len)
     }
 
     /* oh darn */
-    if(err != NULL)
+    if((err != NULL) && (c->flash_hack == 0))
     {
         conn_close(c, err);
         return 0;
@@ -352,20 +359,21 @@ int _peek_actual(conn_t c, int fd, char *buf, size_t count)
 
 int _write_actual(conn_t c, int fd, const char *buf, size_t count)
 {
-    char realbuf[count+1];
-
-    strncpy(realbuf,buf,count);
-    if (c->type == type_FLASH)
-    {
-        realbuf[count] = '\0';
-        count++;
-    }
-            
+    int written;
+    
 #ifdef USE_SSL
     if(c->ssl != NULL)
-        return SSL_write(c->ssl, realbuf, count);
+    {
+        written = SSL_write(c->ssl, buf, count);
+        if (written > 0 && (c->type == type_FLASH))
+            write(fd, "\0", 1);
+        return written;
+    }
 #endif
-
-    return write(fd, realbuf, count);
+        
+    written = write(fd, buf, count);
+    if (written > 0 && (c->type == type_FLASH))
+        write(fd, "\0", 1);
+    return written;
 }
 

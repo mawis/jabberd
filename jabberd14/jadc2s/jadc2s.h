@@ -93,6 +93,9 @@ struct conn_st
 
     /* the nad currently being built */
     nad_t nad;
+
+    /* Flash Hack */
+    int flash_hack;
 };
 
 /* conn happy/sad */

@@ -46,17 +46,24 @@
 #define CDATA_USERNAME 1
 #define CDATA_RESOURCE 2
 
+
 /* handle new elements */
 void _client_startElement(void *arg, const char* name, const char** atts)
 {
     conn_t c = (conn_t)arg;
-    int i = 0, error, header_len;
-    char *header;
+    int i = 0, error;
+    char *header, *header_start, *header_from, *header_id, *header_end;
     char sid[24];
+
+    if (c->flash_hack == 1)
+        return;
 
     c->root_name = strdup(name);
     if (j_strcmp(name, "flash:stream") == 0)
+    {
         c->type = type_FLASH;
+        c->flash_hack = 1;
+    }
 
     /* process stream header first */
     if(c->depth == 0)
@@ -142,15 +149,46 @@ void _client_startElement(void *arg, const char* name, const char** atts)
 
         /* XXX fancier algo for id generation? */
         snprintf(sid, 24, "%d", rand());
-        header_len = 1 + strlen(name) + 77 + strlen(c->c2s->local_id) + 6 + 24 + 2;
-        header = malloc(header_len);
-        snprintf(header, header_len, "<%s xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams' from='%s' id='%s'>", name,c->c2s->local_id, sid);
+
+        header_start = malloc( 85 );
+        sprintf(header_start,"<stream:stream xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams'");
+
+        header_from = malloc( 9 + strlen(c->c2s->local_id) );
+        sprintf(header_from, " from='%s'", c->c2s->local_id);
+
+        header_id = malloc( 30 );
+        sprintf(header_id, " id='%s'", sid);
+
+        if (c->type == type_FLASH)
+        {
+            header_end = malloc(3);
+            sprintf(header_end,"/>");
+        }
+        else
+        {
+            header_end = malloc(2);
+            sprintf(header_end,">");
+        }
+
+        header = malloc( strlen(header_start) + strlen(header_from) + strlen(header_id) + strlen(header_end) + 1);
+        sprintf(header,"%s%s%s%s",header_start,header_from,header_id,header_end);
+        
         _write_actual(c,c->fd,header,strlen(header));
         free(header);
+        free(header_start);
+        free(header_from);
+        free(header_id);
+        free(header_end);
+
         c->sid = strdup(sid);
         /* set up smid based on to="" host */
         c->smid = jid_new(c->idp,j_attr(atts,"to"));
         c->depth++;
+
+        /* The flash:stream ends in a /> so we need to hack around this... */
+        if (c->type == type_FLASH)
+            c->depth++;
+
         return;
     }
 
@@ -215,6 +253,11 @@ void _client_process(conn_t c) {
     log_debug(ZONE, "got packet from client, processing");
 
     chunk = chunk_new(c);
+
+    if (chunk->nad == NULL)
+        return;
+    
+    log_debug(ZONE, "tag(%s)",NAD_ENAME(chunk->nad, 0));
 
     /* handle auth requests */
     if((j_strncmp(NAD_ENAME(chunk->nad, 0), "iq", 2) == 0) && 
@@ -346,7 +389,7 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
             log_debug(ZONE,"Check the first char");
             while((firstlen = _peek_actual(c,fd,first,1)) == -1) { }
             log_debug(ZONE,"char(%c)",first[0]);
-        
+
             /* If the first char is P then it's for HTTP (PUT ....) */
             if (first[0] == 'P')
             {
@@ -397,6 +440,23 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
 
     case action_READ:
 
+        /* Big hack time... Flash sucks by the way */
+        if (c->flash_hack == 1)
+        {
+            log_debug(ZONE,"Flash Hack... get rid of the old Parser, and make a new one... stupid Flash...");
+            XML_ParserFree(c->expat);
+            c->expat = XML_ParserCreate(NULL);
+
+            /* set up expat callbacks */
+            XML_SetUserData(c->expat, (void*)c);
+            XML_SetElementHandler(c->expat, (void*)_client_startElement, (void*)_client_endElement);
+            XML_SetCharacterDataHandler(c->expat, (void*)_client_charData);
+
+            XML_Parse(c->expat, "<stream:stream>", 15, 0);
+
+            c->flash_hack = 0;
+        }
+        
         log_debug(ZONE,"io action %d with fd %d in state %d",a,fd,c->state);
 
         /* we act differently when reading data from the client based on it's auth state */
