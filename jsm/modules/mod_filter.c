@@ -115,14 +115,17 @@ void mod_filter_action_offline(mapi m, xmlnode rule)
     xmlnode cur;
 
     /* only store normal, error, or chat */
-    switch(jpacket_subtype(m->packet))
+    if(m->packet->type == JPACKET_MESSAGE)
     {
-    case JPACKET__NONE:
-    case JPACKET__ERROR:
-    case JPACKET__CHAT:
-        break;
-    default:
-        return;
+        switch(jpacket_subtype(m->packet))
+        {
+        case JPACKET__NONE:
+        case JPACKET__ERROR:
+        case JPACKET__CHAT:
+            break;
+        default:
+            return;
+        }
     }
 
    /* look for event messages */
@@ -307,23 +310,28 @@ mreturn mod_filter_handler(mapi m, void *arg)
     jpacket jp;
     pool p;
 
-    jp=m->packet;
-    if(m->packet->type!=JPACKET_MESSAGE) return M_IGNORE;
+    jp = m->packet;
+    if(m->packet->type == JPACKET_PRESENCE) 
+        return M_IGNORE;
 
-    switch(jpacket_subtype(m->packet))
+    if(m->packet->type == JPACKET_MESSAGE)
     {
-    case JPACKET__NONE:
-    case JPACKET__ERROR:
-    case JPACKET__CHAT:
-        break;
-    default:
-        return M_PASS;
+        switch(jpacket_subtype(m->packet))
+        {
+        case JPACKET__NONE:
+        case JPACKET__ERROR:
+        case JPACKET__CHAT:
+            break;
+        default:
+            return M_PASS;
+        }
     }
 
-    if(m->user==NULL) return M_PASS;
-    p=pool_new();
-    cur_action=pmalloc(p,sizeof(_action));
-    memset(cur_action,0,sizeof(_action));
+    if(m->user == NULL) 
+        return M_PASS;
+    
+    p = pool_new();
+    cur_action = pmalloco(p,sizeof(_action));
     /* look through the user's rule set for a matching cond */
 
     container = mod_filter_get(m->user);
@@ -344,8 +352,24 @@ mreturn mod_filter_handler(mapi m, void *arg)
         cur=xmlnode_get_firstchild(rules);
         for(;cur!=NULL;)
         {
-        /* try to match this rule */
-            if(j_strcmp(xmlnode_get_name(cur),"unavailable")==0)
+            /* iq packets may match the <ns/> condition */
+            if(j_strcmp(xmlnode_get_name(cur), "ns") == 0)
+            {
+                log_debug(ZONE, "checking ns");
+                if(m->packet->type != JPACKET_IQ)
+                { /* ignore this rule, since the packet is not an IQ */
+                    cur = NULL;
+                    continue;
+                }
+
+                if(j_strcmp(xmlnode_get_attrib(m->packet->iq, "xmlns"), xmlnode_get_data(cur)) == 0)
+                {
+                    cur_action->is_match = 1;
+                    log_debug(ZONE, "MATCH");
+                }
+                cur = xmlnode_get_nextsibling(cur);
+            }
+            else if(j_strcmp(xmlnode_get_name(cur),"unavailable")==0)
             {
                 log_debug(ZONE,"checking unavailalbe");    
                 if(js_session_primary(m->user)==NULL)
@@ -541,6 +565,7 @@ mreturn mod_filter_handler(mapi m, void *arg)
             }
             else
             {
+                /* we don't know this tag.. how did we get here then?? */
                 cur=xmlnode_get_nextsibling(cur);
             }
                     
@@ -648,6 +673,21 @@ mreturn mod_filter_iq(mapi m)
                     continue;
                 config = js_config(mod_filter__jsmi, "filter");
                 config = xmlnode_get_tag(config, "allow");
+
+                /* if ns is used, offline, reply and settype cannot be used */
+                if(j_strcmp(xmlnode_get_name(tag), "ns") == 0 && (xmlnode_get_tag(tag->parent, "offline") != NULL || xmlnode_get_tag(tag->parent, "reply") == 0 || xmlnode_get_tag(tag->parent, "settype") == 0))
+                {
+                    jutil_iqresult(m->packet->x);
+                    xmlnode_put_attrib(m->packet->x, "type", "error");
+                    xmlnode_put_attrib(xmlnode_insert_tag(m->packet->x, "error"), "code", "406");
+                    xmlnode_insert_cdata(xmlnode_get_tag(m->packet->x, "error"), spools(p, "ns tag cannot be used this way", p), -1);
+                    xmlnode_hide(m->packet->iq);
+                    jpacket_reset(m->packet);
+                    js_session_to(m->s, m->packet);
+                    pool_free(p);
+                    return M_HANDLED;
+                }
+
 
                 c = spools(p, "conditions/", xmlnode_get_name(tag), p);
                 a = spools(p, "actions/", xmlnode_get_name(tag), p);

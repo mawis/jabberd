@@ -1,5 +1,9 @@
 <jabber>
 
+  <io>
+    <ssl/>
+    <heartbeat>2</heartbeat>
+  </io>
   <!--
   This is the Jabber server configuration file. The file is 
   broken into different sections based on the services being 
@@ -47,12 +51,13 @@
 
       <filter> <!-- mod filter settings -->
           <!-- Default rule persists - a user cannot delete it -->
-          <default><rule name="server default"><unavailable/><offline/></rule></default>
+          <default><rule name="server default"/>
           <!-- Max number of rules in a user's rule set -->
           <max_size>100</max_size>
           <!-- specify which conditions/actions to allow -->
           <allow>
               <conditions>
+                  <ns/> [matches the query xmlns attrib on an iq packet]
                   <unavailable/> [matches when user is unavailable]
                   <from/> [matches the sender of the message]
                   <resource/> [matches the receiver's resource]

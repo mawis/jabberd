@@ -12,6 +12,7 @@
  **************************************************************************/
 void mio_ssl_init(xmlnode x)
 {
+    log_debug(ZONE, "mio_ssl_init");
 /* PSEUDO CODE
 
   for $key in children(xmlnode x)
@@ -23,6 +24,7 @@ void mio_ssl_init(xmlnode x)
 
   register a cleanup function to free our contexts
 */
+}
 
 int _mio_ssl_read(mio m)
 {

@@ -119,8 +119,6 @@ void mod_offline_out_available(mapi m)
     /* check for msgs */
     for(cur = xmlnode_get_firstchild(opts); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
-        if(j_strcmp(xmlnode_get_name(cur),"message") != 0) continue;
-
         js_session_to(m->s,jpacket_new(xmlnode_dup(cur)));
         xmlnode_hide(cur);
     }
