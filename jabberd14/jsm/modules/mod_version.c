@@ -40,8 +40,8 @@ mreturn mod_version_reply(mapi m, void *arg)
     jutil_iqresult(m->packet->x);
     xmlnode_put_attrib(xmlnode_insert_tag(m->packet->x,"query"),"xmlns",NS_VERSION);
     jpacket_reset(m->packet);
-    xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"name"),PACKAGE,-1);
-    xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"ver"),VERSION,-1);
+    xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"name"),"jsm",3);
+    xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"version"),VERSION,-1);
 
     uname(&un);
     os = xmlnode_insert_tag(m->packet->iq,"os");
