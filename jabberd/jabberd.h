@@ -170,3 +170,77 @@ typedef struct mth_struct
 
 mtq mtq_new(pool p); /* creates a new queue, is automatically cleaned up when p frees */
 void mtq_send(mtq q, pool p, mtq_callback f, void *arg); /* appends the arg to the queue to be run on a thread */
+
+/* MIO */
+
+/* struct to handle the write queue */
+typedef enum { queue_XMLNODE, queue_CDATA } queue_type;
+typedef struct wb_q_st
+{
+    pool p;
+    queue_type type;
+    xmlnode x;
+    void *data;
+    void *cur;
+    int len;
+    struct wb_q_st *next;
+} _wbq,*wbq;
+
+/* the mio data type */
+
+typedef enum { state_ACTIVE, state_CLOSE } mio_state;
+typedef enum { type_LISTEN, type_NORMAL } mio_type;
+typedef struct mio_st
+{
+    pool p;
+    mio_type type;
+    int rated;   /* is this socket rate limted? */
+    jlimit rate; /* if so, what is the rate?    */
+    mio_state state;
+    xstream xs;
+    int fd;
+    wbq queue; /* write buffer queue */
+    struct mio_st *prev,*next;
+    void *arg;    /* do not modify directly */
+    void *cb;     /* do not modify directly */
+    struct karma k;
+    char *ip;
+} *mio, _mio;
+
+/* callback flags */
+#define IO_INIT 0
+#define IO_NEW 1
+#define IO_NORMAL 2
+#define IO_CLOSED 3
+#define IO_ERROR 4
+
+/* i/o callback function definition */
+typedef void (*mio_cb)(mio c,char *buffer,int bufsz,int flag,void *arg);
+
+/* create a new mio object from a file descriptor */
+mio mio_new(int fd, mio_cb cb, void *arg);
+
+/* reset the callback and argument for an mio object */
+mio mio_reset(mio m, mio_cb cb, void *arg);
+
+/* request the mio socket be closed */
+void mio_close(mio m);
+
+/* writes an xmlnode to the socket */
+void mio_write(mio m,xmlnode x, char *buffer, int len);
+
+/* sets the karma values for a socket */
+void mio_karma(mio m, int val, int max, int inc, int dec, int penalty, int restore);
+void mio_karma2(mio m, struct karma *k);
+
+/* sets connection based rate limits */
+void mio_rate(mio m, int rate_time, int max_points);
+
+/* pops the next xmlnode from the queue, or NULL if no more nodes */
+xmlnode mio_cleanup(mio m);
+
+/* connects to an ip */
+mio mio_connect(char *host, int port, mio_cb cb, void *arg);
+
+/* starts listening on a port/ip, returns NULL if failed to listen */
+mio mio_listen(int port, char *sourceip, mio_cb cb, void *arg);
