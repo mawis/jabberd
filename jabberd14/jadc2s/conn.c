@@ -297,43 +297,64 @@ int conn_read(conn_t c, char *buf, int len)
         return 0;
     }
 
-    log_debug(ZONE,"processing read data from %d: %.*s", c->fd, len, buf);
-
-    /* We can't parse \0... */
-    if (buf[len-1] == '\0')
-        len--;
-
-    /* Update how much has been read */
-    c->read_bytes += len;
-
+    /* Stupid us for not thinking of this from the beginning...
+     * Some libaries (Flash) like to \0 terminate all of their packets
+     * before sending them.  Which is normally ok, unless they send two
+     * packets at the same time.  <iq/>\0<iq/>\0  That hoses the XML_Parse
+     * call.  So, we need to loop when we see this and only pass it the
+     * real strings.  We know how much we read, so we know where to stop.
+     * Loop until we've parsed that much and only parse strings.
+     *
+     * Thanks to temas for cleaning up my very poor first pass.
+     *
+     * reatmon@jabber.org
+     */
     
-    /* parse the xml baby */
-    if(!XML_Parse(c->expat, buf, len, 0))
+    int cur_len = 0;
+    while(cur_len < len)
     {
-        err = (char *)XML_ErrorString(XML_GetErrorCode(c->expat));
-    }else if(c->depth > MAXDEPTH){
-        err = MAXDEPTH_ERR;
-    }
+        /* Look for a shorter buffer based on \0 */
+        char* new_buf = &buf[cur_len];
+        int max_len = strlen(new_buf);
+        if ((len - cur_len) < max_len)
+            max_len = (len - cur_len);
+        
+        /* Update how much has been read */
+        c->read_bytes += max_len;
+    
+        /* parse the xml baby */
+        if(!XML_Parse(c->expat, new_buf, max_len, 0))
+        {
+            err = (char *)XML_ErrorString(XML_GetErrorCode(c->expat));
+        }
+        else if(c->depth > MAXDEPTH)
+        {
+            err = MAXDEPTH_ERR;
+        }
 
-    /* oh darn */
-    if((err != NULL) && (c->flash_hack == 0))
-    {
-        conn_close(c, STREAM_ERR_INVALID_XML, err);
-        return 0;
-    }
+        /* oh darn */
+        if((err != NULL) && (c->flash_hack == 0))
+        {
+            conn_close(c, STREAM_ERR_INVALID_XML, err);
+            return 0;
+        }
+        
+        /* if we got </stream:stream>, this is set */
+        if(c->depth < 0)
+        {
+            size_t footersz;
+            char* footer;
+            footersz = 3 + strlen(c->root_name);
+            footer = malloc(footersz+1);
+            snprintf(footer, footersz+1, "</%s>", c->root_name);
+            _write_actual(c, c->fd, footer, footersz);
+            free(footer);
+            mio_close(c->c2s->mio, c->fd);
+            return 0;
+        }
 
-    /* if we got </stream:stream>, this is set */
-    if(c->depth < 0)
-    {
-        size_t footersz;
-        char* footer;
-        footersz = 3 + strlen(c->root_name);
-        footer = malloc(footersz+1);
-        snprintf(footer, footersz+1, "</%s>", c->root_name);
-        _write_actual(c, c->fd, footer, footersz);
-        free(footer);
-        mio_close(c->c2s->mio, c->fd);
-        return 0;
+        /* Update the current length we've parsed so that we know when to stop. */
+        cur_len += max_len+1;
     }
 
     /* get more read events */
@@ -354,6 +375,8 @@ int conn_write(conn_t c)
         /* write a bit from the current buffer */
         len = _write_actual(c, c->fd, cur->wcur, cur->wlen);
 
+        log_debug(ZONE, "wrote data to %d: %d", c->fd, len);
+        
         /* we had an error on the write */
         if(len < 0)
         {
