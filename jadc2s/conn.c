@@ -99,38 +99,38 @@ void conn_free(conn_t c)
 /* write a stream error */
 void conn_error(conn_t c, char *condition, char *err)
 {
-    if(c != NULL || (condition == NULL && err == NULL))
+    if (c == NULL || (condition == NULL && err == NULL))
+	return;
+
+    /* do we still have to open the stream? */
+    if (c->root_name == NULL)
     {
-	/* do we still have to open the stream? */
-	if (c->root_name == NULL)
-	{
-	    if (c->flash_hack) {
-		_write_actual(c, c->fd, "<flash:stream xmlns:stream='http://etherx.jabber.org/streams' version='1.0'>", 77);
-		c->root_name = strdup("flash:stream");
-	    } else {
-		_write_actual(c, c->fd, "<stream:stream xmlns:stream='http://etherx.jabber.org/streams' version='1.0'>", 77);
-		c->root_name = strdup("stream:stream");
-	    }
+	if (c->flash_hack) {
+	    _write_actual(c, c->fd, "<flash:stream xmlns:stream='http://etherx.jabber.org/streams' version='1.0'>", 77);
+	    c->root_name = strdup("flash:stream");
+	} else {
+	    _write_actual(c, c->fd, "<stream:stream xmlns:stream='http://etherx.jabber.org/streams' version='1.0'>", 77);
+	    c->root_name = strdup("stream:stream");
 	}
-
-	log_debug(ZONE,"sending stream error: %s %s", condition, err);
-	_write_actual(c, c->fd, "<stream:error>",14);
-
-	/* send the condition (should be present!) */
-	if(condition != NULL)
-	    _write_actual(c, c->fd, condition, strlen(condition));
-
-	if(err != NULL)
-	{
-	    char *description;
-	    description = (char*)malloc(strlen(err)+58);
-	    sprintf(description,"<text xmlns='urn:ietf:params:xml:ns:xmpp-streams'>%s</text>", err);
-	    _write_actual(c, c->fd, description, strlen(description));
-	    free(description);
-	}
-
-	_write_actual(c, c->fd, "</stream:error>",15);
     }
+
+    log_debug(ZONE,"sending stream error: %s %s", condition, err);
+    _write_actual(c, c->fd, "<stream:error>",14);
+
+    /* send the condition (should be present!) */
+    if(condition != NULL)
+	_write_actual(c, c->fd, condition, strlen(condition));
+
+    if(err != NULL)
+    {
+	char *description;
+	description = (char*)malloc(strlen(err)+58);
+	sprintf(description,"<text xmlns='urn:ietf:params:xml:ns:xmpp-streams'>%s</text>", err);
+	_write_actual(c, c->fd, description, strlen(description));
+	free(description);
+    }
+
+    _write_actual(c, c->fd, "</stream:error>",15);
 }
 
 int _log_ssl_io_error(log_t l, SSL *ssl, int retcode, int fd);

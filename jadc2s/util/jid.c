@@ -199,7 +199,7 @@ jid jid_new(pool p, char *idstr)
     return jid_newx(p, idstr, strlen(idstr));
 }
 
-void jid_set(jid id, char *str, int item)
+void jid_set(jid id, const char *str, int item)
 {
     char *old;
 
