@@ -30,7 +30,7 @@ jabberd_EXOBJECTS = \
 	log/base_to.o \
 	xdb/base_ns.o
 
-SUBDIRS=gen io log xdb
+SUBDIRS=io log xdb
 
 all: all-recursive
 
