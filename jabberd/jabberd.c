@@ -304,6 +304,9 @@ int main (int argc, char** argv)
     log_alert(NULL,"Recieved Kill.  Jabberd shutting down.");
     /* we left the main loop, so we must have recieved a kill signal */
     /* start the shutdown sequence */
+
+    /* XXX pause deliver() this sucks, cuase we lose shutdown messages */
+    deliver__flag = 0;
     instance_shutdown(NULL);
     shutdown_callbacks();
 
