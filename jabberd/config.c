@@ -206,13 +206,24 @@ int configo(int exec)
         /* create the instance */
         if(exec)
         {
+            jid temp;
             p = pool_new();
             newi = pmalloc_x(p, sizeof(_instance), 0);
             newi->id = pstrdup(p,xmlnode_get_attrib(curx,"id"));
             newi->type = type;
             newi->p = p;
             newi->x = curx;
+            /* make sure the id is valid for a hostname */
+            temp=jid_new(p,newi->id);
+            if(temp==NULL||j_strcmp(temp->server,newi->id)!=0)
+            {
+                fprintf(stderr,"ERROR: Invalid id name: %s\n",newi->id);
+                pool_free(p);
+                exit(1);
+            }
+
             ghash_put(instance__ids,newi->id,newi);
+            register_instance(newi,newi->id);
         }
 
 
