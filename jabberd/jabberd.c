@@ -66,6 +66,8 @@ int main (int argc, char** argv)
     char *c, *cmd, *home = NULL;   /* strings used to load the server config */
     pool cfg_pool=pool_new();
     float avload;
+    int do_debug = 0;           /* Debug output option, default no */
+    int do_background = 0;      /* Daemonize option, default no */
 
     jabberd__runtime = pool_new();
 
@@ -86,13 +88,25 @@ int main (int argc, char** argv)
             /* loop through the characters, like -Dc */
             if(*c == 'D')
             {
-                set_debug_flag(1);
+                do_debug = 1;
                 continue;
             }
-            if(*c == 'V' || *c == 'v')
+            else if(*c == 'V' || *c == 'v')
             {
                 printf("Jabberd Version %s\n", VERSION);
                 exit(0);
+            }
+            else if(*c == 'B')
+            {
+                if (do_debug)
+                {
+                    printf("Debug output is enabled, can not background.\n");
+                }
+                else
+                {
+                    do_background = 1;
+                }
+                continue;
             }
 
             cmd = pmalloco(cfg_pool,2);
@@ -133,9 +147,12 @@ int main (int argc, char** argv)
     /* were there any bad parameters? */
     if(help)
     {
-        fprintf(stderr,"Usage:\njabberd &\n Optional Parameters:\n -c\t\t configuration file\n -D\t\tenable debug output\n -H\t\tlocation of home folder\n -v\t\tserver version\n -V\t\tserver version\n");
+        fprintf(stderr,"Usage:\n%s [params]\n Optional Parameters:\n -c\t\tconfiguration file\n -D\t\tenable debug output (disables background)\n -H\t\tlocation of home folder\n -B\t\tbackground the server process\n -Z\t\tdebug zones\n -v\t\tserver version\n -V\t\tserver version\n", argv[0]);
         exit(0);
     }
+
+    /* set to debug mode if we have it */
+    set_debug_flag(do_debug);
 
     if((home = ghash_get(cmd__line,"H")) == NULL)
         home = pstrdup(jabberd__runtime,HOME);
@@ -144,6 +161,15 @@ int main (int argc, char** argv)
     /* change the current working directory so everything is "local" */
     if(home != NULL && chdir(home))
         fprintf(stderr,"Unable to access home folder %s: %s\n",home,strerror(errno));
+
+    /* background ourselves if we have been flagged to do so */
+    if(do_background != 0)
+    {
+        if (fork() != 0)
+        {
+            exit(0);
+        }
+    }
 
     /* load the config passing the file if it was manually set */
     cfgfile=ghash_get(cmd__line,"c");
