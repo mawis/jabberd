@@ -49,6 +49,7 @@ All clients are hashed based on their unique id in a master hash table.
 #define STREAM_ERR_NOT_AUTHORIZED	 "<not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
 #define STREAM_ERR_REMOTE_CONNECTION_FAILED "<remote-connection-failed xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
 #define STREAM_ERR_SYSTEM_SHUTDOWN	 "<system-shutdown xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
+#define STREAM_ERR_TIMEOUT		 "<connection-timeout xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
 
 /* forward decls */
 typedef struct conn_st *conn_t;

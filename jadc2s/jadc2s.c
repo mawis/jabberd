@@ -49,9 +49,9 @@ void _walk_pending(xht pending, const char *key, void *val, void *arg)
     conn_t c = (conn_t)val;
     time_t now = (time_t)arg;
 
-    /* !!! do more here of course */
+    /* send stream error and close connection */
     if((now - c->start) > c->c2s->timeout)
-        mio_close(c->c2s->mio, c->fd);
+	conn_close(c, STREAM_ERR_TIMEOUT, "You have not authenticated in time");
 }
 
 /***
