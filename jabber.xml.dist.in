@@ -566,6 +566,13 @@
       -->
       <!-- <idletimeout>900</idletimeout> -->
 
+      <!-- disable advertizing of XMPP 1.0 or usage of STARTTLS -->
+      <!-- for _outgoing_ connections to a set of hosts.        -->
+      <!--
+      <host name='a.example.com' xmpp='no' tls='no'/>
+      <host name='b.example.com' xmpp='no'/>
+      -->
+
       <!-- Use these to listen on particular addresses and/or ports.
       <ip port="7000"/>
       <ip port="5269">127.0.0.1</ip>

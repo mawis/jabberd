@@ -330,9 +330,9 @@ result dialback_packets(instance i, dpacket dp, void *arg)
 void _dialback_beat_idle(xht h, const char *key, void *data, void *arg)
 {
     miod md = (miod)data;
-    if(((int)*(time_t*)arg - md->last) >= md->d->timeout_idle)
-    {
+    if(((int)*(time_t*)arg - md->last) >= md->d->timeout_idle) {
         log_debug2(ZONE, LOGT_IO, "Idle Timeout on socket %d to %s",md->m->fd, md->m->ip);
+	mio_write(md->m, NULL, "<stream:error><connection-timeout xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Closing an idle connection.</text></stream:error></stream:stream>", -1);
         mio_close(md->m);
     }
 }
@@ -390,6 +390,8 @@ void dialback(instance i, xmlnode x)
     pool_cleanup(i->p, (pool_cleaner)xhash_free, d->in_id);
     d->in_ok_db = xhash_new(max);
     pool_cleanup(i->p, (pool_cleaner)xhash_free, d->in_ok_db);
+    d->hosts_xmpp = xhash_new(max);
+    d->hosts_tls = xhash_new(max);
     d->i = i;
     d->timeout_idle = j_atoi(xmlnode_get_tag_data(cfg,"idletimeout"),900);
     d->timeout_packets = j_atoi(xmlnode_get_tag_data(cfg,"queuetimeout"),30);
@@ -439,6 +441,25 @@ void dialback(instance i, xmlnode x)
         if(set_rate == 1) mio_rate(m, rate_time, rate_points);
         /* Set New karma values */
         if(set_karma == 1) mio_karma2(m, &k);
+    }
+
+    /* check for hosts where we don't want to use XMPP streams or STARTTLS */
+    for (cur = xmlnode_get_tag(cfg, "host"); cur != NULL; cur = xmlnode_get_tag(cfg, "host")) {
+	char *hostname = pstrdup(i->p, xmlnode_get_attrib(cur, "name"));
+
+	if (hostname != NULL) {
+	    char *xmpp = pstrdup(i->p, xmlnode_get_attrib(cur, "xmpp"));
+	    char *tls = pstrdup(i->p, xmlnode_get_attrib(cur, "tls"));
+
+	    if (xmpp != NULL) {
+		xhash_put(d->hosts_xmpp, hostname, xmpp);
+	    }
+	    if (tls != NULL) {
+		xhash_put(d->hosts_tls, hostname, tls);
+	    }
+	}
+
+	xmlnode_hide(cur);
     }
 
     register_phandler(i,o_DELIVER,dialback_packets,(void*)d);
