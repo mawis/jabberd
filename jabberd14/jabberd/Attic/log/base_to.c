@@ -1,3 +1,22 @@
+/*
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ *
+ *  Jabber
+ *  Copyright (C) 1998-1999 The Jabber Team http://jabber.org/
+ */
+
 #include "jabberd.h"
 
 result base_to_deliver(instance id,dpacket p,void* arg)
@@ -22,7 +41,7 @@ result base_to_config(instance id, xmlnode x, void *arg)
 {
     if(id == NULL)
     {
-        printf("base_to_config validating configuration\n");
+        log_debug(ZONE,"base_to_config validating configuration\n");
         if(xmlnode_get_data(x)==NULL)
         {
             log_error(ZONE,"Invalid Configuration for base_to");
@@ -37,7 +56,7 @@ result base_to_config(instance id, xmlnode x, void *arg)
 
 void base_to(void)
 {
-    printf("base_to loading...\n");
+    log_debug(ZONE,"base_to loading...\n");
 
     register_config("to",base_to_config,NULL);
 }

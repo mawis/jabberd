@@ -1,3 +1,22 @@
+/*
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ *
+ *  Jabber
+ *  Copyright (C) 1998-1999 The Jabber Team http://jabber.org/
+ */
+
 #include "jabberd.h"
 
 result base_logtype_filter(instance id, dpacket p, void* arg)
@@ -8,7 +27,7 @@ result base_logtype_filter(instance id, dpacket p, void* arg)
     if (comparisontype == NULL || packettype == NULL)
     {
         /* FIXME: this might not be an error if <log>'s don't require a type */
-        printf("base_logtype_filter error: invalid data; unable to filter.\n");
+        log_debug(ZONE,"base_logtype_filter error: invalid data; unable to filter.\n");
         return r_ERR;
     }
 
@@ -31,11 +50,11 @@ result base_logtype_config(instance id, xmlnode x, void *arg)
         name = xmlnode_get_name(x);
         if (strcmp(name, "notice") && strcmp(name, "warn") && strcmp(name, "alert"))
         {
-            printf("base_logtype_config error: invalid log type filter requested (%s)\n", name);
+            log_debug(ZONE,"base_logtype_config error: invalid log type filter requested (%s)\n", name);
             return r_ERR;
         }
         
-        printf("base_logtype_config validating configuration\n");
+        log_debug(ZONE,"base_logtype_config validating configuration\n");
         return r_PASS;
     }
 
@@ -44,14 +63,14 @@ result base_logtype_config(instance id, xmlnode x, void *arg)
      * FIXME: don't know if should be strdup'ing */
     register_phandler(id, o_COND, base_logtype_filter, (void*)strdup(name));
 
-    printf("base_logtype_config performing configuration %s\n",xmlnode2str(x));
+    log_debug(ZONE,"base_logtype_config performing configuration %s\n",xmlnode2str(x));
 
     return r_PASS;
 }
 
 void base_logtype(void)
 {
-    printf("base_logtype loading...\n");
+    log_debug(ZONE,"base_logtype loading...\n");
 
     register_config("notice",base_logtype_config,NULL);
     register_config("warn",base_logtype_config,NULL);

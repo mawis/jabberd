@@ -1,9 +1,42 @@
+/*
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ *
+ *  Jabber
+ *  Copyright (C) 1998-1999 The Jabber Team http://jabber.org/
+ */
+
 #include <dlfcn.h>
 
 #include "jabberd.h"
 
 
 extern xmlnode greymatter__;
+
+void base_host(void);
+void base_accept(void);
+void base_cache(void);
+void base_connect(void);
+void base_exec(void);
+void base_file(void);
+void base_format(void);
+void base_load(void);
+void base_logtype(void);
+void base_ns(void);
+void base_to(void);
+void base_stderr(void);
+void base_stdout(void);
 
 /* load all base modules */
 void loader_static(void)
