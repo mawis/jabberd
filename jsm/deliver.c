@@ -166,6 +166,13 @@ result js_packet(instance i, dpacket p, void *arg)
             {
                 s->sid = NULL; /* they generated the error, no use in sending there anymore! */
                 js_session_end(s, "Disconnected");
+            }else if(p->id->resource == NULL){
+                /* a way to boot an entire user off */
+                for(s = u->sessions; s != NULL; s = s->next)
+                    js_session_end(s,"Removed");
+                u->pass = NULL; /* so they can't log back in */
+                xmlnode_free(p->x);
+                return r_DONE;
             }
 
             /* if this was a message, it should have been delievered to that session, store offline */
