@@ -248,10 +248,9 @@
       </browse>
 
       <!--
-        "Service Discovery" (disco, JEP-0030) supersedes
-        "Jabber Browsing" (JEP-0011).
-        The <disco/> section is used for building the disco#info
-        reply.
+      "Service Discovery" (disco, JEP-0030) supersedes
+      "Jabber Browsing" (JEP-0011).
+      The <disco/> section is used for building the disco#info reply.
       -->
       <disco>
         <identity category='services' type='jabber' name='Jabber 1.4 Server'/>
@@ -273,6 +272,17 @@
       <mod_auth_crypt>
         <hash>SHA1</hash>
       </mod_auth_crypt>
+
+      <!--
+      Configuration for mod_version. By defining <no_os_version/>
+      mod_version will not report the version of your OS.
+      -->
+      <!--
+      <mod_version>
+        <no_os_version/>
+      </mod_version>
+      -->
+
 
     </jsm>
 
