@@ -1,8 +1,6 @@
 Always check for comments with !!! for little items to do first.
 
 Ramp-up
-  supporting flash5 xmlsockets (see 1.4.2's handling of this)
-  http header check/response (also see 1.4.2 and various jdev threads)
   listen-then-fork farming (forked copies using c2s1/c2s2/c2s3/etc ids and accepting on same listen fd)
   tcp tweaking (smaller buffers/timeouts for faster disconnect detection and less buffer loss, tcp_keepalives)
   load testing
