@@ -146,6 +146,9 @@ mreturn mod_presence_out(mapi m, void *arg)
     {
         _mod_presence_broadcast(m->s,notify,m->packet->x);
         xmlnode_free(m->packet->x);
+        /* we're going offline now, clear everything out */
+        if(m->s->priority < 0)
+            notify->next = NULL;
         return M_HANDLED;
     }
 
