@@ -35,11 +35,12 @@ extern pool jabberd__runtime;
 #define A_ERROR  -1
 #define A_READY   1
 
-typedef struct
+typedef struct queue_struct
 {
-    pth_message_t head;
+    int stamp;
     xmlnode x;
-} *accept_instance_queue, _accept_instance_queue;
+    struct queue_struct *next;
+} *queue, _queue;
 
 typedef struct accept_instance_st
 {
@@ -51,15 +52,27 @@ typedef struct accept_instance_st
     char *ip;
     char *secret;
     int port;
-    pth_msgport_t write_queue;
+    int timeout;
+    queue q;
     dpacket dplast;
 } *accept_instance, _accept_instance;
+
+void base_accept_queue(accept_instance ai, xmlnode x)
+{
+    queue q;
+    if(ai == NULL || x == NULL) return;
+
+    q = pmalloco(xmlnode_pool(x),sizeof(_queue));
+    q->stamp = time(NULL);
+    q->x = x;
+    q->next = ai->q;
+    ai->q = q;
+}
 
 /* Write packets to a xmlio object */
 result base_accept_deliver(instance i, dpacket p, void* arg)
 {
     accept_instance ai = (accept_instance)arg;
-    accept_instance_queue entry;
 
     /* Insert the message into the write_queue if we don't have a MIO socket yet.. */
     if (ai->state == A_READY)
@@ -70,10 +83,8 @@ result base_accept_deliver(instance i, dpacket p, void* arg)
             mio_write(ai->m, p->x, NULL, 0);
         return r_DONE;
     }
-        
-    entry = pmalloco(p->p, sizeof(_accept_instance_queue));
-    entry->x = p->x;
-    pth_msgport_put(ai->write_queue, (pth_message_t*)entry);
+
+    base_accept_queue(ai, p->x);
     return r_DONE;
 }
 
@@ -83,7 +94,7 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
 {
     accept_instance ai = (accept_instance)arg;
     xmlnode cur;
-    accept_instance_queue entry;
+    queue q, q2;
     char hashbuf[41];
 
     log_debug(ZONE, "process XML: m:%X state:%d, arg:%X, x:%X", m, state, arg, x);
@@ -156,8 +167,13 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
             ai->state = A_READY;
 
             /* flush old queue */
-            while((entry = (accept_instance_queue) pth_msgport_get(ai->write_queue)) != NULL)
-                mio_write(m, entry->x, NULL, 0);
+            q = ai->q;
+            while(q != NULL)
+            {
+                q2 = q->next;
+                mio_write(m, q->x, NULL, 0);
+                q = q2;
+            }
 
             break;
 
@@ -165,6 +181,8 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
             /* make sure it's the important one */
             if(m != ai->m)
                 return;
+
+            ai->state = A_ERROR;
 
             /* clean up any tirds */
             while((cur = mio_cleanup(m)) != NULL)
@@ -186,6 +204,36 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
             return;
     }
     xmlnode_free(x);
+}
+
+/* check the packet queue for stale packets */
+result base_accept_beat(void *arg)
+{
+    accept_instance ai = (accept_instance)arg;
+    queue last, cur, next;
+    int now = time(NULL);
+
+    cur = ai->q;
+    while(cur != NULL)
+    {
+        if( (now - cur->stamp) <= ai->timeout)
+        {
+            last = cur;
+            cur = cur->next;
+            continue;
+        }
+
+        /* timed out sukkah! */
+        next = cur->next;
+        if(ai->q == cur)
+            ai->q = next;
+        else
+            last->next = next;
+        deliver_fail(dpacket_new(cur->x),NULL);
+        cur = next;
+    }
+    
+    return r_DONE;
 }
 
 result base_accept_config(instance id, xmlnode x, void *arg)
@@ -212,9 +260,9 @@ result base_accept_config(instance id, xmlnode x, void *arg)
     inst->p           = id->p;
     inst->i           = id;
     inst->secret      = secret;
-    inst->write_queue = pth_msgport_create("base_accept");
     inst->ip          = xmlnode_get_tag_data(x,"ip");
     inst->port        = port;
+    inst->timeout     = j_atoi(xmlnode_get_tag_data(x, "timeout"),10);
 
     /* Start a new listening thread and associate this <listen> tag with it */
     if(mio_listen(inst->port, inst->ip, base_accept_process_xml, (void*)inst, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER)) == NULL)
@@ -225,6 +273,9 @@ result base_accept_config(instance id, xmlnode x, void *arg)
 
     /* Register a packet handler and cleanup heartbeat for this instance */
     register_phandler(id, o_DELIVER, base_accept_deliver, (void *)inst);
+
+    /* timeout check */
+    register_beat(inst->timeout, base_accept_beat, (void *)inst);
 
     return r_DONE;
 }
