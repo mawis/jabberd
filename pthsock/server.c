@@ -249,6 +249,13 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
     to=jid_new(xmlnode_pool(dp->x),xmlnode_get_attrib(dp->x,"to"));
     from=jid_new(xmlnode_pool(dp->x),xmlnode_get_attrib(dp->x,"from"));
 
+    if(to==NULL)
+    {
+        log_notice(si->i->id,"Dropping Invalid Incoming packet: %s",xmlnode2str(dp->x->parent));
+        xmlnode_free(dp->x);
+        return r_DONE;
+    }
+
     if(ip!=NULL)
     {
         char *colon=strchr(ip,':');
