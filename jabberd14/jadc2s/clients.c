@@ -253,8 +253,16 @@ void _client_process(conn_t c) {
        (j_strncmp(NAD_ENAME(chunk->nad, 0), "iq", 2) == 0))
     {
         attr = nad_find_attr(chunk->nad, 1, "xmlns", NULL);
+        attr2 = nad_find_attr(chunk->nad, 0, "type", NULL);
         if (attr >= 0 &&
-            (j_strncmp(NAD_AVAL(chunk->nad, attr), "jabber:iq:auth", 14) == 0))
+            (
+             (j_strncmp(NAD_AVAL(chunk->nad, attr), "jabber:iq:auth", 14) == 0) ||
+             (
+              (j_strncmp(NAD_AVAL(chunk->nad, attr), "jabber:iq:register", 18) == 0) &&
+              (j_strncmp(NAD_AVAL(chunk->nad, attr2), "set", 3) == 0)
+             )
+            )
+           )
         {
             /* sort out the username */
             elem = nad_find_elem(chunk->nad, 0, "username", 2);
@@ -264,9 +272,15 @@ void _client_process(conn_t c) {
                 chunk_free(chunk);
                 return;
             }
-    
+            
             snprintf(str, 770, "%.*s", NAD_CDATA_L(chunk->nad, elem), NAD_CDATA(chunk->nad, elem));
             jid_set(c->smid, str, JID_USER);
+        }
+
+        
+        if (attr >= 0 &&
+            (j_strncmp(NAD_AVAL(chunk->nad, attr), "jabber:iq:auth", 14) == 0))
+        {
 
             /* and the resource, for sets */
             attr2 = nad_find_attr(chunk->nad, 0, "type", NULL);
