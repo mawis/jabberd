@@ -24,7 +24,6 @@
 	    <pthsock_client>../load/pthsock_client.so</pthsock_client>
       </load>
       <pthcsock xmlns='jabberd:pth-csock:config'>
-	    <host>pth-csock.127.0.0.1</host> <!-- our host, from above -->
         <listen>5222</listen>            <!-- Port to listen on -->
       </pthcsock>
     </service>
@@ -58,10 +57,11 @@ void pthsock_client_close(sock c)
     cdata cd=(cdata)c->arg;
     if(cd->state==state_AUTHD)
     {
-        x = xmlnode_new_tag("message");
-        jutil_error(x,TERROR_DISCONNECTED);
-        xmlnode_put_attrib(x,"sto",cd->host);
-        xmlnode_put_attrib(x,"sfrom",cd->id);
+        x = xmlnode_new_tag("route");
+        xmlnode_put_attrib(x,"type","error");
+        xmlnode_put_attrib(x,"to",cd->host);
+        xmlnode_put_attrib(x,"from",cd->id);
+        log_debug(ZONE,"Closing client socket, sending notification to SM: %s",xmlnode2str(x));
         deliver(dpacket_new(x),((smi)cd->i)->i);
     }
     log_debug(ZONE,"asking socket to close");
@@ -73,22 +73,14 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     smi si=(smi)arg;
     cdata cdcur;
     sock cur;
-    char *type;
-    int fd;
+    int fd=0;
 
     log_debug(ZONE,"Got a packet from Deliver: %s",xmlnode2str(p->x));
 
-    if (p->id->user == NULL)
+    if(p->id->user!=NULL)fd = atoi(p->id->user); 
+    if(p->id->user==NULL||p->type!=p_ROUTE||fd==0)
     {
-        log_debug(ZONE,"NO USER, FREEING PACKET, NOT SENDING");
-        xmlnode_free(p->x);
-        return r_DONE;
-    }
-
-    fd = atoi(p->id->user); 
-    if (fd == 0)
-    {
-        log_debug(ZONE,"INVALID SOCK, FREEING PACKET, NOT SENDING");
+        log_debug(ZONE,"Dropping loser packet: %s",xmlnode2str(p->x));
         xmlnode_free(p->x);
         return r_DONE;
     }
@@ -100,11 +92,12 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
             if (j_strcmp(p->id->resource,cdcur->res) == 0)
                 break;
     }
+
     if(cur!=NULL)
     { /* check to see if the session manager killed the session */
         log_debug(ZONE,"Found the sock for this user");
-        if (xmlnode_get_tag(p->x,"error?code=510")!=NULL)
-        {
+        if (j_strcmp(xmlnode_get_attrib(p->x,"type"),"error")==0)
+        { /* <route type="error" means we were disconnected */
             xmlnode x=xmlnode_new_tag("stream:error");
             xmlnode_insert_cdata(x,"Disconnected",-1);
             log_debug(ZONE,"received disconnect message from session manager");
@@ -114,25 +107,31 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
             return r_DONE;
         }
         else if(cdcur->state==state_UNKNOWN)
-        {
+        { /* look for our auth packet back */
             char *type=xmlnode_get_attrib(p->x,"type");
-            char *id=xmlnode_get_attrib(p->x,"id");
+            char *id=xmlnode_get_attrib(xmlnode_get_tag(p->x,"iq"),"id");
+            if(j_strcmp(type,"auth")==0) type=xmlnode_get_attrib(xmlnode_get_tag(p->x,"iq"),"type");
             if((j_strcmp(type,"result")==0)&&j_strcmp(cdcur->auth_id,id)==0)
             { /* update the cdata status if it's a successfull auth */
+                xmlnode x;
                 log_debug(ZONE,"auth for user successful");
                 /* change the host id */
                 cdcur->host = pstrdup(cur->p,xmlnode_get_attrib(p->x,"sfrom"));
                 cdcur->state = state_AUTHD;
+                log_debug(ZONE,"notifying SM to start session");
+                x=xmlnode_new_tag("route");
+                xmlnode_put_attrib(x,"type","session");
+                xmlnode_put_attrib(x,"to",xmlnode_get_attrib(p->x,"from"));
+                xmlnode_put_attrib(x,"from",xmlnode_get_attrib(p->x,"to"));
+                deliver(dpacket_new(x),si->i);
             } else log_debug(ZONE,"Auth not successfull");
         }
-        xmlnode_hide_attrib(p->x,"sto");
-        xmlnode_hide_attrib(p->x,"sfrom");
         log_debug(ZONE,"Writing packet to socket");
-        io_write(cur,p->x);
+        io_write(cur,xmlnode_get_firstchild(p->x));
         return r_DONE;
     }
 
-    if (xmlnode_get_tag(p->x,"error?code=510")!=NULL)
+    if (j_strcmp(xmlnode_get_attrib(p->x,"typs"),"error")==0)
     { /* we got a 510, but no session to end */
         log_debug(ZONE,"510 ERROR, BUT NO SESSION"); 
         xmlnode_free(p->x);
@@ -141,16 +140,9 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
 
     log_debug(ZONE,"pthsock_client connection not found");
 
-    xmlnode_put_attrib(p->x,"sto",xmlnode_get_attrib(p->x,"sfrom"));
-    xmlnode_put_attrib(p->x,"sfrom",jid_full(p->id));
-    type = xmlnode_get_attrib(p->x,"type");
-
-    jutil_error(p->x,TERROR_DISCONNECTED);
-
-    if (type != NULL)
-        xmlnode_put_attrib(xmlnode_get_tag(p->x,"error?code=510"),"type",type);
-
     jutil_tofrom(p->x);
+    xmlnode_put_attrib(p->x,"type","error");
+
     deliver(dpacket_new(p->x),si->i);
 
     return r_DONE;
@@ -198,9 +190,14 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
                 }
             }
         }
-
-        xmlnode_put_attrib(x,"sfrom",cd->id);
-        xmlnode_put_attrib(x,"sto",cd->host);
+        x=xmlnode_wrap(x,"route");
+        if(xmlnode_get_tag(xmlnode_get_firstchild(x),"query?xmlns=jabber:iq:auth")!=NULL)
+            xmlnode_put_attrib(x,"type","auth");
+        else if(xmlnode_get_tag(xmlnode_get_firstchild(x),"query?xmlns=jabber:iq:register")!=NULL)
+            xmlnode_put_attrib(x,"type","register");
+        xmlnode_put_attrib(x,"from",cd->id);
+        xmlnode_put_attrib(x,"to",cd->host);
+        log_debug(ZONE,"wrapped client packet as: %s",xmlnode2str(x));
         deliver(dpacket_new(x),((smi)cd->i)->i);
         break;
     case XSTREAM_ERR:
@@ -265,10 +262,11 @@ void pthsock_client_read(sock c,char *buffer,int bufsz,int flags,void *arg)
         log_debug(ZONE,"io_select Socket %d close notification",c->fd);
         if(cd->state==state_AUTHD)
         {
-            x = xmlnode_new_tag("message");
-            jutil_error(x,TERROR_DISCONNECTED);
-            xmlnode_put_attrib(x,"sto",cd->host);
-            xmlnode_put_attrib(x,"sfrom",cd->id);
+            x = xmlnode_new_tag("route");
+            xmlnode_put_attrib(x,"type","error");
+            xmlnode_put_attrib(x,"to",cd->host);
+            xmlnode_put_attrib(x,"from",cd->id);
+            log_debug(ZONE,"sending SM notification: %s",xmlnode2str(x));
             deliver(dpacket_new(x),((smi)cd->i)->i);
         }
         break;
@@ -277,7 +275,13 @@ void pthsock_client_read(sock c,char *buffer,int bufsz,int flags,void *arg)
         {
             if(((int)c->xbuffer)!=-1)
             {
+                char *from=xmlnode_get_attrib(c->xbuffer,"to");
+                char *to=xmlnode_get_attrib(c->xbuffer,"from");
                 jutil_error(c->xbuffer,TERROR_EXTERNAL);
+                c->xbuffer=xmlnode_wrap(c->xbuffer,"route");
+                xmlnode_put_attrib(c->xbuffer,"from",from);
+                xmlnode_put_attrib(c->xbuffer,"to",to);
+                log_debug(ZONE,"bounding xbuffer");
                 deliver(dpacket_new(c->xbuffer),si->i);
             }
             else
@@ -290,7 +294,12 @@ void pthsock_client_read(sock c,char *buffer,int bufsz,int flags,void *arg)
             {
                 if(q->type==queue_XMLNODE)
                 {
+                    char *from=xmlnode_get_attrib(c->xbuffer,"to");
+                    char *to=xmlnode_get_attrib(c->xbuffer,"from");
                     jutil_error(q->x,TERROR_EXTERNAL);
+                    c->xbuffer=xmlnode_wrap(c->xbuffer,"route");
+                    xmlnode_put_attrib(c->xbuffer,"from",from);
+                    xmlnode_put_attrib(c->xbuffer,"to",to);
                     deliver(dpacket_new(q->x),si->i);
                 }
                 else
@@ -322,7 +331,7 @@ void pthsock_client(instance i, xmlnode x)
     xc = xdb_cache(i);
     si->cfg = xdb_get(xc,NULL,jid_new(xmlnode_pool(x),"config@-internal"),"jabberd:pth-csock:config");
 
-    si->host = host = xmlnode_get_tag_data(si->cfg,"host");
+    si->host = host = i->id;
     port = xmlnode_get_tag_data(si->cfg,"listen");
 
 
