@@ -1,3 +1,22 @@
+/*
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ *
+ *  Jabber
+ *  Copyright (C) 1998-1999 The Jabber Team http://jabber.org/
+ */
+
 #include "jabberd.h"
 
 result base_file_deliver(instance id, dpacket p, void* arg)
@@ -8,13 +27,13 @@ result base_file_deliver(instance id, dpacket p, void* arg)
     message = xmlnode_get_data(p->x);
     if (message == NULL)
     {
-       printf("base_file_deliver error: no message available to print.\n");
+       log_debug(ZONE,"base_file_deliver error: no message available to print.\n");
        return r_ERR;
     }
     
     if (fprintf(f,"%s\n", message) == EOF)
     {
-        printf("base_file_deliver error: error writing to file(%d).\n", errno);
+        log_debug(ZONE,"base_file_deliver error: error writing to file(%d).\n", errno);
         return r_ERR;
     }
     fflush(f);
@@ -32,10 +51,10 @@ result base_file_config(instance id, xmlnode x, void *arg)
     {
         if (xmlnode_get_data(x) == NULL)
         {
-            printf("base_file_config error: no filename provided.\n");
+            log_debug(ZONE,"base_file_config error: no filename provided.\n");
             return r_ERR;
         }
-        printf("base_file_config validating configuration\n");
+        log_debug(ZONE,"base_file_config validating configuration\n");
         return r_PASS;
     }
 
@@ -43,20 +62,20 @@ result base_file_config(instance id, xmlnode x, void *arg)
     filehandle = fopen(xmlnode_get_data(x), "a");
     if (filehandle == NULL)
     {
-        printf("base_file_config error: error opening file (%d)\n", errno);
+        log_debug(ZONE,"base_file_config error: error opening file (%d)\n", errno);
         return r_ERR;
     }
 
     /* Register a handler for this instance... */
     register_phandler(id, o_DELIVER, base_file_deliver, (void*)filehandle); 
     
-    printf("base_file_config performing configuration %s\n",xmlnode2str(x));
+    log_debug(ZONE,"base_file_config performing configuration %s\n",xmlnode2str(x));
     return r_DONE;
 }
 
 void base_file(void)
 {
-    printf("base_file loading...\n");
+    log_debug(ZONE,"base_file loading...\n");
 
     register_config("file",base_file_config,NULL);
 }

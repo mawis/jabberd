@@ -1,3 +1,22 @@
+/*
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ *
+ *  Jabber
+ *  Copyright (C) 1998-1999 The Jabber Team http://jabber.org/
+ */
+
 #include "jabberd.h"
 
 /* ---------------------------------------------------------
@@ -195,7 +214,7 @@ void* base_exec_process_io(void* threadarg)
 	       readlen = pth_read(pi->stdin, readbuf, sizeof(readbuf));
 	       if (readlen <= 0)
 	       {
-		    printf("base_exec_process_io Read error on process!\n");
+		    log_debug(ZONE,"base_exec_process_io Read error on process!\n");
 		    break;
 	       }
 
@@ -216,7 +235,7 @@ void* base_exec_process_io(void* threadarg)
 	       {
 		    /* FIXME: it would be cool to make this completely safe by reinserting
 		       the message back in the queue until the the process is restarted */
-		    printf("base_exec_process_io Write error.\n");
+		    log_debug(ZONE,"base_exec_process_io Write error.\n");
 		    break;
 	       }
 	       
@@ -257,10 +276,10 @@ result base_exec_config(instance id, xmlnode x, void *arg)
     {	 
 	 if (xmlnode_get_data(x) == NULL)
 	 {
-	      printf("base_exec_config error: no script provided\n");
+	      log_debug(ZONE,"base_exec_config error: no script provided\n");
 	      return r_ERR;
 	 }
-	 printf("base_exec_config validating configuration\n");
+	 log_debug(ZONE,"base_exec_config validating configuration\n");
 	 return r_PASS;
     }
 
@@ -286,13 +305,13 @@ result base_exec_config(instance id, xmlnode x, void *arg)
     /* Register a handler to recieve inbound data */
     register_phandler(id, o_DELIVER, base_exec_deliver, (void*) pi);
 
-    printf("base_exec_config performing configuration %s\n",xmlnode2str(x));
+    log_debug(ZONE,"base_exec_config performing configuration %s\n",xmlnode2str(x));
     return r_DONE;
 }
 
 void base_exec(void)
 {
-    printf("base_exec loading...\n");
+    log_debug(ZONE,"base_exec loading...\n");
 
     register_config("exec",base_exec_config,NULL);
 }
