@@ -11,6 +11,7 @@ This is a Release Candidate, and although the software is nearing release, the p
   To start, ./jabberd/jabberd -h your.domain.name
 
   Optional: for lots of debug output, use the -D flag
+  Optional: to specify a config file other than ./jabber.xml, use -c /path/to/file.xml
 
 -----------------------
 
