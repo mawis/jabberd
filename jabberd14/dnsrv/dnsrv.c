@@ -133,6 +133,13 @@ result dnsrv_deliver(instance i, dpacket p, void* args)
      dns_io di = (dns_io)args;
      dns_write_buf wb = NULL;
 
+     if(p->type==p_ROUTE&&xmlnode_get_firstchild(p->x)!=NULL)
+         p->x=xmlnode_get_firstchild(p->x);
+     else if(p->type==p_ROUTE)
+     { /* bad route packet */
+         xmlnode_free(p->x);
+         return r_DONE;
+     }
      /* Allocate a new write buffer */
      wb = pmalloco(p->p, sizeof(_dns_write_buf));
      wb->packet = p;
@@ -168,9 +175,10 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg)
 	       /* Walk the list and insert IPs */
 	       while(head != NULL)
 	       {
+            head->packet->x=xmlnode_wrap(head->packet->x,"route");
 		    if (ipaddr != NULL)
 		    {
-			 xmlnode_put_attrib(head->packet->x, "sto", di->resend_host);
+			 xmlnode_put_attrib(head->packet->x, "to", di->resend_host);
 			 xmlnode_put_attrib(head->packet->x, "ip", ipaddr);
 			 /* Fixup the dpacket host ptr */
 			 head->packet->host = di->resend_host;
@@ -186,7 +194,7 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg)
 		    /* Move to next.. */
 		    head = head->next;
 		    /* Deliver the packet */
-		    deliver(heado->packet, NULL);
+		    deliver(dpacket_new(heado->packet->x), NULL);
 	       }
 	  }
 	  /* Host name was not found, something is _TERRIBLY_ wrong! */
