@@ -2,19 +2,13 @@
     <!-- This is a configuration file used to tested v
          the delivery logic to base modules -->
     
-    <!-- Packet generator component -->
-    <service id='packetgen'>
-        <host>foo.org</host>
-        <exec>./packetgen.py</exec>
-    </service>        
-
     <!-- The simplest service component -->
     <service id='simple_svc'>
         <host>foo.org</host>
         <exec>./echo.py --id simple_svc --drop</exec>
     </service>
 
-    <!-- The simplest xdb component -->
+   <!-- The simplest xdb component -->
     <xdb id='simple_xdb'>
         <host>foo.org</host>
         <exec>./echo.py --id simple_xdb --drop</exec>
@@ -23,6 +17,8 @@
     <!-- The simplest log component -->
     <log id='simple_log'>
         <host>foo.org</host>
+	<stderr/>
+	<file>/tmp/test.log</file>
         <exec>./echo.py --id simple_log --drop</exec>
     </log>
 
@@ -32,6 +28,30 @@
         <ns>xdb:test</ns>
         <exec>./echo.py --id ns_fiter_xdb --drop</exec>
     </xdb>
+
+    <!-- A second namespace filtering xdb component -->
+    <xdb id='ns2_filter_xdb'>
+        <host>foo.org</host>
+ 	<ns>xdb:test2</ns>
+        <exec>./echo.py --id ns2_fiter_xdb --drop</exec>
+    </xdb>
+
+    <!-- A multiple namespace filtering xdb component -->
+    <xdb id='ns3_filter_xdb'>
+        <host>foo.org</host>
+ 	<ns>xdb:test2</ns>
+	<ns>xdb:test3</ns>
+        <exec>./echo.py --id ns3_fiter_xdb --drop</exec>
+    </xdb>
+
+
+
+    <!-- Packet generator component -->
+    <service id='packetgen'>
+        <host>foo.org</host>
+        <exec>./packetgen.py</exec>
+    </service>        
+
 </jabber>    
 
     

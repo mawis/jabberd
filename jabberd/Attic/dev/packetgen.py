@@ -4,6 +4,7 @@ import echo
 import time
 
 dest_host = "foo.org"
+origin_host = "bar.org"
 
 if __name__ == "__main__":
     try:
@@ -18,11 +19,17 @@ if __name__ == "__main__":
         es.write("<xdb to='%s'/>" % (dest_host))
         
         # simple_log
-        es.write("<log to='%s'/>" % (dest_host))
+        es.write("<log to='%s'>Hello, world</log>" % (dest_host))
         
         # ns_filter_xdb
-        es.write("<log to='%s' xmlns='xdb:test'/>" % (dest_host))
-        
+        es.write("<xdb to='%s/xdb:test'/>" % (dest_host))
+
+        # ns2_filter_xdb
+        es.write("<xdb to='%s/xdb:test2'/>" % (dest_host))
+
+        # ns3_filter_xdb
+        es.write("<xdb to='%s/xdb:test3'/>" % (dest_host))
+
         # Delay so user can examine results
         time.sleep(60)
     except:
