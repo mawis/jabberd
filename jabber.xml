@@ -20,7 +20,7 @@
       <mod_presence>./jsm/jsm.so</mod_presence>
       <mod_auth>./jsm/jsm.so</mod_auth>
       <mod_auth_sha1>./jsm/jsm.so</mod_auth_sha1>
-      <mod_offline>./jsm/jsm.so</mod_offline>
+      <mod_filter>./jsm/jsm.so</mod_filter>
     </load>
     <jsm xmlns="jabberd:jsm:config">
       <agents/>
