@@ -38,11 +38,15 @@
  * 
  * 
  * --------------------------------------------------------------------------*/
+
+/**
+ * @file heartbeat.c
+ * @brief functions used to register other functions to be called regularily
+ */
 #include "jabberd.h"
 
-/* private heartbeat ring struct */
-typedef struct beat_struct
-{
+/** private heartbeat ring struct */
+typedef struct beat_struct {
     beathandler f;
     void *arg;
     int freq;
@@ -52,16 +56,14 @@ typedef struct beat_struct
     struct beat_struct *next;
 } *beat, _beat;
 
-/* master hook for the ring */
+/** master hook for the ring */
 beat heartbeat__ring;
 
-void *heartbeat(void *arg)
-{
+void *heartbeat(void *arg) {
     beat b, b2;
     result r;
 
-    while(1)
-    {
+    while(1) {
         pth_sleep(1);
         if(jabberd__signalflag) jabberd_signal();
         if(heartbeat__ring==NULL) break;
@@ -89,9 +91,10 @@ void *heartbeat(void *arg)
     return NULL;
 }
 
-/* register a function to receive heartbeats */
-beat new_beat(void)
-{
+/**
+ * allocate memory for a new heartbeat
+ */
+beat _new_beat(void) {
     beat newb;
     pool p;
 
@@ -102,15 +105,16 @@ beat new_beat(void)
     return newb;
 }
 
-/* register a function to receive heartbeats */
-void register_beat(int freq, beathandler f, void *arg)
-{
+/**
+ * register a function to receive heartbeats
+ */
+void register_beat(int freq, beathandler f, void *arg) {
     beat newb;
 
     if(freq <= 0 || f == NULL || heartbeat__ring == NULL) return; /* uhh, probbably don't want to allow negative heartbeats, since the counter will count infinitly to a core */
 
     /* setup the new beat */
-    newb = new_beat();
+    newb = _new_beat();
     newb->f = f;
     newb->arg = arg;
     newb->freq = freq;
@@ -123,19 +127,23 @@ void register_beat(int freq, beathandler f, void *arg)
     newb->next->prev = newb;
 }
 
-/* start up the heartbeat */
+/**
+ * start up the heartbeat
+ */
 void heartbeat_birth(void)
 {
     /* init the ring */
-    heartbeat__ring = new_beat();
+    heartbeat__ring = _new_beat();
     heartbeat__ring->next = heartbeat__ring->prev = heartbeat__ring;
 
     /* start the thread */
     pth_spawn(PTH_ATTR_DEFAULT, heartbeat, NULL);
 }
 
-void heartbeat_death(void)
-{
+/**
+ * stop calling hearbeat functions
+ */
+void heartbeat_death(void) {
     beat cur;
     while(heartbeat__ring!=NULL)
     {
