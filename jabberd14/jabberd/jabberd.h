@@ -92,7 +92,7 @@ typedef struct xdbcache_struct
 
 xdbcache xdb_cache(instance i); /* create a new xdb cache for this instance */
 xmlnode xdb_get(xdbcache xc, char *host, jid owner, char *ns); /* blocks until namespace is retrieved, host must map back to this service! returns xmlnode or NULL if failed */
-int xdb_set(xdbcache xc, char *host, jid owner, xmlnode data); /* sends new xml to replace old, returns non-zero if failure */
+int xdb_set(xdbcache xc, char *host, jid owner, char *ns, xmlnode data); /* sends new xml to replace old, returns non-zero if failure */
 
 /* base_load initialization function definition */
 typedef void (*base_load_init)(instance id, xmlnode x);
