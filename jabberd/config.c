@@ -152,28 +152,12 @@ void _set_configured_debug(xmlnode x) {
     facility_str = facility == NULL ? NULL : xmlnode_get_data(facility);
 
     if (facility_str != NULL) {
-	if (j_strcmp(facility_str, "daemon") == 0) set_debug_facility(LOG_DAEMON);
-	else if (j_strcmp(facility_str, "local0") == 0) set_debug_facility(LOG_LOCAL0);
-	else if (j_strcmp(facility_str, "local1") == 0) set_debug_facility(LOG_LOCAL1);
-	else if (j_strcmp(facility_str, "local2") == 0) set_debug_facility(LOG_LOCAL2);
-	else if (j_strcmp(facility_str, "local3") == 0) set_debug_facility(LOG_LOCAL3);
-	else if (j_strcmp(facility_str, "local4") == 0) set_debug_facility(LOG_LOCAL4);
-	else if (j_strcmp(facility_str, "local5") == 0) set_debug_facility(LOG_LOCAL5);
-	else if (j_strcmp(facility_str, "local6") == 0) set_debug_facility(LOG_LOCAL6);
-	else if (j_strcmp(facility_str, "local7") == 0) set_debug_facility(LOG_LOCAL7);
-	else if (j_strcmp(facility_str, "auth") == 0) set_debug_facility(LOG_AUTH);
-	else if (j_strcmp(facility_str, "authpriv") == 0) set_debug_facility(LOG_AUTHPRIV);
-	else if (j_strcmp(facility_str, "cron") == 0) set_debug_facility(LOG_CRON);
-	else if (j_strcmp(facility_str, "kern") == 0) set_debug_facility(LOG_KERN);
-	else if (j_strcmp(facility_str, "lpr") == 0) set_debug_facility(LOG_LPR);
-	else if (j_strcmp(facility_str, "mail") == 0) set_debug_facility(LOG_MAIL);
-	else if (j_strcmp(facility_str, "news") == 0) set_debug_facility(LOG_NEWS);
-	else if (j_strcmp(facility_str, "syslog") == 0) set_debug_facility(LOG_SYSLOG);
-	else if (j_strcmp(facility_str, "user") == 0) set_debug_facility(LOG_USER);
-	else if (j_strcmp(facility_str, "uucp") == 0) set_debug_facility(LOG_UUCP);
-	else {
+	int facility = log_get_facility(facility_str);
+
+	set_debug_facility(facility);
+
+	if (facility == -1) {
 	    log_alert(NULL, "debugging configuration error: unknown syslog facility: %s", facility);
-	    set_debug_facility(-1);
 	}
     } else {
 	set_debug_facility(-1);
