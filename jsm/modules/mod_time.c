@@ -40,6 +40,24 @@
  * --------------------------------------------------------------------------*/
 #include "jsm.h"
 
+/**
+ * @file mod_time.c
+ * @brief implement the Entity Time protocol (JEP-0090)
+ *
+ * The protocol implemented by this module can be used the query the current time on the server.
+ */
+
+/**
+ * callback that handles iq stanzas containing a query in the jabber:x:time namespace
+ *
+ * ignores stanzas of other types, does not process iq stanzas containing other namespaces or addressed to a reseouce of the server
+ *
+ * sends back replies to jabber:x:time queries.
+ *
+ * @param m the mapi structure
+ * @param arg unused/ignored
+ * @return M_IGNORED if not a iq stanza, M_PASS if other namespace or sent to a resource of the server, M_HANDLED else
+ */
 mreturn mod_time_reply(mapi m, void *arg)
 {
     time_t t;
@@ -83,6 +101,13 @@ mreturn mod_time_reply(mapi m, void *arg)
     return M_HANDLED;
 }
 
+/**
+ * init this module
+ *
+ * register mod_time_reply() as a callback for stanzas sent to the server's address
+ *
+ * @param si the session manager instance
+ */
 void mod_time(jsmi si)
 {
     js_mapi_register(si,e_SERVER,mod_time_reply,NULL);

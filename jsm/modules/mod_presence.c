@@ -40,57 +40,72 @@
  * --------------------------------------------------------------------------*/
 #include "jsm.h"
 
-/*
-OUR JOB:
+/**
+ * @file mod_presence.c
+ * @brief handles presences: send to subscribers, send offline on session end, probe for subscribed presences
+ *
+ * This module is responsible for sending presences to all contacts that subscribed to the user's presence.
+ * It will send an unavailable presence to everybudy that got an available presence. It will send
+ * probes to the contacts to which we have subscribed presence.
+ *
+ * This module is NOT responsible for handling subscriptions, they are handled in mod_roster.c.
+ *
+ * We have three sets of jids for each user:
+ * - T: trusted (roster s10ns)
+ * - A: availables (who knows were available) - stored in modpres_struct
+ * - I: invisibles (who were invisible to) - stored in modpres_struct
+ *
+ * action points:
+ * - broadcasting available presence: intersection of T and A
+ *   (don't broadcast updates to them if they don't think we're
+ *   available any more, either we told them that or their jidd i
+ *   returned a presence error)
+ * - broadcasting unavailable presence: union of A and I
+ *   (even invisible jids need to be notified when going unavail,
+ *   since invisible is still technically an available presence
+ *   and may be used as such by a transport or other remote service)
+ * - allowed to return presence to a probe when available: compliment
+ *   of I in T (all trusted jids, except the ones were invisible to,
+ *   may poll our presence any time)
+ * - allowed to return presence to a probe when invisible:
+ *   intersection of T and A (of the trusted jids, only the ones
+ *   we've sent availability to can poll, and we return a generic
+ *   available presence)
+ * - individual avail presence: forward, add to A, remove from I 
+ * - individual unavail presence: forward and remove from A, remove from I
+ * - individual invisible presence: add to I, remove from A
+ * - first avail: populate A with T and broadcast
+ *
+ * @bug if a user comes online with a second session the old session's presence is stamped (jabber:x:delay) as well resulting in multiple stamps.
+ *
+ * @bug if a user comes online two presences are sent to its contacts
+ */
 
-three sets of jids
-
-T: trusted (roster s10ns)
-A: availables (who knows were available)
-I: invisibles (who were invisible to)
-
-
-action points:
-
-*** broadcasting available presence: intersection of T and A
-        (don't broadcast updates to them if they don't think we're
-available any more, either we told them that or their jid returned a
-presence error)
-
-*** broadcasting unavailable presence: union of A and I
-        (even invisible jids need to be notified when going unavail,
-since invisible is still technically an available presence and may be
-used as such by a transport or other remote service)
-
-*** allowed to return presence to a probe when available: compliment of I in T
-        (all trusted jids, except the ones were invisible to, may poll
-our presence any time)
-
-*** allowed to return presence to a probe when invisible: intersection of T and A
-        (of the trusted jids, only the ones we've sent availability to can poll,
-and we return a generic available presence)
-
-*** individual avail presence: forward, add to A, remove from I 
-
-*** individual unavail presence: forward and remove from A, remove from I
-
-*** individual invisible presence: add to I, remove from A
-
-*** first avail: populate A with T and broadcast
-
-*/
-
-/* track our lists */
+/**
+ * @brief hold all data belonging to this module and a single (online) user
+ *
+ * This structure holds the A and I (see description of mod_presence.c) list for a user,
+ * a flag if a user is invisible, and a list of JIDs we have to send a blind carbon copy
+ * of each presence
+ */
 typedef struct modpres_struct
 {
-    int invisible;
-    jid A;
-    jid I;
-    jid bcc;
+    int invisible;	/**< flags that the user is invisible */
+    jid A;		/**< who knows the user is available */
+    jid I;		/**< who knows the user is invisible */
+    jid bcc;		/**< who gets a blind carbon copy of our persences */
 } *modpres, _modpres;
 
 
-/* util to check if someone knows about us */
+/**
+ * util to check if someone knows about us
+ *
+ * checks if the JID id is contained in the JID list ids
+ *
+ * @param id the JabberID that should be checked
+ * @param ids the list of JabberIDs
+ * @return 1 if it is contained, 0 else
+ */
 int _mod_presence_search(jid id, jid ids)
 {
     jid cur;
@@ -100,7 +115,13 @@ int _mod_presence_search(jid id, jid ids)
     return 0;
 }
 
-/* remove a jid from a list, returning the new list */
+/**
+ * remove a jid from a list, returning the new list
+ *
+ * @param id the JabberID that should be removed
+ * @param ids the list of JabberIDs
+ * @return the new list
+ */
 jid _mod_presence_whack(jid id, jid ids)
 {
     jid curr;
@@ -120,7 +141,18 @@ jid _mod_presence_whack(jid id, jid ids)
     return ids;
 }
 
-/* just brute force broadcast the presence packets to whoever should be notified */
+/**
+ * broadcast a presence stanza to a list of JabberIDs
+ *
+ * this function broadcasts the stanza given as x to all users that are in the notify list of JabberIDs
+ * as well as in the intersect list of JabberIDs. If intersect is a NULL pointer the presences are
+ * broadcasted to all JabberIDs in the notify list.
+ *
+ * @param s the session of the user owning the presence
+ * @param notify list of JabberIDs that should be notified
+ * @param x the presence that should be broadcasted
+ * @param intersect if non-NULL only send presence to the intersection of notify and intersect
+ */
 void _mod_presence_broadcast(session s, jid notify, xmlnode x, jid intersect)
 {
     jid cur;
@@ -136,7 +168,21 @@ void _mod_presence_broadcast(session s, jid notify, xmlnode x, jid intersect)
     }
 }
 
-/* filter the incoming presence to this session */
+/**
+ * filter the incoming presence to this session
+ *
+ * incoming presence probes get handled and replied if the sender is allowed to see the user's presence and there is a session (presence)
+ *
+ * filters presences which are sent by the user itself
+ *
+ * removes JabberIDs from the list of entites that know a user is online if a presence bounced
+ *
+ * converts incoming invisible presences to unavailable presences as users should not get invisible presences at all
+ *
+ * @param m the mapi structure
+ * @param arg the modpres structure containing the module data belonging to the user's session
+ * @return M_IGNORE if stanza is no presence, M_HANDLED if a presence should not be delivered or has been completely handled, M_PASS else
+ */
 mreturn mod_presence_in(mapi m, void *arg)
 {
     modpres mp = (modpres)arg;
@@ -184,7 +230,21 @@ mreturn mod_presence_in(mapi m, void *arg)
     return M_PASS;
 }
 
-/* process the roster to probe outgoing s10ns, and populate a list of the jids that should be notified */
+/**
+ * process the roster to probe outgoing s10ns, and populate a list of the jids that should be notified
+ *
+ * this function requests the roster from xdb and does for each contact:
+ * - if the user is subscribed to the contacts presence: send a presence probe
+ * - if the user has a subscription from the contact: adds the contacts JabberID to the existing list given as parameter \a notify
+ *   (if this parameter is NULL, than this function does not care about other users that have subscribed to us)
+ *
+ * @note the argument given as \a notify is the list A, this list is initialized to contain the user itself, therefore
+ * there is always already a first element in the list and we can just append new items. Still I don't like that we do
+ * not pass back a pointer to the resulting list, that would allow use to handle an empty initial list as well.
+ *
+ * @param m the mapi structure
+ * @param notify list where contacts that are subscribed to the users presences should be added, if this is NULL we don't add anything
+ */
 void mod_presence_roster(mapi m, jid notify)
 {
     xmlnode roster, cur, pnew;
@@ -231,6 +291,33 @@ void mod_presence_roster(mapi m, jid notify)
 
 }
 
+/**
+ * handles undirected outgoing presences (presences with no to attribute)
+ *
+ * checks that the presence's priority is in the valid range
+ *
+ * if the outgoing presence is an invisible presence and we are available,
+ * we inject an unavailable presence first and reinject the unavailable
+ * presence afterwards again (we are then not available anymore and therefore
+ * will not do this twice for the same presence)
+ *
+ * If the outgoing presence is not an invisible presence, it is stored in the structure
+ * of this session in the session manager and the presence is stamped with the
+ * current timestamp.
+ *
+ * Unavailable presences are broadcasted to everyone that thinks we are online,
+ * available presence are broadcasted to everyone that has subscribed to our presence.
+ *
+ * @note this is our second callback for outgoing presences, mod_presence_avails() should have handled the presence first
+ *
+ * @todo think about if we shouldn't check the presence's priority earlier, maybe in mod_presence_avails()
+ *
+ * @todo Check if I described right what this function does. I do not completely understand the second half of the function.
+ *
+ * @param m the mapi structure
+ * @param arg pointer to the modpres structure containing the module's data for this session
+ * @return M_IGNORE if the stanza is no presence, M_PASS if the presence has a to attribute, is a probe, or is an error presence, M_HANDLED else
+ */
 mreturn mod_presence_out(mapi m, void *arg)
 {
     xmlnode pnew, delay;
@@ -268,7 +355,7 @@ mreturn mod_presence_out(mapi m, void *arg)
         log_debug2(ZONE, LOGT_DELIVER, "handling invisible mode request");
 
         /* if we get this and we're available, it means go unavail first then reprocess this packet, nifty trick :) */
-        if(oldpri >= 0)
+        if(oldpri >= -128)
 	{
             js_session_from(m->s, jpacket_new(jutil_presnew(JPACKET__UNAVAILABLE,NULL,NULL)));
             js_session_from(m->s, m->packet);
@@ -276,15 +363,17 @@ mreturn mod_presence_out(mapi m, void *arg)
 	}
 
         /* now, pretend we come online :) */
+	/* (this is the handling of the reinjected invisible presence
+	 * or an initial invisible presence) */
         mp->invisible = 1;
-        mod_presence_roster(m, NULL);
+        mod_presence_roster(m, NULL); /* send out probes to users we are subscribed to */
         m->s->priority = newpri;
 
-        xmlnode_free(m->packet->x);
+        xmlnode_free(m->packet->x); /* we do not broadcast invisible presences without a to attribute */
         return M_HANDLED;
     }
 
-    /* our new presence */
+    /* our new presence, keep it */
     xmlnode_free(m->s->presence);
     m->s->presence = xmlnode_dup(m->packet->x);
     m->s->priority = newpri;
@@ -298,8 +387,8 @@ mreturn mod_presence_out(mapi m, void *arg)
     log_debug2(ZONE, LOGT_DELIVER, "presence oldp %d newp %d top %X",oldpri,m->s->priority,top);
 
     /* if we're going offline now, let everyone know */
-    if(m->s->priority < -128)
-    {
+    if(m->s->priority < -128) {		/* XXX How can this ever be true??? This is the value of newpri,
+					   which we ensured to be in the interval [-128,+127] */
         if(!mp->invisible) /* bcc's don't get told if we were invisible */
             _mod_presence_broadcast(m->s,mp->bcc,m->packet->x,NULL);
         _mod_presence_broadcast(m->s,mp->A,m->packet->x,NULL);
@@ -316,7 +405,7 @@ mreturn mod_presence_out(mapi m, void *arg)
     }
 
     /* available presence updates, intersection of A and T */
-    if(oldpri >= 0 && !mp->invisible)
+    if(oldpri >= -128 && !mp->invisible)
     {
         _mod_presence_broadcast(m->s,mp->A,m->packet->x,js_trustees(m->user));
         xmlnode_free(m->packet->x);
@@ -341,6 +430,21 @@ mreturn mod_presence_out(mapi m, void *arg)
     return M_HANDLED;
 }
 
+/**
+ * update the A and I list, because we send a new presence out
+ *
+ * If we sent out an invisible presence, add the destination to the I list.
+ *
+ * If we sent out an available presence, add the destination to the A list and remove from the I list.
+ *
+ * If we sent out an unavailable presence, remove from both A and I lists.
+ *
+ * @note this is our first callback for outgoing presences, mod_presence_out() is the second, that should be called afterwards
+ *
+ * @param m the mapi structure
+ * @param arg pointer to the modpres structure containing the modules session data (especially the lists A and I)
+ * @return M_IGNORE if the stanza is no presence, else always M_PASS
+ */
 mreturn mod_presence_avails(mapi m, void *arg)
 {
     modpres mp = (modpres)arg;
@@ -376,6 +480,16 @@ mreturn mod_presence_avails(mapi m, void *arg)
     return M_PASS;
 }
 
+/**
+ * callback, that gets called if a session ends
+ *
+ * The session manager has set the presence of the user to unavailable, we have to broadcast this presence
+ * to everybody that thinks we are available.
+ *
+ * @param m the mapi structure
+ * @param arg pointer to the modpres structure containing the lists for this session
+ * @return always M_PASS
+ */
 mreturn mod_presence_avails_end(mapi m, void *arg)
 {
     modpres mp = (modpres)arg;
@@ -391,6 +505,16 @@ mreturn mod_presence_avails_end(mapi m, void *arg)
     return M_PASS;
 }
 
+/**
+ * callback, that gets called if a new session is establisched, registers all session oriented callbacks
+ *
+ * This callback is responsible for initializing a new instance of the _modpres structure, that holds
+ * the list of entites that know that a user is available.
+ *
+ * @param m the mapi structure
+ * @param arg the list of JabberIDs that get a bcc of all presences
+ * @return always M_PASS
+ */
 mreturn mod_presence_session(mapi m, void *arg)
 {
     jid bcc = (jid)arg;
@@ -409,6 +533,18 @@ mreturn mod_presence_session(mapi m, void *arg)
     return M_PASS;
 }
 
+/**
+ * deliver presence stanzas to local users
+ *
+ * This callback ignores all stanzas but presence stanzas. presences sent to a user (without specifying a resource) have to
+ * be delivered to all sessions of this user.
+ *
+ * Presences sent to a specified resource are not handled.
+ *
+ * @param m the mapi structure
+ * @param arg ignored/unused
+ * @return M_IGNORED if not a presence stanza, M_PASS if the presence has not been handled, M_HANDLED if the presence has been handled
+ */
 mreturn mod_presence_deliver(mapi m, void *arg)
 {
     session cur;
@@ -439,6 +575,18 @@ mreturn mod_presence_deliver(mapi m, void *arg)
     return M_PASS;
 }
 
+/**
+ * init the module, register callbacks
+ *
+ * builds a list of JabberIDs where presences should be blind carbon copied to.
+ * (Enclosing each in a <bcc/> element, which are contained in one <presence/>
+ * element in the session manager configuration.)
+ *
+ * registers mod_presence_session() as a callback, that gets notified on new sessions
+ * and mod_presence_deliver() as a callback to deliver presence stanzas locally.
+ *
+ * @param si the session manager instance
+ */
 void mod_presence(jsmi si)
 {
     xmlnode cfg = js_config(si, "presence");
@@ -458,4 +606,3 @@ void mod_presence(jsmi si)
     js_mapi_register(si,e_DELIVER, mod_presence_deliver, NULL);
     js_mapi_register(si,e_SESSION, mod_presence_session, (void*)bcc);
 }
-
