@@ -198,7 +198,7 @@ void _io_close(sock c)
     if(c->rated) jlimit_free(c->rate);
     log_debug(ZONE,"freed socket");
 
-    pth_msgport_free(c->queue);
+    pth_msgport_destroy(c->queue);
     pool_free(c->p);
 }
 
