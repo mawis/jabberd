@@ -30,8 +30,8 @@
 #include "jabberd.h"
 
 #include <netinet/in.h>
-#include <resolv.h>
 #include <arpa/nameser.h>
+#include <resolv.h>
 
 #include "srv_resolv.h"
 
