@@ -210,11 +210,11 @@ result base_accept_config(instance id, xmlnode x, void *arg)
     /* Setup the default sink for this instance */ 
     inst              = pmalloco(id->p, sizeof(_accept_instance));
     inst->p           = id->p;
-    inst->i        = id;
+    inst->i           = id;
     inst->secret      = secret;
     inst->write_queue = pth_msgport_create("base_accept");
-    inst->ip     = xmlnode_get_tag_data(x,"ip");
-    inst->port   = port;
+    inst->ip          = xmlnode_get_tag_data(x,"ip");
+    inst->port        = port;
 
     /* Start a new listening thread and associate this <listen> tag with it */
     if(mio_listen(inst->port, inst->ip, base_accept_process_xml, (void*)inst, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER)) == NULL)
