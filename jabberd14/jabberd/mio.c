@@ -80,7 +80,6 @@ result _karma_heartbeat(void*arg)
 {
     mio cur;
 
-    log_debug(ZONE, "KARMA: heartbeat");
     /* if there is nothing to do, just return */
     if(mio__data == NULL || mio__data->master__list == NULL) 
         return r_DONE;
@@ -89,24 +88,20 @@ result _karma_heartbeat(void*arg)
     for(cur = mio__data->master__list; cur != NULL; cur = cur->next)
     {
         int was_negative = 0;
-        log_debug(ZONE, "KARMA: heartbeat checking socket %d:%s", cur->fd, cur->ip);
         /* don't update if we are closing, or pre-initilized */
         if(cur->state == state_CLOSE || cur->k.val == KARMA_INIT) 
             continue;
 
         /* if we are being punished, set the flag */
         if(cur->k.val < 0) was_negative = 1; 
-        log_debug(ZONE, "KARMA: %d val: %d PRE", cur->fd, cur->k.val);
 
         /* possibly increment the karma */
         karma_increment( &cur->k );
 
-        log_debug(ZONE, "KARMA: %d val: %d POST", cur->fd, cur->k.val);
 
         /* punishment is over */
         if(was_negative && cur->k.val >= 0)  
         {
-            log_debug(ZONE, "KARMA: signaling this socket is okay to read again!");
             pth_raise(mio__data->t, SIGUSR2);
         }
     }
