@@ -871,11 +871,12 @@ void mod_groups(jsmi si)
     mi->p = p;
     mi->groups = xhash_new(67);
     mi->xc = si->xc;
+
+    config = js_config(si,"groups");
     mi->inst = xmlnode_get_tag_data(config,"instructions");
     if (mi->inst == NULL)
         mi->inst = pstrdup(p,"This will add the group to your roster");
 
-    config = js_config(si,"groups");
     if (config != NULL)
     {
         mi->config = xhash_new(67);
