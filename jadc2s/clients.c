@@ -81,9 +81,8 @@ void _client_startElement(void *arg, const char* name, const char** atts)
 
                 error--;
             }
-
             /* to attribute */
-            if (j_strcmp(atts[i], "to") == 0)
+            else if (j_strcmp(atts[i], "to") == 0)
             {
                 int id;
                 log_debug(ZONE, "checking to: %s", atts[i+1]);
@@ -110,7 +109,7 @@ void _client_startElement(void *arg, const char* name, const char** atts)
 
             /* stream namespace */
             /* If the root tag is flash:stream then this is a Flash connection */
-            if (j_strcmp(name, "flash:stream") == 0)
+            else if (j_strcmp(name, "flash:stream") == 0)
             {
                 if (j_strcmp(atts[i], "xmlns:flash") == 0)
                 {
@@ -260,14 +259,7 @@ void _client_process(conn_t c) {
         attr = nad_find_attr(chunk->nad, 1, "xmlns", NULL);
         attr2 = nad_find_attr(chunk->nad, 0, "type", NULL);
         if (attr >= 0 &&
-            (
-             (j_strncmp(NAD_AVAL(chunk->nad, attr), "jabber:iq:auth", 14) == 0) ||
-             (
-              (j_strncmp(NAD_AVAL(chunk->nad, attr), "jabber:iq:register", 18) == 0) &&
-              (j_strncmp(NAD_AVAL(chunk->nad, attr2), "set", 3) == 0)
-             )
-            )
-           )
+            (j_strncmp(NAD_AVAL(chunk->nad, attr), "jabber:iq:auth", 14) == 0))
         {
             /* sort out the username */
             elem = nad_find_elem(chunk->nad, 0, "username", 2);
@@ -280,18 +272,11 @@ void _client_process(conn_t c) {
             
             snprintf(str, 770, "%.*s", NAD_CDATA_L(chunk->nad, elem), NAD_CDATA(chunk->nad, elem));
             jid_set(c->smid, str, JID_USER);
-        }
-
-        
-        if (attr >= 0 &&
-            (j_strncmp(NAD_AVAL(chunk->nad, attr), "jabber:iq:auth", 14) == 0))
-        {
 
             /* and the resource, for sets */
-            attr2 = nad_find_attr(chunk->nad, 0, "type", NULL);
             if(attr2 >= 0 && 
-               j_strncmp(NAD_AVAL(chunk->nad, attr2), "set", 3) == 0 &&
-               j_strncmp(NAD_AVAL(chunk->nad, attr), "jabber:iq:auth", 14) == 0)
+               j_strncmp(NAD_AVAL(chunk->nad, attr2), "set", 3) == 0
+              )
             {
                 elem = nad_find_elem(chunk->nad, 0, "resource", 2);
                 if(elem == -1)
@@ -312,6 +297,25 @@ void _client_process(conn_t c) {
                 /* we're in the auth state */
                 c->state = state_AUTH;
             }
+        }
+        else if (attr >= 0 && attr2 >= 0 &&
+                 (
+                  (j_strncmp(NAD_AVAL(chunk->nad, attr), "jabber:iq:register", 18) == 0) &&
+                  (j_strncmp(NAD_AVAL(chunk->nad, attr2), "set", 3) == 0)
+                 )
+                )
+        {
+            /* sort out the username */
+            elem = nad_find_elem(chunk->nad, 0, "username", 2);
+            if(elem == -1)
+            {
+                log_debug(ZONE, "auth packet with no username, dropping it");
+                chunk_free(chunk);
+                return;
+            }
+            
+            snprintf(str, 770, "%.*s", NAD_CDATA_L(chunk->nad, elem), NAD_CDATA(chunk->nad, elem));
+            jid_set(c->smid, str, JID_USER);
         }
     }
 
@@ -389,56 +393,7 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
         XML_SetElementHandler(c->expat, (void*)_client_startElement, (void*)_client_endElement);
         XML_SetCharacterDataHandler(c->expat, (void*)_client_charData);
 
-#ifdef USE_SSL
-        /* Ok... we only check for HTTP connections on non-ssl connections. */
-        if (c->ssl == NULL)
-        {
-#endif
-            /* Read the first character... It means something */
-            log_debug(ZONE,"Check the first char");
-            while((firstlen = _peek_actual(c,fd,first,1)) == -1) { }
-            log_debug(ZONE,"char(%c)",first[0]);
-
-            /* If the first char is P then it's for HTTP (PUT ....) */
-            if (first[0] == 'P')
-            {
-                char* http = "HTTP/1.0 200 Ok\r\nServer: jabber/xmlstream-hack-0.1\r\nExpires: Fri, 10 Oct 1997 10:10:10 GMT\r\nPragma: no-cache\r\nCache-control: private\r\nConnection: close\r\n\r\n";
-                char peek[5];
-                int search = 1;
-
-                peek[4] = '\0';
-            
-                log_debug(ZONE,"This is an incoming HTTP connection");
-
-                _write_actual(c,fd,http,strlen(http));
-
-                log_debug(ZONE,"Look for the ending \\r\\n\\r\\n");
-                while( search && ((_peek_actual(c,fd,peek,4)) > 0))
-                {
-                    if (strcmp(peek,"\r\n\r\n") == 0)
-                    {
-                        search = 0;
-                        _read_actual(c,fd,peek,4);
-                    }
-                    else
-                        _read_actual(c,fd,peek,1);
-                }
-                c->type = type_HTTP;
-            }
-
-            /* If the first char is a \0 then the other side expects that all
-             * packets will end in a \0.  All packets.  This means that we
-             * need to make sure that we handle it correctly in all cases.
-             */
-            if (first[0] == '\0')
-            {
-                _read_actual(c,fd,first,1);
-                c->type = type_FLASH;
-            }
-            
-#ifdef USE_SSL
-        }
-#endif
+        c->state = state_NEGO;
 
         /* count the number of open client connections */
         c->c2s->num_clients++;
@@ -468,28 +423,84 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
         
         log_debug(ZONE,"io action %d with fd %d in state %d",a,fd,c->state);
 
-        /* we act differently when reading data from the client based on it's auth state */
+        /* we act differently when reading data from the client based on
+         * it's auth state
+         */
         switch(c->state)
         {
-        case state_OPEN:
-            /* read a chunk at a time */
-            len = _read_actual(c, fd, buf, conn_max_read_len(c));
-            return conn_read(c, buf, len);
+            case state_NEGO:
+#ifdef USE_SSL
+                /* Ok... we only check for HTTP connections on non-ssl
+                 *  connections.
+                 */
+                if (c->ssl == NULL)
+                {
+#endif
+                    log_debug(ZONE,"Check the first char");
+                    while((firstlen = _peek_actual(c,fd,first,1)) == -1) { }
+                    log_debug(ZONE,"char(%c)",first[0]);
+                    
+                    /* If the first char is P then it's for HTTP (PUT ....) */
+                    if (first[0] == 'P')
+                    {
+                        char* http = "HTTP/1.0 200 Ok\r\nServer: jabber/xmlstream-hack-0.1\r\nExpires: Fri, 10 Oct 1997 10:10:10 GMT\r\nPragma: no-cache\r\nCache-control: private\r\nConnection: close\r\n\r\n";
+                        char peek[5];
+                        int search = 1;
+                        
+                        peek[4] = '\0';
+                        
+                        log_debug(ZONE,"This is an incoming HTTP connection");
+                        
+                        _write_actual(c,fd,http,strlen(http));
+                        
+                        log_debug(ZONE,"Look for the ending \\r\\n\\r\\n");
+                        while( search && ((_peek_actual(c,fd,peek,4)) > 0))
+                        {
+                            if (strcmp(peek,"\r\n\r\n") == 0)
+                            {
+                                search = 0;
+                                _read_actual(c,fd,peek,4);
+                            }
+                            else
+                                _read_actual(c,fd,peek,1);
+                        }
+                        c->type = type_HTTP;
+                    }
+                    
+                    /* If the first char is a \0 then the other side expects
+                     * that all packets will end in a \0.  All packets.  This
+                     * means that we need to make sure that we handle it
+                     * correctly in all cases.
+                     */
+                    if (first[0] == '\0')
+                    {
+                        _read_actual(c,fd,first,1);
+                        c->type = type_FLASH;
+                    }
+#ifdef USE_SSL
+                }
+#endif
+                c->state = state_NONE;
 
-        case state_NONE:
-            /* before the client is authorized, we tip-toe through the data to find the auth packets */
-            while(c->state == state_NONE)
-            {
-                len = _read_actual(c, fd, buf, 10);
-                if((ret = conn_read(c, buf, len)) == 0) return 0;
-                /* come back again if no more data */
-                if(ret == 2 || len < 10) return 1;
-            }
-            return 0;
-
-        case state_AUTH:
-        case state_SESS:
-            return 0;
+            case state_OPEN:
+                /* read a chunk at a time */
+                len = _read_actual(c, fd, buf, conn_max_read_len(c));
+                return conn_read(c, buf, len);
+                
+            case state_NONE:
+                /* before the client is authorized, we tip-toe through the data to find the auth packets */
+                while(c->state == state_NONE)
+                {
+                    len = _read_actual(c, fd, buf, 10);
+                    if((ret = conn_read(c, buf, len)) == 0) return 0;
+                    /* come back again if no more data */
+                    if(ret == 2 || len < 10) return 1;
+                }
+                return 0;
+                
+            case state_AUTH:
+            case state_SESS:
+                return 0;
         }
 
     case action_WRITE:
