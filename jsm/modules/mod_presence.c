@@ -51,19 +51,21 @@ presence error)
 since invisible is still technically an available presence and may be
 used as such by a transport or other remote service)
 
-*** allowed to return presence to a probe: compliment of I in T
+*** allowed to return presence to a probe when available: compliment of I in T
         (all trusted jids, except the ones were invisible to, may poll
 our presence any time)
 
+*** allowed to return presence to a probe when invisible: intersection of T and A
+        (of the trusted jids, only the ones we've sent availability to can poll,
+and we return a generic available presence)
+
 *** individual avail presence: forward, add to A, remove from I 
 
-*** individual unavail presence: forward remove from A, remove from I
+*** individual unavail presence: forward and remove from A, remove from I
 
 *** individual invisible presence: add to I, remove from A
 
 *** first avail: populate A with T and broadcast
-
-*** first invisible: populate I with T
 
 */
 
@@ -127,6 +129,7 @@ void _mod_presence_broadcast(session s, jid notify, xmlnode x, jid intersect)
 mreturn mod_presence_in(mapi m, void *arg)
 {
     modpres mp = (modpres)arg;
+    xmlnode pres;
 
     if(m->packet->type != JPACKET_PRESENCE) return M_IGNORE;
 
@@ -137,12 +140,15 @@ mreturn mod_presence_in(mapi m, void *arg)
         if(m->s->presence == NULL)
         {
             log_debug("mod_presence","probe from %s and no presence to return",jid_full(m->packet->from));
-        }else if(js_trust(m->user,m->packet->from) && !_mod_presence_search(m->packet->from,mp->I)) /* compliment of I in T */
-        {
-            xmlnode pres = xmlnode_dup(m->s->presence);
+        }else if(!mp->invisible && js_trust(m->user,m->packet->from) && !_mod_presence_search(m->packet->from,mp->I)){ /* compliment of I in T */
             log_debug("mod_presence","got a probe, responding to %s",jid_full(m->packet->from));
+            pres = xmlnode_dup(m->s->presence);
             xmlnode_put_attrib(pres,"to",jid_full(m->packet->from));
-            js_deliver(m->si,jpacket_new(pres));
+            js_session_from(m->s, jpacket_new(pres));
+        }else if(mp->invisible && js_trust(m->user,m->packet->from) && _mod_presence_search(m->packet->from,mp->A)){ /* when invisible, intersection of A and T */
+            log_debug("mod_presence","got a probe when invisible, responding to %s",jid_full(m->packet->from));
+            pres = jutil_presnew(JPACKET__AVAILABLE,jid_full(m->packet->from),NULL);
+            js_session_from(m->s, jpacket_new(pres));
         }else{
             log_debug("mod_presence","%s attempted to probe by someone not qualified",jid_full(m->packet->from));
         }
@@ -246,12 +252,8 @@ mreturn mod_presence_out(mapi m, void *arg)
 
         /* now, pretend we come online :) */
         mp->invisible = 1;
-        mod_presence_roster(m, mp->A);
+        mod_presence_roster(m, NULL);
         m->s->priority = j_atoi(xmlnode_get_tag_data(m->packet->x,"priority"),0);
-
-        /* instead of notifying the ppl, we are automatically invisible to everyone */
-        mp->I = mp->A->next;
-        mp->A->next = NULL;
 
         xmlnode_free(m->packet->x);
         return M_HANDLED;
