@@ -16,3 +16,4 @@
     * mio/mio.h: same
     * util/util.h: including config.h, pool debugging
     * util/pool.c: changing macro for pool debugging hash size
+    * mio/mio.c: adapt DEBUGing to the new build environment
