@@ -1,6 +1,9 @@
 2005-02-22  Matthias Wimmer  <m@tthias.net>
 
-    * xdb_sql/xdb_sql.c: added possibility to load XML fron database
+    * xdb_sql/xdb_sql.c: added possibility to load XML fron database,
+    	support for PostgreSQL server, using transactions
+    * jabber.xml.dist.in: added PostgreSQL options
+    * configure.in: check for PostgreSQL
 
 2005-02-21  Matthias Wimmer  <m@tthias.net>
 
