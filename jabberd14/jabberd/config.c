@@ -308,13 +308,19 @@ int instance_startup(xmlnode x, int exec)
     /* loop through all this sections children */
     for(cur = xmlnode_get_firstchild(x); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
-        /* only handle elements in our namespace */
-        if(xmlnode_get_type(cur) != NTYPE_TAG || xmlnode_get_attrib(cur, "xmlns") != NULL)
+        /* only handle elements */
+        if(xmlnode_get_type(cur) != NTYPE_TAG)
             continue;
 
-        /* run the registered function for this element */
+        /* find the registered function for this element */
         c = cfget(xmlnode_get_name(cur));
-        if(c == NULL || (c->f)(newi, cur, c->arg) == r_ERR)
+
+        /* if we don't have a handler, but we do have a namespace, we can just be ignored */
+        if(c == NULL && xmlnode_get_attrib(cur, "xmlns") != NULL)
+            continue;
+
+        /* no handler or handler returning an error, die */
+        if(c == NULL  || (c->f)(newi, cur, c->arg) == r_ERR)
         {
             char *error = pstrdup(xmlnode_pool(cur), xmlnode_get_attrib(cur,"error"));
             xmlnode_hide_attrib(cur, "error");
