@@ -29,6 +29,7 @@ jsm_EXOBJECTS = \
 	modules/mod_auth_0k.o \
 	modules/mod_echo.o \
 	modules/mod_filter.o \
+	modules/mod_groups.o \
 	modules/mod_presence.o \
 	modules/mod_private.o \
 	modules/mod_roster.o \
