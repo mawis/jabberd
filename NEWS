@@ -29,8 +29,8 @@
       profiles; subscription state changes are only made if allowed,
       contacts cannot push themself on a user's roster; correct stanza errors
       are created
-    * jabberd14 now supports encrypted s2s connections using the STARTTLS
-      feature of XMPP
+    * jabberd14 now supports encrypted connections using the STARTTLS
+      stream feature of XMPP
     * The xdb_file module allows two directory layouts. The classic jabberd14
       layout with one big directory containing all files for one domain, and
       the layout adopted from wpjabber, where the files are distributed over

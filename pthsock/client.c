@@ -168,7 +168,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     if (j_strcmp(xmlnode_get_attrib(p->x, "type"), "error") == 0)
     { /* <route type="error" means we were disconnected */
         log_debug2(ZONE, LOGT_SESSION, "[%s] closing down session %s at request of session manager", ZONE, xmlnode_get_attrib(p->x, "from"));
-        mio_write(m, NULL, "<stream:error>Disconnected</stream:error></stream:stream>", -1);
+        mio_write(m, NULL, "<stream:error><conflict xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Disconnected</text></stream:error></stream:stream>", -1);
         mio_close(m);
         xmlnode_free(p->x);
         return r_DONE;
@@ -275,6 +275,7 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
     cdata cd = (cdata)arg;
     xmlnode h;
     char *alias, *to;
+    int version = 0;
 
     if(cd == NULL) 
         return;
@@ -316,6 +317,9 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
         to = xmlnode_get_attrib(x, "to");
         cd->sending_id = jid_new(cd->m->p, to);
 
+	/* check for XMPP version attribute */
+	version = j_atoi(xmlnode_get_attrib(x, "version"), 0);
+
         /* check for a matching alias or use default alias */
         log_debug2(ZONE, LOGT_IO, "[%s] Recieved connection to: %s", ZONE, jid_full(cd->sending_id));
         alias = xhash_get(cd->si->aliases, to);
@@ -343,25 +347,47 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
             /* put real stream declaration on incoming root */
             xmlnode_put_attrib(x, "xmlns:stream", "http://etherx.jabber.org/streams"); 
         }
+	if (version>=1) {
+	    xmlnode_put_attrib(h, "version", "1.0");
+	}
         mio_write(m, NULL, xstream_header_char(h), -1);
         xmlnode_free(h);
 
         if(j_strcmp(xmlnode_get_attrib(x, "xmlns"), "jabber:client") != 0)
         { /* if they sent something other than jabber:client */
-            mio_write(m, NULL, "<stream:error>Invalid Namespace</stream:error></stream:stream>", -1);
+	    mio_write(m, NULL, "<stream:error><invalid-namespace xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Invalid Namespace</text></stream:error></stream:stream>", -1);
             mio_close(m);
         }
         else if(cd->session_id == NULL)
         { /* they didn't send a to="" and no valid alias */
-            mio_write(m, NULL, "<stream:error>Did not specify a valid to argument</stream:error></stream:stream>", -1);
+            mio_write(m, NULL, "<stream:error><improper-addressing xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Did not specify a valid to argument</text></stream:error></stream:stream>", -1);
             mio_close(m);
         }
         else if(j_strncasecmp(xmlnode_get_attrib(x, "xmlns:stream"), "http://etherx.jabber.org/streams", 32) != 0)
         {
-            mio_write(m, NULL, "<stream:error>Invalid Stream Namespace</stream:error></stream:stream>", -1);
+	    mio_write(m, NULL, "<stream:error><invalid-namespace xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Invalid Stream Namespace</text></stream:error></stream:stream>", -1);
             mio_close(m);
         }
 
+	/* send stream features for XMPP version 1.0 streams */
+	if (version>=1) {
+	    xmlnode features = xmlnode_new_tag("stream:features");
+#ifdef HAVE_SSL
+	    /* TLS possible on this connection? */
+	    if (mio_ssl_starttls_possible(m, cd->session_id->server)) {
+		xmlnode starttls = NULL;
+
+		starttls = xmlnode_insert_tag(features, "starttls");
+		xmlnode_put_attrib(starttls, "xmlns", NS_XMPP_TLS);
+	    }
+#endif /* HAVE_SSL */
+
+	    /* Non-SASL Authentication JEP-0078 */
+	    xmlnode_put_attrib(xmlnode_insert_tag(features, "auth"), "xmlns", NS_IQ_AUTH);
+
+	    /* send the stream:features */
+	    mio_write(m, features, NULL, 0);
+	}
 
         xmlnode_free(x);
         break;
@@ -387,7 +413,30 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
         if (cd->state == state_UNKNOWN)
         { /* only allow auth and registration queries at this point */
             xmlnode q = xmlnode_get_tag(x, "query");
-            if (!NSCHECK(q, NS_AUTH) && !NSCHECK(q, NS_REGISTER))
+	    if (j_strcmp(xmlnode_get_name(x), "starttls") == 0 && j_strcmp(xmlnode_get_attrib(x, "xmlns"), NS_XMPP_TLS) == 0) {
+		/* starting TLS possible? */
+		if (mio_ssl_starttls_possible(m, cd->session_id->server)) {
+		    /* ACK the start */
+		    xmlnode proceed = xmlnode_new_tag("proceed");
+		    xmlnode_put_attrib(proceed, "xmlns", NS_XMPP_TLS);
+		    mio_write(m, proceed, NULL, 0);
+
+		    /* start TLS on this connection */
+		    if (mio_xml_starttls(m, 0, cd->session_id->server) != 0) {
+			/* starttls failed */
+			mio_close(m);
+		    }
+		} else {
+		    /* NACK */
+		    mio_write(m, NULL, "<failure xmlns='" NS_XMPP_TLS "'/></stream:stream>", -1);
+		    mio_close(m);
+		}
+
+		/* free the <starttls/> element and return */
+		xmlnode_free(x);
+		return;
+	    }
+	    else if (!NSCHECK(q, NS_AUTH) && !NSCHECK(q, NS_REGISTER))
             {
                 mio_wbq q;
                 /* queue packet until authed */
@@ -466,7 +515,7 @@ void _pthsock_client_timeout(xht h, const char *key, void *data, void *arg)
 
     if(cd->connect_time < timeout)
     {
-        mio_write(cd->m, NULL, "<stream:error>Timeout waiting for authentication</stream:error></stream:stream>", -1);
+        mio_write(cd->m, NULL, "<stream:error><connection-timeout xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Timeout waiting for authentication</text></stream:error></stream:stream>", -1);
         xhash_zap(cd->si->users, mio_ip(cd->m));
         mio_close(cd->m);
     }
