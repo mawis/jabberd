@@ -35,3 +35,48 @@ The sending from is important, that is the address all client packets must be se
 
 A type="error" from c2s to the id@sm signifies that the client has disconnected.
 
+
+
+Some small examples of connection notification messages:
+
+jadc2s can send messages to configured entities if a client connects or
+disconnects. For example these messages can be used to implement a Jabber
+based DDNS service or to offer some features to the user only if he has
+connected over a secured connection. Also it would be possible to implement
+a component where a user can query his own IP address.
+
+A connecting user:
+
+<message from="8@jadc2s" to="register@ddns.example.com">
+    <update xmlns='http://amessage.info/protocol/connectionstate'>
+	<jid>user@example.com/test</jid>
+	<login/>
+	<ip>192.0.2.100</ip>
+	<tls>
+	    <version>TLSv1</version>
+	    <cipher>AES256-SHA</cipher>
+	    <bits secret='256' algorithm='256'/>
+	</tls>
+    </update>
+</message>
+
+(The <tls/> element is not present, if the user is connecting without SSL/TLS.
+The <bits/> element shows of how many bits the secret consits and how many bits
+the algorithm processes. In case of old export ciphers the algorithm can
+process more bits than are used by the secret. The security is better reflected
+by the secret attribute than by the algorithm attribute.)
+
+A disconnecting user:
+
+<message from="8@jadc2s" to="register@ddns.example.com">
+    <update xmlns='http://amessage.info/protocol/connectionstate'>
+	<jid>user@example.com/test</jid>
+	<logout/>
+	<ip>192.0.2.100</ip>
+	<tls>
+	    <version>TLSv1</version>
+	    <cipher>AES256-SHA</cipher>
+	    <bits secret='256' algorithm='256'/>
+	</tls>
+    </update>
+</message>

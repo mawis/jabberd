@@ -179,7 +179,7 @@ void _client_startElement(void *arg, const char* name, const char** atts)
 
         c->sid = strdup(sid);
         /* set up smid based on to="" host */
-        c->smid = jid_new(c->idp,j_attr(atts,"to"));
+        c->userid = c->smid = jid_new(c->idp,j_attr(atts,"to"));
         c->depth++;
 
         /* The flash:stream ends in a /> so we need to hack around this... */
@@ -423,6 +423,9 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
 
         /* get read events */
         mio_read(m, fd);
+
+	/* keep the IP address of the user */
+	c->ip = pstrdup(c->idp, (char*)data);
         break;
 
     case action_READ:
@@ -585,6 +588,16 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
 
         /* count the number of open client connections */
         c->c2s->num_clients--;
+
+	/* report closed connection */
+	if (c->ip && c->userid)
+	{
+	    /* write it to the logfile */
+	    log_write(c->c2s->log, LOG_NOTICE, "user %s disconnected", jid_full(c->userid));
+
+	    /* send a notification message if requested */
+	    connectionstate_send(c->c2s->config, c->c2s->sm, c, 0);
+	}
 
         conn_free(c);
         break;

@@ -6,7 +6,6 @@ Ramp-up
   load testing
   mem leak testing
   better README
-  connection logging
   handle aliases
   clean up util/* files
  
