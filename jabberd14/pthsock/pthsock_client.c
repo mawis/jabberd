@@ -1,8 +1,21 @@
-/* listens on 5222, simplistic thread spawning and session IO matching and delivery */
+/*
+    <service id="pthsock client">
+      <host>127.0.0.1</host>
+      <load main='pthsock_client'>
+	    <pthsock_client>../load/pthsock_client.so</pthsock_client>
+      </load>
+      <pthcsock xmlns='pth-csock'>
+	    <host>pth-csock.127.0.0.1</host>
+        <port>5222</port>
+      </pthcsock>
+    </service>
+*/
 
 /* gcc -fPIC -shared -o pthsock_client.so pthsock_client.c -I../src */
 
 #include <jabberd.h>
+
+#define TERROR_DISCONNECTED (terror){510,"Disconnected"}
 
 /* simple wrapper around the pth messages to pass packets */
 typedef struct
@@ -36,18 +49,25 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     int sock;
 
     sto = xmlnode_get_attrib(p->x,"sto");
+    log_debug(ZONE,"looking up %s",sto);
+
     for (cur = pthsock_client__conns; cur != NULL; cur = cur->next)
+    {
         if (strcmp(sto,cur->id) == 0)
-            break;
+        {
+            log_debug(ZONE,"found");
 
-    if (cur == NULL)
-        r_PASS;
+            d = pmalloc(xmlnode_pool(p->x),sizeof(_drop));
+            d->p = p;
+            pth_msgport_put(cur->mp,(void*)d);
 
-    d = pmalloc(xmlnode_pool(p->x),sizeof(_drop));
-    d->p = p;
-    pth_msgport_put(cur->mp,(void*)d);
+            return r_DONE;
+        }
+    }
 
-    return r_DONE;
+    log_debug(ZONE,"not found");
+
+    return r_PASS;
 }
 
 void pthsock_client_stream(int type, xmlnode x, void *arg)
@@ -61,6 +81,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
     switch(type)
     {
     case XSTREAM_ROOT:
+        log_debug(ZONE,"root");
         cur = xstream_header("jabber:client",NULL,NULL);
         r->host = pstrdup(r->p,xmlnode_get_attrib(x,"to"));
         block = xstream_header_char(cur);
@@ -69,7 +90,8 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         break;
 
     case XSTREAM_NODE:
-        if (r->state == state_UNKNOWN) /* only allow auth and registration query at this point */
+        log_debug(ZONE,"node");
+        if (r->state == state_UNKNOWN) /* only allow auth and registration queries at this point */
         {
             if (*(xmlnode_get_name(x)) == 'i')
             {
@@ -85,7 +107,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
 
         if (r->state == state_CLOSING)
         {
-            /* bounce */
+            /* bounce? */
             pth_event_free(r->ering,PTH_FREE_THIS);
             r->ering = NULL;
             return;
@@ -102,13 +124,14 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
 
 void *pthsock_client_reader(void *arg)
 {
-    reader r = (reader)arg;
+    reader r = (reader)arg, cur, prev;
     pth_event_t revt, wevt;
     char buff[1024], *attr, *block;
     xstream xs;
     drop d;
     int rc, len;
     dpacket p;
+    xmlnode x;
 
     log_debug(ZONE,"pthsock_client_reader thread starting");
 
@@ -124,7 +147,10 @@ void *pthsock_client_reader(void *arg)
         {
             len = pth_read(r->sock,buff,1024);
             if(len <= 0)
+            {
+                log_debug(ZONE,"Error reading on '%d', %s",r->sock,sterror(errno));
                 break;
+            }
 
             rc = xstream_eat(xs,buff,len);
             if (rc > XSTREAM_NODE)
@@ -133,11 +159,11 @@ void *pthsock_client_reader(void *arg)
 
         if(pth_event_occurred(wevt))
         {
-            log_debug(ZONE,"incoming message for %d",r->sock);
 
             /* get packet */
             d = (drop)pth_msgport_get(r->mp);
             p = d->p;
+            log_debug(ZONE,"incoming message for %d",r->sock);
 
             if (*(xmlnode_get_name(p->x)) == 'm')
             {
@@ -153,13 +179,13 @@ void *pthsock_client_reader(void *arg)
                 }
             }
 
-            if (r->state = state_UNKNOWN)
+            if (r->state == state_UNKNOWN)
             {
                 if (*(xmlnode_get_name(p->x)) == 'i')
                 {
                     if (strcmp(xmlnode_get_attrib(p->x,"type"),"result") == 0)
                     {
-                        /* change the host id */
+                        /* change the host id just incase */
                         r->host = pstrdup(r->p,xmlnode_get_attrib(p->x,"sfrom"));
                         r->state = state_AUTHD;
                     }
@@ -171,6 +197,8 @@ void *pthsock_client_reader(void *arg)
                     }
                 }
             }
+
+            log_debug(ZONE,"Writting %d",r->sock);
 
             xmlnode_hide_attrib(p->x,"sto");
             xmlnode_hide_attrib(p->x,"sfrom");
@@ -195,6 +223,15 @@ void *pthsock_client_reader(void *arg)
     else if (rc == XSTREAM_CLOSE || r->state == state_CLOSING)
         pth_write(r->sock,"</stream:stream>",16);
 
+    if (r->state != state_CLOSING)
+    {
+        x = xmlnode_new_tag("message");
+        jutil_error(x,TERROR_DISCONNECTED);
+        xmlnode_put_attrib(x,"sto",r->host);
+        xmlnode_put_attrib(x,"sfrom",r->id);
+        deliver(dpacket_new(x),r->i);
+    }
+
     if(p != NULL)
     { 
         /* bounce */
@@ -209,8 +246,19 @@ void *pthsock_client_reader(void *arg)
         pool_free(p->p);
     }
 
+    for (cur = pthsock_client__conns,prev = NULL; cur != NULL; prev = cur,cur = cur->next)
+    {
+        if (cur->sock == r->sock)
+        {
+            if (prev != NULL)
+                prev->next = cur->next;
+            else
+                pthsock_client__conns = cur->next;
+            break;
+        }
+    }
+
     close(r->sock);
-    /* XXX remove from list */
     pool_free(r->p);
     pth_event_free(wevt,PTH_FREE_THIS);
     pth_event_free(revt,PTH_FREE_THIS);
@@ -228,9 +276,19 @@ void *pthsock_client_listen(void *arg)
     reader r;
     pool p;
     pth_attr_t attr;
-    char *host;
+    char *host, *port;
 
     log_debug(ZONE,"pthsock_client_listen thread starting");
+
+    i = (instance) xmlnode_get_vattrib(cfg,"id");
+    host = xmlnode_get_tag_data(cfg,"host");
+    port = xmlnode_get_tag_data(cfg,"port");
+
+    if (host == NULL || port == NULL)
+    {
+        log_debug(ZONE,"Invaild config");
+        return;
+    }
 
     s = make_netsocket(5222,NULL,NETSOCKET_SERVER);
     if(s < 0)
@@ -244,9 +302,6 @@ void *pthsock_client_listen(void *arg)
         log_error(NULL,"pthsock_client is unable to listen on 5222");
         return NULL;
     }
-
-    i = (instance) xmlnode_get_vattrib(cfg,"id");
-    host = xmlnode_get_tag_data(cfg,"host");
 
     while(1)
     {
@@ -263,7 +318,9 @@ void *pthsock_client_listen(void *arg)
         r->i = i;
         r->state = state_UNKNOWN;
         r->id = pmalloco(p,strlen(host) + 6);
-        snprintf(r->id,strlen(host) + 5,"%d@pth-csock.%s",sock,host);
+        r->mp = pth_msgport_create("pthscok");
+        snprintf(r->id,strlen(host) + 5,"%d@%s",sock,host);
+        log_debug(ZONE,"id:%s",r->id);
 
         r->next = pthsock_client__conns;
         pthsock_client__conns = r;
