@@ -107,7 +107,7 @@ void *base_stdoutin(void *arg)
     log_debug(ZONE,"io thread starting");
 
     /* send the header to stdout */
-    x = xstream_header("jabberd:sockets",NULL,NULL);
+    x = xstream_header("jabber:component:exec",NULL,NULL);
     block = xstream_header_char(x);
     pth_write(STDOUT_FILENO,block,strlen(block));
     xmlnode_free(x);
