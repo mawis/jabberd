@@ -37,7 +37,7 @@
 mreturn mod_offline_message(mapi m)
 {
     session top;
-    int ret = M_PASS;
+    xmlnode cur = NULL, cur2;
 
     /* if there's an existing session, just give it to them */
     if((top = js_session_primary(m->user)) != NULL)
@@ -56,16 +56,45 @@ mreturn mod_offline_message(mapi m)
         return M_PASS;
     }
 
+    /* look for event messages */
+    for(cur = xmlnode_get_firstchild(m->packet->x); cur != NULL; cur = xmlnode_get_nextsibling(cur))
+        if(NSCHECK(cur,NS_EVENT))
+        {
+            if(xmlnode_get_tag(cur,"id") != NULL)
+                return M_PASS; /* bah, we don't want to store events offline (XXX: do we?) */
+            if(xmlnode_get_tag(cur,"offline") != NULL)
+                break; /* cur remaining set is the flag */
+        }
+
     log_debug("mod_offline","handling message for %s",m->user->user);
 
     jutil_delay(m->packet->x,"Offline Storage");
-    if(!xdb_set(m->si->xc, m->user->id, NS_OFFLINE, m->packet->x)) /* feed the message itself, and xdb inserts it for this namespace */
-    {
-        xmlnode_free(m->packet->x);
-        ret = M_HANDLED;
-    }
+    if(xdb_set(m->si->xc, m->user->id, NS_OFFLINE, m->packet->x)) /* feed the message itself, and xdb inserts it for this namespace */
+        return M_PASS;
 
-    return ret;
+    if(cur != NULL)
+    { /* if there was an offline event to be sent, send it for gosh sakes! */
+
+        jutil_tofrom(m->packet->x);
+
+        /* erease everything else in the message */
+        for(cur2 = xmlnode_get_firstchild(m->packet->x); cur2 != NULL; cur2 = xmlnode_get_nextsibling(cur2))
+            if(cur2 != cur)
+                xmlnode_hide(cur2);
+
+        /* erase any other events */
+        for(cur2 = xmlnode_get_firstchild(cur); cur2 != NULL; cur2 = xmlnode_get_nextsibling(cur2))
+            xmlnode_hide(cur2);
+
+        /* fill it in and send it on */
+        xmlnode_insert_tag(cur,"offline");
+        xmlnode_insert_cdata(xmlnode_insert_tag(cur,"id"),xmlnode_get_attrib(m->packet->x,"id"), -1);
+        js_deliver(m->si, jpacket_reset(m->packet));
+
+    }else{
+        xmlnode_free(m->packet->x);
+    }
+    return M_HANDLED;
 }
 
 /* just breaks out to our message/presence offline handlers */
