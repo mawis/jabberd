@@ -39,9 +39,21 @@
  * 
  * --------------------------------------------------------------------------*/
 
+/**
+ * @file jutil.c
+ * @brief various utilities mainly for handling xmlnodes containing stanzas
+ */
+
 #include <jabberdlib.h>
 
-/* util for making presence packets */
+/**
+ * utility for making presence stanzas
+ *
+ * @param type the type of the presence (one of the JPACKET__* contants)
+ * @param to to whom the presence should be sent, NULL for a broadcast presence
+ * @param status optional status (CDATA for the <status/> element, NULL for now <status/> element)
+ * @return the xmlnode containing the created presence stanza
+ */
 xmlnode jutil_presnew(int type, char *to, char *status)
 {
     xmlnode pres;
@@ -79,7 +91,17 @@ xmlnode jutil_presnew(int type, char *to, char *status)
     return pres;
 }
 
-/* util for making IQ packets */
+/**
+ * utility for making IQ stanzas, that contain a <query/> element in a different namespace
+ *
+ * @note In traditional Jabber protocols the element inside an iq element has the name "query".
+ * This util is not able to create IQ stanzas that contain a query which a element that does
+ * not have the name "query"
+ *
+ * @param type the type of the iq stanza (one of JPACKET__GET, JPACKET__SET, JPACKET__RESULT, JPACKET__ERROR)
+ * @param ns the namespace of the <query/> element
+ * @return the created xmlnode
+ */
 xmlnode jutil_iqnew(int type, char *ns)
 {
     xmlnode iq;
@@ -105,26 +127,47 @@ xmlnode jutil_iqnew(int type, char *ns)
     return iq;
 }
 
-/* util for making message packets */
+/**
+ * utility for making message stanzas
+ *
+ * @param type the type of the message (as a string!)
+ * @param to the recipient of the message
+ * @param subj the subject of the message (NULL for no subject element)
+ * @param body the body of the message
+ * @return the xmlnode containing the new message stanza
+ */
 xmlnode jutil_msgnew(char *type, char *to, char *subj, char *body)
 {
     xmlnode msg;
 
     msg = xmlnode_new_tag("message");
-    xmlnode_put_attrib (msg, "type", type);
-    xmlnode_put_attrib (msg, "to", to);
 
-    if (subj)
-    {
-	xmlnode_insert_cdata (xmlnode_insert_tag (msg, "subject"), subj, strlen (subj));
+    if (type != NULL) {
+	xmlnode_put_attrib (msg, "type", type);
     }
 
-    xmlnode_insert_cdata (xmlnode_insert_tag (msg, "body"), body, strlen (body));
+    if (to != NULL) {
+	xmlnode_put_attrib (msg, "to", to);
+    }
+
+    if (subj != NULL) {
+	xmlnode_insert_cdata(xmlnode_insert_tag(msg, "subject"), subj, strlen(subj));
+    }
+
+    if (body != NULL) {
+	xmlnode_insert_cdata(xmlnode_insert_tag(msg, "body"), body, strlen(body));
+    }
 
     return msg;
 }
 
-/* util for making stream packets */
+/**
+ * utility for making stream packets (containing the stream header element)
+ *
+ * @param xmlns the default namespace of the stream (e.g. jabber:client or jabber:server)
+ * @param server the domain of the server
+ * @return the xmlnode containing the root element of the stream
+ */
 xmlnode jutil_header(char* xmlns, char* server)
 {
      xmlnode result;
@@ -138,7 +181,12 @@ xmlnode jutil_header(char* xmlns, char* server)
      return result;
 }
 
-/* returns the priority on a presence packet */
+/**
+ * returns the priority on an available presence packet
+ *
+ * @param xmlnode the xmlnode containing the presence packet
+ * @return the presence priority, -129 for unavailable presences and errors
+ */
 int jutil_priority(xmlnode x)
 {
     char *str;
@@ -163,6 +211,11 @@ int jutil_priority(xmlnode x)
     return p<-128 ? -128 : p>127 ? 127 : p;
 }
 
+/**
+ * reverse sender and destination of a packet
+ *
+ * @param x the xmlnode where sender and receiver should be exchanged
+ */
 void jutil_tofrom(xmlnode x)
 {
     char *to, *from;
@@ -173,6 +226,12 @@ void jutil_tofrom(xmlnode x)
     xmlnode_put_attrib(x,"to",from);
 }
 
+/**
+ * change and xmlnode to be the result xmlnode for the original iq query
+ *
+ * @param x the xmlnode that should become the result for itself
+ * @return the result xmlnode (same as given as parameter x)
+ */
 xmlnode jutil_iqresult(xmlnode x)
 {
     xmlnode cur;
@@ -188,6 +247,13 @@ xmlnode jutil_iqresult(xmlnode x)
     return x;
 }
 
+/**
+ * get the present time as a textual timestamp in the format YYYYMMDDTHH:MM:SS
+ *
+ * @note this function is not thread safe
+ *
+ * @return pointer to a static (!) buffer containing the timestamp (or NULL on failure)
+ */
 char *jutil_timestamp(void)
 {
     time_t t;
@@ -211,6 +277,18 @@ char *jutil_timestamp(void)
     return timestamp;
 }
 
+/**
+ * map a terror structure to a xterror structure
+ *
+ * terror structures have been used in jabberd14 up to version 1.4.3 but
+ * are not able to hold XMPP compliant stanza errors. The xterror
+ * structure has been introduced to be XMPP compliant. This function
+ * is to ease writting wrappers that accept terror structures and call
+ * the real functions that require now xterror structures
+ *
+ * @param old the terror struct that should be converted
+ * @param mapped pointer to the xterror struct that should be filled with the converted error
+ */
 void jutil_error_map(terror old, xterror *mapped)
 {
     mapped->code = old.code;
@@ -295,6 +373,12 @@ void jutil_error_map(terror old, xterror *mapped)
     }
 }
 
+/**
+ * update an xmlnode to be the error stanza for itself
+ *
+ * @param x the xmlnode that should become an stanza error message
+ * @param E the structure that holds the error information
+ */
 void jutil_error_xmpp(xmlnode x, xterror E)
 {
     xmlnode err;
@@ -320,6 +404,14 @@ void jutil_error_xmpp(xmlnode x, xterror E)
     jutil_tofrom(x);
 }
 
+/**
+ * wrapper around jutil_error_xmpp for compatibility with modules for jabberd up to version 1.4.3
+ *
+ * @deprecated use jutil_error_xmpp instead!
+ *
+ * @param x the xmlnode that should become an stanza error message
+ * @param E the strucutre that holds the error information
+ */
 void jutil_error(xmlnode x, terror E)
 {
     xterror xE;
@@ -350,6 +442,28 @@ void jutil_delay(xmlnode msg, char *reason)
 
 #define KEYBUF 100
 
+/**
+ * create or validate a key value for stone-age jabber protocols
+ *
+ * Before dialback had been introduced for s2s (and therefore only in jabberd 1.0),
+ * Jabber used these keys to protect some iq requests. A client first had to
+ * request a key with a IQ get and use it inside the IQ set request. By being able
+ * to receive the key in the IQ get response, the client (more or less) proved to be
+ * who he claimed to be.
+ *
+ * The implementation of this function uses a static array with KEYBUF entries (default
+ * value of KEYBUF is 100). Therefore a key gets invalid at the 100th key that is created
+ * afterwards. It is also invalidated after it has been validated once.
+ *
+ * @deprecated This function is not really used anymore. jabberd14 does not check any
+ * keys anymore and only creates them in the jsm's mod_register.c for compatibility. This
+ * function is also used in mod_groups.c and the key is even checked there, but I do not
+ * know if mod_groups.c still works at all.
+ *
+ * @param key for validation the key the client sent, for generation of a new key NULL
+ * @param seed the seed for generating the key, must stay the same for the same user
+ * @return the new key when created, the key if the key has been validated, NULL if the key is invalid
+ */
 char *jutil_regkey(char *key, char *seed)
 {
     static char keydb[KEYBUF][41];

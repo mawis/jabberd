@@ -31,10 +31,18 @@
  * 
  * --------------------------------------------------------------------------*/
 
+/**
+ * @file crc32.c
+ * @brief Implementation of CRC32 using precomputed remainders
+ */
+
 #include <jabberdlib.h>
 
-/* precalculated CRC32-Values for 00..255 */
-/* c(x) = 1+x+x^2+x^4+x^5+x^7+x^8+x^10+x^11+x^12+x^16+x^22+x^23+x^26+x^32 */
+/**
+ * precalculated CRC32-Values for 00..255
+ * 
+ * c(x) = 1+x+x^2+x^4+x^5+x^7+x^8+x^10+x^11+x^12+x^16+x^22+x^23+x^26+x^32
+ */
 static const unsigned int CRC32_TAB[256] = {
     0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0x076dc419, 0x706af48f,
     0xe963a535, 0x9e6495a3, 0x0edb8832, 0x79dcb8a4, 0xe0d5e91e, 0x97d2d988,
