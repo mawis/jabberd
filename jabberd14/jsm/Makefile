@@ -53,7 +53,7 @@ clean: clean-recursive
 $(jsm_OBJECTS): $(jsm_HEADERS)
 
 all-local: $(jsm_OBJECTS) $(jsm_HEADERS)
-	$(CC) $(CFLAGS) $(MCFLAGS) -o jsm.so $(jsm_OBJECTS) $(jsm_EXOBJECTS) $(LDFLAGS) $(LIBS)
+	$(CC) $(CFLAGS) $(MCFLAGS) -o jsm.so $(jsm_OBJECTS) $(jsm_EXOBJECTS) $(LDFLAGS) $(LIBS) -lcrypt
 
 static: static-recursive
 

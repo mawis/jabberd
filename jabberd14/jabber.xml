@@ -255,6 +255,17 @@
         <feature var='jabber:iq:version'/>
       </disco>
 
+      <!--
+        Select the hashing algorithm that mod_auth_crypt uses
+	for storing passwords
+	Possible values:
+	crypt ... traditional hashing as impelemented in crypt()
+	SHA1  ... using SHA1 hashes
+      -->
+      <mod_auth_crypt>
+	<hash>SHA1</hash>
+      </mod_auth_crypt>
+
     </jsm>
 
     <!--
