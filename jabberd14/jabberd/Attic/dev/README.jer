@@ -32,6 +32,14 @@ Example packets:
 <xdb type="result" id="returnID" to="jabber.org" from="foo@jabber.org/jabber:iq:vcard-temp"><vCard xmlns="jabber:iq:vcard-temp">...</vCard></xdb>
 (all get/set's are routed to the xdb handler based on the to host, all results are delivered to the SERVICE identified in the from)
 
+---------- RANT on packet handlers
+copying packets is expensive, so we want to minimize copies.  it has to be determined *beforehand* that a copy should be made,
+so for ease it's just hard-wired that the o_DELIVER will be responsible for freeing the packet, and if there are multiple ones they are given copies
+the packet also needs to be flagged as "handled" or not, which is the return result from the handlers
+a packet is only handled when ANY handler (even if it's just an o_PRECOND) returns an r_OK
+handling is stopped upon an r_ERR or r_LAST, and no change with r_PASS
+r_ERR means the handler actually modified the packet appropriately to represent the error
+
 ---------- RANT on session routing
 for an auth iq, set the from="45a3@10348.polld.jabber.org" to identify the session id within the connection service
 set the sid="jabber.org" to identify the hostname that should be handling the service.

@@ -21,7 +21,7 @@ void *heartbeat(void *arg)
     beat b, b2;
     result r;
 
-    ev = pth_event(PTH_EVENT_TIMER);
+    ev = pth_event(PTH_EVENT_TIME, pth_timeout(1,0));
 
     while(1)
     {
@@ -89,5 +89,5 @@ void heartbeat_birth(void)
     heartbeat__ring->next = heartbeat__ring->prev = heartbeat__ring;
 
     /* start the thread */
-    pth_spwan(PTH_ATTR_DEFAULT, heartbeat, NULL);
+    pth_spawn(PTH_ATTR_DEFAULT, heartbeat, NULL);
 }

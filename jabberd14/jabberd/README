@@ -1,0 +1,12 @@
+jabberd is a daemon administrating and coordinating the flow of data within the server architecture
+jabberd consists of base modules which implement the execution environment of components within the server architecture
+the logic for constructing the architecture, managing the components, and coordinating the flow of data is governed by the configuration file
+
+base modules may:
+	handle configuration commands within the context of an instance
+	relate an instance to the delivery logic
+	handle packets within the context of an instance
+	genrate new packets for delivery
+
+packets are routed based on the host in the to or sid attributes
+packets are logicly delivered into three categories: log, xdb, normal
