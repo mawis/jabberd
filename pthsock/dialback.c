@@ -384,7 +384,7 @@ void pthsock_server_outread(mio s, int flags, void *arg, xmlnode x)
         /* other data on the stream? */
         x2 = xmlnode_new_tag_pool(xmlnode_pool(x), "stream:error");
         xmlnode_insert_cdata(x2, "Not Allowed to send data on this socket", -1);
-        mio_write(h->c->s, NULL, xmlnode2str(x2), -1);
+        mio_write(c->s, NULL, xmlnode2str(x2), -1);
         xmlnode_free(x);
         break;
     case MIO_CLOSED:
