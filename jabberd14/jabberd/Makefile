@@ -82,5 +82,4 @@ maintainer-clean-recursive:
 	  fi; \
 	  (cd $$subdir && $(MAKE) $$local_target) \
 	   || case "$$amf" in *=*) exit 1;; *k*) fail=yes;; *) exit 1;; esac; \
-	done \
-    test -z "$$fail"
+	done && test -z "$$fail"
