@@ -1,0 +1,6 @@
+<chapter id="charchitecture" xreflabel="Component Architecture">
+	<title>Component Architecture</title>
+	<para>In keeping with the design goals of a highly-scalable and modular server, 
+	a typical 2.0 server is composed of a conglomeration of components. 
+</chapter>
+

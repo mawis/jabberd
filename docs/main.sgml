@@ -1,0 +1,55 @@
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook V3.1//EN" [
+
+
+<!ENTITY currentdate  SYSTEM "datestamp">
+<!ENTITY currentver   SYSTEM "verstamp">
+
+<!ENTITY chintro      SYSTEM "chapters/intro.sgml">
+<!ENTITY chbackground SYSTEM "chapters/background.sgml">
+<!ENTITY chgoals      SYSTEM "chapters/goals.sgml">
+<!ENTITY charchitecture SYSTEM "chapters/arch.sgml">
+
+]>
+
+<book id="index">
+	<bookinfo>
+		<date>&currentdate;</date>
+		<title>A Guide to the Jabber Server 2.0 Architecture</title>
+		<authorgroup>
+			<author>
+				<firstname>Jeremie</firstname>
+				<surname>Miller</surname>
+				<affiliation>
+					<orgname>Jabber.com, Inc.</orgname>
+					<address><email>jeremie@jabber.org</email></address>
+				</affiliation>
+			</author>
+			<author>
+				<firstname>Dave</firstname>
+				<othername>"dizzy"</othername>
+				<surname>Smith</surname>
+				<affiliation>
+					<orgname>Jabber.com, Inc.</orgname>
+					<address><email>dave@jabber.org</email></address>
+				</affiliation>
+			</author>
+		</authorgroup>
+		<copyright>
+			<year>2000</year>
+			<holder>Jeremie Miller and Dave Smith</holder>
+		</copyright>
+		<legalnotice>
+			<para>FIXME</para>
+		</legalnotice>
+		<edition>Release &currentver;</edition>
+	</bookinfo>		
+
+<!-- Include all the other files -->
+&chintro;
+&chbackground;
+&chgoals;
+&charchitecture;
+
+</book>
+		
+
