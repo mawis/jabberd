@@ -123,7 +123,7 @@ int _mio_netmask_to_ipv6(const char *netmask)
 
     if (inet_pton(AF_INET, netmask, &addr))
     {
-	int temp = ntohl(addr.s_addr);
+	uint32_t temp = ntohl(addr.s_addr);
 	int netmask = 128;
 
 	while (netmask>96 && temp%2==0)
