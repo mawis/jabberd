@@ -1,8 +1,6 @@
 #include <dlfcn.h>
 
 #include "jabberd.h"
-#include "jabberd-load.h"
-
 
 xmlnode base_load__cache = NULL;
 
@@ -58,7 +56,7 @@ void *base_load_symbol(char *func, char *file)
     return func_h;
 }
 
-result base_load_config(idnode id, xmlnode x, void *arg)
+result base_load_config(instance id, xmlnode x, void *arg)
 {
     xmlnode so;
 
@@ -84,16 +82,12 @@ void base_load(void)
     /* init global cache */
     base_load__cache = xmlnode_new_tag("so_cache");
 
-    cfreg("load",base_load_config,NULL);
+    register_config("load",base_load_config,NULL);
 }
 
 
 
 /************ BELOW IS UTILITY SYMBOLS FOR LOADED MODULES ***************/
-struct instance_struct
-{
-    idnode id;
-};
 
 /* CREATE an xdb blocked ring
 each entry has a new int and is placed as the id="int" value
@@ -103,7 +97,7 @@ start sending logs depending on length of staleness
 */
 
 /* blocks until namespace is retrieved, host must map back to this service! */
-xmlnode xdb_get(instance i, char *host, jid to, char *ns)
+xmlnode xdb_get(xdbcache xc, char *host, jid to, char *ns)
 {
     /* create the xml and deliver the xdb get request */
     /* insert an entry in this instances xdb blocked ring */
@@ -112,8 +106,8 @@ xmlnode xdb_get(instance i, char *host, jid to, char *ns)
 }
 
 /* sends new xml to replace old */
-int xdb_set(instance i, char *host, jid to, xmlnode data)
+int xdb_set(xdbcache xc, char *host, jid to, xmlnode data)
 {
-    /* blocks just like the get, returns 0 if success, 1 if error */
+    /* blocks just like the get, returns non-zero if error */
     /* if get back type="error" log that */
 }

@@ -1,7 +1,7 @@
 #include "jabberd.h"
 
-/* register a function to handle delivery for this idnode */
-void hdreg(idnode id, order o, hdgene f, void *arg)
+/* register a function to handle delivery for this instance */
+void register_phandler(instance id, order o, phandler f, void *arg)
 {
     handel newh, h1;
 
@@ -44,22 +44,22 @@ void hdreg(idnode id, order o, hdgene f, void *arg)
 }
 
 
-/* private struct for lists of hostname to idnode mappings */
+/* private struct for lists of hostname to instance mappings */
 typedef struct hostid_struct
 {
     char *host;
-    idnode id;
+    instance id;
     struct hostid_struct *next;
 } *hostid, _hostid;
 
-/* three internal lists for log, xdb, and normal (session is same idnodes as normal) */
+/* three internal lists for log, xdb, and normal (session is same instances as normal) */
 hostid deliver__log = NULL;
 hostid deliver__xdb = NULL;
 hostid deliver__norm = NULL;
 pool deliver__p = NULL;
 
-/* register an idnode into the delivery tree */
-void idreg(idnode id, char *host)
+/* register an instance into the delivery tree */
+void register_instance(instance id, char *host)
 {
     hostid newh;
 
@@ -104,8 +104,8 @@ void deliver_fail(dpacket p)
     }
 }
 
-/* actually perform the delivery to an idnode */
-void deliver_idnode(idnode id, dpacket p)
+/* actually perform the delivery to an instance */
+void deliver_instance(instance id, dpacket p)
 {
     handel h;
     result r;
@@ -134,7 +134,7 @@ void deliver(dpacket p)
 
     /* XXX once we switch to pthreads, deliver() will have to queue until configuration is done, since threads may have started during config and be delivering already */
 
-    /* based on type, pick idnode list */
+    /* based on type, pick instance list */
     switch(p->type)
     {
     case p_LOG:
@@ -149,18 +149,18 @@ void deliver(dpacket p)
     default:
     }
 
-    /* XXX optimize by having seperate lists for idnodes for hosts and general ones (NULL) */
+    /* XXX optimize by having seperate lists for instances for hosts and general ones (NULL) */
 
-    /* send the packet to every exact matching idnode */
+    /* send the packet to every exact matching instance */
     for(cur = list; cur != NULL; cur = cur->next)
         if(cur->host != NULL && strcmp(cur->host,p->host) == 0)
-            deliver_idnode(cur->id, p);
+            deliver_instance(cur->id, p);
 
-    /* if it didn't get delivered at all, send the packet to idnodes that handle any host */
+    /* if it didn't get delivered at all, send the packet to instances that handle any host */
     if(!(p->flag_used))
         for(cur = list; cur != NULL; cur = cur->next)
             if(cur->host == NULL)
-                deliver_idnode(cur->id, p);
+                deliver_instance(cur->id, p);
 
     /* if nobody actually handled it, we've got problems */
     if(p->flag_best != r_OK)

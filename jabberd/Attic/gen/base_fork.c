@@ -1,6 +1,6 @@
 #include "jabberd.h"
 
-result base_fork_config(idnode id, xmlnode x, void *arg)
+result base_fork_config(instance id, xmlnode x, void *arg)
 {
     if(id == NULL)
     {
@@ -15,5 +15,5 @@ void base_fork(void)
 {
     printf("base_fork loading...\n");
 
-    cfreg("fork",base_fork_config,NULL);
+    register_config("fork",base_fork_config,NULL);
 }

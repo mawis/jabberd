@@ -1,6 +1,6 @@
 #include "jabberd.h"
 
-result base_ns_config(idnode id, xmlnode x, void *arg)
+result base_ns_config(instance id, xmlnode x, void *arg)
 {
     if(id == NULL)
     {
@@ -15,5 +15,5 @@ void base_ns(void)
 {
     printf("base_ns loading...\n");
 
-    cfreg("ns",base_ns_config,NULL);
+    register_config("ns",base_ns_config,NULL);
 }

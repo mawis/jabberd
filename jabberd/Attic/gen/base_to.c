@@ -1,6 +1,6 @@
 #include "jabberd.h"
 
-result base_to_config(idnode id, xmlnode x, void *arg)
+result base_to_config(instance id, xmlnode x, void *arg)
 {
     if(id == NULL)
     {
@@ -15,5 +15,5 @@ void base_to(void)
 {
     printf("base_to loading...\n");
 
-    cfreg("to",base_to_config,NULL);
+    register_config("to",base_to_config,NULL);
 }

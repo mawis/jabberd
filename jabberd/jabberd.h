@@ -10,7 +10,7 @@ typedef enum { o_FIRST, o_ANY, o_LAST } order;
 /* result types */
 typedef enum { r_PASS, r_ERR, r_OK } result;
 
-typedef struct idnode_struct *idnode, _idnode;
+typedef struct instance_struct *instance, _instance;
 
 /* packet wrapper, d as in delivery or daemon, whichever pleases you */
 typedef struct dpacket_struct
@@ -21,23 +21,23 @@ typedef struct dpacket_struct
     pool p;
     xmlnode x;
     result flag_best; /* the best result type for this packet, to know if it was actually handled */
-    int flag_used; /* number of idnodes that have handled it */
+    int flag_used; /* number of instances that have handled it */
 } *dpacket, _dpacket;
 
 /* delivery handler function callback definition */
-typedef result (*hdgene)(idnode id, dpacket p, void *arg);
+typedef result (*phandler)(instance id, dpacket p, void *arg);
 
 /* delivery handler list */
 typedef struct handel_struct
 {
-    hdgene f;
+    phandler f;
     void *arg;
     order o; /* for sorting new handlers as they're inserted */
     struct handel_struct *next;
 } *handel, _handel;
 
 /* wrapper around top-level config file sections */
-struct idnode_struct
+struct instance_struct
 {
     char *id;
     pool p;
@@ -48,13 +48,13 @@ struct idnode_struct
 };
 
 /* config file handler function callback definition */
-typedef result (*cfgene)(idnode id, xmlnode x, void *arg);
+typedef result (*cfhandler)(instance id, xmlnode x, void *arg);
 
 
 /*** public functions for base modules ***/
-void cfreg(char *node, cfgene f, void *arg); /* register a function to handle that node in the config file */
-void hdreg(idnode id, order o, hdgene f, void *arg); /* register a function to handle delivery for this idnode */
-void idreg(idnode id, char *host); /* associate an id with a hostname for that packet type */
+void register_config(char *node, cfhandler f, void *arg); /* register a function to handle that node in the config file */
+void register_phandler(instance id, order o, phandler f, void *arg); /* register a function to handle delivery for this instance */
+void register_instance(instance id, char *host); /* associate an id with a hostname for that packet type */
 dpacket dpacket_new(xmlnode x); /* create a new delivery packet from source xml */
 
 /*** global logging symbols ***/
@@ -71,3 +71,24 @@ void logger(char *type, char *host, char *message); /* actually creates and deli
 int configurator(char *cfgfile);
 void loader(void);
 int configo(int exec);
+
+/*** xdb utilities, only used by base_load'd extensions and only available when base_load is used :) ***/
+
+/* ring for handling cached structures */
+typedef struct xdbcache_struct
+{
+    int id;
+    char *host;
+    char *ns; /* for get */
+    xmlnode data; /* for set */
+    jid owner;
+    int sent;
+    /* pth condition to block thread */
+    struct xdb_cache_struct *prev;
+    struct xdb_cache_struct *next;
+} *xdbcache, _xdbcache;
+
+xdbcache xdb_cache(instance i); /* create a new xdb cache for this instance */
+xmlnode xdb_get(xdbcache xc, char *host, jid owner, char *ns); /* blocks until namespace is retrieved, host must map back to this service! returns xmlnode or NULL if failed */
+int xdb_set(xdbcache xc, char *host, jid owner, xmlnode data); /* sends new xml to replace old, returns non-zero if failure */
+

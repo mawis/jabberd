@@ -1,6 +1,6 @@
 #include "jabberd.h"
 
-result base_logtype_config(idnode id, xmlnode x, void *arg)
+result base_logtype_config(instance id, xmlnode x, void *arg)
 {
     if(id == NULL)
     {
@@ -15,7 +15,7 @@ void base_logtype(void)
 {
     printf("base_logtype loading...\n");
 
-    cfreg("notice",base_logtype_config,NULL);
-    cfreg("warn",base_logtype_config,NULL);
-    cfreg("alert",base_logtype_config,NULL);
+    register_config("notice",base_logtype_config,NULL);
+    register_config("warn",base_logtype_config,NULL);
+    register_config("alert",base_logtype_config,NULL);
 }

@@ -1,6 +1,12 @@
 #include "jabberd.h"
 
-result base_host_config(idnode id, xmlnode x, void *arg)
+/*
+    <host>hostname.org</host>
+    <host>.polld.isp.net</host> [the . flags any domain matching that]
+    <host/>
+*/
+
+result base_host_config(instance id, xmlnode x, void *arg)
 {
     if(id == NULL)
     {
@@ -9,12 +15,12 @@ result base_host_config(idnode id, xmlnode x, void *arg)
     }
 
     printf("base_host_config registering host %s with section '%s'\n",xmlnode_get_data(x), id->id);
-    idreg(id, xmlnode_get_data(x));
+    register_instance(id, xmlnode_get_data(x));
 }
 
 void base_host(void)
 {
     printf("base_host loading...\n");
 
-    cfreg("host",base_host_config,NULL);
+    register_config("host",base_host_config,NULL);
 }
