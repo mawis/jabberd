@@ -1,25 +1,28 @@
 #!/bin/sh
 OPENSSL=/usr/bin/openssl
 
-printf "____________________________________________________________\n";
+printf "_____________________________________________________________\n";
 printf "This script generates the self-certificate/key for use by SSL\n";
 printf "in Jabberd.  The key will be valid for 10 years (3650 days).\n";
-printf "Simply answer the questions asked, being sure to use the\n";
-printf "same password each time it is asked.\n\n";
-printf "NOTE:  Be sure to enter the fully-qualified domain name\n";
-printf "       (FQDN) of your Jabber server as the \"Common Name\"\n";
-printf "       (for example \"jabber.myserver.net\").\n\n";
+printf "Simply answer the questions asked.\n";
+printf "You should at least enter the \"Common Name\" and the\n";
+printf "\"XMPP-Address\" of the server.\n";
+printf "NOTE:  - Be sure to enter the fully-qualified domain name\n";
+printf "         (FQDN) of your Jabber server\n";
+printf "         (for example \"jabber.example.com\").\n";
+printf "       - For compatibility with older clients, you should\n";
+printf "         enter the fully-qualified domain name as the\n";
+printf "         \"Common Name\" as well as as the \"XMPP-address\".\n";
+printf "\n";
 printf "If you want to change any of the settings, you'll need to\n";
 printf "either modify this script, or execute the commands herein\n";
 printf "by hand and make adjustments as needed.\n\n"
 printf "For further documentation, see the Admin Guide:\n"
 printf "http://jabberd.jabberstudio.org/1.4/doc/adminguide\n"
 printf "____________________________________________________________\n\n";
-printf "Press [Enter] when ready";
+printf "Press [Enter] when ready, [Ctrl]-C to abort";
 read input
-$OPENSSL req -new -x509 -newkey rsa:1024 -days 3650 -keyout privkey.pem -out key.pem
-## This will remove the passphrase
-$OPENSSL rsa -in privkey.pem -out privkey.pem
+$OPENSSL req -new -x509 -newkey rsa:1024 -days 3650 -keyout privkey.pem -out key.pem -nodes -config selfsigned.cnf
 ## Put it all together
 cat privkey.pem >> key.pem
 ## Cleanup
