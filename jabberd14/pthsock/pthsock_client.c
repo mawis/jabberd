@@ -41,8 +41,7 @@ typedef struct csock_st
     conn_state state;
     xstream xs;
     char *id, *host, *sid, *res, *auth_id;
-    pth_msgport_t queue;
-    int sock, write_flag;
+    int sock;
     struct csock_st *next;
 } *csock, _csock;
 
@@ -62,6 +61,7 @@ typedef struct
 {
     pth_message_t head; /* the standard pth message header */
     dpacket p;
+    csock c;
 } *drop, _drop;
 
 result pthsock_client_packets(instance id, dpacket p, void *arg)
@@ -91,11 +91,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
             {
                 d = pmalloc(xmlnode_pool(p->x),sizeof(_drop));
                 d->p = p;
-                cur->write_flag = 1;
-                pth_msgport_put(cur->queue,(void*)d);
-
-                /* notify the main thread with an empty message */
-                d = pmalloco(xmlnode_pool(p->x),sizeof(_drop));
+                d->c = cur;
                 pth_msgport_put(si->wmp,(void*)d);
             }
             else
@@ -153,7 +149,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
     case XSTREAM_NODE:
         log_debug(ZONE,"node received for %d",c->sock);
 
-        //log_debug(ZONE,">>>> %s",xmlnode2str(x));
+        log_debug(ZONE,">>>> %s",xmlnode2str(x));
 
         /* only allow auth and registration queries at this point */
         if (c->state == state_UNKNOWN)
@@ -184,7 +180,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         break;
 
     case XSTREAM_ERR:
-        pth_write(c->sock,"<stream::error>You sent malformed XML</stream:error>",52 * sizeof(char));
+        pth_write(c->sock,"<stream::error>You sent malformed XML</stream:error>",52);
     case XSTREAM_CLOSE:
         log_debug(ZONE,"closing XSTREAM");
         if (c->state == state_AUTHD)
@@ -225,7 +221,6 @@ void pthsock_client_release(smi si, csock c)
 void pthsock_client_close(csock c)
 {
     xmlnode x;
-    drop d;
 
     log_debug(ZONE,"closing socket '%d'",c->sock);
 
@@ -238,19 +233,10 @@ void pthsock_client_close(csock c)
         deliver(dpacket_new(x),c->i);
     }
     else if(c->state != state_CLOSED)
-        pth_write(c->sock,"</stream:stream>",16 * sizeof(char));
+        pth_write(c->sock,"</stream:stream>",16);
 
     close(c->sock);
     c->state = state_CLOSED;
-
-    if (c->write_flag)
-    {
-        c->write_flag = 0;
-        while ((d = (drop)pth_msgport_get(c->queue)) != NULL)
-            xmlnode_free(d->p->x); /* XXX bounce instead of free */
-    }
-
-    pth_msgport_destory(c->queue);
 }
 
 int pthsock_client_write(csock c, dpacket p)
@@ -268,9 +254,10 @@ int pthsock_client_write(csock c, dpacket p)
                 if (c->state != state_CLOSED)
                 {
                     c->state = state_CLOSED;
-                    if (pth_write(c->sock,"<stream:error>Disconnected</stream:error>",41 * sizeof(char)) > 0)
-                        pth_write(c->sock,"</stream:stream>",16 * sizeof(char));
+                    if (pth_write(c->sock,"<stream:error>Disconnected</stream:error>",41) > 0)
+                        pth_write(c->sock,"</stream:stream>",16);
                     close(c->sock);
+                    log_debug(ZONE,"done");
                 }
                 else
                     log_debug(ZONE,"socket already closed");
@@ -302,7 +289,7 @@ int pthsock_client_write(csock c, dpacket p)
     xmlnode_hide_attrib(p->x,"sfrom");
     block = xmlnode2str(p->x);
 
-    //log_debug(ZONE,"<<<< %s",block);
+    log_debug(ZONE,"<<<< %s",block);
 
     /* write the packet */
     if(pth_write(c->sock,block,strlen(block)) <= 0)
@@ -329,7 +316,7 @@ csock pthsock_client_csock(smi si, int sock)
     c->xs = xstream_new(p,pthsock_client_stream,(void*)c);
     c->sock = sock;
     c->state = state_UNKNOWN;
-    c->queue = pth_msgport_create("pthsock client queue");
+
     memset(buf,0,99);
 
     /* HACK to fix race conditon */
@@ -387,7 +374,7 @@ void *pthsock_client_main(void *arg)
     tout t;
     pth_msgport_t wmp;
     pth_event_t wevt, tevt, ering;
-    fd_set rfds, wfds, afds;
+    fd_set rfds, afds;
     csock cur, c, temp;
     drop d;
     char buff[1024];
@@ -407,13 +394,12 @@ void *pthsock_client_main(void *arg)
     ering = pth_event_concat(wevt,tevt,NULL);
 
     FD_ZERO(&rfds);
-    FD_ZERO(&wfds);
     FD_ZERO(&afds);
     FD_SET(asock,&rfds);
 
     while (1)
     {
-        if (pth_select_ev(FD_SETSIZE,&rfds,&wfds,NULL,NULL,ering) > 0)
+        if (pth_select_ev(FD_SETSIZE,&rfds,NULL,NULL,NULL,ering) > 0)
         {
             log_debug(ZONE,"select");
 
@@ -441,7 +427,6 @@ void *pthsock_client_main(void *arg)
             cur = si->conns;
             while(cur != NULL)
             {
-                /* remove closed connections */
                 if (cur->state == state_CLOSED)
                 {
                     temp = cur;
@@ -449,11 +434,9 @@ void *pthsock_client_main(void *arg)
                     pthsock_client_release(si,temp);
                     continue;
                 }
-
-                /* read */
-                if (FD_ISSET(cur->sock,&rfds))
+                else if (FD_ISSET(cur->sock,&rfds))
                 {
-                    len = pth_read(cur->sock,buff,sizeof(buff));
+                    len = pth_read(cur->sock,buff,1024);
                     if(len <= 0)
                     {
                         log_debug(ZONE,"Error reading on '%d', %s",cur->sock,strerror(errno));
@@ -470,27 +453,34 @@ void *pthsock_client_main(void *arg)
                             FD_SET(cur->sock,&afds);
                     }
                 }
-
-                /* handle packets that need to be written */
-                if (cur->write_flag && FD_ISSET(cur->sock,&wfds))
-                {
-                    /* get and write the packets */
-                    while ((d = (drop)pth_msgport_get(cur->queue)) != NULL)
-                        if (!pthsock_client_write(c,d->p))
-                            break;
-
-                    cur->write_flag = 0;
-
-                    /* if it closed while we tried to write then don't add it to the set */
-                    if (c->state != state_CLOSING && c->state != state_CLOSED)
-                        FD_SET(cur->sock,&afds);
-                }
                 else
                     FD_SET(cur->sock,&afds);
 
                 cur = cur->next;
             }
-            wfds = rfds = afds;
+            rfds = afds;
+        }
+
+        /* handle packets that need to be written */
+        if (pth_event_occurred(wevt))
+        {
+            log_debug(ZONE,"write event");
+            while (1)
+            {
+                /* get the packet */
+                d = (drop)pth_msgport_get(wmp);
+                if (d == NULL) break;
+
+                c = d->c;
+                if (c->state == state_CLOSING || c->state == state_CLOSED)
+                {
+                    /* bounce */
+                    continue;
+                }
+
+                if (!pthsock_client_write(c,d->p))
+                    FD_CLR(c->sock,&rfds);
+            }
         }
     }
     return NULL;
