@@ -220,27 +220,39 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
 result base_accept_beat(void *arg)
 {
     accept_instance ai = (accept_instance)arg;
-    queue last, cur, next;
+    queue bouncer, lastgood, cur, next;
     int now = time(NULL);
 
     cur = ai->q;
+    bouncer = lastgood = NULL;
     while(cur != NULL)
     {
         if( (now - cur->stamp) <= ai->timeout)
         {
-            last = cur;
+            lastgood = cur;
             cur = cur->next;
             continue;
         }
 
         /* timed out sukkah! */
         next = cur->next;
-        if(ai->q == cur)
+        if(lastgood == NULL)
             ai->q = next;
         else
-            last->next = next;
-        deliver_fail(dpacket_new(cur->x),"Internal Timeout");
+            lastgood->next = next;
+
+        /* place in a special queue to bounce later on */
+        cur->next = bouncer;
+        bouncer = cur;
+
         cur = next;
+    }
+
+    while(bouncer != NULL)
+    {
+        next = bouncer->next;
+        deliver_fail(dpacket_new(bouncer->x),"Internal Timeout");
+        bouncer = next;
     }
     
     return r_DONE;
