@@ -127,6 +127,8 @@ case $hosttype in
 	CFLAGS="$CFLAGS -fPIC"
         XLDFLAGS="$XLDFLAGS -Wl,-E";;
     NetBSD)
+        LIBS="$LIBS -lresolv"
+        SLIBS="$SLIBS /usr/lib/libresolv.a";
         XLDFLAGS="$XLDFLAGS -Wl,--export-dynamic";;
     CYGWIN*)
         sh ./cygwin/setup.sh
