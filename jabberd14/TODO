@@ -78,10 +78,6 @@ clean up log_* calls, make sure right type, looks sane
 jer	9/15/00
 socket ioctl tweaks, r/w buffers, reduce data loss, shorten timeouts
 
-someone 9/26/00
-figure out a way to let the dns component know we already have an open
-socket to a server, so it doesn't have to keep looking it up all the time
-
 ===================================
 1.3/1.4
 ===================================
