@@ -41,6 +41,7 @@ void *pthsock_client();
 void *pthsock_server();
 void *xdb_file();
 void *dnsrv();
+void *dialback();
 void *mod_admin();
 void *mod_archive();
 void *mod_agents();
@@ -71,6 +72,7 @@ void *load_symbol(char *func, char *file)
     if(j_strcmp(func,"pthsock_server") == 0) return (void (*)(instance,xmlnode))pthsock_server;
     if(j_strcmp(func,"xdb_file") == 0) return (void (*)(instance,xmlnode))xdb_file;
     if(j_strcmp(func,"dnsrv") == 0) return (void (*)(instance,xmlnode))dnsrv;
+    if(j_strcmp(func,"dialback") == 0) return (void (*)(instance,xmlnode))dialback;
     if(j_strcmp(func,"mod_browse") == 0) return (void (*)(void))mod_browse;
     if(j_strcmp(func,"mod_archive") == 0) return (void (*)(void))mod_archive;
     if(j_strcmp(func,"mod_echo") == 0) return (void (*)(void))mod_echo;

@@ -96,6 +96,9 @@ jabberd_STATICOBJS=\
 	$(JHOME)/jsm/modules/mod_xml.o \
 	$(JHOME)/dnsrv/dnsrv.o \
 	$(JHOME)/dnsrv/srv_resolv.o \
+    $(JHOME)/dialback/dialback.o \
+    $(JHOME)/dialback/dialback_out.o \
+    $(JHOME)/dialback/dialback_in.o \
 	$(JHOME)/pthsock/dialback.o \
 	$(JHOME)/pthsock/client.o \
 	$(JHOME)/xdb_file/xdb_file.o

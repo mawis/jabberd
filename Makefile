@@ -3,7 +3,7 @@
 #
 include platform-settings
 
-SUBDIRS=pthsock xdb_file dnsrv jsm jabberd dialback
+SUBDIRS=pthsock xdb_file dnsrv jsm dialback jabberd
 
 all: all-recursive
 
