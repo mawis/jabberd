@@ -400,20 +400,33 @@ void _nad_escape(nad_t nad, int data, int len, int flag)
     }
 
     /* check for ]]>, we need to escape the > */
-    while(flag >= 1 && (c = memchr(nad->cdata + data, '>', len)) != NULL && c >= nad->cdata + 2 && c[-1] == ']' && c[-2] == ']')
+    while(flag >= 1 && (c = memchr(nad->cdata + data, '>', len)) != NULL)
     {
         ic = c - nad->cdata;
         _nad_escape(nad, data, ic - data, 0);
 
-        /* ensure enough space, and add our escaped &gt; */
-        NAD_SAFE(nad->cdata, nad->ccur + 4, nad->clen);
-        memcpy(nad->cdata + nad->ccur, "&gt;", 4);
-        nad->ccur += 4;
+        /* check for the sequence */
+        if(c >= nad->cdata + 2 && c[-1] == ']' && c[-2] == ']')
+        {
+            /* ensure enough space, and add our escaped &gt; */
+            NAD_SAFE(nad->cdata, nad->ccur + 4, nad->clen);
+            memcpy(nad->cdata + nad->ccur, "&gt;", 4);
+            nad->ccur += 4;
+        }
+
+        /* otherwise, just plug the > in as-is */
+        else
+        {
+            NAD_SAFE(nad->cdata, nad->ccur + 1, nad->clen);
+            *(nad->cdata + nad->ccur) = '>';
+            nad->ccur++;
+        }
 
         /* just update and loop for more */
         len -= (ic+1) - data;
         data = ic+1;
     }
+
 
     /* if & is found, escape it */
     while((c = memchr(nad->cdata + data,'&',len)) != NULL)
