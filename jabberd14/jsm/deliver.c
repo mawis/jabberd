@@ -86,8 +86,7 @@ result js_packet(instance i, dpacket p, void *arg)
     /* make sure this hostname is in the master table */
     if((ht = (HASHTABLE)ghash_get(si->hosts,p->host)) == NULL)
     {
-        /* XXX make USERS_PRIME configurable */
-        ht = ghash_create(USERS_PRIME,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+        ht = ghash_create(j_atoi(xmlnode_get_data(js_config(si,"maxusers")),USERS_PRIME),(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
         log_debug(ZONE,"creating user hash %X for %s",ht,p->host);
         ghash_put(si->hosts,pstrdup(si->p,p->host), (void *)ht);
         log_debug(ZONE,"checking %X",ghash_get(si->hosts,p->host));

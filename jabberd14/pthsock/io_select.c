@@ -100,6 +100,7 @@ int _io_write_dump(sock c)
     {
         /* write a bit from the current buffer */
         len=write(c->fd,c->cbuffer,strlen(c->cbuffer));
+        //printf("WRITE %d len %d of %s\n",c->fd,len,c->cbuffer);
         if(len==0)
         {
             (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg); /* bounce the queue */
@@ -649,7 +650,7 @@ void io_select_listen_ex(int port,char *listen_host,io_cb cb,void *arg,int rate_
         new->rate=jlimit_new(rate_time,max_points);
     }
 
-    log_notice(NULL,"io_select starting to listen on %d [%s]",port,listen_host);
+    log_debug(ZONE,"io_select starting to listen on %d [%s]",port,listen_host);
     if(io__data==NULL)
     {
         register_shutdown(io_select_shutdown, NULL);

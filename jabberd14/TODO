@@ -2,22 +2,12 @@
 Laundry List
 ===================================
 
-existing/known bugs or issues with 1.0, protocol things?
-rapid auth rate limits
-prime# configurable for all ghashes
-other configurable knobs? (timers)
-re-evaluate escaped cdata performance (xstream and file parsing)
-malloc-null sleep
-log_* cleanup and evaluation, eliminate useless log_debugs, add others?  make sure log_notice/warn/alert provides usefull error message
-compiled-in config
-check XXX/TODO comment flags
+jabber.xml cleanup
+<admin> use jids
+make install and <jabberd:install/> in config?
 check error code usage, use more custom ones?
-c2s socket ioctl tweaks, r/w buffers, reduce data loss, shorten timeouts
-pmalloco used everywhere
-unavailable-->Disconnected?
-cwd in exec 
-j_strcasecmp() for sha compares
 dialback better error bounce messages
+Unresolved happening incorrectly?
 
 
 ===================================
@@ -32,6 +22,9 @@ mod_welcome, mod_announce, & last xdb
 stateless jsm
 xmlnode_get_tag("tag/=data")
 s2s idle timeout & whitespace keepalive
+re-evaluate escaped cdata performance (xstream and file parsing)
+compiled-in config
+c2s socket ioctl tweaks, r/w buffers, reduce data loss, shorten timeouts
 
 
 ===================================

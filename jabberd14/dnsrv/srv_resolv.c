@@ -101,7 +101,7 @@ char* srv_lookup(pool p, const char* service, const char* domain)
      log_debug(ZONE, "srv: SRV resolution of %s.%s", service, domain);
 
      /* Setup A record hash table */
-     arr_table = ghash_create(10, (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
+     arr_table = ghash_create(11, (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
 
      /* Initialize lookup system if needed (check global _res structure) */
      if (((_res.options & RES_INIT) == 0) && (res_init() == -1))

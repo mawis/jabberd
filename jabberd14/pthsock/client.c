@@ -484,6 +484,6 @@ void pthsock_client(instance i, xmlnode x)
     log_debug(ZONE,"looking at: %s\n",port);
     io_select_listen_ex(atoi(port), NULL, pthsock_client_read, (void*)si, rate_time, rate_points, &k);
     register_phandler(i,o_DELIVER,pthsock_client_packets, (void*)si);
-    register_beat(1,pthsock_client_heartbeat, (void*)si);
+    register_beat(15,pthsock_client_heartbeat, (void*)si);
     register_shutdown(pthsock_client_shutdown, (void*)si);
 }
