@@ -78,6 +78,8 @@ result base_exec_deliver(instance i, dpacket p, void* args)
      /* Serialize the node in the dpacket */
      rawxml = xmlnode2str(p->x);
 
+     printf("base_exec_deliver: %s\n", rawxml);
+
      /* FIXME : this is a blocking write...no ability to queue up data properly */
      /* Write the raw data to the child process */
      result = pth_write(ei->stdout, (void*)rawxml, strlen(rawxml));
@@ -100,6 +102,7 @@ result base_exec_deliver(instance i, dpacket p, void* args)
 void base_exec_handle_xstream_event(int type, xmlnode x, void* arg)
 {
      exe_info ei = (exe_info)arg;
+
      switch(type)
      {
      case XSTREAM_ROOT:
@@ -107,7 +110,7 @@ void base_exec_handle_xstream_event(int type, xmlnode x, void* arg)
 	  break;
      case XSTREAM_NODE:
 	  /* Deliver the packet */
-	  deliver(dpacket_new(x, ei->i));
+	  deliver(dpacket_new(x), ei->i);
 	  break;
      case XSTREAM_CLOSE:
      case XSTREAM_ERR:
