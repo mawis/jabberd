@@ -197,6 +197,8 @@ void _io_close(sock c)
     close(c->fd);
     if(c->rated) jlimit_free(c->rate);
     log_debug(ZONE,"freed socket");
+
+    pth_msgport_free(c->queue);
     pool_free(c->p);
 }
 
@@ -279,8 +281,8 @@ sock _io_accept(sock s)
 
     p = pool_new();
     c = pmalloco(p, sizeof(_sock));
-    c->k.val=s->k.max;
-    c->k.bytes=s->k.bytes;
+    c->k.val=KARMA_INIT;
+    c->k.bytes=0;
     c->k.max=s->k.max;
     c->k.inc=s->k.inc;
     c->k.dec=s->k.dec;
@@ -339,7 +341,7 @@ void _io_main(void *arg)
         log_debug(ZONE,"io_main checking sockets");
         while(cur != NULL)
         {
-            if((!FD_ISSET(cur->fd,&all_rfds)&&cur->k.val==0)||cur->k.val==KARMA_INIT)
+            if((!FD_ISSET(cur->fd,&all_rfds)&&cur->k.val>0)||cur->k.val==KARMA_INIT)
             {
                 cur->k.val=cur->k.restore;
                 FD_SET(cur->fd,&all_rfds); /* they can read again */
