@@ -398,8 +398,8 @@ void _nad_escape(nad_t nad, int data, int len, int flag)
         data = ic+1;
     }
 
-    /* and > */
-    while(flag >= 1 && (c = memchr(nad->cdata + data,'>',len)) != NULL)
+    /* check for ]]>, we need to escape the > */
+    while(flag >= 1 && (c = memchr(nad->cdata + data, '>', len)) != NULL && c >= nad->cdata + 2 && c[-1] == ']' && c[-2] == ']')
     {
         ic = c - nad->cdata;
         _nad_escape(nad, data, ic - data, 0);
