@@ -35,6 +35,9 @@
  *
  */
 
+#include <pwd.h>
+#include <grp.h>
+
 #include "jabberd.h"
 #include "single.h"
 HASHTABLE cmd__line, debug__zones;
@@ -141,9 +144,6 @@ int main (int argc, char** argv)
         debug__zones = NULL;
     }
 
-#ifdef SINGLE
-    SINGLE_STARTUP
-#else
     /* were there any bad parameters? */
     if(help)
     {
@@ -154,9 +154,35 @@ int main (int argc, char** argv)
     /* set to debug mode if we have it */
     set_debug_flag(do_debug);
 
+#ifdef SINGLE
+    SINGLE_STARTUP
+#else
     if((home = ghash_get(cmd__line,"H")) == NULL)
         home = pstrdup(jabberd__runtime,HOME);
 #endif
+    /* Switch to the specified user */
+    if ((cmd = ghash_get(cmd__line, "U")) != NULL)
+    {
+        struct passwd* user = NULL;
+
+        user = getpwnam(cmd);
+        if (user == NULL)
+        {
+            fprintf(stderr, "Unable to lookup user %s.\n", cmd);
+            exit(1);
+        }
+        
+        if (setgid(user->pw_gid) < 0)
+        {
+            fprintf(stderr, "Unable to set group permissions.\n");
+            exit(1);
+        }
+        if (setuid(user->pw_uid) < 0)
+        {
+            fprintf(stderr, "Unable to set user permissions.\n");
+            exit(1);
+        }
+    }
 
     /* change the current working directory so everything is "local" */
     if(home != NULL && chdir(home))
