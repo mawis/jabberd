@@ -479,6 +479,16 @@ void _mio_connect(void *arg)
         return;
     }
 
+    /* optionally bind to a local address */
+    if(xmlnode_get_tag_data(greymatter__, "io/bind") != NULL)
+    {
+        struct sockaddr_in sa;
+        sa.sin_family = AF_INET;
+        sa.sin_port   = 0;
+        inet_aton(xmlnode_get_tag_data(greymatter__, "io/bind"), &sa.sin_addr);
+        bind(new->fd, (struct sockaddr*)&sa, sizeof(struct sockaddr_in));
+    }
+
     /* set the socket to non-blocking */
     flags =  fcntl(new->fd, F_GETFL, 0);
     flags |= O_NONBLOCK;
