@@ -51,6 +51,9 @@
 
 #include <jabberd.h>
 
+/* defined in mio.c */
+extern char *mio__bounce_uri;
+
 /**
  * internal expat callback for start tags
  *
@@ -185,6 +188,15 @@ void _mio_xml_parser(mio m, const void *vbuf, size_t bufsz)
         /* XXX another big hack/experiment, for bypassing dumb proxies */
         if(*buf == 'P')
             m->type = type_HTTP;
+
+	/* Bounce HTTP-GET-Requests to the configured host */
+	if(*buf == 'G' && mio__bounce_uri != NULL) {
+	    mio_write(m, NULL, "HTTP/1.1 301 Moved permanently\r\nServer: " PACKAGE " " VERSION "\r\nConnection: close\r\nLocation: ", -1);
+	    mio_write(m, NULL, mio__bounce_uri, -1);
+	    mio_write(m, NULL, "\r\n\r\n", -1);
+	    mio_close(m);
+	    return;
+	}
     }
 
     /* XXX more http hack to catch the end of the headers */

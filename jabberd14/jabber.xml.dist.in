@@ -749,6 +749,15 @@
       </default>
     </streamconf>
 
+    <!--
+    With this setting it is possible to configure jabberd to detect incoming
+    HTTP requests. Jabberd will then bounce the user's agent to the
+    configured URI. This might be especially useful, if you run your
+    jabber server on port 80 and want to bounce web requests to a different
+    domain.
+    -->
+    <bounce>http://www.example.com/</bounce>
+
   </io>
 
   <!--

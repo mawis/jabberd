@@ -36,3 +36,6 @@
       the layout adopted from wpjabber, where the files are distributed over
       256 * 256 different directories, improoving performance on filesystems,
       that are not well suited for large directories.
+    * jabberd14 now detects HTTP requests and bounces the user to a configured
+      URI. This might be especially useful for Jabber servers running on
+      port 80.
