@@ -16,7 +16,7 @@ WANT_SSL=0;
 for x in $@; do
     case x$x in
       x--enable-ssl)
-        WANT_SSL="1";;
+        WANT_SSL=1;;
     esac;
 done;
 ##
@@ -27,7 +27,7 @@ if [ -n "$CC" ]; then
 else
     CC="gcc";
 fi;
-CFLAGS="$CFLAGS -g -Wall -fPIC -I./ -I../"
+CFLAGS="$CFLAGS -g -Wall -fPIC -I. -I.."
 MCFLAGS="$MCFLAGS -shared"
 LDFLAGS="$LDFLAGS"
 LIBS="$LIBS"
@@ -43,7 +43,7 @@ printf "========================\n\n"
 ##
 # SSL Check
 ##
-if [ $WANT_SSL == 1 ]; then
+if [ $WANT_SSL -eq 1 ]; then
     printf "Searching for SSL...";
     for dir in ${prefix} /usr/local/ssl /usr/lib/ssl /usr/ssl /usr/pkg /usr/local /usr; do
         ssldir="$dir"
@@ -125,6 +125,18 @@ case $hosttype in
         LIBS="$LIBS -ldl -lsocket -lnsl -lresolv";;
     FreeBSD)
         XLDFLAGS="$XLDFLAGS -Wl,-E";;
+    AIX)
+        # create an export file for AIX:
+cat <<EOF >jabberd/jabberd.exp
+#!
+_mio_xml_parser
+_pool_new
+_pool_new_heap
+EOF
+CFLAGS="$CFLAGS -DMAXDNAME=1025"
+MCFLAGS="$MCFLAGS -Wl,-G"
+XLDFLAGS="$XLDFLAGS -Wl,-brtl,-bexpall,-bE:jabberd.exp";;
+
 esac
 printf "     Done.\n"
 ##
