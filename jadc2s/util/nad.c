@@ -61,7 +61,7 @@ int _nad_realloc(void **oblocks, int len)
 #define NAD_SAFE(blocks, size, len) if((size) > len) len = _nad_realloc((void**)&(blocks),(size));
 
 /* internal: append some cdata and return the index to it */
-int _nad_cdata(nad_t nad, char *cdata, int len)
+int _nad_cdata(nad_t nad, const char *cdata, int len)
 {
     NAD_SAFE(nad->cdata, nad->ccur + len, nad->clen);
 
@@ -345,7 +345,7 @@ int nad_append_attr(nad_t nad, char *name, char *val)
 }
 
 /* append new cdata to the last elem */
-void nad_append_cdata(nad_t nad, char *cdata, int len, int depth)
+void nad_append_cdata(nad_t nad, const char *cdata, int len, int depth)
 {
     int elem = nad->ecur - 1;
 
