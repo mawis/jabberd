@@ -28,7 +28,7 @@
  */
 
 #include "jabberd.h"
-HASHTABLE cmd__line;
+HASHTABLE cmd__line, debug__zones;
 extern int deliver__flag;
 extern xmlnode greymatter__;
 
@@ -40,17 +40,18 @@ void heartbeat_death(void);
 int configo(int exec);
 void config_cleanup(void);
 void shutdown_callbacks(void);
+int config_reload(char *file);
 
 int main (int argc, char** argv)
 {
     sigset_t set;               /* a set of signals to trap */
     int help, sig, i;           /* temporary variables */
-    char *cfgfile = NULL, *c;   /* strings used to load the server config */
+    char *cfgfile = NULL, *c, *cmd;   /* strings used to load the server config */
     pool cfg_pool=pool_new();
 
     /* start by assuming the parameters were entered correctly */
     help = 0;
-    cmd__line=ghash_create(20,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+    cmd__line=ghash_create(11,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
 
     /* process the parameterss one at a time */
     for(i = 1; i < argc; i++)
@@ -63,24 +64,44 @@ int main (int argc, char** argv)
         for(c=argv[i]+1;c[0]!='\0';c++)
         {
             /* loop through the characters, like -Dc */
-            if(*c=='D') debug_flag=1;
-            else
+            if(*c == 'D')
             {
-                char *cmd=pmalloco(cfg_pool,2);
-                cmd[0]=*c;
-                if(i+1<argc)
-                {
-                    ghash_put(cmd__line,cmd,argv[++i]);
-                }
-                else
-                {
-                    help=1;
-                    break;
-                }
+                debug_flag = 1;
+                continue;
+            }
+
+            cmd = pmalloco(cfg_pool,2);
+            cmd[0]=*c;
+            if(i+1<argc)
+            {
+               ghash_put(cmd__line,cmd,argv[++i]);
+            }else{
+                help=1;
+                break;
             }
         }
     }
     cfgfile=ghash_get(cmd__line,"c");
+
+    /* the special -Z flag provides a list of zones to filter debug output for, flagged w/ a simple hash */
+    if((cmd = ghash_get(cmd__line,"Z")) != NULL)
+    {
+        debug_flag = 1;
+        debug__zones = ghash_create(11,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+        while(cmd != NULL)
+        {
+            c = strchr(cmd,',');
+            if(c != NULL)
+            {
+                *c = '\0';
+                c++;
+            }
+            ghash_put(debug__zones,cmd,cmd);
+            cmd = c;
+        }
+    }else{
+        debug__zones = NULL;
+    }
 
     /* were there any bad parameters? */
     if(help)
@@ -135,7 +156,7 @@ int main (int argc, char** argv)
 
         log_notice(NULL,"SIGHUP recieved.  Reloading config file");
         /* XXX this will not destroy/create old/new instances */
-        if(!reload_config(cfgfile))
+        if(!config_reload(cfgfile))
         {
             /* XXX notify modules config file has changed */
         }
