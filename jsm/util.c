@@ -98,7 +98,7 @@ void js_bounce(jsmi si, xmlnode x, terror terr)
 {
     xterror xterr;
 
-    jutil_error_map(terr, xterr);
+    jutil_error_map(terr, &xterr);
     js_bounce_xmpp(si, x, xterr);
 }
 

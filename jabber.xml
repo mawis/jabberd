@@ -357,6 +357,10 @@
     </load>
     <xdb_file xmlns="jabber:config:xdb_file">
       <spool><jabberd:cmdline flag='s'>./spool</jabberd:cmdline></spool>
+      <!-- how long should results be kept in memory? -->
+      <!-- <timeout>3600</timeout> -->
+      <!-- what is the maximum size of a spool file? -->
+      <!-- <sizelimit>500000</sizelimit> -->
     </xdb_file>
   </xdb>
 

@@ -251,7 +251,7 @@ int _mio_deny_check(const char *address)
 #endif
 
     if(xmlnode_get_tag(io, "deny") == NULL)
-        return 0; /* if there is no allow section, allow all */
+        return 0; /* if there is no deny section, allow all */
 
     for(cur = xmlnode_get_firstchild(io); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
