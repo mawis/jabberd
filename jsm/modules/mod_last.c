@@ -114,7 +114,7 @@ mreturn mod_last_reply(mapi m, void *arg)
     }
 
     /* make sure they're in the roster */
-    if(!js_s10n(m->si,m->user,m->packet->from))
+    if(!js_trust(m->user,m->packet->from))
     {
         js_bounce(m->si,m->packet->x,TERROR_FORBIDDEN);
         return M_HANDLED;

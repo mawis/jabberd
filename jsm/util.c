@@ -128,19 +128,58 @@ int js_admin(udata u, int flag)
     return 0;
 }
 
-/* returns true if id has a s10n to u */
-int js_s10n(jsmi si, udata u, jid id)
-{
-    xmlnode x, i;
-    char *s10n;
 
-    x =  xdb_get(si->xc, u->id, NS_ROSTER);
-    i = xmlnode_get_tag(x,spools(id->p,"?jid=",jid_full(jid_user(id)),id->p));
-    if((s10n = xmlnode_get_attrib(i,"subscription")) == NULL)
-        return 0;
-    if(j_strcmp(s10n,"both") == 0)
+jid js_trustees(udata u)
+{
+    xmlnode roster, cur;
+
+    if(u == NULL) return NULL;
+
+    if(u->utrust != NULL) return u->utrust;
+
+    log_debug(ZONE,"generating trustees list for user %s",jid_full(u->id));
+
+    /* initialize with at least self */
+    u->utrust = jid_user(u->id);
+
+    /* fill in rest from roster */
+    roster = xdb_get(u->si->xc, u->id, NS_ROSTER);
+    for(cur = xmlnode_get_firstchild(roster); cur != NULL; cur = xmlnode_get_nextsibling(cur))
+    {
+        if(j_strcmp(xmlnode_get_attrib(cur,"subscription"),"from") == 0 || j_strcmp(xmlnode_get_attrib(cur,"subscription"),"both") == 0)
+            jid_append(u->utrust,jid_new(u->p,xmlnode_get_attrib(cur,"jid")));
+    }
+    xmlnode_free(roster);
+
+    return u->utrust;
+}
+
+
+/* this tries to be a smarter jid matcher, where a "host" matches any "user@host" and "user@host" matches "user@host/resource" */
+int _js_jidscanner(jid id, jid match)
+{
+    for(;id != NULL; id = id->next)
+    {
+        if(j_strcmp(id->server,match->server) != 0) continue;
+        if(id->user == NULL) return 1;
+        if(j_strcasecmp(id->user,match->user) != 0) continue;
+        if(id->resource == NULL) return 1;
+        if(j_strcmp(id->resource,match->resource) != 0) continue;
         return 1;
-    if(j_strcmp(s10n,"from") == 0)
-        return 1;
+    }
+    return 0;
+}
+
+/* returns true if id is trusted for this user */
+int js_trust(udata u, jid id)
+{
+    if(u == NULL || id == NULL) return 0;
+
+    /* first, check global trusted ids */
+    if(_js_jidscanner(u->si->gtrust,id)) return 1;
+
+    /* then check user trusted ids */
+    if(_js_jidscanner(js_trustees(u),id)) return 1;
+
     return 0;
 }

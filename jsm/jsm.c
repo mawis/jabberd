@@ -102,6 +102,17 @@ void jsm(instance i, xmlnode x)
     for(n=0;n<e_LAST;n++)
         si->events[n] = NULL;
 
+    /* initialize globally trusted ids */
+    for(cur = xmlnode_get_firstchild(xmlnode_get_tag(si->config,"admin")); cur != NULL; cur = xmlnode_get_nextsibling(cur))
+    {
+        if(xmlnode_get_type(cur) != NTYPE_TAG) continue;
+
+        if(si->gtrust == NULL)
+            si->gtrust = jid_new(si->p,xmlnode_get_data(cur));
+        else
+            jid_append(si->gtrust,jid_new(si->p,xmlnode_get_data(cur)));
+    }
+
     /* fire up the modules by scanning the attribs on the xml we received */
     for(cur = xmlnode_get_firstattrib(x); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
