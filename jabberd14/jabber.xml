@@ -465,15 +465,64 @@
   <io>
 
     <!-- Set the default karma for *all* sockets -->
-    <!--
+    <!-- definition of terms:
+        Avg. Throughput:    The ammount of bytes you can send every second without incuring any penalty
+        Burst allowed to:   The maximum you can send in 2 seconds without incuring any penalty
+        max sustained rate: if you send data as fast as you can, you will hit penalty, and will not be able to send for 10 seconds,
+                            this is the average rate you can dump data when you are dumping as much as you can, as fast as you can.
+        seconds to recover from burst: The ammount of time it will take to reach Avg. Throughput capability, after sending max burst 
+                                       of data
+        penalty length:     Penalty will last abs(penalty) * Heartbeat seconds  so a penalty of -5 and heartbeat of 2 will last 10 sec.
+                            NOTE: penalty CANNOT be less than -100.. otherwise strange things might happen.
+    -->
+    <!-- Example of Low Karma Limits 
+        Avg. throughput:  1k-2k/s 
+        burst allowed to: 5.5k/s 
+        max sustained rate: 485b/s
+        seconds 5to recover from burst: 20
+        penalty length:   12 seconds
     <karma>
       <heartbeat>2</heartbeat>
       <init>10</init>
       <max>10</max>
       <inc>1</inc>
       <dec>-1</dec>
-      <penalty>-5</penalty>
+      <penalty>-6</penalty>
       <restore>10</restore>
+    </karma>
+    -->
+
+    <!-- Example of Medium Karma Limits 
+        Avg. throughput:  5k-10k/s 
+        burst allowed to: 125.5k/s 
+        max sustained rate: 12.6k/s
+        seconds to recover from burst: 25
+        penalty length:   10 seconds
+    <karma>
+      <heartbeat>2</heartbeat>
+      <init>50</init>
+      <max>50</max>
+      <inc>4</inc>
+      <dec>-1</dec>
+      <penalty>-5</penalty>
+      <restore>50</restore>
+    </karma>
+    -->
+
+    <!-- Example of High Karma Limits 
+        Avg. throughput:  5k-10k/s 
+        burst allowed to: 206k/s 
+        max Sustained rate: 34.3k/s
+        seconds to recover from burst: 21
+        penalty length:   6 seconds
+    <karma>
+      <heartbeat>2</heartbeat>
+      <init>64</init>
+      <max>64</max>
+      <inc>6</inc>
+      <dec>-1</dec>
+      <penalty>-3</penalty>
+      <restore>64</restore>
     </karma>
     -->
 
