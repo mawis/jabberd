@@ -50,11 +50,11 @@ The base modules can be found in four child directories of jabberd/src:
 
 I.) Startup
     The server starts up by locating and loading an XML configuration file. This file provides information on all
-    the various components which will compose the server. Logically, the configuration consists of three types of
-    entries:
-    1.) xdb     - HELPME UNDERSTAND!
-    2.) log     - HELPME UNDERSTAND!
-    3.) service - HELPME UNDERSTAND!
+    the various components which will compose the server. Logically, each component which forms the server can
+    be put into one of the following categories:
+    1.) xdb     - an XDB component provides a way to store/query xml nodes
+    2.) log     - logging components provide storage/output facilities for logging information
+    3.) service - ?!
     
     **WARNING**
     It should be noted that it is quite possible to setup a seriously screwed up server by tinkering with this file. 
@@ -64,6 +64,17 @@ I.) Startup
     **WARNING**
 
 II.) Delivery/Routing
+    As the hub in a jabber server, jabberd is responsible for ensuring that packets are properly routed between
+    the various components. Packets which pass through jabberd can be categorized into three classes:
+    1.) xdb          - a packet containing data which will query or store data in an xdb component
+    2.) log          - a packet containing logging information
+    3.) (all others) - a packet which contains any other type of information (ex. messages, presence, etc)
+
+    For each of these three categories, there exists a delivery tree within jabberd that tracks the various
+    components interested in each type of request. Components register interest in a certain packet category
+    by the way in which they are defined within the XML configuration file.
+    
+    
 
 III.) Crashing (How various components handle it and restart)
 
