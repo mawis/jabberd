@@ -2,7 +2,7 @@
 # Ok this is taken from an automaked file and tweaked out
 #
 CC=gcc
-DEFINES=-DVERSION=\"1.1.4\" -DPACKAGE=\"jsm\"
+DEFINES=-DVERSION=\"1.1.4\"
 CFLAGS=-fPIC -shared -g $(DEFINES) -I./ -I../ -I../jabberd `libxode-config --cflags` -Wall
 LDFLAGS=`libxode-config --ldflags` `libxode-config --libs` `pth-config --libs --ldflags` `jabber-config --ldflags` `jabber-config --libs` -ldl
 
