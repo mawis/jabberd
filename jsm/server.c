@@ -56,6 +56,7 @@ void *js_server_main(void *arg)
         /* get a packet from the message port */
         while((q = (jpq)pth_msgport_get(mp)) != NULL)
         {
+            u = NULL;
             /* debug message */
             log_debug(ZONE,"THREAD:SERVER received a packet: %s",xmlnode2str(q->p->x));
 
