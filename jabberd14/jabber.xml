@@ -57,6 +57,12 @@
     </pthcsock>
   </service>
 
+  <!-- Default logging service -->
+  <log id='logger'>
+    <host/>
+    <stderr/>
+  </log>
+
 
   <!-- the following two services are for Server to server packets -->
   <!-- external resolver, so that dns lookups don't block the server -->
@@ -64,7 +70,8 @@
     <host/>
     <load><dnsrv>./dnsrv/dnsrv.so</dnsrv></load>
     <dnsrv xmlns="jabberd:dnsrv:config">
-     <resendhost>s2s-127.0.0.1</resendhost>
+    	<resend service="_jabber._tcp">s2s-127.0.0.1</resend>
+    	<resend>s2s-127.0.0.1</resend> 
     </dnsrv>
   </service>
   <!-- performs server connections can also perform blocking dns lookups -->
