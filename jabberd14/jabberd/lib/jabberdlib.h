@@ -246,6 +246,7 @@ void xhash_walk(xht h, xhash_walker w, void *arg);
 /* DEPRECIATED Hashtable functions                           */
 /*                                                           */
 /* --------------------------------------------------------- */
+#ifdef INCLUDE_LEGACY
 typedef int (*KEYHASHFUNC)(const void *key);
 typedef int (*KEYCOMPAREFUNC)(const void *key1, const void *key2);
 typedef int (*TABLEWALKFUNC)(void *user_data, const void *key, void *data);
@@ -260,6 +261,7 @@ int ghash_put(HASHTABLE tbl, const void *key, void *value);
 int ghash_remove(HASHTABLE tbl, const void *key);
 int ghash_walk(HASHTABLE tbl, TABLEWALKFUNC func, void *user_data);
 int str_hash_code(const char *s);
+#endif
 
 
 /* --------------------------------------------------------- */

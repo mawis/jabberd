@@ -1,4 +1,4 @@
-jabberd 1.4.3
+jabberd 1.4.4
 =============
 http://jabberd.jabberstudio.org/1.4/
 
@@ -17,15 +17,17 @@ hints.
     for an in-depth installation guide!
 
   First, untar or move this folder into the final install location
-  (such as /usr/local/jabber)
+  (such as /usr/local/jabber).
 
-  To build, run "./configure" and then type "make"
+  To build, run "./configure" and then type "make".
+
+  To install on your system, run "make install".
 
   Edit jabber.xml, replace "localhost" by the host name of your
   server throughout the file. Edit other values as desired.
 
   To start:
-    ./jabberd/jabberd -h your.domain.name &
+    jabberd -h your.domain.name -B
 
   Optional: for lots of debug output, use the -D flag
 

@@ -41,6 +41,8 @@
 
 #include <jabberdlib.h>
 
+#ifdef INCLUDE_LEGACY
+
 /**
  * @file genhash.c
  * @brief stubs that hook back to new xhash - DEPRECATED
@@ -159,3 +161,5 @@ int str_hash_code(const char *s)
 {
     return _xhasher(s);
 }
+
+#endif

@@ -19,7 +19,7 @@ later
 - interface to call scripts on account deletion
 - admin interface especially to change user passwords (JEP-0133)
 - http binding (maybe only in jadc2s)
-- other xdb modules (sql, ldap, bdbxml)
+- other xdb modules (ldap, bdbxml)
 - remove global variables
 - change threading library
 
