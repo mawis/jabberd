@@ -250,7 +250,7 @@ char *xdb_file_full(int create, pool p, char *spl, char *host, char *file, char 
     } else if (use_subdirs) {
 	spooler(sp, spl, "/", host, "/", digit01, "/", digit23, sp);
     } else {
-	spooler(sp, spl, "/", host, digit23, sp);
+	spooler(sp, spl, "/", host, sp);
     }
 
     /* full path to file */
