@@ -56,6 +56,7 @@ typedef result (*beathandler)(void *arg);
 void register_config(char *node, cfhandler f, void *arg); /* register a function to handle that node in the config file */
 void register_phandler(instance id, order o, phandler f, void *arg); /* register a function to handle delivery for this instance */
 void register_instance(instance id, char *host); /* associate an id with a hostname for that packet type */
+void unregister_instance(instance id, char *host); /* disassociate an id with a hostname for that packet type */
 void register_beat(int freq, beathandler f, void *arg); /* register the function to be called from the heartbeat, freq is how often, 0 is always */
 
 dpacket dpacket_new(xmlnode x); /* create a new delivery packet from source xml */

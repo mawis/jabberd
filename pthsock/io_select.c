@@ -475,7 +475,7 @@ void _io_select_connect(void *arg)
 }
 
 /* request to connect to a remote host */
-void io_select_connect(char *host, int port,io_cb cb,void *arg)
+void io_select_connect(char *host, int port,void* arg,io_cb cb,void *cb_arg)
 {
     sock c;
     pool p=pool_new();
@@ -488,8 +488,9 @@ void io_select_connect(char *host, int port,io_cb cb,void *arg)
     c->state=state_ACTIVE;
     c->p=p;
     c->arg=arg;
+    c->cb_arg=cb_arg;
     c->cb=cb;
-    c->cb_arg=arg;
+    c->arg=arg;
     cst->c=c;
     
     pth_spawn(PTH_ATTR_DEFAULT,(void*)_io_select_connect,(void*)cst);
@@ -511,14 +512,12 @@ void io_select_listen(int port,char *listen_host,io_cb cb,void *arg)
     if(fd < 0)
     {
         log_alert(NULL,"io_select is unable to listen on %d [%s]",port,listen_host);
-        pool_free(p);
         return;
     }
 
     if(listen(fd,10) < 0)
     {
         log_alert(NULL,"io_select is unable to listen on %d [%s]",port,listen_host);
-        pool_free(p);
         return;
     }
 

@@ -176,6 +176,8 @@ void pthsock_server_read(sock c,char *buffer,int bufsz,int flags,void *arg)
         { /* we already have an sdata for outgoing conns */
             /* once we made the connection, send the header */
             xmlnode x=xstream_header("jabber:server",sd->to,NULL);
+            register_instance(si->i,sd->to);
+            log_debug(ZONE,"\n\n\n%s\n\n\n",xstream_header_char(x));
             sd->arg=(void*)c;
             io_write_str(c,xstream_header_char(x));
             xmlnode_free(x);
@@ -190,7 +192,10 @@ void pthsock_server_read(sock c,char *buffer,int bufsz,int flags,void *arg)
     case IO_CLOSED:
         sd=(sdata)c->arg;
         if (sd->type == conn_OUT)
+        {
             ghash_remove(si->out_tab,sd->to);
+            unregister_instance(si->i,sd->to);
+        }
         /* if this is outgoing connection, we will have a pool to free */
         if(sd->p!=NULL)pool_free(sd->p);
         break;
@@ -289,7 +294,7 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
         sd->queue = pth_msgport_create("queue");
         ghash_put(si->out_tab,sd->to,sd);
 
-        io_select_connect(ip,port,pthsock_server_read,(void*)sd);
+        io_select_connect(ip,port,(void*)sd,pthsock_server_read,(void*)si);
     }
 
     xmlnode_hide_attrib(q->x,"sto");
