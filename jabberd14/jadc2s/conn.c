@@ -366,7 +366,7 @@ int _write_actual(conn_t c, int fd, const char *buf, size_t count)
     {
         written = SSL_write(c->ssl, buf, count);
         if (written > 0 && (c->type == type_FLASH))
-            write(fd, "\0", 1);
+            SSL_write(fd, "\0", 1);
         return written;
     }
 #endif
