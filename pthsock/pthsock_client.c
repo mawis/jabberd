@@ -1,12 +1,12 @@
 /*
     <service id="pthsock client">
-      <host>127.0.0.1</host>
+      <host>pth-csock.127.0.0.1</host>
       <load main='pthsock_client'>
 	    <pthsock_client>../load/pthsock_client.so</pthsock_client>
       </load>
       <pthcsock xmlns='pth-csock'>
 	    <host>pth-csock.127.0.0.1</host>
-        <port>5222</port>
+        <listen>5222</listen>
       </pthcsock>
     </service>
 */
@@ -55,9 +55,9 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
 
     sock = atoi(p->id->user); 
     if (sock == 0)
-        return r_PASS;
+        return r_ERR;
 
-    log_debug(ZONE,"looking up %s",sock);
+    log_debug(ZONE,"looking up %d",sock);
 
     for (cur = pthsock_client__conns; cur != NULL; cur = cur->next)
     {
@@ -71,9 +71,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
         }
     }
 
-    log_debug(ZONE,"not found");
-
-    return r_PASS;
+    return r_ERR;
 }
 
 void pthsock_client_stream(int type, xmlnode x, void *arg)
@@ -95,7 +93,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         break;
 
     case XSTREAM_NODE:
-        // log_debug(ZONE,"node %s",xmlnode2str(x));
+        log_debug(ZONE,">>>> %s",xmlnode2str(x));
 
         /* only allow auth and registration queries at this point */
         if (r->state == state_UNKNOWN)
@@ -103,6 +101,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
             xmlnode q = xmlnode_get_tag(x,"query");
             if (*(xmlnode_get_name(x)) != 'i' || (NSCHECK(q,NS_AUTH) == 0 && NSCHECK(q,NS_REGISTER) == 0))
             {
+                log_debug(ZONE,"user tried to send packet in unknown state");
                 r->state = state_CLOSING;
                 /* bounce */
                 pth_event_free(r->ering,PTH_FREE_THIS);
@@ -119,6 +118,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
     case XSTREAM_ERR:
         pth_write(r->sock,"<stream::error>You sent malformed XML</stream:error>",52);
     case XSTREAM_CLOSE:
+        log_debug(ZONE,"closing XSTREAM");
         if (r->state == state_AUTHD)
         {
             /* notify the session manager */
@@ -168,6 +168,7 @@ int pthsock_client_close(reader r)
 int pthsock_client_write(reader r, dpacket p)
 {
     char *block;
+    int ret = 1;
 
     log_debug(ZONE,"incoming message for %d",r->sock);
 
@@ -193,23 +194,24 @@ int pthsock_client_write(reader r, dpacket p)
         {
             /* they didn't get authed/registered */
             log_debug(ZONE,"user auth/registration falid");
+            ret = 0;
             r->state = state_CLOSING;
-            return 0;
         }
-
-    log_debug(ZONE,"writting %d",r->sock);
 
     xmlnode_hide_attrib(p->x,"sto");
     xmlnode_hide_attrib(p->x,"sfrom");
 
     /* write the packet */
     block = xmlnode2str(p->x);
+
+    log_debug(ZONE,"<<<< %s",r->sock,block);
+
     if(pth_write(r->sock,block,strlen(block)) <= 0)
         return 0;
 
     pool_free(p->p);
 
-    return 1;
+    return ret;
 }
 
 void *pthsock_client_main(void *arg)
@@ -286,7 +288,7 @@ void *pthsock_client_main(void *arg)
             }
         }
 
-        /* add acepted connections to the fdset */
+        /* add accepted connections to the fdset */
         while (1)
         {
             /* get the packet */
@@ -402,7 +404,6 @@ void pthsock_client(instance i, xmlnode x)
 
     /* state main read/write thread */
     pth_spawn(attr,pthsock_client_main,(void*)wmp);
-    pth_yield(NULL);
 
     /* start thread with this socket */
     pth_spawn(attr,pthsock_client_listen,(void*)cfg);
