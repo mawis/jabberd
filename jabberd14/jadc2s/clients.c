@@ -877,6 +877,11 @@ int _client_io_read(mio_t m, int fd, conn_t c) {
 		return 0;
 	    }
 
+	    /* we shouldn't read more than the size of our buffer */
+	    if (read_len > sizeof(buf)) {
+		read_len = sizeof(buf);
+	    }
+
 	    /* read data from the socket taking care of the
 	     * security layers we put on the connection
 	     */
