@@ -1,10 +1,22 @@
 jadc2s - jabberd client-to-server connection manager
+----------------------------------------------------
+http://jabberd.jabberstudio.org/1.4/doc/jadc2s
 
-This is a simple daemon that manages incoming connections from clients.  It handles parsing the appropriate parts of the stream to process authentication requests and which connections have been authorized as a valid session.
+This is a simple daemon that manages incoming connections from clients.
+It can be used as a fast c2s connection manager for jabberd 1.4.x and
+other Jabber server implementations.
+It handles parsing the appropriate parts of the stream to process
+authentication requests and which connections have been authorized as a
+valid session.
 
-The internals right now are stripped from the jabberd-1.4 release, consisting of a simple main select loop that processes the socket events, and callbacks in expat to track incoming packets to handle them as auth or deliver them to a session manager.
+The internals right now are stripped from the jabberd-1.4.x release,
+consisting of a simple main select loop that processes the socket events,
+and callbacks in expat to track incoming packets to handle them as auth or
+deliver them to a session manager.
 
-For testing what's here you need jabberd-1.4.2, then create a file called c2s.xml that contains:
+For testing with jabberd-1.4.x create a file called c2s.xml configuring
+your main jabberd server to listen for component connections on port 5111:
+
 <service id="jadc2s">
   <accept>
     <ip/>
@@ -13,9 +25,16 @@ For testing what's here you need jabberd-1.4.2, then create a file called c2s.xm
   </accept>
 </service>
 
-And start 1.4.2 with the command line: ./jabberd/jabberd -h yourhostname -i c2s.xml
+And start jabberd 1.4.x with the command line
+  ./jabberd/jabberd -h yourhostname -i c2s.xml
 
 Now, edit jadc2s.xml to your liking, then start jadc2s:
-    ./jadc2s
+  ./jadc2s
 
-By default, it will listen for new connections on port 5221 (for testing).
+jadc2s will then connect to your Jabber server on port 5111 and listen for
+normal Jabber c2s connections on port 5221 (for testing).
+
+If you need jadc2s to handle many c2s connections don't forget to raise
+its file handle limit (typically done with "ulimit -n 8192").
+
+If you have questions visit jadc2s' web site.
