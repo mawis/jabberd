@@ -268,6 +268,7 @@ mreturn mod_admin_message(mapi m, void *arg)
     jpacket p;
     xmlnode cur;
     char *subject;
+    static char jidlist[1024] = "";
 
     if(m->packet->type != JPACKET_MESSAGE) return M_IGNORE;
     if(m->packet->to->resource != NULL || js_config(m->si,"admin") == NULL || jpacket_subtype(m->packet) == JPACKET__ERROR) return M_PASS;
@@ -296,8 +297,14 @@ mreturn mod_admin_message(mapi m, void *arg)
         js_deliver(m->si,p);
     }
 
-    if((cur = js_config(m->si,"admin/reply")) != NULL)
+    /* reply, but only if we haven't in the last few or so jids */
+    if((cur = js_config(m->si,"admin/reply")) != NULL && strstr(jidlist,jid_full(jid_user(m->packet->from))) == NULL)
     {
+        /* tack the jid onto the front of the list, depreciating old ones off the end */
+        char njidlist[1024];
+        snprintf(njidlist,1024,"%s %s",jid_full(jid_user(m->packet->from)),jidlist);
+        memcpy(jidlist,njidlist,1024);
+
         if(xmlnode_get_tag(cur,"subject") != NULL)
         {
             xmlnode_hide(xmlnode_get_tag(m->packet->x,"subject"));

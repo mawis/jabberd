@@ -223,9 +223,9 @@ void _jabberd_restart(void)
         return;
     }
 
-    /* free old greymatter */
+    /* free old greymatter (NOTE: shea, right! many internal tables/callbacs/etc have old config pointers :)
     if(temp_greymatter != NULL)
-        xmlnode_free(temp_greymatter);
+        xmlnode_free(temp_greymatter); */
 
     /* XXX do more smarts on new config */
 
