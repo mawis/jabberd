@@ -31,26 +31,23 @@ void js_deliver_local(jsmi si, jpacket p, HASHTABLE ht)
     user = js_user(si, p->to, ht);
     s = js_session_get(user, p->to->resource);
 
-log_debug(ZONE,"");
+    log_debug(ZONE,"delivering locally to %s",jid_full(p->to));
     /* let some modules fight over it */
     if(js_mapi_call(si, e_DELIVER, p, user, s))
         return;
 
-log_debug(ZONE,"");
     if(p->to->user == NULL)
     { /* this is for the server */
         js_psend(si->mpserver,p);
         return;
     }
 
-log_debug(ZONE,"");
     if(s != NULL)
     { /* it's sent right to the resource */
         js_session_to(s, p);
         return;
     }
 
-log_debug(ZONE,"");
     if(user != NULL)
     { /* valid user, but no session */
         p->aux1 = (void *)user; /* performance hack, we already know the user */
@@ -59,7 +56,6 @@ log_debug(ZONE,"");
         return;
     }
 
-log_debug(ZONE,"");
     /* no user, so bounce the packet */
     js_bounce(si,p->x,TERROR_NOTFOUND);
 }

@@ -316,9 +316,9 @@ void _io_main(void *arg)
         maxfd=0;
 
         cur=io__data->master__list;
+        log_debug(ZONE,"io_main checking sockets");
         while(cur != NULL)
         {
-            log_debug(ZONE,"io_main looping on %d state %d",cur->fd,cur->state);
             if((!FD_ISSET(cur->fd,&all_rfds)&&cur->k.val==0)||cur->k.val==KARMA_INIT)
             {
 #ifdef KARMA_DEBUG
