@@ -26,7 +26,24 @@
 /* the arg to the listen() call */
 #define ACCEPT_LISTEN_BACKLOG 10
 
-/* each instance can share ports */
+/* base_accept
+ * 
+ * Notes:
+ * 	Each base_accept instance checks a global list of base_accept instances to see if
+ * 	it can share a listening socket thread with other instances. By sharing a listening
+ * 	socket among instances, multiple transports can be accepted via a single socket --
+ * 	distingushing which instance to associate the socket with is done by examining the
+ * 	<stream:stream> "to" attribute.
+ *
+ * 	Sink: each instance registered with base_accept has a "sink" -- this is basically
+ * 	just a simple wrapper around a thread-safe queue for incoming dpackets to be stored
+ * 	in.
+ *
+ * 	Acceptor: each socket accepted by the listening socket is associated with an acceptor
+ * 	that tracks the events and state of the socket. Once a socket is identified as belonging
+ * 	to a particular instance, the acceptor is given a pointer to the corresponding sink.
+ * 	
+ * 	*/
 
 /*
 how does this mess work... hmmm...
@@ -69,7 +86,6 @@ typedef struct
     pth_msgport_t mp;
     int flag_open, flag_transient, flag_busy;
     time_t last;
-    char *filter;
     pool p;
 } *sink, _sink;
 
@@ -77,12 +93,15 @@ typedef struct
 typedef struct
 {
     int sock;
-    sink s;
+    sink s;            /* Sink associated with this socket (init'd after stream header is rcv'd) */
     pool p;
 	int error;
     char *id;
-    xmlnode secrets;
-    pth_event_t emp, eread, etime, ering;
+    xmlnode hosts;     /* A list of hosts w/ sinks as vattribs, keyed by instance->id */
+    pth_event_t emp;   /* Message port (write_queue) event */
+	pth_event_t eread; /* Data available on socket event */
+	pth_event_t etime; /* Data timeout event */
+	pth_event_t ering;
 } *acceptor, _acceptor;
 
 
@@ -100,15 +119,6 @@ result base_accept_phandler(instance i, dpacket p, void *arg)
         return r_UNREG;
     }
 
-    /* hack, we are a filter */
-    if(s->filter != NULL)
-    {
-        /* let the default handler handle this */
-        /* if there is none, the plumber will bounce it */
-        if(j_strcmp(s->filter, p->host) != 0)
-            return r_PASS;
-    }
-
     d = pmalloco(p->p, sizeof(_drop));
     d->p = p;
 
@@ -121,10 +131,9 @@ void base_accept_read_packets(int type, xmlnode x, void *arg)
 {
     acceptor a = (acceptor)arg;
     xmlnode cur;
-    char *secret, *block;
-    spool s;
-    pool p;
+    char *block;
     sink snew;
+	char hashbuf[41];
 
     switch(type)
     {
@@ -133,7 +142,7 @@ void base_accept_read_packets(int type, xmlnode x, void *arg)
         if (j_strcmp(xmlnode_get_attrib(x, "xmlns"), "jabber:component:accept") != 0)
         {
                 /* Log that this component sent an invalid namespace */
-                log_alert(a->s->i->id, "Recv'd invalid namespace. Closing connection.");
+                log_alert("base_accept_undetermined", "Recv'd invalid namespace. Closing connection.");
                 /* Notify component with stream:error */
                 pth_write(a->sock, SERROR_NAMESPACE, strlen(SERROR_NAMESPACE));
                 /* Set status code and return */
@@ -141,93 +150,89 @@ void base_accept_read_packets(int type, xmlnode x, void *arg)
         }
 		else 
 		{
-        	/* Send header w/ proper namespace, using instance id (acceptor->sink->instance->id) */
-        	cur = xstream_header("jabber:component:accept",NULL,NULL);
-        	/* Save stream ID for auth'ing later */
-        	a->id = pstrdup(a->p,xmlnode_get_attrib(cur,"id"));
-        	block = xstream_header_char(cur);
-        	log_debug(ZONE,"socket connected, sending xstream header: %s",block);
-        	pth_write(a->sock,block,strlen(block));
+			/* Search the acceptor hosts node for a host which matches the "to" attribute sent in the
+			 * stream header */
+			snew = xmlnode_get_vattrib(a->hosts, xmlnode_get_attrib(x, "to"));
+			/* If no sink was matched, log_error that someone requested an invalid
+			 * host id and shut the connection down */
+			if (snew == NULL)
+			{
+				/* Log that a socket requested an invalid hostname */
+				log_error("base_accept_undetermined", "Request for invalid host: %s", xmlnode_get_attrib(x, "to"));
+				/* Notify socket with stream:error */
+				pth_write(a->sock, SERROR_INVALIDHOST, strlen(SERROR_INVALIDHOST));
+				/* Set status code and return */
+				a->error = 1;
+			}
+			/* Otherwise, associate the sink with this acceptor and continue on our merry way.. */
+			else
+			{
+				/* Associate the sink with an acceptor; disable a->hosts */
+				a->s = snew;
+				a->hosts = NULL;
+				/* Send header w/ proper namespace, using instance id (acceptor->sink->instance->id) */
+				cur = xstream_header("jabber:component:accept",NULL,NULL);
+				/* Save stream ID for auth'ing later */
+				a->id = pstrdup(a->p,xmlnode_get_attrib(cur,"id"));
+				block = xstream_header_char(cur);
+				log_debug(ZONE,"socket connected, sending xstream header: %s",block);
+				pth_write(a->sock,block,strlen(block));
+			}
 		}
         xmlnode_free(cur);
         xmlnode_free(x);
         break;
     case XSTREAM_NODE:
         log_debug(ZONE,"base_accept: %s",xmlnode2str(x));
+		/* If message queue exists, we're auth'd, so go ahead and deliver
+		 * the packet directly */
         if(a->emp != NULL) /* we're full open */
         {
             deliver(dpacket_new(x), a->s->i);
             return;
         }
 
-        if(j_strcmp(xmlnode_get_name(x),"handshake") != 0 || (secret = xmlnode_get_data(x)) == NULL)
-        {
-            pth_write(a->sock,"<stream:error>Must send handshake first</stream:error>",54);
-            xmlnode_free(x);
-            return;
-        }
-
-        /* check the <handshake>...</handshake> against all known secrets for this port/ip */
-        for(cur = xmlnode_get_firstchild(a->secrets); cur != NULL; cur = xmlnode_get_nextsibling(cur))
-        {
-            s = spool_new(xmlnode_pool(x));
-            spooler(s,a->id,xmlnode_get_data(cur),s);
-            if(j_strcmp(shahash(spool_print(s)),secret) == 0)
-                break;
-        }
-
-        if(cur == NULL)
-        {
-            pth_write(a->sock,"<stream:error>Invalid Handshake</stream:error>",46);
-            pth_write(a->sock,"</stream:stream>",16);
-            a->ering = NULL; /* cancel the io loop */
-            xmlnode_free(x);
-            return;
-        }
-
-        /* setup flags in acceptor now that we're ok */
-        a->s = (sink)xmlnode_get_vattrib(cur,"sink");
-        block = xmlnode_get_attrib(x,"host");
-
-        /* special hack, to totally ignore the "write" side for this connection */
-        if(j_strcmp(block,"void") == 0) return; 
-
-        /* the default sink is in use or we want our own transient one, make it */
-        if(a->s->flag_open || block != NULL)
-        {
-            p = pool_new();
-            snew = pmalloco(p, sizeof(_sink));
-            snew->mp = pth_msgport_create("base_accept_transient");
-            snew->i = a->s->i;
-            snew->last = time(NULL);
-            snew->p = p;
-            snew->flag_transient = 1;
-            snew->filter = pstrdup(p,block);
-            a->s = snew;
-            if(block != NULL) /* if we're filtering to a specific host, we need to do that BEFORE delivery! ugly... is the o_* crap any use? */
-                register_phandler(a->s->i, o_PREDELIVER, base_accept_phandler, (void *)snew);
-            else
-                register_phandler(a->s->i, o_DELIVER, base_accept_phandler, (void *)snew);
-        }
-
-        pth_write(a->sock,"<handshake/>",12);
-        a->s->flag_open = 1; /* signal that the sink is in use */
-
-        /* set up the mp event into the ring to enable packets to be fed back */
-        a->emp = pth_event(PTH_EVENT_MSG,a->s->mp);
-        if(a->etime != NULL)
-            pth_event_free(a->etime, PTH_FREE_THIS);
-        a->ering = pth_event_concat(a->eread, a->emp, NULL);
-        xmlnode_free(x);
-        break;
+		/* If no message queue exists for this connection yet and this is a handshake
+		 * packet, attempt to auth the socket */
+		if (j_strcmp(xmlnode_get_name(x),"handshake") == 0)
+		{
+			/* Merge SID and passwd together */
+		 	block = spools(xmlnode_pool(x), a->id, xmlnode_get_tag_data(a->s->i->x, "secret"), xmlnode_pool(x));
+			/* Create a SHA hash of this instance's passwd & sid */
+			shahash_r(block, hashbuf);
+			/* Check <handshake> against this instance's passwd */
+			if (j_strcmp(hashbuf, xmlnode_get_data(x)) == 0)
+			{
+				pth_write(a->sock, "<handshake/>", 12);
+				/* Hook up the sink so that it can fire acceptor events */
+				a->emp = pth_event(PTH_EVENT_MSG,a->s->mp);
+				if(a->etime != NULL)
+					pth_event_free(a->etime, PTH_FREE_THIS);
+				a->ering = pth_event_concat(a->eread, a->emp, NULL);
+			}
+			else
+			{   
+				pth_write(a->sock,"<stream:error>Invalid Handshake</stream:error>",46);
+				a->error = 1;
+			}
+		}
+		/* Otherwise, send an error and close the socket */
+		else
+		{
+			pth_write(a->sock,"<stream:error>Must send handshake first</stream:error>",54);
+			a->error = 1;
+		}
+		xmlnode_free(x);
+		break;
+		
     default:
         xmlnode_free(x);
         break;
     }
-
+		
 }
 
-/* thread to handle io from socket */
+/* A thread proc for handling IO on a socket */
 void *base_accept_io(void *arg)
 {
     acceptor a = (acceptor)arg;
@@ -239,6 +244,7 @@ void *base_accept_io(void *arg)
 
     log_debug(ZONE,"io thread starting for %d",a->sock);
 
+	/* Setup a new xstream for this socket */
     xs = xstream_new(a->p, base_accept_read_packets, arg);
     a->eread = pth_event(PTH_EVENT_FD|PTH_UNTIL_FD_READABLE,a->sock);
     a->etime = pth_event(PTH_EVENT_TIME, pth_timeout(ACCEPT_HANDSHAKE_TIMEOUT,0));
@@ -335,25 +341,25 @@ void *base_accept_io(void *arg)
     return NULL;
 }
 
-/* thread to listen on a particular port/ip */
+/* A thread proc for listening on a new socket */
 void *base_accept_listen(void *arg)
 {
-    xmlnode secrets = (xmlnode)arg;
+    xmlnode hosts = (xmlnode)arg;
     acceptor a;
     int port, root, sock;
     pool p;
     struct sockaddr_in sa;
     size_t sa_size = sizeof(sa);
 
-    log_debug(ZONE,"new listener thread starting for %s",xmlnode2str(secrets));
+    log_debug(ZONE,"new listener thread starting for %s",xmlnode2str(hosts));
 
     /* look at the port="" and optional ip="" attribs and start a listening socket */
-    root = make_netsocket(atoi(xmlnode_get_attrib(secrets,"port")), xmlnode_get_attrib(secrets,"ip"), NETSOCKET_SERVER);
+    root = make_netsocket(atoi(xmlnode_get_attrib(hosts,"port")), xmlnode_get_attrib(hosts,"ip"), NETSOCKET_SERVER);
     if(root < 0 || listen(root, ACCEPT_LISTEN_BACKLOG) < 0)
     {
         /* XXX log error! */
-        log_debug(ZONE,"base_accept failed to listen on port %s for ip %s",xmlnode_get_attrib(secrets,"port"),xmlnode_get_attrib(secrets,"ip"));
-        log_alert(NULL,"base_accept failed to listen on port %s for ip %s",xmlnode_get_attrib(secrets,"port"),xmlnode_get_attrib(secrets,"ip"));
+        log_debug(ZONE,"base_accept failed to listen on port %s for ip %s",xmlnode_get_attrib(hosts,"port"),xmlnode_get_attrib(hosts,"ip"));
+        log_alert(NULL,"base_accept failed to listen on port %s for ip %s",xmlnode_get_attrib(hosts,"port"),xmlnode_get_attrib(hosts,"ip"));
         exit(1); /* don't start the server with a bad config */
         return NULL;
     }
@@ -365,7 +371,7 @@ void *base_accept_listen(void *arg)
         if(sock < 0)
         {
             log_warn(NULL,"base_accept error accepting: %s",strerror(errno));
-            log_alert(NULL,"base_accept not listening on port %s for ip %s",xmlnode_get_attrib(secrets,"port"),xmlnode_get_attrib(secrets,"ip"));
+            log_alert(NULL,"base_accept not listening on port %s for ip %s",xmlnode_get_attrib(hosts,"port"),xmlnode_get_attrib(hosts,"ip"));
             break;
         }
 
@@ -373,7 +379,7 @@ void *base_accept_listen(void *arg)
         p = pool_new();
         a = pmalloco(p, sizeof(_acceptor));
         a->p = p;
-        a->secrets = secrets;
+        a->hosts = hosts;
         a->sock = sock;
 
         log_debug(ZONE,"new connection on port %d from ip %s as fd %d",port,inet_ntoa(sa.sin_addr),sock);
@@ -389,10 +395,8 @@ void *base_accept_listen(void *arg)
 /* cleanup routine to make sure packets are getting delivered out of the DEFAULT sink */
 result base_accept_plumber(void *arg)
 {
+	drop d;
     sink s = (sink)arg;
-    drop d;
-
-    log_debug(ZONE,"plumber checking on sink %X",s);
     if((time(NULL) - s->last) > ACCEPT_PACKET_TIMEOUT)
     { /* packets timed out without anywhere to send them */
         while((d=(drop)pth_msgport_get(s->mp))!=NULL)
@@ -457,23 +461,26 @@ result base_accept_config(instance id, xmlnode x, void *arg)
 
     log_debug(ZONE,"base_accept_config performing configuration %s\n",xmlnode2str(x));
 
-    /* look for an existing accept section that is the same */
-    for(cur = xmlnode_get_firstchild(base_accept__listeners); cur != NULL; cur = xmlnode_get_nextsibling(cur))
+    /* Look for an existing <listen> entry which uses the requested IP and port */
+	for(cur = xmlnode_get_firstchild(base_accept__listeners); cur != NULL; cur = xmlnode_get_nextsibling(cur))
+		/* If port and IP match, kick out of the search loop.. */
         if(strcmp(port,xmlnode_get_attrib(cur,"port"))==0&&((ip==NULL&&xmlnode_get_attrib(cur,"ip")==NULL)||strcmp(ip,xmlnode_get_attrib(cur,"ip"))==0))
             break;
 
-    /* create a new section for this section */
-    if(cur == NULL)
+    /* If no matching entry was found, create a new one for this
+	 * instance and start a new listening thread */
+	if(cur == NULL)
     {
         cur = xmlnode_insert_tag(base_accept__listeners, "listen");
         xmlnode_put_attrib(cur,"port",port);
         xmlnode_put_attrib(cur,"ip",ip);
+		xmlnode_insert_tag(cur, "hosts");
 
-        /* start a new listen thread */
-        pth_spawn(PTH_ATTR_DEFAULT, base_accept_listen, (void *)cur);
+        /* Start a new listening thread and associate this <listen> tag with it */
+		pth_spawn(PTH_ATTR_DEFAULT, base_accept_listen, (void *)cur);
     }
 
-    /* create and configure the DEFAULT permanent sink */
+	/* Setup the default sink for this instance */ 
     s = pmalloco(id->p, sizeof(_sink));
     s->mp = pth_msgport_create("base_accept");
     s->i = id;
@@ -482,12 +489,12 @@ result base_accept_config(instance id, xmlnode x, void *arg)
 
     log_debug(ZONE,"new sink %X",s);
 
-    /* register phandler, and register cleanup heartbeat */
+	/* Register a packet handler and cleanup heartbeat for this instance */
     register_phandler(id, o_DELIVER, base_accept_phandler, (void *)s);
     register_beat(10, base_accept_plumber, (void *)s);
 
-    /* insert secret into it and hide sink in that new secret */
-    xmlnode_put_vattrib(xmlnode_insert_tag_node(cur,xmlnode_get_tag(x,"secret")),"sink",(void *)s);
+	/* Add the sink as a vattrib keyed by the instance id */
+	xmlnode_put_vattrib(xmlnode_get_tag(cur, "hosts"), s->i->id, (void*)s);
 
     return r_DONE;
 }
@@ -498,6 +505,9 @@ void base_accept(void)
 
     /* master list of all listen threads */
     base_accept__listeners = xmlnode_new_tag("listeners");
+
+	/* Add base hosts tag */
+	xmlnode_new_tag("hosts");
 
     register_config("accept",base_accept_config,NULL);
 }
