@@ -110,6 +110,7 @@ void base_load(void)
 each entry has a new int and is placed as the id="int" value
 incoming results are intercepted and that entry is unblocked
 some sort of timer that scans the ring oldest to newest, resending stale requests
+timeout xdb requests after a while, unblock and newx.data is still NULL
 start sending logs depending on length of staleness
 */
 
@@ -130,7 +131,12 @@ result xdb_results(instance id, dpacket p, void *arg)
 
     for(curx = xc->next; curx->id != idnum && curx != xc; curx = curx->next); /* spin till we are where we started or find our id# */
 
-    if(curx->id != idnum) return r_DONE; /* we got an id we didn't have cached, could be a dup, ignore and move on */
+    /* we got an id we didn't have cached, could be a dup, ignore and move on */
+    if(curx->id != idnum)
+    {
+        pool_free(p->p);
+        return r_DONE;
+    }
 
     /* associte packet w/ waiting cache */
     curx->data = p->x;
@@ -217,7 +223,7 @@ xmlnode xdb_get(xdbcache xc, char *host, jid owner, char *ns)
         pth_cond_await(&cond, &mutex, NULL); /* blocks thread */
     }
 
-    /* newx.data is now the returned xml packet */
+    /* newx.data is now the returned xml packet or NULL if it was unsuccessful */
 
     /* if get back type="error" log that and return NULL */
     if(j_strcmp(xmlnode_get_attrib(newx.data, "type"),"error") == 0)
@@ -283,16 +289,11 @@ int xdb_set(xdbcache xc, char *host, jid owner, xmlnode data)
         pth_cond_await(&cond, &mutex, NULL); /* blocks thread */
     }
 
-    /* newx.data is now the returned xml packet */
+    /* newx.data is now the returned xml packet or NULL if it was unsuccessful */
 
-    /* if get back type="error" log that and return NULL */
-    if(j_strcmp(xmlnode_get_attrib(newx.data, "type"),"error") == 0)
-    {
-        for(x = xmlnode_get_firstchild(newx.data); x != NULL && xmlnode_get_type(x) != NTYPE_TAG; x = xmlnode_get_nextsibling(x));
-        log_notice(host,"xdb_set failed for %s to %s",xmlnode_get_attrib(x, "xmlns"),jid_full(owner));
-        xmlnode_free(newx.data);
+    /* if it didn't actually get set, flag that */
+    if(newx.data == NULL)
         return 1;
-    }
 
     return 0;
 }
