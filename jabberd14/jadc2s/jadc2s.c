@@ -110,7 +110,7 @@ void onSignal(int signal)
 int main(int argc, char **argv)
 {
     c2s_t c2s;
-    time_t last, now;
+    time_t last_log, last_pending, now;
     char optchar;
     int config_loaded = 0;
     int max_conns;
@@ -245,19 +245,25 @@ int main(int argc, char **argv)
 #endif
 
     /* just a matter of processing socket events now */
-    time(&last);
+    last_log = time(NULL);
+    last_pending = last_log;
     while(process_conns)
     {
         mio_run(c2s->mio, c2s->timeout);
 
-        log_write(c2s->log, LOG_NOTICE, "current number of clients: %d",c2s->num_clients);
+        /* log this no more than once per minute */
+        if((time(NULL) - last_log) > 60)
+        {
+            log_write(c2s->log, LOG_NOTICE, "current number of clients: %d",c2s->num_clients);
+            last_log = time(NULL);
+        }
 
         /* !!! XXX Should these be configurable cleanup times? */
         /* every so often check for timed out pending conns */
-        if((time(&now) - last) > 15)
+        if((time(&now) - last_pending) > 15)
         {
             xhash_walk(c2s->pending, _walk_pending, (void*)now);
-            time(&last);
+            last_pending = time(NULL);
         }
 
         /* !!! XXX Move this in here for optimization? */

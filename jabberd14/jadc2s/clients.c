@@ -54,6 +54,7 @@ void _client_startElement(void *arg, const char* name, const char** atts)
     char *header;
     char sid[24];
 
+    c->root_name = strdup(name);
     if (j_strcmp(name, "flash:stream") == 0)
         c->type = type_FLASH;
 
@@ -71,23 +72,7 @@ void _client_startElement(void *arg, const char* name, const char** atts)
                 log_debug(ZONE, "checking xmlns: %s", atts[i+1]);
                 if (j_strcmp(atts[i+1], "jabber:client") != 0)
                 {
-                    _write_actual(c, c->fd, "<stream:error>Invalid namespace, should be using jabber:client</stream:error></stream:stream>", 92);
-                    c->depth = -1;
-                    return;
-                }
-
-                error--;
-            }
-
-            /* stream namespace */
-            if (j_strcmp(atts[i], "xmlns:stream") == 0)
-            {
-                log_debug(ZONE, "checking xmlns:stream: %s", atts[i+1]);
-                if (j_strncasecmp(atts[i+1], 
-                                  "http://etherx.jabber.org/streams", 32) != 0)
-                {
-                    /* XXX error */
-                    _write_actual(c, c->fd, "<stream:error>Invalid stream namespace</stream:error></stream:stream>", 68);
+                    _write_actual(c, c->fd, "<stream:error>Invalid namespace, should be using jabber:client</stream:error>", 77);
                     c->depth = -1;
                     return;
                 }
@@ -101,7 +86,7 @@ void _client_startElement(void *arg, const char* name, const char** atts)
                 log_debug(ZONE, "checking to: %s", atts[i+1]);
                 if (j_strcmp(atts[i+1], c->c2s->local_host) != 0)
                 {
-                    _write_actual(c, c->fd, "<stream:error>Invalid to address</stream:error></stream:stream>", 62);
+                    _write_actual(c, c->fd, "<stream:error>Invalid to address</stream:error>", 47);
                     c->depth = -1;
                     return;
                 }
@@ -111,20 +96,22 @@ void _client_startElement(void *arg, const char* name, const char** atts)
 
             /* stream namespace */
             /* If the root tag is flash:stream then this is a Flash connection */
-            if ((j_strcmp(name, "flash:stream") == 0) &&
-                (j_strcmp(atts[i], "xmlns:flash") == 0))
+            if (j_strcmp(name, "flash:stream") == 0)
             {
-                log_debug(ZONE, "checking xmlns:flash: %s", atts[i+1]);
-                if (j_strncasecmp(atts[i+1], 
-                                  "http://www.jabber.com/streams/flash", 35) != 0)
+                if (j_strcmp(atts[i], "xmlns:flash") == 0)
                 {
-                    /* XXX error */
-                    _write_actual(c, c->fd, "<stream:error>Invalid stream namespace</stream:error></stream:stream>", 68);
-                    c->depth = -1;
-                    return;
-                }
+                    log_debug(ZONE, "checking xmlns:flash: %s", atts[i+1]);
+                    if (j_strncasecmp(atts[i+1], 
+                                      "http://www.jabber.com/streams/flash", 35) != 0)
+                    {
+                        /* XXX error */
+                        _write_actual(c, c->fd, "<stream:error>Invalid stream namespace</stream:error>", 53);
+                        c->depth = -1;
+                        return;
+                    }
 
-                error--;
+                    error--;
+                }
             }
             /* This is a normal stream:stream tag... */
             else if (j_strcmp(atts[i], "xmlns:stream") == 0)
@@ -134,7 +121,7 @@ void _client_startElement(void *arg, const char* name, const char** atts)
                                   "http://etherx.jabber.org/streams", 32) != 0)
                 {
                     /* XXX error */
-                    _write_actual(c, c->fd, "<stream:error>Invalid stream namespace</stream:error></stream:stream>", 68);
+                    _write_actual(c, c->fd, "<stream:error>Invalid stream namespace</stream:error>", 53);
                     c->depth = -1;
                     return;
                 }
@@ -155,9 +142,9 @@ void _client_startElement(void *arg, const char* name, const char** atts)
 
         /* XXX fancier algo for id generation? */
         snprintf(sid, 24, "%d", rand());
-        header_len = 100 + strlen(c->c2s->local_host) + 24;
+        header_len = 1 + strlen(name) + 77 + strlen(c->c2s->local_host) + 6 + 24 + 2;
         header = malloc(header_len);
-        snprintf(header, header_len, "<stream:stream xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams' from='%s' id='%s'>", c->c2s->local_host, sid);
+        snprintf(header, header_len, "<%s xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams' from='%s' id='%s'>", name,c->c2s->local_host, sid);
         _write_actual(c,c->fd,header,strlen(header));
         free(header);
         c->sid = strdup(sid);
@@ -339,8 +326,6 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
             c->ssl = SSL_new(c->c2s->ssl_ctx);
             SSL_set_fd(c->ssl, fd);
             SSL_accept(c->ssl);
-            
-            c->ssl_flag = 1;
         }
 #endif
 
@@ -354,7 +339,7 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
 
 #ifdef USE_SSL
         /* Ok... we only check for HTTP connections on non-ssl connections. */
-        if (!c->ssl_flag)
+        if (c->ssl == NULL)
         {
 #endif
             /* Read the first character... It means something */
@@ -402,8 +387,11 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
 #ifdef USE_SSL
         }
 #endif
-        /* get read events */
+
+        /* count the number of open client connections */
         c->c2s->num_clients++;
+
+        /* get read events */
         mio_read(m, fd);
         break;
 
@@ -473,7 +461,10 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
             /* remove from preauth hash */
             xhash_zap(c->c2s->pending,jid_full(c->myid));
         }
+
+        /* count the number of open client connections */
         c->c2s->num_clients--;
+
         conn_free(c);
         break;
     }
