@@ -382,7 +382,7 @@ int mod_groups_xdb_add(mod_groups_i mi, pool p, jid uid, char *un, char *gid, ch
     else if (both == 0)
     {
         xmlnode_free(groups);
-        return 0; 
+        return 0;
     }
 
     /* save the new group in the users list groups */
@@ -573,12 +573,13 @@ void mod_groups_browse_set(mod_groups_i mi, mapi m)
     grouptab gt;
     xmlnode info, user;
     jid uid;
-    char *gid, *gn, *un;
+    char *gid, *gn, *un, *host, *action;
+    int add;
 
     log_debug(ZONE,"Setting");
 
     gid = strchr(jp->to->resource,'/');
-    if (gid == NULL || ++gid == NULL);
+    if (gid == NULL || ++gid == NULL)
     {
         js_bounce(m->si,jp->x,TERROR_NOTACCEPTABLE);
         return;
@@ -587,33 +588,49 @@ void mod_groups_browse_set(mod_groups_i mi, mapi m)
     user = xmlnode_get_tag(jp->iq,"user");
     uid = jid_new(p,xmlnode_get_attrib(user,"jid"));
     un = xmlnode_get_attrib(user,"name");
+    action = xmlnode_get_attrib(user, "action");
+    add = ( ( action == NULL ) || j_strcmp(action, "remove") );
 
     if (uid == NULL || un == NULL)
     {
         js_bounce(m->si,jp->x,TERROR_NOTACCEPTABLE);
-        xmlnode_free(info);
         return;
     }
 
     info = mod_groups_get_info(mi,p,jp->to->server,gid);
-    if (info == NULL ||  xmlnode_get_tag(info,spools(p,"edit/user=",jp->from->user,p)) == NULL)
+    if (info == NULL ||  xmlnode_get_tag(info,spools(p,"edit/user=",jid_full(jp->from),p)) == NULL)
     {
         js_bounce(m->si,jp->x,TERROR_NOTALLOWED);
         return;
     }
     gn = xmlnode_get_tag_data(info,"name");
 
-    if (mod_groups_xdb_add(mi,p,uid,un,gid,gn,1))
+    if ( add )
     {
-        js_bounce(m->si,jp->x,TERROR_UNAVAIL);
-        xmlnode_free(info);
-        return;
+        log_debug("mod_groups", "Adding");
+        if (mod_groups_xdb_add(mi,p,uid,un,gid,gn,1))
+        {
+            js_bounce(m->si,jp->x,TERROR_UNAVAIL);
+            xmlnode_free(info);
+            return;
+        }
+    }
+    else
+    {
+        log_debug("mod_groups", "Removing");
+        host = jp->from->server;
+        if (mod_groups_xdb_remove(mi,p,uid,host,gid))
+        {
+            js_bounce(m->si,jp->x,TERROR_UNAVAIL);
+            xmlnode_free(info);
+            return;
+        }
     }
 
     gt = GROUP_GET(mi,gid);
 
     /* push the new user to the other members */
-    mod_groups_update_rosters(gt,uid,un,gn,1);
+    mod_groups_update_rosters(gt,uid,un,gn,add);
 
     /* XXX how can we push the roster to the new user and send their presence?  lookup their session? */
 
@@ -941,7 +958,7 @@ mreturn mod_groups_message(mapi m, void *arg)
         return M_HANDLED;
     }
 
-    if (xmlnode_get_tag(info,spools(jp->p,"write/user=",jp->from->user,jp->p)) != NULL)
+    if (xmlnode_get_tag(info,spools(jp->p,"write/user=",jid_full(jp->from),jp->p)) != NULL)
         mod_groups_message_online(mi,jp->x,gid);
     else
         js_bounce(m->si,jp->x,TERROR_NOTALLOWED);
