@@ -83,6 +83,7 @@ static HSLAB *s_slabs = NULL;        /* node slabs list */
  */
 
 static HNODE *allocate_node(
+    pool p,
     const void *key,   /* key pointer for this node */
     void *value)       /* value pointer for this node */
 /*
@@ -95,7 +96,7 @@ static HNODE *allocate_node(
     if (!s_free_nodes)
     { /* allocate a new slabful of nodes and chain them to make a new free list */
         register int i;  /* loop counter */
-        HSLAB *slab = (HSLAB *)malloc(sizeof(HSLAB));
+        HSLAB *slab = p ? (HSLAB *)pmalloc(p, sizeof(HSLAB)) : (HSLAB *)malloc(sizeof(HSLAB));
         if (!slab)
             return NULL;
         memset(slab,0,sizeof(HSLAB));
@@ -117,43 +118,6 @@ static HNODE *allocate_node(
 
 } /* end allocate_node */
 
-static HNODE *allocate_node_pool(
-    pool p,            /* pool to malloc from */
-    const void *key,   /* key pointer for this node */
-    void *value)       /* value pointer for this node */
-/*
-    allocate_node allocates a new hash node and fills it.  Returns NULL if the
-    node could not be allocated.
-*/
-{
-    HNODE *rc;   /* return from this function */
-
-    if(p == NULL)
-        return allocate_node(key, value);
-
-    if (!s_free_nodes)
-    { /* allocate a new slabful of nodes and chain them to make a new free list */
-        register int i;  /* loop counter */
-        HSLAB *slab = (HSLAB *)pmalloco(p, sizeof(HSLAB));
-        if (!slab)
-            return NULL;
-        slab->next = s_slabs;
-        for (i=0; i<(SLAB_NUM_NODES-1); i++)
-            slab->nodes[i].next = &(slab->nodes[i+1]);
-        s_free_nodes = &(slab->nodes[0]);
-        s_slabs = slab;
-
-    } /* end if */
-
-    /* grab a node off the fron of the free list and fill it */
-    rc = s_free_nodes;
-    s_free_nodes = rc->next;
-    rc->next = NULL;
-    rc->key = key;
-    rc->value = value;
-    return rc;
-
-} /* end allocate_node */
 static void free_node(
     HNODE *node)   /* node to be freed */
 /*
@@ -379,7 +343,7 @@ int ghash_put(HASHTABLE tbl, const void *key, void *value)
     node = find_node(tab,key,bucket);
     if (!node)
     { /* OK, try to allocate a new node. */
-        node = allocate_node_pool(tab->p, key,value);
+        node = allocate_node(tab->p, key,value);
         if (node)
         { /* Chain the new node into the hash table. */
             node->next = tab->buckets[bucket];
@@ -641,7 +605,7 @@ int ghash_put_pool(pool p, HASHTABLE tbl, const void *key, void *value)
     node = find_node(tab,key,bucket);
     if (!node)
     { /* OK, try to allocate a new node. */
-        node = allocate_node_pool(tab->p, key,value);
+        node = allocate_node(tab->p, key,value);
         if (node)
         { /* Chain the new node into the hash table. */
             node->next = tab->buckets[bucket];

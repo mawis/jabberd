@@ -167,8 +167,14 @@ void _pthsock_server_host_validated(int valid, host h)
         h->mp = NULL;
     }
 
-    /* remove from hash */
+    /* XXX jer, make sure this doesn't break it, I'm not following
+     * this logic too well.. (tsb) ={  NOTE that i moved to ghash_put_pool() so they
+     * automatically get removed.. but i think there is an instance that it may
+     * need to be removed before the c->p pool is cleaned up.. it'd be nice if 
+     * you could verify this for me, tnx 
+     * remove from hash 
     ghash_remove(h->si->hosts,jid_full(h->id));
+     */
 }
 
 /* called when the host goes bye bye */
@@ -315,7 +321,7 @@ void pthsock_server_outread(mio s, int flags, void *arg, xmlnode x)
         else
         {
             /* db capable, register in main hash of connected ip's */
-            ghash_put(c->si->ips, c->ips, c);
+            ghash_put_pool(c->p, c->si->ips, c->ips, c);
         }
         c->connected = 1;
         c->id = pstrdup(c->p,xmlnode_get_attrib(x,"id")); /* store this for the result generation */
@@ -388,8 +394,6 @@ void pthsock_server_outread(mio s, int flags, void *arg, xmlnode x)
         xmlnode_free(x);
         break;
     case MIO_CLOSED:
-        /* remove us if we were advertised */
-        ghash_remove(c->si->ips, c->ips);
 
         /* if we weren't connected and there's more IP's to try, try them */
         if(c->s == NULL && c->ipn != NULL)
@@ -494,7 +498,7 @@ result pthsock_server_packets(instance i, dpacket dp, void *arg)
         h->c = c;
         h->created = time(NULL);
         h->id = jid_new(c->p,jid_full(id));
-        ghash_put(si->hosts,jid_full(h->id),h); /* register us */
+        ghash_put_pool(c->p, si->hosts,jid_full(h->id),h); /* register us */
         pool_cleanup(c->p,_pthsock_server_host_cleanup,(void *)h); /* make sure things get put back to normal afterwards */
         _pthsock_server_host_result((void *)h); /* try to send result to the other side */
 
@@ -620,7 +624,7 @@ void pthsock_server_inread(mio s, int flags, void *arg, xmlnode x)
             h->id = jid_new(c->p,xmlnode_get_attrib(x,"to"));
             jid_set(h->id,xmlnode_get_attrib(x,"from"),JID_RESOURCE);
             jid_set(h->id,c->id,JID_USER); /* special user of the id attrib makes this key unique */
-            ghash_put(c->si->hosts,jid_full(h->id),h); /* register us */
+            ghash_put_pool(c->p, c->si->hosts,jid_full(h->id),h); /* register us */
             pool_cleanup(c->p,_pthsock_server_host_cleanup,(void *)h); /* make sure things get put back to normal afterwards */
 
             /* send the verify back to them, on another outgoing trusted socket, via deliver (so it is real and goes through dnsrv and anything else) */
@@ -656,11 +660,7 @@ void pthsock_server_inread(mio s, int flags, void *arg, xmlnode x)
 /* cleanup function */
 void pthsock_server_shutdown(void *arg)
 {
-    ssi si = (ssi)arg;
     log_debug(ZONE, "S2S Shutting Down");
-    ghash_destroy(si->ips);
-    ghash_destroy(si->hosts);
-    ghash_destroy(si->nscache);
 }
 
 /* callback for walking the host hash tree */
@@ -700,9 +700,9 @@ void pthsock_server(instance i, xmlnode x)
     cfg = xdb_get(xdb_cache(i),jid_new(xmlnode_pool(x),"config@-internal"),"jabber:config:pth-ssock");
 
     si = pmalloco(i->p,sizeof(_ssi));
-    si->ips = ghash_create(j_atoi(xmlnode_get_tag_data(cfg,"maxhosts"),67),(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp); /* keys are "ip:port" */
-    si->hosts = ghash_create(j_atoi(xmlnode_get_tag_data(cfg,"maxhosts"),67),(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp); /* keys are jids: "id@to/from" */
-    si->nscache = ghash_create(j_atoi(xmlnode_get_tag_data(cfg,"maxhosts"),67),(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+    si->ips = ghash_create_pool(i->p, j_atoi(xmlnode_get_tag_data(cfg,"maxhosts"),67),(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp); /* keys are "ip:port" */
+    si->hosts = ghash_create_pool(i->p, j_atoi(xmlnode_get_tag_data(cfg,"maxhosts"),67),(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp); /* keys are jids: "id@to/from" */
+    si->nscache = ghash_create_pool(i->p, j_atoi(xmlnode_get_tag_data(cfg,"maxhosts"),67),(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
     si->i = i;
     si->secret = xmlnode_get_attrib(cfg,"secret");
     if(si->secret == NULL) /* if there's no configured secret, make one on the fly */
