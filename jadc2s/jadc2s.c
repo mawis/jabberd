@@ -120,7 +120,7 @@ void onSignal(int signal)
 int main(int argc, char **argv)
 {
     c2s_t c2s;
-    time_t last_log, last_pending, now;
+    time_t last_log, last_pending, last_jid_clean, now;
     char optchar;
     int config_loaded = 0;
     int i, fd;
@@ -133,6 +133,9 @@ int main(int argc, char **argv)
     /* set up our c2s global stuff */
     c2s = (c2s_t)malloc(sizeof(struct c2s_st));
     memset(c2s, 0, sizeof(struct c2s_st));
+
+    /* create environment for jid preparation */
+    c2s->jid_environment = jid_new_environment();
 
     /* set default for rand_dev */
     rand_dev = strdup("/dev/urandom");
@@ -348,8 +351,7 @@ int main(int argc, char **argv)
 #endif
 
     /* just a matter of processing socket events now */
-    last_log = time(NULL);
-    last_pending = last_log;
+    last_jid_clean = last_pending = last_log = time(NULL);
     while(process_conns)
     {
         mio_run(c2s->mio, c2s->timeout);
@@ -368,6 +370,11 @@ int main(int argc, char **argv)
             xhash_walk(c2s->pending, _walk_pending, (void*)now);
             last_pending = time(NULL);
         }
+
+	/* cleanup the stringprep caches */
+	if ((time(NULL) - last_jid_clean) > 60) {
+	    jid_clean_cache(c2s->jid_environment);
+	}
 
         /* !!! XXX Move this in here for optimization? */
         connection_rate_cleanup(c2s);

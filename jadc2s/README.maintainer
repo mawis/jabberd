@@ -1,0 +1,4 @@
+Before building a distribution, you have to move jadc2s outside of the
+jabberd14 directory or you have to delete the 'install-sh' and the
+'mkinstalldirs' file there. Else 'make install' won't pack these required
+files to the distribution.
