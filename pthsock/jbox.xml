@@ -1,5 +1,5 @@
-<!--  Jabber2 - pthsock JSX configuration  -->
-<jsx project='pthsock'>
+<!--  Jabber2 - pthsock JBOX configuration  -->
+<jbox project='pthsock'>
   <build>
     <variables>
       <var name='CFLAGS'><value>-I ../jabberd/</value></var>
@@ -34,4 +34,4 @@
       </compile>
     </make>
   </build>
-</jsx>
+</jbox>
