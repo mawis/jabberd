@@ -170,7 +170,41 @@ void mod_filter_action_error(mapi m,xmlnode rule)
 void mod_filter_action_reply(mapi m,xmlnode rule)
 {
     char *reply=xmlnode_get_tag_data(rule,"reply");
-    xmlnode x;
+    xmlnode x = xmlnode_get_tag(m->packet->x, "x?xmlns=jabber:x:envelope");
+    int has_envelope = 0;
+
+    /* check for infinite loops */
+    if(x != NULL)
+    {
+        xmlnode cur = xmlnode_get_tag(x, "forwardedby");
+        has_envelope = 1;
+        for(; cur != NULL; cur = xmlnode_get_nextsibling(cur))
+        {
+            if(xmlnode_get_type(cur) != NTYPE_TAG)
+                continue;
+
+            if(j_strcmp(xmlnode_get_name(cur), "forwardedby") == 0)
+            {
+                char *fb = xmlnode_get_attrib(cur, "jid");
+                jid j    = jid_new(m->packet->p, fb);
+
+                if(jid_cmpx(j, m->packet->to, JID_USER | JID_SERVER) == 0)
+                {
+                    x = xmlnode_dup(m->packet->x);
+                    xmlnode_put_attrib(x, "to", jid_full(j));
+                    xmlnode_put_attrib(x, "from", jid_full(m->packet->to));
+                    deliver_fail(dpacket_new(x), "Replying would result in infinite loop");
+                    return;
+                }
+            }
+        }
+    }
+
+    if(!has_envelope)
+        xmlnode_put_attrib(x = xmlnode_insert_tag(m->packet->x, "x"), "xmlns", "jabber:x:envelope");
+    xmlnode_put_attrib(xmlnode_insert_tag(x, "forwardedby"), "jid", jid_full(m->packet->to));
+    xmlnode_put_attrib(xmlnode_insert_tag(x, "from"), "jid", jid_full(m->packet->to));
+    xmlnode_put_attrib(xmlnode_insert_tag(x, "to"), "jid", jid_full(m->packet->from));
 
     if(reply == NULL) 
         return;
@@ -220,6 +254,10 @@ void mod_filter_action_forward(mapi m,xmlnode rule,jid j)
         has_envelope=1;
         for(;cur!=NULL;cur=xmlnode_get_nextsibling(cur)) 
         {
+
+            if(xmlnode_get_type(cur) != NTYPE_TAG)
+                continue;
+
             if(j_strcmp(xmlnode_get_name(cur),"forwardedby")==0)
             {
                 char *fb=xmlnode_get_attrib(cur,"jid");
