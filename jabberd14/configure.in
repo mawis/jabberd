@@ -288,3 +288,40 @@ AC_OUTPUT(Makefile \
 	  jsm/modules/Makefile \
 	  pthsock/Makefile \
 	  xdb_file/Makefile)
+
+dnl
+dnl generate the platform-settings file, that is used by some legacy components
+dnl removed this part as soon as we do not need it anymore!
+dnl
+printf "configure: creating ./platform-settings for legacy components\n"
+
+case $host_os in
+    cygwin*)
+        __CYGWIN__="1"
+	;;
+esac
+
+cat << EOF > platform-settings
+#! /bin/sh
+
+# This file is not used by jabberd itself at all
+# it is used by jabberd14 components that use the old build environment
+# known for this are: yahoo-transport, mu-conference, smtp-transport
+# we will stop to generate this file as soon as these components do not
+# need this file anymore.
+
+CC=$CC
+CFLAGS=$CFLAGS
+CCFLAGS=$CFLAGS
+LDFLAGS=$LDFLAGS
+LIBS=$LIBS
+__CYGWIN__=$__CYGWIN__
+
+# traditionally there have been other variables in this file too
+# it seems that they are not used by the above mentioned components
+EOF
+chmod 0700 platform-settings
+
+
+
+printf "\nYou may now type 'make' to build your new Jabber system.\n\n"
