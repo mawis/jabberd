@@ -62,8 +62,8 @@ void js_authreg(void *arg)
                 xmlnode_insert_tag(p->iq,"resource"); /* of course, resource is required :) */
                 xmlnode_put_attrib(p->x,"type","result");
                 jutil_tofrom(p->x);
-            }else{ /* type="set" that didn't get handled is a proble */
-                jutil_error(p->x, TERROR_INTERNAL);
+            }else{ /* type="set" that didn't get handled used to be a problem, but now auth_plain passes on failed checks so it might be normal */
+                jutil_error(p->x, TERROR_AUTH);
             }
         }
 
