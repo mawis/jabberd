@@ -519,6 +519,36 @@ void pthsock_client(instance i, xmlnode x)
         mio_karma2(m, &k);
     }
 
+#ifdef HAVE_SSL
+    /* listen on SSL sockets */
+    if((cur = xmlnode_get_tag(s__i->cfg, "ssl")) != NULL)
+    {
+        for(; cur != NULL; xmlnode_hide(cur), cur = xmlnode_get_tag(s__i->cfg, "ssl"))
+        {
+            mio m;
+            m = mio_listen(j_atoi(xmlnode_get_attrib(cur, "port"), 5223), xmlnode_get_data(cur), pthsock_client_listen, (void*)s__i, MIO_SSL_ACCEPT, mio_handlers_new(MIO_SSL_READ, MIO_SSL_WRITE, MIO_XML_PARSER));
+            if(m == NULL)
+                return;
+            if(rate_time != 0 && rate_points != 0)
+                mio_rate(m, rate_time, rate_points);
+
+            mio_karma2(m, &k);
+        }
+    }
+    else
+    {
+        mio m;
+        m = mio_listen(j_atoi(xmlnode_get_attrib(cur, "port"), 5223), xmlnode_get_data(cur), pthsock_client_listen, (void*)s__i, MIO_SSL_ACCEPT, mio_handlers_new(MIO_SSL_READ, MIO_SSL_WRITE, MIO_XML_PARSER));
+        if(m == NULL)
+            return;
+        if(rate_time != 0 && rate_points != 0)
+            mio_rate(m, rate_time, rate_points);
+    
+        mio_karma2(m, &k);
+    }
+                   
+#endif
+
     /* register data callbacks */
     register_phandler(i, o_DELIVER, pthsock_client_packets, (void*)s__i);
     pool_cleanup(i->p, pthsock_client_shutdown, (void*)s__i);
