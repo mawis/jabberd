@@ -48,7 +48,6 @@ int main (int argc, char** argv)
     char *cfgfile = NULL, *c;   /* strings used to load the server config */
     pool cfg_pool=pool_new();
 
-    mwDoFlush(1);
     /* start by assuming the parameters were entered correctly */
     help = 0;
     cmd__line=ghash_create(20,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
