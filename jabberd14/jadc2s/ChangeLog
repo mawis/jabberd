@@ -1,3 +1,9 @@
+2004-03-29  Matthias Wimmer  <m@tthias.net>
+
+    * configure.in: Check for Libidn
+    * util/jid.c: Nameprep/nodeprep/resourceprep JIDs
+    * clients.c: fixed debugging message formating
+
 2004-03-26  Matthias Wimmer  <m@tthias.net>
 
     * conn.c: Send close notify for SSL connections
