@@ -682,6 +682,13 @@ void _mio_main(void *arg)
                     (*cur->mh->parser)(cur, buf, len);
                 }
             } 
+
+            /* we could have gotten a bad parse, and want to close */
+            if(cur->state == state_CLOSE)
+            { /* loop again to close the socket */
+                continue;
+            }
+
             /* if we need to write to this socket */
             if((FD_ISSET(cur->fd, &wfds) || cur->queue != NULL))
             {   
