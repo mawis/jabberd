@@ -9,8 +9,15 @@ bin_PROGRAMS = jadc2s
 jadc2s_SOURCES = clients.c  conn.c  connect.c  jadc2s.c  rate.c
 noinst_HEADERS = jadc2s.h
 
-jadc2s_LDADD = $(top_builddir)/mio/libmio.la \
-            $(top_builddir)/util/libutil.la
+jadc2s_LDADD = $(top_builddir)/libjad.la
+jadc2s_LDFLAGS = @LDFLAGS@
+
+lib_LTLIBRARIES = libjad.la
+
+libjad_la_SOURCES =
+libjad_la_LIBADD = $(top_builddir)/mio/libmio.la \
+		   $(top_builddir)/util/libutil.la
+libjad_la_LDFLAGS = @LDFLAGS@ -export-dynamic
 
 install-data-hook:
 	@list='$(sysconf_DATA)'; for p in $$list; do \
