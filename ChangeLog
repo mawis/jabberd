@@ -1,3 +1,8 @@
+2004-09-07  Matthias Wimmer  <m@tthias.net>
+
+    * jsm/modules/mod_offline.c: ignore CDATA between offline <message/>s
+    * jsm/modules/mod_roster.c: we lost the pending_in state at a roster set
+
 2004-09-06  Matthias Wimmer  <m@tthias.net>
 
     * jsm/modules/mod_roster.c: XMPP IM's way to handle subscription states
