@@ -504,7 +504,11 @@ dpacket dpacket_new(xmlnode x)
         p->id = jid_new(p->p, xmlnode_get_attrib(x, "to"));
 
     if(p->id == NULL)
+    {
+        log_error(NULL,"Packet Delivery Failed, invalid packet, dropping %s",xmlnode2str(x));
+        xmlnode_free(x);
         return NULL;
+    }
 
     /* XXX be more stringent, make sure each packet has the basics, norm has a to/from, log has a type, xdb has a full id */
 

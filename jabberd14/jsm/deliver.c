@@ -71,7 +71,7 @@ result js_packet(instance i, dpacket p, void *arg)
     jpacket jp;
     HASHTABLE ht;
     session s;
-    char *type;
+    char *type, *authto;
 
     log_debug(ZONE,"(%X)incoming packet %s",si,xmlnode2str(p->x));
 
@@ -108,6 +108,15 @@ result js_packet(instance i, dpacket p, void *arg)
         /* auth/reg requests */
         if(jp != NULL && j_strcmp(type,"auth") == 0)
         {
+            /* check and see if we're configured to forward auth packets for processing elsewhere */
+            if((authto = xmlnode_get_data(js_config(si,"auth"))) != NULL)
+            {
+                xmlnode_put_attrib(p->x,"oto",xmlnode_get_attrib(p->x,"to")); /* preserve original to */
+                xmlnode_put_attrib(p->x,"to",authto);
+                deliver(dpacket_new(p->x), i);
+                return r_DONE;
+            }
+
             /* internally, hide the route to/from addresses on the authreg request */
             xmlnode_put_attrib(jp->x,"to",xmlnode_get_attrib(p->x,"to"));
             xmlnode_put_attrib(jp->x,"from",xmlnode_get_attrib(p->x,"from"));
