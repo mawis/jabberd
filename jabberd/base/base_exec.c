@@ -80,7 +80,6 @@ typedef struct
 } *process_write_buf, _process_write_buf;
 
 
-
 /* Deliver packets to the coprocess*/
 result base_exec_deliver(instance i, dpacket p, void* args)
 {
