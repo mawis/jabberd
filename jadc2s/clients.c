@@ -41,12 +41,13 @@
 #include "jadc2s.h"
 
 static char header_start[] = "<stream:stream xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams'";
+static char header_start_flash[] = "<flash:stream xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams'";
 
 /* handle new elements */
 void _client_startElement(void *arg, const char* name, const char** atts)
 {
     conn_t c = (conn_t)arg;
-    int i = 0, error;
+    int i = 0, got_to_attrib = 0, got_stanza_namespace = 0, got_stream_namespace = 0;
     char *header, *header_from, header_id[30], header_end[3];
     char sid[24];
 
@@ -65,11 +66,10 @@ void _client_startElement(void *arg, const char* name, const char** atts)
         {
             c->type = type_FLASH;
             c->flash_hack = 1;
-        }
+	}
 
         /* Iterate over the attributes and test them
          * error tracks the required attributes in the header */
-        error = 3;
         while (atts[i] != '\0')
         {
             /* We have the primary namespace */
@@ -78,12 +78,17 @@ void _client_startElement(void *arg, const char* name, const char** atts)
                 log_debug(ZONE, "checking xmlns: %s", atts[i+1]);
                 if (j_strcmp(atts[i+1], "jabber:client") != 0)
                 {
-                    _write_actual(c, c->fd, "<stream:error>Invalid namespace, should be using jabber:client</stream:error>", 77);
+		    /* we have not send the stream root yet */
+		    free(c->root_name);
+		    c->root_name = NULL;
+		   
+		    /* send the stream error */
+		    conn_error(c, STREAM_ERR_INVALID_NAMESPACE, "Invalid namespace, should be using jabber:client");
                     c->depth = -1;
                     return;
                 }
 
-                error--;
+                got_stanza_namespace = 1;
             }
             /* to attribute */
             else if (j_strcmp(atts[i], "to") == 0)
@@ -103,12 +108,17 @@ void _client_startElement(void *arg, const char* name, const char** atts)
 
                 if (c->local_id == NULL)
                 {
-                    _write_actual(c, c->fd, "<stream:error>Invalid to address</stream:error>", 47);
+		    /* we have not send the stream root yet */
+		    free(c->root_name);
+		    c->root_name = NULL;
+
+		    /* send the stream error */
+		    conn_error(c, STREAM_ERR_HOST_UNKNOWN, "Invalid to address");
                     c->depth = -1;
                     return;
                 }
 
-                error--;
+                got_to_attrib = 1;
             }
 
             /* stream namespace */
@@ -121,13 +131,18 @@ void _client_startElement(void *arg, const char* name, const char** atts)
                     if (j_strcasecmp(atts[i+1], 
                                      "http://www.jabber.com/streams/flash") != 0)
                     {
+			/* we have not send the stream root yet */
+			free(c->root_name);
+			c->root_name = NULL;
+
+			/* send the stream error */
                         /* XXX error */
-                        _write_actual(c, c->fd, "<stream:error>Invalid stream namespace</stream:error>", 53);
+			conn_error(c, STREAM_ERR_INVALID_NAMESPACE, "Invalid stream namespace");
                         c->depth = -1;
                         return;
                     }
 
-                    error--;
+                    got_stream_namespace = 1;
                 }
             }
             /* This is a normal stream:stream tag... */
@@ -137,26 +152,62 @@ void _client_startElement(void *arg, const char* name, const char** atts)
                 if (j_strcasecmp(atts[i+1], 
                                  "http://etherx.jabber.org/streams") != 0)
                 {
+		    /* we have not send the stream root yet */
+		    free(c->root_name);
+		    c->root_name = NULL;
+
+		    /* send the stream error */
                     /* XXX error */
-                    _write_actual(c, c->fd, "<stream:error>Invalid stream namespace</stream:error>", 53);
+		    conn_error(c, STREAM_ERR_INVALID_NAMESPACE, "Invalid stream namespace");
                     c->depth = -1;
                     return;
                 }
 
-                error--;
+                got_stream_namespace = 1;
             }
 
             i+=2;
         }
-        
-        if (error > 0)
-        {
-            log_debug(ZONE, "Required header attributes were not specified: %d",
-                    error);
+
+	if (!got_stream_namespace)
+	{
+	    /* we have not send the stream root yet */
+	    free(c->root_name);
+	    c->root_name = NULL;
+
+	    conn_error(c, STREAM_ERR_INVALID_NAMESPACE, "Stream namespace not specified");
+
+            log_debug(ZONE, "Stream namespace not specified");
             c->depth = -1;
             return;
-        }
+	}
+        
+	if (!got_stanza_namespace)
+	{
+	    /* we have not send the stream root yet */
+	    free(c->root_name);
+	    c->root_name = NULL;
 
+	    conn_error(c, STREAM_ERR_INVALID_NAMESPACE, "Stanza namespace not specified");
+
+            log_debug(ZONE, "Stanza namespace not specified");
+            c->depth = -1;
+            return;
+	}
+        
+	if (!got_to_attrib)
+	{
+	    /* we have not send the stream root yet */
+	    free(c->root_name);
+	    c->root_name = NULL;
+
+	    conn_error(c, STREAM_ERR_HOST_UNKNOWN, "No destination specified in to attribute");
+
+            log_debug(ZONE, "to attribute missing");
+            c->depth = -1;
+            return;
+	}
+        
         /* XXX fancier algo for id generation? */
         snprintf(sid, 24, "%d", rand());
 
@@ -170,8 +221,14 @@ void _client_startElement(void *arg, const char* name, const char** atts)
         else
             strcpy(header_end,">");
 
-        header = malloc( strlen(header_start) + strlen(header_from) + strlen(header_id) + strlen(header_end) + 1);
-        sprintf(header,"%s%s%s%s",header_start,header_from,header_id,header_end);
+	if (c->flash_hack)
+	{
+	    header = malloc( strlen(header_start_flash) + strlen(header_from) + strlen(header_id) + strlen(header_end) + 1);
+	    sprintf(header,"%s%s%s%s",header_start_flash,header_from,header_id,header_end);
+	} else {
+	    header = malloc( strlen(header_start) + strlen(header_from) + strlen(header_id) + strlen(header_end) + 1);
+	    sprintf(header,"%s%s%s%s",header_start,header_from,header_id,header_end);
+	}
         
         _write_actual(c,c->fd,header,strlen(header));
         free(header);

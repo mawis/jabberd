@@ -39,6 +39,15 @@ All clients are hashed based on their unique id in a master hash table.
 
 */
 
+/* stream error conditions */
+#define STREAM_ERR_BAD_FORMAT		 "<bad-format xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
+#define STREAM_ERR_HOST_UNKNOWN		 "<host-unknown xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
+#define STREAM_ERR_INTERNAL_SERVER_ERROR "<internal-server-error xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
+#define STREAM_ERR_INVALID_NAMESPACE	 "<invalid-namespace xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
+#define STREAM_ERR_INVALID_XML		 "<invalid-xml xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
+#define STREAM_ERR_NOT_AUTHORIZED	 "<not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
+#define STREAM_ERR_SYSTEM_SHUTDOWN	 "<system-shutdown xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
+
 /* forward decls */
 typedef struct conn_st *conn_t;
 typedef struct c2s_st *c2s_t;
@@ -103,8 +112,11 @@ struct conn_st
 conn_t conn_new(c2s_t c2s, int fd);
 void conn_free(conn_t c);
 
+/* send a stream error */
+void conn_error(conn_t c, char *condition, char *err);
+
 /* close a conn with error (conn_t becomes invalid after this is called!) */
-void conn_close(conn_t c, char *err);
+void conn_close(conn_t c, char *condition, char *err);
 
 /* create a new chunk */
 chunk_t chunk_new(conn_t c);
