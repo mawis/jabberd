@@ -200,6 +200,12 @@ int main(int argc, char **argv)
 #ifdef USE_SSL
     c2s->local_sslport = j_atoi(config_get_one(c2s->config, "local.ssl.port", 0), 5223);
     c2s->pemfile = config_get_one(c2s->config, "local.ssl.pemfile", 0);
+    c2s->ciphers = config_get_one(c2s->config, "local.ssl.ciphers", 0);
+    
+    c2s->ssl_enable_workarounds = (config_get_one(c2s->config, "local.ssl.enable_workarounds", 0) != NULL);
+    c2s->ssl_no_ssl_v2 = (config_get_one(c2s->config, "local.ssl.no_ssl_v2", 0) != NULL);
+    c2s->ssl_no_ssl_v3 = (config_get_one(c2s->config, "local.ssl.no_ssl_v3", 0) != NULL);
+    c2s->ssl_no_tls_v1 = (config_get_one(c2s->config, "local.ssl.no_tls_v1", 0) != NULL);
 #endif
 
     /* require some things */
@@ -211,7 +217,7 @@ int main(int argc, char **argv)
     }
 
     /* start logging */
-    c2s->log = log_new("jadc2s");
+    c2s->log = log_new(c2s->sm_id);
     log_write(c2s->log, LOG_NOTICE, "starting up");
 
     /* seed the random number generator */
@@ -255,25 +261,60 @@ int main(int argc, char **argv)
         log_write(c2s->log, LOG_WARNING, "ssl port or pem file not specified, ssl disabled");
     else
     {
-        /* !!! this all needs proper error checking */
+        /* init the OpenSSL library */
         OpenSSL_add_ssl_algorithms();
         SSL_load_error_strings();
         c2s->ssl_ctx = SSL_CTX_new(SSLv23_server_method());
 
+	if (c2s->ssl_ctx == NULL)
+	{
+	    log_write(c2s->log, LOG_ERR, "failed to initialize SSL/TLS library");
+	    log_ssl_errors(c2s->log, LOG_ERR);
+	    return 1;
+	}
+
         /* if these fail, we keep the context hanging around, because we free it at shutdown */
         if(SSL_CTX_use_certificate_file(c2s->ssl_ctx, c2s->pemfile, SSL_FILETYPE_PEM) != 1)
+	{
             log_write(c2s->log, LOG_WARNING, "failed to load certificate from %s, ssl disabled", c2s->pemfile);
+	    log_ssl_errors(c2s->log, LOG_WARNING);
+	}
         else if(SSL_CTX_use_PrivateKey_file(c2s->ssl_ctx, c2s->pemfile, SSL_FILETYPE_PEM) != 1)
+	{
             log_write(c2s->log, LOG_WARNING, "failed to load private key from %s, ssl disabled", c2s->pemfile);
+	    log_ssl_errors(c2s->log, LOG_WARNING);
+	}
         else
         {
             if(!SSL_CTX_check_private_key(c2s->ssl_ctx))
+	    {
                 log_write(c2s->log, LOG_WARNING, "private key does not match certificate public key, ssl disabled");
-            else if(mio_listen(c2s->mio, c2s->local_sslport, c2s->local_ip, client_io, (void*)c2s) < 0)
-                log_write(c2s->log, LOG_ERR, "failed to listen on port %d!", c2s->local_sslport);
-            else
-                log_write(c2s->log, LOG_NOTICE, "listening for ssl client connections on port %d", c2s->local_sslport);
+		log_ssl_errors(c2s->log, LOG_WARNING);
+	    }
+	    else
+	    {
+		if (c2s->ciphers != NULL && !SSL_CTX_set_cipher_list(c2s->ssl_ctx, c2s->ciphers))
+		{
+		    log_write(c2s->log, LOG_ERR, "non of the configured ciphers could be enabled, ssl disabled");
+		    log_ssl_errors(c2s->log, LOG_ERR);
+		}
+		if(mio_listen(c2s->mio, c2s->local_sslport, c2s->local_ip, client_io, (void*)c2s) < 0)
+		    log_write(c2s->log, LOG_ERR, "failed to listen on port %d!", c2s->local_sslport);
+		else
+		    log_write(c2s->log, LOG_NOTICE, "listening for ssl client connections on port %d", c2s->local_sslport);
+	    }
         }
+
+	/* enable workarounds for different SSL client bugs or disable
+	 * some versions of SSL/TLS */
+	if (c2s->ssl_enable_workarounds)
+	    SSL_CTX_set_options(c2s->ssl_ctx, SSL_OP_ALL);
+	if (c2s->ssl_no_ssl_v2)
+	    SSL_CTX_set_options(c2s->ssl_ctx, SSL_OP_NO_SSLv2);
+	if (c2s->ssl_no_ssl_v3)
+	    SSL_CTX_set_options(c2s->ssl_ctx, SSL_OP_NO_SSLv3);
+	if (c2s->ssl_no_tls_v1)
+	    SSL_CTX_set_options(c2s->ssl_ctx, SSL_OP_NO_TLSv1);
     }
 #endif
 
