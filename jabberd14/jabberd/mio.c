@@ -393,7 +393,7 @@ mio _mio_accept(mio m)
     /* make sure that we aren't rate limiting this IP */
     if(m->rated && jlimit_check(m->rate, inet_ntoa(serv_addr.sin_addr), 1))
     {
-        log_warn("io_select", "%s is being connection rate limited", inet_ntoa(serv_addr.sin_addr));
+        log_warn("io_select", "%s(%d) is being connection rate limited", inet_ntoa(serv_addr.sin_addr), fd);
         close(fd);
         return NULL;
     }
@@ -681,7 +681,7 @@ void _mio_main(void *arg)
                 len = (*(cur->mh->read))(cur, buf, maxlen);
 
                 /* if we had a bad read */
-                if(len == 0)
+                if(len == 0 && maxlen > 0)
                 { 
                     mio_close(cur);
                     continue; /* loop on the same socket to kill it for real */

@@ -1,4 +1,5 @@
 #include "jabberd.h"
+#include <err.h>
 
 #ifdef HAVE_SSL
 HASHTABLE ssl__ctxs;
@@ -133,12 +134,68 @@ void _mio_ssl_cleanup(void *arg)
 
 ssize_t _mio_ssl_read(mio m, void *buf, size_t count)
 {
-    return SSL_read((SSL *)m->ssl, (char *)buf, count);
+    SSL *ssl;
+    int ret;
+
+    ssl = m->ssl;
+    
+    if(count <= 0)
+        return 0;
+
+    log_debug(ZONE, "Asked to read %d bytes from %d", count, m->fd);
+    if(SSL_get_state(ssl) != SSL_ST_OK)
+    {
+        SSL_set_accept_state(ssl);
+        if(SSL_accept(ssl) <= 0){
+            unsigned long e;
+            int ret;
+            static char *buf;
+            
+            if((SSL_get_error(ssl, ret) == SSL_ERROR_WANT_READ) ||
+               SSL_get_error(ssl, ret) == SSL_ERROR_WANT_WRITE)
+            {
+                log_debug(ZONE, "Accept blocked, returning");
+                return 0;
+            }
+            e = ERR_get_error();
+            buf = ERR_error_string(e, NULL);
+            log_debug(ZONE, "Error from SSL: %s", buf);
+            log_debug(ZONE, "SSL Error in SSL_accept call");
+            close(m->fd);
+            return -1;
+        }       
+    }
+    return SSL_read(ssl, (char *)buf, count);
 }
 
 ssize_t _mio_ssl_write(mio m, const void *buf, size_t count)
 {
-    return SSL_write((SSL *)m->ssl, buf, count);    
+    SSL *ssl;
+    ssl = m->ssl;
+    
+    if(SSL_get_state(ssl) != SSL_ST_OK)
+    {
+        SSL_set_accept_state(ssl);
+        if(SSL_accept(ssl) <= 0){
+            unsigned long e;
+            int ret;
+            static char *buf;
+            
+            if((SSL_get_error(ssl, ret) == SSL_ERROR_WANT_READ) ||
+               SSL_get_error(ssl, ret) == SSL_ERROR_WANT_WRITE)
+            {
+                log_debug(ZONE, "Accept blocked, returning");
+                return 0;
+            }
+            e = ERR_get_error();
+            buf = ERR_error_string(e, NULL);
+            log_debug(ZONE, "Error from SSL: %s", buf);
+            log_debug(ZONE, "SSL Error in SSL_accept call");
+            close(m->fd);
+            return -1;
+        }       
+    }
+    return SSL_write(ssl, buf, count);    
 }
 
 int _mio_ssl_accept(mio m, struct sockaddr *serv_addr, socklen_t *addrlen)
@@ -167,8 +224,16 @@ int _mio_ssl_accept(mio m, struct sockaddr *serv_addr, socklen_t *addrlen)
     SSL_set_accept_state(ssl);
     if(SSL_accept(ssl) <= 0){
         unsigned long e;
+        int ret;
         static char *buf;
         
+        if((SSL_get_error(ssl, ret) == SSL_ERROR_WANT_READ) ||
+           (SSL_get_error(ssl, ret) == SSL_ERROR_WANT_WRITE))
+        {
+            m->ssl = ssl;
+            log_debug(ZONE, "Accept blocked, returning");
+            return fd;
+        }
         e = ERR_get_error();
         buf = ERR_error_string(e, NULL);
         log_debug(ZONE, "Error from SSL: %s", buf);
@@ -178,6 +243,7 @@ int _mio_ssl_accept(mio m, struct sockaddr *serv_addr, socklen_t *addrlen)
         return -1;
     }
 
+    m->k.val = 100;
     m->ssl = ssl;
 
     log_debug(ZONE, "Accepted new SSL socket %d for %s", fd, m->ip);
