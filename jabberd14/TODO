@@ -62,10 +62,6 @@ A way to gracefully shut down the server, and notify all components is needed
 dizzyd	9/15/00 owner
 test python scripts, "make test"
 
-jer	9/15/00 dreaming
-various config files with various components showing different architectures
-maybe "home" build, "intranet" build, "standard" build, "isp", "developer", and so on
-
 ?	9/15/00
 need nice READMEs and man page(s)
 
