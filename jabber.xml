@@ -315,6 +315,14 @@
       <ip port="5222">127.0.0.1</ip>
       -->
       <ip port="5222"/>
+      <!--
+      The <ssl/> tag acts just like the <ip/> tag.  Except SSL is used
+      on the ports and ips specified.  Defaults are port 5223 and all
+      ips.
+      <ssl port='5223'>127.0.0.1</ip>
+      <ssl port='5224'>192.168.1.100</ip>
+      <ssl/>
+      -->
     </pthcsock>
   </service>
 
@@ -444,6 +452,10 @@
     The following section initializes SSL for top-level I/O.
     This works only when the server is compiled with openssl!
     -->
+    <ssl>
+     <key ip='192.168.1.104'>server.pem</key>
+     <key ip='127.0.0.1'>/home/temas/cvs/jabber/jabber2/server.pem</key>
+    </ssl>
     <!--
     <ssl>
       <key ip='192.168.1.1'>/path/to/cert_and_key.pem</key>

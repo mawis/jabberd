@@ -265,6 +265,7 @@ void _mio_xml_parser(mio m, const void *buf, size_t bufsz);
 
 /* SSL functions */
 void    mio_ssl_init     (xmlnode x);
+void    _mio_ssl_cleanup (void *arg);
 ssize_t _mio_ssl_read    (mio m, void *buf, size_t count);
 ssize_t _mio_ssl_write   (mio m, const void*      buf,       size_t     count);
 int     _mio_ssl_accept  (mio m, struct sockaddr* serv_addr, socklen_t* addrlen);

@@ -3,6 +3,7 @@
 #ifdef HAVE_SSL
 HASHTABLE ssl__ctxs;
 
+
 #ifndef NO_RSA
 /* This function will generate a temporary key for us */
 RSA *_ssl_tmp_rsa_cb(SSL *ssl, int export, int keylength)
@@ -57,8 +58,9 @@ void mio_ssl_init(xmlnode x)
         return;
     }
 
+    log_debug(ZONE, "Handling configuration using: %s", xmlnode2str(x));
     /* Generic SSL Inits */
-    SSLeay_add_ssl_algorithms();
+	OpenSSL_add_all_algorithms();    
     SSL_load_error_strings();
 
     /* Setup our hashtable */
@@ -72,7 +74,22 @@ void mio_ssl_init(xmlnode x)
         host = xmlnode_get_attrib(cur, "ip");
         keypath = xmlnode_get_data(cur);
 
+        if(!host || !keypath)
+            continue;
+
+        log_debug(ZONE, "Handling: %s", xmlnode2str(cur));
+
         ctx=SSL_CTX_new(SSLv23_server_method());
+        if(ctx == NULL)
+        {
+            unsigned long e;
+            static char *buf;
+        
+            e = ERR_get_error();
+            buf = ERR_error_string(e, NULL);
+            log_debug(ZONE, "Could not create SSL Context: %s", buf);
+            return;
+        }
 
 #ifndef NO_RSA
         log_debug(ZONE, "Setting temporary RSA callback");
@@ -87,24 +104,31 @@ void mio_ssl_init(xmlnode x)
          */
 
         /* Setup the keys and certs */
-#ifdef NO_RSA
+        log_debug(ZONE, "Loading SSL certificate %s for %s", keypath, host);
+        if(!SSL_CTX_use_certificate_file(ctx, keypath,SSL_FILETYPE_PEM)) 
+        {
+            log_debug(ZONE, "SSL Error using certificate file");
+            SSL_CTX_free(ctx);
+            continue;
+        }
         if(!SSL_CTX_use_PrivateKey_file(ctx, keypath,SSL_FILETYPE_PEM)) 
         {
-            log_debug(ZONE, "SSL Error using Private Key file without RSA");
+            log_debug(ZONE, "SSL Error using Private Key file");
             SSL_CTX_free(ctx);
             continue;
         }
-#else /* NO_RSA */
-        if(!SSL_CTX_use_RSAPrivateKey_file(ctx, keypath, SSL_FILETYPE_PEM)) 
-        {
-            log_debug(ZONE, "SSL Error using Private Key file without RSA");
-            SSL_CTX_free(ctx);
-            continue;
-        }
-#endif /* NO_RSA */
         ghash_put(ssl__ctxs, host, ctx);
+        log_debug(ZONE, "Added context %x for %s", ctx, host);
     }
         
+}
+
+void _mio_ssl_cleanup(void *arg)
+{
+    SSL *ssl = (SSL *)arg;
+
+    log_debug(ZONE, "SSL Cleanup for %x", ssl);
+    SSL_free(ssl);
 }
 
 ssize_t _mio_ssl_read(mio m, void *buf, size_t count)
@@ -117,19 +141,35 @@ ssize_t _mio_ssl_write(mio m, const void *buf, size_t count)
     return SSL_write((SSL *)m->ssl, buf, count);    
 }
 
-int _mio_ssl_accept(mio m, struct sockaddr * serv_addr, socklen_t *addrlen)
+int _mio_ssl_accept(mio m, struct sockaddr *serv_addr, socklen_t *addrlen)
 {
     SSL *ssl=NULL;
     SSL_CTX *ctx = NULL;
     int fd;
+    int len;
+    struct sockaddr_in cliaddr;
 
-    log_debug(ZONE, "Accepting new SSL socket for %s", m->ip);
-    ctx = ghash_get(ssl__ctxs, m->ip);
+    len = sizeof(cliaddr);
+    fd = accept(m->fd, &cliaddr, &len);
     
-    fd = accept(m->fd, serv_addr, addrlen);
+    m->ip = pstrdup(m->p, inet_ntoa(cliaddr.sin_addr));
+    ctx = ghash_get(ssl__ctxs, m->ip);
+    if(ctx == NULL)
+    {
+        log_debug(ZONE, "NULL ctx found in SSL hash");
+        return -1;
+    }
+    ssl = SSL_new(ctx);
+    log_debug(ZONE, "SSL accepting socket with new session %x", ssl);
     SSL_set_fd(ssl, fd);
     SSL_set_accept_state(ssl);
     if(SSL_accept(ssl) <= 0){
+        unsigned long e;
+        static char *buf;
+        
+        e = ERR_get_error();
+        buf = ERR_error_string(e, NULL);
+        log_debug(ZONE, "Error from SSL: %s", buf);
         log_debug(ZONE, "SSL Error in SSL_accept call");
         SSL_free(ssl);
         close(fd);
@@ -137,6 +177,8 @@ int _mio_ssl_accept(mio m, struct sockaddr * serv_addr, socklen_t *addrlen)
     }
 
     m->ssl = ssl;
+
+    log_debug(ZONE, "Accepted new SSL socket %d for %s", fd, m->ip);
 
     return fd;
 }
@@ -163,6 +205,8 @@ int _mio_ssl_connect(mio m, struct sockaddr *serv_addr, socklen_t addrlen)
         close(fd);
         return -1;
     }
+
+    pool_cleanup(m->p, _mio_ssl_cleanup, (void *)ssl);
 
     m->ssl = ssl;
 
