@@ -1,4 +1,5 @@
 all:
 	cd jabberd && make
-	cd components && make
+	cd pthsock && make
+	cd xdb_file && make
 	cd jsm && make

@@ -30,13 +30,13 @@
 
   <xdb id="xdb file">
     <host/>
-    <load><xdb_file>./components/xdb_file.so</xdb_file></load>
+    <load><xdb_file>./xdb_file/xdb_file.so</xdb_file></load>
     <xdb_file xmlns="jabberd:xdb_file:config"><spool>/var/tmp</spool></xdb_file>
   </xdb>
 
   <service id="pthsock client to server manager">
     <host>pth-csock.127.0.0.1</host>
-    <load><pthsock_client>./components/pthsock_client.so</pthsock_client></load>
+    <load><pthsock_client>./pthsock/pthsock_client.so</pthsock_client></load>
     <pthcsock xmlns='jabberd:pth-csock:config'>
       <host>pth-csock.127.0.0.1</host>
       <listen>5222</listen>
@@ -45,7 +45,7 @@
 
   <service id="pthsock server to server manager">
     <host/>
-    <load><pthsock_server>./components/pthsock_server.so</pthsock_server></load>
+    <load><pthsock_server>./pthsock/pthsock_server.so</pthsock_server></load>
   </service>
 
 </jabber>
