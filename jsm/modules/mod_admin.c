@@ -229,6 +229,7 @@ mreturn mod_admin_monitor(jsmi si, jpacket p)
 mreturn mod_admin_dispatch(mapi m, void *arg)
 {
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
+    if(jpacket_subtype(m->packet) == JPACKET__ERROR) return M_PASS;
 
     /* first check the /admin browse feature */
     if(NSCHECK(m->packet->iq,NS_BROWSE) && j_strcmp(m->packet->to->resource,"admin") == 0)
