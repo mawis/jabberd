@@ -354,9 +354,6 @@ void _client_process(conn_t c) {
 
     log_debug(ZONE, "got packet from client, processing");
 
-    /* accounting */
-    c->in_stanzas++;
-
     chunk = chunk_new(c);
 
     if (chunk->nad == NULL)
@@ -436,6 +433,7 @@ void _client_process(conn_t c) {
     switch(c->state) {
         /* normal packets */
         case state_OPEN:
+	    c->in_stanzas++;
             chunk_write(c->c2s->sm, chunk, jid_full(c->smid), jid_full(c->myid), NULL);
             break;
 

@@ -133,6 +133,8 @@ void conn_error(conn_t c, char *condition, char *err)
     }
 }
 
+int _log_ssl_io_error(log_t l, SSL *ssl, int retcode, int fd);
+
 /* write errors out and close streams */
 void conn_close(conn_t c, char *condition, char *err)
 {
@@ -152,6 +154,16 @@ void conn_close(conn_t c, char *condition, char *err)
 	
 	_write_actual(c, c->fd, footer, strlen(footer));
 	free(footer);
+
+	/* For SSLv3 and TLS we have to send a close notify */
+	if (c->ssl != NULL) {
+	    int sslret = 0;
+
+	    log_write(c->c2s->log, LOG_DEBUG, "Closing SSL/TLS security layer on fd %i", c->fd);
+	    sslret = SSL_shutdown(c->ssl);
+	    if (sslret < 0)
+		_log_ssl_io_error(c->c2s->log, c->ssl, sslret, c->fd);
+	}
 
         mio_close(c->c2s->mio, c->fd); /* remember, c is gone after this, re-entrant */
     }
