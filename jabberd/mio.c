@@ -817,7 +817,7 @@ void mio_init(void)
 
     if(mio__data == NULL)
     {
-        register_beat(j_atoi(xmlnode_get_tag_data(io, "karma/heartbeat"), KARMA_HEARTBEAT), _karma_heartbeat, NULL);
+        register_beat(KARMA_HEARTBEAT, _karma_heartbeat, NULL);
 
         /* malloc our instance object */
         p            = pool_new();
@@ -1064,7 +1064,6 @@ void mio_rate(mio m, int rate_time, int max_points)
         jlimit_free(m->rate);
 
     m->rate = jlimit_new(rate_time, max_points);
-    m->rated = 1;
 }
 
 /*
