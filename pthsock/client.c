@@ -116,7 +116,6 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     { 
         if (j_strcmp(xmlnode_get_attrib(p->x,"typs"),"error")==0)
         { /* we got a 510, but no session to end */
-            log_debug(ZONE,"510 ERROR, BUT NO SESSION"); 
             xmlnode_free(p->x);
             return r_DONE;
         }
