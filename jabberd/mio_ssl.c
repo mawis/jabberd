@@ -147,7 +147,6 @@ ssize_t _mio_ssl_read(mio m, void *buf, size_t count)
     {
         int sret; 
 
-        SSL_set_accept_state(ssl);
         sret = SSL_accept(ssl);
         if(sret <= 0)
         {
@@ -182,7 +181,6 @@ ssize_t _mio_ssl_write(mio m, const void *buf, size_t count)
     {
         int sret;
 
-        SSL_set_accept_state(ssl);
         sret = SSL_accept(ssl);
         if(sret <= 0){
             unsigned long e;
