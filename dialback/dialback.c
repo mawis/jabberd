@@ -46,7 +46,7 @@
  * This is the main file of the dialback component (module) of the Jabber server.
  *
  * The dialback protocol is documented in XMPP-core. This module only supports
- * identity verification using dialback, SASL and STARTTLS is not supported.
+ * identity verification using dialback, SASL is not supported.
  *
  * By adding a <legacy/> element to the dialback configuration you can also enable
  * the old stone-age server to server protocol which shouldn't be needed anymore.

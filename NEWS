@@ -1,41 +1,49 @@
-    * jabberd14 now uses an automake/autoconf build environment
-    * jabberd14 now handles negative priorities and won't consider sessions
-      with negative priority for default delivery
-    * the server will now unsubscribe all subscriptions when an user
-      unregisters his account
-    * jabberd14 is now able to send log messages to the syslog
-    * the activation of debugging output has been changed: you can either
+    * Jabberd14 now uses an automake/autoconf build environment.
+    * Jabberd14 now handles negative priorities and won't consider sessions
+      with negative priority for default delivery.
+    * The server will now unsubscribe all subscriptions when an user
+      unregisters his account.
+    * Jabberd14 is now able to send log messages to the syslog.
+    * The activation of debugging output has been changed: you can either
       activate debugging in the configuration file or in the command line
-      using the -D option (that now takes an argument)
-    * there is a small utility xdbfiletool that helps accessing xdb_file's
+      using the -D option (that now takes an argument).
+    * There is a small utility xdbfiletool that helps accessing xdb_file's
       new directory layout and that can convert old spools to the new
-      format
-    * jabberd14 will now try to establish s2s connections not only on the
+      format.
+    * Jabberd14 will now try to establish s2s connections not only on the
       first IPv4/IPv6 address it finds in DNS but on any IPv4/IPv6 address,
       that can be found for the first matching service. (It will not fall
       back to pure AAAA or A records if there has been a SRV record for
       any configured service.)
       This will now allow a jabberd14, that has been configured with
       --enable-ipv6, to be used on systems without IPv6 routing as well.
-    * jabberd14 now requires at least openssl version 0.9.7 to be build with
-      support for SSL
-    * support for legacy jabberd 1.0 server to server communication is now
-      disabled by default as it has no protection against identity spoofing
-    * jabberd14 now supports clustering of the s2s component. The distribution
+    * Jabberd14 now requires at least openssl version 0.9.7 to be build with
+      support for SSL.
+    * Support for legacy jabberd 1.0 server to server communication is now
+      disabled by default as it has no protection against identity spoofing.
+    * Jabberd14 now supports clustering of the s2s component. The distribution
       among the components for incoming connections has to be managed using
       DNS records. For outgoing connections the DNS resolver (dnsrv) is
-      responsible for distributing the connections among the components
-    * Better XMPP compatibility: JIDs are prepared by the applicable stringprep
-      profiles; subscription state changes are only made if allowed,
-      contacts cannot push themself on a user's roster; correct stanza errors
-      are created
-    * jabberd14 now supports encrypted connections using the STARTTLS
-      stream feature of XMPP
+      responsible for distributing the connections among the components.
+    * Better XMPP compatibility: JIDs are prepared by the applicable
+      stringprep profiles; internationalized domain names (IDNs) are
+      supported; subscription state changes are only made if allowed, contacts
+      cannot push themself on a user's roster; correct stanza errors are
+      created.
+    * Jabberd14 now supports encrypted connections using the STARTTLS
+      stream feature of XMPP.
+    * The welcome and the auto-reply message in the jabberd14 configuration
+      file can be configured in additional languages and an XMPP compatible
+      client will display the appropriate version.
     * The xdb_file module allows two directory layouts. The classic jabberd14
       layout with one big directory containing all files for one domain, and
       the layout adopted from wpjabber, where the files are distributed over
       256 * 256 different directories, improoving performance on filesystems,
       that are not well suited for large directories.
+    * The size of the files handled by xdb_file can be limited. This prevents
+      spool files from getting to big if a user subscribes to a feed and stops
+      using his account. Incoming messages will get bounced with an error if
+      the spool file of this user is full.
     * jabberd14 now detects HTTP requests and bounces the user to a configured
       URI. This might be especially useful for Jabber servers running on
       port 80.

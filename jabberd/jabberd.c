@@ -121,6 +121,11 @@ int main (int argc, char** argv)
 		do_background = 1;
                 continue;
             }
+	    else if(*c == 'D')
+	    {
+		do_debug = -1;
+		continue;
+	    }
 
             cmd = pmalloco(cfg_pool,2);
             cmd[0]=*c;
@@ -155,23 +160,24 @@ int main (int argc, char** argv)
     }
 
     /* the -D flag provides a bitmask of debug types the user want to be logged */
-    if((cmd = xhash_get(cmd__line,"D")) != NULL) {
+    if((cmd = xhash_get(cmd__line,"d")) != NULL) {
 	do_debug = atoi(cmd);
 
 	if (!do_debug) {
 	    printf("Invalid parameter for the -D flag, specify a bitmask.\n-D ignored\n");
 	}
 	
-	if (do_debug && do_background) {
-	    printf(PACKAGE " will not background with debugging enabled.\n");
-	    do_background=0;
-	}
+    }
+
+    if (do_debug && do_background) {
+	printf(PACKAGE " will not background with debugging enabled.\n");
+	do_background=0;
     }
 
     /* were there any bad parameters? */
     if(help)
     {
-        fprintf(stderr,"Usage:\n%s [params]\n Optional Parameters:\n -c\t\tconfiguration file\n -D <typemask>\tenable debug output (disables background)\n -H\t\tlocation of home folder\n -B\t\tbackground the server process\n -Z <zones>\tdebug zones (comma spearated list)\n -v\t\tserver version\n -V\t\tserver version\n", argv[0]);
+        fprintf(stderr,"Usage:\n%s [params]\n Optional Parameters:\n -c\t\tconfiguration file\n -d <typemask>\tenable debug output (disables background)\n -D\t\tenable debug (all types)\n -H\t\tlocation of home folder\n -B\t\tbackground the server process\n -Z <zones>\tdebug zones (comma spearated list)\n -v\t\tserver version\n -V\t\tserver version\n", argv[0]);
         exit(0);
     }
 

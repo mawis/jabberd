@@ -1,9 +1,9 @@
-.TH jabberd 8 "15 Jul 2004" "@VERSION@" "jabberd14 project"
+.TH jabberd 8 "12 Oct 2004" "@VERSION@" "jabberd14 project"
 .SH NAME
 jabberd \- jabberd daemon
 .SH SYNOPSIS
 .B jabberd
-.I [-B] [-c config] [-D mask] [-H dir] [-v] [-V] [-Z zone(s)]
+.I [-B] [-c config] [-d mask | -D] [-H dir] [-v] [-V] [-Z zone(s)]
 .SH DESCRIPTION
 .BR jabberd
 is the core of the jabber server containing the routing functionality that
@@ -18,7 +18,7 @@ Background the jabberd process. (This option is disabled in debugging mode.)
 Specify an alternate configuration file. Default is to use
 @sysconfdir@/jabber.xml
 .TP
-.B \-D <mask>
+.B \-d <mask>
 Output debugging information while running. This option disabled
 backgrounding of the jabberd process. The debugging output is either
 written to syslog or to the standard error output (configured in
@@ -26,6 +26,9 @@ jabber.xml). The given mask is ORed with the mask given in the
 configuration file and each bit in the result enables a category of
 debug logging messages. You can further limit the information that
 is printed by using the -Z option.
+.TP
+.B \-D
+Like -d but enables debugging output of all types.
 .TP
 .B \-H
 Resolve paths relative to this directory.
