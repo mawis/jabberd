@@ -1,0 +1,105 @@
+===================================
+Crit/Bugs/Strangeness
+===================================
+
+jer	9/15/00 owner
+config parsing error description passing, and register a command description like apache?
+
+temas	9/15/00 almost
+jpolld component minimally working
+
+sheath	9/15/00 in progress
+s2s SRV dns lookup support, nonblocking?
+
+any	9/15/00 easy
+kill HUP logs notice, can't do anything till 1.3
+
+jer	9/15/00 thinking
+consistent usage of namespaces for streams and config sections
+
+
+===================================
+Pre-FFreeze
+===================================
+
+temas	9/15/00 owner
+minimal build system?
+static/dynamic for base modules, components?
+
+jer	9/15/00 dreaming
+base_dns module to do smart protocol choice filtering based on SRV records
+allow component to use sto to manipulate decisions?
+timeouts? mx?
+
+jer	9/15/00 need to document
+dialback hostname authentication using signatures
+
+jer	9/15/00 owner
+turn jsm into a SM only, branch off auth/reg
+manage stateless sessions too, change to sid for routing/validation?
+
+jer	9/15/00 need to document
+zero-knowledge auth plugin
+
+jer	9/15/00 easy
+base_cache for caching xdb requests in memory
+
+jer	9/15/00 easy
+<include>file</include> directive in config for including other files in-place
+
+jer	9/15/00
+deliver() queueing during config
+use a temporary global message port which is cleared out after config is done?
+
+jer	9/15/00 thinking
+iq:agents support again
+
+?	9/15/00 open, needs some docu from jer
+base_farm for simple hashing name distribution
+
+
+===================================
+1.2
+===================================
+
+dizzyd	9/15/00 owner
+test python scripts, "make test"
+
+jer	9/15/00 dreaming
+various config files with various components showing different architectures
+maybe "home" build, "intranet" build, "standard" build, "isp", "developer", and so on
+
+?	9/15/00
+need nice READMEs and man page(s)
+
+all	9/15/00
+mem leak checks
+performance analysis
+
+jer	9/15/00
+deliver safety, validating routable bits of the packets
+deliver optimization
+
+all	9/15/00
+clean up log_* calls, make sure right type, looks sane
+
+jer	9/15/00
+socket ioctl tweaks, r/w buffers, reduce data loss, shorten timeouts
+
+
+===================================
+1.3/1.4
+===================================
+
+pthreads
+admin
+dynamic config
+smarter failure handling and detection (component keepalive?)
+
+===================================
+Future
+===================================
+
+
+
+
