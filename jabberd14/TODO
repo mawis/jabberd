@@ -5,13 +5,13 @@ Crit/Bugs/Strangeness
 dizzyd?? 10/1/00 ...
 Base_exec and chaining jabberd's together MUST work correctly..
 
-jer	9/15/00 owner
-config: register a command description like apache?
+?? 10/4/00 ...
+base_accept/connect and chaining jabberd's together MUST work correctly..
 
 temas	9/15/00 almost
-jpolld component minimally working
+flat jpolld component minimally working
 
-sheath	9/15/00 in progress
+dizzyd	9/15/00 in progress
 s2s SRV dns lookup support
 
 jer	9/15/00 thinking
@@ -29,17 +29,11 @@ temas	9/15/00 owner
 minimal build system?
 static/dynamic for base modules, components?
 
-jer	9/15/00 dreaming
-base_dns module to do smart protocol choice filtering based on SRV records
-allow component to use sto to manipulate decisions?
-timeouts? mx?
-
 jer	9/15/00 need to document
 dialback hostname authentication using signatures
 
 jer	9/15/00 owner
-turn jsm into a SM only, branch off auth/reg
-manage stateless sessions too, change to sid for routing/validation?
+jsm should manage stateless sessions too
 
 jer	9/15/00 need to document
 zero-knowledge auth plugin
@@ -81,6 +75,9 @@ socket ioctl tweaks, r/w buffers, reduce data loss, shorten timeouts
 ===================================
 1.3/1.4
 ===================================
+
+jer	9/15/00 owner
+config: register a command description like apache?
 
 pthreads
 admin
