@@ -63,7 +63,7 @@ result base_to_config(instance id, xmlnode x, void *arg)
         exit(1);
     }
 
-    register_phandler(id,o_DELIVER,base_to_deliver,(void*)strdup(xmlnode_get_data(x)));
+    register_phandler(id,o_DELIVER,base_to_deliver,(void*)xmlnode_get_data(x));
     return r_DONE;
 }
 
