@@ -321,7 +321,7 @@ void pthsock_client(instance i, xmlnode x)
 
     /* register data callbacks */
     io__instance=io_select(atoi(port),pthsock_client_read,(void*)si);
-    if(io_instance==NULL)
+    if(io__instance==NULL)
     {
         log_debug(ZONE,"Server to Server Failed to listen on 5222");
         log_warn("Server 2 Server Component","Failed to listen on 5222");
