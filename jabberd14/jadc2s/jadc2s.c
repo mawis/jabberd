@@ -322,6 +322,8 @@ int main(int argc, char **argv)
     xhash_free(c2s->config);
     free(c2s);
 
+    pool_stat(1);
+
     return 0;
 }
 

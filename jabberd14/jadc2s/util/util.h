@@ -100,16 +100,16 @@ typedef struct pool_struct
     char name[8], zone[32];
     int lsize;
 } _pool, *pool;
-#define pool_new() _pool_new(ZONE) 
-#define pool_heap(i) _pool_new_heap(i,ZONE) 
+#define pool_new() _pool_new(__FILE__,__LINE__) 
+#define pool_heap(i) _pool_new_heap(i,__FILE__,__LINE__) 
 #else
 } _pool, *pool;
-#define pool_heap(i) _pool_new_heap(i,NULL) 
-#define pool_new() _pool_new(NULL)
+#define pool_heap(i) _pool_new_heap(i,NULL,0)
+#define pool_new() _pool_new(NULL,0)
 #endif
 
-pool _pool_new(char *zone); /* new pool :) */
-pool _pool_new_heap(int size, char *zone); /* creates a new memory pool with an initial heap size */
+pool _pool_new(char *zone, int line); /* new pool :) */
+pool _pool_new_heap(int size, char *zone, int line); /* creates a new memory pool with an initial heap size */
 void *pmalloc(pool p, int size); /* wrapper around malloc, takes from the pool, cleaned up automatically */
 void *pmalloc_x(pool p, int size, char c); /* Wrapper around pmalloc which prefils buffer with c */
 void *pmalloco(pool p, int size); /* YAPW for zeroing the block */
