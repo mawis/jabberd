@@ -58,7 +58,7 @@ result base_to_config(instance id, xmlnode x, void *arg)
 {
     if(id == NULL)
     {
-        jid j = jid_new(id->p, xmlnode_get_data(x));
+        jid j = jid_new(xmlnode_pool(x), xmlnode_get_data(x));
 
         log_debug(ZONE,"base_to_config validating configuration\n");
         if(j == NULL)
