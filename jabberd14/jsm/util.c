@@ -112,12 +112,14 @@ int js_admin(udata u, int flag)
 
     if(u->admin == ADMIN_UNKNOWN)
     {
-        if(js_config(u->si, spools(u->p,"admin/read=",jid_full(u->id),u->p)) != NULL)
-            u->admin = ADMIN_READ;
         if(js_config(u->si, spools(u->p,"admin/write=",jid_full(u->id),u->p)) != NULL)
+        {
             u->admin = ADMIN_READ | ADMIN_WRITE;
-    }else{
-        u->admin = ADMIN_NONE;
+        }else if(js_config(u->si, spools(u->p,"admin/read=",jid_full(u->id),u->p)) != NULL){
+            u->admin = ADMIN_READ;
+        }else{
+            u->admin = ADMIN_NONE;
+        }
     }
 
     if(u->admin & flag)
