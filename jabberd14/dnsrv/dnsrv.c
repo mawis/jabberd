@@ -42,6 +42,9 @@
 #include "srv_resolv.h"
 #include <sys/wait.h>
 
+#ifdef LIBIDN
+#  include <idna.h>
+#endif
 /* Config format:
    <dnsrv xmlns='jabber:config:dnsrv'>
       <resend service="_jabber._tcp">foo.org</resend>
@@ -101,8 +104,8 @@ void _dnsrv_signal(int sig)
 void dnsrv_child_process_xstream_io(int type, xmlnode x, void* args)
 {
      dns_io di = (dns_io)args;
-     char*  hostname;
-     char*  str = NULL;
+     char *hostname, *ascii_hostname = NULL;
+     char *str = NULL;
      dns_resend_list iternode = NULL;
 
      if (type == XSTREAM_NODE)
@@ -112,6 +115,13 @@ void dnsrv_child_process_xstream_io(int type, xmlnode x, void* args)
 	  log_debug(ZONE, "dnsrv: Recv'd lookup request for %s", hostname);
 	  if (hostname != NULL)
 	  {
+#ifdef LIBIDN
+	      if (idna_to_ascii_8z(hostname, &ascii_hostname, 0) == IDNA_SUCCESS)
+	      {
+		  log_debug(ZONE, "dnsrv: IDN conversion %s to %s", hostname, ascii_hostname);
+		  hostname = ascii_hostname;
+	      }
+#endif
 	       /* For each entry in the svclist, try and resolve using
 		  the specified service and resend it to the specified host */
 	       iternode = di->svclist;
@@ -129,6 +139,10 @@ void dnsrv_child_process_xstream_io(int type, xmlnode x, void* args)
 	       }
                str = xmlnode2str(x);
 	       write(di->out, str, strlen(str));
+#ifdef LIBIDN
+	       if (ascii_hostname != NULL)
+		   free(ascii_hostname);
+#endif
           }
      }
      xmlnode_free(x);
