@@ -175,5 +175,6 @@ int js_admin(udata u, int flag);
 
 result js_packet(instance i, dpacket p, void *arg);
 int js_islocal(jsmi si, jid id);
+int js_s10n(jsmi si, udata u, jid id);
 
 void jsm_shutdown(void *arg);

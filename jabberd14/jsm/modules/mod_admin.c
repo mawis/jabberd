@@ -270,7 +270,14 @@ mreturn mod_admin_message(mapi m, void *arg)
     char *subject;
 
     if(m->packet->type != JPACKET_MESSAGE) return M_IGNORE;
-    if(m->packet->to->resource != NULL || js_config(m->si,"admin") == NULL) return M_PASS;
+    if(m->packet->to->resource != NULL || js_config(m->si,"admin") == NULL || jpacket_subtype(m->packet) == JPACKET__ERROR) return M_PASS;
+
+    /* drop ones w/ a delay! (circular safety) */
+    if(xmlnode_get_tag(m->packet->x,"x?xmlns=" NS_DELAY) != NULL)
+    {
+        xmlnode_free(m->packet->x);
+        return M_HANDLED;
+    }
 
     log_debug("mod_admin","delivering admin message from %s",jid_full(m->packet->from));
 

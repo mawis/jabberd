@@ -127,3 +127,20 @@ int js_admin(udata u, int flag)
 
     return 0;
 }
+
+/* returns true if id has a s10n to u */
+int js_s10n(jsmi si, udata u, jid id)
+{
+    xmlnode x, i;
+    char *s10n;
+
+    x =  xdb_get(si->xc, u->id, NS_ROSTER);
+    i = xmlnode_get_tag(x,spools(id->p,"?jid=",jid_full(jid_user(id)),id->p));
+    if((s10n = xmlnode_get_attrib(i,"subscription")) == NULL)
+        return 0;
+    if(j_strcmp(s10n,"both") == 0)
+        return 1;
+    if(j_strcmp(s10n,"from") == 0)
+        return 1;
+    return 0;
+}
