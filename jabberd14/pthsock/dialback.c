@@ -169,13 +169,12 @@ void _pthsock_server_host_cleanup(void *arg)
 char *_pthsock_server_merlin(pool p, char *secret, char *to, char *challenge)
 {
     static char res[41];
-    char *ret;
 
     shahash_r(secret,                       res);
     shahash_r(spools(p, res, to, p),        res);
     shahash_r(spools(p, res, challenge, p), res);
 
-    return ret;
+    return res;
 }
 
 /* send the db:result to the other side, can be called as a failure (from pool_cleanup) or directly to queue the result, reacts intelligently */
@@ -266,6 +265,12 @@ void pthsock_server_outx(int type, xmlnode x, void *arg)
     {
     case XSTREAM_ROOT:
         /* check for old servers */
+        if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:server") != 0)
+        {
+            io_write_str(c->s,"<stream:error>Invalid Stream Header!</stream:error>");
+            io_close(c->s);
+            break;
+        }
         if(xmlnode_get_attrib(x,"xmlns:db") == NULL)
         {
             if(!c->si->legacy)
