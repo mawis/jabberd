@@ -121,7 +121,7 @@ void *load_symbol(char *func, char *file)
 {
     void (*func_h)(instance i, void *arg);
     void *so_h;
-    char *dlerr;
+    char *dlerr, *func2;
     char message[MAX_LOG_SIZE];
 
     if(func == NULL || file == NULL)
@@ -137,9 +137,23 @@ void *load_symbol(char *func, char *file)
     dlerr = dlerror();
     if(dlerr != NULL)
     {
+        /* pregenerate the error, since our stuff below may overwrite dlerr */
         snprintf(message, MAX_LOG_SIZE, "Executing %s() in %s failed: '%s'\n",func,file,dlerr);
-        fprintf(stderr, "%s\n", message);
-        return NULL;
+
+        /* ARG! simple stupid string handling in C sucks, there HAS to be a better way :( */
+        /* AND no less, we're having to check for an underscore symbol?  only evidence of this is http://bugs.php.net/?id=3264 */
+        func2 = malloc(strlen(func) + 2);
+        func2[0] = '_';
+        func2[1] = '\0';
+        strcat(func2,func);
+        func_h = dlsym(so_h, func2);
+        free(func2);
+
+        if(dlerror() != NULL)
+        {
+            fprintf(stderr, "%s\n", message);
+            return NULL;
+        }
     }
 
     return func_h;
