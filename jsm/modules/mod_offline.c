@@ -58,16 +58,6 @@ mreturn mod_offline_message(mapi m)
         return M_HANDLED;
     }
 
-    switch(jpacket_subtype(m->packet))
-    {
-    case JPACKET__NONE:
-    case JPACKET__ERROR:
-    case JPACKET__CHAT:
-        break;
-    default:
-        return M_PASS;
-    }
-
    /* look for event messages */
     for(cur = xmlnode_get_firstchild(m->packet->x); cur != NULL; cur = xmlnode_get_nextsibling(cur))
         if(NSCHECK(cur,NS_EVENT))
