@@ -47,7 +47,7 @@ mreturn mod_private_set(mapi m, void *arg)
         return M_HANDLED;
     }
 
-    storedx = xdb_get(m->si->xc, m->user->id->server, m->user->id, ns);
+    storedx = xdb_get(m->si->xc, m->user->id, ns);
 
     switch(jpacket_subtype(m->packet))
     {
@@ -72,7 +72,7 @@ mreturn mod_private_set(mapi m, void *arg)
 
         /* save the changes */
         log_debug(ZONE,"PRIVATE: %s",xmlnode2str(m->packet->iq));
-        if(xdb_set(m->si->xc, m->user->id->server, m->user->id, ns,xmlnode_dup(inx)))
+        if(xdb_set(m->si->xc, m->user->id, ns,xmlnode_dup(inx)))
         {
             /* failed */
             jutil_error(m->packet->x,TERROR_UNAVAIL);

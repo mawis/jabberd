@@ -477,7 +477,7 @@ void dnsrv(instance i, xmlnode x)
 
      /* Load config from xdb */
      xc = xdb_cache(i);
-     config = xdb_get(xc, NULL, jid_new(xmlnode_pool(x), "config@-internal"), "jabber:config:dnsrv");
+     config = xdb_get(xc, jid_new(xmlnode_pool(x), "config@-internal"), "jabber:config:dnsrv");
 
      /* Build a list of services/resend hosts */
      iternode = xmlnode_get_lastchild(config);

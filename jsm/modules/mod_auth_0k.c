@@ -42,7 +42,7 @@ mreturn mod_auth_0k_go(mapi m, void *arg)
         return M_PASS;
 
     /* first we need to see if this user is using 0k */
-    xdb = xdb_get(m->si->xc, m->user->id->server, m->user->id, NS_AUTH_0K);
+    xdb = xdb_get(m->si->xc, m->user->id, NS_AUTH_0K);
     if(xdb == NULL)
         return M_PASS;
 
@@ -81,7 +81,7 @@ mreturn mod_auth_0k_go(mapi m, void *arg)
         xmlnode_hide(xmlnode_get_tag(xdb,"hash"));
         xmlnode_insert_cdata(xmlnode_insert_tag(xdb,"hash"),c_hash,-1);
 
-        if(xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_AUTH_0K, xdb))
+        if(xdb_set(m->si->xc, m->user->id, NS_AUTH_0K, xdb))
             jutil_error(m->packet->x, TERROR_REQTIMEOUT);
         else
             jutil_iqresult(m->packet->x);
@@ -104,11 +104,11 @@ int mod_auth_0k_reset(mapi m, jid id, xmlnode xpass)
     if((pass = xmlnode_get_data(xpass)) == NULL) return 1;
 
     /* in case there is no mod_auth_plain, we need to validate the account since xdb's iq:auth is used as flag that a user exists */
-    if((x = xdb_get(m->si->xc, id->server, id, NS_AUTH)) != NULL)
+    if((x = xdb_get(m->si->xc, jid_user(id), NS_AUTH)) != NULL)
     { /* cool, they exist */
         xmlnode_free(x);
     }else{ /* make them exist with an empty password */
-        if(xdb_set(m->si->xc, id->server, id, NS_AUTH, xmlnode_new_tag_pool(xmlnode_pool(xpass),"password")))
+        if(xdb_set(m->si->xc, jid_user(id), NS_AUTH, xmlnode_new_tag_pool(xmlnode_pool(xpass),"password")))
         return 1; /* uhoh */
     }
 
@@ -134,7 +134,7 @@ int mod_auth_0k_reset(mapi m, jid id, xmlnode xpass)
     xmlnode_insert_cdata(xmlnode_insert_tag(x,"hash"),hash,-1);
     xmlnode_insert_cdata(xmlnode_insert_tag(x,"token"),token,-1);
     xmlnode_insert_cdata(xmlnode_insert_tag(x,"sequence"),seqs,-1);
-    return xdb_set(m->si->xc, id->server, id, NS_AUTH_0K, x);
+    return xdb_set(m->si->xc, jid_user(id), NS_AUTH_0K, x);
 }
 
 /* handle saving the password for registration */

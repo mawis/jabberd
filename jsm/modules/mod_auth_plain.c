@@ -46,7 +46,7 @@ mreturn mod_auth_plain_jane(mapi m, void *arg)
         return M_PASS;
 
     /* make sure we can get the auth packet and that it contains a password */
-    xdb = xdb_get(m->si->xc, m->user->id->server, m->user->id, NS_AUTH);
+    xdb = xdb_get(m->si->xc, m->user->id, NS_AUTH);
     if(xdb == NULL || (passB = xmlnode_get_data(xdb)) == NULL)
     {
         xmlnode_free(xdb);
@@ -70,7 +70,7 @@ int mod_auth_plain_reset(mapi m, jid id, xmlnode pass)
     log_debug("mod_auth_plain","resetting password");
     if(xmlnode_get_data(pass) == NULL) return 1;
 
-    return xdb_set(m->si->xc, id->server, id, NS_AUTH, pass);
+    return xdb_set(m->si->xc, jid_user(id), NS_AUTH, pass);
 }
 
 /* handle saving the password for registration */

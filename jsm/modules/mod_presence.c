@@ -36,7 +36,7 @@ int mod_presence_roster(udata user, jid id)
     int ret = 0;
 
     /* get roster */
-    roster = xdb_get(user->si->xc, user->id->server, user->id, NS_ROSTER);
+    roster = xdb_get(user->si->xc, user->id, NS_ROSTER);
 
     item = jid_nodescan(id, roster);
 
@@ -122,7 +122,7 @@ mreturn mod_presence_out(mapi m, void *arg)
     }
 
     /* push to roster subscriptions */
-    roster = xdb_get(m->si->xc, m->user->id->server, m->user->id, NS_ROSTER);
+    roster = xdb_get(m->si->xc, m->user->id, NS_ROSTER);
     for(cur = xmlnode_get_firstchild(roster); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
         id = jid_new(m->packet->p,xmlnode_get_attrib(cur,"jid"));

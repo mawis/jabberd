@@ -427,6 +427,7 @@ int     jid_cmpx(jid a, jid b, int parts);     /* Compares just the parts specif
 jid     jid_append(jid a, jid b);	       /* Appending b to a (list), no dups */
 xmlnode jid_xres(jid id);		       /* Returns xmlnode representation of the resource?query=string */
 xmlnode jid_nodescan(jid id, xmlnode x);       /* Scans the children of the node for a matching jid attribute */
+jid     jid_user(jid a);                       /* returns the same jid but just of the user@host part */
 
 
 /* --------------------------------------------------------- */
@@ -604,18 +605,6 @@ typedef struct terror_struct
 
 /* --------------------------------------------------------- */
 /*                                                           */
-/* Message Types                                             */
-/*                                                           */
-/* --------------------------------------------------------- */
-#define TMSG_NORMAL	"normal"
-#define TMSG_ERROR	"error"
-#define TMSG_CHAT	"chat"
-#define TMSG_GROUPCHAT	"groupchat"
-#define TMSG_HEADLINE	"headline"
-
-
-/* --------------------------------------------------------- */
-/*                                                           */
 /* JUtil functions                                           */
 /*                                                           */
 /* --------------------------------------------------------- */
@@ -631,64 +620,6 @@ char*   jutil_timestamp(void);				 /* Get stringified timestamp */
 void    jutil_error(xmlnode x, terror E);		 /* Append an <error> node to x */
 void    jutil_delay(xmlnode msg, char *reason);		 /* Append a delay packet to msg */
 char*   jutil_regkey(char *key, char *seed);		 /* pass a seed to generate a key, pass the key again to validate (returns it) */
-
-
-/* --------------------------------------------------------- */
-/*                                                           */
-/* JConn structures & functions                              */
-/*                                                           */
-/* --------------------------------------------------------- */
-#define JCONN_STATE_OFF       0
-#define JCONN_STATE_CONNECTED 1
-#define JCONN_STATE_ON        2
-#define JCONN_STATE_AUTH      3
-
-typedef struct jconn_struct
-{
-    /* Core structure */
-    pool        p;	       /* Memory allocation pool */
-    int         state;	   /* Connection state flag */
-    int         fd;	       /* Connection file descriptor */
-    jid         user;      /* User info */
-    char        *pass;     /* User passwd */
-
-    /* Stream stuff */
-    int         id;        /* id counter for jab_getid() function */
-    char        idbuf[9];  /* temporary storage for jab_getid() */
-    char        *sid;      /* stream id from server, for digest auth */
-    XML_Parser  parser;    /* Parser instance */
-    xmlnode     current;   /* Current node in parsing instance.. */
-
-    /* Event callback ptrs */
-    void (*on_state)(struct jconn_struct *j, int state);
-    void (*on_packet)(struct jconn_struct *j, jpacket p);
-
-} *jconn, jconn_struct;
-
-typedef void (*jconn_state_h)(jconn j, int state);
-typedef void (*jconn_packet_h)(jconn j, jpacket p);
-
-
-jconn jab_new(char *user, char *pass);
-void jab_delete(jconn j);
-void jab_state_handler(jconn j, jconn_state_h h);
-void jab_packet_handler(jconn j, jconn_packet_h h);
-void jab_start(jconn j);
-void jab_stop(jconn j);
-
-int jab_getfd(jconn j);
-jid jab_getjid(jconn j);
-char *jab_getsid(jconn j);
-char *jab_getid(jconn j);
-
-void jab_send(jconn j, xmlnode x);
-void jab_send_raw(jconn j, const char *str);
-void jab_recv(jconn j);
-void jab_poll(jconn j, int timeout);
-
-char *jab_auth(jconn j);
-char *jab_reg(jconn j);
-
 
 
 #ifdef __cplusplus

@@ -97,7 +97,7 @@ xmlnode mod_filter_get(udata u)
     xmlnode ret;
 
     /* get the existing rules */
-    ret = xdb_get(u->si->xc,u->id->server,u->id, NS_FILTER);
+    ret = xdb_get(u->si->xc,u->id, NS_FILTER);
     if(ret == NULL)
     {
         ret = xmlnode_dup(mod_filter__default);
@@ -112,7 +112,7 @@ xmlnode mod_filter_get_offline(udata u)
     xmlnode ret;
 
     /* get the existing */
-    ret = xdb_get(u->si->xc,u->id->server,u->id, NS_OFFLINE);
+    ret = xdb_get(u->si->xc,u->id, NS_OFFLINE);
     if(ret == NULL)
     {
         ret = xmlnode_new_tag("offline");
@@ -149,7 +149,7 @@ void mod_filter_action_offline(mapi m,xmlnode rule)
     {
         jutil_delay(m->packet->x,"Offline Storage");
         xmlnode_insert_tag_node(opts,m->packet->x);
-        xdb_set(m->si->xc,m->user->id->server,m->user->id,NS_OFFLINE,opts);
+        xdb_set(m->si->xc,m->user->id,NS_OFFLINE,opts);
     }
     xmlnode_free(opts);
 }
@@ -535,7 +535,7 @@ void mod_filter_offline_check(mapi m)
         xmlnode_hide(message);
     }
     /* messages are gone, save the new sun-dried opts container */
-    xdb_set(m->si->xc,m->user->id->server,m->user->id, NS_OFFLINE, opts);
+    xdb_set(m->si->xc,m->user->id, NS_OFFLINE, opts);
     xmlnode_free(opts);
 }
 
@@ -548,7 +548,7 @@ mreturn mod_filter_iq(mapi m)
     switch(jpacket_subtype(m->packet))
     {
     case JPACKET__SET:
-        xdb_set(m->si->xc,m->user->id->server,m->user->id,NS_FILTER,m->packet->iq);
+        xdb_set(m->si->xc,m->user->id,NS_FILTER,m->packet->iq);
         jutil_iqresult(m->packet->x);
         xmlnode_hide(m->packet->iq);
         jpacket_reset(m->packet);

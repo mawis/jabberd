@@ -695,7 +695,7 @@ void pthsock_server(instance i, xmlnode x)
     srand(time(NULL));
 
     /* get the config */
-    cfg = xdb_get(xdb_cache(i),NULL,jid_new(xmlnode_pool(x),"config@-internal"),"jabber:config:pth-ssock");
+    cfg = xdb_get(xdb_cache(i),jid_new(xmlnode_pool(x),"config@-internal"),"jabber:config:pth-ssock");
 
     si = pmalloco(i->p,sizeof(_ssi));
     si->ips = ghash_create(j_atoi(xmlnode_get_tag_data(cfg,"maxhosts"),67),(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp); /* keys are "ip:port" */

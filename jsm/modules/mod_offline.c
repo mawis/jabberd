@@ -41,7 +41,7 @@ xmlnode mod_offline_get(udata u)
     log_debug("mod_offline","getting %s's offline options",u->user);
 
     /* get the existing options */
-    ret = xdb_get(u->si->xc, u->id->server, u->id, NS_OFFLINE);
+    ret = xdb_get(u->si->xc, u->id, NS_OFFLINE);
     if(ret == NULL)
     {
         log_debug("mod_offline","creating options container");
@@ -88,7 +88,7 @@ mreturn mod_offline_message(mapi m)
     {
         jutil_delay(m->packet->x,"Offline Storage");
         xmlnode_insert_tag_node(opts,m->packet->x);
-        if(!xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_OFFLINE, opts))
+        if(!xdb_set(m->si->xc, m->user->id, NS_OFFLINE, opts))
         {
             xmlnode_free(m->packet->x);
             ret = M_HANDLED;
@@ -126,7 +126,7 @@ void mod_offline_out_available(mapi m)
     }
 
     /* messages are gone, save the new sun-dried opts container */
-    xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_OFFLINE, opts); /* can't do anything if this fails anyway :) */
+    xdb_set(m->si->xc, m->user->id, NS_OFFLINE, opts); /* can't do anything if this fails anyway :) */
     xmlnode_free(opts);
 }
 

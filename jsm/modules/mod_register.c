@@ -59,7 +59,7 @@ mreturn mod_register_new(mapi m, void *arg)
         log_debug(ZONE,"processing valid registration for %s",jid_full(m->packet->to));
 
         /* try to save the auth data */
-        if(xdb_set(m->si->xc, m->packet->to->server, m->packet->to, NS_AUTH, xmlnode_get_tag(m->packet->iq,"password")))
+        if(xdb_set(m->si->xc, jid_user(m->packet->to), NS_AUTH, xmlnode_get_tag(m->packet->iq,"password")))
         {
             jutil_error(m->packet->x, TERROR_FORBIDDEN); /* or 503? */
             break;
@@ -69,7 +69,7 @@ mreturn mod_register_new(mapi m, void *arg)
         xmlnode_hide(xmlnode_get_tag(m->packet->iq,"password")); /* hide the username/password from the reg db */
         xmlnode_hide(xmlnode_get_tag(m->packet->iq,"username"));
         jutil_delay(m->packet->iq,"registered");
-        xdb_set(m->si->xc, m->packet->to->server, m->packet->to, NS_REGISTER, m->packet->iq);
+        xdb_set(m->si->xc, jid_user(m->packet->to), NS_REGISTER, m->packet->iq);
 
         /* clean up and respond */
         jutil_iqresult(m->packet->x);
@@ -95,7 +95,7 @@ mreturn mod_register_server(mapi m, void *arg)
     log_debug("mod_register","updating server: %s, user %s",m->user->id->server,jid_full(m->user->id));
 
     /* check for their registration */
-    reg =  xdb_get(m->si->xc, m->user->id->server, m->user->id, NS_REGISTER);
+    reg =  xdb_get(m->si->xc, m->user->id, NS_REGISTER);
 
     switch(jpacket_subtype(m->packet))
     {
@@ -136,13 +136,13 @@ mreturn mod_register_server(mapi m, void *arg)
             log_notice(m->user->id->server,"User Unregistered: %s",m->user->user);
 
             /* XXX BRUTE FORCE: remove the registration and auth and any misc data */
-            xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_REGISTER, NULL);
-            xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_AUTH, NULL);
-            xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_PRIVATE, NULL);
-            xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_ROSTER, NULL);
-            xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_VCARD, NULL);
-            xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_OFFLINE, NULL);
-            xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_FILTER, NULL);
+            xdb_set(m->si->xc, m->user->id, NS_REGISTER, NULL);
+            xdb_set(m->si->xc, m->user->id, NS_AUTH, NULL);
+            xdb_set(m->si->xc, m->user->id, NS_PRIVATE, NULL);
+            xdb_set(m->si->xc, m->user->id, NS_ROSTER, NULL);
+            xdb_set(m->si->xc, m->user->id, NS_VCARD, NULL);
+            xdb_set(m->si->xc, m->user->id, NS_OFFLINE, NULL);
+            xdb_set(m->si->xc, m->user->id, NS_FILTER, NULL);
         }else{
             log_debug(ZONE,"updating registration for %s",jid_full(m->user->id));
 
@@ -150,7 +150,7 @@ mreturn mod_register_server(mapi m, void *arg)
             xmlnode_hide(xmlnode_get_tag(m->packet->iq,"username")); /* hide the username/password from the reg db */
             xmlnode_hide(xmlnode_get_tag(m->packet->iq,"password"));
             jutil_delay(m->packet->iq,"updated");
-            xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_REGISTER, m->packet->iq);
+            xdb_set(m->si->xc, m->user->id, NS_REGISTER, m->packet->iq);
 
         }
         /* clean up and respond */

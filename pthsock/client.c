@@ -347,7 +347,7 @@ void pthsock_client(instance i, xmlnode x)
 
     /* get the config */
     xc = xdb_cache(i);
-    s__i->cfg = xdb_get(xc,NULL,jid_new(xmlnode_pool(x),"config@-internal"),"jabber:config:pth-csock");
+    s__i->cfg = xdb_get(xc,jid_new(xmlnode_pool(x),"config@-internal"),"jabber:config:pth-csock");
 
     s__i->host = host = i->id;
 
