@@ -305,7 +305,7 @@ void xdb_file(instance i, xmlnode x)
 
     register_phandler(i, o_DELIVER, xdb_file_phandler, (void *)xf);
     if(timeout > 0) /* 0 is expired immediately, -1 is cached forever */
-        register_beat(30, xdb_file_purge, (void *)xf);
+        register_beat(timeout, xdb_file_purge, (void *)xf);
 
     xmlnode_free(config);
     pool_cleanup(i->p, xdb_file_cleanup, (void*)xf);
