@@ -171,3 +171,5 @@ void js_authreg(void *arg);
 
 result js_packet(instance i, dpacket p, void *arg);
 int js_islocal(jsmi si, jid id);
+
+void jsm_shutdown(void *arg);
