@@ -64,6 +64,7 @@ void *heartbeat(void *arg)
 	    }
 	}
     }
+    return NULL;
 }
 
 /* register a function to receive heartbeats */
