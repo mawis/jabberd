@@ -1,4 +1,5 @@
 #include "jabberd.h"
+#include <sys/wait.h>
 
 typedef int (*RESOLVEFUNC)(int in, int out);
 
@@ -81,15 +82,29 @@ int dnsrv_child_main(int in, int out)
      xstream xs  = xstream_new(p, dnsrv_child_process_xstream_io, &fout);
      int     readlen = 0;
      char    readbuf[1024];
+     pth_event_t tevt;
+
 
      /* Transmit stream header */
      pth_write(out, "<stream>", strlen("<stream>"));
 
      /* Loop forever, processing requests and feeding them to the xstream*/     
-     while ( ((readlen = pth_read(in, &readbuf, 1024)) > 0) &&
-	     (xstream_eat(xs, readbuf, readlen)))
-     {}	  
-
+     while (1)
+     {
+        tevt=pth_event(PTH_EVENT_TIME,pth_timeout(5,0));
+       readlen = pth_read(in, &readbuf, 1024);
+       if(readlen > 0)
+       {
+        xstream_eat(xs, readbuf, readlen);
+       }
+       else
+       {
+         pth_event_free(tevt,PTH_FREE_THIS);
+         if(getppid()==1) break; /* our parent has died */
+       }
+     }	  
+     /* child is out of loop... normal exit so parent will start us again */
+     exit(0);
      return 0;
 }
 
@@ -308,7 +323,9 @@ void* dnsrv_process_io(void* threadarg)
      pth_event_free(di->e_read, PTH_FREE_THIS);
      pth_event_free(di->e_write, PTH_FREE_THIS);
 
-     if(retcode!=2&&retcode!=9) /* if the child didn't get SIGINT or SIGKILL */
+     log_debug(ZONE,"child returned %d",WEXITSTATUS(retcode));
+
+     if(WIFEXITED(retcode)&&!WIFSIGNALED(retcode)) /* if the child exited normally */
      {
         /* Fork out resolver function/process */
         di->pid = dnsrv_fork_and_capture(dnsrv_child_main, &(di->in), &(di->out));
