@@ -219,6 +219,7 @@ int _mio_ssl_accept(mio m, struct sockaddr *serv_addr, socklen_t *addrlen)
     SSL_CTX *ctx = NULL;
     int fd;
     int sret;
+    int flags;
 
     if(m->ip == NULL)
     {
@@ -227,7 +228,13 @@ int _mio_ssl_accept(mio m, struct sockaddr *serv_addr, socklen_t *addrlen)
     }
 
     fd = accept(m->fd, serv_addr, addrlen);
-    
+
+    /* set the socket to non-blocking as this is not
+       inherited */
+    flags =  fcntl(fd, F_GETFL, 0);
+    flags |= O_NONBLOCK;
+    fcntl(fd, F_SETFL, flags);
+
     ctx = ghash_get(ssl__ctxs, m->ip);
     if(ctx == NULL)
     {
@@ -235,7 +242,8 @@ int _mio_ssl_accept(mio m, struct sockaddr *serv_addr, socklen_t *addrlen)
         return -1;
     }
     ssl = SSL_new(ctx);
-    log_debug(ZONE, "SSL accepting socket with new session %x", ssl);
+    log_debug(ZONE, "SSL accepting socket from %s with new session %x",
+                    m->ip, ssl);
     SSL_set_fd(ssl, fd);
     SSL_set_accept_state(ssl);
     sret = SSL_accept(ssl);
