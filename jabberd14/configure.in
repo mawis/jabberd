@@ -248,7 +248,7 @@ if test "$ssllegacy" != "no"; then
     AC_MSG_RESULT(yes)
     if test "$ssllegacy" = "yes"; then
 	AC_MSG_ERROR([To enable SSL/TLS support use --enable-ssl and not --with-ssl-legacy])
-	AC_MSG_RESULT(yes)
+    else
 	AC_DEFINE(HAVE_SSL,,[SSL/TLS with openssl requested])
 	CFLAGS="$CFLAGS -I$ssllegacy"
 	LDFLAGS="$LDFLAGS -L$ssllegacy -lssl -lcrypto -ldl"
