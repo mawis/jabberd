@@ -42,7 +42,7 @@
     </service>
 */
 
-#include "io.h"
+#include <jabberd.h>
 #define DEFAULT_AUTH_TIMEOUT 60
 
 /* socket manager instance */
@@ -51,19 +51,22 @@ typedef struct smi_st
     instance i;
     int auth_timeout;
     HASHTABLE aliases;
+    HASHTABLE users;
     xmlnode cfg;
     char *host;
 } *smi, _smi;
 
+smi s__i = NULL;
+
 typedef enum { state_UNKNOWN, state_AUTHD } user_state;
 typedef struct cdata_st
 {
-    smi i;
     jid host;
     user_state state;
     char *id, *sid, *res, *auth_id;
     time_t connect_time;
     void *arg;
+    mio m;
     pth_msgport_t pre_auth_mp;
 } _cdata,*cdata;
 
@@ -82,9 +85,8 @@ xmlnode pthsock_make_route(xmlnode x,char *to,char *from,char *type)
 
 result pthsock_client_packets(instance id, dpacket p, void *arg)
 {
-    smi si=(smi)arg;
     cdata cdcur;
-    sock cur;
+    mio m;
     int fd=0;
     xmlnode x;
 
@@ -96,15 +98,16 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
         return r_DONE;
     }
 
-    for (cur=io_select_get_list();cur!=NULL;cur=cur->next)
-    { /* find sock for this connection */
-        cdcur=((cdata)cur->arg);
-        if (fd == cur->fd && cur->state == state_ACTIVE) /* we can't match a closing socket! */
-            if (j_strcmp(p->id->resource,cdcur->res) == 0)
-                break;
-    }
+    cdcur = ghash_get(s__i->users, xmlnode_get_attrib(p->x,"to"));    
 
-    if(cur==NULL)
+    if (fd != cdcur->m->fd || cdcur->m->state != state_ACTIVE)
+        m = NULL;
+    else if (j_strcmp(p->id->resource,cdcur->res) != 0)
+        m = NULL;
+    else
+        m = cdcur->m;
+
+    if(m==NULL)
     { 
         if (j_strcmp(xmlnode_get_attrib(p->x,"type"),"error")==0)
         { /* we got a 510, but no session to end */
@@ -117,7 +120,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
         jutil_tofrom(p->x);
         xmlnode_put_attrib(p->x,"type","error");
 
-        deliver(dpacket_new(p->x),si->i);
+        deliver(dpacket_new(p->x),s__i->i);
         return r_DONE;
     }
 
@@ -126,8 +129,8 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     { /* <route type="error" means we were disconnected */
         x = xmlnode_new_tag("stream:error");
         xmlnode_insert_cdata(x,"Disconnected",-1);
-        io_write(cur,x);
-        io_close(cur);
+        mio_write(m,x,NULL,0);
+        mio_close(m);
         xmlnode_free(p->x);
         return r_DONE;
     }
@@ -141,67 +144,70 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
             log_debug(ZONE,"auth for user successful");
             /* notify SM to start a session */
             x=pthsock_make_route(NULL,jid_full(cdcur->host),cdcur->id,"session");
-            deliver(dpacket_new(x),si->i);
+            deliver(dpacket_new(x),s__i->i);
         } else log_debug(ZONE,"Auth not successfull");
     } else if(cdcur->state==state_UNKNOWN&&j_strcmp(xmlnode_get_attrib(p->x,"type"),"session")==0)
     { /* got a session reply from the server */
         wbq q;
         cdcur->state = state_AUTHD;
         /* change the host id */
-        cdcur->host = jid_new(cur->p,xmlnode_get_attrib(p->x,"from"));
+        cdcur->host = jid_new(m->p,xmlnode_get_attrib(p->x,"from"));
         log_debug(ZONE,"Session Started");
         xmlnode_free(p->x);
         /* if we have packets in the queue, write them */
         while((q=(wbq)pth_msgport_get(cdcur->pre_auth_mp))!=NULL)
         {
             q->x=pthsock_make_route(q->x,jid_full(cdcur->host),cdcur->id,NULL);
-            deliver(dpacket_new(q->x),si->i);
+            deliver(dpacket_new(q->x),s__i->i);
         }
         pth_msgport_destroy(cdcur->pre_auth_mp);
         cdcur->pre_auth_mp=NULL;
         return r_DONE;
     }
 
-    io_write(cur,xmlnode_get_firstchild(p->x));
+    mio_write(m,xmlnode_get_firstchild(p->x),NULL,0);
     return r_DONE;
 }
 
 /* callback for xstream */
 void pthsock_client_stream(int type, xmlnode x, void *arg)
 {
-    sock c = (sock)arg;
-    cdata cd=(cdata)c->arg;
+    mio m = (mio)arg;
+    cdata cd=(cdata)m->arg;
     char *alias,*to;
     xmlnode h;
+
 
     switch(type)
     {
     case XSTREAM_ROOT:
-        log_debug(ZONE,"root received for %d",c->fd);
+        ghash_put(s__i->users,cd->id,cd);
+        log_debug(ZONE,"root received for %d",m->fd);
         to=xmlnode_get_attrib(x,"to");
-        alias=ghash_get(cd->i->aliases,xmlnode_get_attrib(x,"to"));
-        if(alias==NULL) alias=ghash_get(cd->i->aliases,"default");
+        alias=ghash_get(s__i->aliases,xmlnode_get_attrib(x,"to"));
+        if(alias==NULL) alias=ghash_get(s__i->aliases,"default");
         if(alias!=NULL)
-            cd->host=jid_new(c->p,alias);
+            cd->host=jid_new(m->p,alias);
         else
-            cd->host=jid_new(c->p,to);
+            cd->host=jid_new(m->p,to);
         h = xstream_header("jabber:client",NULL,jid_full(cd->host));
-        cd->sid = pstrdup(c->p,xmlnode_get_attrib(h,"id"));
-        io_write_str(c,xstream_header_char(h));
+        cd->sid = pstrdup(m->p,xmlnode_get_attrib(h,"id"));
+        mio_write(m,NULL,xstream_header_char(h),-1);
+
         if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:client")!=0)
         { /* if they sent something other than jabber:client */
-            io_write_str(c,"<stream:error>Invalid Namespace</stream:error>");
-            io_close(c);
+            mio_write(m,NULL,"<stream:error>Invalid Namespace</stream:error>",-1);
+            mio_close(m);
         }
         else if(cd->host==NULL)
         { /* they didn't send a to="" and no valid alias */
-            io_write_str(c,"<stream:error>Did not specify a valid to argument</stream:error>");
-            io_close(c);
+            mio_write(m,NULL,"<stream:error>Did not specify a valid to argument</stream:error>",-1);
+            mio_close(m);
         }
         else if(j_strcmp(xmlnode_get_attrib(x,"xmlns:stream"),"http://etherx.jabber.org/streams")!=0)
         {
-            io_write_str(c,"<stream:error>Invalid Stream Namespace</stream:error>");
-            io_close(c);
+            mio_write(m,NULL,"<stream:error>Invalid Stream Namespace</stream:error>",-1);
+            mio_close(m);
         }
         xmlnode_free(h);
         xmlnode_free(x);
@@ -224,105 +230,102 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
                 if(j_strcmp(xmlnode_get_attrib(x,"type"),"set")==0)
                 { /* if we are authing against the server */
                     xmlnode_put_attrib(xmlnode_get_tag(q,"digest"),"sid",cd->sid);
-                    cd->auth_id = pstrdup(c->p,xmlnode_get_attrib(x,"id"));
+                    cd->auth_id = pstrdup(m->p,xmlnode_get_attrib(x,"id"));
                     if(cd->auth_id==NULL) 
                     {
-                        cd->auth_id = pstrdup(c->p,"pthsock_client_auth_ID");
+                        cd->auth_id = pstrdup(m->p,"pthsock_client_auth_ID");
                         xmlnode_put_attrib(x,"id","pthsock_client_auth_ID");
                     }
                     jid_set(cd->host,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(x,"query?xmlns=jabber:iq:auth"),"username")),JID_USER);
                     jid_set(cd->host,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(x,"query?xmlns=jabber:iq:auth"),"resource")),JID_RESOURCE);
                     x=pthsock_make_route(x,jid_full(cd->host),cd->id,"auth");
-                    deliver(dpacket_new(x),((smi)cd->i)->i);
+                    deliver(dpacket_new(x),s__i->i);
                 }
                 else if(j_strcmp(xmlnode_get_attrib(x,"type"),"get")==0)
                 { /* we are just doing an auth get */
                     /* just deliver the packet */
                     jid_set(cd->host,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(x,"query?xmlns=jabber:iq:auth"),"username")),JID_USER);
                     x=pthsock_make_route(x,jid_full(cd->host),cd->id,"auth");
-                    deliver(dpacket_new(x),((smi)cd->i)->i);
+                    deliver(dpacket_new(x),s__i->i);
                 }
             }
             else if (NSCHECK(q,NS_REGISTER))
             {
                 jid_set(cd->host,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(x,"query?xmlns=jabber:iq:register"),"username")),JID_USER);
                 x=pthsock_make_route(x,jid_full(cd->host),cd->id,"auth");
-                deliver(dpacket_new(x),((smi)cd->i)->i);
+                deliver(dpacket_new(x),s__i->i);
             }
         }
         else
         {   /* normal delivery of packets after authed */
             x=pthsock_make_route(x,jid_full(cd->host),cd->id,NULL);
-            deliver(dpacket_new(x),((smi)cd->i)->i);
+            deliver(dpacket_new(x),s__i->i);
         }
         break;
     case XSTREAM_ERR:
         log_debug(ZONE,"bad xml: %s",xmlnode2str(x));
         h=xmlnode_new_tag("stream:error");
         xmlnode_insert_cdata(h,"You sent malformed XML",-1);
-        io_write(c,h);
+        mio_write(m,h,NULL,0);
     case XSTREAM_CLOSE:
         log_debug(ZONE,"closing XSTREAM");
-        io_close(c);
+        mio_close(m);
         xmlnode_free(x);
     }
 }
 
 
-cdata pthsock_client_cdata(smi si,sock c)
+cdata pthsock_client_cdata(mio m)
 {
     cdata cd;
     char *buf;
 
-    cd = pmalloco(c->p, sizeof(_cdata));
+    cd = pmalloco(m->p, sizeof(_cdata));
     cd->pre_auth_mp=pth_msgport_create("pre_auth_mp");
-    cd->i = si;
-    c->xs = xstream_new(c->p,(void*)pthsock_client_stream,(void*)c);
+    m->xs = xstream_new(m->p,(void*)pthsock_client_stream,(void*)m);
     cd->state = state_UNKNOWN;
-    cd->arg=(void*)c;
+    cd->m=m;
 
-    buf=pmalloco(c->p,100);
+    buf=pmalloco(m->p,100);
 
     /* HACK to fix race conditon */
-    snprintf(buf,99,"%X",c);
-    cd->res = pstrdup(c->p,buf);
+    snprintf(buf,99,"%X",m);
+    cd->res = pstrdup(m->p,buf);
 
     /* we use <fd>@host to identify connetions */
-    snprintf(buf,99,"%d@%s/%s",c->fd,si->host,cd->res);
-    cd->id = pstrdup(c->p,buf);
+    snprintf(buf,99,"%d@%s/%s",m->fd,s__i->host,cd->res);
+    cd->id = pstrdup(m->p,buf);
 
     return cd;
 }
 
-void pthsock_client_read(sock c,char *buffer,int bufsz,int flags,void *arg)
+void pthsock_client_read(mio m,char *buffer,int bufsz,int flag,void *arg)
 {
-    smi si=(smi)arg;
-    cdata cd;
-    wbq q;
+    cdata cd = (cdata)arg;
     xmlnode x;
     int ret;
 
-    switch(flags)
+    switch(flag)
     {
     case IO_INIT:
         break;
     case IO_NEW:
-        log_debug(ZONE,"io_select NEW socket connected at %d",c->fd);
-        cd=pthsock_client_cdata(si,c);
+        log_debug(ZONE,"io_select NEW socket connected at %d",m->fd);
+        cd=pthsock_client_cdata(m);
         cd->connect_time=time(NULL);
-        c->arg=(void*)cd;
+        mio_reset(m, pthsock_client_read, (void*)cd);
         break;
     case IO_NORMAL:
-        ret=xstream_eat(c->xs,buffer,bufsz);
+        ret=xstream_eat(m->xs,buffer,bufsz);
         break;
     case IO_CLOSED:
-        cd=(cdata)c->arg;
         if(cd == NULL) break;
-        log_debug(ZONE,"io_select Socket %d close notification",c->fd);
-        if(cd != NULL && cd->state == state_AUTHD)
+        ghash_remove(s__i->users, cd->id);
+        log_debug(ZONE,"io_select Socket %d close notification",m->fd);
+        if(cd->state == state_AUTHD)
         {
             x=pthsock_make_route(NULL,jid_full(cd->host),cd->id,"error");
-            deliver(dpacket_new(x),((smi)cd->i)->i);
+            deliver(dpacket_new(x),s__i->i);
         }
         else
         {
@@ -336,56 +339,24 @@ void pthsock_client_read(sock c,char *buffer,int bufsz,int flags,void *arg)
         }
         break;
     case IO_ERROR:
-        if(c->xbuffer==NULL) break;
+        if(m->queue==NULL) break;
 
-        if(((int)c->xbuffer)!=-1)
-            deliver_fail(dpacket_new(c->xbuffer),"Socket Error to Client");
-        else
-            pool_free(c->pbuffer); 
-        c->xbuffer=NULL;
-        c->wbuffer=c->cbuffer=NULL;
-        c->pbuffer=NULL;
-        while((q=(wbq)pth_msgport_get(c->queue))!=NULL)
-        {
-            if(q->type==queue_XMLNODE)
-                deliver_fail(dpacket_new(q->x),"Socket Error to Client");
-            else
-                pool_free(q->p);
-        }
+        while((x = mio_cleanup(m)) != NULL)
+            deliver_fail(dpacket_new(x),"Socket Error to Client");
     }
-}
-
-result pthsock_client_heartbeat(void *arg)
-{
-    smi si=(smi)arg;
-    sock c;
-    cdata cd;
-    for(c=io_select_get_list();c!=NULL;c=c->next)
-    {
-        if(c->state!=state_ACTIVE) continue;
-        cd=(cdata)c->arg;
-        if(cd==NULL||cd->state==state_AUTHD) continue;
-        if(si->auth_timeout!=-1&&(time(NULL)-cd->connect_time)>si->auth_timeout)
-        {
-            io_write_str(c,"<stream:error>Auth Timeout</stream:error>");
-            io_close(c);
-        }
-    }
-    return r_DONE;
 }
 
 /* cleanup function */
 void pthsock_client_shutdown(void *arg)
 {
-    smi si = (smi)arg;
-    ghash_destroy(si->aliases);
-    xmlnode_free(si->cfg);
+    ghash_destroy(s__i->aliases);
+    ghash_destroy(s__i->users);
+    xmlnode_free(s__i->cfg);
 }
 
 /* everything starts here */
 void pthsock_client(instance i, xmlnode x)
 {
-    smi si;
     xdbcache xc;
     xmlnode cur;
     int rate_time=0,rate_points=0;
@@ -394,16 +365,17 @@ void pthsock_client(instance i, xmlnode x)
 
     log_debug(ZONE,"pthsock_client loading");
 
-    si = pmalloco(i->p,sizeof(_smi));
-    si->auth_timeout=DEFAULT_AUTH_TIMEOUT;
-    si->i = i;
-    si->aliases=ghash_create(7,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+    s__i = pmalloco(i->p,sizeof(_smi));
+    s__i->auth_timeout=DEFAULT_AUTH_TIMEOUT;
+    s__i->i = i;
+    s__i->aliases=ghash_create(7,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+    s__i->users = ghash_create(7, (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
 
     /* get the config */
     xc = xdb_cache(i);
-    si->cfg = xdb_get(xc,NULL,jid_new(xmlnode_pool(x),"config@-internal"),"jabber:config:pth-csock");
+    s__i->cfg = xdb_get(xc,NULL,jid_new(xmlnode_pool(x),"config@-internal"),"jabber:config:pth-csock");
 
-    si->host = host = i->id;
+    s__i->host = host = i->id;
 
     k.val=KARMA_INIT;
     k.bytes=0;
@@ -413,7 +385,7 @@ void pthsock_client(instance i, xmlnode x)
     k.restore=KARMA_RESTORE;
     k.penalty=KARMA_PENALTY;
 
-    for(cur=xmlnode_get_firstchild(si->cfg);cur!=NULL;cur=cur->next)
+    for(cur=xmlnode_get_firstchild(s__i->cfg);cur!=NULL;cur=cur->next)
     {
         if(cur->type!=NTYPE_TAG) continue;
         if(j_strcmp(xmlnode_get_name(cur),"alias")==0)
@@ -423,11 +395,11 @@ void pthsock_client(instance i, xmlnode x)
            host=xmlnode_get_data(cur);
            if(host!=NULL)
            {
-               ghash_put(si->aliases,host,to);
+               ghash_put(s__i->aliases,host,to);
            }
            else
            {
-               ghash_put(si->aliases,"default",to);
+               ghash_put(s__i->aliases,"default",to);
            }
         }
         else if(j_strcmp(xmlnode_get_name(cur),"authtime")==0)
@@ -436,7 +408,7 @@ void pthsock_client(instance i, xmlnode x)
             if(xmlnode_get_data(cur)!=NULL)
                 timeout=atoi(xmlnode_get_data(cur));
             else timeout=-1;
-            if(timeout!=0)si->auth_timeout=timeout;
+            if(timeout!=0)s__i->auth_timeout=timeout;
         }
         else if(j_strcmp(xmlnode_get_name(cur),"rate")==0)
         {
@@ -471,16 +443,30 @@ void pthsock_client(instance i, xmlnode x)
     }
 
     /* start listening */
-    if((cur = xmlnode_get_tag(si->cfg,"ip")) != NULL)
-        for(;cur != NULL; xmlnode_hide(cur), cur = xmlnode_get_tag(si->cfg,"ip"))
-            io_select_listen_ex(j_atoi(xmlnode_get_attrib(cur,"port"),5222), xmlnode_get_data(cur), pthsock_client_read, (void*)si, rate_time, rate_points, &k);
+    if((cur = xmlnode_get_tag(s__i->cfg,"ip")) != NULL)
+        for(;cur != NULL; xmlnode_hide(cur), cur = xmlnode_get_tag(s__i->cfg,"ip"))
+        {
+            mio m;
+            m = mio_listen(j_atoi(xmlnode_get_attrib(cur,"port"),5222), xmlnode_get_data(cur), pthsock_client_read, (void*)s__i);
+            if(m == NULL)
+                return;
+            mio_rate(m, rate_time, rate_points);
+            mio_karma2(m, &k);
+        }
     else /* no special config, use defaults */
-        io_select_listen_ex(5222, NULL, pthsock_client_read, (void*)si, rate_time, rate_points, &k);
+    {
+        mio m;
+        m = mio_listen(5222, NULL, pthsock_client_read, (void*)s__i);
+        if(m == NULL)
+            return;
+        mio_rate(m, rate_time, rate_points);
+        mio_karma2(m, &k);
+    }
 
     /* register data callbacks */
     log_debug(ZONE,"looking at: %s\n",port);
-    register_phandler(i,o_DELIVER,pthsock_client_packets, (void*)si);
-    register_beat(15,pthsock_client_heartbeat, (void*)si);
-    register_shutdown(pthsock_client_shutdown, (void*)si);
+    register_phandler(i,o_DELIVER,pthsock_client_packets, (void*)s__i);
+//  register_beat(15,pthsock_client_heartbeat, (void*)si);
+    register_shutdown(pthsock_client_shutdown, (void*)s__i);
 }
 

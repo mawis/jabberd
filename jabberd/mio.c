@@ -141,7 +141,7 @@ int _mio_write_dump(mio m)
                 }
             case queue_CDATA:
                 /* set the current write position */
-                if(cur->cur != NULL) cur->cur = cur->data;
+                if(cur->cur == NULL) cur->cur = cur->data;
                 break;
             default:
                 log_alert(NULL,"MIO unable to write buffer type: %d", cur->type);
@@ -526,6 +526,7 @@ mio mio_new(int fd, mio_cb cb, void *arg)
     
     p          = pool_new();
     new        = pmalloco(p, sizeof(_mio));
+    new->p     = p;
     new->type  = type_NORMAL;
     new->state = state_ACTIVE;
     new->fd    = fd;
@@ -534,8 +535,6 @@ mio mio_new(int fd, mio_cb cb, void *arg)
 
     mio_karma(new, KARMA_INIT, KARMA_MAX, KARMA_INC, KARMA_DEC, KARMA_PENALTY, KARMA_RESTORE);
 
-    /* add to the select loop */
-    _mio_link(new);
     
     /* set the socket to non-blocking */
     flags =  fcntl(fd, F_GETFL, 0);
@@ -567,6 +566,9 @@ mio mio_new(int fd, mio_cb cb, void *arg)
         /* pause to allow the main loop to register signal handlers */
         pth_yield(NULL);
     }
+
+    /* add to the select loop */
+    _mio_link(new);
 
     /* notify the select loop */
     pth_raise(mio__data->t, SIGUSR2);
