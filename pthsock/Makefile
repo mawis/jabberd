@@ -13,10 +13,10 @@ pthsock_client_OBJECTS=\
 all: pthsock_server pthsock_client
 
 pthsock_client: $(pthsock_client_OBJECTS)
-	$(CC) $(CFLAGS) -o pthsock_client.so $(LDFLAGS)
+	$(CC) $(CFLAGS) -o pthsock_client.so $(pthsock_client_OBJECTS) $(LDFLAGS)
 
 pthsock_server: $(pthsock_server_OBJECTS)
-	$(CC) $(CFLAGS) -o pthsock_server.so $(LDFLAGS)
+	$(CC) $(CFLAGS) -o pthsock_server.so $(pthsock_server_OBJECTS) $(LDFLAGS)
 
 clean:
-	rm -f pthsock_client.so pthsock_server.so
+	rm -f $(pthsock_server_OBJECTS) $(pthsock_client_OBJECTS) pthsock_client.so pthsock_server.so

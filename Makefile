@@ -30,7 +30,7 @@ check-recursive installcheck-recursive info-recursive dvi-recursive:
 	   || case "$$amf" in *=*) exit 1;; *k*) fail=yes;; *) exit 1;; esac; \
 	done; \
 	if test "$$dot_seen" = "no"; then \
-	  $(MAKE) "$$target-am" || exit 1; \
+	  $(MAKE) "$$target-local" || exit 1; \
 	fi; test -z "$$fail"
 
 clean-local:
