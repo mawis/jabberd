@@ -266,7 +266,7 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
 void base_accept_offline(accept_instance ai, xmlnode x)
 {
     jpacket p;
-    char errmsg[64] = "";
+    char errmsg[256] = "";
 
     if(ai->offline == NULL)
     {
