@@ -477,6 +477,15 @@
       <ssl port='5224'>192.168.1.100</ssl>
       -->
 
+      <!--
+      With the <noregister/> tag you can advice the client connection
+      manager not to advertise support for registering accounts in-band.
+      It does not actually disable support for registering accounts,
+      remove the <register/> tag from the session manager configuration
+      to disable registration and add the <noregister/> tag here.
+      -->
+      <!-- <noregister/> -->
+
     </pthcsock>
   </service>
 
