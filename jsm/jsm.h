@@ -41,6 +41,11 @@
 #include "jabberd.h"
 
 /**
+ * @dir jsm
+ * @brief Contains the Jabber session manager, that is extended by modules contained in jsm/modules
+ */
+
+/**
  * @file jsm.h
  * @brief definition of the jsm API
  */

@@ -75,10 +75,6 @@
  * - individual unavail presence: forward and remove from A, remove from I
  * - individual invisible presence: add to I, remove from A
  * - first avail: populate A with T and broadcast
- *
- * @bug if a user comes online with a second session the old session's presence is stamped (jabber:x:delay) as well resulting in multiple stamps.
- *
- * @bug if a user comes online two presences are sent to its contacts
  */
 
 /**
@@ -333,6 +329,7 @@ mreturn mod_presence_out(mapi m, void *arg)
     xmlnode pnew, delay;
     modpres mp = (modpres)arg;
     session top;
+    session cur = NULL;
     int oldpri, newpri;
     char *priority;
 
@@ -435,9 +432,32 @@ mreturn mod_presence_out(mapi m, void *arg)
     mp->invisible = 0;
 
     /* make sure we get notified for any presence about ourselves */
+    /* XXX: the following is the original code: it caused existing presences
+     * to be stamped several times and the presence to be sent out twice.
     pnew = jutil_presnew(JPACKET__PROBE,jid_full(jid_user(m->s->id)),NULL);
     xmlnode_put_attrib(pnew,"from",jid_full(jid_user(m->s->id)));
     js_session_from(m->s, jpacket_new(pnew));
+    */
+    /* XXX: I think this should be okay as well: */
+
+    /* send us all presences of our other resources */
+    for (cur = m->user->sessions; cur != NULL; cur=cur->next) {
+	pool pool_for_existing_presence = NULL;
+	xmlnode duplicated_presence = NULL;
+	jpacket packet = NULL;
+	
+	/* skip our own session (and sanity check) */
+	if (cur == m->s || cur->presence == NULL) {
+	    continue;
+	}
+
+	/* send the presence to us: we need a new pool as js_session_to() will free the packet's pool  */
+	pool_for_existing_presence = pool_new();
+	duplicated_presence = xmlnode_dup_pool(pool_for_existing_presence, cur->presence);
+	xmlnode_put_attrib(duplicated_presence, "to", jid_full(m->user->id));
+	packet = jpacket_new(duplicated_presence);
+	js_session_to(m->s, packet);
+    }
 
     /* probe s10ns and populate A */
     mod_presence_roster(m,mp->A);

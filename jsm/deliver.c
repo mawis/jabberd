@@ -42,7 +42,7 @@
 #include "jsm.h"
 
 /**
- * @file deliver.c
+ * @file jsm/deliver.c
  * @brief handle incoming packets and check how they can be delivered
  */
 
