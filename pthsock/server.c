@@ -214,20 +214,40 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
     ssi si = (ssi) arg;
     pool p;
     sdata sd;
-    char *to;
+    char *ip;
+    int port;
     drop d;
-    jid from;
+    jid from,to;
 
-    to = dp->id->server;
-    from = jid_new(xmlnode_pool(dp->x),xmlnode_get_attrib(dp->x,"from"));
+    to=jid_new(xmlnode_pool(dp->x),xmlnode_get_attrib(dp->x,"to"));
+    from=jid_new(xmlnode_pool(dp->x),xmlnode_get_attrib(dp->x,"from"));
+    ip=xmlnode_get_attrib(dp->x,"ip"); /* look for ip="12.34.56.78:5269" header */ 
+    if(ip!=NULL)
+    {
+        char *colon=strchr(ip,':');
+        if(colon==NULL) 
+            port=5269;
+        else
+        {
+            colon[0]='\0';
+            colon++;
+            port=atoi(colon);
+        }
+    }
+    else
+    {
+        ip=to->server;
+        port=5269;
+    }
+
 
     log_debug(ZONE,"pthsock_server looking up %s",to);
 
     if (from)
         xmlnode_put_attrib(dp->x,"etherx:from",from->server);
-    xmlnode_put_attrib(dp->x,"etherx:to",to);
+    xmlnode_put_attrib(dp->x,"etherx:to",to->server);
 
-    sd = ghash_get(si->out_tab,to);
+    sd = ghash_get(si->out_tab,to->server);
 
     if (sd != NULL)
         if (sd->type == conn_CLOSED)
@@ -238,21 +258,23 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
 
     if (sd == NULL)
     {
-        log_debug(ZONE,"Creating new connection to %s",to);
+        log_debug(ZONE,"Creating new connection to %s",to->server);
 
         p = pool_new();
         sd = pmalloco(p,sizeof(_sdata));
         sd->p=p;
         sd->type = conn_CONNECTING;
-        sd->to = pstrdup(p,to);
+        sd->to = pstrdup(p,to->server);
         sd->i = si;
         sd->queue = pth_msgport_create("queue");
         ghash_put(si->out_tab,sd->to,sd);
 
-        io_select_connect(io__instance,to,5269,(void*)sd);
-        pth_msgport_put(sd->queue,(void*)d);
-        return r_DONE;
+        io_select_connect(io__instance,ip,port,(void*)sd);
     }
+
+    xmlnode_hide_attrib(d->x,"sto");
+    xmlnode_hide_attrib(d->x,"sfrom");
+    xmlnode_hide_attrib(d->x,"ip");
 
     if(sd->type==conn_CONNECTING)
         pth_msgport_put(sd->queue,(void*)d);
