@@ -376,7 +376,7 @@ mreturn mod_presence_out(mapi m, void *arg)
     /* our new presence, keep it */
     xmlnode_free(m->s->presence);
     m->s->presence = xmlnode_dup(m->packet->x);
-    m->s->priority = newpri;
+    m->s->priority = jutil_priority(m->packet->x);
 
     /* stamp the sessions presence */
     delay = xmlnode_insert_tag(m->s->presence,"x");
@@ -387,8 +387,8 @@ mreturn mod_presence_out(mapi m, void *arg)
     log_debug2(ZONE, LOGT_DELIVER, "presence oldp %d newp %d top %X",oldpri,m->s->priority,top);
 
     /* if we're going offline now, let everyone know */
-    if(m->s->priority < -128) {		/* XXX How can this ever be true??? This is the value of newpri,
-					   which we ensured to be in the interval [-128,+127] */
+    if(m->s->priority < -128) {
+        /* jutil_priority returns -129 in case the "type" attribute is missing */
         if(!mp->invisible) /* bcc's don't get told if we were invisible */
             _mod_presence_broadcast(m->s,mp->bcc,m->packet->x,NULL);
         _mod_presence_broadcast(m->s,mp->A,m->packet->x,NULL);
