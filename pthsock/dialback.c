@@ -674,6 +674,7 @@ void pthsock_server(instance i, xmlnode x)
 {
     ssi si;
     xmlnode cfg, cur;
+    struct karma k;
 
     log_debug(ZONE,"pthsock_server loading");
     srand(time(NULL));
@@ -691,12 +692,21 @@ void pthsock_server(instance i, xmlnode x)
     if(xmlnode_get_tag(cfg,"legacy") != NULL)
         si->legacy = 1;
 
-    /* XXX make configurable rate limits */
+
+    k.val=KARMA_INIT;
+    k.bytes=0;
+    cur = xmlnode_get_tag(cfg,"karma");
+    k.max=j_atoi(xmlnode_get_tag_data(cur,"max"),KARMA_MAX);
+    k.inc=j_atoi(xmlnode_get_tag_data(cur,"inc"),KARMA_INC);
+    k.dec=j_atoi(xmlnode_get_tag_data(cur,"dec"),KARMA_DEC);
+    k.restore=j_atoi(xmlnode_get_tag_data(cur,"restore"),KARMA_RESTORE);
+    k.penalty=j_atoi(xmlnode_get_data(cur),KARMA_PENALTY);
+
     if((cur = xmlnode_get_tag(cfg,"ip")) != NULL)
         for(;cur != NULL; xmlnode_hide(cur), cur = xmlnode_get_tag(cfg,"ip"))
-            io_select_listen(j_atoi(xmlnode_get_attrib(cur,"port"),5269),xmlnode_get_data(cur),pthsock_server_inread,(void*)si,5,25);
+            io_select_listen_ex(j_atoi(xmlnode_get_attrib(cur,"port"),5269),xmlnode_get_data(cur),pthsock_server_inread,(void*)si,j_atoi(xmlnode_get_attrib(xmlnode_get_tag(cfg,"rate"),"time"),5),j_atoi(xmlnode_get_attrib(xmlnode_get_tag(cfg,"rate"),"points"),25),&k);
     else /* no special config, use defaults */
-        io_select_listen(5269,NULL,pthsock_server_inread,(void*)si,5,25);
+        io_select_listen_ex(5269,NULL,pthsock_server_inread,(void*)si,j_atoi(xmlnode_get_attrib(xmlnode_get_tag(cfg,"rate"),"time"),5),j_atoi(xmlnode_get_attrib(xmlnode_get_tag(cfg,"rate"),"points"),25),&k);
 
     register_phandler(i,o_DELIVER,pthsock_server_packets,(void*)si);
     register_shutdown(pthsock_shutdown, (void*)si);
