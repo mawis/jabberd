@@ -40,9 +40,11 @@
  * --------------------------------------------------------------------------*/
 
 #include "jabberd.h"
-#include <syslog.h>
 
 #ifdef HAVE_SYSLOG
+
+#include <syslog.h>
+
 result base_syslog_deliver(instance id, dpacket p, void* arg)
 {
     int facility = (int)arg;
