@@ -12,19 +12,19 @@ SYSLOG=n
 SSL=n
 for x in $@; do
     case x$x in
-        (x--enable-poll)
+        x--enable-poll)
             NETWORK_BACKEND="poll";;
-        (x--enable-select)
+        x--enable-select)
             NETWORK_BACKEND="select";;
-        (x--enable-debug)
+        x--enable-debug)
             DEBUG="y";;
-        (x--enable-profiler)
+        x--enable-profiler)
             PROFILE="y";;
-        (x--enable-syslog)
+        x--enable-syslog)
             SYSLOG="y";;
-        (x--enable-ssl)
+        x--enable-ssl)
             SSL="y";;
-        (x--help)
+        x--help)
             cat <<HELP_TEXT
 jad2cs configuration script
 Usage: configure [options]
@@ -88,10 +88,10 @@ fi
 ##
 echo -n "Selecting network backend..."
 case x-$NETWORK_BACKEND in
-    (x-poll) 
+    x-poll) 
         echo -e "\tpoll"
         DEFINES="$DEFINES -DMIO_POLL";;
-    (x-select) 
+    x-select) 
         echo -e "\tselect"
         DEFINES="$DEFINES -DMIO_SELECT";;
 esac
