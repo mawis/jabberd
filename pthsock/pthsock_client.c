@@ -200,7 +200,6 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         }
         else
             c->state = state_CLOSING;
-        xmlnode_free(x);
     }
 }
 
@@ -265,7 +264,7 @@ int pthsock_client_write(csock c, dpacket p)
                 }
                 else
                     log_debug(ZONE,"socket already closed");
-                xmlnode_free(p->p);
+                pool_free(p->p);
                 return 0;
             }
 
@@ -301,7 +300,7 @@ int pthsock_client_write(csock c, dpacket p)
     {
         c->state = state_CLOSED;
         /* bounce p->p */
-        xmlnode_free(p->p);
+        pool_free(p->p);
         return 0;
     }
 
