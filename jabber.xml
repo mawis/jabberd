@@ -312,24 +312,27 @@
       <mod_presence>./jsm/jsm.so</mod_presence>
 
       <!--
-      Authentification. For standard setups mod_auth_digest is recommended.
-      For maximum security, force SSL connections and use mod_auth_crypt.
-      Be aware encrypted password storage can lead to problems when
-      migrating to other authentification mechanisms (LDAP...).
+      Authentication
+      For standard setups mod_auth_digest is recommended. Additionally
+      enable mod_auth_plain if you need plaintext authentication.
+      For maximum security, force SSL connections and use mod_auth_crypt
+      exclusively. Be aware encrypted password storage can lead to
+      problems when migrating to other authentication mechanisms
+      (LDAP...).
       Switching from plain/digest to crypt needs manual work for
       existing accounts, the reverse is not possible.
-      You may enable multiple authentification mechanisms.
-      See http://jabberd.jabberstudio.org/1.4/ for details.
+      http://jabberd.jabberstudio.org/1.4/doc/adminguide#security
       -->
       <!-- mod_auth_plain: Password in clear text in storage
-           and on the wire. Disabled as this is not recommended.
-      <mod_auth_plain>./jsm/jsm.so</mod_auth_plain> -->
+           and on the wire. Disable this if you do not use clients
+           that need plaintext auth -->
+      <mod_auth_plain>./jsm/jsm.so</mod_auth_plain>
       <!-- mod_auth_digest: Password in clear text in storage,
            encrypted on the wire -->
       <mod_auth_digest>./jsm/jsm.so</mod_auth_digest>
       <!-- mod_auth_crypt: Password encrypted in storage,
-           clear text on the wire -->
-      <mod_auth_crypt>./jsm/jsm.so</mod_auth_crypt>
+           clear text on the wire
+      <mod_auth_crypt>./jsm/jsm.so</mod_auth_crypt> -->
 
       <mod_log>./jsm/jsm.so</mod_log>
       <mod_register>./jsm/jsm.so</mod_register>
