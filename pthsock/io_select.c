@@ -437,7 +437,7 @@ void _io_select_connect(void *arg)
         return;
     }
 
-    /* XXX grr.. why do i need this? */
+    /* make sure we got a valid fd */
     if(fd<=0)
     {
         log_debug(ZONE,"io_select connect failed to connect to: %s",cst->host);

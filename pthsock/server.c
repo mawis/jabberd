@@ -39,7 +39,6 @@
 
 typedef enum { conn_CONNECTING, conn_IN, conn_OUT, conn_CLOSED } conn_type;
 struct sdata_st;
-iosi io__instance=NULL;
 
 /* server 2 server instance */
 typedef struct ssi_st
@@ -137,12 +136,14 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
         }
         break;
     case XSTREAM_ERR:
+        log_debug(ZONE,"Bad XML: %s",(char*)x);
         io_write_str(c,"<stream::error>You sent malformed XML</stream:error>");
+        x=NULL;
     case XSTREAM_CLOSE:
         /* they closed there connections to us */
         log_debug(ZONE,"closing XML stream to %d",sd->to);
         io_close(c);
-        xmlnode_free(x);
+        if(x!=NULL)xmlnode_free(x);
     }
 }
 
