@@ -33,10 +33,12 @@
 #include "io.h"
 
 /* socket manager instance */
+struct cdata_st;
+
 typedef struct smi_st
 {
     instance i;
-    sock conns;
+    struct cdata_st *conns;
     xmlnode cfg;
     pth_msgport_t wmp;
     char *host;
@@ -45,21 +47,22 @@ typedef struct smi_st
 
 typedef struct cdata_st
 {
-    smi i;
+    smi* i;
     int state;
     char *id, *host, *sid, *res, *auth_id;
     void *arg;
+    struct cdata_st *next;
 } _cdata,*cdata;
 
 void pthsock_client_unlink(smi si, sock c)
 {
-    sock cur, prev;
+    cdata cur, prev;
 
     log_debug(ZONE,"Unlinking Local sock copy %d",c->fd);
 
     /* remove connection from the list */
     for (cur = si->conns,prev = NULL; cur != NULL; prev = cur,cur = cur->next)
-        if (cur == c)
+        if ((sock)cur->arg == c)
         {
             if (prev != NULL)
                 prev->next = cur->next;
@@ -73,7 +76,7 @@ void pthsock_client_close(sock c)
 {
     xmlnode x;
     cdata cd=(cdata)c->arg;
-    smi si=cd->i;
+    smi si=(smi)cd->i;
 
     log_debug(ZONE,"asking %d to close",c->fd);
     io_close(c);
@@ -84,16 +87,16 @@ void pthsock_client_close(sock c)
     jutil_error(x,TERROR_DISCONNECTED);
     xmlnode_put_attrib(x,"sto",cd->host);
     xmlnode_put_attrib(x,"sfrom",cd->id);
-    deliver(dpacket_new(x),cd->i->i);
+    deliver(dpacket_new(x),((smi)cd->i)->i);
 }
 
 result pthsock_client_packets(instance id, dpacket p, void *arg)
 {
     smi si=(smi)arg;
+    cdata cdcur;
     sock cur;
-    cdata cd;
     char *type;
-    int sock;
+    int fd;
 
     log_debug(ZONE,"Got a packet from jabberd: %s",xmlnode2str(p->x));
 
@@ -104,54 +107,59 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
         return r_DONE;
     }
 
-    sock = atoi(p->id->user); 
-    if (sock == 0)
+    fd = atoi(p->id->user); 
+    if (fd == 0)
     {
         xmlnode_free(p->x);
         return r_DONE;
     }
 
-    log_debug(ZONE,"pthsock_client looking up %d",sock);
+    log_debug(ZONE,"pthsock_client looking up %d",fd);
 
     /* XXX this for loop is UUUU-GLY */
-    for (cur = si->conns; cur != NULL; cur = cur->next)
-    {if (sock == cur->fd)
-     {
-      cd=(cdata)cur->arg;
-      if (j_strcmp(p->id->resource,cd->res) == 0)
-      { /* check to see if the session manager killed the session */
-       if (*(xmlnode_get_name(p->x)) == 'm')
-       {
-        if (xmlnode_get_tag(p->x,"error?code=510")!=NULL)
+    for (cdcur = si->conns; cdcur != NULL; cdcur = cdcur->next)
+    {
+        cur=((sock)cdcur->arg);
+        if (fd == cur->fd)
         {
-         log_debug(ZONE,"received disconnect message from session manager");
-         io_write_str(cur,"<stream:error>Disconnected</stream:error>");
-         pthsock_client_close(cur);
-         return -1;
+            if (j_strcmp(p->id->resource,cdcur->res) == 0)
+            { /* check to see if the session manager killed the session */
+                if (*(xmlnode_get_name(p->x)) == 'm')
+                {
+                    if (xmlnode_get_tag(p->x,"error?code=510")!=NULL)
+                    {
+                        log_debug(ZONE,"received disconnect message from session manager");
+                        io_write_str(cur,"<stream:error>Disconnected</stream:error>");
+                        pthsock_client_close(cur);
+                        return -1;
+                    }
+                }
+                if(cdcur->state==state_UNKNOWN&&*(xmlnode_get_name(p->x))=='i')
+                {
+                    if(j_strcmp(xmlnode_get_attrib(p->x,"type"),"result") == 0)
+                    {
+                        if (j_strcmp(cdcur->auth_id,xmlnode_get_attrib(p->x,"id")) == 0)
+                        {
+                            log_debug(ZONE,"auth for %d successful",cdcur->id);
+                            /* change the host id */
+                            cdcur->host = pstrdup(cur->p,xmlnode_get_attrib(p->x,"sfrom"));
+                            cur->state = state_AUTHD;
+                        }
+                        else 
+                            log_debug(ZONE,"reg for %d successful",cur->fd);
+                    }
+                    else 
+                        log_debug(ZONE,"user auth/registration falid");
+                }
+                xmlnode_hide_attrib(p->x,"sto");
+                xmlnode_hide_attrib(p->x,"sfrom");
+                log_debug(ZONE,"Calling write on %s",xmlnode2str(p->x));
+                io_write(cur,p->x);
+            }
+            else 
+                break;
+            return r_DONE;
         }
-       }
-       if(cd->state==state_UNKNOWN&&*(xmlnode_get_name(p->x))=='i')
-       {if(j_strcmp(xmlnode_get_attrib(p->x,"type"),"result") == 0)
-        {if (j_strcmp(cd->auth_id,xmlnode_get_attrib(p->x,"id")) == 0)
-         {
-          log_debug(ZONE,"auth for %d successful",cd->id);
-          /* change the host id */
-          cd->host = pstrdup(cur->p,xmlnode_get_attrib(p->x,"sfrom"));
-          cur->state = state_AUTHD;
-         }
-         else log_debug(ZONE,"reg for %d successful",cur->fd);
-        }
-        else log_debug(ZONE,"user auth/registration falid");
-       }
-       xmlnode_hide_attrib(p->x,"sto");
-       xmlnode_hide_attrib(p->x,"sfrom");
-       io_write(cur,p->x);
-       pool_free(p->p);
-
-      }
-      else break;
-      return r_DONE;
-     }
     }
 
     /* don't bounce if it's error 510 */
@@ -235,7 +243,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
 
         xmlnode_put_attrib(x,"sfrom",cs->id);
         xmlnode_put_attrib(x,"sto",cs->host);
-        deliver(dpacket_new(x),cs->i->i);
+        deliver(dpacket_new(x),((smi)cs->i)->i);
         break;
 
     case XSTREAM_ERR:
@@ -255,9 +263,13 @@ cdata pthsock_client_cdata(smi si,sock c)
 
     log_debug(ZONE,"Creating a new cdata to match socket %d",c->fd);
     cd = pmalloco(c->p, sizeof(_cdata));
-    cd->i = si;
+    cd->i = (void*)si;
     c->xs = xstream_new(c->p,pthsock_client_stream,(void*)c);
-    c->state = state_UNKNOWN;
+    cd->state = state_UNKNOWN;
+    cd->arg=(void*)c;
+
+    cd->next=si->conns;
+    si->conns=cd;
 
     memset(buf,0,99);
 
@@ -278,6 +290,7 @@ void pthsock_client_read(sock c,char *buffer,int bufsz,int flags,void *arg)
 {
     smi si=(smi)arg;
     cdata cd;
+    int ret;
 
     if(c!=NULL) 
     {
@@ -300,7 +313,7 @@ void pthsock_client_read(sock c,char *buffer,int bufsz,int flags,void *arg)
         break;
     case IO_NORMAL:
         log_debug(ZONE,"io_select NORMAL data");
-        xstream_eat(c->xs,buffer,bufsz);
+        ret=xstream_eat(c->xs,buffer,bufsz);
         break;
     case IO_CLOSED:
         log_debug(ZONE,"io_select Socket %d close notification",c->fd);
