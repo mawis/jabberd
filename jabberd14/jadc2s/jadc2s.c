@@ -215,6 +215,7 @@ int main(int argc, char **argv)
     c2s->ssl_no_ssl_v3 = (config_get_one(c2s->config, "local.ssl.no_ssl_v3", 0) != NULL);
     c2s->ssl_no_tls_v1 = (config_get_one(c2s->config, "local.ssl.no_tls_v1", 0) != NULL);
 #endif
+    c2s->iplog = (config_get_one(c2s->config, "io.iplog", 0) != NULL);
 
     /* require some things */
     if(c2s->sm_host == NULL) {
@@ -246,6 +247,16 @@ int main(int argc, char **argv)
     /* start logging */
     c2s->log = log_new(c2s->sm_id);
     log_write(c2s->log, LOG_NOTICE, "starting up");
+
+    /* see what is the lowest free fd now */
+    fd = open("/dev/null", O_RDONLY);
+    if (fd != -1) {
+	c2s->min_client_fd = fd;
+	close(fd);
+	log_write(c2s->log, LOG_DEBUG, "the lowest fd we should use for client (and sm) connections is %i", fd);
+    }
+    else
+	c2s->min_client_fd = 0;
 
     /* seed the random number generator */
     fd = open(rand_dev, O_RDONLY|O_NOCTTY);

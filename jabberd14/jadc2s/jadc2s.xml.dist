@@ -86,6 +86,8 @@
 	<notifies>connections@localhost</notifies>
 	-->
 
+	<!-- should we log the IP addresses of our users?		   -->
+	<!-- <iplog/> -->
     </io>
 
 </jadc2s>

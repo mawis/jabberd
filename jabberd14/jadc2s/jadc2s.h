@@ -209,6 +209,8 @@ struct c2s_st
     int timeout; /* how long to process mio */
 
     int max_fds;
+    int min_client_fd; /* it seems we are closing the log sometimes */
+	   /* and log messages are then written to client connections */
 
     int num_clients;
 
@@ -219,6 +221,7 @@ struct c2s_st
 
     /* logging */
     log_t log;
+    int iplog;
 };
 
 /* the handler for client mio events */
