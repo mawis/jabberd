@@ -1,6 +1,6 @@
 #include "jabberd.h"
 
-result base_file_config(idnode id, xmlnode x, void *arg)
+result base_file_config(instance id, xmlnode x, void *arg)
 {
     if(id == NULL)
     {
@@ -15,5 +15,5 @@ void base_file(void)
 {
     printf("base_file loading...\n");
 
-    cfreg("file",base_file_config,NULL);
+    register_config("file",base_file_config,NULL);
 }

@@ -1,6 +1,6 @@
 #include "jabberd.h"
 
-result base_stderr_config(idnode id, xmlnode x, void *arg)
+result base_stderr_config(instance id, xmlnode x, void *arg)
 {
     if(id == NULL)
     {
@@ -15,5 +15,5 @@ void base_stderr(void)
 {
     printf("base_stderr loading...\n");
 
-    cfreg("stderr",base_stderr_config,NULL);
+    register_config("stderr",base_stderr_config,NULL);
 }

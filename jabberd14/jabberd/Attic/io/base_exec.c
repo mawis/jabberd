@@ -3,7 +3,7 @@
 /* consult apache source to figure out how to do this */
 /* fork/exec a command, serialize xmlnodes to its STDIN for incoming packets, read it's STDOUT as an xmlstream */
 
-result base_exec_config(idnode id, xmlnode x, void *arg)
+result base_exec_config(instance id, xmlnode x, void *arg)
 {
     if(id == NULL)
     {
@@ -18,5 +18,5 @@ void base_exec(void)
 {
     printf("base_exec loading...\n");
 
-    cfreg("exec",base_exec_config,NULL);
+    register_config("exec",base_exec_config,NULL);
 }

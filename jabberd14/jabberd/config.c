@@ -29,31 +29,31 @@ int configurate(char *file)
 typedef struct cfg_struct
 {
     char *node;
-    cfgene f;
+    cfhandler f;
     void *arg;
     struct cfg_struct *next;
 } *cfg, _cfg;
 
-cfg cfgenes__ = NULL;
-pool cfgenes__p = NULL;
+cfg cfhandlers__ = NULL;
+pool cfhandlers__p = NULL;
 
 /* register a function to handle that node in the config file */
-void cfreg(char *node, cfgene f, void *arg)
+void register_config(char *node, cfhandler f, void *arg)
 {
     cfg newg;
 
     /* if first time */
-    if(cfgenes__p == NULL) cfgenes__p = pool_new();
+    if(cfhandlers__p == NULL) cfhandlers__p = pool_new();
 
     /* create and setup */
-    newg = pmalloc_x(cfgenes__p, sizeof(_cfg), 0);
-    newg->node = pstrdup(cfgenes__p,node);
+    newg = pmalloc_x(cfhandlers__p, sizeof(_cfg), 0);
+    newg->node = pstrdup(cfhandlers__p,node);
     newg->f = f;
     newg->arg = arg;
 
     /* hook into global */
-    newg->next = cfgenes__;
-    cfgenes__ = newg;
+    newg->next = cfhandlers__;
+    cfhandlers__ = newg;
 }
 
 /* util to scan through registered config callbacks */
@@ -61,7 +61,7 @@ cfg cfget(char *node)
 {
     cfg next = NULL;
 
-    for(next = cfgenes__; next != NULL && strcmp(node,next->node) != 0; next = next->next);
+    for(next = cfhandlers__; next != NULL && strcmp(node,next->node) != 0; next = next->next);
 
     return next;
 }
@@ -72,7 +72,7 @@ int configo(int exec)
     cfg c;
     xmlnode curx, curx2;
     ptype type;
-    idnode newi = NULL;
+    instance newi = NULL;
     pool p;
 
     for(curx = xmlnode_get_firstchild(greymatter__); curx != NULL; curx = xmlnode_get_nextsibling(curx))
@@ -96,11 +96,11 @@ int configo(int exec)
             return 1;
         }
 
-        /* create the idnode */
+        /* create the instance */
         if(exec)
         {
             p = pool_new();
-            newi = pmalloc_x(p, sizeof(_idnode), 0);
+            newi = pmalloc_x(p, sizeof(_instance), 0);
             newi->id = pstrdup(p,xmlnode_get_attrib(curx,"id"));
             newi->type = type;
             newi->p = p;

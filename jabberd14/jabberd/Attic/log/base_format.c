@@ -1,6 +1,6 @@
 #include "jabberd.h"
 
-result base_format_config(idnode id, xmlnode x, void *arg)
+result base_format_config(instance id, xmlnode x, void *arg)
 {
     if(id == NULL)
     {
@@ -15,5 +15,5 @@ void base_format(void)
 {
     printf("base_format loading...\n");
 
-    cfreg("format",base_format_config,NULL);
+    register_config("format",base_format_config,NULL);
 }

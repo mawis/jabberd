@@ -5,7 +5,7 @@
 /* if registered as * for the host, then any name can be used as sender, and module delivers appropriately */
 /* module must scan config for <host/> elements and configure itself appropriately */
 
-result base_accept_config(idnode id, xmlnode x, void *arg)
+result base_accept_config(instance id, xmlnode x, void *arg)
 {
     if(id == NULL)
     {
@@ -20,5 +20,5 @@ void base_accept(void)
 {
     printf("base_accept loading...\n");
 
-    cfreg("accept",base_accept_config,NULL);
+    register_config("accept",base_accept_config,NULL);
 }

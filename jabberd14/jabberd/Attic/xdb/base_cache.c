@@ -1,6 +1,6 @@
 #include "jabberd.h"
 
-result base_cache_config(idnode id, xmlnode x, void *arg)
+result base_cache_config(instance id, xmlnode x, void *arg)
 {
     if(id == NULL)
     {
@@ -15,5 +15,5 @@ void base_cache(void)
 {
     printf("base_cache loading...\n");
 
-    cfreg("cache",base_cache_config,NULL);
+    register_config("cache",base_cache_config,NULL);
 }
