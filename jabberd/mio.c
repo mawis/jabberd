@@ -74,6 +74,7 @@ typedef struct mio_connect_st
 
 /* global object */
 int mio__errno = 0;
+int mio__ssl_reread = 0;
 ios mio__data = NULL;
 extern xmlnode greymatter__;
 
@@ -706,46 +707,50 @@ void _mio_main(void *arg)
                     continue;
                 }
 
-                maxlen = KARMA_READ_MAX(cur->k.val);
-
-                if(maxlen > 8191) maxlen = 8191;
-
-                len = (*(cur->mh->read))(cur, buf, maxlen);
-
-                /* if we had a bad read */
-                if(len == 0 && maxlen > 0)
-                { 
-                    mio_close(cur);
-                    continue; /* loop on the same socket to kill it for real */
-                }
-                else if(len < 0)
+                do
                 {
-                    if(errno != EWOULDBLOCK && errno != EINTR && 
-                       errno != EAGAIN && mio__errno != EAGAIN) 
-                    {
-                        /* kill this socket and move on */
+                    maxlen = KARMA_READ_MAX(cur->k.val);
+
+                    if(maxlen > 8191) maxlen = 8191;
+
+                    len = (*(cur->mh->read))(cur, buf, maxlen);
+
+                    /* if we had a bad read */
+                    if(len == 0 && maxlen > 0)
+                    { 
                         mio_close(cur);
-                        continue;  /* loop on the same socket to kill it for real */
+                        continue; /* loop on the same socket to kill it for real */
                     }
-                }
-                else 
-                {
-                    if(cur->k.dec != 0)
-                    { /* karma is enabled */
-                        karma_decrement(&cur->k, len);
-                        /* Check if that socket ran out of karma */
-                        if(cur->k.val <= 0)
-                        { /* ran out of karma */
-                            log_notice("MIO_XML_READ", "socket from %s is out of karma", cur->ip);
-                            FD_CLR(cur->fd, &all_rfds); /* this fd is being punished */
+                    else if(len < 0)
+                    {
+                        if(errno != EWOULDBLOCK && errno != EINTR && 
+                           errno != EAGAIN && mio__errno != EAGAIN) 
+                        {
+                            /* kill this socket and move on */
+                            mio_close(cur);
+                            continue;  /* loop on the same socket to kill it for real */
                         }
                     }
+                    else 
+                    {
+                        if(cur->k.dec != 0)
+                        { /* karma is enabled */
+                            karma_decrement(&cur->k, len);
+                            /* Check if that socket ran out of karma */
+                            if(cur->k.val <= 0)
+                            { /* ran out of karma */
+                                log_notice("MIO_XML_READ", "socket from %s is out of karma", cur->ip);
+                                FD_CLR(cur->fd, &all_rfds); /* this fd is being punished */
+                            }
+                        }
 
-                    buf[len] = '\0';
+                        buf[len] = '\0';
 
-                    log_debug(ZONE, "MIO read from socket %d: %s", cur->fd, buf);
-                    (*cur->mh->parser)(cur, buf, len);
+                        log_debug(ZONE, "MIO read from socket %d: %s", cur->fd, buf);
+                        (*cur->mh->parser)(cur, buf, len);
+                    }
                 }
+                while (mio__ssl_reread == 1);
             } 
 
             /* we could have gotten a bad parse, and want to close */
