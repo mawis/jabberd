@@ -15,6 +15,11 @@
     * jadc2s.c: send stream error for authentication timeouts
     * jadc2s.h: same
 
+2004-01-09  Ryan Eatmon      <reatmon@jabber.org>
+
+    * conn.c: Fixed big bug in \0 handling in the buffer.  Flash clients
+              were experiencing disconnects.
+
 2004-01-03  Matthias Wimmer  <m@tthias.net>
 
     * jadc2s.h: added two more stream errors
