@@ -234,8 +234,14 @@ dboc dialback_out_connection(db d, jid key, char *ip, db_request db_state) {
     c->stamp = time(NULL);
     c->verifies = xmlnode_new_tag_pool(p,"v");
     c->ip = pstrdup(p,ip);
-    /* XXX add config option, to disable XMPP for configured hosts */
-    c->xmpp_version = 1;
+    c->xmpp_version = j_strcmp(xhash_get(d->hosts_xmpp, c->key->server), "no")==0 ? 0 : 1;
+    if (c->xmpp_version == 0) {
+	log_debug2(ZONE, LOGT_IO, "disabled XMPP due to configuration for host %s", c->key->server);
+    }
+    c->xmpp_no_tls = j_strcmp(xhash_get(d->hosts_tls, c->key->server), "no")==0 ? 1 : 0;
+    if (c->xmpp_no_tls != 0) {
+	log_debug2(ZONE, LOGT_IO, "disabled STARTTLS due to configuration for host %s", c->key->server);
+    }
     c->db_state = db_state;
     c->connection_state = created;
     c->connect_results = spool_new(p);
@@ -678,11 +684,8 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 		    /* don't start if forbidden by caller (configuration) */
 		    if (c->xmpp_no_tls) {
 			log_notice(c->d->i->id, "Server %s advertized starttls, but disabled by our configuration.", c->key->server);
-			break;
-		    }
-
-		    /* check if our side is prepared for starttls */
-		    if (mio_ssl_starttls_possible(m, c->key->resource)) {
+		    } else if (mio_ssl_starttls_possible(m, c->key->resource)) {
+			/* our side is prepared for starttls */
 			xmlnode starttls = NULL;
 
 			/* request to start tls on this connection */

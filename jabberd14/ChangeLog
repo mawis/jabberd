@@ -1,6 +1,10 @@
 2005-03-19  Matthias Wimmer  <m@tthias.net>
 
     * configure.in: find openssl without pkg-config using --with-ssl-legacy
+    * dialback/dialback.c: send stream error on idle stream
+    * dialback/dialback_out.c: disable xmpp/starttls for configured hosts
+    * jsm/modules/mod_roster.c: threading problem, we removed the roster
+    	item before the subscription was removed
 
 2005-03-15  Matthias Wimmer  <m@tthias.net>
 
