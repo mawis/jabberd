@@ -63,6 +63,7 @@ conn_t conn_new(c2s_t c2s, int fd)
     c->type = type_NORMAL;
     c->start = time(NULL);
     c->expat = XML_ParserCreate(NULL);
+    c->qtail = c->writeq = NULL;
 
     /* set up our id */
     c->idp = pool_heap(128);
