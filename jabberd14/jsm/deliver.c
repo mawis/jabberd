@@ -68,7 +68,7 @@ log_debug(ZONE,"");
 result js_packet(instance i, dpacket p, void *arg)
 {
     jsmi si = (jsmi)arg;
-    jpacket jp;
+    jpacket jp = NULL;
     HASHTABLE ht;
     session s;
     char *type, *authto;
@@ -103,7 +103,8 @@ result js_packet(instance i, dpacket p, void *arg)
         }
 
         /* get the internal jpacket */
-        jp = jpacket_new(xmlnode_get_firstchild(p->x));
+        if(xmlnode_get_firstchild(p->x) != NULL) /* XXX old libjabber jpacket_new() wasn't null safe, this is just safety */
+            jp = jpacket_new(xmlnode_get_firstchild(p->x));
 
         /* auth/reg requests */
         if(jp != NULL && j_strcmp(type,"auth") == 0)

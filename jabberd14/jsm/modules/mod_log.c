@@ -46,7 +46,7 @@ typedef struct
 flogger mod_log_new(xmlnode cfg)
 {
     flogger l;
-    int fd;
+    int fd = -1;
     char *file;
 
     file = xmlnode_get_tag_data(cfg,"file");
@@ -56,7 +56,8 @@ flogger mod_log_new(xmlnode cfg)
         return NULL;
     }
 
-    fd = open(file, O_WRONLY | O_CREAT | O_APPEND, 0600);
+    if(file != NULL)
+        fd = open(file, O_WRONLY | O_CREAT | O_APPEND, 0600);
     if(fd < 0)
     {
         log_error(NULL,"Unable to open jsm log file %s",file);
