@@ -39,19 +39,20 @@
  * 
  * --------------------------------------------------------------------------*/
 
-/*
-   MIO -- Managed Input/Output
-   ---------------------------
+/**
+ * @file mio.c
+ * @brief MIO -- Managed Input/Output
+ *
+ * The purpose of this file, is mainly to provide support, to any component
+ * of jabberd, for abstraced I/O functions.  This works much like tstreams,
+ * and will incorporate the functionality of io_select initially, but will be
+ * expanded to support any socket handling model, such as polld, SIGIO, etc
+ *
+ * This works to abstract the socket work, and hide it from the component,
+ * this way, the component does not have to deal with any complexeties of
+ * socket functions.
+ */
 
-   The purpose of this file, is mainly to provide support, to any component
-   of jabberd, for abstraced I/O functions.  This works much like tstreams,
-   and will incorporate the functionality of io_select initially, but will
-   be expanded to support any socket handling model, such as polld, SIGIO, etc
-
-   This works to abstract the socket work, and hide it from the component,
-   this way, the component does not have to deal with any complexeties of
-   socket functions.
-*/
 #define MIO
 #include <jabberd.h>
 
@@ -59,37 +60,51 @@
  *************  Internal MIO Functions  *****************
  ********************************************************/
 
+/**
+ * @brief structure that holds the global mio data
+ */
 typedef struct mio_main_st
 {
-    pool p;             /* pool to hold this data */
-    mio master__list;  /* a list of all the socks */
-    pth_t t;            /* a pointer to thread for signaling */
-    int shutdown;
-    int zzz[2];
-    struct karma *k; /* default karma */
-    int rate_t, rate_p; /* default rate, if any */
+    pool p;             /**< (memory-)pool to hold this data */
+    mio master__list;   /**< a list of all the sockets */
+    pth_t t;            /**< a pointer to thread for signaling */
+    int shutdown;	/**< flag that the select loop can be left (if value is 1) */
+    int zzz[2];		/**< pipe used to send signals to the select loop */
+    struct karma *k;	/**< default karma */
+    int rate_t, rate_p; /**< default rate, if any */
 } _ios,*ios;
 
+/**
+ * @brief internal structure holding data of the destination where we connect to
+ */
 typedef struct mio_connect_st
 {
-    pool p;
-    char *ip;
-    int port;
-    void *cb;
-    void *cb_arg;
+    pool p;		/**< (memory-)pool to hold this data */
+    char *ip;		/**< IP address where to connect to */
+    int port;		/**< port where to connect to */
+    void *cb;		/**< callback function that should be notified on the new connection */
+    void *cb_arg;	/**< argument that should be passed to the callback function */
     mio_connect_func cf;
     mio_handlers mh;
-    pth_t t;
-    int connected;
+    pth_t t;		/**< thread for this connection */
+    int connected;	/**< flag if the socket is connected */
 } _connect_data,  *connect_data;
 
 /* global object */
-int mio__errno = 0;
-int mio__ssl_reread = 0;
-ios mio__data = NULL;
+int mio__errno = 0;	/**< mio_ssl.c passes EAGAIN on this variable, if a read/write would have blocked  */
+int mio__ssl_reread = 0;/**< mio_ssl.c tells us on this variable, that there might be more to read */
+ios mio__data = NULL;	/**< global data for mio */
 extern xmlnode greymatter__;
 
 #ifdef WITH_IPV6
+/**
+ * compare two IPv6 or IPv4 addresses if they are in the same network
+ *
+ * @param addr1 the first address
+ * @param addr2 the second address
+ * @param netsize how many bits are in the network address
+ * @return 1 if both addresses are in the same network, 0 if not
+ */
 int _mio_compare_ipv6(const struct in6_addr *addr1, const struct in6_addr *addr2, int netsize)
 {
     int i;
@@ -112,6 +127,16 @@ int _mio_compare_ipv6(const struct in6_addr *addr1, const struct in6_addr *addr2
     return ((addr1->s6_addr[i]&mask) == (addr2->s6_addr[i]&mask));
 }
 
+/**
+ * convert a netmask to an IPv6 network size
+ *
+ * If the netmask is NULL, 128 is returned.
+ *
+ * E.g. 255.255.255.0 is converted to 120 (the network is ::ffff:a.b.c.0 in this case)
+ *
+ * @param netmask string containing the netmask in traditional IPv4 notation
+ * @return number of bits in the network part of the address (range 96...128, because the argument is IPv4)
+ */
 int _mio_netmask_to_ipv6(const char *netmask)
 {
     struct in_addr addr;
@@ -138,6 +163,12 @@ int _mio_netmask_to_ipv6(const char *netmask)
 }
 #endif
 
+/**
+ * check if an IP address (IPv4 or IPv6) is allowed to connect
+ *
+ * @param address the address that should be checked
+ * @return 1 if allowed by default, or IP inside an allowed network, 2 if explicitly allowed IP address, 0 if not allowed
+ */
 int _mio_allow_check(const char *address)
 {
 #ifdef WITH_IPV6
@@ -231,6 +262,12 @@ int _mio_allow_check(const char *address)
     return 0;
 }
 
+/**
+ * check if an IP address (IPv4 or IPv6) is forbitten to connect
+ *
+ * @param address the address that should be checked
+ * @return 1 if forbidden by default, or IP inside an forbidden network, 2 if explicitly forbidden IP address, 0 if not allowed
+ */
 int _mio_deny_check(const char *address)
 {
 #ifdef WITH_IPV6
@@ -323,9 +360,12 @@ int _mio_deny_check(const char *address)
     return 0;
 }
 
-/*
+/**
  * callback for Heartbeat, increments karma, and signals the
  * select loop, whenever a socket's punishment is over
+ *
+ * @param arg unused/ignored
+ * @return always r_DONE
  */
 result _karma_heartbeat(void*arg)
 {
@@ -364,8 +404,10 @@ result _karma_heartbeat(void*arg)
     return r_DONE;
 }
 
-/* 
+/** 
  * unlinks a socket from the master list 
+ *
+ * @param m socket that should be unlinked from mio__data->master__list
  */
 void _mio_unlink(mio m)
 {
@@ -382,8 +424,12 @@ void _mio_unlink(mio m)
         m->next->prev = m->prev;
 }
 
-/* 
- * links a socket to the master list 
+/** 
+ * links a socket to the master list
+ *
+ * The new socket is inserted as the first list element, but you must not rely on this.
+ *
+ * @param m socket that should be linked to mio__data->master__list
  */
 void _mio_link(mio m)
 {
@@ -399,11 +445,14 @@ void _mio_link(mio m)
     mio__data->master__list = m;
 }
 
-/* 
- * Dump this socket's write queue.  tries to write
- * as much of the write queue as it can, before the
+/** 
+ * Dump this socket's write queue.
+ *
+ * Tries to write * as much of the write queue as it can, before the
  * write call would block the server
- * returns -1 on error, 0 on success, and 1 if more data to write
+ *
+ * @param m the connection that should get it's write queue dumped
+ * @return -1 on error, 0 on success, and 1 if more data to write
  */
 int _mio_write_dump(mio m)
 {
@@ -461,9 +510,12 @@ int _mio_write_dump(mio m)
     return 0;
 }
 
-/* 
+/** 
  * internal close function 
+ * 
  * does a final write of the queue, bouncing and freeing all memory
+ *
+ * @param m the connection that gets closed
  */
 void _mio_close(mio m)
 {
@@ -505,8 +557,11 @@ void _mio_close(mio m)
     log_debug2(ZONE, LOGT_IO, "freed MIO socket");
 }
 
-/* 
- * accept an incoming connection from a listen sock 
+/** 
+ * accept an incoming connection from a listen sock
+ *
+ * @param m the socket on which we want to accept a connection
+ * @return the new mio handle for the new connection
  */
 mio _mio_accept(mio m)
 {
@@ -834,6 +889,7 @@ void _mio_main(void *arg)
         /* check our zzz */
         if(FD_ISSET(mio__data->zzz[0],&rfds))
         {
+	    log_debug2(ZONE, LOGT_EXECFLOW, "got a notify on zzz");
             pth_read(mio__data->zzz[0],buf,8192);
         }
 
@@ -1157,8 +1213,11 @@ mio mio_new(int fd, void *cb, void *arg, mio_handlers mh)
     _mio_link(new);
 
     /* notify the select loop */
-    if(mio__data != NULL)
+    if(mio__data != NULL) {
+	log_debug2(ZONE, LOGT_EXECFLOW, "sending zzz notify to the select loop in mio_new()");
         write(mio__data->zzz[1]," ",1);
+	log_debug2(ZONE, LOGT_EXECFLOW, "notify sent");
+    }
 
     return new;
 }
@@ -1186,8 +1245,11 @@ void mio_close(mio m)
         return;
 
     m->state = state_CLOSE;
-    if(mio__data != NULL)
+    if(mio__data != NULL) {
+	log_debug2(ZONE, LOGT_EXECFLOW, "sending zzz notify to the select loop in mio_close()");
         write(mio__data->zzz[1]," ",1);
+	log_debug2(ZONE, LOGT_EXECFLOW, "notify sent");
+    }
 }
 
 /* 
@@ -1273,8 +1335,11 @@ void mio_write(mio m, xmlnode x, char *buffer, int len)
 
     log_debug2(ZONE, LOGT_IO, "mio_write called on x: %X buffer: %.*s", x, len, buffer);
     /* notify the select loop that a packet needs writing */
-    if(mio__data != NULL)
+    if(mio__data != NULL) {
+	log_debug2(ZONE, LOGT_EXECFLOW, "sending zzz notify to the select loop in mio_write()");
         write(mio__data->zzz[1]," ",1);
+	log_debug2(ZONE, LOGT_EXECFLOW, "notify sent");
+    }
 }
 
 /*
