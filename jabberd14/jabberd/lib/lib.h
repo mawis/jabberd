@@ -480,8 +480,6 @@ void shaBlock(unsigned char *dataIn, int len, unsigned char hashout[20]);
 #include <sys/time.h>
 #include <ctype.h>
 
-#include "libxode.h"
-
 #ifndef INCL_JABBER_H
 #define INCL_JABBER_H
 
