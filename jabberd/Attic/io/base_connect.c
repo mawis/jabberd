@@ -129,6 +129,7 @@ void base_connect_handle_xstream_event(int type, xmlnode x, void* arg)
 	  /* Transmit handshake request */	  
 	  strbuf = xmlnode2str(cur);
 	  pth_write(ci->socket, strbuf, strlen(strbuf));
+      xmlnode_free(x);
 	  break;
      case XSTREAM_NODE:
 	  /* Only deliver packets after the connection is auth'd */
@@ -148,11 +149,12 @@ void base_connect_handle_xstream_event(int type, xmlnode x, void* arg)
 		    ci->events  = pth_event_concat(ci->e_read, ci->e_write, NULL);  
 	       }
 	       /* Drop the packet, regardless */
-	       pool_free(x->p);
+           xmlnode_free(x);
 	  }
 	  break;
      case XSTREAM_CLOSE:
      case XSTREAM_ERR:
+      xmlnode_free(x);
 	  /* FIXME: Who knows? The _SHADOW_ knows. */
      }
 }
