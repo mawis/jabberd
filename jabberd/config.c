@@ -142,12 +142,14 @@ int configo(int exec)
             c = cfget(xmlnode_get_name(curx2));
             if(c == NULL || (c->f)(newi, curx2, c->arg) == r_ERR)
             {
+                char *error=pstrdup(xmlnode_pool(curx2),xmlnode_get_attrib(curx2,"error"));
+                xmlnode_hide_attrib(curx2,"error");
                 printf("Invalid Configuration in instance '%s':\n%s\n",xmlnode_get_attrib(curx,"id"),xmlnode2str(curx2));
                 if(c==NULL) printf("ERROR: Unknown Base Tag: %s\n",xmlnode_get_name(curx2));
-                else printf("ERROR: Base Handler Returned an Error\n");
-                /* TODO: would be nice for the base handler to pass an error
-                 * tag back here, eh?
-                 */
+                else if(error!=NULL)
+                {
+                    printf("ERROR: Base Handler Returned an Error:\n%s\n",error);
+                }
                 return 1;
             }
         }

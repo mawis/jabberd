@@ -48,6 +48,7 @@ result base_to_config(instance id, xmlnode x, void *arg)
         log_debug(ZONE,"base_to_config validating configuration\n");
         if(xmlnode_get_data(x)==NULL)
         {
+            xmlnode_put_attrib(x,"error","'to' tag must contain a jid to send log data to");
             log_error(ZONE,"Invalid Configuration for base_to");
             return r_ERR;
         }
@@ -58,8 +59,8 @@ result base_to_config(instance id, xmlnode x, void *arg)
     /* XXX needs to be a way to validate this in the checking phase */
     if(id->type!=p_LOG)
     {
-        log_debug(ZONE,"<file>..</file> element only allowed in log sections");
-        return r_ERR;
+        printf("ERROR: <to>..</to> element only allowed in log sections\n");
+        exit(1);
     }
 
     register_phandler(id,o_DELIVER,base_to_deliver,(void*)strdup(xmlnode_get_data(x)));

@@ -52,6 +52,7 @@ result base_file_config(instance id, xmlnode x, void *arg)
         if (xmlnode_get_data(x) == NULL)
         {
             log_debug(ZONE,"base_file_config error: no filename provided.\n");
+            xmlnode_put_attrib(x,"error","'file' tag must contain a filename to write to");
             return r_ERR;
         }
         log_debug(ZONE,"base_file_config validating configuration\n");
@@ -62,8 +63,8 @@ result base_file_config(instance id, xmlnode x, void *arg)
     /* XXX needs to be a way to validate this in the checking phase */
     if(id->type!=p_LOG)
     {
-        log_debug(ZONE,"<file>..</file> element only allowed in log sections");
-        return r_ERR;
+        printf("ERROR: <file>..</file> element only allowed in log sections\n");
+        exit(1);
     }
 
     /* Attempt to open/create the file */

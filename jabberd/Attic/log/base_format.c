@@ -82,6 +82,7 @@ result base_format_config(instance id, xmlnode x, void *arg)
         log_debug(ZONE,"base_format_config validating configuration\n");
         if(xmlnode_get_data(x)==NULL)
         {
+            xmlnode_put_attrib(x,"error","'format' tag must contain a format string:\nUse %h to insert Hostname\nUse %t to insert Type of Log (notice,warn,alert)\nUse %d to insert Timestamp\nUse %s to insert the body of the message\n\nExample: '[%t] - %h - %d: %s'");
             log_debug(ZONE,"base_format invald format");
             return r_ERR;
         }
@@ -92,8 +93,8 @@ result base_format_config(instance id, xmlnode x, void *arg)
     /* XXX needs to be a way to validate this in the checking phase */
     if(id->type!=p_LOG)
     {
-        log_debug(ZONE,"<file>..</file> element only allowed in log sections");
-        return r_ERR;
+        printf("ERROR: <format>..</format> element only allowed in log sections\n");
+        exit(1);
     }
 
     log_debug(ZONE,"base_format_config performing configuration %s\n",xmlnode2str(x));

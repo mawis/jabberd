@@ -50,8 +50,8 @@ result base_stderr_config(instance id, xmlnode x, void *arg)
     /* XXX needs to be a way to validate this in the checking phase */
     if(id->type!=p_LOG)
     {
-        log_debug(ZONE,"<file>..</file> element only allowed in log sections");
-        return r_ERR;
+        printf("ERROR: <stderr/> element only allowed in log sections\n");
+        exit(1);
     }
 
 

@@ -423,9 +423,41 @@ result base_accept_config(instance id, xmlnode x, void *arg)
     ip = xmlnode_get_data(xmlnode_get_tag(x, "ip"));
     if(id == NULL)
     {
+        xmlnode test;
+        spool sp=NULL;
+        char *secret=xmlnode_get_data(xmlnode_get_tag(x,"secret"));
+        int error=0;
+
         log_debug(ZONE,"base_accept_config validating configuration\n");
-	if(port == NULL || xmlnode_get_data(xmlnode_get_tag(x, "secret")) == NULL)
-	    return r_ERR;
+        if((test=xmlnode_get_tag(x,"port"))==NULL)
+        {
+            if(sp==NULL) sp=spool_new(xmlnode_pool(x));
+            spooler(sp,"Failed to find 'port' tag\n",sp);
+            error=1;
+        }
+        else if(port==NULL)
+        {
+            if(sp==NULL) sp=spool_new(xmlnode_pool(x));
+            spooler(sp,"No Data in 'port' tag. must contain a port number\n",sp);
+            error=1;
+        }
+        if((test=xmlnode_get_tag(x,"secret"))==NULL)
+        {
+            if(sp==NULL) sp=spool_new(xmlnode_pool(x));
+            spooler(sp,"Failed to find 'secret' tag\n",sp);
+            error=1;
+        }
+        else if(secret==NULL)
+        {
+            if(sp==NULL) sp=spool_new(xmlnode_pool(x));
+            spooler(sp,"No Data in 'secret' tag. must contain a password\n",sp);
+            error=1;
+        }
+        if(error) 
+        {
+            xmlnode_put_attrib(x,"error",spool_print(sp));
+            return r_ERR;
+        }
         return r_PASS;
     }
 
