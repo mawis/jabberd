@@ -179,31 +179,59 @@ struct in_addr *make_addr(char *host)
 }
 
 #ifdef WITH_IPV6
+void map_addr_to6(const struct in_addr *src, struct in6_addr *dest)
+{
+    uint32_t hip;
+
+    bzero(dest, sizeof(struct in6_addr));
+    dest->s6_addr[10] = dest->s6_addr[11] = 0xff;
+
+    hip = ntohl(src->s_addr);
+
+    dest->s6_addr[15] = hip % 256;
+    hip /= 256;
+    dest->s6_addr[14] = hip % 256;
+    hip /= 256;
+    dest->s6_addr[13] = hip % 256;
+    hip /= 256;
+    dest->s6_addr[12] = hip % 256;
+}
+
 struct in6_addr *make_addr_ipv6(char *host)
 {
-    struct hostent *hp;
     static struct in6_addr addr;
+    struct addrinfo hints;
+    struct addrinfo *addr_res;
+    int error_code;
 
     if(host == NULL || strlen(host) == 0)
     {
 	char myname[MAXHOSTNAMELEN + 1];
         gethostname(myname,MAXHOSTNAMELEN);
 
-	/* configure resolver to use IPv6 for gethostbyname */
-	/* this isn't thread save, but gethostbyname neither */
-	if (!(_res.options&RES_INIT))
-	    res_init();
-	_res.options |= RES_USE_INET6;
+	/* give the resolver hints on what we want */
+	bzero(&hints, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
 
-        hp = gethostbyname(myname);
-
-	/* disable IPv6 for gethostbyname again */
-	_res.options &= ~RES_USE_INET6;
-	
-        if(hp != NULL)
-        {
-            return (struct in6_addr *) *hp->h_addr_list;
-        }
+	error_code = getaddrinfo(myname, NULL, &hints, &addr_res);
+	if(!error_code)
+	{
+	    switch(addr_res->ai_family)
+	    {
+		case PF_INET:
+		    map_addr_to6(&((struct sockaddr_in*)addr_res->ai_addr)->sin_addr, &addr);
+		    break;
+		case PF_INET6:
+		    addr = ((struct sockaddr_in6*)addr_res->ai_addr)->sin6_addr;
+		    break;
+		default:
+		    freeaddrinfo(addr_res);
+		    return NULL;
+	    }
+	    freeaddrinfo(addr_res);
+	    return &addr;
+	}
     }else{
 	char tempname[INET6_ADDRSTRLEN];
 
@@ -219,22 +247,30 @@ struct in6_addr *make_addr_ipv6(char *host)
         {
             return &addr;
         }
-
-	/* configure resolver to use IPv6 for gethostbyname */
-	/* this isn't thread save, but gethostbyname neither */
-	if (!(_res.options&RES_INIT))
-	    res_init();
-	_res.options |= RES_USE_INET6;
-
-        hp = gethostbyname(host);
-
-	/* disable IPv6 for gethostbyname again */
-	_res.options &= ~RES_USE_INET6;
 	
-        if(hp != NULL)
-        {
-            return (struct in6_addr *) *hp->h_addr_list;
-        }
+	/* give the resolver hints on what we want */
+	bzero(&hints, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+
+	error_code = getaddrinfo(host, NULL, &hints, &addr_res);
+	if(!error_code)
+	{
+	    switch(addr_res->ai_family)
+	    {
+		case PF_INET:
+		    map_addr_to6(&((struct sockaddr_in*)addr_res->ai_addr)->sin_addr, &addr);
+		    break;
+		case PF_INET6:
+		    addr = ((struct sockaddr_in6*)addr_res->ai_addr)->sin6_addr;
+		    break;
+		default:
+		    freeaddrinfo(addr_res);
+		    return NULL;
+	    }
+	    freeaddrinfo(addr_res);
+	    return &addr;
+	}
     }
     return NULL;
 }
