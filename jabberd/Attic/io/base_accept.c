@@ -57,11 +57,11 @@ typedef struct
 /* data shared for handlers related to a connection */
 typedef struct
 {
-    int sock, flag_ok, flag_read, flag_write;
-    instance i;
+    int sock, flag_ok, flag_read, flag_write, flag_timer;
     sink s;
     pool p;
     char *id;
+    xmlnode secrets;
 } *acceptor, _acceptor;
 
 
@@ -74,7 +74,7 @@ result base_accept_phandler(instance i, dpacket p, void *arg)
     /* first, check if this sink is temporary and nothing's at the other end anymore, if so, adios amigo */
     if(!(s->flag_open) && s->flag_transient)
     {
-        pth_msgport_free(s->mp);
+        pth_msgport_destroy(s->mp);
         pool_free(s->p);
         return r_UNREG;
     }
@@ -89,7 +89,7 @@ result base_accept_phandler(instance i, dpacket p, void *arg)
         p = dpacket_new(xmlnode_dup(p->x));
     }
 
-    d = pmalloc(p->p, sizeof(_drop));
+    d = pmalloco(p->p, sizeof(_drop));
     d->p = p;
 
     pth_msgport_put(s->mp, (pth_message_t *)d);
@@ -103,16 +103,23 @@ void *base_accept_write(void *arg)
     acceptor a = (acceptor)arg; /* shared data for this connection */
     dpacket p = NULL; /* the associated packet */
     char *block; /* the data being written */
+    drop d;
+    pth_event_t mpevt;
 
     a->flag_write = 1; /* signal that the write thread is up */
+    mpevt = pth_event(PTH_EVENT_MSG,a->s->mp);
 
     while(1)
     {
         a->s->last = time(NULL);
         a->s->flag_busy = 0;
 
-        /* get packet phase */
+        /* wait for packet */
+        pth_wait(mpevt);
 
+        /* get packet */
+        d = (drop)pth_msgport_get(a->s->mp);
+        p = d->p;
 
         /* write packet phase */
         a->s->flag_busy = 1;
@@ -134,20 +141,22 @@ void *base_accept_write(void *arg)
     /* yuck, if we had our own transient sink, we should bounce any waiting packets */
     if(a->s->flag_transient)
     {
-        if(p == NULL)
+/*        if(p == NULL)
             p = pth_msgport_get()
 
         for(;p != NULL; p = pth_msgport_get())
             bouncer();
-
+*/
     }else{ /* if we were working on a packet, put it back in the default sink */
         if(p != NULL)
-            base_accept_phandler(a->i, p, (void *)(a->s));
+            base_accept_phandler(a->s->i, p, (void *)(a->s));
     }
 
     /* free the acceptor, if we're the last out the door */
     if(!(a->flag_read) && !(a->flag_timer))
         pool_free(a->p);
+
+    pth_event_free(mpevt,PTH_FREE_ALL);
 }
 
 void base_accept_read_packets(int type, xmlnode x, void *arg)
@@ -209,7 +218,7 @@ void base_accept_read_packets(int type, xmlnode x, void *arg)
             if(a->s->flag_open || block != NULL)
             {
                 p = pool_new();
-                snew = pmalloc_x(p, sizeof(_sink));
+                snew = pmalloco(p, sizeof(_sink));
                 snew->mp = pth_msgport_create("base_accept_transient");
                 snew->i = a->s->i;
                 snew->last = time(NULL);
@@ -218,9 +227,9 @@ void base_accept_read_packets(int type, xmlnode x, void *arg)
                 snew->filter = pstrdup(p,block);
                 a->s = snew;
                 if(block != NULL) /* if we're filtering to a specific host, we need to do that BEFORE delivery! ugly... is the o_* crap any use? */
-                    register_phandler(id, o_MODIFY, base_accept_phandler, (void *)snew);
+                    register_phandler(a->s->i, o_MODIFY, base_accept_phandler, (void *)snew);
                 else
-                    register_phandler(id, o_DELIVER, base_accept_phandler, (void *)snew);
+                    register_phandler(a->s->i, o_DELIVER, base_accept_phandler, (void *)snew);
             }
 
             a->s->flag_open = 1; /* signal that the sink is in use */
@@ -259,7 +268,7 @@ void *base_accept_read(void *arg)
 }
 
 /* fire once and check the acceptor, if it hasn't registered yet, goodbye! */
-void base_accept_garbage(void *arg)
+result base_accept_garbage(void *arg)
 {
     acceptor a = (acceptor)arg;
 
@@ -287,7 +296,7 @@ void *base_accept_listen(void *arg)
     size_t sa_size = sizeof(sa);
 
     /* look at the port="" and optional ip="" attribs and start a listening socket */
-    root = make_netsocket(atoi(xmlnode_get_attrib(secrets,"port"), xmlnode_get_attrib(secrets,"ip"), NETSOCKET_SERVER);
+    root = make_netsocket(atoi(xmlnode_get_attrib(secrets,"port")), xmlnode_get_attrib(secrets,"ip"), NETSOCKET_SERVER);
     if(root < 0 || listen(root, ACCEPT_LISTEN_BACKLOG) < 0)
     {
         /* XXX log error! */
@@ -306,17 +315,17 @@ void *base_accept_listen(void *arg)
 
         /* create acceptor */
         p = pool_new();
-        a = pmalloc_x(p, sizeof(_acceptor));
+        a = pmalloco(p, sizeof(_acceptor));
         a->p = p;
         a->secrets = secrets;
         a->sock = sock;
 
         /* spawn read thread */
-        pth_spwan(PTH_ATTR_DEFAULT, base_accept_read, (void *)a);
+        pth_spawn(PTH_ATTR_DEFAULT, base_accept_read, (void *)a);
 
         /* create temporary heartbeat to cleanup the socket if it never get's registered */
         a->flag_timer = 1;
-        register_heartbeat(ACCEPT_HANDSHAKE_TIMEOUT, base_accept_garbage, (void *)a);
+        register_beat(ACCEPT_HANDSHAKE_TIMEOUT, base_accept_garbage, (void *)a);
     }
 }
 
@@ -371,15 +380,15 @@ result base_accept_config(instance id, xmlnode x, void *arg)
     }
 
     /* create and configure the DEFAULT permanent sink */
-    s = pmalloc_x(id->p, sizeof(_sink));
+    s = pmalloco(id->p, sizeof(_sink));
     s->mp = pth_msgport_create("base_accept");
     s->i = id;
     s->last = time(NULL);
     s->p = id->p; /* we're as permanent as the instance */
 
     /* register phandler, and register cleanup heartbeat */
-    register_phandler(id, o_DELIVER, base_accept_phandler, (void *)sink);
-    register_beat(10, base_accept_plumber, (void *)sink);
+    register_phandler(id, o_DELIVER, base_accept_phandler, (void *)s);
+    register_beat(10, base_accept_plumber, (void *)s);
 
     /* insert secret into it and hide sink in that new secret */
     xmlnode_put_vattrib(xmlnode_insert_tag_node(cur,xmlnode_get_tag(x,"secret")),"sink",(void *)s);
