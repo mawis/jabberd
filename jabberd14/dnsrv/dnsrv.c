@@ -300,11 +300,14 @@ void* dnsrv_process_io(void* threadarg)
      pth_event_free(di->e_read, PTH_FREE_THIS);
      pth_event_free(di->e_write, PTH_FREE_THIS);
 
-     /* Fork out resolver function/process */
-     di->pid = dnsrv_fork_and_capture(dnsrv_child_main, &(di->in), &(di->out));
+     if(retcode!=2&&retcode!=9) /* if the child didn't get SIGINT or SIGKILL */
+     {
+        /* Fork out resolver function/process */
+        di->pid = dnsrv_fork_and_capture(dnsrv_child_main, &(di->in), &(di->out));
 
-     /* Start IO thread */
-     pth_spawn(PTH_ATTR_DEFAULT, dnsrv_process_io, (void*)di);
+        /* Start IO thread */
+        pth_spawn(PTH_ATTR_DEFAULT, dnsrv_process_io, (void*)di);
+     }
 
      return NULL;
 }
