@@ -1,3 +1,11 @@
+2004-07-07  Matthias Wimmer  <m@tthias.net>
+
+    * configure.in: check for openssl using pkg-config
+    * jabber.xml.dist.in: Disable stone-age s2s connections by default
+    * dialback/dialback.c: added documentation / removed comment related to
+	old pthsock_server, that had already been removed from jabberd
+    * jabberd/mio.c: added some debugging statements
+
 2004-07-06  Matthias Wimmer  <m@tthias.net>
 
     * dnsrv/srv_resolv.c: Fix DNS resolving. Bug introduced on 2004-06-30.

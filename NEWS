@@ -17,3 +17,7 @@
       any configured service.)
       This will now allow a jabberd14, that has been configured with
       --enable-ipv6, to be used on systems without IPv6 routing as well.
+    * jabberd14 now requires at least openssl version 0.9.7 to be build with
+      support for SSL
+    * support for legacy jabberd 1.0 server to server communication is now
+      disabled by default as it has not protection against identity spoofing
