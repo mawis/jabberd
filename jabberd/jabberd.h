@@ -248,7 +248,7 @@ void _mio_raw_parser(mio m, const void *buf, size_t bufsz);
 #define MIO_RAW_PARSER  (mio_parser_func)&_mio_raw_parser
 
 void _mio_xml_parser(mio m, const void *buf, size_t bufsz);
-#define MIO_XML_PARSER  (mio_parser_func)&_mio_raw_parser
+#define MIO_XML_PARSER  (mio_parser_func)&_mio_xml_parser
 
 /* SSL functions */
 int     _mio_ssl_read    (mio m);
