@@ -6,7 +6,7 @@ HEADERS=../jabberd/jabberd.h io.h
 
 pthsock_server_OBJECTS=\
 	io_select.o \
-	server.o
+	dialback.o
 
 pthsock_client_OBJECTS=\
 	io_select.o \
