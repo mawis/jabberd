@@ -56,7 +56,7 @@ void logger(char *type, char *host, char *message)
 {
     xmlnode log;
 
-    if(type == NULL || host == NULL || message == NULL)
+    if(type == NULL || message == NULL)
     {
         fprintf(stderr,"Unrecoverable: logger function called with illegal arguments!\n");
         return;
@@ -64,7 +64,10 @@ void logger(char *type, char *host, char *message)
 
     log = xmlnode_new_tag("log");
     xmlnode_put_attrib(log,"tyoe",type);
-    xmlnode_put_attrib(log,"from",host);
+    if(host != NULL)
+        xmlnode_put_attrib(log,"from",host);
+    else
+        xmlnode_put_attrib(log,"from","_internal");
     xmlnode_insert_cdata(log,message,strlen(message));
 
     deliver(dpacket_new(log));
