@@ -44,7 +44,8 @@ pool jabberd__runtime = NULL;
 
 /*** internal functions ***/
 int configurate(char *file);
-void loader(void);
+void static_init(void);
+void dynamic_init(void);
 void heartbeat_birth(void);
 void heartbeat_death(void);
 int configo(int exec);
@@ -147,7 +148,8 @@ int main (int argc, char** argv)
     /* init MIO */
     mio_init();
 
-    loader();
+    static_init();
+    dynamic_init();
 
     /* everything should be registered for the config pass, validate */
     deliver__flag=0;

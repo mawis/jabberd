@@ -259,7 +259,7 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
         case MIO_ERROR:
         {
 	        accept_io aio = (accept_io)arg;
-            xmlnode x;
+            xmlnode x = NULL;
 	    
     log_debug(ZONE, "MIO_XML_ERR: m:%X state:%d, arg:%X, x:%X", m, state, arg, x);
 	        /* Transmit a parse error */
