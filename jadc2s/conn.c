@@ -232,6 +232,7 @@ int conn_max_read_len(conn_t c)
             1024);
     time_t now;
     int bytes;
+    bad_conn_t bad_conn;
 
     /* They have disabled this */
     if (max_bits_per_sec <= 0)
@@ -253,7 +254,6 @@ int conn_max_read_len(conn_t c)
 	return bytes;
 
     /* Create a new bad conn */
-    bad_conn_t bad_conn;
     bad_conn = malloc(sizeof(struct bad_conn_st));
     bad_conn->c = c;
     bad_conn->last = now;
