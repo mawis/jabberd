@@ -305,13 +305,7 @@ void pthsock_client_read(sock c,char *buffer,int bufsz,int flags,void *arg)
         if(c->xbuffer==NULL) break;
 
         if(((int)c->xbuffer)!=-1)
-        {
-            char *from=xmlnode_get_attrib(c->xbuffer,"to");
-            char *to=xmlnode_get_attrib(c->xbuffer,"from");
-            jutil_error(c->xbuffer,TERROR_EXTERNAL);
-            c->xbuffer=pthsock_make_route(c->xbuffer,to,from,NULL);
-            deliver(dpacket_new(c->xbuffer),si->i);
-        }
+            deliver_fail(dpacket_new(c->xbuffer),"Socket Error to Client");
         else
             pool_free(c->pbuffer); 
         c->xbuffer=NULL;
@@ -320,13 +314,7 @@ void pthsock_client_read(sock c,char *buffer,int bufsz,int flags,void *arg)
         while((q=(wbq)pth_msgport_get(c->queue))!=NULL)
         {
             if(q->type==queue_XMLNODE)
-            {
-                char *from=xmlnode_get_attrib(c->xbuffer,"to");
-                char *to=xmlnode_get_attrib(c->xbuffer,"from");
-                jutil_error(q->x,TERROR_EXTERNAL);
-                q->x=pthsock_make_route(q->x,to,from,NULL);
-                deliver(dpacket_new(q->x),si->i);
-            }
+                deliver_fail(dpacket_new(q->x),"Socket Error to Client");
             else
                 pool_free(q->p);
         }

@@ -133,8 +133,7 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
         }
         else
         {
-            jutil_error(x,TERROR_EXTERNAL);
-            deliver(dpacket_new(x),sd->i->i);
+            deliver_fail(dpacket_new(x),"External Server Error");
         }
         break;
     case XSTREAM_ERR:
@@ -205,14 +204,7 @@ void pthsock_server_read(sock c,char *buffer,int bufsz,int flags,void *arg)
         if(c->xbuffer!=NULL)
         {
             if(((int)c->xbuffer)!=-1)
-            {
-                /* XXX HACK!! Don't bounce if it's already an error */
-                if(xmlnode_get_tag(c->xbuffer,"error")==NULL)
-                {
-                    jutil_error(c->xbuffer,TERROR_EXTERNAL);
-                    deliver(dpacket_new(c->xbuffer),si->i);
-                } else xmlnode_free(c->xbuffer);
-            }
+                deliver_fail(dpacket_new(c->xbuffer),"External Server Error");
             else pool_free(c->pbuffer);
             c->xbuffer=NULL;
             c->wbuffer=c->cbuffer=NULL;
@@ -221,26 +213,13 @@ void pthsock_server_read(sock c,char *buffer,int bufsz,int flags,void *arg)
             {
                 if(q->type==queue_XMLNODE)
                 {
-                    /* XXX HACK!! Don't bounce if it's already an error */
-                    if(xmlnode_get_tag(c->xbuffer,"error")==NULL)
-                    {
-                        jutil_error(q->x,TERROR_EXTERNAL);
-                        deliver(dpacket_new(q->x),si->i);
-                    }
-                    else xmlnode_free(q->x);
+                    deliver_fail(dpacket_new(q->x),"External Server Error");
                 } else pool_free(q->p);
             }
         }
         /* as well as our queue */
         while((q=(wbq)pth_msgport_get(sd->queue))!=NULL)
-        {
-            /* XXX HACK!! Don't bounce if it's already an error */
-            if(xmlnode_get_tag(c->xbuffer,"error")==NULL)
-            {
-                jutil_error(q->x,TERROR_EXTERNAL);
-                deliver(dpacket_new(q->x),si->i);
-            } else xmlnode_free(q->x);
-        }
+            deliver_fail(dpacket_new(q->x),"External Server Error");
     }
 }
 
