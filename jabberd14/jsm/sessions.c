@@ -481,9 +481,10 @@ void js_session_process(pth_msgport_t mp)
                 break;
             }
 
-            /* deliver outgoing for this session */
-            xmlnode_put_attrib(p->x, "sto", jid_full(s->sid));
-            xmlnode_put_attrib(p->x, "sfrom", jid_full(s->uid));
+            /* wrap in a route and deliver outgoing for this session */
+            p->x = xmlnode_wrap(p->x,"route");
+            xmlnode_put_attrib(p->x, "to", jid_full(s->sid));
+            xmlnode_put_attrib(p->x, "from", jid_full(s->uid));
             deliver(dpacket_new(p->x), s->si->i);
 
             break;
@@ -499,10 +500,10 @@ void js_session_process(pth_msgport_t mp)
             /* make sure the service knows the session is gone */
             if(j_strcmp(xmlnode_get_tag_data(s->presence,"state"),"Disconnected") != 0)
             {   /* if the offline presence was "Disconnected", that implies that it was the client service, and we don't really need to tell it again */
-                x = xmlnode_new_tag("message");
-                jutil_error(x, TERROR_DISCONNECTED);
-                xmlnode_put_attrib(x, "sto", jid_full(s->sid));
-                xmlnode_put_attrib(x, "sfrom", jid_full(s->id));
+                x = xmlnode_new_tag("route");
+                xmlnode_put_attrib(x, "type", "error");
+                xmlnode_put_attrib(x, "to", jid_full(s->sid));
+                xmlnode_put_attrib(x, "from", jid_full(s->id));
                 deliver(dpacket_new(x), s->si->i);
             }
 
