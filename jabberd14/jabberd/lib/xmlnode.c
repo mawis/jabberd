@@ -567,38 +567,27 @@ char* xmlnode_get_name(xmlnode node)
 
 char* xmlnode_get_data(xmlnode node)
 {
-    xmlnode cur;
+    if(xmlnode_get_type(node) == NTYPE_TAG) /* loop till we find a CDATA in the children */
+        for(node = xmlnode_get_firstchild(node); node != NULL; node = xmlnode_get_nextsibling(node))
+            if(xmlnode_get_type(node) == NTYPE_CDATA) break;
 
     if(node == NULL) return NULL;
 
-    if(xmlnode_get_type(node) == NTYPE_TAG) /* loop till we find a CDATA */
-    {
-        for(cur = xmlnode_get_firstchild(node); cur != NULL; cur = xmlnode_get_nextsibling(cur))
-        {
-            if(xmlnode_get_type(cur) != NTYPE_CDATA) continue;
+    /* check for a dirty node w/ unassembled cdata chunks */
+    if(xmlnode_get_type(node->next) == NTYPE_CDATA)
+        _xmlnode_merge(node);
 
-            /* check for a dirty node w/ unassembled cdata chunks */
-            if(xmlnode_get_type(cur->next) == NTYPE_CDATA)
-                _xmlnode_merge(cur);
-
-            return cur->data;
-        }
-    }else{
-        return node->data;
-    }
-    return NULL;
+    return node->data;
 }
 
 int xmlnode_get_datasz(xmlnode node)
 {
-    if (node != NULL)
-    {
-        /* check for a dirty node w/ unassembled cdata chunks */
-        if(xmlnode_get_type(node->next) == NTYPE_CDATA)
-            _xmlnode_merge(node);
-        return node->data_sz;
-    }
-    return 0;
+    if(xmlnode_get_type(node) != NTYPE_CDATA) return 0;
+
+    /* check for a dirty node w/ unassembled cdata chunks */
+    if(xmlnode_get_type(node->next) == NTYPE_CDATA)
+        _xmlnode_merge(node);
+    return node->data_sz;
 }
 
 int xmlnode_get_type(xmlnode node)
@@ -783,7 +772,7 @@ void xmlnode_insert_node(xmlnode parent, xmlnode node)
             xmlnode_insert_tag_node(parent, node);
             break;
         case NTYPE_CDATA:
-            xmlnode_insert_cdata(parent, xmlnode_get_data(node), -1);
+            xmlnode_insert_cdata(parent, xmlnode_get_data(node), xmlnode_get_datasz(node));
         }
         node = xmlnode_get_nextsibling(node);
     }
