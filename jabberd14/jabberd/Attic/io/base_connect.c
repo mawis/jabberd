@@ -369,6 +369,5 @@ result base_connect_config(instance id, xmlnode x, void *arg)
 void base_connect(void)
 {
     log_debug(ZONE,"base_connect loading...\n");
-
     register_config("connect",base_connect_config,NULL);
 }

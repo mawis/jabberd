@@ -492,8 +492,20 @@ void base_accept_sink_cleanup(void *arg)
 
 /* A global hash table keyed by ip:port string, with xmlnode
  * values that store an vattrib list of instance id->sinks */
-HASHTABLE G_listeners;
-pool      G_pool;
+HASHTABLE G_listeners = NULL;
+pool      G_pool      = NULL;
+int       ref__count  = 0;
+
+void base_accept_cleanup(void *arg)
+{
+    ref__count--;
+
+    if(ref__count == 0)
+    {
+        pool_free(G_pool);
+        ghash_destroy(G_listeners);
+    }
+}
 
 result base_accept_config(instance id, xmlnode x, void *arg)
 {
@@ -535,6 +547,17 @@ result base_accept_config(instance id, xmlnode x, void *arg)
         }
         return r_PASS;
     }
+
+	/* Setup global hash of ip:port->xmlnode */
+    if(G_listeners == NULL)
+	    G_listeners = ghash_create(25, (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
+
+	/* Setup global memory pool for misc allocs */
+    if(G_pool == NULL)
+	    G_pool = pool_new();
+
+    ref__count++;
+    pool_cleanup(id->p, base_accept_sink_cleanup, (void*)s);
 
     log_debug(ZONE,"base_accept_config performing configuration %s\n",xmlnode2str(x));
 
@@ -578,7 +601,6 @@ result base_accept_config(instance id, xmlnode x, void *arg)
 
 	/* Register a packet handler and cleanup heartbeat for this instance */
     register_phandler(id, o_DELIVER, base_accept_phandler, (void *)s);
-    register_shutdown(base_accept_sink_cleanup, (void*)s);
     register_beat(10, base_accept_plumber, (void *)s);
 
 	/* Add the sink as a vattrib keyed by the instance id */
@@ -587,22 +609,9 @@ result base_accept_config(instance id, xmlnode x, void *arg)
     return r_DONE;
 }
 
-void base_accept_cleanup(void *arg)
-{
-    pool_free(G_pool);
-    ghash_destroy(G_listeners);
-}
 
 void base_accept(void)
 {
     log_debug(ZONE,"base_accept loading...\n");
-
-	/* Setup global hash of ip:port->xmlnode */
-	G_listeners = ghash_create(25, (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
-
-	/* Setup global memory pool for misc allocs */
-	G_pool = pool_new();
-	
-    register_shutdown(base_accept_cleanup, NULL);
     register_config("accept",base_accept_config,NULL);
 }

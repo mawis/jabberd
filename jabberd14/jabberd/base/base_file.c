@@ -95,7 +95,7 @@ result base_file_config(instance id, xmlnode x, void *arg)
 
     /* Register a handler for this instance... */
     register_phandler(id, o_DELIVER, base_file_deliver, (void*)filehandle); 
-    register_shutdown(_base_file_shutdown, (void*)filehandle); 
+    pool_cleanup(id->p, _base_file_shutdown, (void*)filehandle); 
     
     log_debug(ZONE,"base_file_config performing configuration %s\n",xmlnode2str(x));
     return r_DONE;
@@ -104,6 +104,5 @@ result base_file_config(instance id, xmlnode x, void *arg)
 void base_file(void)
 {
     log_debug(ZONE,"base_file loading...\n");
-
     register_config("file",base_file_config,NULL);
 }

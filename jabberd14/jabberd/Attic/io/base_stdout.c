@@ -213,7 +213,7 @@ result base_stdout_config(instance id, xmlnode x, void *arg)
     {
         mp = pth_msgport_create("base_stdout");
         main__thread = pth_spawn(PTH_ATTR_DEFAULT, base_stdoutin, (void *)mp);
-        register_shutdown(base_stdout_shutdown, (void*)mp);
+        pool_cleanup(id->p, base_stdout_shutdown, (void*)mp);
     }
 
     /* register phandler with the stdout mp */
@@ -225,7 +225,6 @@ result base_stdout_config(instance id, xmlnode x, void *arg)
 void base_stdout(void)
 {
     log_debug(ZONE,"base_stdout loading...\n");
-
     register_config("stdout",base_stdout_config,NULL);
     register_beat(2,base_stdout_heartbeat,NULL);
 }
