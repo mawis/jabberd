@@ -59,12 +59,16 @@
     <pthcsock xmlns='jabber:config:pth-csock'>
       <listen>5222</listen>
       <authtime/> <!-- unlimited time to auth -->
+      <!-- could be <authtime>10</authtime> for 10 seconds, etc -->
+      <rate time="5" points="25"/> <!-- 25 connects in 5 seconds limit (per IP) -->
     </pthcsock>
   </service>
 
   <!-- Default logging service -->
   <log id='logger'>
     <host/>
+    <format>%d: [%t] (%h): %s</format>
+    <file>debug.log</file>
     <stderr/>
   </log>
 

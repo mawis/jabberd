@@ -25,6 +25,8 @@
       </load>
       <pthcsock xmlns='jabber:config:pth-csock'>
         <listen>5222</listen>            <!-- Port to listen on -->
+        <!-- allow 25 connects per 5 seconts -->
+        <rate time="5" points="25"/> 
       </pthcsock>
     </service>
 */
@@ -356,6 +358,7 @@ void pthsock_client(instance i, xmlnode x)
     smi si;
     xdbcache xc;
     xmlnode cur;
+    int rate_time=0,rate_points=0;
     char *host, *port=0;
 
     log_debug(ZONE,"pthsock_client loading");
@@ -404,6 +407,17 @@ void pthsock_client(instance i, xmlnode x)
             else timeout=-1;
             if(timeout!=0)si->auth_timeout=timeout;
         }
+        else if(j_strcmp(xmlnode_get_name(cur),"rate")==0)
+        {
+            char *t,*p;
+            t=xmlnode_get_attrib(cur,"time");
+            p=xmlnode_get_attrib(cur,"points");
+            if(t!=NULL&&p!=NULL)
+            {
+                rate_time=atoi(t);
+                rate_points=atoi(p);
+            }
+        }
     }
 
     if (host == NULL || port == NULL)
@@ -413,7 +427,7 @@ void pthsock_client(instance i, xmlnode x)
     }
 
     /* register data callbacks */
-    io_select_listen(atoi(port),NULL,pthsock_client_read,(void*)si);
+    io_select_listen(atoi(port),NULL,pthsock_client_read,(void*)si,rate_time,rate_points);
     register_phandler(i,o_DELIVER,pthsock_client_packets,(void*)si);
     register_beat(1,pthsock_client_heartbeat,(void*)si);
 }
