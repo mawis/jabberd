@@ -1,6 +1,6 @@
 CC=gcc
 DEFINES=-DCONFIGXML="\"jabberd.xml\""
-CFLAGS=-g $(DEFINES) -I./ -I../ `libxode-config --cflags` -Wall
+CFLAGS=-fPIC -g $(DEFINES) -I./ -I../ `libxode-config --cflags` -Wall
 LDFLAGS=`libxode-config --ldflags --libs` `pth-config --libs --ldflags` `jabber-config --ldflags --libs` -ldl
 
 SUBDIRS = \
@@ -34,7 +34,7 @@ jabberd_OBJECTS = \
 all: jabberd_build
 
 jabberd_build: $(jabberd_OBJECTS)
-	$(CC) -o jabberd $(jabberd_OBJECTS) $(LDFLAGS)
+	$(CC) -fPIC -export-dynamic -o jabberd $(jabberd_OBJECTS) $(LDFLAGS)
 
 clean:
 	rm $(jabberd_OBJECTS) jabberd

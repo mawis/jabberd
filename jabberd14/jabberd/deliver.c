@@ -213,6 +213,7 @@ void deliver(dpacket p, instance i)
     hostid list, cur;
     result best = r_NONE;
     char *host;
+    xmlnode x;
 
     /* Ensure the packet is valid */
     if (p == NULL)
@@ -230,9 +231,28 @@ void deliver(dpacket p, instance i)
         list = deliver__log;
         break;
     case p_XDB:
-        if(xmlnode_get_attrib(p->x, "from") == NULL)
-        { /* no from="" attrib implies it's a special xdb request to get data from the config file */
-            
+        if(xmlnode_get_attrib(p->x, "from") == NULL && i != NULL && p->id->resource != NULL && strcmp(host,"-internal") == 0 && j_strcmp(p->id->user,"config") == 0)
+        { /* no from="" attrib is a performance flag, and config@-internal means it's a special xdb request to get data from the config file */
+            log_debug(ZONE,"processing xdb configuration request %s",xmlnode2str(p->x));
+            for(x = xmlnode_get_firstchild(i->x); x != NULL; x = xmlnode_get_nextsibling(x))
+            {
+                if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),p->id->resource) != 0)
+                    continue;
+
+                /* insert results */
+                xmlnode_insert_tag_node(p->x, x);
+            }
+
+            /* reformat packet as a reply */
+            xmlnode_put_attrib(p->x,"type","result");
+            xmlnode_put_attrib(p->x,"from",jid_full(p->id));
+            xmlnode_put_attrib(p->x,"to",NULL);
+            p->type = p_NORM;
+
+            /* deliver back to the sending instance */
+            deliver_instance(i, p, best);
+            /* i guess we assume that the instance handled it :) */
+            return;
         }
         list = deliver__xdb;
         break;
@@ -263,6 +283,7 @@ void deliver(dpacket p, instance i)
 dpacket dpacket_new(xmlnode x)
 {
     dpacket p;
+    char *str;
 
     if(x == NULL)
         return NULL;
@@ -279,6 +300,10 @@ dpacket dpacket_new(xmlnode x)
     else if(*(xmlnode_get_name(x)) == 'x')
         p->type = p_XDB;
 
+    /* xdb results are shipped as normal packets */
+    if(p->type == p_XDB && (str = xmlnode_get_attrib(p->x,"type")) != NULL && *str == 'r')
+        p->type = p_NORM;
+
     /* determine who to route it to, overriding the default to="" attrib only for sid special case */
     if(p->type == p_NORM && xmlnode_get_attrib(x, "sid") != NULL)
         p->id = jid_new(p->p, xmlnode_get_attrib(x, "sid"));
@@ -287,6 +312,8 @@ dpacket dpacket_new(xmlnode x)
 
     if(p->id == NULL)
         return NULL;
+
+    /* XXX be more stringent, make sure each packet has the basics, norm has a to/from, log has a type, xdb has a full id */
 
     p->host = p->id->server;
     return p;

@@ -63,8 +63,6 @@ result base_load_config(instance id, xmlnode x, void *arg)
     void *f;
     int flag = 0;
 
-    if(init == NULL) return r_ERR;
-
     if(id != NULL)
     { /* execution phase */
         f = xmlnode_get_vattrib(x, init);
@@ -83,6 +81,10 @@ result base_load_config(instance id, xmlnode x, void *arg)
             return r_ERR;
         xmlnode_put_vattrib(x, xmlnode_get_name(so), f); /* hide the function pointer in the <load> element for later use */
         flag = 1;
+
+        /* if there's only one .so loaded, it's the default, unless overridden */
+        if(init == NULL)
+            xmlnode_put_attrib(x,"main",xmlnode_get_name(so));
     }
 
     if(!flag) return r_ERR; /* we didn't DO anything, duh */
@@ -118,7 +120,9 @@ result xdb_results(instance id, dpacket p, void *arg)
     int idnum;
     char *idstr;
 
-    if(strcmp(xmlnode_get_name(p->x),"xdb") != 0) return r_PASS;
+    if(p->type != p_NORM || *(xmlnode_get_name(p->x)) != 'x') return r_PASS;
+
+    log_debug(ZONE,"xdb_results checking xdb packet %s",xmlnode2str(p->x));
 
     if((idstr = xmlnode_get_attrib(p->x,"id")) == NULL) return r_ERR;
 
@@ -196,6 +200,7 @@ xmlnode xdb_get(xdbcache xc, char *host, jid owner, char *ns)
     xc->next = &newx;
 
     /* create the xml and deliver the xdb get request */
+    jid_set(owner,ns,JID_RESOURCE);
     x = xmlnode_new_tag("xdb");
     xmlnode_put_attrib(x,"type","get");
     xmlnode_put_attrib(x,"to",jid_full(owner));
