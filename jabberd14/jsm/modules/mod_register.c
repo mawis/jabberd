@@ -149,6 +149,7 @@ mreturn mod_register_server(mapi m, void *arg)
             /* XXX BRUTE FORCE: remove the registration and auth and any misc data */
             xdb_set(m->si->xc, m->user->id, NS_REGISTER, NULL);
             xdb_set(m->si->xc, m->user->id, NS_AUTH, NULL);
+            xdb_set(m->si->xc, m->user->id, NS_AUTH_CRYPT, NULL);
             xdb_set(m->si->xc, m->user->id, NS_PRIVATE, NULL);
             xdb_set(m->si->xc, m->user->id, NS_ROSTER, NULL);
             xdb_set(m->si->xc, m->user->id, NS_VCARD, NULL);
