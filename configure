@@ -1,6 +1,16 @@
 #!/bin/sh
-
+##
+# Copyright 2000 Thomas "temas" Muldowney and The Jabber Team
+#   Feel free to take parts of this and use it.  It's a quicky
+#   so who knows if it's any good at all.  I'm not a super duper
+#   shell hacker.
+##
+# THINGS I'VE LEARNED:
+#   1)  echo is yucky, use printf
+#   2)  test is cool, learn the XP version though
+##
 # You only need to run this once to setup your platforms options
+##
 printf "Running Jabber Configure\n"
 printf "========================\n\n"
 
