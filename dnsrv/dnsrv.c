@@ -41,8 +41,6 @@
    * You must specify the services in the order you want them tried
 */
 
-#define DNS_PACKET_TABLE_SZ 101
-
 /* ------------------------------------------------- */
 /* Struct to store list of services and resend hosts */
 typedef struct __dns_resend_list
@@ -62,6 +60,9 @@ typedef struct
      int             pid;		 /* Coprocess PID */
      pth_msgport_t   write_queue;
      HASHTABLE       packet_table; /* Hash of dns_packet_lists */
+     int             packet_timeout; /* how long to keep packets in the queue */
+     HASHTABLE       cache_table; /* Hash of resolved IPs */
+     int             cache_timeout; /* how long to keep resolutions in the cache */
      pth_event_t     e_read;
      pth_event_t     e_write;
      pth_event_t     events;
@@ -85,6 +86,7 @@ typedef struct
 typedef struct __dns_packet_list
 {
      dpacket           packet;
+     int               stamp;
      struct __dns_packet_list* next;
 } *dns_packet_list, _dns_packet_list;
 
@@ -98,6 +100,7 @@ void dnsrv_child_process_xstream_io(int type, xmlnode x, void* args)
      char*  resolvestr = NULL;
      char*  response = NULL;
      dns_resend_list iternode = NULL;
+     xmlnode c;
 
      if (type == XSTREAM_NODE)
      {
@@ -106,6 +109,22 @@ void dnsrv_child_process_xstream_io(int type, xmlnode x, void* args)
 	  log_debug(ZONE, "dnsrv: Recv'd lookup request for %s", hostname);
 	  if (hostname != NULL)
 	  {
+               /* try the cache first */
+               if((c = ghash_get(di->cache_table, hostname)) != NULL)
+               {
+                    if((time(NULL) - (int)xmlnode_get_vattrib(c,"t")) > di->cache_timeout)
+                    { /* timed out of the cache, lookup again */
+                        xmlnode_free(c);
+                        ghash_remove(di->cache_table,hostname);
+                    }else{
+                        /* yay, send back right from the cache */
+                        response = xmlnode2str(c);
+                        pth_write(di->out, response, strlen(response));
+                        xmlnode_free(x);
+                        return;
+                    }
+               }
+
 	       /* For each entry in the svclist, try and resolve using
 		  the specified service and resend it to the specified host */
 	       iternode = di->svclist;
@@ -123,6 +142,10 @@ void dnsrv_child_process_xstream_io(int type, xmlnode x, void* args)
 	       }
 	       response = xmlnode2str(x);
 	       pth_write(di->out, response, strlen(response));
+               /* whatever the response was, let's cache it */
+               xmlnode_put_vattrib(x,"t",(void*)time(NULL));
+               ghash_put(di->cache_table,hostname,(void*)x);
+               return;
 	  }
      }
      xmlnode_free(x);
@@ -281,7 +304,7 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg)
 	  }
 	  /* Host name was not found, something is _TERRIBLY_ wrong! */
 	  else
-	       log_debug(ZONE, "Recv'd unknown host/ip request: %s\n", xmlnode2str(x));
+	       log_debug(ZONE, "Resolved unknown host/ip request: %s\n", xmlnode2str(x));
 
      }
      xmlnode_free(x);
@@ -375,6 +398,7 @@ void* dnsrv_process_io(void* threadarg)
 			 /* Allocate a new list entry */
 			 lst = pmalloco(wb->packet->p, sizeof(_dns_packet_list));
 			 lst->packet   = wb->packet;
+			 lst->stamp    = time(NULL);
 			 lst->next     = lsthead->next;
 			 lsthead->next = lst;		    
 		    }
@@ -386,6 +410,7 @@ void* dnsrv_process_io(void* threadarg)
 			 /* Allocate a new list head */
 			 lsthead = pmalloco(wb->packet->p, sizeof(_dns_packet_list));
 			 lsthead->packet = wb->packet;
+			 lsthead->stamp  = time(NULL);
 			 lsthead->next   = NULL;
 			 /* Insert the packet list into the hash */
 			 ghash_put(di->packet_table, lsthead->packet->host, lsthead);
@@ -461,6 +486,57 @@ void dnsrv_shutdown(void *arg)
      /* spawn a thread that get's forked, and wait for it since it sets up the fd's */
 }
 
+/* callback for walking the connecting hash tree */
+int _dnsrv_beat_packets(void *arg, const void *key, void *data)
+{
+    dns_io di = (dns_io)arg;
+    dns_packet_list n, l = (dns_packet_list)data, d = (dns_packet_list)data;
+    int now = time(NULL);
+    int reap = 0;
+
+    /* first, check the head */
+    if((now - l->stamp) > di->packet_timeout)
+    {
+        log_notice(l->packet->host,"timed out from dnsrv queue");
+        ghash_remove(di->packet_table,l->packet->host);
+        reap = 1;
+    }else{
+        while(l->next != NULL)
+        {
+            if((now - l->next->stamp) > di->packet_timeout)
+            {
+                reap = 1;
+                n = l->next;
+                l->next = NULL; /* chop off packets to be killed */
+                l = n;
+                /* tricky!  if we're going to reap packets on the end of the list, one if these contains the char* that's the key for ghash, reset ghash! */
+                ghash_put(di->packet_table,d->packet->host, data);
+                break;
+            }
+            l = l->next;
+        }
+    }
+
+    if(reap == 0) return 1;
+
+    /* time out individual queue'd packets */
+    while(l != NULL)
+    {
+        n = l->next;
+        deliver_fail(l->packet,"Hostname Resolution Timeout");
+        l = n;
+    }
+
+    return 1;
+}
+
+result dnsrv_beat_packets(void *arg)
+{
+    dns_io di = (dns_io)arg;
+    ghash_walk(di->packet_table,_dnsrv_beat_packets,arg);
+    return r_DONE;
+}
+
 
 void dnsrv(instance i, xmlnode x)
 {
@@ -500,13 +576,21 @@ void dnsrv(instance i, xmlnode x)
 	  iternode = xmlnode_get_prevsibling(iternode);
      }
      log_debug(ZONE, "dnsrv debug: %s\n", xmlnode2str(config));
-     xmlnode_free(config);
 
      /* Initialize a message port to handle incoming dpackets */
      di->write_queue = pth_msgport_create(i->id);
 
      /* Setup the hash of dns_packet_list */
-     di->packet_table = ghash_create(DNS_PACKET_TABLE_SZ, (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
+     di->packet_table = ghash_create(j_atoi(xmlnode_get_attrib(config,"queuemax"),101), (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
+     di->packet_timeout = j_atoi(xmlnode_get_attrib(config,"queuetimeout"),60);
+     register_beat(di->packet_timeout, dnsrv_beat_packets, (void *)di);
+
+
+     /* Setup the internal hostname cache */
+     di->cache_table = ghash_create(j_atoi(xmlnode_get_attrib(config,"cachemax"),1999), (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
+     di->cache_timeout = j_atoi(xmlnode_get_attrib(config,"cachetimeout"),21600); /* 6 hour dns cache? XXX would be nice to get the right value from dns! */
+
+     xmlnode_free(config);
 
      /* spawn a thread that get's forked, and wait for it since it sets up the fd's */
      pth_join(pth_spawn(PTH_ATTR_DEFAULT,(void*)dnsrv_thread,(void*)di),NULL);

@@ -349,7 +349,7 @@
     </load>
     <dnsrv xmlns="jabber:config:dnsrv">
     	<resend service="_jabber._tcp">s2s</resend> <!-- for supporting SRV records -->
-    	<resend>s2s</resend> 
+    	<resend>s2s</resend>
     </dnsrv>
   </service>
 
