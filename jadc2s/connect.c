@@ -98,7 +98,7 @@ void _connect_endElement(void *arg, const char* name)
         _connect_process(c);
         if(c->nad != NULL)
         {
-            nad_free(c->c2s->nads, c->nad);
+            nad_free(c->nad);
             c->nad = NULL;
         }
     }
