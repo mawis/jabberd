@@ -469,9 +469,8 @@
 
   <!--
   The following 's2s' config handles server connections and 
-  dialback hostname verification.  The <legacy/> element is 
-  here to enable communication with old 1.0 servers. The 
-  karma settings are a little higher here to handle the 
+  dialback hostname verification.
+  The karma settings are a little higher here to handle the 
   higher traffic of server-to-server connections (read
   the io section below for more details, medium settings).
   -->
@@ -481,7 +480,14 @@
       <dialback>@libdir@/libjabberddialback.so</dialback>
     </load>
     <dialback xmlns='jabber:config:dialback'>
-      <legacy/>
+      <!--
+      With the <legacy/> element you can enable compatibility
+      with very old version 1.0 servers. You shoudn't need
+      this anymore. If you enable it, you have no protection
+      against identity spoofing at all.
+      -->
+      <!-- <legacy/> -->
+
       <!-- Use these to listen on particular addresses and/or ports.
       <ip port="7000"/>
       <ip port="5269">127.0.0.1</ip>
