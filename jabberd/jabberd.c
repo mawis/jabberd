@@ -262,6 +262,9 @@ int main (int argc, char** argv)
     {
         pth_ctrl(PTH_CTRL_GETAVLOAD, &avload);
         log_debug(ZONE,"main load check of %.2f with %ld total threads", avload, pth_ctrl(PTH_CTRL_GETTHREADS));
+#ifdef POOL_DEBUG
+	pool_stat(0);
+#endif
 #ifdef LIBIDN
 	jid_clean_cache();
 #endif
@@ -325,6 +328,10 @@ void _jabberd_shutdown(void)
 
     /* kill any leftover threads */
     pth_kill();
+
+#ifdef POOL_DEBUG
+    pool_stat(1);
+#endif
 
     /* exit jabberd, _jabberd_atexit() will be called */
     exit(0);

@@ -80,7 +80,7 @@ pool _pool_new(char *zone)
     if(pool__disturbed == NULL)
     {
         pool__disturbed = 1; /* reentrancy flag! */
-        pool__disturbed = ghash_create(POOL_DEBUG,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+        pool__disturbed = ghash_create(POOL_NUM,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
     }
     if(pool__disturbed != 1)
         ghash_put(pool__disturbed,p->name,p);
@@ -274,11 +274,11 @@ int _pool_stat(void *arg, const void *key, void *data)
     pool p = (pool)data;
 
     if(p->lsize == -1)
-        debug_log("leak","%s: %X is a new pool",p->zone,p->name);
+        debug_log("pool_debug","%s: %X is a new pool",p->zone,p->name);
     else if(p->size > p->lsize)
-        debug_log("leak","%s: %X grew %d",p->zone,p->name, p->size - p->lsize);
+        debug_log("pool_debug","%s: %X grew %d",p->zone,p->name, p->size - p->lsize);
     else if((int)arg)
-        debug_log("leak","%s: %X exists %d",p->zone,p->name, p->size);
+        debug_log("pool_debug","%s: %X exists %d",p->zone,p->name, p->size);
     p->lsize = p->size;
     return 1;
 }
@@ -287,7 +287,7 @@ void pool_stat(int full)
 {
     ghash_walk(pool__disturbed,_pool_stat,(void *)full);
     if(pool__total != pool__ltotal)
-        debug_log("leak","%d\ttotal missed mallocs",pool__total);
+        debug_log("pool_debug","%d\ttotal missed mallocs",pool__total);
     pool__ltotal = pool__total;
     return;
 }
