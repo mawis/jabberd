@@ -126,6 +126,7 @@ case $hosttype in
     FreeBSD)
         XLDFLAGS="$XLDFLAGS -Wl,-E";;
     Darwin)
+        CFLAGS="$CFLAGS -DTMZONE"
         MCFLAGS="-bundle -undefined suppress";
         LIBS="$LIBS -ldl";;
     AIX)
