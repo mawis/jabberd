@@ -294,8 +294,8 @@ result dnsrv_deliver(instance i, dpacket p, void* args)
             timeout = timeout / 10;
          if((time(NULL) - (int)xmlnode_get_vattrib(c,"t")) > timeout)
          { /* timed out of the cache, lookup again */
-             xmlnode_free(c);
              ghash_remove(di->cache_table,p->host);
+             xmlnode_free(c);
          }else{
              /* yay, send back right from the cache */
              dnsrv_resend(p->x, ip, xmlnode_get_attrib(c,"to"));
