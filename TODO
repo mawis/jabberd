@@ -19,7 +19,7 @@ check XXX/TODO comment flags
 check error code usage, use more custom ones?
 jud/update disabling
 c2s socket ioctl tweaks, r/w buffers, reduce data loss, shorten timeouts
-
+dialback timeouts during failure, and better error bounces?
 
 ===================================
 Post-1.2
