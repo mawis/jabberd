@@ -101,10 +101,10 @@ void conn_error(conn_t c, char *condition, char *err)
 	{
 	    if (c->flash_hack) {
 		_write_actual(c, c->fd, "<flash:stream xmlns:stream='http://etherx.jabber.org/streams' version='1.0'>", 77);
-		c->root_name = "flash:stream";
+		c->root_name = strdup("flash:stream");
 	    } else {
 		_write_actual(c, c->fd, "<stream:stream xmlns:stream='http://etherx.jabber.org/streams' version='1.0'>", 77);
-		c->root_name = "stream:stream";
+		c->root_name = strdup("stream:stream");
 	    }
 	}
 
