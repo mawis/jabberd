@@ -328,6 +328,35 @@ result xdb_file_phandler(instance i, dpacket p, void *arg)
                     return r_ERR;
                 }
                 flag_set = 0;
+
+		/*
+		 * XXX Is there a bug here?
+		 *
+		 * I suspect that the check action will always return r_ERR!
+		 * Up to this point the ret variable has not been changed, and if
+		 * we arrived here I cannot imagine how it should be changed afterwards.
+		 * This means that the function will return r_ERR too.
+		 * I expect this is a bug and something like "ret = 1;" should be inserted
+		 * at this point.
+		 *
+		 * The problem is that I am not completely sure what the check action is
+		 * supposed to do. What I imagine is:
+		 * It is intended to compare the content of xdb with the content of the
+		 * xdb request and return r_ERR if it is different and r_DONE if it
+		 * is the same.
+		 *
+		 * It is only used in jsm/modules/mod_auth_plain.c in the function
+		 * mod_auth_plain_jane(...) function. At this function there is already
+		 * a check if the password is the same some lines above ... so it
+		 * would make no sence to call the check action if it does what I said
+		 * above as it would be always result in being different - in which
+		 * case it is no surprize that we have no problem, that this function
+		 * always returns r_ERR (which would signal that it's different too).
+		 *
+		 * It should be checked if the xdb_act(...) in mod_auth_plain_jane(...)
+		 * is needed. If it isn't, we could remove the check action from
+		 * xdb completely.
+		 */
                 break;
             default:
                 log_warn("xdb_file","unable to handle unknown xdb action '%s'",act);

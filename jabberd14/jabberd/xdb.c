@@ -237,8 +237,9 @@ xmlnode xdb_get(xdbcache xc, jid owner, char *ns)
 }
 
 /* sends new xml xdb action, data is NOT freed, app responsible for freeing it */
-/* act must be NULL or "insert" for now, insert will either blindly insert data into the parent (creating one if needed) or use match */
+/* act must be NULL, "check", or "insert" for now, insert will either blindly insert data into the parent (creating one if needed) or use match */
 /* match will find a child in the parent, and either replace (if it's an insert) or remove (if data is NULL) */
+/* XXX for the check action, read the comment in xdb_file/xdb_file.c, it might be buggy and not needed anyway */
 int xdb_act(xdbcache xc, jid owner, char *ns, char *act, char *match, xmlnode data)
 {
     _xdbcache newx;
