@@ -1,0 +1,134 @@
+/* --------------------------------------------------------------------------
+ *
+ * License
+ *
+ * The contents of this file are subject to the Jabber Open Source License
+ * Version 1.0 (the "License").  You may not copy or use this file, in either
+ * source code or executable form, except in compliance with the License.  You
+ * may obtain a copy of the License at http://www.jabber.com/license/ or at
+ * http://www.opensource.org/.  
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied.  See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * Copyrights
+ * 
+ * Portions created by or assigned to Jabber.com, Inc. are 
+ * Copyright (c) 1999-2000 Jabber.com, Inc.  All Rights Reserved.  Contact
+ * information for Jabber.com, Inc. is available at http://www.jabber.com/.
+ *
+ * Portions Copyright (c) 1998-1999 Jeremie Miller.
+ * 
+ * Acknowledgements
+ * 
+ * Special thanks to the Jabber Open Source Contributors for their
+ * suggestions and support of Jabber.
+ * 
+ * --------------------------------------------------------------------------*/
+#include "jsm.h"
+
+mreturn mod_last_server(mapi m, void *arg)
+{
+    xmlnode last = (xmlnode)arg;
+
+    /* pre-requisites */
+    if(m->packet->type != JPACKET_IQ) return M_IGNORE;
+    if(jpacket_subtype(m->packet) != JPACKET__GET || !NSCHECK(m->packet->iq,NS_LAST)) return M_PASS;
+
+    jutil_iqresult(m->packet->x);
+    jpacket_reset(m->packet);
+    xmlnode_insert_tag_node(m->packet->x,last);
+    js_deliver(m->si,m->packet);
+
+    return M_HANDLED;
+}
+
+void mod_last_set(mapi m, jid to, char *reason)
+{
+    xmlnode last;
+
+    log_debug("mod_last","storing last for user %s",jid_full(to));
+
+    /* make a generic last chunk and store it */
+    last = xmlnode_new_tag("query");
+    xmlnode_put_attrib(last,"xmlns",NS_LAST);
+    xmlnode_put_attrib(last,"stamp",jutil_timestamp());
+    xmlnode_insert_cdata(last,reason,-1);
+    xdb_set(m->si->xc, jid_user(to), NS_LAST, last);
+    xmlnode_free(last);
+}
+
+mreturn mod_last_init(mapi m, void *arg)
+{
+    if(jpacket_subtype(m->packet) != JPACKET__SET) return M_PASS;
+
+    mod_last_set(m, m->packet->to, "Registered");
+
+    return M_PASS;
+}
+
+mreturn mod_last_sess_end(mapi m, void *arg)
+{
+    if(m->s->presence != NULL) /* presence is only set if there was presence sent, and we only track logins that were available */
+        mod_last_set(m, m->user->id, xmlnode_get_tag_data(m->s->presence,"status"));
+
+    return M_PASS;
+}
+
+mreturn mod_last_sess(mapi m, void *arg)
+{
+    js_mapi_session(es_END, m->s, mod_last_sess_end, NULL);
+
+    return M_PASS;
+}
+
+mreturn mod_last_reply(mapi m, void *arg)
+{
+    xmlnode last;
+
+    if(m->packet->type != JPACKET_IQ) return M_IGNORE;
+    if(!NSCHECK(m->packet->iq,NS_LAST)) return M_PASS;
+
+    /* first, is this a valid request? */
+    switch(jpacket_subtype(m->packet))
+    {
+    case JPACKET__RESULT:
+    case JPACKET__ERROR:
+        return M_PASS;
+    case JPACKET__SET:
+        js_bounce(m->si,m->packet->x,TERROR_NOTALLOWED);
+        return M_HANDLED;
+    }
+
+    log_debug("mod_last","handling query for user %s",m->user->user);
+
+    last = xdb_get(m->si->xc, m->user->id, NS_LAST);
+
+    jutil_iqresult(m->packet->x);
+    jpacket_reset(m->packet);
+    xmlnode_insert_tag_node(m->packet->x,last);
+    js_deliver(m->si,m->packet);
+
+    xmlnode_free(last);
+    return M_HANDLED;
+}
+
+
+void mod_last(jsmi si)
+{
+    xmlnode last;
+
+    log_debug("mod_last","initing");
+    js_mapi_register(si, e_REGISTER, mod_last_init, NULL);
+    js_mapi_register(si, e_SESSION, mod_last_sess, NULL);
+    js_mapi_register(si, e_OFFLINE, mod_last_reply, NULL);
+
+    /* set up the server responce, giving the startup time :) */
+    last = xmlnode_new_tag_pool(si->p,"query");
+    xmlnode_put_attrib(last,"xmlns",NS_LAST);
+    xmlnode_put_attrib(last,"stamp",jutil_timestamp());
+    js_mapi_register(si, e_SERVER, mod_last_server, (void *)last);
+}
+

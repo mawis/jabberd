@@ -29,6 +29,13 @@
  * --------------------------------------------------------------------------*/
 #include "jsm.h"
 
+typedef struct motd_struct
+{
+    xmlnode x;
+    char *stamp;
+    time_t set;
+} *motd, _motd;
+
 int _mod_announce_avail(void *arg, const void *key, void *data)
 {
     xmlnode msg = (xmlnode)arg;
@@ -58,16 +65,27 @@ mreturn mod_announce_avail(jsmi si, jpacket p)
 {
     xmlnode_put_attrib(p->x,"from",p->to->server);
     ghash_walk(si->hosts,_mod_announce_avail_hosts,(void *)(p->x));
+    xmlnode_free(p->x);
     return M_HANDLED;
 }
 
-mreturn mod_announce_all(jsmi si, jpacket p)
+mreturn mod_announce_motd(jsmi si, jpacket p, motd a)
 {
-    /* store the message in XDB, and feed to all online.
-     * mark off users that got it, feed to new ones that come online
-     * have a timeout/lifetime on the announcement
-     */
-    return M_PASS;
+    /* ditch old message */
+    if(a->x != NULL)
+        xmlnode_free(a->x);
+
+    /* store new message for all new sessions */
+    xmlnode_put_attrib(p->x,"from",p->to->server);
+    jutil_delay(p->x,"Announced");
+    a->x = p->x;
+    a->set = time(NULL);
+    a->stamp = pstrdup(p->p, jutil_timestamp());
+
+    /* tell current sessions */
+    ghash_walk(si->hosts, _mod_announce_avail_hosts, (void *)(a->x));
+
+    return M_HANDLED;
 }
 
 mreturn mod_announce_dispatch(mapi m, void *arg)
@@ -89,16 +107,62 @@ mreturn mod_announce_dispatch(mapi m, void *arg)
     if(admin)
     {
         if(j_strncmp(m->packet->to->resource,"announce/online",15) == 0) return mod_announce_avail(m->si, m->packet);
-        if(j_strncmp(m->packet->to->resource,"announce/all",12) == 0) return mod_announce_all(m->si, m->packet);
+        if(j_strncmp(m->packet->to->resource,"announce/motd",13) == 0) return mod_announce_motd(m->si, m->packet, (motd)arg);
     }
 
     js_bounce(m->si,m->packet->x,TERROR_NOTALLOWED);
     return M_HANDLED;
 }
 
+mreturn mod_announce_sess_avail(mapi m, void *arg)
+{
+    motd a = (motd)arg;
+    xmlnode last;
+    session s;
+    xmlnode msg;
+
+    if(m->packet->type != JPACKET_PRESENCE) return M_IGNORE;
+    if(a->x == NULL) return M_IGNORE;
+
+    /* as soon as we become available */
+    if(!(jpacket_subtype(m->packet) == JPACKET__AVAILABLE && m->s->priority < 0 && m->packet->to == NULL))
+        return M_PASS;
+
+    /* check the last time we were on to see if we haven't gotten the announcement yet */
+    last = xdb_get(m->si->xc, m->user->id, NS_LAST);
+    if(last != NULL && j_strcmp(xmlnode_get_attrib(last,"stamp"),a->stamp) > 0) /* if there's a last and it's newer than the announcement, ignore us */
+        return M_IGNORE;
+
+    /* check the primary session, if it's older than the announcement, we'll just assume we've already seen it */
+    s = js_session_primary(m->user);
+    if(s != NULL && s->started > a->set)
+        return M_IGNORE;
+
+    /* well, we met all the criteria, we should be announced to */
+    msg = xmlnode_dup(a->x);
+    xmlnode_put_attrib(msg,"to",jid_full(m->s->id));
+    js_session_to(m->s,jpacket_new(msg));
+
+    return M_PASS;
+}
+
+mreturn mod_announce_sess(mapi m, void *arg)
+{
+    motd a = (motd)arg;
+
+    if(a->x != NULL)
+        js_mapi_session(es_OUT, m->s, mod_announce_sess_avail, arg);
+
+    return M_PASS;
+}
+
 void mod_announce(jsmi si)
 {
-    js_mapi_register(si,e_SERVER,mod_announce_dispatch,NULL);
+    motd a;
+
+    a = pmalloco(si->p, sizeof(_motd));
+    js_mapi_register(si,e_SERVER,mod_announce_dispatch,(void *)a);
+    js_mapi_register(si,e_SESSION,mod_announce_sess,(void *)a);
 }
 
 

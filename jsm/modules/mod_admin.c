@@ -218,9 +218,10 @@ mreturn mod_admin_message(mapi m, void *arg)
     if(m->packet->to->resource != NULL) return M_PASS;
 
     log_debug("mod_admin","delivering admin message from %s",jid_full(m->packet->from));
-    /* XXX in the future, this should just be x:envelope, when
-     * it has more support, so that the subject is preserved */
-    subject=spools(m->packet->p,"Admin Message sent to: ",m->packet->to->server,m->packet->p);
+
+    /* XXX this should use x:envelope when an admin jid is not local! */
+
+    subject=spools(m->packet->p,"Admin: ",xmlnode_get_tag_data(m->packet->x,"subject")," (",m->packet->to->server,")",m->packet->p);
     xmlnode_hide(xmlnode_get_tag(m->packet->x,"subject"));
     xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->x,"subject"),subject,-1);
 
