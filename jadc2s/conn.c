@@ -57,7 +57,7 @@ conn_t conn_new(c2s_t c2s, int fd)
     c->last_read = 0;
     c->read_bytes = 0;
     c->sid = NULL;
-    c->root_name = NULL;
+    c->root_element = root_element_NONE;
     c->local_id = NULL;
     c->state = state_NONE;
     c->type = type_NORMAL;
@@ -70,8 +70,10 @@ conn_t conn_new(c2s_t c2s, int fd)
     c->myid = jid_new(c->idp, c2s->sm_id);
     snprintf(buf,16,"%d",fd);
     jid_set(c->myid, buf, JID_USER);
-    
+   
+#ifdef FLASH_HACK
     c->flash_hack = 0;
+#endif
 
     c->in_bytes = 0;
     c->out_bytes = 0;
@@ -89,7 +91,6 @@ conn_t conn_new(c2s_t c2s, int fd)
 void conn_free(conn_t c)
 {
     if (c->sid != NULL) free(c->sid);
-    if (c->root_name != NULL) free(c->root_name);
     XML_ParserFree(c->expat);
 #ifdef USE_SSL
     SSL_free(c->ssl);
@@ -107,15 +108,19 @@ void conn_error(conn_t c, char *condition, char *err)
 	return;
 
     /* do we still have to open the stream? */
-    if (c->root_name == NULL)
+    if (c->root_element == root_element_NONE)
     {
-	if (c->flash_hack) {
+#ifdef FLASH_HACK
+	if (c->type == type_FLASH) {
 	    _write_actual(c, c->fd, "<flash:stream xmlns:stream='http://etherx.jabber.org/streams' version='1.0'>", 77);
-	    c->root_name = strdup("flash:stream");
+	    c->root_element = root_element_FLASH;
 	} else {
+#endif
 	    _write_actual(c, c->fd, "<stream:stream xmlns:stream='http://etherx.jabber.org/streams' version='1.0'>", 77);
-	    c->root_name = strdup("stream:stream");
+	    c->root_element = root_element_NORMAL;
+#ifdef FLASH_HACK
 	}
+#endif
     }
 
     log_debug(ZONE,"sending stream error: %s %s", condition, err);
@@ -139,18 +144,32 @@ void conn_error(conn_t c, char *condition, char *err)
 
 int _log_ssl_io_error(log_t l, SSL *ssl, int retcode, int fd);
 
+/**
+ * get the textual representation of the root element name
+ *
+ * @param root_element the used root element
+ * @return the textual representation
+ */
+const char* _conn_root_element_name(root_element_t root_element) {
+    return root_element == root_element_FLASH ? "flash:stream" :
+	root_element == root_element_NORMAL ? "stream:stream" :
+	"";
+}
+
 /* write errors out and close streams */
 void conn_close(conn_t c, char *condition, char *err)
 {
     if(c != NULL)
     {
-	char* footer;
+	char *footer;
+	const char *root_element_name;
 
 	/* send the stream error */
 	conn_error(c, condition, err);
 
-	footer = malloc( 4 + strlen(c->root_name) );
-	sprintf(footer,"</%s>",c->root_name);
+	root_element_name = _conn_root_element_name(c->root_element);
+	footer = malloc(4 + strlen(root_element_name));
+	sprintf(footer, "</%s>", root_element_name);
 	
 	_write_actual(c, c->fd, footer, strlen(footer));
 	free(footer);
@@ -357,24 +376,19 @@ int conn_read(conn_t c, char *buf, int len)
         }
 
         /* oh darn */
+#ifdef FLASH_HACK
         if((err != NULL) && (c->flash_hack == 0))
+#else
+        if(err != NULL)
+#endif
         {
             conn_close(c, STREAM_ERR_INVALID_XML, err);
             return 0;
         }
         
         /* if we got </stream:stream>, this is set */
-        if(c->depth < 0)
-        {
-            size_t footersz;
-            char* footer;
-            footersz = 3 + strlen(c->root_name);
-            footer = malloc(footersz+1);
-            snprintf(footer, footersz+1, "</%s>", c->root_name);
-            _write_actual(c, c->fd, footer, footersz);
-            free(footer);
-
-            mio_close(c->c2s->mio, c->fd);
+        if(c->depth < 0) {
+	    conn_close(c, NULL, NULL);
             return 0;
         }
 
@@ -511,20 +525,18 @@ int _write_actual(conn_t c, int fd, const char *buf, size_t count)
     int written;
     
 #ifdef USE_SSL
-    if(c->ssl != NULL)
-    {
+    if(c->ssl != NULL) {
         written = SSL_write(c->ssl, buf, count);
-	if (written > 0)
-	{
-	    if (c->type == type_FLASH)
-	    {
+	if (written > 0) {
+#ifdef FLASH_HACK
+	    if (c->type == type_FLASH) {
 		SSL_write(c->ssl, "\0", 1);
 		c->out_bytes += written+1; /* XXX counting before encryption */
+		return written;
 	    }
-	    else
-	    {
-		c->out_bytes += written;
-	    }
+#endif
+
+	    c->out_bytes += written;
 	}
 	else
 	    _log_ssl_io_error(c->c2s->log, c->ssl, written, c->fd);
@@ -536,15 +548,15 @@ int _write_actual(conn_t c, int fd, const char *buf, size_t count)
     written = write(fd, buf, count);
     if (written > 0)
     {
-	if ((c->type == type_FLASH))
-	{
+#ifdef FLASH_HACK
+	if ((c->type == type_FLASH)) {
 	    write(fd, "\0", 1);
 	    c->out_bytes += written+1;
+	    return written;
 	}
-	else
-	{
-	    c->out_bytes += written;
-	}
+#endif
+
+	c->out_bytes += written;
     }
     return written;
 }

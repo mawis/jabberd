@@ -469,7 +469,7 @@ int connect_new(c2s_t c2s)
     write(fd,"'>",2);
 
     /* keep the name of the root element */
-    c->root_name = strdup("stream:stream");
+    c->root_element = root_element_NORMAL;
 
     /* loop reading until it's open or dead */
     while(c->state != state_OPEN) _connect_io(c2s->mio, action_READ, fd, NULL, (void*)c);    
