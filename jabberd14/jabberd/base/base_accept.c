@@ -48,7 +48,7 @@ typedef struct
 {
     instance i;
     pth_msgport_t mp;
-    int flag_open, flag_busy, flag_transient;
+    int flag_open, flag_transient, flag_busy;
     time_t last;
     char *filter;
     pool p;
@@ -57,11 +57,12 @@ typedef struct
 /* data shared for handlers related to a connection */
 typedef struct
 {
-    int sock, flag_ok, flag_read, flag_write, flag_timer;
+    int sock;
     sink s;
     pool p;
     char *id;
     xmlnode secrets;
+    pth_event_t emp, eread, etime, ering;
 } *acceptor, _acceptor;
 
 
@@ -97,74 +98,6 @@ result base_accept_phandler(instance i, dpacket p, void *arg)
     return r_OK;
 }
 
-
-void *base_accept_write(void *arg)
-{
-    acceptor a = (acceptor)arg; /* shared data for this connection */
-    dpacket p = NULL; /* the associated packet */
-    char *block; /* the data being written */
-    drop d;
-    pth_event_t mpevt;
-
-    log_debug(ZONE,"write thread starting for %d",a->sock);
-
-    a->flag_write = 1; /* signal that the write thread is up */
-    mpevt = pth_event(PTH_EVENT_MSG,a->s->mp);
-
-    while(1)
-    {
-        a->s->last = time(NULL);
-        a->s->flag_busy = 0;
-
-        /* wait for packet */
-        pth_wait(mpevt);
-
-        /* get packet */
-        d = (drop)pth_msgport_get(a->s->mp);
-        p = d->p;
-
-        /* write packet phase */
-        a->s->flag_busy = 1;
-        block = xmlnode2str(p->x);
-        if(pth_write(a->sock, block, strlen(block)) <= 0)
-            break;
-
-        /* all sent, yay */
-        pool_free(p->p);
-        p = NULL;
-    }
-
-    log_debug(ZONE,"write thread exiting for %d",a->sock);
-
-    /* tidy up */
-    close(a->sock);
-
-    /* clear any flags */
-    a->s->flag_busy = a->s->flag_open = a->flag_write = 0;
-
-    /* yuck, if we had our own transient sink, we should bounce any waiting packets */
-    if(a->s->flag_transient)
-    {
-/*        if(p == NULL)
-            p = pth_msgport_get()
-
-        for(;p != NULL; p = pth_msgport_get())
-            bouncer();
-*/
-    }else{ /* if we were working on a packet, put it back in the default sink */
-        if(p != NULL)
-            base_accept_phandler(a->s->i, p, (void *)(a->s));
-    }
-
-    /* free the acceptor, if we're the last out the door */
-    if(!(a->flag_read) && !(a->flag_timer))
-        pool_free(a->p);
-
-    pth_event_free(mpevt,PTH_FREE_ALL);
-
-    return NULL;
-}
-
 void base_accept_read_packets(int type, xmlnode x, void *arg)
 {
     acceptor a = (acceptor)arg;
@@ -185,7 +118,7 @@ void base_accept_read_packets(int type, xmlnode x, void *arg)
         xmlnode_free(cur);
         break;
     case XSTREAM_NODE:
-        if(a->flag_ok > 0)
+        if(a->emp != NULL) /* we're full open */
         {
             deliver(dpacket_new(x), a->s->i);
             return;
@@ -210,12 +143,11 @@ void base_accept_read_packets(int type, xmlnode x, void *arg)
         {
             pth_write(a->sock,"<stream:error>Invalid Handshake</stream:error>",46);
             pth_write(a->sock,"</stream:stream>",16);
-            close(a->sock);
+            a->ering = NULL; /* cancel the io loop */
             return;
         }
 
         /* setup flags in acceptor now that we're ok */
-        a->flag_ok = 1;
         a->s = (sink)xmlnode_get_vattrib(cur,"sink");
         block = xmlnode_get_attrib(x,"host");
 
@@ -242,66 +174,119 @@ void base_accept_read_packets(int type, xmlnode x, void *arg)
 
         pth_write(a->sock,"<handshake/>",12);
         a->s->flag_open = 1; /* signal that the sink is in use */
+
+        /* set up the mp event into the ring to enable packets to be fed back */
+        a->emp = pth_event(PTH_EVENT_MSG,a->s->mp);
+        a->ering = pth_event_concat(a->eread, a->emp, NULL);
         break;
     default:
     }
 
 }
 
-/* thread to read from socket */
-void *base_accept_read(void *arg)
+/* thread to handle io from socket */
+void *base_accept_io(void *arg)
 {
     acceptor a = (acceptor)arg;
     xstream xs;
     int len;
-    char buff[1024];
+    char buff[1024], *block;
+    dpacket p = NULL;
+    drop d;
 
-    log_debug(ZONE,"read thread starting for %d",a->sock);
+    log_debug(ZONE,"io thread starting for %d",a->sock);
 
     xs = xstream_new(a->p, base_accept_read_packets, arg);
-    a->flag_read = 1;
+    a->eread = pth_event(PTH_EVENT_FD|PTH_UNTIL_FD_READABLE,a->sock);
+    a->etime = pth_event(PTH_EVENT_TIME, pth_timeout(ACCEPT_HANDSHAKE_TIMEOUT,0));
+    a->ering = pth_event_concat(a->eread, a->etime, NULL);
 
     /* spin waiting on data from the socket, feeding to xstream */
-    while(1)
+    while(pth_wait(a->ering) > 0)
     {
-        len = pth_read(a->sock, buff, 1024);
-        if(len <= 0) break;
+        /* handle reading the incoming stream */
+        if(pth_event_occurred(a->eread))
+        {
+            log_debug(ZONE,"io read event for %d",a->sock);
+            len = pth_read(a->sock, buff, 1024);
+            if(len <= 0) break;
 
-        if(xstream_eat(xs, buff, len) > XSTREAM_NODE) break;
+            if(xstream_eat(xs, buff, len) > XSTREAM_NODE) break;
+        }
+
+        /* handle the packets to be sent to the socket */
+        if(pth_event_occurred(a->emp))
+        {
+            log_debug(ZONE,"io incoming message event for %d",a->sock);
+
+            /* flag that we're working */
+            a->s->last = time(NULL);
+            a->s->flag_busy = 1;
+
+            /* get packet */
+            d = (drop)pth_msgport_get(a->s->mp);
+            p = d->p;
+
+            /* write packet phase */
+            block = xmlnode2str(p->x);
+            if(pth_write(a->sock, block, strlen(block)) <= 0)
+                break;
+
+            /* all sent, yay */
+            pool_free(p->p);
+            p = NULL;
+            a->s->flag_busy = 0;
+        }
+
+        /* handle timeout if the handshake hasn't happened yet */
+        if(a->emp == NULL && pth_event_occurred(a->etime))
+        {
+            log_debug(ZONE,"io timeout event for %d",a->sock);
+            pth_write(a->sock,"<stream:error>Timed Out</stream:error>",38);
+            pth_write(a->sock,"</stream:stream>",16);
+            break;
+        }
     }
 
     log_debug(ZONE,"read thread exiting for %d",a->sock);
 
-    /* just cleanup and quit */
-//    close(a->sock);
-    a->flag_read = 0;
-    if(!(a->flag_write) && !(a->flag_timer)) /* free the acceptor, if we're the last out the door */
-        pool_free(a->p);
-
-    return NULL;
-}
-
-/* fire once and check the acceptor, if it hasn't registered yet, goodbye! */
-result base_accept_garbage(void *arg)
-{
-    acceptor a = (acceptor)arg;
-
-    log_debug(ZONE,"timeout check for %d",a->sock);
-
-    a->flag_timer = 0; /* we've fired */
-    if(!(a->flag_ok))
+    /* clean up the write side of things first */
+    if(a->emp != NULL)
     {
-        if(!(a->flag_write) && !(a->flag_read)) /* free a, since we're the last out the door */
+        a->s->flag_open = a->s->flag_busy = 0;
+
+        /* clean up any waiting packets */
+        if(a->s->flag_transient)
         {
-            pool_free(a->p);
-        }else{
-            pth_write(a->sock,"<stream:error>Timed Out</stream:error>",38);
-            pth_write(a->sock,"</stream:stream>",16);
-            close(a->sock);
+            if(p != NULL)
+            { /* bounce the unsent packet */
+                /* bounce */
+                pool_free(p->p);
+            }
+
+            /* bounce any waiting in the mp */
+            for(d = (drop)pth_msgport_get(a->s->mp);d != NULL; d = (drop)pth_msgport_get(a->s->mp))
+            {
+                p = d->p;
+                /* bounce */
+                pool_free(p->p);
+            }
+        }else{ /* if we were working on a packet, put it back in the default sink */
+            if(p != NULL)
+                base_accept_phandler(a->s->i, p, (void *)(a->s));
         }
+
+        pth_event_free(a->emp, PTH_FREE_THIS);
     }
 
-    return r_UNREG;
+    /* cleanup and quit */
+    close(a->sock);
+    pool_free(a->p);
+
+    pth_event_free(a->eread, PTH_FREE_THIS);
+    pth_event_free(a->etime, PTH_FREE_THIS);
+
+    return NULL;
 }
 
 /* thread to listen on a particular port/ip */
@@ -343,12 +328,8 @@ void *base_accept_listen(void *arg)
 
         log_debug(ZONE,"new connection on port %d from ip %s as fd %d",port,inet_ntoa(sa.sin_addr),sock);
 
-        /* spawn read thread */
-        pth_spawn(PTH_ATTR_DEFAULT, base_accept_read, (void *)a);
-
-        /* create temporary heartbeat to cleanup the socket if it never get's registered */
-        a->flag_timer = 1;
-        register_beat(ACCEPT_HANDSHAKE_TIMEOUT, base_accept_garbage, (void *)a);
+        /* spawn io thread */
+        pth_spawn(PTH_ATTR_DEFAULT, base_accept_io, (void *)a);
     }
 
     return NULL;
@@ -360,7 +341,7 @@ result base_accept_plumber(void *arg)
     sink s = (sink)arg;
 
     log_debug(ZONE,"plumber checking on sink %X",s);
-    while(s->flag_busy && time(NULL) - s->last > ACCEPT_PACKET_TIMEOUT)
+    while(s->flag_busy && (time(NULL) - s->last) > ACCEPT_PACKET_TIMEOUT)
     {
         /* XXX get the messages from the sink and bounce them intelligently */
         fprintf(stderr,"base_accept: bouncing packets\n");
