@@ -418,6 +418,7 @@ void _client_process(conn_t c) {
             elem = nad_find_elem(chunk->nad, 0, "username", 2);
             if(elem == -1)
             {
+		/* XXX send a stanza error */
                 log_debug(ZONE, "auth packet with no username, dropping it");
                 chunk_free(chunk);
                 return;
