@@ -1,5 +1,8 @@
 2005-03-30  Matthias Wimmer  <m@tthias.net>
 
+    * jsm/jsm.h: sent out unsubscribed presences for removed roster items
+    * jsm/modules/mod_roster.c: same
+    * jsm/modules/mod_register.c: same
     * jsm/modules/mod_offline.c: config which types of messages are stored
     * xdb_file/xdbfiletool.c: don't link against libjabberdxdbfile, but load
     	the module at runtime

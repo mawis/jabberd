@@ -209,6 +209,7 @@ mreturn mod_register_server(mapi m, void *arg)
 		int unsubscribe = 0, unsubscribed = 0;
 		jid peer;
 		char *subscription;
+		jpacket jp = NULL;
 
 		peer = jid_new(m->packet->p, xmlnode_get_attrib(cur, "jid"));
 		subscription = xmlnode_get_attrib(cur, "subscription");
@@ -236,14 +237,16 @@ mreturn mod_register_server(mapi m, void *arg)
 		if (unsubscribe) {
 		    xmlnode pp = jutil_presnew(JPACKET__UNSUBSCRIBE, jid_full(peer), NULL);
 		    xmlnode_put_attrib(pp, "from", jid_full(m->user->id));
-		    js_deliver(m->si, jpacket_new(pp));
+		    jp = jpacket_new(pp);
+		    jp->flag = PACKET_FORCE_SENT_MAGIC; /* we are removing the roster, sent anyway */
+		    js_deliver(m->si, jp);
 		}
 		if (unsubscribed) {
-		    /* XXX send unavailable presence first */
-
 		    xmlnode pp = jutil_presnew(JPACKET__UNSUBSCRIBED, jid_full(peer), NULL);
 		    xmlnode_put_attrib(pp, "from", jid_full(m->user->id));
-		    js_deliver(m->si, jpacket_new(pp));
+		    jp = jpacket_new(pp);
+		    jp->flag = PACKET_FORCE_SENT_MAGIC; /* we are removing the roster, sent anyway */
+		    js_deliver(m->si, jp);
 		}
 	    }
 
