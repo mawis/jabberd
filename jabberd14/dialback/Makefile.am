@@ -5,4 +5,4 @@ noinst_HEADERS = dialback.h
 libjabberddialback_la_SOURCES = dialback.c  dialback_in.c  dialback_out.c
 libjabberddialback_la_LIBADD = @LDFLAGS@
 
-INCLUDES = -I../jabberd
+INCLUDES = -I../jabberd -I../jabberd/lib

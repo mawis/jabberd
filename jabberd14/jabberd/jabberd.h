@@ -32,7 +32,7 @@
 #   include <config.h>
 #endif
 
-#include "lib/lib.h"
+#include <jabberdlib.h>
 #ifdef HAVE_SSL
 #include <openssl/ssl.h>
 #endif /* HAVE_SSL */
