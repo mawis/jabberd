@@ -44,6 +44,396 @@
 
 #  include <stringprep.h>
 
+
+/**
+ * datastructure to build the stringprep caches
+ */
+typedef struct _jid_prep_entry_st {
+    char *preped;	/**< the result of the preparation */
+    time_t last_used;	/**< when this result has last been successfully used */
+    unsigned int used_count; /**< how often this result has been successfully used */
+    int size;		/**< the min buffer size needed to hold the result (strlen+1) */
+} *_jid_prep_entry_t;
+
+/**
+ * hashtable containing already preped nodes
+ *
+ * we are using global caches here for two reasons:
+ * - I do not see why different instances would want
+ *   to have different caches as we are always doing
+ *   the same
+ * - For per instance caches I would have to modify the
+ *   interface of the jid_*() functions which would break
+ *   compatibility with transports
+ */
+xht _jid_prep_cache_node = NULL;
+
+/**
+ * mutex that protects the access to the nodeprep cache
+ */
+pth_mutex_t _jid_prep_cache_node_mutex = PTH_MUTEX_INIT;
+
+/**
+ * hashtable containing already preped domains
+ */
+xht _jid_prep_cache_domain = NULL;
+
+/**
+ * mutex that protects the access to the nameprep cache
+ */
+pth_mutex_t _jid_prep_cache_domain_mutex = PTH_MUTEX_INIT;
+
+/**
+ * hashtable containing already preped resources
+ */
+xht _jid_prep_cache_resource = NULL;
+
+/**
+ * mutex that protects the access to the resourceprep cache
+ */
+pth_mutex_t _jid_prep_cache_resource_mutex = PTH_MUTEX_INIT;
+
+/**
+ * walker for cleaning up stringprep caches
+ *
+ * @param h the hash we are walking through
+ * @param key the key of this item
+ * @param val the value of this item
+ * @param arg delete entries older as this unix timestamp
+ */
+void _jid_clean_walker(xht h, const char *key, void *val, void *arg) {
+    time_t *keep_newer_as = (time_t*)arg;
+    _jid_prep_entry_t entry = (_jid_prep_entry_t)val;
+
+    if (entry == NULL)
+	return;
+
+    if (entry->last_used <= *keep_newer_as) {
+	xhash_zap(h, key);
+	if (entry->preped != NULL)
+	    free(entry->preped);
+	free(entry);
+
+	/* sorry, I have to cast the const away */
+	/* any idea how I could delete the key else? */
+	if (key != NULL)
+	    free((void*)key);
+    }
+}
+
+/**
+ * walk through the stringprep caches and check which entries have expired
+ */
+void jid_clean_cache() {
+    /* XXX make this configurable? */
+    time_t keep_newer_as = time(NULL) - 900;
+
+    /* cleanup the nodeprep cache */
+    
+    /* acquire the lock on the cache */
+    pth_mutex_acquire(&_jid_prep_cache_node_mutex, FALSE, NULL);
+
+    /* walk over all entries */
+    xhash_walk(_jid_prep_cache_node, _jid_clean_walker, (void*)&keep_newer_as);
+
+    /* we're done, release the lock on the cache */
+    pth_mutex_release(&_jid_prep_cache_node_mutex);
+
+    /* cleanup the domain preparation cache */
+    
+    /* acquire the lock on the cache */
+    pth_mutex_acquire(&_jid_prep_cache_domain_mutex, FALSE, NULL);
+
+    /* walk over all entries */
+    xhash_walk(_jid_prep_cache_domain, _jid_clean_walker, (void*)&keep_newer_as);
+
+    /* we're done, release the lock on the cache */
+    pth_mutex_release(&_jid_prep_cache_domain_mutex);
+
+    /* cleanup the resourceprep cache */
+    
+    /* acquire the lock on the cache */
+    pth_mutex_acquire(&_jid_prep_cache_resource_mutex, FALSE, NULL);
+
+    /* walk over all entries */
+    xhash_walk(_jid_prep_cache_resource, _jid_clean_walker, (void*)&keep_newer_as);
+
+    /* we're done, release the lock on the cache */
+    pth_mutex_release(&_jid_prep_cache_resource_mutex);
+}
+
+/**
+ * caching wrapper around libidn's stringprep_xmpp_nodeprep()
+ *
+ * @param in_out_buffer buffer containing what has to be stringpreped and that gets the result
+ * @param max_len size of the buffer
+ * @return the return code of stringprep_xmpp_nodeprep()
+ */
+int _jid_cached_stringprep_xmpp_nodeprep(char *in_out_buffer, int max_len) {
+    _jid_prep_entry_t preped;
+    int result = STRINGPREP_OK;
+
+    /* check that the cache already exists */
+    if (_jid_prep_cache_node == NULL) {
+	_jid_prep_cache_node = xhash_new(2003);
+    }
+
+    /* did we get an argument? */
+    if (in_out_buffer == NULL) {
+	return STRINGPREP_OK;
+    }
+
+    /* acquire the lock on the cache */
+    pth_mutex_acquire(&_jid_prep_cache_node_mutex, FALSE, NULL);
+
+    /* check if the requested preparation has already been done */
+    preped = (_jid_prep_entry_t)xhash_get(_jid_prep_cache_node, in_out_buffer);
+    if (preped != NULL) {
+	/* we already prepared this argument */
+	if (preped->size <= max_len) {
+	    /* we can use the result */
+
+	    /* update the statistic */
+	    preped->used_count++;
+	    preped->last_used = time(NULL);
+
+	    /* copy the result */
+	    strcpy(in_out_buffer, preped->preped);
+	    result = STRINGPREP_OK;
+	} else {
+	    /* we need a bigger buffer */
+	    result = STRINGPREP_TOO_SMALL_BUFFER;
+	}
+	
+	/* we're done, release the lock on the cache */
+	pth_mutex_release(&_jid_prep_cache_node_mutex);
+
+    } else {
+	char *original;
+
+	/* stringprep needs time, release the lock on the cache for the meantime */
+	pth_mutex_release(&_jid_prep_cache_node_mutex);
+
+	/* we have to keep the key */
+	original = strdup(in_out_buffer);
+	
+	/* try to prepare the string */
+	result = stringprep_xmpp_nodeprep(in_out_buffer, max_len);
+
+	/* did we manage to prepare the string? */
+	if (result == STRINGPREP_OK && original != NULL) {
+	    /* generate an entry for the cache */
+	    preped = (_jid_prep_entry_t)malloc(sizeof(struct _jid_prep_entry_st));
+	    if (preped != NULL) {
+		preped->preped = strdup(in_out_buffer);
+		preped->last_used = time(NULL);
+		preped->used_count = 1;
+		preped->size = strlen(in_out_buffer)+1;
+
+		/* acquire the lock on the cache again */
+		pth_mutex_acquire(&_jid_prep_cache_node_mutex, FALSE, NULL);
+
+		/* store the entry in the cache */
+		xhash_put(_jid_prep_cache_node, original, preped);
+
+		/* we're done, release the lock on the cache */
+		pth_mutex_release(&_jid_prep_cache_node_mutex);
+	    } else {
+		/* we don't need the copy of the key, if there is no memory to store it */
+		free(original);
+	    }
+	} else {
+	    /* we don't need the copy of the original value */
+	    if (original != NULL)
+		free(original);
+	}
+    }
+
+    return result;
+}
+
+
+/**
+ * caching wrapper around libidn's stringprep_nameprep_no_unassigned()
+ *
+ * @param in_out_buffer buffer containing what has to be stringpreped and that gets the result
+ * @param max_len size of the buffer
+ * @return the return code of stringprep_nameprep_no_unassigned
+ */
+int _jid_cached_stringprep_nameprep_no_unassigned(char *in_out_buffer, int max_len) {
+    _jid_prep_entry_t preped;
+    int result = STRINGPREP_OK;
+
+    /* check that the cache already exists */
+    if (_jid_prep_cache_domain == NULL) {
+	_jid_prep_cache_domain = xhash_new(2003);
+    }
+
+    /* did we get an argument? */
+    if (in_out_buffer == NULL) {
+	return STRINGPREP_OK;
+    }
+
+    /* acquire the lock on the cache */
+    pth_mutex_acquire(&_jid_prep_cache_domain_mutex, FALSE, NULL);
+
+    /* check if the requested preparation has already been done */
+    preped = (_jid_prep_entry_t)xhash_get(_jid_prep_cache_domain, in_out_buffer);
+    if (preped != NULL) {
+	/* we already prepared this argument */
+	if (preped->size <= max_len) {
+	    /* we can use the result */
+
+	    /* update the statistic */
+	    preped->used_count++;
+	    preped->last_used = time(NULL);
+
+	    /* copy the result */
+	    strcpy(in_out_buffer, preped->preped);
+	    result = STRINGPREP_OK;
+	} else {
+	    /* we need a bigger buffer */
+	    result = STRINGPREP_TOO_SMALL_BUFFER;
+	}
+	
+	/* we're done, release the lock on the cache */
+	pth_mutex_release(&_jid_prep_cache_domain_mutex);
+
+    } else {
+	char *original;
+
+	/* stringprep needs time, release the lock on the cache for the meantime */
+	pth_mutex_release(&_jid_prep_cache_domain_mutex);
+
+	/* we have to keep the key */
+	original = strdup(in_out_buffer);
+	
+	/* try to prepare the string */
+	result = stringprep_nameprep_no_unassigned(in_out_buffer, max_len);
+
+	/* did we manage to prepare the string? */
+	if (result == STRINGPREP_OK && original != NULL) {
+	    /* generate an entry for the cache */
+	    preped = (_jid_prep_entry_t)malloc(sizeof(struct _jid_prep_entry_st));
+	    if (preped != NULL) {
+		preped->preped = strdup(in_out_buffer);
+		preped->last_used = time(NULL);
+		preped->used_count = 1;
+		preped->size = strlen(in_out_buffer)+1;
+
+		/* acquire the lock on the cache again */
+		pth_mutex_acquire(&_jid_prep_cache_domain_mutex, FALSE, NULL);
+
+		/* store the entry in the cache */
+		xhash_put(_jid_prep_cache_domain, original, preped);
+
+		/* we're done, release the lock on the cache */
+		pth_mutex_release(&_jid_prep_cache_domain_mutex);
+	    } else {
+		/* we don't need the copy of the key, if there is no memory to store it */
+		free(original);
+	    }
+	} else {
+	    /* we don't need the copy of the original value */
+	    if (original != NULL)
+		free(original);
+	}
+    }
+
+    return result;
+}
+
+/**
+ * caching wrapper around libidn's stringprep_xmpp_resourceprep()
+ *
+ * @param in_out_buffer buffer containing what has to be stringpreped and that gets the result
+ * @param max_len size of the buffer
+ * @return the return code of stringprep_xmpp_resourceprep()
+ */
+int _jid_cached_stringprep_xmpp_resourceprep(char *in_out_buffer, int max_len) {
+    _jid_prep_entry_t preped;
+    int result = STRINGPREP_OK;
+
+    /* check that the cache already exists */
+    if (_jid_prep_cache_resource == NULL) {
+	_jid_prep_cache_resource = xhash_new(2003);
+    }
+
+    /* did we get an argument? */
+    if (in_out_buffer == NULL) {
+	return STRINGPREP_OK;
+    }
+
+    /* acquire the lock on the cache */
+    pth_mutex_acquire(&_jid_prep_cache_resource_mutex, FALSE, NULL);
+
+    /* check if the requested preparation has already been done */
+    preped = (_jid_prep_entry_t)xhash_get(_jid_prep_cache_resource, in_out_buffer);
+    if (preped != NULL) {
+	/* we already prepared this argument */
+	if (preped->size <= max_len) {
+	    /* we can use the result */
+
+	    /* update the statistic */
+	    preped->used_count++;
+	    preped->last_used = time(NULL);
+
+	    /* copy the result */
+	    strcpy(in_out_buffer, preped->preped);
+	    result = STRINGPREP_OK;
+	} else {
+	    /* we need a bigger buffer */
+	    result = STRINGPREP_TOO_SMALL_BUFFER;
+	}
+	
+	/* we're done, release the lock on the cache */
+	pth_mutex_release(&_jid_prep_cache_resource_mutex);
+
+    } else {
+	char *original;
+
+	/* stringprep needs time, release the lock on the cache for the meantime */
+	pth_mutex_release(&_jid_prep_cache_resource_mutex);
+
+	/* we have to keep the key */
+	original = strdup(in_out_buffer);
+	
+	/* try to prepare the string */
+	result = stringprep_xmpp_resourceprep(in_out_buffer, max_len);
+
+	/* did we manage to prepare the string? */
+	if (result == STRINGPREP_OK && original != NULL) {
+	    /* generate an entry for the cache */
+	    preped = (_jid_prep_entry_t)malloc(sizeof(struct _jid_prep_entry_st));
+	    if (preped != NULL) {
+		preped->preped = strdup(in_out_buffer);
+		preped->last_used = time(NULL);
+		preped->used_count = 1;
+		preped->size = strlen(in_out_buffer)+1;
+
+		/* acquire the lock on the cache again */
+		pth_mutex_acquire(&_jid_prep_cache_resource_mutex, FALSE, NULL);
+
+		/* store the entry in the cache */
+		xhash_put(_jid_prep_cache_resource, original, preped);
+
+		/* we're done, release the lock on the cache */
+		pth_mutex_release(&_jid_prep_cache_resource_mutex);
+	    } else {
+		/* we don't need the copy of the key, if there is no memory to store it */
+		free(original);
+	    }
+	} else {
+	    /* we don't need the copy of the original value */
+	    if (original != NULL)
+		free(original);
+	}
+    }
+
+    return result;
+}
+
+
 /**
  * nameprep the domain identifier in a JID and check if it is valid
  *
@@ -58,7 +448,7 @@ int _jid_safe_domain(jid id) {
 	return 1;
 
     /* nameprep the domain identifier */
-    result = stringprep_nameprep_no_unassigned(id->server, strlen(id->server)+1);
+    result = _jid_cached_stringprep_nameprep_no_unassigned(id->server, strlen(id->server)+1);
     if (result == STRINGPREP_TOO_SMALL_BUFFER) {
 	/* nameprep wants to expand the string, e.g. conversion from &szlig; to ss */
 	size_t biggerbuffersize = 1024;
@@ -66,7 +456,7 @@ int _jid_safe_domain(jid id) {
 	if (biggerbuffer == NULL)
 	    return 1;
 	strcpy(biggerbuffer, id->server);
-	result = stringprep_nameprep_no_unassigned(biggerbuffer, biggerbuffersize);
+	result = _jid_cached_stringprep_nameprep_no_unassigned(biggerbuffer, biggerbuffersize);
 	id->server = biggerbuffer;
     }
     if (result != STRINGPREP_OK)
@@ -94,7 +484,7 @@ int _jid_safe_node(jid id) {
 	return 0;
 
     /* nodeprep */
-    result = stringprep_xmpp_nodeprep(id->user, strlen(id->user)+1);
+    result = _jid_cached_stringprep_xmpp_nodeprep(id->user, strlen(id->user)+1);
     if (result == STRINGPREP_TOO_SMALL_BUFFER) {
 	/* nodeprep wants to expand the string, e.g. conversion from &szlig; to ss */
 	size_t biggerbuffersize = 1024;
@@ -102,7 +492,7 @@ int _jid_safe_node(jid id) {
 	if (biggerbuffer == NULL)
 	    return 1;
 	strcpy(biggerbuffer, id->user);
-	result = stringprep_xmpp_nodeprep(biggerbuffer, biggerbuffersize);
+	result = _jid_cached_stringprep_xmpp_nodeprep(biggerbuffer, biggerbuffersize);
 	id->user = biggerbuffer;
     }
     if (result != STRINGPREP_OK)
@@ -130,7 +520,7 @@ int _jid_safe_resource(jid id) {
 	return 0;
 
     /* resource prep the resource identifier */
-    result = stringprep_xmpp_resourceprep(id->resource, strlen(id->resource)+1);
+    result = _jid_cached_stringprep_xmpp_resourceprep(id->resource, strlen(id->resource)+1);
     if (result == STRINGPREP_TOO_SMALL_BUFFER) {
 	/* resourceprep wants to expand the string, e.g. conversion from &szlig; to ss */
 	size_t biggerbuffersize = 1024;
@@ -138,7 +528,7 @@ int _jid_safe_resource(jid id) {
 	if (biggerbuffer == NULL)
 	    return 1;
 	strcpy(biggerbuffer, id->resource);
-	result = stringprep_xmpp_resourceprep(biggerbuffer, biggerbuffersize);
+	result = _jid_cached_stringprep_xmpp_resourceprep(biggerbuffer, biggerbuffersize);
 	id->resource = biggerbuffer;
     }
     if (result != STRINGPREP_OK)
