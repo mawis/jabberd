@@ -1,0 +1,155 @@
+#!/bin/sh
+
+# if you add a config option, please update the help text accordingly
+
+##
+# Parse the command line
+##
+NETWORK_BACKEND=poll
+DEBUG=n
+PROFILE=n
+SYSLOG=n
+SSL=n
+for x in $@; do
+    case x$x in
+        (x--enable-poll)
+            NETWORK_BACKEND="poll";;
+        (x--enable-select)
+            NETWORK_BACKEND="select";;
+        (x--enable-debug)
+            DEBUG="y";;
+        (x--enable-profiler)
+            PROFILE="y";;
+        (x--enable-syslog)
+            SYSLOG="y";;
+        (x--enable-ssl)
+            SSL="y";;
+        (x--help)
+            cat <<HELP_TEXT
+jad2cs configuration script
+Usage: configure [options]
+Options:
+    --enable-poll       Use the poll() MIO backend (default)
+    --enable-select     Use the select() MIO backend
+    --enable-debug      Compile with debugging symbols, and output debug text
+    --enable-profiler   Compile with profiling support
+    --enable-syslog     Log to syslog instead of file
+    --enable-ssl        Compile with SSL support
+HELP_TEXT
+            exit 0
+            ;;
+    esac;
+done;
+
+##
+# Setup our initial flags
+##
+echo -n "Selecting compiler..."
+if [ -n "$CC" ]; then
+    CC="$CC";
+else
+    CC="gcc";
+fi;
+echo -e "\t\t$CC"
+CFLAGS="$CFLAGS -fPIC -Wall -I."
+LDFLAGS=""
+DEFINES="$DEFINES -DXML_MIN_SIZE"
+
+##
+# Debug
+##
+echo -n "Checking for debug support..."
+if test x$DEBUG = "xy"; then
+    echo -e "\tyes"
+    CFLAGS="$CFLAGS -g"
+    DEFINES="$DEFINES -DDEBUG=1";
+else
+    echo -e "\tno"
+fi
+
+##
+# Profile
+##
+echo -n "Checking for profiler support..."
+if test x$PROFILE = "xy"; then
+    echo "yes"
+    CFLAGS="$CFLAGS -pg"
+    if test x$CC=xgcc; then
+        if test x-`gcc --version | grep -E "(2\.95|3)\."` != "x-"; then
+            CFLAGS="$CFLAGS -fprofile-arcs"
+        fi
+    fi
+else
+    echo "no"
+fi
+
+##
+# Network backend
+##
+echo -n "Selecting network backend..."
+case x-$NETWORK_BACKEND in
+    (x-poll) 
+        echo -e "\tpoll"
+        DEFINES="$DEFINES -DMIO_POLL";;
+    (x-select) 
+        echo -e "\tselect"
+        DEFINES="$DEFINES -DMIO_SELECT";;
+esac
+
+##
+# Logging
+##
+echo -n "Logging to syslog..."
+if test x$SYSLOG = "xy"; then
+    echo -e "\t\tyes"
+    DEFINES="$DEFINES -DUSE_SYSLOG"
+else
+    echo -e "\t\tno"
+fi
+
+##
+# SSL
+##
+echo -n "SSL support..."
+if test x$SSL = "xy"; then
+    echo -e "\t\t\tyes"
+    DEFINES="$DEFINES -DUSE_SSL"
+    LDFLAGS="$LDFLAGS -lssl"
+    EXTRA_OBJECTS="$EXTRA_OBJECTS readwrite.o"
+else
+    echo -e "\t\t\tno"
+fi
+
+##
+# System functions
+##
+for func in snprintf vsnprintf; do
+    echo -n "Checking for $func..."
+    cat << EOF > test_func.c
+#include <string.h>
+
+int main(void) { $func(); return 0; }
+EOF
+    if eval "$CC test_func.c -o test_func > /dev/null 2>&1"; then
+        echo -e "\tyes"
+        DEFINES="$DEFINES -DHAVE_`echo $func | tr a-z A-Z`";
+    else
+        echo -e "\tno"
+    fi
+    rm -f test_func.c test_func
+done
+    
+
+echo -n "Saving Settings..."
+cat << EOF > platform-settings
+CC=$CC
+CFLAGS=$CFLAGS $DEFINES
+DEFINES=$DEFINES
+LDFLAGS=$LDFLAGS
+EXTRA_OBJECTS=$EXTRA_OBJECTS
+EOF
+chmod 0600 platform-settings
+echo -e "\t\tReady to build"
+echo
+echo "Please type 'make' to build jadc2s now"
+echo
