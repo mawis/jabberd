@@ -57,12 +57,14 @@
 
 #include <jabberd.h>
 #define DEFAULT_AUTH_TIMEOUT 0
+#define DEFAULT_HEARTBEAT 0
 
 /* socket manager instance */
 typedef struct smi_st
 {
     instance i;
     int auth_timeout;
+    int heartbeat;
     HASHTABLE aliases;
     HASHTABLE users;
     xmlnode cfg;
@@ -79,6 +81,7 @@ typedef struct cdata_st
     user_state state;
     char *client_id, *sid, *res, *auth_id;
     time_t connect_time;
+    time_t last_activity;
     mio m;
     pth_msgport_t pre_auth_mp;
 } _cdata,*cdata;
@@ -235,6 +238,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
         }*/
         log_debug("c2s", "[%s] Writing packet to MIO: %s", ZONE, xmlnode2str(xmlnode_get_firstchild(p->x)));
         mio_write(m, xmlnode_get_firstchild(p->x), NULL, 0);
+        cdcur->last_activity = time(NULL);
     }
 
     return r_DONE;
@@ -249,6 +253,7 @@ cdata pthsock_client_cdata(mio m, smi s__i)
     cd->pre_auth_mp  = pth_msgport_create("pre_auth_mp");
     cd->state        = state_UNKNOWN;
     cd->connect_time = time(NULL);
+    cd->last_activity = cd->connect_time;
     cd->m            = m;
     cd->si           = s__i;
 
@@ -427,6 +432,7 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
         {   /* normal delivery of packets after authed */
             x = pthsock_make_route(x, jid_full(cd->session_id), cd->client_id, NULL);
             deliver(dpacket_new(x), cd->si->i);
+            cd->last_activity = time(NULL);
         }
         break;
     }
@@ -479,6 +485,34 @@ result pthsock_client_timeout(void *arg)
     return r_DONE;
 }
 
+int _pthsock_client_heartbeat(void *arg, const void *key, void *data)
+{
+    time_t skipbeat;
+    cdata cd = (cdata)data;
+
+    skipbeat = time(NULL) - cd->si->heartbeat;
+    if ( (cd->state == state_AUTHD) &&
+         (cd->last_activity < skipbeat) )
+    {
+       log_debug("c2s", "[%s] heartbeat on fd %d", ZONE, cd->m->fd);
+       mio_write(cd->m, NULL, " \n", -1);
+    }
+    return 1;
+}
+
+/* auth timeout beat function */
+result pthsock_client_heartbeat(void *arg)
+{
+    smi s__i = (smi)arg;
+
+    if(s__i->users == NULL)
+        return r_UNREG;
+
+    ghash_walk(s__i->users, _pthsock_client_heartbeat, NULL);
+    return r_DONE;
+}
+
+
 int _pthsock_client_shutdown(void *arg, const void *key, void *data)
 {
     cdata cd = (cdata)data;
@@ -513,6 +547,7 @@ void pthsock_client(instance i, xmlnode x)
 
     s__i               = pmalloco(i->p, sizeof(_smi));
     s__i->auth_timeout = DEFAULT_AUTH_TIMEOUT;
+    s__i->heartbeat    = DEFAULT_HEARTBEAT;
     s__i->i            = i;
     s__i->aliases      = ghash_create_pool(i->p, 7, (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
     s__i->users        = ghash_create_pool(i->p, 503, (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
@@ -547,6 +582,10 @@ void pthsock_client(instance i, xmlnode x)
         else if(j_strcmp(xmlnode_get_name(cur), "authtime") == 0)
         {
             s__i->auth_timeout = j_atoi(xmlnode_get_data(cur), 0);
+        }
+        else if(j_strcmp(xmlnode_get_name(cur), "heartbeat") == 0)
+        {
+            s__i->heartbeat = j_atoi(xmlnode_get_data(cur), 0);
         }
         else if(j_strcmp(xmlnode_get_name(cur), "rate") == 0)
         {
@@ -635,5 +674,12 @@ void pthsock_client(instance i, xmlnode x)
     pool_cleanup(i->p, pthsock_client_shutdown, (void*)s__i);
     if(s__i->auth_timeout)
         register_beat(5, pthsock_client_timeout, (void*)s__i);
+
+    if(s__i->heartbeat)
+    {
+        log_debug("c2s", "Registering heartbeat: %d", s__i->heartbeat);
+        //Register a heartbeat to catch dead sockets.
+        register_beat(s__i->heartbeat, pthsock_client_heartbeat, (void*)s__i);
+    }
 }
 
