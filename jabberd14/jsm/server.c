@@ -28,7 +28,6 @@ void *js_server_main(void *arg)
     pth_event_t ev;		/* event ring for receiving messages */
     pth_msgport_t mp;	/* message port for receiving messages */
     jpq q;				/* a jabber packet */
-    mmaster ml;			/* list of module call-backs for the server phase */
 
     /* debug message */
     log_debug(ZONE,"THREAD:SERVER starting");
@@ -51,7 +50,7 @@ void *js_server_main(void *arg)
 
             /* let the modules have a go at the packet; if nobody handles it... */
             if(!js_mapi_call(si, e_SERVER, q->p, NULL, NULL))
-                js_bounce(q->p->x,TERROR_NOTFOUND);
+                js_bounce(si,q->p->x,TERROR_NOTFOUND);
 
         }
     }

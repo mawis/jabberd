@@ -67,6 +67,7 @@ pth_msgport_t js_session_worker(session s)
 {
     pth_msgport_t mp;   /* message port used by the worker thread */
     int i;              /* index into the array of worker threads */
+    sthread st;
 
     /* first check if the session is already associated w/ a worker, to avoid out-of-order packet processing */
     if(s->worker != NULL)
@@ -85,7 +86,10 @@ pth_msgport_t js_session_worker(session s)
 
     /* there were no idle threads, so we have to create one */
     mp = pth_msgport_create("js_worker");
-    pth_spawn(PTH_ATTR_DEFAULT, js_worker_main, {si,mp});
+    st = malloc(sizeof(_sthread)); /* XXX ghads this is an ugly hack, fix up */
+    st->si = s->si;
+    st->mp = mp;
+    pth_spawn(PTH_ATTR_DEFAULT, js_worker_main, st);
 
     /* put it in the waiting pool */
     for(i=0;i<SESSION_WAITERS; i++)
@@ -160,7 +164,6 @@ session js_session_new(jsmi si, jid owner, jid sid)
     pool p;         /* a memory pool for the session */
     session s;      /* the session being created */
     jid uid;        /* a general jid for the session - ie with no resource */
-    int i;
 
     /* screen out illegal calls */
     if(sid == NULL || owner == NULL || owner->resource == NULL)
@@ -193,7 +196,6 @@ session js_session_new(jsmi si, jid owner, jid sid)
     s->presence = jutil_presnew(JPACKET__UNAVAILABLE,NULL,NULL);
     xmlnode_put_attrib(s->presence,"from",jid_full(s->id));
     s->c_in = s->c_out = 0;
-    s->m_out = s->m_in = s->m_end = NULL;
     s->worker = NULL;
 
     /* remove any other session w/ this resource */
@@ -368,7 +370,7 @@ void js_session_process(pth_msgport_t mp)
             }
 
             /* let the modules have their heyday */
-            if(js_mapi_scall(NULL, es_OUT,  p, s->u, s))
+            if(js_mapi_call(NULL, es_OUT,  p, s->u, s))
                 break;
 
             /* no module handled it, so make sure there's a to attribute */
@@ -408,7 +410,7 @@ void js_session_process(pth_msgport_t mp)
             s->c_in++;
 
             /* let the modules have their heyday */
-            if(js_mapi_scall(NULL, es_IN, p, s->u, s))
+            if(js_mapi_call(NULL, es_IN, p, s->u, s))
                 break;
 
             /* we need to check again, s->exit_flag *could* have changed within the modules at some point */
@@ -445,7 +447,7 @@ void js_session_process(pth_msgport_t mp)
             deliver(dpacket_new(x), s->si->i);
 
             /* let the modules have their heyday */
-            js_mapi_scall(NULL, es_END, NULL, s->u, s);
+            js_mapi_call(NULL, es_END, NULL, s->u, s);
 
             /* let the user struct go  */
             s->u->ref--;
@@ -486,7 +488,7 @@ void *js_worker_main(void *arg)
     pth_event_t mpevt;                              /* an event ring to wait for - ie EVENT_MSG */
     int i;                                          /* index for traversing the idle thread pool */
 
-    log_debug(ZONE,"THREAD:WORKER %X starting",mp);
+    log_debug(ZONE,"THREAD:WORKER %X starting",st->mp);
 
     /* create an event ring for receiving messges */
     mpevt = pth_event(PTH_EVENT_MSG,st->mp);
@@ -532,7 +534,8 @@ void *js_worker_main(void *arg)
 
     /* free all memory associated with the thread */
     pth_event_free(mpevt,PTH_FREE_ALL);
-    pth_msgport_destroy(mp);
+    pth_msgport_destroy(st->mp);
+    free(st);
 
     return NULL;
 }

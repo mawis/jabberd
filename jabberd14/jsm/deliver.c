@@ -13,7 +13,7 @@ void js_deliver_local(jsmi si, jpacket p, HASHTABLE ht)
     s = js_session_get(user, p->to->resource);
 
     /* let some modules fight over it */
-    if(js_mapi_call(e_DELIVER, si->events[e_DELIVER], p, user, s))
+    if(js_mapi_call(si, e_DELIVER, p, user, s))
         return;
 
     if(p->to->user == NULL)
@@ -55,24 +55,24 @@ result js_packet(instance i, dpacket p, void *arg)
     log_debug(ZONE,"deliver(to[%s],from[%s],type[%d],packet[%s])",jid_full(jp->to),jid_full(jp->from),jp->type,xmlnode2str(jp->x));
 
     /* make sure this hostname is in the master table */
-    if((ht = (HASHTABLE)ghash_get(si->hosts,p->to->server)) == NULL)
+    if((ht = (HASHTABLE)ghash_get(si->hosts,jp->to->server)) == NULL)
     {
         /* XXX make USERS_PRIME configurable */
         ht = ghash_create(USERS_PRIME,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
-        ghash_set(si->hosts,p->to->server, (void *)ht);
+        ghash_put(si->hosts,jp->to->server, (void *)ht);
     }
 
     /* if this is a session packet */
     if((sto = jid_new(p->p,xmlnode_get_attrib(p->x,"sto"))) != NULL)
     {
-        if(sid->user == NULL && jp->type == JPACKET_IQ)
+        if(sto->user == NULL && jp->type == JPACKET_IQ)
         {
             js_authreg(si, jp, ht);
             return r_DONE;
         }
 
         /* this is a packet to be processed as outgoing for this session */
-        s = js_session_get(js_user(si, sid, ht),sid->resource);
+        s = js_session_get(js_user(si, sto, ht),sto->resource);
         if(s != NULL)
         {
             js_session_from(s, jp);
@@ -91,7 +91,7 @@ result js_packet(instance i, dpacket p, void *arg)
                 jpacket_reset(jp);
                 js_psend(si->mpoffline,jp);
             }else{
-                log_notice(sto->host,"Dropping %s packet intended for session %s",xmlnode_get_name(jp->x),jid_full(sto));
+                log_notice(sto->server,"Dropping %s packet intended for session %s",xmlnode_get_name(jp->x),jid_full(sto));
                 xmlnode_free(jp->x);
             }
         }
@@ -135,7 +135,7 @@ void js_deliver(jsmi si, jpacket p)
         js_deliver_local(si, p, ht);
         return;
     }
-    deliver(si->i, dpacket_new(p));
+    deliver(dpacket_new(p->x), si->i);
 
 }
 

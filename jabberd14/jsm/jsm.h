@@ -34,6 +34,7 @@ typedef enum {M_PASS,   /* we don't want this packet this tim */
 
 typedef struct udata_struct *udata, _udata;
 typedef struct session_struct *session, _session;
+typedef struct jsmi_struct *jsmi, _jsmi;
 
 typedef struct mapi_struct
 {
@@ -55,15 +56,17 @@ typedef struct mlist_struct
 } *mlist, _mlist;
 
 /* globals for this instance of jsm */
-typedef struct jsmi_struct
+struct jsmi_struct
 {
+    instance i;
     xmlnode config;
     HASHTABLE hosts;
     pth_msgport_t waiting[SESSION_WAITERS];
     pth_msgport_t mpoffline, mpserver;
     xdbcache xc;
     mlist events[e_LAST];
-} *jsmi, _jsmi;
+    pool p;
+};
 
 struct udata_struct
 {
@@ -73,7 +76,6 @@ struct udata_struct
     session sessions;
     int scount, ref;
     ppdb p_cache;
-    rlimit rate;
     pool p;
     struct udata_struct *next;
 };
@@ -130,6 +132,7 @@ void js_psend(pth_msgport_t mp, jpacket p); /* sends p to a pth message port */
 void js_bounce(jsmi si, xmlnode x, terror terr); /* logic to bounce packets w/o looping, eats x and delivers error */
 
 void js_mapi_register(jsmi si, event e, mcall c, void *arg);
-void js_mapi_session(jsmi si, event e, session s, mcall c, void *arg);
+void js_mapi_session(event e, session s, mcall c, void *arg);
 int js_mapi_call(jsmi si, event e, jpacket packet, udata user, session s);
 
+void js_authreg(jsmi si, jpacket p, HASHTABLE ht);
