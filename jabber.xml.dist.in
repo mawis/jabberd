@@ -405,6 +405,9 @@
 	<host>localhost</host>
 	<database>jabber</database>
       </mysql>
+      <postgresql>
+        <conninfo>user=jabber password=secret</conninfo>
+      </postgresql>
       <handler ns="jabber:iq:auth">
          <get>
 	   <query>SELECT password FROM users WHERE jid='{attribute::to}'</query>

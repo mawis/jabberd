@@ -48,6 +48,10 @@
 #  include <mysql/errmsg.h>
 #endif
 
+#ifdef HAVE_POSTGRESQL
+#  include <postgresql/libpq-fe.h>
+#endif
+
 /**
  * the maximum number of defined namespaces to handle, can be overridden with
  * the <maxns/> configuration setting
@@ -78,6 +82,11 @@ typedef struct xdbsql_struct {
     int		mysql_port;		/**< port of the mysql server */
     char	*mysql_socket;		/**< socket of the mysql server */
     unsigned long mysql_flag;		/**< flags for the connection to the mysql server */
+#endif
+#ifdef HAVE_POSTGRESQL
+    int		use_postgresql;		/**< if we want to use the postgresql driver */
+    PGconn	*postgresql;		/**< our postgresql connection handle */
+    char	*postgresql_conninfo;	/**< settings used to connect to postgresql */
 #endif
 } *xdbsql, _xdbsql;
 
@@ -321,6 +330,105 @@ int xdb_sql_execute_mysql(instance i, xdbsql xq, char *query, xmlnode template, 
 }
 
 /**
+ * execute a sql query using postgresql
+ *
+ * @param i the instance we are running in
+ * @param xq instance internal data
+ * @param query the SQL query to execute
+ * @param template template to construct the result
+ * @param result where to add the results
+ * @return 0 on success, non zero on failure
+ */
+int xdb_sql_execute_postgresql(instance i, xdbsql xq, char *query, xmlnode template, xmlnode result) {
+#ifdef HAVE_POSTGRESQL
+    PGresult *res = NULL;
+    ExecStatusType status = 0;
+    int row = 0;
+    int fields = 0;
+
+    /* are we still connected? */
+    if (PQstatus(xq->postgresql) != CONNECTION_OK) {
+	log_warn(i->id, "resetting connection to the PostgreSQL server");
+	
+	/* reset the connection */
+	PQreset(xq->postgresql);
+
+	/* are we now connected? */
+	if (PQstatus(xq->postgresql) != CONNECTION_OK) {
+	    log_error(i->id, "cannot reset connection: %s", PQerrorMessage(xq->postgresql));
+	    return 1;
+	}
+    }
+
+    /* try to execute the query */
+    res = PQexec(xq->postgresql, query);
+    if (res == NULL) {
+	log_error(i->id, "cannot execute PostgreSQL query: %s", PQerrorMessage(xq->postgresql));
+	return 1;
+    }
+
+    /* get the status of the execution */
+    status = PQresultStatus(res);
+    switch (status) {
+	case PGRES_EMPTY_QUERY:
+	case PGRES_BAD_RESPONSE:
+	case PGRES_FATAL_ERROR:
+	    log_warn(i->id, "%s: %s", PQresStatus(status), PQresultErrorMessage(res));
+	    PQclear(res);
+	    return 1;
+	case PGRES_COMMAND_OK:
+	case PGRES_COPY_OUT:
+	case PGRES_COPY_IN:
+	    PQclear(res);
+	    return 0;
+    }
+
+    /* the postgresql query succeded: fetch results */
+    fields = PQnfields(res);
+    for (row = 0; row < PQntuples(res); row++) {
+	xmlnode variable = NULL;
+	xmlnode new_instance = NULL;
+
+	/* instantiate a copy of the template */
+	new_instance = xmlnode_dup_pool(result->p, template);
+
+	/* find variables in the template and replace them with values */
+	while (variable = xdb_sql_find_node_recursive(new_instance, "value")) {
+	    xmlnode parent = xmlnode_get_parent(variable);
+	    int value = j_atoi(xmlnode_get_attrib(variable, "value"), 0);
+	    int parsed = j_strcmp(xmlnode_get_attrib(variable, "parsed"), "parsed") == 0;
+
+	    /* hide the template variable */
+	    xmlnode_hide(variable);
+
+	    /* insert the value */
+	    if (value > 0 && value <= fields) {
+		if (parsed) {
+		    xmlnode fieldvalue = xmlnode_str(PQgetvalue(res, row, value-1), PQgetlength(res, row, value-1));
+		    xmlnode fieldcopy = xmlnode_dup_pool(result->p, fieldvalue);
+		    xmlnode_free(fieldvalue);
+		    xmlnode_insert_tag_node(parent, fieldcopy);
+		} else {
+		    xmlnode_insert_cdata(parent, PQgetvalue(res, row, value-1), PQgetlength(res, row, value-1));
+		}
+	    }
+	}
+
+	/* insert the result */
+	log_debug2(ZONE, LOGT_STORAGE, "the row results in: %s", xmlnode2str(new_instance));
+	xmlnode_insert_node(result, xmlnode_get_firstchild(new_instance));
+    }
+
+    PQclear(res);
+    return 0;
+#else
+    log_debug2(ZONE, LOGT_STRANGE, "xdb_sql_execute_postgresql called, but not compiled in.");
+    return 1;
+#endif
+}
+
+
+/**
  * execute a sql query
  *
  * @param i the instance we are running in
@@ -334,6 +442,11 @@ int xdb_sql_execute(instance i, xdbsql xq, char *query, xmlnode template, xmlnod
 #ifdef HAVE_MYSQL
     if (xq->use_mysql) {
 	return xdb_sql_execute_mysql(i, xq, query, template, result);
+    }
+#endif
+#ifdef HAVE_POSTGRESQL
+    if (xq->use_postgresql) {
+	return xdb_sql_execute_postgresql(i, xq, query, template, result);
     }
 #endif
     log_error(i->id, "SQL query %s has not been handled by any sql driver", query);
@@ -393,11 +506,15 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
 	if (action == NULL) {
 	    /* just a boring set */
 
+	    /* start the transaction */
+	    xdb_sql_execute(i, xq, "BEGIN", NULL, NULL);
+
 	    /* delete old values */
 	    char *query = xdb_sql_construct_query(ns_def->delete, p->x);
 	    log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for deletion: %s", query);
 	    if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
 		/* SQL query failed */
+		xdb_sql_execute(i, xq, "ROLLBACK", NULL, NULL);
 		return r_ERR;
 	    }
 
@@ -406,21 +523,32 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
 	    log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for insertion: %s", query);
 	    if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
 		/* SQL query failed */
+		xdb_sql_execute(i, xq, "ROLLBACK", NULL, NULL);
 		return r_ERR;
 	    }
+
+	    /* commit the transaction */
+	    xdb_sql_execute(i, xq, "COMMIT", NULL, NULL);
 
 	    /* send result back */
 	    xdb_sql_makeresult(p);
 	    deliver(dpacket_new(p->x), NULL);
 	    return r_DONE;
 	} else if (j_strcmp(action, "insert") == 0) {
+	    /* start the transaction */
+	    xdb_sql_execute(i, xq, "BEGIN", NULL, NULL);
+
 	    /* insert new values */
 	    char *query = xdb_sql_construct_query(ns_def->set, p->x);
 	    log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for insertion: %s", query);
 	    if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
 		/* SQL query failed */
+		xdb_sql_execute(i, xq, "ROLLBACK", NULL, NULL);
 		return r_ERR;
 	    }
+
+	    /* commit the transaction */
+	    xdb_sql_execute(i, xq, "COMMIT", NULL, NULL);
 
 	    /* send result back */
 	    xdb_sql_makeresult(p);
@@ -434,13 +562,20 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
     } else {
 	/* get request */
 
+	/* start the transaction */
+	xdb_sql_execute(i, xq, "BEGIN", NULL, NULL);
+
 	/* get the record(s) */
 	char *query = xdb_sql_construct_query(ns_def->get_query, p->x);
 	log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for selection: %s", query);
 	if (xdb_sql_execute(i, xq, query, ns_def->get_result, p->x)) {
 	    /* SQL query failed */
+	    xdb_sql_execute(i, xq, "ROLLBACK", NULL, NULL);
 	    return r_ERR;
 	}
+
+	/* commit the transaction */
+	xdb_sql_execute(i, xq, "COMMIT", NULL, NULL);
 
 	/* construct the result */
 	xdb_sql_makeresult(p);
@@ -464,18 +599,42 @@ void xdb_sql_mysql_init(instance i, xdbsql xq, xmlnode config) {
     }
 
     /* process our own configuration */
-    xq->mysql_user = xmlnode_get_tag_data(config, "mysql/user");
-    xq->mysql_password = xmlnode_get_tag_data(config, "mysql/password");
-    xq->mysql_host = xmlnode_get_tag_data(config, "mysql/host");
-    xq->mysql_database = xmlnode_get_tag_data(config, "mysql/database");
+    xq->mysql_user = pstrdup(i->p, xmlnode_get_tag_data(config, "mysql/user"));
+    xq->mysql_password = pstrdup(i->p, xmlnode_get_tag_data(config, "mysql/password"));
+    xq->mysql_host = pstrdup(i->p, xmlnode_get_tag_data(config, "mysql/host"));
+    xq->mysql_database = pstrdup(i->p, xmlnode_get_tag_data(config, "mysql/database"));
     xq->mysql_port = j_atoi(xmlnode_get_tag_data(config, "mysql/port"), 0);
-    xq->mysql_socket = xmlnode_get_tag_data(config, "mysql/socket");
+    xq->mysql_socket = pstrdup(i->p, xmlnode_get_tag_data(config, "mysql/socket"));
     xq->mysql_flag = j_atoi(xmlnode_get_tag_data(config, "mysql/flag"), 0);
 
     /* connect to the database server */
     xdb_sql_mysql_connect(i, xq);
 #else
     log_debug2(ZONE, LOGT_STRANGE, "xdb_sql_mysql_init called, but not compiled in.");
+#endif
+}
+
+/**
+ * init the postgresql driver
+ *
+ * @param i the instance we are (jabberd's view)
+ * @param xq our internal instance data
+ * @param config the configuration node of this instance
+ */
+void xdb_sql_postgresql_init(instance i, xdbsql xq, xmlnode config) {
+#ifdef HAVE_POSTGRESQL
+    /* process our own configuration */
+    xq->postgresql_conninfo = pstrdup(i->p, xmlnode_get_tag_data(config, "postgresql/conninfo"));
+
+    /* connect to the database server */
+    xq->postgresql = PQconnectdb(xq->postgresql_conninfo);
+
+    /* did we connect? */
+    if (PQstatus(xq->postgresql) != CONNECTION_OK) {
+	log_error(i->id, "failed to connect to postgresql server: %s", PQerrorMessage(xq->postgresql));
+    }
+#else
+    log_debug2(ZONE, LOGT_STRANGE, "xdb_sql_postgresql_init called, but not compiled in.");
 #endif
 }
 
@@ -644,6 +803,11 @@ void xdb_sql(instance i, xmlnode x) {
     } else if (j_strcmp(driver, "mysql") == 0) {
 	xq->use_mysql = 1;		/* use mysql for the queries */
 	xdb_sql_mysql_init(i, xq, config);
+#endif
+#ifdef HAVE_POSTGRESQL
+    } else if (j_strcmp(driver, "postgresql") == 0) {
+	xq->use_postgresql = 1;		/* use postgresql for the queries */
+	xdb_sql_postgresql_init(i, xq, config);
 #endif
     } else {
 	log_error(i->id, "Your xdb_sql is compiled without support for the selected database driver '%s'.", driver);
