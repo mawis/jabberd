@@ -1,7 +1,7 @@
 #include "util.h"
 
 #ifdef USE_SYSLOG
-log_t log_new(char *ident)
+log_t log_new(const char *ident)
 {
     openlog(ident, LOG_PID, LOG_LOCAL7);
 
@@ -22,7 +22,7 @@ void log_free(log_t l)
     closelog();
 }
 #else
-log_t log_new(char *ident)
+log_t log_new(const char *ident)
 {
     FILE *f;
     char *buf;
