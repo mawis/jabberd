@@ -75,6 +75,8 @@ conn_t conn_new(c2s_t c2s, int fd)
 
     c->in_bytes = 0;
     c->out_bytes = 0;
+    c->in_stanzas = 0;
+    c->out_stanzas = 0;
 
     return c;
 }

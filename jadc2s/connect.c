@@ -263,7 +263,10 @@ void _connect_process(conn_t c) {
 
     /* either bounce or send the chunk to the client */
     if(target->fd >= 0 && j_strcmp(jid_full(target->smid), str) == 0)
+    {
         chunk_write(target, chunk, NULL, NULL, NULL);
+	target->out_stanzas++;
+    }
     else
         chunk_write(c, chunk, str, cid, "error");
 }
