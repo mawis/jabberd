@@ -922,14 +922,27 @@ void mio_write(mio m, xmlnode x, char *buffer, int len)
         if (len == -1)
             len = strlen(buffer);
 
-        new->data = pmalloco(p,len);
-        memcpy(new->data,buffer,len);
+        /* XXX more hackish code to print the stream header right on a NUL xmlnode socket */
+        if(m->type == type_NUL && strncmp(buffer,"<stream:stream",14))
+        {
+            len++;
+            new->data = pmalloco(p,len);
+            sprintf(new->data,"%.*s/>",len-2,buffer);
+        }else{
+            new->data = pmalloco(p,len);
+            memcpy(new->data,buffer,len);
+        }
     }
     else
     {
         new->type = queue_XMLNODE;
         new->data = xmlnode2str(x);
         len = new->data ? strlen(new->data) : 0;
+    }
+    /* include the \0 if we're special */
+    if(m->type == type_NUL)
+    {
+        len++;
     }
 
     /* assign values */
