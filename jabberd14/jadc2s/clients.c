@@ -101,8 +101,8 @@ void _client_startElement(void *arg, const char* name, const char** atts)
                 if (j_strcmp(atts[i], "xmlns:flash") == 0)
                 {
                     log_debug(ZONE, "checking xmlns:flash: %s", atts[i+1]);
-                    if (j_strncasecmp(atts[i+1], 
-                                      "http://www.jabber.com/streams/flash", 35) != 0)
+                    if (j_strcasecmp(atts[i+1], 
+                                     "http://www.jabber.com/streams/flash") != 0)
                     {
                         /* XXX error */
                         _write_actual(c, c->fd, "<stream:error>Invalid stream namespace</stream:error>", 53);
@@ -117,8 +117,8 @@ void _client_startElement(void *arg, const char* name, const char** atts)
             else if (j_strcmp(atts[i], "xmlns:stream") == 0)
             {
                 log_debug(ZONE, "checking xmlns:stream: %s", atts[i+1]);
-                if (j_strncasecmp(atts[i+1], 
-                                  "http://etherx.jabber.org/streams", 32) != 0)
+                if (j_strcasecmp(atts[i+1], 
+                                 "http://etherx.jabber.org/streams") != 0)
                 {
                     /* XXX error */
                     _write_actual(c, c->fd, "<stream:error>Invalid stream namespace</stream:error>", 53);
