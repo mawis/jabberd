@@ -96,6 +96,7 @@ void base_load_shutdown(void *arg)
         return;
 
     xmlnode_free(base_load__cache);
+    base_load__cache = NULL;
 }
 
 result base_load_config(instance id, xmlnode x, void *arg)

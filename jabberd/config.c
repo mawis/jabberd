@@ -218,6 +218,7 @@ int _instance_cleanup(void *arg,const void *key,void *data)
 {
     instance i=(instance)data;
     unregister_instance(i,i->id);
+    ghash_remove(instance__ids, i->id);
     while(i->hds)
     {
         handel h=i->hds->next;
@@ -345,6 +346,29 @@ int configo(int exec)
     }
 
     return 0;
+}
+
+/* shuts down a single instance,
+ * or all the instances, if i == NULL
+ */
+void instance_shutdown(instance i)
+{
+    if(i != NULL)
+    {
+        unregister_instance(i,i->id);
+        ghash_remove(instance__ids, i->id);
+        while(i->hds)
+        {
+            handel h=i->hds->next;
+            pool_free(i->hds->p);
+            i->hds=h;
+        }
+        pool_free(i->p);
+    }
+    else
+    {
+        ghash_walk(instance__ids, _instance_cleanup, NULL);
+    }
 }
 
 void shutdown_callbacks(void)

@@ -498,7 +498,10 @@ int       base_accept_ref__count = 0;
 
 void base_accept_cleanup(void *arg)
 {
+    xmlnode x = (xmlnode)arg;
+    char *key = xmlnode_get_attrib(x, "keybuf");
     base_accept_ref__count--;
+    ghash_remove(G_listeners, key);
 
     if(base_accept_ref__count == 0)
     {
@@ -556,8 +559,6 @@ result base_accept_config(instance id, xmlnode x, void *arg)
     if(G_pool == NULL)
 	    G_pool = pool_new();
 
-    base_accept_ref__count++;
-    pool_cleanup(id->p, base_accept_sink_cleanup, (void*)s);
 
     log_debug(ZONE,"base_accept_config performing configuration %s\n",xmlnode2str(x));
 
@@ -578,6 +579,9 @@ result base_accept_config(instance id, xmlnode x, void *arg)
 
 		/* Insert ip:port->cur into hashtable */
 		ghash_put(G_listeners, pstrdup(G_pool, (char*)&keybuf), cur);
+        base_accept_ref__count++;
+        xmlnode_put_attrib(x, "keybuf", (char*)&keybuf);
+        pool_cleanup(id->p, base_accept_sink_cleanup, (void*)x);
 
 		/* Create a listen struct to pass info to the listen thread */
 		li = pmalloco(G_pool, sizeof(_listen_info));

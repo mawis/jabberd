@@ -369,7 +369,7 @@ void pthsock_server_outx(int type, xmlnode x, void *arg)
 }
 
 /* callback for io_select for connections we've made */
-void pthsock_server_outread(mio s, char *buffer, int bufsz, int flags, void *arg)
+void pthsock_server_outread(mio s, int flags, void *arg, char *buffer, int bufsz)
 {
     conn c = (conn)arg;
     xmlnode x;
@@ -393,7 +393,7 @@ void pthsock_server_outread(mio s, char *buffer, int bufsz, int flags, void *arg
         xmlnode_free(x);
 
         break;
-    case MIO_NORMAL:
+    case MIO_BUFFER:
         /* yum yum */
         xstream_eat(c->xs,buffer,bufsz);
         break;
@@ -420,7 +420,7 @@ void pthsock_server_outread(mio s, char *buffer, int bufsz, int flags, void *arg
                 colon++;
                 port=atoi(colon);
             }
-            mio_connect(ip, port, pthsock_server_outread, (void *)c);
+            mio_connect(ip, port, pthsock_server_outread, 10, (void *)c);
             return;
         }
 
@@ -499,7 +499,7 @@ result pthsock_server_packets(instance i, dpacket dp, void *arg)
                 colon++;
                 port=atoi(colon);
             }
-            mio_connect(ip, port, pthsock_server_outread, (void *)c);
+            mio_connect(ip, port, pthsock_server_outread, 10, (void *)c);
         }
 
         /* make a new host */
@@ -664,7 +664,7 @@ void pthsock_server_inx(int type, xmlnode x, void *arg)
 }
 
 /* callback for io_select for accepted sockets */
-void pthsock_server_inread(mio s, char *buffer, int bufsz, int flags, void *arg)
+void pthsock_server_inread(mio s, int flags, void *arg, char *buffer, int bufsz)
 {
     conn c = (conn)arg;
 
@@ -679,7 +679,7 @@ void pthsock_server_inread(mio s, char *buffer, int bufsz, int flags, void *arg)
         c->xs = xstream_new(c->p, pthsock_server_inx, (void *)c);
         mio_reset(s, pthsock_server_inread, (void*)c);
         break;
-    case MIO_NORMAL:
+    case MIO_BUFFER:
         xstream_eat(c->xs,buffer,bufsz);
     }
 }

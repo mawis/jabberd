@@ -1,4 +1,4 @@
-/* --------------------------------------------------------------------------
+        /* --------------------------------------------------------------------------
  *
  * License
  *
@@ -459,6 +459,7 @@ void deliver(dpacket p, instance i)
             deliver(d->p,d->i);
         }
         pth_msgport_destroy(deliver__mp);
+        deliver__mp = NULL;
         deliver__flag = -1; /* disable all queueing crap */
     }
 

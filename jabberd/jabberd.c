@@ -49,6 +49,7 @@ int configo(int exec);
 void config_cleanup(void);
 void shutdown_callbacks(void);
 int config_reload(char *file);
+void instance_shutdown(instance i);
 
 int main (int argc, char** argv)
 {
@@ -56,6 +57,7 @@ int main (int argc, char** argv)
     int help, sig, i;           /* temporary variables */
     char *cfgfile = NULL, *c, *cmd;   /* strings used to load the server config */
     pool cfg_pool=pool_new();
+    xmlnode temp_greymatter;
 
     /* start by assuming the parameters were entered correctly */
     help = 0;
@@ -171,11 +173,44 @@ int main (int argc, char** argv)
         if(sig != SIGHUP) break;
 
         log_notice(NULL,"SIGHUP recieved.  Reloading config file");
-        /* XXX this will not destroy/create old/new instances */
-        if(!config_reload(cfgfile))
-        {
-            /* XXX notify modules config file has changed */
+
+        /* keep greymatter around till we are sure the reload is OK */
+        temp_greymatter = greymatter__;
+
+        /* try to load the config file */
+        if(configurate(cfgfile))
+        { /* failed to load.. restore the greymatter */
+            greymatter__ = temp_greymatter;
+            continue;
         }
+
+        /* file loaded okay.. kill all the instances, and reload them from the config */
+        instance_shutdown(NULL);
+        
+        /* pause deliver() */
+        deliver__flag = 0;
+
+        /* verify the new config */
+        if(configo(0))
+        {
+            /* something is wrong, reload old config, and go again */
+            greymatter__ = temp_greymatter;
+            if(configo(0))
+                exit(1); /* unrecoverable */
+
+            temp_greymatter = NULL;
+        }
+
+        /* everything is ok, load all the instances */
+        configo(1);
+
+        /* restart deliver() */
+        deliver__flag = 1;
+        deliver(NULL,NULL);
+
+        /* free old greymatter */
+        if(temp_greymatter != NULL)
+            xmlnode_free(temp_greymatter);
     }
 
     log_alert(NULL,"Recieved Kill.  Jabberd shutting down.");
