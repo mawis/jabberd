@@ -3,7 +3,7 @@
 /* how many seconds until packets begin to "bounce" that should be delivered */
 #define ACCEPT_PACKET_TIMEOUT 600
 /* how many seconds a socket has to send a valid handshake */
-#define ACCEPT_HANDSHAKE_TIMEOUT 30
+#define ACCEPT_HANDSHAKE_TIMEOUT 5
 /* the arg to the listen() call */
 #define ACCEPT_LISTEN_BACKLOG 10
 
@@ -106,6 +106,8 @@ void *base_accept_write(void *arg)
     drop d;
     pth_event_t mpevt;
 
+    log_debug(ZONE,"write thread starting for %d",a->sock);
+
     a->flag_write = 1; /* signal that the write thread is up */
     mpevt = pth_event(PTH_EVENT_MSG,a->s->mp);
 
@@ -124,13 +126,15 @@ void *base_accept_write(void *arg)
         /* write packet phase */
         a->s->flag_busy = 1;
         block = xmlnode2str(p->x);
-        if(pth_write(a->sock, block, strlen(block)) < 0)
+        if(pth_write(a->sock, block, strlen(block)) <= 0)
             break;
 
         /* all sent, yay */
         pool_free(p->p);
         p = NULL;
     }
+
+    log_debug(ZONE,"write thread exiting for %d",a->sock);
 
     /* tidy up */
     close(a->sock);
@@ -157,6 +161,8 @@ void *base_accept_write(void *arg)
         pool_free(a->p);
 
     pth_event_free(mpevt,PTH_FREE_ALL);
+
+    return NULL;
 }
 
 void base_accept_read_packets(int type, xmlnode x, void *arg)
@@ -182,58 +188,60 @@ void base_accept_read_packets(int type, xmlnode x, void *arg)
         if(a->flag_ok > 0)
         {
             deliver(dpacket_new(x), a->s->i);
-        }else{
-            if(j_strcmp(xmlnode_get_name(x),"handshake") != 0 || (secret = xmlnode_get_data(x)) == NULL)
-            {
-                xmlnode_free(x);
-                return;
-            }
-
-            /* check the <handshake>...</handshake> against all known secrets for this port/ip */
-            for(cur = xmlnode_get_firstchild(a->secrets); cur != NULL; cur = xmlnode_get_nextsibling(cur))
-            {
-                s = spool_new(xmlnode_pool(x));
-                spooler(s,a->id,xmlnode_get_data(cur),s);
-                if(j_strcmp(shahash(spool_print(s)),secret) == 0)
-                    break;
-            }
-
-            if(cur == NULL)
-            {
-                pth_write(a->sock,"<stream:error>Invalid Handshake</stream:error>",46);
-                pth_write(a->sock,"</stream:stream>",16);
-                close(a->sock);
-                return;
-            }
-
-            /* setup flags in acceptor now that we're ok */
-            a->flag_ok = 1;
-            a->s = (sink)xmlnode_get_vattrib(cur,"sink");
-            block = xmlnode_get_attrib(x,"host");
-
-            /* special hack, to totally ignore the "write" side for this connection */
-            if(j_strcmp(block,"void") == 0) return; 
-
-            /* the default sink is in use or we want our own transient one, make it */
-            if(a->s->flag_open || block != NULL)
-            {
-                p = pool_new();
-                snew = pmalloco(p, sizeof(_sink));
-                snew->mp = pth_msgport_create("base_accept_transient");
-                snew->i = a->s->i;
-                snew->last = time(NULL);
-                snew->p = p;
-                snew->flag_transient = 1;
-                snew->filter = pstrdup(p,block);
-                a->s = snew;
-                if(block != NULL) /* if we're filtering to a specific host, we need to do that BEFORE delivery! ugly... is the o_* crap any use? */
-                    register_phandler(a->s->i, o_MODIFY, base_accept_phandler, (void *)snew);
-                else
-                    register_phandler(a->s->i, o_DELIVER, base_accept_phandler, (void *)snew);
-            }
-
-            a->s->flag_open = 1; /* signal that the sink is in use */
+            return;
         }
+
+        if(j_strcmp(xmlnode_get_name(x),"handshake") != 0 || (secret = xmlnode_get_data(x)) == NULL)
+        {
+            xmlnode_free(x);
+            return;
+        }
+
+        /* check the <handshake>...</handshake> against all known secrets for this port/ip */
+        for(cur = xmlnode_get_firstchild(a->secrets); cur != NULL; cur = xmlnode_get_nextsibling(cur))
+        {
+            s = spool_new(xmlnode_pool(x));
+            spooler(s,a->id,xmlnode_get_data(cur),s);
+            if(j_strcmp(shahash(spool_print(s)),secret) == 0 || j_strcmp(xmlnode_get_data(cur),secret) == 0) /* XXX REMOVE the cleartext option before release! */
+                break;
+        }
+
+        if(cur == NULL)
+        {
+            pth_write(a->sock,"<stream:error>Invalid Handshake</stream:error>",46);
+            pth_write(a->sock,"</stream:stream>",16);
+            close(a->sock);
+            return;
+        }
+
+        /* setup flags in acceptor now that we're ok */
+        a->flag_ok = 1;
+        a->s = (sink)xmlnode_get_vattrib(cur,"sink");
+        block = xmlnode_get_attrib(x,"host");
+
+        /* special hack, to totally ignore the "write" side for this connection */
+        if(j_strcmp(block,"void") == 0) return; 
+
+        /* the default sink is in use or we want our own transient one, make it */
+        if(a->s->flag_open || block != NULL)
+        {
+            p = pool_new();
+            snew = pmalloco(p, sizeof(_sink));
+            snew->mp = pth_msgport_create("base_accept_transient");
+            snew->i = a->s->i;
+            snew->last = time(NULL);
+            snew->p = p;
+            snew->flag_transient = 1;
+            snew->filter = pstrdup(p,block);
+            a->s = snew;
+            if(block != NULL) /* if we're filtering to a specific host, we need to do that BEFORE delivery! ugly... is the o_* crap any use? */
+                register_phandler(a->s->i, o_MODIFY, base_accept_phandler, (void *)snew);
+            else
+                register_phandler(a->s->i, o_DELIVER, base_accept_phandler, (void *)snew);
+        }
+
+        pth_write(a->sock,"<handshake/>",12);
+        a->s->flag_open = 1; /* signal that the sink is in use */
         break;
     default:
     }
@@ -248,6 +256,8 @@ void *base_accept_read(void *arg)
     int len;
     char buff[1024];
 
+    log_debug(ZONE,"read thread starting for %d",a->sock);
+
     xs = xstream_new(a->p, base_accept_read_packets, arg);
     a->flag_read = 1;
 
@@ -255,16 +265,20 @@ void *base_accept_read(void *arg)
     while(1)
     {
         len = pth_read(a->sock, buff, 1024);
-        if(len < 0) break;
+        if(len <= 0) break;
 
         if(xstream_eat(xs, buff, len) > XSTREAM_NODE) break;
     }
 
+    log_debug(ZONE,"read thread exiting for %d",a->sock);
+
     /* just cleanup and quit */
-    close(a->sock);
+//    close(a->sock);
     a->flag_read = 0;
     if(!(a->flag_write) && !(a->flag_timer)) /* free the acceptor, if we're the last out the door */
         pool_free(a->p);
+
+    return NULL;
 }
 
 /* fire once and check the acceptor, if it hasn't registered yet, goodbye! */
@@ -272,14 +286,19 @@ result base_accept_garbage(void *arg)
 {
     acceptor a = (acceptor)arg;
 
+    log_debug(ZONE,"timeout check for %d",a->sock);
+
     a->flag_timer = 0; /* we've fired */
     if(!(a->flag_ok))
     {
-        pth_write(a->sock,"<stream:error>Timed Out</stream:error>",38);
-        pth_write(a->sock,"</stream:stream>",16);
-        close(a->sock);
         if(!(a->flag_write) && !(a->flag_read)) /* free a, since we're the last out the door */
+        {
             pool_free(a->p);
+        }else{
+            pth_write(a->sock,"<stream:error>Timed Out</stream:error>",38);
+            pth_write(a->sock,"</stream:stream>",16);
+            close(a->sock);
+        }
     }
 
     return r_UNREG;
@@ -294,6 +313,8 @@ void *base_accept_listen(void *arg)
     pool p;
     struct sockaddr_in sa;
     size_t sa_size = sizeof(sa);
+
+    log_debug(ZONE,"new listener thread starting for %s",xmlnode2str(secrets));
 
     /* look at the port="" and optional ip="" attribs and start a listening socket */
     root = make_netsocket(atoi(xmlnode_get_attrib(secrets,"port")), xmlnode_get_attrib(secrets,"ip"), NETSOCKET_SERVER);
@@ -320,6 +341,8 @@ void *base_accept_listen(void *arg)
         a->secrets = secrets;
         a->sock = sock;
 
+        log_debug(ZONE,"new connection on port %d from ip %s as fd %d",port,inet_ntoa(sa.sin_addr),sock);
+
         /* spawn read thread */
         pth_spawn(PTH_ATTR_DEFAULT, base_accept_read, (void *)a);
 
@@ -327,6 +350,8 @@ void *base_accept_listen(void *arg)
         a->flag_timer = 1;
         register_beat(ACCEPT_HANDSHAKE_TIMEOUT, base_accept_garbage, (void *)a);
     }
+
+    return NULL;
 }
 
 /* cleanup routine to make sure packets are getting delivered out of the DEFAULT sink */
@@ -334,6 +359,7 @@ result base_accept_plumber(void *arg)
 {
     sink s = (sink)arg;
 
+    log_debug(ZONE,"plumber checking on sink %X",s);
     while(s->flag_busy && time(NULL) - s->last > ACCEPT_PACKET_TIMEOUT)
     {
         /* XXX get the messages from the sink and bounce them intelligently */
@@ -365,7 +391,7 @@ result base_accept_config(instance id, xmlnode x, void *arg)
 
     /* look for an existing accept section that is the same */
     for(cur = xmlnode_get_firstchild(base_accept__listeners); cur != NULL; cur = xmlnode_get_nextsibling(cur))
-        if(strcmp(port,xmlnode_get_attrib(cur,"port")) == 0 && (ip == NULL && xmlnode_get_attrib(cur,"ip") == NULL || strcmp(ip,xmlnode_get_attrib(cur,"ip")) == 0))
+        if(strcmp(port,xmlnode_get_attrib(cur,"port")) == 0 && ((ip == NULL && xmlnode_get_attrib(cur,"ip") == NULL) || strcmp(ip,xmlnode_get_attrib(cur,"ip")) == 0))
             break;
 
     /* create a new section for this section */
@@ -386,12 +412,16 @@ result base_accept_config(instance id, xmlnode x, void *arg)
     s->last = time(NULL);
     s->p = id->p; /* we're as permanent as the instance */
 
+    log_debug(ZONE,"new sink %X",s);
+
     /* register phandler, and register cleanup heartbeat */
     register_phandler(id, o_DELIVER, base_accept_phandler, (void *)s);
     register_beat(10, base_accept_plumber, (void *)s);
 
     /* insert secret into it and hide sink in that new secret */
     xmlnode_put_vattrib(xmlnode_insert_tag_node(cur,xmlnode_get_tag(x,"secret")),"sink",(void *)s);
+
+    return r_OK;
 }
 
 void base_accept(void)

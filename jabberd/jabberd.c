@@ -22,6 +22,12 @@
 
 #include "jabberd.h"
 
+/*** internal functions ***/
+int configurate(char *file);
+void loader(void);
+void heartbeat_birth(void);
+int configo(int exec);
+
 int main (int argc, char** argv)
 {
     sigset_t set;               /* a set of signals to trap */
@@ -44,6 +50,10 @@ int main (int argc, char** argv)
             cfgfile = strdup(argv[++i]);
             break;
 
+        case 'D': /* debug flag */
+            debug_flag = 1;
+            break;
+
         default: /* unrecognized parameter */
             help = 1;
         }
@@ -53,7 +63,7 @@ int main (int argc, char** argv)
     if(help)
     {
         /* bad param, provide help message */
-        printf("Usage:\njabberd [-c config.xml]\n");
+        printf("Usage:\njabberd [-c config.xml] [-D]\n");
         exit(0);
     }
 
@@ -68,6 +78,7 @@ int main (int argc, char** argv)
     pth_init();
 
     /* fire em up baby! */
+    heartbeat_birth();
     loader();
 
     /* everything should be registered for the config pass, validate */

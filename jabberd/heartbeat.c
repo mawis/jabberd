@@ -17,15 +17,12 @@ beat heartbeat__ring;
 
 void *heartbeat(void *arg)
 {
-    pth_event_t ev;
     beat b, b2;
     result r;
 
-    ev = pth_event(PTH_EVENT_TIME, pth_timeout(1,0));
-
     while(1)
     {
-	pth_wait(ev);
+	pth_sleep(1);
 
 	/* run through the ring */
 	for(b = heartbeat__ring->next; b != heartbeat__ring; b = b->next)

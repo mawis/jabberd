@@ -1,6 +1,6 @@
 CC=gcc
 DEFINES=-DCONFIGXML="\"jabberd.xml\""
-CFLAGS=-g $(DEFINES) -I./ -I../ `libxode-config --cflags`
+CFLAGS=-g $(DEFINES) -I./ -I../ `libxode-config --cflags` -Wall
 LDFLAGS=`libxode-config --ldflags --libs` `pth-config --libs --ldflags` `jabber-config --ldflags --libs` -ldl
 
 SUBDIRS = \

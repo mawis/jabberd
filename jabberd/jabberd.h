@@ -72,11 +72,6 @@ void log_alert(char *host, const char *msgfmt, ...);
 #define log_error log_alert
 void logger(char *type, char *host, char *message); /* actually creates and delivers the log message */
 
-/*** internal functions ***/
-int configurator(char *cfgfile);
-void loader(void);
-int configo(int exec);
-
 /*** xdb utilities, only used by base_load'd extensions and only available when base_load is used :) ***/
 
 /* ring for handling cached structures */
