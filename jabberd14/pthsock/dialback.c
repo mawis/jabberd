@@ -661,9 +661,15 @@ void pthsock_server_inread(sock s, char *buffer, int bufsz, int flags, void *arg
     }
 }
 
+/* cleanup function */
+void pthsock_shutdown(void *arg)
+{
+    ssi si = (ssi)arg;
+    ghash_destroy(si->ips);
+    ghash_destroy(si->hosts);
+}
 
 /*** everything starts here ***/
-
 void pthsock_server(instance i, xmlnode x)
 {
     ssi si;
@@ -693,6 +699,7 @@ void pthsock_server(instance i, xmlnode x)
         io_select_listen(5269,NULL,pthsock_server_inread,(void*)si,5,25);
 
     register_phandler(i,o_DELIVER,pthsock_server_packets,(void*)si);
+    register_shutdown(pthsock_shutdown, (void*)si);
 
     xmlnode_free(cfg);
 }

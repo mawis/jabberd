@@ -55,6 +55,16 @@ result karma_heartbeat(void*arg)
     return r_DONE;
 }
 
+/* cleanup function */
+void io_select_shutdown(void *arg)
+{
+    sock cur;
+    if(io__data == NULL) return;
+    for(cur = io__data->master__list; cur != NULL; cur = cur->next)
+    {
+        io_close(cur);
+    }
+}
 
 /* returns a list of all the sockets in this instance */
 sock io_select_get_list(void)
@@ -183,6 +193,7 @@ void _io_close(sock c)
 
     close(c->fd);
     if(c->rated) jlimit_free(c->rate);
+    log_debug(ZONE,"freed socket");
     pool_free(c->p);
 }
 
@@ -332,6 +343,7 @@ void _io_main(void *arg)
             pth_yield(NULL);
             if(cur->state==state_CLOSE)
             {
+                log_debug(ZONE,"closing socket");
                 temp=cur;
                 cur=cur->next;
                 FD_CLR(temp->fd,&all_rfds);
@@ -431,12 +443,17 @@ void _io_main(void *arg)
             if(cur->fd > maxfd)
                 maxfd = cur->fd;
             cur = cur->next;
-        }
-        /* (XXX, yes, spin through the entire list again, otherwise you can't write to a socket from another socket's read call) if there are packets to be written, wait for a write slot */
+
+        } /* (XXX, yes, spin through the entire list again, otherwise you can't write to a socket from another socket's read call) if there are packets to be written, wait for a write slot */
         for(cur = io__data->master__list; cur != NULL; cur = cur->next)
             if(cur->xbuffer!=NULL) FD_SET(cur->fd,&all_wfds);
             else FD_CLR(cur->fd,&all_wfds);
+
+        if(io__data->master__list==NULL)
+            break;
     }
+    pool_free(io__data->p);
+    io__data=NULL;
 }
 
 /* struct passed to the connecting thread */
@@ -519,6 +536,7 @@ void _io_select_connect(void *arg)
 
     if(io__data==NULL)
     {
+        register_shutdown(io_select_shutdown, NULL);
         register_beat(KARMA_HEARTBEAT,karma_heartbeat,NULL);
         p=pool_new();
         io__data = pmalloco(p,sizeof(_ios));
@@ -634,6 +652,7 @@ void io_select_listen_ex(int port,char *listen_host,io_cb cb,void *arg,int rate_
     log_notice(NULL,"io_select starting to listen on %d [%s]",port,listen_host);
     if(io__data==NULL)
     {
+        register_shutdown(io_select_shutdown, NULL);
         register_beat(KARMA_HEARTBEAT,karma_heartbeat,NULL);
         p=pool_new();
         io__data = pmalloco(p,sizeof(_ios));
