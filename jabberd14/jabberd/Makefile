@@ -76,7 +76,6 @@ jabberd_STATICOBJS=\
 	$(JHOME)/jsm/util.o \
 	$(JHOME)/jsm/modules/mod_admin.o \
 	$(JHOME)/jsm/modules/mod_agents.o \
-	$(JHOME)/jsm/modules/mod_archive.o \
 	$(JHOME)/jsm/modules/mod_announce.o \
 	$(JHOME)/jsm/modules/mod_auth_plain.o \
 	$(JHOME)/jsm/modules/mod_auth_digest.o \

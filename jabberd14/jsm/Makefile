@@ -22,7 +22,6 @@ jsm_EXOBJECTS = \
 	modules/mod_admin.o \
 	modules/mod_agents.o \
 	modules/mod_browse.o \
-	modules/mod_archive.o \
 	modules/mod_announce.o \
 	modules/mod_auth_plain.o \
 	modules/mod_auth_digest.o \

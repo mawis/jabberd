@@ -70,6 +70,7 @@ int mod_auth_plain_reset(mapi m, jid id, xmlnode pass)
     log_debug("mod_auth_plain","resetting password");
     if(xmlnode_get_data(pass) == NULL) return 1;
 
+    xmlnode_put_attrib(pass,"xmlns",NS_AUTH);
     return xdb_set(m->si->xc, jid_user(id), NS_AUTH, pass);
 }
 

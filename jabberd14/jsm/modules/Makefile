@@ -8,7 +8,6 @@ jsm_modules_OBJECTS=\
 	mod_admin.o \
 	mod_agents.o \
 	mod_browse.o \
-	mod_archive.o \
 	mod_announce.o \
 	mod_auth_plain.o \
 	mod_auth_digest.o \

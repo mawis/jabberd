@@ -81,6 +81,7 @@ mreturn mod_auth_0k_go(mapi m, void *arg)
         xmlnode_hide(xmlnode_get_tag(xdb,"hash"));
         xmlnode_insert_cdata(xmlnode_insert_tag(xdb,"hash"),c_hash,-1);
 
+        xmlnode_put_attrib(xdb,"xmlns",NS_AUTH_0K);
         if(xdb_set(m->si->xc, m->user->id, NS_AUTH_0K, xdb))
             jutil_error(m->packet->x, TERROR_REQTIMEOUT);
         else
@@ -108,8 +109,10 @@ int mod_auth_0k_reset(mapi m, jid id, xmlnode xpass)
     { /* cool, they exist */
         xmlnode_free(x);
     }else{ /* make them exist with an empty password */
-        if(xdb_set(m->si->xc, jid_user(id), NS_AUTH, xmlnode_new_tag_pool(xmlnode_pool(xpass),"password")))
-        return 1; /* uhoh */
+        x = xmlnode_new_tag_pool(xmlnode_pool(xpass),"password");
+        xmlnode_put_attrib(x,"xmlns",NS_AUTH);
+        if(xdb_set(m->si->xc, jid_user(id), NS_AUTH, x))
+            return 1; /* uhoh */
     }
 
 
@@ -131,6 +134,7 @@ int mod_auth_0k_reset(mapi m, jid id, xmlnode xpass)
     for(i = 0; i < sequence; i++, shahash_r(hash,hash));
 
     x = xmlnode_new_tag_pool(xmlnode_pool(xpass),"zerok");
+    xmlnode_put_attrib(x,"xmlns",NS_AUTH_0K);
     xmlnode_insert_cdata(xmlnode_insert_tag(x,"hash"),hash,-1);
     xmlnode_insert_cdata(xmlnode_insert_tag(x,"token"),token,-1);
     xmlnode_insert_cdata(xmlnode_insert_tag(x,"sequence"),seqs,-1);

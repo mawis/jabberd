@@ -321,16 +321,11 @@
       limit the amount of time allowed for authentication to be
       completed, e.g., <authtime>10</authtime> for 10 seconds
 
-    * rate - this controls the number of times that an IP can try
-      to connect within a certain time period. The default is 25
-      connection attempts ("points") in five seconds, but you can
-      change this setting as necessary.
-
     * karma - this is an input/output rate limiting system that
       the Jabber team came up with to prevent bandwidth hogging.
-      For details about karma, see docs.jabber.org. These
-      settings apply per connection/socket and can be changed as
-      desired.
+      For details about karma, read the io section at the bottom 
+      and/or see docs.jabber.org. These are the low settings and
+      apply per connection/socket and can be changed as desired.
 
   -->
 
@@ -341,7 +336,12 @@
     <pthcsock xmlns='jabber:config:pth-csock'>
       <authtime/>
       <karma>
+        <init>10</init>
+        <max>10</max>
+        <inc>1</inc>
         <dec>1</dec>
+        <penalty>-6</penalty>
+        <restore>10</restore>
       </karma>
       <!-- 
       Use these to listen on particular addresses and/or ports.
@@ -391,7 +391,8 @@
   dialback hostname verification.  The <legacy/> element is 
   here to enable communication with old 1.0 servers. The 
   karma settings are a little higher here to handle the 
-  higher traffic of server-to-server connections.
+  higher traffic of server-to-server connections (read
+  the io section below for more details, medium settings).
   -->
 
   <service id="s2s">
@@ -406,8 +407,12 @@
       -->
       <ip port="5269"/>
       <karma>
+        <init>50</init>
         <max>50</max>
+        <inc>4</inc>
         <dec>1</dec>
+        <penalty>-5</penalty>
+        <restore>50</restore>
       </karma>
     </dialback>
   </service>
@@ -479,14 +484,14 @@
         Avg. throughput:  1k-2k/s 
         burst allowed to: 5.5k/s 
         max sustained rate: 485b/s
-        seconds 5to recover from burst: 20
+        seconds to recover from burst: 20
         penalty length:   12 seconds
     <karma>
       <heartbeat>2</heartbeat>
       <init>10</init>
       <max>10</max>
       <inc>1</inc>
-      <dec>-1</dec>
+      <dec>1</dec>
       <penalty>-6</penalty>
       <restore>10</restore>
     </karma>
@@ -503,7 +508,7 @@
       <init>50</init>
       <max>50</max>
       <inc>4</inc>
-      <dec>-1</dec>
+      <dec>1</dec>
       <penalty>-5</penalty>
       <restore>50</restore>
     </karma>
@@ -520,7 +525,7 @@
       <init>64</init>
       <max>64</max>
       <inc>6</inc>
-      <dec>-1</dec>
+      <dec>1</dec>
       <penalty>-3</penalty>
       <restore>64</restore>
     </karma>
