@@ -75,8 +75,11 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     char *type;
     int fd;
 
+    log_debug(ZONE,"Got a packet from Deliver: %s",xmlnode2str(p->x));
+
     if (p->id->user == NULL)
     {
+        log_debug(ZONE,"NO USER, FREEING PACKET, NOT SENDING");
         xmlnode_free(p->x);
         return r_DONE;
     }
@@ -84,6 +87,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     fd = atoi(p->id->user); 
     if (fd == 0)
     {
+        log_debug(ZONE,"INVALID SOCK, FREEING PACKET, NOT SENDING");
         xmlnode_free(p->x);
         return r_DONE;
     }
@@ -97,6 +101,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     }
     if(cur!=NULL)
     { /* check to see if the session manager killed the session */
+        log_debug(ZONE,"Found the sock for this user");
         if (xmlnode_get_tag(p->x,"error?code=510")!=NULL)
         {
             xmlnode x=xmlnode_new_tag("stream:error");
@@ -117,16 +122,18 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
                 /* change the host id */
                 cdcur->host = pstrdup(cur->p,xmlnode_get_attrib(p->x,"sfrom"));
                 cdcur->state = state_AUTHD;
-            }
+            } else log_debug(ZONE,"Auth not successfull");
         }
         xmlnode_hide_attrib(p->x,"sto");
         xmlnode_hide_attrib(p->x,"sfrom");
+        log_debug(ZONE,"Writing packet to socket");
         io_write(cur,p->x);
         return r_DONE;
     }
 
     if (xmlnode_get_tag(p->x,"error?code=510")!=NULL)
     { /* we got a 510, but no session to end */
+        log_debug(ZONE,"510 ERROR, BUT NO SESSION"); 
         xmlnode_free(p->x);
         return r_DONE;
     }

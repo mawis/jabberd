@@ -101,10 +101,8 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
     case XSTREAM_NODE:
         if(sd->type==conn_OUT)
         {
-            xmlnode h=xmlnode_new_tag("stream:error");
             log_debug(ZONE,"Outgoing connection tried to receive data!");
-            xmlnode_insert_cdata(h,"This connection does not accept incoming data",-1);
-            io_write(c,h);
+            io_write_str(c,"<stream:error>This connection does not accept incoming data</stream:error>");
             xmlnode_free(x);
             break;
         }
