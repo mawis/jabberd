@@ -183,3 +183,17 @@ int js_trust(udata u, jid id)
 
     return 0;
 }
+
+
+/* returns true if this mapi call is for the "online" event, sucks, should just rewrite the whole mapi to make things like this better */
+int js_online(mapi m)
+{
+    if(m == NULL || m->packet == NULL || m->packet->to != NULL || m->s == NULL || m->s->priority >= 0) return 0;
+
+    if(jpacket_subtype(m->packet) == JPACKET__AVAILABLE || jpacket_subtype(m->packet) == JPACKET__INVISIBLE) return 1;
+
+    return 0;
+}
+
+
+

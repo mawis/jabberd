@@ -160,7 +160,7 @@ mreturn mod_offline_out(mapi m, void *arg)
 {
     if(m->packet->type != JPACKET_PRESENCE) return M_IGNORE;
 
-    if(jpacket_subtype(m->packet) == JPACKET__AVAILABLE && m->s->priority < 0 && m->packet->to == NULL)
+    if(js_online(m))
         mod_offline_out_available(m);
 
     return M_PASS;

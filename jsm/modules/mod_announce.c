@@ -134,7 +134,7 @@ mreturn mod_announce_sess_avail(mapi m, void *arg)
     if(a->x == NULL) return M_IGNORE;
 
     /* as soon as we become available */
-    if(!(jpacket_subtype(m->packet) == JPACKET__AVAILABLE && m->s->priority < 0 && m->packet->to == NULL))
+    if(!js_online(m))
         return M_PASS;
 
     /* check the last time we were on to see if we haven't gotten the announcement yet */
