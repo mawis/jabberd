@@ -42,18 +42,21 @@
 
 #include "jsm.h"
 
-/*
- *  js_mapi_register -- let a module register a new call for this phase 
- *  
- *  Takes a function pointer and argument and stores them in the
- *  call back list for the event e
+/**
+ * @file modules.c
+ * @brief jsm module API
+ */
+
+/**
+ * let a module register a new callback for a specified phase
  *
- *  parameters
- *  	e -- the event type, values are #defined in jsm.hs
- *  	si -- session instance
- *      c -- pointer to an mcall function
- *      arg -- an argument to pass to c when it is called
+ * Takes a function pointer and argument and stores them in the
+ * callback list for the event e
  *
+ * @param si the session manager instance data
+ * @param e the event type for which to register the callback
+ * @param c pointer to the function, that gets registered
+ * @param arg an argument to pass to c when it is called
  */
 void js_mapi_register(jsmi si, event e, mcall c, void *arg)
 {
@@ -69,28 +72,26 @@ void js_mapi_register(jsmi si, event e, mcall c, void *arg)
     newl->next = NULL;
 
     /* append */
-    if(si->events[e] == NULL)
-    {
+    if (si->events[e] == NULL) {
         si->events[e] = newl;
-    }else{
-        for(curl = si->events[e]; curl->next != NULL; curl = curl->next); /* spin to end of list */
+    } else {
+	/* spin to end of list */
+        for (curl = si->events[e]; curl->next != NULL; curl = curl->next)
+	    /* do nothing special */;
         curl->next = newl;
     }
     log_debug2(ZONE, LOGT_INIT, "mapi_register %d %X",e,newl);
 }
 
-/*
- *  js_mapi_session -- let a module register a new call for this session phase
- *  
- *  This is like js_mapi_register except that the call only
- *  applies to the specified session.
+/**
+ * let a module register a new callback for a specified phase on a session
  *
- *  parameters
- *  	e -- the event type, values are #defined in jsm.hs
- *      s -- the session to register the call with
- *      c -- pointer to an mcall function
- *      arg -- an argument to pass to c when it is called
+ * This is like js_mapi_register except that the call only applies to the specified session.
  *
+ * @param e the event type for which to register the callback
+ * @param s the session for which the callback should be registered
+ * @param c pointer to the function, that gets registered
+ * @param arg an argument to pass to c when it is called
  */
 void js_mapi_session(event e, session s, mcall c, void *arg)
 {
@@ -117,29 +118,29 @@ void js_mapi_session(event e, session s, mcall c, void *arg)
     log_debug2(ZONE, LOGT_INIT, "mapi_register_session %d %X",e,newl);
 }
 
-/*
- *  js_mapi_call -- call all the module call-backs for a phase
+/**
+ * call all the module callbacks for a phase
  *
- *  parameters
- *  	e -- event type, values are #defined in jsm.h
- *      packet -- the packet being processed, may be NULL
- *      user -- the user data for the current session
- *      s -- the session
+ * Addes callbacks to the ignore mask for a given packet type if they return M_IGNORE.
  *
+ * @param si the session manager instance data
+ * @param e call the modules for which event type
+ * @param packet the packet being processed, may be NULL
+ * @param user the user data for the current session (or the sender for e_SERVER if it is local), may be NULL
+ * @param s the session for which to call the event, may be NULL
+ * @return 1 if the call was handled by a module, 0 if it wasn't handled
  */
-int js_mapi_call(jsmi si, event e, jpacket packet, udata user, session s)
-{
+int js_mapi_call(jsmi si, event e, jpacket packet, udata user, session s) {
     mlist l;
     _mapi m;		/* mapi structure to be passed to the call back */
 
     log_debug2(ZONE, LOGT_EXECFLOW, "mapi_call %d",e);
 
     /* this is a session event */
-    if(si == NULL && s != NULL)
-    {
+    if(si == NULL && s != NULL) {
         si = s->si;
         l = s->events[e];
-    }else{
+    } else {
         l = si->events[e];
     }
 
@@ -151,24 +152,24 @@ int js_mapi_call(jsmi si, event e, jpacket packet, udata user, session s)
     m.s = s;
 
     /* traverse the list of call backs */
-    for(;l != NULL; l = l->next)
-    {
+    for (;l != NULL; l = l->next) {
         /* skip call-back if the packet type mask matches */
-        if(packet != NULL && (packet->type & l->mask) == packet->type) continue;
-log_debug2(ZONE, LOGT_EXECFLOW, "MAPI %X",l);
+        if(packet != NULL && (packet->type & l->mask) == packet->type)
+	    continue;
+	log_debug2(ZONE, LOGT_EXECFLOW, "MAPI %X",l);
+	
         /* call the function and handle the result */
-        switch((*(l->c))(&m, l->arg))
-        {
-        /* this module is ignoring this packet->type */
-        case M_IGNORE:
-            /* add the packet type to the mask */
-            l->mask |= packet->type;
-            break;
-        /* this module handled the packet */
-        case M_HANDLED:
-            return 1;
-        default:
-            ;
+        switch((*(l->c))(&m, l->arg)) {
+	    /* this module is ignoring this packet->type */
+	    case M_IGNORE:
+		/* add the packet type to the mask */
+		l->mask |= packet->type;
+		break;
+	    /* this module handled the packet */
+	    case M_HANDLED:
+		return 1;
+	    default:
+		;
         }
     }
 
@@ -177,4 +178,3 @@ log_debug2(ZONE, LOGT_EXECFLOW, "MAPI %X",l);
     /* if we got here, no module handled the packet */
     return 0;
 }
-
