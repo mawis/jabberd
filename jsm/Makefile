@@ -19,6 +19,7 @@ jsm_OBJECTS = \
 	util.o
 
 jsm_EXOBJECTS = \
+	modules/mod_stat.o \
 	modules/mod_admin.o \
 	modules/mod_announce.o \
 	modules/mod_auth_crypt.o \
