@@ -5,6 +5,7 @@
     * jadc2s.h: same
     * Makefile.am: same
     * util/config.c: same
+    * util/util.h: make some function arguments constant
 
 2004-09-03  Matthias Wimmer  <m@tthias.net>
 
