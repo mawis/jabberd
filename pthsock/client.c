@@ -113,14 +113,11 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     log_debug(ZONE,"Found the sock for this user");
     if (j_strcmp(xmlnode_get_attrib(p->x,"type"),"error")==0)
     { /* <route type="error" means we were disconnected */
-        xmlnode x=xmlnode_new_tag("stream:error");
-        xmlnode_insert_cdata(x,"Disconnected",-1);
-        io_write(cur,x);
         io_close(cur);
         xmlnode_free(p->x);
         return r_DONE;
     }
-    else if(cdcur->state==state_UNKNOWN&&j_strcmp(xmlnode_get_attrib(p->x,"type"),"auth")==0)
+    else if(cdcur->state==state_UNKNOWN&&j_strcmp(xmlnode_get_attrib(p->x,"type"),"auth")==0&&cdcur->auth_id!=NULL&&j_strcmp(xmlnode_get_attrib(p->x,"id"),cdcur->auth_id)==0)
     { /* look for our auth packet back */
         char *type=xmlnode_get_attrib(xmlnode_get_firstchild(p->x),"type");
         char *id=xmlnode_get_attrib(xmlnode_get_tag(p->x,"iq"),"id");
@@ -210,17 +207,26 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
             }
             else if (NSCHECK(q,NS_AUTH))
             {
-                xmlnode_put_attrib(xmlnode_get_tag(q,"digest"),"sid",cd->sid);
-                cd->auth_id = pstrdup(c->p,xmlnode_get_attrib(x,"id"));
-                if(cd->auth_id==NULL) 
-                {
-                    cd->auth_id = pstrdup(c->p,"pthsock_client_auth_ID");
-                    xmlnode_put_attrib(x,"id","pthsock_client_auth_ID");
+                if(j_strcmp(xmlnode_get_attrib(x,"type"),"set")==0)
+                { /* if we are authing against the server */
+                    xmlnode_put_attrib(xmlnode_get_tag(q,"digest"),"sid",cd->sid);
+                    cd->auth_id = pstrdup(c->p,xmlnode_get_attrib(x,"id"));
+                    if(cd->auth_id==NULL) 
+                    {
+                        cd->auth_id = pstrdup(c->p,"pthsock_client_auth_ID");
+                        xmlnode_put_attrib(x,"id","pthsock_client_auth_ID");
+                    }
+                    jid_set(cd->host,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(x,"query?xmlns=jabber:iq:auth"),"username")),JID_USER);
+                    jid_set(cd->host,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(x,"query?xmlns=jabber:iq:auth"),"resource")),JID_RESOURCE);
+                    x=pthsock_make_route(x,jid_full(cd->host),cd->id,"auth");
+                    deliver(dpacket_new(x),((smi)cd->i)->i);
                 }
-                jid_set(cd->host,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(x,"query?xmlns=jabber:iq:auth"),"username")),JID_USER);
-                jid_set(cd->host,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(x,"query?xmlns=jabber:iq:auth"),"resource")),JID_RESOURCE);
-                x=pthsock_make_route(x,jid_full(cd->host),cd->id,"auth");
-                deliver(dpacket_new(x),((smi)cd->i)->i);
+                else if(j_strcmp(xmlnode_get_attrib(x,"type"),"get")==0)
+                { /* we are just doing an auth get */
+                    /* just deliver the packet */
+                    x=pthsock_make_route(x,jid_full(cd->host),cd->id,"auth");
+                    deliver(dpacket_new(x),((smi)cd->i)->i);
+                }
             }
             else if (NSCHECK(q,NS_REGISTER))
             {
@@ -312,6 +318,9 @@ void pthsock_client_read(sock c,char *buffer,int bufsz,int flags,void *arg)
                 pth_msgport_destroy(cd->pre_auth_mp);
             } 
         }
+        x=xmlnode_new_tag("stream:error");
+        xmlnode_insert_cdata(x,"Disconnected",-1);
+        io_write(c,x);
         break;
     case IO_ERROR:
         if(c->xbuffer==NULL) break;
