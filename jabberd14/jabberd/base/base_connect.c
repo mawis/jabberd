@@ -49,7 +49,7 @@
 */
 
 /* Connection states */
-typedef enum { conn_CLOSED, conn_OPEN, conn_AUTHD } conn_state;
+typedef enum { conn_DIE, conn_CLOSED, conn_OPEN, conn_AUTHD } conn_state;
 
 /* conn_info - stores thread data for a connection */
 typedef struct
@@ -74,6 +74,7 @@ typedef struct
     dpacket     packet;
 } *conn_write_buf, _conn_write_buf;
 
+void base_connect_process_xml(mio m, int state, void* arg, xmlnode x);
 
 /* Deliver packets to the socket io thread */
 result base_connect_deliver(instance i, dpacket p, void* arg)
@@ -100,11 +101,21 @@ result base_connect_deliver(instance i, dpacket p, void* arg)
 
 }
 
+/* this runs from another thread under mtq */
+void base_connect_connect(void *arg)
+{
+    conn_info ci = (conn_info)arg;
+    pth_sleep(2); /* take a break */
+    mio_connect(ci->hostip, ci->hostport, base_connect_process_xml, (void*)ci, ci->timeout, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER));
+}
+
 void base_connect_process_xml(mio m, int state, void* arg, xmlnode x)
 {
     conn_info ci = (conn_info)arg;
     xmlnode cur;
     char  hashbuf[41];
+
+    log_debug(ZONE, "process XML: m:%X state:%d, arg:%X, x:%X", m, state, arg, x);
 
     switch (state)
     {
@@ -160,8 +171,8 @@ void base_connect_process_xml(mio m, int state, void* arg, xmlnode x)
 
         case MIO_CLOSED:
 
-            if(ci->state == conn_CLOSED)
-                return; /* if we're already flagged close, server is dying */
+            if(ci->state == conn_DIE)
+                return; /* server is dying */
 
             /* Always restart the connection after it closes for any reason */
             ci->state = conn_CLOSED;
@@ -176,8 +187,7 @@ void base_connect_process_xml(mio m, int state, void* arg, xmlnode x)
 
             /* pause 2 seconds, and reconnect */
             log_debug(ZONE, "Base Connect Failed to connect to %s:%d Retry [%d] in 2 seconds...", ci->hostip, ci->hostport, ci->tries_left);
-            pth_sleep(2);
-            mio_connect(ci->hostip, ci->hostport, base_connect_process_xml, (void*)ci, ci->timeout, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER));
+            mtq_send(NULL,ci->mempool,base_connect_connect,(void *)ci);
 
             return;
     }
@@ -187,7 +197,7 @@ void base_connect_process_xml(mio m, int state, void* arg, xmlnode x)
 void base_connect_kill(void *arg)
 {
     conn_info ci = (conn_info)arg;
-    ci->state = conn_CLOSED;
+    ci->state = conn_DIE;
 }
 
 result base_connect_config(instance id, xmlnode x, void *arg)
@@ -233,8 +243,8 @@ result base_connect_config(instance id, xmlnode x, void *arg)
     /* Register a handler to recieve inbound data for this instance */
     register_phandler(id, o_DELIVER, base_connect_deliver, (void*)ci);
      
-    /* Make a connection to the host */
-    mio_connect(ci->hostip, ci->hostport, base_connect_process_xml, (void*)ci, ci->timeout, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER));
+    /* Make a connection to the host, in another thread */
+    mtq_send(NULL,ci->mempool,base_connect_connect,(void *)ci);
 
     register_shutdown(base_connect_kill, (void *)ci);
 
