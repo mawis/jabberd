@@ -1,0 +1,58 @@
+<!--  Jabber2 - jsm JSX configuration  -->
+<jsx project='jsm'>
+  <build>
+    <variables>
+      <var name='DEFINES'><value>-DVERSION=\"1.2\"</value></var>
+      <var name='CFLAGS'><value>-I ../jabberd/</value></var>
+    </variables>
+    <make>
+      <project>modules</project>
+      <macro name='HEADERS'>
+        <file>../jabberd/jabberd.h</file>
+        <file>jsm.h</file>
+      </macro>
+      <macro name='OBJECTS'>
+        <file>deliver.o</file>
+        <file>jsm.o</file>
+        <file>modules.o</file>
+        <file>offline.o</file>
+        <file>server.o</file>
+        <file>authreg.o</file>
+        <file>sessions.o</file>
+        <file>users.o</file>
+        <file>util.o</file>
+      </macro>
+      <macro name='EXOBJECTS'>
+        <file>modules/mod_admin.o</file>
+        <file>modules/mod_agents.o</file>
+        <file>modules/mod_archive.o</file>
+        <file>modules/mod_announce.o</file>
+        <file>modules/mod_auth_plain.o</file>
+        <file>modules/mod_auth_digest.o</file>
+        <file>modules/mod_auth_0k.o</file>
+        <file>modules/mod_echo.o</file>
+        <file>modules/mod_filter.o</file>
+        <file>modules/mod_presence.o</file>
+        <file>modules/mod_private.o</file>
+        <file>modules/mod_roster.o</file>
+        <file>modules/mod_time.o</file>
+        <file>modules/mod_vcard.o</file>
+        <file>modules/mod_version.o</file>
+        <file>modules/mod_register.o</file>
+        <file>modules/mod_log.o</file>
+        <file>modules/mod_offline.o</file>
+      </macro>
+      <compile>
+ 	<objectfile macro='OBJECTS'>
+	  <dep><macro>HEADERS</macro></dep>
+        </objectfile>
+        <sharedobject name='jsm.so'>
+          <dep filelist='1'>
+            <macro>OBJECTS</macro>
+            <macro>EXOBJECTS</macro>
+          </dep>
+        </sharedobject>
+      </compile>
+    </make>
+  </build>
+</jsx>

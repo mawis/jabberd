@@ -1,0 +1,18 @@
+<!--  Jabber2 - jabberd/xdb JSX configuration  -->
+<jsx project='xdb'>
+  <build>
+    <make>
+      <macro name='HEADERS'>
+        <file>../jabberd.h</file>
+      </macro>
+      <macro name='OBJECTS'>
+        <file>base_ns.o</file>
+      </macro>
+      <compile>
+ 	<objectfile macro='OBJECTS'>
+	  <dep><macro>HEADERS</macro></dep>
+        </objectfile>
+      </compile>
+    </make>
+  </build>
+</jsx>

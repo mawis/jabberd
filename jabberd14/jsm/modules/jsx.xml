@@ -1,0 +1,40 @@
+<!--  Jabber2 - jsm/modules JSX configuration  -->
+<jsx project='modules'>
+  <build>
+    <variables>
+      <var name='DEFINES'><value>-DPACKAGE=\"jsm\"</value></var>
+      <var name='CFLAGS'><value>-I ../../jabberd/</value></var>
+    </variables>
+    <make>
+      <macro name='HEADERS'>
+        <file>../../jabberd/jabberd.h</file>
+        <file>../jsm.h</file>
+      </macro>
+      <macro name='OBJECTS'>
+        <file>mod_admin.o</file>
+        <file>mod_agents.o</file>
+        <file>mod_archive.o</file>
+        <file>mod_announce.o</file>
+        <file>mod_auth_plain.o</file>
+        <file>mod_auth_digest.o</file>
+        <file>mod_auth_0k.o</file>
+        <file>mod_echo.o</file>
+        <file>mod_filter.o</file>
+        <file>mod_presence.o</file>
+        <file>mod_private.o</file>
+        <file>mod_roster.o</file>
+        <file>mod_time.o</file>
+        <file>mod_vcard.o</file>
+        <file>mod_version.o</file>
+        <file>mod_register.o</file>
+        <file>mod_log.o</file>
+        <file>mod_offline.o</file>
+      </macro>
+      <compile>
+ 	<objectfile macro='OBJECTS'>
+	  <dep><macro>HEADERS</macro></dep>
+        </objectfile>
+      </compile>
+    </make>
+  </build>
+</jsx>
