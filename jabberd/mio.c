@@ -56,6 +56,8 @@
 #define MIO
 #include <jabberd.h>
 
+#include <errno.h>
+
 /********************************************************
  *************  Internal MIO Functions  *****************
  ********************************************************/
@@ -710,8 +712,10 @@ void _mio_connect(void *arg)
 #endif
 
     /* set socket options */
-    if(new->fd < 0 || setsockopt(new->fd, SOL_SOCKET, SO_REUSEADDR, (char*)&flag, sizeof(flag)) < 0)
-    {
+    if(new->fd < 0 || setsockopt(new->fd, SOL_SOCKET, SO_REUSEADDR, (char*)&flag, sizeof(flag)) < 0) {
+	/* get the error message */
+	new->connect_errmsg = strerror(errno);
+	
         if(cd->cb != NULL)
             (*(mio_std_cb)cd->cb)(new, MIO_CLOSED, cd->cb_arg);
         cd->connected = -1;
@@ -724,8 +728,7 @@ void _mio_connect(void *arg)
     }
 
     /* optionally bind to a local address */
-    if(xmlnode_get_tag_data(greymatter__, "io/bind") != NULL)
-    {
+    if(xmlnode_get_tag_data(greymatter__, "io/bind") != NULL) {
 #ifdef WITH_IPV6
 	struct sockaddr_in6 sa;
 	char *addr_str = xmlnode_get_tag_data(greymatter__, "io/bind");
@@ -758,8 +761,8 @@ void _mio_connect(void *arg)
 #else
     saddr = make_addr(cd->ip);
 #endif
-    if(saddr == NULL)
-    {
+    if(saddr == NULL) {
+	new->connect_errmsg = "Could not resolve hostname or parse IP address";
         if(cd->cb != NULL)
             (*(mio_std_cb)cd->cb)(new, MIO_CLOSED, cd->cb_arg);
         cd->connected = -1;
@@ -782,8 +785,10 @@ void _mio_connect(void *arg)
 #endif
 
     log_debug2(ZONE, LOGT_IO, "calling the connect handler for mio object %X", new);
-    if((*cd->cf)(new, (struct sockaddr*)&sa, sizeof sa) < 0)
-    {
+    if((*cd->cf)(new, (struct sockaddr*)&sa, sizeof sa) < 0) {
+	/* get the error message */
+	new->connect_errmsg = strerror(errno);
+
         if(cd->cb != NULL)
             (*(mio_std_cb)cd->cb)(new, MIO_CLOSED, cd->cb_arg);
         cd->connected = -1;
@@ -794,6 +799,8 @@ void _mio_connect(void *arg)
         pool_free(p);
         return;
     }
+
+    new->connect_errmsg = "";
 
     /* set the socket to non-blocking */
     flags =  fcntl(new->fd, F_GETFL, 0);

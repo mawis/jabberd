@@ -440,6 +440,7 @@ char *xstream_header_char(xmlnode x);
 
 /** error cause types for streams, see section 4.7.3 of RFC 3920 */
 typedef enum {
+    unknown_error_type,		/**< no errror type found, especially legacy stream errors */
     bad_format,			/**< XML cannot be processed */
     bad_namespace_prefix,	/**< unsupported namespace prefix */
     conflict,			/**< new stream has been initiated, that conflicts */
@@ -693,7 +694,7 @@ typedef struct terror_struct
 typedef struct xterror_struct
 {
     int  code;
-    char msg[64];
+    char msg[256];
     char type[9];
     char condition[64];
 } xterror;
