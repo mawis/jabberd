@@ -60,65 +60,6 @@
 
     <jsm xmlns="jabber:config:jsm">
 
-      <!--
-      The <filter/> section below determines settings
-      for mod_filter, a server-side module built into
-      JSM that enables users to set delivery rules for
-      messages they receive (not yet supported by all
-      clients). The <allow/> subsection specifies which
-      conditions and actions to enable. High-level 
-      descriptions of each setting can be found below:
-
-      * <default/> - a user cannot delete this one, it's
-        the default rule for delivering messages
-      * <max_size/> - the maximum number of rules in a
-        user's rule set (we don't want to overdo it!)
-      * conditions...
-        * <ns/> - matches the query xmlns attrib on an iq packet
-        * <unavailable/> - matches when user is unavailable
-        * <from/> - matches the sender of the message
-        * <resource/> - matches the receiver's resource
-        * <subject/> - matches the subject of the message
-        * <body/> - matches the body of the message
-        * <show/> - matches the show tag on the receiver's presence
-        * <type/> - matches the type of the message
-        * <roster/> - matches if the sender is in your roster
-        * <group/> - matches if the sender is in the specified group
-      * actions...
-        * <error/> - replies with an error
-        * <offline/> - stores the messages offline
-        * <forward/> - forwards the message to another jid
-        * <reply/> - sends a reply to the sender of the message
-        * <continue/> - continues processing of the rules
-        * <settype/> - changes the type of the message
-      -->
-      <filter>
-          <default/>
-          <max_size>100</max_size>
-          <allow>
-              <conditions>
-                  <ns/>          <!-- Matches if the iq's xmlns is the same as the specified namespace -->
-                  <unavailable/> <!-- Flag that matches when the reciever is unavailable (offline) -->
-                  <from/>        <!-- Matches if the  sender's jid is the specified jid -->
-                  <resource/>    <!-- Matches if the sender's resource (anything after the / in a jid) is the specified resource -->
-                  <subject/>     <!-- Matches if the message's subject is the specified subject (no regex yet) -->
-                  <body/>        <!-- Matches if the message body is the specified body (no regex yet) --> 
-                  <show/>        <!-- Matches if the receiver's presence has a show tag that is the same as the specified text -->
-                  <type/>        <!-- Matches if the type of the message is the same as the specified text ("normal" is okay) -->
-                  <roster/>      <!-- Flag that matches when the sender is in the receiver's roster -->
-                  <group/>       <!-- Matches when the sender is in the specified group -->
-              </conditions>
-              <actions>
-                  <error/>       <!-- Sends back an error message to the sender, with the specified text -->
-                  <offline/>     <!-- Flag that stores the message offline -->
-                  <forward/>     <!-- forwards the message to the specified jid -->
-                  <reply/>       <!-- Sends back a reply to the sender with the specified text in the body -->
-                  <continue/>    <!-- Flag that continues rule matching, after a rule matches -->
-                  <settype/>     <!-- Changes the type of message to the specified type, before delivery to the receiver -->
-              </actions>
-          </allow>
-      </filter>
-
       <!-- The server vCard -->
 
       <vCard>
@@ -315,7 +256,6 @@
       <mod_browse>@libdir@/libjabberdsm.so</mod_browse>
       <mod_disco>@libdir@/libjabberdsm.so</mod_disco>
       <mod_admin>@libdir@/libjabberdsm.so</mod_admin>
-      <mod_filter>@libdir@/libjabberdsm.so</mod_filter>
       <mod_offline>@libdir@/libjabberdsm.so</mod_offline>
       <mod_presence>@libdir@/libjabberdsm.so</mod_presence>
 

@@ -59,19 +59,19 @@
 #include "win32_resolv.h"
 
 
-// misc definitions
+/* misc definitions */
 #define BUF_SIZE 8096
 #define DNS_PORT 53
 #define UDP_PROTO 17
 #define TCP_PROTO 6
 
-// internal error codes
+/* internal error codes */
 #define RESP_TRYTCP -1
 #define RESP_TRYNEXTSERVER -2
 #define RESP_UNKNOWNHOST -3
 
 
-// Possible opcodes for query
+/* Possible opcodes for query */
 #define OPCODE_QUERY 0
 #define OPCODE_IQUERY 1
 #define OPCODE_STATUS 2
@@ -198,7 +198,7 @@ static int special(int ch);
 static int printable(int ch);
 
 
-// list of digits
+/* list of digits */
 static const char       digits[] = "0123456789";
 
 
@@ -221,21 +221,21 @@ int getDnsServers(struct in_addr** list) {
   PFIXED_INFO fixedInfo;
   PIP_ADDR_STRING addrStr;
   
-  // get size of FIXED_INFO structure
+  /* get size of FIXED_INFO structure */
   if (!(err = GetNetworkParams(NULL, &fixedInfoSize))) {
     if (err != ERROR_BUFFER_OVERFLOW) {
       return err;
     }
   }
   
-  // alloc memory
+  /* alloc memory */
   if (!(fixedInfo = malloc(fixedInfoSize))) {
     return -ENOMEM;
   }
   
-  // Get the network params
+  /* Get the network params */
   if (!(err = GetNetworkParams(fixedInfo, &fixedInfoSize))) {
-    // First of all, count the number of servers
+    /* First of all, count the number of servers */
     count = 1;
     addrStr = fixedInfo->DnsServerList.Next;
     while(addrStr) {
@@ -243,18 +243,18 @@ int getDnsServers(struct in_addr** list) {
       addrStr = addrStr->Next;
     }
 
-    // I know this cannot happen, but just in case someone changes the above
+    /* I know this cannot happen, but just in case someone changes the above */
     if (count == 0) {
       *list = NULL;
       return 0;
     }
 
-    // Allocate memory to store 'em in
+    /* Allocate memory to store 'em in */
     if (!(*list = (struct in_addr*) malloc(sizeof(struct in_addr) * count+1))) {
       return -ENOMEM;
     }
     
-    // Now, copy 'em into the list
+    /* Now, copy 'em into the list */
     count = 0;
     (*list)[count++].s_addr = 
       inet_addr(fixedInfo->DnsServerList.IpAddress.String);
@@ -269,7 +269,7 @@ int getDnsServers(struct in_addr** list) {
     return err;
   }
   
-  // OK!
+  /* OK! */
   free(fixedInfo);
   return 0;
 }
@@ -295,7 +295,7 @@ int formatPacket(char* dstBuf, int bufSize,
 
 
 
-  // slap the two names together correctly
+  /* slap the two names together correctly */
   if ((name == NULL) && (domain == NULL)) {
     return -1;
   }
@@ -310,64 +310,66 @@ int formatPacket(char* dstBuf, int bufSize,
   }
   strcat(tmpName, domain);
 
-  // check if buffer is big enough
+  /* check if buffer is big enough */
   if ((sizeof(HEADER) + strlen(tmpName) + 4) > bufSize) {
     return -ENOMEM;
   }
 
-  // zero the buffer
+  /* zero the buffer */
   memset(dstBuf, 0, bufSize);
 
-  // make up DNS header section
+  /* make up DNS header section */
   headerSection = (HEADER*) dstBuf;
   headerSection->id = htons(0);
   headerSection->rd = 1;
-  headerSection->qdcount = htons(1); // One single query present
+  headerSection->qdcount = htons(1); /* One single query present */
 
-  // Fill out the question section
+  /* Fill out the question section */
   offset = sizeof(HEADER);
 
-  // We're now doing the name to look up, separated by NULLs
+  /* We're now doing the name to look up, separated by NULLs */
   lastCountOffset = offset;
-  offset++; // Keep one byte free for count of first component of name
+  offset++; /* Keep one byte free for count of first component of name */
   strcpy(dstBuf + offset, tmpName);
 
-  // Now, loop through the string we've just copied converting '.' to NULL
+  /* Now, loop through the string we've just copied converting '.' to NULL */
   while(dstBuf[offset]) {
-    // If we've hit a '.', update the PREVIOUS 
-    // counter to the size of the bit BEFORE the '.'
+    /* If we've hit a '.', update the PREVIOUS 
+     * counter to the size of the bit BEFORE the '.'
+     */
     if (dstBuf[offset] == '.') {
       dstBuf[lastCountOffset] = offset - lastCountOffset -1;
       lastCountOffset = offset;
       dstBuf[offset] = 0;
     }
     
-    // next char
+    /* next char */
     offset++;
   }
 
-  // Finally, need to update the count for the bit betweent the last 
-  // dot and the end of string. Note: If the last character is a '.', it will 
-  // already have been turned into a NULL
+  /* Finally, need to update the count for the bit betweent the last 
+   * dot and the end of string. Note: If the last character is a '.', it will 
+   * already have been turned into a NULL */
   if (dstBuf[offset - 1] != 0) { 
-    // if the last character was NOT '.', normal update is OK
+    /* if the last character was NOT '.', normal update is OK */
     dstBuf[lastCountOffset] = offset - lastCountOffset -1;
-    // And woo! We've already GOT a terminating NULL character from the
-    // string copy
+    /* And woo! We've already GOT a terminating NULL character from the
+     * string copy */
     offset++;
   } else {
-    // last character was a '.'. Therefore, we should use THAT as the
-    // terminating null, and not the extra one which is now present at the 
-    // end of the string. Therefore, just don't bother incrementing the count!
+    /* last character was a '.'. Therefore, we should use THAT as the
+     * terminating null, and not the extra one which is now present at the 
+     * end of the string. Therefore, just don't bother incrementing the count!
+     */
   }
 
-  // Add in the type and class
+  /* Add in the type and class */
   *((unsigned short*) (dstBuf + offset)) = htons(qType);
   offset+=2;
   *((unsigned short*) (dstBuf + offset)) = htons(qClass);
   offset+=2;
 
-  // Finally, return the length
+  /* Finally, return the length */
   return offset;
 }
 
@@ -397,23 +399,23 @@ int dnsLookup(const char* name, const char* domain,
   int expectedId;
 
 
-  // start off with expectedId 0
+  /* start off with expectedId 0 */
   expectedId = 0;
   
-  // OK, format the packet & check
+  /* OK, format the packet & check */
   if ((pktSize = formatPacket(tmpBuf, BUF_SIZE,
                               name, domain,
                               qClass, qType)) < 0) {
     return -1;
   }
   
-  // retry the lookup
+  /* retry the lookup */
   for(retries=0; retries < 5; retries++) {
 
-    // Now, try each DNS server
+    /* Now, try each DNS server */
     dnsServerCount = 0;
     while(dnsServers[dnsServerCount].s_addr) {
-      // try UDP DNS if the packet ain't too big
+      /* try UDP DNS if the packet ain't too big */
       if (pktSize <= NS_PACKETSZ) {
         count = dnsUdp(dnsServers[dnsServerCount], 
                        tmpBuf, pktSize,
@@ -434,7 +436,7 @@ int dnsLookup(const char* name, const char* domain,
         count = RESP_TRYTCP;
       }
 
-      // try TCP connection?
+      /* try TCP connection? */
       if (count == RESP_TRYTCP) {
         count = dnsTcp(dnsServers[dnsServerCount], 
                        tmpBuf, pktSize,
@@ -453,12 +455,12 @@ int dnsLookup(const char* name, const char* domain,
         }
       }
 
-      // Move on to next server
+      /* Move on to next server */
       dnsServerCount++;
     }
   }
 
-  // if we get here, we have not found a valid address
+  /* if we get here, we have not found a valid address */
   return -1;
 }
 
@@ -488,35 +490,35 @@ int dnsUdp(struct in_addr dnsServer,
   HEADER* header;
 
 
-  // setup sockaddr for local machine
+  /* setup sockaddr for local machine */
   memset(&local, 0, sizeof(struct sockaddr_in));
   local.sin_family = AF_INET;
   local.sin_port = 0;
   local.sin_addr.s_addr = INADDR_ANY;
 
-  // setup sockaddr for remote server
+  /* setup sockaddr for remote server */
   memset(&server, 0, sizeof(struct sockaddr_in));
   server.sin_family = AF_INET;
   server.sin_port = htons(DNS_PORT);
   server.sin_addr.s_addr = dnsServer.s_addr;
 
-  // Create UDP socket 
+  /* Create UDP socket */
   if ((sockFd = socket(AF_INET, SOCK_DGRAM, UDP_PROTO)) < 0) {
     return RESP_TRYNEXTSERVER;
   }
 
-  // bind input socket to local machine
+  /* bind input socket to local machine */
   if (bind(sockFd, 
            (struct sockaddr*) &local, sizeof(struct sockaddr_in)) < 0) {
     close(sockFd);
     return RESP_TRYNEXTSERVER;
   }
 
-  // set the expectedId in the packet
+  /* set the expectedId in the packet */
   ((HEADER*) sendPktBuf)->id = htons(*expectedId);
   (*expectedId)++;
 
-  // send the packet to the DNS server
+  /* send the packet to the DNS server */
   if (sendto(sockFd, 
              sendPktBuf, sendPktSize,
              0,
@@ -526,17 +528,17 @@ int dnsUdp(struct in_addr dnsServer,
     return RESP_TRYNEXTSERVER;
   }
 
-  // setup sockaddr for received packet
+  /* setup sockaddr for received packet */
   memset(&from, 0, sizeof(from));
   from.sin_family = AF_INET;
   tmp = sizeof(from);
   memset(recvPktBuf, 0, recvPktSize);
 
 
-  // This is where we listen for connections
+  /* This is where we listen for connections */
   while(1) {
 
-    // Wait for a response
+    /* Wait for a response */
     sockPollFd.fd = sockFd;
     sockPollFd.events = POLLIN | POLLERR;
     sockPollFd.revents = 0;
@@ -545,13 +547,13 @@ int dnsUdp(struct in_addr dnsServer,
       return RESP_TRYNEXTSERVER;
     }
     
-    // OK, check we have got some data
+    /* OK, check we have got some data */
     if (sockPollFd.revents != POLLIN) {
       close(sockFd);
       return RESP_TRYNEXTSERVER;
     }    
     
-    // read it
+    /* read it */
     if ((count = recvfrom(sockFd,
                           recvPktBuf,
                           recvPktSize,
@@ -562,54 +564,54 @@ int dnsUdp(struct in_addr dnsServer,
       return RESP_TRYNEXTSERVER;
     }
     
-    // check packet is big enough
+    /* check packet is big enough */
     header = (HEADER*) recvPktBuf;
     if (count < sizeof(HEADER)) {
-      // packet too small. try next server
+      /* packet too small. try next server */
       close(sockFd);
       return RESP_TRYNEXTSERVER;
     }
     
-    // incorrect ID => old response. start listening again
+    /* incorrect ID => old response. start listening again */
     if (ntohs(header->id) != ((*expectedId) - 1)) {
       continue;
     }
 
-    // packet truncated. try tcp
+    /* packet truncated. try tcp */
     if (header->tc) {
       close(sockFd);
       return RESP_TRYTCP;
     }
 
-    // not a response. try next server
+    /* not a response. try next server */
     if (!header->qr) {
       close(sockFd);
       return RESP_TRYNEXTSERVER;
     }
 
-    // unknown host. exit lookup
+    /* unknown host. exit lookup */
     if (header->rcode == RCODE_NAMEERROR) {
       close(sockFd);
       return RESP_UNKNOWNHOST;
     }
   
-    // error. try next server
+    /* error. try next server */
     if (header->rcode != RCODE_OK) {
       close(sockFd);
       return RESP_TRYNEXTSERVER;
     }
   
-    // There were no actual records! try next server
+    /* There were no actual records! try next server */
     if (header->ancount == 0) {
       close(sockFd);
       return RESP_TRYNEXTSERVER;
     }   
 
-    // If we get here, we are OK! exit the loop
+    /* If we get here, we are OK! exit the loop */
     break;
   }
 
-  // OK! return the count
+  /* OK! return the count */
   close(sockFd);
   return count;
 }
@@ -641,42 +643,42 @@ int dnsTcp(struct in_addr dnsServer,
 
 
 
-  // setup sockaddr for local machine
+  /* setup sockaddr for local machine */
   memset(&local, 0, sizeof(struct sockaddr_in));
   local.sin_family = AF_INET;
   local.sin_port = 0;
   local.sin_addr.s_addr = INADDR_ANY;
 
-  // setup sockaddr for remote server
+  /* setup sockaddr for remote server */
   memset(&server, 0, sizeof(struct sockaddr_in));
   server.sin_family = AF_INET;
   server.sin_port = htons(DNS_PORT);
   server.sin_addr.s_addr = dnsServer.s_addr;
   
-  // Create TCP socket 
+  /* Create TCP socket */
   if ((sockFd = socket(AF_INET, SOCK_STREAM, TCP_PROTO)) < 0) {
     return RESP_TRYNEXTSERVER;
   }
 
-  // bind input socket to local machine
+  /* bind input socket to local machine */
   if (bind(sockFd, 
            (struct sockaddr*) &local, sizeof(struct sockaddr_in)) < 0) {
     close(sockFd);
     return RESP_TRYNEXTSERVER;
   }
 
-  // connect to the remote server
+  /* connect to the remote server */
   if (connect(sockFd,
               (struct sockaddr*) &server, sizeof(struct sockaddr_in)) < 0) {
     close(sockFd);
     return RESP_TRYNEXTSERVER;
   }
   
-  // set the expectedId in the packet
+  /* set the expectedId in the packet */
   ((HEADER*) sendPktBuf)->id = htons(*expectedId);
   (*expectedId)++;
 
-  // send the size to the DNS server
+  /* send the size to the DNS server */
   *((unsigned short*) tmpBuf) = htons(sendPktSize);
   if (send(sockFd, 
            tmpBuf, 2,
@@ -685,7 +687,7 @@ int dnsTcp(struct in_addr dnsServer,
     return RESP_TRYNEXTSERVER;
   } 
 
-  // send the packet to the DNS server
+  /* send the packet to the DNS server */
   if (send(sockFd, 
            sendPktBuf, sendPktSize,
            0) < 0) {
@@ -693,10 +695,10 @@ int dnsTcp(struct in_addr dnsServer,
     return RESP_TRYNEXTSERVER;
   }
 
-  // This is where we listen for connections
+  /* This is where we listen for connections */
   while(1) {
 
-    // Wait for a response
+    /* Wait for a response */
     sockPollFd.fd = sockFd;
     sockPollFd.events = POLLIN | POLLERR;
     sockPollFd.revents = 0;
@@ -705,13 +707,13 @@ int dnsTcp(struct in_addr dnsServer,
       return RESP_TRYNEXTSERVER;
     }
     
-    // OK, check we have got some data
+    /* OK, check we have got some data */
     if (sockPollFd.revents != POLLIN) {
       close(sockFd);
       return RESP_TRYNEXTSERVER;
     }    
     
-    // read it
+    /* read it */
     if ((count = recv(sockFd,
                       recvPktBuf,
                       recvPktSize,
@@ -720,58 +722,59 @@ int dnsTcp(struct in_addr dnsServer,
       return RESP_TRYNEXTSERVER;
     }
     
-    // check packet is big enough
+    /* check packet is big enough */
     header = (HEADER*) (recvPktBuf + 2);
     if (count < sizeof(HEADER)) {
-      // packet too small. try next server
+      /* packet too small. try next server */
       close(sockFd);
       return RESP_TRYNEXTSERVER;
     }
     
-    // incorrect ID => old response. start listening again
+    /* incorrect ID => old response. start listening again */
     if (ntohs(header->id) != ((*expectedId) - 1)) {
       continue;
     }
     
-    // packet truncated. try next server
+    /* packet truncated. try next server */
     if (header->tc) {
       close(sockFd);
       return RESP_TRYNEXTSERVER;
     }
     
-    // not a response. try next server
+    /* not a response. try next server */
     if (!header->qr) {
       close(sockFd);
       return RESP_TRYNEXTSERVER;
     }
 
-    // unknown host. exit lookup
+    /* unknown host. exit lookup */
     if (header->rcode == RCODE_NAMEERROR) {
       close(sockFd);
       return RESP_UNKNOWNHOST;
     }
     
-    // error. try next server
+    /* error. try next server */
     if (header->rcode != RCODE_OK) {
       close(sockFd);
       return RESP_TRYNEXTSERVER;
     }
     
-    // There were no actual records! try next server
+    /* There were no actual records! try next server */
     if (header->ancount == 0) {
       close(sockFd);
       return RESP_TRYNEXTSERVER;
     }   
     
-    // If we get here, we are OK. Terminate the loop
+    /* If we get here, we are OK. Terminate the loop */
     break;
   }
 
-  // need to copy the packet BACK two bytes, 
-  // since it has the size of it prepended
+  /* need to copy the packet BACK two bytes,
+   * since it has the size of it prepended
+   */
   memcpy(recvPktBuf, recvPktBuf+2, count-2);
 
-  // OK! return the count
+  /* OK! return the count */
   close(sockFd);
   return count - 2;
 }
@@ -798,27 +801,28 @@ int res_querydomain(const char *name,
   struct in_addr* dnsServers;
   int pktSize;
 
-  // find the list of DNS servers on this machine
+  /* find the list of DNS servers on this machine */
   if (getDnsServers(&dnsServers)) {
     return -1;
   }
   
-  // do the lookup
+  /* do the lookup */
   pktSize = 
     dnsLookup(name, domain, class, type, 
               dnsServers, dstBuffer, dstLength);
   free(dnsServers);
   
-  // Finally return the value
+  /* Finally return the value */
   return(pktSize);
 }
 
 
 
 
-// -----------------------------------------------------------
-// Everything below this line is taken from bind v8.2.3
-// See copyright notices above
+/* -----------------------------------------------------------
+ * Everything below this line is taken from bind v8.2.3
+ * See copyright notices above
+ */
 
 /*
  * Expand compressed domain name 'comp_dn' to full domain name.

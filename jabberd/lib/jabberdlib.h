@@ -149,14 +149,16 @@ int pool_size(pool p); /* returns total bytes allocated in this pool */
 #define MAXHOSTNAMELEN 64
 #endif
 
-#define NETSOCKET_SERVER 0
-#define NETSOCKET_CLIENT 1
-#define NETSOCKET_UDP 2
+#define NETSOCKET_SERVER 0 /**< type of a local listening socket */
+#define NETSOCKET_CLIENT 1 /**< type of a connection socket */
+#define NETSOCKET_UDP 2    /**< type of a UDP connection socket */
 
 #ifndef WIN32
 int make_netsocket(u_short port, char *host, int type);
 struct in_addr *make_addr(char *host);
+#ifdef INCLUDE_LEGACY
 int set_fd_close_on_exec(int fd, int flag);
+#endif
 #ifdef WITH_IPV6
 struct in6_addr *make_addr_ipv6(char *host);
 #endif
@@ -626,8 +628,8 @@ void jlimit_free(jlimit r);
 int jlimit_check(jlimit r, char *key, int points);
 
 
-// #define KARMA_DEBUG
-// default to disable karma 
+/* #define KARMA_DEBUG */
+/* default to disable karma */
 #define KARMA_READ_MAX(k) (abs(k)*100) /* how much you are allowed to read off the sock */
 #define KARMA_INIT 5   /* internal "init" value */
 #define KARMA_HEARTBEAT 2 /* seconds to register for heartbeat */

@@ -39,18 +39,22 @@
  * 
  * --------------------------------------------------------------------------*/
 
-#include <jabberdlib.h>
-
-/* socket.c
- *
- * Simple wrapper to make socket creation easy.
- * type = NETSOCKET_SERVER is local listening socket
- * type = NETSOCKET_CLIENT is connection socket
- * type = NETSOCKET_UDP is a UDP connection socket
+/**
+ * @file socket.c
+ * @brief some misc functions to handle sockets
  */
 
-int make_netsocket(u_short port, char *host, int type)
-{
+#include <jabberdlib.h>
+
+/**
+ * Simple wrapper to make socket creation easy.
+ *
+ * @param port port number of the socket
+ * @param host hostname where to connect to or listen on
+ * @param type type of socket (NETSOCKET_SERVER, NETSOCKET_CLIENT; or NETSOCKET_UDP)
+ * @return file handle of the new socket
+ */
+int make_netsocket(u_short port, char *host, int type) {
     int s, flag = 1;
 #ifdef WITH_IPV6
     struct sockaddr_in6 sa;
@@ -148,30 +152,30 @@ int make_netsocket(u_short port, char *host, int type)
     return(s);
 }
 
-
-struct in_addr *make_addr(char *host)
-{
+/**
+ * convert an IPv4 address or hostname to a in_addr structure
+ *
+ * @param host the IPv4 address or hostname to convert, on NULL, the hostname is used
+ * @return the in_addr struct that holds the result (pointer to a static structure, overwritten on next call!)
+ */
+struct in_addr *make_addr(char *host) {
     struct hostent *hp;
     static struct in_addr addr;
     char myname[MAXHOSTNAMELEN + 1];
 
-    if(host == NULL || strlen(host) == 0)
-    {
+    if (host == NULL || strlen(host) == 0) {
         gethostname(myname,MAXHOSTNAMELEN);
         hp = gethostbyname(myname);
-        if(hp != NULL)
-        {
+        if(hp != NULL) {
             return (struct in_addr *) *hp->h_addr_list;
         }
-    }else{
+    } else {
         addr.s_addr = inet_addr(host);
-        if(addr.s_addr != -1)
-        {
+        if(addr.s_addr != -1) {
             return &addr;
         }
         hp = gethostbyname(host);
-        if(hp != NULL)
-        {
+        if(hp != NULL) {
             return (struct in_addr *) *hp->h_addr_list;
         }
     }
@@ -179,8 +183,13 @@ struct in_addr *make_addr(char *host)
 }
 
 #ifdef WITH_IPV6
-void map_addr_to6(const struct in_addr *src, struct in6_addr *dest)
-{
+/**
+ * map an in_addr struct to a in6_addr struct containing a mapped IPv4 address
+ *
+ * @param src the in_addr to map
+ * @param dest where to place the mapped result address
+ */
+void _map_addr_to6(const struct in_addr *src, struct in6_addr *dest) {
     uint32_t hip;
 
     bzero(dest, sizeof(struct in6_addr));
@@ -197,15 +206,19 @@ void map_addr_to6(const struct in_addr *src, struct in6_addr *dest)
     dest->s6_addr[12] = hip % 256;
 }
 
-struct in6_addr *make_addr_ipv6(char *host)
-{
+/**
+ * convert an IPv4 or IPv6 address or hostname to a in6_addr structure
+ *
+ * @param host the IPv4 or IPv6 address or hostname to convert, on NULL, the hostname is used
+ * @return the in6_addr struct that holds the result (pointer to a static structure, overwritten on next call!)
+ */
+struct in6_addr *make_addr_ipv6(char *host) {
     static struct in6_addr addr;
     struct addrinfo hints;
     struct addrinfo *addr_res;
     int error_code;
 
-    if(host == NULL || strlen(host) == 0)
-    {
+    if (host == NULL || strlen(host) == 0) {
 	char myname[MAXHOSTNAMELEN + 1];
         gethostname(myname,MAXHOSTNAMELEN);
 
@@ -215,12 +228,10 @@ struct in6_addr *make_addr_ipv6(char *host)
 	hints.ai_socktype = SOCK_STREAM;
 
 	error_code = getaddrinfo(myname, NULL, &hints, &addr_res);
-	if(!error_code)
-	{
-	    switch(addr_res->ai_family)
-	    {
+	if (error_code == 0) {
+	    switch(addr_res->ai_family) {
 		case PF_INET:
-		    map_addr_to6(&((struct sockaddr_in*)addr_res->ai_addr)->sin_addr, &addr);
+		    _map_addr_to6(&((struct sockaddr_in*)addr_res->ai_addr)->sin_addr, &addr);
 		    break;
 		case PF_INET6:
 		    addr = ((struct sockaddr_in6*)addr_res->ai_addr)->sin6_addr;
@@ -232,19 +243,17 @@ struct in6_addr *make_addr_ipv6(char *host)
 	    freeaddrinfo(addr_res);
 	    return &addr;
 	}
-    }else{
+    } else {
 	char tempname[INET6_ADDRSTRLEN];
 
 	/* IPv4 addresses have to be mapped to IPv6 */
-	if (inet_pton(AF_INET, host, &addr))
-	{
+	if (inet_pton(AF_INET, host, &addr)) {
 	    strcpy(tempname, "::ffff:");
 	    strcat(tempname, host);
 	    host = tempname;
 	}
 	
-	if (inet_pton(AF_INET6, host, &addr))
-        {
+	if (inet_pton(AF_INET6, host, &addr)) {
             return &addr;
         }
 	
@@ -254,12 +263,10 @@ struct in6_addr *make_addr_ipv6(char *host)
 	hints.ai_socktype = SOCK_STREAM;
 
 	error_code = getaddrinfo(host, NULL, &hints, &addr_res);
-	if(!error_code)
-	{
-	    switch(addr_res->ai_family)
-	    {
+	if (error_code == 0) {
+	    switch(addr_res->ai_family) {
 		case PF_INET:
-		    map_addr_to6(&((struct sockaddr_in*)addr_res->ai_addr)->sin_addr, &addr);
+		    _map_addr_to6(&((struct sockaddr_in*)addr_res->ai_addr)->sin_addr, &addr);
 		    break;
 		case PF_INET6:
 		    addr = ((struct sockaddr_in6*)addr_res->ai_addr)->sin6_addr;
@@ -276,12 +283,16 @@ struct in6_addr *make_addr_ipv6(char *host)
 }
 #endif
 
-/* Sets a file descriptor to close on exec.  "flag" is 1 to close on exec, 0 to
- * leave open across exec.
- * -- EJB 7/31/2000
+#ifdef INCLUDE_LEGACY
+/**
+ * Sets a file descriptor to close on exec.
+ *
+ * @param fd the file descriptor
+ * @param flag 1 to close on exec, 0 to leave open across exec
+ *
+ * @deprecated this function is not used by jabberd14 and might be removed in future versions
  */
-int set_fd_close_on_exec(int fd, int flag)
-{
+int set_fd_close_on_exec(int fd, int flag) {
     int oldflags = fcntl(fd,F_GETFL);
     int newflags;
 
@@ -294,4 +305,4 @@ int set_fd_close_on_exec(int fd, int flag)
         return 0;
     return fcntl(fd,F_SETFL,(long)newflags);
 }
-
+#endif
