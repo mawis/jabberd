@@ -257,6 +257,7 @@ int main (int argc, char** argv)
     {
         pth_ctrl(PTH_CTRL_GETAVLOAD, &avload);
         log_debug(ZONE,"main load check of %.2f with %ld total threads", avload, pth_ctrl(PTH_CTRL_GETTHREADS));
+	jid_clean_cache();
         pth_sleep(60);
     };
 
