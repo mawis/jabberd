@@ -38,9 +38,7 @@
     separate virtual server.
     -->
 
-    <host>
-      <jabberd:cmdline flag="h">localhost</jabberd:cmdline>
-    </host>
+    <host><jabberd:cmdline flag="h">localhost</jabberd:cmdline></host>
 
     <!-- This is the custom configuration section for the 
     Jabber session manager, a.k.a. "JSM". -->
@@ -81,19 +79,15 @@
 
       <!--
       This is the resource that checks for updated versions 
-      of the Jabber server software. For now, a lot of people
-      just comment this out. This is especially a good strategy
+      of the Jabber server software. You don't loose any functionality
+      if you just remove it. This is especially a good strategy
       if your server is behind a firewall. If you want to use 
       this feature, change 'localhost' to the hostname or IP 
       address of your server, making sure that it is the same 
       as your entry for <host/> above.
       -->
 
-      <!--
-      <update>
-        <jabberd:cmdline flag="h">localhost</jabberd>
-      </update>
-      -->
+      <update><jabberd:cmdline flag="h">localhost</jabberd:cmdline></update>
 
       <!--
       The <agents/> section identifies the transports and other
@@ -206,9 +200,7 @@
       <xdb_file>./xdb_file/xdb_file.so</xdb_file>
     </load>
     <xdb_file xmlns="jabber:config:xdb_file">
-      <spool>
-        <jabberd:cmdline flag='s'>./spool</jabberd:cmdline>
-      </spool>
+      <spool><jabberd:cmdline flag='s'>./spool</jabberd:cmdline></spool>
     </xdb_file>
   </xdb>
 
@@ -227,8 +219,7 @@
 
     * karma - this is an input/output rate limiting system that
       the Jabber team came up with to prevent bandwidth hogging.
-      For details about karma, see the karma.txt file under the
-      docs/ directory that is part of the server install. These
+      For details about karma, see docs.jabber.org. These
       settings apply per connection/socket and can be changed as
       desired.
 
@@ -336,7 +327,7 @@
     <host>irc.localhost</host>
   </service>
 
-  <service id="aim">
+  <service id="aim.localhost">
     <accept>
       <ip/>
       <port>7009</port>
