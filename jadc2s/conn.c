@@ -319,6 +319,8 @@ int conn_read(conn_t c, char *buf, int len)
         if ((len - cur_len) < max_len)
             max_len = (len - cur_len);
         
+        log_debug(ZONE,"processing read data from %d: %.*s", c->fd, max_len, new_buf);
+
         /* Update how much has been read */
         c->read_bytes += max_len;
     
@@ -375,8 +377,6 @@ int conn_write(conn_t c)
         /* write a bit from the current buffer */
         len = _write_actual(c, c->fd, cur->wcur, cur->wlen);
 
-        log_debug(ZONE, "wrote data to %d: %d", c->fd, len);
-        
         /* we had an error on the write */
         if(len < 0)
         {
