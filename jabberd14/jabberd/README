@@ -10,3 +10,60 @@ base modules may:
 
 packets are routed based on the host in the to or sid attributes
 packets are logicly delivered into three categories: log, xdb, normal
+
+--
+DizzyD's Explanation Attempt #1
+
+jabberd is the hub of a distributed system of components which, collectively, form a single Jabber server. Currently,
+these components connect to the server via the following methods:
+    - TCP sockets
+    - Child process I/O (stdin/out)
+    - Shared object/libraries
+
+jabberd acts as a central-coordinator between these components. It does this by routing/delivering the XML packets
+which the components exchange. This design permits the jabber server to be effectively scaled across a server
+farm, while providing signficant freedom in implementation of the pieces which compose the server. An existing,
+dedicated LDAP server can be fitted with a component which hooks up to the jabberd hub via TCP sockets. Authentication,
+vcard lookups, etc, on arrival in the hub are passed down the TCP connection to the LDAP server for handling in 
+whatever form it sees fit. Thus, jabberd provides a way to custom-fit a jabberserver to an existing network topology.
+
+Codewise, jabberd is quite simplistic (ok, so it's not to me, but this is written with the future in mind). There
+are six basic C files which compose the heart of jabberd:
+    1.) jabberd.c   - Starts the hub and loads configuration
+    2.) config.c    - Configuration parser and loader
+    3.) deliver.c   - Delivery logic for the server; maintains 3 logical delivery trees
+    4.) heartbeat.c - Uh..heartbeat? What the sam shake is this used for?
+    5.) load.c      - intializes base modules and loads any registered shared object libraries
+    6.) log.c       - provides interface for logging errors, warnings, etc.
+
+Note that these files provide little functionality on their own. They only form the core of the jabberd process
+and rely on base modules to provide significant functionality (such as opening TCP connections, loading shared 
+objects, listening for incoming TCP connections, etc). 
+
+The base modules can be found in four child directories of jabberd/src:
+    * log/  - Base modules specific to logging
+    * xdb/  - Base modules specific to xdb (xml node storage)
+    * io/   - Base modules specific to IO (TCP, file, shared objects)
+    * gen/  - Base modules which provide general functionality 
+
+-- Server Logic Guide --
+
+I.) Startup
+    The server starts up by locating and loading an XML configuration file. This file provides information on all
+    the various components which will compose the server. Logically, the configuration consists of three types of
+    entries:
+    1.) xdb     - HELPME UNDERSTAND!
+    2.) log     - HELPME UNDERSTAND!
+    3.) service - HELPME UNDERSTAND!
+    
+    **WARNING**
+    It should be noted that it is quite possible to setup a seriously screwed up server by tinkering with this file. 
+    Infinite message loops are the least troublesome of the problems which this amount of flexibilty brings. That 
+    said, this approach to setting up the server affords significant scalability and modularity. Let he who has ears, 
+    take heed. 
+    **WARNING**
+
+II.) Delivery/Routing
+
+III.) Crashing (How various components handle it and restart)
+
