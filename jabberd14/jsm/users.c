@@ -85,7 +85,6 @@ int _js_hosts_del(void *arg, const void *key, void *data)
 void *js_users_main(void *arg)
 {
     jsmi si = (jsmi)arg;
-    int flag = 0;
 
     /* debug message */
     log_debug(ZONE,"THREAD:USERS starting");
@@ -98,15 +97,6 @@ void *js_users_main(void *arg)
 
         /* free user struct if we can */
         ghash_walk(si->hosts,_js_hosts_del,NULL);
-
-        /* if we have debug pools compiled */
-        if(flag++ > 5)
-        {
-            pool_stat(1);
-            flag = 0;
-        }else{
-            pool_stat(0);
-        }
     }
 }
 
