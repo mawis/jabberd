@@ -49,9 +49,10 @@ session js_session_new(jsmi si, jid owner, jid sid)
     session s;      /* the session being created */
     jid uid;        /* a general jid for the session - ie with no resource */
     int i;
+    udata u;
 
     /* screen out illegal calls */
-    if(sid == NULL || owner == NULL || owner->resource == NULL)
+    if(sid == NULL || owner == NULL || owner->resource == NULL || (u = js_user(si,owner,NULL)) == NULL)
         return NULL;
 
     log_debug(ZONE,"session_create %s at %s",jid_full(owner),jid_full(sid));
@@ -72,7 +73,7 @@ session js_session_new(jsmi si, jid owner, jid sid)
     jid_set(uid, NULL, JID_RESOURCE);
     s->uid = uid;
     s->res = pstrdup(p, owner->resource);
-    s->u = js_user(si,owner,NULL);
+    s->u = u;
 
     /* default settings */
     s->exit_flag = 0;

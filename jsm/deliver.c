@@ -94,7 +94,12 @@ result js_packet(instance i, dpacket p, void *arg)
         if(j_strcmp(type,"session") == 0 && p->id->user != NULL && p->id->resource != NULL)
         {
             /* start session */
-            js_session_new(si, p->id, jid_new(p->p,xmlnode_get_attrib(p->x,"from")));
+            if(js_session_new(si, p->id, jid_new(p->p,xmlnode_get_attrib(p->x,"from"))) == NULL)
+            { /* session start failed */
+                log_notice(p->host,"Unable to create session %s",jid_full(p->id));
+                xmlnode_put_attrib(p->x,"type","error");
+                xmlnode_put_attrib(p->x,"error","Session Failed");
+            }
 
             /* reply */
             jutil_tofrom(p->x);
