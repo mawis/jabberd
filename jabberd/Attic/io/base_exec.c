@@ -364,7 +364,6 @@ result base_exec_config(instance id, xmlnode x, void *arg)
 void base_exec(void)
 {
      log_debug(ZONE,"base_exec loading...\n");
-
      register_config("exec",base_exec_config,NULL);
 }
 

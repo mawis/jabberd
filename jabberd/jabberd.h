@@ -221,11 +221,17 @@ typedef struct mio_st
 /* i/o callback function definition */
 typedef void (*mio_cb)(mio c,char *buffer,int bufsz,int flag,void *arg);
 
+/* initializes the MIO subsystem */
+void mio_init(void);
+
+/* stops the MIO system */
+void mio_stop(void);
+
 /* create a new mio object from a file descriptor */
 mio mio_new(int fd, mio_cb cb, void *arg);
 
 /* reset the callback and argument for an mio object */
-void mio_reset(mio m, mio_cb cb, void *arg);
+mio mio_reset(mio m, mio_cb cb, void *arg);
 
 /* request the mio socket be closed */
 void mio_close(mio m);

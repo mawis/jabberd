@@ -135,6 +135,10 @@ int main (int argc, char** argv)
 
     /* fire em up baby! */
     heartbeat_birth();
+
+    /* init MIO */
+    mio_init();
+
     loader();
 
     /* everything should be registered for the config pass, validate */
@@ -182,6 +186,9 @@ int main (int argc, char** argv)
 
     /* one last chance for threads to finish shutting down */
     pth_sleep(1);
+
+    /* stop MIO */
+    mio_stop();
 
     /* kill any leftover threads */
     pth_kill();

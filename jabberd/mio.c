@@ -53,6 +53,7 @@ typedef struct mio_main_st
     pool p;             /* pool to hold this data */
     mio master__list;  /* a list of all the socks */
     pth_t t;            /* a pointer to thread for signaling */
+    int shutdown;
 } _ios,*ios;
 
 /* global object */
@@ -91,28 +92,6 @@ result _mio_heartbeat(void*arg)
 
     /* always return r_DONE, to keep getting heartbeats */
     return r_DONE;
-}
-
-/*
- * Cleanup function when server is shutting down, closes
- * all sockets, so that everything can be cleaned up
- * properly.
- */
-void _mio_shutdown(void *arg)
-{
-    mio cur;
-
-    /* no need to do anything if mio__data hasn't been used yet */
-    if(mio__data == NULL) return;
-
-    /* loop each socket, and close it */
-    for(cur = mio__data->master__list; cur != NULL; cur = cur->next)
-    {
-        mio_close(cur);
-    }
-
-    /* give some time to close the sockets */
-    pth_yield(mio__data->t);
 }
 
 /* 
@@ -330,6 +309,8 @@ void _mio_main(void *arg)
                 maxlen,     /* most data to read from sock */
                 maxfd=0;
 
+    log_debug(ZONE, "MIO is starting up");
+
     /* init the signal junk */
     sigemptyset(&sigs);
     sigaddset(&sigs, SIGUSR2);
@@ -337,8 +318,6 @@ void _mio_main(void *arg)
 
     /* init the socket junk */
     maxfd = 0;
-    if(mio__data->master__list != NULL)
-        maxfd = mio__data->master__list->fd;
     FD_ZERO(&all_wfds);
     FD_ZERO(&all_rfds);
     
@@ -351,6 +330,11 @@ void _mio_main(void *arg)
     {
         rfds = all_rfds;
         wfds = all_wfds;
+
+        /* if we are closing down, exit the loop */
+        if(mio__data->shutdown == 1 && mio__data->master__list == NULL)
+            break;
+
         /* wait for a socket event */
         pth_select_ev(maxfd+1, &rfds, &wfds, NULL, NULL, wevt);
 
@@ -515,11 +499,9 @@ void _mio_main(void *arg)
         for(cur = mio__data->master__list; cur != NULL; cur = cur->next)
             if(cur->queue != NULL) FD_SET(cur->fd, &all_wfds);
             else FD_CLR(cur->fd, &all_wfds);
-
-        /* if there are no more sockets to loop on */
-        if(mio__data->master__list == NULL)
-            break; 
     }
+    log_debug(ZONE, "\n\n\nMIO SHUTTING DOWN\n\n\n");
+
 
     /* cleanup the socket data */
     pool_free(mio__data->p);
@@ -531,6 +513,65 @@ void _mio_main(void *arg)
 \***************************************************/
 
 /* 
+   starts the _mio_main() loop
+*/
+void mio_init(void)
+{
+    pool p;
+    pth_attr_t attr;
+
+
+    if(mio__data == NULL)
+    {
+        register_beat(KARMA_HEARTBEAT, _mio_heartbeat, NULL);
+
+        /* malloc our instance object */
+        p            = pool_new();
+        mio__data    = pmalloco(p, sizeof(_ios));
+        mio__data->p = p;
+
+        /* start main accept/read/write thread */
+        attr = pth_attr_new();
+        pth_attr_set(attr,PTH_ATTR_JOINABLE,FALSE);
+        mio__data->t=pth_spawn(attr,(void*)_mio_main,NULL);
+        pth_attr_destroy(attr);
+
+        /* give time to init the signal handlers */
+        pth_yield(mio__data->t);
+    }
+}
+
+/*
+ * Cleanup function when server is shutting down, closes
+ * all sockets, so that everything can be cleaned up
+ * properly.
+ */
+void mio_stop(void)
+{
+    mio cur;
+
+    log_debug(ZONE, "MIO is shutting down");
+
+    /* no need to do anything if mio__data hasn't been used yet */
+    if(mio__data == NULL) return;
+
+    /* flag that it is okay to exit the loop */
+    mio__data->shutdown = 1;
+
+    /* loop each socket, and close it */
+    for(cur = mio__data->master__list; cur != NULL; cur = cur->next)
+    {
+        _mio_close(cur);
+    }
+
+    /* signal the loop to end */
+    pth_abort(mio__data->t);
+
+    pool_free(mio__data->p);
+    mio__data = NULL;
+}
+
+/* 
    creates a new mio object from a file descriptor
 */
 mio mio_new(int fd, mio_cb cb, void *arg)
@@ -538,8 +579,6 @@ mio mio_new(int fd, mio_cb cb, void *arg)
     mio  new            = NULL;
     pool p              = NULL;
     int flags           = 0;
-    static int one_time = 1;
-    pth_attr_t attr     = NULL;
 
     if(fd <= 0) 
         return NULL;
@@ -556,38 +595,11 @@ mio mio_new(int fd, mio_cb cb, void *arg)
 
     /* set the default karma values */
     mio_karma(new, KARMA_INIT, KARMA_MAX, KARMA_INC, KARMA_DEC, KARMA_PENALTY, KARMA_RESTORE);
-
     
     /* set the socket to non-blocking */
     flags =  fcntl(fd, F_GETFL, 0);
     flags |= O_NONBLOCK;
     fcntl(fd, F_SETFL, flags);
-
-    /* if this is the first socket on the list */
-    if(mio__data == NULL)
-    {
-        /* register a cleanup and heartbeat */
-        if(one_time)
-        {
-            one_time = 0;
-            register_shutdown(_mio_shutdown, NULL);
-            register_beat(KARMA_HEARTBEAT, _mio_heartbeat, NULL);
-        }
-
-        /* malloc our instance object */
-        p            = pool_new();
-        mio__data    = pmalloco(p, sizeof(_ios));
-        mio__data->p = p;
-
-        /* start main accept/read/write thread */
-        attr = pth_attr_new();
-        pth_attr_set(attr,PTH_ATTR_JOINABLE,FALSE);
-        mio__data->t=pth_spawn(attr,(void*)_mio_main,(void*)mio__data);
-        pth_attr_destroy(attr);
-
-        /* pause to allow the main loop to register signal handlers */
-        pth_yield(NULL);
-    }
 
     /* add to the select loop */
     _mio_link(new);
@@ -602,13 +614,15 @@ mio mio_new(int fd, mio_cb cb, void *arg)
 /*
    resets the callback function
 */
-void mio_reset(mio m, mio_cb cb, void *arg)
+mio mio_reset(mio m, mio_cb cb, void *arg)
 {
     if(m == NULL) 
         return NULL;
 
     m->cb  = (void*)cb;
     m->arg = arg;
+
+    return m;
 }
 
 /* 
