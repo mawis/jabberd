@@ -555,6 +555,10 @@ mreturn mod_presence_avails_end(mapi m, void *arg)
     _mod_presence_broadcast(m->s, mp->A, m->s->presence, NULL);
     _mod_presence_broadcast(m->s, mp->I, m->s->presence, NULL);
 
+    /* store presence in xdb? */
+    if (mp->conf->pres_to_xdb > 0)
+	mod_presence_store(m);
+
     return M_PASS;
 }
 
