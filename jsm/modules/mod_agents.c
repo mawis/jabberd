@@ -5,7 +5,7 @@ mreturn mod_agents_agents(mapi m)
     xmlnode ret, retq, agents;
 
     /* get data from the config file */
-    agents = js_config("agents");
+    agents = js_config(m->si,"agents");
 
     /* if we don't have anything to say, bounce */
     if(agents == NULL)
@@ -22,7 +22,7 @@ mreturn mod_agents_agents(mapi m)
     xmlnode_insert_node(retq,xmlnode_get_firstchild(agents));
 
     jpacket_reset(m->packet);
-    js_deliver(m->packet);
+    js_deliver(m->si,m->packet);
 
     return M_HANDLED;
 }
@@ -32,9 +32,9 @@ mreturn mod_agents_agent(mapi m)
     xmlnode ret, retq, info, agents, reg;
 
     /* get data from the config file */
-    info = js_config("info");
-    agents = js_config("agents");
-    reg = js_config("register");
+    info = js_config(m->si,"info");
+    agents = js_config(m->si,"agents");
+    reg = js_config(m->si,"register");
 
     /* if we don't have anything to say, bounce */
     if(info == NULL && agents == NULL && reg == NULL)
@@ -58,7 +58,7 @@ mreturn mod_agents_agent(mapi m)
         xmlnode_insert_tag(retq,"register");
 
     jpacket_reset(m->packet);
-    js_deliver(m->packet);
+    js_deliver(m->si,m->packet);
 
     return M_HANDLED;
 }
@@ -75,8 +75,8 @@ mreturn mod_agents_handler(mapi m, void *arg)
     return M_PASS;
 }
 
-void mod_agents(jsmi i)
+void mod_agents(jsmi si)
 {
     log_debug("mod_agents","init");
-    js_mapi_register(e_SERVER, mod_agents_handler, NULL);
+    js_mapi_register(si,e_SERVER, mod_agents_handler, NULL);
 }
