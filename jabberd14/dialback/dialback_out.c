@@ -378,7 +378,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
         /* make sure we're not connecting to ourselves */
         if(ghash_get(c->d->in_id,xmlnode_get_attrib(x,"id")) != NULL)
         {
-            log_alert(c->key->server,"hostname maps back to ourselves!");
+            log_alert(c->key->server,"hostname maps back to ourselves!- No service defined for this hostname, can not handle request. Check jabberd configuration.");
             mio_write(m, NULL, "<stream:error>Mirror Mirror on the wall</stream:error>", -1);
             mio_close(m);
             break;

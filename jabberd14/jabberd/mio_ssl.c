@@ -238,7 +238,7 @@ int _mio_ssl_accept(mio m, struct sockaddr *serv_addr, socklen_t *addrlen)
     ctx = ghash_get(ssl__ctxs, m->ip);
     if(ctx == NULL)
     {
-        log_debug(ZONE, "NULL ctx found in SSL hash");
+        log_debug(ZONE, "No SSL key configured for IP %s", m->ip);
         return -1;
     }
     ssl = SSL_new(ctx);
