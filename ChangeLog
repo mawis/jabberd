@@ -1,3 +1,7 @@
+2005-02-24  Matthias Wimmer  <m@tthias.net>
+
+    * jsm/modules/mod_presence.c: Bugfix: presences with multiple stamps bug
+
 2005-02-23  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/lib/jabberdlib.h: make unused code optional
