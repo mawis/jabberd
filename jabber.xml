@@ -45,7 +45,7 @@
   <xdb id="xdb file">
     <host/>
     <load><xdb_file>./xdb_file/xdb_file.so</xdb_file></load>
-    <xdb_file xmlns="jabberd:xdb_file:config"><spool>/var/tmp</spool></xdb_file>
+    <xdb_file xmlns="jabberd:xdb_file:config"><spool><jabberd:cmdline flag="s">/var/tmp</jabberd:cmdline></spool></xdb_file>
   </xdb>
 
   <!-- Service to manage incoming client socket connections -->
