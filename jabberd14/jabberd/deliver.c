@@ -433,8 +433,8 @@ result deliver_hostid(hostid cur, char *host, dpacket inp, result inbest)
         pool_free(p->p);
 
     /* track the highest result */
-    if(best > inbest)
-        inbest = best;
+    if(inbest > best)
+        best = inbest;
 
     if(next == NULL)
         return best;
