@@ -1,58 +1,38 @@
 ===================================
-Crit/Bugs/Strangeness
+Features/Crit
 ===================================
 
-temas	9/15/00 almost
-flat jpolld component minimally working
+temas
+jpolld component
 
-jer	9/15/00 thinking
-consistent usage of namespaces for streams and config sections
-
-keith/temas	10/5/00 oops!
-c2s components must support configurable aliases, <alias to="jabber.org">www.jabber.org</alias>
-so that a client who types in www.jabber.org and that shows up in the stream header, it's translated to just jabber.org internally
-should we probably also have it conifgurable so that all names are forced to one?
-
-
-===================================
-Pre-FFreeze
-===================================
-
-keith --
+jer
+mod_roster caching and hashing?
 mod_filter rule caching
+dialback hostname authentication using sha
+jsm should manage stateless sessions too
+zero-knowledge auth plugin and auth/reg system cleanup
+xdb_file in-mem caching
 
-jer --
-jsm roster caching and hashing?
-
-keith 9/26/00 ----
+keith
 base_accept plumber algorithm needs improvement..
 perhaps a timout for each individual packet?
 
-temas	9/15/00 owner
-minimal build system?
-static/dynamic for base modules, components?
+?
+base_farm meshing and hashed jid distribution
 
-jer	9/15/00 need to document
-dialback hostname authentication using signatures
-
-jer	9/15/00 owner
-jsm should manage stateless sessions too
-
-jer	9/15/00 need to document
-zero-knowledge auth plugin
-
-jer	9/15/00 easy
-base_cache for caching xdb requests in memory
-
-?	9/15/00 open, needs some docu from jer
-base_farm for simple hashing name distribution
-
-jer/diz	10/4/00 grunt
+jer/diz
 rate limits
 
-all	10/5/00 cleanup
-existing/known bugs or issues with 1.0, protocol things?
-register get
+
+===================================
+Code Double Checks
+===================================
+
+consistent jabber:* namespaces and checks
+clean up log_* calls, make sure right type, looks sane
+check XXX/TODO comment flags
+check error codes, use timeout ones?
+
 
 ===================================
 TESTING
@@ -77,49 +57,44 @@ components:
 	xdb_file, io error handling, heavy load?
 	c2s, bad streams/ids, bad auth, bad reg, queueing, timeouts
 
+builds:
+	XP to gcc on linux/solaris2.6+/*bsd
+	personal
+	intranet/internal
+	isp/general
+	developer
+
 
 ===================================
-1.2
+1.2 Cleanup/Release
 ===================================
 
-jer 9/26/00 future junk
+all
+existing/known bugs or issues with 1.0, protocol things?
+
+jer
 A way to gracefully shut down the server, and notify all components is needed
+deliver safety, validating routable bits of the packets
+deliver optimization/logic review
 
-dizzyd	9/15/00 owner
+dizzyd
 test python scripts, "make test"
 
-?	9/15/00
+?
 need nice READMEs and man page(s)
-
-jer	9/15/00
-deliver safety, validating routable bits of the packets
-deliver optimization
-
-all	9/15/00
-clean up log_* calls, make sure right type, looks sane
-check XXX/TODO comment flags
-check error codes, use timeout ones?
-
-jer	9/15/00
 socket ioctl tweaks, r/w buffers, reduce data loss, shorten timeouts
 
 
 ===================================
-1.3/1.4
+1.3/1.4+
 ===================================
 
-jer	9/15/00 owner
 config: register a command description like apache?
-
 pthreads
 admin
 dynamic config
 smarter failure handling and detection (component keepalive?)
-
-===================================
-Future
-===================================
-
-
+managed IO: mio_* w/ pluggable select/poll/aio in the background and smart xmlnode/char* write buffering
+pth_msgport replacement w/ socketpair and fd events for easier pthread handling
 
 
