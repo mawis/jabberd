@@ -10,7 +10,9 @@
   "jabberd:cmdline", it's automatically replaced on startup 
   with the command line flag passed in to jabberd. This enables
   you to override parameters set in this configuration file if 
-  necessary or desired.
+  necessary or desired. Also note as you comment things in and
+  out that jabberd does not like comments within comments, so
+  be careful with your XML. :)
   -->
 
   <!-- 
@@ -23,7 +25,8 @@
     * the location of the session log file
     * email addresses for server administrators 
     * the location of the server that provides update information
-    * registration instructions for users
+    * registration instructions for new users
+    * a welcome message for new users
     * a list of agents with which users can register
     * load rules for the modules within the session manager
 
@@ -35,42 +38,75 @@
     Change hostname below to something other than "localhost", 
     i.e., to the hostname or IP address of your Jabber server. 
     Multiple <host/> entries are allowed - each one is for a 
-    separate virtual server.
+    separate virtual server. Note that each host entry must 
+    be on one line, the server doesn't like it otherwise! :)
     -->
 
     <host><jabberd:cmdline flag="h">localhost</jabberd:cmdline></host>
 
-    <!-- This is the custom configuration section for the 
-    Jabber session manager, a.k.a. "JSM". -->
+    <!-- 
+    This is the custom configuration section for the 
+    Jabber session manager, a.k.a. "JSM". 
+    -->
 
     <jsm xmlns="jabber:config:jsm">
 
-      <filter> <!-- mod filter settings -->
-          <!-- Default rule persists - a user cannot delete it -->
+      <!--
+      The <filter/> section below determines settings
+      for mod_filter, a server-side module built into
+      JSM that enables users to set delivery rules for
+      messages they receive (not yet supported by all
+      clients. The <allow/> subsection specifies which
+      conditions and actions to enable. High-level 
+      descriptions of each setting can be found below 
+      (see docs.jabber.org for full details):
+
+      * <default/> - a user cannot delete this one, it's
+        the default rule for delivering messages
+      * <max_size/> - the maximum number of rules in a
+        user's rule set (we don't want to overdo it!)
+      * conditions...
+        * <ns/> - matches the query xmlns attrib on an iq packet
+        * <unavailable/> - matches when user is unavailable
+        * <from/> - matches the sender of the message
+        * <resource/> - matches the receiver's resource
+        * <subject/> - matches the subject of the message
+        * <body/> - matches the body of the message
+        * <show/> - matches the show tag on the receiver's presence
+        * <type/> - matches the type of the message
+        * <roster/> - matches if the sender is in your roster
+        * <group/> - matches if the sender is in the specified group
+      * actions...
+        * <error/> - replies with an error
+        * <offline/> - stores the messages offline
+        * <forward/> - forwards the message to another jid
+        * <reply/> - sends a reply to the sender of the message
+        * <continue/> - continues processing of the rules
+        * <settype/> - changes the type of the message
+      -->
+      <filter>
           <default/>
-          <!-- Max number of rules in a user's rule set -->
           <max_size>100</max_size>
-          <!-- specify which conditions/actions to allow -->
           <allow>
               <conditions>
-                  <ns/> [matches the query xmlns attrib on an iq packet]
-                  <unavailable/> [matches when user is unavailable]
-                  <from/> [matches the sender of the message]
-                  <resource/> [matches the receiver's resource]
-                  <subject/> [matches the subject of the message]
-                  <body/> [matches the body of the message]
-                  <show/> [matches the show tag on the receiver's presence]
-                  <type/> [matches the type of the message]
-                  <roster/> [matches if the sender is in your roster]
-                  <group/> [matches if the sender is in the specified group]
+                  <ns/>
+                  <unavailable/>
+                  <from/>
+                  <resource/>
+                  <subject/>
+                  <body/>
+                  <show/>
+                  <type/>
+                  <roster/>
+                  <group/>
               </conditions>
               <actions>
-                  <error/> [replys with an error]
-                  <offline/> [stores the messages offline]
-                  <forward/> [forwards the message to another jid]
-                  <reply/> [sends a reply to the sender of the message]
-                  <continue/> [continues processing of the rules]
-                  <settype/> [changes the type of the message]
+                  <error/>
+                  <offline/>
+                  <forward/>
+                  <reply/>
+                  <continue/>
+                  <settype/>
               </actions>
           </allow>
       </filter>
@@ -83,7 +119,12 @@
         <URL>http://foo.bar/</URL>
       </vCard>
 
-      <!-- registration instructions and required fields, the notify attribute will send the server administrator(s) a message after a valid registration -->
+      <!-- 
+      Registration instructions and required fields. The 
+      notify attribute will send the server administrator(s)
+      a message after each valid registration if it is set
+      to "yes".
+      -->
 
       <register notify="yes">
         <instructions>Choose a username and password to register with this server.</instructions>
@@ -91,20 +132,36 @@
         <email/>
       </register>
 
-      <!-- welcome note, sent to every new registration, remove to disable -->
+      <!-- 
+      A welcome note that is sent to every new user who registers 
+      with your server. Comment it out to disable this function.
+      -->
+
       <welcome>
         <subject>Welcome!</subject>
-        <body>This is a welcome message from your server, and maybe even your first Jabber message.  Please enjoy the service!</body>
+        <body>Welcome to the Jabber server at localhost -- we hope you enjoy this service! For information about how to use Jabber, visit the Jabber User's Guide at http://docs.jabber.org/</body>
       </welcome>
 
-      <!-- location of the session log file -->
+      <!-- The location of the session log file. -->
 
       <log>
         <file>session.log</file>
         <type>session</type>
       </log>
 
-      <!-- IDs with admin access - these will receive admin messages. -->
+      <!-- 
+      IDs with admin access - these people will receive admin 
+      messages. Note that they can also send announcements to
+      all users of the server, or to all online users. To use
+      the announcement feature, you need to send raw xml and be
+      logged in as one of the admin users. Here is the syntax 
+      for sending an announcement to online users:
+
+        <message to="yourhostname/announce/online">
+          <body>announcement here</body>
+        </message>
+
+      -->
 
       <!--
       <admin>
@@ -115,12 +172,13 @@
 
       <!--
       This is the resource that checks for updated versions 
-      of the Jabber server software. You don't loose any functionality
-      if you just remove it. This is especially a good strategy
-      if your server is behind a firewall. If you want to use 
-      this feature, change 'localhost' to the hostname or IP 
-      address of your server, making sure that it is the same 
-      as your entry for <host/> above.
+      of the Jabber server software. Note that you don't lose 
+      any functionality if you comment this out. Removing the
+      <update/> config is especially a good strategy if your 
+      server is behind a firewall. If you want to use this 
+      feature, change 'localhost' to the hostname or IP address 
+      of your server, making sure that it is the same as your 
+      entry for <host/> above.
       -->
 
       <update><jabberd:cmdline flag="h">localhost</jabberd:cmdline></update>
@@ -128,10 +186,10 @@
       <!--
       The <browse/> section identifies the transports and other
       services that are available from this server. Note that each
-      entity identified here must exist elsewhere or be further defined in its own 
-      <service/> section below. These services will appear in the
-      user interface of Jabber clients that connect to your
-      server.
+      entity identified here must exist elsewhere or be further 
+      defined in its own <service/> section below. These services 
+      will appear in the user interface of Jabber clients that
+      connect to your server.
       -->
 
       <browse>
@@ -139,7 +197,7 @@
         <!-- 
         This is the default agent for the master Jabber User 
         Directory, a.k.a. "JUD", which is located at jabber.org.
-        You can add seperate <service/> sections for additional
+        You can add separate <service/> sections for additional
         directories, e.g., one for a company intranet.
         -->
 
@@ -152,7 +210,7 @@
         The following services are examples only, you will need to
         create/modify them to get them working on your Jabber 
         server. See the README files for each service and/or the 
-        server howto for further information. 
+        server howto for further information/instructions. 
         -->
 
         <!-- we're commenting these out, of course :)
@@ -178,7 +236,9 @@
     <!--
     The following section dynamically loads the individual
     modules that make up the session manager. Remove or 
-    comment out modules to disable them.
+    comment out modules to disable them. Note that the order
+    of modules is important, since packets are delivered 
+    based on the following order!!
     -->
 
     <load main="jsm">
@@ -286,12 +346,13 @@
   </service>
 
   <!--
-  Handles server connections and dialback hostname verification.
-  Notice that here again we have rate limits and karma to prevent
-  nasty connection attempt and bandwidth abuses. The <legacy/>
-  element is here to enable communication with old 1.0 servers.
-  The karma settings are a little higher here to handle the higher
-  traffic of server-to-server connections.
+  The following 's2s' config handles server connections and 
+  dialback hostname verification. Note that here again we 
+  have rate limits and karma to prevent nasty connection 
+  attempt and bandwidth abuses. The <legacy/> element is 
+  here to enable communication with old 1.0 servers. The 
+  karma settings are a little higher here to handle the 
+  higher traffic of server-to-server connections.
   -->
 
   <service id="s2s">
@@ -311,10 +372,14 @@
   If you identified additional agents in the main <service/> 
   section (see examples above), you'll need to define each 
   of them here using a separate <service/> section for each 
-  <agent/> you identified. The following are examples only, 
-  you will need to create/modify them to get them working 
-  on your Jabber server. See the README files for each 
-  agent and/or the server howto for further information. 
+  <agent/> you identified. Note that the <agent/> sections
+  determine what gets shown to clients that connect to your
+  server, whereas the following <service/> sections define
+  these services within the server itself. The following are
+  examples only, you will need to create/modify them to get 
+  them working on your Jabber server. See the README files 
+  for each agent and/or the server howto for further 
+  information/instructions. 
   -->
 
   <!-- we're commenting these out, of course :)
@@ -348,9 +413,15 @@
 
   end of <service/> examples -->
 
-  <!-- toplevel mio initilization  -->
+  <!--
+  The following <io/> config initializes the top-level
+  I/O, otherwise known as MIO (Managed Input/Output).
+  -->
+
   <io>
-    <!-- default karma for *all* sockets
+
+    <!-- Set the default karma for *all* sockets -->
+    <!--
     <karma>
       <heartbeat>2</heartbeat>
       <init>10</init>
@@ -361,15 +432,26 @@
       <restore>10</restore>
     </karma>
     -->
-    <!-- rate limits are to monitor the number of connects (points) per second (time)
+
+    <!-- 
+    Set rate limits to monitor the number of connection
+    attempts (points) per second (time)
+    -->
+    <!--
     <rate points="5" time="25"/>
     -->
-    <!-- ssl for toplevel io initiliaztion, only works when the server is compiled with openssl!
+
+    <!-- 
+    The following section initializes SSL for top-level I/O.
+    This works only when the server is compiled with openssl!
+    -->
+    <!--
     <ssl>
       <key ip='192.168.1.1'>/path/to/cert_and_key.pem</key>
       <key ip='192.168.1.100'>/path/to/other/cert_and_key.pem</key>
     </ssl>
     -->
+
   </io>
 
 
