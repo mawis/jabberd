@@ -21,26 +21,9 @@
 
 result base_logtype_filter(instance id, dpacket p, void* arg)
 {
-    char* comparisontype = (char*)arg;
     char* packettype     = xmlnode_get_attrib(p->x, "type");
-
-    if (comparisontype == NULL || packettype == NULL)
-    {
-        /* FIXME: this might not be an error if <log>'s don't require a type */
-        printf("NULL VALUE\n");
-        log_debug(ZONE,"base_logtype_filter error: invalid data; unable to filter.\n");
-        return r_LAST;
-    }
-
-    /* If comparison fails, return ok..*/
-    if (j_strcmp(packettype, comparisontype) == 0)
-    {
-        printf("values match %s %s\n",packettype,comparisontype);
+    if(xmlnode_get_tag(xmlnode_get_parent((xmlnode)arg),packettype)!=NULL)
         return r_PASS;
-    }
-
-    /* Otherwise, the filter failed */
-    printf("no match %s %s\n",packettype,comparisontype);
     return r_LAST;
 }
 
@@ -74,7 +57,7 @@ result base_logtype_config(instance id, xmlnode x, void *arg)
     /* Register a conditional handler for this instance, passing the name
      * of the tag as an argument (for comparison in the filter op 
      */
-    register_phandler(id, o_COND, base_logtype_filter, (void*)name);
+    register_phandler(id, o_COND, base_logtype_filter, (void*)x);
 
     log_debug(ZONE,"base_logtype_config performing configuration %s\n",xmlnode2str(x));
 
