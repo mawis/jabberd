@@ -479,6 +479,7 @@ jid     jid_append(jid a, jid b);	       /* Appending b to a (list), no dups */
 xmlnode jid_xres(jid id);		       /* Returns xmlnode representation of the resource?query=string */
 xmlnode jid_nodescan(jid id, xmlnode x);       /* Scans the children of the node for a matching jid attribute */
 jid     jid_user(jid a);                       /* returns the same jid but just of the user@host part */
+void	jid_init_cache();		       /**< initialize the stringprep caches */
 void	jid_clean_cache();		       /**< check the stringprep caches for expired entries */
 
 
