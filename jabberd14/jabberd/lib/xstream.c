@@ -52,7 +52,7 @@ void _xstream_defaultHandler(void *parser, const XML_Char *s, int len)
     else
     {
         int old_len = strlen(x->full);
-        x->full = (char*)pmalloc(xmlnode_pool(x), old_len + len + 1);
+        x->full = (char*)prealloc(xmlnode_pool(x), x->full, old_len, old_len + len + 1);
         memcpy(x->full + old_len, s, len);
         memcpy(x->full + old_len + len, "\0", 1);
         //printf("_xstream_defaultHandler() adding to ->full: %s\n", x->full);

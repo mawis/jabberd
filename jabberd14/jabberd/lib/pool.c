@@ -129,6 +129,7 @@ struct pheap *_pool_heap(pool p, int size)
     while((ret->block = _pool__malloc(size)) == NULL) sleep(1);
     ret->size = size;
     p->size += size;
+    p->last_malloc = NULL;
     ret->used = 0;
 
     /* append to the cleanup list */
@@ -145,6 +146,30 @@ pool _pool_new_heap(int size, char *zone)
     p = _pool_new(zone);
     p->heap = _pool_heap(p,size);
     return p;
+}
+
+/* note the prealloc will not return your data */
+void *prealloc(pool p, void *ptr, int old_size, int new_size)
+{
+    void *ret;
+
+    if(ptr == p->last_malloc && p->heap->size > p->heap->used + (new_size - old_size))
+    {
+        /* just give it more room */
+        void *end = p->heap->block + p->heap->used;
+        int old_size = end - ptr; 
+        p->heap->used += new_size - old_size;
+        return ptr;
+    }
+
+    /* old data cannot be resized, just pmalloc a new ptr */
+    ret = pmalloc(p, new_size);
+    if(old_size <= new_size)
+        memcpy(ret, ptr, old_size);
+    else
+        memcpy(ret, ptr, new_size);
+     
+    return ret;
 }
 
 void *pmalloc(pool p, int size)
@@ -177,6 +202,7 @@ void *pmalloc(pool p, int size)
     /* the current heap has room */
     block = (char *)p->heap->block + p->heap->used;
     p->heap->used += size;
+    p->last_malloc = (void*)block;
     return block;
 }
 

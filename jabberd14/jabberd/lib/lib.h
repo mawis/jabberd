@@ -111,6 +111,7 @@ typedef struct pool_struct
     int size;
     struct pfree *cleanup;
     struct pheap *heap;
+    void *last_malloc;
 #ifdef POOL_DEBUG
     char name[8], zone[32];
     int lsize;
@@ -128,6 +129,7 @@ pool _pool_new_heap(int size, char *zone); /* creates a new memory pool with an 
 void *pmalloc(pool p, int size); /* wrapper around malloc, takes from the pool, cleaned up automatically */
 void *pmalloc_x(pool p, int size, char c); /* Wrapper around pmalloc which prefils buffer with c */
 void *pmalloco(pool p, int size); /* YAPW for zeroing the block */
+void *prealloc(pool p, void *ptr, int old_size, int new_size); /* change size of pool malloc'd pointer */
 char *pstrdup(pool p, const char *src); /* wrapper around strdup, gains mem from pool */
 void pool_stat(int full); /* print to stderr the changed pools and reset */
 char *pstrdupx(pool p, const char *src); /* temp stub */

@@ -2,10 +2,6 @@
 
 void _xstream_callback(int type, xmlnode x, void *arg)
 {
-    printf("_xstream_callback(%d, %X, %X) fired\n", type, x, arg);
-
-    if(type == 1)
-        printf("FULL XMLNODE: %s", xmlnode2str(x));
 }
 
 int main(void)
