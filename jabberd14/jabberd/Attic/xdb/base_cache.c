@@ -9,6 +9,8 @@ result base_cache_config(instance id, xmlnode x, void *arg)
     }
 
     printf("base_cache_config performing configuration %s\n",xmlnode2str(x));
+
+    return r_PASS;
 }
 
 void base_cache(void)

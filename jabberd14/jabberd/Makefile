@@ -16,7 +16,6 @@ jabberd_OBJECTS = \
 	jabberd.o \
 	load.o \
 	log.o \
-	gen/base_fork.o \
 	gen/base_host.o \
 	io/base_connect.o \
 	io/base_exec.o \

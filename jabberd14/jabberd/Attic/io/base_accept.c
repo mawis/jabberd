@@ -24,7 +24,7 @@ when the write threads exit, only the default sink would persist, others all r_U
 
 the handshake is:
 <handshake host="1234.foo.jabber.org">SHAHASH of id+secret</handshake>
-the host attrib is optional, and when used causes a new sink/handler to be registerd in the o_MODIFY stage to "hijack" packets to that host
+the host attrib is optional, and when used causes a new sink/handler to be registerd in the o_PREDELIVER stage to "hijack" packets to that host
 note: the use of the host attrib and <host> element in the config are not automagically paired, must be done by the administrator configuring jabberd and whatever app is using the socket
 also, set host="void" to disable any packets or data being written to the socket
 
@@ -95,7 +95,7 @@ result base_accept_phandler(instance i, dpacket p, void *arg)
 
     pth_msgport_put(s->mp, (pth_message_t *)d);
 
-    return r_OK;
+    return r_DONE;
 }
 
 void base_accept_read_packets(int type, xmlnode x, void *arg)
@@ -167,7 +167,7 @@ void base_accept_read_packets(int type, xmlnode x, void *arg)
             snew->filter = pstrdup(p,block);
             a->s = snew;
             if(block != NULL) /* if we're filtering to a specific host, we need to do that BEFORE delivery! ugly... is the o_* crap any use? */
-                register_phandler(a->s->i, o_MODIFY, base_accept_phandler, (void *)snew);
+                register_phandler(a->s->i, o_PREDELIVER, base_accept_phandler, (void *)snew);
             else
                 register_phandler(a->s->i, o_DELIVER, base_accept_phandler, (void *)snew);
         }
@@ -347,7 +347,7 @@ result base_accept_plumber(void *arg)
         fprintf(stderr,"base_accept: bouncing packets\n");
     }
 
-    return r_OK;
+    return r_DONE;
 }
 
 xmlnode base_accept__listeners;
@@ -402,7 +402,7 @@ result base_accept_config(instance id, xmlnode x, void *arg)
     /* insert secret into it and hide sink in that new secret */
     xmlnode_put_vattrib(xmlnode_insert_tag_node(cur,xmlnode_get_tag(x,"secret")),"sink",(void *)s);
 
-    return r_OK;
+    return r_DONE;
 }
 
 void base_accept(void)

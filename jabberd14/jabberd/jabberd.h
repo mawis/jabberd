@@ -5,10 +5,10 @@
 typedef enum { p_NONE, p_NORM, p_XDB, p_LOG } ptype;
 
 /* ordering types, me first me first, managerial, engineer, grunt */
-typedef enum { o_PRECOND, o_COND, o_MODIFY, o_DELIVER } order;
+typedef enum { o_PRECOND, o_COND, o_PREDELIVER, o_DELIVER } order;
 
 /* result types, unregister me, I pass, I should be last, I suck, I rock */
-typedef enum { r_UNREG, r_NONE, r_PASS, r_LAST, r_ERR, r_OK } result;
+typedef enum { r_UNREG, r_NONE, r_PASS, r_LAST, r_ERR, r_DONE } result;
 
 typedef struct instance_struct *instance, _instance;
 

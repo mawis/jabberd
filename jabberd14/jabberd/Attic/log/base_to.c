@@ -15,7 +15,7 @@ result base_to_deliver(instance id,dpacket p,void* arg)
     deliver(dpacket_new(message),id);
 
     pool_free(p->p);
-    return r_OK;
+    return r_DONE;
 }
 
 result base_to_config(instance id, xmlnode x, void *arg)
@@ -32,7 +32,7 @@ result base_to_config(instance id, xmlnode x, void *arg)
     }
 
     register_phandler(id,o_DELIVER,base_to_deliver,(void*)strdup(xmlnode_get_data(x)));
-    return r_OK;
+    return r_DONE;
 }
 
 void base_to(void)

@@ -16,6 +16,8 @@ result base_host_config(instance id, xmlnode x, void *arg)
 
     printf("base_host_config registering host %s with section '%s'\n",xmlnode_get_data(x), id->id);
     register_instance(id, xmlnode_get_data(x));
+
+    return r_PASS;
 }
 
 void base_host(void)

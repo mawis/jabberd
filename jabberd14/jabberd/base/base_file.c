@@ -21,7 +21,7 @@ result base_file_deliver(instance id, dpacket p, void* arg)
 
     /* Release the packet */
     pool_free(p->p);
-    return r_OK;    
+    return r_DONE;    
 }
 
 result base_file_config(instance id, xmlnode x, void *arg)
@@ -51,7 +51,7 @@ result base_file_config(instance id, xmlnode x, void *arg)
     register_phandler(id, o_DELIVER, base_file_deliver, (void*)filehandle); 
     
     printf("base_file_config performing configuration %s\n",xmlnode2str(x));
-    return r_OK;
+    return r_DONE;
 }
 
 void base_file(void)

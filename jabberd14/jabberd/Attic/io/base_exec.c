@@ -138,7 +138,7 @@ result base_exec_deliver(instance i, dpacket p, void* args)
      /* Send the buffer to the processing thread */
      pth_msgport_put(pi->write_queue, (pth_message_t*)wb);
      
-     return r_OK;   
+     return r_DONE;   
 }
 
 void base_exec_handle_xstream_event(int type, xmlnode x, void* arg)
@@ -287,7 +287,7 @@ result base_exec_config(instance id, xmlnode x, void *arg)
     register_phandler(id, o_DELIVER, base_exec_deliver, (void*) pi);
 
     printf("base_exec_config performing configuration %s\n",xmlnode2str(x));
-    return r_OK;
+    return r_DONE;
 }
 
 void base_exec(void)

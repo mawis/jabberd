@@ -70,8 +70,8 @@ result base_format_config(instance id, xmlnode x, void *arg)
     }
 
     printf("base_format_config performing configuration %s\n",xmlnode2str(x));
-    register_phandler(id,o_MODIFY,base_format_modify,(void*)strdup(xmlnode_get_data(x)));
-    return r_OK;
+    register_phandler(id,o_PREDELIVER,base_format_modify,(void*)strdup(xmlnode_get_data(x)));
+    return r_DONE;
 }
 
 void base_format(void)

@@ -87,7 +87,7 @@ result base_connect_deliver(instance i, dpacket p, void* arg)
      /* Put the buffer in the io thread's message port */
      pth_msgport_put(ci->write_queue, (pth_message_t*)wb);
 
-     return r_OK;
+     return r_DONE;
 }
 
 void base_connect_handle_xstream_event(int type, xmlnode x, void* arg)
@@ -279,7 +279,7 @@ result base_connect_config(instance id, xmlnode x, void *arg)
      register_phandler(id, o_DELIVER, base_connect_deliver, (void*)ci);
      
      log_debug(ZONE, "Activating configuration: %s\n", xmlnode2str(x));
-     return r_OK;
+     return r_DONE;
 }
 
 void base_connect(void)
