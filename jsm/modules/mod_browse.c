@@ -40,6 +40,24 @@
  * --------------------------------------------------------------------------*/
 #include "jsm.h"
 
+/**
+ * @file mod_browse.c
+ * @brief implement handling of the jabber:iq:browse namespace (JEP-0011) in the session manager - DEPRICATED
+ *
+ * This module implements the handling of jabber:iq:browse to query client information
+ * in the session manager. jabber:iq:browse is documented in JEP-0011. Browsing
+ * is DEPRICATED, clients should use service discovery instead.
+ *
+ * Part of the jabber:iq:browse functionallity is also implemented in mod_admin.c.
+ */
+
+/**
+ * Generate the browse result for a user by loading the information from xdb or creating it if there is nothing stored yet.
+ *
+ * @param m the mapi structure
+ * @param id the JID of the user for which the browse info should be build
+ * @return the xml fragment containing the browse result
+ */
 xmlnode mod_browse_get(mapi m, jid id)
 {
     xmlnode browse, x;
@@ -72,6 +90,19 @@ xmlnode mod_browse_get(mapi m, jid id)
     return browse;
 }
 
+/**
+ * Handle iq stanzas of type 'set' containing a jabber:iq:browse request.
+ *
+ * This callback is only inserted in the es_OUT handler list, therefore it is only called for stanzas the user
+ * sents itself. It is NOT called for stanzas arriving at the user's address. It only handles stanzas with NO
+ * to attribute.
+ *
+ * Handling iq stanzas of type 'set' is not documented in JEP-0011. I guess, it is an undocumented extension in jabberd14.
+ *
+ * @param m the mapi structure containing the request
+ * @param arg unused/ignored
+ * @return M_IGNORE if it is no iq stanza, M_PASS if the packet has not been processed, M_HANDLED if the packet has been processed
+ */
 mreturn mod_browse_set(mapi m, void *arg)
 {
     xmlnode browse, cur;
@@ -135,12 +166,31 @@ mreturn mod_browse_set(mapi m, void *arg)
     return M_HANDLED;
 }
 
+/**
+ * register a callback for stanzas the user sends (to be able to handle queries without a to attribute)
+ *
+ * @param m the mapi structure
+ * @param arg unused/ignored
+ * @return always M_PASS
+ */
 mreturn mod_browse_session(mapi m, void *arg)
 {
     js_mapi_session(es_OUT,m->s,mod_browse_set,NULL);
     return M_PASS;
 }
 
+/**
+ * This callback handles iq stanzas sent to an offline user.
+ * Everything but iq stanzas are ignored, iq queries not in the jabber:iq:browse namespace are not handled.
+ * Only iq stanzas of type 'get' are really processed, stanzas of type 'set' are denied, other types are ignored.
+ *
+ * The result is build using the user's stored browse info. If the user that sent the query is subscribed
+ * to the target's presence, a list of active sessions of the users is added to the result as well.
+ *
+ * @param m the mapi instance containing the query
+ * @param arg not used/ignored
+ * @return M_IGNORE if the packet is no iq stanza, M_PASS if the stanza has not been processed, M_HANDLED if the request has been handled
+ */
 mreturn mod_browse_reply(mapi m, void *arg)
 {
     xmlnode browse, ns, cur;
@@ -194,6 +244,19 @@ mreturn mod_browse_reply(mapi m, void *arg)
     return M_HANDLED;
 }
 
+/**
+ * Handle stanzas that are sent to the server's address.
+ * Everything but iq stanzas are ignored. The iq stanzas have to be of type 'get', the content must be in the jabber:iq:browse namespace
+ * and there must be no resource, else the stanza won't be handled either.
+ *
+ * The result will be build using the content of the <browse/> element in the session manager configuration. The the user that sent
+ * the query as read admin privileges, and advertizement for serverdomain/admin will be sent as well. (Queries to this address
+ * are handled by mod_admin.c.)
+ *
+ * @param m the mapi structure containing the request
+ * @param arg not used/ignored
+ * @return M_IGNORE if the stanza is no iq, M_PASS if this module is not responsible, M_HANDLED if the stanza has been processed
+ */
 mreturn mod_browse_server(mapi m, void *arg)
 {
     xmlnode browse, query, x;
@@ -232,6 +295,14 @@ mreturn mod_browse_server(mapi m, void *arg)
     return M_HANDLED;
 }
 
+/**
+ * init the mod_browse module in the session manager
+ * registers three callbacks: if a session is started, mod_browse_session should be called,
+ * if an offline user gets a stanza, mod_browse_reply should be called,
+ * if a stanza is sent to the server, mod_browse_server should be called.
+ *
+ * @param si the session manager instance
+ */
 void mod_browse(jsmi si)
 {
     js_mapi_register(si,e_SESSION,mod_browse_session,NULL);

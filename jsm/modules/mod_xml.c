@@ -40,6 +40,36 @@
  * --------------------------------------------------------------------------*/
 #include "jsm.h"
 
+/**
+ * @file mod_xml.c
+ * @brief handling jabber:iq:private (JEP-0049) requests as well as public storage (undocumented)
+ *
+ * This module implements the storage of private data by a client on the server using the
+ * jabber:iq:private namespace documented in JEP-0049.
+ *
+ * The module also implements the storage of data, that will be accessible by any entity on
+ * the Jabber network and the handling of requests by other users to this data.
+ *
+ * Requests are only handled if the requests are neither in a namespace starting with "jabber:"
+ * nor in the "vcard-temp" namespace (which have to be implemented by other modules.
+ * 
+ * @todo Can we really rely on the namespace prefix to see if we should handle a request? New protocols don't use jabber: namespaces
+ */
+
+/**
+ * callback that handles iq stanzas of the user itself (either set and get requests!)
+ *
+ * Store and retrieve public and private data by the user itself, but not data in the namespaces that start with 'jabber:' nor in
+ * the 'vcard-temp' namespace.
+ *
+ * @todo Allow storage of 'jabber:' namespaces and the 'vcard-temp' namespace inside of private XML storage (JEP-0049 recommends this).
+ * Not possible at present because we do not store the query element in the jabber:iq:private around the data in xdb and the user
+ * would overwrite other stored data in this namespace.
+ *
+ * @param m the mapi structure
+ * @param arg unused/ignored
+ * @return M_IGNORE if it is not an iq stanza, M_PASS if the stanza has not been processed, M_HANDLED if the stanza has been handled
+ */
 mreturn mod_xml_set(mapi m, void *arg)
 {
     xmlnode storedx, inx = m->packet->iq;
@@ -67,13 +97,13 @@ mreturn mod_xml_set(mapi m, void *arg)
     }
 
     /* if its to someone other than ourselves */
-    if(m->packet->to != NULL) return M_PASS;
-
-    log_debug2(ZONE, LOGT_DELIVER, "handling user request %s",xmlnode2str(m->packet->iq));
-
-    /* no to implies to ourselves */
-    if(to == NULL)
+    if(to != NULL) {
+	return M_PASS;
+    } else {
+	/* no to implies to ourselves */
+	log_debug2(ZONE, LOGT_DELIVER, "handling user request %s",xmlnode2str(m->packet->iq));
         to = m->user->id;
+    }
 
     switch(jpacket_subtype(m->packet))
     {
@@ -143,6 +173,17 @@ mreturn mod_xml_set(mapi m, void *arg)
     return M_HANDLED;
 }
 
+/**
+ * callback that handles iq stanzas from other users (either set and get requests)
+ *
+ * Requests in namespaces starting with "jabber:" and in the "vcard-temp" namespace are not handled,
+ * set-requests in other namespaces are explicitly rejected, get-requests are replied with information
+ * stored in the user's xdb data if the data is not marked with a j_private_flag attribute of any value.
+ *
+ * @param m the mapi strcture
+ * @param arg unused/ignored
+ * @return M_IGNORED if it is no iq stanza, M_PASS if the stanza has not been handled, M_HANDLED if the stanza has been handled
+ */
 mreturn mod_xml_get(mapi m, void *arg)
 {
     xmlnode xns;
@@ -158,7 +199,7 @@ mreturn mod_xml_get(mapi m, void *arg)
     case JPACKET__ERROR:
         return M_PASS;
     case JPACKET__SET:
-        js_bounce_xmpp(m->si,m->packet->x,XTERROR_NOTALLOWED);
+        js_bounce_xmpp(m->si,m->packet->x,XTERROR_FORBIDDEN);
         return M_HANDLED;
     }
 
@@ -169,7 +210,7 @@ mreturn mod_xml_get(mapi m, void *arg)
 
     if(xmlnode_get_attrib(xns,"j_private_flag") != NULL)
     { /* uhoh, set from a private namespace */
-        js_bounce_xmpp(m->si,m->packet->x,XTERROR_NOTALLOWED);
+        js_bounce_xmpp(m->si,m->packet->x,XTERROR_FORBIDDEN);
         return M_HANDLED;
     }
 
@@ -183,16 +224,33 @@ mreturn mod_xml_get(mapi m, void *arg)
     return M_HANDLED;
 }
 
+/**
+ * callback that gets notified on new sessions of a user
+ *
+ * will register mod_xml_set as callback for stanzas sent by the user itself
+ *
+ * @param m the mapi structure
+ * @param arg unused/ignored
+ * @return always M_PASS
+ */
 mreturn mod_xml_session(mapi m, void *arg)
 {
     js_mapi_session(es_OUT,m->s,mod_xml_set,NULL);
     return M_PASS;
 }
 
+/**
+ * init the mod_xml module by registering callbacks
+ *
+ * mod_xml_get will handle requests from other users
+ *
+ * mod_xml_session will register the mod_xml_set callback to process
+ * requests from the user itself when the user starts a new session
+ *
+ * @param si the session manager instance
+ */
 void mod_xml(jsmi si)
 {
     js_mapi_register(si,e_SESSION,mod_xml_session,NULL);
     js_mapi_register(si,e_OFFLINE,mod_xml_get,NULL);
 }
-
-

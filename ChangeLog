@@ -1,3 +1,27 @@
+2004-06-xx  Matthias Wimmer  <m@tthias.net>
+
+    * UPGRADE: Information how to upgrade from the latest release
+    * jabberd/lib/jabberdlib.h: moved service discovery namespaces
+	declarations from mod_disco.c to this file
+    * jabberd/lib/jutil.c: added documentation
+    * jsm/modules/mod_admin.c: valid browse requests have to be of type 'get'
+	valid jabber:iq:admin/who requests have to be of type 'get'
+	removed unused code mod_admin_monitor and mod_admin_user.
+	Added documentation.
+    * jsm/modules/mod_agents.c: added documentation
+    * jsm/modules/mod_announce.c: remoted unused member in motd_struct
+	added documentation
+    * jsm/modules/mod_browse.c: added documentation
+    * jsm/modules/mod_disco.c: added documentation
+    * jsm/modules/mod_echo.c: added documentation
+    * jsm/modules/mod_last.c: added documentation
+    * jsm/modules/mod_log.c: added documentation
+    * jsm/modules/mod_xml.c: if an other entity than the user tries to get
+	or set information in the jabber:iq:private namespace reject with
+	a forbidden stanza error instead of 'not-allowed' (see JEP-0049
+	and XMPP-core for the semantics of these two errors)
+	added documentation
+
 2004-06-26  Matthias Wimmer  <m@tthias.net>
 
     * dialback/dialback.c: dynamic enabling of debugging output / debug masks
