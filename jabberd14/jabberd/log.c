@@ -45,7 +45,7 @@ void debug_log(char *zone, const char *msgfmt, ...)
 {
     va_list ap;
     char message[MAX_LOG_SIZE];
-    char *pos, c;
+    char *pos, c = '\0';
     int offset;
 
     /* special per-zone filtering */
