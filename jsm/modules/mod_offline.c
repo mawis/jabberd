@@ -71,6 +71,9 @@ mreturn mod_offline_message(mapi m)
 
     if((cur2 = xmlnode_get_tag(m->packet->x,"x?xmlns=" NS_EXPIRE)) != NULL)
     {
+        if(j_atoi(xmlnode_get_attrib(cur2, "seconds"),0) == 0)
+            return M_PASS; 
+        
         sprintf(str,"%d",(int)time(NULL));
         xmlnode_put_attrib(cur2,"stored",str);
     }

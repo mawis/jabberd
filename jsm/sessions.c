@@ -209,6 +209,7 @@ void _js_session_from(void *arg)
 {
     jpacket p = (jpacket)arg;
     session s = (session)(p->aux1);
+    jid jidOldTo;
 
     /* if this session is dead */
     if(s->exit_flag)
@@ -245,6 +246,8 @@ void _js_session_from(void *arg)
     /* if you use to="yourself@yourhost" it's the same as not having a to, the modules use the NULL as a self-flag */
     if(jid_cmpx(p->to,s->id,JID_USER|JID_SERVER) == 0)
     {
+        /* save the jid */                                                     
+        jidOldTo = p->to;
         /* xmlnode_hide_attrib(p->x,"to"); */
         p->to = NULL;
     }
@@ -256,8 +259,16 @@ void _js_session_from(void *arg)
     /* no module handled it, so restore the to attrib to us */
     if(p->to == NULL)
     {
-        xmlnode_put_attrib(p->x,"to",jid_full(jid_user(s->id)));
-        p->to = jid_new(p->p,jid_full(jid_user(s->id)));
+        if(jidOldTo != NULL)
+        {
+            xmlnode_put_attrib(p->x, "to", jid_full(jidOldTo));
+            p->to = jid_new(p->p, jid_full(jidOldTo));
+        }
+        else
+        {
+            xmlnode_put_attrib(p->x,"to",jid_full(jid_user(s->id)));
+            p->to = jid_new(p->p,jid_full(jid_user(s->id)));
+        }
     }
 
     /* pass these to the general delivery function */
