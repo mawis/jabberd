@@ -20,22 +20,25 @@
 #include "io.h"
 
 
+/* struct to hold data for our instance */
 typedef struct io_st
 {
-    pool p;
-    int master_fd;
-    sock master__list;
-    pth_t t;
-    io_cb cb;
-    void *cb_arg;
-    void *arg;
+    pool p;             /* pool to hold this data */
+    int master_fd;      /* our listening socket */
+    sock master__list;  /* a list of all the socks */
+    pth_t t;            /* a pointer to thread for signaling */
+    io_cb cb;           /* the callback function we are using */
+    void *cb_arg;       /* the argument to pass to the callback */
+    void *arg;          /* hanging data */
 } _ios,*ios;
 
+/* returns a list of all the sockets in this instance */
 sock io_select_get_list(iosi io_instance)
 {
     return ((ios)io_instance)->master__list;
 }
 
+/* dump as much of the write queue as we can */
 int _io_write_dump(sock c)
 {
     int len;
@@ -68,10 +71,15 @@ int _io_write_dump(sock c)
         log_debug(ZONE,"Calling write on %X",c->xbuffer);
         /* write a bit from the current buffer */
         len=write(c->fd,c->cbuffer,strlen(c->cbuffer));
-        if(len<=0)
+        if(len==0)
+        {
+            (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg); /* bounce the queue */
+            return -1;
+        }
+        if(len<0)
         { 
             log_debug(ZONE,"Error while writing %X",c->xbuffer);
-            if(errno!=EWOULDBLOCK&&errno!=EINTR)
+            if(errno!=EWOULDBLOCK&&errno!=EINTR&&errno!=EAGAIN)
             { /* if we have an error, that isn't a blocking issue */ 
                 log_debug(ZONE,"bouncing queue");
                 (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg); /* bounce the queue */
@@ -107,6 +115,7 @@ int _io_write_dump(sock c)
     }
 }
 
+/* unlink this socket from the master list */
 void io_unlink(sock c)
 {
     ios io_data=(ios)c->iodata;
@@ -117,6 +126,7 @@ void io_unlink(sock c)
 
 }
 
+/* link a socket to the master list */
 void io_link(sock c)
 {
     ios io_data=(ios)c->iodata;
@@ -127,11 +137,14 @@ void io_link(sock c)
     io_data->master__list=c;
 }
 
+/* client call to close the socket */
 void io_close(sock c) 
 {
+    /* XXX should this signal the select loop?? */
     c->state=state_CLOSE;
 }
 
+/* internal close function */
 void _io_close(sock c)
 {
     io_unlink(c);
@@ -334,17 +347,20 @@ void _io_main(void *arg)
     int len, asock;
     int maxfd=0;
 
+    /* init the socket junk */
     asock = io_data->master_fd;
     maxfd=asock;
-    sigemptyset(&sigs);
-    sigaddset(&sigs,SIGUSR2);
-    
-    wevt=pth_event(PTH_EVENT_SIGS,&sigs,&sig);
-
     FD_ZERO(&all_wfds);
     FD_ZERO(&all_rfds);
     FD_SET(asock,&all_rfds);
+    
+    /* init the signal junk */
+    sigemptyset(&sigs);
+    sigaddset(&sigs,SIGUSR2);
+    pth_sigmask(SIG_BLOCK,&sigs,NULL);
+    wevt=pth_event(PTH_EVENT_SIGS,&sigs,&sig);
 
+    /* init the client */
     (*(io_cb)io_data->cb)(NULL,NULL,0,IO_INIT,NULL); 
 
     while (1)
@@ -352,7 +368,6 @@ void _io_main(void *arg)
         rfds=all_rfds;
         wfds=all_wfds;
         pth_select_ev(maxfd+1,&rfds,&wfds,NULL,NULL,wevt);
-        pth_sigmask(SIG_BLOCK,&sigs,NULL);
 
         maxfd=asock;
 
@@ -386,9 +401,21 @@ void _io_main(void *arg)
             if (FD_ISSET(cur->fd,&rfds))
             { /* we need to read from a socket */
                 len = read(cur->fd,buff,sizeof(buff));
-                if(len<=0)
-                {
-                    if(errno==EWOULDBLOCK||errno==EINTR) FD_SET(cur->fd,&all_rfds);
+                if(len==0)
+                { /* i don't care what the errno is.. */
+                  /* if we read 0, you're outta here! */
+                    temp=cur;
+                    cur=cur->next;
+                    FD_CLR(temp->fd,&all_rfds);
+                    FD_CLR(temp->fd,&all_wfds);
+                    _io_close(temp);
+                    continue;
+                }
+                if(len<0)
+                { /* only check errno if -1 returned.. */
+                  /* errno is undefined otherwise      */
+                    if(errno==EWOULDBLOCK||errno==EINTR||errno==EAGAIN) 
+                        FD_SET(cur->fd,&all_rfds);
                     else
                     {
                         temp=cur;
