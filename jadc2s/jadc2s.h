@@ -113,49 +113,64 @@ typedef enum {
 
 struct conn_st
 {
-    c2s_t c2s;
+    c2s_t c2s;			/**< the jadc2s instance we are running in */
 
     /* vars for this conn */
-    int fd;
-    char *ip;
-    int read_bytes;
-    time_t last_read;
-    conn_state_t state;
-    conn_type_t type;
-    time_t start;
-    root_element_t root_element;
-    char *local_id;
+    int fd;			/**< file descriptor of this connection */
+    char *ip;			/**< other end's IP address for this conn */
+    int read_bytes;		/**< bytes read within the present 'karma
+				     interval' */
+    time_t last_read;		/**< last time something has been read
+				     (for karma calculations) */
+    conn_state_t state;		/**< which of several states have been reached
+				     on the way to establish a session */
+    conn_type_t type;		/**< type of this connection
+				     (normal conn , flash-hack conn, ...) */ 
+    time_t start;		/**< when the client started to establish
+				     a session */
+    root_element_t root_element;/**< root element used on the connection */
+    char *local_id;		/**< domain of the session manager the
+				     client connected to */
 
 #ifdef USE_SSL    
-    SSL *ssl;
+    SSL *ssl;			/**< openssl's data for this connection */
     autodetect_state_t autodetect_tls;
+    				/**< SSL/TLS autodetection state */
 #endif
 
     /* tracking the id for the conn or chunk */
-    pool idp;
-    char *sid;
-    jid myid, smid, userid;
+    pool idp;			/**< memory pool for JIDs in this structure */
+    char *sid;			/**< session id (used for some auth schemes */
+    jid myid;			/**< the source-JID used to send messages to
+				     the session manager */
+    jid smid;			/**< the dest-JID used to send messages to the
+				     session manager */
+    jid userid;			/**< the JabberID of the user (only used for
+				     generating connect/disconnect reports) */
 
     /* chunks being written */
-    chunk_t writeq, qtail;
+    chunk_t writeq;		/**< queue of chunks that have to be send to
+				     the client */
+    chunk_t qtail;		/**< end of the writeq queue (to speed up
+				     adding elements to the end of it) */
 
     /* parser stuff */
-    XML_Parser expat;
-    int depth;
-
-    /* the nad currently being built */
-    nad_t nad;
+    XML_Parser expat;		/**< parser used for parsing XML on this conn */
+    int depth;			/**< the element nesting level on this conn */
+    nad_t nad;			/**< the nad currently being build */
 
 #ifdef FLASH_HACK
     /* Flash Hack */
-    int flash_hack;
+    int flash_hack;		/**< true if we are _currently_ replacing expat,
+				     see type to see if it is a flash
+				     connection! */
 #endif
 
     /* Traffic counting */
-    unsigned long int in_bytes;
-    unsigned long int out_bytes;
-    unsigned int in_stanzas;
-    unsigned int out_stanzas;
+    unsigned long int in_bytes;	/**< how many bytes have been read */
+    unsigned long int out_bytes;/**< how many bytes have been written */
+    unsigned int in_stanzas;	/**< how many stanzas have been read */
+    unsigned int out_stanzas;	/**< how many stanzas have been written */
 };
 
 /* conn happy/sad */
