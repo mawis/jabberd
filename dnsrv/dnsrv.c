@@ -1,26 +1,36 @@
 #include "jabberd.h"
+#include "srv_resolv.h"
 #include <sys/wait.h>
 
-typedef int (*RESOLVEFUNC)(int in, int out);
-
 #define DNS_PACKET_TABLE_SZ 100
+
+/* ------------------------------------------------- */
+/* Struct to store list of services and resend hosts */
+typedef struct __dns_resend_list
+{
+     char* service;
+     char* host;
+     struct __dns_resend_list* next;
+} *dns_resend_list, _dns_resend_list;
+
 
 /* --------------------------------------- */
 /* Struct to keep track of a DNS coprocess */
 typedef struct
 {
-     int           in;		 /* Inbound data handle */
-     int           out;		 /* Outbound data handle */
-     int           pid;		 /* Coprocess PID */
-     pth_msgport_t write_queue;
-     HASHTABLE     packet_table; /* Hash of dns_packet_lists */
-     pth_event_t   e_read;
-     pth_event_t   e_write;
-     pth_event_t   events;
-     char*         resend_host;
-     pool          mempool;
+     int             in;		 /* Inbound data handle */
+     int             out;		 /* Outbound data handle */
+     int             pid;		 /* Coprocess PID */
+     pth_msgport_t   write_queue;
+     HASHTABLE       packet_table; /* Hash of dns_packet_lists */
+     pth_event_t     e_read;
+     pth_event_t     e_write;
+     pth_event_t     events;
+     pool            mempool;
+     dns_resend_list svclist;
 } *dns_io, _dns_io;
 
+typedef int (*RESOLVEFUNC)(dns_io di);
 
 /* --------------------------------------------------- */
 /* Struct to store a dpacket that needs to be resolved */
@@ -39,15 +49,16 @@ typedef struct __dns_packet_list
      struct __dns_packet_list* next;
 } *dns_packet_list, _dns_packet_list;
 
+
 /* ----------------------- */
 /* Coprocess functionality */
 void dnsrv_child_process_xstream_io(int type, xmlnode x, void* args)
 {
-     int out = *((int*)args);
+     dns_io di = (dns_io)args;
      char*  hostname;
-     struct hostent *hp;
-     struct in_addr ip_addr;
+     char*  resolvestr = NULL;
      char*  response = NULL;
+     dns_resend_list iternode = NULL;
 
      if (type == XSTREAM_NODE)
      {
@@ -55,42 +66,43 @@ void dnsrv_child_process_xstream_io(int type, xmlnode x, void* args)
 	  hostname = xmlnode_get_data(x);
 	  if (hostname != NULL)
 	  {
-	       /* Lookup host name */
-	       hp      = gethostbyname(hostname);
-	       if (!hp) 
+	       /* For each entry in the svclist, try and resolve using
+		  the specified service and resend it to the specified host */
+	       iternode = di->svclist;
+	       while (iternode != NULL)
 	       {
-		    log_debug(ZONE, "dnsrv_child: Unable to resolve: %s\n", hostname);
+		    resolvestr = srv_lookup(x->p, iternode->service, hostname);
+		    if (resolvestr != NULL)
+		    {
+			 log_debug(ZONE, "Resolved %s(%s): %s\tresend to:%s", hostname, iternode->service, resolvestr, iternode->host);
+			 xmlnode_put_attrib(x, "ip", resolvestr);
+			 xmlnode_put_attrib(x, "resend", iternode->host);
+			 break;
+		    }
+		    iternode = iternode->next;
 	       }
-	       else 
-	       {
-		    ip_addr = *(struct in_addr *)(hp->h_addr);
-		    /* Insert attribute into the node.. */
-		    xmlnode_put_attrib(x, "ip", inet_ntoa(ip_addr));
-	       }
-	       /* Transmit the result... */
 	       response = xmlnode2str(x);
-	       pth_write(out, response, strlen(response));
+	       pth_write(di->out, response, strlen(response));
 	  }
      }
      xmlnode_free(x);
 }
 
-int dnsrv_child_main(int in, int out)
+int dnsrv_child_main(dns_io di)
 {
-     int     fout= out;
      pool    p   = pool_new();
-     xstream xs  = xstream_new(p, dnsrv_child_process_xstream_io, &fout);
+     xstream xs  = xstream_new(p, dnsrv_child_process_xstream_io, di);
      int     readlen = 0;
      char    readbuf[1024];
 
 
      /* Transmit stream header */
-     pth_write(out, "<stream>", strlen("<stream>"));
+     pth_write(di->out, "<stream>", strlen("<stream>"));
 
      /* Loop forever, processing requests and feeding them to the xstream*/     
      while (1)
      {
-       readlen = pth_read(in, &readbuf, 1024);
+       readlen = pth_read(di->in, &readbuf, 1024);
        if(readlen > 0)
        {
         xstream_eat(xs, readbuf, readlen);
@@ -108,7 +120,7 @@ int dnsrv_child_main(int in, int out)
 
 
 /* Core functionality */
-int dnsrv_fork_and_capture(RESOLVEFUNC f, int* in, int* out)
+int dnsrv_fork_and_capture(RESOLVEFUNC f, dns_io di)
 {
      int left_fds[2], right_fds[2];
      int pid;
@@ -126,8 +138,8 @@ int dnsrv_fork_and_capture(RESOLVEFUNC f, int* in, int* out)
 	  close(left_fds[STDIN_FILENO]);
 	  close(right_fds[STDOUT_FILENO]);
 	  /* Return the in and out file descriptors */
-	  *in = right_fds[STDIN_FILENO];
-	  *out = left_fds[STDOUT_FILENO];
+	  di->in = right_fds[STDIN_FILENO];
+	  di->out = left_fds[STDOUT_FILENO];
 	  return pid;
      }
      else			/* Child */
@@ -136,7 +148,8 @@ int dnsrv_fork_and_capture(RESOLVEFUNC f, int* in, int* out)
 	  close(left_fds[STDOUT_FILENO]);
 	  close(right_fds[STDIN_FILENO]);
 	  /* Start the specified function, passing the in/out descriptors */
-	  return (*f)(left_fds[STDIN_FILENO], right_fds[STDOUT_FILENO]);
+	  di->in = left_fds[STDIN_FILENO]; di->out = right_fds[STDOUT_FILENO];
+	  return (*f)(di);
      }
 }
 
@@ -167,6 +180,7 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg)
      dns_io di            = (dns_io)arg;
      char* hostname       = NULL;
      char* ipaddr         = NULL;
+     char* resendhost     = NULL;
      dns_packet_list head = NULL;
      dns_packet_list heado = NULL;
 
@@ -180,6 +194,7 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg)
 	  if (head != NULL)
 	  {
 	       ipaddr = xmlnode_get_attrib(x, "ip");
+	       resendhost = xmlnode_get_attrib(x, "resend");
 
 	       /* Remove the list from the hashtable */
 	       ghash_remove(di->packet_table, hostname);
@@ -187,13 +202,14 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg)
 	       /* Walk the list and insert IPs */
 	       while(head != NULL)
 	       {
-            head->packet->x=xmlnode_wrap(head->packet->x,"route");
+		    head->packet->x=xmlnode_wrap(head->packet->x,"route");
 		    if (ipaddr != NULL)
 		    {
-			 xmlnode_put_attrib(head->packet->x, "to", di->resend_host);
+			 xmlnode_put_attrib(head->packet->x, "to", resendhost);
 			 xmlnode_put_attrib(head->packet->x, "ip", ipaddr);
 			 /* Fixup the dpacket host ptr */
-			 head->packet->host = di->resend_host;
+			 head->packet->host = resendhost;
+			 log_debug(ZONE, "dnsrv: resolved %s\t%s", resendhost, ipaddr);
 		    }
 		    else
 		    {
@@ -325,7 +341,7 @@ void* dnsrv_process_io(void* threadarg)
      if(WIFEXITED(retcode)&&!WIFSIGNALED(retcode)) /* if the child exited normally */
      {
         /* Fork out resolver function/process */
-        di->pid = dnsrv_fork_and_capture(dnsrv_child_main, &(di->in), &(di->out));
+        di->pid = dnsrv_fork_and_capture(dnsrv_child_main, di);
 
         /* Start IO thread */
         pth_spawn(PTH_ATTR_DEFAULT, dnsrv_process_io, (void*)di);
@@ -338,13 +354,15 @@ void dnsrv_thread(void *arg)
 {
      dns_io di=(dns_io)arg;
      /* Fork out resolver function/process */
-     di->pid = dnsrv_fork_and_capture(dnsrv_child_main, &(di->in), &(di->out));
+     di->pid = dnsrv_fork_and_capture(dnsrv_child_main, di);
 }
 
 void dnsrv(instance i, xmlnode x)
 {
      xdbcache xc = NULL;
      xmlnode  config = NULL;
+     xmlnode  iternode   = NULL;
+     dns_resend_list tmplist = NULL;
 
      /* Setup a struct to hold dns_io handles */
      dns_io di;
@@ -356,8 +374,26 @@ void dnsrv(instance i, xmlnode x)
      xc = xdb_cache(i);
      config = xdb_get(xc, NULL, jid_new(xmlnode_pool(x), "config@-internal"), "jabberd:dnsrv:config");
 
-     /* Extract destination host from config */
-     di->resend_host = pstrdup(di->mempool, xmlnode_get_tag_data(config, "resendhost"));
+     /* Build a list of services/resend hosts */
+     iternode = xmlnode_get_firstchild(config);
+     while (iternode != NULL)
+     {
+	  if (j_strcmp("resend", xmlnode_get_name(iternode)) != 0)
+	  {
+	       iternode = xmlnode_get_nextsibling(iternode);
+	       continue;
+	  }
+
+	  /* Allocate a new list node */
+	  tmplist = pmalloco(di->mempool, sizeof(_dns_resend_list));
+	  tmplist->service = pstrdup(di->mempool, xmlnode_get_attrib(iternode, "service"));
+	  tmplist->host    = pstrdup(di->mempool, xmlnode_get_data(iternode));
+	  /* Insert this node into the list */
+	  tmplist->next = di->svclist;	  
+	  di->svclist = tmplist;
+	  /* Move to next child */
+	  iternode = xmlnode_get_nextsibling(iternode);
+     }
      log_debug(ZONE, "dnsrv debug: %s\n", xmlnode2str(config));
 
      /* Initialize a message port to handle incoming dpackets */
