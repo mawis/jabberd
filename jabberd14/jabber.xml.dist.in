@@ -673,7 +673,7 @@
   <!--
   This specifies the file to store the pid of the process in.
   -->
-  <pidfile>@localstatedir@/log/jabberd/jabber.pid</pidfile>
+  <pidfile>@localstatedir@/run/jabberd/jabber.pid</pidfile>
 
 
 </jabber>

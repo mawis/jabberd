@@ -286,6 +286,7 @@ AC_OUTPUT(Makefile \
 	  dnsrv/Makefile \
 	  jsm/Makefile \
 	  jsm/modules/Makefile \
+	  man/Makefile \
 	  pthsock/Makefile \
 	  xdb_file/Makefile)
 

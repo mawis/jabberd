@@ -1,0 +1,35 @@
+.TH jabberd 8 "22 May 2004" "@VERSION@" "jabberd14 project"
+.SH NAME
+jabberd \- jabberd daemon
+.SH SYNOPSIS
+.B jabberd
+.I [-B] [-c config] [-D] [-H dir] [-v] [-V] [-Z zone(s)]
+.SH DESCRIPTION
+.BR jabberd
+is the core of the jabber server containing the routing functionality that
+is extended by specific logic, that is loaded from shared objects specified
+in the configuration file.
+.SH OPTIONS
+.TP
+.B \-B
+Background the jabberd process. (This option is disabled in debugging mode.)
+.TP
+.B \-c
+Specify an alternate configuration file. Default is to use
+@sysconfdir@/jabber.xml
+.TP
+.B \-D
+Output debugging information to the controlling terminal while running. This
+option disabled backgrounding of the jabberd process. You can limit the
+information that is printed with the -Z option.
+.TP
+.B \-H
+Resolve paths relative to this directory.
+.TP
+.B \-v \-V
+Print jabberd version information.
+.TP
+.B \-Z
+Limit the debugging output to a given set of zones in the source code.
+.SH AUTHOR
+Jabber Software Foundation
