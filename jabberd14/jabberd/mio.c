@@ -520,11 +520,6 @@ void _mio_connect(void *arg)
     /* set the default karma values */
     mio_karma(new, KARMA_INIT, KARMA_MAX, KARMA_INC, KARMA_DEC, KARMA_PENALTY, KARMA_RESTORE);
     
-    /* set the socket to non-blocking */
-    flags =  fcntl(new->fd, F_GETFL, 0);
-    flags |= O_NONBLOCK;
-    fcntl(new->fd, F_SETFL, flags);
-
     /* add to the select loop */
     _mio_link(new);
     cd->connected = 1; 
