@@ -44,10 +44,10 @@ result base_logtype_filter(instance id, dpacket p, void* arg)
 result base_logtype_config(instance id, xmlnode x, void *arg)
 {
     char* name = NULL;
+    name = xmlnode_get_name(x);
     if(id == NULL)
     {
         /* Ensure that the name of the tag is either "notice", "warn", or "alert" */
-        name = xmlnode_get_name(x);
         if (strcmp(name, "notice") && strcmp(name, "warn") && strcmp(name, "alert"))
         {
             log_debug(ZONE,"base_logtype_config error: invalid log type filter requested (%s)\n", name);
