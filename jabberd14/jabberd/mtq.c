@@ -40,19 +40,21 @@
  * --------------------------------------------------------------------------*/
 #include "jabberd.h"
 
-/*** mtq is Managed Thread Queues ***/
-/* they queue calls to be run sequentially on a thread, that comes from a system pool of threads */
+/**
+ * @file mtq.c
+ * @brief mtq is Managed Thread Queues
+ *
+ * they queue calls to be run sequentially on a thread, that comes from a system pool of threads
+ */
 
-typedef struct mtqcall_struct
-{
-    pth_message_t head; /* the standard pth message header */
-    mtq_callback f; /* function to run within the thread */
-    void *arg; /* the data for this call */
-    mtq q; /* if this is a queue to process */
+typedef struct mtqcall_struct {
+    pth_message_t head;	/**< the standard pth message header */
+    mtq_callback f;	/**< function to run within the thread */
+    void *arg;		/**< the data for this call */
+    mtq q;		/**< if this is a queue to process */
 } _mtqcall, *mtqcall;
 
-typedef struct mtqmaster_struct
-{
+typedef struct mtqmaster_struct {
     mth all[MTQ_THREADS];
     int overflow;
     pth_msgport_t mp;
@@ -60,9 +62,10 @@ typedef struct mtqmaster_struct
 
 mtqmaster mtq__master = NULL;
 
-/* cleanup a queue when it get's free'd */
-void mtq_cleanup(void *arg)
-{
+/**
+ * cleanup a queue when it get's free'd
+ */
+void mtq_cleanup(void *arg) {
     mtq q = (mtq)arg;
     mtqcall c;
 
@@ -79,9 +82,10 @@ void mtq_cleanup(void *arg)
     pth_msgport_destroy(q->mp);
 }
 
-/* public queue creation function, queue lives as long as the pool */
-mtq mtq_new(pool p)
-{
+/**
+ * public queue creation function, queue lives as long as the pool
+ */
+mtq mtq_new(pool p) {
     mtq q;
 
     if(p == NULL) return NULL;
@@ -100,9 +104,10 @@ mtq mtq_new(pool p)
     return q;
 }
 
-/* main slave thread */
-void *mtq_main(void *arg)
-{
+/**
+ * main slave thread
+ */
+void *mtq_main(void *arg) {
     mth t = (mth)arg;
     pth_event_t mpevt;
     mtqcall c;
@@ -113,20 +118,18 @@ void *mtq_main(void *arg)
     mpevt = pth_event(PTH_EVENT_MSG,t->mp);
 
     /* loop */
-    while(1)
-    {
+    while(1) {
 
         /* before checking our mp, see if the master one has overflow traffic in it */
-        if(mtq__master->overflow)
-        {
+        if(mtq__master->overflow) {
             /* get the call from the master */
             c = (mtqcall)pth_msgport_get(mtq__master->mp);
-            if(c == NULL)
-            { /* empty! */
+            if(c == NULL) {
+		/* empty! */
                 mtq__master->overflow = 0;
                 continue;
             }
-        }else{
+        } else {
             /* debug: note that we're waiting for a message */
             log_debug2(ZONE, LOGT_THREAD, "%X leaving to pth",t->id);
             t->busy = 0;
@@ -145,8 +148,7 @@ void *mtq_main(void *arg)
 
 
         /* check for a simple "one-off" call */
-        if(c->q == NULL)
-        {
+        if(c->q == NULL) {
             log_debug2(ZONE, LOGT_THREAD, "%X one call %X",t->id,c->arg);
             (*(c->f))(c->arg);
             continue;
@@ -155,17 +157,16 @@ void *mtq_main(void *arg)
         /* we've got a queue call, associate ourselves and process all it's packets */
         t->q = c->q;
         t->q->t = t;
-        while((c = (mtqcall)pth_msgport_get(t->q->mp)) != NULL)
-        {
+        while((c = (mtqcall)pth_msgport_get(t->q->mp)) != NULL) {
             log_debug2(ZONE, LOGT_THREAD, "%X queue call %X",t->id,c->arg);
             (*(c->f))(c->arg);
-            if(t->q == NULL) break;
+            if(t->q == NULL)
+		break;
         }
 
         /* disassociate the thread and queue since we processed all the packets */
         /* XXX future pthreads note: mtq_send() could have put another call on the queue since we exited the while, that would be bad */
-        if(t->q != NULL)
-        {
+        if(t->q != NULL) {
             t->q->t = NULL; /* make sure the queue doesn't point to us anymore */
             t->q->routed = 0; /* nobody is working on the queue anymore */
             t->q = NULL; /* we're not working on the queue */
@@ -180,8 +181,7 @@ void *mtq_main(void *arg)
     return NULL;
 }
 
-void mtq_send(mtq q, pool p, mtq_callback f, void *arg)
-{
+void mtq_send(mtq q, pool p, mtq_callback f, void *arg) {
     mtqcall c;
     mth t = NULL;
     int n; pool newp;
@@ -189,12 +189,10 @@ void mtq_send(mtq q, pool p, mtq_callback f, void *arg)
     pth_attr_t attr;
 
     /* initialization stuff */
-    if(mtq__master == NULL)
-    {
+    if(mtq__master == NULL) {
         mtq__master = malloc(sizeof(_mtqmaster)); /* happens once, global */
         mtq__master->mp = pth_msgport_create("mtq__master");
-        for(n=0;n<MTQ_THREADS;n++)
-        {
+        for(n=0;n<MTQ_THREADS;n++) {
             newp = pool_new();
             t = pmalloco(newp, sizeof(_mth));
             t->p = newp;
@@ -209,15 +207,13 @@ void mtq_send(mtq q, pool p, mtq_callback f, void *arg)
 
     /* find a waiting thread */
     for(n = 0; n < MTQ_THREADS; n++)
-        if(mtq__master->all[n]->busy == 0)
-        {
+        if(mtq__master->all[n]->busy == 0) {
             mp = mtq__master->all[n]->mp;
             break;
         }
 
     /* if there's no thread available, dump in the overflow msgport */
-    if(mp == NULL)
-    {
+    if(mp == NULL) {
         log_debug2(ZONE, LOGT_THREAD, "%d overflowing %X",mtq__master->overflow,arg);
         mp = mtq__master->mp;
         /* XXX this is a race condition in pthreads.. if the overflow
@@ -233,8 +229,7 @@ void mtq_send(mtq q, pool p, mtq_callback f, void *arg)
     c->arg = arg;
 
     /* if we don't have a queue, just send it */
-    if(q == NULL)
-    {
+    if(q == NULL) {
         pth_msgport_put(mp, (pth_message_t *)c);
         /* if we use a thread, mark it busy */
         if(mp != mtq__master->mp)
@@ -249,8 +244,7 @@ void mtq_send(mtq q, pool p, mtq_callback f, void *arg)
         log_debug2(ZONE, LOGT_THREAD, "%d queue overflow on %X",pth_msgport_pending(q->mp),q->mp);*/
 
     /* if we haven't told anyone to take this queue yet */
-    if(q->routed == 0)
-    {
+    if(q->routed == 0) {
         c = pmalloco(p, sizeof(_mtqcall));
         c->q = q;
         pth_msgport_put(mp, (pth_message_t *)c);
@@ -260,4 +254,3 @@ void mtq_send(mtq q, pool p, mtq_callback f, void *arg)
         q->routed = 1;
     }
 }
-

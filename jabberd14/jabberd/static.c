@@ -56,6 +56,7 @@ void base_stderr(void);
 void base_stdout(void);
 void base_dynamic(void);
 void base_syslog(void);
+void base_unsubscribe(void);
 
 /**
  * load all base modules
@@ -72,4 +73,5 @@ void static_init(void)
     base_stdout();
     base_dynamic();
     base_syslog();
+    base_unsubscribe();
 }

@@ -421,6 +421,7 @@ result deliver_null(instance i, dpacket p, void* arg)
     pool_free(p->p);
     return r_DONE;
 }
+
 result deliver_config_null(instance i, xmlnode x, void *arg)
 {
     if(i == NULL)

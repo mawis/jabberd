@@ -38,6 +38,12 @@
  * 
  * 
  * --------------------------------------------------------------------------*/
+
+/**
+ * @file load.c
+ * @brief module loader: handles the loading of components, that are installed as loadable modules
+ */
+
 #include "jabberd.h"
 /* IN-PROCESS component loader */
 
@@ -45,74 +51,16 @@ typedef void (*load_init)(instance id, xmlnode x);
 xmlnode load__cache = NULL;
 int load_ref__count = 0;
 
-#ifdef STATIC
-/* optionally use static hardcoded symbols and don't compile in the dlopen stuff */
-void *jsm();
-void *pthsock_client();
-void *xdb_file();
-void *dnsrv();
-void *dialback();
-void *mod_admin();
-void *mod_agents();
-void *mod_browse();
-void *mod_filter();
-void *mod_echo();
-void *mod_groups();
-void *mod_roster();
-void *mod_time();
-void *mod_vcard();
-void *mod_version();
-void *mod_announce();
-void *mod_private();
-void *mod_presence();
-void *mod_auth_plain();
-void *mod_auth_digest();
-void *mod_register();
-void *mod_log();
-void *mod_xml();
-void *mod_last();
-void *mod_offline();
-
-void *load_symbol(char *func, char *file)
-{
-    if(j_strcmp(func,"jsm") == 0) return (void (*)(instance,xmlnode))jsm;
-    if(j_strcmp(func,"pthsock_client") == 0) return (void (*)(instance,xmlnode))pthsock_client;
-    if(j_strcmp(func,"xdb_file") == 0) return (void (*)(instance,xmlnode))xdb_file;
-    if(j_strcmp(func,"dnsrv") == 0) return (void (*)(instance,xmlnode))dnsrv;
-    if(j_strcmp(func,"dialback") == 0) return (void (*)(instance,xmlnode))dialback;
-    if(j_strcmp(func,"mod_browse") == 0) return (void (*)(void))mod_browse;
-    if(j_strcmp(func,"mod_echo") == 0) return (void (*)(void))mod_echo;
-    if(j_strcmp(func,"mod_groups") == 0) return (void (*)(void))mod_groups;
-    if(j_strcmp(func,"mod_roster") == 0) return (void (*)(void))mod_roster;
-    if(j_strcmp(func,"mod_time") == 0) return (void (*)(void))mod_time;
-    if(j_strcmp(func,"mod_vcard") == 0) return (void (*)(void))mod_vcard;
-    if(j_strcmp(func,"mod_version") == 0) return (void (*)(void))mod_version;
-    if(j_strcmp(func,"mod_announce") == 0) return (void (*)(void))mod_announce;
-    if(j_strcmp(func,"mod_agents") == 0) return (void (*)(void))mod_agents;
-    if(j_strcmp(func,"mod_admin") == 0) return (void (*)(void))mod_admin;
-    if(j_strcmp(func,"mod_filter") == 0) return (void (*)(void))mod_filter;
-    if(j_strcmp(func,"mod_presence") == 0) return (void (*)(void))mod_presence;
-    if(j_strcmp(func,"mod_auth_plain") == 0) return (void (*)(void))mod_auth_plain;
-    if(j_strcmp(func,"mod_auth_digest") == 0) return (void (*)(void))mod_auth_digest;
-    if(j_strcmp(func,"mod_register") == 0) return (void (*)(void))mod_register;
-    if(j_strcmp(func,"mod_log") == 0) return (void (*)(void))mod_log;
-    if(j_strcmp(func,"mod_xml") == 0) return (void (*)(void))mod_xml;
-    if(j_strcmp(func,"mod_last") == 0) return (void (*)(void))mod_last;
-    if(j_strcmp(func,"mod_offline") == 0) return (void (*)(void))mod_offline;
-
-    return NULL;
-}
-
-#else /* STATIC */
-
 /* use dynamic dlopen/dlsym stuff here! */
 #include <dlfcn.h>
 
-/* process entire load element, loading each one (unless already cached) */
-/* if all loaded, exec each one in order */
-
-void *load_loader(char *file)
-{
+/**
+ * process entire load element, loading each one (unless already chached),
+ * if all loaded, exec each one in order
+ *
+ * @param file the dynamic library file to load
+ */
+void *load_loader(char *file) {
     void *so_h;
     const char *dlerr;
     char message[MAX_LOG_SIZE];
@@ -121,8 +69,7 @@ void *load_loader(char *file)
     so_h = dlopen(file,RTLD_LAZY);
 
     /* check for a load error */
-    if(!so_h)
-    {
+    if(!so_h) {
         dlerr = dlerror();
         snprintf(message, MAX_LOG_SIZE, "Loading %s failed: '%s'\n",file,dlerr);
         fprintf(stderr, "%s\n", message);
@@ -133,8 +80,14 @@ void *load_loader(char *file)
     return so_h;
 }
 
-void *load_symbol(char *func, char *file)
-{
+/**
+ * load a function from a dynamic library file
+ *
+ * @param func which function to load
+ * @param file the dynamic library file to load
+ * @return pointer to the loaded function
+ */
+void *load_symbol(char *func, char *file) {
     void (*func_h)(instance i, void *arg);
     void *so_h;
     const char *dlerr;
@@ -176,8 +129,11 @@ void *load_symbol(char *func, char *file)
     return func_h;
 }
 
-#endif /* STATIC */
-
+/**
+ * cleanup handler, frees our global variables if all instances are unloaded
+ *
+ * @param arg unused/ignored
+ */
 void load_shutdown(void *arg)
 {
     load_ref__count--;
@@ -188,8 +144,15 @@ void load_shutdown(void *arg)
     load__cache = NULL;
 }
 
-result load_config(instance id, xmlnode x, void *arg)
-{
+/**
+ * handler for <load/> elements in the configuration
+ *
+ * @param id the instance the <load/> element was found in
+ * @param x the <load/> element
+ * @param arg unused/ignored
+ * @return r_ERR on error, r_PASS on success
+ */
+result load_config(instance id, xmlnode x, void *arg) {
     xmlnode so;
     char *init = xmlnode_get_attrib(x,"main");
     void *f;
@@ -233,9 +196,12 @@ result load_config(instance id, xmlnode x, void *arg)
     return r_PASS;
 }
 
-
-void dynamic_init(void)
-{
+/**
+ * init the module loader
+ *
+ * register that we want to handle the <load/> element in the configuration
+ */
+void dynamic_init(void) {
     log_debug2(ZONE, LOGT_DYNAMIC, "dynamic component loader initializing...\n");
     register_config("load",load_config,NULL);
 }

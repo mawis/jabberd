@@ -1,4 +1,4 @@
-.TH jabber.xml 5 "26 Jun 2004" "@VERSION@" "jabberd14 project"
+.TH jabber.xml 5 "15 Mar 2005" "@VERSION@" "jabberd14 project"
 .SH NAME
 jabber.xml \- jabberd daemon configuration file
 .SH SYNOPSIS
@@ -144,5 +144,12 @@ that log messages should be written to the syslog.
 This element can only be used inside a <log/> section. It is used to
 reformat log packets as messages and resend them to an entity with the
 given JabberID. The JabberID is given as cdata child element.
+.TP
+.B <unsubscribe/>
+This element can only be used inside a <service/> section. It is used
+to bounce messages and iq queries and send unsubscribes to presences, that
+are received. It is intended to be used as a replacement for transports,
+that are removed from a server. It will remove the roster items of this
+transport from the users' rosters.
 .SH AUTHOR
 Jabber Software Foundation
