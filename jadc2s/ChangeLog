@@ -1,3 +1,7 @@
+2004-09-03  Matthias Wimmer  <m@tthias.net>
+
+    * util/util.c: jid_environment has do be defined even without libidn
+
 2004-09-01  Matthias Wimmer  <m@tthias.net>
 
     * util/pool.c: Remove pmalloc_x, we don't use it
