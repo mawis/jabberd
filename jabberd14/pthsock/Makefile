@@ -2,16 +2,12 @@ include ../platform-settings
 
 CFLAGS:=$(CFLAGS) -I../jabberd/
 
-HEADERS=../jabberd/jabberd.h io.h
+HEADERS=../jabberd/jabberd.h
 
 pthsock_server_OBJECTS=\
-	io_select.o \
-    karma.o \
 	dialback.o
 
 pthsock_client_OBJECTS=\
-	io_select.o \
-    karma.o \
 	client.o
 
 all: pthsock_server pthsock_client
