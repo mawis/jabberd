@@ -113,7 +113,9 @@ int _io_write_dump(sock c)
 /* unlink this socket from the master list */
 void io_unlink(sock c)
 {
-    if(io__data->master__list==c) io__data->master__list=io__data->master__list->next;
+    if(io__data==NULL) return;
+    if(io__data->master__list==c)
+       io__data->master__list=io__data->master__list->next;
     if(c->prev!=NULL) c->prev->next=c->next;
     if(c->next!=NULL) c->next->prev=c->prev;
 }
@@ -121,10 +123,8 @@ void io_unlink(sock c)
 /* link a socket to the master list */
 void io_link(sock c)
 {
-    if(io__data!=NULL)
-        c->next=io__data->master__list;
-    else
-        c->next=NULL;
+    if(io__data==NULL) return;
+    c->next=io__data->master__list;
     c->prev=NULL;
     if(io__data->master__list!=NULL) io__data->master__list->prev=c;
     io__data->master__list=c;
@@ -133,8 +133,8 @@ void io_link(sock c)
 /* client call to close the socket */
 void io_close(sock c) 
 {
-    /* XXX should this signal the select loop?? */
     c->state=state_CLOSE;
+    if(io__data!=NULL)pth_raise(io__data->t,SIGUSR2);
 }
 
 /* internal close function */
@@ -201,16 +201,6 @@ void io_write(sock c,xmlnode x)
     /* notify the select loop that a packet needs writing */
     pth_raise(io__data->t,SIGUSR2);
 }
-
-/* struct passed to the connecting thread */
-typedef struct connect_st
-{
-    pool p;
-    sock c;
-    char *host;
-    int port;
-} _conn_st, *conn_st;
-
 
 /* accept an incoming connection from a listen sock */
 sock _io_accept(sock s)
@@ -299,8 +289,8 @@ void _io_main(void *arg)
                 _io_close(temp);
                 continue;
             }
-            else if(FD_ISSET(cur->fd,&rfds)&&cur->type==type_LISTEN) /* new connection */
-            {
+            else if(FD_ISSET(cur->fd,&rfds)&&cur->type==type_LISTEN) 
+            {   /* new connection */
                 c=_io_accept(cur);
                 if(c!=NULL) 
                 {
@@ -344,8 +334,7 @@ void _io_main(void *arg)
                 }
             }
             else if(FD_ISSET(cur->fd,&wfds)||cur->xbuffer!=NULL)
-            { 
-                /* write the current buffer */
+            {   /* write the current buffer */
                 int ret=_io_write_dump(cur);
                 if(ret<0)
                 {
@@ -383,6 +372,15 @@ void _io_main(void *arg)
     }
 }
 
+/* struct passed to the connecting thread */
+typedef struct connect_st
+{
+    pool p;
+    sock c;
+    char *host;
+    int port;
+} _conn_st, *conn_st;
+
 /* pth thread to connect to a remote host */
 /* if this were using pthreads, this wouldn't block the server */
 void _io_select_connect(void *arg)
@@ -401,14 +399,8 @@ void _io_select_connect(void *arg)
 
     bzero((void*)&sa,sizeof(struct sockaddr_in));
 
-    if((fd=socket(AF_INET,SOCK_STREAM,0))<0)
-    {
-        (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg);
-        (*(io_cb)c->cb)(c,NULL,0,IO_CLOSED,c->cb_arg);
-        pool_free(c->p);
-        return;
-    }
-    if(setsockopt(fd,SOL_SOCKET,SO_REUSEADDR,(char*)&flag,sizeof(flag))<0)
+    fd=socket(AF_INET,SOCK_STREAM,0);
+    if(fd<0||setsockopt(fd,SOL_SOCKET,SO_REUSEADDR,(char*)&flag,sizeof(flag))<0)
     {
         (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg);
         (*(io_cb)c->cb)(c,NULL,0,IO_CLOSED,c->cb_arg);
@@ -429,9 +421,9 @@ void _io_select_connect(void *arg)
     sa.sin_port=htons(cst->port);
     sa.sin_addr.s_addr=saddr->s_addr;
 
-    /* wait a max of 10 seconds for this connect */
-    evt=pth_event(PTH_EVENT_TIME,pth_timeout(10,0));
-    if(pth_connect_ev(fd,(struct sockaddr*)&sa,sizeof sa,evt) < 0)
+    /* wait a max of 5 seconds for this connect */
+    evt=pth_event(PTH_EVENT_TIME,pth_timeout(5,0));
+    if(pth_connect_ev(fd,(struct sockaddr*)&sa,sizeof sa,evt)<0)
     {
         log_debug(ZONE,"io_select connect failed to connect to: %s",cst->host);
         (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg);
@@ -440,14 +432,12 @@ void _io_select_connect(void *arg)
         pool_free(c->p);
         return;
     }
-    else
-    {
-        /* set to non-blocking */
-        flags=fcntl(fd,F_GETFL,0);
-        flags|=O_NONBLOCK;
-        fcntl(fd,F_SETFL,flags);
-        c->fd=fd;
-    }
+
+    /* set to non-blocking */
+    flags=fcntl(fd,F_GETFL,0);
+    flags|=O_NONBLOCK;
+    fcntl(fd,F_SETFL,flags);
+    c->fd=fd;
 
     if(io__data==NULL)
     {
@@ -475,8 +465,10 @@ void io_select_connect(char *host, int port,void* arg,io_cb cb,void *cb_arg)
     sock c;
     pool p=pool_new();
     conn_st cst=pmalloco(p,sizeof(_conn_st));
+
     cst->host=pstrdup(p,host);
     cst->port=port;
+
     c=pmalloco(p,sizeof(_sock));
     c->queue=pth_msgport_create("queue");
     c->type=type_NORMAL;
@@ -501,18 +493,16 @@ void io_select_listen(int port,char *listen_host,io_cb cb,void *arg)
     int flags;
 
     log_debug(ZONE,"io_select to listen on %d [%s]",port,listen_host);
-
-
     fd = make_netsocket(port,listen_host,NETSOCKET_SERVER);
     if(fd < 0)
     {
-        log_alert(NULL,"io_select is unable to listen on %d [%s]",port,listen_host);
+        log_alert(NULL,"io_select unable to listen on %d [%s]",port,listen_host);
         return;
     }
 
     if(listen(fd,10) < 0)
     {
-        log_alert(NULL,"io_select is unable to listen on %d [%s]",port,listen_host);
+        log_alert(NULL,"io_select unable to listen on %d [%s]",port,listen_host);
         return;
     }
 
@@ -529,7 +519,6 @@ void io_select_listen(int port,char *listen_host,io_cb cb,void *arg)
     new->queue=pth_msgport_create("queue");
     new->cb=cb;
     new->cb_arg=arg;
-
 
     log_notice(NULL,"io_select starting to listen on %d [%s]",port,listen_host);
     if(io__data==NULL)
