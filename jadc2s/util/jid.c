@@ -44,106 +44,201 @@
 
 #  include <stringprep.h>
 
-jid jid_safe(jid id)
-{
+/**
+ * nameprep the domain identifier in a JID and check if it is valid
+ *
+ * @param jid data structure holding the JID
+ * @return 0 if JID is valid, non zero otherwise
+ */
+int _jid_safe_domain(jid id) {
     int result=0;
-    
+
     /* there must be a domain identifier */
     if (j_strlen(id->server) == 0)
-	return NULL;
+	return 1;
 
     /* nameprep the domain identifier */
     result = stringprep_nameprep_no_unassigned(id->server, strlen(id->server)+1);
     if (result == STRINGPREP_TOO_SMALL_BUFFER) {
 	/* nameprep wants to expand the string, e.g. conversion from &szlig; to ss */
-	size_t biggerbuffersize = strlen(id->server)*2+1; /* XXX: could we need more? */
+	size_t biggerbuffersize = 1024;
 	char *biggerbuffer = pmalloc(id->p, biggerbuffersize);
 	if (biggerbuffer == NULL)
-	    return NULL;
+	    return 1;
 	strcpy(biggerbuffer, id->server);
 	result = stringprep_nameprep_no_unassigned(biggerbuffer, biggerbuffersize);
 	id->server = biggerbuffer;
     }
     if (result != STRINGPREP_OK)
-	return NULL;
+	return 1;
 
     /* the namepreped domain must not be longer than 1023 bytes */
     if (j_strlen(id->server) > 1023)
-	return NULL;
+	return 1;
 
-    /* if there is a user we need to nodeprep it */
-    if (id->user != NULL) {
-	result = stringprep_xmpp_nodeprep(id->user, strlen(id->user)+1);
-	if (result == STRINGPREP_TOO_SMALL_BUFFER) {
-	    /* nodeprep wants to expand the string, e.g. conversion from &szlig; to ss */
-	    size_t biggerbuffersize = strlen(id->user)*2+1; /* XXX: could we need more? */
-	    char *biggerbuffer = pmalloc(id->p, biggerbuffersize);
-	    if (biggerbuffer == NULL)
-		return NULL;
-	    strcpy(biggerbuffer, id->user);
-	    result = stringprep_xmpp_nodeprep(biggerbuffer, biggerbuffersize);
-	    id->user = biggerbuffer;
-	}
-	if (result != STRINGPREP_OK)
-	    return NULL;
+    /* if nothing failed, the domain is valid */
+    return 0;
+}
 
-	/* the nodepreped node must not be longer than 1023 bytes */
-	if (j_strlen(id->user) > 1023)
-	    return NULL;
+/**
+ * nodeprep the node identifier in a JID and check if it is valid
+ *
+ * @param jid data structure holding the JID
+ * @return 0 if JID is valid, non zero otherwise
+ */
+int _jid_safe_node(jid id) {
+    int result=0;
+
+    /* it is valid to have no node identifier in the JID */
+    if (id->user == NULL)
+	return 0;
+
+    /* nodeprep */
+    result = stringprep_xmpp_nodeprep(id->user, strlen(id->user)+1);
+    if (result == STRINGPREP_TOO_SMALL_BUFFER) {
+	/* nodeprep wants to expand the string, e.g. conversion from &szlig; to ss */
+	size_t biggerbuffersize = 1024;
+	char *biggerbuffer = pmalloc(id->p, biggerbuffersize);
+	if (biggerbuffer == NULL)
+	    return 1;
+	strcpy(biggerbuffer, id->user);
+	result = stringprep_xmpp_nodeprep(biggerbuffer, biggerbuffersize);
+	id->user = biggerbuffer;
     }
+    if (result != STRINGPREP_OK)
+	return 1;
 
-    /* if there is a resource we need to resourceprep it */
-    if (id->resource != NULL) {
-	result = stringprep_xmpp_resourceprep(id->resource, strlen(id->resource)+1);
-	if (result == STRINGPREP_TOO_SMALL_BUFFER) {
-	    /* resourceprep wants to expand the string, e.g. conversion from &szlig; to ss */
-	    size_t biggerbuffersize = strlen(id->resource)*2+1; /* XXX: could we need more? */
-	    char *biggerbuffer = pmalloc(id->p, biggerbuffersize);
-	    if (biggerbuffer == NULL)
-		return NULL;
-	    strcpy(biggerbuffer, id->resource);
-	    result = stringprep_xmpp_resourceprep(biggerbuffer, biggerbuffersize);
-	    id->resource = biggerbuffer;
-	}
-	if (result != STRINGPREP_OK)
-	    return NULL;
+    /* the nodepreped node must not be longer than 1023 bytes */
+    if (j_strlen(id->user) > 1023)
+	return 1;
 
-	/* the resourcepreped node must not be longer than 1023 bytes */
-	if (j_strlen(id->resource) > 1023)
-	    return NULL;
+    /* if nothing failed, the node is valid */
+    return 0;
+}
+
+/**
+ * resourceprep the resource identifier in a JID and check if it is valid
+ *
+ * @param jid data structure holding the JID
+ * @return 0 if JID is valid, non zero otherwise
+ */
+int _jid_safe_resource(jid id) {
+    int result=0;
+
+    /* it is valid to have no resource identifier in the JID */
+    if (id->resource == NULL)
+	return 0;
+
+    /* resource prep the resource identifier */
+    result = stringprep_xmpp_resourceprep(id->resource, strlen(id->resource)+1);
+    if (result == STRINGPREP_TOO_SMALL_BUFFER) {
+	/* resourceprep wants to expand the string, e.g. conversion from &szlig; to ss */
+	size_t biggerbuffersize = 1024;
+	char *biggerbuffer = pmalloc(id->p, biggerbuffersize);
+	if (biggerbuffer == NULL)
+	    return 1;
+	strcpy(biggerbuffer, id->resource);
+	result = stringprep_xmpp_resourceprep(biggerbuffer, biggerbuffersize);
+	id->resource = biggerbuffer;
     }
+    if (result != STRINGPREP_OK)
+	return 1;
 
-    return id;
+    /* the resourcepreped node must not be longer than 1023 bytes */
+    if (j_strlen(id->resource) > 1023)
+	return 1;
+
+    /* if nothing failed, the resource is valid */
+    return 0;
+
 }
 
 #else /* no LIBIDN */
 
-jid jid_safe(jid id)
-{
-    unsigned char *str;
+/**
+ * check if the domain identifier in a JID is valid
+ *
+ * @param jid data structure holding the JID
+ * @return 0 if domain is valid, non zero otherwise
+ */
+int _jid_safe_domain(jid id) {
+    char *str;
 
-    if(strlen(id->server) == 0 || strlen(id->server) > 255)
-        return NULL;
+    /* there must be a domain identifier */
+    if (j_strlen(id->server) == 0)
+	return 1;
+
+    /* and it must not be longer than 1023 bytes */
+    if (strlen(id->server) > 1023)
+	return 1;
 
     /* lowercase the hostname, make sure it's valid characters */
     for(str = id->server; *str != '\0'; str++)
     {
         *str = tolower(*str);
-        if(!(isalnum(*str) || *str == '.' || *str == '-' || *str == '_')) return NULL;
+        if(!(isalnum(*str) || *str == '.' || *str == '-' || *str == '_')) return 1;
     }
 
-    /* cut off the user */
-    if(id->user != NULL && strlen(id->user) > 64)
-        id->user[64] = '\0';
+    /* otherwise it's okay as far as we can tell without LIBIDN */
+    return 0;
+}
+
+/**
+ * check if the node identifier in a JID is valid
+ *
+ * @param jid data structure holding the JID
+ * @return 0 if node is valid, non zero otherwise
+ */
+int _jid_safe_node(jid id) {
+    char *str;
+
+    /* node identifiers may not be longer than 1023 bytes */
+    if (j_strlen(id->user) > 1023)
+	return 1;
 
     /* check for low and invalid ascii characters in the username */
     if(id->user != NULL)
         for(str = id->user; *str != '\0'; str++)
-            if(*str <= 32 || *str == ':' || *str == '@' || *str == '<' || *str == '>' || *str == '\'' || *str == '"' || *str == '&') return NULL;
+            if(*str <= 32 || *str == ':' || *str == '@' || *str == '<' || *str == '>' || *str == '\'' || *str == '"' || *str == '&') return 1;
+
+    /* otherwise it's okay as far as we can tell without LIBIDN */
+    return 0;
+}
+
+/**
+ * check if the resource identifier in a JID is valid
+ *
+ * @param jid data structure holding the JID
+ * @return 0 if resource is valid, non zero otherwise
+ */
+int _jid_safe_resource(jid id) {
+    /* resources may not be longer than 1023 bytes */
+    if (j_strlen(id->resource) > 1023)
+	return 1;
+
+    /* otherwise it's okay as far as we can tell without LIBIDN */
+    return 0;
+}
+
+#endif
+
+/**
+ * nodeprep/nameprep/resourceprep the JID and check if it is valid
+ *
+ * @param jid data structure holding the JID
+ * @return NULL if the JID is invalid, pointer to the jid otherwise
+ */
+jid jid_safe(jid id)
+{
+    if (_jid_safe_domain(id))
+	return NULL;
+    if (_jid_safe_node(id))
+	return NULL;
+    if (_jid_safe_resource(id))
+	return NULL;
 
     return id;
 }
-#endif
 
 jid jid_newx(pool p, char *idstr, int len)
 {
@@ -217,7 +312,7 @@ void jid_set(jid id, const char *str, int item)
             id->resource = pstrdup(id->p, str);
         else
             id->resource = NULL;
-        if(jid_safe(id) == NULL)
+        if(_jid_safe_resource(id))
             id->resource = old; /* revert if invalid */
         break;
     case JID_USER:
@@ -226,13 +321,13 @@ void jid_set(jid id, const char *str, int item)
             id->user = pstrdup(id->p, str);
         else
             id->user = NULL;
-        if(jid_safe(id) == NULL)
+        if(_jid_safe_node(id))
             id->user = old; /* revert if invalid */
         break;
     case JID_SERVER:
         old = id->server;
         id->server = pstrdup(id->p, str);
-        if(jid_safe(id) == NULL)
+        if(_jid_safe_domain(id))
             id->server = old; /* revert if invalid */
         break;
     }
