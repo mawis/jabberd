@@ -352,7 +352,7 @@ void _mio_connect(void *arg)
     {
         if(cd->cb != NULL)
             (*(mio_std_cb)cd->cb)(NULL, MIO_CLOSED, cd->cb_arg);
-        pool_free(cd->p);
+        cd->connected = -1;
         return;
     }
 
@@ -362,7 +362,7 @@ void _mio_connect(void *arg)
     {
         if(cd->cb != NULL)
             (*(mio_std_cb)cd->cb)(NULL, MIO_CLOSED, cd->cb_arg);
-        pool_free(cd->p);
+        cd->connected = -1;
         return;
     }
 
@@ -370,13 +370,12 @@ void _mio_connect(void *arg)
     sa.sin_port = htons(cd->port);
     sa.sin_addr.s_addr = saddr->s_addr;
 
-    log_debug(ZONE, "calling connect handler %X", cd->cf);
     if((*cd->cf)(fd, (struct sockaddr*)&sa, sizeof sa) < 0)
     {
         close(fd);
         /* failed to connect, notify callback */
         (*(mio_std_cb)cd->cb)(NULL, MIO_CLOSED, cd->cb_arg);
-        pool_free(cd->p);
+        cd->connected = -1;
         return;
     }
 
