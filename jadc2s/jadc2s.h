@@ -113,6 +113,8 @@ struct conn_st
     /* Traffic counting */
     unsigned long int in_bytes;
     unsigned long int out_bytes;
+    unsigned int in_stanzas;
+    unsigned int out_stanzas;
 };
 
 /* conn happy/sad */
