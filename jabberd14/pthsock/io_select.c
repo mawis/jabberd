@@ -63,7 +63,10 @@ result karma_heartbeat(void*arg)
     for(cur = io__data->master__list; cur != NULL; cur = cur->next)
     {
         if(io__timeout > 0 && cur->type == type_NORMAL && cur->activity > 0 && (time(NULL) - cur->activity > io__timeout))
+        {
+            log_notice(NULL,"idle-disconnecting server %s",cur->ip);
             io_close(cur);
+        }
 
         /* don't update if we are closing, or pre-initilized */
         if(cur->state == state_CLOSE || cur->k.val == KARMA_INIT) 
