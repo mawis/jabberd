@@ -28,7 +28,6 @@
  * 
  * --------------------------------------------------------------------------*/
 #include "lib/lib.h"
-#include <pth.h>
 #ifdef HAVE_SSL
 #include <ssl.h>
 #endif /* HAVE_SSL */
