@@ -40,7 +40,32 @@
  * --------------------------------------------------------------------------*/
 #include "jsm.h"
 
-/* logs session characteristics */
+/**
+ * @file mod_log.c
+ * @brief write a log entry if a session ends, optionally forward all messages to a configured entity
+ *
+ * This module only logs ending sessions. (It expects that the beginning of a session is logged
+ * by the client connection manager which is able to log the IP address if required as well.)
+ *
+ * The module can be configured to forward all message stanzas to a configured entity on the router.
+ * The message forwarding is configured using the <archive/> element containing a <service/> element
+ * for each destination having the destination's address as the CDATA node in it. The messages are
+ * then forwarded using a <route/> element, therefore you cannot forward messages to entities
+ * not connected to your router (you cannot use s2s).
+ *
+ * The message forwarding functionallity is disabled if there is no <archive/> element in the
+ * configuration of the session manager.
+ *
+ * mod_log should be the last in the list of modules in the session manager.
+ */
+
+/**
+ * logs the characteristics of a closed session (when it started, stanzas received, stanzas sent, resource)
+ *
+ * @param m the mapi structure
+ * @param arg unused/ignored
+ * @return always M_PASS
+ */
 mreturn mod_log_session_end(mapi m, void *arg)
 {
     time_t t = time(NULL);
@@ -52,6 +77,15 @@ mreturn mod_log_session_end(mapi m, void *arg)
     return M_PASS;
 }
 
+/**
+ * Forward message stanzas to the list of configured archiving services
+ *
+ * Everything but message stanzas are ignored.
+ *
+ * @param m the mapi structure containing the message to forward
+ * @param arg list of destination JIDs
+ * @return always M_PASS
+ */
 mreturn mod_log_archiver(mapi m, void* arg)
 {
     jid svcs = (jid)arg;
@@ -79,7 +113,17 @@ mreturn mod_log_archiver(mapi m, void* arg)
     return M_PASS;
 }
 
-/* log session */
+/**
+ * callback that gets notified if a new session is establisched
+ *
+ * If message forwarding is enabled this callback will register the mod_log_archiver callback for incoming and outgoing messages.
+ *
+ * In any case it will register the mod_log_session_end callback for ending sessions
+ *
+ * @param m the mapi structure
+ * @param arg NULL if message forwarding is disabled, pointer to a list of destination JIDs otherwise
+ * @return always M_PASS
+ */
 mreturn mod_log_session(mapi m, void *arg)
 {
     jid svcs = (jid)arg;
@@ -96,7 +140,17 @@ mreturn mod_log_session(mapi m, void *arg)
     return M_PASS;
 }
 
-/* we should be last in the list of modules */
+/**
+ * init the mod_log in the session manager
+ *
+ * build the list of forwarding destinations for the message logging functionallity
+ * (using the <service/> elements inside the <archive/> element in the configuration
+ * of the session manager)
+ *
+ * register mod_log_session as callback for new sessions
+ *
+ * @param si the session manager instance
+ */
 void mod_log(jsmi si)
 {
     xmlnode cfg = js_config(si,"archive");
@@ -116,4 +170,3 @@ void mod_log(jsmi si)
 
     js_mapi_register(si,e_SESSION, mod_log_session, (void*)svcs);
 }
-
