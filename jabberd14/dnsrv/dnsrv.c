@@ -70,7 +70,7 @@ void dnsrv_child_process_xstream_io(int type, xmlnode x, void* args)
 	       response = xmlnode2str(x);
 	       pth_write(out, response, strlen(response));
 	  }
-     }   
+     }
      xmlnode_free(x);
 }
 
@@ -149,6 +149,7 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg)
      char* hostname       = NULL;
      char* ipaddr         = NULL;
      dns_packet_list head = NULL;
+     dns_packet_list heado = NULL;
 
      /* Node Format: <host ip="201.83.28.2">foo.org</host> */
      if (type == XSTREAM_NODE)
@@ -181,10 +182,11 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg)
 			 xmlnode_put_attrib(head->packet->x, "iperror", "");
 		    }
 
-		    /* Deliver the packet */
-		    deliver(head->packet, NULL);
+		    heado = head;
 		    /* Move to next.. */
 		    head = head->next;
+		    /* Deliver the packet */
+		    deliver(heado->packet, NULL);
 	       }
 	  }
 	  /* Host name was not found, something is _TERRIBLY_ wrong! */
@@ -193,7 +195,7 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg)
 
      }
      xmlnode_free(x);
-}
+} 
 
 void* dnsrv_process_io(void* threadarg)
 {
@@ -209,7 +211,6 @@ void* dnsrv_process_io(void* threadarg)
      dns_packet_list lsthead  = NULL;
 
      xstream  xs       = NULL;       
-     pool     listpool = NULL;
      char*    request  = NULL;
 
      /* Allocate an xstream for talking to the process */
@@ -217,9 +218,6 @@ void* dnsrv_process_io(void* threadarg)
 
      /* Transmit root element to coprocess */
      pth_write(di->out, "<stream>", strlen("<stream>"));
-
-     /* Setup a new pool to keep track of packet lists */
-     listpool = pool_new();
 
      /* Setup event ring for coprocess reading and message queue events */
      di->e_read  = pth_event(PTH_EVENT_FD|PTH_UNTIL_FD_READABLE, di->in);
@@ -256,7 +254,7 @@ void* dnsrv_process_io(void* threadarg)
 	       {
 		    /* Print an error and drop the packet.. */
 		    log_debug(ZONE, "dnsrv: Looping IP lookup on %s\n", xmlnode2str(wb->packet->x));
-		    /* FIXME: pool_free?! */
+		    xmlnode_free(wb->packet->x);
 	       }
 	       else 
 	       {
@@ -268,7 +266,7 @@ void* dnsrv_process_io(void* threadarg)
 		    if (lsthead != NULL)
 		    {
 			 /* Allocate a new list entry */
-			 lst = pmalloco(listpool, sizeof(_dns_packet_list));
+			 lst = pmalloco(wb->packet->p, sizeof(_dns_packet_list));
 			 lst->packet   = wb->packet;
 			 lst->next     = lsthead->next;
 			 lsthead->next = lst;		    
@@ -278,13 +276,13 @@ void* dnsrv_process_io(void* threadarg)
 		    else
 		    {
 			 /* Allocate a new list head */
-			 lsthead = pmalloco(listpool, sizeof(_dns_packet_list));
+			 lsthead = pmalloco(wb->packet->p, sizeof(_dns_packet_list));
 			 lsthead->packet = wb->packet;
 			 lsthead->next   = NULL;
 			 /* Insert the packet list into the hash */
 			 ghash_put(di->packet_table, lsthead->packet->host, lsthead);
 			 /* Spool up a request */
-			 request = spools(listpool, "<host>", lsthead->packet->host, "</host>", listpool);
+			 request = spools(lsthead->packet->p, "<host>", lsthead->packet->host, "</host>", lsthead->packet->p);
 			 /* Send a request to the coprocess */
 			 pth_write(di->out, request, strlen(request));
 		    }
