@@ -290,6 +290,8 @@ int main(int argc, char **argv)
     free(c2s->sm_host);
     free(c2s->sm_id);
     free(c2s->sm_secret);
+    for(i = 0 ; i < c2s->local_id_count ; i++)
+        free(c2s->local_id[i]);
     free(c2s->local_id);
 #ifdef USE_SSL
     SSL_CTX_free(c2s->ssl_ctx);
