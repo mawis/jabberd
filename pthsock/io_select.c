@@ -292,6 +292,7 @@ sock _io_accept(sock s)
     c->cb=s->cb;
     c->cb_arg=s->cb_arg;
     c->p = p;
+    c->ip = pstrdup(p, inet_ntoa(sa.sin_addr));
     return c;
 }
 
@@ -582,6 +583,7 @@ void io_select_connect_ex(char *host, int port,void* arg,io_cb cb,void *cb_arg,s
     c->cb_arg=cb_arg;
     c->cb=cb;
     c->arg=arg;
+    c->ip = pstrdup(p, host);
     cst->c=c;
     
     pth_spawn(PTH_ATTR_DEFAULT,(void*)_io_select_connect,(void*)cst);

@@ -119,6 +119,10 @@ int main (int argc, char** argv)
         exit(0);
     }
 
+    /* change the current working directory so everything is "local" */
+    if(chdir(HOME))
+        fprintf(stderr,"Unable to access home folder " HOME ": %s\n",strerror(errno));
+
     /* load the config passing the file if it was manually set */
     if(configurate(cfgfile))
         exit(1);

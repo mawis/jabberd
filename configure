@@ -69,6 +69,7 @@ MCFLAGS="$MCFLAGS -shared"
 LDFLAGS="$LDFLAGS $XODE_LDFLAGS $JABBER_LDFLAGS $PTH_LDFLAGS"
 LIBS="$LIBS $XODE_LIBS $JABBER_LIBS $PTH_LIBS"
 XLDFLAGS="$XLDFLAGS "
+JHOME=`pwd`
 
 ##
 # Check the host type and change flags as necessary
@@ -103,6 +104,7 @@ MCFLAGS=$MCFLAGS
 LDFLAGS=$LDFLAGS
 LIBS=$LIBS
 XLDFLAGS=$XLDFLAGS
+JHOME=$JHOME
 EOF
 chmod 0700 platform-settings
 printf "   Done.\n\n"

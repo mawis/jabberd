@@ -71,6 +71,7 @@ typedef struct ssi_struct
     instance i;
     HASHTABLE ips; /* hash table of all dialback capable outgoing sockets to ip:port addresses */
     HASHTABLE hosts; /* hash table of all host structures, in and out, key@to/from format */
+    HASHTABLE nscache; /* hash table of all resolved hostname->ip mappings, since we skip dnsrv */
     char *secret; /* our dialback secret */
     int legacy; /* flag to allow old servers */
 } *ssi, _ssi;
@@ -464,7 +465,7 @@ result pthsock_server_packets(instance i, dpacket dp, void *arg)
     if((h = (host)ghash_get(si->hosts,jid_full(id))) == NULL)
     {
         /* if we don't have an IP, we're misconfigured or something went awry! */
-        if(ip == NULL)
+        if(ip == NULL && (ip = (char*)ghash_get(si->nscache,to->server)) == NULL)
         {
             log_error(dp->host,"s2s received invalid, unresolved, outbound packet: %s",xmlnode2str(dp->x));
             deliver_fail(dp, "Unresolved");
@@ -509,6 +510,10 @@ result pthsock_server_packets(instance i, dpacket dp, void *arg)
         ghash_put(si->hosts,jid_full(h->id),h); /* register us */
         pool_cleanup(c->p,_pthsock_server_host_cleanup,(void *)h); /* make sure things get put back to normal afterwards */
         _pthsock_server_host_result((void *)h); /* try to send result to the other side */
+
+        /* cache the name/ip since we'll get unresolved packets directly now (below) */
+        if(j_strcmp(ghash_get(si->nscache,to->server),ip) != 0)
+            ghash_put(si->nscache,pstrdup(si->i->p,to->server),pstrdup(si->i->p,ip)); /* XXX yes, I know this leaks everytime the IP changes and there's a new sender, should be infrequent enough for now :) */
 
         /* register us with this host, for efficiency */
         register_instance(si->i, id->server);
@@ -577,7 +582,7 @@ void pthsock_server_inx(int type, xmlnode x, void *arg)
             if(c->si->legacy)
             {
                 c->legacy = 1;
-                log_notice(xmlnode_get_attrib(x,"from"),"legacy server incoming connection established");
+                log_notice(xmlnode_get_attrib(x,"to"),"legacy server incoming connection established from %s",c->s->ip);
             }else{
                 io_write_str(c->s,"<stream:error>Legacy Access Denied!</stream:error>");
                 io_close(c->s);
@@ -694,6 +699,7 @@ void pthsock_server_shutdown(void *arg)
     ssi si = (ssi)arg;
     ghash_destroy(si->ips);
     ghash_destroy(si->hosts);
+    ghash_destroy(si->nscache);
 }
 
 /* callback for walking the host hash tree */
@@ -702,7 +708,7 @@ int _pthsock_server_beat(void *arg, const void *key, void *data)
     host h = (host)data;
 
     /* any invalid hosts older than 120 seconds, timed out */
-    if(!h->valid && (time(NULL) - h->created) > 120)
+    if(h->type == htype_OUT && !h->valid && (time(NULL) - h->created) > 120)
     {
         log_notice(h->id->server,"server connection timed out");
         _pthsock_server_host_validated(0,h);
@@ -735,6 +741,7 @@ void pthsock_server(instance i, xmlnode x)
     si = pmalloco(i->p,sizeof(_ssi));
     si->ips = ghash_create(j_atoi(xmlnode_get_tag_data(cfg,"maxhosts"),67),(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp); /* keys are "ip:port" */
     si->hosts = ghash_create(j_atoi(xmlnode_get_tag_data(cfg,"maxhosts"),67),(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp); /* keys are jids: "id@to/from" */
+    si->nscache = ghash_create(j_atoi(xmlnode_get_tag_data(cfg,"maxhosts"),67),(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
     si->i = i;
     si->secret = xmlnode_get_attrib(cfg,"secret");
     if(si->secret == NULL) /* if there's no configured secret, make one on the fly */
