@@ -480,11 +480,11 @@ void _mio_connect(void *arg)
         return;
     }
 
-    /* set the socket to non-blocking 
+    /* set the socket to non-blocking */
     flags =  fcntl(new->fd, F_GETFL, 0);
     flags |= O_NONBLOCK;
     fcntl(new->fd, F_SETFL, flags);
-*/
+
     saddr = make_addr(cd->ip);
     if(saddr == NULL)
     {
