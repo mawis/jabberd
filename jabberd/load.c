@@ -75,7 +75,7 @@ void loader_dso(char *so, char *init)
     if(dlerr != NULL)
     {
         snprintf(message, MAX_LOG_SIZE, "Loading %s failed: %s\n",so,dlerr);
-        fprintf(stderr, message);
+        fprintf(stderr, "%s\n", message);
         exit(1);
     }
 
@@ -87,7 +87,7 @@ void loader_dso(char *so, char *init)
     if(dlerr != NULL)
     {
         snprintf(message, MAX_LOG_SIZE, "Executing %s in %s failed: %s",init,so,dlerr);
-        fprintf(stderr, message);
+        fprintf(stderr, "%s\n", message);
         exit(1);
     }
 

@@ -45,7 +45,7 @@ void do_include(int nesting_level,xmlnode x)
             if(nesting_level>MAX_INCLUDE_NESTING)
             {
                 snprintf(message, MAX_LOG_SIZE, "ERROR: Included files nested %d levels deep.  Possible Recursion\n",nesting_level);
-                fprintf(stderr, message);
+                fprintf(stderr, "%s\n", message);
                 exit(1);
             }
             include=cur;
@@ -113,7 +113,7 @@ int configurate(char *file)
     if(greymatter__ == NULL)
     {
         snprintf(message, MAX_LOG_SIZE, "Configuration using %s failed\n",realfile);
-        fprintf(stderr, message);
+        fprintf(stderr, "%s\n", message);
         return 1;
     }
 
@@ -194,18 +194,18 @@ int configo(int exec)
         if(type == p_NONE || xmlnode_get_attrib(curx,"id") == NULL || xmlnode_get_firstchild(curx) == NULL)
         {
             snprintf(message, MAX_LOG_SIZE, "Configuration error in:\n%s\n",xmlnode2str(curx));
-            fprintf(stderr, message);
+            fprintf(stderr, "%s\n", message);
             if(type==p_NONE) {
 	    	snprintf(message, MAX_LOG_SIZE, "ERROR: Invalid Tag type: %s\n",xmlnode_get_name(curx));
-	    	fprintf(stderr, message);
+	    	fprintf(stderr, "%s\n", message);
 	    }
             if(xmlnode_get_attrib(curx,"id")==NULL){
             	snprintf(message, MAX_LOG_SIZE, "ERROR: Section needs an 'id' attribute\n");
-                fprintf(stderr, message);
+                fprintf(stderr, "%s\n", message);
 	    }
             if(xmlnode_get_firstchild(curx)==NULL){
                 snprintf(message, MAX_LOG_SIZE, "ERROR: Section Has no data in it\n");
-                fprintf(stderr, message);
+                fprintf(stderr, "%s\n", message);
 	    }
             return 1;
 	   
@@ -215,7 +215,7 @@ int configo(int exec)
         if(newi!=NULL)
         {
             snprintf(message, MAX_LOG_SIZE, "ERROR: Multiple Instances with same id: %s\n",xmlnode_get_attrib(curx,"id"));
-            fprintf(stderr, message);
+            fprintf(stderr, "%s\n", message);
             exit(1);
         }
 
@@ -234,7 +234,7 @@ int configo(int exec)
             if(temp==NULL||j_strcmp(temp->server,newi->id)!=0)
             {
                 snprintf(message, MAX_LOG_SIZE, "ERROR: Invalid id name: %s\n",newi->id);
-                fprintf(stderr, message);
+                fprintf(stderr, "%s\n", message);
                 pool_free(p);
                 exit(1);
             }
@@ -258,15 +258,15 @@ int configo(int exec)
                 char *error=pstrdup(xmlnode_pool(curx2),xmlnode_get_attrib(curx2,"error"));
                 xmlnode_hide_attrib(curx2,"error");
                 snprintf(message, MAX_LOG_SIZE, "Invalid Configuration in instance '%s':\n%s\n",xmlnode_get_attrib(curx,"id"),xmlnode2str(curx2));
-                fprintf(stderr, message);
+                fprintf(stderr, "%s\n", message);
                 if(c==NULL) {
 			snprintf(message, MAX_LOG_SIZE, "ERROR: Unknown Base Tag: %s\n",xmlnode_get_name(curx2));
-			fprintf(stderr, message);
+			fprintf(stderr, "%s\n", message);
 		}
                 else if(error!=NULL)
                 {
                     snprintf(message, MAX_LOG_SIZE, "ERROR: Base Handler Returned an Error:\n%s\n",error);
-                    fprintf(stderr, message);
+                    fprintf(stderr, "%s\n", message);
                 }
                 return 1;
             }

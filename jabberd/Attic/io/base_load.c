@@ -43,7 +43,7 @@ void *base_load_loader(char *file)
     if(dlerr != NULL)
     {
         snprintf(message, MAX_LOG_SIZE, "Loading %s failed: '%s'\n",file,dlerr);
-        fprintf(stderr, message);
+        fprintf(stderr, "%s\n", message);
         return NULL;
     }
 
@@ -72,7 +72,7 @@ void *base_load_symbol(char *func, char *file)
     if(dlerr != NULL)
     {
         snprintf(message, MAX_LOG_SIZE, "Executing %s() in %s failed: '%s'\n",func,file,dlerr);
-        fprintf(stderr, message);
+        fprintf(stderr, "%s\n", message);
         return NULL;
     }
 

@@ -35,7 +35,7 @@ result base_logtype_config(instance id, xmlnode x, void *arg)
     if(id == NULL)
     {
         snprintf(message, MAX_LOG_SIZE, "validating config: %s\n",name);
-        fprintf(stderr, message);
+        fprintf(stderr, "%s\n", message);
         /* Ensure that the name of the tag is either "notice", "warn", or "alert" */
         if (strcmp(name, "notice") && strcmp(name, "warn") && strcmp(name, "alert"))
         {
