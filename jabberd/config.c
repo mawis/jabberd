@@ -1,6 +1,6 @@
 #include "jabberd.h"
 
-xmlnode greymatter = NULL;
+xmlnode greymatter__ = NULL;
 
 int configurate(char *file)
 {
@@ -13,10 +13,10 @@ int configurate(char *file)
         realfile = file;
 
     /* read and parse file */
-    greymatter = xmlnode_file(realfile);
+    greymatter__ = xmlnode_file(realfile);
 
     /* was the there a read/parse error? */
-    if(greymatter == NULL)
+    if(greymatter__ == NULL)
     {
         printf("Configuration using %s failed\n",realfile);
         return 1;
@@ -34,8 +34,8 @@ typedef struct cfg_struct
     struct cfg_struct *next;
 } *cfg, _cfg;
 
-cfg cfgenes = NULL;
-pool cfgenes_p = NULL;
+cfg cfgenes__ = NULL;
+pool cfgenes__p = NULL;
 
 /* register a function to handle that node in the config file */
 void cfreg(char *node, cfgene f, void *arg)
@@ -43,17 +43,17 @@ void cfreg(char *node, cfgene f, void *arg)
     cfg newg;
 
     /* if first time */
-    if(cfgenes_p == NULL) cfgenes_p = pool_new();
+    if(cfgenes__p == NULL) cfgenes__p = pool_new();
 
     /* create and setup */
-    newg = pmalloc_x(cfgenes_p, sizeof(_cfg), 0);
-    newg->node = pstrdup(cfgenes_p,node);
+    newg = pmalloc_x(cfgenes__p, sizeof(_cfg), 0);
+    newg->node = pstrdup(cfgenes__p,node);
     newg->f = f;
     newg->arg = arg;
 
     /* hook into global */
-    newg->next = cfgenes;
-    cfgenes = newg;
+    newg->next = cfgenes__;
+    cfgenes__ = newg;
 }
 
 /* util to scan through registered config callbacks */
@@ -61,7 +61,7 @@ cfg cfget(char *node)
 {
     cfg next = NULL;
 
-    for(next = cfgenes; next != NULL && strcmp(node,next->node) != 0; next = next->next);
+    for(next = cfgenes__; next != NULL && strcmp(node,next->node) != 0; next = next->next);
 
     return next;
 }
@@ -69,10 +69,61 @@ cfg cfget(char *node)
 /* execute configuration file */
 int configo(int exec)
 {
-    /* loop through entire config, generating idnodes and executing the registered functions */
-    /* if !exec, don't actually create the idnodes, registered function know that idnode == NULL means just check config */
+    cfg c;
+    xmlnode curx, curx2;
+    ptype type;
+    idnode newi = NULL;
+    pool p;
 
-    /* free cfgenes_p when done */
+    for(curx = xmlnode_get_firstchild(greymatter__); curx != NULL; curx = xmlnode_get_nextsibling(curx))
+    {
+        if(xmlnode_get_type(curx) != NTYPE_TAG || strcmp(xmlnode_get_name(curx),"base") == 0)
+            continue;
+
+        type = p_NONE;
+
+        if(strcmp(xmlnode_get_name(curx),"log") == 0)
+            type = p_LOG;
+        if(strcmp(xmlnode_get_name(curx),"xdb") == 0)
+            type = p_XDB;
+        if(strcmp(xmlnode_get_name(curx),"service") == 0)
+            type = p_NORM;
+
+        if(type == p_NONE || xmlnode_get_attrib(curx,"id") == NULL || xmlnode_get_firstchild(curx) == NULL)
+        {
+            /* XXX be more helpful here */
+            printf("Configuration error in:\n%s\n",xmlnode2str(curx));
+            return 1;
+        }
+
+        /* create the idnode */
+        if(exec)
+        {
+            p = pool_new();
+            newi = pmalloc_x(p, sizeof(_idnode), 0);
+            newi->id = pstrdup(p,xmlnode_get_attrib(curx,"id"));
+            newi->type = type;
+            newi->p = p;
+            newi->x = curx;
+        }
+
+        /* loop through all this sections children */
+        for(curx2 = xmlnode_get_firstchild(curx); curx2 != NULL; curx2 = xmlnode_get_nextsibling(curx2))
+        {
+            /* only handle elements in our namespace */
+            if(xmlnode_get_type(curx2) != NTYPE_TAG || xmlnode_get_attrib(curx2, "xmlns") != NULL)
+                continue;
+
+            /* run the registered function for this element */
+            c = cfget(xmlnode_get_name(curx2));
+            if(c == NULL || (c->f)(newi, curx2, c->arg) == r_ERR)
+            {
+                /* XXX be more helpful here */
+                printf("Configuration error in:\n%s\nSpecifically:\n%s\n",xmlnode2str(curx),xmlnode2str(curx2));
+                return 1;
+            }
+        }
+    }
 
     return 0;
 }
