@@ -40,6 +40,7 @@ base modules:
 
 overall:
 	mem leaks, watching pool debug
+     -- s2s verified leak free -- TSB 10/11/00
 	performance
 
 components:
