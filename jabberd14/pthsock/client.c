@@ -45,6 +45,7 @@ typedef enum { state_UNKNOWN, state_AUTHD } user_state;
 typedef struct cdata_st
 {
     smi* i;
+    jid j;
     user_state state;
     char *id, *host, *sid, *res, *auth_id;
     void *arg;
@@ -125,17 +126,13 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
             char *id=xmlnode_get_attrib(xmlnode_get_tag(p->x,"iq"),"id");
             if((j_strcmp(type,"result")==0)&&j_strcmp(cdcur->auth_id,id)==0)
             { /* update the cdata status if it's a successfull auth */
-                jid j;
                 xmlnode x;
                 log_debug(ZONE,"auth for user successful");
 
                 log_debug(ZONE,"notifying SM to start session");
                 x=xmlnode_new_tag("route");
                 xmlnode_put_attrib(x,"type","session");
-                j=jid_new(xmlnode_pool(x),cdcur->host);
-                jid_set(j,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(xmlnode_get_firstchild(p->x),"query?xmlns=jabber:iq:auth"),"username")),JID_USER);
-                jid_set(j,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(xmlnode_get_firstchild(p->x),"query?xmlns=jabber:iq:auth"),"resource")),JID_RESOURCE);
-                xmlnode_put_attrib(x,"to",jid_full(j));
+                xmlnode_put_attrib(x,"to",jid_full(cdcur->j));
                 xmlnode_put_attrib(x,"from",xmlnode_get_attrib(p->x,"to"));
                 deliver(dpacket_new(x),si->i);
             } else log_debug(ZONE,"Auth not successfull");
@@ -214,7 +211,6 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
             }
             else if (NSCHECK(q,NS_AUTH))
             {
-                jid j;
                 xmlnode_put_attrib(xmlnode_get_tag(q,"digest"),"sid",cd->sid);
                 cd->auth_id = pstrdup(c->p,xmlnode_get_attrib(x,"id"));
                 if(cd->auth_id==NULL) 
@@ -223,10 +219,10 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
                     xmlnode_put_attrib(x,"id","pthsock_client_auth_ID");
                 }
                 x=xmlnode_wrap(x,"route");
-                j=jid_new(xmlnode_pool(x),cd->host);
-                jid_set(j,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(xmlnode_get_firstchild(x),"query?xmlns=jabber:iq:auth"),"username")),JID_USER);
-                jid_set(j,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(xmlnode_get_firstchild(x),"query?xmlns=jabber:iq:auth"),"resource")),JID_RESOURCE);
-                xmlnode_put_attrib(x,"to",jid_full(j));
+                cd->j=jid_new(c->p,cd->host);
+                jid_set(cd->j,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(xmlnode_get_firstchild(x),"query?xmlns=jabber:iq:auth"),"username")),JID_USER);
+                jid_set(cd->j,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(xmlnode_get_firstchild(x),"query?xmlns=jabber:iq:auth"),"resource")),JID_RESOURCE);
+                xmlnode_put_attrib(x,"to",jid_full(cd->j));
                 xmlnode_put_attrib(x,"from",xmlnode_get_attrib(x,"to"));
                 xmlnode_put_attrib(x,"type","auth");
                 xmlnode_put_attrib(x,"from",cd->id);
@@ -235,9 +231,11 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
             else if (NSCHECK(q,NS_REGISTER))
             {
                 x=xmlnode_wrap(x,"route");
+                cd->j=jid_new(c->p,cd->host);
+                jid_set(cd->j,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(xmlnode_get_firstchild(x),"query?xmlns=jabber:iq:auth"),"username")),JID_USER);
+                xmlnode_put_attrib(x,"to",jid_full(cd->j));
                 xmlnode_put_attrib(x,"type","register");
                 xmlnode_put_attrib(x,"from",cd->id);
-                xmlnode_put_attrib(x,"to",cd->host);
                 deliver(dpacket_new(x),((smi)cd->i)->i);
             }
         }
