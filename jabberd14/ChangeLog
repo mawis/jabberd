@@ -1,3 +1,7 @@
+2004-09-06  Matthias Wimmer  <m@tthias.net>
+
+    * jsm/modules/mod_roster.c: XMPP IM's way to handle subscription states
+
 2004-09-01  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/config.c: use pmalloco instead of pmalloc_x
