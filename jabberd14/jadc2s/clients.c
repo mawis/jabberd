@@ -530,6 +530,14 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
         /* let's break this into another function, it's a bit messy */
         return conn_write(c);
 
+    case action_IDLE:
+        if (_write_actual(c, fd, " ", 1) != 1)
+        {
+            if (errno == EAGAIN || errno == EINTR)
+                return 0;
+            return 1;
+        }
+        return 0;
     case action_CLOSE:
 
         /* Process on a valid conn */
