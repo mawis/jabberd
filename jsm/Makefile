@@ -19,7 +19,7 @@ jsm_OBJECTS = \
     modules/mod_auth.o \
     modules/mod_auth_sha1.o \
     modules/mod_echo.o \
-    modules/mod_offline.o \
+    modules/mod_filter.o \
     modules/mod_presence.o \
     modules/mod_private.o \
     modules/mod_roster.o \
@@ -28,6 +28,7 @@ jsm_OBJECTS = \
     modules/mod_version.o \
     modules/mod_register.o
 #    modules/mod_log.o \
+#   modules/mod_offline.o \
 
 all: jsm_build
 
