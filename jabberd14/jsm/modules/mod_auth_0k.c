@@ -178,12 +178,12 @@ mreturn mod_auth_0k_go(mapi m, void *enable)
 /* handle saving the 0k data for registrations */
 mreturn mod_auth_0k_reg(mapi m, void *arg)
 {
-    int disable = 0;
+    int disable = 1;
     jid id;
 
-    /* if the admin wants the plain text password for regs, make sure we don't do 0k regs */
-    if(js_config(m->si, "mod_auth_0k/disable_registration") != NULL)
-        disable = 1;
+    /* only do 0k regs when told to */
+    if(js_config(m->si, "mod_auth_0k/enable_registration") != NULL)
+        disable = 0;
 
     /* type=get means we flag that the server can do 0k regs */
     if(jpacket_subtype(m->packet) == JPACKET__GET)
