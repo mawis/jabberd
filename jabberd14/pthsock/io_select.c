@@ -71,7 +71,7 @@ int _io_write_dump(sock c)
         if(len<=0)
         { 
             log_debug(ZONE,"Error while writing %X",c->xbuffer);
-            if(errno!=EWOULDBLOCK)
+            if(errno!=EWOULDBLOCK&&errno!=EINTR)
             { /* if we have an error, that isn't a blocking issue */ 
                 log_debug(ZONE,"bouncing queue");
                 (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg); /* bounce the queue */
@@ -182,7 +182,7 @@ void io_write(sock c,xmlnode x)
         c->xbuffer=x;
     }
     /* notify the select loop that a packet needs writing */
-    pth_raise(io_data->t,SIGINT);
+    pth_raise(io_data->t,SIGUSR1);
 }
 
 typedef struct connect_st
@@ -258,7 +258,7 @@ void _io_select_connect(void *arg)
         (*(io_cb)c->cb)(c,NULL,0,IO_NEW,c->cb_arg);
     }
     /* notify the select loop */
-    pth_raise(io_data->t,SIGINT);
+    pth_raise(io_data->t,SIGUSR1);
 }
 
 void io_select_connect(iosi io_instance,char *host, int port,void *arg)
@@ -291,7 +291,7 @@ sock _io_accept(ios io_data,int asock)
 
     fd = accept(asock,(struct sockaddr*)&sa,(int*)&sa_size);
     if(fd <= 0)
-    {
+    { /* this will try again eventually */
         return NULL; 
     }
 
@@ -317,13 +317,15 @@ sock _io_accept(ios io_data,int asock)
     return c;
 }
 
+void sig_handler(int arg)
+{
+    log_debug(ZONE,"\n\n\n\nSIGNAL CAUGHT\n\n\n\n\n");
+}
+
 void _io_main(void *arg)
 {
     ios io_data=(ios)arg;
-    pth_event_t wevt;
     fd_set wfds,rfds, all_wfds,all_rfds; /* writes, reads, all */
-    sigset_t sigs;
-    int sig;
     sock cur, c,temp;    
     char buff[1024];
     int len, asock;
@@ -336,17 +338,18 @@ void _io_main(void *arg)
     FD_ZERO(&all_rfds);
     FD_SET(asock,&all_rfds);
 
-    sigemptyset(&sigs);
-    sigaddset(&sigs,SIGINT);
-    wevt=pth_event(PTH_EVENT_SIGS,&sigs,&sig);
-
     (*(io_cb)io_data->cb)(NULL,NULL,0,IO_INIT,NULL); 
 
     while (1)
     {
         rfds=all_rfds;
         wfds=all_wfds;
-        pth_select_ev(maxfd+1,&rfds,&wfds,NULL,NULL,wevt);
+        if(signal(SIGUSR1,&sig_handler)==SIG_ERR)
+        {
+            log_debug(ZONE,"Unable to listen for SIGUSR1");
+            exit(1);
+        }
+        select(maxfd+1,&rfds,&wfds,NULL,NULL);
 
         maxfd=asock;
 
@@ -382,7 +385,7 @@ void _io_main(void *arg)
                 len = read(cur->fd,buff,sizeof(buff));
                 if(len<=0)
                 {
-                    if(errno==EWOULDBLOCK) FD_SET(cur->fd,&all_rfds);
+                    if(errno==EWOULDBLOCK||errno==EINTR) FD_SET(cur->fd,&all_rfds);
                     else
                     {
                         temp=cur;
@@ -405,7 +408,7 @@ void _io_main(void *arg)
                 int ret=_io_write_dump(cur);
                 if(ret<0)
                 {
-                    if(errno==EWOULDBLOCK) FD_SET(cur->fd,&all_wfds);
+                    if(errno==EWOULDBLOCK||errno==EINTR) FD_SET(cur->fd,&all_wfds);
                     else
                     {
                         temp=cur;
@@ -437,7 +440,6 @@ void _io_main(void *arg)
             cur = cur->next;
         }
     }
-    pth_event_free(wevt,PTH_FREE_THIS);
 }
 
 /* everything starts here */
