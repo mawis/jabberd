@@ -296,7 +296,7 @@ result dnsrv_deliver(instance i, dpacket p, void* args)
          /* if there's no IP, cached failed lookup, time those out 10 times faster! (weird, I know, *shrug*) */
          if((ip = xmlnode_get_attrib(c,"ip")) == NULL)
             timeout = timeout / 10;
-         if((time(NULL) - (int)xmlnode_get_vattrib(c,"t")) > timeout)
+         if((time(NULL) - *(time_t*)xmlnode_get_vattrib(c,"t")) > timeout)
          { /* timed out of the cache, lookup again */
              ghash_remove(di->cache_table,p->host);
              xmlnode_free(c);
@@ -319,6 +319,7 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg)
      char* resendhost     = NULL;
      dns_packet_list head = NULL;
      dns_packet_list heado = NULL;
+     time_t *ttmp;
 
      /* Node Format: <host ip="201.83.28.2">foo.org</host> */
      if (type == XSTREAM_NODE)
@@ -328,7 +329,9 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg)
 
           /* whatever the response was, let's cache it */
           xmlnode_free((xmlnode)ghash_get(di->cache_table,hostname)); /* free any old cache, shouldn't ever be any */
-          xmlnode_put_vattrib(x,"t",(void*)time(NULL));
+          ttmp = pmalloc(xmlnode_pool(x),sizeof(time_t));
+          time(ttmp);
+          xmlnode_put_vattrib(x,"t",(void*)ttmp);
           ghash_put(di->cache_table,hostname,(void*)x);
 
 	  /* Get the hostname and look it up in the hashtable */

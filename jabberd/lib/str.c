@@ -151,7 +151,7 @@ void spooler(spool s, ...)
     while(1)
     {
         arg = va_arg(ap,char *);
-        if((int)arg == (int)s)
+        if((spool)arg == s)
             break;
         else
             spool_add(s, arg);
@@ -200,7 +200,7 @@ char *spools(pool p, ...)
     while(1)
     {
         arg = va_arg(ap,char *);
-        if((int)arg == (int)p)
+        if((pool)arg == p)
             break;
         else
             spool_add(s, arg);

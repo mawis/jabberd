@@ -31,7 +31,7 @@
 
 mreturn mod_last_server(mapi m, void *arg)
 {
-    int start = time(NULL) - (int)arg;
+    time_t start = time(NULL) - *(time_t*)arg;
     char str[10];
     xmlnode last;
 
@@ -44,7 +44,7 @@ mreturn mod_last_server(mapi m, void *arg)
 
     last = xmlnode_insert_tag(m->packet->x,"query");
     xmlnode_put_attrib(last,"xmlns",NS_LAST);
-    sprintf(str,"%d",start);
+    sprintf(str,"%d",(int)start);
     xmlnode_put_attrib(last,"seconds",str);
 
     js_deliver(m->si,m->packet);
@@ -144,6 +144,7 @@ mreturn mod_last_reply(mapi m, void *arg)
 
 void mod_last(jsmi si)
 {
+    time_t *ttmp;
     log_debug("mod_last","initing");
 
     if (js_config(si,"register") != NULL) js_mapi_register(si, e_REGISTER, mod_last_init, NULL);
@@ -151,5 +152,7 @@ void mod_last(jsmi si)
     js_mapi_register(si, e_OFFLINE, mod_last_reply, NULL);
 
     /* set up the server responce, giving the startup time :) */
-    js_mapi_register(si, e_SERVER, mod_last_server, (void *)time(NULL));
+    ttmp = pmalloc(si->p, sizeof(time_t));
+    time(ttmp);
+    js_mapi_register(si, e_SERVER, mod_last_server, (void *)ttmp);
 }
