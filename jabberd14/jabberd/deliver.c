@@ -105,21 +105,78 @@ void register_instance(instance id, char *host)
 }
 
 /* bounce on the delivery, use the result to better gague what went wrong */
-void deliver_fail(dpacket p, result r)
+void deliver_fail(dpacket p, char *err)
 {
+    char *to;
+    terror t;
 
-    log_debug(ZONE,"delivery failed (%d)",r);
+    log_debug(ZONE,"delivery failed (%s)",err);
 
     switch(p->type)
     {
     case p_LOG:
         /* stderr and drop */
+        fprintf(stderr,"WARNING!  Logging Failed: %s\n",xmlnode2str(p->x));
+        pool_free(p->p);
         break;
     case p_XDB:
-        /* empty result */
+        /* log_warning and drop */
+        log_warn(p->host,"dropping an xdb request for %s",xmlnode_get_attrib(p->x,"to"));
+        pool_free(p->p);
         break;
     case p_NORM:
-        /* normal packet bounce */
+        if(xmlnode_get_attrib(p->x,"sto") != NULL)
+        {   /* session packet bounce */
+            if(xmlnode_get_tag(p->x,"error?code=510") != NULL)
+            {   /* already bounced once, drop */
+                log_warn(p->host,"dropping a session packet to %s from %s",xmlnode_get_attrib(p->x,"sto"),xmlnode_get_attrib(p->x,"sfrom"));
+                pool_free(p->p);
+            }else{
+                log_notice(p->host,"bouncing a session packet to %s from %s",xmlnode_get_attrib(p->x,"sto"),xmlnode_get_attrib(p->x,"sfrom"));
+
+                /* reverse the session routing attribs */
+                to = xmlnode_get_attrib(p->x,"to");
+                xmlnode_put_attrib(p->x,"sto",xmlnode_get_attrib(p->x,"from"));
+                xmlnode_put_attrib(p->x,"sfrom",to);
+
+                /* turn into an error */
+                if(err == NULL)
+                {
+                    jutil_error(p->x,TERROR_DISCONNECTED);
+                }else{
+                    t.code = 510;
+                    t.msg[0] = '\0';
+                    strcat(t.msg,err); /* why do I have to do this?  uhgly */
+                    jutil_error(p->x,t);
+                }
+                jutil_tofrom(p->x); /* _error flipped them, we're flipping back :) */
+                deliver(dpacket_new(p->x),NULL);
+            }
+        }else{
+            /* normal packet bounce */
+            if(j_strcmp(xmlnode_get_attrib(p->x,"type"),"error") == 0)
+            { /* can't bounce an error */
+                log_warn(p->host,"dropping a packet to %s from %s",xmlnode_get_attrib(p->x,"to"),xmlnode_get_attrib(p->x,"from"));
+                pool_free(p->p);
+            }else{
+                log_warn(p->host,"dropping a packet to %s from %s",xmlnode_get_attrib(p->x,"to"),xmlnode_get_attrib(p->x,"from"));
+
+                /* turn into an error */
+                t.code = 502;
+                t.msg[0] = '\0';
+                strcat(t.msg,err);
+                if(err == NULL)
+                {
+                    jutil_error(p->x,TERROR_EXTERNAL);
+                }else{
+                    t.code = 502;
+                    t.msg[0] = '\0';
+                    strcat(t.msg,err); /* why do I have to do this?  uhgly */
+                    jutil_error(p->x,t);
+                }
+                deliver(dpacket_new(p->x),NULL);
+            }
+        }
         break;
     default:
     }
@@ -300,7 +357,12 @@ void deliver(dpacket p, instance i)
 
     /* if nobody actually handled it, we've got problems */
     if(best != r_DONE)
-        deliver_fail(p, best);
+    {
+        if(best == r_ERR)
+            deliver_fail(p, "Server Delivery Error");
+        else
+            deliver_fail(p, "Server Configuration Error");
+    }
     
 }
 
