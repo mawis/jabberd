@@ -27,7 +27,7 @@
     <cache/> [data is cacheable (contain int for # of seconds to timeout?)
     <connect> [remote server handles foo.org auth]
       <ip>12.34.56.1</ip>
-      <name>myname</name>
+      <port>5253</port>
       <secret>foo</secret>
     </connect>
   </xdb>

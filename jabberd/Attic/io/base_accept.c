@@ -3,6 +3,7 @@
 /* seperate ports for each section, hostnames validated */
 /* the connected app normaly gets all packets delivered to it, but can connect again and only send (but in the same name) */
 /* if registered as * for the host, then any name can be used as sender, and module delivers appropriately */
+/* module must scan config for <host/> elements and configure itself appropriately */
 
 result base_accept_config(idnode id, xmlnode x, void *arg)
 {
