@@ -16,6 +16,8 @@ base_OBJECTS = \
 	base_stderr.o \
 	base_to.o
 
+single: static
+
 static: $(base_OBJECTS)
 
 all: $(base_OBJECTS)

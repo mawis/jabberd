@@ -4,6 +4,8 @@ CFLAGS:=$(CFLAGS) -I../jabberd
 
 xdb_file_OBJECTS=xdb_file.o
 
+single: static
+
 all: xdb_file
 
 xdb_file: $(xdb_file_OBJECTS)

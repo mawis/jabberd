@@ -30,6 +30,8 @@ jsm_modules_OBJECTS=\
 
 $(jsm_modules_OBJECTS): $(jsm_modules_HEADERS)
 
+single: static
+
 all: $(jsm_modules_OBJECTS) $(jsm_modules_HEADERS)
 
 static: $(jsm_modules_OBJECTS) $(jsm_modules_HEADERS)

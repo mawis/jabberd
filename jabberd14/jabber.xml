@@ -28,6 +28,13 @@
   </io>
   -->
 
+  <!-- ssl for toplevel io initiliaztion
+    <ssl>
+      <key ip='192.168.1.1'>/path/to/cert_and_key.pem</key>
+      <key ip='192.168.1.100'>/path/to/other/cert_and_key.pem</key>
+    </ssl>
+  -->
+
   <!-- 
   The following <service/> section is for the session manager, 
   the most important component within the server. This section

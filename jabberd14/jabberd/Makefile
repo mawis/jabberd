@@ -3,15 +3,18 @@
 #
 include ../platform-settings
 
+ifeq ($(ISSINGLE),1)
+	DEFINES=-DHOME="\"$(JHOME)\"" -DSINGLE
+else
+	DEFINES=-DHOME="\"$(JHOME)\"" -DCONFIGXML="\"jabber.xml\""
+endif
 ifeq ($(ISSTATIC),1)
 	DEFINES=-DHOME="\"$(JHOME)\"" -DSTATIC
-else
-	DEFINES=-DHOME="\"$(JHOME)\""
 endif
 
 CFLAGS:=$(CFLAGS) $(DEFINES)
 
-jabberd_HEADERS=jabberd.h
+jabberd_HEADERS=jabberd.h single.h
 
 SUBDIRS=base lib $(PSUBDIR)
 
@@ -95,6 +98,8 @@ jabberd_STATICOBJS=\
 	$(JHOME)/pthsock/client.o \
 	$(JHOME)/xdb_file/xdb_file.o
 
+single: static
+
 all: all-recursive
 
 clean: clean-recursive
@@ -160,4 +165,4 @@ maintainer-clean-recursive:
 	   || case "$$amf" in *=*) exit 1;; *k*) fail=yes;; *) exit 1;; esac; \
 	done && test -z "$$fail"
 
-.PHONY: clean static
+.PHONY: clean static single
