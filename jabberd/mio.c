@@ -553,11 +553,11 @@ mio _mio_accept(mio m)
 #ifdef WITH_IPV6
     if(m->rated && jlimit_check(m->rate, addr_str, 1))
     {
-	log_warn("io_select", "%s(%d) is being connection rate limited", addr_str, fd);
+	log_warn("io_select", "%s(%d) is being connection rate limited - the connection attempts from this IP exceed the rate limit defined in jabberd config", addr_str, fd);
 #else
     if(m->rated && jlimit_check(m->rate, inet_ntoa(serv_addr.sin_addr), 1))
     {
-        log_warn("io_select", "%s(%d) is being connection rate limited", inet_ntoa(serv_addr.sin_addr), fd);
+        log_warn("io_select", "%s(%d) is being connection rate limited - the connection attempts from this IP exceed the rate limit defined in jabberd config", inet_ntoa(serv_addr.sin_addr), fd);
 #endif
         close(fd);
         return NULL;
@@ -967,7 +967,7 @@ void _mio_main(void *arg)
                             /* Check if that socket ran out of karma */
                             if(cur->k.val <= 0)
                             { /* ran out of karma */
-                                log_notice("MIO_XML_READ", "socket from %s is out of karma", cur->ip);
+                                log_notice("MIO_XML_READ", "socket from %s is out of karma: traffic exceeds karma limits defined in jabberd configuration", cur->ip);
                                 FD_CLR(cur->fd, &all_rfds); /* this fd is being punished */
                             }
                         }
@@ -1430,14 +1430,14 @@ mio mio_listen(int port, char *listen_host, void *cb, void *arg, mio_accept_func
     /* if we got a bad fd we can't listen */
     if(fd < 0)
     {
-        log_alert(NULL, "io_select unable to listen on %d [%s]", port, listen_host);
+        log_alert(NULL, "io_select unable to listen on %d [%s]: jabberd already running or invalid interface?", port, listen_host);
         return NULL;
     }
 
     /* start listening with a max accept queue of 10 */
     if(listen(fd, 10) < 0)
     {
-        log_alert(NULL, "io_select unable to listen on %d [%s]", port, listen_host);
+        log_alert(NULL, "io_select unable to listen on %d [%s]: jabberd already running or invalid interface?", port, listen_host);
         return NULL;
     }
 
