@@ -197,6 +197,21 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         h = xstream_header("jabber:client",NULL,jid_full(cd->host));
         cd->sid = pstrdup(c->p,xmlnode_get_attrib(h,"id"));
         io_write_str(c,xstream_header_char(h));
+        if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:client")!=0)
+        { /* if they sent something other than jabber:client */
+            io_write_str(c,"<stream:error>Invalid Namespace</stream:error>");
+            io_close(c);
+        }
+        else if(cd->host==NULL)
+        { /* they didn't send a to="" and no valid alias */
+            io_write_str(c,"<stream:error>Did not specify a valid to argument</stream:error>");
+            io_close(c);
+        }
+        else if(j_strcmp(xmlnode_get_attrib(x,"xmlns:stream"),"http://etherx.jabber.org/streams")!=0)
+        {
+            io_write_str(c,"<stream:error>Invalid Stream Namespace</stream:error>");
+            io_close(c);
+        }
         xmlnode_free(h);
         xmlnode_free(x);
         break;
