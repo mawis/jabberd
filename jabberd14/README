@@ -1,4 +1,4 @@
-Welcome to the world of Jabber 1.1.0!
+Welcome to the world of Jabber 1.1.1!
 
 This is going to be short, experts only, to be filled in by later development releases:
 
@@ -8,15 +8,15 @@ To configure, edit jabber.xml, edit the <host> section near the top to replace "
 
 To start, ./jabberd/jabberd
 
-For lots of debug output, use the -D flag, you'll get some simple debug output even without the -D
+For lots of debug output, use the -D flag
 
-If it starts up, you should be able to connect and register new users, most of the 1.0 functionality should be there
+If it starts up (just sits there), you should be able to connect and register new users, most of the 1.0 functionality should work
 
 If anything goes awry, feel free to email bug reports to bugs@jabber.org, including your config file (if you've made any significant changes), -D debug output, and a backtrace if it cored
 
 For any more details, consult the source :)
 
-Latest CVS is always available as "jabberd" and "jsm" on jabber.org.
+Latest CVS is always available as "jabber2" on jabber.org.
 
 Thanks to the following for their important work on this release:
 	Jeremie Miller <jeremie@jabber.org>
