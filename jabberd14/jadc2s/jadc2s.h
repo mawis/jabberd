@@ -142,6 +142,7 @@ struct c2s_st
 {
     /* globals */
     mio_t mio;
+    int shutting_down;
 
     /* setup */
     config_elem_t local_id;
