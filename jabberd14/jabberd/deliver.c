@@ -311,7 +311,8 @@ result deliver_instance(instance i, dpacket p)
         }
 
         hlast = h;
-        h = h->next;
+        /* h might have become NULL after an r_UNREG */
+        if(h!=NULL)h = h->next;
     }
 
     /* the packet is still valid if best != r_DONE */
