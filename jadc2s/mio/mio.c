@@ -65,6 +65,7 @@ struct mio_fd_st
     mio_type_t type;
     /* app even handler and data */
     mio_handler_t app;
+    time_t last_activity;
     void *arg;
 };
 
@@ -74,6 +75,7 @@ struct mio_st
     struct mio_fd_st *fds;
     int maxfd;
     int highfd;
+    time_t last_idle_check;
     MIO_VARS;
 };
 
@@ -205,6 +207,7 @@ int mio_fd(mio_t m, int fd, mio_handler_t app, void *arg)
     /* ok to process this one, welcome to the family */
     FD(m,fd).type = type_NORMAL;
     FD(m,fd).app = app;
+    FD(m,fd).last_activity = time(NULL);
     FD(m,fd).arg = arg;
     MIO_INIT_FD(m, fd);
 
@@ -230,14 +233,20 @@ void mio_app(mio_t m, int fd, mio_handler_t app, void *arg)
 void mio_run(mio_t m, int timeout)
 {
     int retval, fd;
+    time_t now;
 
     mio_debug(ZONE, "mio running for %d", timeout);
 
     /* wait for a socket event */
     retval = MIO_CHECK(m, timeout);
+    now = time(NULL);
 
     /* nothing to do */
-    if(retval == 0) return;
+    /* XXX Make 300 a config option? */
+    if(retval == 0 && (now - m->last_idle_check) < 300) return;
+    
+    /* reset the idle check counter */
+    m->last_idle_check = now;
 
     /* an error */
     if(retval < 0)
@@ -252,6 +261,8 @@ void mio_run(mio_t m, int timeout)
     /* loop through the sockets, check for stuff to do */
     for(fd = 0; fd <= m->highfd; fd++)
     {
+        int isActive = 0;
+
         /* skip dead slots */
         if(FD(m,fd).type == type_CLOSED) continue;
 
@@ -275,6 +286,7 @@ void mio_run(mio_t m, int timeout)
             /* if they don't want to read any more right now */
             if(ACT(m, fd, action_READ, NULL) == 0)
                 MIO_UNSET_READ(m, fd);
+            isActive = 1;
         }
 
         /* write to ready sockets */
@@ -283,7 +295,31 @@ void mio_run(mio_t m, int timeout)
             /* don't wait for writeability if nothing to write anymore */
             if(ACT(m, fd, action_WRITE, NULL) == 0)
                 MIO_UNSET_WRITE(m, fd);
+            isActive = 1;
         }
+
+        /* Idle tests */
+        if (FD(m,fd).type == type_NORMAL)
+        {
+            if (isActive)
+            {
+                /* Set the last time the fd had activity */
+                FD(m,fd).last_activity = time(NULL);
+            }
+            else
+            {
+                /* If it's been too long, fire an idle check */
+                if ( (time(NULL) - FD(m,fd).last_activity) >= 300 )
+                {
+                    if(ACT(m, fd, action_IDLE, NULL))
+                    {
+                        mio_debug(ZONE, "Socket %d has idled to death", fd);
+                        mio_close(m, fd);
+                    }
+                }
+            }
+        }
+            
     } 
 }
 
@@ -305,6 +341,7 @@ mio_t mio_new(int maxfd)
     /* set up our internal vars */
     m->maxfd = maxfd;
     m->highfd = 0;
+    m->last_idle_check = time(NULL);
 
     MIO_INIT_VARS(m);
 
