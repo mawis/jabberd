@@ -286,11 +286,11 @@ mio _mio_accept(mio m)
     log_debug(ZONE, "new socket accepted (fd: %d, ip: %s, port: %d)", fd, inet_ntoa(serv_addr.sin_addr), ntohs(serv_addr.sin_port));
 
     /* create a new sock object for this connection */
-    new     = mio_new(fd, m->cb, m->cb_arg, mio_handlers_new(m->mh->read, m->mh->write));
+    new     = mio_new(fd, m->cb, m->cb_arg, mio_handlers_new(m->mh->read, m->mh->write, m->mh->parser));
     new->ip = pstrdup(new->p, inet_ntoa(serv_addr.sin_addr));
 
     if(m->cb != NULL)
-        (*(mio_std_cb)m->cb)(m, MIO_NEW, m->cb_arg);
+        (*(mio_std_cb)new->cb)(new, MIO_NEW, new->cb_arg);
 
     mio_karma2(new, &m->k);
 
@@ -310,9 +310,11 @@ void _mio_main(void *arg)
     sigset_t    sigs;       /* signal set to catch SIGUSR2 */
     mio         cur,
                 temp;    
+    char        buf[8192]; /* max socket read buffer      */
     int         sig,        /* needed to catch signal      */
+                maxlen,
+                len,
                 retval,
-                readval,
                 maxfd=0;
 
     log_debug(ZONE, "MIO is starting up");
@@ -404,25 +406,43 @@ void _mio_main(void *arg)
                     continue;
                 }
 
-                readval = (*(cur->mh->read))(cur);
+                maxlen = KARMA_READ_MAX(cur->k.val);
+
+                if(maxlen > 8191) maxlen = 8191;
+
+                len = (*(cur->mh->read))(cur->fd, buf, maxlen);
+
                 /* if we had a bad read */
-                if(readval == -1)
+                if(len == 0)
                 { 
-                    /* kill this socket and move on */
-                    temp = cur;
-                    cur = cur->next;
-                    FD_CLR(temp->fd, &all_rfds);
-                    FD_CLR(temp->fd, &all_wfds);
-                    _mio_close(temp);
+                    mio_close(cur);
                     continue;
+                }
+                else if(len < 0)
+                {
+                    if(errno != EWOULDBLOCK && errno != EINTR && errno != EAGAIN) 
+                    {
+                        /* kill this socket and move on */
+                        mio_close(cur);
+                        continue;
+                    }
                 }
                 else 
                 {
-                    /* XXX there must be a better way to do this */
-                    if(cur->k.val <= 0)
-                    { /* if the socket has no more karma, don't read from it */
-                        FD_CLR(cur->fd, &all_rfds); /* ensure this fd is set to read */
+
+
+                    if(karma_check(&cur->k, len))
+                    { /* they read the max, tsk tsk */
+                        if(cur->k.val <= 0) /* ran out of karma */
+                        {
+                            log_notice("MIO_XML_READ", "socket from %s is out of karma", cur->ip);
+                            FD_CLR(cur->fd, &all_rfds); /* ensure this fd is set to read */
+                        }
                     }
+
+                    buf[len] = '\0';
+
+                    (*cur->mh->parser)(cur, buf, len);
                 }
             } 
             /* if we need to write to this socket */
@@ -777,10 +797,10 @@ mio mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_c
     mio                new;
 
     if(f == NULL)
-        f = MIO_STD_CONNECT;
+        f = MIO_RAW_CONNECT;
 
     if(mh == NULL)
-        mh = mio_handlers_new(MIO_STD_READ, MIO_STD_WRITE);
+        mh = mio_handlers_new(NULL, NULL, MIO_RAW_PARSER);
 
     bzero((void*)&sa, sizeof(struct sockaddr_in));
 
@@ -825,10 +845,10 @@ mio mio_listen(int port, char *listen_host, void *cb, void *arg, mio_accept_func
     int        fd;
 
     if(f == NULL)
-        f = MIO_STD_ACCEPT;
+        f = MIO_RAW_ACCEPT;
 
     if(mh == NULL)
-        mh = mio_handlers_new(MIO_STD_READ, MIO_STD_WRITE);
+        mh = mio_handlers_new(MIO_RAW_READ, MIO_RAW_WRITE, MIO_RAW_PARSER);
 
     mh->accept = f;
 
@@ -860,7 +880,7 @@ mio mio_listen(int port, char *listen_host, void *cb, void *arg, mio_accept_func
     return new;
 }
 
-mio_handlers mio_handlers_new(mio_read_func rf, mio_write_func wf)
+mio_handlers mio_handlers_new(mio_read_func rf, mio_write_func wf, mio_parser_func pf)
 {
     pool p = pool_new();
     mio_handlers new;
@@ -870,14 +890,19 @@ mio_handlers mio_handlers_new(mio_read_func rf, mio_write_func wf)
     new->p = p;
 
     if(rf == NULL)
-        new->read = MIO_STD_READ;
+        new->read = MIO_RAW_READ;
     else
         new->read = rf;
 
     if(wf == NULL)
-        new->write = MIO_STD_WRITE;
+        new->write = MIO_RAW_WRITE;
     else
         new->write = wf;
+
+    if(pf == NULL)
+        new->parser = MIO_RAW_PARSER;
+    else
+        new->parser = pf;
 
     return new;
 }

@@ -371,7 +371,7 @@ result base_accept_config(instance id, xmlnode x, void *arg)
         pool_cleanup(id->p, base_accept_listener_cleanup, (void*)al);
 		
         /* Start a new listening thread and associate this <listen> tag with it */
-        mio_listen(j_atoi(port, 0), ip, base_accept_process_xml, (void*)al, NULL, mio_handlers_new(MIO_XML_READ, MIO_XML_WRITE));
+        mio_listen(j_atoi(port, 0), ip, base_accept_process_xml, (void*)al, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER));
     }
 
 	/* Setup the default sink for this instance */ 
