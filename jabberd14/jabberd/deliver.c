@@ -711,7 +711,7 @@ dpacket dpacket_new(xmlnode x)
         p->type = p_LOG;
 
     /* xdb results are shipped as normal packets */
-    if(p->type == p_XDB && (str = xmlnode_get_attrib(p->x,"type")) != NULL && *str == 'r')
+    if(p->type == p_XDB && (str = xmlnode_get_attrib(p->x,"type")) != NULL && (*str == 'r' || *str == 'e' ))
         p->type = p_NORM;
 
     /* determine who to route it to, overriding the default to="" attrib only for logs where we use from */
