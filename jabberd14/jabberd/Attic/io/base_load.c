@@ -127,6 +127,11 @@ result base_load_config(instance id, xmlnode x, void *arg)
     return r_PASS;
 }
 
+void base_load_shutdown(void *arg)
+{
+    xmlnode_free(base_load__cache);
+}
+
 void base_load(void)
 {
     log_debug(ZONE,"base_load loading...\n");
@@ -134,6 +139,7 @@ void base_load(void)
     /* init global cache */
     base_load__cache = xmlnode_new_tag("so_cache");
 
+    register_shutdown(base_load_shutdown, NULL);
     register_config("load",base_load_config,NULL);
 }
 
