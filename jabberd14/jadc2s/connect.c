@@ -246,7 +246,7 @@ void _connect_process(conn_t c) {
             pending->state = state_SESS;
 
 	    /* log the successfull login */
-	    log_write(c->c2s->log, LOG_NOTICE, "user %s connected from %s", jid_full(target->userid), target->ip);
+	    log_write(c->c2s->log, LOG_NOTICE, "user %s connected from %s on fd %i", jid_full(target->userid), target->ip, target->fd);
 	   
 	    /* send a notification message if requested */
 	    connectionstate_send(c->c2s->config, c, target, 1);
