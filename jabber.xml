@@ -315,7 +315,6 @@
       For details about karma, read the io section at the bottom 
       and/or see docs.jabber.org. These are the low settings and
       apply per connection/socket and can be changed as desired.
-
   -->
 
   <service id="c2s">
@@ -332,19 +331,22 @@
         <penalty>-6</penalty>
         <restore>10</restore>
       </karma>
+
       <!-- 
       Use these to listen on particular addresses and/or ports.
       <ip port="5222">127.0.0.1</ip>
       -->
       <ip port="5222"/>
-      <!--
-      The <ssl/> tag acts just like the <ip/> tag.  Except SSL is used
-      on the ports and ips specified.  You must specify an IP here, or the
-      connections will fail.
 
-      <ssl port='5223'>127.0.0.1</ip>
-      <ssl port='5224'>192.168.1.100</ip>
+      <!--
+      The <ssl/> tag acts pretty much like the <ip/> tag,
+      except it defines that SSL is to be used on the 
+      ports and IP addresses specified. You must specify
+      an IP address here, or the connections will fail.
+      <ssl port='5223'>127.0.0.1</ssl>
+      <ssl port='5224'>192.168.1.100</ssl>
       -->
+
     </pthcsock>
   </service>
 
@@ -473,21 +475,39 @@
 
     <!-- Set the default karma for *all* sockets -->
     <!-- definition of terms:
-        Avg. Throughput:    The ammount of bytes you can send every second without incuring any penalty
-        Burst allowed to:   The maximum you can send in 2 seconds without incuring any penalty
-        max sustained rate: if you send data as fast as you can, you will hit penalty, and will not be able to send for 10 seconds,
-                            this is the average rate you can dump data when you are dumping as much as you can, as fast as you can.
-        seconds to recover from burst: The ammount of time it will take to reach Avg. Throughput capability, after sending max burst 
-                                       of data
-        penalty length:     Penalty will last abs(penalty) * Heartbeat seconds  so a penalty of -5 and heartbeat of 2 will last 10 sec.
-                            NOTE: penalty CANNOT be less than -100.. otherwise strange things might happen.
+
+      * Avg. Throughput - The number of bytes you can
+        send every second without incuring any penalty.
+
+      * Burst Allowed - The maximum number of bytes you
+        can send in 2 seconds without incurring any penalty.
+
+      * Max Sustained Rate - If you send data as fast as 
+        you can, you will hit penalty, and will not be 
+        able to send for 10 seconds; the max sustained 
+        rate is the average rate you can dump data when 
+        you are dumping as much data as you can, as fast 
+        as you can.
+
+      * Seconds to Recover from Burst - The amount of time 
+        it will take to reach Avg. Throughput capability 
+        after sending a max burst of data.
+
+      * Penalty Length - The length of your penalty is
+        determined according to this formula:
+              abs(penalty) * Heartbeat seconds
+        E.g., a penalty of -5 and heartbeat of 2 will 
+        cause your penalty length to be 10 seconds. 
+        Note that a penalty CANNOT be less than -100, 
+        otherwise strange things might happen.
+
     -->
     <!-- Example of Low Karma Limits 
-        Avg. throughput:  1k-2k/s 
-        burst allowed to: 5.5k/s 
-        max sustained rate: 485b/s
-        seconds to recover from burst: 20
-        penalty length:   12 seconds
+        Avg. Throughput: 1k-2k/s 
+        Burst Allowed To: 5.5k/s 
+        Max Sustained Rate: 485b/s
+        Seconds to Recover from Burst: 20
+        Penalty Length: 12 seconds
     <karma>
       <heartbeat>2</heartbeat>
       <init>10</init>
@@ -500,11 +520,11 @@
     -->
 
     <!-- Example of Medium Karma Limits 
-        Avg. throughput:  5k-10k/s 
-        burst allowed to: 125.5k/s 
-        max sustained rate: 12.6k/s
-        seconds to recover from burst: 25
-        penalty length:   10 seconds
+        Avg. Throughput: 5k-10k/s 
+        Burst Allowed: 125.5k/s 
+        Max Sustained Rate: 12.6k/s
+        Seconds to Recover From Burst: 25
+        Penalty Length: 10 seconds
     <karma>
       <heartbeat>2</heartbeat>
       <init>50</init>
@@ -517,11 +537,11 @@
     -->
 
     <!-- Example of High Karma Limits 
-        Avg. throughput:  5k-10k/s 
-        burst allowed to: 206k/s 
-        max Sustained rate: 34.3k/s
-        seconds to recover from burst: 21
-        penalty length:   6 seconds
+        Avg. Throughput: 5k-10k/s 
+        Burst Allowed: 206k/s 
+        Max Sustained Rate: 34.3k/s
+        Seconds to Recover from Burst: 21
+        Penalty Length: 6 seconds
     <karma>
       <heartbeat>2</heartbeat>
       <init>64</init>
