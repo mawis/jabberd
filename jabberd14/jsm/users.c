@@ -55,12 +55,10 @@ int js__usercount = 0;
  *		key -- the users key in the hashtable, not used
  *      data -- the user data to check
  *
- *  returns
- *      1  
  */
-int _js_users_del(void *arg, const void *key, void *data)
+void _js_users_del(xht h, const char *key, void *data, void *arg)
 {
-    HASHTABLE ht = (HASHTABLE)arg;
+    xht ht = (xht)arg;
     udata u = (udata)data;	/* cast the pointer into udata */
 
     /*
@@ -69,27 +67,23 @@ int _js_users_del(void *arg, const void *key, void *data)
      * we can't free it, so return immediately
      */
     if(u->ref > 0 || (u->sessions != NULL && ++js__usercount))
-        return 1;
+        return;
 
     log_debug(ZONE,"freeing %s",u->user);
 
-    ghash_remove(ht,u->user);
+    xhash_zap(ht,u->user);
     pool_free(u->p);
-
-    return 1;
 }
 
 
 /* callback for walking the host hash tree */
-int _js_hosts_del(void *arg, const void *key, void *data)
+void _js_hosts_del(xht h, const char *key, void *data, void *arg)
 {
-    HASHTABLE ht = (HASHTABLE)data;
+    xht ht = (xht)data;
 
     log_debug(ZONE,"checking users for host %s",(char*)key);
 
-    ghash_walk(ht,_js_users_del,ht);
-
-    return 1;
+    xhash_walk(ht,_js_users_del,ht);
 }
 
 /*
@@ -102,7 +96,7 @@ result js_users_gc(void *arg)
 
     /* free user struct if we can */
     js__usercount = 0;
-    ghash_walk(si->hosts,_js_hosts_del,NULL);
+    xhash_walk(si->hosts,_js_hosts_del,NULL);
     log_debug("usercount","%d\ttotal users",js__usercount);
     return r_DONE;
 }
@@ -117,7 +111,7 @@ result js_users_gc(void *arg)
  *  if that fails, it looks in xdb and creates new list entry.
  *  If THAT fails, it returns NULL (not a user).
  */
-udata js_user(jsmi si, jid id, HASHTABLE ht)
+udata js_user(jsmi si, jid id, xht ht)
 {
     pool p;
     udata cur, newu;
@@ -129,7 +123,7 @@ udata js_user(jsmi si, jid id, HASHTABLE ht)
 
     /* get the host hash table if it wasn't provided */
     if(ht == NULL)
-        ht = ghash_get(si->hosts,id->server);
+        ht = xhash_get(si->hosts,id->server);
 
     /* hrm, like, this isn't our user! */
     if(ht == NULL) return NULL;
@@ -143,7 +137,7 @@ udata js_user(jsmi si, jid id, HASHTABLE ht)
     log_debug(ZONE,"js_user(%s,%X)",jid_full(uid),ht);
 
     /* try to get the user data from the hash table */
-    if((cur = ghash_get(ht,uid->user)) != NULL)
+    if((cur = xhash_get(ht,uid->user)) != NULL)
         return cur;
 
     /* debug message */
@@ -174,8 +168,8 @@ udata js_user(jsmi si, jid id, HASHTABLE ht)
 
 
     /* got the user, add it to the user list */
-    ghash_put(ht,newu->user,newu);
-    log_debug(ZONE,"js_user debug %X %X",ghash_get(ht,newu->user),newu);
+    xhash_put(ht,newu->user,newu);
+    log_debug(ZONE,"js_user debug %X %X",xhash_get(ht,newu->user),newu);
 
     return newu;
 }

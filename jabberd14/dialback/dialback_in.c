@@ -64,8 +64,8 @@ typedef struct dbic_struct
 void dialback_in_dbic_cleanup(void *arg)
 {
     dbic c = (dbic)arg;
-    if(ghash_get(c->d->in_id,c->id) == c)
-        ghash_remove(c->d->in_id,c->id);
+    if(xhash_get(c->d->in_id,c->id) == c)
+        xhash_zap(c->d->in_id,c->id);
 }
 
 /* nice new dbic */
@@ -79,7 +79,7 @@ dbic dialback_in_dbic_new(db d, mio m)
     c->results = xmlnode_new_tag_pool(m->p,"r");
     c->d = d;
     pool_cleanup(m->p,dialback_in_dbic_cleanup, (void *)c);
-    ghash_put(d->in_id, c->id, (void *)c);
+    xhash_put(d->in_id, c->id, (void *)c);
     log_debug(ZONE,"created incoming connection %s from %s",c->id,m->ip);
     return c;
 }
@@ -144,7 +144,7 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
     }
 
     /* hmm, incoming packet on dialback line, there better be a valid entry for it or else! */
-    md = ghash_get(c->d->in_ok_db, jid_full(key));
+    md = xhash_get(c->d->in_ok_db, jid_full(key));
     if(md == NULL || md->m != m)
     { /* dude, what's your problem!  *click* */
         mio_write(m, NULL, "<stream:error><invalid-from xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Invalid Packets Recieved!</text></stream:error>", -1);
@@ -240,7 +240,7 @@ void dialback_in_verify(db d, xmlnode x)
     log_debug(ZONE,"dbin validate: %s",xmlnode2str(x));
 
     /* check for the stored incoming connection first */
-    if((c = ghash_get(d->in_id, xmlnode_get_attrib(x,"id"))) == NULL)
+    if((c = xhash_get(d->in_id, xmlnode_get_attrib(x,"id"))) == NULL)
     {
         log_warn(d->i->id, "dropping broken dialback validating request: %s", xmlnode2str(x));
         xmlnode_free(x);

@@ -250,6 +250,23 @@ int _jid_cached_stringprep(char *in_out_buffer, int max_len, _jid_prep_cache_t c
 }
 
 /**
+ * free a single stringprep cache
+ *
+ * @param cache the cache to free
+ */
+void _jid_stop_single_cache(_jid_prep_cache_t *cache) {
+    if (*cache == NULL)
+	return;
+
+    _jid_clean_single_cache(*cache, time(NULL));
+    
+    pth_mutex_acquire(&((*cache)->mutex), FALSE, NULL);
+    xhash_free((*cache)->hashtable);
+
+    *cache = NULL;
+}
+
+/**
  * init a single stringprep cache
  *
  * @param cache the cache to init
@@ -266,7 +283,14 @@ void _jid_init_single_cache(_jid_prep_cache_t *cache, int prime, const Stringpre
     }
 }
 
-
+/**
+ * free the stringprep caches
+ */
+void jid_stop_caching() {
+    _jid_stop_single_cache(&_jid_prep_cache_node);
+    _jid_stop_single_cache(&_jid_prep_cache_domain);
+    _jid_stop_single_cache(&_jid_prep_cache_resource);
+}
 
 /**
  * init the stringprep caches

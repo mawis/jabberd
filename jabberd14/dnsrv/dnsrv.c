@@ -72,9 +72,9 @@ typedef struct
      int             in;		 /* Inbound data handle */
      int             out;		 /* Outbound data handle */
      int             pid;		 /* Coprocess PID */
-     HASHTABLE       packet_table; /* Hash of dns_packet_lists */
+     xht	     packet_table; /* Hash of dns_packet_lists */
      int             packet_timeout; /* how long to keep packets in the queue */
-     HASHTABLE       cache_table; /* Hash of resolved IPs */
+     xht       	     cache_table; /* Hash of resolved IPs */
      int             cache_timeout; /* how long to keep resolutions in the cache */
      pool            mempool;
      dns_resend_list svclist;
@@ -258,7 +258,7 @@ void dnsrv_lookup(dns_io d, dpacket p)
     }
 
     /* Attempt to lookup this hostname in the packet table */
-    l = (dns_packet_list)ghash_get(d->packet_table, p->host);
+    l = (dns_packet_list)xhash_get(d->packet_table, p->host);
 
     /* IF: hashtable has the hostname, a lookup is already pending,
        so push the packet on the top of the list (most recent at the top) */
@@ -269,7 +269,7 @@ void dnsrv_lookup(dns_io d, dpacket p)
 	 lnew->packet = p;
 	 lnew->stamp = time(NULL);
 	 lnew->next = l;
-         ghash_put(d->packet_table, p->host, lnew);
+         xhash_put(d->packet_table, p->host, lnew);
          return;
     }
 
@@ -279,7 +279,7 @@ void dnsrv_lookup(dns_io d, dpacket p)
     l = pmalloco(p->p, sizeof(_dns_packet_list));
     l->packet = p;
     l->stamp  = time(NULL);
-    ghash_put(d->packet_table, p->host, l);
+    xhash_put(d->packet_table, p->host, l);
     req = xmlnode_new_tag_pool(p->p,"host");
     xmlnode_insert_cdata(req,p->host,-1);
 
@@ -316,14 +316,14 @@ result dnsrv_deliver(instance i, dpacket p, void* args)
      }
 
      /* try the cache first */
-     if((c = ghash_get(di->cache_table, p->host)) != NULL)
+     if((c = xhash_get(di->cache_table, p->host)) != NULL)
      {
          /* if there's no IP, cached failed lookup, time those out 10 times faster! (weird, I know, *shrug*) */
          if((ip = xmlnode_get_attrib(c,"ip")) == NULL)
             timeout = timeout / 10;
          if((time(NULL) - *(time_t*)xmlnode_get_vattrib(c,"t")) > timeout)
          { /* timed out of the cache, lookup again */
-             ghash_remove(di->cache_table,p->host);
+             xhash_zap(di->cache_table,p->host);
              xmlnode_free(c);
          }else{
              /* yay, send back right from the cache */
@@ -353,14 +353,14 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg)
 	  hostname = xmlnode_get_data(x);
 
           /* whatever the response was, let's cache it */
-          xmlnode_free((xmlnode)ghash_get(di->cache_table,hostname)); /* free any old cache, shouldn't ever be any */
+          xmlnode_free((xmlnode)xhash_get(di->cache_table,hostname)); /* free any old cache, shouldn't ever be any */
           ttmp = pmalloc(xmlnode_pool(x),sizeof(time_t));
           time(ttmp);
           xmlnode_put_vattrib(x,"t",(void*)ttmp);
-          ghash_put(di->cache_table,hostname,(void*)x);
+          xhash_put(di->cache_table,hostname,(void*)x);
 
 	  /* Get the hostname and look it up in the hashtable */
-	  head = ghash_get(di->packet_table, hostname);
+	  head = xhash_get(di->packet_table, hostname);
 	  /* Process the packet list */
 	  if (head != NULL)
 	  {
@@ -368,7 +368,7 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg)
 	       resendhost = xmlnode_get_attrib(x, "to");
 
 	       /* Remove the list from the hashtable */
-	       ghash_remove(di->packet_table, hostname);
+	       xhash_zap(di->packet_table, hostname);
 	       
 	       /* Walk the list and insert IPs */
 	       while(head != NULL)
@@ -443,7 +443,7 @@ void *dnsrv_thread(void *arg)
 }
 
 /* callback for walking the connecting hash tree */
-int _dnsrv_beat_packets(void *arg, const void *key, void *data)
+void _dnsrv_beat_packets(xht h, const char *key, void *data, void *arg)
 {
     dns_io di = (dns_io)arg;
     dns_packet_list n, l = (dns_packet_list)data;
@@ -454,7 +454,7 @@ int _dnsrv_beat_packets(void *arg, const void *key, void *data)
     if((now - l->stamp) > di->packet_timeout)
     {
         log_notice(l->packet->host,"timed out from dnsrv queue");
-        ghash_remove(di->packet_table,l->packet->host);
+        xhash_zap(di->packet_table,l->packet->host);
         reap = 1;
     }else{
         while(l->next != NULL)
@@ -471,7 +471,7 @@ int _dnsrv_beat_packets(void *arg, const void *key, void *data)
         }
     }
 
-    if(reap == 0) return 1;
+    if(reap == 0) return;
 
     /* time out individual queue'd packets */
     while(l != NULL)
@@ -480,14 +480,12 @@ int _dnsrv_beat_packets(void *arg, const void *key, void *data)
         deliver_fail(l->packet,"Hostname Resolution Timeout");
         l = n;
     }
-
-    return 1;
 }
 
 result dnsrv_beat_packets(void *arg)
 {
     dns_io di = (dns_io)arg;
-    ghash_walk(di->packet_table,_dnsrv_beat_packets,arg);
+    xhash_walk(di->packet_table,_dnsrv_beat_packets,arg);
     return r_DONE;
 }
 
@@ -532,13 +530,15 @@ void dnsrv(instance i, xmlnode x)
      log_debug(ZONE, "dnsrv debug: %s\n", xmlnode2str(config));
 
      /* Setup the hash of dns_packet_list */
-     di->packet_table = ghash_create(j_atoi(xmlnode_get_attrib(config,"queuemax"),101), (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
+     di->packet_table = xhash_new(j_atoi(xmlnode_get_attrib(config,"queuemax"),101));
+     pool_cleanup(i->p, (pool_cleaner)xhash_free, di->packet_table);
      di->packet_timeout = j_atoi(xmlnode_get_attrib(config,"queuetimeout"),60);
      register_beat(di->packet_timeout, dnsrv_beat_packets, (void *)di);
 
 
      /* Setup the internal hostname cache */
-     di->cache_table = ghash_create(j_atoi(xmlnode_get_attrib(config,"cachemax"),1999), (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
+     di->cache_table = xhash_new(j_atoi(xmlnode_get_attrib(config,"cachemax"),1999));
+     pool_cleanup(i->p, (pool_cleaner)xhash_free, di->cache_table);
      di->cache_timeout = j_atoi(xmlnode_get_attrib(config,"cachetimeout"),3600); /* 1 hour dns cache? XXX would be nice to get the right value from dns! */
 
      xmlnode_free(config);
