@@ -255,6 +255,9 @@ void xstream_format_error(spool s, streamerr errstruct) {
     }
 
     switch (errstruct->reason) {
+	case unknown_error_type:
+	    spool_add(s, "unknown error type / legacy stream error");
+	    break;
 	case bad_format:
 	    spool_add(s, "sent XML that cannot be processed");
 	    break;
@@ -361,7 +364,7 @@ streamerr_severity xstream_parse_error(pool p, xmlnode errnode, streamerr errstr
     /* init the error structure */
     errstruct->text = NULL;
     errstruct->lang = NULL;
-    errstruct->reason = undefined_condition;
+    errstruct->reason = unknown_error_type;
     errstruct->severity = error;
 
     /* iterate over the nodes in the stream error */

@@ -1,3 +1,13 @@
+2005-03-04  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/jabberd.h: better dialback error logging
+    * jabberd/mio.c: same
+    * jabberd/lib/xstream.c: same
+    * jabberd/lib/jabberdlib.h: same
+    * jabberd/deliver.c: same
+    * dialback/dialback_out.c: same
+    * jabberd/jabberd.c: temp. removed a call that causes shutdown crashes
+
 2005-03-03  Matthias Wimmer  <m@tthias.net>
 
     * dialback/dialback_in.c: improved stream error logging
