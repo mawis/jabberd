@@ -367,7 +367,7 @@ mreturn mod_filter_handler(mapi m, void *arg)
             }
             else if(j_strcmp(xmlnode_get_name(cur),"forward")==0)
             {
-                jid new=jid_new(xmlnode_pool(rules),xmlnode_get_data(cur));
+                jid new=jid_new(p,xmlnode_get_data(cur));
                 cur_action->has_action=1;
                 new->next=cur_action->forward;
                 cur_action->forward=new;
@@ -403,6 +403,7 @@ mreturn mod_filter_handler(mapi m, void *arg)
         {
             xmlnode_free(jp->x);
             pool_free(p);
+            xmlnode_free(container);
             return M_HANDLED;
         }
 
