@@ -81,7 +81,7 @@ char *zonestr(char *file, int line);
  flip these, this should be a prime number for top # of pools debugging
 #define POOL_DEBUG 40009 
 */
-#define MAX_SAVE_POOLS 10
+#define MAX_SAVE_POOLS 50
 
 /* pheap - singular allocation of memory */
 struct pheap

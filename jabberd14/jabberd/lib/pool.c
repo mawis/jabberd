@@ -39,9 +39,11 @@ typedef struct pool_list_st
 pool_list pools__ = NULL;
 
 #ifdef POOL_DEBUG
+void debug_log(char *zone, const char *msgfmt, ...);
 int pool__total = 0;
 int pool__ltotal = 0;
 int saved__mallocs = 0;
+long saved__bytes = 0;
 HASHTABLE pool__disturbed = NULL;
 void *_pool__malloc(size_t size)
 {
@@ -162,9 +164,6 @@ struct pheap *_pool_heap(pool p, int size)
         clean->heap = ret; /* for future use in finding used mem for pstrdup */
         _pool_cleanup_append(p, clean);
 
-#ifdef POOL_DEBUG
-        saved__mallocs++;
-#endif
         pools__ = pools__->next; 
         return ret;
     }
@@ -212,7 +211,14 @@ void *prealloc(pool p, void *ptr, int old_size, int new_size)
         /* just give it more room */
         void *end = p->heap->block + p->heap->used;
         int old_size = end - ptr; 
-        p->heap->used += new_size - old_size;
+        p->heap->used += (new_size - old_size);
+
+#ifdef POOL_DEBUG
+        debug_log("leak","PRE: %d, %d", saved__mallocs, saved__bytes);
+        saved__mallocs++;
+        saved__bytes+=new_size;
+        debug_log("leak","POST: %d, %d", saved__mallocs, saved__bytes);
+#endif
         return ptr;
     }
 
@@ -337,7 +343,6 @@ void pool_cleanup(pool p, pool_cleaner f, void *arg)
 }
 
 #ifdef POOL_DEBUG
-void debug_log(char *zone, const char *msgfmt, ...);
 int _pool_stat(void *arg, const void *key, void *data)
 {
     pool p = (pool)data;
@@ -358,7 +363,7 @@ void pool_stat(int full)
     if(pool__total != pool__ltotal)
         debug_log("leak","%d\ttotal missed mallocs",pool__total);
     if(saved__mallocs)
-        debug_log("leak","%d\tTOTAL MALLOC CALLS SAVED", saved__mallocs);
+        debug_log("leak","%d\tTOTAL MALLOC CALLS SAVED (%d bytes)", saved__mallocs, saved__bytes);
     pool__ltotal = pool__total;
     return;
 }
