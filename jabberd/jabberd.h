@@ -208,7 +208,7 @@ typedef struct mio_st
 
     xstream xs;   /* XXX kill me, I suck */
     XML_Parser parser;
-    int        parser_depth;
+    int        root;
     xmlnode    stacknode;
 
     struct karma k;
@@ -243,7 +243,7 @@ mio mio_new(int fd, mio_cb cb, void *cb_arg);
 mio mio_new_xml(int fd, mio_xml_cb cb, void* cb_arg);
 
 /* reset the callback and argument for an mio object */
-mio mio_reset(mio m, mio_cb cb, void *arg);
+mio mio_reset(mio m, void *cb, void *arg);
 
 /* request the mio socket be closed */
 void mio_close(mio m);
