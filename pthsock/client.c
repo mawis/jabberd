@@ -151,8 +151,13 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
             x = pthsock_make_route(NULL, jid_full(cdcur->host), cdcur->id, "session");
             log_notice(p->host, "C2S requesting Session Start for %s", xmlnode_get_attrib(p->x, "from"));
             deliver(dpacket_new(x), s__i->i);
-        } else log_record(jid_full(jid_user(cdcur->host)), "login", "fail", "%s %s %s", mio_ip(cdcur->m), xmlnode_get_attrib(xmlnode_get_tag(p->x, "iq/error"),"code"), cdcur->host->resource);
-    } else if(cdcur->state == state_UNKNOWN && j_strcmp(xmlnode_get_attrib(p->x, "type"), "session") == 0)
+        } 
+        else 
+        {
+            log_record(jid_full(jid_user(cdcur->host)), "login", "fail", "%s %s %s", mio_ip(cdcur->m), xmlnode_get_attrib(xmlnode_get_tag(p->x, "iq/error"),"code"), cdcur->host->resource);
+        }
+    } 
+    else if(cdcur->state == state_UNKNOWN && j_strcmp(xmlnode_get_attrib(p->x, "type"), "session") == 0)
     { /* got a session reply from the server */
         mio_wbq q;
 
@@ -172,12 +177,17 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
         return r_DONE;
     }
 
-    log_debug(ZONE, "Writing packet to MIO: %s", xmlnode2str(p->x));
 
     if(xmlnode_get_firstchild(p->x) == NULL)
+    {
         xmlnode_free(p->x);
+    }
     else
+    {
+        log_debug(ZONE, "Writing packet to MIO: %s", xmlnode2str(xmlnode_get_firstchild(p->x)));
         mio_write(m, xmlnode_get_firstchild(p->x), NULL, 0);
+    }
+
     return r_DONE;
 }
 
@@ -219,43 +229,52 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
         mio_reset(m, pthsock_client_read, (void*)cd);
         break;
     case MIO_CLOSED:
-        if(cd == NULL) break;
+        if(cd == NULL) 
+            break;
+
         log_debug(ZONE, "io_select Socket %d close notification", m->fd);
         if(cd->state == state_AUTHD)
         {
             h = pthsock_make_route(NULL, jid_full(cd->host), cd->id, "error");
             deliver(dpacket_new(h), s__i->i);
         }
-        else
-        {
+
+        if(cd->pre_auth_mp != NULL)
+        { /* if there is a pre_auth queue still */
             mio_wbq q;
-            if(cd != NULL && cd->pre_auth_mp != NULL)
-            { /* if there is a pre_auth queue still */
-                while((q = (mio_wbq)pth_msgport_get(cd->pre_auth_mp)) != NULL)
-                    xmlnode_free(q->x);
-                pth_msgport_destroy(cd->pre_auth_mp);
-            } 
-        }
+
+            while((q = (mio_wbq)pth_msgport_get(cd->pre_auth_mp)) != NULL)
+                xmlnode_free(q->x);
+
+            pth_msgport_destroy(cd->pre_auth_mp);
+            cd->pre_auth_mp = NULL;
+        } 
         break;
     case MIO_ERROR:
-        if(m->queue == NULL) break;
+        if(m->queue == NULL) 
+            break;
 
         while((h = mio_cleanup(m)) != NULL)
             deliver_fail(dpacket_new(h), "Socket Error to Client");
+
         break;
     case MIO_XML_ROOT:
         ghash_put_pool(cd->m->p, s__i->users, cd->id,cd);
         log_debug(ZONE, "root received for %d", m->fd);
         to = xmlnode_get_attrib(x, "to");
 
-        alias = ghash_get(s__i->aliases, xmlnode_get_attrib(x, "to"));
+        /* check for a matching alias or use default alias */
+        alias = ghash_get(s__i->aliases, to);
         alias = alias ? alias : ghash_get(s__i->aliases, "default");
 
+        /* set host to that alias, or to the given host */
         cd->host = alias ? jid_new(m->p, alias) : jid_new(m->p, to);
 
         h = xstream_header("jabber:client", NULL, jid_full(cd->host));
         cd->sid = pstrdup(m->p, xmlnode_get_attrib(h, "id"));
         mio_write(m, NULL, xstream_header_char(h), -1);
+
+        xmlnode_free(h);
 
         if(j_strcmp(xmlnode_get_attrib(x, "xmlns"), "jabber:client") != 0)
         { /* if they sent something other than jabber:client */
@@ -267,12 +286,12 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
             mio_write(m, NULL, "<stream:error>Did not specify a valid to argument</stream:error></stream:stream>", -1);
             mio_close(m);
         }
-        else if(j_strcmp(xmlnode_get_attrib(x, "xmlns:stream"), "http://etherx.jabber.org/streams") != 0)
+        else if(j_strncasecmp(xmlnode_get_attrib(x, "xmlns:stream"), "http://etherx.jabber.org/streams", 32) != 0)
         {
             mio_write(m, NULL, "<stream:error>Invalid Stream Namespace</stream:error></stream:stream>", -1);
             mio_close(m);
         }
-        xmlnode_free(h);
+
         xmlnode_free(x);
         break;
     case MIO_XML_NODE:
@@ -350,7 +369,7 @@ void pthsock_client(instance i, xmlnode x)
     s__i->auth_timeout = DEFAULT_AUTH_TIMEOUT;
     s__i->i            = i;
     s__i->aliases      = ghash_create_pool(i->p, 7, (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
-    s__i->users        = ghash_create_pool(i->p, 7, (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
+    s__i->users        = ghash_create_pool(i->p, 503, (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
 
     /* get the config */
     xc = xdb_cache(i);
@@ -393,7 +412,7 @@ void pthsock_client(instance i, xmlnode x)
 
             timeout = j_atoi(xmlnode_get_data(cur), -1);
 
-            /* XXX take a look at this again */
+            /* XXX actually get this to work */
             if(timeout != 0)
                 s__i->auth_timeout = timeout;
         }
@@ -427,7 +446,14 @@ void pthsock_client(instance i, xmlnode x)
             m = mio_listen(j_atoi(xmlnode_get_attrib(cur, "port"), 5222), xmlnode_get_data(cur), pthsock_client_read, NULL, MIO_LISTEN_XML);
             if(m == NULL)
                 return;
-            mio_rate(m, rate_time, rate_points);
+            /* XXX see below -- same applies for rate */
+            if(rate_time != 0 && rate_points != 0)
+                mio_rate(m, rate_time, rate_points);
+            /* XXX note, this isn't quite what i had in mind for karma
+             * since it's not taking the default from <io/> over the 
+             * internal defaults... it should take the c2s config first
+             * any values not there should come from <io/> and any other
+             * non-matched values should use the internal defaults */
             mio_karma2(m, &k);
         }
     }
@@ -437,7 +463,8 @@ void pthsock_client(instance i, xmlnode x)
         m = mio_listen(5222, NULL, pthsock_client_read, NULL, MIO_LISTEN_XML);
         if(m == NULL)
             return;
-        mio_rate(m, rate_time, rate_points);
+        if(rate_time != 0 && rate_points != 0)
+            mio_rate(m, rate_time, rate_points);
         mio_karma2(m, &k);
     }
 
