@@ -40,11 +40,42 @@
  * --------------------------------------------------------------------------*/
 #include "jsm.h"
 
-/* THIS MODULE will soon be depreciated by mod_filter */
+/**
+ * @file mod_offline.c
+ * @brief Handle offline messages to users (including message expiration (JEP-0023), that is DEPRICATED by JEP-0079, and message events (JEP-0022), that might become DEPRICATED by JEP-0085 or a successor)
+ * 
+ * This module is responsible for checking if a message can be delivered to a user session
+ * or if it has to be stored in xdb for later delivery.
+ *
+ * If a user comes online this module will check if there are stored messages for this user
+ * (only if the user's presence has a non-negative priority) and deliver them, if the have
+ * not yet expired (using JEP-0023 processing).
+ *
+ * If a message is stored offline, this module will check if the sender wants to get an event and send it
+ * if requested. (Message Events - JEP-0022)
+ *
+ * mod_offline must go before mod_presence
+ *
+ * @todo Handling of message events makes invisible presence visible to the sender of a message.
+ * Maybe we should generate offline events if a message is delivered to an invisible session as well.
+ */
 
-/* mod_offline must go before mod_presence */
+/* THIS MODULE will soon be depreciated by mod_filter -- really? */
 
-/* handle an offline message */
+/**
+ * handle a message to the user
+ *
+ * checks if the user has an active session, that gets messages (has a non-negative priority) and delivers the message.
+ *
+ * If there is no active session the message is stored offline.
+ *
+ * If the message cannot be stored offline or the message has already expired, this module will return M_PASS
+ * so other modules will process the message. If the message is not handled by any other module it will bounce back
+ * to the sender.
+ *
+ * @param m the mapi structure
+ * @return M_HANDLED if the message has been stored offline or delivered to a user's session, M_PASS if the message is expired or could not be stored offline
+ */
 mreturn mod_offline_message(mapi m)
 {
     session top;
@@ -59,7 +90,7 @@ mreturn mod_offline_message(mapi m)
     }
 
    /* look for event messages */
-    for(cur = xmlnode_get_firstchild(m->packet->x); cur != NULL; cur = xmlnode_get_nextsibling(cur))
+    for (cur = xmlnode_get_firstchild(m->packet->x); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
         if(NSCHECK(cur,NS_EVENT))
         {
             if(xmlnode_get_tag(cur,"id") != NULL)
@@ -67,6 +98,7 @@ mreturn mod_offline_message(mapi m)
             if(xmlnode_get_tag(cur,"offline") != NULL)
                 break; /* cur remaining set is the flag */
         }
+    }
 
     log_debug2(ZONE, LOGT_DELIVER, "handling message for %s",m->user->user);
 
@@ -109,7 +141,17 @@ mreturn mod_offline_message(mapi m)
 
 }
 
-/* just breaks out to our message/presence offline handlers */
+/**
+ * callback that handles messages sent to a user address
+ *
+ * check that it's a message stanza and call mod_offline_message
+ *
+ * all other stanza types are ignored
+ *
+ * @param m the mapi structure
+ * @param arg unused/ignored
+ * @return M_IGNORE if no message stanza, M_PASS if the message already expired or could not stored offline, M_HANDLED if it has been delivered or stored offline
+ */
 mreturn mod_offline_handler(mapi m, void *arg)
 {
     if(m->packet->type == JPACKET_MESSAGE) return mod_offline_message(m);
@@ -117,7 +159,16 @@ mreturn mod_offline_handler(mapi m, void *arg)
     return M_IGNORE;
 }
 
-/* watches for when the user is available and sends out offline messages */
+/**
+ * watches for when the user is available and sends out offline messages
+ *
+ * if a user gets available we have to send out the offline messages
+ *
+ * This function checks if a message has expired and won't sent expired messages to the
+ * user.
+ *
+ * @param m the mapi strcuture
+ */
 void mod_offline_out_available(mapi m)
 {
     xmlnode opts, cur, x;
@@ -162,6 +213,15 @@ void mod_offline_out_available(mapi m)
     xmlnode_free(opts);
 }
 
+/**
+ * callback that handles outgoing presences of the user, we are waiting for the user to come online
+ *
+ * if the user sends an available presence, we have to check for offline messages and send them to the user
+ *
+ * @param m the mapi structure
+ * @param arg unused/ignored
+ * @return M_IGNORE if the stanza is no presence, M_PASS else
+ */
 mreturn mod_offline_out(mapi m, void *arg)
 {
     if(m->packet->type != JPACKET_PRESENCE) return M_IGNORE;
@@ -172,7 +232,13 @@ mreturn mod_offline_out(mapi m, void *arg)
     return M_PASS;
 }
 
-/* sets up the per-session listeners */
+/**
+ * set up the per-session listeners: we want to get outgoing messages because we need to get the user's presence to deliver stored messages
+ *
+ * @param m the mapi structure
+ * @param arg unused/ignored
+ * @return always M_PASS
+ */
 mreturn mod_offline_session(mapi m, void *arg)
 {
     log_debug2(ZONE, LOGT_SESSION, "session init");
@@ -182,10 +248,17 @@ mreturn mod_offline_session(mapi m, void *arg)
     return M_PASS;
 }
 
+/**
+ * startup this module, register its callbacks
+ *
+ * two callbacks have to be registered: we have to receive the messages addressed to the user (mod_offline_handler)
+ * and we need noticed if a user comes online (mod_offline_session)
+ *
+ * @param si the session manager instance
+ */
 void mod_offline(jsmi si)
 {
     log_debug2(ZONE, LOGT_INIT, "init");
     js_mapi_register(si,e_OFFLINE, mod_offline_handler, NULL);
     js_mapi_register(si,e_SESSION, mod_offline_session, NULL);
 }
-
