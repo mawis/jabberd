@@ -39,16 +39,25 @@
     <!-- A multiple namespace filtering xdb component -->
     <xdb id='ns3_filter_xdb'>
         <host>foo.org</host>
- 	<ns>xdb:test2</ns>
-	<ns>xdb:test3</ns>
+ 	    <ns>xdb:test2</ns>
+	    <ns>xdb:test3</ns>
         <exec>./echo.py --id ns3_fiter_xdb --drop</exec>
     </xdb>
 
+    <!-- Connection test -->
+    <xdb id='ns4_filter_xdb'>
+        <host>foobar.org</host>
+        <connect>
+            <ip>127.0.0.1</ip>
+            <port>50000</port>
+            <secret>foo</secret>
+        </connect>
+    </xdb>        
 
 
     <!-- Packet generator component -->
     <service id='packetgen'>
-        <host>foo.org</host>
+        <host>bar.org</host>
         <exec>./packetgen.py</exec>
     </service>        
 
