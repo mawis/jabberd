@@ -1,10 +1,11 @@
 #
 # Ok this is taken from an automaked file and tweaked out
 #
+include ../platform-settings
+
 CC=gcc
 DEFINES=-DVERSION=\"1.1.4\"
-CFLAGS=-fPIC -shared -g $(DEFINES) -I./ -I../ -I../jabberd `libxode-config --cflags` -Wall
-LDFLAGS=`libxode-config --ldflags` `libxode-config --libs` `pth-config --libs --ldflags` `jabber-config --ldflags` `jabber-config --libs` -ldl
+CFLAGS:=$(CFLAGS) $(DEFINES) -I../jabberd/
 
 jsm_OBJECTS = \
 	deliver.o \
@@ -43,7 +44,7 @@ all: all-recursive
 clean: clean-recursive
 
 all-local: $(jsm_OBJECTS)
-	$(CC) $(CFLAGS) -o jsm.so $(jsm_OBJECTS) $(jsm_EXOBJECTS) $(LDFLAGS)
+	$(CC) $(CFLAGS) $(MCFLAGS) -o jsm.so $(jsm_OBJECTS) $(jsm_EXOBJECTS) $(LDFLAGS) $(LIBS)
 
 install-local:
 

@@ -1,10 +1,11 @@
 #
 # Ok this is taken from an automaked file and tweaked out
 #
+include ../platform-settings
+
 CC=gcc
 DEFINES=-DCONFIGXML="\"jabber.xml\""
-CFLAGS=-fPIC -g $(DEFINES) -I./ -I../ `libxode-config --cflags` -Wall
-LDFLAGS=`libxode-config --ldflags` `libxode-config --libs` `pth-config --libs --ldflags` `jabber-config --ldflags` `jabber-config --libs` -ldl
+CFLAGS:=$(CFLAGS) $(DEFINES)
 
 jabberd_OBJECTS = \
 	config.o \
@@ -34,7 +35,7 @@ all: all-recursive
 clean: clean-recursive
 
 all-local: $(jabberd_OBJECTS)
-	$(CC) -fPIC -Wl,--export-dynamic -o jabberd $(jabberd_OBJECTS) $(jabberd_EXOBJECTS) $(LDFLAGS)
+	$(CC) $(CFLAGS) -o jabberd $(jabberd_OBJECTS) $(jabberd_EXOBJECTS) $(XLDFLAGS) $(LDFLAGS) $(LIBS)
 
 install-local:
 

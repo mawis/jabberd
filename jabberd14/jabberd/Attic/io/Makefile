@@ -1,6 +1,6 @@
+include ../../platform-settings
+
 CC=gcc
-DEFINES=-DCONFIGXML="\"jabber.xml\""
-CFLAGS=-fPIC -g $(DEFINES) -I./ -I../ `libxode-config --cflags` -Wall
 
 io_OBJECTS=\
 	base_connect.o \

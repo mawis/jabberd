@@ -1,6 +1,7 @@
 #
 # Ok this is taken from an automaked file and tweaked out
 #
+include platform-settings
 
 SUBDIRS=jabberd pthsock xdb_file dnsrv jsm
 
