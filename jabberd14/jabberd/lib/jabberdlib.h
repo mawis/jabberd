@@ -719,6 +719,7 @@ typedef struct xterror_struct
 #define NS_XHTML     "http://www.w3.org/1999/xhtml"
 #define NS_DISCO_INFO "http://jabber.org/protocol/disco#info"
 #define NS_DISCO_ITEMS "http://jabber.org/protocol/disco#items"
+#define NS_IQ_AUTH    "http://jabber.org/features/iq-auth"
 
 #define NS_XDBGINSERT "jabber:xdb:ginsert"
 #define NS_XDBNSLIST  "jabber:xdb:nslist"

@@ -15,7 +15,6 @@ later
 - correct namespace handling (XMPP)
 - handling of xml:lang (XMPP)
 - SASL (XMPP)
-- STARTTLS for c2s conns (XMPP)
 - allowing some actions only over secured connection (auth, register)
 - interface to call scripts on account deletion
 - admin interface especially to change user passwords (JEP-0133)
