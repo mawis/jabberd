@@ -1,3 +1,7 @@
+2005-03-19  Matthias Wimmer  <m@tthias.net>
+
+    * configure.in: find openssl without pkg-config using --with-ssl-legacy
+
 2005-03-15  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/base/base_unsubscribe.c: new base handler
