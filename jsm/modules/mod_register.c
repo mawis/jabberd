@@ -50,8 +50,6 @@ mreturn mod_register_new(mapi m, void *arg)
         /* copy in the registration fields from the config file */
         xmlnode_insert_node(q,xmlnode_get_firstchild(reg));
 
-        /* insert the key, we don't need to check it, but we'll send it :) */
-        xmlnode_insert_cdata(xmlnode_insert_tag(q,"key"),jutil_regkey(NULL,"foobar"),-1);
         break;
 
     case JPACKET__SET:

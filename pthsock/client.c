@@ -151,7 +151,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
             log_notice(p->host, "C2S requesting Session Start for %s", xmlnode_get_attrib(p->x, "from"));
             deliver(dpacket_new(x), s__i->i);
         } 
-        else 
+        else if(j_strcmp(type,"error") == 0)
         {
             log_record(jid_full(jid_user(cdcur->session_id)), "login", "fail", "%s %s %s", mio_ip(cdcur->m), xmlnode_get_attrib(xmlnode_get_tag(p->x, "iq/error"),"code"), cdcur->session_id->resource);
         }

@@ -161,15 +161,16 @@ mreturn mod_browse_reply(mapi m, void *arg)
             xmlnode_insert_tag_node(browse,cur); /* only include the generic <ns>foo</ns> */
     xmlnode_free(ns);
 
-    /* include any connected resources */
-    for(s = m->user->sessions; s != NULL; s = s->next)
-    {
-        /* if(s->priority < 0) continue; *** include all resources I guess */
-        if(xmlnode_get_tag(browse,spools(m->packet->p,"?jid=",jid_full(s->id),m->packet->p)) != NULL) continue; /* already in the browse result */
-        cur = xmlnode_insert_tag(browse,"user");
-        xmlnode_put_attrib(cur,"type", "client");
-        xmlnode_put_attrib(cur,"jid", jid_full(s->id));
-    }
+    /* include any connected resources if there's a s10n from them */
+    if(js_s10n(m->si, m->user, m->packet->from))
+        for(s = m->user->sessions; s != NULL; s = s->next)
+        {
+            /* if(s->priority < 0) continue; *** include all resources I guess */
+            if(xmlnode_get_tag(browse,spools(m->packet->p,"?jid=",jid_full(s->id),m->packet->p)) != NULL) continue; /* already in the browse result */
+            cur = xmlnode_insert_tag(browse,"user");
+            xmlnode_put_attrib(cur,"type", "client");
+            xmlnode_put_attrib(cur,"jid", jid_full(s->id));
+        }
 
     /* XXX include iq:filter forwards */
 

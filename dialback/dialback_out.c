@@ -263,7 +263,13 @@ void dialback_out_read_db(mio m, int flags, void *arg, xmlnode x)
         return;
     }
 
-    mio_write(m, NULL, "<stream:error>Not Allowed to send data on this socket!</stream:error>", -1);
+    if(j_strcmp(xmlnode_get_name(x),"stream:error") == 0)
+    {
+        log_debug(ZONE,"reveived stream error: %s",xmlnode_get_data(x));
+    }else{
+        mio_write(m, NULL, "<stream:error>Not Allowed to send data on this socket!</stream:error>", -1);
+    }
+    
     mio_close(m);
     xmlnode_free(x);
 }
@@ -274,7 +280,13 @@ void dialback_out_read_legacy(mio m, int flags, void *arg, xmlnode x)
     if(flags != MIO_XML_NODE) return;
 
     /* other data on the stream? naughty you! */
-    mio_write(m, NULL, "<stream:error>Not Allowed to send data on this socket!</stream:error>", -1);
+    if(j_strcmp(xmlnode_get_name(x),"stream:error") == 0)
+    {
+        log_debug(ZONE,"reveived stream error: %s",xmlnode_get_data(x));
+    }else{
+        mio_write(m, NULL, "<stream:error>Not Allowed to send data on this socket!</stream:error>", -1);
+    }
+    
     mio_close(m);
     xmlnode_free(x);
 }

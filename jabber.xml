@@ -355,7 +355,6 @@
 
       <ssl port='5223'>127.0.0.1</ip>
       <ssl port='5224'>192.168.1.100</ip>
-      <ssl/>
       -->
     </pthcsock>
   </service>
@@ -406,6 +405,10 @@
       <ip port="5269">127.0.0.1</ip>
       -->
       <ip port="5269"/>
+      <karma>
+        <max>50</max>
+        <dec>1</dec>
+      </karma>
     </dialback>
   </service>
 
@@ -476,20 +479,18 @@
 
     <!-- 
     Set rate limits to monitor the number of connection
-    attempts (points) per second (time)
+    attempts from a single IP, any more than [points]
+    within [time] will engage the limit.  This setting
+    applies to all incoming connections to any service,
+    unless otherwise overridden by that service.
     -->
-    <!--
+
     <rate points="5" time="25"/>
-    -->
 
     <!-- 
     The following section initializes SSL for top-level I/O.
     This works only when the server is compiled with openssl!
     -->
-    <ssl>
-     <key ip='192.168.1.104'>server.pem</key>
-     <key ip='127.0.0.1'>/home/temas/cvs/jabber/jabber2/server.pem</key>
-    </ssl>
     <!--
     <ssl>
       <key ip='192.168.1.1'>/path/to/cert_and_key.pem</key>

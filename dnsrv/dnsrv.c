@@ -232,12 +232,13 @@ result dnsrv_deliver(instance i, dpacket p, void* args)
      int timeout = di->cache_timeout;
      char *ip;
 
-     if(p->type==p_ROUTE&&xmlnode_get_firstchild(p->x)!=NULL)
-         p->x=xmlnode_get_firstchild(p->x);
-     else if(p->type==p_ROUTE)
-     { /* bad route packet */
-         xmlnode_free(p->x);
-         return r_DONE;
+     /* if we get a route packet, it has to be to *us* and have the child as the real packet */
+     if(p->type == p_ROUTE)
+     {
+        if(j_strcmp(p->host,i->id) == 0 && xmlnode_get_firstchild(p->x) != NULL)
+            p->x=xmlnode_get_firstchild(p->x);
+        else
+            return r_ERR;
      }
 
      /* Ensure this packet doesn't already have an IP */
