@@ -87,7 +87,7 @@ mreturn mod_auth_crypt_jane(mapi m, void *arg)
     }
 
     /* check which hashing algoithm has been used */
-    if (j_strncmp(passB, "{SHA}", 5) == NULL)
+    if (j_strncmp(passB, "{SHA}", 5) == 0)
     {
 	/* it is SHA-1 */
 	mod_auth_crypt_sha1(passA, shahash, sizeof(shahash));
@@ -141,7 +141,7 @@ int mod_auth_crypt_reset(mapi m, jid id, xmlnode pass)
     log_debug("mod_auth_crypt","resetting password");
 
     hashalgo = xmlnode_get_tag_data(js_config(m->si, "mod_auth_crypt"), "hash");
-    if (j_strcasecmp(hashalgo, "SHA1") == NULL)
+    if (j_strcasecmp(hashalgo, "SHA1") == 0)
     {
 	usedhashalgo = HASH_SHA1;
     }

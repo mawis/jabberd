@@ -182,8 +182,8 @@ void str_b64decode(char *str); /* what it says */
 /* Base64 routines                                           */
 /*                                                           */
 /* --------------------------------------------------------- */
-void base64_encode_triple(unsigned char triple[3], char result[4]);
-int base64_encode(unsigned char *source, size_t sourcelen, unsigned char *target, size_t targetlen);
+int base64_encode(unsigned char *source, size_t sourcelen, char *target, size_t targetlen);
+size_t base64_decode(char *source, unsigned char *target, size_t targetlen);
 
 
 /* --------------------------------------------------------- */
