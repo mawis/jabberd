@@ -103,6 +103,7 @@ typedef void (*base_load_init)(instance id, xmlnode x);
 
 /* Error messages */
 #define SERROR_NAMESPACE "<stream:error>Invalid namespace specified.</stream:error>"
+#define SERROR_INVALIDHOST "<stream:error>Invalid hostname used.</stream:error>"
 
 /* ------------------------------------
  * Managed Thread Queue (MTQ) utilities 

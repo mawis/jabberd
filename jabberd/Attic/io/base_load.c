@@ -179,6 +179,72 @@ result xdb_results(instance id, dpacket p, void *arg)
     return r_DONE; /* we processed it */
 }
 
+/* actually deliver the xdb request */
+void xdb_deliver(instance i, xdbcache xc)
+{
+    xmlnode x;
+    jid dude;
+    char ids[9];
+
+    x = xmlnode_new_tag("xdb");
+    dude = jid_new(xmlnode_pool(x),jid_full(xc->owner));
+    jid_set(dude,xc->ns,JID_RESOURCE);
+    if(xc->data == NULL)
+    {
+        xmlnode_put_attrib(x,"type","get");
+    }else{
+        xmlnode_put_attrib(x,"type","set");
+        xmlnode_insert_tag_node(x,xc->data); /* copy in the data */
+    }
+    xmlnode_put_attrib(x,"to",jid_full(dude));
+    xmlnode_put_attrib(x,"from",xc->host);
+    sprintf(ids,"%d",xc->id);
+    xmlnode_put_attrib(x,"id",ids); /* to track response */
+    deliver(dpacket_new(x), i);
+}
+
+result xdb_thump(void *arg)
+{
+    xdbcache xc = (xdbcache)arg;
+    xdbcache cur, next;
+    int now = time(NULL);
+
+    /* spin through the cache looking for stale requests */
+    cur = xc->next;
+    while(cur != xc)
+    {
+        next = cur->next;
+
+        /* really old ones get wacked */
+        if((now - cur->sent) > 30)
+        {
+            /* remove from ring */
+            cur->prev->next = cur->next;
+            cur->next->prev = cur->prev;
+
+            /* make sure it's null as a flag for xdb_set's */
+            cur->data = NULL;
+
+            /* free the thread! */
+            cur->preblock = 0;
+            if(cur->cond != NULL)
+                pth_cond_notify(cur->cond, FALSE);
+
+            cur = next;
+            continue;
+        }
+
+        /* resend the waiting ones every so often */
+        if((now - cur->sent) > 10)
+            xdb_deliver(xc->i, cur);
+
+        /* cur could have been free'd already on it's thread */
+        cur = next;
+    }
+
+    return r_DONE;
+}
+
 xdbcache xdb_cache(instance id)
 {
     xdbcache newx;
@@ -196,6 +262,9 @@ xdbcache xdb_cache(instance id)
     /* register the handler in the instance to filter out xdb results */
     register_phandler(id, o_PRECOND, xdb_results, (void *)newx);
 
+    /* heartbeat to keep a watchful eye on xdb_cache */
+    register_beat(10,xdb_thump,(void *)newx);
+
     return newx;
 }
 
@@ -204,10 +273,8 @@ xmlnode xdb_get(xdbcache xc, char *host, jid owner, char *ns)
 {
     _xdbcache newx;
     xmlnode x;
-    char ids[9];
     pth_mutex_t mutex = PTH_MUTEX_INIT;
     pth_cond_t cond = PTH_COND_INIT;
-    jid dude;
 
     if(xc == NULL || owner == NULL || ns == NULL)
     {
@@ -232,23 +299,17 @@ xmlnode xdb_get(xdbcache xc, char *host, jid owner, char *ns)
     newx.next->prev = &newx;
     xc->next = &newx;
 
-    /* create the xml and deliver the xdb get request */
-    x = xmlnode_new_tag("xdb");
-    dude = jid_new(xmlnode_pool(x),jid_full(owner));
-    jid_set(dude,ns,JID_RESOURCE);
-    xmlnode_put_attrib(x,"type","get");
-    xmlnode_put_attrib(x,"to",jid_full(dude));
-    xmlnode_put_attrib(x,"from",host);
-    sprintf(ids,"%d",newx.id);
-    xmlnode_put_attrib(x,"id",ids); /* to track response */
-    deliver(dpacket_new(x), xc->i);
+    /* send it on it's way */
+    xdb_deliver(xc->i, &newx);
 
     /* if it hasn't already returned, we should block here until it returns */
     if(newx.preblock)
     {
+        log_debug(ZONE,"xdb_get() waiting for %s %s",jid_full(owner),ns);
         newx.cond = &cond;
         pth_mutex_acquire(&mutex, FALSE, NULL);
         pth_cond_await(&cond, &mutex, NULL); /* blocks thread */
+        log_debug(ZONE,"xdb_get() done waiting for %s %s",jid_full(owner),ns);
     }
 
     /* newx.data is now the returned xml packet */
@@ -267,11 +328,8 @@ xmlnode xdb_get(xdbcache xc, char *host, jid owner, char *ns)
 int xdb_set(xdbcache xc, char *host, jid owner, char *ns, xmlnode data)
 {
     _xdbcache newx;
-    xmlnode x;
-    char ids[9];
     pth_mutex_t mutex = PTH_MUTEX_INIT;
     pth_cond_t cond = PTH_COND_INIT;
-    jid dude;
 
     if(xc == NULL || host == NULL || owner == NULL || ns == NULL || data == NULL)
     {
@@ -296,24 +354,17 @@ int xdb_set(xdbcache xc, char *host, jid owner, char *ns, xmlnode data)
     newx.next->prev = &newx;
     xc->next = &newx;
 
-    /* create the xml and deliver the xdb get request */
-    x = xmlnode_new_tag("xdb");
-    dude = jid_new(xmlnode_pool(x),jid_full(owner));
-    jid_set(dude,ns,JID_RESOURCE);
-    xmlnode_put_attrib(x,"type","set");
-    xmlnode_put_attrib(x,"to",jid_full(dude));
-    xmlnode_put_attrib(x,"from",host);
-    sprintf(ids,"%d",newx.id);
-    xmlnode_put_attrib(x,"id",ids); /* to track response */
-    xmlnode_insert_tag_node(x,data); /* copy in the data */
-    deliver(dpacket_new(x), xc->i);
+    /* send it on it's way */
+    xdb_deliver(xc->i, &newx);
 
     /* if it hasn't already returned, we should block here until it returns */
     if(newx.preblock)
     {
+        log_debug(ZONE,"xdb_set() waiting for %s %s",jid_full(owner),ns);
         newx.cond = &cond;
         pth_mutex_acquire(&mutex, FALSE, NULL);
         pth_cond_await(&cond, &mutex, NULL); /* blocks thread */
+        log_debug(ZONE,"xdb_set() done waiting for %s %s",jid_full(owner),ns);
     }
 
     /* newx.data is now the returned xml packet or NULL if it was unsuccessful */

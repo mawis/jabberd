@@ -6,12 +6,8 @@ temas
 jpolld component
 
 jer
-mod_roster caching and hashing?
-mod_filter rule caching
 dialback hostname authentication using sha
 jsm should manage stateless sessions too
-zero-knowledge auth plugin and auth/reg system cleanup
-xdb_file in-mem caching
 
 keith
 base_accept plumber algorithm needs improvement..
@@ -76,6 +72,8 @@ jer
 A way to gracefully shut down the server, and notify all components is needed
 deliver safety, validating routable bits of the packets
 deliver optimization/logic review
+prime# configs for ghashes
+configurable knobs?
 
 dizzyd
 test python scripts, "make test"
