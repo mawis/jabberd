@@ -40,6 +40,28 @@
  * --------------------------------------------------------------------------*/
 #include "jsm.h"
 
+/**
+ * @file mod_admin.c
+ * @brief Admin functionallity for the session manager (undocumented) - DEPRECATED
+ *
+ * This implements the admin functionallity of the session manger:
+ * - The admin can browse the list of online users (jabber:iq:browse to serverdomain/admin)
+ * - The admin can request the list of online users using the DEPRICATED jabber:iq:admin
+ *   namespace (which is not documented)
+ * - The admin can update the session managers configuration file using the DEPRICATED
+ *   and undocumented jabber:iq:admin namespace
+ * - Messages addresses to the session manager (without a resource) are forwarded to the
+ *   configured admin address(es)
+ */
+
+/**
+ * xhash_walker function used by mod_admin_browse to add all online users to the iq result
+ *
+ * @param h not used by this function
+ * @param key not used by this function
+ * @param data the user's data structure
+ * @param arg the iq result XML node
+ */
 void _mod_admin_browse(xht h, const char *key, void *data, void *arg)
 {
     xmlnode browse = (xmlnode)arg;
@@ -72,36 +94,52 @@ void _mod_admin_browse(xht h, const char *key, void *data, void *arg)
     xmlnode_put_attrib(x,"name",spool_print(sp));
 }
 
-/* who */
+/**
+ * handle an iq request in the jabber:iq:browse namespace sent to the resource "admin"
+ * get requests will return the list of online users
+ * set requests will return an empty list
+ *
+ * @param si the session manager instance
+ * @param p the packet containing the request
+ */
 void mod_admin_browse(jsmi si, jpacket p)
 {
     xmlnode browse;
 
+    /* all requests we have to process are of type 'get' */
+    if (jpacket_subtype(p) != JPACKET__GET) {
+	js_bounce_xmpp(si,p->x,XTERROR_BAD);
+	return;
+    }
+
+    /* prepare the result */
     jutil_iqresult(p->x);
     browse = xmlnode_insert_tag(p->x,"item");
     xmlnode_put_attrib(browse,"jid",spools(xmlnode_pool(browse),p->to->server,"/admin",xmlnode_pool(browse)));
     xmlnode_put_attrib(browse,"name","Online Users (seconds, sent, received)");
     xmlnode_put_attrib(browse,"xmlns",NS_BROWSE);
 
-    if(jpacket_subtype(p) == JPACKET__GET)
-    {
-        log_debug2(ZONE, LOGT_DELIVER, "handling who GET");
+    log_debug2(ZONE, LOGT_DELIVER, "handling who GET");
 
-        /* walk the users on this host */
-        xhash_walk(xhash_get(si->hosts, p->to->server),_mod_admin_browse,(void *)browse);
-    }
+    /* walk the users on this host */
+    xhash_walk(xhash_get(si->hosts, p->to->server),_mod_admin_browse,(void *)browse);
 
-    if(jpacket_subtype(p) == JPACKET__SET)
-    {
-        log_debug2(ZONE, LOGT_DELIVER, "handling who SET");
-
-        /* kick them? */
-    }
-
+    /* deliver the result */
     jpacket_reset(p);
     js_deliver(si,p);
 }
 
+/**
+ * xhash_walker to add the presences of the online users to the result of a
+ * jabber:iq:admin/who query
+ *
+ * used by mod_admin_who
+ *
+ * @param ht not used
+ * @param key not used
+ * @param data the user's data structure
+ * @param arg the XML element where the presences will be added as child elements
+ */
 void _mod_admin_who(xht ht, const char *key, void *data, void *arg)
 {
     xmlnode who = (xmlnode)arg;
@@ -131,26 +169,35 @@ void _mod_admin_who(xht ht, const char *key, void *data, void *arg)
     }
 }
 
-/* who */
-mreturn  mod_admin_who(jsmi si, jpacket p)
+/**
+ * handle iq stanzas sent to the server address with a query in the jabber:iq:admin namespace
+ * containing a <who/> element.
+ *
+ * Reply to this query with an iq result containing a list of presences of all users currently
+ * online on the session manager. The presences will contain an additional element in the
+ * jabber:mod_admin:who namespace containing simple user statistics
+ *
+ * @param si the session manager instance structure
+ * @param p the stanza packet containing the request
+ * @return always M_HANDLED
+ */
+mreturn mod_admin_who(jsmi si, jpacket p)
 {
-    xmlnode who = xmlnode_get_tag(p->iq,"who");
+    xmlnode who;
 
-    if(jpacket_subtype(p) == JPACKET__GET)
-    {
-        log_debug2(ZONE, LOGT_DELIVER, "handling who GET");
-
-        /* walk the users on this host */
-        xhash_walk(xhash_get(si->hosts, p->to->server),_mod_admin_who,(void *)who);
+    /* all valid requests will be of type 'get' */
+    if(jpacket_subtype(p) != JPACKET__GET) {
+	js_bounce_xmpp(si,p->x,XTERROR_BAD);
+	return M_HANDLED;
     }
 
-    if(jpacket_subtype(p) == JPACKET__SET)
-    {
-        log_debug2(ZONE, LOGT_DELIVER, "handling who SET");
+    log_debug2(ZONE, LOGT_DELIVER, "handling who GET");
 
-        /* kick them? */
-    }
+    /* walk the users on this host */
+    who = xmlnode_get_tag(p->iq,"who");
+    xhash_walk(xhash_get(si->hosts, p->to->server),_mod_admin_who,(void *)who);
 
+    /* sent the result */
     jutil_tofrom(p->x);
     xmlnode_put_attrib(p->x,"type","result");
     jpacket_reset(p);
@@ -158,7 +205,18 @@ mreturn  mod_admin_who(jsmi si, jpacket p)
     return M_HANDLED;
 }
 
-/* config */
+/**
+ * handle iq stanzas sent to the server address of type 'get' and 'set' in the jabber:iq:admin namespace
+ * containing an <config/> element.
+ *
+ * This can be used to get the session manager configuration and to update it while the server is
+ * running. Updating the configuration is only with limited use as the session manager will not
+ * run the initialization stuff using the new configuration.
+ *
+ * @param si the session manager instance
+ * @param p the packet containing the request
+ * @return always M_HANDLED
+ */
 mreturn mod_admin_config(jsmi si, jpacket p)
 {
     xmlnode config = xmlnode_get_tag(p->iq,"config");
@@ -192,47 +250,19 @@ mreturn mod_admin_config(jsmi si, jpacket p)
     return M_HANDLED;
 }
 
-/* user */
-mreturn mod_admin_user(jsmi si, jpacket p)
-{
-    if(jpacket_subtype(p) == JPACKET__GET)
-    {
-        log_debug2(ZONE, LOGT_DELIVER, "handling user GET");
-    }
-
-    if(jpacket_subtype(p) == JPACKET__SET)
-    {
-        log_debug2(ZONE, LOGT_DELIVER, "handling user SET");
-    }
-
-    jutil_tofrom(p->x);
-    xmlnode_put_attrib(p->x,"type","result");
-    jpacket_reset(p);
-    js_deliver(si,p);
-    return M_HANDLED;
-}
-
-/* monitor */
-mreturn mod_admin_monitor(jsmi si, jpacket p)
-{
-    if(jpacket_subtype(p) == JPACKET__GET)
-    {
-        log_debug2(ZONE, LOGT_DELIVER, "handling monitor GET");
-    }
-
-    if(jpacket_subtype(p) == JPACKET__SET)
-    {
-        log_debug2(ZONE, LOGT_DELIVER, "handling monitor SET");
-    }
-
-    jutil_tofrom(p->x);
-    xmlnode_put_attrib(p->x,"type","result");
-    jpacket_reset(p);
-    js_deliver(si,p);
-    return M_HANDLED;
-}
-
-/* dispatch */
+/**
+ * handle iq stanzas sent to the server address (all other stanza types will result in M_IGNORE).
+ *
+ * this function handles non-error-type iq stanas in the jabber:iq:admin namespace and in the
+ * jabber:iq:browse namespace if the destination resource is 'admin'.
+ *
+ * this function will apply the access control configured in the <admin/> element in the session
+ * manager configuration.
+ *
+ * @param m the mapi strcuture (containing the stanza)
+ * @param arg not used/ignored
+ * @return M_IGNORE if there should be no calls for stanzas of the same type again, M_PASS if we did not process the packet, M_HANDLED if it has been processed
+ */
 mreturn mod_admin_dispatch(mapi m, void *arg)
 {
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
@@ -256,12 +286,10 @@ mreturn mod_admin_dispatch(mapi m, void *arg)
     if(js_admin(m->user,ADMIN_READ))
     {
         if(xmlnode_get_tag(m->packet->iq,"who") != NULL) return mod_admin_who(m->si, m->packet);
-        if(0 && xmlnode_get_tag(m->packet->iq,"monitor") != NULL) return mod_admin_monitor(m->si, m->packet);
     }
 
     if(js_admin(m->user,ADMIN_WRITE))
     {
-        if(0 && xmlnode_get_tag(m->packet->iq,"user") != NULL) return mod_admin_user(m->si, m->packet);
         if(xmlnode_get_tag(m->packet->iq,"config") != NULL) return mod_admin_config(m->si, m->packet);
     }
 
@@ -269,8 +297,20 @@ mreturn mod_admin_dispatch(mapi m, void *arg)
     return M_HANDLED;
 }
 
-
-/* message */
+/**
+ * handle messages sent to the server address (all other stanza types will result in M_IGNORE).
+ * 
+ * messages will only be processed if the destination resource is empty, it's not a message of
+ * type 'error' and if there is a <admin/> element in the session manager configuration.
+ *
+ * messages with an <x xmlns='jabber:x:delay'/> element will be ignored to break circular loops
+ * if a session manager is configured as the admin of itself or two session managers are configured
+ * to be the admin of each other.
+ *
+ * @param m the mapi structure (contains the received stanza)
+ * @param arg not used/ignored
+ * @return M_IGNORE if not a message stanza (no further delivery of this stanza type), M_PASS if not handled, M_HANDLED else
+ */
 mreturn mod_admin_message(mapi m, void *arg)
 {
     jpacket p;
@@ -278,7 +318,8 @@ mreturn mod_admin_message(mapi m, void *arg)
     char *subject, *element_name;
     static char jidlist[1024] = "";
 
-    if(m->packet->type != JPACKET_MESSAGE) return M_IGNORE;
+    /* check if we are interested in handling this packet */
+    if(m->packet->type != JPACKET_MESSAGE) return M_IGNORE; /* the session manager should not deliver this stanza type again */
     if(m->packet->to->resource != NULL || js_config(m->si,"admin") == NULL || jpacket_subtype(m->packet) == JPACKET__ERROR) return M_PASS;
 
     /* drop ones w/ a delay! (circular safety) */
@@ -290,11 +331,13 @@ mreturn mod_admin_message(mapi m, void *arg)
 
     log_debug2(ZONE, LOGT_DELIVER, "delivering admin message from %s",jid_full(m->packet->from));
 
+    /* update the message */
     subject=spools(m->packet->p,"Admin: ",xmlnode_get_tag_data(m->packet->x,"subject")," (",m->packet->to->server,")",m->packet->p);
     xmlnode_hide(xmlnode_get_tag(m->packet->x,"subject"));
     xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->x,"subject"),subject,-1);
     jutil_delay(m->packet->x,"admin");
 
+    /* forward the message to every configured admin (either read-only- or read-/write-admins) */
     for(cur = xmlnode_get_firstchild(js_config(m->si,"admin")); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
 	element_name = xmlnode_get_name(cur);
@@ -335,13 +378,19 @@ mreturn mod_admin_message(mapi m, void *arg)
     }else{
         xmlnode_free(m->packet->x);
     }
-    return M_HANDLED;
+    return M_HANDLED; /* no other module needs to process this message */
 }
 
+/**
+ * startup the mod_admin module
+ * will register two callbacks:
+ * - mod_admin_dispatch (will process iq stanzas to the server address)
+ * - mod_admin_message (will process messages to the server address)
+ *
+ * @param si the session manager instance
+ */
 void mod_admin(jsmi si)
 {
     js_mapi_register(si,e_SERVER,mod_admin_dispatch,NULL);
     js_mapi_register(si,e_SERVER,mod_admin_message,NULL);
 }
-
-

@@ -40,6 +40,31 @@
  * --------------------------------------------------------------------------*/
 #include "jsm.h"
 
+/**
+ * @file mod_echo.c
+ * @brief reflect messages sent to serverdomain/echo back to the sender (undocumented)
+ *
+ * This module implements some functionality useful for testing if a server can be reached. It can
+ * either be used to check if the local server is still responding or to check if there
+ * is connectivity to a remote server. It is something like a Jabber network ping, but it should
+ * not be used automatically as it will generate more load on the servers than an ICMP ping.
+ *
+ * All messages to a resource starting with "echo" are processed. If you are using this service,
+ * please use always the resource "echo" (in small letters) and do not rely on the fact
+ * that every resource starting with "echo" (ignoring case) will generate a reflected message.
+ * (Resources are case-sensitive in XMPP!)
+ */
+
+/**
+ * handle messages sent to the session manager's address
+ *
+ * Everything but message stanzas are ignored. Only messages to a resource starting with "echo" are
+ * processed.
+ *
+ * @param m the mapi structure containing the message
+ * @param arg unused/ignored
+ * @return M_IGNORE if the stanza is no message, M_PASS if the message has not been processed, M_HANDLED if the message has been handled
+ */
 mreturn mod_echo_reply(mapi m, void *arg)
 {
     if(m->packet->type != JPACKET_MESSAGE) return M_IGNORE;
@@ -57,9 +82,14 @@ mreturn mod_echo_reply(mapi m, void *arg)
     return M_HANDLED;
 }
 
+/**
+ * init the mod_echo module in the session manager
+ *
+ * registers a callback to be called on messages sent to the session manager's address
+ *
+ * @param si the session manager instance
+ */
 void mod_echo(jsmi si)
 {
     js_mapi_register(si,e_SERVER,mod_echo_reply,NULL);
 }
-
-

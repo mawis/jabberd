@@ -1,4 +1,4 @@
-.TH jabber.xml 5 "22 May 2004" "@VERSION@" "jabberd14 project"
+.TH jabber.xml 5 "26 Jun 2004" "@VERSION@" "jabberd14 project"
 .SH NAME
 jabber.xml \- jabberd daemon configuration file
 .SH SYNOPSIS
@@ -63,6 +63,11 @@ This element specifies to which file the server should write its process ID.
 If this file already exists when the server is started, it will fail. You
 have to remove stale pidfiles before starting the server yourself. If you
 omit this element, the server will not write nor check any pidfile.
+.TP
+.B <debug/>
+This element contains configuration settings controlling the output of
+debugging messages. These settings can be changed at server runtime, the
+server will reread them on receiving a SIGHUP signal.
 .TP
 The following elements are used inside the <service/>, <xdb/>, and <log/>
 elements, that are defining components. They are used to provide the jabberd
@@ -130,6 +135,10 @@ This element is used to define, that the jabberd process is communicating
 with the process, that is implementing the component. It is the opposite
 of <exec/>. A process that is started by <exec/> in an other process can
 use <stdout/> to implement the other end of the connecting pipe.
+.TP
+.B <syslog/>
+This element can only be used inside a <log/> section. It is used to specify
+that log messages should be written to the syslog.
 .TP
 .B <to/>
 This element can only be used inside a <log/> section. It is used to

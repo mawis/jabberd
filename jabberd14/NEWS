@@ -4,3 +4,6 @@
     * the server will now unsubscribe all subscriptions when an user
       unregisters his account
     * jabberd14 is now able to send log messages to the syslog
+    * the activation of debugging output has been changed: you can either
+      activate debugging in the configuration file or in the command line
+      using the -D option (that now takes an argument)
