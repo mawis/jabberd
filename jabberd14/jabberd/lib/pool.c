@@ -30,10 +30,18 @@
 
 #include "lib.h"
 
+typedef struct pool_list_st
+{
+    int count;
+    struct pheap *ph;
+    struct pool_list_st *next;
+} _pool_list, *pool_list;
+pool_list pools__ = NULL;
 
 #ifdef POOL_DEBUG
 int pool__total = 0;
 int pool__ltotal = 0;
+int saved__mallocs = 0;
 HASHTABLE pool__disturbed = NULL;
 void *_pool__malloc(size_t size)
 {
@@ -64,14 +72,14 @@ pool _pool_new(char *zone)
     p->lsize = -1;
     p->zone[0] = '\0';
     strcat(p->zone,zone);
-    sprintf(p->name,"%X",p);
+    sprintf(p->name,"%X",(void*)&p);
 
     if(pool__disturbed == NULL)
     {
-        pool__disturbed = 1; /* reentrancy flag! */
+        pool__disturbed = (HASHTABLE)1; /* reentrancy flag! */
         pool__disturbed = ghash_create(POOL_DEBUG,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
     }
-    if(pool__disturbed != 1)
+    if(pool__disturbed != (HASHTABLE)1)
         ghash_put(pool__disturbed,p->name,p);
 #endif
 
@@ -82,9 +90,28 @@ pool _pool_new(char *zone)
 void _pool_heap_free(void *arg)
 {
     struct pheap *h = (struct pheap *)arg;
+    pool_list new;
 
-    _pool__free(h->block);
-    _pool__free(h);
+    /* don't free, add to global list instead */
+    if(pools__ != NULL && pools__->count >= MAX_SAVE_POOLS)
+    {
+        _pool__free(h->block);
+        _pool__free(h);
+        return; 
+    }
+
+    new = (pool_list)h->block;
+    memset(new, 0, sizeof(_pool_list));
+
+    h->used = 0;
+
+    new->ph = h;
+    new->next = pools__;
+    pools__ = new;
+
+    if(pools__->next != NULL)
+        pools__->count = pools__->next->count;
+    pools__->count++;
 }
 
 /* mem should always be freed last */
@@ -123,6 +150,33 @@ struct pheap *_pool_heap(pool p, int size)
 {
     struct pheap *ret;
     struct pfree *clean;
+
+    /* check if we have a pool that will match this size */
+    if(pools__ != NULL && pools__->ph->size >= size)
+    {
+        /* just use this pool */
+        ret = pools__->ph;
+        p->size += ret->size;
+
+        clean = _pool_free(p, _pool_heap_free, (void *)ret);
+        clean->heap = ret; /* for future use in finding used mem for pstrdup */
+        _pool_cleanup_append(p, clean);
+
+#ifdef POOL_DEBUG
+        saved__mallocs++;
+#endif
+        pools__ = pools__->next; 
+        return ret;
+    }
+    else if(pools__ != NULL)
+    {
+        /* this heap is useless, destroy it */
+        struct pheap *temp = pools__->ph;
+        pools__ = pools__->next;
+
+        free(temp->block);
+        free(temp);
+    }
 
     /* make the return heap */
     while((ret = _pool__malloc(sizeof(struct pheap))) == NULL) sleep(1);
@@ -303,6 +357,8 @@ void pool_stat(int full)
     ghash_walk(pool__disturbed,_pool_stat,(void *)full);
     if(pool__total != pool__ltotal)
         debug_log("leak","%d\ttotal missed mallocs",pool__total);
+    if(saved__mallocs)
+        debug_log("leak","%d\tTOTAL MALLOC CALLS SAVED", saved__mallocs);
     pool__ltotal = pool__total;
     return;
 }
