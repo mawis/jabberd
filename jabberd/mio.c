@@ -124,7 +124,7 @@ void _mio_shutdown(void *arg)
 int _mio_write_dump(mio m)
 {
     int len;
-    wbq cur;
+    mio_wbq cur;
 
     /* try to write as much as we can */
     while(m->queue != NULL)
@@ -156,7 +156,7 @@ int _mio_write_dump(mio m)
         if(len == 0)
         {
             /* bounce the queue */
-            (*(mio_cb)m->cb)(m, NULL, 0, IO_ERROR, m->arg); 
+            (*(mio_cb)m->cb)(m, NULL, 0, MIO_ERROR, m->arg); 
             return -1;
         }
         /* we had an error on the write */
@@ -166,7 +166,7 @@ int _mio_write_dump(mio m)
             if(errno != EWOULDBLOCK && errno != EINTR && errno != EAGAIN)
             { 
                 /* bounce the queue */
-                (*(mio_cb)m->cb)(m, NULL, 0, IO_ERROR, m->arg);
+                (*(mio_cb)m->cb)(m, NULL, 0, MIO_ERROR, m->arg);
             }
             return -1;
         }
@@ -234,10 +234,10 @@ void _mio_close(mio m)
 
     /* if we didn't write it all, bounce the current queue */
     if(ret == 1) 
-        (*(mio_cb)m->cb)(m, NULL, 0, IO_ERROR, m->arg);
+        (*(mio_cb)m->cb)(m, NULL, 0, MIO_ERROR, m->arg);
 
     /* notify of the close */
-    (*(mio_cb)m->cb)(m, NULL, 0, IO_CLOSED, m->arg);
+    (*(mio_cb)m->cb)(m, NULL, 0, MIO_CLOSED, m->arg);
 
     /* write our closing stream header
      * XXX this doesn't really belong here */
@@ -331,10 +331,6 @@ void _mio_main(void *arg)
     /* init the pth event */
     wevt = pth_event(PTH_EVENT_SIGS, &sigs, &sig);
 
-    /* init the client */
-    if(mio__data->master__list != NULL)
-        (*(mio_cb)mio__data->master__list->cb)(NULL, NULL, 0, IO_INIT, NULL); 
-
     /* loop forever -- will only exit when
      * mio__data->master__list is NULL */
     while (1)
@@ -387,7 +383,7 @@ void _mio_main(void *arg)
                     mio m = _mio_accept(cur);
                     if(m != NULL)
                     {
-                        (*(mio_cb)m->cb)(m, NULL, 0, IO_NEW, m->arg);
+                        (*(mio_cb)m->cb)(m, NULL, 0, MIO_NEW, m->arg);
                         FD_SET(m->fd, &all_rfds);
                         if(m->fd > maxfd)
                             maxfd=m->fd;
@@ -446,7 +442,7 @@ void _mio_main(void *arg)
                         }
                     }
                     buff[len] = '\0';
-                    (*(mio_cb)cur->cb)(cur,buff, len, IO_NORMAL, cur->arg);
+                    (*(mio_cb)cur->cb)(cur,buff, len, MIO_NORMAL, cur->arg);
                 }
             }
 
@@ -615,7 +611,7 @@ void mio_close(mio m)
  */
 void mio_write(mio m, xmlnode x, char *buffer, int len)
 {
-    wbq new, cur;
+    mio_wbq new, cur;
     pool p;
 
     /* if there is nothing to write */
@@ -629,7 +625,7 @@ void mio_write(mio m, xmlnode x, char *buffer, int len)
         p = pool_new();
 
     /* create the wbq */
-    new    = pmalloco(p, sizeof(_wbq));
+    new    = pmalloco(p, sizeof(_mio_wbq));
     new->p = p;
 
     /* set the queue item type */
@@ -719,7 +715,7 @@ void mio_rate(mio m, int rate_time, int max_points)
 */
 xmlnode mio_cleanup(mio m)
 {
-    wbq     cur;
+    mio_wbq     cur;
     
     if(m == NULL) 
         return NULL;
@@ -733,7 +729,7 @@ xmlnode mio_cleanup(mio m)
             /* just kill this item, and move on..
              * only pop xmlnodes 
              */
-            wbq next = cur->next;
+            mio_wbq next = cur->next;
             pool_free(cur->p);
             cur = next;
             continue;
@@ -804,7 +800,7 @@ mio mio_connect(char *host, int port, mio_cb cb, void *arg)
     new = mio_new(fd, cb, arg);
 
     /* notify the client that the socket is born */
-    (*(mio_cb)new->cb)(new, NULL, 0, IO_NEW, new->arg);
+    (*(mio_cb)new->cb)(new, NULL, 0, MIO_NEW, new->arg);
 
     return new;
 }

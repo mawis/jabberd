@@ -148,14 +148,14 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
         } else log_debug(ZONE,"Auth not successfull");
     } else if(cdcur->state==state_UNKNOWN&&j_strcmp(xmlnode_get_attrib(p->x,"type"),"session")==0)
     { /* got a session reply from the server */
-        wbq q;
+        mio_wbq q;
         cdcur->state = state_AUTHD;
         /* change the host id */
         cdcur->host = jid_new(m->p,xmlnode_get_attrib(p->x,"from"));
         log_debug(ZONE,"Session Started");
         xmlnode_free(p->x);
         /* if we have packets in the queue, write them */
-        while((q=(wbq)pth_msgport_get(cdcur->pre_auth_mp))!=NULL)
+        while((q=(mio_wbq)pth_msgport_get(cdcur->pre_auth_mp))!=NULL)
         {
             q->x=pthsock_make_route(q->x,jid_full(cdcur->host),cdcur->id,NULL);
             deliver(dpacket_new(q->x),s__i->i);
@@ -218,9 +218,9 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
             xmlnode q = xmlnode_get_tag(x,"query");
             if (!NSCHECK(q,NS_AUTH)&&!NSCHECK(q,NS_REGISTER))
             {
-                wbq q;
+                mio_wbq q;
                 /* queue packet until authed */
-                q=pmalloco(xmlnode_pool(x),sizeof(_wbq));
+                q=pmalloco(xmlnode_pool(x),sizeof(_mio_wbq));
                 q->x=x;
                 pth_msgport_put(cd->pre_auth_mp,(void*)q);
                 return;
@@ -307,19 +307,17 @@ void pthsock_client_read(mio m,char *buffer,int bufsz,int flag,void *arg)
 
     switch(flag)
     {
-    case IO_INIT:
-        break;
-    case IO_NEW:
+    case MIO_NEW:
         log_debug(ZONE,"io_select NEW socket connected at %d",m->fd);
         if(cd == NULL)
             cd=pthsock_client_cdata(m);
         cd->connect_time=time(NULL);
         mio_reset(m, pthsock_client_read, (void*)cd);
         break;
-    case IO_NORMAL:
+    case MIO_NORMAL:
         ret=xstream_eat(m->xs,buffer,bufsz);
         break;
-    case IO_CLOSED:
+    case MIO_CLOSED:
         if(cd == NULL) break;
         ghash_remove(s__i->users, cd->id);
         log_debug(ZONE,"io_select Socket %d close notification",m->fd);
@@ -330,16 +328,16 @@ void pthsock_client_read(mio m,char *buffer,int bufsz,int flag,void *arg)
         }
         else
         {
-            wbq q;
+            mio_wbq q;
             if(cd != NULL && cd->pre_auth_mp != NULL)
             { /* if there is a pre_auth queue still */
-                while((q=(wbq)pth_msgport_get(cd->pre_auth_mp))!=NULL)
+                while((q=(mio_wbq)pth_msgport_get(cd->pre_auth_mp))!=NULL)
                     xmlnode_free(q->x);
                 pth_msgport_destroy(cd->pre_auth_mp);
             } 
         }
         break;
-    case IO_ERROR:
+    case MIO_ERROR:
         if(m->queue==NULL) break;
 
         while((x = mio_cleanup(m)) != NULL)

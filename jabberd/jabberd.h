@@ -175,7 +175,7 @@ void mtq_send(mtq q, pool p, mtq_callback f, void *arg); /* appends the arg to t
 
 /* struct to handle the write queue */
 typedef enum { queue_XMLNODE, queue_CDATA } queue_type;
-typedef struct wb_q_st
+typedef struct mio_wb_q_st
 {
     pth_message_t head;  /* for compatibility */
     pool p;
@@ -185,7 +185,7 @@ typedef struct wb_q_st
     void *cur;
     int len;
     struct wb_q_st *next;
-} _wbq,*wbq;
+} _mio_wbq,*mio_wbq;
 
 /* the mio data type */
 
@@ -200,7 +200,7 @@ typedef struct mio_st
     mio_state state;
     xstream xs;
     int fd;
-    wbq queue; /* write buffer queue */
+    mio_wbq queue; /* write buffer queue */
     struct mio_st *prev,*next;
     void *arg;    /* do not modify directly */
     void *cb;     /* do not modify directly */
@@ -209,11 +209,10 @@ typedef struct mio_st
 } *mio, _mio;
 
 /* callback flags */
-#define IO_INIT 0
-#define IO_NEW 1
-#define IO_NORMAL 2
-#define IO_CLOSED 3
-#define IO_ERROR 4
+#define MIO_NEW    0
+#define MIO_NORMAL 1
+#define MIO_CLOSED 2
+#define MIO_ERROR  3
 
 /* i/o callback function definition */
 typedef void (*mio_cb)(mio c,char *buffer,int bufsz,int flag,void *arg);
