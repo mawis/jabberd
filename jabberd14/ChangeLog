@@ -4,8 +4,6 @@
     * dialback/dialback.c: send stream error on idle stream
     * dialback/dialback_out.c: disable xmpp/starttls for configured hosts
     * jabberd/mio_ssl.c: configuration options to select SSL/TLS ciphers
-    * jsm/modules/mod_roster.c: threading problem, we removed the roster
-    	item before the subscription was removed
 
 2005-03-15  Matthias Wimmer  <m@tthias.net>
 
