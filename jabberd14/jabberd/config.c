@@ -159,7 +159,7 @@ void show_pid(xmlnode x)
         if(errno == EEXIST)
         {
             fprintf(stderr, "A pidfile already exists at the specified location.  Check to ensure another copy of the server is not running, or remove the existing file.\n");
-            exit(1);
+            _exit(1);	/* no not remove the pid file */
         }
         close(fd);
         unlink(path);

@@ -34,6 +34,7 @@ jabberd_OBJECTS = \
 	log.o
 
 jabberd_EXOBJECTS = \
+	lib/crc32.o \
 	lib/expat.o \
 	lib/base64.o \
 	lib/genhash.o \
