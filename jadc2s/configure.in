@@ -257,14 +257,14 @@ if test "$libidn" != "no"; then
 		    AC_CHECK_LIB(idn, stringprep_check_version,
 				 [libidn=yes LIBS="${LIBS} -lidn"], libidn=no),
 				 libidn=no)
-    fi
-    if test "$libidn" != "no"; then
-	AC_DEFINE(LIBIDN, 1, [Define to 1 if you want IDN support.])
-    else
-	AC_MSG_WARN([Libidn not found])
-    fi
-    AC_MSG_CHECKING([if Libidn should be used])
-    AC_MSG_RESULT($libidn)
+fi
+if test "$libidn" != "no"; then
+    AC_DEFINE(LIBIDN, 1, [Define to 1 if you want IDN support.])
+else
+    AC_MSG_WARN([Libidn not found])
+fi
+AC_MSG_CHECKING([if Libidn should be used])
+AC_MSG_RESULT($libidn)
 
 
 dnl define where the configuration file is located
