@@ -34,7 +34,7 @@ int exec_and_capture(const char* exe, int* in, int* out)
      pid = fork();
      if (pid < 0)
 	  return r_ERR;
-     else if (pid < 0)		/* Parent */
+     else if (pid > 0)		/* Parent */
      {
 	  /* Close unneeded file handles */
 	  close(left_fds[STDIN_FILENO]);
@@ -78,7 +78,7 @@ result base_exec_deliver(instance i, dpacket p, void* args)
      rawxml = xmlnode2str(p->x);
 
      /* Write the raw data to the child process */
-     result = pth_write(ei->stdin, (void*)rawxml, strlen(rawxml));
+     result = pth_write(ei->stdout, (void*)rawxml, strlen(rawxml));
      if (result < 0)
      {
 	  /* If the pipe is broken, go ahead and unregister this handler */
@@ -108,21 +108,17 @@ void* base_exec_process_io(void* threadarg)
      int len = 0;
      char buf[1024];
 
-     printf("Setting up xmlstream..\n");
-
      /* Allocate a xstream for this coprocess */
      xs = xstream_new(ei->p, base_exec_handle_xstream_event, threadarg);
 
      /* Read from the coprocess until we get an error */
      while(1)
      {
-	  len = pth_read(ei->stdout, buf, sizeof(buf));
+	  len = pth_read(ei->stdin, buf, sizeof(buf));
 	  if (len < 0)
 	       break;
-	  printf("Read data from coprocess: %s\n", buf);
 	  if (xstream_eat(xs, buf, len) > XSTREAM_NODE)
 	       break;
-	  printf("Fed data to xstream\n");
      }
 
      /* Cleanup and quit...should be error handling here? */
