@@ -38,6 +38,8 @@ typedef struct
     pth_cond_t cond_secret;
     instance i;
     sink s;
+    pool p;
+    char *id;
 } *acceptor, _acceptor;
 
 
@@ -84,6 +86,7 @@ void *base_accept_write(void *arg)
             /* create header */
             x = xstream_header("jabberd:sockets",NULL,NULL);
             p = xmlnode_pool(x);
+            a->id = pstrdup(a->p,xmlnode_get_attrib(x,"id"));
             dp = NULL;
             block = xstream_header_char(x);
             len = strlen(block);
@@ -123,16 +126,19 @@ void *base_accept_write(void *arg)
 
     /* tidy up */
     close(a->sock);
-    if(a->s != NULL)
+    if(a->s != NULL) /* clear the flag on the sink, if any */
         a->s->flag_busy = 0;
     a->flag_write = 0;
-    if(!flag_read)
+    if(!flag_read) /* free the acceptor, if we're the last out the door */
         pool_free(a->p);
 }
 
 void base_accept_read_packets(int type, xmlnode x, void *arg)
 {
     acceptor a = (acceptor)arg;
+    xmlnode cur;
+    char *secret;
+    spool s;
 
     switch(type)
     {
@@ -146,11 +152,29 @@ void base_accept_read_packets(int type, xmlnode x, void *arg)
         {
             deliver(dpacket_new(x), a->s->i);
         }else{
-            /* check the <secret>...</secret> */
-            /* find matching one within a->secrets */
-            /* set a->s based on it */
-            /* set a->flag_ok to 1 or -1 */
-            /* based on state="" attrib, set a->flag_write as special hook to make incoming-only connections */
+            if(j_strcmp(xmlnode_get_name(x),"secret") != 0 || (secret = xmlnode_get_data(x)) == NULL)
+            {
+                xmlnode_free(x);
+                return;
+            }
+
+            a->flag_ok = -1;
+            /* check the <secret>...</secret> against all known secrets for this port/ip */
+            for(cur = xmlnode_get_firstchild(a->secrets); cur != NULL; cur = xmlnode_get_nextsibling(cur))
+            {
+                s = spool_new(xmlnode_pool(x));
+                spooler(s,a->id,xmlnode_get_data(cur),s);
+                if(j_strcmp(shahash(spool_print(s)),secret) != 0)
+                    continue;
+
+                /* setup flags in acceptor now that we're ok, and set a->s based on the right secret match */
+                a->flag_ok = 1;
+                a->s = (sink)xmlnode_get_vattrib(cur,"sink");
+                if(j_strcmp(xmlnode_get_attrib(x,"state"),"transient") == 0)
+                    a->flag_write = 0; /* special hook to tell the write thread to just do it's job and dissappear, this is a read-only connection */
+                break;
+            }
+
             /* unblock condition */
         }
         break;
@@ -163,9 +187,26 @@ void base_accept_read_packets(int type, xmlnode x, void *arg)
 void *base_accept_read(void *arg)
 {
     acceptor a = (acceptor)arg;
+    xstream xs;
+    int len;
+    char buff[1024];
 
-    /* create/deliver to xstream */
-    /* if error on read() or from xstream, just cleanup and quit */
+    xs = xstream_new(a->p, base_accept_read_packets, arg);
+
+    /* spin waiting on data from the socket, feeding to xstream */
+    while(1)
+    {
+        len = pth_read(a->sock, buff, 1024);
+        if(len < 0) break;
+
+        if(xstream_eat(xs, buff, len) > XSTREAM_NODE) break;
+    }
+
+    /* just cleanup and quit */
+    close(a->sock);
+    a->flag_read = 0;
+    if(!flag_write) /* free the acceptor, if we're the last out the door */
+        pool_free(a->p);
 }
 
 /* thread to listen on a particular port/ip */
