@@ -1,3 +1,7 @@
+2005-03-15  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/base/base_unsubscribe.c: new base handler
+
 2005-03-13  Matthias Wimmer  <m@tthias.net>
 
     * jabber.xml.dist.in: removed mod_filter from the default configuration
