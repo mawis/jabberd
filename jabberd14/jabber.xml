@@ -274,6 +274,17 @@
         <hash>SHA1</hash>
       </mod_auth_crypt>
 
+      <!--
+      Configuration for mod_version. By defining <no_os_version/>
+      mod_version will not report the version of your OS.
+      -->
+      <!--
+      <mod_version>
+	<no_os_version/>
+      </mod_version>
+      -->
+
+
     </jsm>
 
     <!--
