@@ -11,9 +11,6 @@
 
 typedef enum { conn_IN, conn_OUT, conn_CONNECT, conn_CLOSED } conn_type;
 
-/* simple wrapper around the pth messages to pass packets */
-typedef struct drop_st *drop, _drop;
-
 typedef struct ssock_st
 {
     pool p;
@@ -23,17 +20,17 @@ typedef struct ssock_st
     xstream xs;
     char *to;
     int sock, open;
-    drop dlist; /* packets that are waiting written */
+    pth_msgport_t queue;   /* packets that are waiting written */
     struct ssock_st *next;
 } *ssock, _ssock;
 
-struct drop_st
+/* simple wrapper around the pth messages to pass packets */
+typedef struct drop_st
 {
     pth_message_t head; /* the standard pth message header */
     dpacket p;
     ssock s;
-    struct drop_st *next;
-};
+} *drop, _drop;
 
 /* server 2 server instance */
 typedef struct ssi_st
@@ -41,8 +38,8 @@ typedef struct ssi_st
     instance i;
     ssock conns;
     HASHTABLE out_tab;
-    pth_msgport_t wmp;
-    pth_msgport_t amp;
+    pth_msgport_t wmp;   /* write mp */
+    pth_msgport_t amp;   /* add mp */
     int asock;
 } *ssi, _ssi;
 
@@ -76,7 +73,7 @@ void *pthsock_server_connect(void *arg)
     pth_fdmode(sock,PTH_FDMODE_NONBLOCK);
     if(pth_connect_ev(sock,(struct sockaddr*)&sa,sizeof sa, evt) < 0)
     {
-        log_debug(ZONE,"pth_ssock error connecting");
+        log_debug(ZONE,"error connecting");
         close(sock);
     }
     else
@@ -99,11 +96,10 @@ void pthsock_server_out(int type, xmlnode x, void *arg)
 
     log_debug(ZONE,"out %d, received type %d",s->sock,type);
 
-    /* we typicly shouldn't received anything here */
+    /* we typicly shouldn't receive anything here */
     switch (type)
     {
     case XSTREAM_ROOT:
-        log_debug(ZONE,"root");
         break;
 
     case XSTREAM_NODE:
@@ -115,11 +111,9 @@ void pthsock_server_out(int type, xmlnode x, void *arg)
         break;
 
     case XSTREAM_ERR:
-        log_debug(ZONE,"error");
         if (pth_write(s->sock,"<stream::error>You sent malformed XML</stream:error>",52) <= 0)
             s->open = 0;
     case XSTREAM_CLOSE:
-        log_debug(ZONE,"close");
         /* the other server shouldn't do this */
     }
 }
@@ -178,19 +172,9 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
     d->p = dp;
     d->s = s;
 
-    if (s->type == conn_CONNECT) /* queue data */
-    {
-        log_debug(ZONE,"queueing data");
-
-        if (s->dlist != NULL)
-        {
-            for(cur = s->dlist; cur->next != NULL; cur = cur->next);
-            cur->next = d;
-        }
-        else
-            s->dlist = d;
-    }
-    else /* it's connected */
+    if (s->type == conn_CONNECT) /* queue data until we're connected */
+        pth_msgport_put(s->queue,(void*)d);
+    else
         pth_msgport_put(si->wmp,(void*)d);
 
     log_debug(ZONE,"DONE");
@@ -304,8 +288,6 @@ int pthsock_server_write(ssi si, ssock s, dpacket p)
 
     block = xmlnode2str(p->x);
 
-    log_debug(ZONE,"<<<< %s",block);
-
     /* write the packet */
     if(pth_write(s->sock,block,strlen(block)) <= 0)
     {
@@ -364,12 +346,12 @@ void *pthsock_server_main(void *arg)
     fd_set rfds, afds;
     ssock cur, s;
     drop d;
-    char buff[1024], *block;
     xmlnode x;
-    int len, asock, sock;
     pool p;
     struct sockaddr_in sa;
     size_t sa_size = sizeof(sa);
+    char buff[1024], *block;
+    int len, asock, sock;
 
     asock = si->asock;
     amp = si->amp;
@@ -420,7 +402,6 @@ void *pthsock_server_main(void *arg)
             cur = si->conns;
             while(cur != NULL)
             {
-                log_debug(ZONE,"checking cur->sock %d",cur->sock);
                 if (cur->type == conn_CLOSED)
                 {
                     s = cur;
@@ -430,7 +411,7 @@ void *pthsock_server_main(void *arg)
                 }
                 if (FD_ISSET(cur->sock,&rfds))
                 {
-                    len = pth_read(cur->sock,buff,1024);
+                    len = pth_read(cur->sock,buff,sizeof(buff));
                     if(len <= 0)
                     {
                         log_debug(ZONE,"Error reading on '%d', %s",cur->sock,strerror(errno));
@@ -455,16 +436,12 @@ void *pthsock_server_main(void *arg)
             rfds = afds;
         }
 
-        /* handle packets that need to be writen */
+        /* handle packets that need to be written */
         if (pth_event_occurred(wevt))
         {
             log_debug(ZONE,"write event");
-            while (1)
+            while ((d = (drop)pth_msgport_get(wmp)) != NULL)
             {
-                /* get the packet */
-                d = (drop)pth_msgport_get(wmp);
-                if (d == NULL) break;
-
                 s = d->s;
                 if (!pthsock_server_write(si,s,d->p))
                     FD_CLR(s->sock,&rfds);
@@ -475,12 +452,8 @@ void *pthsock_server_main(void *arg)
         if (pth_event_occurred(aevt))
         {
             log_debug(ZONE,"add event");
-            while (1)
+            while ((d = (drop)pth_msgport_get(amp)) != NULL)
             {
-                /* get the packet */
-                d = (drop)pth_msgport_get(amp);
-                if (d == NULL) break;
-
                 s = d->s;
                 FD_SET(s->sock,&rfds);
                 s->next = si->conns;
@@ -492,10 +465,8 @@ void *pthsock_server_main(void *arg)
                 pth_write(s->sock,block,strlen(block));
                 xmlnode_free(x);
 
-                /* flush pending data */
-                for (d = s->dlist; d != NULL; d = d->next)
-                    if (!pthsock_server_write(si,s,d->p))
-                        FD_CLR(d->s->sock,&rfds);
+                while((d = (drop)pth_msgport_get(s->queue)) != NULL)
+                    pthsock_server_write(si,s,d->p);
             }
         }
     }
@@ -510,10 +481,6 @@ void pthsock_server(instance i, xmlnode x)
 
     log_debug(ZONE,"pthsock_server loading");
 
-    si = pmalloco(i->p,sizeof(_ssi));
-
-    log_debug(ZONE,"pthsock_server_listen thread starting");
-
     asock = make_netsocket(5269,NULL,NETSOCKET_SERVER);
     if(asock < 0)
     {
@@ -527,13 +494,10 @@ void pthsock_server(instance i, xmlnode x)
         return;
     }
 
+    si = pmalloco(i->p,sizeof(_ssi));
     si->asock = asock;
-
-    /* write mp */
     si->wmp = pth_msgport_create("pthsock_server_wmp");
-    /* used to notify main thread of a new connection */
-    si->amp = pth_msgport_create("pthsock_server_amp");
-
+    si->amp = pth_msgport_create("pthsock_server_amp");     /* used to notify main thread of a new connection */
     si->out_tab = ghash_create(20,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
 
     register_phandler(i,o_DELIVER,pthsock_server_packets,(void*)si);
