@@ -355,7 +355,7 @@ void _client_process(conn_t c) {
 int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
 {
     char buf[1024]; /* !!! make static when not threaded? move into conn_st? */
-    int len, ret;
+    int read_len, len, ret;
     conn_t c = (conn_t)arg;
 #ifdef USE_SSL
     struct sockaddr_in sa;
@@ -496,7 +496,17 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
 
             case state_OPEN:
                 /* read a chunk at a time */
-                len = _read_actual(c, fd, buf, conn_max_read_len(c));
+                read_len = conn_max_read_len(c);
+
+                /* Naughty, naughty, ate their karma */
+                if (read_len == 0)
+                {
+                    log_debug(ZONE, "User ate karma");
+                    return 0;
+                }
+
+                printf("Reading %d bytes\n", read_len);
+                len = _read_actual(c, fd, buf, read_len);
                 return conn_read(c, buf, len);
                 
             case state_NONE:

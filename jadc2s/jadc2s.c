@@ -193,6 +193,7 @@ int main(int argc, char **argv)
     /* require some things */
     /* !!! usage isn't really helpful anymore, need to provide better errors */
     if(c2s->sm_host == NULL || c2s->sm_port == 0 || c2s->sm_id == NULL || c2s->sm_secret == NULL || c2s->local_id == NULL) {
+        fprintf(stderr, "Configuration error\n");
         usage();
         return 1;
     }
