@@ -163,17 +163,21 @@ result base_exec_deliver(instance i, dpacket p, void* args)
 void base_exec_handle_xstream_event(int type, xmlnode x, void* arg)
 {
      process_info pi = (process_info)arg;
+     char*   header;
+     xmlnode headernode;
 
      switch(type)
      {
      case XSTREAM_ROOT:
+	  headernode = xstream_header("jabber:server",NULL, NULL);
+	  header     = xstream_header_char(headernode);
 	  /* Return a fake root tag */
-	  pth_write(pi->out, "<stream:stream xmlns='jabber:server'>\n", strlen("<stream:stream xmlns='jabber:server'>\n"));
+	  pth_write(pi->out, header, strlen(header));
 	  /* Hook the event for delivering messages to the coprocess */
-  	  pi->e_write = pth_event(PTH_EVENT_MSG, pi->write_queue);  
-  	  pi->events  = pth_event_concat(pi->e_read, pi->e_write, NULL);  
+	  pi->e_write = pth_event(PTH_EVENT_MSG, pi->write_queue);  
+	  pi->events  = pth_event_concat(pi->e_read, pi->e_write, NULL);  
 	  /* Validate namespace */
-      xmlnode_free(x);
+	  xmlnode_free(x);
 	  break;
      case XSTREAM_NODE:
 	  /* Deliver the packet */
@@ -181,7 +185,7 @@ void base_exec_handle_xstream_event(int type, xmlnode x, void* arg)
 	  break;
      case XSTREAM_CLOSE:
      case XSTREAM_ERR:
-      xmlnode_free(x);
+	  xmlnode_free(x);
 	  /* FIXME: Who knows? The _SHADOW_ knows. */
      }
 
@@ -238,7 +242,7 @@ void* base_exec_process_io(void* threadarg)
 		    /* FIXME: it would be cool to make this completely safe by reinserting
 		       the message back in the queue until the the process is restarted */
 		    log_debug(ZONE,"base_exec_process_io Write error.\n");
-            pool_free(pwb->packet->p);
+		    pool_free(pwb->packet->p);
 		    break;
 	       }
 	       
@@ -272,49 +276,50 @@ void* base_exec_process_io(void* threadarg)
 
 result base_exec_config(instance id, xmlnode x, void *arg)
 {
-    process_info pi = NULL;
-    int   in, out;
+     process_info pi = NULL;
+     int   in, out;
 	  
-    if(id == NULL)
-    {	 
-	 if (xmlnode_get_data(x) == NULL)
-	 {
-	      log_debug(ZONE,"base_exec_config error: no script provided\n");
-	      return r_ERR;
-	 }
-	 log_debug(ZONE,"base_exec_config validating configuration\n");
-	 return r_PASS;
-    }
+     if(id == NULL)
+     {	 
+	  if (xmlnode_get_data(x) == NULL)
+	  {
+	       log_debug(ZONE,"base_exec_config error: no script provided\n");
+	       return r_ERR;
+	  }
+	  log_debug(ZONE,"base_exec_config validating configuration\n");
+	  return r_PASS;
+     }
 
-    /* Allocate an info structure, and associate with the
-       instance pool */
-    pi = pmalloco(id->p, sizeof(_process_info));
-    pi->inst        = id;
-    pi->mempool     = id->p;
-    pi->in          = in;
-    pi->out         = out;
-    pi->write_queue = pth_msgport_create(id->id);   
-    pi->state       = p_OPEN;
+     /* Allocate an info structure, and associate with the
+	instance pool */
+     pi = pmalloco(id->p, sizeof(_process_info));
+     pi->inst        = id;
+     pi->mempool     = id->p;
+     pi->in          = in;
+     pi->out         = out;
+     pi->write_queue = pth_msgport_create(id->id);   
+     pi->state       = p_OPEN;
 
-    /* Parse out command and arguments */
-    pi->args = tokenize_args(pi->mempool, xmlnode_get_data(x));
+     /* Parse out command and arguments */
+     pi->args = tokenize_args(pi->mempool, xmlnode_get_data(x));
 
-    /* Exec and capture the STDIN/STDOUT of the child process */
-    pi->pid = exec_and_capture(pi->args, &(pi->in), &(pi->out));
+     /* Exec and capture the STDIN/STDOUT of the child process */
+     pi->pid = exec_and_capture(pi->args, &(pi->in), &(pi->out));
 
-    /* Spawn a new thread to handle IO for this coprocess */
-    pth_spawn(PTH_ATTR_DEFAULT, base_exec_process_io, (void*) pi);
+     /* Spawn a new thread to handle IO for this coprocess */
+     pth_spawn(PTH_ATTR_DEFAULT, base_exec_process_io, (void*) pi);
 
-    /* Register a handler to recieve inbound data */
-    register_phandler(id, o_DELIVER, base_exec_deliver, (void*) pi);
+     /* Register a handler to recieve inbound data */
+     register_phandler(id, o_DELIVER, base_exec_deliver, (void*) pi);
 
-    log_debug(ZONE,"base_exec_config performing configuration %s\n",xmlnode2str(x));
-    return r_DONE;
+     log_debug(ZONE,"base_exec_config performing configuration %s\n",xmlnode2str(x));
+     return r_DONE;
 }
 
 void base_exec(void)
 {
-    log_debug(ZONE,"base_exec loading...\n");
+     log_debug(ZONE,"base_exec loading...\n");
 
-    register_config("exec",base_exec_config,NULL);
+     register_config("exec",base_exec_config,NULL);
 }
+
