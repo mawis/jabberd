@@ -1,7 +1,11 @@
 #include "jabberd.h"
 
 /* how many seconds until packets begin to "bounce" that should be delivered */
-#define ACCEPT_TIMEOUT 600
+#define ACCEPT_PACKET_TIMEOUT 600
+/* how many seconds a socket has to send a valid handshake */
+#define ACCEPT_HANDSHAKE_TIMEOUT 30
+/* the arg to the listen() call */
+#define ACCEPT_LISTEN_BACKLOG 10
 
 /* each instance can share ports */
 
@@ -20,7 +24,7 @@ when the write threads exit, only the default sink would persist, others all r_U
 
 the handshake is:
 <handshake host="1234.foo.jabber.org">SHAHASH of id+secret</handshake>
-the host attrib is optional, and when used causes a new sink/handler to be registerd in the o_FILTER stage to "hijack" packets to that host
+the host attrib is optional, and when used causes a new sink/handler to be registerd in the o_MODIFY stage to "hijack" packets to that host
 note: the use of the host attrib and <host> element in the config are not automagically paired, must be done by the administrator configuring jabberd and whatever app is using the socket
 also, set host="void" to disable any packets or data being written to the socket
 
@@ -44,15 +48,16 @@ typedef struct
 {
     instance i;
     pth_msgport_t mp;
-    int flag_open, flag_busy;
+    int flag_open, flag_busy, flag_transient;
     time_t last;
+    char *filter;
+    pool p;
 } *sink, _sink;
 
 /* data shared for handlers related to a connection */
 typedef struct
 {
-    int sock, flag_ok, flag_read, flag_write, flag_cond;
-    pth_cond_t cond_secret;
+    int sock, flag_ok, flag_read, flag_write;
     instance i;
     sink s;
     pool p;
@@ -65,7 +70,25 @@ result base_accept_phandler(instance i, dpacket p, void *arg)
 {
     sink s = (sink)arg;
     drop d;
-    
+
+    /* first, check if this sink is temporary and nothing's at the other end anymore, if so, adios amigo */
+    if(!(s->flag_open) && s->flag_transient)
+    {
+        pth_msgport_free(s->mp);
+        pool_free(s->p);
+        return r_UNREG;
+    }
+
+    /* hack, we are a filter */
+    if(s->filter != NULL)
+    {
+        if(j_strcmp(s->filter, p->host) != 0)
+            return r_PASS;
+
+        /* yay, we match! continue with a copy of the packet */
+        p = dpacket_new(xmlnode_dup(p->x));
+    }
+
     d = pmalloc(p->p, sizeof(_drop));
     d->p = p;
 
@@ -75,78 +98,55 @@ result base_accept_phandler(instance i, dpacket p, void *arg)
 }
 
 
-typedef enum {s_NONE, s_SECRET, s_WRITE, s_WAIT} state;
-
 void *base_accept_write(void *arg)
 {
     acceptor a = (acceptor)arg; /* shared data for this connection */
-    dpacket dp; /* the associated packet (if any) */
+    dpacket p = NULL; /* the associated packet */
     char *block; /* the data being written */
-    int cur, len, ret; /* current position, total length, return code */
-    pool p; /* the associated pool to the data being written (for cleanup) */
-    state s = s_NONE; /* current status */
-    xmlnode x;
 
     a->flag_write = 1; /* signal that the write thread is up */
 
     while(1)
     {
-        if(a->s != NULL)
-        {
-            a->s->last = time(NULL);
-            a->s->flag_busy = 0;
-        }
+        a->s->last = time(NULL);
+        a->s->flag_busy = 0;
 
-        switch(s)
-        {
-        case s_NONE:
-            /* create header */
-            x = xstream_header("jabberd:sockets",NULL,NULL);
-            p = xmlnode_pool(x);
-            a->id = pstrdup(a->p,xmlnode_get_attrib(x,"id"));
-            dp = NULL;
-            block = xstream_header_char(x);
-            len = strlen(block);
-            cur = 0;
-            s = s_WRITE;
-            break;
-        case s_SECRET:
-            if(a->flag_ok == 0)
-            { /* block on condition in acceptor */
-            }
+        /* get packet phase */
 
-            if(!flag_read) break; /* socket died */
 
-            /* based on a->flag_ok being 1 or -1, write <secret/> or fail */
-            if(a->flag_ok > 0)
-            {
-            }else if(a->flag_ok < 0){
-            }
+        /* write packet phase */
+        a->s->flag_busy = 1;
+        block = xmlnode2str(p->x);
+        if(pth_write(a->sock, block, strlen(block)) < 0)
             break;
-        case s_WAIT:
-            if(a->flag_write == 0)
-                return; /* special case where the component doesn't want to receive anything */
 
-            /* block on pth_msgport in sink */
-            break;
-        case s_WRITE:
-            if(a->s != NULL)
-                a->s->flag_busy = 1;
-            /* block on writing to the socket */
-            break;
-        }
+        /* all sent, yay */
+        pool_free(p->p);
+        p = NULL;
     }
-
-    /* if there's an incomplete packet yet, return to sending pool */
-    if(dp != NULL)
-        base_accept_phandler(a->i, dp, (void *)(a->s));
 
     /* tidy up */
     close(a->sock);
-    if(a->s != NULL) /* clear the flag on the sink, if any */
-        a->s->flag_busy = 0;
-    a->flag_write = 0;
-    if(!flag_read) /* free the acceptor, if we're the last out the door */
+
+    /* clear any flags */
+    a->s->flag_busy = a->s->flag_open = a->flag_write = 0;
+
+    /* yuck, if we had our own transient sink, we should bounce any waiting packets */
+    if(a->s->flag_transient)
+    {
+        if(p == NULL)
+            p = pth_msgport_get()
+
+        for(;p != NULL; p = pth_msgport_get())
+            bouncer();
+
+    }else{ /* if we were working on a packet, put it back in the default sink */
+        if(p != NULL)
+            base_accept_phandler(a->i, p, (void *)(a->s));
+    }
+
+    /* free the acceptor, if we're the last out the door */
+    if(!(a->flag_read) && !(a->flag_timer))
         pool_free(a->p);
 }
 
@@ -154,45 +154,76 @@ void base_accept_read_packets(int type, xmlnode x, void *arg)
 {
     acceptor a = (acceptor)arg;
     xmlnode cur;
-    char *secret;
+    char *secret, *block;
     spool s;
+    pool p;
+    sink snew;
 
     switch(type)
     {
     case XSTREAM_ROOT:
-        /* setup blocking condition */
-        /* spawn write thread */
-        pth_spawn(PTH_ATTR_DEFAULT,base_accept_write,arg)
+        /* create and send header, store the id="" in the acceptor to validate the secret l8r */
+        cur = xstream_header("jabberd:sockets",NULL,NULL);
+        a->id = pstrdup(a->p,xmlnode_get_attrib(cur,"id"));
+        block = xstream_header_char(cur);
+        pth_write(a->sock,block,strlen(block));
+        xmlnode_free(cur);
         break;
     case XSTREAM_NODE:
         if(a->flag_ok > 0)
         {
             deliver(dpacket_new(x), a->s->i);
         }else{
-            if(j_strcmp(xmlnode_get_name(x),"secret") != 0 || (secret = xmlnode_get_data(x)) == NULL)
+            if(j_strcmp(xmlnode_get_name(x),"handshake") != 0 || (secret = xmlnode_get_data(x)) == NULL)
             {
                 xmlnode_free(x);
                 return;
             }
 
-            a->flag_ok = -1;
-            /* check the <secret>...</secret> against all known secrets for this port/ip */
+            /* check the <handshake>...</handshake> against all known secrets for this port/ip */
             for(cur = xmlnode_get_firstchild(a->secrets); cur != NULL; cur = xmlnode_get_nextsibling(cur))
             {
                 s = spool_new(xmlnode_pool(x));
                 spooler(s,a->id,xmlnode_get_data(cur),s);
-                if(j_strcmp(shahash(spool_print(s)),secret) != 0)
-                    continue;
-
-                /* setup flags in acceptor now that we're ok, and set a->s based on the right secret match */
-                a->flag_ok = 1;
-                a->s = (sink)xmlnode_get_vattrib(cur,"sink");
-                if(j_strcmp(xmlnode_get_attrib(x,"state"),"transient") == 0)
-                    a->flag_write = 0; /* special hook to tell the write thread to just do it's job and dissappear, this is a read-only connection */
-                break;
+                if(j_strcmp(shahash(spool_print(s)),secret) == 0)
+                    break;
             }
 
-            /* unblock condition */
+            if(cur == NULL)
+            {
+                pth_write(a->sock,"<stream:error>Invalid Handshake</stream:error>",46);
+                pth_write(a->sock,"</stream:stream>",16);
+                close(a->sock);
+                return;
+            }
+
+            /* setup flags in acceptor now that we're ok */
+            a->flag_ok = 1;
+            a->s = (sink)xmlnode_get_vattrib(cur,"sink");
+            block = xmlnode_get_attrib(x,"host");
+
+            /* special hack, to totally ignore the "write" side for this connection */
+            if(j_strcmp(block,"void") == 0) return; 
+
+            /* the default sink is in use or we want our own transient one, make it */
+            if(a->s->flag_open || block != NULL)
+            {
+                p = pool_new();
+                snew = pmalloc_x(p, sizeof(_sink));
+                snew->mp = pth_msgport_create("base_accept_transient");
+                snew->i = a->s->i;
+                snew->last = time(NULL);
+                snew->p = p;
+                snew->flag_transient = 1;
+                snew->filter = pstrdup(p,block);
+                a->s = snew;
+                if(block != NULL) /* if we're filtering to a specific host, we need to do that BEFORE delivery! ugly... is the o_* crap any use? */
+                    register_phandler(id, o_MODIFY, base_accept_phandler, (void *)snew);
+                else
+                    register_phandler(id, o_DELIVER, base_accept_phandler, (void *)snew);
+            }
+
+            a->s->flag_open = 1; /* signal that the sink is in use */
         }
         break;
     default:
@@ -209,6 +240,7 @@ void *base_accept_read(void *arg)
     char buff[1024];
 
     xs = xstream_new(a->p, base_accept_read_packets, arg);
+    a->flag_read = 1;
 
     /* spin waiting on data from the socket, feeding to xstream */
     while(1)
@@ -222,30 +254,80 @@ void *base_accept_read(void *arg)
     /* just cleanup and quit */
     close(a->sock);
     a->flag_read = 0;
-    if(!flag_write) /* free the acceptor, if we're the last out the door */
+    if(!(a->flag_write) && !(a->flag_timer)) /* free the acceptor, if we're the last out the door */
         pool_free(a->p);
+}
+
+/* fire once and check the acceptor, if it hasn't registered yet, goodbye! */
+void base_accept_garbage(void *arg)
+{
+    acceptor a = (acceptor)arg;
+
+    a->flag_timer = 0; /* we've fired */
+    if(!(a->flag_ok))
+    {
+        pth_write(a->sock,"<stream:error>Timed Out</stream:error>",38);
+        pth_write(a->sock,"</stream:stream>",16);
+        close(a->sock);
+        if(!(a->flag_write) && !(a->flag_read)) /* free a, since we're the last out the door */
+            pool_free(a->p);
+    }
+
+    return r_UNREG;
 }
 
 /* thread to listen on a particular port/ip */
 void *base_accept_listen(void *arg)
 {
+    xmlnode secrets = (xmlnode)arg;
     acceptor a;
+    int port, root, sock;
+    pool p;
+    struct sockaddr_in sa;
+    size_t sa_size = sizeof(sa);
 
-    /* look at the port="" and optional ip="" attribs and start listening */
+    /* look at the port="" and optional ip="" attribs and start a listening socket */
+    root = make_netsocket(atoi(xmlnode_get_attrib(secrets,"port"), xmlnode_get_attrib(secrets,"ip"), NETSOCKET_SERVER);
+    if(root < 0 || listen(root, ACCEPT_LISTEN_BACKLOG) < 0)
+    {
+        /* XXX log error! */
+        return NULL;
+    }
 
-    /* when we get a new socket */
-    /* create acceptor */
-    pth_spwan(PTH_ATTR_DEFAULT, base_accept_read, (void *)a);
+    while(1)
+    {
+        /* when we get a new socket */
+        sock = pth_accept(root, (struct sockaddr *) &sa, (int *) &sa_size);
+        if(sock < 0)
+        {
+            /* XXX log error! */
+            break;
+        }
+
+        /* create acceptor */
+        p = pool_new();
+        a = pmalloc_x(p, sizeof(_acceptor));
+        a->p = p;
+        a->secrets = secrets;
+        a->sock = sock;
+
+        /* spawn read thread */
+        pth_spwan(PTH_ATTR_DEFAULT, base_accept_read, (void *)a);
+
+        /* create temporary heartbeat to cleanup the socket if it never get's registered */
+        a->flag_timer = 1;
+        register_heartbeat(ACCEPT_HANDSHAKE_TIMEOUT, base_accept_garbage, (void *)a);
+    }
 }
 
-/* cleanup routine to make sure packets are getting delivered */
+/* cleanup routine to make sure packets are getting delivered out of the DEFAULT sink */
 result base_accept_plumber(void *arg)
 {
     sink s = (sink)arg;
 
-    while(s->flag_busy && time(NULL) - s->last > ACCEPT_TIMEOUT)
+    while(s->flag_busy && time(NULL) - s->last > ACCEPT_PACKET_TIMEOUT)
     {
-        /* get the messages from the sink and bounce them intelligently */
+        /* XXX get the messages from the sink and bounce them intelligently */
         fprintf(stderr,"base_accept: bouncing packets\n");
     }
 
@@ -288,11 +370,12 @@ result base_accept_config(instance id, xmlnode x, void *arg)
         pth_spawn(PTH_ATTR_DEFAULT, base_accept_listen, (void *)cur);
     }
 
-    /* create and configure sink */
+    /* create and configure the DEFAULT permanent sink */
     s = pmalloc_x(id->p, sizeof(_sink));
     s->mp = pth_msgport_create("base_accept");
     s->i = id;
     s->last = time(NULL);
+    s->p = id->p; /* we're as permanent as the instance */
 
     /* register phandler, and register cleanup heartbeat */
     register_phandler(id, o_DELIVER, base_accept_phandler, (void *)sink);
