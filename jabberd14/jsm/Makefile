@@ -51,11 +51,15 @@ $(jsm_OBJECTS): $(jsm_HEADERS)
 all-local: $(jsm_OBJECTS) $(jsm_HEADERS)
 	$(CC) $(CFLAGS) $(MCFLAGS) -o jsm.so $(jsm_OBJECTS) $(jsm_EXOBJECTS) $(LDFLAGS) $(LIBS)
 
+static: static-recursive
+
+static-local: $(jsm_OBJECTS) $(jsm_HEADERS)
+
 install-local:
 
 all-recursive install-data-recursive install-exec-recursive \
 installdirs-recursive install-recursive uninstall-recursive  \
-check-recursive installcheck-recursive info-recursive dvi-recursive:
+check-recursive installcheck-recursive info-recursive static-recursive:
 	@set fnord $(MAKEFLAGS); amf=$$2; \
 	dot_seen=no; \
 	target=`echo $@ | sed s/-recursive//`; \

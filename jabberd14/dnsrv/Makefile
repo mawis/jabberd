@@ -15,5 +15,7 @@ $(dnsrv_OBJECTS): $(dnsrv_HEADERS)
 dnsrv_build: $(dnsrv_OBJECTS) $(dnsrv_HEADERS)
 	$(CC) $(CFLAGS) $(MCFLAGS) -o dnsrv.so $(dnsrv_OBJECTS) 
 
+static: $(dnsrv_OBJECTS) $(dnsrv_HEADERS)
+
 clean:
 	rm -f $(dnsrv_OBJECTS) dnsrv.so

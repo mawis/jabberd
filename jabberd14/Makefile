@@ -3,11 +3,13 @@
 #
 include platform-settings
 
-SUBDIRS=jabberd pthsock xdb_file dnsrv jsm
+SUBDIRS=pthsock xdb_file dnsrv jsm jabberd
 
 all: all-recursive
 
 clean: clean-recursive
+
+static: static-recursive
 
 install:
 	printf "\n\nNo actual make install, you just run it out of the directory!\n"
@@ -16,9 +18,14 @@ all-local:
 
 install-local:
 
+static-local:
+
 all-recursive install-data-recursive install-exec-recursive \
 installdirs-recursive install-recursive uninstall-recursive  \
-check-recursive installcheck-recursive info-recursive dvi-recursive:
+check-recursive installcheck-recursive info-recursive static-recursive:
+	if test "$@" = "static-recursive"; then \
+      export ISSTATIC=1; \
+	fi; \
 	@set fnord $(MAKEFLAGS); amf=$$2; \
 	dot_seen=no; \
 	target=`echo $@ | sed s/-recursive//`; \
