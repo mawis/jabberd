@@ -103,7 +103,7 @@ typedef enum { p_OPEN, p_CLOSED } pstate;
 /* process_info - stores thread data for a coprocess */
 typedef struct
 {
-     char**         args;	   /* Process arguments (ala argv[]) */
+     char**        args;	   /* Process arguments (ala argv[]) */
      pstate        state;	   /* Process state flag*/
      pool          mempool;	   /* Memory pool for this structt */
      instance      inst;	   /* Instance this coprocess is assoc. with */
@@ -206,7 +206,7 @@ void* base_exec_process_io(void* threadarg)
 	       pwb = (process_write_buf)pth_msgport_get(pi->write_queue);
 	       
 	       /* Serialize the packet.. */
-	       writebuf = xmlnode2str(pwb->packet->x);
+	       writebuf = xmlnode2tstr(pwb->packet->x);
 
 	       /* Write the raw buffer */
 	       if (pth_write(pi->stdout, writebuf, strlen(writebuf)) < 0)
