@@ -75,7 +75,7 @@ int res_querydomain(const char *name,
 
 
 
-// possible DNS response codes
+/* possible DNS response codes */
 #define RCODE_OK 0
 #undef NOERROR
 #define NOERROR 0
@@ -87,9 +87,10 @@ int res_querydomain(const char *name,
 
 
 
-// ------------------------------------------------------
-// Everything below this line is taken from bind v8.2.3
-// See copyright notices above
+/* ------------------------------------------------------
+ * Everything below this line is taken from bind v8.2.3
+ * See copyright notices above
+ */
 
 
 /** 
@@ -144,23 +145,24 @@ int dn_expand(const u_char *msg, const u_char *eom, const u_char *src,
               char *dst, int dstsiz);
 
 
-// Flag bits indicating name compression
+/* Flag bits indicating name compression */
 #define NS_CMPRSFLGS    0xc0
 #define NS_MAXDNAME     1025    /* maximum domain name */
 #define NS_MAXCDNAME    255     /* maximum compressed domain name */
 #define NS_PACKETSZ     512     /* maximum packet size */
 
 
-// ------------------------------------------------------
-// Other fields
+/* ------------------------------------------------------
+ * Other fields
+ */
 
-// Query classes
+/* Query classes */
 #define C_IN 1
 #define C_CS 2
 #define C_CH 3
 #define C_HS 4
 
-// Query types
+/* Query types */
 #define T_A 1
 #define T_NS 2
 #define T_MD 3

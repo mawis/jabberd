@@ -82,7 +82,7 @@ BOOL APIENTRY DllMain (
 }
 
 #ifdef __CYGWIN__
-//folowing redirector stub added by TFB...
+/* following redirector stub added by TFB... */
 BOOL APIENTRY _cygwin_dll_entry (
          HINSTANCE hInst /* Library instance handle. */ ,
          DWORD reason /* Reason this function is being called. */ ,

@@ -38,10 +38,24 @@
  * 
  * 
  * --------------------------------------------------------------------------*/
+
+/**
+ * @file karma.c
+ * @brief implements bandwidth limits
+ *
+ * This is used by jabberd to limit the connection bandwidth on the receiving
+ * side of TCP/IP connections.
+ */
+
 #include <jabberdlib.h>
 
-void karma_copy(struct karma *new, struct karma *old)
-{
+/**
+ * make a copy of a karma structure
+ *
+ * @param new pointer to the destination (the structure must already exist)
+ * @param old pointer to the values, that should be copied
+ */
+void karma_copy(struct karma *new, struct karma *old) {
     new->init        = old->init;
     new->val         = old->val;
     new->bytes       = old->bytes;
@@ -54,8 +68,13 @@ void karma_copy(struct karma *new, struct karma *old)
     new->reset_meter = old->reset_meter;
 }
 
-struct karma *karma_new(pool p)
-{
+/**
+ * create a new karma structure
+ *
+ * @param p memory pool to allocate the memory on
+ * @return pointer to the newly allocated karam structure
+ */
+struct karma *karma_new(pool p) {
     struct karma *new;
     if(p == NULL)
         return NULL;
@@ -75,8 +94,14 @@ struct karma *karma_new(pool p)
     return new;
 }
 
-void karma_increment(struct karma *k)
-{
+/**
+ * update karma: if karma is incremented, it means that additional bytes are now possible in the configured bandwidth
+ *
+ * Traffic reduces karma, passed time increments karma
+ *
+ * @param k the karma structure
+ */
+void karma_increment(struct karma *k) {
     /* set the current time, and check if we can increment */
     time_t cur_time = time(NULL);
     int punishment_over = 0;
@@ -110,8 +135,15 @@ void karma_increment(struct karma *k)
     k->last_update = cur_time;
 }
 
-void karma_decrement(struct karma *k, long bytes_read)
-{
+/**
+ * update karma: there was traffic, that has to be considered for karma calculations
+ *
+ * Traffic reduces karma, passed time increments karma
+ *
+ * @param k the karma structure to update
+ * @param bytes_read the ammount of bytes that have been read on a connection, that is karma controlled
+ */
+void karma_decrement(struct karma *k, long bytes_read) {
 
     /* Increment the bytes read since last since last karma_increment */
     k->bytes += bytes_read;
@@ -128,9 +160,14 @@ void karma_decrement(struct karma *k, long bytes_read)
     }
 }
 
-/* returns 0 on okay check, 1 on bad check */
-int karma_check(struct karma *k,long bytes_read)
-{
+/**
+ * check the karma for a connection
+ *
+ * @param k the karma that should be checked
+ * @param bytes_read the number of bytes, that have been read on a connection, that is karma controlled
+ * @return 0 on okay check, 1 on bad check
+ */
+int karma_check(struct karma *k,long bytes_read) {
     /* Check the need to increase or decrease karma */
     karma_increment(k);
     karma_decrement(k, bytes_read);

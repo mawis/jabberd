@@ -38,6 +38,19 @@
  * 
  * 
  * --------------------------------------------------------------------------*/
+
+/**
+ * @file dnsrv.c
+ * @brief implements the main part of the DNS resolver component
+ *
+ * Config format:
+ * <dnsrv xmlns='jabber:config:dnsrv'>
+ *     <resend service="_jabber._tcp">s2s-component</resend>
+ * </dnsrv>
+ *
+ * Note: You must specify the services in the order you want them tried
+ */
+
 #include "jabberd.h"
 #include "srv_resolv.h"
 #include <sys/wait.h>
@@ -45,15 +58,6 @@
 #ifdef LIBIDN
 #  include <idna.h>
 #endif
-/* Config format:
-   <dnsrv xmlns='jabber:config:dnsrv'>
-      <resend service="_jabber._tcp">foo.org</resend>
-      ...
-   </dnsrv>
-
-   Notes:
-   * You must specify the services in the order you want them tried
-*/
 
 /**
  * @brief structure to build a list that holds all hosts to which the packets are resent for a service
@@ -64,55 +68,63 @@ typedef struct __dns_resend_list_host_list {
     struct __dns_resend_list_host_list *next;
 } *dns_resend_list_host_list, _dns_resend_list_host_list;
 
-/* ------------------------------------------------- */
-/* Struct to store list of services and resend hosts */
-typedef struct __dns_resend_list
-{
-     char* service;
-     dns_resend_list_host_list hosts;
-     int weight_sum;
-     struct __dns_resend_list* next;
+/**
+ * struct to store list of services and resend hosts
+ */
+typedef struct __dns_resend_list {
+     char* service;			/**< the service that is defined */
+     dns_resend_list_host_list hosts;	/**< resend to which hosts */
+     int weight_sum;			/**< sum of weights of the hosts */
+     struct __dns_resend_list* next;	/**< next entry in the list */
 } *dns_resend_list, _dns_resend_list;
 
 
-/* --------------------------------------- */
-/* Struct to keep track of a DNS coprocess */
-typedef struct
-{
-     int             in;		 /* Inbound data handle */
-     int             out;		 /* Outbound data handle */
-     int             pid;		 /* Coprocess PID */
-     xht	     packet_table; /* Hash of dns_packet_lists */
-     int             packet_timeout; /* how long to keep packets in the queue */
-     xht       	     cache_table; /* Hash of resolved IPs */
-     int             cache_timeout; /* how long to keep resolutions in the cache */
-     pool            mempool;
-     dns_resend_list svclist;
+/**
+ * struct to keep track of a DNS coprocess
+ */
+typedef struct {
+     int             in;		 /**< Inbound data handle */
+     int             out;		 /**< Outbound data handle */
+     int             pid;		 /**< Coprocess PID */
+     xht	     packet_table;	 /**< Hash of dns_packet_lists */
+     int             packet_timeout;	 /**< how long to keep packets in the queue */
+     xht       	     cache_table;	 /**< Hash of resolved IPs */
+     int             cache_timeout;	 /**< how long to keep resolutions in the cache */
+     pool            mempool;		 /**< memory pool to use */
+     dns_resend_list svclist;		 /**< list of defined services */
 } *dns_io, _dns_io;
 
+/**
+ * prototype for the resolver function
+ *
+ * @param di pointer to the instance global data
+ */
 typedef int (*RESOLVEFUNC)(dns_io di);
 
-/* ----------------------------------------------------------- */
-/* Struct to store list of dpackets which need to be delivered */
-typedef struct __dns_packet_list
-{
-     dpacket           packet;
-     int               stamp;
-     struct __dns_packet_list* next;
+/**
+ * struct to store list of dpackets which need to be delivered
+ */
+typedef struct __dns_packet_list {
+     dpacket           packet;		/**< the dpacket list item */
+     int               stamp;		/**< timestamp */
+     struct __dns_packet_list* next;	/**< next list entry */
 } *dns_packet_list, _dns_packet_list;
 
 
-/* ------------------------- */
-/* just die after any signal */
+/**
+ * signal handler: just die after any signal
+ *
+ * @param sig the signal number that has been sent
+ */
 void _dnsrv_signal(int sig)
 {
     exit(0);
 }
 
-/* ----------------------- */
-/* Coprocess functionality */
-void dnsrv_child_process_xstream_io(int type, xmlnode x, void* args)
-{
+/**
+ * coprocess functionality
+ */
+void dnsrv_child_process_xstream_io(int type, xmlnode x, void* args) {
      dns_io di = (dns_io)args;
      char *hostname, *ascii_hostname = NULL;
      char *str = NULL;

@@ -880,7 +880,7 @@ void _mio_main(void *arg)
      * mio__data->master__list is NULL */
     while (1)
     {
-        // reset the local errno
+        /* reset the local errno */
         mio__errno = 0;
         rfds = all_rfds;
         wfds = all_wfds;

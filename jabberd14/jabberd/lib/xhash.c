@@ -39,21 +39,30 @@
  * 
  * --------------------------------------------------------------------------*/
 
+/**
+ * @file xhash.c
+ * @brief implements a hash type collection
+ */
+
 #include <jabberdlib.h>
 
 
-/* Generates a hash code for a string.
+/**
+ * Generates a hash code for a string.
+ * 
  * This function uses the ELF hashing algorithm as reprinted in 
  * Andrew Binstock, "Hashing Rehashed," Dr. Dobb's Journal, April 1996.
+ *
+ * @param s the string to hash
+ * @return the hash value
  */
-int _xhasher(const char *s)
-{
+int _xhasher(const char *s) {
     /* ELF hash uses unsigned chars and unsigned arithmetic for portability */
     const unsigned char *name = (const unsigned char *)s;
     unsigned long h = 0, g;
 
-    while (*name)
-    { /* do some fancy bitwanking on the string */
+    while (*name) {
+	/* do some fancy bitwanking on the string */
         h = (h << 4) + (unsigned long)(*name++);
         if ((g = (h & 0xF0000000UL))!=0)
             h ^= (g >> 24);
@@ -64,9 +73,14 @@ int _xhasher(const char *s)
     return (int)h;
 }
 
-
-xhn _xhash_node_new(xht h, int index)
-{
+/**
+ * insert a new 'node' in the xhash
+ *
+ * @param h the xhash where to insert the new node
+ * @param index to which index the node should be inserted
+ * @return the newly created node
+ */
+xhn _xhash_node_new(xht h, int index) {
     xhn n;
     int i = index % h->prime;
 
@@ -82,9 +96,15 @@ xhn _xhash_node_new(xht h, int index)
     return n;
 }
 
-
-xhn _xhash_node_get(xht h, const char *key, int index)
-{
+/**
+ * get the node for a given key out of the xhash
+ *
+ * @param h the xhash to get the node from
+ * @param key which key to get
+ * @param index the index for the key
+ * @return the node for the key, NULL if no such node
+ */
+xhn _xhash_node_get(xht h, const char *key, int index) {
     xhn n;
     int i = index % h->prime;
     for(n = &h->zen[i]; n != NULL; n = n->next)
@@ -94,8 +114,13 @@ xhn _xhash_node_get(xht h, const char *key, int index)
 }
 
 
-xht xhash_new(int prime)
-{
+/**
+ * create a new xhash hash collection
+ *
+ * @param prime size of the hash (use a prime number!)
+ * @return pointer to the new hash
+ */
+xht xhash_new(int prime) {
     xht xnew;
     pool p;
 
@@ -110,8 +135,14 @@ xht xhash_new(int prime)
 }
 
 
-void xhash_put(xht h, const char *key, void *val)
-{
+/**
+ * put an entry in the xhash
+ *
+ * @param h the hash to insert the entry in
+ * @param key with which key the value should be entered
+ * @param val the value, that should be entered
+ */
+void xhash_put(xht h, const char *key, void *val) {
     int index;
     xhn n;
 
@@ -138,9 +169,14 @@ void xhash_put(xht h, const char *key, void *val)
     n->val = val;
 }
 
-
-void *xhash_get(xht h, const char *key)
-{
+/**
+ * retrive a value from a xhash
+ *
+ * @param h the xhash to get the value from
+ * @param key which value to get
+ * @return pointer to the value, NULL if no such key
+ */
+void *xhash_get(xht h, const char *key) {
     xhn n;
 
     if(h == NULL || key == NULL || (n = _xhash_node_get(h, key, _xhasher(key))) == NULL)
@@ -153,9 +189,13 @@ void *xhash_get(xht h, const char *key)
     return n->val;
 }
 
-
-void xhash_zap(xht h, const char *key)
-{
+/**
+ * remove an entry from the xhash
+ *
+ * @param h the xhash where a value should be removed
+ * @param key the key of the value, that should be removed
+ */
+void xhash_zap(xht h, const char *key) {
     xhn n;
 
     if(h == NULL || key == NULL || (n = _xhash_node_get(h, key, _xhasher(key))) == NULL)
@@ -167,17 +207,26 @@ void xhash_zap(xht h, const char *key)
     n->key = NULL;
 }
 
-
-void xhash_free(xht h)
-{
+/**
+ * free a xhash structure
+ *
+ * @param h the xhash to free
+ */
+void xhash_free(xht h) {
 /*    log_debug(ZONE,"hash free %X",h); */
 
     if(h != NULL)
         pool_free(h->p);
 }
 
-void xhash_walk(xht h, xhash_walker w, void *arg)
-{
+/**
+ * iterate over a xhash strucutre
+ *
+ * @param h the xhash to iterave over
+ * @param w which function should be called for each value
+ * @param arg what to pass to the optional argument of the xhash_walker function
+ */
+void xhash_walk(xht h, xhash_walker w, void *arg) {
     int i;
     xhn n;
 
@@ -191,4 +240,3 @@ void xhash_walk(xht h, xhash_walker w, void *arg)
             if(n->key != NULL && n->val != NULL)
                 (*w)(h, n->key, n->val, arg);
 }
-

@@ -115,7 +115,7 @@ void dnsrv_child_process_xstream_io(int type, xmlnode x, void* args)
      dns_resend_list tmplist = NULL;
 
      if (type == XSTREAM_NODE) {
-       // is this an entry in the svclist? or a normal resolve query
+       /* is this an entry in the svclist? or a normal resolve query */
        if (!strcmp(x->name, "resend")) {
          service = xmlnode_get_attrib(x, "service");
          hostname = xmlnode_get_data(x);
@@ -124,7 +124,7 @@ void dnsrv_child_process_xstream_io(int type, xmlnode x, void* args)
                      service ? service : "<None>", 
                      hostname);
 
-           // add it in
+           /* add it in */
            tmplist = pmalloco(di->mempool, sizeof(_dns_resend_list));
            tmplist->service = pstrdup(di->mempool, service);
            tmplist->host = pstrdup(di->mempool, hostname);
@@ -169,7 +169,7 @@ int dnsrv_child_main(dns_io di)
      sigset_t sigs;
 
 
-     // store the pool in di
+     /* store the pool in di */
      di->mempool = p;
 
      sigemptyset(&sigs);
@@ -265,22 +265,22 @@ void debug_log(char *zone, const char *msgfmt, ...) {
 int main(int argc, char* argv[]) {
   _dns_io di;
 
-  // check args
+  /* check args */
   if (argc < 4) {
     fprintf(stderr, "Syntax: jabadns <read handle> <write handle>");
     fprintf(stderr, "<debug flag>\n");
     exit(1);
   }
 
-  // get read & write handles
+  /* get read & write handles */
   di.in = atoi(argv[1]);
   di.out = atoi(argv[2]);
   set_debug_flag(atoi(argv[3]));
 
-  // set this to NULL for the moment
+  /* set this to NULL for the moment */
   di.svclist = NULL;
 
-  // these are not actually used in this process
+  /* these are not actually used in this process */
   di.pid = -1;
   di.packet_table = NULL;
   di.packet_timeout = 0;
@@ -288,7 +288,7 @@ int main(int argc, char* argv[]) {
   di.cache_timeout = 0;
   di.mempool = NULL;
   
-  // call the core function
+  /* call the core function */
   dnsrv_child_main(&di);
 
   return 1;
