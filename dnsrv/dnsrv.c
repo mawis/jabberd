@@ -74,6 +74,7 @@ void dnsrv_child_process_xstream_io(int type, xmlnode x, void* args)
      {
 	  /* Get the hostname out... */
 	  hostname = xmlnode_get_data(x);
+	  log_debug(ZONE, "dnsrv: Recv'd lookup request for %s", hostname);
 	  if (hostname != NULL)
 	  {
 	       /* For each entry in the svclist, try and resolve using
@@ -219,7 +220,6 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg)
 			 xmlnode_put_attrib(head->packet->x, "ip", ipaddr);
 			 /* Fixup the dpacket host ptr */
 			 head->packet->host = resendhost;
-			 log_debug(ZONE, "dnsrv: resolved %s\t%s", resendhost, ipaddr);
 		    }
 		    else
 		    {
@@ -294,6 +294,8 @@ void* dnsrv_process_io(void* threadarg)
 	       /* Get the packet from the write_queue */
 	       wb = (dns_write_buf)pth_msgport_get(di->write_queue);
 
+	       log_debug(ZONE, "dnsrv: Recv'd a lookup request: %s", wb->packet->host);
+
 	       /* Ensure this packet doesn't already have an IP */
 	       if (xmlnode_get_attrib(wb->packet->x, "ip") ||
 		   xmlnode_get_attrib(wb->packet->x, "iperror"))
@@ -311,6 +313,7 @@ void* dnsrv_process_io(void* threadarg)
 		       so stick the packet in the list */
 		    if (lsthead != NULL)
 		    {
+			 log_debug(ZONE, "dnsrv: Adding lookup request for %s to pending queue.", wb->packet->host);
 			 /* Allocate a new list entry */
 			 lst = pmalloco(wb->packet->p, sizeof(_dns_packet_list));
 			 lst->packet   = wb->packet;
@@ -321,6 +324,7 @@ void* dnsrv_process_io(void* threadarg)
 		       as the key and send a request to the coprocess */
 		    else
 		    {
+			 log_debug(ZONE, "dnsrv: Creating lookup request queue for %s", wb->packet->host);
 			 /* Allocate a new list head */
 			 lsthead = pmalloco(wb->packet->p, sizeof(_dns_packet_list));
 			 lsthead->packet = wb->packet;
@@ -329,6 +333,8 @@ void* dnsrv_process_io(void* threadarg)
 			 ghash_put(di->packet_table, lsthead->packet->host, lsthead);
 			 /* Spool up a request */
 			 request = spools(lsthead->packet->p, "<host>", lsthead->packet->host, "</host>", lsthead->packet->p);
+
+			 log_debug(ZONE, "dnsrv: Transmitting lookup request for %s to coprocess", wb->packet-host);
 			 /* Send a request to the coprocess */
 			 pth_write(di->out, request, strlen(request));
 		    }
