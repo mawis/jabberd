@@ -114,6 +114,7 @@ int main(int argc, char **argv)
     char optchar;
     int config_loaded = 0;
     int max_fds;
+    int i;
 
     signal(SIGINT, onSignal);
     signal(SIGPIPE, SIG_IGN);
@@ -180,7 +181,12 @@ int main(int argc, char **argv)
         j_atoi(config_get_one(c2s->config, "io.connection_limits.seconds", 0), 0);
     
     /* XXX Change before release */
-    c2s->local_id = j_strdup(config_get_one(c2s->config, "local.id", 0));
+    c2s->local_id_count = config_count(c2s->config,"local.id");
+    c2s->local_id = (char **)malloc( c2s->local_id_count );
+    for(i = 0 ; i < c2s->local_id_count ; i++)
+    {
+        c2s->local_id[i] = j_strdup(config_get_one(c2s->config, "local.id", i));
+    }
     c2s->local_ip = j_strdup(config_get_one(c2s->config, "local.ip", 0));
     c2s->local_port = j_atoi(config_get_one(c2s->config, "local.port", 0), 5222);
 #ifdef USE_SSL
