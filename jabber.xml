@@ -274,6 +274,7 @@
       <mod_announce>./jsm/jsm.so</mod_announce>
       <mod_agents>./jsm/jsm.so</mod_agents>
       <mod_browse>./jsm/jsm.so</mod_browse>
+      <mod_disco>./jsm/jsm.so</mod_disco>
       <mod_admin>./jsm/jsm.so</mod_admin>
       <mod_filter>./jsm/jsm.so</mod_filter>
       <mod_offline>./jsm/jsm.so</mod_offline>
