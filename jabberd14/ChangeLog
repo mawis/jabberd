@@ -1,3 +1,9 @@
+2005-03-02  Matthias Wimmer  <m@tthias.net>
+
+    * dialback/dialback_in.c: recognize stream errors and log as such
+    * dialback/dialback_out.c: don't request dialback if not needed,
+    	don't send the id attribute on outgoing connections
+
 2005-02-28  Matthias Wimmer  <m@tthias.net>
 
     * pthsock/client.c: support for the register stream feature
