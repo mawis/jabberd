@@ -487,6 +487,7 @@ jid     jid_user(jid a);                       /* returns the same jid but just 
 #define JPACKET__UNAVAILABLE  13
 #define JPACKET__PROBE        14
 #define JPACKET__HEADLINE     15
+#define JPACKET__INVISIBLE    16
 
 typedef struct jpacket_struct
 {
