@@ -59,7 +59,13 @@ mreturn mod_time_reply(mapi m, void *arg)
     xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"display"),tstr,-1);
     tzset();
     tmd = localtime(&t);
+
+#ifdef TMZONE
+    /* some platforms don't have tzname I guess */
     xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"tz"),tmd->tm_zone,-1);
+#else
+    xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"tz"),tzname[0],-1);
+#endif
 
     js_deliver(m->si,m->packet);
 
