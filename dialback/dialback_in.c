@@ -68,8 +68,7 @@ We verify w/ the dialback process, then we'll send back:
 /**
  * incoming dialback streams
  */
-typedef struct dbic_struct
-{
+typedef struct dbic_struct {
     mio m;		/**< the connection of the incoming stream */
     char *id;		/**< random id we assigned to this stream */
     xmlnode results;	/**< db:result elements that we received and
@@ -89,8 +88,7 @@ typedef struct dbic_struct
  *
  * @param arg the connection that should be removed from the hash-table (type is dbic)
  */
-void dialback_in_dbic_cleanup(void *arg)
-{
+void dialback_in_dbic_cleanup(void *arg) {
     dbic c = (dbic)arg;
     if(xhash_get(c->d->in_id,c->id) == c)
         xhash_zap(c->d->in_id,c->id);
@@ -104,8 +102,7 @@ void dialback_in_dbic_cleanup(void *arg)
  * @param we_domain what the other end expects to be our main domain (for STARTTLS)
  * @return the new instance of dbic
  */
-dbic dialback_in_dbic_new(db d, mio m, const char *we_domain)
-{
+dbic dialback_in_dbic_new(db d, mio m, const char *we_domain) {
     dbic c;
 
     c = pmalloco(m->p, sizeof(_dbic));
@@ -144,6 +141,13 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
     if(flags != MIO_XML_NODE) return;
 
     log_debug2(ZONE, LOGT_IO, "dbin read dialback: fd %d packet %s",m->fd, xmlnode2str(x));
+
+    /* incoming stream error? */
+    if (j_strcmp(xmlnode_get_name(x), "stream:error") == 0) {
+	log_warn(c->d->i->id, "received stream error on stream %s: %s", c->id, xmlnode2str(x));
+	mio_close(m);
+	return;
+    }
 
     /* incoming starttls */
     if (j_strcmp(xmlnode_get_name(x), "starttls") == 0 && j_strcmp(xmlnode_get_attrib(x, "xmlns"), NS_XMPP_TLS) == 0) {
