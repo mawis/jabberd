@@ -31,7 +31,8 @@ mreturn mod_archive_redirect(mapi m, void* arg)
     log_debug(ZONE, "redirecting to %s: %s", redirecthost, xmlnode2str(m->packet->x));
 
     xdb_set(m->si->xc, m->user->id->server, jid_new(m->packet->p, redirecthost), "jabber:x:archive", xmlnode_dup(m->packet->x));
-  
+ 
+	log_debug(ZONE, "done");
     return M_PASS;
 }
 
