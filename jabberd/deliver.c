@@ -468,6 +468,19 @@ void deliver(dpacket p, instance i)
     deliver_instance(deliver_intersect(a, b), p);
 }
 
+
+/* util to check and see which instance this hostname is going to get mapped to for normal packets */
+instance deliver_hostcheck(char *host)
+{
+    ilist l;
+
+    if(host == NULL) return NULL;
+    if((l = deliver_hashmatch(deliver__hnorm,host)) == NULL || l->next != NULL) return NULL;
+
+    return l->i;
+}
+
+
 void deliver_init(void)
 {
     deliver__hnorm = ghash_create_pool(jabberd__runtime, 401,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
