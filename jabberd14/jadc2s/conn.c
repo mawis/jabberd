@@ -91,28 +91,59 @@ void conn_free(conn_t c)
     c->fd = -1;
 }
 
+/* write a stream error */
+void conn_error(conn_t c, char *condition, char *err)
+{
+    if(c != NULL || (condition == NULL && err == NULL))
+    {
+	/* do we still have to open the stream? */
+	if (c->root_name == NULL)
+	{
+	    if (c->flash_hack) {
+		_write_actual(c, c->fd, "<flash:stream xmlns:stream='http://etherx.jabber.org/streams' version='1.0'>", 77);
+		c->root_name = "flash:stream";
+	    } else {
+		_write_actual(c, c->fd, "<stream:stream xmlns:stream='http://etherx.jabber.org/streams' version='1.0'>", 77);
+		c->root_name = "stream:stream";
+	    }
+	}
+
+	log_debug(ZONE,"sending stream error: %s %s", condition, err);
+	_write_actual(c, c->fd, "<stream:error>",14);
+
+	/* send the condition (should be present!) */
+	if(condition != NULL)
+	    _write_actual(c, c->fd, condition, strlen(condition));
+
+	if(err != NULL)
+	{
+	    char *description;
+	    description = (char*)malloc(strlen(err)+58);
+	    sprintf(description,"<text xmlns='urn:ietf:params:xml:ns:xmpp-streams'>%s</text>", err);
+	    _write_actual(c, c->fd, description, strlen(description));
+	    free(description);
+	}
+
+	_write_actual(c, c->fd, "</stream:error>",15);
+    }
+}
+
 /* write errors out and close streams */
-void conn_close(conn_t c, char *err)
+void conn_close(conn_t c, char *condition, char *err)
 {
     if(c != NULL)
     {
-        /* only close the stream if they actually opened it */
-        if(c->root_name != NULL)
-        {
-            char* footer;
-            footer = malloc( 3 + strlen(c->root_name) );
-            sprintf(footer,"</%s>",c->root_name);
-    
-            log_debug(ZONE,"closing stream with error: %s",err);
-            _write_actual(c, c->fd, "<stream:error>",14);
-            if(err != NULL)
-                _write_actual(c, c->fd, err, strlen(err));
-            else
-                _write_actual(c, c->fd, "Unknown Error", 13);
-            _write_actual(c, c->fd, "</stream:error>",15);
-            _write_actual(c, c->fd, footer, strlen(footer));
-            free(footer);
-        }
+	char* footer;
+
+	/* send the stream error */
+	conn_error(c, condition, err);
+
+	footer = malloc( 4 + strlen(c->root_name) );
+	sprintf(footer,"</%s>",c->root_name);
+	
+	_write_actual(c, c->fd, footer, strlen(footer));
+	free(footer);
+
         mio_close(c->c2s->mio, c->fd); /* remember, c is gone after this, re-entrant */
     }
 }
@@ -287,7 +318,7 @@ int conn_read(conn_t c, char *buf, int len)
     /* oh darn */
     if((err != NULL) && (c->flash_hack == 0))
     {
-        conn_close(c, err);
+        conn_close(c, STREAM_ERR_INVALID_XML, err);
         return 0;
     }
 
@@ -297,8 +328,8 @@ int conn_read(conn_t c, char *buf, int len)
         size_t footersz;
         char* footer;
         footersz = 3 + strlen(c->root_name);
-        footer = malloc(footersz);
-        snprintf(footer, footersz, "</%s>", c->root_name);
+        footer = malloc(footersz+1);
+        snprintf(footer, footersz+1, "</%s>", c->root_name);
         _write_actual(c, c->fd, footer, footersz);
         free(footer);
         mio_close(c->c2s->mio, c->fd);
