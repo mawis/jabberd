@@ -150,7 +150,7 @@ void base_connect_handle_xstream_event(int type, xmlnode x, void* arg)
 	  /* Only deliver packets after the connection is auth'd */
 	  if (ci->state == conn_AUTHD)
 	  {
-	       deliver(dpacket_new(x), NULL);
+	       deliver(dpacket_new(x), ci->inst);
 	  }
 	  else
 	  {
