@@ -212,7 +212,6 @@ void *pthsock_client_main(void *arg)
 {
     pth_msgport_t wmp = (pth_msgport_t) arg, amp;
     fd_set rfds;
-    struct timeval tv;
     int selc;
     int maxfd = 0;
     reader cur;
@@ -220,19 +219,18 @@ void *pthsock_client_main(void *arg)
     drop d;
     int len, rc;
     reader r;
+    pth_event_t aevt, wevt, ering;
 
     amp =  pth_msgport_find("pthsock_client_amp");
+    aevt = pth_event(PTH_EVENT_MSG,amp);
+    wevt = pth_event(PTH_EVENT_MSG,wmp);
+    ering = pth_event_concat(aevt,wevt,NULL);
 
     FD_ZERO(&rfds);
 
-    tv.tv_sec = 0;
-    tv.tv_usec = 10;
-
     while (1)
     {
-        tv.tv_sec = 1;
-        tv.tv_usec = 0;
-        selc = pth_select(maxfd + 1,&rfds,NULL,NULL,&tv);
+        selc = pth_select_ev(maxfd + 1,&rfds,NULL,NULL,NULL,ering);
 
         if (selc > 0)
         {
@@ -251,6 +249,7 @@ void *pthsock_client_main(void *arg)
                         pthsock_client_close(cur);
                     }
 
+                    log_debug(ZONE,"read %d bytes",len);
                     rc = xstream_eat(cur->xs,buff,len);
                     if (rc > XSTREAM_NODE || cur->state == state_CLOSING)
                     {
@@ -262,8 +261,6 @@ void *pthsock_client_main(void *arg)
                 cur = cur->next;
             }
         }
-        else if (selc < 0)
-            log_debug(ZONE,"select error");
 
         /* handle packets that need to be writen */
         while (1)
@@ -353,8 +350,8 @@ void *pthsock_client_listen(void *arg)
         r->sock = sock;
         r->state = state_UNKNOWN;
         r->mp = pth_msgport_create("pthscok");
-        r->id = pmalloco(p,strlen(host) + 6 * sizeof(char));
-        snprintf(r->id,strlen(host) + 5 * sizeof(char),"%d@%s",sock,host);
+        r->id = pmalloco(p,strlen(host) + 11 * sizeof(char));
+        snprintf(r->id,strlen(host) + 10 * sizeof(char),"%d@%s",sock,host);
 
         log_debug(ZONE,"socket id:%s",r->id);
 
