@@ -59,6 +59,7 @@ conn_t conn_new(c2s_t c2s, int fd)
     c->read_bytes = 0;
     c->sid = NULL;
     c->root_name = NULL;
+    c->local_id = NULL;
     c->state = state_NONE;
     c->type = type_NORMAL;
     c->start = time(NULL);
@@ -81,6 +82,7 @@ void conn_free(conn_t c)
 {
     if (c->sid != NULL) free(c->sid);
     if (c->root_name != NULL) free(c->root_name);
+    if (c->local_id != NULL) free(c->local_id);
     XML_ParserFree(c->expat);
 #ifdef USE_SSL
     SSL_free(c->ssl);
