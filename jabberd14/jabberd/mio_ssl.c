@@ -146,13 +146,15 @@ int _mio_ssl_accept(mio m, struct sockaddr *serv_addr, socklen_t *addrlen)
     SSL *ssl=NULL;
     SSL_CTX *ctx = NULL;
     int fd;
-    int len;
-    struct sockaddr_in cliaddr;
 
-    len = sizeof(cliaddr);
-    fd = accept(m->fd, &cliaddr, &len);
+    if(m->ip == NULL)
+    {
+        log_warn(ZONE, "SSL accept without an IP");
+        return -1;
+    }
+
+    fd = accept(m->fd, serv_addr, addrlen);
     
-    m->ip = pstrdup(m->p, inet_ntoa(cliaddr.sin_addr));
     ctx = ghash_get(ssl__ctxs, m->ip);
     if(ctx == NULL)
     {

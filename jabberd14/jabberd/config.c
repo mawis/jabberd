@@ -115,6 +115,49 @@ void cmdline_replace(xmlnode x)
     }
 }
 
+/* 
+ * <pidfile>/path/to/pid.file</pidfile>
+ *
+ * Ability to store the PID of the process in a file somewhere.
+ *
+ */
+void show_pid(xmlnode x)
+{
+    xmlnode pidfile;
+    char *path;
+    char pidstr[16];
+    int fd;
+    pid_t pid;
+
+    pidfile = xmlnode_get_tag(x, "pidfile");
+    if(pidfile == NULL)
+        return;
+
+    path = xmlnode_get_data(pidfile);
+    if(path == NULL)
+    {
+        return;
+    }
+
+    fd = open(path, O_CREAT | O_EXCL | O_WRONLY, 0600);
+    if(fd < 0)
+    {
+        if(errno == EEXIST)
+        {
+            fprintf(stderr, "A pidfile already exists at the specified location.  Check to ensure another copy of the server is not running, or remove the existing file.\n");
+            exit(1);
+        }
+        close(fd);
+        unlink(path);
+    }
+    pid = getpid();
+    snprintf(pidstr, 16, "%d", pid);
+    write(fd, &pidstr, strlen(pidstr));
+    close(fd);
+
+    return;
+}
+
 int configurate(char *file)
 {
     char def[] = "jabber.xml";
@@ -142,6 +185,8 @@ int configurate(char *file)
     /* check greymatter for additional includes */
     do_include(0,greymatter__);
     cmdline_replace(greymatter__);
+
+    show_pid(greymatter__);
 
     return 0;
 }
@@ -231,14 +276,16 @@ int instance_startup(xmlnode x, int exec)
 
     type = p_NONE;
 
-    if(strcmp(xmlnode_get_name(x), "io") == 0)
+    if(j_strcmp(xmlnode_get_name(x), "pidfile") == 0)
+        return 0;
+    if(j_strcmp(xmlnode_get_name(x), "io") == 0)
         return 0;
 
-    if(strcmp(xmlnode_get_name(x), "log") == 0)
+    if(j_strcmp(xmlnode_get_name(x), "log") == 0)
         type = p_LOG;
-    if(strcmp(xmlnode_get_name(x), "xdb") == 0)
+    if(j_strcmp(xmlnode_get_name(x), "xdb") == 0)
         type = p_XDB;
-    if(strcmp(xmlnode_get_name(x), "service") == 0)
+    if(j_strcmp(xmlnode_get_name(x), "service") == 0)
         type = p_NORM;
 
     if(type == p_NONE || xmlnode_get_attrib(x, "id") == NULL || xmlnode_get_firstchild(x) == NULL)
