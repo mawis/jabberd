@@ -94,12 +94,23 @@ mreturn mod_auth_plain_reg(mapi m, void *arg)
         return M_PASS;
     }
 
-    /* only handle set requests (get requests already have been handled)
-     * and take care, that there is a new password) */
-    if(jpacket_subtype(m->packet) != JPACKET__SET
-	    || (pass = xmlnode_get_tag(m->packet->iq,"password")) == NULL
-	    || xmlnode_get_data(pass) == NULL)
-	return M_PASS;
+    /* only handle set requests (get requests already have been handled) */
+    if(jpacket_subtype(m->packet) != JPACKET__SET) return M_PASS;
+
+    /* take care, that there is a new password) */
+    if((pass = xmlnode_get_tag(m->packet->iq,"password")) == NULL
+	    || xmlnode_get_data(pass) == NULL) {
+	jutil_error_xmpp(m->packet->x, (xterror){400, "New password required", "modify", "bad-request"});
+	return M_HANDLED;
+    }
+
+    /* and take care that the <username/> element contains the right user */
+    id = jid_new(m->packet->p, jid_full(m->user->id));
+    jid_set(id, xmlnode_get_tag_data(m->packet->iq, "username"), JID_USER);
+    if (jid_cmpx(m->user->id, id, JID_USER) != 0) {
+	jutil_error_xmpp(m->packet->x, (xterror){400, "Wrong or missing username", "modify", "bad-request"});
+	return M_HANDLED;
+    }
 
     /* get the jid of the user, depending on how we were called */
     if(m->user == NULL)
