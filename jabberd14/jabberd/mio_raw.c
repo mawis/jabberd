@@ -52,5 +52,14 @@ int _mio_raw_accept(mio m, struct sockaddr* serv_addr, socklen_t* addrlen)
 
 int _mio_raw_connect(mio m, struct sockaddr* serv_addr, socklen_t  addrlen)
 {
-    return MIO_CONNECT_FUNC(m->fd, serv_addr, addrlen);
+    sigset_t set;
+    int sig;
+    pth_event_t wevt;
+
+    sigemptyset(&set);
+    sigaddset(&set, SIGUSR2);
+
+    wevt = pth_event(PTH_EVENT_SIGS, &set, &sig);
+
+    return pth_connect_ev(m->fd, serv_addr, addrlen, wevt);
 }
