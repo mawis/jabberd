@@ -179,16 +179,27 @@ void _connect_process(conn_t c) {
         /* disconnect if they come from a target with matching sender */
         /* simple auth responses that don't have a client connected get dropped */
         attr = nad_find_attr(c->nad, 0, "from", NULL);
-        if(target->fd >= 0 && j_strncmp(jid_full(target->smid), NAD_AVAL(c->nad, attr), NAD_AVAL_L(c->nad, attr)) == 0)
+        if(target->fd >= 0 && attr >= 0 && j_strncmp(jid_full(target->smid), NAD_AVAL(c->nad, attr), NAD_AVAL_L(c->nad, attr)) == 0)
         {
-            attr = nad_find_attr(c->nad, 0, "error", NULL);
-            snprintf(str, 770, "%.*s", NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr));
-            conn_close(target, str);
+            /* not all errors have error attributes */
+            if((attr = nad_find_attr(c->nad, 0, "error", NULL)) >= 0)
+            {
+                snprintf(str, 770, "%.*s", NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr));
+                conn_close(target, str);
+            }else{
+                conn_close(target, "Server Error");
+            }
+
         }
         return;
     }
 
-    attr = nad_find_attr(c->nad, 0, "from", NULL);
+    /* sanity check */
+    if((attr = nad_find_attr(c->nad, 0, "from", NULL)) < 0)
+    {
+        log_debug(ZONE, "missing sender on route?");
+        return;
+    }
     snprintf(str, 770, "%.*s", NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr));
 
     /* look for session creation responses and change client accordingly 
