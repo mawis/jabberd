@@ -156,7 +156,7 @@ void _connect_process(conn_t c) {
     *chr = '\0';
 
     id = atoi(str);
-    if(id >= c->c2s->max_fds || ((target = &c->c2s->conns[id]) && target->fd == -1))
+    if(id >= c->c2s->max_fds || ((target = &c->c2s->conns[id]) && (target->fd == -1 || target == c)))
     {
         log_debug(ZONE, "dropping packet for invalid conn %d", id);
         return;
