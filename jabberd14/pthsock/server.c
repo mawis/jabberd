@@ -138,12 +138,11 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
     case XSTREAM_ERR:
         log_debug(ZONE,"Bad XML: %s",(char*)x);
         io_write_str(c,"<stream:error>You sent malformed XML</stream:error>");
-        x=NULL;
     case XSTREAM_CLOSE:
         /* they closed there connections to us */
         log_debug(ZONE,"closing XML stream to %d",sd->to);
         io_close(c);
-        if(x!=NULL)xmlnode_free(x);
+        xmlnode_free(x);
     }
 }
 
