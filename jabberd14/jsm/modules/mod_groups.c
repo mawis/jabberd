@@ -55,6 +55,8 @@ xmlnode mod_groups_get_info(mod_groups_i mi, pool p, char *host, char *gid)
 
     if (gid == NULL) return NULL;
 
+    log_debug("mod_groups","Getting info %s",gid);
+
     id = jid_new(p,host);
     jid_set(id,gid,JID_RESOURCE);
     xinfo = xdb_get(mi->xc,id,NS_XINFO);
@@ -81,7 +83,7 @@ xmlnode mod_groups_get_users(mod_groups_i mi, pool p, char *host, char *gid)
 
     if (gid == NULL) return NULL;
 
-    log_debug("mod_groups","checking config");
+    log_debug("mod_groups","getting users %s",gid);
 
     /* check config for specfic group before xdb */
     group = (xmlnode) xhash_get(mi->config,gid);
@@ -312,7 +314,7 @@ void mod_groups_update_walk(xht h, const char *key, void *val, void *arg)
 }
 
 /* updates every members roster with the new user */
-void mod_groups_update_rosters(grouptab gt, jid uid, char *gn, int add)
+void mod_groups_update_rosters(grouptab gt, jid uid, char *un, char *gn, int add)
 {
     xmlnode packet, item, q;
 
@@ -323,6 +325,7 @@ void mod_groups_update_rosters(grouptab gt, jid uid, char *gn, int add)
 
     item = xmlnode_insert_tag(q,"item");
     xmlnode_put_attrib(item,"jid",jid_full(uid));
+    xmlnode_put_attrib(item,"name",un);
     xmlnode_put_attrib(item,"subscription",add ? "to" : "remove");
     xmlnode_insert_cdata(xmlnode_insert_tag(item,"group"),gn,-1);
 
@@ -337,8 +340,9 @@ int mod_groups_xdb_add(mod_groups_i mi, pool p, jid uid, char *un, char *gid, ch
     xmlnode groups, user, group;
     jid xid;
 
-    xid = jid_new(p,"localhost"); /* XXX */
+    xid = jid_new(p,uid->server);
     jid_set(xid,gid,JID_RESOURCE);
+
     user = xmlnode_new_tag("user");
     xmlnode_put_attrib(user,"jid",jid_full(uid));
     xmlnode_put_attrib(user,"name",un);
@@ -410,18 +414,26 @@ void mod_groups_register_set(mod_groups_i mi, mapi m)
 
     host = jp->from->server;
     info = mod_groups_get_info(mi,p,host,gid);
+    if (info == NULL)
+    {
+        js_bounce(m->si,jp->x,TERROR_NOTFOUND);
+        return;
+    }
+
     uid = jid_user(jp->from);
     un = xmlnode_get_tag_data(jp->iq,"name");
     gn = xmlnode_get_tag_data(info,"name");
 
     log_debug("mod_groups","register GID %s",gid);
 
-    mod_groups_xdb_add(mi,p,uid,un ? un : jid_full(uid),gid,gn,(xmlnode_get_tag(info,"static") == NULL));
+    if (mod_groups_xdb_add(mi,p,uid,un ? un : jid_full(uid),gid,gn,(xmlnode_get_tag(info,"static") == NULL)))
+    {
+        js_bounce(m->si,jp->x,TERROR_UNAVAIL);
+        xmlnode_free(info);
+        return;
+    }
 
     gt = GROUP_GET(mi,gid);
-
-    /* push the new user to the other members */
-    mod_groups_update_rosters(gt,uid,gn,1);
 
     /* push the group to the user */
     users = mod_groups_get_users(mi,p,host,gid);
@@ -431,6 +443,9 @@ void mod_groups_register_set(mod_groups_i mi, mapi m)
         mod_groups_roster_insert(m->user,roster,users,gn,1);
         mod_groups_roster_push(m->s,roster,1);
     }
+
+    /* push the new user to the other members */
+    mod_groups_update_rosters(gt,uid,un,gn,1);
 
     /* send presnce to everyone */
     mod_groups_presence_from(m->s,gt,m->s->presence);
@@ -477,16 +492,17 @@ void mod_groups_browse_set(mod_groups_i mi, mapi m)
     log_debug(ZONE,"Setting");
 
     gid = strchr(jp->to->resource,'/') + 1;
-    info = xhash_get(mi->config,gid);
+    info = mod_groups_get_info(mi,p,jp->to->server,gid);
     if (info == NULL ||  xmlnode_get_tag(info,spools(p,"edit/user=",jp->from->user,p)) == NULL)
     {
         js_bounce(m->si,jp->x,TERROR_NOTALLOWED);
         return;
     }
 
-    user = xmlnode_get_firstchild(jp->iq);
+    user = xmlnode_get_tag(jp->iq,"user");
     uid = jid_new(p,xmlnode_get_attrib(user,"jid"));
     un = xmlnode_get_attrib(user,"name");
+
     gn = xmlnode_get_tag_data(info,"name");
 
     if (uid == NULL || un == NULL)
@@ -496,12 +512,17 @@ void mod_groups_browse_set(mod_groups_i mi, mapi m)
         return;
     }
 
-    mod_groups_xdb_add(mi,p,uid,un,gid,gn,1);
+    if (mod_groups_xdb_add(mi,p,uid,un,gid,gn,1))
+    {
+        js_bounce(m->si,jp->x,TERROR_UNAVAIL);
+        xmlnode_free(info);
+        return;
+    }
 
     gt = GROUP_GET(mi,gid);
 
     /* push the new user to the other members */
-    mod_groups_update_rosters(gt,uid,gn,1);
+    mod_groups_update_rosters(gt,uid,un,gn,1);
 
     /* XXX how can we push the roster to the new user and send their presence?  lookup their session? */
 
@@ -602,7 +623,7 @@ void mod_groups_roster(mod_groups_i mi, mapi m)
     xmlnode groups, users, cur, roster;
     pool p;
     udata u = m->user;
-    char *gid, *host = m->packet->to->server;
+    char *gid, *host = m->user->id->server;
 
     /* get group the user is a member of */
     if ((groups = mod_groups_get_current(mi,u->id)) == NULL)
@@ -639,15 +660,13 @@ void mod_groups_roster(mod_groups_i mi, mapi m)
 
 mreturn mod_groups_iq(mod_groups_i mi, mapi m)
 {
-    jid to = m->packet->to;
-    char *ns, *res = to->resource;
+    char *ns, *res;
     int type;
 
     ns = xmlnode_get_attrib(m->packet->iq,"xmlns");
-    if (ns == NULL || to->user != NULL) return M_PASS;
 
+    /* handle roster gets */
     type = jpacket_subtype(m->packet);
-
     if (j_strcmp(ns,NS_ROSTER) == 0)
     {
         if (jpacket_subtype(m->packet) == JPACKET__GET)
@@ -655,11 +674,17 @@ mreturn mod_groups_iq(mod_groups_i mi, mapi m)
             log_debug("mod_groups","Roster request");
             mod_groups_roster(mi,m);
         }
+        return M_PASS;
     }
-    else if (j_strncmp(res,"groups",6) == 0 && (strlen(res) == 6 || res[6] == '/'))
+
+    /* handle iq's to groups */
+    res = m->packet->to ? m->packet->to->resource : NULL;
+    if (res && strncmp(res,"groups",6) == 0 && (strlen(res) == 6 || res[6] == '/'))
     {
         if (j_strcmp(ns,NS_BROWSE) == 0)
         {
+            log_debug("mod_groups","Browse request");
+
             if (type == JPACKET__GET)
                 mod_groups_browse_get(mi,m);
             else if (type == JPACKET__SET)
@@ -712,7 +737,7 @@ void mod_groups_presence(mod_groups_i mi, mapi m)
             mod_groups_presence_from(s,gt,m->packet->x);
 
         /* if we are new or our old priority was less then zero then "probe" the group members */
-        if (js_session_primary(m->user) == NULL || m->s->priority < 0)
+        if (js_session_primary(m->user) || m->s->priority < 0)
             mod_groups_presence_to(s,gt);
     }
 
@@ -800,11 +825,10 @@ mreturn mod_groups_message(mapi m, void *arg)
     mod_groups_i mi = (mod_groups_i) arg;
     xmlnode info;
     jpacket jp = m->packet;
-    jid id = jp->to;
     char *gid;
 
     if(jp->type != JPACKET_MESSAGE) return M_IGNORE;
-    if(j_strncmp(id->resource,"groups/",7) != 0) return M_PASS;
+    if(jp->to == NULL || j_strncmp(jp->to->resource,"groups/",7) != 0) return M_PASS;
 
     /* circular safety */
     if(xmlnode_get_tag(jp->x,"x?xmlns=" NS_DELAY) != NULL)
@@ -813,8 +837,8 @@ mreturn mod_groups_message(mapi m, void *arg)
         return M_HANDLED;
     }
 
-    gid = strchr(id->resource,'/') + 1;
-    if (gid == NULL)
+    gid = strchr(jp->to->resource,'/');
+    if (gid == NULL || ++gid == NULL)
     {
         js_bounce(m->si,jp->x,TERROR_NOTACCEPTABLE);
         return M_HANDLED;
