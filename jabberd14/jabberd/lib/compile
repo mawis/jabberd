@@ -1,0 +1,1 @@
+gcc -o test test.c xstream.c xmlparse.c xmltok.c hashtable.c xmlnode.c pool.c str.c jutil.c expat.c sha.c snprintf.c xmlrole.c
