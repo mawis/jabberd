@@ -34,7 +34,6 @@ ios io__data=NULL;
 sock io_select_get_list(void)
 {
     if(io__data==NULL) return NULL;
-    log_debug(ZONE,"returning master__list %X",io__data->master__list);
     return io__data->master__list;
 }
 
@@ -74,7 +73,6 @@ int _io_write_dump(sock c)
         { 
             if(errno!=EWOULDBLOCK&&errno!=EINTR&&errno!=EAGAIN)
             { /* if we have an error, that isn't a blocking issue */ 
-                log_debug(ZONE,"Error while writing %X",c->xbuffer);
                 (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg); /* bounce the queue */
             }
             return -1;
