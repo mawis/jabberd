@@ -40,8 +40,22 @@
  * --------------------------------------------------------------------------*/
 #include <jsm.h>
 
-mreturn mod_auth_digest_yum(mapi m, void *arg)
-{
+/**
+ * @file mod_auth_digest.c
+ * @brief Handle authentication using hashed passwords on the wire (requires plain passwords in storage) and registration. See JEP-0077 and JEP-0078 for the protocol.
+ */
+
+/**
+ * handle authentication requests
+ *
+ * For get request we just flag support for digest authentication.
+ * For set requests we handle it if it is a digest auth request.
+ *
+ * @param m the mapi_struct containing the authentication request
+ * @param arg unused/ignored
+ * @return M_HANDLED if the request was handled using digest authentication, M_PASS else
+ */
+mreturn mod_auth_digest_yum(mapi m, void *arg) {
     spool s;
     char *sid;
     char *digest;
@@ -49,8 +63,8 @@ mreturn mod_auth_digest_yum(mapi m, void *arg)
 
     log_debug2(ZONE, LOGT_AUTH, "checking");
 
-    if(jpacket_subtype(m->packet) == JPACKET__GET)
-    { /* type=get means we flag that the server can do digest auth */
+    if(jpacket_subtype(m->packet) == JPACKET__GET) {
+	/* type=get means we flag that the server can do digest auth */
         if(m->user->pass != NULL)
             xmlnode_insert_tag(m->packet->iq,"digest");
         return M_PASS;
@@ -81,6 +95,14 @@ mreturn mod_auth_digest_yum(mapi m, void *arg)
     return M_HANDLED;
 }
 
+/**
+ * store a new password in xdb
+ *
+ * @param m the mapi_struct containing the request used to update the password
+ * @param id which user's password should be updated
+ * @param pass the new password
+ * @return 0 on success, other value indicates failure
+ */
 int mod_auth_digest_reset(mapi m, jid id, xmlnode pass)
 {
     log_debug2(ZONE, LOGT_AUTH, "resetting password");
@@ -89,7 +111,15 @@ int mod_auth_digest_reset(mapi m, jid id, xmlnode pass)
     return xdb_set(m->si->xc, id, NS_AUTH, pass);
 }
 
-/* handle saving the password for registration */
+/**
+ * handle saving the password for registration
+ *
+ * used as callback function as well as from inside mod_auth_digest_server()
+ *
+ * @param m the mapi_struct containing the request
+ * @param arg ununsed/ignored
+ * @return M_HANDLED if password storrage failed, M_PASS in all other cases (other modules might want to update their password as well)
+ */
 mreturn mod_auth_digest_reg(mapi m, void *arg)
 {
     jid id;
@@ -124,9 +154,14 @@ mreturn mod_auth_digest_reg(mapi m, void *arg)
     return M_PASS;
 }
 
-/* handle password change requests from a session */
-mreturn mod_auth_digest_server(mapi m, void *arg)
-{
+/**
+ * handle password change requests from a user, that is online
+ *
+ * @param m the mapi_struct containing the request
+ * @param arg unused/ignored
+ * @return M_IGNORE if not an iq stanza, M_HANDLED if password storage failed, M_PASS else (other modules might want to update their passwords as well)
+ */
+mreturn mod_auth_digest_server(mapi m, void *arg) {
     mreturn ret;
 
     /* pre-requisites */
@@ -142,8 +177,16 @@ mreturn mod_auth_digest_server(mapi m, void *arg)
     return ret;
 }
 
-void mod_auth_digest(jsmi si)
-{
+/**
+ * init the module, register callbacks
+ *
+ * registers the mod_auth_digest_yum callback to handle authentication,
+ * registers the mod_auth_digest_server callback to handle password changes,
+ * if we should support inband registration, we also register mod_auth_digest_reg.
+ *
+ * @param si the jsmi_struct containing instance internal data for the Jabber session manager
+ */
+void mod_auth_digest(jsmi si) {
     log_debug2(ZONE, LOGT_INIT, "init");
     js_mapi_register(si,e_AUTH, mod_auth_digest_yum, NULL);
     js_mapi_register(si,e_SERVER, mod_auth_digest_server, NULL);

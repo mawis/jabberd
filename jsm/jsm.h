@@ -88,39 +88,43 @@ typedef enum {
     M_HANDLED /**< stop mapi processing on this packet */
 } mreturn;
 
-typedef struct udata_struct *udata, _udata;
-typedef struct session_struct *session, _session;
-typedef struct jsmi_struct *jsmi, _jsmi;
+typedef struct udata_struct *udata,	/**< pointer to a udata_struct */
+	_udata;				/**< a udata_struct */
+typedef struct session_struct *session,	/**< pointer to a session_struct */
+	_session;			/**< a session_struct */
+typedef struct jsmi_struct *jsmi,	/**< pointer to a jsmi_struct */
+	_jsmi;				/**< a jsmi_struct */
 
-typedef struct mapi_struct
-{
-    jsmi si;
-    jpacket packet;
-    event e;
-    udata user;
-    session s;
+/** structure that hold information passed to module calls */
+typedef struct mapi_struct {
+    jsmi si;		/**< instance internal data of the session manager calling the module */
+    jpacket packet;	/**< the packet that should be processed by the module */
+    event e;		/**< the event that is processed */
+    udata user;		/**< the user this event is related to (if any) */
+    session s;		/**< the session this event is realted to (if any) */
 } *mapi, _mapi;
 
+/** prototype of a callback function to register with the MAPI */
 typedef mreturn (*mcall)(mapi m, void *arg);
 
+/** structure to build the list of registered callback functions */
 typedef struct mlist_struct
 {
-    mcall c;
-    void *arg;
-    unsigned char mask;
-    struct mlist_struct *next;
+    mcall c;			/**< function to call */
+    void *arg;			/**< argument to pass to the function */
+    unsigned char mask;		/**< bitmask with packet-types the function requested to ignore (JPACKET_* constants) */
+    struct mlist_struct *next;	/**< pointer to the next entry, NULL for last entry */
 } *mlist, _mlist;
 
 /** Globals for this instance of jsm (Jabber Session Manager) */
-struct jsmi_struct
-{
-    instance i;
-    xmlnode config;
-    xht hosts;
-    xdbcache xc;
-    mlist events[e_LAST];
-    pool p;
-    jid gtrust;
+struct jsmi_struct {
+    instance i;			/**< jabberd's instance data for the jsm component */
+    xmlnode config;		/**< jsm configuration */
+    xht hosts;			/**< hash with hosts as keys and hashtables (key: user, value: udata_struct) as values */
+    xdbcache xc;		/**< xdbcache used to query xdb */
+    mlist events[e_LAST];	/**< list of registered modules for the existing event types */
+    pool p;			/**< memory pool for the instance */
+    jid gtrust;			/**< "global trusted jids": jids allowed to see all presences */
 };
 
 /** User data structure/list. See js_user(). */
@@ -145,29 +149,31 @@ udata js_user(jsmi si, jid id, xht ht);
 void js_deliver(jsmi si, jpacket p);
 
 
-struct session_struct
-{
+/** structure that holds the data for a single session of a user */
+struct session_struct {
     /* general session data */
-    jsmi si;
-    char *res;
-    jid id;
-    udata u;
-    xmlnode presence;
-    int priority, roster;
-    int c_in, c_out;
-    time_t started;
+    jsmi si;			/**< pointer to instance internal data of the session manager */
+    char *res;			/**< the resource of this session */
+    jid id;			/**< JabberID of the user who owns this session */
+    udata u;			/**< user data structure of the user */
+    xmlnode presence;		/**< the current global presence of this session */
+    int priority;		/**< the current priority of this session */
+    int roster;
+    int c_in;			/**< counter for packets received for a client */
+    int c_out;			/**< counter for packets received from a client */
+    time_t started;		/**< when the session has been started */
 
     /* mechanics */
-    pool p;
-    int exit_flag;
-    mlist events[es_LAST];
-    mtq q; /* thread queue */
+    pool p;			/**< memory pool for this session */
+    int exit_flag;		/**< flag that a session has ended and should not be used anymore */
+    mlist events[es_LAST];	/**< lists for the callbacks that have registered for the events of this session */
+    mtq q;			/**< thread queue */
 
     /* our routed id, and remote session id */
     jid route;		/**< our id to send packets to c2s for this session */
     jid sid;		/**< the id of the c2s 'user' that handles this session */
 
-    struct session_struct *next;
+    struct session_struct *next; /**< pointer to the next list element of sessions, NULL for the last entry */
 };
 
 session js_session_new(jsmi si, dpacket p);
@@ -181,10 +187,10 @@ void js_server_main(void *arg);
 void js_offline_main(void *arg);
 result js_users_gc(void *arg);
 
-typedef struct jpq_struct
-{
-    jsmi si;
-    jpacket p;
+/** structure used to pass a session manager instance and a packet using only one pointer */
+typedef struct jpq_struct {
+    jsmi si;		/**< pointer to the session manager instance internal data */
+    jpacket p;		/**< the packet */
 } _jpq, *jpq;
 
 void js_psend(jsmi si, jpacket p, mtq_callback f); /* sends p to a function */

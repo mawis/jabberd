@@ -40,16 +40,30 @@
  * --------------------------------------------------------------------------*/
 #include "jsm.h"
 
-mreturn mod_vcard_jud(mapi m)
-{
+/**
+ * @file mod_vcard.c
+ * @brief Implement handling of namespace 'vcard-temp' (JEP-0054)
+ *
+ * This module allows publishing of vcard data, replies queries for the vcard data
+ * of a user, responds to queries for the server vcard, and my forward published
+ * vcards to a configured Jabber users directory.
+ */
+
+/**
+ * publish vcard data to a Jabber users directory: handle the result to a get
+ * request we sent to the users directory to get a key.
+ *
+ * @param m the mapi_struct containing the result
+ * @return always M_HANDLED
+ */
+mreturn mod_vcard_jud(mapi m) {
     xmlnode vcard, reg, regq;
     char *key;
 
     vcard = xdb_get(m->si->xc, m->user->id, NS_VCARD);
     key = xmlnode_get_tag_data(m->packet->iq,"key");
 
-    if(vcard != NULL)
-    {
+    if(vcard != NULL) {
         log_debug2(ZONE, LOGT_DELIVER, "sending registration for %s",jid_full(m->packet->to));
         reg = jutil_iqnew(JPACKET__SET,NS_REGISTER);
         xmlnode_put_attrib(reg,"to",jid_full(m->packet->from));
@@ -70,88 +84,109 @@ mreturn mod_vcard_jud(mapi m)
     return M_HANDLED;
 }
 
-mreturn mod_vcard_set(mapi m, void *arg)
-{
-    xmlnode vcard, cur, judreg;
+/**
+ * handle requests by the user to update his vcard
+ *
+ * @param m the mapi_struct containing the request
+ * @param arg unused/ignored
+ * @return M_IGNORE if not an iq stanza, M_HANDLED if the packet has been handled, M_PASS else
+ */
+mreturn mod_vcard_set(mapi m, void *arg) {
+    xmlnode vcard = NULL;
+    xmlnode cur, judreg;
 
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
     if(m->packet->to != NULL || !NSCHECK(m->packet->iq,NS_VCARD)) return M_PASS;
 
-    vcard = xdb_get(m->si->xc, m->user->id, NS_VCARD);
+    switch(jpacket_subtype(m->packet)) {
+	case JPACKET__GET:
+	    log_debug2(ZONE, LOGT_DELIVER, "handling get request");
 
-    switch(jpacket_subtype(m->packet))
-    {
-    case JPACKET__GET:
-        log_debug2(ZONE, LOGT_DELIVER, "handling get request");
-        xmlnode_put_attrib(m->packet->x,"type","result");
+	    /* request the vcard from storage */
+	    vcard = xdb_get(m->si->xc, m->user->id, NS_VCARD);
+	   
+	    /* generate result */
+	    xmlnode_put_attrib(m->packet->x,"type","result");
 
-        /* insert the vcard into the result */
-        xmlnode_insert_node(m->packet->iq, xmlnode_get_firstchild(vcard));
-        jpacket_reset(m->packet);
+	    /* insert the vcard into the result */
+	    xmlnode_insert_node(m->packet->iq, xmlnode_get_firstchild(vcard));
+	    jpacket_reset(m->packet);
 
-        /* send to the user */
-        js_session_to(m->s,m->packet);
+	    /* send to the user */
+	    js_session_to(m->s,m->packet);
 
-        break;
-    case JPACKET__SET:
-        log_debug2(ZONE, LOGT_DELIVER, "handling set request %s",xmlnode2str(m->packet->iq));
+	    /* free the vcard again */
+	    xmlnode_free(vcard);
 
-        /* save and send response to the user */
-        if(xdb_set(m->si->xc, m->user->id, NS_VCARD, m->packet->iq))
-        {
-            /* failed */
-            jutil_error_xmpp(m->packet->x,XTERROR_UNAVAIL);
-        }else{
-            jutil_iqresult(m->packet->x);
-        }
+	    break;
+	case JPACKET__SET:
+	    log_debug2(ZONE, LOGT_DELIVER, "handling set request %s",xmlnode2str(m->packet->iq));
 
-        /* don't need to send the whole thing back */
-        xmlnode_hide(xmlnode_get_tag(m->packet->x,"vcard"));
-        jpacket_reset(m->packet);
-        js_session_to(m->s,m->packet);
+	    /* save and send response to the user */
+	    if(xdb_set(m->si->xc, m->user->id, NS_VCARD, m->packet->iq)) {
+		/* failed */
+		jutil_error_xmpp(m->packet->x,XTERROR_UNAVAIL);
+	    } else {
+		jutil_iqresult(m->packet->x);
+	    }
 
-        if(js_config(m->si,"vcard2jud") == NULL)
-            break;
+	    /* don't need to send the whole thing back */
+	    xmlnode_hide(xmlnode_get_tag(m->packet->x,"vcard"));
+	    jpacket_reset(m->packet);
+	    js_session_to(m->s,m->packet);
 
-        /* send a get request to the jud services */
-        for(cur = xmlnode_get_firstchild(js_config(m->si,"browse")); cur != NULL; cur = xmlnode_get_nextsibling(cur))
-        {
-            if(j_strcmp(xmlnode_get_attrib(cur,"type"),"jud") != 0) continue;
+	    if(js_config(m->si,"vcard2jud") == NULL)
+		break;
 
-            judreg = jutil_iqnew(JPACKET__GET,NS_REGISTER);
-            xmlnode_put_attrib(judreg,"to",xmlnode_get_attrib(cur,"jid"));
-            xmlnode_put_attrib(judreg,"id","mod_vcard_jud");
-            js_session_from(m->s,jpacket_new(judreg));
+	    /* handle putting the vcard to the configured jud: send a get request to the jud services */
+	    for(cur = xmlnode_get_firstchild(js_config(m->si,"browse")); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
+		if(j_strcmp(xmlnode_get_attrib(cur,"type"),"jud") != 0) continue;
 
-            /* added this in so it only does the first one */
-            break;
-        }
-        break;
-    default:
-        xmlnode_free(m->packet->x);
-        break;
+		judreg = jutil_iqnew(JPACKET__GET,NS_REGISTER);
+		xmlnode_put_attrib(judreg,"to",xmlnode_get_attrib(cur,"jid"));
+		xmlnode_put_attrib(judreg,"id","mod_vcard_jud");
+		js_session_from(m->s,jpacket_new(judreg));
+
+		/* added this in so it only does the first one */
+		break;
+	    }
+	    break;
+	default:
+	    xmlnode_free(m->packet->x);
+	    break;
     }
-    xmlnode_free(vcard);
     return M_HANDLED;
 }
 
-mreturn mod_vcard_reply(mapi m, void *arg)
-{
+/**
+ * handle packets sent to an offline user
+ *
+ * Check if the packet is a query for the user's vcard, if yes reply to it.
+ *
+ * @param m the mapi_struct containing the query packet
+ * @param arg unused/ignored
+ * @return M_IGNORE if not an iq stanza, M_HANDLED if the packet is handled, M_PASS else
+ */
+mreturn mod_vcard_reply(mapi m, void *arg) {
     xmlnode vcard;
 
+    /* we only handle iq stanzas */
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
+
+    /* XXX: this seems to be hacky: we send M_HANDLED for everything with an ID of mod_vcard_jud! */
     if(j_strcmp(xmlnode_get_attrib(m->packet->x,"id"),"mod_vcard_jud") == 0) return mod_vcard_jud(m);
+
+    /* we only care about iq stanzas in the vcard-temp namespace */
     if(!NSCHECK(m->packet->iq,NS_VCARD)) return M_PASS;
 
     /* first, is this a valid request? */
-    switch(jpacket_subtype(m->packet))
-    {
-    case JPACKET__RESULT:
-    case JPACKET__ERROR:
-        return M_PASS;
-    case JPACKET__SET:
-        js_bounce_xmpp(m->si,m->packet->x,XTERROR_NOTALLOWED);
-        return M_HANDLED;
+    switch(jpacket_subtype(m->packet)) {
+	case JPACKET__RESULT:
+	case JPACKET__ERROR:
+	    return M_PASS;
+	case JPACKET__SET:
+	    js_bounce_xmpp(m->si,m->packet->x,XTERROR_NOTALLOWED);
+	    return M_HANDLED;
     }
 
     log_debug2(ZONE, LOGT_DELIVER, "handling query for user %s",m->user->user);
@@ -159,6 +194,7 @@ mreturn mod_vcard_reply(mapi m, void *arg)
     /* get this guys vcard info */
     vcard = xdb_get(m->si->xc, m->user->id, NS_VCARD);
 
+    /* send back */
     jutil_iqresult(m->packet->x);
     jpacket_reset(m->packet);
     xmlnode_insert_tag_node(m->packet->x,vcard);
@@ -168,15 +204,33 @@ mreturn mod_vcard_reply(mapi m, void *arg)
     return M_HANDLED;
 }
 
-mreturn mod_vcard_session(mapi m, void *arg)
-{
+/**
+ * Register callbacks for a session, called at session establishment
+ *
+ * Register the mod_vcard_set callback for packets the client sents,
+ * register the mod_vcard_reply callback for packets the client receives.
+ *
+ * @param m the mapi_struct containing the pointer to the new session
+ * @param arg unused/ignored
+ * @return always M_PASS
+ */
+mreturn mod_vcard_session(mapi m, void *arg) {
     js_mapi_session(es_OUT,m->s,mod_vcard_set,NULL);
     js_mapi_session(es_IN,m->s,mod_vcard_reply,NULL);
     return M_PASS;
 }
 
-mreturn mod_vcard_server(mapi m, void *arg)
-{   
+/**
+ * handle packets addressed to the server
+ *
+ * Reply IQ get packets in the vcard-temp namespace addressed to the server
+ * by sending the servers vCard back to the sender.
+ *
+ * @param m the mapi_struct containing the packet
+ * @param arg unused/ignored
+ * @return M_IGNORE if not a iq stanza, M_HANDLED if the packet has been handled, M_PASS else
+ */
+mreturn mod_vcard_server(mapi m, void *arg) {   
     xmlnode vcard, query;
 
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
@@ -198,11 +252,17 @@ mreturn mod_vcard_server(mapi m, void *arg)
     return M_HANDLED;
 }
 
-void mod_vcard(jsmi si)
-{
+/**
+ * Init the module, register callbacks in the session manager
+ *
+ * Register mod_vcard_session to be called for new established sessions,
+ * register mod_vcard_session to be called for stanzas while user is offline,
+ * register mod_vcard_server to be called for packets sent to the server address.
+ *
+ * @param si the session manager instance internal data
+ */
+void mod_vcard(jsmi si) {
     js_mapi_register(si,e_SESSION,mod_vcard_session,NULL);
     js_mapi_register(si,e_OFFLINE,mod_vcard_reply,NULL);
     js_mapi_register(si,e_SERVER,mod_vcard_server,NULL);
 }
-
-

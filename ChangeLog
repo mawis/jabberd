@@ -1,3 +1,12 @@
+2005-02-27  Matthias Wimmer  <m@tthias.net>
+
+    * configure.in: Check for existence of crypt.h header file
+    * jsm/modules/mod_groups.c: bugfix for checking the existence of a gid
+    * jsm/modules/mod_auth_crypt.c: include crypt.h if existant, renamed
+	function _get_salt() to mod_auth_crypt_get_salt()
+    * jsm/modules/mod_filter.c: removed unused element m from action_struct
+    * jsm/jsm.c: bugfix for init of the list of "global trusted" jids
+
 2005-02-25 Maqi <maqi@jabberstudio.org>
 
     * removed mod_auth_0k module
