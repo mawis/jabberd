@@ -82,7 +82,6 @@ void conn_free(conn_t c)
 {
     if (c->sid != NULL) free(c->sid);
     if (c->root_name != NULL) free(c->root_name);
-    if (c->local_id != NULL) free(c->local_id);
     XML_ParserFree(c->expat);
 #ifdef USE_SSL
     SSL_free(c->ssl);

@@ -150,8 +150,7 @@ struct c2s_st
     mio_t mio;
 
     /* setup */
-    char **local_id;
-    int local_id_count;
+    config_elem_t local_id;
     char *local_ip;
     int local_port;
 #ifdef USE_SSL

@@ -89,7 +89,7 @@ int config_load(config_t c, char *file)
     nad_cache_t cache = nad_cache_new();
     FILE *f;
     XML_Parser p;
-    int done, len, end, i, j;
+    int done, len, end, i, j, attr;
     char buf[1024], *next;
     struct nad_elem_st **path;
     config_elem_t elem;
@@ -200,6 +200,36 @@ int config_load(config_t c, char *file)
         else
             elem->values[elem->nvalues] = "1";
 
+        /* make room for the attribute lists */
+        elem->attrs = realloc((void *) elem->attrs, sizeof(char **) * (elem->nvalues + 1));
+        elem->attrs[elem->nvalues] = NULL;
+        
+        /* count the attributes */
+        for(attr = bd.nad->elems[i].attr, j = 0; attr >= 0; attr = bd.nad->attrs[attr].next, j++);
+
+        /* if we have some */
+        if(j > 0)
+        {
+            /* make space */
+            elem->attrs[elem->nvalues] = pmalloc(xhash_pool(c), sizeof(char *) * (j * 2 + 2));
+
+            /* copy them in */
+            j = 0;
+            attr = bd.nad->elems[i].attr;
+            while(attr >= 0)
+            {
+                elem->attrs[elem->nvalues][j] = pstrdupx(xhash_pool(c), NAD_ANAME(bd.nad, attr), NAD_ANAME_L(bd.nad, attr));
+                elem->attrs[elem->nvalues][j + 1] = pstrdupx(xhash_pool(c), NAD_AVAL(bd.nad, attr), NAD_AVAL_L(bd.nad, attr));
+
+                j += 2;
+                attr = bd.nad->attrs[attr].next;
+            }
+
+            /* do this and we can use j_attr */
+            elem->attrs[elem->nvalues][j] = NULL;
+            elem->attrs[elem->nvalues][j + 1] = NULL;
+        }
+        
         elem->nvalues++;
     }
 
@@ -242,10 +272,25 @@ int config_count(config_t c, char *key)
     return elem->nvalues;
 }
 
+/* get an attr for this value */
+char *config_get_attr(config_t c, char *key, int num, char *attr)
+{
+    config_elem_t elem = xhash_get(c, key);
+    
+    if(elem->attrs == NULL)
+        return NULL;
+
+    return j_attr((const char **) elem->attrs, attr);
+}
+
+
 /* cleanup helper */
 static void _config_reaper(xht h, const char *key, void *val, void *arg)
 {
-    free(((config_elem_t) val)->values);
+    config_elem_t elem = (config_elem_t) val;
+
+    free(elem->values);
+    free(elem->attrs);
 }
 
 /* cleanup */
