@@ -822,18 +822,7 @@ void mod_filter(jsmi si)
 
     mod_filter__default = xmlnode_new_tag("query");
     xmlnode_put_attrib(mod_filter__default, "xmlns", NS_FILTER);
-
-    if(rule == NULL)
-    {
-        rule = xmlnode_insert_tag(mod_filter__default, "rule");
-        xmlnode_put_attrib(rule, "name", "default rule");
-        xmlnode_insert_tag(rule, "unavailable");
-        xmlnode_insert_tag(rule, "offline");
-    }
-    else
-    {
-        xmlnode_insert_node(mod_filter__default, xmlnode_get_firstchild(rule));
-    }
+    xmlnode_insert_node(mod_filter__default, xmlnode_get_firstchild(rule));
 
     log_notice("mod_filter", "mod_filter startup up... default server rule: %s", xmlnode2str(mod_filter__default));
 }
