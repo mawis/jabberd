@@ -300,6 +300,7 @@ typedef struct xmlnode_t
      char*               full; /* hehe.. char* full .. "careful" */
      int                 data_sz;
      int                 complete; /* NOTE: if complete != 1, then this must be parsed one more level before accessing anything */
+     int                 dirty;
      pool               p;
      struct xmlnode_t*  parent;
      struct xmlnode_t*  firstchild; 

@@ -602,6 +602,7 @@ void xmlnode_put_attrib(xmlnode owner, const char* name, const char* value)
 
     if(owner == NULL || name == NULL || value == NULL) return;
     
+    owner->dirty = 1; /* special "dirty" flag */
     /* If there are no existing attributs, allocate a new one to start
     the list */
     if (owner->firstattrib == NULL)
@@ -862,6 +863,9 @@ void xmlnode_hide_attrib(xmlnode parent, const char *name)
  */
 char *xmlnode2str(xmlnode node)
 {
+    if(!node->dirty)
+        return node->full;
+
      return spool_print(_xmlnode2spool(node));
 }
 
