@@ -13,7 +13,6 @@
         <file>mod_admin.o</file>
         <file>mod_agents.o</file>
         <file>mod_announce.o</file>
-        <file>mod_archive.o</file>
         <file>mod_auth_0k.o</file>
         <file>mod_auth_digest.o</file>
         <file>mod_auth_plain.o</file>
