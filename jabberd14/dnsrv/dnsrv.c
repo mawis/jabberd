@@ -2,6 +2,16 @@
 #include "srv_resolv.h"
 #include <sys/wait.h>
 
+/* Config format:
+   <dnsrv xmlns='jabberd:config:dnsrv'>
+      <resend service="_jabber._tcp">foo.org</resend>
+      ...
+   </dnsrv>
+
+   Notes:
+   * You must specify the services in the order you want them tried
+*/
+
 #define DNS_PACKET_TABLE_SZ 100
 
 /* ------------------------------------------------- */
@@ -375,12 +385,12 @@ void dnsrv(instance i, xmlnode x)
      config = xdb_get(xc, NULL, jid_new(xmlnode_pool(x), "config@-internal"), "jabberd:dnsrv:config");
 
      /* Build a list of services/resend hosts */
-     iternode = xmlnode_get_firstchild(config);
+     iternode = xmlnode_get_lastchild(config);
      while (iternode != NULL)
      {
 	  if (j_strcmp("resend", xmlnode_get_name(iternode)) != 0)
 	  {
-	       iternode = xmlnode_get_nextsibling(iternode);
+	       iternode = xmlnode_get_prevsibling(iternode);
 	       continue;
 	  }
 
@@ -392,7 +402,7 @@ void dnsrv(instance i, xmlnode x)
 	  tmplist->next = di->svclist;	  
 	  di->svclist = tmplist;
 	  /* Move to next child */
-	  iternode = xmlnode_get_nextsibling(iternode);
+	  iternode = xmlnode_get_prevsibling(iternode);
      }
      log_debug(ZONE, "dnsrv debug: %s\n", xmlnode2str(config));
 
