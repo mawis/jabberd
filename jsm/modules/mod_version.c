@@ -41,10 +41,18 @@
 #include "jsm.h"
 #include <sys/utsname.h>
 
+typedef struct
+{
+    pool p;
+    char *name;
+    char *version;
+    char *os;
+} _mod_version_i, *mod_version_i;
+
 mreturn mod_version_reply(mapi m, void *arg)
 {
-    struct utsname un;
-    xmlnode os;
+    xmlnode os, version;
+    mod_version_i mi = (mod_version_i)arg;
 
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
     if(!NSCHECK(m->packet->iq,NS_VERSION) || m->packet->to->resource != NULL) return M_PASS;
@@ -61,26 +69,63 @@ mreturn mod_version_reply(mapi m, void *arg)
     jutil_iqresult(m->packet->x);
     xmlnode_put_attrib(xmlnode_insert_tag(m->packet->x,"query"),"xmlns",NS_VERSION);
     jpacket_reset(m->packet);
-    xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"name"),"jsm",3);
-    xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"version"),VERSION,-1);
-
-    uname(&un);
-    os = xmlnode_insert_tag(m->packet->iq,"os");
-    xmlnode_insert_cdata(os,un.sysname,-1);
-    xmlnode_insert_cdata(os," ",1);
-    xmlnode_insert_cdata(os,un.release,-1);
-
+    xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"name"),mi->name,j_strlen(mi->name));
+    xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"version"),mi->version,j_strlen(mi->version));
+    xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"os"),mi->os,j_strlen(mi->os));
+    
     js_deliver(m->si,m->packet);
 
     return M_HANDLED;
 }
 
+mreturn mod_version_shutdown(mapi m, void *arg)
+{
+    mod_version_i mi = (mod_version_i)arg;
+    pool_free(mi->p);
+    
+    return M_PASS;
+}
+
 void mod_version(jsmi si)
 {
     char *from;
-    xmlnode x;
+    xmlnode x, config, name, version, os;
+    pool p;
+    mod_version_i mi;
+    struct utsname un;
 
-    js_mapi_register(si,e_SERVER,mod_version_reply,NULL);
+    p = pool_new();
+    mi = pmalloco(p,sizeof(_mod_version_i));
+    mi->p = p;
+
+    /* get the values that should be reported by mod_version */
+    uname(&un);
+    config = js_config(si,"mod_version");
+    name = xmlnode_get_tag(config, "name");
+    version = xmlnode_get_tag(config, "version");
+    os = xmlnode_get_tag(config, "os");
+
+    mi->name = pstrdup(p, name ? xmlnode_get_data(name) : "jabberd");
+    if (version)
+	mi->version = pstrdup(p, xmlnode_get_data(version));
+    else
+	/* knowing if the server has been compiled with IPv6 is very helpful
+	 * for debugging dialback problems */
+#ifdef WITH_IPV6
+	mi->version = spools(p, VERSION, "-ipv6", p);
+#else
+    	mi->version = pstrdup(p, VERSION);
+#endif
+    if (os)
+	mi->os = pstrdup(p, xmlnode_get_data(os));
+    else if (xmlnode_get_tag(config, "no_os_version"))
+	mi->os = pstrdup(p, un.sysname);
+    else
+	mi->os = spools(p, un.sysname, " ", un.release, p);
+
+
+    js_mapi_register(si,e_SERVER,mod_version_reply,(void *)mi);
+    js_mapi_register(si,e_SHUTDOWN,mod_version_shutdown,(void *)mi);
 
     /* check for updates */
     from = xmlnode_get_data(js_config(si,"update"));
