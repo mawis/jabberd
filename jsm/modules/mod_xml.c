@@ -86,7 +86,7 @@ mreturn mod_xml_set(mapi m, void *arg)
         private = 1;
         inx = xmlnode_get_tag(m->packet->iq,"?xmlns");
         ns = xmlnode_get_attrib(inx,"xmlns");
-        if(ns == NULL || strncmp(ns,"jabber:",7) == 0 || strcmp(ns,"vcard-temp") == 0 || strcmp(ns, NS_JABBERD_STOREDPRESENCE) == 0) {
+        if(ns == NULL || strncmp(ns,"jabber:",7) == 0 || strcmp(ns,"vcard-temp") == 0 || strcmp(ns, NS_JABBERD_STOREDPRESENCE) == 0 || strcmp(ns, NS_JABBERD_HISTORY) == 0) {
 	    /* uhoh, can't use jabber: namespaces inside iq:private! */
             jutil_error_xmpp(m->packet->x,(xterror){406,"Can't use jabber: namespaces inside iq:private","modify","not-acceptable"});
             js_session_to(m->s,m->packet);
@@ -190,7 +190,7 @@ mreturn mod_xml_get(mapi m, void *arg)
     char *ns = xmlnode_get_attrib(m->packet->iq,"xmlns");
 
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
-    if(j_strncmp(ns,"jabber:",7) == 0 || j_strcmp(ns,"vcard-temp") == 0 || j_strcmp(ns, NS_JABBERD_STOREDPRESENCE) == 0)
+    if(j_strncmp(ns,"jabber:",7) == 0 || j_strcmp(ns,"vcard-temp") == 0 || j_strcmp(ns, NS_JABBERD_STOREDPRESENCE) == 0 || j_strcmp(ns, NS_JABBERD_HISTORY) == 0)
 	return M_PASS; /* only handle alternate namespaces */
 
     /* first, is this a valid request? */

@@ -116,6 +116,13 @@ typedef struct mlist_struct
     struct mlist_struct *next;	/**< pointer to the next entry, NULL for last entry */
 } *mlist, _mlist;
 
+/** configuration options for storing message history in xdb */
+struct history_storage_conf {
+    int general:1;		/**< enable storing history at all */
+    int offline:1;		/**< store messages, that came from offline storage already? */
+    int special:1;		/**< store special messages? JPACKET__HEADLINE, JPACKET__GROUPCHAT, JPACKET_ERROR */
+};
+
 /** Globals for this instance of jsm (Jabber Session Manager) */
 struct jsmi_struct {
     instance i;			/**< jabberd's instance data for the jsm component */
@@ -125,6 +132,8 @@ struct jsmi_struct {
     mlist events[e_LAST];	/**< list of registered modules for the existing event types */
     pool p;			/**< memory pool for the instance */
     jid gtrust;			/**< "global trusted jids": jids allowed to see all presences */
+    struct history_storage_conf history_sent; /**< store history for messages sent by the user? */
+    struct history_storage_conf history_recv; /**< store history for messages received by the user? */
 };
 
 /** User data structure/list. See js_user(). */
@@ -175,6 +184,9 @@ struct session_struct {
 
     struct session_struct *next; /**< pointer to the next list element of sessions, NULL for the last entry */
 };
+
+/** this value is set as a flag to a jpacket, for a message that has been read from offline storage */
+#define PACKET_FROM_OFFLINE_MAGIC 1768189505
 
 session js_session_new(jsmi si, dpacket p);
 void js_session_end(session s, char *reason);

@@ -192,13 +192,25 @@ char *xdb_sql_construct_query(char **template, xmlnode xdb_query) {
 		subst = xmlnode_get_attrib(xdb_query, template[index]+11);
 	    } else {
 		char *ptr;
-		/* text node or the element? */
+		/* text node? */
 		ptr = strstr(template[index], "/text()");
 		if (ptr == NULL || ptr-template[index] != strlen(template[index])-7) {
-		    /* get the element */
-		    xmlnode subst_node = (xmlnode_get_tag(xdb_query, template[index]));
-		    if (subst_node != NULL)
-			subst = xmlnode2str(subst_node);
+		    /* attribute value? */
+		    ptr = strstr(template[index], "/attribute::");
+		    if (ptr == NULL) {
+			/* get the element */
+			xmlnode subst_node = (xmlnode_get_tag(xdb_query, template[index]));
+			if (subst_node != NULL)
+			    subst = xmlnode2str(subst_node);
+		    } else {
+			/* attribute value */
+			xmlnode temp_node = NULL;
+			char *attribute = pstrdup(xdb_query->p, ptr+12);
+			ptr = pstrdup(xdb_query->p, template[index]);
+			strstr(ptr, "/attribute::")[0] = 0;
+			temp_node = xmlnode_get_tag(xdb_query, ptr);
+			subst = xmlnode_get_attrib(temp_node, attribute);
+		    }
 		} else {
 		    /* get the text content of the element */
 		    ptr = pstrdup(xdb_query->p, template[index]);
@@ -522,13 +534,15 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
 		return r_ERR;
 	    }
 
-	    /* insert new values */
-	    query = xdb_sql_construct_query(ns_def->set, p->x);
-	    log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for insertion: %s", query);
-	    if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
-		/* SQL query failed */
-		xdb_sql_execute(i, xq, "ROLLBACK", NULL, NULL);
-		return r_ERR;
+	    /* insert new values (if there are any) */
+	    if (xmlnode_get_firstchild(p->x) != NULL) {
+		query = xdb_sql_construct_query(ns_def->set, p->x);
+		log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for insertion: %s", query);
+		if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
+		    /* SQL query failed */
+		    xdb_sql_execute(i, xq, "ROLLBACK", NULL, NULL);
+		    return r_ERR;
+		}
 	    }
 
 	    /* commit the transaction */
@@ -564,15 +578,25 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
 	    return r_ERR;
 	}
     } else {
+	char *query = NULL;
+	char *group_element = NULL;
+	xmlnode result_element = p->x;
+
 	/* get request */
 
 	/* start the transaction */
 	xdb_sql_execute(i, xq, "BEGIN", NULL, NULL);
 
 	/* get the record(s) */
-	char *query = xdb_sql_construct_query(ns_def->get_query, p->x);
+	query = xdb_sql_construct_query(ns_def->get_query, p->x);
+	group_element = xmlnode_get_attrib(ns_def->get_result, "group");
+	if (group_element != NULL) {
+	    result_element = xmlnode_insert_tag(result_element, group_element);
+	    xmlnode_put_attrib(result_element, "ns", ns);
+	}
+
 	log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for selection: %s", query);
-	if (xdb_sql_execute(i, xq, query, ns_def->get_result, p->x)) {
+	if (xdb_sql_execute(i, xq, query, ns_def->get_result, result_element)) {
 	    /* SQL query failed */
 	    xdb_sql_execute(i, xq, "ROLLBACK", NULL, NULL);
 	    return r_ERR;
