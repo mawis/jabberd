@@ -86,7 +86,7 @@ mreturn mod_vcard_set(mapi m, void *arg)
         log_debug("mod_vcard","handling set request %s",xmlnode2str(m->packet->iq));
 
         /* save and send response to the user */
-        if(xdb_set(m->si->xc, m->user->id, NS_VCARD, xmlnode_dup(m->packet->iq)))
+        if(xdb_set(m->si->xc, m->user->id, NS_VCARD, m->packet->iq))
         {
             /* failed */
             jutil_error(m->packet->x,TERROR_UNAVAIL);
@@ -100,9 +100,9 @@ mreturn mod_vcard_set(mapi m, void *arg)
         js_session_to(m->s,m->packet);
 
         /* send a get request to the jud services */
-        for(cur = xmlnode_get_firstchild(js_config(m->si,"agents")); cur != NULL; cur = xmlnode_get_nextsibling(cur))
+        for(cur = xmlnode_get_firstchild(js_config(m->si,"browse")); cur != NULL; cur = xmlnode_get_nextsibling(cur))
         {
-            if(j_strcmp(xmlnode_get_tag_data(cur,"service"),"jud") != 0) continue;
+            if(j_strcmp(xmlnode_get_attrib(cur,"type"),"jud") != 0) continue;
 
             judreg = jutil_iqnew(JPACKET__GET,NS_REGISTER);
             xmlnode_put_attrib(judreg,"to",xmlnode_get_attrib(cur,"jid"));
@@ -158,10 +158,34 @@ mreturn mod_vcard_session(mapi m, void *arg)
     return M_PASS;
 }
 
+mreturn mod_vcard_server(mapi m, void *arg)
+{   
+    xmlnode vcard, query;
+
+    if(m->packet->type != JPACKET_IQ) return M_IGNORE;
+    if(jpacket_subtype(m->packet) != JPACKET__GET || !NSCHECK(m->packet->iq,NS_VCARD)) return M_PASS;
+
+    /* get data from the config file */
+    if((vcard = js_config(m->si,"vCard")) == NULL)
+        return M_PASS;
+
+    log_debug(ZONE,"handling server vcard query");
+
+    /* build the result IQ */
+    jutil_iqresult(m->packet->x);
+    query = xmlnode_insert_tag_node(m->packet->x,vcard);
+    xmlnode_put_attrib(query,"xmlns",NS_VCARD);
+    jpacket_reset(m->packet);
+    js_deliver(m->si,m->packet);
+
+    return M_HANDLED;
+}
+
 void mod_vcard(jsmi si)
 {
     js_mapi_register(si,e_SESSION,mod_vcard_session,NULL);
     js_mapi_register(si,e_OFFLINE,mod_vcard_reply,NULL);
+    js_mapi_register(si,e_SERVER,mod_vcard_server,NULL);
 }
 
 
