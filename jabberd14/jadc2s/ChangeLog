@@ -1,3 +1,7 @@
+2004-03-26  Matthias Wimmer  <m@tthias.net>
+
+    * conn.c: Send close notify for SSL connections
+
 2004-03-17  Matthias Wimmer  <m@tthias.net>
 
     * jadc2s.xml.dist: Configuration option if IP addresses should be logged
