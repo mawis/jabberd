@@ -240,7 +240,6 @@ result base_accept_beat(void *arg)
         else
             last->next = next;
         deliver_fail(dpacket_new(cur->x),"Internal Timeout");
-        last = cur;
         cur = next;
     }
     
