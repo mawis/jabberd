@@ -1,9 +1,5 @@
 <jabber>
 
-  <io>
-    <ssl/>
-    <heartbeat>2</heartbeat>
-  </io>
   <!--
   This is the Jabber server configuration file. The file is 
   broken into different sections based on the services being 

@@ -6,7 +6,7 @@ include ../platform-settings
 ifeq ($(ISSTATIC),1)
 	DEFINES=-DHOME="\"$(JHOME)\"" -DSTATIC
 else
-	DEFINES=-DHOME="\"$(JHOME)\"" -DSINGLE
+	DEFINES=-DHOME="\"$(JHOME)\""
 endif
 
 CFLAGS:=$(CFLAGS) $(DEFINES)

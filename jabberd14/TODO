@@ -7,14 +7,11 @@ dialback
 	log_record
 	ssl
 	only karma non-db conns
-evaluate escaped cdata performance (xstream and file parsing)
 c2s ssl
 jid case sensitivity
-filter offline fixes and ns
 mio
-	top-level config
+	top-level config, karma and rate
 	disable karma by default
-	mio_gen stable symbols
 
 
 ===================================
