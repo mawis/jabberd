@@ -28,7 +28,7 @@
  * 
  * --------------------------------------------------------------------------*/
 
-#include "lib.h"
+#include <jabberdlib.h>
 
 /**
  * characters used for Base64 encoding

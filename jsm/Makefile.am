@@ -10,4 +10,4 @@ noinst_HEADERS = jsm.h
 libjabberdsm_la_SOURCES = authreg.c deliver.c jsm.c modules.c offline.c server.c sessions.c users.c util.c
 libjabberdsm_la_LIBADD = @LDFLAGS@ $(top_builddir)/jsm/modules/libjabberdsmmods.la
 
-INCLUDES = -I../jabberd
+INCLUDES = -I../jabberd -I../jabberd/lib

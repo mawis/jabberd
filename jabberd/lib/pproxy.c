@@ -39,7 +39,7 @@
  * 
  * --------------------------------------------------------------------------*/
 
-#include "lib.h"
+#include <jabberdlib.h>
 
 /* these aren't the most efficient things in the world, a hash optimized for tiny spaces would be far better */
 

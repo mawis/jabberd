@@ -20,7 +20,7 @@
  *
  */
 
-#include "lib.h"
+#include <jabberdlib.h>
 
 static void shaHashBlock(j_SHA_CTX *ctx);
 

@@ -6,16 +6,15 @@ bin_PROGRAMS = jabberd
 jabberd_SOURCES = jabberd.c static.c
 
 jabberd_LDADD = $(top_builddir)/jabberd/base/libjabberdbase.la \
-		$(top_builddir)/jabberd/lib/libjabberdlib.la \
 		$(top_builddir)/jabberd/libjabberd.la
 
 noinst_HEADERS = jabberd.h single.h
 
-INCLUDES = -DHOME=\".\"
+INCLUDES = -DHOME=\".\" -Ilib
 
 EXTRA_DIST = README README.CONFIG README.SM
 
 lib_LTLIBRARIES = libjabberd.la
 
 libjabberd_la_SOURCES = config.c heartbeat.c load.c mio.c mio_ssl.c mtq.c xdb.c deliver.c log.c mio_raw.c mio_xml.c
-libjabberd_la_LIBADD = @LDFLAGS@ -lexpat
+libjabberd_la_LIBADD = @LDFLAGS@ -lexpat $(top_builddir)/jabberd/lib/libjabberdlib.la
