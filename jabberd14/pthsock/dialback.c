@@ -407,7 +407,7 @@ void pthsock_server_outread(mio s, int flags, void *arg, xmlnode x)
                 colon++;
                 port=atoi(colon);
             }
-            mio_connect(ip, port, pthsock_server_outread, (void *)c, 20, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER));
+            mio_connect(ip, port, pthsock_server_outread, (void *)c, 20, MIO_CONNECT_XML);
             return;
         }
 
@@ -482,7 +482,7 @@ result pthsock_server_packets(instance i, dpacket dp, void *arg)
                 colon++;
                 port=atoi(colon);
             }
-            mio_connect(ip, port, pthsock_server_outread, (void *)c, 20, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER));
+            mio_connect(ip, port, pthsock_server_outread, (void *)c, 20, MIO_CONNECT_XML);
         }
 
         /* make a new host */
@@ -722,14 +722,14 @@ void pthsock_server(instance i, xmlnode x)
         for(;cur != NULL; xmlnode_hide(cur), cur = xmlnode_get_tag(cfg,"ip"))
         {
             mio m;
-            m = mio_listen(j_atoi(xmlnode_get_attrib(cur,"port"),5269),xmlnode_get_data(cur),pthsock_server_inread,(void*)si, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER));
+            m = mio_listen(j_atoi(xmlnode_get_attrib(cur,"port"),5269),xmlnode_get_data(cur),pthsock_server_inread,(void*)si, MIO_LISTEN_XML);
             mio_rate(m, j_atoi(xmlnode_get_attrib(xmlnode_get_tag(cfg,"rate"),"time"),5),j_atoi(xmlnode_get_attrib(xmlnode_get_tag(cfg,"rate"),"points"),25));
             mio_karma2(m, &k);
         }
     else /* no special config, use defaults */
     {
         mio m;
-        m = mio_listen(5269,NULL,pthsock_server_inread,(void*)si, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER));
+        m = mio_listen(5269,NULL,pthsock_server_inread,(void*)si, MIO_LISTEN_XML);
         mio_rate(m, j_atoi(xmlnode_get_attrib(xmlnode_get_tag(cfg,"rate"),"time"),5), j_atoi(xmlnode_get_attrib(xmlnode_get_tag(cfg,"rate"),"points"),25));
         mio_karma2(m, &k);
     }
