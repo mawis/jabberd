@@ -37,35 +37,55 @@
       </library>
     </libraries>
     <make>
-      <project>gen</project>
-      <project>io</project>
-      <project>log</project>
-      <project>xdb</project>
+      <project>base</project>
+      <project>lib</project>
       <macro name='HEADERS'>
         <file>jabberd.h</file>
       </macro>
       <macro name='OBJECTS'>
         <file>config.o</file>
-        <file>mio.o</file>
         <file>deliver.o</file>
         <file>heartbeat.o</file>
         <file>jabberd.o</file>
         <file>load.o</file>
         <file>log.o</file>
+        <file>mio.o</file>
+        <file>mio_raw.o</file>
+        <file>mio_ssl.o</file>
+        <file>mio_xml.o</file>
+        <file>mtq.o</file>
+        <file>static.o</file>
+        <file>xdb.o</file>
       </macro>
       <macro name='EXOBJECTS'>
-        <file>gen/base_host.o</file>
-        <file>io/base_connect.o</file>
-        <file>io/base_exec.o</file>
-        <file>io/base_stdout.o</file>
-        <file>io/base_load.o</file>
-        <file>io/base_accept.o</file>
-        <file>log/base_file.o</file>
-        <file>log/base_format.o</file>
-        <file>log/base_logtype.o</file>
-        <file>log/base_stderr.o</file>
-        <file>log/base_to.o</file>
-        <file>xdb/base_ns.o</file>
+        <file>base/base_accept.o</file>
+        <file>base/base_connect.o</file>
+        <file>base/base_dynamic.o</file>
+        <file>base/base_exec.o</file>
+        <file>base/base_file.o</file>
+        <file>base/base_format.o</file>
+        <file>base/base_stderr.o</file>
+        <file>base/base_stdout.o</file>
+        <file>base/base_to.o</file>
+        <file>lib/expat.o</file>
+        <file>lib/genhash.o</file>
+        <file>lib/hashtable.o</file>
+        <file>lib/jid.o</file>
+        <file>lib/jpacket.o</file>
+        <file>lib/jutil.o</file>
+        <file>lib/karma.o</file>
+        <file>lib/pool.o</file>
+        <file>lib/pproxy.o</file>
+        <file>lib/rate.o</file>
+        <file>lib/sha.o</file>
+        <file>lib/snprintf.o</file>
+        <file>lib/socket.o</file>
+        <file>lib/str.o</file>
+        <file>lib/xmlnode.o</file>
+        <file>lib/xmlparse.o</file>
+        <file>lib/xmlrole.o</file>
+        <file>lib/xmltok.o</file>
+        <file>lib/xstream.o</file>
       </macro>
       <compile>
  	<objectfile macro='OBJECTS'>

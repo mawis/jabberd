@@ -1,0 +1,61 @@
+<!--  Jabber2 - jabberd JSX configuration  -->
+<jsx project='base'>
+  <build>
+    <variables>
+      <var name='DEFINES'><value>-DCONFIGXML="\"jabber.xml\"" -DHOME="\"$(JHOME)\""</value></var>
+    </variables>
+    <libraries>
+      <library priority='required'>
+        <name>xode</name>
+        <version>
+	  <needed>1.2</needed>
+	  <command>libxode-config --version</command>
+        </version>
+	<var name='CFLAGS'><command>libxode-config --cflags</command></var>
+	<var name='LDFLAGS'><command>libxode-config --ldflags</command></var>
+	<var name='LIBS'><command>libxode-config --libs</command></var>
+      </library>
+      <library priority='required'>
+        <name>jabber</name>
+        <version>
+	  <needed>1.2</needed>
+	  <command>jabber-config --version</command>
+        </version>
+	<var name='CFLAGS'><command>jabber-config --cflags</command></var>
+	<var name='LDFLAGS'><command>jabber-config --ldflags</command></var>
+	<var name='LIBS'><command>jabber-config --libs</command></var>
+      </library>
+      <library priority='required'>
+        <name>pth</name>
+        <version>
+	  <needed>1.3.7</needed>
+	  <command>pth-config --version</command>
+        </version>
+	<var name='CFLAGS'><command>pth-config --cflags</command></var>
+	<var name='LDFLAGS'><command>pth-config --ldflags</command></var>
+	<var name='LIBS'><command>pth-config --libs</command></var>
+      </library>
+    </libraries>
+    <make>
+      <macro name='HEADERS'>
+        <file>../jabberd.h</file>
+      </macro>
+      <macro name='OBJECTS'>
+        <file>base_accept.o</file>
+        <file>base_connect.o</file>
+        <file>base_dynamic.o</file>
+        <file>base_exec.o</file>
+        <file>base_file.o</file>
+        <file>base_format.o</file>
+        <file>base_stderr.o</file>
+        <file>base_stdout.o</file>
+        <file>base_to.o</file>
+      </macro>
+      <compile>
+ 	<objectfile macro='OBJECTS'>
+	  <dep><macro>HEADERS</macro></dep>
+        </objectfile>
+      </compile>
+    </make>
+  </build>
+</jsx>
