@@ -57,16 +57,16 @@ void _client_startElement(void *arg, const char* name, const char** atts)
     if (c->flash_hack == 1)
         return;
 
-    c->root_name = strdup(name);
-    if (j_strcmp(name, "flash:stream") == 0)
-    {
-        c->type = type_FLASH;
-        c->flash_hack = 1;
-    }
-
     /* process stream header first */
     if(c->depth == 0)
     {
+        c->root_name = strdup(name);
+        if (j_strcmp(name, "flash:stream") == 0)
+        {
+            c->type = type_FLASH;
+            c->flash_hack = 1;
+        }
+
         /* Iterate over the attributes and test them
          * error tracks the required attributes in the header */
         error = 3;
