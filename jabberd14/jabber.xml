@@ -90,24 +90,24 @@
           <max_size>100</max_size>
           <allow>
               <conditions>
-                  <ns/>
-                  <unavailable/>
-                  <from/>
-                  <resource/>
-                  <subject/>
-                  <body/>
-                  <show/>
-                  <type/>
-                  <roster/>
-                  <group/>
+                  <ns/>          <!-- Matches if the iq's xmlns is the same as the specified namespace -->
+                  <unavailable/> <!-- Flag that matches when the reciever is unavailable (offline) -->
+                  <from/>        <!-- Matches if the  sender's jid is the specified jid -->
+                  <resource/>    <!-- Matches if the sender's resource (anything after the / in a jid) is the specified resource -->
+                  <subject/>     <!-- Matches if the message's subject is the specified subject (no regex yet) -->
+                  <body/>        <!-- Matches if the message body is the specified body (no regex yet) --> 
+                  <show/>        <!-- Matches if the receiver's presence has a show tag that is the same as the specified text -->
+                  <type/>        <!-- Matches if the type of the message is the same as the specified text ("normal" is okay) -->
+                  <roster/>      <!-- Flag that matches when the sender is in the receiver's roster -->
+                  <group/>       <!-- Matches when the sender is in the specified group -->
               </conditions>
               <actions>
-                  <error/>
-                  <offline/>
-                  <forward/>
-                  <reply/>
-                  <continue/>
-                  <settype/>
+                  <error/>       <!-- Sends back an error message to the sender, with the specified text -->
+                  <offline/>     <!-- Flag that stores the message offline -->
+                  <forward/>     <!-- forwards the message to the specified jid -->
+                  <reply/>       <!-- Sends back a reply to the sender with the specified text in the body -->
+                  <continue/>    <!-- Flag that continues rule matching, after a rule matches -->
+                  <settype/>     <!-- Changes the type of message to the specified type, before delivery to the receiver -->
               </actions>
           </allow>
       </filter>
