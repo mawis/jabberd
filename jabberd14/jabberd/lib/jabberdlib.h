@@ -540,6 +540,7 @@ int     jpacket_subtype(jpacket p); /* Returns the subtype value (looks at xmlno
 /* Presence Proxy DB structures & constants                  */
 /*                                                           */
 /* --------------------------------------------------------- */
+#ifdef INCLUDE_LEGACY
 typedef struct ppdb_struct
 {			      
     jid     id;		       /* entry data */
@@ -555,6 +556,7 @@ xmlnode ppdb_primary(ppdb db, jid id);		 /* Fetches the matching primary presenc
 void    ppdb_free(ppdb db);			 /* Frees the db and all entries */
 xmlnode ppdb_get(ppdb db, jid id);		 /* Called successively to return each presence xmlnode */
 						 /*   for the id and children, returns NULL at the end */
+#endif
 
 
 /* --------------------------------------------------------- */
