@@ -19,7 +19,16 @@
 #include "jabberd.h"
 #define MAX_INCLUDE_NESTING 20
 extern HASHTABLE cmd__line;
-HASHTABLE instance__ids;
+HASHTABLE instance__ids=NULL;
+
+typedef struct shutdown_list
+{
+    pool p;
+    shutdown_func f;
+    void *arg;
+    struct shutdown_list *next;
+} _sd_list, *sd_list;
+sd_list shutdown__list=NULL;
 
 xmlnode greymatter__ = NULL;
 
@@ -152,13 +161,22 @@ typedef struct cfg_struct
 cfg cfhandlers__ = NULL;
 pool cfhandlers__p = NULL;
 
+void _cfhandlers_cleanup(void *arg)
+{
+    pool_free(cfhandlers__p);
+}
+
 /* register a function to handle that node in the config file */
 void register_config(char *node, cfhandler f, void *arg)
 {
     cfg newg;
 
     /* if first time */
-    if(cfhandlers__p == NULL) cfhandlers__p = pool_new();
+    if(cfhandlers__p == NULL) 
+    {
+        cfhandlers__p = pool_new();
+        register_shutdown(_cfhandlers_cleanup,NULL);
+    }
 
     /* create and setup */
     newg = pmalloc_x(cfhandlers__p, sizeof(_cfg), 0);
@@ -181,6 +199,27 @@ cfg cfget(char *node)
     return next;
 }
 
+int _instance_cleanup(void *arg,const void *key,void *data)
+{
+    instance i=(instance)data;
+    unregister_instance(i,i->id);
+    while(i->hds)
+    {
+        handel h=i->hds->next;
+        pool_free(i->hds->p);
+        i->hds=h;
+    }
+    pool_free(i->p);
+    return 1;
+}
+
+void config_cleanup(void)
+{
+    /* remove all the instances */
+    ghash_walk(instance__ids,_instance_cleanup,NULL);
+    ghash_destroy(instance__ids);
+}
+
 /* execute configuration file */
 int configo(int exec)
 {
@@ -191,7 +230,8 @@ int configo(int exec)
     pool p;
     char message[MAX_LOG_SIZE];
 
-    instance__ids=ghash_create(20,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+    if(instance__ids==NULL)
+        instance__ids=ghash_create(20,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
 
     for(curx = xmlnode_get_firstchild(greymatter__); curx != NULL; curx = xmlnode_get_nextsibling(curx))
     {
@@ -292,3 +332,28 @@ int configo(int exec)
     return 0;
 }
 
+void shutdown_callbacks(void)
+{
+    while(shutdown__list)
+    {
+        sd_list s=shutdown__list->next;
+        (*shutdown__list->f)(shutdown__list->arg);
+        pool_free(shutdown__list->p);
+        shutdown__list=s;
+    }
+}
+
+void register_shutdown(shutdown_func f,void *arg)
+{
+    pool p;
+    sd_list new;
+    if(f==NULL) return;
+    
+    p=pool_new();
+    new=pmalloco(p,sizeof(_sd_list));
+    new->p=p;
+    new->f=f;
+    new->arg=arg;
+    new->next=shutdown__list;
+    shutdown__list=new;
+}
