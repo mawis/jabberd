@@ -33,6 +33,8 @@
 #include <ssl.h>
 #endif /* HAVE_SSL */
 
+#define VERSION "1.4cvs"
+
 /* packet types */
 typedef enum { p_NONE, p_NORM, p_XDB, p_LOG, p_ROUTE } ptype;
 
@@ -261,7 +263,6 @@ void _mio_xml_parser(mio m, const void *buf, size_t bufsz);
 #define MIO_LISTEN_XML NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER)
 #define MIO_CONNECT_XML  NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER)
 
-#ifdef HAVE_SSL
 /* SSL functions */
 void    mio_ssl_init     (xmlnode x);
 ssize_t _mio_ssl_read    (mio m, void *buf, size_t count);
@@ -272,7 +273,6 @@ int     _mio_ssl_connect (mio m, struct sockaddr* serv_addr, socklen_t  addrlen)
 #define MIO_SSL_WRITE   _mio_ssl_write
 #define MIO_SSL_ACCEPT  _mio_ssl_accept
 #define MIO_SSL_CONNECT _mio_ssl_connect
-#endif /* HAVE_SSL */
 
 /* MIO handlers helper functions */
 mio_handlers mio_handlers_new(mio_read_func rf, mio_write_func wf, mio_parser_func pf);

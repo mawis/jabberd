@@ -42,7 +42,7 @@
     be on one line, the server doesn't like it otherwise! :)
     -->
 
-    <host><jabberd:cmdline flag="h">plateau.obelisk.net</jabberd:cmdline></host>
+    <host><jabberd:cmdline flag="h">localhost</jabberd:cmdline></host>
 
     <!-- 
     This is the custom configuration section for the 
@@ -312,9 +312,9 @@
       </karma>
       <!-- 
       Use these to listen on particular addresses and/or ports.
-      <ip port="5223"/>
       <ip port="5222">127.0.0.1</ip>
       -->
+      <ip port="5222"/>
     </pthcsock>
   </service>
 
@@ -363,6 +363,7 @@
       <ip port="7000"/>
       <ip port="5269">127.0.0.1</ip>
       -->
+      <ip port="5269"/>
     </dialback>
   </service>
 

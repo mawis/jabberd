@@ -108,7 +108,6 @@ printf "     Done.\n"
 # Output our settings for usage
 ##
 printf "Generating Settings Script..."
-echo 1 > test.out
 cat << EOF > platform-settings
 #!/bin/sh
 CC=$CC
@@ -120,7 +119,6 @@ XLDFLAGS=$XLDFLAGS
 PSUBDIR=$PSUBDIR
 PLINK=$PLINK
 JHOME=$JHOME
-VERSION=\"1.4cvs\"
 EOF
 chmod 0700 platform-settings
 printf "   Done.\n\n"

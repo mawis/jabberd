@@ -1,6 +1,5 @@
 include ../../platform-settings
 
-DEFINES=-DVERSION=$(VERSION)
 CFLAGS:=$(CFLAGS) $(DEFINES) -I../../jabberd/
 
 jsm_modules_HEADERS=../jsm.h ../../jabberd/jabberd.h
