@@ -71,6 +71,6 @@ int _mio_raw_connect(mio m, struct sockaddr* serv_addr, socklen_t  addrlen)
     sigaddset(&set, SIGUSR2);
 
     wevt = pth_event(PTH_EVENT_SIGS, &set, &sig);
-
+    pth_fdmode(m->fd, PTH_FDMODE_BLOCK);
     return pth_connect_ev(m->fd, serv_addr, addrlen, wevt);
 }
