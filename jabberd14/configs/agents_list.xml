@@ -1,0 +1,9 @@
+<agents>
+  <agent jid="users.jabber.org">
+    <name>Jabber Users Directory</name>
+    <description>Register with this agent to put your jid info in a globally searchable list</description>
+    <register/>
+    <search/>
+    <service>jud</service>
+  </agent>
+</agents>
