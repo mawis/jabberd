@@ -99,7 +99,32 @@ void dialback_out_connect(dboc c)
     log_debug(ZONE, "Attempting to connect to %s at %s",jid_full(c->key),ip);
 
     /* get the ip/port for io_select */
+#ifdef WITH_IPV6
+    if(ip[0] == '[')
+    { /* format "[ipaddr]:port" or "[ipaddr]" */
+	ip++;
+	col=strchr(ip,']');
+	if(col != NULL)
+	{
+	    *col = '\0';
+	    if(col[1]==':')
+	    {
+		col++;
+	    }
+	}
+    }
+    else
+    { /* format "ipaddr" or "ipaddr:port" */
+	col = strchr(ip, ':');
+	/* if it has at least two colons it is an IPv6 address */
+	if(col!=NULL && strchr(col,':'))
+	{
+	    col = NULL;
+	}
+    }
+#else
     col = strchr(ip,':');
+#endif
     if(col != NULL) 
     {
         *col = '\0';

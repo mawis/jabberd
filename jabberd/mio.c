@@ -89,10 +89,73 @@ int mio__ssl_reread = 0;
 ios mio__data = NULL;
 extern xmlnode greymatter__;
 
+#ifdef WITH_IPV6
+int _mio_compare_ipv6(const struct in6_addr *addr1, const struct in6_addr *addr2, int netsize)
+{
+    int i;
+    u_int8_t mask;
+
+    if(netsize > 128)
+	netsize = 128;
+
+    for(i = 0; i < netsize/8; i++)
+    {
+	if(addr1->s6_addr[i] != addr2->s6_addr[i])
+	    return 0;
+    }
+
+    if (netsize%8 == 0)
+	return 1;
+
+    mask = 0xff << (8 - netsize%8);
+
+    return ((addr1->s6_addr[i]&mask) == (addr2->s6_addr[i]&mask));
+}
+
+int _mio_netmask_to_ipv6(const char *netmask)
+{
+    struct in_addr addr;
+
+    if (netmask == NULL)
+    {
+	return 128;
+    }
+
+    if (inet_pton(AF_INET, netmask, &addr))
+    {
+	int temp = ntohl(addr.s_addr);
+	int netmask = 128;
+
+	while (netmask>96 && temp%2==0)
+	{
+	    netmask--;
+	    temp /= 2;
+	}
+	return netmask;
+    }
+
+    return atoi(netmask);
+}
+#endif
+
 int _mio_allow_check(const char *address)
 {
+#ifdef WITH_IPV6
+    char temp_address[INET6_ADDRSTRLEN];
+    char temp_ip[INET6_ADDRSTRLEN];
+    static struct in_addr tmpa;
+#endif
+    
     xmlnode io = xmlnode_get_tag(greymatter__, "io");
     xmlnode cur;
+
+#ifdef WITH_IPV6
+    if (inet_pton(AF_INET, address, &tmpa)) {
+	strcpy(temp_address, "::ffff:");
+	strcat(temp_address, address);
+	address = temp_address;
+    }
+#endif
 
     if(xmlnode_get_tag(io, "allow") == NULL)
         return 1; /* if there is no allow section, allow all */
@@ -100,7 +163,13 @@ int _mio_allow_check(const char *address)
     for(cur = xmlnode_get_firstchild(io); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
         char *ip, *netmask;
+#ifdef WITH_IPV6
+	struct in6_addr in_address, in_ip;
+	int in_netmask;
+#else
         struct in_addr in_address, in_ip, in_netmask;
+#endif
+
         if(xmlnode_get_type(cur) != NTYPE_TAG)
             continue;
 
@@ -113,22 +182,47 @@ int _mio_allow_check(const char *address)
         if(ip == NULL)
             continue;
 
+#ifdef WITH_IPV6
+	if (inet_pton(AF_INET, ip, &tmpa))
+	{
+	    strcpy(temp_ip, "::ffff:");
+	    strcat(temp_ip, ip);
+	    ip = temp_ip;
+	}
+
+	inet_pton(AF_INET6, address, &in_address);
+#else
         inet_aton(address, &in_address);
+#endif
 
         if(ip != NULL)
+#ifdef WITH_IPV6
+	    inet_pton(AF_INET6, ip, &in_ip);
+#else
             inet_aton(ip, &in_ip);
+#endif
 
         if(netmask != NULL)
         {
+#ifdef WITH_IPV6
+	    in_netmask = _mio_netmask_to_ipv6(netmask);
+
+	    if(_mio_compare_ipv6(&in_address, &in_ip, in_netmask))
+#else
             inet_aton(netmask, &in_netmask);
             if((in_address.s_addr & in_netmask.s_addr) == (in_ip.s_addr & in_netmask.s_addr))
+#endif
             { /* this ip is in the allow network */
                 return 1;
             }
         }
         else
         {
+#ifdef WITH_IPV6
+	    if(_mio_compare_ipv6(&in_ip, &in_address, 128))
+#else
             if(in_ip.s_addr == in_address.s_addr)
+#endif
                 return 2; /* exact matches hold greater weight */
         }
     }
@@ -139,8 +233,22 @@ int _mio_allow_check(const char *address)
 
 int _mio_deny_check(const char *address)
 {
+#ifdef WITH_IPV6
+    char temp_address[INET6_ADDRSTRLEN];
+    char temp_ip[INET6_ADDRSTRLEN];
+    static struct in_addr tmpa;
+#endif
+
     xmlnode io = xmlnode_get_tag(greymatter__, "io");
     xmlnode cur;
+
+#ifdef WITH_IPV6
+    if (inet_pton(AF_INET, address, &tmpa)) {
+	strcpy(temp_address, "::ffff:");
+	strcat(temp_address, address);
+	address = temp_address;
+    }
+#endif
 
     if(xmlnode_get_tag(io, "deny") == NULL)
         return 0; /* if there is no allow section, allow all */
@@ -148,7 +256,13 @@ int _mio_deny_check(const char *address)
     for(cur = xmlnode_get_firstchild(io); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
         char *ip, *netmask;
+#ifdef WITH_IPV6
+	struct in6_addr in_address, in_ip;
+	int in_netmask;
+#else
         struct in_addr in_address, in_ip, in_netmask;
+#endif
+
         if(xmlnode_get_type(cur) != NTYPE_TAG)
             continue;
 
@@ -161,22 +275,47 @@ int _mio_deny_check(const char *address)
         if(ip == NULL)
             continue;
 
+#ifdef WITH_IPV6
+	if (inet_pton(AF_INET, ip, &tmpa))
+	{
+	    strcpy(temp_ip, ":ffff:");
+	    strcat(temp_ip, ip);
+	    ip = temp_ip;
+	}
+
+	inet_pton(AF_INET6, address, &in_address);
+#else
         inet_aton(address, &in_address);
+#endif
 
         if(ip != NULL)
+#ifdef WITH_IPV6
+	    inet_pton(AF_INET6, ip, &in_ip);
+#else
             inet_aton(ip, &in_ip);
+#endif
 
         if(netmask != NULL)
         {
+#ifdef WITH_IPV6
+	    in_netmask = _mio_netmask_to_ipv6(netmask);
+
+	    if (_mio_compare_ipv6(&in_address, &in_ip, in_netmask))
+#else
             inet_aton(netmask, &in_netmask);
             if((in_address.s_addr & in_netmask.s_addr) == (in_ip.s_addr & in_netmask.s_addr))
+#endif
             { /* this ip is in the deny network */
                 return 1;
             }
         }
         else
         {
+#ifdef WITH_IPV6
+	    if(_mio_compare_ipv6(&in_ip, &in_address, 128))
+#else
             if(in_ip.s_addr == in_address.s_addr)
+#endif
                 return 2; /* must be an exact match, if no netmask */
         }
     }
@@ -371,7 +510,12 @@ void _mio_close(mio m)
  */
 mio _mio_accept(mio m)
 {
+#ifdef WITH_IPV6
+    struct sockaddr_in6 serv_addr;
+    char addr_str[INET6_ADDRSTRLEN];
+#else
     struct sockaddr_in serv_addr;
+#endif
     size_t addrlen = sizeof(serv_addr);
     int fd;
     int allow, deny;
@@ -386,29 +530,52 @@ mio _mio_accept(mio m)
         return NULL;
     }
 
+#ifdef WITH_IPV6
+    allow = _mio_allow_check(inet_ntop(AF_INET6, &serv_addr.sin6_addr, addr_str, sizeof(addr_str)));
+    deny = _mio_deny_check(addr_str);
+#else
     allow = _mio_allow_check(inet_ntoa(serv_addr.sin_addr));
     deny  = _mio_deny_check(inet_ntoa(serv_addr.sin_addr));
+#endif
 
     if(deny >= allow)
     {
+#ifdef WITH_IPV6
+	log_warn("mio", "%s was denied access, due to the allow list of IPs", addr_str);
+#else
         log_warn("mio", "%s was denied access, due to the allow list of IPs", inet_ntoa(serv_addr.sin_addr));
+#endif
         close(fd);
         return NULL;
     }
 
     /* make sure that we aren't rate limiting this IP */
+#ifdef WITH_IPV6
+    if(m->rated && jlimit_check(m->rate, addr_str, 1))
+    {
+	log_warn("io_select", "%s(%d) is being connection rate limited", addr_str, fd);
+#else
     if(m->rated && jlimit_check(m->rate, inet_ntoa(serv_addr.sin_addr), 1))
     {
         log_warn("io_select", "%s(%d) is being connection rate limited", inet_ntoa(serv_addr.sin_addr), fd);
+#endif
         close(fd);
         return NULL;
     }
 
+#ifdef WITH_IPV6
+    log_debug(ZONE, "new socket accepted (fd: %d, ip%s, port: %d)", fd, addr_str, ntohs(serv_addr.sin6_port));
+#else
     log_debug(ZONE, "new socket accepted (fd: %d, ip: %s, port: %d)", fd, inet_ntoa(serv_addr.sin_addr), ntohs(serv_addr.sin_port));
+#endif
 
     /* create a new sock object for this connection */
     new      = mio_new(fd, m->cb, m->cb_arg, mio_handlers_new(m->mh->read, m->mh->write, m->mh->parser));
+#ifdef WITH_IPV6
+    new->ip  = pstrdup(new->p, addr_str);
+#else
     new->ip  = pstrdup(new->p, inet_ntoa(serv_addr.sin_addr));
+#endif
 #ifdef HAVE_SSL
     new->ssl = m->ssl;
     
@@ -448,8 +615,13 @@ result _mio_connect_timeout(void *arg)
 void _mio_connect(void *arg)
 {
     connect_data cd = (connect_data)arg;
+#ifdef WITH_IPV6
+    struct sockaddr_in6 sa;
+    struct in6_addr	*saddr;
+#else
     struct sockaddr_in sa;
     struct in_addr     *saddr;
+#endif
     int                flag = 1,
                        flags;
     mio                new;
@@ -461,7 +633,7 @@ void _mio_connect(void *arg)
     pth_sigmask(SIG_BLOCK, &set, NULL);
 
 
-    bzero((void*)&sa, sizeof(struct sockaddr_in));
+    bzero((void*)&sa, sizeof(sa));
 
     /* create the new mio object, can't call mio_new.. don't want it in select yet */
     p           = pool_new();
@@ -475,7 +647,11 @@ void _mio_connect(void *arg)
     mio_set_handlers(new, cd->mh);
 
     /* create a socket to connect with */
-    new->fd = socket(AF_INET, SOCK_STREAM,0);
+#ifdef WITH_IPV6
+    new->fd = socket(PF_INET6, SOCK_STREAM,0);
+#else
+    new->fd = socket(PF_INET, SOCK_STREAM,0);
+#endif
 
     /* set socket options */
     if(new->fd < 0 || setsockopt(new->fd, SOL_SOCKET, SO_REUSEADDR, (char*)&flag, sizeof(flag)) < 0)
@@ -494,11 +670,31 @@ void _mio_connect(void *arg)
     /* optionally bind to a local address */
     if(xmlnode_get_tag_data(greymatter__, "io/bind") != NULL)
     {
+#ifdef WITH_IPV6
+	struct sockaddr_in6 sa;
+	char *addr_str = xmlnode_get_tag_data(greymatter__, "io/bind");
+	char temp_addr[INET6_ADDRSTRLEN];
+	struct in_addr tmp;
+
+	if (inet_pton(AF_INET, addr_str, &tmp))
+	{
+	    strcpy(temp_addr, "::ffff:");
+	    strcat(temp_addr, addr_str);
+	    addr_str = temp_addr;
+	}
+
+	sa.sin6_family = AF_INET6;
+	sa.sin6_port = 0;
+	sa.sin6_flowinfo = 0;
+
+	inet_pton(AF_INET6, addr_str, &sa.sin6_addr);
+#else
         struct sockaddr_in sa;
         sa.sin_family = AF_INET;
         sa.sin_port   = 0;
         inet_aton(xmlnode_get_tag_data(greymatter__, "io/bind"), &sa.sin_addr);
-        bind(new->fd, (struct sockaddr*)&sa, sizeof(struct sockaddr_in));
+#endif
+        bind(new->fd, (struct sockaddr*)&sa, sizeof(sa));
     }
 
     /* set the socket to non-blocking */
@@ -506,7 +702,11 @@ void _mio_connect(void *arg)
     flags |= O_NONBLOCK;
     fcntl(new->fd, F_SETFL, flags);
 
+#ifdef WITH_IPV6
+    saddr = make_addr_ipv6(cd->ip);
+#else
     saddr = make_addr(cd->ip);
+#endif
     if(saddr == NULL)
     {
         if(cd->cb != NULL)
@@ -520,9 +720,15 @@ void _mio_connect(void *arg)
         return;
     }
 
+#ifdef WITH_IPV6
+    sa.sin6_family = AF_INET6;
+    sa.sin6_port = htons(cd->port);
+    sa.sin6_addr = *saddr;
+#else
     sa.sin_family = AF_INET;
     sa.sin_port = htons(cd->port);
     sa.sin_addr.s_addr = saddr->s_addr;
+#endif
 
     log_debug(ZONE, "calling the connect handler for mio object %X", new);
     if((*cd->cf)(new, (struct sockaddr*)&sa, sizeof sa) < 0)
@@ -574,6 +780,9 @@ void _mio_main(void *arg)
                 retval,
                 bcast=-1,
                 maxfd=0;
+#ifdef WITH_IPV6
+    char	addr_str[INET6_ADDRSTRLEN];
+#endif
 
     log_debug(ZONE, "MIO is starting up");
 
@@ -631,13 +840,21 @@ void _mio_main(void *arg)
         /* check our pending announcements */
         if(bcast > 0 && FD_ISSET(bcast,&rfds))
         {
+#ifdef WITH_IPV6
+	    struct sockaddr_in6 remote_addr;
+#else
             struct sockaddr_in remote_addr;
+#endif
             int addrlen = sizeof(remote_addr);
             xmlnode curx;
             curx = xmlnode_get_firstchild(xmlnode_get_tag(greymatter__,"io/announce"));
             /* XXX pth <1.4 doesn't have pth_* wrapper for recvfrom or sendto! */
             len = recvfrom(bcast,buf,8192,0,(struct sockaddr*)&remote_addr,&addrlen);
+#ifdef WITH_IPV6
+            log_debug(ZONE,"ANNOUNCER: received some data from %s: %.*s",inet_ntop(AF_INET, &remote_addr.sin6_addr, addr_str, sizeof(addr_str)),len,buf);
+#else
             log_debug(ZONE,"ANNOUNCER: received some data from %s: %.*s",inet_ntoa(remote_addr.sin_addr),len,buf);
+#endif
             /* sending our data out */
             for(; curx != NULL; curx = xmlnode_get_nextsibling(curx))
             {
@@ -1169,6 +1386,16 @@ void mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_
     cd->cb_arg = cb_arg;
     cd->cf     = f;
     cd->mh     = mh;
+
+#ifdef WITH_IPV6
+    if(!strchr(host,':'))
+    {
+	char *temp = pmalloco(p, strlen(host)+8);
+	strcpy(temp, "::ffff:");
+	strcat(temp, host);
+	host = temp;
+    }
+#endif
 
     attr = pth_attr_new();
     pth_attr_set(attr,PTH_ATTR_JOINABLE,FALSE);
