@@ -69,6 +69,7 @@ dbic dialback_in_dbic_new(db d, mio m)
     c->d = d;
     pool_cleanup(m->p,dialback_in_dbic_cleanup, (void *)c);
     ghash_put(d->in_id, c->id, (void *)c);
+    log_debug(ZONE,"created incoming connection %s from %s",c->id,m->ip);
     return c;
 }
 
