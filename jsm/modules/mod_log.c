@@ -41,9 +41,45 @@ mreturn mod_log_session_end(mapi m, void *arg)
     return M_PASS;
 }
 
+mreturn mod_log_archiver(mapi m, void* arg)
+{
+    jid svcs = (jid)arg;
+    xmlnode x;
+    
+    if(m->packet->type != JPACKET_MESSAGE) return M_IGNORE;
+
+    log_debug(ZONE,"archiving message");
+
+    /* get a copy wrapped w/ a route and stamp it w/ a type='archive' (why not?) */
+    x = xmlnode_wrap(xmlnode_dup(m->packet->x), "route");
+    xmlnode_put_attrib(x,"type","archive");
+
+    /* if there's more than one service, copy to the others */
+    for(;svcs->next != NULL; svcs = svcs->next)
+    {
+        xmlnode_put_attrib(x, "to", jid_full(svcs));
+        deliver(dpacket_new(xmlnode_dup(x)), NULL);
+    }
+
+    /* send off to the last (or only) one */
+    xmlnode_put_attrib(x, "to", jid_full(svcs));
+    deliver(dpacket_new(x), NULL);
+
+    return M_PASS;
+}
+
 /* log session */
 mreturn mod_log_session(mapi m, void *arg)
 {
+    jid svcs = (jid)arg;
+
+    if(svcs != NULL)
+    {
+        js_mapi_session(es_IN, m->s, mod_log_archiver, svcs);
+        js_mapi_session(es_OUT, m->s, mod_log_archiver, svcs);
+    }
+
+    /* we always generate log records, if you don't like it, don't use mod_log :) */
     js_mapi_session(es_END, m->s, mod_log_session_end, NULL);
 
     return M_PASS;
@@ -52,9 +88,21 @@ mreturn mod_log_session(mapi m, void *arg)
 /* we should be last in the list of modules */
 void mod_log(jsmi si)
 {
-    log_debug(ZONE,"init");
+    xmlnode cfg = js_config(si,"archive");
+    jid svcs = NULL;
 
-    /* we always generate log records, if you don't like it, don't use mod_log :) */
-    js_mapi_register(si,e_SESSION, mod_log_session, NULL);
+    log_debug(ZONE,"mod_log init");
+
+    /* look for archiving service too */
+    for(cfg = xmlnode_get_firstchild(cfg); cfg != NULL; cfg = xmlnode_get_nextsibling(cfg))
+    {
+        if(xmlnode_get_type(cfg) != NTYPE_TAG || j_strcmp(xmlnode_get_name(cfg),"service") != 0) continue;
+        if(svcs == NULL)
+            svcs = jid_new(si->p,xmlnode_get_data(cfg));
+        else
+            jid_append(svcs,jid_new(si->p,xmlnode_get_data(cfg)));
+    }
+
+    js_mapi_register(si,e_SESSION, mod_log_session, (void*)svcs);
 }
 

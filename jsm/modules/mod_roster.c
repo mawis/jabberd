@@ -128,17 +128,40 @@ void mod_roster_set_s10n(int set, xmlnode item)
     }
 }
 
+/* force presence updates through all sessions, thanks to 'smarter' presence logic */
+void mod_roster_pforce(udata u, jid to, int uflag)
+{
+    session s;
+    xmlnode x;
+
+    log_debug(ZONE,"brute forcing presence updates");
+
+    /* loop through all the sessions */
+    for(s = u->sessions; s != NULL; s = s->next)
+    {
+        /* ignore local-only sessions */
+        if(xmlnode_get_attrib(s->presence,"to") != NULL) continue;
+
+        if(uflag)
+            x = jutil_presnew(JPACKET__UNAVAILABLE,NULL,NULL);
+        else
+            x = xmlnode_dup(s->presence);
+        xmlnode_put_attrib(x,"to",jid_full(to));
+        js_session_from(s,jpacket_new(x));
+    }
+}
+
 mreturn mod_roster_out_s10n(mapi m)
 {
     xmlnode roster, item;
-    int probeflag, newflag, to, from;
+    int newflag, to, from;
 
     if(m->packet->to == NULL) return M_PASS;
     if(jid_cmpx(jid_user(m->s->id),m->packet->to,JID_USER|JID_SERVER) == 0) return M_PASS; /* vanity complex */
 
     log_debug("mod_roster","handling outgoing s10n");
 
-    probeflag = newflag = to = from = 0;
+    newflag = to = from = 0;
     roster = mod_roster_get(m->user);
     item = mod_roster_get_item(roster,m->packet->to, &newflag);
 
@@ -163,7 +186,7 @@ mreturn mod_roster_out_s10n(mapi m)
         mod_roster_set_s10n(S10N_ADD_FROM,item); /* update subscription */
         xmlnode_hide_attrib(item,"subscribe"); /* cancel any pending requests */
         xmlnode_hide_attrib(item,"hidden"); /* don't hide it anymore */
-        probeflag = 1; /* they are now subscribed to us, send them our presence */
+        mod_roster_pforce(m->user, m->packet->to, 0); /* they are now subscribed to us, send them our presence */
         mod_roster_push(m->user, item);
         break;
     case JPACKET__UNSUBSCRIBE:
@@ -179,6 +202,7 @@ mreturn mod_roster_out_s10n(mapi m)
         if(from)
         {
             mod_roster_set_s10n(S10N_REM_FROM,item); /* update subscription */
+            mod_roster_pforce(m->user, m->packet->to, 1); /* they shouldn't see ANY presence from ANY session anymore */
             mod_roster_push(m->user, item);
         }else if(newflag){
             xmlnode_hide(item);
@@ -194,14 +218,6 @@ mreturn mod_roster_out_s10n(mapi m)
     /* save the roster */
     /* XXX what do we do if the set fails?  hrmf... */
     xdb_set(m->si->xc, m->user->id, NS_ROSTER, roster);
-
-    /* send ourselves a probe from them so they can be immediately informed */
-    if(probeflag)
-    {
-        item = jutil_presnew(JPACKET__PROBE,jid_full(jid_user(m->s->id)),NULL);
-        xmlnode_put_attrib(item,"from",jid_full(m->packet->to));
-        js_deliver(m->si,jpacket_new(item));
-    }
 
     /* make sure it's sent from the *user*, not the resource */
     xmlnode_put_attrib(m->packet->x,"from",jid_full(jid_user(m->s->id)));
