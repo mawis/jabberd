@@ -49,7 +49,7 @@
  * datastructure to build the stringprep caches
  */
 typedef struct _jid_prep_entry_st {
-    char *preped;	/**< the result of the preparation */
+    char *preped;	/**< the result of the preparation, NULL if unchanged */
     time_t last_used;	/**< when this result has last been successfully used */
     unsigned int used_count; /**< how often this result has been successfully used */
     int size;		/**< the min buffer size needed to hold the result (strlen+1) */
