@@ -135,6 +135,7 @@ void js_mapi_register(jsmi si, event e, mcall c, void *arg);
 void js_mapi_session(event e, session s, mcall c, void *arg);
 int js_mapi_call(jsmi si, event e, jpacket packet, udata user, session s);
 
-void js_authreg(jsmi si, jpacket p, HASHTABLE ht);
+void js_authreg(jpacket p);
+void js_authreg_send(jsmi si, jpacket p);
 
 result js_packet(instance i, dpacket p, void *arg);

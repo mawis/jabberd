@@ -74,7 +74,7 @@ result js_packet(instance i, dpacket p, void *arg)
     {
         if(sto->user == NULL && jp->type == JPACKET_IQ && (jpacket_subtype(jp) == JPACKET__GET || jpacket_subtype(jp) == JPACKET__SET))
         { /* only valid iq reqs apply */
-            js_authreg(si, jp, ht);
+            js_authreg_send(si, jp);
             return r_DONE;
         }
 

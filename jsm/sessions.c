@@ -34,6 +34,7 @@
 #define SPACKET_FROM 2
 #define SPACKET_START 3
 #define SPACKET_END 4
+#define SPACKET_AUTHREG 5
 
 typedef struct spacket_struct
 {
@@ -47,10 +48,40 @@ typedef struct sthread_struct
 {
     jsmi si;
     pth_msgport_t mp;
+    pool p;
 } *sthread, _sthread;
 
 /* private entry function for worker threads */
 void *js_worker_main(void *arg);
+
+/* create a new worker thread */
+pth_msgport_t js_session_worker_new(jsmi si)
+{
+    pth_msgport_t mp;   /* message port used by the worker thread */
+    int i;              /* index into the array of worker threads */
+    sthread st;
+    pool p;
+
+    p = pool_new();
+    mp = pth_msgport_create("js_worker");
+    st = pmalloco(p,sizeof(_sthread)); /* XXX ghads this is an ugly hack, fix up */
+    st->si = si;
+    st->mp = mp;
+    st->p = p;
+    pth_spawn(PTH_ATTR_DEFAULT, js_worker_main, st);
+
+    /* put it in the waiting pool */
+    for(i=0;i<SESSION_WAITERS; i++)
+        if(si->waiting[i] == NULL)
+        {
+            si->waiting[i] = mp;
+            break;
+        }
+
+    log_debug(ZONE,"created new swaiters[%d] %X",i,mp);
+
+    return mp; /* if this doesn't get something sent to it, the thread will linger forever! */
+}
 
 /*
  *  js_session_worker -- return a free worker thread
@@ -67,7 +98,6 @@ pth_msgport_t js_session_worker(session s)
 {
     pth_msgport_t mp;   /* message port used by the worker thread */
     int i;              /* index into the array of worker threads */
-    sthread st;
 
     /* first check if the session is already associated w/ a worker, to avoid out-of-order packet processing */
     if(s->worker != NULL)
@@ -85,22 +115,9 @@ pth_msgport_t js_session_worker(session s)
 
 
     /* there were no idle threads, so we have to create one */
-    mp = pth_msgport_create("js_worker");
-    st = malloc(sizeof(_sthread)); /* XXX ghads this is an ugly hack, fix up */
-    st->si = s->si;
-    st->mp = mp;
-    pth_spawn(PTH_ATTR_DEFAULT, js_worker_main, st);
-
-    /* put it in the waiting pool */
-    for(i=0;i<SESSION_WAITERS; i++)
-        if(s->si->waiting[i] == NULL)
-        {
-            s->si->waiting[i] = mp;
-            break;
-        }
+    mp = js_session_worker_new(s->si);
 
     /* return it's message port */
-    log_debug(ZONE,"worker fetch returning new swaiters[%d] %X",i,mp);
     s->worker = mp;
     return mp;
 
@@ -144,6 +161,39 @@ void js_spacket(int type, session s, jpacket p)
     pth_msgport_put(js_session_worker(s), (pth_message_t *)q);
 
 }
+
+/* ok, this is ugly, but I don't feel like restructuring the legacy code just yet for this (read: I'm being lazy :) */
+void js_authreg_send(jsmi si, jpacket p)
+{
+    spacket q;
+    pth_msgport_t mp = NULL;
+    int i;
+
+    /* hide the jsmi on the packet */
+    p->aux1 = (void*)si;
+
+    log_debug(ZONE,"sending to a worker thread the authreg packet %X",p);
+
+    q = pmalloc(p->p, sizeof(_spacket));
+
+    /* fill in the fields of the spacket struct */
+    q->type = SPACKET_AUTHREG;
+    q->s = NULL;
+    q->p = p;
+
+    /* get the worker thread */
+    for(i=0;i<SESSION_WAITERS; i++)
+        if(si->waiting[i] != NULL)
+            mp = si->waiting[i];
+
+    if(mp == NULL)
+        mp = js_session_worker_new(si);
+
+    /* pass the packet on to the worker thread */
+    pth_msgport_put(mp, (pth_message_t *)q);
+
+}
+
 
 /*
  *  js_session_new -- creates a new session, registers the resource for it
@@ -322,11 +372,15 @@ void js_session_process(pth_msgport_t mp)
         p = q->p;
 
         /* reinforce association between session and worker */
-        s->worker = mp;
+        if(s != NULL)
+            s->worker = mp;
 
         /* handle packet according to type */
         switch(q->type)
         {
+        case SPACKET_AUTHREG: /* special authreg request, handling on seperate worker thread */
+            js_authreg(p);
+            break;
             /* start the session */
         case SPACKET_START:
 
