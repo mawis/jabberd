@@ -62,6 +62,12 @@
       <authtime/> <!-- unlimited time to auth -->
       <!-- could be <authtime>10</authtime> for 10 seconds, etc -->
       <rate time="5" points="25"/> <!-- 25 connects in 5 seconds limit (per IP) -->
+      <karma>
+        <max>10</max>
+        <inc>1</inc>
+        <dec>1</dec>
+        <restore>5</restore>
+        <penalty>-5</penalty>
     </pthcsock>
   </service>
 
