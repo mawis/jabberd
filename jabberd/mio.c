@@ -94,6 +94,7 @@ typedef struct mio_connect_st
 int mio__errno = 0;	/**< mio_ssl.c passes EAGAIN on this variable, if a read/write would have blocked  */
 int mio__ssl_reread = 0;/**< mio_ssl.c tells us on this variable, that there might be more to read */
 ios mio__data = NULL;	/**< global data for mio */
+char *mio__bounce_uri = NULL; /**< where to bounce HTTP requests to */
 extern xmlnode greymatter__;
 
 #ifdef WITH_IPV6
@@ -1104,6 +1105,9 @@ void mio_init(void)
     if(xmlnode_get_tag(io, "ssl") != NULL)
         mio_ssl_init(xmlnode_get_tag(io, "ssl"));
 #endif
+
+    /* where to bounce HTTP requests to */
+    mio__bounce_uri = xmlnode_get_tag_data(io, "bounce");
 
     if(mio__data == NULL)
     {
