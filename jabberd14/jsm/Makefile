@@ -61,9 +61,9 @@ ifeq ($(__CYGWIN__),1)
 # Make .def file:
 	echo EXPORTS > jsm.def
 	nm $(jsm_OBJECTS) $(jsm_EXOBJECTS) $(PTHLIB) | grep '^........ [T] _' | sed 's/[^_]*_//' | sort >> jsm.def
-	dllwrap --def jsm.def --driver-name $(CC) -o jsm.dll $(jsm_OBJECTS) $(jsm_EXOBJECTS) ../jabberd/jabberd.a $(LDFLAGS)
+	dllwrap --def jsm.def --driver-name $(CC) -o jsm.dll $(jsm_OBJECTS) $(jsm_EXOBJECTS) ../jabberd/jabberd.a $(LDFLAGS) $(LIBS) -lcrypt
 else
-	$(CC) $(CFLAGS) $(MCFLAGS) -o jsm.so $(jsm_OBJECTS) $(jsm_EXOBJECTS) $(LDFLAGS) $(LIBS)
+	$(CC) $(CFLAGS) $(MCFLAGS) -o jsm.so $(jsm_OBJECTS) $(jsm_EXOBJECTS) $(LDFLAGS) $(LIBS) -lcrypt
 endif
 
 static: static-recursive
