@@ -58,7 +58,7 @@ xmlnode mod_roster_get(udata u)
     return ret;
 }
 
-xmlnode mod_roster_get_item(xmlnode roster, jid id, int *newflag)
+xmlnode mod_roster_get_item(xmlnode roster, jid id, char *name, int *newflag)
 {
     xmlnode ret;
 
@@ -71,6 +71,8 @@ xmlnode mod_roster_get_item(xmlnode roster, jid id, int *newflag)
         log_debug("mod_roster","creating");
         ret = xmlnode_insert_tag(roster,"item");
         xmlnode_put_attrib(ret,"jid",jid_full(id));
+        if(name != NULL)
+            xmlnode_put_attrib(ret,"name",name);
         xmlnode_put_attrib(ret,"subscription","none");
         *newflag = 1;
     }
@@ -172,7 +174,7 @@ mreturn mod_roster_out_s10n(mapi m)
 
     newflag = to = from = 0;
     roster = mod_roster_get(m->user);
-    item = mod_roster_get_item(roster,m->packet->to, &newflag);
+    item = mod_roster_get_item(roster,m->packet->to,NULL,&newflag);
 
     /* vars */
     if(j_strcmp(xmlnode_get_attrib(item,"subscription"),"to") == 0)
@@ -302,7 +304,7 @@ mreturn mod_roster_out_iq(mapi m)
             if(id == NULL || jid_cmpx(jid_user(m->s->id),id,JID_USER|JID_SERVER) == 0) continue;
 
             /* zoom to find the existing item in the current roster, and hide it */
-            item = mod_roster_get_item(roster, id, &newflag);
+            item = mod_roster_get_item(roster, id, NULL, &newflag);
             xmlnode_hide(item);
 
             /* drop you sukkah */
@@ -382,7 +384,7 @@ mreturn mod_roster_s10n(mapi m, void *arg)
 
     /* now we can get to work and handle this user's incoming subscription crap */
     roster = mod_roster_get(m->user);
-    item = mod_roster_get_item(roster,m->packet->from, &newflag);
+    item = mod_roster_get_item(roster,m->packet->from,xmlnode_get_attrib(m->packet->x,"name"),&newflag);
     reply2 = reply = NULL;
     jid_set(m->packet->to,NULL,JID_RESOURCE); /* make sure we're only dealing w/ the user id */
 
