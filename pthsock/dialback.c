@@ -650,7 +650,7 @@ void pthsock_server(instance i, xmlnode x)
         si->legacy = 1;
 
     /* XXX make configurable rate limits */
-    io_select_listen(j_atoi(xmlnode_get_tag(cfg,"port"),5269),NULL,pthsock_server_inread,(void*)si,5,25);
+    io_select_listen(j_atoi(xmlnode_get_tag_data(cfg,"port"),5269),NULL,pthsock_server_inread,(void*)si,5,25);
     register_phandler(i,o_DELIVER,pthsock_server_packets,(void*)si);
 
     xmlnode_free(cfg);
