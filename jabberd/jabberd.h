@@ -244,3 +244,7 @@ mio mio_connect(char *host, int port, mio_cb cb, void *arg);
 
 /* starts listening on a port/ip, returns NULL if failed to listen */
 mio mio_listen(int port, char *sourceip, mio_cb cb, void *arg);
+
+/* some nice api utilities */
+#define mio_pool(m) (m->p)
+#define mio_ip(m) (m->ip)
