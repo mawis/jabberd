@@ -107,7 +107,7 @@ void register_instance(instance id, char *host)
 /* bounce on the delivery, use the result to better gague what went wrong */
 void deliver_fail(dpacket p, char *err)
 {
-    char *to;
+    char *to, *type;
     terror t;
 
     log_debug(ZONE,"delivery failed (%s)",err);
@@ -140,6 +140,7 @@ void deliver_fail(dpacket p, char *err)
                 xmlnode_put_attrib(p->x,"sfrom",to);
 
                 /* turn into an error */
+                type = xmlnode_get_attrib(p->x,"type");
                 if(err == NULL)
                 {
                     jutil_error(p->x,TERROR_DISCONNECTED);
@@ -149,6 +150,7 @@ void deliver_fail(dpacket p, char *err)
                     strcat(t.msg,err); /* why do I have to do this?  uhgly */
                     jutil_error(p->x,t);
                 }
+                xmlnode_put_attrib(xmlnode_get_tag(p->x,"error?code=510"),"type",type); /* HACK: hide the old type on the 510 error node */
                 jutil_tofrom(p->x); /* _error flipped them, we're flipping back :) */
                 deliver(dpacket_new(p->x),NULL);
             }

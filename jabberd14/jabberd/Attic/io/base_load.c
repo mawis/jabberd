@@ -231,18 +231,14 @@ xmlnode xdb_get(xdbcache xc, char *host, jid owner, char *ns)
     /* restore the resource (if any) */
     jid_set(owner,oldres,JID_RESOURCE);
 
-    /* newx.data is now the returned xml packet or NULL if it was unsuccessful */
-
-    /* if get back type="error" log that and return NULL */
-    if(j_strcmp(xmlnode_get_attrib(newx.data, "type"),"error") == 0)
-    {
-        log_notice(host,"xdb_get failed for %s to %s",ns,jid_full(owner));
-        xmlnode_free(newx.data);
-        return NULL;
-    }
+    /* newx.data is now the returned xml packet */
 
     /* return the xmlnode inside <xdb>...</xdb> */
     for(x = xmlnode_get_firstchild(newx.data); x != NULL && xmlnode_get_type(x) != NTYPE_TAG; x = xmlnode_get_nextsibling(x));
+
+    /* there were no children (results) to the xdb request, free the packet */
+    if(x == NULL)
+        xmlnode_free(newx.data);
 
     return x;
 }
