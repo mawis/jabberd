@@ -1,0 +1,131 @@
+jabberd is a daemon administrating and coordinating the flow of data within the server architecture
+jabberd consists of base modules which implement the execution environment of components within the server architecture
+the logic for constructing the architecture, managing the components, and coordinating the flow of data is governed by the configuration file
+
+base modules may:
+	handle configuration commands within the context of an instance
+	relate an instance to the delivery logic
+	handle packets within the context of an instance
+	genrate new packets for delivery
+
+packets are routed based on the host in the to or sid attributes
+packets are logicly delivered into three categories: log, xdb, normal
+
+--
+DizzyD's Explanation Attempt #1
+
+jabberd is the hub of a distributed system of components which, collectively, form a single Jabber server. Currently,
+these components connect to the server via the following methods:
+    - TCP sockets
+    - Child process I/O (stdin/out)
+    - Shared object/libraries
+
+jabberd acts as a central-coordinator between these components. It does this by routing/delivering the XML packets
+which the components exchange. This design permits the jabber server to be effectively scaled across a server
+farm, while providing signficant freedom in implementation of the pieces which compose the server. An existing,
+dedicated LDAP server can be fitted with a component which hooks up to the jabberd hub via TCP sockets. Authentication,
+vcard lookups, etc, on arrival in the hub are passed down the TCP connection to the LDAP server for handling in 
+whatever form it sees fit. Thus, jabberd provides a way to custom-fit a jabberserver to an existing network topology.
+
+Codewise, jabberd is quite simplistic (ok, so it's not to me, but this is written with the future in mind). There
+are six basic C files which compose the heart of jabberd:
+    1.) jabberd.c   - Starts the hub and loads configuration
+    2.) config.c    - Configuration parser and loader
+    3.) deliver.c   - Delivery logic for the server; maintains 3 logical delivery trees
+    4.) heartbeat.c - Provides a "pulse" for cleanup and time-out errors
+    5.) load.c      - intializes base modules and loads any registered shared object libraries
+    6.) log.c       - provides interface for logging errors, warnings, etc.
+
+Note that these files provide little functionality on their own. They only form the core of the jabberd process
+and rely on base modules to provide significant functionality (such as opening TCP connections, loading shared 
+objects, listening for incoming TCP connections, etc). 
+
+The base modules can be found in four child directories of jabberd/src:
+    * log/  - Base modules specific to logging
+    * xdb/  - Base modules specific to xdb (xml node storage)
+    * io/   - Base modules specific to IO (TCP, file, shared objects)
+    * gen/  - Base modules which provide general functionality 
+
+-- Server Logic Guide --
+
+I.) Configuration
+    The server starts up by locating and loading an XML configuration file. This file provides information on all
+    the various components which will compose the server. There are three component types:
+    1.) xdb     - an XDB component provides a way to store/query xml nodes
+    2.) log     - logging components provide storage/output facilities for logging information
+    3.) service - ?!
+
+    In keeping with the object oriented nature of the server, "instances" of a component are defined in the
+    configuration file. Each "instance" of a component is a specialization of the original component. For
+    example, an instance of an <xdb> component could register itself to handle authentication requests. Or, an
+    instance of a <log> component could register itself to handle all logging packets destined for a certain
+    host. 
+    
+    Hence, the configuration file acts as a sort of object-oriented database which stores specific instances
+    of the 3 component types. A very basic configuration file for jabberd would like the following:                
+
+    <jabber>
+        <xdb id="Instance1">...</xdb>
+        <log id="Instance2">...</log>
+        ...
+    </jabber>
+
+    The above example describes two instances of components which compose a jabber server: an xdb component and a log component.
+    Although the details of each instance is not described in detail here, you can see that each instance has a unique identifier 
+    (id="" attribute). 
+   
+    An instance of a component is composed of various primitives which are defined within jabberd. The modules can be categorized 
+    by the action they perform:
+
+      * IO modules: these modules deliver packets..
+        1.) load    - loads a shared object, and gives it a processing thread
+        2.) exec    - executes a child process which talks to jabberd via STDIN/STDOUT pipes
+        3.) connect - opens an outgoing TCP connection to another host 
+        4.) accept  - listens for incoming TCP connections from other hosts
+        5.) farm    - used for server farms... EXPLAINME
+        6.) to      - (LOG specific) bounces/forwards the packet to another JID
+        7.) file    - (LOG specific) stores the packet in a file
+        8.) stderr/stdout - (LOG specific) prints the packet to STDERR/STDOUT
+
+      * Filter modules: these modules register an instance in the delivery tree to receive packets based
+                         on some characteristic of the packet
+        9.)  host              - filters based on the destination hostname of the packet
+        10.) ns                - (XDB specific) filters based on the namespace of the packet 
+        11.) error/warn/notice - (LOG specific) filters based on the type="" attribute
+
+      * Edit modules: these modules edit the packet before passing it on down the delivery chain
+        12.) format  - (LOG specific) reformats the log entry 
+             
+     
+    ** WARNING **
+    It should be noted that it is quite possible to setup a seriously screwed up server by tinkering with this file. 
+    Infinite message loops are the least troublesome of the problems which this amount of flexibilty brings. That 
+    said, this approach to setting up the server affords significant scalability and modularity. Let he who has ears, 
+    take heed. 
+    ** WARNING **
+
+II.) Delivery/Routing
+    As the hub in a jabber server, jabberd is responsible for ensuring that packets are properly routed between
+    the various components. Packets which pass through jabberd can be categorized into three classes:
+    1.) xdb          - a packet containing data which will query or store data in an xdb component
+    2.) log          - a packet containing logging information
+    3.) (all others) - a packet which contains any other type of information (ex. messages, presence, etc)
+
+    For each of these three categories, there exists a delivery tree within jabberd that tracks the various
+    components interested in each type of request. Components register interest in a certain packet category
+    by the way in which they are defined within the XML configuration file.
+    
+    Packet Delivery:
+    1.) Identify packet class/category, and select delivery tree accordingly (xdb, log, *)
+    2.) Search the delivery tree for all instances with a hostname which matches that of the packet's to="" attribute
+    3.) For each matching instance in the selected delivery tree:
+        a.) Select first handler
+        b.) If handler delivery order is o_DELIVER, then make a copy of the packet
+        c.) Fire the handler, passing the original packet        
+        d.) If the handler decides not to deliver the packet, it returns r_PASS and the
+            next handler in the instance's handler list is given a chance to deliver
+            the packet FIXME -- in what cases would r_UNREG be returned?
+
+
+III.) Crashing (How various components handle it and restart)
+

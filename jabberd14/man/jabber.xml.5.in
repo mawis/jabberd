@@ -1,0 +1,155 @@
+.TH jabber.xml 5 "15 Mar 2005" "@VERSION@" "jabberd14 project"
+.SH NAME
+jabber.xml \- jabberd daemon configuration file
+.SH SYNOPSIS
+The jabber daemon jabberd is configured by an XML configuration file. By
+default jabberd will read \fI@sysconfdir@/jabber.xml\fR. The \fB-c\fR
+command line option can be used to specify an alternate configuration file.
+.SH "FILE FORMAT"
+The configuration file has to be a valid XML document preferably in the
+UTF-8 charset (ASCII is valid subset of UTF-8).
+.TP
+.B <jabber/>
+This is the root element of the configuration file.
+.TP
+.B <service/>
+This element is an immediate child element of the <jabber/> root element.
+It defines a general purpose component in the jabber daemon. The jabber daemon
+will route all stanzas to this component that have a domain part in the
+destination JID that equals the id attribute or any defined additional
+domains this component is responsible for using the <host/> child element.
+An implementation or relation to an other process is defined using one of the
+following child elements: <accept/>, <connect/>, <dynamic/>, <exec/>, <load/>,
+<null/>. Any child elements in own namespaces are ignored by the core
+jabberd and can be used by components to store their own configuration.
+.TP
+.B <xdb/>
+This element is an immediate child element of the <jabber/> root element.
+It defines a component in the jabber daemon, that is responsible for XML
+data storage. This components internal address is defined by the id
+attribute. The <host/> child elements define for which domains this storage
+component is managing the data. An empty <host/> element defines, that it
+is responsible for all components. With the <ns/> child element you can
+limit the responsibility to XML chunks in a given set of namespaces. You
+can then for example define one storage component that handles rosters and
+an other that handles offline message storage.
+An implementation or relation to an other process is defined using on of the
+following child elements: <accept/>, <connect/>, <dynamic/>, <exec/>, <load/>,
+<null/>. Any child elements in own namespaces are ignored by the core jabberd
+and can be used by components to store their own configuration.
+.TP
+.B <log/>
+This element is an immediate child element of the <jabber/> root element.
+It defines a component in the jabber daemon, that acts as a logging sink.
+This components internal address is defined by the id attribute. The <host/>
+child elements define for which domains this logging sink is logging messages.
+An empty <host/> element defines, that it is responsible for all components.
+With the <logtype/> child element you can select the types of messages, that
+are handled by this component.
+Where to write the logging information is defined with one of the following
+child elements: <file/>, <stderr/>, <stdout/>, <to/>.
+With the <format/> child element you define the format of the logged message.
+.TP
+.B <io/>
+This element is an immediate child element of the <jabber/> root element.
+In this section of the configuration file you can define different settings
+that are related to the network I/O layer. This includes bandwidth limitations
+(using the <karma/> element), assigning X.509 certificates to sockets (using
+the <ssl/> element), and to limit access to the server to specific IP address
+ranges (using the <allow/> and <deny/> elements).
+.TP
+.B <pidfile/>
+This element specifies to which file the server should write its process ID.
+If this file already exists when the server is started, it will fail. You
+have to remove stale pidfiles before starting the server yourself. If you
+omit this element, the server will not write nor check any pidfile.
+.TP
+.B <debug/>
+This element contains configuration settings controlling the output of
+debugging messages. These settings can be changed at server runtime, the
+server will reread them on receiving a SIGHUP signal.
+.TP
+The following elements are used inside the <service/>, <xdb/>, and <log/>
+elements, that are defining components. They are used to provide the jabberd
+process with information where it can find the component's implementation.
+.TP
+.B <load/>
+This element can be used inside any component definition. It specifies, that
+the implementation of the component can be found inside a shared object. Any
+child element of this element defines a shared object file and a method in
+this object. jabberd will load the shared object files which locations
+are defined in the cdata elements inside the child elements, the names of the
+elements are defining the functions that have to be called. An optional
+main attribute in the <load/> element define the main function in a component,
+that has to be used to initialize it.
+.TP
+.B <accept/>
+This element defines, that jabberd will wait for an incoming connection using
+the jabber:component:accept protocol defined in JEP-0114. With this it is
+possible to run components in their own process, even on different hosts
+and connect it to the main jabberd routing process. On the other end of the
+connection there can be an instance of jabberd again that uses a section
+with <connect/> to initiate the connection, but there are libraries in many
+programming languages available, that implement JEP-0114 as well.
+Inside this element you have to provide an <ip/> element, that defines the
+IPv4 or IPv6 address to listen on, a <port/> element that defines on which
+port the server will listen for the connection, and a <secret/> element, that
+defines a shared secret to authenticate the other peer.
+.TP
+.B <connect/>
+This element is the opposite of the <accept/> element. Jabberd will try to
+connect to an implementation of the jabber:component:accept protocol defined
+in JEP-0114.
+Inside this element you have to provide an <ip/> element, that defines the
+IPv4 or IPv6 address where to connect to, a <port/> element, that defines
+the destination port, and a <secret/> element, that defines a shared secret
+to authenticate to the other peer.
+.TP
+.B <dynamic/>
+This element defines a directory where components reside. Incoming packets are
+routed to the components based on the node or resource part of the JabberID.
+The files in this directory can be shared objects or executables. This is
+rarely used and badly tested.
+.TP
+.B <exec/>
+This element is used to start an external component. Instead of using a TCP
+socket to communicate with it, the jabberd process will execute the component
+and communicate with it using pipes on stdin and stdout.
+.TP
+.B <file/>
+This element can only be used inside a <log/> section. It is used to specify
+that log messages should be appended to a text file.
+.TP
+.B <null/>
+This element specifies an empty component. Everything that is sent to a JabberID
+with the domain part of this component is silently discarded. It can be used
+to drop stanzas directed to entities on the Jabber network, that have
+disappeared (e.g. update.jabber.org).
+.TP
+.B <stderr/>
+This element can only be used inside a <log/> section. It is used to specify
+that log messages should be written to the standard error output stream.
+.TP
+.B <stdout/>
+This element is used to define, that the jabberd process is communicating
+with the process, that is implementing the component. It is the opposite
+of <exec/>. A process that is started by <exec/> in an other process can
+use <stdout/> to implement the other end of the connecting pipe.
+.TP
+.B <syslog/>
+This element can only be used inside a <log/> section. It is used to specify
+that log messages should be written to the syslog.
+.TP
+.B <to/>
+This element can only be used inside a <log/> section. It is used to
+reformat log packets as messages and resend them to an entity with the
+given JabberID. The JabberID is given as cdata child element.
+.TP
+.B <unsubscribe/>
+This element can only be used inside a <service/> section. It is used
+to bounce messages and iq queries and send unsubscribes to presences, that
+are received. It is intended to be used as a replacement for transports,
+that are removed from a server. It will remove the roster items of this
+transport from the users' rosters.
+.SH AUTHOR
+Jabber Software Foundation

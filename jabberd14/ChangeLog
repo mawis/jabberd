@@ -1,0 +1,531 @@
+2005-03-30  Matthias Wimmer  <m@tthias.net>
+
+    * jsm/jsm.h: sent out unsubscribed presences for removed roster items
+    * jsm/modules/mod_roster.c: same
+    * jsm/modules/mod_register.c: same
+    * jsm/modules/mod_offline.c: config which types of messages are stored
+    * xdb_file/xdbfiletool.c: don't link against libjabberdxdbfile, but load
+    	the module at runtime
+    * xdb_file/jabberdxdbfile.h: header not used anymore
+    * xdb_file/xdb_file.c: same
+
+2005-03-29  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/lib/jabberdlib.h: optional history storage
+    * jsm/jsm.c: same
+    * jsm/jsm.h: same
+    * jsm/sessions.c: same
+    * jsm/modules/mod_xml.c: same
+    * jsm/modules/mod_offline.c: same
+    * xdb_sql/xdb_sql.c: handling of results for inserted data (offline msgs)
+
+2005-03-19  Matthias Wimmer  <m@tthias.net>
+
+    * configure.in: find openssl without pkg-config using --with-ssl-legacy
+    * dialback/dialback.c: send stream error on idle stream
+    * dialback/dialback_out.c: disable xmpp/starttls for configured hosts
+    * jabberd/mio_ssl.c: configuration options to select SSL/TLS ciphers
+
+2005-03-15  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/base/base_unsubscribe.c: new base handler
+    * jabberd/lib/jabberdlib.h: optional: store presence in xdb
+    * jsm/modules/mod_presence.c: same
+    * jsm/modules/mod_xml.c: same
+
+2005-03-13  Matthias Wimmer  <m@tthias.net>
+
+    * jabber.xml.dist.in: removed mod_filter from the default configuration
+    * jabberd/config.c: remove 'included' configuration, we did not use it
+    * jabberd/jabberd.c: same
+    * jabberd/single.h: same (file removed)
+    * xdb_sql/xdb_sql.c: fix for constructing queries for non-existant values
+
+2005-03-11  Matthias Wimmer  <m@tthias.net>
+
+    * jsm/modules/mod_auth_plain.c: log new account registrations
+
+2005-03-10  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/base/base_accept.c: we can now generate longer error messages
+    * dialback/dialback_out.c: improved error messages
+
+2005-03-09  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/mio.c: send mio signal only if no signal already pending
+    * xdb_sql/xdb_sql.c: fixed problem when compiling on old compilers
+
+2005-03-05  Matthias Wimmer  <m@tthias.net>
+
+    * jabber.xml.dist.in: added example for a write-only admin
+    * jsm/jsm.c: disabled jsm_shutdown() as it crashes on existing sessions
+    * jsm/modules/mod_announce.c: added write-only admins
+    * jsm/modules/mod_register.c: same
+    * jsm/util.c: same
+
+2005-03-04  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/jabberd.h: better dialback error logging
+    * jabberd/mio.c: same
+    * jabberd/lib/xstream.c: same
+    * jabberd/lib/jabberdlib.h: same
+    * jabberd/deliver.c: same
+    * dialback/dialback_out.c: same
+    * jabberd/jabberd.c: temp. removed a call that causes shutdown crashes
+
+2005-03-03  Matthias Wimmer  <m@tthias.net>
+
+    * dialback/dialback_in.c: improved stream error logging
+    * dialback/dialback_out.c: same
+    * jabberd/lib/jabberdlib.h: same
+    * jabberd/lib/xstream.c: same
+    * xdb_file/xdb_file.c: Don't log all those "file not found" warnings
+
+2005-03-02  Matthias Wimmer  <m@tthias.net>
+
+    * dialback/dialback_in.c: recognize stream errors and log as such
+    * dialback/dialback_out.c: don't request dialback if not needed,
+    	don't send the id attribute on outgoing connections
+
+2005-02-28  Matthias Wimmer  <m@tthias.net>
+
+    * pthsock/client.c: support for the register stream feature
+    * dialback/dialback_in.c: fixed problem if compiled without SSL support
+
+2005-02-27  Matthias Wimmer  <m@tthias.net>
+
+    * configure.in: Check for existence of crypt.h header file
+    * jsm/modules/mod_groups.c: bugfix for checking the existence of a gid
+    * jsm/modules/mod_auth_crypt.c: include crypt.h if existant, renamed
+	function _get_salt() to mod_auth_crypt_get_salt()
+    * jsm/modules/mod_filter.c: removed unused element m from action_struct
+    * jsm/jsm.c: bugfix for init of the list of "global trusted" jids
+
+2005-02-25 Maqi <maqi@jabberstudio.org>
+
+    * removed mod_auth_0k module
+    * changed version to 1.4.4pre20050225
+    * added info on -U switch
+    * made libidn a requirement
+    * removed authors list from README, see AUTHORS
+    * removed other outdated info from README
+
+2005-02-24  Matthias Wimmer  <m@tthias.net>
+
+    * jsm/modules/mod_presence.c: Bugfix: presences with multiple stamps bug
+
+2005-02-23  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/lib/jabberdlib.h: make unused code optional
+    * jabberd/lib/genhash.c: same
+    * jabberd/lib/pproxy.c: same
+    * configure.in: added --enable-legacy switch
+
+2005-02-22  Matthias Wimmer  <m@tthias.net>
+
+    * xdb_sql/xdb_sql.c: added possibility to load XML fron database,
+    	support for PostgreSQL server, using transactions
+    * jabber.xml.dist.in: added PostgreSQL options
+    * configure.in: check for PostgreSQL
+
+2005-02-21  Matthias Wimmer  <m@tthias.net>
+
+    * jabber.xml.dist.in: added new component xdb_sql
+    * configure.in: same
+    * xdb_sql/Makefile.am: same
+    * xdb_sql/xdb_sql.c: same
+    * Makefile.am: same
+
+2005-02-18  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/xdb.c: added comments about xdb-set check action
+    * xdb_file/xdb_file.c: same
+    * jsm/modules/mod_auth_plain.c: 2004-09-24 change disabled unregistering
+
+2005-02-17  Matthias Wimmer  <m@tthias.net>
+
+    * jsm/server.c: bugfix, jsm could be crashed
+    * jsm/deliver.c: same
+
+2004-10-12  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/jabberd.c: restored 1.4.3 behaviour of -D option, new one is -d
+    * jsm/authreg.c: locking the udata structure in some cases
+    * jsm/deliver.c: same
+    * jsm/server.c: same
+    * jsm/users.c: We don't have to convert to lowercase if libidn already did
+
+2004-10-06  Matthias Wimmer  <m@tthias.net>
+
+    * dialback/dialback_in.c: When trashing timed-out db queries, we sent
+	invalid db:results, that did not contain a type='invalid' attribute
+    * jsm/modules/mod_stat.c: Use instance memory pool for memory allocation
+
+2004-10-05  Matthias Wimmer  <m@tthias.net>
+
+    * dialback/dialback_in.c: Changed duplicate error messages
+    * dialback/dialback_out.c: same
+
+2004-09-28  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/lib/jabberdlib.h: added STARTTLS support for c2s conns
+    * pthsock/client.c: same
+
+2004-09-27  Matthias Wimmer  <m@tthias.net>
+
+    * dialback/dialback_in.c: added STARTTLS support for s2s conns
+    * dialback/dialback_out.c: same
+    * jabberd/jabberd.h: added support in MIO to enable TLS on existing conn
+    * jabberd/mio_ssl.c: same
+    * jabberd/mio_xml.c: same
+    * jabberd/lib/jabberdlib.h: added namespace decl for STARTTLS feature
+    * jsm/modules/mod_auth_plain.c: username check only for updates
+
+2004-09-24  Matthias Wimmer  <m@tthias.net>
+
+    * jsm/modules/mod_auth_digest.c: Bugfix. jabber:iq:register set with empty
+	<password/> element made an existing account unusable, as it lost its
+	password.
+    * jsm/modules/mod_auth_plain.c: same
+
+2004-09-21  Matthias Wimmer  <m@tthias.net>
+
+    * xdb_file/xdb_file.c: Make hashed spool directories optional
+
+2004-09-07  Matthias Wimmer  <m@tthias.net>
+
+    * jsm/modules/mod_offline.c: ignore CDATA between offline <message/>s
+    * jsm/modules/mod_roster.c: we lost the pending_in state at a roster set
+
+2004-09-06  Matthias Wimmer  <m@tthias.net>
+
+    * jsm/modules/mod_roster.c: XMPP IM's way to handle subscription states
+
+2004-09-01  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/config.c: use pmalloco instead of pmalloc_x
+    * jabberd/deliver.c: same
+    * jabberd/heartbeat.c: same
+    * jsm/sessions.c: Added parameter check for js_session_to()/_from()
+
+2004-07-23  Matthias Wimmer  <m@tthias.net>
+
+    * dialback/dialback.c: allow clustering of s2s components
+    * dialback/dialback_in.c: same
+    * dialback/dialback_out.c: same
+    * dnsrv/dnsrv.c: same
+    * jabber.xml.dist.in: same
+
+2004-07-15  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/lib/base64.c: moved str_b64decode from str.c to base64.c
+    * jabberd/lib/str.c: same
+    * jabberd/lib/jid.c: free the caching strcuture on server shutdown
+    * jabberd/lib/pool.c: do not try to allocate memory indefinitely
+    * man/jabberd.8.in: documented exit states
+
+2004-07-07  Matthias Wimmer  <m@tthias.net>
+
+    * configure.in: check for openssl using pkg-config
+    * jabber.xml.dist.in: Disable stone-age s2s connections by default
+    * dialback/dialback.c: added documentation / removed comment related to
+	old pthsock_server, that had already been removed from jabberd
+    * jabberd/mio.c: added some debugging statements
+
+2004-07-06  Matthias Wimmer  <m@tthias.net>
+
+    * dnsrv/srv_resolv.c: Fix DNS resolving. Bug introduced on 2004-06-30.
+
+2004-07-01  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/log.c: Fix for broken log messages of type 'record'. Bug could
+    	be used for DoS, but existed only in CVS since 2004-05-14.
+    * jabberd/config.c: portable syslog facilities
+    * jabberd/jabberd.h: same
+    * jabberd/base/base_syslog.c: same
+    * jabberd/jsm/mod_offline.c: added documentation
+    * jabberd/jsm/mod_presence.c: same
+    * jabberd/jsm/mod_register.c: same
+    * jabberd/jsm/mod_stat.c: same
+    * jabberd/jsm/mod_time.c: same
+
+2004-06-30  Matthias Wimmer  <m@tthias.net>
+
+    * dnsrv/srv_resolv.c: allow multiple results for a DNS query
+
+2004-06-29  Matthias Wimmer  <m@tthias.net>
+
+    * configure.in: flag modules as such
+    * dialback/Makefile.am: same
+    * dnsrv/Makefile.am: same
+    * jabberd/Makefile.am: same
+    * jabberd/base/Makefile.am: same
+    * jabberd/lib/Makefile.am: same
+    * jsm/Makefile.am: same
+    * jsm/modules/Makefile.am: same
+    * pthsock/Makefile.am: same
+    * xdb_file/Makefile.am: same
+    * jabberd/base/base_connect.c: fixed debugging statement
+    * jabberd/mio_ssl.c: fixed include for openssl/err.h
+    * jabberd/config.c: Do not access the global variable cmd__line in
+	config.c, removed unused function config_reload() - functionallity
+	is also implemented in _jabberd_restart()
+    * jabberd/jabberd.c: same
+    * jabberd/base/base_accept.c: removed unused external declaration
+    * jsm/modules/mod_version.c: Disabled update checking on update.jabber.org
+    	added documentation
+    * xdb_file/Makefile.am: build xdbfiletool as well
+    * xdb_file/jabberdxdbfile.h: headers for useful functions in xdb_file.c
+    * xdb_file/xdb_file.c: include the header
+    * xdb_file/xdbfiletool.c: small utility to get the paths inside a spool
+    	directory and to convert spools manually
+
+2004-06-27  Matthias Wimmer  <m@tthias.net>
+
+    * UPGRADE: Information how to upgrade from the latest release
+    * jabberd/lib/jabberdlib.h: moved service discovery namespaces
+	declarations from mod_disco.c to this file
+    * jabberd/lib/jutil.c: added documentation
+    * jsm/modules/mod_admin.c: valid browse requests have to be of type 'get'
+	valid jabber:iq:admin/who requests have to be of type 'get'
+	removed unused code mod_admin_monitor and mod_admin_user.
+	Added documentation.
+    * jsm/modules/mod_agents.c: added documentation
+    * jsm/modules/mod_announce.c: remoted unused member in motd_struct
+	added documentation
+    * jsm/modules/mod_browse.c: added documentation
+    * jsm/modules/mod_disco.c: added documentation
+    * jsm/modules/mod_echo.c: added documentation
+    * jsm/modules/mod_last.c: added documentation
+    * jsm/modules/mod_log.c: added documentation
+    * jsm/modules/mod_xml.c: if an other entity than the user tries to get
+	or set information in the jabber:iq:private namespace reject with
+	a forbidden stanza error instead of 'not-allowed' (see JEP-0049
+	and XMPP-core for the semantics of these two errors)
+	added documentation
+
+2004-06-26  Matthias Wimmer  <m@tthias.net>
+
+    * dialback/dialback.c: dynamic enabling of debugging output / debug masks
+    * dialback/dialback_in.c: same
+    * dialback/dialback_out.c: same
+    * dnsrv/dnsrv.c: same
+    * dnsrv/srv_resolv.c: same
+    * jabberd/config.c: same
+    * jabberd/deliver.c: same
+    * jabberd/jabberd.c: same
+    * jabberd/jabberd.h: same
+    * jabberd/load.c: same
+    * jabberd/log.c: same
+    * jabberd/mio.c: same
+    * jabberd/mio_ssl.c: same
+    * jabberd/mio_xml.c: same
+    * jabberd/mtq.c: same
+    * jabberd/xdb.c: same
+    * jabberd/base/base_accept.c: same
+    * jabberd/base/base_connect.c: same
+    * jabberd/base/base_dynamic.c: same
+    * jabberd/base/base_exec.c: same
+    * jabberd/base/base_file.c: same
+    * jabberd/base/base_format.c: same
+    * jabberd/base/base_stderr.c: same
+    * jabberd/base/base_stdout.c: same
+    * jabberd/base/base_syslog.c: same
+    * jabberd/base/base_to.c: same
+    * jabberd.xml.dist.in: same
+    * jsm/authreg.c: same
+    * jsm/deliver.c: same
+    * jsm/jsm.c: same
+    * jsm/modules.c: same
+    * jsm/offline.c: same
+    * jsm/server.c: same
+    * jsm/sessions.c: same
+    * jsm/users.c: same
+    * jsm/util.c: same
+    * jsm/modules/mod_admin.c: same
+    * jsm/modules/mod_agents.c: same
+    * jsm/modules/mod_announce.c: same
+    * jsm/modules/mod_auth_0k.c: same
+    * jsm/modules/mod_auth_crypt.c: same
+    * jsm/modules/mod_auth_digest.c: same
+    * jsm/modules/mod_auth_plain.c: same
+    * jsm/modules/mod_browse.c: same
+    * jsm/modules/mod_disco.c: same
+    * jsm/modules/mod_echo.c: same
+    * jsm/modules/mod_example.c: same
+    * jsm/modules/mod_filter.c: same
+    * jsm/modules/mod_groups.c: same
+    * jsm/modules/mod_last.c: same
+    * jsm/modules/mod_log.c: same
+    * jsm/modules/mod_offline.c: same
+    * jsm/modules/mod_presence.c: same
+    * jsm/modules/mod_register.c: same
+    * jsm/modules/mod_roster.c: same
+    * jsm/modules/mod_time.c: same
+    * jsm/modules/mod_vcard.c: same
+    * jsm/modules/mod_version.c: same
+    * jsm/modules/mod_xml.c: same
+    * pthsock/client.c: same
+    * xdb_file/xdb_file.c: same
+
+2004-06-25  Matthias Wimmer  <m@tthias.net>
+
+    * configure.in: jabberd can now log to the syslog
+    * jabberd/jabberd.c: same
+    * jabberd/static.c: same
+    * jabberd/base/Makefile.am: same
+    * jabberd/base/base_syslog.c: same
+
+2004-06-24  Matthias Wimmer  <m@tthias.net>
+
+    * cygwin/dnsrv/dnsrv.c: use xhash instead of ghash
+    * cygwin/dnsrv/dnsrv_coprocess.c: same
+    * cygwin/dnsrv/srv_resolv.c: same
+    * dialback/dialback.c: use xhash instead of ghash
+    * dialback/dialback.h: same
+    * dialback/dialback_in.c: same
+    * dialback/dialback_out.c: same
+    * dnsrv/dnsrv.c: same
+    * dnsrv/srv_resolv.c: same
+    * jabberd/config.c: same
+    * jabberd/deliver.c: same
+    * jabberd/jabberd.c: same
+    * jabberd/log.c: same
+    * jabberd/mio_ssl.c: same
+    * jabberd/single.h: same
+    * jabberd/base/base_dynamic.c: same
+    * jabberd/lib/genhash.c: same
+    * jabberd/lib/jabberdlib.h: same
+    * jabberd/lib/pool.c: same
+    * jsm/deliver.c: same
+    * jsm/jsm.c: same
+    * jsm/jsm.h: same
+    * jsm/users.c: same
+    * jsm/util.c: same
+    * jsm/modules/mod_admin.c: same
+    * jsm/modules/mod_announce.c: same
+    * pthsock/client.c: same
+    * xdb_file/xdb_file.c: same
+    * jabberd/lib/jid.c: cleanup on shutdown
+    * jsm/modules/mod_filter.c: same
+
+2004-06-15  Matthias Wimmer  <m@tthias.net>
+
+    * configure.in: link against libresolv or libbind if required
+    * dialback/Makefile.am: link against libjabberd
+    * dnsrv/Makefile.am: same
+    * jsm/Makefile.am: same
+    * pthsock/Makefile.am: same
+    * xdb_file/Makefile.am: same
+
+2004-05-26  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/jabberd.c: fix pool debug
+    * jabberd/lib/jabberdlib.h: same
+    * jabberd/lib/pool.c: same
+
+2004-05-23  Matthias Wimmer  <m@tthias.net>
+
+    * jabber.xml.dist.in: send an xml:lang attribute in messages
+    * jsm/modules/mod_admin.c: same
+    * jsm/modules/mod_register.c: same
+    * jabberd/base/base_accept.c: don't send <handshake/> after auth failure
+    * jabberd/lib/jutil.c: valid priorities are in range [-128,127]
+    * jsm/sessions.c: same
+    * jsm/util.c: same
+    * jsm/modules/mod_announce.c: same (and do not send to negative priority)
+    * jsm/modules/mod_groups.c: same
+    * jsm/modules/mod_offline.c: same (and do only deliver to non-negative)
+    * jsm/modules/mod_presence.c: same
+    * jsm/modules/mod_register.c: unsubscribe subscriptions when unregistering
+
+2004-05-22  Matthias Wimmer  <m@tthias.net>
+
+    * configure.in: creating platform-settings file for old transports
+    * dialback/Makefile.am: looking for jabberdlib.h at the right place
+    * dnsrv/Makefile.am: same
+    * jsm/Makefile.am: same
+    * jsm/modules/Makefile.am: same
+    * pthsock/Makefile.am: same
+    * xdb_file/Makefile.am: same
+    * jabberd/base/Makefile.am: same
+    * jabberd/jabberd.h: including jabberdlib.h instead of lib/lib.h
+    * jabberd/lib/base64.c: same
+    * jabberd/lib/crc32.c: same
+    * jabberd/lib/expat.c: same
+    * jabberd/lib/genhash.c: same
+    * jabberd/lib/jid.c: same
+    * jabberd/lib/jpacket.c: same
+    * jabberd/lib/jutil.c: same
+    * jabberd/lib/karma.c: same
+    * jabberd/lib/pool.c: same
+    * jabberd/lib/pproxy.c: same
+    * jabberd/lib/rate.c: same
+    * jabberd/lib/sha.c: same
+    * jabberd/lib/socket.c: same
+    * jabberd/lib/str.c: same
+    * jabberd/lib/xhash.c: same
+    * jabberd/lib/xmlnode.c: same
+    * jabberd/lib/xstream.c: same
+    * jabberd/lib/asciitab.h: removed, using installed expat
+    * jabberd/lib/hashtable.c: same
+    * jabberd/lib/hashtable.h: same
+    * jabberd/lib/iasciitab.h: same
+    * jabberd/lib/latin1tab.h: same
+    * jabberd/lib/Makefile.am: same
+    * jabberd/lib/nametab.h: same
+    * jabberd/lib/utf8tab.h: same
+    * jabberd/lib/lib.h: renamed lib.h to jabberdlib.h
+    * jabberd/lib/jabberdlib.h: same (to make it installable)
+    * jabberd/lib/snprintf.c: only define TRUE and FALSE if not defined yet
+    * jabberd/Makefile.am: merging libjabberd.so and libjabberdlib.so
+    * jabber.xml.dist.in: pidfile in $localstatedir/run/jabberd
+    * man/jabber.xml.5.in: man page for the configuration file
+    * man/jabberd.8.in: man page for the jabber daemon
+    * man/Makefile.am: providing first man pages
+
+2004-05-20  Matthias Wimmer  <m@tthias.net>
+
+    * ac-helpers/ac_define_dir.m4: Macro from the M4 archive
+    * ac-helpers/Makefile.am: Makefile for this directory
+    * ac-helpers/openssl.m4: Macro to detect openssl
+    * AUTHORS: Authors as listed in README
+    * bootstrap: generate configure script and Makefiles
+    * ChangeLog: track changes to the jabberd14 project
+    * config.rpath: system abstraction for environment vars
+    * config.xml: removed, this is now auto-created
+    * config.xml.dist.in: template for the configuration file
+    * configure: removed, this is now auto-created
+    * configure.in: template for the configure script
+    * dialback/Makefile: removed, this is now auto-created
+    * dialback/Makefile.am: template for the Makefile
+    * dnsrv/Makefile: removed, this is now auto-created
+    * dnsrv/Makefile.am: template for the Makefile
+    * jabberd/base/Makefile: removed, this is now auto-created
+    * jabberd/base/Makefile.am: template for the Makefile
+    * jabberd/config.c: Search for configuration file in sysconfdir
+    * jabberd/lib/Makefile: removed, this is now auto-created
+    * jabberd/lib/Makefile.am: template for the Makefile
+    * jabberd/lib/xmldef.h: removed, using installed expat
+    * jabberd/lib/xmlparse.c: same
+    * jabberd/lib/xmlparse.h: same
+    * jabberd/lib/xmlrole.c: same
+    * jabberd/lib/xmlrole.h: same
+    * jabberd/lib/xmltok.c: same
+    * jabberd/lib/xmltok.h: same
+    * jabberd/lib/xmltok_impl.c: same
+    * jabberd/lib/xmltok_impl.h: same
+    * jabberd/lib/xmltok_ns.c: same
+    * jabberd/Makefile: removed, this is now auto-created
+    * jabberd/Makefile.am: template for the Makefile
+    * jsm/Makefile: removed, this is not auto-created
+    * jsm/Makefile.am: template for the Makefile
+    * jsm/modules/Makefile: removed, this is not auto-created
+    * jsm/modules/Makefile.am: template for the Makefile
+    * jsm/modules/mod_version.c: use PACKAGE as the software name
+    * Makefile: removed, this is now auto-created
+    * NEWS: major changes in jabberd14
+    * pthsock/Makefile: removed, this is now auto-created
+    * pthsock/Makefile.am: template for the Makefile
+    * xdb_file/Makefile: removed, this is not auto-created
+    * xdb_file/Makefile.am: template for the Makefile
