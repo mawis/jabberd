@@ -79,6 +79,9 @@ int KARMA_DEF_INC     = KARMA_INC;
 int KARMA_DEF_DEC     = KARMA_DEC;
 int KARMA_DEF_PENALTY = KARMA_PENALTY;
 int KARMA_DEF_RESTORE = KARMA_RESTORE;
+int KARMA_DEF_RATE_T  = 5;
+int KARMA_DEF_RATE_P  = 25;
+
 
 
 /*
@@ -658,12 +661,14 @@ void mio_init(void)
         mio_ssl_init(xmlnode_get_tag(io, "ssl"));
 #endif
 
-    KARMA_DEF_INIT = j_atoi(xmlnode_get_tag_data(io, "karma/init"), KARMA_INIT);
-    KARMA_DEF_INIT = j_atoi(xmlnode_get_tag_data(io, "karma/max"), KARMA_MAX);
-    KARMA_DEF_INIT = j_atoi(xmlnode_get_tag_data(io, "karma/inc"), KARMA_INC);
-    KARMA_DEF_INIT = j_atoi(xmlnode_get_tag_data(io, "karma/dec"), KARMA_DEC);
-    KARMA_DEF_INIT = j_atoi(xmlnode_get_tag_data(io, "karma/penalty"), KARMA_PENALTY);
-    KARMA_DEF_INIT = j_atoi(xmlnode_get_tag_data(io, "karma/restore"), KARMA_RESTORE);
+    KARMA_DEF_INIT   = j_atoi(xmlnode_get_tag_data(io, "karma/init"), KARMA_INIT);
+    KARMA_DEF_INIT   = j_atoi(xmlnode_get_tag_data(io, "karma/max"), KARMA_MAX);
+    KARMA_DEF_INIT   = j_atoi(xmlnode_get_tag_data(io, "karma/inc"), KARMA_INC);
+    KARMA_DEF_INIT   = j_atoi(xmlnode_get_tag_data(io, "karma/dec"), KARMA_DEC);
+    KARMA_DEF_INIT   = j_atoi(xmlnode_get_tag_data(io, "karma/penalty"), KARMA_PENALTY);
+    KARMA_DEF_INIT   = j_atoi(xmlnode_get_tag_data(io, "karma/restore"), KARMA_RESTORE);
+    KARMA_DEF_RATE_T = j_atoi(xmlnode_get_attrib(xmlnode_get_tag(io, "rate"), "time"), 5);
+    KARMA_DEF_RATE_P = j_atoi(xmlnode_get_attrib(xmlnode_get_tag(io, "rate"), "points"), 25);
 
 
     if(mio__data == NULL)
@@ -742,6 +747,7 @@ mio mio_new(int fd, void *cb, void *arg, mio_handlers mh)
 
     /* set the default karma values */
     mio_karma(new, KARMA_INIT, KARMA_MAX, KARMA_INC, KARMA_DEC, KARMA_PENALTY, KARMA_RESTORE);
+    mio_rate(new, KARMA_DEF_RATE_T, KARMA_DEF_RATE_P);
     
     /* set the socket to non-blocking */
     flags =  fcntl(fd, F_GETFL, 0);
