@@ -39,9 +39,10 @@ extern pool jabberd__runtime;
    USAGE:
      <connect>
         <ip>1.2.3.4</ip>
-	<port>2020</port>
-	<secret>foobar</secret>
-	<timeout>5</timeout>
+	    <port>2020</port>
+	    <secret>foobar</secret>
+	    <timeout>5</timeout>
+        <tries>15</tries>
      </connect>
 
    TODO: 
@@ -60,6 +61,7 @@ typedef struct
     u_short       hostport;	/* Server port */
     char*         secret;	/* Connection secret */
     int           timeout;      /* timeout for connect() in seconds */
+    int           tries_left;   /* how many more times are we going to try to connect? */
     pool          mempool;	/* Memory pool for this struct */
     char*         keybuf;
     instance      inst;         /* Matching instance for this connection */
@@ -110,6 +112,9 @@ void base_connect_process_xml(mio m, int state, void* arg, xmlnode x)
 
 	        ci->state = conn_OPEN;
 	        ci->io = m;
+
+            /* set *HIGH* karma rate limits */
+            mio_karma(m, 30, 30, 2, 1, -2, 30);
 
 	        /* Send a stream header to the server */
             log_debug(ZONE, "base_connecting: %X, %X, %X, %s", ci, ci->inst, ci->inst->id, ci->inst->id); 
@@ -176,8 +181,14 @@ void base_connect_process_xml(mio m, int state, void* arg, xmlnode x)
         case MIO_CLOSED:
 	        /* Always restart the connection after it closes for any reason */
 	        ci->state = conn_CLOSED;
+            if(ci->tries_left != -1) 
+                ci->tries_left--;
+
+            if(ci->tries_left == 0)
+                return;  /* we're done trying to connect */
+
             /* pause 2 seconds, and reconnect */
-            log_debug(ZONE, "Base Connect Failed to connect to %s:%d Retry in 2 seconds...", ci->hostip, ci->hostport);
+            log_debug(ZONE, "Base Connect Failed to connect to %s:%d Retry [%d] in 2 seconds...", ci->hostip, ci->hostport, ci->tries_left);
             pth_sleep(2);
 	        mio_connect(ci->hostip, ci->hostport, base_connect_process_xml, (void*)ci, ci->timeout, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER));
     }
@@ -206,6 +217,7 @@ result base_connect_config(instance id, xmlnode x, void *arg)
      char*     secret = NULL;
      char      keybuf[24];
      int       timeout;
+     int       tries;
      conn_info ci = NULL;
 
      /* Extract info */
@@ -214,6 +226,7 @@ result base_connect_config(instance id, xmlnode x, void *arg)
      secret = xmlnode_get_data(xmlnode_get_tag(x, "secret"));
 
      timeout = j_atoi(xmlnode_get_data(xmlnode_get_tag(x, "timeout")), 5);
+     tries   = j_atoi(xmlnode_get_data(xmlnode_get_tag(x, "tries")), -1); 
 
      if(id == NULL)
      {
@@ -256,6 +269,7 @@ result base_connect_config(instance id, xmlnode x, void *arg)
 	  ci->secret      = pstrdup(ci->mempool, secret);
 	  ci->write_queue = pth_msgport_create(ci->hostip);
       ci->timeout     = timeout;
+      ci->tries_left  = tries;
       ci->keybuf      = pstrdup(id->p, (char*)&keybuf);
 
       ghash_put(G_conns, pstrdup(G_pool, (char*)&keybuf), ci);

@@ -79,28 +79,36 @@ ios mio__data = NULL;
 result _karma_heartbeat(void*arg)
 {
     mio cur;
-    int was_negative = 0;
 
+    log_debug(ZONE, "KARMA: heartbeat");
     /* if there is nothing to do, just return */
-    if(mio__data==NULL || mio__data->master__list == NULL) 
+    if(mio__data == NULL || mio__data->master__list == NULL) 
         return r_DONE;
 
     /* loop through the list, and add karma where appropriate */
     for(cur = mio__data->master__list; cur != NULL; cur = cur->next)
     {
+        int was_negative = 0;
+        log_debug(ZONE, "KARMA: heartbeat checking socket %d:%s", cur->fd, cur->ip);
         /* don't update if we are closing, or pre-initilized */
         if(cur->state == state_CLOSE || cur->k.val == KARMA_INIT) 
             continue;
 
         /* if we are being punished, set the flag */
         if(cur->k.val < 0) was_negative = 1; 
+        log_debug(ZONE, "KARMA: %d val: %d PRE", cur->fd, cur->k.val);
 
         /* possibly increment the karma */
         karma_increment( &cur->k );
 
+        log_debug(ZONE, "KARMA: %d val: %d POST", cur->fd, cur->k.val);
+
         /* punishment is over */
-        if(was_negative && cur->k.val == cur->k.restore)  
+        if(was_negative && cur->k.val >= 0)  
+        {
+            log_debug(ZONE, "KARMA: signaling this socket is okay to read again!");
             pth_raise(mio__data->t, SIGUSR2);
+        }
     }
 
     /* always return r_DONE, to keep getting heartbeats */
@@ -463,10 +471,12 @@ void _mio_main(void *arg)
 
             /* if the sock is not in the read set, and has good karma,
              * or if we need to initialize this socket */
-            if((!FD_ISSET(cur->fd,&all_rfds) && cur->k.val > 0) || cur->k.val == KARMA_INIT)
+            if((!FD_ISSET(cur->fd, &all_rfds) && cur->k.val >= 0) ||  /* if we aren't in the read fds, and karma is good */
+                cur->k.val == KARMA_INIT) /* or we need to initialize this socket */
             {
+                log_debug(ZONE, "socket %d has restore karma %d -=> %d", cur->fd, cur->k.val, cur->k.restore);
                 /* reset the karma to restore val */
-                cur->k.val=cur->k.restore;
+                cur->k.val = cur->k.restore;
 
                 /* and make sure that they are in the read set */
                 FD_SET(cur->fd,&all_rfds);
@@ -528,7 +538,7 @@ void _mio_main(void *arg)
                         if(cur->k.val <= 0) /* ran out of karma */
                         {
                             log_notice("MIO_XML_READ", "socket from %s is out of karma", cur->ip);
-                            FD_CLR(cur->fd, &all_rfds); /* ensure this fd is set to read */
+                            FD_CLR(cur->fd, &all_rfds); /* this fd is being punished */
                         }
                     }
 
