@@ -187,8 +187,11 @@ void mod_offline_out_available(mapi m)
         return;
 
     /* check for msgs */
-    for(cur = xmlnode_get_firstchild(opts); cur != NULL; cur = xmlnode_get_nextsibling(cur))
-    {
+    for(cur = xmlnode_get_firstchild(opts); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
+	/* ignore CDATA between <message/> elements */
+	if (xmlnode_get_type(cur) != NTYPE_TAG)
+	    continue;
+
         /* check for expired stuff */
         if((x = xmlnode_get_tag(cur,"x?xmlns=" NS_EXPIRE)) != NULL)
         {

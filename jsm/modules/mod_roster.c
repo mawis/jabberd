@@ -373,6 +373,7 @@ mreturn mod_roster_out_iq(mapi m) {
 		/* copy the old stuff into the new one and insert it into the roster */
 		xmlnode_put_attrib(cur,"subscription",xmlnode_get_attrib(item,"subscription"));
 		xmlnode_put_attrib(cur,"ask",xmlnode_get_attrib(item,"ask")); /* prolly not here, but just in case */
+		xmlnode_put_attrib(cur,"subscribe", xmlnode_get_attrib(item, "subscribe"));
 		xmlnode_insert_tag_node(roster,cur);
 
 		/* push the new item */
