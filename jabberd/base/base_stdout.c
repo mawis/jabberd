@@ -29,6 +29,9 @@
  * --------------------------------------------------------------------------*/
 #include "jabberd.h"
 
+/* for cleanup signalling */
+pth_t main__thread=NULL;
+
 /*
 
 <stdout/>
@@ -92,6 +95,14 @@ void *base_stdoutin(void *arg)
     xmlnode x;
     pth_event_t eread, emp, ering;
     pool xsp;
+    /* for cleanup */
+    int sig;
+    sigset_t sigs;
+    pth_event_t esig;
+
+    /* init the signal junk */
+    sigemptyset(&sigs);
+    sigaddset(&sigs,SIGUSR2);
 
     log_debug(ZONE,"io thread starting");
 
@@ -108,11 +119,19 @@ void *base_stdoutin(void *arg)
 
     /* event for packets going to stdout and ring em all together */
     emp = pth_event(PTH_EVENT_MSG,mp);
-    ering = pth_event_concat(eread, emp, NULL);
+    esig = pth_event(PTH_EVENT_SIGS,&sigs,&sig);
+    ering = pth_event_concat(esig,eread, emp, NULL);
 
     /* spin waiting on the mp(stdout) or read(stdin) events */
     while(pth_wait(ering) > 0)
     {
+
+        /* we were notified to shutdown */
+        if(pth_event_occurred(esig))
+        {
+            break;
+        }
+
         /* handle reading the incoming stream */
         if(pth_event_occurred(eread))
         {
@@ -147,11 +166,22 @@ void *base_stdoutin(void *arg)
     log_debug(ZONE,"thread exiting");
 
     /* we shouldn't ever get here, I don't think */
-    pth_event_free(emp, PTH_FREE_THIS);
-    pth_event_free(eread, PTH_FREE_THIS);
+    pth_event_free(ering, PTH_FREE_ALL);
+    pth_msgport_destroy(mp);
     pool_free(xsp);
 
     return NULL;
+}
+
+void base_stdout_shutdown(void *arg)
+{
+    drop d;
+    pth_msgport_t mp=(pth_msgport_t)arg;
+    while((d = (drop)pth_msgport_get(mp)) != NULL)
+    {
+        pool_free(d->p->p);
+    }
+    if(main__thread!=NULL) pth_raise(main__thread,SIGUSR2);
 }
 
 result base_stdout_config(instance id, xmlnode x, void *arg)
@@ -166,7 +196,8 @@ result base_stdout_config(instance id, xmlnode x, void *arg)
     if(mp == NULL)
     {
         mp = pth_msgport_create("base_stdout");
-        pth_spawn(PTH_ATTR_DEFAULT, base_stdoutin, (void *)mp);
+        main__thread = pth_spawn(PTH_ATTR_DEFAULT, base_stdoutin, (void *)mp);
+        register_shutdown(base_stdout_shutdown, (void*)mp);
     }
 
     /* register phandler with the stdout mp */
