@@ -166,10 +166,20 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg)
 	       /* Walk the list and insert IPs */
 	       while(head != NULL)
 	       {
-		    xmlnode_put_attrib(head->packet->x, "sto", di->resend_host);
-		    xmlnode_put_attrib(head->packet->x, "ip", ipaddr);
-		    /* Fixup the dpacket host ptr */
-		    head->packet->host = di->resend_host;
+		    if (ipaddr != NULL)
+		    {
+			 xmlnode_put_attrib(head->packet->x, "sto", di->resend_host);
+			 xmlnode_put_attrib(head->packet->x, "ip", ipaddr);
+			 /* Fixup the dpacket host ptr */
+			 head->packet->host = di->resend_host;
+		    }
+		    else
+		    {
+			 log_debug(ZONE, "dnsrv: Unable to resolve ip for %s\n", hostname);
+			 jutil_error(head->packet->x, (terror){502, "Unable to resolve hostname."});
+			 xmlnode_put_attrib(head->packet->x, "iperror", "");
+		    }
+
 		    /* Deliver the packet */
 		    deliver(head->packet, NULL);
 		    /* Move to next.. */
@@ -237,33 +247,44 @@ void* dnsrv_process_io(void* threadarg)
 	       /* Get the packet from the write_queue */
 	       wb = (dns_write_buf)pth_msgport_get(di->write_queue);
 
-	       /* Attempt to lookup this hostname in the packet table */
-	       lsthead = (dns_packet_list)ghash_get(di->packet_table, wb->packet->host);
-	       
-	       /* IF: hashtable has the hostname, a lookup is already pending,
-		  so stick the packet in the list */
-	       if (lsthead != NULL)
+	       /* Ensure this packet doesn't already have an IP */
+	       if (xmlnode_get_attrib(wb->packet->x, "ip") ||
+		   xmlnode_get_attrib(wb->packet->x, "iperror"))
 	       {
-		    /* Allocate a new list entry */
-		    lst = pmalloco(listpool, sizeof(_dns_packet_list));
-		    lst->packet   = wb->packet;
-		    lst->next     = lsthead->next;
-		    lsthead->next = lst;		    
+		    /* Print an error and drop the packet.. */
+		    log_debug(ZONE, "dnsrv: Looping IP lookup on %s\n", xmlnode2str(wb->packet->x));
+		    /* FIXME: pool_free?! */
 	       }
-	       /* ELSE: insert the packet into the packet_table using the hostname
-		  as the key and send a request to the coprocess */
-	       else
+	       else 
 	       {
-		    /* Allocate a new list head */
-		    lsthead = pmalloco(listpool, sizeof(_dns_packet_list));
-		    lsthead->packet = wb->packet;
-		    lsthead->next   = NULL;
-		    /* Insert the packet list into the hash */
-		    ghash_put(di->packet_table, lsthead->packet->host, lsthead);
-		    /* Spool up a request */
-		    request = spools(listpool, "<host>", lsthead->packet->host, "</host>", listpool);
-		    /* Send a request to the coprocess */
-		    pth_write(di->out, request, strlen(request));
+		    /* Attempt to lookup this hostname in the packet table */
+		    lsthead = (dns_packet_list)ghash_get(di->packet_table, wb->packet->host);
+		    
+		    /* IF: hashtable has the hostname, a lookup is already pending,
+		  so stick the packet in the list */
+		    if (lsthead != NULL)
+		    {
+			 /* Allocate a new list entry */
+			 lst = pmalloco(listpool, sizeof(_dns_packet_list));
+			 lst->packet   = wb->packet;
+			 lst->next     = lsthead->next;
+			 lsthead->next = lst;		    
+		    }
+		    /* ELSE: insert the packet into the packet_table using the hostname
+		       as the key and send a request to the coprocess */
+		    else
+		    {
+			 /* Allocate a new list head */
+			 lsthead = pmalloco(listpool, sizeof(_dns_packet_list));
+			 lsthead->packet = wb->packet;
+			 lsthead->next   = NULL;
+			 /* Insert the packet list into the hash */
+			 ghash_put(di->packet_table, lsthead->packet->host, lsthead);
+			 /* Spool up a request */
+			 request = spools(listpool, "<host>", lsthead->packet->host, "</host>", listpool);
+			 /* Send a request to the coprocess */
+			 pth_write(di->out, request, strlen(request));
+		    }
 	       }
 	  }
      }
