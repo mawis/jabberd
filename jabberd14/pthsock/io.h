@@ -20,6 +20,7 @@ typedef struct sock_st
 typedef struct
 {
     pth_message_t head; /* the standard pth message header */
+    pool p;
     xmlnode x;
     sock c;
     void *arg;

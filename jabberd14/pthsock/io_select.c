@@ -81,9 +81,11 @@ void io_unlink(sock c)
 
     log_debug(ZONE,"Unlinking sock %d from master__list",c->fd);
 
+    pth_mutex_acquire(&m_sync,0,NULL);
     if(io_data->master__list==c) io_data->master__list=io_data->master__list->next;
     if(c->prev!=NULL) c->prev->next=c->next;
     if(c->next!=NULL) c->next->prev=c->prev;
+    pth_mutex_release(&m_sync);
 }
 
 void io_link(sock c)
@@ -92,9 +94,11 @@ void io_link(sock c)
 
     log_debug(ZONE,"Linking %d, welcome aboard!",c->fd);
 
+    pth_mutex_acquire(&m_sync,0,NULL);
     c->next=io_data->master__list;
     c->prev=NULL;
     io_data->master__list=c;
+    pth_mutex_release(&m_sync);
 }
 
 void io_close(sock c) 
@@ -123,6 +127,13 @@ void _io_close(sock c)
 void io_write_str(sock c,char *buffer)
 {
     char *new;
+    ios io_data=(ios)c->iodata;
+    pool p=pool_new();
+    drop d=pmalloco(p,sizeof(_drop));
+    d->p=p;
+
+    d->x=NULL;
+    d->c=c;
     if(c->wbuffer!=NULL)
     {
         new=malloc(strlen(buffer)+strlen(c->wbuffer)+1);
@@ -136,7 +147,8 @@ void io_write_str(sock c,char *buffer)
     {
         c->wbuffer=strdup(buffer);
     }
-    _io_write_dump(c);
+    if(io_data->wmp==NULL) io_data->wmp=pth_msgport_create("io_master__wmp");
+    pth_msgport_put(io_data->wmp,(void*)d);
 }
 
 /* write an xmlnode */
@@ -144,6 +156,7 @@ void io_write(sock c,xmlnode x)
 {
     ios io_data=(ios)c->iodata;
     drop d=pmalloco(xmlnode_pool(x),sizeof(_drop));
+
     d->x=x;
     d->c=c;
     if(io_data->wmp==NULL) io_data->wmp=pth_msgport_create("io_master__wmp");
@@ -265,7 +278,12 @@ void _io_main(void *arg)
                 }
 
                 log_debug(ZONE,"write event for %d",c->fd);
-                ret=_io_write(c,d->x);
+                if(d->x==NULL) 
+                {
+                    ret=_io_write_dump(c);
+                    pool_free(d->p);
+                }
+                else ret=_io_write(c,d->x);
                 if(ret<0) /* error occured here */
                 {
                     if(errno!=EWOULDBLOCK)
@@ -337,8 +355,7 @@ void _io_main(void *arg)
                 else
                 {
                     log_debug(ZONE,"read %d bytes: %s",len,buff);
-                    (*(io_cb)c->cb)(c,buff,len,IO_NORMAL,c->cb_arg);
-                    xstream_eat(cur->xs,buff,len);
+                    (*(io_cb)cur->cb)(cur,buff,len,IO_NORMAL,cur->cb_arg);
                 }
             }
             else if(FD_ISSET(cur->fd,&wfds))
