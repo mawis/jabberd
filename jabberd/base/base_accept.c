@@ -41,8 +41,6 @@
  
 #include "jabberd.h"
 
-extern pool jabberd__runtime;
-
 #define A_ERROR  -1
 #define A_READY   1
 

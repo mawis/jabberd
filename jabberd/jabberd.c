@@ -66,7 +66,7 @@ int jabberd__signalflag = 0;
 extern xht instance__ids;
 
 /*** internal functions ***/
-int configurate(char *file);
+int configurate(char *file, xht cmd_line);
 void static_init(void);
 void dynamic_init(void);
 void deliver_init(void);
@@ -75,7 +75,6 @@ void heartbeat_birth(void);
 void heartbeat_death(void);
 int configo(int exec);
 void shutdown_callbacks(void);
-int config_reload(char *file);
 void instance_shutdown(instance i);
 void _jabberd_signal(int sig);
 void _jabberd_atexit(void);
@@ -228,7 +227,7 @@ int main (int argc, char** argv)
 
     /* load the config passing the file if it was manually set */
     cfgfile=xhash_get(cmd__line,"c");
-    if(configurate(cfgfile))
+    if(configurate(cfgfile, cmd__line))
         exit(1);
 
     /* EPIPE is easier to handle than a signal */
@@ -307,7 +306,7 @@ void _jabberd_restart(void)
     log_debug2(ZONE, LOGT_CONFIG, "Loading new config file");
 
     /* try to load the config file */
-    if(configurate(cfgfile))
+    if(configurate(cfgfile, cmd__line))
     { /* failed to load.. restore the greymatter */
         log_debug2(ZONE, LOGT_CONFIG, "Failed to load new config, resetting greymatter");
         log_alert(ZONE, "Failed to reload config!  Resetting internal config -- please check your configuration!");
