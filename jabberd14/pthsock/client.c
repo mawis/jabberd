@@ -306,7 +306,7 @@ cdata pthsock_client_cdata(mio m)
     return cd;
 }
 
-void pthsock_client_read(mio m,char *buffer,int bufsz,int flag,void *arg)
+void pthsock_client_read(mio m, int flag, void *arg, char *buffer,int bufsz)
 {
     cdata cd = (cdata)arg;
     xmlnode x;
@@ -319,7 +319,7 @@ void pthsock_client_read(mio m,char *buffer,int bufsz,int flag,void *arg)
         cd=pthsock_client_cdata(m);
         mio_reset(m, pthsock_client_read, (void*)cd);
         break;
-    case MIO_NORMAL:
+    case MIO_BUFFER:
         ret=xstream_eat(m->xs,buffer,bufsz);
         break;
     case MIO_CLOSED:

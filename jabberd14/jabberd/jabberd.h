@@ -174,12 +174,12 @@ void mtq_send(mtq q, pool p, mtq_callback f, void *arg); /* appends the arg to t
 /* MIO */
 
 /* struct to handle the write queue */
-typedef enum { queue_XMLNODE, queue_CDATA } queue_type;
+typedef enum { queue_XMLNODE, queue_CDATA } mio_queue_type;
 typedef struct mio_wb_q_st
 {
     pth_message_t head;  /* for compatibility */
     pool p;
-    queue_type type;
+    mio_queue_type type;
     xmlnode x;
     void *data;
     void *cur;
@@ -195,31 +195,42 @@ typedef struct mio_st
 {
     pool p;
     int fd;
-    mio_type type;
+    mio_type type; /* listen (server) socket or normal (client) socket */
     mio_state state;
-    char *ip;
-    void *arg;    /* do not modify directly */
-    void *cb;     /* do not modify directly */
 
-    int rated;   /* is this socket rate limted? */
-    jlimit rate; /* if so, what is the rate?    */
-    struct karma k;
-
-    xstream xs;
     mio_wbq queue; /* write buffer queue */
     mio_wbq tail;  /* the last buffer queue item */
 
     struct mio_st *prev,*next;
+
+    void *cb_arg;    /* do not modify directly */
+    void *cb;     /* do not modify directly */
+
+    xstream xs;   /* XXX kill me, I suck */
+    XML_Parser parser;
+    int        parser_depth;
+    xmlnode    stacknode;
+
+    struct karma k;
+    int rated;   /* is this socket rate limted? */
+    jlimit rate; /* if so, what is the rate?    */
+    char *ip;
 } *mio, _mio;
 
 /* callback flags */
-#define MIO_NEW    0
-#define MIO_NORMAL 1
-#define MIO_CLOSED 2
-#define MIO_ERROR  3
+#define MIO_NEW       0
+#define MIO_BUFFER    1
+#define MIO_CLOSED    2
+#define MIO_ERROR     3
+#define MIO_XML_ROOT  4
+#define MIO_XML_NODE  5 
+#define MIO_XML_CLOSE 6
+#define MIO_XML_ERROR 7
+#define MIO_TIMEOUT   8
 
 /* i/o callback function definition */
-typedef void (*mio_cb)(mio c,char *buffer,int bufsz,int flag,void *arg);
+typedef void (*mio_cb)(mio m,int state, void *arg, char *buffer,int bufsz);
+typedef void (*mio_xml_cb)(mio m, int state, void* arg, xmlnode x);
 
 /* initializes the MIO subsystem */
 void mio_init(void);
@@ -228,7 +239,8 @@ void mio_init(void);
 void mio_stop(void);
 
 /* create a new mio object from a file descriptor */
-mio mio_new(int fd, mio_cb cb, void *arg);
+mio mio_new(int fd, mio_cb cb, void *cb_arg);
+mio mio_new_xml(int fd, mio_xml_cb cb, void* cb_arg);
 
 /* reset the callback and argument for an mio object */
 mio mio_reset(mio m, mio_cb cb, void *arg);
@@ -250,10 +262,20 @@ void mio_rate(mio m, int rate_time, int max_points);
 xmlnode mio_cleanup(mio m);
 
 /* connects to an ip */
-mio mio_connect(char *host, int port, mio_cb cb, void *arg);
+mio mio_connect(char *host, int port, mio_cb cb, int timeout, void *cb_arg);
+mio mio_connect_xml(char* host, int port, mio_xml_cb cb, int timeout, void* cb_arg);
 
 /* starts listening on a port/ip, returns NULL if failed to listen */
-mio mio_listen(int port, char *sourceip, mio_cb cb, void *arg);
+mio mio_listen(int port, char *sourceip, mio_cb cb, void *cb_arg);
+mio mio_listen_xml(int port, char* sourceip, mio_xml_cb cb, void* cb_arg);
+
+/* Note that timers are only accurate to within a second or so */
+
+/* Add a timer to an mio. */
+void mio_add_timer(mio m, int seconds);
+
+/* Remove that timer */
+void mio_remove_timer(mio m);
 
 /* some nice api utilities */
 #define mio_pool(m) (m->p)
