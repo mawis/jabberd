@@ -95,6 +95,9 @@
   <service id="s2s">
     <host>s2s-127.0.0.1</host>
     <load><pthsock_server>./pthsock/pthsock_server.so</pthsock_server></load>
+    <pthssock xmlns='jabber:config:pth-ssock'>
+      <legacy/> <!-- allow communication with old 1.0-style servers -->
+    </pthssock>
   </service>
 
 </jabber>

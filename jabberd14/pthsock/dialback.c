@@ -106,7 +106,7 @@ typedef struct host_struct
 typedef struct
 {
     pth_message_t head; /* the standard pth message header */
-    dpacket p;
+    xmlnode x;
 } _dpq, *dpq;
 
 
@@ -135,7 +135,7 @@ void _pthsock_server_host_validated(int valid, host h)
         {
             /* dequeue and send the waiting packets */
             while((q = (dpq)pth_msgport_get(h->mp)) != NULL)
-                io_write(h->c->s,q->p->x);
+                io_write(h->c->s,q->x);
             pth_msgport_destroy(h->mp);
             h->mp = NULL;
         }
@@ -148,7 +148,7 @@ void _pthsock_server_host_validated(int valid, host h)
     {
         /* dequeue and bounce the waiting packets */
         while((q = (dpq)pth_msgport_get(h->mp)) != NULL)
-            deliver_fail(q->p,NULL);
+            deliver_fail(dpacket_new(q->x),NULL);
         pth_msgport_destroy(h->mp);
         h->mp = NULL;
     }
@@ -257,6 +257,7 @@ void pthsock_server_outx(int type, xmlnode x, void *arg)
         {
             if(!c->si->legacy)
             { /* Muahahaha!  you suck! *click* */
+                log_notice(c->legacy_to,"Legacy server access denied to do configuration");
                 io_write_str(c->s,"<stream:error>Legacy Access Denied!</stream:error>");
                 io_close(c->s);
                 break;
@@ -478,13 +479,13 @@ result pthsock_server_packets(instance i, dpacket dp, void *arg)
             h->mp = pth_msgport_create(jid_full(id));
 
         q = pmalloco(dp->p, sizeof(_dpq));
-        q->p = dp;
+        q->x = x;
         pth_msgport_put(h->mp,(pth_message_t *)q);
         return r_DONE;
     }
 
     /* all we have left is db:verify packets */
-    xmlnode_put_vattrib(dp->x,"c",(void *)c); /* ugly, but hide the c on the xmlnode */
+    xmlnode_put_vattrib(x,"c",(void *)c); /* ugly, but hide the c on the xmlnode */
     _pthsock_server_host_verify((void *)(x));
 
     return r_DONE;
@@ -596,7 +597,7 @@ void pthsock_server_inread(sock s, char *buffer, int bufsz, int flags, void *arg
 {
     conn c = (conn)arg;
 
-    log_debug(ZONE,"outgoing conn %X IO[%d]",c,flags);
+    log_debug(ZONE,"incoming conn %X IO[%d]",c,flags);
 
     switch(flags)
     {
@@ -636,7 +637,7 @@ void pthsock_server(instance i, xmlnode x)
     srand(time(NULL));
 
     /* get the config */
-    cfg = xdb_get(xdb_cache(i),NULL,jid_new(xmlnode_pool(x),"config@-internal"),"jabber:config:pth-csock");
+    cfg = xdb_get(xdb_cache(i),NULL,jid_new(xmlnode_pool(x),"config@-internal"),"jabber:config:pth-ssock");
 
     si = pmalloco(i->p,sizeof(_ssi));
     si->ips = ghash_create(j_atoi(xmlnode_get_attrib(cfg,"prime"),67),(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp); /* keys are "ip:port" */
@@ -645,11 +646,11 @@ void pthsock_server(instance i, xmlnode x)
     si->secret = xmlnode_get_attrib(cfg,"secret");
     if(si->secret == NULL) /* if there's no configured secret, make one on the fly */
         si->secret = pstrdup(i->p,_pthsock_server_randstr());
-    if(xmlnode_get_attrib(cfg,"legacy") != NULL)
+    if(xmlnode_get_tag(cfg,"legacy") != NULL)
         si->legacy = 1;
 
     /* XXX make configurable rate limits */
-    io_select_listen(j_atoi(xmlnode_get_attrib(cfg,"port"),5269),NULL,pthsock_server_inread,(void*)si,5,25);
+    io_select_listen(j_atoi(xmlnode_get_tag(cfg,"port"),5269),NULL,pthsock_server_inread,(void*)si,5,25);
     register_phandler(i,o_DELIVER,pthsock_server_packets,(void*)si);
 
     xmlnode_free(cfg);
