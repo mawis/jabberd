@@ -233,7 +233,7 @@ void deliver_fail(dpacket p, char *err)
             log_warn(p->host,"dropping a packet to %s from %s",xmlnode_get_attrib(p->x,"to"),xmlnode_get_attrib(p->x,"from"));
             pool_free(p->p);
         }else{
-            log_warn(p->host,"dropping a packet to %s from %s",xmlnode_get_attrib(p->x,"to"),xmlnode_get_attrib(p->x,"from"));
+            log_notice(p->host,"bouncing a packet to %s from %s",xmlnode_get_attrib(p->x,"to"),xmlnode_get_attrib(p->x,"from"));
 
             /* turn into an error */
             if(err == NULL)

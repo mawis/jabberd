@@ -106,7 +106,6 @@ int dnsrv_child_main(dns_io di)
      int     readlen = 0;
      char    readbuf[1024];
 
-
      /* Transmit stream header */
      pth_write(di->out, "<stream>", strlen("<stream>"));
 
@@ -138,11 +137,11 @@ int dnsrv_fork_and_capture(RESOLVEFUNC f, dns_io di)
 
      /* Create left and right pipes */
      if (pipe(left_fds) < 0 || pipe(right_fds) < 0)
-	  return r_ERR;
+	  return -1;
 
      pid = pth_fork();
      if (pid < 0)
-	  return r_ERR;
+	  return -1;
      else if (pid > 0)		/* Parent */
      {
 	  /* Close unneeded file handles */
@@ -366,11 +365,12 @@ void* dnsrv_process_io(void* threadarg)
      return NULL;
 }
 
-void dnsrv_thread(void *arg)
+void *dnsrv_thread(void *arg)
 {
      dns_io di=(dns_io)arg;
      /* Fork out resolver function/process */
      di->pid = dnsrv_fork_and_capture(dnsrv_child_main, di);
+     return NULL;
 }
 
 void dnsrv(instance i, xmlnode x)
@@ -418,7 +418,14 @@ void dnsrv(instance i, xmlnode x)
      /* Setup the hash of dns_packet_list */
      di->packet_table = ghash_create(DNS_PACKET_TABLE_SZ, (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
 
-     pth_spawn(PTH_ATTR_DEFAULT,(void*)dnsrv_thread,(void*)di);
+     /* spawn a thread that get's forked, and wait for it since it sets up the fd's */
+     pth_join(pth_spawn(PTH_ATTR_DEFAULT,(void*)dnsrv_thread,(void*)di),NULL);
+
+     if(di->pid < 0)
+     {
+         log_error(i->id,"dnsrv failed to start, unable to fork and/or create pipes");
+         return;
+     }
 
      /* Start IO thread */
      pth_spawn(PTH_ATTR_DEFAULT, dnsrv_process_io, di);
