@@ -26,15 +26,19 @@ typedef struct
     void *arg;
 } *drop, _drop;
 
+typedef void *iosi;
+
 #define IO_INIT 0
 #define IO_NEW 1
 #define IO_NORMAL 2
 #define IO_CLOSED 3
+#define IO_ERROR 4
 
 typedef void (*io_onNode)(int type, xmlnode x, void *arg);
 typedef void (*io_cb)(sock c,char *buffer,int bufsz,int flags,void *arg);
 
-void io_select(int port,io_cb cb,void *arg); /* start listening with select */
+iosi io_select(int port,io_cb cb,void *arg); /* start listening with select */
 void io_write_str(sock c,char *buffer); /* write a str to a socket */
 void io_write(sock c,xmlnode x); /*write and eat an xmlnode to the socket */
 void io_close(sock c); /* request to close the socket */
+void io_select_connect(iosi io_instance,char *host,int port,void *arg);
