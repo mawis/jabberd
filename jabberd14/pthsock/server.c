@@ -310,9 +310,29 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
     sd = ghash_get(si->out_tab,to->server);
 
     if (sd != NULL) /* make sure we found a valid outgoing socket */
-        if ((sd->type!=conn_OUT&&sd->type!=conn_CONNECTING)||sd->arg==NULL||((sock)sd->arg)->state!=state_ACTIVE)
-            sd = NULL; /* nope it's not really valid */
-
+      /*
+       * Here is the logic that I believe is intended.  If we have a connection
+       * in progress or the current one is valid, use it.
+       * Otherwise, flag that we need a new one.
+       */
+      if (sd->type != conn_CONNECTING && 
+	  (sd->type != conn_OUT ||
+	   sd->arg == NULL || 
+	   ((sock)sd->arg)->state != state_ACTIVE))
+	{
+		/*
+		 * XXX
+		 * We're gonna set sd to null below and then create a new
+		 * one.  That new one will be placed in the hashtable.
+		 * At the time that new one is placed in the hashtable, its
+		 * value clobbers the one that we just decided is invalid.
+		 * At what point does that bit of memory (what sd is pointing
+		 * to right now before we set it to null) get cleaned up?
+		 */
+		log_debug(ZONE, "Invalid connection: sdata type: %d, socket 0x%x.\n", sd->type, sd->arg);
+		sd = NULL; /* nope it's not really valid */
+	}
+    
     q=pmalloco(dp->p,sizeof(_wbq));
     q->x=dp->x;
     /* hide the header crap */
@@ -329,6 +349,7 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
         /* create the sdata to attach to the new socket */
         p = pool_new();
         sd = pmalloco(p,sizeof(_sdata));
+	sd->arg=NULL; 
         sd->p=p;
         sd->type = conn_CONNECTING;
         sd->to = pstrdup(p,to->server);
