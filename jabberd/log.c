@@ -67,9 +67,10 @@ void logger(char *type, char *host, char *message)
     if(host != NULL)
         xmlnode_put_attrib(log,"from",host);
     else
-        xmlnode_put_attrib(log,"from","_internal");
+        xmlnode_put_attrib(log,"from","-internal");
     xmlnode_insert_cdata(log,message,strlen(message));
 
+    log_debug(ZONE,"%s",xmlnode2str(log));
     deliver(dpacket_new(log), NULL);
 }
 
