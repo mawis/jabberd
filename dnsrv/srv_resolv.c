@@ -20,7 +20,7 @@ char* srv_inet_ntoa(pool p, unsigned char* addrptr)
 {
      char result[16];
      result[15] = '\0';
-     snprintf(result, 15, "%d.%d.%d.%d", addrptr[0],addrptr[1],addrptr[2],addrptr[3]);
+     snprintf(result, 16, "%d.%d.%d.%d", addrptr[0],addrptr[1],addrptr[2],addrptr[3]);
      return pstrdup(p, result);
 }
 
