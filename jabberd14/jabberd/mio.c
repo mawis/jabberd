@@ -743,6 +743,7 @@ void mio_rate(mio m, int rate_time, int max_points)
         jlimit_free(m->rate);
 
     m->rate = jlimit_new(rate_time, max_points);
+    m->rated = 1;
 }
 
 /*
@@ -907,3 +908,23 @@ mio_handlers mio_handlers_new(mio_read_func rf, mio_write_func wf, mio_parser_fu
     return new;
 }
 
+void mio_handlers_free(mio_handlers mh)
+{
+    if(mh == NULL)
+        return;
+
+    pool_free(mh->p);
+}
+
+void mio_set_handlers(mio m, mio_handlers mh)
+{
+    mio_handlers old;
+
+    if(m == NULL || mh == NULL)
+        return;
+
+    old = m->mh;
+    m->mh = mh;
+
+    mio_handlers_free(old);
+}

@@ -266,7 +266,6 @@ void register_instance(instance id, char *host)
         break;
     default:
     }
-    id->flag_used++;
 }
 
 /* bounce on the delivery, use the result to better gague what went wrong */
@@ -521,11 +520,15 @@ void deliver(dpacket p, instance i)
 
     if(deliver__flag == 0)
     { /* postpone delivery till later */
-        deliver_msg d=pmalloco(xmlnode_pool(p->x),sizeof(_deliver_msg));
-        if(deliver__mp==NULL)deliver__mp=pth_msgport_create("deliver__");
-        d->i=i;
-        d->p=p;
-        pth_msgport_put(deliver__mp,(void*)d);
+        deliver_msg d = pmalloco(xmlnode_pool(p->x) ,sizeof(_deliver_msg));
+        
+        if(deliver__mp == NULL)
+            deliver__mp = pth_msgport_create("deliver__");
+        
+        d->i = i;
+        d->p = p;
+        
+        pth_msgport_put(deliver__mp, (void*)d);
         return;
     }
 
