@@ -125,14 +125,18 @@ typedef struct mtqueue_struct
 {
     struct mth_struct *t;
     mtq_callback f;
+    pth_msgport_t mp;
+    int routed;
 } *mtq, _mtq;
 
 /* has the message port for the running thread, and the current queue it's processing */
 typedef struct mth_struct
 {
-    pth_msgport_t mp;
     mtq q;
+    pth_msgport_t mp;
     pool p;
+    pth_t id;
+    int busy;
 } *mth, _mth;
 
 mtq mtq_new(pool p); /* creates a new queue, is automatically cleaned up when p frees */
