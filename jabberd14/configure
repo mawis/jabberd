@@ -76,7 +76,8 @@ case $hosttype in
         LIBS="$LIBS -ldl -lresolv"
         XLDFLAGS="$XLDFLAGS -Wl,--export-dynamic";;
     SunOS)
-        if [ -n `ld -V | grep GNU` ]; then
+        LDTEST=`gcc -Wl,-V 2>&1 | grep GNU`
+        if [ -n "$LDTEST" ]; then
             XLDFLAGS="$XLDFLAGS -Wl,-export-dynamic"
         fi
         CFLAGS="$CFLAGS"
