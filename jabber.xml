@@ -52,7 +52,7 @@
     <host/>
     <load><dnsrv>./dnsrv/dnsrv.so</dnsrv></load>
     <dnsrv xmlns="jabberd:dnsrv:config">
-     <replyhost>s2s-127.0.0.1</replyhost>
+     <resendhost>s2s-127.0.0.1</resendhost>
     </dnsrv>
   </service>
   <!-- performs server connections can also perform blocking dns lookups -->
