@@ -89,8 +89,14 @@ void check_karma(c2s_t c2s)
 static void usage(void)
 {
     fputs(
+	"This is version " VERSION " of jadc2s\n"
+#ifdef USE_SSL
+	"SSL/TLS is enabled in this build.\n"
+#endif
+	"\n"
         "Usage: jadc2s <options>\n"
         "Options are:\n"
+	"   -h              output this help message\n"
         "   -c <config>     config file to use [default: jadc2s.xml]\n"
 	"   -r <randdev>    device to read randomization seed from\n"
         "   -o key=value    override config file property\n"
