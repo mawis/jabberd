@@ -376,6 +376,7 @@ void *base_accept_io(void *arg)
 			log_warn(NULL,"base_accept Bouncing packet intended for %s",xmlnode_get_attrib(d->p->x,"to"));
 			deliver_fail(d->p,"External Server Error");
 		}
+        a->s->a = NULL;
 	}
 	/* Cleanup a simplex socket */
 	else if (a->state == A_SIMPLEX)
