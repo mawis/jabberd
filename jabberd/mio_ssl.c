@@ -1,8 +1,9 @@
 #include "jabberd.h"
+#ifdef HAVE_SSL
 #include <err.h>
 
-#ifdef HAVE_SSL
 HASHTABLE ssl__ctxs;
+extern int mio__errno;
 
 
 #ifndef NO_RSA
@@ -154,8 +155,10 @@ ssize_t _mio_ssl_read(mio m, void *buf, size_t count)
             if((SSL_get_error(ssl, ret) == SSL_ERROR_WANT_READ) ||
                SSL_get_error(ssl, ret) == SSL_ERROR_WANT_WRITE)
             {
-                log_debug(ZONE, "Accept blocked, returning");
-                return 0;
+                log_debug(ZONE, "Read blocked, returning");
+
+                mio__errno = EAGAIN;
+                return -1;
             }
             e = ERR_get_error();
             buf = ERR_error_string(e, NULL);
@@ -184,8 +187,10 @@ ssize_t _mio_ssl_write(mio m, const void *buf, size_t count)
             if((SSL_get_error(ssl, ret) == SSL_ERROR_WANT_READ) ||
                SSL_get_error(ssl, ret) == SSL_ERROR_WANT_WRITE)
             {
-                log_debug(ZONE, "Accept blocked, returning");
-                return 0;
+                log_debug(ZONE, "Write blocked, returning");
+                
+                mio__errno = EAGAIN;
+                return -1;
             }
             e = ERR_get_error();
             buf = ERR_error_string(e, NULL);

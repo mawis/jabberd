@@ -71,6 +71,7 @@ typedef struct mio_connect_st
 } _connect_data,  *connect_data;
 
 /* global object */
+int mio__errno = 0;
 ios mio__data = NULL;
 extern xmlnode greymatter__;
 
@@ -286,7 +287,8 @@ int _mio_write_dump(mio m)
         if(len < 0)
         { 
             /* if we have an error, that isn't a blocking issue */ 
-            if(errno != EWOULDBLOCK && errno != EINTR && errno != EAGAIN)
+            if(errno != EWOULDBLOCK && errno != EINTR && errno != EAGAIN &&
+               mio__errno != EAGAIN)
             { 
                 /* bounce the queue */
                 if(m->cb != NULL)
@@ -594,6 +596,8 @@ void _mio_main(void *arg)
      * mio__data->master__list is NULL */
     while (1)
     {
+        // reset the local errno
+        mio__errno = 0;
         rfds = all_rfds;
         wfds = all_wfds;
 
@@ -725,7 +729,8 @@ void _mio_main(void *arg)
                 }
                 else if(len < 0)
                 {
-                    if(errno != EWOULDBLOCK && errno != EINTR && errno != EAGAIN) 
+                    if(errno != EWOULDBLOCK && errno != EINTR && 
+                       errno != EAGAIN && mio__errno != EAGAIN) 
                     {
                         /* kill this socket and move on */
                         mio_close(cur);
