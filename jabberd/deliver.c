@@ -28,6 +28,75 @@
  * 
  * --------------------------------------------------------------------------*/
 
+/* <jer mode="pondering">
+
+ok, the whole <xdb/> <log/> <service/> and id="" and <host/> have gotten us this far, barely, but it needs some rethought.
+
+there seem to be four types of conversations, xdb, log, route, and normal packets
+each type can be sub-divided based on different criteria, such as hostname, namespace, log type, etc.
+
+to do this right, base modules need to be able to assert their own logic within the delivery process
+and we need to do it efficiently
+and logically, so the administrator is able to understand where the packets are flowing
+
+upon startup, like normal configuration directive callbacks, base modules can register a filter config callback with an arg per-type (xdb/log/service)
+configuration calls each one of those, which use the arg to identify the instance that they are within
+this one is special, jabberd tracks which instances each callback is associated with based on 
+during configuration, jabberd tracks which base modules were called
+so during the configuration process, each base module registers a callback PER-INSTANCE that it's configured in
+
+first, break down by
+first step with a packet to be delivered is identify the instance it belongs to
+
+filter_host
+filter_ns
+filter_logtype
+
+it's an & operation, host & ns must have to match
+
+first get type (xdb/log/svc)
+then find which filters for the list of instances
+then ask each filter to return a sub-set
+after all the filters, deliver to the final instance(s)
+
+what if we make <route/> addressing seperate, and only use the id="" for it?
+
+we need to add a <drain> ... <drain> which matches any undelivered packet, and can send to another jabberd via accept/exec/stdout/etc
+</jer>
+
+<jer mode="pretty sure">
+
+id="" is only required on services
+
+HT host_norm
+HT host_xdb
+HT host_log
+HT ns
+ilist log_notice, log_alert, log_warning
+
+to deliver the dpacket, first check the right host hashtable and get a list
+second, if it's xdb or log, check the ns HT or log type list
+find intersection of lists
+
+if a host, ns, or type is used in any instance, it must be used in ALL of that type, or configuration error!
+
+if intersection has multiple results, fail, or none, find uplink or fail
+
+deliver()
+	deliver_norm
+		if(host_norm != NULL) ilista = host_norm(host)
+	deliver_xdb
+		if(host_xdb != NULL) ilista = host_xdb(host)
+		if(ns != NULL) ilistb = ns(namespace)
+		i = intersect(ilista, ilistb)
+			if result multiple, return NULL
+			if result single, return
+			if result NULL, return uplink
+		deliver_instance(i)
+	deliver_log
+		host_log, if logtype_flag switch on type
+</jer> */
+
 #include "jabberd.h"
 int deliver__flag=0;
 pth_msgport_t deliver__mp=NULL;
@@ -37,6 +106,212 @@ typedef struct deliver_mp_st
     instance i;
     dpacket p;
 } _deliver_msg,*deliver_msg;
+
+typedef struct ilist_struct
+{
+    instance i;
+    struct ilist_struct *next;
+} *ilist, _ilist;
+
+ilist ilist_add(ilist il, instance i)
+{
+    ilist ilnew;
+
+    ilnew = pmalloco(i->p, sizeof(_ilist));
+    ilnew->i = i;
+    ilnew->next = il;
+    return ilnew;
+}
+
+ilist ilist_rem(ilist il, instance i)
+{
+    ilist cur;
+
+    if(il == NULL) return NULL;
+
+    if(il->i == i) return il->next;
+
+    for(cur = il; cur->next != NULL; cur = cur->next)
+        if(cur->next->i == i)
+        {
+            cur->next = cur->next->next;
+            return il;
+        }
+
+    return NULL;
+}
+
+/* XXX handle removing things from the list too, yuck */
+
+/* set up our global delivery logic tracking vars */
+
+HASHTABLE deliver__hnorm = NULL; /* hosts for normal packets, important and most frequently used one */
+HASHTABLE deliver__hxdb = NULL; /* host filters for xdb requests */
+HASHTABLE deliver__hlog = NULL; /* host filters for logging */
+HASHTABLE deliver__ns = NULL; /* namespace filters for xdb */
+HASHTABLE deliver__logtype = NULL; /* log types, fixed set, but it's easier (wussier) to just be consistent and use a hashtable */
+
+ilist deliver__all = NULL; /* all instances */
+instance deliver__uplink = NULL; /* uplink instance, only one */
+
+/* utility to find the right hashtable based on type */
+HASHTABLE deliver_hashtable(ptype type)
+{
+    switch(type)
+    {
+    case p_LOG:
+        return deliver__hlog;
+    case p_XDB:
+        return deliver__hxdb;
+    default:
+        return deliver__hnorm;
+    }
+}
+
+/* utility to find the right ilist in the hashtable */
+ilist deliver_hashmatch(HASHTABLE ht, char *key)
+{
+    ilist l;
+    l = ghash_get(ht, key);
+    if(l == NULL)
+        l = ghash_get(ht, "*");
+    return l;
+}
+
+/* find and return the instance intersecting both lists, or react intelligently */
+instance deliver_intersect(ilist a, ilist b)
+{
+    ilist cur = NULL, cur2;
+    instance i = NULL;
+
+    if(a == NULL)
+        cur = b;
+    if(b == NULL)
+        cur = a;
+
+    if(cur != NULL) /* we've only got one list */
+    {
+        if(cur->next != NULL)
+            return NULL; /* multiple results is a failure */
+        else
+            return cur->i;
+    }
+
+    for(cur = a; cur != NULL; cur = cur->next)
+    {
+        for(cur2 = b; cur2 != NULL; cur2 = cur2->next)
+        {
+            if(cur->i == cur2->i) /* yay, intersection! */
+            {
+                if(i != NULL)
+                    return NULL; /* multiple results is a failure */
+                i = cur->i;
+            }
+        }
+    }
+
+    if(i == NULL) /* no match, use uplink */
+        return deliver__uplink;
+
+    return i;
+}
+
+void deliver_xdb(dpacket p)
+{
+    ilist a, b;
+
+    b = NULL;
+    a = deliver_hashmatch(deliver_hashtable(p->type), p->host);
+    if(p->type == p_XDB)
+        b = deliver_hashmatch(deliver__ns, p->id->resource); /* XXX xdb ns/folder support? */
+    else if(p->type == p_LOG)
+        b = deliver_hashmatch(deliver__ns, xmlnode_get_attrib(p->x,"type"));
+
+    deliver_instance(deliver_intersect(a, b), p);
+}
+
+
+result deliver_config_host(instance i, xmlnode x, void *arg)
+{
+    ilist l;
+    HASHTABLE ht;
+    char *host, star[] = "*";
+
+    if(i == NULL)
+        return r_PASS;
+
+    /* do some validation checks here */
+
+    /* fail, since ns is required on every XDB instance if it's used on any one */
+    if(i->type == p_XDB && deliver__ns != NULL && xmlnode_get_tag(i->x, "ns") == NULL) return r_ERR;
+    /* fail, since logtype is required on every LOG instance if it's used on any one */
+    if(i->type == p_LOG && deliver__logtype != NULL && xmlnode_get_tag(i->x, "logtype") == NULL) return r_ERR;
+
+    host = xmlnode_get_data(x);
+    if(host == NULL)
+        host = star;
+
+    ht = deliver_hashtable(i->type);
+    l = ghash_get(ht, host);
+    l = ilist_add(l, i);
+    ghash_put(ht, host, (void *)l);
+
+    return r_DONE;
+}
+
+result deliver_config_ns(instance i, xmlnode x, void *arg)
+{
+    ilist l;
+    char *ns, star[] = "*";
+
+    if(i == NULL)
+        return r_PASS;
+
+    if(i->type != p_XDB)
+        return r_ERR;
+
+    ns = xmlnode_get_data(x);
+    if(ns == NULL)
+        ns = star;
+
+    l = ghash_get(deliver__ns, ns);
+    l = ilist_add(l, i);
+    ghash_put(deliver__ns, ns, (void *)l);
+
+    return r_DONE;
+}
+
+result deliver_config_logtype(instance i, xmlnode x, void *arg)
+{
+    ilist l;
+    char *type, star[] = "*";
+
+    if(i == NULL)
+        return r_PASS;
+
+    if(i->type != p_LOG)
+        return r_ERR;
+
+    type = xmlnode_get_data(x);
+    if(type == NULL)
+        type = star;
+
+    l = ghash_get(deliver__logtype, type);
+    l = ilist_add(l, i);
+    ghash_put(deliver__logtype, type, (void *)l);
+
+    return r_DONE;
+}
+
+void deliver_init(void)
+{
+    deliver__hnorm = ghash_create(401,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+    deliver__hlog = ghash_create(401,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+    deliver__hxdb = ghash_create(401,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+    register_config("host",deliver_config_host,NULL);
+    register_config("ns",deliver_config_ns,NULL);
+    register_config("logtype",deliver_config_logtype,NULL);
+}
 
 /* register a function to handle delivery for this instance */
 void register_phandler(instance id, order o, phandler f, void *arg)
@@ -339,6 +614,12 @@ result deliver_instance(instance i, dpacket p)
     handel h, hlast;
     result r, best = r_NONE;
     dpacket pig = p;
+
+    if(i == NULL)
+    {
+        deliver_fail(p, "Unable to deliver, destination unknown");
+        return r_ERR;
+    }
 
     log_debug(ZONE,"delivering to instance '%s'",i->id);
 
