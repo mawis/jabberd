@@ -41,6 +41,7 @@
 #include "jabberd.h"
 
 #include <netinet/in.h>
+#define BIND_8_COMPAT
 #include <arpa/nameser.h>
 #include <resolv.h>
 
