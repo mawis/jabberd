@@ -41,6 +41,7 @@
 
 #include <jabberdlib.h>
 
+#define MAX_MALLOC_TRIES 10 /**< how many seconds we try to allocate memory */
 
 #ifdef POOL_DEBUG
 int pool__total = 0;
@@ -61,16 +62,40 @@ void _pool__free(void *block)
 #define _pool__free free
 #endif
 
+/**
+ * try to allocate memory
+ *
+ * If allocation fails, it will be retries for MAX_MALLOC_TRIES seconds.
+ * If it still fails, we exit the process
+ *
+ * @param size how many bytes of memory we allocate
+ * @return pointer to the allocated memory
+ */
+inline void *_retried__malloc(size_t size) {
+    void *allocated_memory;
+    int malloc_tries = 0;
+
+    while ((allocated_memory=_pool__malloc(size)) == NULL) {
+	if (malloc_tries++ > MAX_MALLOC_TRIES) {
+	    exit(999);
+	}
+
+	pth_sleep(1);
+    }
+
+    return allocated_memory;
+}
 
 /* make an empty pool */
 pool _pool_new(char *zone, int line)
 {
+    int malloc_tries = 0;
 #ifdef POOL_DEBUG
     int old__pool__total;
 #endif
 
-    pool p;
-    while((p = _pool__malloc(sizeof(_pool))) == NULL) sleep(1);
+    pool p = _retried__malloc(sizeof(_pool));
+    
     p->cleanup = NULL;
     p->heap = NULL;
     p->size = 0;
@@ -128,7 +153,7 @@ struct pfree *_pool_free(pool p, pool_cleaner f, void *arg)
     struct pfree *ret;
 
     /* make the storage for the tracker */
-    while((ret = _pool__malloc(sizeof(struct pfree))) == NULL) sleep(1);
+    ret = _retried__malloc(sizeof(struct pfree));
     ret->f = f;
     ret->arg = arg;
     ret->next = NULL;
@@ -143,8 +168,8 @@ struct pheap *_pool_heap(pool p, int size)
     struct pfree *clean;
 
     /* make the return heap */
-    while((ret = _pool__malloc(sizeof(struct pheap))) == NULL) sleep(1);
-    while((ret->block = _pool__malloc(size)) == NULL) sleep(1);
+    ret = _retried__malloc(sizeof(struct pheap));
+    ret->block = _retried__malloc(size);
     ret->size = size;
     p->size += size;
     ret->used = 0;
@@ -178,7 +203,7 @@ void *pmalloc(pool p, int size)
     /* if there is no heap for this pool or it's a big request, just raw, I like how we clean this :) */
     if(p->heap == NULL || size > (p->heap->size / 2))
     {
-        while((block = _pool__malloc(size)) == NULL) sleep(1);
+	block = _retried__malloc(size);
         p->size += size;
         _pool_cleanup_append(p, _pool_free(p, _pool__free, block));
         return block;
