@@ -308,7 +308,6 @@ void *base_accept_io(void *arg)
     pool_free(a->p);
 
     pth_event_free(a->eread, PTH_FREE_THIS);
-    pth_event_free(a->etime, PTH_FREE_THIS);
 
     return NULL;
 }
