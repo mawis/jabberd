@@ -18,6 +18,9 @@ Background the jabberd process. (This option is disabled in debugging mode.)
 Specify an alternate configuration file. Default is to use
 @sysconfdir@/jabber.xml
 .TP
+.B \-U <user>
+Run jabberd as <user>.
+.TP
 .B \-d <mask>
 Output debugging information while running. This option disabled
 backgrounding of the jabberd process. The debugging output is either
