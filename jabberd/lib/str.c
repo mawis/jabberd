@@ -39,8 +39,27 @@
  * 
  * --------------------------------------------------------------------------*/
 
+/**
+ * @file str.c
+ * @brief utilities for string handling
+ *
+ * This file contains utility functions for string handling:
+ * - NULL pointer save versions of many functions in string.c
+ * - string spools
+ * - functions to (un)escape strings for XML usage
+ *
+ * String spools allow to create a string by concatenating several smaller strings
+ * and the spool implementation is allocating the neccessary memory using memory pools.
+ */
+
 #include <jabberdlib.h>
 
+/**
+ * NULL pointer save version of strdup()
+ *
+ * @param str the string the should be duplicated
+ * @return the duplicated string
+ */
 char *j_strdup(const char *str)
 {
     if(str == NULL)
@@ -49,6 +68,17 @@ char *j_strdup(const char *str)
         return strdup(str);
 }
 
+/**
+ * NULL pointer save version of strcat()
+ *
+ * @note the return value of j_strcat() is not compatible with the return value of strcat()
+ *
+ * @todo check if the behaviour of the return value is intended
+ *
+ * @param dest where to append the string
+ * @param txt what to append
+ * @return dest if txt contains a NULL pointer, pointer to the terminating zero byte of the result else
+ */
 char *j_strcat(char *dest, char *txt)
 {
     if(!txt) return(dest);
@@ -60,6 +90,17 @@ char *j_strcat(char *dest, char *txt)
     return(dest);
 }
 
+/**
+ * NULL pointer save version of strcmp
+ *
+ * If one of the parameters contains a NULL pointer, the string is considered to be unequal.
+ *
+ * @note the return value is not compatible with strcmp()
+ *
+ * @param a the one string
+ * @param b the other string
+ * @return 0 if the strings are equal, -1 if the strings are not equal
+ */
 int j_strcmp(const char *a, const char *b)
 {
     if(a == NULL || b == NULL)
@@ -72,6 +113,15 @@ int j_strcmp(const char *a, const char *b)
     return -1;
 }
 
+/**
+ * NULL pointer save version of strcasecmp()
+ *
+ * If one of the parameters contains a NULL pointer, the string is considered to be unequal
+ *
+ * @param a the one string
+ * @param b the other string
+ * @return 0 if the strings are equal, non zero else
+ */
 int j_strcasecmp(const char *a, const char *b)
 {
     if(a == NULL || b == NULL)
@@ -80,6 +130,16 @@ int j_strcasecmp(const char *a, const char *b)
         return strcasecmp(a, b);
 }
 
+/**
+ * NULL pointer save version of strncmp()
+ *
+ * If one of the parameters contains a NULL pointer, the string is considered to be unequal
+ *
+ * @param a the first string
+ * @param b the second string
+ * @param i how many characters to compare at most
+ * @return 0 if the strings are equal (within the given length limitation), non zero else
+ */
 int j_strncmp(const char *a, const char *b, int i)
 {
     if(a == NULL || b == NULL)
@@ -88,6 +148,16 @@ int j_strncmp(const char *a, const char *b, int i)
         return strncmp(a, b, i);
 }
 
+/**
+ * NULL pointer save version of strncasecmp()
+ *
+ * If one of the parameters contains a NULL pointer, the string is considered to be unequal
+ *
+ * @param a the first string
+ * @param b the second string
+ * @param i how many characters to compare at most
+ * @return 0 if the strings are equal (within the given length limitation), non zero else
+ */
 int j_strncasecmp(const char *a, const char *b, int i)
 {
     if(a == NULL || b == NULL)
@@ -96,6 +166,14 @@ int j_strncasecmp(const char *a, const char *b, int i)
         return strncasecmp(a, b, i);
 }
 
+/**
+ * NULL pointer save version of strlen
+ *
+ * If the parameter contains a NULL pointer, 0 is returned
+ *
+ * @param a the string for which the length should be calculated
+ * @return 0 if a==NULL, length of the string else
+ */
 int j_strlen(const char *a)
 {
     if(a == NULL)

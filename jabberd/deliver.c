@@ -532,7 +532,7 @@ void register_phandler(instance id, order o, phandler f, void *arg)
 
     /* create handel and setup */
     p = pool_new(); /* use our own little pool */
-    newh = pmalloc_x(p, sizeof(_handel), 0);
+    newh = pmalloco(p, sizeof(_handel));
     newh->p = p;
     newh->f = f;
     newh->arg = arg;
@@ -757,7 +757,7 @@ dpacket dpacket_new(xmlnode x)
         return NULL;
 
     /* create the new packet */
-    p = pmalloc_x(xmlnode_pool(x),sizeof(_dpacket),0);
+    p = pmalloco(xmlnode_pool(x),sizeof(_dpacket));
     p->x = x;
     p->p = xmlnode_pool(x);
 

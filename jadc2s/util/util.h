@@ -116,7 +116,6 @@ typedef struct pool_struct
 pool _pool_new(char *zone, int line); /* new pool :) */
 pool _pool_new_heap(int size, char *zone, int line); /* creates a new memory pool with an initial heap size */
 void *pmalloc(pool p, int size); /* wrapper around malloc, takes from the pool, cleaned up automatically */
-void *pmalloc_x(pool p, int size, char c); /* Wrapper around pmalloc which prefils buffer with c */
 void *pmalloco(pool p, int size); /* YAPW for zeroing the block */
 char *pstrdup(pool p, const char *src); /* wrapper around strdup, gains mem from pool */
 void pool_stat(int full); /* print to stderr the changed pools and reset */

@@ -41,7 +41,16 @@
 
 #include <jabberdlib.h>
 
-/* these aren't the most efficient things in the world, a hash optimized for tiny spaces would be far better */
+/**
+ * @file pproxy.c
+ * @brief presence proxy database - DEPRECATED
+ *
+ * @deprecated these functions are not used by jabberd itself (but aim-t uses them), they will be removed from jabberd
+ *
+ * The presence proxy database is used to store presences for different resources of a JID.  
+ *
+ * these aren't the most efficient things in the world, a hash optimized for tiny spaces would be far better
+ */
 
 ppdb _ppdb_new(pool p, jid id)
 {
