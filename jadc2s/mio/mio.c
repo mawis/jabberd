@@ -136,10 +136,16 @@ void mio_close(mio_t m, int fd)
 /* internally accept an incoming connection from a listen sock */
 void _mio_accept(mio_t m, int fd)
 {
+#ifdef USE_IPV6
+    struct sockaddr_storage serv_addr;
+    char ip[INET6_ADDRSTRLEN];
+    int port = 0;
+#else
     struct sockaddr_in serv_addr;
+    char ip[16];
+#endif
     size_t addrlen = sizeof(serv_addr);
     int newfd, dupfd;
-    char ip[16];
 
     mio_debug(ZONE, "accepting on fd #%d", fd);
 
@@ -147,8 +153,24 @@ void _mio_accept(mio_t m, int fd)
     newfd = accept(fd, (struct sockaddr*)&serv_addr, (int*)&addrlen);
     if(newfd <= 0) return;
 
+#ifdef USE_IPV6
+    switch (serv_addr.ss_family) {
+	case AF_INET:
+	    inet_ntop(AF_INET, &(((struct sockaddr_in*)&serv_addr)->sin_addr), ip, sizeof(ip));
+	    port = ntohs(((struct sockaddr_in*)&serv_addr)->sin_port);
+	    break;
+	case AF_INET6:
+	    inet_ntop(AF_INET6, &(((struct sockaddr_in6*)&serv_addr)->sin6_addr), ip, sizeof(ip));
+	    port = ntohs(((struct sockaddr_in6*)&serv_addr)->sin6_port);
+	    break;
+	default:
+	    strcpy(ip, "(unknown)");
+    }
+    mio_debug(ZONE, "new socket accepted fd #%d, ip %s, port %d", newfd, ip, port);
+#else
     snprintf(ip,16,"%s",inet_ntoa(serv_addr.sin_addr));
     mio_debug(ZONE, "new socket accepted fd #%d, %s:%d", newfd, ip, ntohs(serv_addr.sin_port));
+#endif
 
     /* set up the entry for this new socket */
     if(mio_fd(m, newfd, FD(m,fd).app, FD(m,fd).arg) < 0)
@@ -402,30 +424,78 @@ void mio_write(mio_t m, int fd)
 /* set up a listener in this mio w/ this default app/arg */
 int mio_listen(mio_t m, int port, char *sourceip, mio_handler_t app, void *arg)
 {
-    int fd, flag = 1;
+    int fd, flag = 1, af = AF_INET;
+#ifdef USE_IPV6
+    struct in_addr ipv4;
+    struct in6_addr ipv6;
+    struct sockaddr_in sa4;
+    struct sockaddr_in6 sa6;
+    struct sockaddr *sa;
+    socklen_t addrlen;
+#else
     unsigned long int ip = 0;
     struct sockaddr_in sa;
+#endif
 
     if(m == NULL) return -1;
 
     mio_debug(ZONE, "mio to listen on %d [%s]", port, sourceip);
 
     /* if we specified an ip to bind to */
-    if(sourceip != NULL)
+    if(sourceip != NULL) {
+#ifdef USE_IPV6
+	if (inet_pton(AF_INET, sourceip, &ipv4) > 0) {
+	    af = AF_INET;
+	} else if (inet_pton(AF_INET6, sourceip, &ipv6) > 0) {
+	    af = AF_INET6;
+	} else {
+	    /* XXX If source ip is not parsealbe, we just ignore it ... better error handling */
+	    sourceip = NULL;
+	}
+#else
         ip = inet_addr(sourceip);
+#endif
+    }
 
     /* attempt to create a socket */
-    if((fd = socket(AF_INET,SOCK_STREAM,0)) < 0) return -1;
+    if((fd = socket(af,SOCK_STREAM,0)) < 0) return -1;
     if(setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char*)&flag, sizeof(flag)) < 0) return -1;
     if(setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char*)&flag, sizeof(flag)) < 0)
         return(-1);
 
     /* set up and bind address info */
+#ifdef USE_IPV6
+    switch(af) {
+	case AF_INET:
+	    memset(&sa4, 0, sizeof(sa4));
+	    sa4.sin_family = af;
+	    sa4.sin_port = htons(port);
+	    if (sourceip != NULL)
+		sa4.sin_addr = ipv4;
+	    sa = (struct sockaddr*)&sa4;
+	    addrlen = sizeof(sa4);
+	    break;
+	case AF_INET6:
+	    memset(&sa6, 0, sizeof(sa6));
+	    sa6.sin6_family = af;
+	    sa6.sin6_port = htons(port);
+	    if (sourceip != NULL)
+		sa6.sin6_addr = ipv6;
+	    sa = (struct sockaddr*)&sa6;
+	    addrlen = sizeof(sa6);
+#ifdef SIN6_LEN
+	    sa6.sin6_len = addrlen;
+#endif
+	    break;
+    }
+    if (bind(fd, sa, addrlen) < 0)
+#else
     memset(&sa, 0, sizeof(sa));
     sa.sin_family = AF_INET;
     sa.sin_port = htons(port);
     if(ip > 0) sa.sin_addr.s_addr = ip;
     if(bind(fd,(struct sockaddr*)&sa,sizeof(sa)) < 0)
+#endif
     {
         close(fd);
         return -1;
@@ -454,19 +524,38 @@ int mio_listen(mio_t m, int port, char *sourceip, mio_handler_t app, void *arg)
 /* create an fd and connect to the given ip/port */
 int mio_connect(mio_t m, int port, char *hostip, mio_handler_t app, void *arg)
 {
-    int fd, flag;
+    int fd, flag, af = AF_INET;
+#ifdef USE_IPV6
+    struct in_addr ipv4;
+    struct in6_addr ipv6;
+    struct sockaddr_in sa4;
+    struct sockaddr_in6 sa6;
+    struct sockaddr* sa;
+    socklen_t addrlen;
+#else
     unsigned long int ip = 0;
     struct sockaddr_in sa;
+#endif
 
     if(m == NULL || port <= 0 || hostip == NULL) return -1;
 
     mio_debug(ZONE, "mio connecting to %s:%d",hostip,port);
 
     /* convert the hostip */
+#ifdef USE_IPV6
+    if (inet_pton(AF_INET, hostip, &ipv4) > 0) {
+	af = AF_INET;
+    } else if (inet_pton(AF_INET6, hostip, &ipv6) > 0) {
+	af = AF_INET6;
+    } else {
+	return -1;
+    }
+#else
     if((ip = inet_addr(hostip)) < 0) return -1;
+#endif
 
     /* attempt to create a socket */
-    if((fd = socket(AF_INET,SOCK_STREAM,0)) < 0) return -1;
+    if((fd = socket(af,SOCK_STREAM,0)) < 0) return -1;
 
     /* set the socket to non-blocking before connecting */
     flag =  fcntl(fd, F_GETFL, 0);
@@ -474,13 +563,41 @@ int mio_connect(mio_t m, int port, char *hostip, mio_handler_t app, void *arg)
     fcntl(fd, F_SETFL, flag);
 
     /* set up address info */
+#ifdef USE_IPV6
+    switch (af) {
+	case AF_INET:
+	    memset(&sa4, 0, sizeof(sa4));
+	    sa4.sin_family = AF_INET;
+	    sa4.sin_port = htons(port);
+	    sa4.sin_addr = ipv4;
+	    addrlen = sizeof(sa4);
+	    sa = (struct sockaddr*)&sa4;
+	    break;
+	case AF_INET6:
+	    memset(&sa6, 0, sizeof(sa6));
+	    sa6.sin6_family = AF_INET6;
+	    sa6.sin6_port = htons(port);
+	    sa6.sin6_addr = ipv6;
+	    addrlen = sizeof(sa6);
+#ifdef SIN6_LEN
+	    sa6.sin6_len = addrlen;
+#endif
+	    sa = (struct sockaddr*)&sa6;
+	    break;
+    }
+#else
     memset(&sa, 0, sizeof(sa));
     sa.sin_family = AF_INET;
     sa.sin_port = htons(port);
     sa.sin_addr.s_addr = ip;
+#endif
 
     /* try to connect */
+#ifdef USE_IPV6
+    flag = connect(fd,sa,addrlen);
+#else
     flag = connect(fd,(struct sockaddr*)&sa,sizeof(sa));
+#endif
 
     mio_debug(ZONE, "connect returned %d and %s", flag, strerror(errno));
 

@@ -1,2 +1,3 @@
-    * Sending and logging connection information
+    * IPv6 support [mawis]
+    * Sending and logging connection information [mawis]
     * Autotools-based build system [mawis]

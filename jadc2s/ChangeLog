@@ -1,3 +1,9 @@
+2003-12-21  Matthias Wimmer  <m@tthias.net>
+
+    * configure.in: added IPv6 checks
+    * connect.c: added IPv6 support
+    * mio/mio.c: same
+
 2003-12-17  Matthias Wimmer  <m@tthias.net>
 
     * Makefile.am: do overwrite existing configuration file
