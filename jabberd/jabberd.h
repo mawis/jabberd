@@ -201,6 +201,7 @@ typedef struct mio_st
     xstream xs;
     int fd;
     mio_wbq queue; /* write buffer queue */
+    mio_wbq tail;  /* the last buffer queue item */
     struct mio_st *prev,*next;
     void *arg;    /* do not modify directly */
     void *cb;     /* do not modify directly */
