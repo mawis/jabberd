@@ -117,7 +117,7 @@ void dialback_out_connect(dboc c)
     { /* format "ipaddr" or "ipaddr:port" */
 	col = strchr(ip, ':');
 	/* if it has at least two colons it is an IPv6 address */
-	if(col!=NULL && strchr(col,':'))
+	if(col!=NULL && strchr(col+1,':'))
 	{
 	    col = NULL;
 	}
