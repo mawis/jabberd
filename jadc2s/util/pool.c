@@ -79,7 +79,7 @@ pool _pool_new(char *zone, int line)
     if(pool__disturbed == NULL)
     {
         pool__disturbed = (xht)1; /* reentrancy flag! */
-        pool__disturbed = xhash_new(POOL_DEBUG);
+        pool__disturbed = xhash_new(POOL_NUM);
     }
     if(pool__disturbed != (xht)1)
         xhash_put(pool__disturbed,p->name,p);

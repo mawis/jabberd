@@ -1,0 +1,18 @@
+2003-12-13  Matthias Wimmer  <m@tthias.net>
+
+    * ChangeLog: Added ChangeLog file
+    * Makefile.am: template for automake
+    * NEWS: Added NEWS file
+    * ac-helpers/Makefile.am: template for automake
+    * ac-helpers/openssl.m4: macro to check for openssl
+    * bootstrap: script to run autoconf, automake and libtool
+    * config.rpath: Added this file
+    * configure.in: template for the configure script
+    * mio/Makefile.am: template for automake
+    * util/Makefile.am: same
+    * xmlparse/Makefile.am: same
+    * jadc2s.c: added version information to help output
+    * jadc2s.h: including config.h
+    * mio/mio.h: same
+    * util/util.h: including config.h, pool debugging
+    * util/pool.c: changing macro for pool debugging hash size
