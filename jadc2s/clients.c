@@ -359,7 +359,7 @@ void _client_process(conn_t c) {
     if (chunk->nad == NULL)
         return;
     
-    log_debug(ZONE, "tag(%s)",NAD_ENAME(chunk->nad, 0));
+    log_debug(ZONE, "tag(%.*s)", NAD_ENAME_L(chunk->nad, 0), NAD_ENAME(chunk->nad, 0));
 
     /* handle auth requests */
     if((c->state != state_OPEN) && 
