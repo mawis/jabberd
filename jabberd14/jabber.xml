@@ -347,9 +347,7 @@
 
   <!--
   The following 's2s' config handles server connections and 
-  dialback hostname verification. Note that here again we 
-  have rate limits and karma to prevent nasty connection 
-  attempt and bandwidth abuses. The <legacy/> element is 
+  dialback hostname verification.  The <legacy/> element is 
   here to enable communication with old 1.0 servers. The 
   karma settings are a little higher here to handle the 
   higher traffic of server-to-server connections.
@@ -366,6 +364,19 @@
       <ip port="5269">127.0.0.1</ip>
       -->
     </pthssock>
+  </service>
+
+  <service id="dialback">
+    <load>
+      <dialback>./dialback/dialback.so</dialback>
+    </load>
+    <dialback xmlns='jabber:config:dialback'>
+      <legacy/>
+      <!-- Use these to listen on particular addresses and/or ports.
+      <ip port="7000"/>
+      <ip port="5269">127.0.0.1</ip>
+      -->
+    </dialback>
   </service>
 
   <!-- 
