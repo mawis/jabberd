@@ -137,6 +137,7 @@ int dnsrv_child_main(dns_io di)
      int     readlen = 0;
      char    readbuf[1024];
      sigset_t sigs;
+     int result;
 
 
      sigemptyset(&sigs);
@@ -149,12 +150,12 @@ int dnsrv_child_main(dns_io di)
      /* Loop forever, processing requests and feeding them to the xstream*/     
      while (1)
      {
-        log_debug(ZONE, "DNSRV CHILD: Reading from buffer");
        readlen = pth_read(di->in, &readbuf, 1024);
        if(readlen > 0)
        {
-        log_debug(ZONE, "DNSRV CHILD: eating read buffer");
-        xstream_eat(xs, readbuf, readlen);
+        log_debug(ZONE, "DNSRV CHILD: Read from buffer: %.*s",readlen,readbuf);
+        result = xstream_eat(xs, readbuf, readlen);
+        log_debug(ZONE, "DNSRV CHILD: result %d",result);
        }
        else
        {
