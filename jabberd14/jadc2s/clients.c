@@ -84,7 +84,7 @@ void _client_startElement(void *arg, const char* name, const char** atts)
             if (j_strcmp(atts[i], "to") == 0)
             {
                 log_debug(ZONE, "checking to: %s", atts[i+1]);
-                if (j_strcmp(atts[i+1], c->c2s->local_host) != 0)
+                if (j_strcmp(atts[i+1], c->c2s->local_id) != 0)
                 {
                     _write_actual(c, c->fd, "<stream:error>Invalid to address</stream:error>", 47);
                     c->depth = -1;
@@ -142,9 +142,9 @@ void _client_startElement(void *arg, const char* name, const char** atts)
 
         /* XXX fancier algo for id generation? */
         snprintf(sid, 24, "%d", rand());
-        header_len = 1 + strlen(name) + 77 + strlen(c->c2s->local_host) + 6 + 24 + 2;
+        header_len = 1 + strlen(name) + 77 + strlen(c->c2s->local_id) + 6 + 24 + 2;
         header = malloc(header_len);
-        snprintf(header, header_len, "<%s xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams' from='%s' id='%s'>", name,c->c2s->local_host, sid);
+        snprintf(header, header_len, "<%s xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams' from='%s' id='%s'>", name,c->c2s->local_id, sid);
         _write_actual(c,c->fd,header,strlen(header));
         free(header);
         c->sid = strdup(sid);

@@ -293,8 +293,22 @@ extern void     log_free(log_t);
 
 
 /* Config files */
-extern int      config_load(xht, char *);
-extern int      config_cmdline(xht, char *);
+struct config_elem_st
+{
+    char **values;
+    int nvalues;
+};
+typedef struct config_elem_st *config_elem_t;
+
+/* pretend to be an actual type */
+typedef xht config_t;
+
+extern config_t         config_new(void);
+extern int              config_load(config_t, char *);
+extern config_elem_t    config_get(config_t, char *);
+extern char             *config_get_one(config_t, char *, int);
+extern int              config_count(config_t, char *);
+extern void             config_free(config_t);
 
 
 /* Not A DOM */

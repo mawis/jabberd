@@ -113,7 +113,7 @@ int main(int argc, char **argv)
     time_t last_log, last_pending, now;
     char optchar;
     int config_loaded = 0;
-    int max_conns;
+    int max_fds;
 
     signal(SIGINT, onSignal);
     signal(SIGPIPE, SIG_IGN);
@@ -123,10 +123,10 @@ int main(int argc, char **argv)
     memset(c2s, 0, sizeof(struct c2s_st));
 
     /* load our config */
-    c2s->config = xhash_new(401);
+    c2s->config = config_new();
 
     /* cmdline parsing */
-    while((optchar = getopt(argc, argv, "c:o:bh?")) >= 0)
+    while((optchar = getopt(argc, argv, "c:bh?")) >= 0)
     {
         switch(optchar)
         {
@@ -135,10 +135,6 @@ int main(int argc, char **argv)
                 return 1;
             case 'c':
                 if(!config_load(c2s->config, optarg))
-                    config_loaded++;
-                break;
-            case 'o':
-                if(!config_cmdline(c2s->config, optarg))
                     config_loaded++;
                 break;
     	    case 'b':
@@ -158,40 +154,42 @@ int main(int argc, char **argv)
 
     /* inbuilt defaults and config file options */
     /* !!! config options for these? */
-    max_conns = j_atoi(xhash_get(c2s->config, "local.max_conns"), 1023);
-    c2s->mio = mio_new(max_conns);
     c2s->connection_rates = xhash_new(199);
     c2s->pending = xhash_new(199);
-    c2s->conns = xhash_new(max_conns);
     c2s->bad_conns = NULL;
     c2s->timeout = 15;
+
+    /* conn setup */
+    max_fds = j_atoi(config_get_one(c2s->config, "io.max_fds", 0), 1023);
+    c2s->mio = mio_new(max_fds);
+    c2s->conns = xhash_new(max_fds);
     c2s->num_clients = 0;
 
     /* nad cache */
     c2s->nads = nad_cache_new();
 
     /* session manager */
-    c2s->sm_host = j_strdup(xhash_get(c2s->config, "sm.host"));
-    c2s->sm_port = j_atoi(xhash_get(c2s->config, "sm.port"), 0);
-    c2s->sm_id = j_strdup(xhash_get(c2s->config, "sm.id"));
-    c2s->sm_secret = j_strdup(xhash_get(c2s->config, "sm.secret"));
+    c2s->sm_host = j_strdup(config_get_one(c2s->config, "sm.host", 0));
+    c2s->sm_port = j_atoi(config_get_one(c2s->config, "sm.port", 0), 0);
+    c2s->sm_id = j_strdup(config_get_one(c2s->config, "sm.id", 0));
+    c2s->sm_secret = j_strdup(config_get_one(c2s->config, "sm.secret", 0));
 
-    c2s->connection_rate_times = j_atoi(xhash_get(c2s->config,
-                "connection_limits.connects"), 0);
-    c2s->connection_rate_seconds = j_atoi(xhash_get(c2s->config,
-                "connection_limits.seconds"), 0);
+    c2s->connection_rate_times =
+        j_atoi(config_get_one(c2s->config, "io.connection_limits.connects", 0), 0);
+    c2s->connection_rate_seconds =
+        j_atoi(config_get_one(c2s->config, "io.connection_limits.seconds", 0), 0);
     
     /* XXX Change before release */
-    c2s->local_host = j_strdup(xhash_get(c2s->config, "local.host"));
-    c2s->local_ip = j_strdup(xhash_get(c2s->config, "local.ip"));
-    c2s->local_port = j_atoi(xhash_get(c2s->config, "local.port"), 5221);
+    c2s->local_id = j_strdup(config_get_one(c2s->config, "local.id", 0));
+    c2s->local_ip = j_strdup(config_get_one(c2s->config, "local.ip", 0));
+    c2s->local_port = j_atoi(config_get_one(c2s->config, "local.port", 0), 5222);
 #ifdef USE_SSL
-    c2s->local_sslport = j_atoi(xhash_get(c2s->config, "local.ssl.port"), 5223);
-    c2s->pemfile = j_strdup(xhash_get(c2s->config, "local.ssl.pemfile"));
+    c2s->local_sslport = j_atoi(config_get_one(c2s->config, "local.ssl.port", 0), 5223);
+    c2s->pemfile = j_strdup(config_get_one(c2s->config, "local.ssl.pemfile", 0));
 #endif
 
     /* require some things */
-    if(c2s->sm_host == NULL || c2s->sm_port == 0 || c2s->sm_id == NULL || c2s->sm_secret == NULL || c2s->local_host == NULL) {
+    if(c2s->sm_host == NULL || c2s->sm_port == 0 || c2s->sm_id == NULL || c2s->sm_secret == NULL || c2s->local_id == NULL) {
         usage();
         return 1;
     }
@@ -286,7 +284,7 @@ int main(int argc, char **argv)
     free(c2s->sm_host);
     free(c2s->sm_id);
     free(c2s->sm_secret);
-    free(c2s->local_host);
+    free(c2s->local_id);
 #ifdef USE_SSL
     SSL_CTX_free(c2s->ssl_ctx);
     free(c2s->pemfile);

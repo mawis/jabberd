@@ -146,7 +146,7 @@ struct c2s_st
     mio_t mio;
 
     /* setup */
-    char *local_host;
+    char *local_id;
     char *local_ip;
     int local_port;
 #ifdef USE_SSL
