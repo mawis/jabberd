@@ -1,5 +1,17 @@
 2004-06-29  Matthias Wimmer  <m@tthias.net>
 
+    * configure.in: flag modules as such
+    * dialback/Makefile.am: same
+    * dnsrv/Makefile.am: same
+    * jabberd/Makefile.am: same
+    * jabberd/base/Makefile.am: same
+    * jabberd/lib/Makefile.am: same
+    * jsm/Makefile.am: same
+    * jsm/modules/Makefile.am: same
+    * pthsock/Makefile.am: same
+    * xdb_file/Makefile.am: same
+    * jabberd/base/base_connect.c: fixed debugging statement
+    * jabberd/mio_ssl.c: fixed include for openssl/err.h
     * jabberd/config.c: Do not access the global variable cmd__line in
 	config.c, removed unused function config_reload() - functionallity
 	is also implemented in _jabberd_restart()
