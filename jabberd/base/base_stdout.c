@@ -30,7 +30,7 @@
 #include "jabberd.h"
 
 /* for cleanup signalling */
-pth_t main__thread=NULL;
+pth_t main__thread = NULL;
 
 /*
 
@@ -125,7 +125,7 @@ void *base_stdoutin(void *arg)
     /* send the header to stdout */
     x = xstream_header("jabber:component:exec",NULL,NULL);
     block = xstream_header_char(x);
-    pth_write(STDOUT_FILENO,block,strlen(block));
+    MIO_WRITE_FUNC(STDOUT_FILENO,block,strlen(block));
     xmlnode_free(x);
 
     /* start xstream and event for reading packets from stdin */
@@ -152,7 +152,7 @@ void *base_stdoutin(void *arg)
         if(pth_event_occurred(eread))
         {
             log_debug(ZONE,"stdin read event");
-            len = pth_read(STDIN_FILENO, buff, 1024);
+            len = MIO_READ_FUNC(STDIN_FILENO, buff, 1024);
             if(len <= 0) break;
 
             if(xstream_eat(xs, buff, len) > XSTREAM_NODE) break;
@@ -169,7 +169,7 @@ void *base_stdoutin(void *arg)
 
             /* write packet phase */
             block = xmlnode2str(p->x);
-            if(pth_write(STDOUT_FILENO, block, strlen(block)) <= 0)
+            if(MIO_WRITE_FUNC(STDOUT_FILENO, block, strlen(block)) <= 0)
                 break;
 
             /* all sent, yay */
