@@ -190,7 +190,11 @@ void jsm(instance i, xmlnode x)
     }
 
     /* register us for being notified of the server shutdown */
+    /*
+     * XXX disabled for jabberd 1.4.4 - it's crashing if we have it
+     * care for it later
     pool_cleanup(i->p, jsm_shutdown, (void*)si);
+     */
 
     /* register js_packet() as the handler for packets to this instance */
     register_phandler(i, o_DELIVER, js_packet, (void *)si);
