@@ -120,7 +120,7 @@ void base_connect_handle_xstream_event(int type, xmlnode x, void* arg)
      {
      case XSTREAM_ROOT:
 	  /* Extract the stream ID and generate a key to hash*/
-	  strbuf = spools(x->p, ci->secret, xmlnode_get_attrib(x, "id"), x->p);
+	  strbuf = spools(x->p, xmlnode_get_attrib(x, "id"),ci->secret, x->p);
 	  /* Calculate SHA hash */
 	  shahash_r(strbuf, hashbuf);
 	  /* Build a handshake packet */
