@@ -36,7 +36,7 @@ xmlnode mod_roster_get(udata u)
     log_debug("mod_roster","getting %s's roster",u->user);
 
     /* get the existing roster */
-    ret = xdb_get(u->si->xc, u->id->server, u->id, NS_ROSTER);
+    ret = xdb_get(u->si->xc, u->id, NS_ROSTER);
     if(ret == NULL)
     { /* there isn't one, sucky, create a container node and let xdb manage it */
         log_debug("mod_roster","creating");
@@ -193,7 +193,7 @@ mreturn mod_roster_out_s10n(mapi m)
 
     /* save the roster */
     /* XXX what do we do if the set fails?  hrmf... */
-    xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_ROSTER, roster);
+    xdb_set(m->si->xc, m->user->id, NS_ROSTER, roster);
 
     /* send ourselves a probe from them so they can be immediately informed */
     if(probeflag)
@@ -314,7 +314,7 @@ mreturn mod_roster_out_iq(mapi m)
         /* save the changes */
         log_debug(ZONE,"SROSTER: %s",xmlnode2str(roster));
         /* XXX what do we do if the set fails?  hrmf... */
-        xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_ROSTER, roster);
+        xdb_set(m->si->xc, m->user->id, NS_ROSTER, roster);
 
         break;
     default:
@@ -444,7 +444,7 @@ mreturn mod_roster_s10n(mapi m, void *arg)
     }
 
     /* XXX what do we do if the set fails?  hrmf... */
-    xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_ROSTER, roster);
+    xdb_set(m->si->xc, m->user->id, NS_ROSTER, roster);
 
     /* these are delayed until after we check the roster back in, avoid rancid race conditions */
     if(reply != NULL)

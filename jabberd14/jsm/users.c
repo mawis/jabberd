@@ -147,7 +147,7 @@ udata js_user(jsmi si, jid id, HASHTABLE ht)
     log_debug(ZONE,"js_user not current");
 
     /* try to get the user auth data from xdb */
-    if((x = xdb_get(si->xc, id->server, id, NS_AUTH)) == NULL)
+    if((x = xdb_get(si->xc, jid_user(id), NS_AUTH)) == NULL)
     {
         free(u);
         return NULL;

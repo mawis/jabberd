@@ -226,6 +226,7 @@ instance deliver_intersect(ilist a, ilist b)
 void deliver_internal(dpacket p, instance i)
 {
     xmlnode x;
+    char *ns = xmlnode_get_attrib(p->x, "ns");
 
     log_debug(ZONE,"@-internal processing %s",xmlnode2str(p->x));
 
@@ -233,7 +234,7 @@ void deliver_internal(dpacket p, instance i)
     { /* config@-internal means it's a special xdb request to get data from the config file */
         for(x = xmlnode_get_firstchild(i->x); x != NULL; x = xmlnode_get_nextsibling(x))
         {
-            if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),p->id->resource) != 0)
+            if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),ns) != 0)
                 continue;
 
             /* insert results */
@@ -733,7 +734,7 @@ dpacket dpacket_new(xmlnode x)
         return NULL;
     }
 
-    /* make sure each packet has the basics, norm has a to/from, log has a type, xdb has a full id */
+    /* make sure each packet has the basics, norm has a to/from, log has a type, xdb has a namespace */
     switch(p->type)
     {
     case p_LOG:
@@ -741,9 +742,9 @@ dpacket dpacket_new(xmlnode x)
             p=NULL;
         break;
     case p_XDB:
-        if(p->id->server==NULL||p->id->resource==NULL)
+        if(xmlnode_get_attrib(x,"ns") == NULL)
             p=NULL;
-        break;
+        /* fall through */
     case p_NORM:
         if(xmlnode_get_attrib(x,"to")==NULL||xmlnode_get_attrib(x,"from")==NULL)
             p=NULL;

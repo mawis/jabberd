@@ -36,7 +36,7 @@ result xdb_results(instance id, dpacket p, void *arg)
     int idnum;
     char *idstr;
 
-    if(p->type != p_NORM || *(xmlnode_get_name(p->x)) != 'x') return r_PASS;
+    if(p->type != p_NORM || *(xmlnode_get_name(p->x)) != 'x') return r_PASS; /* yes, we are matching ANY <x*> element */
 
     log_debug(ZONE,"xdb_results checking xdb packet %s",xmlnode2str(p->x));
 
@@ -72,12 +72,9 @@ result xdb_results(instance id, dpacket p, void *arg)
 void xdb_deliver(instance i, xdbcache xc)
 {
     xmlnode x;
-    jid dude;
     char ids[9];
 
     x = xmlnode_new_tag("xdb");
-    dude = jid_new(xmlnode_pool(x),jid_full(xc->owner));
-    jid_set(dude,xc->ns,JID_RESOURCE);
     if(xc->data == NULL)
     {
         xmlnode_put_attrib(x,"type","get");
@@ -85,8 +82,9 @@ void xdb_deliver(instance i, xdbcache xc)
         xmlnode_put_attrib(x,"type","set");
         xmlnode_insert_tag_node(x,xc->data); /* copy in the data */
     }
-    xmlnode_put_attrib(x,"to",jid_full(dude));
-    xmlnode_put_attrib(x,"from",xc->host);
+    xmlnode_put_attrib(x,"to",jid_full(xc->owner));
+    xmlnode_put_attrib(x,"from",i->id);
+    xmlnode_put_attrib(x,"ns",xc->ns);
     sprintf(ids,"%d",xc->id);
     xmlnode_put_attrib(x,"id",ids); /* to track response */
     deliver(dpacket_new(x), i);
@@ -158,7 +156,7 @@ xdbcache xdb_cache(instance id)
 }
 
 /* blocks until namespace is retrieved, host must map back to this service! */
-xmlnode xdb_get(xdbcache xc, char *host, jid owner, char *ns)
+xmlnode xdb_get(xdbcache xc, jid owner, char *ns)
 {
     _xdbcache newx;
     xmlnode x;
@@ -174,7 +172,6 @@ xmlnode xdb_get(xdbcache xc, char *host, jid owner, char *ns)
     /* init this newx */
     newx.i = NULL;
     newx.data = NULL;
-    newx.host = host;
     newx.ns = ns;
     newx.owner = owner;
     newx.sent = time(NULL);
@@ -214,13 +211,13 @@ xmlnode xdb_get(xdbcache xc, char *host, jid owner, char *ns)
 }
 
 /* sends new xml to replace old, data is NOT freed, app responsible for freeing it */
-int xdb_set(xdbcache xc, char *host, jid owner, char *ns, xmlnode data)
+int xdb_set(xdbcache xc, jid owner, char *ns, xmlnode data)
 {
     _xdbcache newx;
     pth_mutex_t mutex = PTH_MUTEX_INIT;
     pth_cond_t cond = PTH_COND_INIT;
 
-    if(xc == NULL || host == NULL || owner == NULL || ns == NULL || data == NULL)
+    if(xc == NULL || owner == NULL || ns == NULL || data == NULL)
     {
         fprintf(stderr,"Programming Error: xdb_set() called with NULL\n");
         return 1;
@@ -229,7 +226,6 @@ int xdb_set(xdbcache xc, char *host, jid owner, char *ns, xmlnode data)
     /* init this newx */
     newx.i = NULL;
     newx.data = data;
-    newx.host = host;
     newx.ns = ns;
     newx.owner = owner;
     newx.sent = time(NULL);

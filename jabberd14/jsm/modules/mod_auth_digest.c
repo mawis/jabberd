@@ -49,7 +49,7 @@ mreturn mod_auth_digest_yum(mapi m, void *arg)
     if((digest = xmlnode_get_tag_data(m->packet->iq,"digest")) == NULL)
         return M_PASS;
 
-    xdb = xdb_get(m->si->xc, m->user->id->server, m->user->id, NS_AUTH);
+    xdb = xdb_get(m->si->xc, m->user->id, NS_AUTH);
     passxdb = xmlnode_get_data(xdb);
     sid = xmlnode_get_attrib(xmlnode_get_tag(m->packet->iq,"digest"), "sid");
 

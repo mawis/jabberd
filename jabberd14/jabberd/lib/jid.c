@@ -68,10 +68,8 @@ jid jid_new(pool p, char *idstr)
 
     str = pstrdup(p, idstr);
 
-    id = pmalloc(p,sizeof(struct jid_struct));
-    id->full = id->server = id->user = id->resource = NULL;
+    id = pmalloco(p,sizeof(struct jid_struct));
     id->p = p;
-    id->next = NULL;
 
     resource = strstr(str,"/");
     if(resource != NULL)
@@ -295,4 +293,16 @@ xmlnode jid_nodescan(jid id, xmlnode x)
     pool_free(p);
 
     return cur;
+}
+
+jid jid_user(jid a)
+{
+    jid ret;
+
+    ret = pmalloco(a->p,sizeof(struct jid_struct));
+    ret->p = a->p;
+    ret->user = a->user;
+    ret->server = a->server;
+
+    return ret;
 }

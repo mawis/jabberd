@@ -34,7 +34,7 @@ mreturn mod_vcard_jud(mapi m)
     xmlnode vcard, reg, regq;
     char *key;
 
-    vcard = xdb_get(m->si->xc, m->user->id->server, m->user->id, NS_VCARD);
+    vcard = xdb_get(m->si->xc, m->user->id, NS_VCARD);
     key = xmlnode_get_tag_data(m->packet->iq,"key");
 
     if(vcard != NULL && key != NULL)
@@ -66,7 +66,7 @@ mreturn mod_vcard_set(mapi m, void *arg)
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
     if(m->packet->to != NULL || !NSCHECK(m->packet->iq,NS_VCARD)) return M_PASS;
 
-    vcard = xdb_get(m->si->xc, m->user->id->server, m->user->id, NS_VCARD);
+    vcard = xdb_get(m->si->xc, m->user->id, NS_VCARD);
 
     switch(jpacket_subtype(m->packet))
     {
@@ -86,7 +86,7 @@ mreturn mod_vcard_set(mapi m, void *arg)
         log_debug("mod_vcard","handling set request %s",xmlnode2str(m->packet->iq));
 
         /* save and send response to the user */
-        if(xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_VCARD, xmlnode_dup(m->packet->iq)))
+        if(xdb_set(m->si->xc, m->user->id, NS_VCARD, xmlnode_dup(m->packet->iq)))
         {
             /* failed */
             jutil_error(m->packet->x,TERROR_UNAVAIL);
@@ -140,20 +140,7 @@ mreturn mod_vcard_reply(mapi m, void *arg)
     log_debug("mod_vcard","handling query for user %s",m->user->user);
 
     /* get this guys vcard info */
-    vcard = xdb_get(m->si->xc, m->user->id->server, m->user->id, NS_VCARD);
-
-    /* check permissions, XXX hack for now till vcard draft
-    if(xmlnode_get_tag(vcard,"public") == NULL)
-{ 
-        item = js_xdb_get(m->user, NS_ROSTER);
-        item = jid_nodescan(m->packet->from,item);
-        sub = xmlnode_get_attrib(item,"subscription");
-        if(sub == NULL || j_strcmp(sub,"none") == 0 || j_strcmp(sub,"to") == 0)
-        {
-            js_bounce(m->si,m->packet->x,TERROR_FORBIDDEN);
-            return;
-        }
-}*/
+    vcard = xdb_get(m->si->xc, m->user->id, NS_VCARD);
 
     jutil_iqresult(m->packet->x);
     jpacket_reset(m->packet);

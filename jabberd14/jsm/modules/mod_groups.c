@@ -67,7 +67,7 @@ xmlnode mod_groups_get(mod_groups_i mi, pool p, char *host, char *gid)
          }
      }
 
-     return xdb_get(mi->xc,host,jid_new(p,host),spools(p,"jabber:xdb:groups/",gid,p));
+     return xdb_get(mi->xc,jid_new(p,host),spools(p,"jabber:xdb:groups/",gid,p));
 }
 
 int _mod_groups_toplevel(void *arg, const void *gid, void *data)
@@ -94,7 +94,7 @@ xmlnode mod_groups_get_top(mod_groups_i  mi, pool p, char *host)
 {
     xmlnode result;
 
-    result = xdb_get(mi->xc,host,jid_new(p,host),NS_XGROUPS);
+    result = xdb_get(mi->xc,jid_new(p,host),NS_XGROUPS);
 
     if (result == NULL)
         result = xmlnode_new_tag("query");
@@ -140,7 +140,7 @@ xmlnode mod_groups_get_current(mod_groups_i mi, jid id)
     xmlnode result;
     pool p;
 
-    result = xdb_get(mi->xc,id->server,id,NS_XGROUPS);
+    result = xdb_get(mi->xc,jid_user(id),NS_XGROUPS);
     
     if (result == NULL)
         result = xmlnode_new_tag("query");
@@ -270,7 +270,7 @@ void mod_groups_register_set(mod_groups_i mi, mapi m)
     }
 
     /* save the new group in the users list */
-    if (xdb_set(m->si->xc,host,u->id,NS_XGROUPS,groups))
+    if (xdb_set(m->si->xc,u->id,NS_XGROUPS,groups))
     {
         xmlnode_free(groups);
         jutil_error(jp->x,TERROR_UNAVAIL);

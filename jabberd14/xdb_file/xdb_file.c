@@ -153,12 +153,15 @@ char *xdb_file_full(int create, pool p, char *spl, char *host, char *file, char 
 /* the callback to handle xdb packets */
 result xdb_file_phandler(instance i, dpacket p, void *arg)
 {
-    char *full;
+    char *full, *ns;
     xdbf xf = (xdbf)arg;
-    xmlnode file, data;
+    xmlnode file, top, data;
     int ret = 0, flag_set = 0;
 
     log_debug(ZONE,"handling xdb request %s",xmlnode2str(p->x));
+
+    if((ns = xmlnode_get_attrib(p->x,"ns")) == NULL)
+        return r_ERR;
 
     if(j_strcmp(xmlnode_get_attrib(p->x,"type"), "set") == 0)
         flag_set = 1;
@@ -173,10 +176,20 @@ result xdb_file_phandler(instance i, dpacket p, void *arg)
         return r_ERR;
 
     /* load the data from disk/cache */
-    file = xdb_file_load(p->host, full, xf->cache);
+    top = file = xdb_file_load(p->host, full, xf->cache);
+
+    /* if we're dealing w/ a resource, just get that element */
+    if(p->id->resource != NULL)
+    {
+        if((top = xmlnode_get_tag(top,spools(p->p,"res?id=",p->id->resource,p->p))) == NULL)
+        {
+            top = xmlnode_insert_tag(file,"res");
+            xmlnode_put_attrib(top,"id",p->id->resource);
+        }
+    }
 
     /* just query the relevant namespace */
-    data = xmlnode_get_tag(file,spools(p->p,"?xdbns=",p->id->resource,p->p));
+    data = xmlnode_get_tag(top,spools(p->p,"?xdbns=",ns,p->p));
 
     if(flag_set)
     {
@@ -184,8 +197,8 @@ result xdb_file_phandler(instance i, dpacket p, void *arg)
             xmlnode_hide(data);
 
         /* copy the new data into file */
-        data = xmlnode_insert_tag_node(file, xmlnode_get_firstchild(p->x));
-        xmlnode_put_attrib(data,"xdbns",p->id->resource);
+        data = xmlnode_insert_tag_node(top, xmlnode_get_firstchild(p->x));
+        xmlnode_put_attrib(data,"xdbns",ns);
 
         /* save the file */
         if(xmlnode2file(full,file) < 0)
@@ -239,7 +252,7 @@ void xdb_file(instance i, xmlnode x)
     log_debug(ZONE,"xdb_file loading");
 
     xc = xdb_cache(i);
-    config = xdb_get(xc, NULL, jid_new(xmlnode_pool(x),"config@-internal"),"jabber:config:xdb_file");
+    config = xdb_get(xc, jid_new(xmlnode_pool(x),"config@-internal"),"jabber:config:xdb_file");
 
     spl = xmlnode_get_tag_data(config,"spool");
     if(spl == NULL)

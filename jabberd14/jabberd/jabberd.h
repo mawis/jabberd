@@ -113,7 +113,6 @@ typedef struct xdbcache_struct
 {
     instance i;
     int id;
-    char *host;
     char *ns; /* for get */
     xmlnode data; /* for set */
     jid owner;
@@ -125,8 +124,8 @@ typedef struct xdbcache_struct
 } *xdbcache, _xdbcache;
 
 xdbcache xdb_cache(instance i); /* create a new xdb cache for this instance */
-xmlnode xdb_get(xdbcache xc, char *host, jid owner, char *ns); /* blocks until namespace is retrieved, host must map back to this service! returns xmlnode or NULL if failed */
-int xdb_set(xdbcache xc, char *host, jid owner, char *ns, xmlnode data); /* sends new xml to replace old, returns non-zero if failure */
+xmlnode xdb_get(xdbcache xc,  jid owner, char *ns); /* blocks until namespace is retrieved, returns xmlnode or NULL if failed */
+int xdb_set(xdbcache xc, jid owner, char *ns, xmlnode data); /* sends new xml to replace old, returns non-zero if failure */
 
 /* Error messages */
 #define SERROR_NAMESPACE "<stream:error>Invalid namespace specified.</stream:error>"
