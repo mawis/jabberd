@@ -136,6 +136,8 @@ void _pthsock_server_host_validated(int valid, host h)
 {
     dpq q;
 
+    if(h->type == htype_IN) return;
+
     log_debug(ZONE,"host valid check %d for %s",valid,jid_full(h->id));
     if(valid)
     {
