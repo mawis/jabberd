@@ -38,6 +38,7 @@ lib_OBJECTS = \
 	xmlparse.o \
 	xmlrole.o \
 	xmltok.o \
+	xhash.o \
 	xstream.o
 
 $(lib_OBJECTS): $(lib_HEADERS)

@@ -197,6 +197,33 @@ int strprintsha(char *dest, int *hashval);
 /* Hashtable functions                                       */
 /*                                                           */
 /* --------------------------------------------------------- */
+typedef struct xhn_struct
+{
+    struct xhn_struct *next;
+    const char *key;
+    void *val;
+} *xhn, _xhn;
+
+typedef struct xht_struct
+{
+    pool p;
+    int prime;
+    struct xhn_struct *zen;
+} *xht, _xht;
+
+xht xhash_new(int prime);
+void xhash_put(xht h, const char *key, void *val);
+void *xhash_get(xht h, const char *key);
+void xhash_zap(xht h, const char *key);
+void xhash_free(xht h);
+typedef void (*xhash_walker)(xht h, const char *key, void *val, void *arg);
+void xhash_walk(xht h, xhash_walker w, void *arg);
+
+/* --------------------------------------------------------- */
+/*                                                           */
+/* DEPRECIATED Hashtable functions                           */
+/*                                                           */
+/* --------------------------------------------------------- */
 typedef int (*KEYHASHFUNC)(const void *key);
 typedef int (*KEYCOMPAREFUNC)(const void *key1, const void *key2);
 typedef int (*TABLEWALKFUNC)(void *user_data, const void *key, void *data);
@@ -208,7 +235,6 @@ HASHTABLE ghash_create_pool(pool p, int buckets, KEYHASHFUNC hash, KEYCOMPAREFUN
 void ghash_destroy(HASHTABLE tbl);
 void *ghash_get(HASHTABLE tbl, const void *key);
 int ghash_put(HASHTABLE tbl, const void *key, void *value);
-int ghash_put_pool(pool p, HASHTABLE tbl, const void *key, void *value);
 int ghash_remove(HASHTABLE tbl, const void *key);
 int ghash_walk(HASHTABLE tbl, TABLEWALKFUNC func, void *user_data);
 int str_hash_code(const char *s);

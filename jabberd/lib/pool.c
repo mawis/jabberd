@@ -67,8 +67,12 @@ pool _pool_new(char *zone)
     sprintf(p->name,"%X",p);
 
     if(pool__disturbed == NULL)
+    {
+        pool__disturbed = 1; /* reentrancy flag! */
         pool__disturbed = ghash_create(POOL_DEBUG,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
-    ghash_put(pool__disturbed,p->name,p);
+    }
+    if(pool__disturbed != 1)
+        ghash_put(pool__disturbed,p->name,p);
 #endif
 
     return p;

@@ -307,7 +307,7 @@ int main (int argc, char** argv)
 
     /* XXX pause deliver() this sucks, cuase we lose shutdown messages */
     deliver__flag = 0;
-    instance_shutdown(NULL);
+//    instance_shutdown(NULL);
     shutdown_callbacks();
 
     /* one last chance for threads to finish shutting down */
