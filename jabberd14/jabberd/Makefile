@@ -3,7 +3,6 @@
 #
 include ../platform-settings
 
-CC=gcc
 DEFINES=-DCONFIGXML="\"jabber.xml\""
 CFLAGS:=$(CFLAGS) $(DEFINES)
 

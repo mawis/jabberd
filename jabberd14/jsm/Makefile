@@ -3,7 +3,6 @@
 #
 include ../platform-settings
 
-CC=gcc
 DEFINES=-DVERSION=\"1.1.4\"
 CFLAGS:=$(CFLAGS) $(DEFINES) -I../jabberd/
 

@@ -1,7 +1,5 @@
 include ../../platform-settings
 
-CC=gcc
-
 log_HEADERS=../jabberd.h
 
 log_OBJECTS=\

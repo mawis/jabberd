@@ -2,8 +2,6 @@ include ../platform-settings
 
 CFLAGS:=$(CFLAGS) -I../jabberd/
 
-CC=gcc
-
 HEADERS=../jabberd/jabberd.h io.h
 
 pthsock_server_OBJECTS=\

@@ -1,7 +1,5 @@
 include ../../platform-settings
 
-CC=gcc
-
 xdb_HEADERS=../jabberd.h
 
 xdb_OBJECTS=base_ns.o
