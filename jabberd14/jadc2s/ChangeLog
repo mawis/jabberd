@@ -1,3 +1,11 @@
+2004-09-07  Matthias Wimmer  <m@tthias.net>
+
+    * xmlparse/*: removed expat sources from jadc2s and link against libexpat
+    * configure.in: same
+    * jadc2s.h: same
+    * Makefile.am: same
+    * util/config.c: same
+
 2004-09-03  Matthias Wimmer  <m@tthias.net>
 
     * util/util.c: jid_environment has do be defined even without libidn

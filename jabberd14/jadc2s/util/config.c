@@ -39,7 +39,7 @@
  * --------------------------------------------------------------------------*/
 
 #include "util.h"
-#include "xmlparse/xmlparse.h"
+#include <expat.h>
 
 /* new config structure */
 config_t config_new(void)
