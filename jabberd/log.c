@@ -153,18 +153,29 @@ void log_alert(char *host, const char *msgfmt, ...)
     logger("alert",host,logmsg);
 }
 
-/* generic log record support */
-void log_record(char *id, char *type, char *action, const char *msgfmt, ...)
-{
+/**
+ * writing log messages of arbitrary logging type
+ *
+ * @param logtype logging type (e.g. "record")
+ * @param id to which id is the message related
+ * @param type type of the log message (e.g. "session")
+ * @param msgfmt printf-like format string
+ */
+void log_generic(char *logtype, char *id, char *type, char *action, const char *msgfmt, ...) {
     va_list ap;
     char logmsg[512] = "";
     xmlnode log;
+
+    /* sanity check */
+    if (logtype == NULL) {
+	return;
+    }
 
     va_start(ap, msgfmt);
     vsnprintf(logmsg, 512, msgfmt, ap);
 
     log = xmlnode_new_tag("log");
-    xmlnode_put_attrib(log,"type","record");
+    xmlnode_put_attrib(log,"type", logtype);
     if(id != NULL)
         xmlnode_put_attrib(log,"from",id);
     else
@@ -185,6 +196,17 @@ void log_record(char *id, char *type, char *action, const char *msgfmt, ...)
 
     log_debug(ZONE,"%s",xmlnode2str(log));
     deliver(dpacket_new(log), NULL);
+}
+
+/* generic log record support */
+void log_record(char *id, char *type, char *action, const char *msgfmt, ...) {
+    va_list ap;
+    char logmsg[512] = "";
+
+    va_start(ap, msgfmt);
+    vsnprintf(logmsg, sizeof(logmsg), msgfmt, ap);
+
+    log_generic("record", type, action, "%s", logmsg);
 }
 
 int get_debug_flag()

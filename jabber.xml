@@ -296,6 +296,7 @@
 
     <load main="jsm">
       <jsm>./jsm/jsm.so</jsm>
+      <mod_stat>./jsm/jsm.so</mod_stat>
       <mod_echo>./jsm/jsm.so</mod_echo>
       <mod_roster>./jsm/jsm.so</mod_roster>
       <mod_time>./jsm/jsm.so</mod_time>
