@@ -285,7 +285,7 @@ int _mio_write_dump(mio m)
                 break;
         }
 
-        log_debug(ZONE, "write_dump writing data: %s", cur->cur);
+        log_debug(ZONE, "write_dump writing data: %.*s", cur->len, cur->cur);
 
         /* write a bit from the current buffer */
         len = (*m->mh->write)(m, cur->cur, cur->len);
@@ -904,7 +904,7 @@ void mio_write(mio m, xmlnode x, char *buffer, int len)
     mio_wbq new;
     pool p;
 
-    log_debug(ZONE, "mio_write called on x: %X buffer: %s", x, buffer);
+    log_debug(ZONE, "mio_write called on x: %X buffer: %.*s", x, len, buffer);
 
     if(m == NULL) 
         return;
