@@ -150,6 +150,39 @@ char *xdb_file_full(int create, pool p, char *spl, char *host, char *file, char 
     return ret;
 }
 
+int xdb_file_insertcheck(char *ns, xmlnode data, xmlnode dnew)
+{
+    char *str = NULL;
+
+    /* if the new stuff has a namespace, it's an entire replacement and not an insertion */
+    if(xmlnode_get_attrib(dnew,"xmlns") != NULL)
+        return 0;
+
+    /* some namespaces are just generic insertable ones */
+    if(strcmp(ns,NS_OFFLINE) == 0 || strcmp(ns,NS_XDBGINSERT) == 0)
+        return 1;
+
+    /* roster and browse items get handled specially, to replace based on jid */
+    if((strcmp(ns,NS_ROSTER) == 0 || strcmp(ns,NS_BROWSE) == 0) && (str = xmlnode_get_attrib(dnew,"jid")) != NULL)
+    {
+        /* remove any old jids, since we insert AND replace */
+        xmlnode_hide(xmlnode_get_tag(data, spools(xmlnode_pool(data),"?jid=",str,xmlnode_pool(data))));
+        return 1;
+    }
+
+    /* the nslist items, well, we don't really need to replace them, we should just return but I'm being lazy and don't want to add a special condition */
+    if(strcmp(ns,NS_XDBNSLIST) == 0 && (str = xmlnode_get_data(dnew)) != NULL)
+    {
+        for(dnew = xmlnode_get_firstchild(data); dnew != NULL; dnew = xmlnode_get_nextsibling(dnew))
+            if(j_strcmp(xmlnode_get_data(dnew),str) == 0)
+                xmlnode_hide(dnew);
+
+        return 1;
+    }
+
+    return 0;
+}
+
 /* the callback to handle xdb packets */
 result xdb_file_phandler(instance i, dpacket p, void *arg)
 {
@@ -193,12 +226,27 @@ result xdb_file_phandler(instance i, dpacket p, void *arg)
 
     if(flag_set)
     {
-        if(data != NULL)
-            xmlnode_hide(data);
+        if(xdb_file_insertcheck(ns, data, xmlnode_get_firstchild(p->x)))
+        {
+            if(data == NULL)
+            { /* we're inserting into something that doesn't exist?!?!? */
+                data = xmlnode_insert_tag(top,"foo");
+                xmlnode_put_attrib(data,"xdbns",ns);
+                xmlnode_put_attrib(data,"xmlns",ns); /* insertable ones must have a top-level xmlns attrib, that's the flag to override insertion */
+            }
 
-        /* copy the new data into file */
-        data = xmlnode_insert_tag_node(top, xmlnode_get_firstchild(p->x));
-        xmlnode_put_attrib(data,"xdbns",ns);
+            /* insert the new chunk into the existing data */
+            xmlnode_insert_tag_node(data, xmlnode_get_firstchild(p->x));
+
+        }else{
+            /* we replace the old data */
+            if(data != NULL)
+                xmlnode_hide(data);
+
+            /* copy the new data into file */
+            data = xmlnode_insert_tag_node(top, xmlnode_get_firstchild(p->x));
+            xmlnode_put_attrib(data,"xdbns",ns);
+        }
 
         /* save the file */
         if(xmlnode2file(full,file) < 0)
