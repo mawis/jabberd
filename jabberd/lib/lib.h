@@ -601,6 +601,18 @@ typedef struct terror_struct
 #define NS_ADMIN     "jabber:iq:admin"
 #define NS_FILTER    "jabber:iq:filter"
 #define NS_AUTH_0K   "jabber:iq:auth:0k"
+#define NS_BROWSE    "jabber:iq:browse"
+#define NS_EVENT     "jabber:x:event"
+#define NS_CONFERENCE "jabber:iq:conference"
+#define NS_SIGNED    "jabber:x:signed"
+#define NS_ENCRYPTED "jabber:x:encrypted"
+#define NS_GATEWAY   "jabber:iq:gateway"
+#define NS_LAST      "jabber:iq:last"
+#define NS_ENVELOPE  "jabber:x:envelope"
+#define NS_XHTML     "http://www.w3.org/1999/xhtml"
+
+#define NS_XDBGINSERT "jabber:xdb:ginsert"
+#define NS_XDBNSLIST  "jabber:xdb:nslist"
 
 
 /* --------------------------------------------------------- */
