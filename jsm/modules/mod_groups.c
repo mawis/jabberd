@@ -61,7 +61,7 @@ xmlnode mod_groups_get_info(mod_groups_i mi, pool p, char *host, char *gid)
     jid_set(id,gid,JID_RESOURCE);
     xinfo = xdb_get(mi->xc,id,NS_XINFO);
 
-    info = (xmlnode) xhash_get(mi->config,gid);
+    info = xmlnode_get_tag((xmlnode) xhash_get(mi->config,gid),"info");
     if (info != NULL)
         info = xmlnode_dup(info);
     else
@@ -90,6 +90,8 @@ xmlnode mod_groups_get_users(mod_groups_i mi, pool p, char *host, char *gid)
 
     if (group != NULL && (users = xmlnode_get_tag(group,"users")) != NULL)
         return xmlnode_dup(users);
+
+    log_debug("mod_groups","%d %d",group != NULL,users!= NULL);
 
     id = jid_new(p,host);
     jid_set(id,gid,JID_RESOURCE);
@@ -146,9 +148,11 @@ xmlnode mod_groups_get_top(mod_groups_i  mi, pool p, char *host)
 /* inserts required groups into result */
 void mod_groups_current_walk(xht h, const char *gid, void *val, void *arg)
 {
-    xmlnode info = (xmlnode) val;
+    xmlnode info;
 
-    if (xmlnode_get_tag(info,"require"))
+    info = xmlnode_get_tag((xmlnode) val,"info");
+
+    if (xmlnode_get_tag(info,"require") != NULL)
     {
         xmlnode result = (xmlnode) arg;
         xmlnode group;
@@ -884,7 +888,7 @@ void mod_groups(jsmi si)
 {
     pool p;
     mod_groups_i mi;
-    xmlnode cur, config, info;
+    xmlnode cur, config;
     char *gid, *id = si->i->id;
 
     log_debug("mod_groups","initing");
@@ -920,17 +924,8 @@ void mod_groups(jsmi si)
                 return;
             }
 
-            info = xmlnode_get_tag(cur,"info");
-            if (info)
-            {
-                if (xmlnode_get_tag_data(info,"name") == NULL)
-                {
-                    log_error(id,"mod_groups: Error loading, name required in info");
-                    return;
-                }
-
-                xhash_put(mi->config,pstrdup(p,gid),info);
-            }
+            if (xmlnode_get_tag(cur,"info") || xmlnode_get_tag(cur,"users"))
+                xhash_put(mi->config,pstrdup(p,gid),cur);
         }
     }
 
