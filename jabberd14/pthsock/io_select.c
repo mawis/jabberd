@@ -434,7 +434,8 @@ void _io_main(void *arg)
                 _io_close(temp);
                 continue;
             }
-
+            if(cur->fd > maxfd)
+                maxfd = cur->fd;
             cur = cur->next;
         }
         /* (XXX, yes, spin through the entire list again, otherwise you can't write to a socket from another socket's read call) if there are packets to be written, wait for a write slot */
