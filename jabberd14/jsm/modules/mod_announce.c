@@ -47,35 +47,31 @@ typedef struct motd_struct
     time_t set;
 } *motd, _motd;
 
-int _mod_announce_avail(void *arg, const void *key, void *data)
+void _mod_announce_avail(xht h, const char *key, void *data, void *arg)
 {
     xmlnode msg = (xmlnode)arg;
     udata u = (udata)data;
     session s = js_session_primary(u);
 
-    if(s == NULL) return 1;
+    if(s == NULL) return;
 
     msg = xmlnode_dup(msg);
     xmlnode_put_attrib(msg,"to",jid_full(s->id));
     js_session_to(s,jpacket_new(msg));
-
-    return 1;
 }
 
 /* callback for walking the host hash tree */
-int _mod_announce_avail_hosts(void *arg, const void *key, void *data)
+void _mod_announce_avail_hosts(xht h, const char *key, void *data, void *arg)
 {
-    HASHTABLE ht = (HASHTABLE)data;
+    xht ht = (xht)data;
 
-    ghash_walk(ht,_mod_announce_avail,arg);
-
-    return 1;
+    xhash_walk(ht,_mod_announce_avail,arg);
 }
 
 mreturn mod_announce_avail(jsmi si, jpacket p)
 {
     xmlnode_put_attrib(p->x,"from",p->to->server);
-    ghash_walk(si->hosts,_mod_announce_avail_hosts,(void *)(p->x));
+    xhash_walk(si->hosts,_mod_announce_avail_hosts,(void *)(p->x));
     xmlnode_free(p->x);
     return M_HANDLED;
 }
@@ -102,7 +98,7 @@ mreturn mod_announce_motd(jsmi si, jpacket p, motd a)
 
     /* tell current sessions if this wasn't an update */
     if(j_strcmp(p->to->resource,"announce/motd/update") != 0)
-        ghash_walk(si->hosts, _mod_announce_avail_hosts, (void *)(a->x));
+        xhash_walk(si->hosts, _mod_announce_avail_hosts, (void *)(a->x));
 
     return M_HANDLED;
 }

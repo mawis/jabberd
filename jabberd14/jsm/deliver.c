@@ -43,7 +43,7 @@
 
 /* takes any packet and attempts to deliver it to the correct session/thread */
 /* must have a valid to/from address already before getting here */
-void js_deliver_local(jsmi si, jpacket p, HASHTABLE ht)
+void js_deliver_local(jsmi si, jpacket p, xht ht)
 {
     udata user = NULL;
     session s = NULL;
@@ -86,7 +86,7 @@ result js_packet(instance i, dpacket p, void *arg)
 {
     jsmi si = (jsmi)arg;
     jpacket jp = NULL;
-    HASHTABLE ht;
+    xht ht;
     session s = NULL;
     udata u;
     char *type, *authto;
@@ -95,12 +95,12 @@ result js_packet(instance i, dpacket p, void *arg)
     log_debug(ZONE,"(%X)incoming packet %s",si,xmlnode2str(p->x));
 
     /* make sure this hostname is in the master table */
-    if((ht = (HASHTABLE)ghash_get(si->hosts,p->host)) == NULL)
+    if((ht = (xht)xhash_get(si->hosts,p->host)) == NULL)
     {
-        ht = ghash_create(j_atoi(xmlnode_get_data(js_config(si,"maxusers")),USERS_PRIME),(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+        ht = xhash_new(j_atoi(xmlnode_get_data(js_config(si,"maxusers")),USERS_PRIME));
         log_debug(ZONE,"creating user hash %X for %s",ht,p->host);
-        ghash_put(si->hosts,pstrdup(si->p,p->host), (void *)ht);
-        log_debug(ZONE,"checking %X",ghash_get(si->hosts,p->host));
+        xhash_put(si->hosts,pstrdup(si->p,p->host), (void *)ht);
+        log_debug(ZONE,"checking %X",xhash_get(si->hosts,p->host));
     }
 
     /* if this is a routed packet */
@@ -226,7 +226,7 @@ result js_packet(instance i, dpacket p, void *arg)
         return r_DONE;
     }
 
-    /* normal server-server packet, should we make sure it's not spoofing us?  if so, if ghash_get(p->to->server) then bounce w/ security error */
+    /* normal server-server packet, should we make sure it's not spoofing us?  if so, if xhash_get(p->to->server) then bounce w/ security error */
 
     jp = jpacket_new(p->x);
     if(jp == NULL)
@@ -247,7 +247,7 @@ result js_packet(instance i, dpacket p, void *arg)
  */
 void js_deliver(jsmi si, jpacket p)
 {
-    HASHTABLE ht;
+    xht ht;
 
     if(p->to == NULL)
     {
@@ -266,7 +266,7 @@ void js_deliver(jsmi si, jpacket p)
     log_debug(ZONE,"deliver(to[%s],from[%s],type[%d],packet[%s])",jid_full(p->to),jid_full(p->from),p->type,xmlnode2str(p->x));
 
     /* external to us */
-    if((ht = (HASHTABLE)ghash_get(si->hosts,p->to->server)) != NULL)
+    if((ht = (xht)xhash_get(si->hosts,p->to->server)) != NULL)
     {
         js_deliver_local(si, p, ht);
         return;

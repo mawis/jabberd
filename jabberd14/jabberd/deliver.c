@@ -164,17 +164,17 @@ ilist ilist_rem(ilist il, instance i)
 
 /* set up our global delivery logic tracking vars */
 
-HASHTABLE deliver__hnorm = NULL; /* hosts for normal packets, important and most frequently used one */
-HASHTABLE deliver__hxdb = NULL; /* host filters for xdb requests */
-HASHTABLE deliver__hlog = NULL; /* host filters for logging */
-HASHTABLE deliver__ns = NULL; /* namespace filters for xdb */
-HASHTABLE deliver__logtype = NULL; /* log types, fixed set, but it's easier (wussier) to just be consistent and use a hashtable */
+xht deliver__hnorm = NULL; /* hosts for normal packets, important and most frequently used one */
+xht deliver__hxdb = NULL; /* host filters for xdb requests */
+xht deliver__hlog = NULL; /* host filters for logging */
+xht deliver__ns = NULL; /* namespace filters for xdb */
+xht deliver__logtype = NULL; /* log types, fixed set, but it's easier (wussier) to just be consistent and use a hashtable */
 
 ilist deliver__all = NULL; /* all instances */
 instance deliver__uplink = NULL; /* uplink instance, only one */
 
 /* utility to find the right hashtable based on type */
-HASHTABLE deliver_hashtable(ptype type)
+xht deliver_hashtable(ptype type)
 {
     switch(type)
     {
@@ -188,13 +188,13 @@ HASHTABLE deliver_hashtable(ptype type)
 }
 
 /* utility to find the right ilist in the hashtable */
-ilist deliver_hashmatch(HASHTABLE ht, char *key)
+ilist deliver_hashmatch(xht ht, char *key)
 {
     ilist l;
-    l = ghash_get(ht, key);
+    l = xhash_get(ht, key);
     if(l == NULL)
     {
-        l = ghash_get(ht, "*");
+        l = xhash_get(ht, "*");
     }
     return l;
 }
@@ -283,7 +283,7 @@ void deliver_internal(dpacket p, instance i)
 void register_instance(instance i, char *host)
 {
     ilist l;
-    HASHTABLE ht;
+    xht ht;
 
     log_debug(ZONE,"Registering %s with instance %s",host,i->id);
 
@@ -301,25 +301,25 @@ void register_instance(instance i, char *host)
     }
 
     ht = deliver_hashtable(i->type);
-    l = ghash_get(ht, host);
+    l = xhash_get(ht, host);
     l = ilist_add(l, i);
-    ghash_put(ht, pstrdup(i->p,host), (void *)l);
+    xhash_put(ht, pstrdup(i->p,host), (void *)l);
 }
 
 void unregister_instance(instance i, char *host)
 {
     ilist l;
-    HASHTABLE ht;
+    xht ht;
 
     log_debug(ZONE,"Unregistering %s with instance %s",host,i->id);
 
     ht = deliver_hashtable(i->type);
-    l = ghash_get(ht, host);
+    l = xhash_get(ht, host);
     l = ilist_rem(l, i);
     if(l == NULL)
-        ghash_remove(ht, host);
+        xhash_zap(ht, host);
     else
-        ghash_put(ht, pstrdup(i->p,host), (void *)l);
+        xhash_put(ht, pstrdup(i->p,host), (void *)l);
 }
 
 result deliver_config_host(instance i, xmlnode x, void *arg)
@@ -367,11 +367,11 @@ result deliver_config_ns(instance i, xmlnode x, void *arg)
     log_debug(ZONE,"Registering namespace %s with instance %s",ns,i->id);
 
     if(deliver__ns == NULL)
-        deliver__ns =  ghash_create_pool(jabberd__runtime, 401,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+	deliver__ns = xhash_new(401);
 
-    l = ghash_get(deliver__ns, ns);
+    l = xhash_get(deliver__ns, ns);
     l = ilist_add(l, i);
-    ghash_put(deliver__ns, ns, (void *)l);
+    xhash_put(deliver__ns, ns, (void *)l);
 
     return r_DONE;
 }
@@ -394,11 +394,11 @@ result deliver_config_logtype(instance i, xmlnode x, void *arg)
     log_debug(ZONE,"Registering logtype %s with instance %s",type,i->id);
 
     if(deliver__logtype == NULL)
-        deliver__logtype =  ghash_create_pool(jabberd__runtime, 401,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+	deliver__logtype = xhash_new(401);
 
-    l = ghash_get(deliver__logtype, type);
+    l = xhash_get(deliver__logtype, type);
     l = ilist_add(l, i);
-    ghash_put(deliver__logtype, type, (void *)l);
+    xhash_put(deliver__logtype, type, (void *)l);
 
     return r_DONE;
 }
@@ -497,14 +497,31 @@ instance deliver_hostcheck(char *host)
 
 void deliver_init(void)
 {
-    deliver__hnorm = ghash_create_pool(jabberd__runtime, 401,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
-    deliver__hlog = ghash_create_pool(jabberd__runtime, 401,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
-    deliver__hxdb = ghash_create_pool(jabberd__runtime, 401,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+    deliver__hnorm = xhash_new(401);
+    deliver__hlog = xhash_new(401);
+    deliver__hxdb = xhash_new(401);
     register_config("host",deliver_config_host,NULL);
     register_config("ns",deliver_config_ns,NULL);
     register_config("logtype",deliver_config_logtype,NULL);
     register_config("uplink",deliver_config_uplink,NULL);
     register_config("null",deliver_config_null,NULL);
+}
+
+/**
+ * free the delivery structures ... this is called when we already have shutdown the server
+ * therefore we cannot register it with register_shutdown()
+ */
+void deliver_shutdown(void) {
+    if (deliver__hnorm)
+	xhash_free(deliver__hnorm);
+    if (deliver__hxdb)
+	xhash_free(deliver__hxdb);
+    if (deliver__hlog)
+	xhash_free(deliver__hlog);
+    if (deliver__ns)
+	xhash_free(deliver__ns);
+    if (deliver__logtype)
+	xhash_free(deliver__logtype);
 }
 
 /* register a function to handle delivery for this instance */

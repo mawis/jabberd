@@ -2,7 +2,7 @@
 #ifdef HAVE_SSL
 #include <err.h>
 
-HASHTABLE ssl__ctxs;
+xht ssl__ctxs;
 extern int mio__errno;
 extern int mio__ssl_reread;
 
@@ -67,8 +67,7 @@ void mio_ssl_init(xmlnode x)
     SSL_load_error_strings();
 
     /* Setup our hashtable */
-    ssl__ctxs = ghash_create(19,(KEYHASHFUNC)str_hash_code,
-                             (KEYCOMPAREFUNC)j_strcmp);
+    ssl__ctxs = xhash_create(19);
 
     /* Walk our node and add the created contexts */
     for(cur = xmlnode_get_tag(x, "key"); cur != NULL; 
@@ -120,7 +119,7 @@ void mio_ssl_init(xmlnode x)
             SSL_CTX_free(ctx);
             continue;
         }
-        ghash_put(ssl__ctxs, host, ctx);
+        xhash_put(ssl__ctxs, host, ctx);
         log_debug(ZONE, "Added context %x for %s", ctx, host);
     }
         
@@ -235,7 +234,7 @@ int _mio_ssl_accept(mio m, struct sockaddr *serv_addr, socklen_t *addrlen)
         return -1;
     }
 
-    ctx = ghash_get(ssl__ctxs, m->ip);
+    ctx = xhash_get(ssl__ctxs, m->ip);
     if(ctx == NULL)
     {
         log_debug(ZONE, "No SSL key configured for IP %s", m->ip);
@@ -288,7 +287,7 @@ int _mio_ssl_connect(mio m, struct sockaddr *serv_addr, socklen_t addrlen)
     int fd;
 
     log_debug(ZONE, "Connecting new SSL socket for %s", m->ip);
-    ctx = ghash_get(ssl__ctxs, m->ip);
+    ctx = xhash_get(ssl__ctxs, m->ip);
     
     fd = connect(m->fd, serv_addr, addrlen);
     SSL_set_fd(ssl, fd);

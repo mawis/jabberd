@@ -91,8 +91,6 @@
  * FUTURE ACTIONS: edit,error,settype
  */
 
-xmlnode mod_filter__default = NULL;
-jsmi    mod_filter__jsmi    = NULL;
 #define MOD_FILTER_MAX_SIZE 100
 
 typedef struct action_struct 
@@ -330,7 +328,7 @@ mreturn mod_filter_handler(mapi m, void *arg)
     /* look through the user's rule set for a matching cond */
 
     container = mod_filter_get(m->user);
-    xmlnode_insert_node(container, xmlnode_get_firstchild(mod_filter__default));
+    xmlnode_insert_node(container, xmlnode_get_firstchild((xmlnode)arg));
 
     rules = xmlnode_get_firstchild(container);
 
@@ -709,7 +707,7 @@ mreturn mod_filter_iq(mapi m)
         return M_PASS;
 
     log_debug(ZONE, "FILTER RULE SET: iq %s", xmlnode2str(m->packet->x));
-    max_rule_size = j_atoi(xmlnode_get_tag_data(js_config(mod_filter__jsmi, "filter"), "max_size"), MOD_FILTER_MAX_SIZE);
+    max_rule_size = j_atoi(xmlnode_get_tag_data(js_config(m->si, "filter"), "max_size"), MOD_FILTER_MAX_SIZE);
 
     switch(jpacket_subtype(m->packet))
     {
@@ -747,7 +745,7 @@ mreturn mod_filter_iq(mapi m)
                 xmlnode config;
                 if(xmlnode_get_type(tag) != NTYPE_TAG)
                     continue;
-                config = js_config(mod_filter__jsmi, "filter");
+                config = js_config(m->si, "filter");
                 config = xmlnode_get_tag(config, "allow");
 
                 /* if ns is used, offline, reply and settype cannot be used */
@@ -825,13 +823,16 @@ mreturn mod_filter_session(mapi m, void *arg)
     return M_PASS;
 }
 
+/* frees allocated memory */
+mreturn mod_filter_shutdown(mapi m, void *arg) {
+    if (arg != NULL) {
+	xmlnode_free((xmlnode)arg);
+    }
+}
+
 void mod_filter(jsmi si)
 {
-    xmlnode rule;
-    mod_filter__jsmi = si;
-
-    js_mapi_register(si, e_DELIVER, mod_filter_handler, NULL);
-    js_mapi_register(si, e_SESSION, mod_filter_session, NULL);
+    xmlnode rule, mod_filter__default;
 
     /* setup the default built-in rule */
     rule = js_config(si, "filter");
@@ -842,5 +843,9 @@ void mod_filter(jsmi si)
     xmlnode_insert_node(mod_filter__default, xmlnode_get_firstchild(rule));
 
     log_debug("mod_filter", "mod_filter startup up... default server rule: %s", xmlnode2str(mod_filter__default));
+
+    js_mapi_register(si, e_DELIVER, mod_filter_handler, mod_filter__default);
+    js_mapi_register(si, e_SESSION, mod_filter_session, NULL);
+    js_mapi_register(si, e_SHUTDOWN, mod_filter_shutdown, mod_filter__default);
 }
 

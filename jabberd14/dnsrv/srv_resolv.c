@@ -96,7 +96,7 @@ char* srv_lookup(pool p, const char* service, const char* domain)
      srv_list       svrlist  = NULL;
      srv_list       tempnode = NULL;
      srv_list       iternode = NULL;
-     HASHTABLE        arr_table;	   /* Hash of A records (name, ip) */
+     xht	      arr_table;	   /* Hash of A records (name, ip) */
      spool            result;
      char*            ipname;
      char*            ipaddr;
@@ -161,7 +161,7 @@ char* srv_lookup(pool p, const char* service, const char* domain)
      log_debug(ZONE, "srv: SRV resolution of %s.%s", service, domain);
 
      /* Setup A record hash table */
-     arr_table = ghash_create(11, (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
+     arr_table = xhash_new(11);
 
      /* Initialize lookup system if needed (check global _res structure) */
      if (((_res.options & RES_INIT) == 0) && (res_init() == -1))
@@ -231,7 +231,7 @@ char* srv_lookup(pool p, const char* service, const char* domain)
 		   ipname = pstrdup(p, host);
 
 		   /* Insert name/ip into hash table for future reference */
-		   ghash_put(arr_table, ipname, ipaddr);
+		   xhash_put(arr_table, ipname, ipaddr);
 
 		   break;
 #endif
@@ -243,7 +243,7 @@ char* srv_lookup(pool p, const char* service, const char* domain)
 		    ipname = pstrdup(p, host);
 
 		    /* Insert name/ip into hash table for future reference */
-		    ghash_put(arr_table, ipname, ipaddr);
+		    xhash_put(arr_table, ipname, ipaddr);
 		    
 		    break;
 		    /* SRV records should be stored in a sorted list */
@@ -302,7 +302,7 @@ char* srv_lookup(pool p, const char* service, const char* domain)
 	       if (result->len != 0)
 		    spool_add(result, ",");
 	       /* Check the A record hash table first.. */
-	       ipaddr = (char*)ghash_get(arr_table, iternode->host);
+	       ipaddr = (char*)xhash_get(arr_table, iternode->host);
 	       if (ipaddr != NULL)
 	       {
 #ifdef WITH_IPV6

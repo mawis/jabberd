@@ -140,7 +140,7 @@ dboc dialback_out_connection(db d, jid key, char *ip)
     dboc c;
     pool p;
 
-    if((c = ghash_get(d->out_connecting, jid_full(key))) != NULL)
+    if((c = xhash_get(d->out_connecting, jid_full(key))) != NULL)
         return c;
 
     if(ip == NULL)
@@ -157,7 +157,7 @@ dboc dialback_out_connection(db d, jid key, char *ip)
     c->ip = pstrdup(p,ip);
 
     /* insert in the hash */
-    ghash_put(d->out_connecting, jid_full(c->key), (void *)c);
+    xhash_put(d->out_connecting, jid_full(c->key), (void *)c);
 
     /* start the conneciton process */
     dialback_out_connect(c);
@@ -171,7 +171,7 @@ void dialback_out_connection_cleanup(dboc c)
     dboq cur, next;
     xmlnode x;
 
-    ghash_remove(c->d->out_connecting,jid_full(c->key));
+    xhash_zap(c->d->out_connecting,jid_full(c->key));
 
     /* if there was never any ->m set but there's a queue yet, then we probably never got connected, just make a note of it */
     if(c->m == NULL && c->q != NULL)
@@ -231,8 +231,8 @@ void dialback_out_packet(db d, xmlnode x, char *ip)
     jid_set(key, from->server, JID_RESOURCE);
 
     /* try to get an active connection */
-    if((md = ghash_get(d->out_ok_db, jid_full(key))) == NULL && verify == 0)
-        md = ghash_get(d->out_ok_legacy, jid_full(key));
+    if((md = xhash_get(d->out_ok_db, jid_full(key))) == NULL && verify == 0)
+        md = xhash_get(d->out_ok_legacy, jid_full(key));
 
     log_debug(ZONE,"outgoing packet with key %s and located existing %X",jid_full(key),md);
 
@@ -376,7 +376,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
         }
 
         /* make sure we're not connecting to ourselves */
-        if(ghash_get(c->d->in_id,xmlnode_get_attrib(x,"id")) != NULL)
+        if(xhash_get(c->d->in_id,xmlnode_get_attrib(x,"id")) != NULL)
         {
             log_alert(c->key->server,"hostname maps back to ourselves!- No service defined for this hostname, can not handle request. Check jabberd configuration.");
             mio_write(m, NULL, "<stream:error><internal-server-error xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Mirror Mirror on the wall (we connected to ourself)</text></stream:error>", -1);
@@ -480,7 +480,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 }
 
 /* callback for walking the connecting hash tree */
-int _dialback_out_beat_packets(void *arg, const void *key, void *data)
+void _dialback_out_beat_packets(xht h, const char *key, void *data, void *arg)
 {
     dboc c = (dboc)data;
     dboq cur, next, last;
@@ -506,13 +506,11 @@ int _dialback_out_beat_packets(void *arg, const void *key, void *data)
         deliver_fail(dpacket_new(cur->x),"Server Connect Timeout");
         cur = next;
     }
-
-    return 1;
 }
 
 result dialback_out_beat_packets(void *arg)
 {
     db d = (db)arg;
-    ghash_walk(d->out_connecting,_dialback_out_beat_packets,NULL);
+    xhash_walk(d->out_connecting,_dialback_out_beat_packets,NULL);
     return r_DONE;
 }

@@ -65,8 +65,8 @@ typedef struct smi_st
     instance i;
     int auth_timeout;
     int heartbeat;
-    HASHTABLE aliases;
-    HASHTABLE users;
+    xht aliases;
+    xht users;
     xmlnode cfg;
     char *host;
 } *smi, _smi;
@@ -124,7 +124,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     }
 
 
-    if ((cdcur = ghash_get(s__i->users, xmlnode_get_attrib(p->x,"to"))) == NULL)
+    if ((cdcur = xhash_get(s__i->users, xmlnode_get_attrib(p->x,"to"))) == NULL)
     {
         if (!j_strcmp(xmlnode_get_attrib(p->x, "type"),  "session"))
         {
@@ -212,7 +212,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     }
 
 
-    if(xmlnode_get_firstchild(p->x) == NULL || ghash_get(s__i->users, xmlnode_get_attrib(p->x, "to")) == NULL)
+    if(xmlnode_get_firstchild(p->x) == NULL || xhash_get(s__i->users, xmlnode_get_attrib(p->x, "to")) == NULL)
     {
         xmlnode_free(p->x);
     }
@@ -285,7 +285,7 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
     case MIO_CLOSED:
 
         log_debug("c2s", "[%s] io_select Socket %d close notification", ZONE, m->fd);
-        ghash_remove(cd->si->users, cd->client_id);
+        xhash_zap(cd->si->users, cd->client_id);
         if(cd->state == state_AUTHD)
         {
             h = pthsock_make_route(NULL, jid_full(cd->session_id), cd->client_id, "error");
@@ -318,8 +318,8 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
 
         /* check for a matching alias or use default alias */
         log_debug("c2s", "[%s] Recieved connection to: %s", ZONE, jid_full(cd->sending_id));
-        alias = ghash_get(cd->si->aliases, to);
-        alias = alias ? alias : ghash_get(cd->si->aliases, "default");
+        alias = xhash_get(cd->si->aliases, to);
+        alias = alias ? alias : xhash_get(cd->si->aliases, "default");
 
         /* set host to that alias, or to the given host */
         cd->session_id = alias ? jid_new(m->p, alias) : cd->sending_id;
@@ -449,17 +449,17 @@ void pthsock_client_listen(mio m, int flag, void *arg, xmlnode x)
 
     s__i = (smi)arg;
     cd = pthsock_client_cdata(m, s__i);
-    ghash_put(cd->si->users, cd->client_id, cd);
+    xhash_put(cd->si->users, cd->client_id, cd);
     mio_reset(m, pthsock_client_read, (void*)cd);
 }
 
 
-int _pthsock_client_timeout(void *arg, const void *key, void *data)
+void _pthsock_client_timeout(xht h, const char *key, void *data, void *arg)
 {
     time_t timeout;
     cdata cd = (cdata)data;
     if(cd->state == state_AUTHD) 
-        return 1;
+        return;
 
     timeout = time(NULL) - cd->si->auth_timeout;
     log_debug("c2s", "[%s] timeout: %d, connect time %d: fd %d", ZONE, timeout, cd->connect_time, cd->m->fd);
@@ -467,10 +467,9 @@ int _pthsock_client_timeout(void *arg, const void *key, void *data)
     if(cd->connect_time < timeout)
     {
         mio_write(cd->m, NULL, "<stream:error>Timeout waiting for authentication</stream:error></stream:stream>", -1);
-        ghash_remove(cd->si->users, mio_ip(cd->m));
+        xhash_zap(cd->si->users, mio_ip(cd->m));
         mio_close(cd->m);
     }
-    return 1;
 }
 
 /* auth timeout beat function */
@@ -481,11 +480,11 @@ result pthsock_client_timeout(void *arg)
     if(s__i->users == NULL)
         return r_UNREG;
 
-    ghash_walk(s__i->users, _pthsock_client_timeout, NULL);
+    xhash_walk(s__i->users, _pthsock_client_timeout, NULL);
     return r_DONE;
 }
 
-int _pthsock_client_heartbeat(void *arg, const void *key, void *data)
+void _pthsock_client_heartbeat(xht h, const char *key, void *data, void *arg)
 {
     time_t skipbeat;
     cdata cd = (cdata)data;
@@ -497,7 +496,6 @@ int _pthsock_client_heartbeat(void *arg, const void *key, void *data)
        log_debug("c2s", "[%s] heartbeat on fd %d", ZONE, cd->m->fd);
        mio_write(cd->m, NULL, " \n", -1);
     }
-    return 1;
 }
 
 /* auth timeout beat function */
@@ -508,17 +506,16 @@ result pthsock_client_heartbeat(void *arg)
     if(s__i->users == NULL)
         return r_UNREG;
 
-    ghash_walk(s__i->users, _pthsock_client_heartbeat, NULL);
+    xhash_walk(s__i->users, _pthsock_client_heartbeat, NULL);
     return r_DONE;
 }
 
 
-int _pthsock_client_shutdown(void *arg, const void *key, void *data)
+void _pthsock_client_shutdown(xht h, const char *key, void *data, void *arg)
 {
     cdata cd = (cdata)data;
     log_debug("c2s", "[%s] closing down user %s from ip: %s", ZONE, jid_full(cd->session_id), mio_ip(cd->m));
     mio_close(cd->m);
-    return 1;
 }
 
 /* cleanup function */
@@ -527,8 +524,11 @@ void pthsock_client_shutdown(void *arg)
     smi s__i = (smi)arg;
     xmlnode_free(s__i->cfg);
     log_debug("c2s", "[%s] Shutting Down", ZONE);
-    ghash_walk(s__i->users, _pthsock_client_shutdown, NULL);
+    xhash_walk(s__i->users, _pthsock_client_shutdown, NULL);
+    xhash_free(s__i->users);
     s__i->users = NULL;
+    if (s__i->aliases)
+	xhash_free(s__i->aliases);
 }
 
 /* everything starts here */
@@ -549,8 +549,8 @@ void pthsock_client(instance i, xmlnode x)
     s__i->auth_timeout = DEFAULT_AUTH_TIMEOUT;
     s__i->heartbeat    = DEFAULT_HEARTBEAT;
     s__i->i            = i;
-    s__i->aliases      = ghash_create_pool(i->p, 7, (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
-    s__i->users        = ghash_create_pool(i->p, 503, (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
+    s__i->aliases      = xhash_new(7);
+    s__i->users        = xhash_new(503);
 
     /* get the config */
     xc = xdb_cache(i);
@@ -572,11 +572,11 @@ void pthsock_client(instance i, xmlnode x)
            host = xmlnode_get_data(cur);
            if(host != NULL)
            {
-               ghash_put(s__i->aliases, host, to);
+               xhash_put(s__i->aliases, host, to);
            }
            else
            {
-               ghash_put(s__i->aliases, "default", to);
+               xhash_put(s__i->aliases, "default", to);
            }
         }
         else if(j_strcmp(xmlnode_get_name(cur), "authtime") == 0)

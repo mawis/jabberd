@@ -41,7 +41,7 @@
 #include "jabberd.h"
 
 int debug_flag = 0;
-extern HASHTABLE debug__zones, cmd__line;
+extern xht debug__zones;
 
 char *debug_log_timestamp(void)
 {
@@ -78,7 +78,7 @@ void debug_log(char *zone, const char *msgfmt, ...)
             c = *pos;
             *pos = '\0'; /* chop */
         }
-        if(ghash_get(debug__zones,zone) == NULL)
+        if(xhash_get(debug__zones,zone) == NULL)
             return;
         if(pos != NULL)
             *pos = c; /* restore */
