@@ -42,7 +42,211 @@
 
 #ifdef LIBIDN
 
-#  include <stringprep.h>
+/**
+ * walker for cleaning up stringprep caches
+ *
+ * @param h the hash we are walking through
+ * @param key the key of this item
+ * @param val the value of this item
+ * @param arg delete entries older as this unix timestamp
+ */
+void _jid_clean_walker(xht h, const char *key, void *val, void *arg) {
+    time_t *keep_newer_as = (time_t*)arg;
+    _jid_prep_entry_t entry = (_jid_prep_entry_t)val;
+
+    /* safty check */
+    if (entry == NULL)
+	return;
+
+    if (entry->last_used <= *keep_newer_as) {
+	/* the entry expired, remove it */
+	xhash_zap(h, key);
+	if (entry->preped != NULL)
+	    free(entry->preped);
+	free(entry);
+
+	/* sorry, I have to cast the const away */
+	/* any idea how I could delete the key else? */
+	if (key != NULL)
+	    free((void*)key);
+    }
+}
+
+/**
+ * walk through a single stringprep cache and check which entries
+ * have expired
+ *
+ * @param cache the cache to walk
+ * @param keep_newer_as what to keep in the cache
+ */
+void _jid_clean_single_cache(_jid_prep_cache_t cache, time_t keep_newer_as) {
+    xhash_walk(cache->hashtable, _jid_clean_walker, (void*)&keep_newer_as);
+}
+
+/**
+ * walk through all stringprep caches and check which entries have expired
+ *
+ * @param environment the jid environment that holds the caches
+ */
+void jid_clean_cache(jid_environment_t environment) {
+    time_t keep_newer_as = time(NULL) - 900;
+
+    _jid_clean_single_cache(environment->nodes, keep_newer_as);
+    _jid_clean_single_cache(environment->domains, keep_newer_as);
+    _jid_clean_single_cache(environment->resources, keep_newer_as);
+}
+
+/**
+ * caching wrapper around stringprep
+ *
+ * @param in_out_buffer buffer containing waht has to be stringpreped and that gets the result
+ * @param max_len size of the buffer
+ * @param cache the used cache, defining also the used stringprep profile
+ * @return the return code of the stringprep call
+ */
+int _jid_cached_stringprep(char *in_out_buffer, int max_len, _jid_prep_cache_t cache) {
+    _jid_prep_entry_t preped;
+    int result = STRINGPREP_OK;
+
+    /* check that the cache already exists
+     * we can not do anything as we don't know which profile has to be used */
+    if (cache == NULL) {
+	return STRINGPREP_UNKNOWN_PROFILE;
+    }
+
+    /* is there something that has to be stringpreped? */
+    if (in_out_buffer == NULL) {
+	return STRINGPREP_OK;
+    }
+
+    /* check if the requested preparation has already been done */
+    preped = (_jid_prep_entry_t)xhash_get(cache->hashtable, in_out_buffer);
+    if (preped != NULL) {
+	/* we already prepared this argument */
+
+	if (preped->size <= max_len) {
+	    /* we can use the result */
+
+	    /* update the statistics */
+	    preped->used_count++;
+	    preped->last_used = time(NULL);
+
+	    /* do we need to copy the result? */
+	    if (preped->preped != NULL) {
+		/* copy the result */
+		strcpy(in_out_buffer, preped->preped);
+	    }
+	} else {
+	    /* we need a bigger buffer */
+	    result = STRINGPREP_TOO_SMALL_BUFFER;
+	}
+    } else {
+	char *original;
+
+	/* we have to keep the key */
+	original = strdup(in_out_buffer);
+
+	/* try to prepare the string */
+	result = stringprep(in_out_buffer, max_len, STRINGPREP_NO_UNASSIGNED, cache->profile);
+
+	/* did we manage to prepare the string? */
+	if (result == STRINGPREP_OK && original != NULL) {
+	    /* generate an entry for the cache */
+	    preped = (_jid_prep_entry_t)malloc(sizeof(struct _jid_prep_entry_st));
+	    if (preped != NULL) {
+		/* has there been modified something? */
+		if (j_strcmp(in_out_buffer, original) == 0) {
+		    /* no, we don't need to store a copy of the original string */
+		    preped->preped = NULL;
+		} else {
+		    /* yes, store the stringpreped string */
+		    preped->preped = strdup(in_out_buffer);
+		}
+		preped->last_used = time(NULL);
+		preped->used_count = 1;
+		preped->size = strlen(in_out_buffer)+1;
+
+		/* store the entry in the cache */
+		xhash_put(cache->hashtable, original, preped);
+	    } else {
+		free(original);
+	    }
+	} else {
+	    /* we don't need the copy of the original value */
+	    if (original != NULL)
+		free(original);
+	}
+    }
+
+    return result;
+}
+
+/**
+ * free a single stringprep cache
+ *
+ * @param cache the cache that should be freed
+ */
+void _jid_stop_single_cache(_jid_prep_cache_t *cache) {
+    if (*cache == NULL)
+	return;
+
+    _jid_clean_single_cache(*cache, time(NULL));
+
+    xhash_free((*cache)->hashtable);
+
+    *cache = NULL;
+}
+
+/**
+ * init a single stringprep cache
+ *
+ * @param cache the cache to init
+ * @param prime the time used to init the hashtable
+ * @param profile profile used to prepare the strings
+ */
+void _jid_init_single_cache(_jid_prep_cache_t *cache, int prime, const Stringprep_profile *profile) {
+    /* do not init a cache twice */
+    if (*cache == NULL) {
+	*cache = (_jid_prep_cache_t)malloc(sizeof(struct _jid_prep_cache_st));
+	(*cache)->hashtable = xhash_new(prime);
+	(*cache)->profile = profile;
+    } else {
+	printf("Ooups!");
+	exit(1);
+    }
+}
+
+/**
+ * free a jid preparing environment
+ *
+ * @param environment the environment to be freed
+ */
+void jid_free_environment(jid_environment_t environment) {
+    if (environment == NULL)
+	return;
+
+    _jid_stop_single_cache(&(environment->nodes));
+    _jid_stop_single_cache(&(environment->domains));
+    _jid_stop_single_cache(&(environment->resources));
+
+    free(environment);
+}
+
+/**
+ * create a new jid preparing environment
+ *
+ * @return the new environment
+ */
+jid_environment_t jid_new_environment() {
+    jid_environment_t environment = (jid_environment_t)malloc(sizeof(struct _jid_environment));
+    bzero(environment, sizeof(struct _jid_environment));
+
+    _jid_init_single_cache(&(environment->nodes), 2003, stringprep_xmpp_nodeprep);
+    _jid_init_single_cache(&(environment->domains), 2003, stringprep_nameprep);
+    _jid_init_single_cache(&(environment->resources), 2003, stringprep_xmpp_resourceprep);
+
+    return environment;
+}
 
 /**
  * nameprep the domain identifier in a JID and check if it is valid
@@ -58,7 +262,7 @@ int _jid_safe_domain(jid id) {
 	return 1;
 
     /* nameprep the domain identifier */
-    result = stringprep_nameprep_no_unassigned(id->server, strlen(id->server)+1);
+    result = _jid_cached_stringprep(id->server, strlen(id->server)+1, id->environment->domains);
     if (result == STRINGPREP_TOO_SMALL_BUFFER) {
 	/* nameprep wants to expand the string, e.g. conversion from &szlig; to ss */
 	size_t biggerbuffersize = 1024;
@@ -66,7 +270,7 @@ int _jid_safe_domain(jid id) {
 	if (biggerbuffer == NULL)
 	    return 1;
 	strcpy(biggerbuffer, id->server);
-	result = stringprep_nameprep_no_unassigned(biggerbuffer, biggerbuffersize);
+	result = _jid_cached_stringprep(biggerbuffer, biggerbuffersize, id->environment->domains);
 	id->server = biggerbuffer;
     }
     if (result != STRINGPREP_OK)
@@ -94,7 +298,7 @@ int _jid_safe_node(jid id) {
 	return 0;
 
     /* nodeprep */
-    result = stringprep_xmpp_nodeprep(id->user, strlen(id->user)+1);
+    result = _jid_cached_stringprep(id->user, strlen(id->user)+1, id->environment->nodes);
     if (result == STRINGPREP_TOO_SMALL_BUFFER) {
 	/* nodeprep wants to expand the string, e.g. conversion from &szlig; to ss */
 	size_t biggerbuffersize = 1024;
@@ -102,7 +306,7 @@ int _jid_safe_node(jid id) {
 	if (biggerbuffer == NULL)
 	    return 1;
 	strcpy(biggerbuffer, id->user);
-	result = stringprep_xmpp_nodeprep(biggerbuffer, biggerbuffersize);
+	result = _jid_cached_stringprep(biggerbuffer, biggerbuffersize, id->environment->nodes);
 	id->user = biggerbuffer;
     }
     if (result != STRINGPREP_OK)
@@ -130,7 +334,7 @@ int _jid_safe_resource(jid id) {
 	return 0;
 
     /* resource prep the resource identifier */
-    result = stringprep_xmpp_resourceprep(id->resource, strlen(id->resource)+1);
+    result = _jid_cached_stringprep(id->resource, strlen(id->resource)+1, id->environment->resources);
     if (result == STRINGPREP_TOO_SMALL_BUFFER) {
 	/* resourceprep wants to expand the string, e.g. conversion from &szlig; to ss */
 	size_t biggerbuffersize = 1024;
@@ -138,7 +342,7 @@ int _jid_safe_resource(jid id) {
 	if (biggerbuffer == NULL)
 	    return 1;
 	strcpy(biggerbuffer, id->resource);
-	result = stringprep_xmpp_resourceprep(biggerbuffer, biggerbuffersize);
+	result = _jid_cached_stringprep(biggerbuffer, biggerbuffersize, id->environment->resources);
 	id->resource = biggerbuffer;
     }
     if (result != STRINGPREP_OK)
@@ -154,6 +358,15 @@ int _jid_safe_resource(jid id) {
 }
 
 #else /* no LIBIDN */
+
+/* empty implementation, we do not have caches if compiled without libidn */
+void	jid_clean_cache(jid_environment_t environment) {}
+
+/* empty implementation, we do not have caches if compiled without libidn */
+void	jid_free_environment(jid_environment_t environment) {}
+
+/* empty implementation, we do not have caches if compiled without libidn */
+jid_environment_t jid_new_environment() { return NULL; }
 
 /**
  * check if the domain identifier in a JID is valid
@@ -240,8 +453,7 @@ jid jid_safe(jid id)
     return id;
 }
 
-jid jid_newx(pool p, char *idstr, int len)
-{
+jid jid_newx(pool p, jid_environment_t environment, char *idstr, int len) {
     char *server, *resource, *type, *str;
     jid id;
 
@@ -253,6 +465,7 @@ jid jid_newx(pool p, char *idstr, int len)
     str = pstrdupx(p, idstr, len);
     id = pmalloco(p,sizeof(struct jid_struct));
     id->p = p;
+    id->environment = environment;
 
     resource = strstr(str,"/");
     if(resource != NULL)
@@ -288,10 +501,9 @@ jid jid_newx(pool p, char *idstr, int len)
     return jid_safe(id);
 }
 
-jid jid_new(pool p, char *idstr)
-{
+jid jid_new(pool p, jid_environment_t environment, char *idstr) {
     if(idstr == NULL) return NULL;
-    return jid_newx(p, idstr, strlen(idstr));
+    return jid_newx(p, environment, idstr, strlen(idstr));
 }
 
 void jid_set(jid id, const char *str, int item)
@@ -416,7 +628,7 @@ jid jid_append(jid a, jid b)
         if(jid_cmp(next,b) == 0)
             break;
         if(next->next == NULL)
-            next->next = jid_new(a->p,jid_full(b));
+            next->next = jid_new(a->p, a->environment, jid_full(b));
         next = next->next;
     }
     return a;

@@ -67,7 +67,7 @@ conn_t conn_new(c2s_t c2s, int fd)
 
     /* set up our id */
     c->idp = pool_heap(128);
-    c->myid = jid_new(c->idp, c2s->sm_id);
+    c->myid = jid_new(c->idp, c2s->jid_environment, c2s->sm_id);
     snprintf(buf,16,"%d",fd);
     jid_set(c->myid, buf, JID_USER);
    
@@ -142,7 +142,9 @@ void conn_error(conn_t c, char *condition, char *err)
     _write_actual(c, c->fd, "</stream:error>",15);
 }
 
+#ifdef USE_SSL
 int _log_ssl_io_error(log_t l, SSL *ssl, int retcode, int fd);
+#endif
 
 /**
  * get the textual representation of the root element name
@@ -174,6 +176,7 @@ void conn_close(conn_t c, char *condition, char *err)
 	_write_actual(c, c->fd, footer, strlen(footer));
 	free(footer);
 
+#ifdef USE_SSL
 	/* For SSLv3 and TLS we have to send a close notify */
 	if (c->ssl != NULL) {
 	    int sslret = 0;
@@ -183,6 +186,7 @@ void conn_close(conn_t c, char *condition, char *err)
 	    if (sslret < 0)
 		_log_ssl_io_error(c->c2s->log, c->ssl, sslret, c->fd);
 	}
+#endif
 
         mio_close(c->c2s->mio, c->fd); /* remember, c is gone after this, re-entrant */
     }
@@ -442,6 +446,7 @@ int conn_write(conn_t c)
     return 0;
 }
 
+#ifdef USE_SSL
 int _log_ssl_io_error(log_t l, SSL *ssl, int retcode, int fd) {
     int ssl_error;
 
@@ -476,6 +481,7 @@ int _log_ssl_io_error(log_t l, SSL *ssl, int retcode, int fd) {
 	    log_ssl_errors(l, LOG_NOTICE);
     }
 }
+#endif
 
 int _read_actual(conn_t c, int fd, char *buf, size_t count)
 {

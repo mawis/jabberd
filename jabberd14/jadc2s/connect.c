@@ -222,7 +222,7 @@ void _connect_process(conn_t c) {
             log_debug(ZONE, "client %d now has a session %s", target->fd, str);
             target->state = state_OPEN;
             xhash_zap(c->c2s->pending, jid_full(target->myid));
-            target->smid = jid_new(target->idp, str);
+            target->smid = jid_new(target->idp, c->c2s->jid_environment, str);
             mio_read(c->c2s->mio, target->fd); /* start reading again now */
         }
     }
