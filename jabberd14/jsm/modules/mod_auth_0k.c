@@ -177,8 +177,8 @@ mreturn mod_auth_0k_server(mapi m, void *arg)
 void mod_auth_0k(jsmi si)
 {
     log_debug("mod_auth_0k","initing");
-    js_mapi_register(si, e_AUTH, mod_auth_0k_go, NULL);
-    js_mapi_register(si, e_REGISTER, mod_auth_0k_reg, NULL);
-    js_mapi_register(si, e_SERVER, mod_auth_0k_server, NULL);
-}
 
+    js_mapi_register(si, e_AUTH, mod_auth_0k_go, NULL);
+    js_mapi_register(si, e_SERVER, mod_auth_0k_server, NULL);
+    if (js_config(si,"register") != NULL) js_mapi_register(si, e_REGISTER, mod_auth_0k_reg, NULL);
+}
