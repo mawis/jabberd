@@ -29,7 +29,6 @@
  * --------------------------------------------------------------------------*/
 #include "jsm.h"
 
-#define NS_BROWSE "jabber:iq:browse"
 #define NS_XGROUPS "jabber:xdb:groups"
 
 typedef struct
