@@ -1,3 +1,8 @@
+2004-01-03  Matthias Wimmer  <m@tthias.net>
+
+    * jadc2s.h: added two more stream errors
+    * connect.c: same
+
 2003-12-28  Matthias Wimmer  <m@tthias.net>
 
     * conn.c: copy the root_name, it gets free()d afterwards

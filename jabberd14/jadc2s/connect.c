@@ -183,12 +183,22 @@ void _connect_process(conn_t c) {
         {
             /* not all errors have error attributes */
             if((attr = nad_find_attr(c->nad, 0, "error", NULL)) >= 0)
-            {
                 snprintf(str, 770, "%.*s", NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr));
-                conn_close(target, STREAM_ERR_NOT_AUTHORIZED, str); /* XXX could be other errors */
-            }else{
-                conn_close(target, STREAM_ERR_INTERNAL_SERVER_ERROR, "Server Error");
-            }
+	    else
+		snprintf(str, 770, "Server Error");
+
+	    if (target->state == state_OPEN)
+	    {
+		if (j_strcasecmp(str, "Disconnected") == 0)
+		    conn_close(target, STREAM_ERR_CONFLICT, str);
+		else
+		    conn_close(target, STREAM_ERR_INTERNAL_SERVER_ERROR, str);
+	    } else {
+		if (j_strcasecmp(str, "Internal Timeout") == 0)
+		    conn_close(target, STREAM_ERR_REMOTE_CONNECTION_FAILED, str);
+		else
+		    conn_close(target, STREAM_ERR_NOT_AUTHORIZED, str);
+	    }
 
         }
         return;

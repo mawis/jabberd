@@ -41,11 +41,13 @@ All clients are hashed based on their unique id in a master hash table.
 
 /* stream error conditions */
 #define STREAM_ERR_BAD_FORMAT		 "<bad-format xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
+#define STREAM_ERR_CONFLICT		 "<conflict xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
 #define STREAM_ERR_HOST_UNKNOWN		 "<host-unknown xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
 #define STREAM_ERR_INTERNAL_SERVER_ERROR "<internal-server-error xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
 #define STREAM_ERR_INVALID_NAMESPACE	 "<invalid-namespace xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
 #define STREAM_ERR_INVALID_XML		 "<invalid-xml xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
 #define STREAM_ERR_NOT_AUTHORIZED	 "<not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
+#define STREAM_ERR_REMOTE_CONNECTION_FAILED "<remote-connection-failed xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
 #define STREAM_ERR_SYSTEM_SHUTDOWN	 "<system-shutdown xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
 
 /* forward decls */
