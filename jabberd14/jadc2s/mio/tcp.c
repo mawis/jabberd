@@ -64,6 +64,8 @@ int make_netsocket(u_short port, char *host, int type)
         return(-1);
     if(setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char*)&flag, sizeof(flag)) < 0)
         return(-1);
+    if(setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (char*)&flag, sizeof(flag)) < 0)
+        return(-1);
 
     saddr = make_addr(host);
     if(saddr == NULL && type != NETSOCKET_UDP)
