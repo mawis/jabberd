@@ -2,6 +2,8 @@ include ../../platform-settings
 
 CC=gcc
 
+log_HEADERS=../jabberd.h
+
 log_OBJECTS=\
 	base_file.o \
 	base_format.o \
@@ -9,7 +11,9 @@ log_OBJECTS=\
 	base_stderr.o \
 	base_to.o
 
-all: $(log_OBJECTS)
+$(log_OBJECTS): $(log_HEADERS)
+
+all: $(log_OBJECTS) $(log_HEADERS)
 
 clean:
 	rm -f $(log_OBJECTS)
