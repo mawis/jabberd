@@ -44,7 +44,7 @@
 #ifdef POOL_DEBUG
 int pool__total = 0;
 int pool__ltotal = 0;
-HASHTABLE pool__disturbed = NULL;
+xht pool__disturbed = NULL;
 void *_pool__malloc(size_t size)
 {
     pool__total++;
@@ -62,7 +62,7 @@ void _pool__free(void *block)
 
 
 /* make an empty pool */
-pool _pool_new(char *zone)
+pool _pool_new(char *zone, int line)
 {
     pool p;
     while((p = _pool__malloc(sizeof(_pool))) == NULL) sleep(1);
@@ -73,16 +73,16 @@ pool _pool_new(char *zone)
 #ifdef POOL_DEBUG
     p->lsize = -1;
     p->zone[0] = '\0';
-    strcat(p->zone,zone);
-    sprintf(p->name,"%X",p);
+    snprintf(p->zone, sizeof(p->zone), "%s:%i", zone, line);
+    snprintf(p->name, sizeof(p->name), "%X",p);
 
     if(pool__disturbed == NULL)
     {
-        pool__disturbed = 1; /* reentrancy flag! */
-        pool__disturbed = ghash_create(POOL_DEBUG,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+        pool__disturbed = (xht)1; /* reentrancy flag! */
+        pool__disturbed = xhash_new(POOL_DEBUG);
     }
-    if(pool__disturbed != 1)
-        ghash_put(pool__disturbed,p->name,p);
+    if(pool__disturbed != (xht)1)
+        xhash_put(pool__disturbed,p->name,p);
 #endif
 
     return p;
@@ -149,10 +149,10 @@ struct pheap *_pool_heap(pool p, int size)
     return ret;
 }
 
-pool _pool_new_heap(int size, char *zone)
+pool _pool_new_heap(int size, char *zone, int line)
 {
     pool p;
-    p = _pool_new(zone);
+    p = _pool_new(zone,line);
     p->heap = _pool_heap(p,size);
     return p;
 }
@@ -258,7 +258,7 @@ void pool_free(pool p)
     }
 
 #ifdef POOL_DEBUG
-    ghash_remove(pool__disturbed,p->name);
+    xhash_zap(pool__disturbed,p->name);
 #endif
 
     _pool__free(p);
@@ -276,26 +276,26 @@ void pool_cleanup(pool p, pool_cleaner f, void *arg)
 }
 
 #ifdef POOL_DEBUG
-void debug_log(char *zone, const char *msgfmt, ...);
-int _pool_stat(void *arg, const void *key, void *data)
+void _pool_stat(xht h, const char *key, void *data, void *arg)
 {
     pool p = (pool)data;
 
     if(p->lsize == -1)
-        debug_log("leak","%s: %X is a new pool",p->zone,p->name);
+	printf("%s: %s is a new pool\n",p->zone,p->name);
     else if(p->size > p->lsize)
-        debug_log("leak","%s: %X grew %d",p->zone,p->name, p->size - p->lsize);
+        printf("%s: %s grew %d\n",p->zone,p->name, p->size - p->lsize);
     else if((int)arg)
-        debug_log("leak","%s: %X exists %d",p->zone,p->name, p->size);
+        printf("%s: %s exists %d\n",p->zone,p->name, p->size);
     p->lsize = p->size;
-    return 1;
 }
 
 void pool_stat(int full)
 {
-    ghash_walk(pool__disturbed,_pool_stat,(void *)full);
+    if (pool__disturbed == NULL || pool__disturbed == (xht)1)
+	return;
+    xhash_walk(pool__disturbed,_pool_stat,(void *)full);
     if(pool__total != pool__ltotal)
-        debug_log("leak","%d\ttotal missed mallocs",pool__total);
+        printf("%d\ttotal missed mallocs\n",pool__total);
     pool__ltotal = pool__total;
     return;
 }
