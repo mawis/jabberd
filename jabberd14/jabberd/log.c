@@ -47,7 +47,6 @@ void debug_log(char *zone, const char *msgfmt, ...)
     char *pos;
     int offset;
 
-    bzero(message, MAX_LOG_SIZE);
     snprintf(message, MAX_LOG_SIZE, "%s %s ", debug_log_timestamp(), zone);
     for (pos = message; *pos != '\0'; pos++); //empty statement
      
@@ -55,7 +54,7 @@ void debug_log(char *zone, const char *msgfmt, ...)
 
     va_start(ap, msgfmt);
     vsnprintf(pos, MAX_LOG_SIZE - offset, msgfmt, ap);
-    fprintf(stderr, "%s\n", message);
+    fprintf(stderr, message);
 
     return;
 }
@@ -66,7 +65,7 @@ void logger(char *type, char *host, char *message)
 
     if(type == NULL || message == NULL)
     {
-        fprintf(stderr,"Unrecoverable: logger function called with illegal arguments!\n");
+        fprintf(stderr, "Unrecoverable: logger function called with illegal arguments!\n");
         return;
     }
 

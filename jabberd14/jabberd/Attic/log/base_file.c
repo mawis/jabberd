@@ -30,7 +30,8 @@ result base_file_deliver(instance id, dpacket p, void* arg)
        log_debug(ZONE,"base_file_deliver error: no message available to print.\n");
        return r_ERR;
     }
-    
+    // I'm allowing the following fprintf because message is known 
+    // to be non-null at this point.
     if (fprintf(f,"%s\n", message) == EOF)
     {
         log_debug(ZONE,"base_file_deliver error: error writing to file(%d).\n", errno);

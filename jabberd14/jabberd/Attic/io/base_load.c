@@ -33,6 +33,7 @@ void *base_load_loader(char *file)
 {
     void *so_h;
     char *dlerr;
+    char message[MAX_LOG_SIZE];
 
     /* load the dso */
     so_h = dlopen(file,RTLD_LAZY);
@@ -41,7 +42,8 @@ void *base_load_loader(char *file)
     dlerr = dlerror();
     if(dlerr != NULL)
     {
-        fprintf(stderr,"Loading %s failed: '%s'\n",file,dlerr);
+        snprintf(message, MAX_LOG_SIZE, "Loading %s failed: '%s'\n",file,dlerr);
+        fprintf(stderr, message);
         return NULL;
     }
 
@@ -54,6 +56,7 @@ void *base_load_symbol(char *func, char *file)
     void (*func_h)(instance i, void *arg);
     void *so_h;
     char *dlerr;
+    char message[MAX_LOG_SIZE];
 
     if(func == NULL || file == NULL)
         return NULL;
@@ -68,7 +71,8 @@ void *base_load_symbol(char *func, char *file)
     dlerr = dlerror();
     if(dlerr != NULL)
     {
-        fprintf(stderr,"Executing %s() in %s failed: '%s'\n",func,file,dlerr);
+        snprintf(message, MAX_LOG_SIZE, "Executing %s() in %s failed: '%s'\n",func,file,dlerr);
+        fprintf(stderr, message);
         return NULL;
     }
 
@@ -181,7 +185,7 @@ xdbcache xdb_cache(instance id)
 
     if(id == NULL)
     {
-        fprintf(stderr,"Programming Error: xdb_cache() called with NULL\n");
+        fprintf(stderr, "Programming Error: xdb_cache() called with NULL\n");
         return NULL;
     }
 

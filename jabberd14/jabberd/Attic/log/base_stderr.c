@@ -32,6 +32,7 @@ result base_stderr_display(instance i, dpacket p, void* args)
         return r_ERR;
     }
 
+    // We know message is non-null so fprintf is okay.
     fprintf(stderr, "%s\n", message);
 
     pool_free(p->p);
