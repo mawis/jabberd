@@ -1,18 +1,18 @@
 <jabber>
 
   <!--
-  This is the Jabber server configuration file. The file is 
+  This is the Jabber server configuration file. The file is
   broken into different sections based on the services being 
   managed by jabberd, the server daemon. Most of the important 
   sections have comments and are easy to modify. You can find
-  full instructions in the server howto, which is available at
-  http://docs.jabber.org/. Note that when you see a tag like 
-  "jabberd:cmdline", it's automatically replaced on startup 
-  with the command line flag passed in to jabberd. This enables
-  you to override parameters set in this configuration file if 
-  necessary or desired. Also note as you comment things in and
-  out that jabberd does not like comments within comments, so
-  be careful with your XML. :)
+  further instructions at http://jabberd.jabberstudio.org/1.4/.
+  Note that when you see a tag like "jabberd:cmdline", it's
+  automatically replaced on startup with the command line flag
+  passed in to jabberd. This enables you to override para-
+  meters set in this configuration file if necessary or de-
+  sired. Also note as you comment things in and out that
+  jabberd does not like comments within comments, so be care-
+  ful with your XML. :)
   -->
 
 
@@ -25,7 +25,6 @@
     * other basic server information
     * the location of the session log file
     * email addresses for server administrators 
-    * the location of the server that provides update information
     * registration instructions for new users
     * a welcome message for new users
     * a list of agents with which users can register
@@ -41,6 +40,7 @@
     Multiple <host/> entries are allowed - each one is for a 
     separate virtual server. Note that each host entry must 
     be on one line, the server doesn't like it otherwise! :)
+    Use lowercase for the hostname.
     -->
 
     <host><jabberd:cmdline flag="h">localhost</jabberd:cmdline></host>
@@ -57,10 +57,9 @@
       for mod_filter, a server-side module built into
       JSM that enables users to set delivery rules for
       messages they receive (not yet supported by all
-      clients. The <allow/> subsection specifies which
+      clients). The <allow/> subsection specifies which
       conditions and actions to enable. High-level 
-      descriptions of each setting can be found below 
-      (see docs.jabber.org for full details):
+      descriptions of each setting can be found below:
 
       * <default/> - a user cannot delete this one, it's
         the default rule for delivering messages
@@ -117,7 +116,7 @@
       <vCard>
         <FN>Jabber Server</FN>
         <DESC>A Jabber Server!</DESC>
-        <URL>http://foo.bar/</URL>
+        <URL>http://www.jabber.org/</URL>
       </vCard>
 
       <!-- 
@@ -140,7 +139,7 @@
 
       <welcome>
         <subject>Welcome!</subject>
-        <body>Welcome to the Jabber server at localhost -- we hope you enjoy this service! For information about how to use Jabber, visit the Jabber User's Guide at http://docs.jabber.org/</body>
+        <body>Welcome to the Jabber server at localhost -- we hope you enjoy this service! For information about how to use Jabber, visit the Jabber User's Guide at http://jabbermanual.jabberstudio.org/</body>
       </welcome>
 
       <!-- 
@@ -181,19 +180,6 @@
         </reply>
       </admin>
       -->
-
-      <!--
-      This is the resource that checks for updated versions 
-      of the Jabber server software. Note that you don't lose 
-      any functionality if you comment this out. Removing the
-      <update/> config is especially a good strategy if your 
-      server is behind a firewall. If you want to use this 
-      feature, change 'localhost' to the hostname or IP address 
-      of your server, making sure that it is the same as your 
-      entry for <host/> above.
-      -->
-
-      <update><jabberd:cmdline flag="h">localhost</jabberd:cmdline></update>
 
       <!--
       This enables the server to automatically update the 
@@ -237,8 +223,6 @@
 
         <!-- we're commenting these out, of course :)
 
-        <conference type="private" jid="conference.localhost" name="Private Conferencing"/>
-
         <service type="aim" jid="aim.localhost" name="AIM Transport">
           <ns>jabber:iq:gateway</ns>
           <ns>jabber:iq:register</ns>
@@ -281,7 +265,6 @@
       <mod_presence>./jsm/jsm.so</mod_presence>
       <mod_auth_plain>./jsm/jsm.so</mod_auth_plain>
       <mod_auth_digest>./jsm/jsm.so</mod_auth_digest>
-      <mod_auth_0k>./jsm/jsm.so</mod_auth_0k>
       <mod_log>./jsm/jsm.so</mod_log>
       <mod_register>./jsm/jsm.so</mod_register>
       <mod_xml>./jsm/jsm.so</mod_xml>
@@ -291,7 +274,11 @@
 
   <!-- OK, we've finished defining the Jabber Session Manager. -->
 
-  <!-- The <xdb/> component handles all data storage, using the filesystem. -->
+  <!--
+  The <xdb/> component handles all data storage, using the filesystem.
+  Make sure the spool directory defined here exists and has proper
+  permissions.
+  -->
 
   <xdb id="xdb">
     <host/>
@@ -313,9 +300,9 @@
 
     * karma - this is an input/output rate limiting system that
       the Jabber team came up with to prevent bandwidth hogging.
-      For details about karma, read the io section at the bottom 
-      and/or see docs.jabber.org. These are the low settings and
-      apply per connection/socket and can be changed as desired.
+      For details about karma, read the io section at the bottom.
+      These are the low settings and apply per connection/socket
+      and can be changed as desired.
   -->
 
   <service id="c2s">
@@ -422,6 +409,16 @@
     </dialback>
   </service>
 
+  <!--
+  update.jabber.org is long dead but some clients still
+  request update information. In order to avoid errors
+  in the logs, just drop packages for update.jabber.org.
+  -->
+  <service id="update.jabber.org">
+    <host>update.jabber.org</host>
+    <null/>
+  </service>
+
   <!-- 
   If you identified additional agents in the main <service/> 
   section (see examples above), you'll need to define each 
@@ -437,17 +434,6 @@
   -->
 
   <!-- we're commenting these out, of course :)
-
-  <service id="conference">
-    <load>
-      <groupchat>/path/to/groupchat.so</groupchat>
-    </load>
-    <host>conference.localhost</host>
-  </service>
-
-  <service id="irc">
-    <host>irc.localhost</host>
-  </service>
 
   <service id="aim.localhost">
     <accept>
@@ -567,6 +553,7 @@
     <!-- 
     The following section initializes SSL for top-level I/O.
     This works only when the server is compiled with openssl!
+    Use IPs here or connections will fail.
     -->
     <!--
     <ssl>
