@@ -60,7 +60,6 @@ ppdb _ppdb_get(ppdb db, jid id)
 
 ppdb ppdb_insert(ppdb db, jid id, xmlnode x)
 {
-    char *res;
     ppdb cur, curu;
     pool p;
 
@@ -71,7 +70,7 @@ ppdb ppdb_insert(ppdb db, jid id, xmlnode x)
     if(db == NULL)
     {
         p = pool_heap(1024);
-        db = _ppdb_new(p,id);
+        db = _ppdb_new(p,NULL);
     }
 
     cur = _ppdb_get(db,id);
@@ -92,14 +91,9 @@ ppdb ppdb_insert(ppdb db, jid id, xmlnode x)
     cur->next = db->next;
     db->next = cur;
 
-    /* this is a presence from a resource, make an entry for just the user */
-    if(id->user != NULL && id->resource != NULL)
+    /* if this is a user's resource presence, get the the user entry */
+    if(id->user != NULL && (curu = _ppdb_get(db,jid_user(id))) != cur)
     {
-        /* modify the id to just user@host */
-        res = id->resource;
-        jid_set(id,NULL,JID_RESOURCE);
-        curu = _ppdb_get(db,id);
-
         /* no user entry, make one */
         if(curu == NULL)
         {
@@ -107,9 +101,6 @@ ppdb ppdb_insert(ppdb db, jid id, xmlnode x)
             curu->next = db->next;
             db->next = curu;
         }
-
-        /* restore the id */
-        jid_set(id,res,JID_RESOURCE);
 
         /* insert this resource into the user list */
         cur->user = curu->user;
