@@ -264,14 +264,16 @@ result dnsrv_deliver(instance i, dpacket p, void* args)
      xmlnode c;
      int timeout = di->cache_timeout;
      char *ip;
+     jid to;
 
      /* if we get a route packet, it has to be to *us* and have the child as the real packet */
      if(p->type == p_ROUTE)
      {
-        if(j_strcmp(p->host,i->id) == 0 && xmlnode_get_firstchild(p->x) != NULL)
-            p->x=xmlnode_get_firstchild(p->x);
-        else
+        if(j_strcmp(p->host,i->id) != 0 || (to = jid_new(p->p,xmlnode_get_attrib(xmlnode_get_firstchild(p->x),"to"))) == NULL)
             return r_ERR;
+        p->x=xmlnode_get_firstchild(p->x);
+        p->id = to;
+        p->host = to->server;
      }
 
      /* Ensure this packet doesn't already have an IP */
