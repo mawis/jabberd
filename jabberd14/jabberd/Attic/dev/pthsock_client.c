@@ -170,9 +170,9 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         pth_write(r->sock,"<stream::error>You sent malformed XML</stream:error>",52);
     case XSTREAM_CLOSE:
         log_debug(ZONE,"closing XSTREAM");
-        r->state = state_CLOSING;
         if (r->state == state_AUTHD)
         {
+            r->state = state_CLOSING;
             /* notify the session manager */
             h = xmlnode_new_tag("message");
             jutil_error(h,TERROR_DISCONNECTED);
@@ -181,6 +181,8 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
             xmlnode_put_attrib(h,"sfrom",r->id);
             deliver(dpacket_new(h),r->i);
         }
+        else
+            r->state = state_CLOSING;
     }
 }
 
