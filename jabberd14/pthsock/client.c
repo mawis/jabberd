@@ -416,11 +416,7 @@ void pthsock_client(instance i, xmlnode x)
     for(cur=xmlnode_get_firstchild(si->cfg);cur!=NULL;cur=cur->next)
     {
         if(cur->type!=NTYPE_TAG) continue;
-        if(j_strcmp(xmlnode_get_name(cur),"listen")==0&&xmlnode_get_data(cur)!=NULL)
-        {
-            port = xmlnode_get_data(cur);
-        }
-        else if(j_strcmp(xmlnode_get_name(cur),"alias")==0)
+        if(j_strcmp(xmlnode_get_name(cur),"alias")==0)
         {
            char *host,*to;
            if((to=xmlnode_get_attrib(cur,"to"))==NULL) continue;
@@ -474,16 +470,17 @@ void pthsock_client(instance i, xmlnode x)
         }
     }
 
-    if (host == NULL || port == NULL)
-    {
-        log_error(ZONE,"pthsock_client invalid config");
-        return;
-    }
+    /* start listening */
+    if((cur = xmlnode_get_tag(si->cfg,"ip")) != NULL)
+        for(;cur != NULL; xmlnode_hide(cur), cur = xmlnode_get_tag(si->cfg,"ip"))
+            io_select_listen_ex(j_atoi(xmlnode_get_attrib(cur,"port"),5222), xmlnode_get_data(cur), pthsock_client_read, (void*)si, rate_time, rate_points, &k);
+    else /* no special config, use defaults */
+        io_select_listen_ex(5222, NULL, pthsock_client_read, (void*)si, rate_time, rate_points, &k);
 
     /* register data callbacks */
     log_debug(ZONE,"looking at: %s\n",port);
-    io_select_listen_ex(atoi(port), NULL, pthsock_client_read, (void*)si, rate_time, rate_points, &k);
     register_phandler(i,o_DELIVER,pthsock_client_packets, (void*)si);
     register_beat(15,pthsock_client_heartbeat, (void*)si);
     register_shutdown(pthsock_client_shutdown, (void*)si);
 }
+

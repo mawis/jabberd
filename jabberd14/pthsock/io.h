@@ -62,6 +62,7 @@ typedef struct sock_st
     void *cb;     /* do not modify directly */
     void *cb_arg; /* do not modify directly */
     struct karma k;
+    char *ip;
 } *sock, _sock;
 
 typedef void *iosi;

@@ -3,7 +3,7 @@
 #
 include ../platform-settings
 
-DEFINES=-DCONFIGXML="\"jabber.xml\""
+DEFINES=-DCONFIGXML="\"jabber.xml\"" -DHOME="\"$(JHOME)\""
 CFLAGS:=$(CFLAGS) $(DEFINES)
 
 jabberd_HEADERS=jabberd.h
