@@ -438,6 +438,53 @@ int xstream_eat(xstream xs, char *buff, int len); /* parse new data for this xst
 xmlnode xstream_header(char *namespace, char *to, char *from);
 char *xstream_header_char(xmlnode x);
 
+/** error cause types for streams, see section 4.7.3 of RFC 3920 */
+typedef enum {
+    bad_format,			/**< XML cannot be processed */
+    bad_namespace_prefix,	/**< unsupported namespace prefix */
+    conflict,			/**< new stream has been initiated, that conflicts */
+    connection_timeout,		/**< no traffic on the stream for some time */
+    host_gone,			/**< hostname is no longer hosted on this server */
+    host_unknown,		/**< hostname is not known by this server */
+    improper_addressing,	/**< missing to or from attribute */
+    internal_server_error,	/**< missconfiguration or something like that */
+    invalid_from,		/**< from address is not authorzed */
+    invalid_id,			/**< invalid stream id */
+    invalid_namespace,		/**< wrong namespace for stream or dialback */
+    invalid_xml,		/**< invalid XML was found */
+    not_authorized,		/**< session not authorized */
+    policy_violation,		/**< local service policy violated */
+    remote_connection_failed,	/**< could not connect to a required remote entity for auth */
+    resource_constraint,	/**< server lacks system resources */
+    restricted_xml,		/**< received restricted XML features */
+    see_other_host,		/**< redirection to another host */
+    system_shutdown,		/**< server is being shut down */
+    undefined_condition,	/**< something else ... */
+    unsupported_encoding,	/**< stream is coded in an unsupported encoding */
+    unsupported_stanza_type,	/**< stanza is not supported */
+    unsupported_version,	/**< XMPP version requested is not supported */
+    xml_not_well_formed		/**< received XML, that is not well formed */
+} streamerr_reason;
+
+/** severity of stream error (well all stream errors are unrecoverable, but we might log them different */
+typedef enum {
+    normal,			/**< something that is just normal to happen (e.g. connection timeout) */
+    configuration,		/**< something that seems to be caused by configuration errors (e.g. host gone) */
+    feature_lack,		/**< something caused by features not supported by the other end (e.g. unsupported version) */
+    unknown,			/**< absolutely no clue */
+    error			/**< something that shut not happen in any case and seems to be an implementation error (e.g. xml_not_well_formed) */
+} streamerr_severity;
+
+/** structure that contains information about a stream error */
+typedef struct streamerr_struct {
+    char *text;			/**< the error message */
+    char *lang;			/**< language of the error message */
+    streamerr_reason reason;	/**< a generic cause type */
+    streamerr_severity severity;/**< something that admin needs to care about? */
+} *streamerr, _streamerr;
+
+void xstream_format_error(spool s, streamerr errstruct);
+streamerr_severity xstream_parse_error(pool p, xmlnode errnode, streamerr errstruct);
 
 typedef struct {
   unsigned long H[5];
@@ -731,6 +778,7 @@ typedef struct xterror_struct
 
 #define NS_XMPP_STANZAS "urn:ietf:params:xml:ns:xmpp-stanzas"
 #define NS_XMPP_TLS  "urn:ietf:params:xml:ns:xmpp-tls"
+#define NS_XMPP_STREAMS "urn:ietf:params:xml:ns:xmpp-streams"
 
 
 /* --------------------------------------------------------- */

@@ -144,7 +144,27 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
 
     /* incoming stream error? */
     if (j_strcmp(xmlnode_get_name(x), "stream:error") == 0) {
-	log_warn(c->d->i->id, "received stream error on stream %s: %s", c->id, xmlnode2str(x));
+        spool s = spool_new(x->p);
+        streamerr errstruct = pmalloco(x->p, sizeof(_streamerr));
+        char *errmsg = NULL;
+
+        xstream_parse_error(x->p, x, errstruct);
+        xstream_format_error(s, errstruct);
+        errmsg = spool_print(s);
+
+        switch (errstruct->severity) {
+            case normal:
+                log_debug2(ZONE, LOGT_IO, "stream error on incoming db conn from %s: %s", mio_ip(m), errmsg);
+                break;
+            case configuration:
+            case feature_lack:
+            case unknown:
+                log_warn(c->d->i->id, "received stream error on incoming db conn from %s: %s", mio_ip(m), errmsg);
+                break;
+            case error:
+            default:
+                log_error(c->d->i->id, "received stream error on incoming db conn from %s: %s", mio_ip(m), errmsg);
+        }
 	mio_close(m);
 	return;
     }
