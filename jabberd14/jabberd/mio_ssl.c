@@ -4,6 +4,7 @@
 
 HASHTABLE ssl__ctxs;
 extern int mio__errno;
+extern in mio_ssl_reread;
 
 
 #ifndef NO_RSA
@@ -136,6 +137,8 @@ void _mio_ssl_cleanup(void *arg)
 ssize_t _mio_ssl_read(mio m, void *buf, size_t count)
 {
     SSL *ssl;
+    ssize_t ret;
+    int sret;
 
     ssl = m->ssl;
     
@@ -143,10 +146,9 @@ ssize_t _mio_ssl_read(mio m, void *buf, size_t count)
         return 0;
 
     log_debug(ZONE, "Asked to read %d bytes from %d", count, m->fd);
+    mio_ssl_reread = 0;
     if(SSL_get_state(ssl) != SSL_ST_OK)
     {
-        int sret; 
-
         sret = SSL_accept(ssl);
         if(sret <= 0)
         {
@@ -169,7 +171,13 @@ ssize_t _mio_ssl_read(mio m, void *buf, size_t count)
             return -1;
         }       
     }
-    return SSL_read(ssl, (char *)buf, count);
+    ret = SSL_read(ssl, (char *)buf, count);
+    if (ret = count)
+    {
+        mio_ssl_reread = 1;
+        log_debug(ZONE, "SSL Asked to reread from %d", m->fd);
+    }
+    return ret;
 }
 
 ssize_t _mio_ssl_write(mio m, const void *buf, size_t count)
