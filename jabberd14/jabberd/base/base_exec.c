@@ -28,6 +28,7 @@ int exec_and_capture(char* const args[], int* in, int* out)
 {
      int left_fds[2], right_fds[2];
      int pid;
+     char *filename;
 
      /* Create left and right pipes */
      if (pipe(left_fds) < 0 || pipe(right_fds) < 0)
@@ -66,14 +67,15 @@ int exec_and_capture(char* const args[], int* in, int* out)
 	  }
 	  /* Execute another process */
       for(last=NULL,cur=strchr(args[0],'/');cur!=NULL;last=cur+1,cur=strchr(last,'/'));
+      filename=(char*)args[0];
       if(last!=NULL)
       {
         last--;
         last[0]='\0';
         chdir(args[0]);
-        args[0]=last+1;
+        filename=last+1;
       }
-	  if( execv((char*)args[0], args) < 0)
+	  if( execv(filename, args) < 0)
 	       exit(1);
      }
      return 0;
