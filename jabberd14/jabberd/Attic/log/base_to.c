@@ -22,13 +22,16 @@
 result base_to_deliver(instance id,dpacket p,void* arg)
 {
     char* log_data=xmlnode_get_data(p->x);
+    char* subject;
     xmlnode message;
 
     if(log_data==NULL)
         return r_ERR;
 
     message=xmlnode_new_tag("message");
-    xmlnode_insert_cdata(message,log_data,-1);
+    xmlnode_insert_cdata(xmlnode_insert_tag(message,"body"),log_data,-1);
+    subject=spools(xmlnode_pool(message),"Log Packet from ",xmlnode_get_attrib(p->x,"from"),xmlnode_pool(message));
+    xmlnode_insert_cdata(xmlnode_insert_tag(message,"subject"),subject,-1);
     xmlnode_put_attrib(message,"from",xmlnode_get_attrib(p->x,"from"));
     xmlnode_put_attrib(message,"to",(char*)arg);
     deliver(dpacket_new(message),id);
