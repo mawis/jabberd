@@ -68,7 +68,7 @@ mreturn mod_auth_digest_yum(mapi m, void *arg)
 
     if(digest == NULL || sid == NULL || mydigest == NULL) return M_PASS;
 
-    if(strcmp(digest, mydigest) != 0)
+    if(j_strcasecmp(digest, mydigest) != 0)
         jutil_error(m->packet->x, TERROR_AUTH);
     else
         jutil_iqresult(m->packet->x);
