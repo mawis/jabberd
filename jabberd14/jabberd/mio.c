@@ -628,7 +628,8 @@ void _mio_main(void *arg)
             int addrlen = sizeof(remote_addr);
             xmlnode curx;
             curx = xmlnode_get_firstchild(xmlnode_get_tag(greymatter__,"io/announce"));
-            len = pth_recvfrom(bcast,buf,8192,0,(struct sockaddr*)&remote_addr,&addrlen);
+            /* XXX pth <1.4 doesn't have pth_* wrapper for recvfrom or sendto! */
+            len = recvfrom(bcast,buf,8192,0,(struct sockaddr*)&remote_addr,&addrlen);
             log_debug(ZONE,"ANNOUNCER: received some data from %s: %.*s",inet_ntoa(remote_addr.sin_addr),len,buf);
             /* sending our data out */
             for(; curx != NULL; curx = xmlnode_get_nextsibling(curx))
@@ -636,7 +637,7 @@ void _mio_main(void *arg)
                 if(xmlnode_get_type(curx) != NTYPE_TAG) continue;
                 len = snprintf(buf,8192,"%s",xmlnode2str(curx));
                 log_debug(ZONE,"announcement packet: %.*s",len,buf);
-                pth_sendto(bcast,buf,len,0,(struct sockaddr*)&remote_addr,addrlen);
+                sendto(bcast,buf,len,0,(struct sockaddr*)&remote_addr,addrlen);
             }
         }
 
