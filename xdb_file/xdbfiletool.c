@@ -39,7 +39,8 @@
  * 
  * --------------------------------------------------------------------------*/
 
-#include <jabberdxdbfile.h>
+#include <jabberd.h>
+#include <dlfcn.h>
 
 /**
  * @file xdbfilepath.c
@@ -59,15 +60,44 @@ void jabberd_signal(void)
 }
 /* end of hack */
 
-char *xdb_file_full(int create, pool p, char *spl, char *host, char *file, char *ext, int use_subdirs);
+/* handle of the shared object */
+void *so_h = NULL;
+
+/* functions in libjabberdxdbfile.so used */
+char* (*xdb_file_full)(int create, pool p, char *spl, char *host, char *file, char *ext, int use_subdirs);
+void (*xdb_convert_spool)(const char *spoolroot);
 
 int main(int argc, char **argv) {
     pool p;
     char *host = NULL;
+    char *error = NULL;
+
+    /* open module */
+    /* XXX well using dlopen is not very portable, but jabberd does itself at present
+     * we should change to libltdl for jabberd as well as for this
+     */
+    so_h = dlopen("libjabberdxdbfile.so", RTLD_LAZY);
+    if (so_h == NULL) {
+	fprintf(stderr, "While loading libjabberdxdbfile.so: %s\n", dlerror());
+	return 3;
+    }
+    dlerror();
+
+    /* load the needed functions */
+    *(void **) (&xdb_file_full) = dlsym(so_h, "xdb_file_full");
+    if ((error = dlerror()) != NULL) {
+	fprintf(stderr, "While loading xdb_file_full: %s\n", dlerror());
+	return 3;
+    }
+    *(void **) (&xdb_convert_spool) = dlsym(so_h, "xdb_convert_spool");
+    if ((error = dlerror()) != NULL) {
+	fprintf(stderr, "Whilte loading xdb_convert_spool: %s\n", dlerror());
+	return 3;
+    }
 
     if (argc == 3 && strcmp(argv[1], "convert")==0) {
 	printf("Converting xdb_file's spool directories in %s ... this may take some time!\n", argv[2]);
-	xdb_convert_spool(argv[2]);
+	(*xdb_convert_spool)(argv[2]);
 	printf("Done.\n");
 	return 0;
     }
@@ -86,7 +116,7 @@ int main(int argc, char **argv) {
     *(host++) = 0;
 
     p=pool_new();
-    printf("%s\n", xdb_file_full(0, p, "", host, argv[1], "xml", 1)+1);
+    printf("%s\n", (*xdb_file_full)(0, p, "", host, argv[1], "xml", 1)+1);
     pool_free(p);
 
     return 0;
