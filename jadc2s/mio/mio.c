@@ -38,10 +38,12 @@
  * 
  * --------------------------------------------------------------------------*/
 
-/*
-   MIO -- Managed Input/Output
-   ---------------------------
-*/
+/**
+ * @file mio.c
+ * @brief MIO -- Managed Input/Output
+ *
+ * Implementation of mio.
+ */
 
 #include "mio.h"
 #ifdef MIO_POLL
@@ -54,25 +56,32 @@
 #include <sys/socket.h>
 #include <netinet/tcp.h>
 
-/* our internal wrapper around a fd */
+/**
+ * type of a file descriptor
+ */
 typedef enum { 
-    type_CLOSED = 0x00, 
-    type_NORMAL = 0x01, 
-    type_LISTEN = 0x02, 
+    type_CLOSED = 0x00,		/**< fd is closed */
+    type_NORMAL = 0x01,
+    type_LISTEN = 0x02,		/**< socket is listening for new conns */ 
     type_CONNECT = 0x10, 
     type_CONNECT_READ = 0x11,
     type_CONNECT_WRITE = 0x12
 } mio_type_t;
+
+/**
+ * our internal wrapper around a fd
+ */
 struct mio_fd_st
 {
     mio_type_t type;
-    /* app even handler and data */
-    mio_handler_t app;
-    time_t last_activity;
-    void *arg;
+    mio_handler_t app;		/**< application callback for actions */
+    time_t last_activity;	/**< last activity on fd, for idle detection */
+    void *arg;			/**< argument to pass to the callback func */
 };
 
-/* now define our master data type */
+/**
+ * mio master data type, holds the mio instance-global data
+ */
 struct mio_st
 {
     struct mio_fd_st *fds;
@@ -82,8 +91,14 @@ struct mio_st
     MIO_VARS;
 };
 
-/* lazy factor */
+/**
+ * accessor macro for a fd
+ */
 #define FD(m,f) m->fds[f]
+
+/**
+ * send an event to the registered callback
+ */
 #define ACT(m,f,a,d) (*(FD(m,f).app))(m,a,f,d,FD(m,f).arg)
 
 /* temp debug outputter */
@@ -95,7 +110,7 @@ struct mio_st
 # define DEBUG 1
 #endif
 #define mio_debug if(DEBUG) _mio_debug
-void _mio_debug(int line, const char *msgfmt, ...)
+static void _mio_debug(int line, const char *msgfmt, ...)
 {
     va_list ap;
     char *pos;
@@ -133,8 +148,13 @@ void mio_close(mio_t m, int fd)
     memset(&FD(m,fd), 0, sizeof(struct mio_fd_st));
 }
 
-/* internally accept an incoming connection from a listen sock */
-void _mio_accept(mio_t m, int fd)
+/**
+ * internally accept an incoming connection from a listen sock
+ *
+ * @param m the mio on which the connection is accepted
+ * @param fd the fd of the incoming connection
+ */
+static void _mio_accept(mio_t m, int fd)
 {
 #ifdef USE_IPV6
     struct sockaddr_storage serv_addr;
@@ -203,8 +223,10 @@ void _mio_accept(mio_t m, int fd)
     return;
 }
 
-/* internally change a connecting socket to a normal one */
-void _mio_connect(mio_t m, int fd)
+/**
+ * internally change a connecting socket to a normal one
+ */
+static void _mio_connect(mio_t m, int fd)
 {
     mio_type_t type = FD(m,fd).type;
 
