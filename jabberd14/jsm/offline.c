@@ -23,21 +23,12 @@
 
 #include "jsm.h"
 
-/*
- *  js_offline_main -- entry point for the offline thread
- *  
- *  Long_description
- *
- *  parameters
- *  	arg -- not used
- *
- */
 void *js_offline_main(void *arg)
 {
+    jsmi si = (jsmi)arg;
     pth_event_t ev;		/* event ring for retreiving messages */
     pth_msgport_t mp;	/* message port for sending messages to the thread */
-    jpq q;				/* ??? */
-    mmaster ml;			/* list of call backs for offline phase */
+    jpq q;
     udata user;			/* user data */
 
     /* debug message */
@@ -48,9 +39,6 @@ void *js_offline_main(void *arg)
 
     /* create an event ring for messages on the port */
     ev = pth_event(PTH_EVENT_MSG,mp);
-
-    /* get our offline phase master list */
-    ml = js_mapi_master(e_OFFLINE);
 
     /* infinite loop */
     while(1)
@@ -65,10 +53,10 @@ void *js_offline_main(void *arg)
             user = (udata)q->p->aux1;
 
             /* debug message */
-            log_debug(ZONE,"THREAD:OFFLINE received %s's packet: %s",user->user,xmlnode2str(q->p->x));
+            log_debug(ZONE,"THREAD:OFFLINE received %s's packet: %s",jid_full(udata->id),xmlnode2str(q->p->x));
 
             /* let the modules handle the packet */
-            if(!js_mapi_call(e_OFFLINE, ml->l, q->p, user, NULL, q->p->subtype))
+            if(!js_mapi_call(si, e_OFFLINE, q->p, user, NULL))
                 js_bounce(q->p->x,TERROR_UNAVAIL);
 
             /* it can be cleaned up now */

@@ -32,7 +32,7 @@
  *      terr - the error code describing the reason for the bounce
  *
  */
-void js_bounce(xmlnode x, terror terr)
+void js_bounce(jsmi si, xmlnode x, terror terr)
 {
     /* if the node is a subscription */
     if(j_strcmp(xmlnode_get_name(x),"presence") == 0 && j_strcmp(xmlnode_get_attrib(x,"type"),"subscribe") == 0)
@@ -43,7 +43,7 @@ void js_bounce(xmlnode x, terror terr)
         xmlnode_insert_cdata(xmlnode_insert_tag(x,"status"),terr.msg,-1);
 
         /* deliver it back to the client */
-        js_deliver(jpacket_new(x));
+        js_deliver(si, jpacket_new(x));
         return;
 
     }
@@ -58,7 +58,7 @@ void js_bounce(xmlnode x, terror terr)
 
     /* if it's neither of these, make an error message an deliver it */
     jutil_error(x, terr);
-    js_deliver(jpacket_new(x));
+    js_deliver(si, jpacket_new(x));
 
 }
 

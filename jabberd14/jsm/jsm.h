@@ -65,11 +65,6 @@ typedef struct jsmi_struct
     mlist events[e_LAST];
 } *jsmi, _jsmi;
 
-void js_xdb_register(xcall c, void *arg);
-xmlnode js_xdb_get(udata user, char *ns);
-void js_xdb_set(udata user, char *ns, xmlnode x);
-
-
 struct udata_struct
 {
     char *user;
@@ -83,14 +78,11 @@ struct udata_struct
     struct udata_struct *next;
 };
 
-xmlnode js_config(char *query);
+xmlnode js_config(jsmi si, char *query);
 
-udata js_user(char *user);
-void js_users_exit(void);
-void js_deliver(jpacket p);
+udata js_user(jsmi si, jid id, HASHTABLE ht);
+void js_deliver(jsmi si, jpacket p);
 
-
-typedef void (*session_onSend)(session s, jpacket p, void *arg);
 
 struct session_struct
 {
@@ -110,14 +102,13 @@ struct session_struct
     mlist events[es_LAST];
     pth_msgport_t worker;
 
-    /* send handler */
-    session_onSend send;
-    void *arg;
+    /* remote session id */
+    jid sid;
 
     struct session_struct *next;
 };
 
-session js_session_new(jid owner, session_onSend send, void *arg);
+session js_session_new(jsmi si, jid owner, jid sid);
 void *js_session_main(void *arg);
 void js_session_end(session s, char *reason);
 session js_session_get(udata user, char *res);
@@ -125,15 +116,9 @@ session js_session_primary(udata user);
 void js_session_to(session s, jpacket p);
 void js_session_from(session s, jpacket p);
 
-void js_conn_connect(thread t, int sock, struct sockaddr_in sa);
-void js_conn_negotiate(thread t, xmlnode in, int type);
-xmlstream_onNode js_conn_namespace(command cmd, char *ns, xmlstream_onNode handler);
-
 void *js_server_main(void *arg);
 void *js_offline_main(void *arg);
-void *js_unknown_main(void *arg);
 void *js_users_main(void *arg);
-void *js_debug_main(void *arg);
 
 typedef struct {
     pth_message_t head; /* the standard pth message header */
@@ -142,17 +127,9 @@ typedef struct {
 
 void js_psend(pth_msgport_t mp, jpacket p); /* sends p to a pth message port */
 
-void js_bounce(xmlnode x, terror terr); /* logic to bounce packets w/o looping, eats x and delivers error */
+void js_bounce(jsmi si, xmlnode x, terror terr); /* logic to bounce packets w/o looping, eats x and delivers error */
 
-int js_config_name(command cmd, char *name);
-xmlnode js_config_load(instance i); /* fetch/check the config file */
-extern char *js__hostname; /* server name */
-extern xmlnode js__config; /* loaded server config */
-
-sreturn js_service_prescreen(jpacket p);
-void js_mapi_register(mphase p, mcall c, void *arg);
-void js_mapi_session(mphase p, session s, mcall c, void *arg);
-int js_mapi_call(mphase phase, mlist l, jpacket packet, udata user, session s, int variant);
-
-
+void js_mapi_register(jsmi si, event e, mcall c, void *arg);
+void js_mapi_session(jsmi si, event e, session s, mcall c, void *arg);
+int js_mapi_call(jsmi si, event e, jpacket packet, udata user, session s);
 

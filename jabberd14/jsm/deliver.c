@@ -46,8 +46,9 @@ result js_packet(instance i, dpacket p, void *arg)
     jsmi si = (jsmi)arg;
     jpacket jp;
     HASHTABLE ht;
-    jid sid;
+    jid sto;
     session s;
+    xmlnode x;
 
     jp = jpacket_new(p->x);
 
@@ -56,14 +57,15 @@ result js_packet(instance i, dpacket p, void *arg)
     /* make sure this hostname is in the master table */
     if((ht = (HASHTABLE)ghash_get(si->hosts,p->to->server)) == NULL)
     {
+        /* XXX make USERS_PRIME configurable */
         ht = ghash_create(USERS_PRIME,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
         ghash_set(si->hosts,p->to->server, (void *)ht);
     }
 
     /* if this is a session packet */
-    if((sid = jid_new(p->p,xmlnode_get_attrib(p->x,"sid"))) != NULL)
+    if((sto = jid_new(p->p,xmlnode_get_attrib(p->x,"sto"))) != NULL)
     {
-        if(sid->user == NULL)
+        if(sid->user == NULL && jp->type == JPACKET_IQ)
         {
             js_authreg(si, jp, ht);
             return r_DONE;
@@ -72,9 +74,27 @@ result js_packet(instance i, dpacket p, void *arg)
         /* this is a packet to be processed as outgoing for this session */
         s = js_session_get(js_user(si, sid, ht),sid->resource);
         if(s != NULL)
+        {
             js_session_from(s, jp);
-        else
-            js_bounce(si, p->x, TERROR_RECONNECT); /* yeah, but we don't have the ID to bounce to! */
+        }else if(!(jpacket_subtype(jp) == JPACKET__ERROR && j_strcmp(xmlnode_get_attrib(xmlnode_get_tag(jp->x,"error"),"code"),"510") == 0)){ /* no session and not a 510 error */
+
+            /* send an error msg to the client manager to make sure it knows there's no session */
+            x = xmlnode_new_tag("message");
+            xmlnode_put_attrib(x,"sto",xmlnode_get_attrib(jp->x,"sfrom"));
+            jutil_error(x, TERROR_DISCONNECTED);
+            deliver(dpacket_new(x), NULL);
+
+            /* if this is a normal message store as offline */
+            if(jp->type == JPACKET_MESSAGE)
+            {
+                xmlnode_put_attrib(jp->x,"to",jid_full(sto)); /* make sure the to="" is correct */
+                jpacket_reset(jp);
+                js_psend(si->mpoffline,jp);
+            }else{
+                log_notice(sto->host,"Dropping %s packet intended for session %s",xmlnode_get_name(jp->x),jid_full(sto));
+                xmlnode_free(jp->x);
+            }
+        }
         return r_DONE;
     }
 
