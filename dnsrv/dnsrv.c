@@ -454,8 +454,8 @@ void dnsrv(instance i, xmlnode x)
 	  /* Move to next child */
 	  iternode = xmlnode_get_prevsibling(iternode);
      }
-     xmlnode_free(config);
      log_debug(ZONE, "dnsrv debug: %s\n", xmlnode2str(config));
+     xmlnode_free(config);
 
      /* Initialize a message port to handle incoming dpackets */
      di->write_queue = pth_msgport_create(i->id);
