@@ -38,74 +38,16 @@
         <file>xdb.o</file>
       </macro>
       <macro name='EXOBJECTS'>
-        <file>base/base_accept.o</file>
-        <file>base/base_connect.o</file>
-        <file>base/base_dynamic.o</file>
-        <file>base/base_exec.o</file>
-        <file>base/base_file.o</file>
-        <file>base/base_format.o</file>
-        <file>base/base_stderr.o</file>
-        <file>base/base_stdout.o</file>
-        <file>base/base_to.o</file>
-        <file>lib/expat.o</file>
-        <file>lib/genhash.o</file>
-        <file>lib/hashtable.o</file>
-        <file>lib/jid.o</file>
-        <file>lib/jpacket.o</file>
-        <file>lib/jutil.o</file>
-        <file>lib/karma.o</file>
-        <file>lib/pool.o</file>
-        <file>lib/pproxy.o</file>
-        <file>lib/rate.o</file>
-        <file>lib/sha.o</file>
-        <file>lib/snprintf.o</file>
-        <file>lib/socket.o</file>
-        <file>lib/str.o</file>
-        <file>lib/xmlnode.o</file>
-        <file>lib/xmlparse.o</file>
-        <file>lib/xmlrole.o</file>
-        <file>lib/xmltok.o</file>
-        <file>lib/xstream.o</file>
+	<macro project='base'>OBJECTS</macro>
+	<macro project='lib'>OBJECTS</macro>
       </macro>
       <macro name='STATICOBJECTS'>
-        <file>../dnsrv/dnsrv.o</file>
-        <file>../dnsrv/srv_resolv.o</file>
-        <file>../dialback/dialback.o</file>
-        <file>../dialback/dialback_in.o</file>
-        <file>../dialback/dialback_out.o</file>
-        <file>../jsm/authreg.o</file>
-        <file>../jsm/deliver.o</file>
-        <file>../jsm/jsm.o</file>
-        <file>../jsm/modules.o</file>
-        <file>../jsm/offline.o</file>
-        <file>../jsm/server.o</file>
-        <file>../jsm/sessions.o</file>
-        <file>../jsm/users.o</file>
-        <file>../jsm/util.o</file>
-        <file>../jsm/modules/mod_admin.o</file>
-        <file>../jsm/modules/mod_agents.o</file>
-        <file>../jsm/modules/mod_announce.o</file>
-        <file>../jsm/modules/mod_archive.o</file>
-        <file>../jsm/modules/mod_auth_0k.o</file>
-        <file>../jsm/modules/mod_auth_digest.o</file>
-        <file>../jsm/modules/mod_auth_plain.o</file>
-        <file>../jsm/modules/mod_browse.o</file>
-        <file>../jsm/modules/mod_echo.o</file>
-        <file>../jsm/modules/mod_filter.o</file>
-        <file>../jsm/modules/mod_groups.o</file>
-        <file>../jsm/modules/mod_last.o</file>
-        <file>../jsm/modules/mod_log.o</file>
-        <file>../jsm/modules/mod_offline.o</file>
-        <file>../jsm/modules/mod_presence.o</file>
-        <file>../jsm/modules/mod_register.o</file>
-        <file>../jsm/modules/mod_roster.o</file>
-        <file>../jsm/modules/mod_time.o</file>
-        <file>../jsm/modules/mod_vcard.o</file>
-        <file>../jsm/modules/mod_version.o</file>
-        <file>../jsm/modules/mod_xml.o</file>
-        <file>../pthsock/client.o</file>
-        <file>../pthsock/dialback.o</file>
-        <file>../xdb_file/xdb_file.o</file>
+	<macro project='/dnsrv'>OBJECTS</macro>
+	<macro project='/dialback'>OBJECTS</macro>
+	<macro project='/jsm'>OBJECTS</macro>
+	<macro project='/jsm/modules'>OBJECTS</macro>
+	<macro project='/pthsock'>client_OBJECTS</macro>
+	<macro project='/xdb_file'>OBJECTS</macro>
       </macro>
       <compile>
  	<objectfile macro='OBJECTS'>
