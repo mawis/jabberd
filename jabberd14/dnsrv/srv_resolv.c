@@ -70,7 +70,7 @@ char* srv_inet_ntoa(pool p, unsigned char* addrptr)
 char* srv_port2str(pool p, unsigned short port)
 {
      char* result = pmalloco(p, 6);
-     snprintf(result, 5, "%d", port);
+     snprintf(result, 6, "%d", port);
      return result;
 }
 
