@@ -358,7 +358,16 @@
   -->
 
   <xdb id="xdb">
+    <!--
+    handle the xdb for all domains/components of this server
+    -->
     <host/>
+    
+    <!--
+    it is the default handler for all otherwise undefined namespaces
+    -->
+    <ns/>
+    
     <load>
       <xdb_file>@libdir@/libjabberdxdbfile.so</xdb_file>
     </load>
@@ -376,6 +385,37 @@
       <use_hierarchical_spool/> -->
     </xdb_file>
   </xdb>
+
+  <!--
+  You might want handle the accounts of your users in SQL using
+  a database backend. Uncomment the following section for this.
+  -->
+  <!--
+  <xdb id="xdbsql">
+    <host/>
+    <ns>jabber:iq:auth</ns>
+    <load>
+      <xdb_sql>@libdir@/libjabberdxdbsql.so</xdb_sql>
+    </load>
+    <xdb_sql xmlns="jabber:config:xdb_sql">
+      <driver>mysql</driver>
+      <mysql>
+        <user>jabber</user>
+	<password>secret</password>
+	<host>localhost</host>
+	<database>jabber</database>
+      </mysql>
+      <handler ns="jabber:iq:auth">
+         <get>
+	   <query>SELECT password FROM users WHERE jid='{attribute::to}'</query>
+	   <result><password xmlns='jabber:iq:auth'><value xmlns='http://jabberd.org/ns/xdbsql' value='1'/></password></result>
+	 </get>
+	 <set>INSERT INTO users (jid,password) VALUES ('{attribute::to}', '{password/text()}')</set>
+	 <delete>DELETE FROM users WHERE jid='{attribute::to}'</delete>
+      </handler>
+    </xdb_sql>
+  </xdb>
+  -->
 
   <!--
   The following service manages incoming client socket connections.
