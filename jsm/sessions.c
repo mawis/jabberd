@@ -364,6 +364,11 @@ session js_session_get(udata user, char *res)
         if(j_strcmp(res, cur->res) == 0)
             return cur;
 
+    /* find any matching resource that is a subset and return it */
+    for(cur = user->sessions; cur != NULL; cur = cur->next)
+        if(j_strncmp(res, cur->res, j_strlen(cur->res)) == 0)
+            return cur;
+
     /* if we got this far, there is no session */
     return NULL;
 
