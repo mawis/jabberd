@@ -332,48 +332,11 @@ csock pthsock_client_csock(smi si, int sock)
     return c;
 }
 
-typedef struct tout_st
-{
-    struct timeval last;
-    struct timeval timeout;
-} tout;
-
-int pthsock_client_time(void *arg)
-{
-    tout *t = (tout *) arg;
-    struct timeval now, diff;
-
-    if (t->last.tv_sec == 0)
-    {
-        gettimeofday(&t->last,NULL);
-        return 0;
-    }
-
-    gettimeofday(&now,NULL);
-    diff.tv_sec = now.tv_sec - t->last.tv_sec;
-    diff.tv_usec = now.tv_usec - t->last.tv_usec;
-
-    if (diff.tv_sec > t->timeout.tv_sec)
-    {
-        gettimeofday(&t->last,NULL);
-        return 1;
-    }
-
-    if (diff.tv_sec == t->timeout.tv_sec && diff.tv_usec >= t->timeout.tv_usec)
-    {
-        gettimeofday(&t->last,NULL);
-        return 1;
-    }
-
-    return 0;
-}
-
 void *pthsock_client_main(void *arg)
 {
     smi si = (smi) arg;
-    tout t;
     pth_msgport_t wmp;
-    pth_event_t wevt, tevt, ering;
+    pth_event_t wevt, sevt, ering;
     fd_set rfds, afds;
     csock cur, c, temp;
     drop d;
@@ -381,17 +344,14 @@ void *pthsock_client_main(void *arg)
     int len, asock, sock;
     struct sockaddr_in sa;
     size_t sa_size = sizeof(sa);
-
-    t.timeout.tv_sec = 0;
-    t.timeout.tv_usec = 20000;
-    t.last.tv_sec = 0;
+    int nready;
 
     asock = si->asock;
     wmp = si->wmp;
 
     wevt = pth_event(PTH_EVENT_MSG,wmp);
-    tevt = pth_event(PTH_EVENT_FUNC,pthsock_client_time,&t,pth_time(0,20000));
-    ering = pth_event_concat(wevt,tevt,NULL);
+    sevt = pth_event(PTH_EVENT_SELECT,&nready,FD_SETSIZE,&rfds,NULL,NULL);
+    ering = pth_event_concat(wevt,sevt,NULL);
 
     FD_ZERO(&rfds);
     FD_ZERO(&afds);
@@ -399,7 +359,8 @@ void *pthsock_client_main(void *arg)
 
     while (1)
     {
-        if (pth_select_ev(FD_SETSIZE,&rfds,NULL,NULL,NULL,ering) > 0)
+        pth_wait(ering);
+        if (pth_event_occurred(sevt))
         {
             log_debug(ZONE,"select");
 
