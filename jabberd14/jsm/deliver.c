@@ -106,14 +106,15 @@ result js_packet(instance i, dpacket p, void *arg)
         jp = jpacket_new(xmlnode_get_firstchild(p->x));
 
         /* auth/reg requests */
-        if(jp != NULL && (j_strcmp(type,"auth") == 0 || j_strcmp(type,"register") == 0))
+        if(jp != NULL && j_strcmp(type,"auth") == 0)
         {
             /* internally, hide the route to/from addresses on the authreg request */
             xmlnode_put_attrib(jp->x,"to",xmlnode_get_attrib(p->x,"to"));
             xmlnode_put_attrib(jp->x,"from",xmlnode_get_attrib(p->x,"from"));
             xmlnode_put_attrib(jp->x,"route",xmlnode_get_attrib(p->x,"type"));
             jpacket_reset(jp);
-            js_authreg_send(si, jp);
+            jp->aux1 = (void *)si;
+            mtq_send(NULL,jp->p,js_authreg,(void *)jp);
             return r_DONE;
         }
 

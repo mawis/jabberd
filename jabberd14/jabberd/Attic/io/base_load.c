@@ -327,3 +327,172 @@ int xdb_set(xdbcache xc, char *host, jid owner, char *ns, xmlnode data)
     xmlnode_free(newx.data);
     return 0;
 }
+
+/*** mtq is Managed Thread Queues ***/
+/* they queue calls to be run sequentially on a thread, that comes from a system pool of threads */
+
+/* cleanup a queue when it get's free'd */
+void mtq_cleanup(void *arg)
+{
+    mtq q = (mtq)arg;
+
+    /* if there's a thread using us, make sure we disassociate ourselves with them */
+    if(q->t != NULL)
+        q->t->q = NULL;
+}
+
+/* public queue creation function, queue lives as long as the pool */
+mtq mtq_new(pool p)
+{
+    mtq q;
+
+    if(p == NULL) return NULL;
+
+    /* create queue */
+    q = pmalloco(p, sizeof(_mtq));
+
+    /* register cleanup handler */
+    pool_cleanup(p, mtq_cleanup, (void *)q);
+
+    return q;
+}
+
+typedef struct mtqcall_struct
+{
+    pth_message_t head; /* the standard pth message header */
+    mtq_callback f; /* function to run within the thread */
+    void *arg; /* the data for this call */
+} _mtqcall, *mtqcall;
+
+void *mtq_main(void *arg);
+
+/* manage a master list of available threads */
+mth mtq_threads(mth context)
+{
+    static mth avail[MTQ_THREADS];
+    static int init = 1;
+    int n;
+    mth t;
+    pool p;
+
+    if(init)
+    { /* initialize the array the first time we enter the function */
+        for(n=0;n<MTQ_THREADS;n++)
+            avail[n] = NULL;
+        init = 0;
+    }
+
+    /* NULL means that this is a query for a waiting thread */
+    if(context == NULL)
+    {
+        for(n=0;n<MTQ_THREADS;n++)
+            if(avail[n] != NULL)
+            { /* got a waiting thread, clear and return it */
+                t = avail[n];
+                avail[n] = NULL;
+                return t;
+            }
+
+        /* make a new thread */
+        p = pool_new();
+        t = pmalloco(p, sizeof(_mth));
+        t->p = p;
+        t->mp = pth_msgport_create("mth");
+        pth_spawn(PTH_ATTR_DEFAULT, mtq_main, (void *)t);
+        return t;
+    }
+
+    /* if we're here, context is a thread looking to go back into the avail array */
+
+    /* scan the avail list for an open spot */
+    for(n=0;n<MTQ_THREADS && avail[n] != NULL; n++);
+
+    /* if we couldn't get it put back in, return it to flag an exit */
+    if(n+1 == MTQ_THREADS)
+        return context;
+
+    avail[n] = context;
+    return NULL;
+}
+
+/* main slave thread */
+void *mtq_main(void *arg)
+{
+    mth t = (mth)arg;
+    pth_event_t mpevt;
+    mtqcall c;
+
+    /* create an event ring for receiving messges */
+    mpevt = pth_event(PTH_EVENT_MSG,t->mp);
+
+    /* loop */
+    while(1)
+    {
+    
+        /* debug: note that we're waiting for a message */
+        log_debug(ZONE,"MTQ(%X)->pth",t->mp);
+
+        /* wait for a message on the port */
+        pth_wait(mpevt);
+
+        /* debug: note that we found one */
+        log_debug(ZONE,"pth->MTQ(%X)",t->mp);
+
+        /* process the waiting packets */
+        while((c = (mtqcall)pth_msgport_get(t->mp)) != NULL)
+        {
+            (*(c->f))(c->arg);
+        }
+
+        /* disassociate the thread and queue since we processed all the packets */
+        /* XXX future pthreads note: mtq_send() could have put another call on the queue since we exited the while, that would be bad */
+        if(t->q != NULL)
+        {
+            t->q->t = NULL;
+            t->q = NULL;
+        }
+
+        /* return to pool or exit */
+        if(mtq_threads(t) == t)
+            break;
+    }
+
+    /* debug: note that the thread is dying */
+    log_debug(ZONE,"THREAD:WORKER %X exiting",t->mp);
+
+    /* free all memory stuff associated with the thread */
+    pth_event_free(mpevt,PTH_FREE_ALL);
+    pth_msgport_destroy(t->mp);
+    pool_free(t->p);
+    return NULL;
+}
+
+void mtq_send(mtq q, pool p, mtq_callback f, void *arg)
+{
+    mtqcall c;
+    mth t = NULL;
+
+    /* track this call */
+    c = pmalloco(p, sizeof(_mtqcall));
+    c->f = f;
+    c->arg = arg;
+
+    /* go thread huntin' */
+    if(q != NULL)
+    {
+        /* if the queue already knows it's thread */
+        if(q->t != NULL)
+            t = q->t;
+        else
+            t = q->t = mtq_threads(NULL);
+
+        /* make sure the thread knows it's queue */
+        t->q = q;
+    }else{
+        t = mtq_threads(NULL);
+    }
+
+    /* send call to the queue */
+    pth_msgport_put(t->mp, (pth_message_t *)c);
+}
+

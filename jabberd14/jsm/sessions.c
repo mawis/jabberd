@@ -29,182 +29,16 @@
 
 #include "jsm.h"
 
-/* definition of spacket types */
-#define SPACKET_TO 1
-#define SPACKET_FROM 2
-#define SPACKET_START 3
-#define SPACKET_END 4
-#define SPACKET_AUTHREG 5
-
-typedef struct spacket_struct
-{
-    pth_message_t head; /* the standard pth message header */
-    jpacket p;          /* jabber packet */
-    session s;          /* the session to deliver the packet to */
-    int type;           /* the packet type */
-} _spacket, *spacket;
-
-typedef struct sthread_struct
-{
-    jsmi si;
-    pth_msgport_t mp;
-    pool p;
-} *sthread, _sthread;
-
-/* private entry function for worker threads */
-void *js_worker_main(void *arg);
-
-/* create a new worker thread */
-pth_msgport_t js_session_worker_new(jsmi si)
-{
-    pth_msgport_t mp;   /* message port used by the worker thread */
-    int i;              /* index into the array of worker threads */
-    sthread st;
-    pool p;
-
-    p = pool_new();
-    mp = pth_msgport_create("js_worker");
-    st = pmalloco(p,sizeof(_sthread)); /* XXX ghads this is an ugly hack, fix up */
-    st->si = si;
-    st->mp = mp;
-    st->p = p;
-    pth_spawn(PTH_ATTR_DEFAULT, js_worker_main, st);
-
-    /* put it in the waiting pool */
-    for(i=0;i<SESSION_WAITERS; i++)
-        if(si->waiting[i] == NULL)
-        {
-            si->waiting[i] = mp;
-            break;
-        }
-
-    log_debug(ZONE,"created new swaiters[%d] %X",i,mp);
-
-    return mp; /* if this doesn't get something sent to it, the thread will linger forever! */
-}
-
-/*
- *  js_session_worker -- return a free worker thread
- *
- *  Searches the idle pool for an available thread and
- *  returns it's message port. If there are no idle threads
- *  js_session_worker creates one and returns it's message port
- *  
- *  returns
- *      the message port of an available worker thread 
- *      
- */
-pth_msgport_t js_session_worker(session s)
-{
-    pth_msgport_t mp;   /* message port used by the worker thread */
-    int i;              /* index into the array of worker threads */
-
-    /* first check if the session is already associated w/ a worker, to avoid out-of-order packet processing */
-    if(s->worker != NULL)
-        return s->worker;
-
-    /* scan for a waiting worker */
-    for(i=0;i<SESSION_WAITERS; i++)
-        if(s->si->waiting[i] != NULL)
-        {
-            /* found an idle thread, return it */
-            log_debug(ZONE,"worker fetch returning swaiters[%d] %X",i,s->si->waiting[i]);
-            s->worker = s->si->waiting[i];
-            return s->worker;
-        }
-
-
-    /* there were no idle threads, so we have to create one */
-    mp = js_session_worker_new(s->si);
-
-    /* return it's message port */
-    s->worker = mp;
-    return mp;
-
-}
-
-/*
- *  js_spacket -- send the spacket
- *  
- *  Package up a jpacket and send it to a session
- *
- *  parameters
- *      type -- the type of spacket to create
- *      s -- the session to send the packet to
- *      p -- the packet to send   
- */
-void js_spacket(int type, session s, jpacket p)
-{
-
-    spacket q;
-
-    if(s == NULL)
-        return;
-
-    log_debug(ZONE,"spacket %d to session %X packet %X",type,s,p);
-
-    /*
-     *  Get the memory from wherever we can. Since the packet might
-     *  be null, we may have to allocate from the session's pool. 
-     */ 
-    if(p != NULL)
-        q = pmalloc(p->p, sizeof(_spacket));
-    else
-        q = pmalloc(s->p, sizeof(_spacket));
-
-    /* fill in the fields of the spacket struct */
-    q->type = type;
-    q->s = s;
-    q->p = p;
-
-    /* pass the packet on to the worker thread */
-    pth_msgport_put(js_session_worker(s), (pth_message_t *)q);
-
-}
-
-/* ok, this is ugly, but I don't feel like restructuring the legacy code just yet for this (read: I'm being lazy :) */
-void js_authreg_send(jsmi si, jpacket p)
-{
-    spacket q;
-    pth_msgport_t mp = NULL;
-    int i;
-
-    /* hide the jsmi on the packet */
-    p->aux1 = (void*)si;
-
-    log_debug(ZONE,"sending to a worker thread the authreg packet %X",p);
-
-    q = pmalloc(p->p, sizeof(_spacket));
-
-    /* fill in the fields of the spacket struct */
-    q->type = SPACKET_AUTHREG;
-    q->s = NULL;
-    q->p = p;
-
-    /* get the worker thread */
-    for(i=0;i<SESSION_WAITERS; i++)
-        if(si->waiting[i] != NULL)
-            mp = si->waiting[i];
-
-    if(mp == NULL)
-        mp = js_session_worker_new(si);
-
-    /* pass the packet on to the worker thread */
-    pth_msgport_put(mp, (pth_message_t *)q);
-
-}
-
+void _js_session_start(void *arg);
+void _js_session_to(void *arg);
+void _js_session_from(void *arg);
+void _js_session_end(void *arg);
 
 /*
  *  js_session_new -- creates a new session, registers the resource for it
  *  
  *  Sets up all the data associated with the new session, then send it a 
  *  start spacket, which basically notifies all modules about the new session
- *
- *  parameters
- *  	owner -- the user that has logged in
- *      send -- a send handler
- *      arg -- an opaque argument to pass to the send handler
  *
  *  returns
  *      a pointer to the new session 
@@ -247,7 +81,7 @@ session js_session_new(jsmi si, jid owner, jid sid)
     s->presence = jutil_presnew(JPACKET__UNAVAILABLE,NULL,NULL);
     xmlnode_put_attrib(s->presence,"from",jid_full(s->id));
     s->c_in = s->c_out = 0;
-    s->worker = NULL;
+    s->q = mtq_new(s->p);
     for(i = 0; i < es_LAST; i++)
         s->events[i] = NULL;
 
@@ -260,7 +94,7 @@ session js_session_new(jsmi si, jid owner, jid sid)
     s->u->scount++;
 
     /* start it */
-    js_spacket(SPACKET_START, s, NULL);
+    mtq_send(s->q, s->p, _js_session_start, (void *)s);
 
     return s;
 }
@@ -333,272 +167,155 @@ void js_session_end(session s, char *reason)
     s->u->ref++;
 
     /* tell it to exit */
-    js_spacket(SPACKET_END, s, NULL);
+    mtq_send(s->q, s->p, _js_session_end, (void *)s);
 
 }
 
-/*
- *  js_session_process -- process packets sent to this thread
- *  
- *  Retrieves all packets waiting on the message port and processes
- *  them based on their type
- *
- *  parameters
- *  	mp -- pth message port to use get packets from
- *
- */
-void js_session_process(pth_msgport_t mp)
+/* child that starts a session */
+void _js_session_start(void *arg)
 {
-    spacket q;          /* local reference to the packet */
-    session s;          /* the current session */
-    jpacket p;          /* the current jpacket */
+    session s = (session)arg;
+
+    /* let the modules go to it */
+    js_mapi_call(s->si, e_SESSION, NULL, s->u, s);
+
+    /* log the start time of the session */
+    s->started = time(NULL);
+}
+
+/* child that handles packets from the user */
+void _js_session_from(void *arg)
+{
+    jpacket p = (jpacket)arg;
+    session s = (session)(p->aux1);
+
+    /* if this session is dead */
+    if(s->exit_flag)
+    {
+        /* send the packet into oblivion */
+        xmlnode_free(p->x);
+        return;
+    }
+
+    /* at least we must have a valid packet */
+    if(p->type == JPACKET_UNKNOWN)
+    {
+        /* if not,s send an error to the session */
+        jutil_error(p->x,TERROR_BAD);
+        jpacket_reset(p);
+        js_session_to(s,p);
+        return;
+    }
+
+    /* debug message */
+    log_debug(ZONE,"THREAD:SESSION:FROM received a packet!");
+
+    /* increment packet out count */
+    s->c_out++;
+
+    /* make sure we have our from set correctly for outgoing packets */
+    if(jid_cmp(p->from,s->uid) != 0 && jid_cmp(p->from,s->id) != 0)
+    {
+        /* nope, fix it */
+        xmlnode_put_attrib(p->x,"from",jid_full(s->id));
+        p->from = jid_new(p->p,jid_full(s->id));
+    }
+
+    /* let the modules have their heyday */
+    if(js_mapi_call(NULL, es_OUT,  p, s->u, s))
+        return;
+
+    /* no module handled it, so make sure there's a to attribute */
+    if(p->to == NULL)
+    {
+        /* nope, make one based on the from attribute */
+        xmlnode_put_attrib(p->x,"to",p->from->server);
+        p->to = jid_new(p->p,p->from->server);
+    }
+
+    /* pass these to the general delivery function */
+    js_deliver(s->si, p);
+
+}
+
+/* child that handles packets to the user */
+void _js_session_to(void *arg)
+{
+    jpacket p = (jpacket)arg;
+    session s = (session)(p->aux1);
+
+    /* if this session is dead... */
+    if(s->exit_flag)
+    {
+        /* ... and the packet is a message */
+        if(p->type == JPACKET_MESSAGE)
+            js_deliver(s->si, p);
+        else /* otherwise send it to oblivion */
+            xmlnode_free(p->x);
+        return;
+    }
+
+    /* debug message */
+    log_debug(ZONE,"THREAD:SESSION:TO received data from %s!",jid_full(p->from));
+
+    /* increment packet in count */
+    s->c_in++;
+
+    /* let the modules have their heyday */
+    if(js_mapi_call(NULL, es_IN, p, s->u, s))
+        return;
+
+    /* we need to check again, s->exit_flag *could* have changed within the modules at some point */
+    if(s->exit_flag)
+    {
+        /* deliver that packet if it was a message, and sk'daddle */
+        if(p->type == JPACKET_MESSAGE)
+            js_deliver(s->si, p);
+        else
+            xmlnode_free(p->x);
+        return;
+    }
+
+    /* wrap in a route and deliver outgoing for this session */
+    p->x = xmlnode_wrap(p->x,"route");
+    xmlnode_put_attrib(p->x, "to", jid_full(s->sid));
+    xmlnode_put_attrib(p->x, "from", jid_full(s->uid));
+    deliver(dpacket_new(p->x), s->si->i);
+}
+
+/* child that cleans up a session */
+void _js_session_end(void *arg)
+{
+    session s = (session)arg;
     xmlnode x;
 
-    /* continue looping while there are still packets on the message port */
-    while(1)
-    {
-        /* get a packet from the message port */
-        q = (spacket)pth_msgport_get(mp);
+    /* debug message */
+    log_debug(ZONE,"THREAD:SESSION exiting");
 
-        /* if there are no more packets, jump out of the loop */
-        if(q == NULL)
-            break;
+    /* decrement the user's session count */
+    s->u->scount--;
 
-        /* debug message */
-        log_debug(ZONE,"PROCESS %X type %d for session %X",mp,q->type,q->s);
-
-        /* local pointers */
-        s = q->s;
-        p = q->p;
-
-        /* reinforce association between session and worker */
-        if(s != NULL)
-            s->worker = mp;
-
-        /* handle packet according to type */
-        switch(q->type)
-        {
-        case SPACKET_AUTHREG: /* special authreg request, handling on seperate worker thread */
-            js_authreg(p);
-            break;
-            /* start the session */
-        case SPACKET_START:
-
-            /* let the modules go to it */
-            js_mapi_call(s->si, e_SESSION, NULL, s->u, s);
-
-            /* log the start time of the session */
-            s->started = time(NULL);
-            break;
-
-            /* outgoing packets from the session */
-        case SPACKET_FROM:
-
-            /* if this session is dead */
-            if(s->exit_flag)
-            {
-                /* send the packet into oblivion */
-                xmlnode_free(p->x);
-                break;
-            }
-
-            /* at least we must have a valid packet */
-            if(p->type == JPACKET_UNKNOWN)
-            {
-                /* if not,s send an error to the session */
-                jutil_error(p->x,TERROR_BAD);
-                jpacket_reset(p);
-                js_session_to(s,p);
-                break;
-            }
-
-            /* debug message */
-            log_debug(ZONE,"THREAD:SESSION:FROM received a message!");
-
-            /* increment packet out count */
-            s->c_out++;
-
-            /* make sure we have our from set correctly for outgoing packets */
-            if(jid_cmp(p->from,s->uid) != 0 && jid_cmp(p->from,s->id) != 0)
-            {
-                /* nope, fix it */
-                xmlnode_put_attrib(p->x,"from",jid_full(s->id));
-                q->p->from = jid_new(p->p,jid_full(s->id));
-            }
-
-            /* let the modules have their heyday */
-            if(js_mapi_call(NULL, es_OUT,  p, s->u, s))
-                break;
-
-            /* no module handled it, so make sure there's a to attribute */
-            if(p->to == NULL)
-            {
-                /* nope, make one based on the from attribute */
-                xmlnode_put_attrib(p->x,"to",p->from->server);
-                p->to = jid_new(p->p,p->from->server);
-            }
-
-            /* pass these to the general delivery function */
-            js_deliver(s->si, p);
-
-            break;
-
-        case SPACKET_TO: /* incoming packets for the session */
-
-            /* if this session is dead... */
-            if(s->exit_flag)
-            {
-                /* ... and the packet is a message */
-                if(p->type == JPACKET_MESSAGE)
-
-                    /* deliver it */
-                    js_deliver(s->si, p);
-
-                else /* otherwise send it to oblivion */
-                    xmlnode_free(p->x);
-                break;
-
-            }
-
-            /* debug message */
-            log_debug(ZONE,"THREAD:SESSION:TO received data from %s!",jid_full(p->from));
-
-            /* increment packet in count */
-            s->c_in++;
-
-            /* let the modules have their heyday */
-            if(js_mapi_call(NULL, es_IN, p, s->u, s))
-                break;
-
-            /* we need to check again, s->exit_flag *could* have changed within the modules at some point */
-            if(s->exit_flag)
-            {
-                /* deliver that packet if it was a message, and sk'daddle */
-                if(p->type == JPACKET_MESSAGE)
-                    js_deliver(s->si, p);
-                else
-                    xmlnode_free(p->x);
-                break;
-            }
-
-            /* wrap in a route and deliver outgoing for this session */
-            p->x = xmlnode_wrap(p->x,"route");
-            xmlnode_put_attrib(p->x, "to", jid_full(s->sid));
-            xmlnode_put_attrib(p->x, "from", jid_full(s->uid));
-            deliver(dpacket_new(p->x), s->si->i);
-
-            break;
-
-        case SPACKET_END: /* buh-bye */
-
-            /* debug message */
-            log_debug(ZONE,"THREAD:SESSION exiting");
-
-            /* decrement the user's session count */
-            s->u->scount--;
-
-            /* make sure the service knows the session is gone */
-            if(j_strcmp(xmlnode_get_tag_data(s->presence,"state"),"Disconnected") != 0)
-            {   /* if the offline presence was "Disconnected", that implies that it was the client service, and we don't really need to tell it again */
-                x = xmlnode_new_tag("route");
-                xmlnode_put_attrib(x, "type", "error");
-                xmlnode_put_attrib(x, "to", jid_full(s->sid));
-                xmlnode_put_attrib(x, "from", jid_full(s->id));
-                deliver(dpacket_new(x), s->si->i);
-            }
-
-            /* let the modules have their heyday */
-            js_mapi_call(NULL, es_END, NULL, s->u, s);
-
-            /* let the user struct go  */
-            s->u->ref--;
-
-            /* free the session's presence state */
-            xmlnode_free(s->presence);
-
-            /* free the session's memory pool */
-            pool_free(s->p);
-            s = NULL;
-            break;
-
-        default:
-        }
-
-        /* disallusion the session and worker */
-        if(s != NULL)
-            s->worker = NULL;
-    }
-}
-
-/*
- *  function_name -- entry point for session threads
- *  
- *  Sleep until an spacket arrives on the message port, then
- *  call js_session_process to deal with it. Repeat. The thread
- *  dies when finishes processing a packet and the pool of idle
- *  threads is full. This lets the server free up resouces if
- *  the load spikes and then dies off.
- *
- *  parameters
- *  	arg -- the worker thread
- *
- */
-void *js_worker_main(void *arg)
-{
-    sthread st = (sthread)arg;
-    pth_event_t mpevt;                              /* an event ring to wait for - ie EVENT_MSG */
-    int i;                                          /* index for traversing the idle thread pool */
-
-    log_debug(ZONE,"THREAD:WORKER %X starting",st->mp);
-
-    /* create an event ring for receiving messges */
-    mpevt = pth_event(PTH_EVENT_MSG,st->mp);
-
-    /* loop */
-    while(1)
-    {
-
-        /* debug: note that we're waiting for a message */
-        log_debug(ZONE,"WORKER(%X)->pth",st->mp);
-
-        /* wait for a message on the port */
-        pth_wait(mpevt);
-
-        /* debug: note that we found one */
-        log_debug(ZONE,"pth->WORKER(%X)",st->mp);
-
-        /* take us out of the waiting pool */
-        for(i=0;i<SESSION_WAITERS; i++)
-            if(st->si->waiting[i] == st->mp)
-                st->si->waiting[i] = NULL;
-
-        /* process the waiting packets */
-        js_session_process(st->mp);
-
-        /* scan the waiting pool */
-        for(i=0;i<SESSION_WAITERS && st->si->waiting[i] != NULL; i++);
-
-        /* no room for us, die */
-        if(i+1 == SESSION_WAITERS)
-            break;
-
-        /* debug: note that we're going back to the waiting pool */
-        log_debug(ZONE,"swaiters[%d] is now %X",i,st->mp);
-
-        /* go back to the pool */
-        st->si->waiting[i] = st->mp;
-
+    /* make sure the service knows the session is gone */
+    if(j_strcmp(xmlnode_get_tag_data(s->presence,"state"),"Disconnected") != 0)
+    {   /* if the offline presence was "Disconnected", that implies that it was the client service, and we don't really need to tell it again */
+         x = xmlnode_new_tag("route");
+         xmlnode_put_attrib(x, "type", "error");
+         xmlnode_put_attrib(x, "to", jid_full(s->sid));
+         xmlnode_put_attrib(x, "from", jid_full(s->id));
+         deliver(dpacket_new(x), s->si->i);
     }
 
-    /* debug: note that the thread is dying */
-    log_debug(ZONE,"THREAD:WORKER %X exiting",st->mp);
+    /* let the modules have their heyday */
+    js_mapi_call(NULL, es_END, NULL, s->u, s);
 
-    /* free all memory associated with the thread */
-    pth_event_free(mpevt,PTH_FREE_ALL);
-    pth_msgport_destroy(st->mp);
-    free(st);
+    /* let the user struct go  */
+    s->u->ref--;
 
-    return NULL;
+    /* free the session's presence state */
+    xmlnode_free(s->presence);
+
+    /* free the session's memory pool */
+    pool_free(s->p);
 }
 
 /*
@@ -669,35 +386,17 @@ session js_session_primary(udata user)
 
 }
 
-/*
- *  js_session_to -- send an incomming packet to the session
- *  
- *  This is a wrapper for js_packet
- *
- *  parameters
- *  	s -- the session to send to
- *      p -- the packet to send
- *
- */
 void js_session_to(session s, jpacket p)
 {
-    /* forward the call to spacket, with the correct packet type */
-    js_spacket(SPACKET_TO,s,p);
+    /* queue the call to child, hide session in packet */
+    p->aux1 = (void *)s;
+    mtq_send(s->q, p->p, _js_session_to, (void *)p);
 }
 
-/*
- *  js_session_from -- route an outgoing packet from the session
- *  
- *  This is a wrapper for js_packet
- *
- *  parameters
- *  	s -- the session sending the packet
- *      p -- the packet to send
- *
- */
 void js_session_from(session s, jpacket p)
 {
-    /* forward the call to spacket, with the correct packet type */
-    js_spacket(SPACKET_FROM,s,p);
+    /* queue the call to child, hide session in packet */
+    p->aux1 = (void *)s;
+    mtq_send(s->q, p->p, _js_session_from, (void *)p);
 }
 
