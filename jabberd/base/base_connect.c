@@ -82,7 +82,7 @@ result base_connect_deliver(instance i, dpacket p, void* arg)
     conn_info ci = (conn_info)arg;
 
     /* Insert the message into the write_queue if we don't have an MIO socket yet.. */
-    if (ci->io == NULL)
+    if (ci->state != conn_AUTHD)
     {
         conn_write_buf entry = pmalloco(p->p, sizeof(_conn_write_buf));
         entry->packet = p;
