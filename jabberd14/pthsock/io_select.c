@@ -140,11 +140,15 @@ void io_close(sock c)
 /* internal close function */
 void _io_close(sock c)
 {
+    int ret=0;
+    c->state=state_CLOSE;
     io_unlink(c);
 
-    /* bounce the current queue */
-    if(c->xbuffer!=NULL)
-        (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg);
+    /* try to write what's in the queue */
+    if(c->xbuffer!=NULL) ret=_io_write_dump(c);
+
+    /* if we didn't write it all, bounce the current queue */
+    if(ret==1) (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg);
 
     /* notify of the close */
     (*(io_cb)c->cb)(c,NULL,0,IO_CLOSED,c->cb_arg);
