@@ -36,16 +36,10 @@ result karma_heartbeat(void*arg)
     if(io__data==NULL||io__data->master__list==NULL) return r_DONE;
     for(cur=io__data->master__list;cur!=NULL;cur=cur->next)
     {
-        if(cur->state==state_CLOSE||cur->k.val==KARMA_INIT) continue;
-        cur->k.val+=cur->k.inc;
-        if(cur->k.val>0)cur->k.bytes-=(KARMA_READ_MAX(cur->k.val));
-        if(cur->k.bytes<0)cur->k.bytes=0;
+        if(cur->state==state_CLOSE&&cur->k.val!=KARMA_INIT) continue;
+        karma_increment( &cur->k );
         if(cur->k.val==0)  /* punishment is over */
             pth_raise(io__data->t,SIGUSR2);
-#ifdef KARMA_DEBUG
-        if(cur->k.val!=cur->k.max+1)log_notice("karma","socket #%d granted %d karma, now: %d:%d",cur->fd,cur->k.inc,cur->k.val,cur->k.bytes);
-#endif
-        if(cur->k.val>cur->k.max)cur->k.val=cur->k.max; /* can only be so good */
     }
     return r_DONE;
 }
@@ -321,9 +315,6 @@ void _io_main(void *arg)
         {
             if((!FD_ISSET(cur->fd,&all_rfds)&&cur->k.val==0)||cur->k.val==KARMA_INIT)
             {
-#ifdef KARMA_DEBUG
-                log_notice("karma","sock %d restoring to %d:%d karma",cur->fd,cur->k.restore,cur->k.bytes);
-#endif
                 cur->k.val=cur->k.restore;
                 FD_SET(cur->fd,&all_rfds); /* they can read again */
             }
@@ -384,20 +375,12 @@ void _io_main(void *arg)
                 }
                 else
                 {
-                    cur->k.bytes+=len;
-#ifdef KARMA_DEBUG
-                        log_notice("karma","socket #%d just read: %d of max %d, karma now: %d:%d",cur->fd,len,maxlen,cur->k.val,cur->k.bytes);
-#endif
-                    if(cur->k.bytes>=maxlen)
+                    if( karma_check( &cur->k, len ) )
                     { /* they read the max, tsk tsk */
-                        cur->k.val-=cur->k.dec;
-#ifdef KARMA_DEBUG
-                        log_notice("karma","socket #%d lost %d karma, now: %d:%d",cur->fd,cur->k.dec,cur->k.val,cur->k.bytes);
-#endif
                         if(cur->k.val<=0) /* ran out of karma */
                         {
                             log_notice("io_select","socket #%d is out of karma",cur->fd);
-                            cur->k.val=cur->k.penalty; /* pay the penence */
+                            /* pay the penence */
                             FD_CLR(cur->fd,&all_rfds); 
                         }
                     }
