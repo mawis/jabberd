@@ -42,7 +42,6 @@
 #include "jabberd.h"
 #include "single.h"
 #define MAX_INCLUDE_NESTING 20
-extern xht cmd__line;
 extern pool      jabberd__runtime;
 xht instance__ids=NULL;
 
@@ -102,7 +101,7 @@ void do_include(int nesting_level,xmlnode x)
     }
 }
 
-void cmdline_replace(xmlnode x)
+void cmdline_replace(xmlnode x, xht cmd_line)
 {
     char *flag;
     char *replace_text;
@@ -113,11 +112,11 @@ void cmdline_replace(xmlnode x)
         if(cur->type!=NTYPE_TAG)continue;
         if(j_strcmp(xmlnode_get_name(cur),"jabberd:cmdline")!=0)
         {
-            cmdline_replace(cur);
+            cmdline_replace(cur, cmd_line);
             continue;
         }
         flag=xmlnode_get_attrib(cur,"flag");
-        replace_text=xhash_get(cmd__line,flag);
+        replace_text=xhash_get(cmd_line,flag);
         if(replace_text==NULL) replace_text=xmlnode_get_data(cur);
 
         xmlnode_hide(xmlnode_get_firstchild(x));
@@ -227,7 +226,7 @@ void show_pid(xmlnode x)
     return;
 }
 
-int configurate(char *file)
+int configurate(char *file, xht cmd_line)
 {
     char def[] = CONFIG_DIR"/jabber.xml";
     char *realfile = (char *)def;
@@ -254,7 +253,7 @@ int configurate(char *file)
     }
 
     /* parse -i foo.xml,bar.xml */
-    if((realfile = xhash_get(cmd__line,"i")) != NULL)
+    if((realfile = xhash_get(cmd_line,"i")) != NULL)
         while(realfile != NULL)
         {
             c = strchr(realfile,',');
@@ -277,7 +276,7 @@ int configurate(char *file)
 
     /* check greymatter for additional includes */
     do_include(0,greymatter__);
-    cmdline_replace(greymatter__);
+    cmdline_replace(greymatter__, cmd_line);
 
     show_pid(greymatter__);
 
@@ -286,22 +285,6 @@ int configurate(char *file)
     return 0;
 }
 
-int config_reload(char *file)
-{
-    xmlnode old_config=greymatter__;
-    int retval=configurate(file);
-
-    if(retval) /* failed to load config */
-    {
-        greymatter__=old_config; /* restore old config */
-        return 1;
-    }
-    else
-    {
-        xmlnode_free(old_config); /* free the old config */
-        return 0;
-    }
-}
 /* private config handler list */
 typedef struct cfg_struct
 {

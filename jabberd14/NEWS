@@ -7,3 +7,6 @@
     * the activation of debugging output has been changed: you can either
       activate debugging in the configuration file or in the command line
       using the -D option (that now takes an argument)
+    * there is a small utility xdbfiletool that helps accessing xdb_file's
+      new directory layout and that can convert old spools to the new
+      format
