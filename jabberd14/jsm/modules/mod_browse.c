@@ -81,7 +81,7 @@ mreturn mod_browse_set(mapi m, void *arg)
     if(!NSCHECK(m->packet->iq,NS_BROWSE) || jpacket_subtype(m->packet) != JPACKET__SET) return M_PASS;
     if(m->packet->to != NULL) return M_PASS; /* if its to someone other than ourselves */
 
-    log_debug("mod_browse","handling set request %s",xmlnode2str(m->packet->iq));
+    log_debug2(ZONE, LOGT_DELIVER, "handling set request %s",xmlnode2str(m->packet->iq));
 
     /* no to implies to ourselves */
     if(m->packet->to != NULL)
@@ -160,7 +160,7 @@ mreturn mod_browse_reply(mapi m, void *arg)
         return M_HANDLED;
     }
 
-    log_debug("mod_browse","handling query for user %s",m->user->user);
+    log_debug2(ZONE, LOGT_DELIVER, "handling query for user %s",m->user->user);
 
     /* get this dudes browse info */
     browse = mod_browse_get(m, m->packet->to);
@@ -205,7 +205,7 @@ mreturn mod_browse_server(mapi m, void *arg)
     if((browse = js_config(m->si,"browse")) == NULL)
         return M_PASS;
 
-    log_debug("mod_browse","handling browse query");
+    log_debug2(ZONE, LOGT_DELIVER, "handling browse query");
 
     /* build the result IQ */
     query = xmlnode_insert_tag(jutil_iqresult(m->packet->x),"service");

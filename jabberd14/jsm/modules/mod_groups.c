@@ -56,7 +56,7 @@ xmlnode mod_groups_get_info(mod_groups_i mi, pool p, char *host, char *gid)
 
     if (gid == NULL) return NULL;
 
-    log_debug("mod_groups","Getting info %s",gid);
+    log_debug2(ZONE, LOGT_DELIVER, "Getting info %s",gid);
 
     id = jid_new(p,host);
     jid_set(id,gid,JID_RESOURCE);
@@ -84,7 +84,7 @@ xmlnode mod_groups_get_users(mod_groups_i mi, pool p, char *host, char *gid)
 
     if (gid == NULL) return NULL;
 
-    log_debug("mod_groups","getting users %s",gid);
+    log_debug2(ZONE, LOGT_DELIVER, "getting users %s",gid);
 
     /* check config for specfic group before xdb */
     group = (xmlnode) xhash_get(mi->config,gid);
@@ -92,7 +92,7 @@ xmlnode mod_groups_get_users(mod_groups_i mi, pool p, char *host, char *gid)
     if (group != NULL && (users = xmlnode_get_tag(group,"users")) != NULL)
         return xmlnode_dup(users);
 
-    log_debug("mod_groups","%d %d",group != NULL,users!= NULL);
+    log_debug2(ZONE, LOGT_DELIVER, "%d %d",group != NULL,users!= NULL);
 
     id = jid_new(p,host);
     jid_set(id,gid,JID_RESOURCE);
@@ -159,7 +159,7 @@ void mod_groups_current_walk(xht h, const char *gid, void *val, void *arg)
         xmlnode group;
         pool p;
 
-        log_debug("mod_groups","required group %s",gid);
+        log_debug2(ZONE, LOGT_DELIVER, "required group %s",gid);
 
         p = xmlnode_pool(result);
         group = xmlnode_get_tag(result,spools(p,"?id=",gid,p));
@@ -203,7 +203,7 @@ grouptab mod_groups_tab_add(mod_groups_i mi, char *gid)
 {
     grouptab gt;
 
-    log_debug("mod_groups","new group entry %s",gid);
+    log_debug2(ZONE, LOGT_DELIVER, "new group entry %s",gid);
     gt = pmalloco(mi->p,sizeof(_grouptab));
     gt->to = xhash_new(509);
     gt->from = xhash_new(509);
@@ -240,7 +240,7 @@ void mod_groups_presence_from_walk(xht h, const char *key, void *val, void *arg)
     {
         xmlnode pres;
 
-        log_debug("mod_groups","delivering presence to %s",jid_full(u->id));
+        log_debug2(ZONE, LOGT_DELIVER, "delivering presence to %s",jid_full(u->id));
 
         pres = xmlnode_dup(x);
         xmlnode_put_attrib(pres,"to",jid_full(u->id));
@@ -254,7 +254,7 @@ void mod_groups_presence_from(session s, grouptab gt, xmlnode pres)
 {
     udata u = s->u;
 
-    log_debug("mod_groups","brodcasting");
+    log_debug2(ZONE, LOGT_DELIVER, "brodcasting");
 
     if (xhash_get(gt->from,jid_full(u->id)) == NULL)
         xhash_put(gt->from,jid_full(u->id),u);
@@ -352,7 +352,7 @@ int mod_groups_xdb_add(mod_groups_i mi, pool p, jid uid, char *un, char *gid, ch
 
     if(both && xdb_act(mi->xc,xid,NS_XGROUPS,"insert",spools(p,"?jid=",jid_full(uid),p),user))
     {
-        log_debug(ZONE,"Failed to insert user");
+        log_debug2(ZONE, LOGT_DELIVER, "Failed to insert user");
         xmlnode_free(user);
         return 1;
     }
@@ -406,7 +406,7 @@ int mod_groups_xdb_remove(mod_groups_i mi, pool p, jid uid, char *host, char *gi
 
     if(xdb_act(mi->xc,xid,NS_XGROUPS,"insert",spools(p,"?jid=",jid_full(uid),p),NULL))
     {
-        log_debug(ZONE,"Failed to remove user");
+        log_debug2(ZONE, LOGT_DELIVER, "Failed to remove user");
         return 1;
     }
 
@@ -477,7 +477,7 @@ void mod_groups_register_set(mod_groups_i mi, mapi m)
 
     if (add)
     {
-        log_debug("mod_groups","register GID %s",gid);
+        log_debug2(ZONE, LOGT_DELIVER, "register GID %s",gid);
         if (mod_groups_xdb_add(mi,p,uid,un ? un : jid_full(uid),gid,gn,both))
         {
             js_bounce_xmpp(m->si,jp->x,XTERROR_UNAVAIL);
@@ -487,7 +487,7 @@ void mod_groups_register_set(mod_groups_i mi, mapi m)
     }
     else
     {
-        log_debug("mod_groups","unregister GID %s",gid);
+        log_debug2(ZONE, LOGT_DELIVER, "unregister GID %s",gid);
         if (mod_groups_xdb_remove(mi,p,uid,host,gid))
         {
             js_bounce_xmpp(m->si,jp->x,XTERROR_UNAVAIL);
@@ -576,7 +576,7 @@ void mod_groups_browse_set(mod_groups_i mi, mapi m)
     char *gid, *gn, *un, *host, *action;
     int add;
 
-    log_debug(ZONE,"Setting");
+    log_debug2(ZONE, LOGT_DELIVER, "Setting");
 
     gid = strchr(jp->to->resource,'/');
     if (gid == NULL || ++gid == NULL)
@@ -607,7 +607,7 @@ void mod_groups_browse_set(mod_groups_i mi, mapi m)
 
     if ( add )
     {
-        log_debug("mod_groups", "Adding");
+        log_debug2(ZONE, LOGT_DELIVER, "Adding");
         if (mod_groups_xdb_add(mi,p,uid,un,gid,gn,1))
         {
             js_bounce_xmpp(m->si,jp->x,XTERROR_UNAVAIL);
@@ -617,7 +617,7 @@ void mod_groups_browse_set(mod_groups_i mi, mapi m)
     }
     else
     {
-        log_debug("mod_groups", "Removing");
+        log_debug2(ZONE, LOGT_DELIVER, "Removing");
         host = jp->from->server;
         if (mod_groups_xdb_remove(mi,p,uid,host,gid))
         {
@@ -678,7 +678,7 @@ void mod_groups_browse_get(mod_groups_i mi, mapi m)
     xmlnode info = NULL;
     char *gid, *gn, *host = jp->to->server;
 
-    log_debug("mod_groups","Browse request");
+    log_debug2(ZONE, LOGT_DELIVER, "Browse request");
 
     gid = strchr(jp->to->resource,'/');
     if (gid != NULL && ++gid != NULL)
@@ -758,7 +758,7 @@ void mod_groups_roster(mod_groups_i mi, mapi m)
             xmlnode_free(info);
         }
         else
-            log_debug("mod_groups","Failed to get users for group");
+            log_debug2(ZONE, LOGT_DELIVER, "Failed to get users for group");
     }
 
     mod_groups_roster_push(m->s,roster,0);
@@ -778,7 +778,7 @@ mreturn mod_groups_iq(mod_groups_i mi, mapi m)
     {
         if (jpacket_subtype(m->packet) == JPACKET__GET)
         {
-            log_debug("mod_groups","Roster request");
+            log_debug2(ZONE, LOGT_DELIVER, "Roster request");
             mod_groups_roster(mi,m);
         }
         return M_PASS;
@@ -790,7 +790,7 @@ mreturn mod_groups_iq(mod_groups_i mi, mapi m)
     {
         if (j_strcmp(ns,NS_BROWSE) == 0)
         {
-            log_debug("mod_groups","Browse request");
+            log_debug2(ZONE, LOGT_DELIVER, "Browse request");
 
             if (type == JPACKET__GET)
                 mod_groups_browse_get(mi,m);
@@ -801,7 +801,7 @@ mreturn mod_groups_iq(mod_groups_i mi, mapi m)
         }
         else if (j_strcmp(ns,NS_REGISTER) == 0)
         {
-            log_debug("mod_groups","Register request");
+            log_debug2(ZONE, LOGT_DELIVER, "Register request");
 
             if (type == JPACKET__GET)
                 mod_groups_register_get(mi,m);
@@ -829,7 +829,7 @@ void mod_groups_presence(mod_groups_i mi, mapi m)
     if ((groups = mod_groups_get_current(mi,u->id)) == NULL)
         return;
 
-    log_debug("mod_groups","Getting groups for %s",jid_full(u->id));
+    log_debug2(ZONE, LOGT_DELIVER, "Getting groups for %s",jid_full(u->id));
 
     /* get each group */
     for (cur = xmlnode_get_firstchild(groups); cur != NULL; cur = xmlnode_get_nextsibling(cur))
@@ -877,7 +877,7 @@ mreturn mod_groups_end(mapi m, void *arg)
     if (js_session_primary(u) != NULL || (groups = mod_groups_get_current(mi,id)) == NULL)
         return M_PASS;
 
-    log_debug("mod_groups","removing user from table");
+    log_debug2(ZONE, LOGT_DELIVER, "removing user from table");
     for (cur = xmlnode_get_firstchild(groups); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
         gt = (grouptab) xhash_get(mi->groups,xmlnode_get_attrib(cur,"id"));
@@ -915,7 +915,7 @@ void mod_groups_message_online(mod_groups_i mi, xmlnode msg, char *gid)
 {
     grouptab gt;
 
-    log_debug("mod_groups","broadcast message to '%s'",gid);
+    log_debug2(ZONE, LOGT_DELIVER, "broadcast message to '%s'",gid);
 
     gt = (grouptab) xhash_get(mi->groups,gid);
     if (gt != NULL)
@@ -994,7 +994,7 @@ void mod_groups(jsmi si)
     xmlnode cur, config;
     char *gid, *id = si->i->id;
 
-    log_debug("mod_groups","initing");
+    log_debug2(ZONE, LOGT_INIT, "initing");
 
     p = pool_new();
     mi = pmalloco(p,sizeof(_mod_groups_i));

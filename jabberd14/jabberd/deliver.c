@@ -243,7 +243,7 @@ void deliver_internal(dpacket p, instance i)
     xmlnode x;
     char *ns = xmlnode_get_attrib(p->x, "ns");
 
-    log_debug(ZONE,"@-internal processing %s",xmlnode2str(p->x));
+    log_debug2(ZONE, LOGT_DELIVER, "@-internal processing %s",xmlnode2str(p->x));
 
     if(j_strcmp(p->id->user,"config") == 0)
     { /* config@-internal means it's a special xdb request to get data from the config file */
@@ -285,7 +285,7 @@ void register_instance(instance i, char *host)
     ilist l;
     xht ht;
 
-    log_debug(ZONE,"Registering %s with instance %s",host,i->id);
+    log_debug2(ZONE, LOGT_REGISTER, "Registering %s with instance %s", host, i->id);
 
     /* fail, since ns is required on every XDB instance if it's used on any one */
     if(i->type == p_XDB && deliver__ns != NULL && xmlnode_get_tag(i->x, "ns") == NULL)
@@ -311,7 +311,7 @@ void unregister_instance(instance i, char *host)
     ilist l;
     xht ht;
 
-    log_debug(ZONE,"Unregistering %s with instance %s",host,i->id);
+    log_debug2(ZONE, LOGT_REGISTER, "Unregistering %s with instance %s",host,i->id);
 
     ht = deliver_hashtable(i->type);
     l = xhash_get(ht, host);
@@ -364,7 +364,7 @@ result deliver_config_ns(instance i, xmlnode x, void *arg)
     if(ns == NULL)
         ns = pstrdup(xmlnode_pool(x),star);
 
-    log_debug(ZONE,"Registering namespace %s with instance %s",ns,i->id);
+    log_debug2(ZONE, LOGT_REGISTER, "Registering namespace %s with instance %s",ns,i->id);
 
     if(deliver__ns == NULL)
 	deliver__ns = xhash_new(401);
@@ -391,7 +391,7 @@ result deliver_config_logtype(instance i, xmlnode x, void *arg)
     if(type == NULL)
         type = pstrdup(xmlnode_pool(x),star);
 
-    log_debug(ZONE,"Registering logtype %s with instance %s",type,i->id);
+    log_debug2(ZONE, LOGT_REGISTER, "Registering logtype %s with instance %s",type,i->id);
 
     if(deliver__logtype == NULL)
 	deliver__logtype = xhash_new(401);
@@ -471,7 +471,7 @@ void deliver(dpacket p, instance i)
         return;
     }
 
-    log_debug(ZONE,"DELIVER %d:%s %s",p->type,p->host,xmlnode2str(p->x));
+    log_debug2(ZONE, LOGT_DELIVER, "DELIVER %d:%s %s", p->type, p->host, xmlnode2str(p->x));
 
     b = NULL;
     a = deliver_hashmatch(deliver_hashtable(p->type), p->host);
@@ -620,7 +620,7 @@ void deliver_fail(dpacket p, char *err)
     xterror xt;
     char message[MAX_LOG_SIZE];
 
-    log_debug(ZONE,"delivery failed (%s)",err);
+    log_debug2(ZONE, LOGT_DELIVER, "delivery failed (%s)", err);
 
     if(p==NULL) return;
 
@@ -692,7 +692,7 @@ void deliver_instance(instance i, dpacket p)
         return;
     }
 
-    log_debug(ZONE,"delivering to instance '%s'",i->id);
+    log_debug2(ZONE, LOGT_DELIVER, "delivering to instance '%s'", i->id);
 
     /* try all the handlers */
     hlast = h = i->hds;

@@ -133,7 +133,7 @@ void mod_filter_action_offline(mapi m, xmlnode rule)
                 break; /* cur remaining set is the flag */
         }
 
-    log_debug("mod_filter","storing message for %s offline.",m->user->user);
+    log_debug2(ZONE, LOGT_DELIVER|LOGT_STORAGE, "storing message for %s offline.",m->user->user);
 
     jutil_delay(m->packet->x,"Offline Storage");
     if(xdb_act(m->si->xc, m->user->id, NS_OFFLINE, "insert", NULL, m->packet->x))
@@ -237,7 +237,7 @@ void mod_filter_action_reply(mapi m,xmlnode rule)
 void mod_filter_action_error(mapi m,xmlnode rule)
 {
     xmlnode err = xmlnode_get_tag(rule, "error");
-    log_debug(ZONE,"sending an error reply");
+    log_debug2(ZONE, LOGT_DELIVER, "sending an error reply");
     
     if(err != NULL)
     {
@@ -333,11 +333,11 @@ mreturn mod_filter_handler(mapi m, void *arg)
     rules = xmlnode_get_firstchild(container);
 
 
-    log_debug(ZONE,"Looking at rules: %s", xmlnode2str(container));
+    log_debug2(ZONE, LOGT_DELIVER, "Looking at rules: %s", xmlnode2str(container));
 
     for(;rules!=NULL;rules=xmlnode_get_nextsibling(rules))
     {
-        log_debug(ZONE, "rule: %s", xmlnode2str(rules));
+        log_debug2(ZONE, LOGT_DELIVER, "rule: %s", xmlnode2str(rules));
 
         if(xmlnode_get_type(rules) != NTYPE_TAG)
             continue;
@@ -348,7 +348,7 @@ mreturn mod_filter_handler(mapi m, void *arg)
             /* iq packets may match the <ns/> condition */
             if(j_strcmp(xmlnode_get_name(cur), "ns") == 0)
             {
-                log_debug(ZONE, "checking ns");
+                log_debug2(ZONE, LOGT_DELIVER, "checking ns");
                 if(m->packet->type != JPACKET_IQ)
                 { /* ignore this rule, since the packet is not an IQ */
                     cur = NULL;
@@ -358,7 +358,7 @@ mreturn mod_filter_handler(mapi m, void *arg)
                 if(j_strcmp(xmlnode_get_attrib(m->packet->iq, "xmlns"), xmlnode_get_data(cur)) == 0)
                 {
                     cur_action->is_match = 1;
-                    log_debug(ZONE, "MATCH");
+                    log_debug2(ZONE, LOGT_DELIVER, "MATCH");
                 }
                 cur = xmlnode_get_nextsibling(cur);
             }
@@ -370,17 +370,17 @@ mreturn mod_filter_handler(mapi m, void *arg)
                 {
                     jid_set(j, NULL, JID_RESOURCE);
 
-                    log_debug(ZONE, "checking roster");
+                    log_debug2(ZONE, LOGT_DELIVER, "checking roster");
 
                     if(jid_nodescan(j, roster) != NULL)
                     {
                         cur_action->is_match = 1;
-                        log_debug(ZONE, "MATCH");
+                        log_debug2(ZONE, LOGT_DELIVER, "MATCH");
                     }
                 }
                 else
                 {
-                    log_debug(ZONE, "Bogus return address on message");
+                    log_debug2(ZONE, LOGT_DELIVER, "Bogus return address on message");
                 }
                 xmlnode_free(roster);
                 cur = xmlnode_get_nextsibling(cur);
@@ -395,15 +395,15 @@ mreturn mod_filter_handler(mapi m, void *arg)
                 {
                     jid_set(j, NULL, JID_RESOURCE);
 
-                    log_debug(ZONE, "checking for group %s in %s", group, xmlnode2str(roster));
+                    log_debug2(ZONE, LOGT_DELIVER, "checking for group %s in %s", group, xmlnode2str(roster));
 
                     while((item = xmlnode_get_tag(roster, group)) != NULL)
                     {
-                        log_debug(ZONE, "found match: %s", xmlnode2str(item));
+                        log_debug2(ZONE, LOGT_DELIVER, "found match: %s", xmlnode2str(item));
                         if(jid_cmpx(j, jid_new(xmlnode_pool(item), xmlnode_get_attrib(item->parent, "jid")), JID_USER | JID_SERVER) == 0)
                         {
                             cur_action->is_match = 1;
-                            log_debug(ZONE, "MATCH");
+                            log_debug2(ZONE, LOGT_DELIVER, "MATCH");
                             break;
                         }
                         xmlnode_hide(item);
@@ -411,33 +411,33 @@ mreturn mod_filter_handler(mapi m, void *arg)
                 }
                 else
                 {
-                    log_debug(ZONE, "Bogus Return address on message.");
+                    log_debug2(ZONE, LOGT_DELIVER, "Bogus Return address on message.");
                 }
                 xmlnode_free(roster);
                 cur = xmlnode_get_nextsibling(cur);
             }
             else if(j_strcmp(xmlnode_get_name(cur),"unavailable")==0)
             {
-                log_debug(ZONE,"checking unavailalbe");
+                log_debug2(ZONE, LOGT_DELIVER, "checking unavailalbe");
                 if(js_session_primary(m->user)==NULL)
                     cur_action->is_match=1;
                 else
                     break;
-                log_debug(ZONE,"MATCH!");
+                log_debug2(ZONE, LOGT_DELIVER, "MATCH!");
                 cur=xmlnode_get_nextsibling(cur);
             }
             else if(j_strcmp(xmlnode_get_name(cur),"from")==0)
             {
                 xmlnode f=cur;
-                log_debug(ZONE,"checking from");
+                log_debug2(ZONE, LOGT_DELIVER, "checking from");
                 cur_action->is_match=0;
                 for(;f!=NULL;f=xmlnode_get_tag(rules,"from"))
                 {
                     char *from=xmlnode_get_data(f);
-                    log_debug(ZONE,"checking from: %s",from);
+                    log_debug2(ZONE, LOGT_DELIVER, "checking from: %s",from);
                     if(cur_action->is_match||from==NULL||jid_cmpx(jid_new(jp->from->p,from),jp->from,JID_USER|JID_SERVER)!=0)
                     {
-                        log_debug(ZONE,"not a match, killing node");
+                        log_debug2(ZONE, LOGT_DELIVER, "not a match, killing node");
                         if(cur==f)
                             cur=xmlnode_get_nextsibling(cur);
                         xmlnode_hide(f);
@@ -448,20 +448,20 @@ mreturn mod_filter_handler(mapi m, void *arg)
                     cur_action->is_match=1;
                 }
                 if(!cur_action->is_match) break;
-                log_debug(ZONE,"MATCH!");
+                log_debug2(ZONE, LOGT_DELIVER, "MATCH!");
             }
             else if(j_strcmp(xmlnode_get_name(cur),"resource")==0)
             {
                 xmlnode r=cur;
-                log_debug(ZONE,"checking resource");
+                log_debug2(ZONE, LOGT_DELIVER, "checking resource");
                 cur_action->is_match=0;
                 for(;r!=NULL;r=xmlnode_get_tag(rules,"resource"))
                 {
                     char *res=xmlnode_get_data(r);
-                    log_debug(ZONE,"checking res: %s",res);
+                    log_debug2(ZONE, LOGT_DELIVER, "checking res: %s",res);
                     if(cur_action->is_match||res==NULL||jp->to->resource==NULL||strcasecmp(res,jp->to->resource)!=0)
                     {
-                        log_debug(ZONE,"not a match");
+                        log_debug2(ZONE, LOGT_DELIVER, "not a match");
                         if(cur==r)
                             cur=xmlnode_get_nextsibling(cur);
                         xmlnode_hide(r);
@@ -472,22 +472,22 @@ mreturn mod_filter_handler(mapi m, void *arg)
                     cur_action->is_match=1;
                 }
                 if(!cur_action->is_match) break;
-                log_debug(ZONE,"MATCH!");
+                log_debug2(ZONE, LOGT_DELIVER, "MATCH!");
             }
             else if(j_strcmp(xmlnode_get_name(cur),"subject")==0)
             {
                 xmlnode s=cur;
                 if(m->packet->type == JPACKET_IQ) 
                     break;
-                log_debug(ZONE,"checking subject");
+                log_debug2(ZONE, LOGT_DELIVER, "checking subject");
                 cur_action->is_match=0;
                 for(;s!=NULL;s=xmlnode_get_tag(rules,"subject"))
                 {
                     char *subject=xmlnode_get_data(s);
-                    log_debug(ZONE,"checking subject: %s",subject);
+                    log_debug2(ZONE, LOGT_DELIVER, "checking subject: %s",subject);
                     if(cur_action->is_match||subject==NULL||xmlnode_get_tag_data(jp->x,"subject")==NULL||strcasecmp(subject,xmlnode_get_tag_data(jp->x,"subject"))!=0)
                     {
-                        log_debug(ZONE,"not a match");
+                        log_debug2(ZONE, LOGT_DELIVER, "not a match");
                         if(cur==s)cur=xmlnode_get_nextsibling(cur);
                         xmlnode_hide(s);
                         continue;
@@ -497,22 +497,22 @@ mreturn mod_filter_handler(mapi m, void *arg)
                     cur_action->is_match=1;
                 }
                 if(!cur_action->is_match) break;
-                log_debug(ZONE,"MATCH!");
+                log_debug2(ZONE, LOGT_DELIVER, "MATCH!");
             }
             else if(j_strcmp(xmlnode_get_name(cur),"body")==0)
             {
                 xmlnode b=cur;
                 if(m->packet->type == JPACKET_IQ)
                     break;
-                log_debug(ZONE,"checking body");
+                log_debug2(ZONE, LOGT_DELIVER, "checking body");
                 cur_action->is_match=0;
                 for(;b!=NULL;b=xmlnode_get_tag(rules,"body"))
                 {
                     char *body=xmlnode_get_data(b);
-                    log_debug(ZONE,"checking body: %s",body);
+                    log_debug2(ZONE, LOGT_DELIVER, "checking body: %s",body);
                     if(cur_action->is_match||body==NULL||xmlnode_get_tag_data(jp->x,"body")==NULL||strcasecmp(body,xmlnode_get_tag_data(jp->x,"body"))!=0)
                     {
-                        log_debug(ZONE,"not a match");
+                        log_debug2(ZONE, LOGT_DELIVER, "not a match");
                         if(cur==b)cur=xmlnode_get_nextsibling(cur);
                         xmlnode_hide(b);
                         continue;
@@ -522,7 +522,7 @@ mreturn mod_filter_handler(mapi m, void *arg)
                     cur_action->is_match=1;
                 }
                 if(!cur_action->is_match) break;
-                log_debug(ZONE,"MATCH!");
+                log_debug2(ZONE, LOGT_DELIVER, "MATCH!");
             }
             else if(j_strcmp(xmlnode_get_name(cur),"show")==0)
             {
@@ -536,10 +536,10 @@ mreturn mod_filter_handler(mapi m, void *arg)
                 for(;sh!=NULL;sh=xmlnode_get_tag(rules,"show"))
                 {
                     char *show=xmlnode_get_data(sh);
-                    log_debug(ZONE,"checking show: %s",show);
+                    log_debug2(ZONE, LOGT_DELIVER, "checking show: %s",show);
                     if(cur_action->is_match||show==NULL||s==NULL||j_strcmp(show,xmlnode_get_tag_data(s->presence,"show"))!=0)
                     {
-                        log_debug(ZONE,"not a match");
+                        log_debug2(ZONE, LOGT_DELIVER, "not a match");
                         if(cur==sh)cur=xmlnode_get_nextsibling(cur);
                         xmlnode_hide(sh);
                         continue;
@@ -549,7 +549,7 @@ mreturn mod_filter_handler(mapi m, void *arg)
                     cur_action->is_match=1;
                 }
                 if(!cur_action->is_match) break;
-                log_debug(ZONE,"MATCH!");
+                log_debug2(ZONE, LOGT_DELIVER, "MATCH!");
             }
             else if(j_strcmp(xmlnode_get_name(cur),"type")==0)
             {
@@ -559,16 +559,16 @@ mreturn mod_filter_handler(mapi m, void *arg)
 
                 if(m->packet->type == JPACKET_IQ)
                     break;
-                log_debug(ZONE,"checking type");
+                log_debug2(ZONE, LOGT_DELIVER, "checking type");
                 if(xtype==NULL) xtype=norm;
                 cur_action->is_match=0;
                 for(;t!=NULL;t=xmlnode_get_tag(rules,"type"))
                 {
                     char *type=xmlnode_get_data(t);
-                    log_debug(ZONE,"checking type: %s",type);
+                    log_debug2(ZONE, LOGT_DELIVER, "checking type: %s",type);
                     if(cur_action->is_match||(type==NULL&&jpacket_subtype(m->packet)!=JPACKET__NONE)||(j_strcmp(type,xtype)!=0))
                     {
-                        log_debug(ZONE,"not a match");
+                        log_debug2(ZONE, LOGT_DELIVER, "not a match");
                         if(cur==t)cur=xmlnode_get_nextsibling(cur);
                         xmlnode_hide(t);
                         continue;
@@ -578,7 +578,7 @@ mreturn mod_filter_handler(mapi m, void *arg)
                     cur_action->is_match=1;
                 }
                 if(!cur_action->is_match) break;
-                log_debug(ZONE,"MATCH");
+                log_debug2(ZONE, LOGT_DELIVER, "MATCH");
             }
             else if(j_strcmp(xmlnode_get_name(cur),"settype")==0)
             {
@@ -586,7 +586,7 @@ mreturn mod_filter_handler(mapi m, void *arg)
                     break;
                 cur_action->has_action=1;
                 cur_action->settype=1;
-                log_debug(ZONE,"settype: %s",xmlnode_get_data(cur));
+                log_debug2(ZONE, LOGT_DELIVER, "settype: %s",xmlnode_get_data(cur));
                 cur=xmlnode_get_nextsibling(cur);
             }
             else if(j_strcmp(xmlnode_get_name(cur),"reply")==0)
@@ -595,7 +595,7 @@ mreturn mod_filter_handler(mapi m, void *arg)
                     break;
                 cur_action->has_action=1;
                 cur_action->reply=1;
-                log_debug(ZONE,"reply: %s",xmlnode_get_data(cur));
+                log_debug2(ZONE, LOGT_DELIVER, "reply: %s",xmlnode_get_data(cur));
                 cur=xmlnode_get_nextsibling(cur);
             }
             else if(j_strcmp(xmlnode_get_name(cur),"forward")==0)
@@ -603,7 +603,7 @@ mreturn mod_filter_handler(mapi m, void *arg)
                 jid new=jid_new(p,xmlnode_get_data(cur));
                 if ( ! new )
                 {
-                    log_debug(ZONE, "Ignoring illegal forwarding address: %s",
+                    log_debug2(ZONE, LOGT_DELIVER, "Ignoring illegal forwarding address: %s",
                                       xmlnode_get_data(cur));
                     //NPS:
                     //This if statement deals w/ the immediate case of
@@ -623,7 +623,7 @@ mreturn mod_filter_handler(mapi m, void *arg)
                     cur_action->has_action=1;
                     new->next=cur_action->forward;
                     cur_action->forward=new;
-                    log_debug(ZONE,"forward: %s",xmlnode_get_data(cur));
+                    log_debug2(ZONE, LOGT_DELIVER, "forward: %s",xmlnode_get_data(cur));
                 }
                 cur=xmlnode_get_nextsibling(cur);
             }
@@ -633,21 +633,21 @@ mreturn mod_filter_handler(mapi m, void *arg)
                     break;
                 cur_action->has_action=1;
                 cur_action->offline=1;
-                log_debug(ZONE,"offline storage");
+                log_debug2(ZONE, LOGT_DELIVER, "offline storage");
                 cur=xmlnode_get_nextsibling(cur);
             }
             else if(j_strcmp(xmlnode_get_name(cur),"continue")==0)
             {
                 cur_action->has_action=1;
                 cur_action->cont=1;
-                log_debug(ZONE,"continue processing");
+                log_debug2(ZONE, LOGT_DELIVER, "continue processing");
                 cur=xmlnode_get_nextsibling(cur);
             }
             else if(j_strcmp(xmlnode_get_name(cur), "error") == 0)
             {
                 cur_action->has_action = 1;
                 cur_action->error = 1;
-                log_debug(ZONE, "reply with error");
+                log_debug2(ZONE, LOGT_DELIVER, "reply with error");
                 cur = xmlnode_get_nextsibling(cur);
             }
             else
@@ -706,7 +706,7 @@ mreturn mod_filter_iq(mapi m)
     if(!NSCHECK(m->packet->iq, NS_FILTER) || m->packet->to != NULL)
         return M_PASS;
 
-    log_debug(ZONE, "FILTER RULE SET: iq %s", xmlnode2str(m->packet->x));
+    log_debug2(ZONE, LOGT_DELIVER, "FILTER RULE SET: iq %s", xmlnode2str(m->packet->x));
     max_rule_size = j_atoi(xmlnode_get_tag_data(js_config(m->si, "filter"), "max_size"), MOD_FILTER_MAX_SIZE);
 
     switch(jpacket_subtype(m->packet))
@@ -714,7 +714,7 @@ mreturn mod_filter_iq(mapi m)
     case JPACKET__SET:
         /* check packet max size, and validity */
 
-        log_debug(ZONE, "FILTER RULE SET: rule max size %d: %s", max_rule_size, xmlnode2str(m->packet->x));
+        log_debug2(ZONE, LOGT_DELIVER, "FILTER RULE SET: rule max size %d: %s", max_rule_size, xmlnode2str(m->packet->x));
 
         p = pool_new();
         for(cur = xmlnode_get_firstchild(m->packet->iq); cur != NULL; cur = xmlnode_get_nextsibling(cur))
@@ -724,7 +724,7 @@ mreturn mod_filter_iq(mapi m)
                 continue;
 
             max_rule_size--;
-            log_debug(ZONE, "only %d left..", max_rule_size);
+            log_debug2(ZONE, LOGT_DELIVER, "only %d left..", max_rule_size);
 
             if(max_rule_size <= 0 || j_strcmp(xmlnode_get_name(cur), "rule") != 0)
             { /* invalid tag used */
@@ -803,7 +803,7 @@ mreturn mod_filter_iq(mapi m)
 
 mreturn mod_filter_out(mapi m, void *arg)
 {
-    log_debug(ZONE, "\n packet out from mod_filter\n");
+    log_debug2(ZONE, LOGT_DELIVER, "\n packet out from mod_filter\n");
     switch(m->packet->type)
     {
     case JPACKET_IQ:
@@ -842,7 +842,9 @@ void mod_filter(jsmi si)
     xmlnode_put_attrib(mod_filter__default, "xmlns", NS_FILTER);
     xmlnode_insert_node(mod_filter__default, xmlnode_get_firstchild(rule));
 
-    log_debug("mod_filter", "mod_filter startup up... default server rule: %s", xmlnode2str(mod_filter__default));
+    log_debug2(ZONE, LOGT_INIT, "mod_filter startup up... default server rule: %s", xmlnode2str(mod_filter__default));
+
+    log_warn(NULL, "using mod_filter in jsm is depricated. It can produce endless looping messages if an other entity is auto-replying as well without support for jabber:x:envelope. mod_filter uses the undocumented jabber:x:envelope namespace instead of JEP-0131.");
 
     js_mapi_register(si, e_DELIVER, mod_filter_handler, mod_filter__default);
     js_mapi_register(si, e_SESSION, mod_filter_session, NULL);

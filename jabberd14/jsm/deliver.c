@@ -52,7 +52,7 @@ void js_deliver_local(jsmi si, jpacket p, xht ht)
     user = js_user(si, p->to, ht);
     s = js_session_get(user, p->to->resource);
 
-    log_debug(ZONE,"delivering locally to %s",jid_full(p->to));
+    log_debug2(ZONE, LOGT_DELIVER, "delivering locally to %s",jid_full(p->to));
     /* let some modules fight over it */
     if(js_mapi_call(si, e_DELIVER, p, user, s))
         return;
@@ -92,15 +92,15 @@ result js_packet(instance i, dpacket p, void *arg)
     char *type, *authto;
     xmlnode child;
 
-    log_debug(ZONE,"(%X)incoming packet %s",si,xmlnode2str(p->x));
+    log_debug2(ZONE, LOGT_DELIVER, "(%X)incoming packet %s",si,xmlnode2str(p->x));
 
     /* make sure this hostname is in the master table */
     if((ht = (xht)xhash_get(si->hosts,p->host)) == NULL)
     {
         ht = xhash_new(j_atoi(xmlnode_get_data(js_config(si,"maxusers")),USERS_PRIME));
-        log_debug(ZONE,"creating user hash %X for %s",ht,p->host);
+        log_debug2(ZONE, LOGT_DELIVER, "creating user hash %X for %s",ht,p->host);
         xhash_put(si->hosts,pstrdup(si->p,p->host), (void *)ht);
-        log_debug(ZONE,"checking %X",xhash_get(si->hosts,p->host));
+        log_debug2(ZONE, LOGT_DELIVER, "checking %X",xhash_get(si->hosts,p->host));
     }
 
     /* if this is a routed packet */
@@ -263,7 +263,7 @@ void js_deliver(jsmi si, jpacket p)
         return;
     }
 
-    log_debug(ZONE,"deliver(to[%s],from[%s],type[%d],packet[%s])",jid_full(p->to),jid_full(p->from),p->type,xmlnode2str(p->x));
+    log_debug2(ZONE, LOGT_DELIVER, "deliver(to[%s],from[%s],type[%d],packet[%s])",jid_full(p->to),jid_full(p->from),p->type,xmlnode2str(p->x));
 
     /* external to us */
     if((ht = (xht)xhash_get(si->hosts,p->to->server)) != NULL)
@@ -283,7 +283,7 @@ void js_psend(jsmi si, jpacket p, mtq_callback f)
     if(p == NULL || si == NULL)
         return;
 
-    log_debug(ZONE,"psending to %X packet %X",f,p);
+    log_debug2(ZONE, LOGT_DELIVER, "psending to %X packet %X",f,p);
 
     q = pmalloc(p->p, sizeof(_jpq));
     q->p = p;

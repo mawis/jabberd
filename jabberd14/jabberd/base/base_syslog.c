@@ -54,13 +54,13 @@ result base_syslog_deliver(instance id, dpacket p, void* arg)
 
     message = xmlnode_get_data(p->x);
     if (message == NULL) {
-       log_debug(ZONE,"base_syslog_deliver error: no message available to log.");
+       log_debug2(ZONE, LOGT_STRANGE, "base_syslog_deliver error: no message available to log.");
        return r_ERR;
     }
 
     type_s = xmlnode_get_attrib(p->x, "type");
     if (type_s == NULL) {
-	log_debug(ZONE, "base_syslog_deliver error: no type attribute.");
+	log_debug2(ZONE, LOGT_STRANGE, "base_syslog_deliver error: no type attribute.");
 	return r_ERR;
     }
 
@@ -88,18 +88,18 @@ result base_syslog_config(instance id, xmlnode x, void *arg)
 
     if(id == NULL)
     {
-        log_debug(ZONE,"base_syslog_config validating configuration");
+        log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_syslog_config validating configuration");
 
         if (xmlnode_get_data(x) == NULL)
         {
-            log_debug(ZONE,"base_syslog_config error: no facility provided");
+            log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_syslog_config error: no facility provided");
             xmlnode_put_attrib(x,"error","'syslog' tag must contain a facility (use daemon, local0, ... local7)");
             return r_ERR;
         }
         return r_PASS;
     }
 
-    log_debug(ZONE,"base_syslog configuring instance %s",id->id);
+    log_debug2(ZONE, LOGT_CONFIG|LOGT_INIT, "base_syslog configuring instance %s",id->id);
 
     if(id->type != p_LOG)
     {
@@ -130,7 +130,7 @@ result base_syslog_config(instance id, xmlnode x, void *arg)
     else if (j_strcmp(facility_str, "user") == 0) facility = LOG_USER;
     else if (j_strcmp(facility_str, "uucp") == 0) facility = LOG_UUCP;
     else {
-	log_alert(NULL, "base_syslog_config erorr: unknown syslog facility: %s", facility_str);
+	log_alert(NULL, "base_syslog_config error: unknown syslog facility: %s", facility_str);
 	return r_ERR;
     }
 
@@ -141,7 +141,7 @@ result base_syslog_config(instance id, xmlnode x, void *arg)
 }
 #else
 result base_syslog_config(instance id, xmlnode x, void *arg) {
-    log_debug(ZONE, "base_syslog_config error: jabberd compiled without syslog support.");
+    log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_syslog_config error: jabberd compiled without syslog support.");
     xmlnode_put_attrib(x, "error", PACKAGE " compiled without syslog support");
     return r_ERR;
 }
@@ -149,6 +149,6 @@ result base_syslog_config(instance id, xmlnode x, void *arg) {
 
 void base_syslog(void)
 {
-    log_debug(ZONE,"base_syslog loading...");
+    log_debug2(ZONE, LOGT_INIT, "base_syslog loading...");
     register_config("syslog",base_syslog_config,NULL);
 }

@@ -68,7 +68,7 @@ mreturn mod_offline_message(mapi m)
                 break; /* cur remaining set is the flag */
         }
 
-    log_debug("mod_offline","handling message for %s",m->user->user);
+    log_debug2(ZONE, LOGT_DELIVER, "handling message for %s",m->user->user);
 
     if((cur2 = xmlnode_get_tag(m->packet->x,"x?xmlns=" NS_EXPIRE)) != NULL)
     {
@@ -126,11 +126,11 @@ void mod_offline_out_available(mapi m)
     char str[10];
 
     if (j_atoi(xmlnode_get_tag_data(m->packet->x, "priority"), 0) < 0) {
-	log_debug("mod_offline", "negative priority, not delivering offline messages");
+	log_debug2(ZONE, LOGT_DELIVER, "negative priority, not delivering offline messages");
 	return;
     }
 
-    log_debug("mod_offline","avability established, check for messages");
+    log_debug2(ZONE, LOGT_DELIVER, "avability established, check for messages");
 
     if((opts = xdb_get(m->si->xc, m->user->id, NS_OFFLINE)) == NULL)
         return;
@@ -146,7 +146,7 @@ void mod_offline_out_available(mapi m)
             diff = now - stored;
             if(diff >= expire)
             {
-                log_debug(ZONE,"dropping expired message %s",xmlnode2str(cur));
+                log_debug2(ZONE, LOGT_DELIVER, "dropping expired message %s",xmlnode2str(cur));
                 xmlnode_hide(cur);
                 continue;
             }
@@ -175,7 +175,7 @@ mreturn mod_offline_out(mapi m, void *arg)
 /* sets up the per-session listeners */
 mreturn mod_offline_session(mapi m, void *arg)
 {
-    log_debug(ZONE,"session init");
+    log_debug2(ZONE, LOGT_SESSION, "session init");
 
     js_mapi_session(es_OUT, m->s, mod_offline_out, NULL);
 
@@ -184,7 +184,7 @@ mreturn mod_offline_session(mapi m, void *arg)
 
 void mod_offline(jsmi si)
 {
-    log_debug("mod_offline","init");
+    log_debug2(ZONE, LOGT_INIT, "init");
     js_mapi_register(si,e_OFFLINE, mod_offline_handler, NULL);
     js_mapi_register(si,e_SESSION, mod_offline_session, NULL);
 }

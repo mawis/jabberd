@@ -111,7 +111,7 @@ mreturn mod_announce_dispatch(mapi m, void *arg)
     if(m->packet->type != JPACKET_MESSAGE) return M_IGNORE;
     if(j_strncmp(m->packet->to->resource,"announce/",9) != 0) return M_PASS;
 
-    log_debug("mod_announce","handling announce message from %s",jid_full(m->packet->from));
+    log_debug2(ZONE, LOGT_DELIVER, "handling announce message from %s",jid_full(m->packet->from));
 
     for(cur = xmlnode_get_firstchild(js_config(m->si,"admin")); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {

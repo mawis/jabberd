@@ -126,6 +126,61 @@ void cmdline_replace(xmlnode x)
     }
 }
 
+/**
+ * activate the configured debugging settings
+ *
+ * @param x the parsed XML configuration file
+ */
+void _set_configured_debug(xmlnode x) {
+    xmlnode debug, mask, facility;
+    char *debugmask, *facility_str;
+
+    debug = xmlnode_get_tag(x, "debug");
+    if (debug == NULL) {
+	set_debug_flag(0);
+	return;
+    }
+
+    mask = xmlnode_get_tag(debug, "mask");
+    if (mask != NULL) {
+	debugmask = xmlnode_get_data(mask);
+	set_debug_flag(debugmask == NULL ? 0 : atoi(debugmask));
+    } else {
+	set_debug_flag(0);
+    }
+
+    facility = xmlnode_get_tag(debug, "facility");
+    facility_str = facility == NULL ? NULL : xmlnode_get_data(facility);
+
+    if (facility_str != NULL) {
+	if (j_strcmp(facility_str, "daemon") == 0) set_debug_facility(LOG_DAEMON);
+	else if (j_strcmp(facility_str, "local0") == 0) set_debug_facility(LOG_LOCAL0);
+	else if (j_strcmp(facility_str, "local1") == 0) set_debug_facility(LOG_LOCAL1);
+	else if (j_strcmp(facility_str, "local2") == 0) set_debug_facility(LOG_LOCAL2);
+	else if (j_strcmp(facility_str, "local3") == 0) set_debug_facility(LOG_LOCAL3);
+	else if (j_strcmp(facility_str, "local4") == 0) set_debug_facility(LOG_LOCAL4);
+	else if (j_strcmp(facility_str, "local5") == 0) set_debug_facility(LOG_LOCAL5);
+	else if (j_strcmp(facility_str, "local6") == 0) set_debug_facility(LOG_LOCAL6);
+	else if (j_strcmp(facility_str, "local7") == 0) set_debug_facility(LOG_LOCAL7);
+	else if (j_strcmp(facility_str, "auth") == 0) set_debug_facility(LOG_AUTH);
+	else if (j_strcmp(facility_str, "authpriv") == 0) set_debug_facility(LOG_AUTHPRIV);
+	else if (j_strcmp(facility_str, "cron") == 0) set_debug_facility(LOG_CRON);
+	else if (j_strcmp(facility_str, "kern") == 0) set_debug_facility(LOG_KERN);
+	else if (j_strcmp(facility_str, "lpr") == 0) set_debug_facility(LOG_LPR);
+	else if (j_strcmp(facility_str, "mail") == 0) set_debug_facility(LOG_MAIL);
+	else if (j_strcmp(facility_str, "news") == 0) set_debug_facility(LOG_NEWS);
+	else if (j_strcmp(facility_str, "syslog") == 0) set_debug_facility(LOG_SYSLOG);
+	else if (j_strcmp(facility_str, "user") == 0) set_debug_facility(LOG_USER);
+	else if (j_strcmp(facility_str, "uucp") == 0) set_debug_facility(LOG_UUCP);
+	else {
+	    log_alert(NULL, "debugging configuration error: unknown syslog facility: %s", facility);
+	    set_debug_facility(-1);
+	}
+    } else {
+	set_debug_facility(-1);
+    }
+}
+
 /* 
  * <pidfile>/path/to/pid.file</pidfile>
  *
@@ -226,6 +281,8 @@ int configurate(char *file)
 
     show_pid(greymatter__);
 
+    _set_configured_debug(greymatter__);
+
     return 0;
 }
 
@@ -319,6 +376,8 @@ int instance_startup(xmlnode x, int exec)
         return 0;
     if(j_strcmp(xmlnode_get_name(x), "io") == 0)
         return 0;
+    if(j_strcmp(xmlnode_get_name(x), "debug") == 0)
+	return 0;
 
     if(j_strcmp(xmlnode_get_name(x), "log") == 0)
         type = p_LOG;

@@ -44,7 +44,7 @@ mreturn mod_auth_plain_jane(mapi m, void *arg)
 {
     char *pass;
 
-    log_debug("mod_auth_plain","checking");
+    log_debug2(ZONE, LOGT_AUTH, "checking");
 
     if(jpacket_subtype(m->packet) == JPACKET__GET)
     { /* type=get means we flag that the server can do plain-text auth */
@@ -65,7 +65,7 @@ mreturn mod_auth_plain_jane(mapi m, void *arg)
         return M_HANDLED;
     }
 
-    log_debug("mod_auth_plain","trying xdb act check");
+    log_debug2(ZONE, LOGT_AUTH, "trying xdb act check");
     /* if the act "check" fails, PASS so that 0k could use the password to try and auth w/ it's data */
     if(xdb_act(m->si->xc, m->user->id, NS_AUTH, "check", NULL, xmlnode_get_tag(m->packet->iq,"password")))
         return M_PASS;
@@ -76,7 +76,7 @@ mreturn mod_auth_plain_jane(mapi m, void *arg)
 
 int mod_auth_plain_reset(mapi m, jid id, xmlnode pass)
 {
-    log_debug("mod_auth_plain","resetting password");
+    log_debug2(ZONE, LOGT_AUTH, "resetting password");
 
     xmlnode_put_attrib(pass,"xmlns",NS_AUTH);
     return xdb_set(m->si->xc, id, NS_AUTH, pass);
@@ -132,7 +132,7 @@ mreturn mod_auth_plain_server(mapi m, void *arg)
 
 void mod_auth_plain(jsmi si)
 {
-    log_debug("mod_auth_plain","init");
+    log_debug2(ZONE, LOGT_INIT, "init");
 
     js_mapi_register(si, e_AUTH, mod_auth_plain_jane, NULL);
     js_mapi_register(si, e_SERVER, mod_auth_plain_server, NULL);

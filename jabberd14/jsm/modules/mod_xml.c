@@ -69,7 +69,7 @@ mreturn mod_xml_set(mapi m, void *arg)
     /* if its to someone other than ourselves */
     if(m->packet->to != NULL) return M_PASS;
 
-    log_debug(ZONE,"handling user request %s",xmlnode2str(m->packet->iq));
+    log_debug2(ZONE, LOGT_DELIVER, "handling user request %s",xmlnode2str(m->packet->iq));
 
     /* no to implies to ourselves */
     if(to == NULL)
@@ -78,7 +78,7 @@ mreturn mod_xml_set(mapi m, void *arg)
     switch(jpacket_subtype(m->packet))
     {
     case JPACKET__GET:
-        log_debug("mod_xml","handling get request for %s",ns);
+        log_debug2(ZONE, LOGT_DELIVER|LOGT_STORAGE, "handling get request for %s",ns);
         xmlnode_put_attrib(m->packet->x,"type","result");
 
         /* insert the chunk into the parent, that being either the iq:private container or the iq itself */
@@ -98,7 +98,7 @@ mreturn mod_xml_set(mapi m, void *arg)
         break;
 
     case JPACKET__SET:
-        log_debug("mod_xml","handling set request for %s with data %s",ns,xmlnode2str(inx));
+        log_debug2(ZONE, LOGT_DELIVER|LOGT_STORAGE, "handling set request for %s with data %s",ns,xmlnode2str(inx));
 
         /* save the changes */
         if(private) /* hack, ick! */
@@ -162,7 +162,7 @@ mreturn mod_xml_get(mapi m, void *arg)
         return M_HANDLED;
     }
 
-    log_debug("mod_xml","handling %s request for user %s",ns,jid_full(m->packet->to));
+    log_debug2(ZONE, LOGT_DELIVER|LOGT_STORAGE, "handling %s request for user %s",ns,jid_full(m->packet->to));
 
     /* get the foreign namespace */
     xns = xdb_get(m->si->xc, m->packet->to, ns);

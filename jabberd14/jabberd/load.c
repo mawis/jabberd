@@ -210,7 +210,7 @@ result load_config(instance id, xmlnode x, void *arg)
     }
 
     
-    log_debug(ZONE,"dynamic loader processing configuration %s\n",xmlnode2str(x));
+    log_debug2(ZONE, LOGT_CONFIG|LOGT_DYNAMIC, "dynamic loader processing configuration %s\n", xmlnode2str(x));
 
     for(so = xmlnode_get_firstchild(x); so != NULL; so = xmlnode_get_nextsibling(so))
     {
@@ -238,7 +238,7 @@ result load_config(instance id, xmlnode x, void *arg)
 
 void dynamic_init(void)
 {
-    log_debug(ZONE,"dynamic component loader initializing...\n");
+    log_debug2(ZONE, LOGT_DYNAMIC, "dynamic component loader initializing...\n");
     register_config("load",load_config,NULL);
 }
 

@@ -51,7 +51,7 @@ mreturn mod_disco_server_info(mapi m, void *arg)
 
     if((xmlnode_get_attrib(m->packet->x,"node")) != NULL) return M_PASS;
         
-    log_debug("mod_disco","handling disco#info query");
+    log_debug2(ZONE, LOGT_DELIVER, "handling disco#info query");
 
     /* config get */
     disco = js_config(m->si,"disco");
@@ -97,7 +97,7 @@ mreturn mod_disco_server_items(mapi m, void *arg)
   if((browse = js_config(m->si,"browse")) == NULL)
 	return M_PASS;
   
-  log_debug("mod_disco","handling disco#items query");
+  log_debug2(ZONE, LOGT_DELIVER, "handling disco#items query");
 
   /* build the result IQ */
   query = xmlnode_insert_tag(jutil_iqresult(m->packet->x),"query");
