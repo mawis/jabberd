@@ -47,14 +47,14 @@ void __parse_defaultHandler(void *parser, const XML_Char *s, int len)
 
     if(x->current->full == NULL)
     {
-        x->current->full = (char*)malloc(len + 1);
+        x->current->full = (char*)pmalloc(xmlnode_pool(x->current),len + 1);
         memcpy(x->current->full, s, len);
         memcpy(x->current->full + len, "\0", 1);
     }
     else
     {
         int old_len = strlen(x->current->full);
-        x->current->full = (char*)realloc(x->current->full,old_len + len + 1);
+        x->current->full = (char*)pmalloc(xmlnode_pool(x->current),old_len + len + 1);
         memcpy(x->current->full + old_len, s, len);
         memcpy(x->current->full + old_len + 1, "\0", 1);
     }
@@ -1020,26 +1020,10 @@ xmlnode xmlnode_wrap(xmlnode x,const char *wrapper)
     return wrap;
 }
 
-void _xmlnode_free(xmlnode node)
-{
-    xmlnode cur;
-    /* free all children */
-
-
-    if(node != NULL && node->full != NULL)
-        free(node->full);
-    else
-        return;
-
-    for(cur = xmlnode_get_firstchild(node); cur != NULL; cur = xmlnode_get_nextsibling(cur))
-        _xmlnode_free(cur);    
-}
-
 void xmlnode_free(xmlnode node)
 {
     if(node == NULL)
         return;
 
-    _xmlnode_free(node);
     pool_free(node->p);
 }
