@@ -71,6 +71,7 @@ void dnsrv_child_process_xstream_io(int type, xmlnode x, void* args)
 	       pth_write(out, response, strlen(response));
 	  }
      }   
+     xmlnode_free(x);
 }
 
 int dnsrv_child_main(int in, int out)
@@ -263,7 +264,7 @@ void* dnsrv_process_io(void* threadarg)
 		    lsthead = (dns_packet_list)ghash_get(di->packet_table, wb->packet->host);
 		    
 		    /* IF: hashtable has the hostname, a lookup is already pending,
-		  so stick the packet in the list */
+		       so stick the packet in the list */
 		    if (lsthead != NULL)
 		    {
 			 /* Allocate a new list entry */
