@@ -120,8 +120,8 @@ char** tokenize_args(pool p, const char* cmdstr)
 	  token = strtok_r(NULL, " ", &tokenbuf);
      }
 
-     /* Allocate the result */
-     result = pmalloco(p, tokencnt * sizeof(char*));
+     /* Allocate the result -- this was overrunning by 4 bytes, added the +1 */
+     result = pmalloco(p, (tokencnt + 1) * sizeof(char*));
      
      /* Iterate across the tokens and store in the result */
      for (i = 0; i < tokencnt; i++)
@@ -205,9 +205,9 @@ void base_exec_handle_xstream_event(int type, xmlnode x, void* arg)
       /* Send a corresponding root node */
 	  headernode = xstream_header("jabber:component:exec",NULL, pi->inst->id);
       header     = xstream_header_char(headernode);
-      xmlnode_free(headernode);
 	  /* Return a fake root tag */
 	  pth_write(pi->out, header, strlen(header));
+      xmlnode_free(headernode);
 	  /* Hook the event for delivering messages to the coprocess */
 	  pi->e_write = pth_event(PTH_EVENT_MSG, pi->write_queue);  
 	  pi->events  = pth_event_concat(pi->e_read, pi->e_write, NULL);  
@@ -272,6 +272,9 @@ void* base_exec_process_io(void* threadarg)
 	  {
 	       /* Get the packet.. */
 	       pwb = (process_write_buf)pth_msgport_get(pi->write_queue);
+
+           /* sanity check */
+           if(pwb == NULL) break;
 	       
 	       /* Serialize the packet.. */
 	       writebuf = xmlnode2tstr(pwb->packet->x);
@@ -311,7 +314,10 @@ void* base_exec_process_io(void* threadarg)
         /* Recreate the thread */
         pth_spawn(PTH_ATTR_DEFAULT, base_exec_process_io, (void*) pi);
      }
-
+     else
+     {
+        pth_msgport_destroy(pi->write_queue);
+     }
      return NULL;
 }
 

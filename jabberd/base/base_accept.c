@@ -477,6 +477,19 @@ result base_accept_plumber(void *arg)
     return r_DONE;
 }
 
+void base_accept_sink_cleanup(void *arg)
+{
+    sink s = (sink)arg;
+    drop d;
+    if(s->mp != NULL)
+    {
+        while((d=(drop)pth_msgport_get(s->mp))!=NULL)
+        {
+            pool_free(d->p->p);
+        }
+    }
+}
+
 /* A global hash table keyed by ip:port string, with xmlnode
  * values that store an vattrib list of instance id->sinks */
 HASHTABLE G_listeners;
@@ -538,7 +551,7 @@ result base_accept_config(instance id, xmlnode x, void *arg)
 		listen_info li;
 		
 		/* Create a new host tag */
-		cur = xmlnode_new_tag("host");
+		cur = xmlnode_new_tag_pool(G_pool,"host");
 
 		/* Insert ip:port->cur into hashtable */
 		ghash_put(G_listeners, pstrdup(G_pool, (char*)&keybuf), cur);
@@ -565,6 +578,7 @@ result base_accept_config(instance id, xmlnode x, void *arg)
 
 	/* Register a packet handler and cleanup heartbeat for this instance */
     register_phandler(id, o_DELIVER, base_accept_phandler, (void *)s);
+    register_shutdown(base_accept_sink_cleanup, (void*)s);
     register_beat(10, base_accept_plumber, (void *)s);
 
 	/* Add the sink as a vattrib keyed by the instance id */
