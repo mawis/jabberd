@@ -251,15 +251,11 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
         } 
         break;
     case MIO_ERROR:
-        if(m->queue == NULL) 
-            break;
-
         while((h = mio_cleanup(m)) != NULL)
             deliver_fail(dpacket_new(h), "Socket Error to Client");
 
         break;
     case MIO_XML_ROOT:
-        ghash_put_pool(cd->m->p, cd->si->users, cd->client_id, cd);
         log_debug(ZONE, "root received for %d", m->fd);
         to = xmlnode_get_attrib(x, "to");
 
@@ -360,6 +356,7 @@ void pthsock_client_listen(mio m, int flag, void *arg, xmlnode x)
 
     s__i = (smi)arg;
     cd = pthsock_client_cdata(m, s__i);
+    ghash_put_pool(cd->m->p, cd->si->users, cd->client_id, cd);
     mio_reset(m, pthsock_client_read, (void*)cd);
 }
 
@@ -387,7 +384,6 @@ int _pthsock_client_timeout(void *arg, const void *key, void *data)
 result pthsock_client_timeout(void *arg)
 {
     smi s__i = (smi)arg;
-    log_debug(ZONE, "client checking for noauth");
     ghash_walk(s__i->users, _pthsock_client_timeout, NULL);
     return r_DONE;
 }
