@@ -183,14 +183,13 @@ char *dialback_ip_get(db d, jid host, char *ip)
 
 void dialback_ip_set(db d, jid host, char *ip)
 {
-    xmlnode cache;
+    xmlnode cache, old;
 
     if(host == NULL || ip == NULL)
         return;
 
-    /* first, get existing cache */
-    cache = (xmlnode)ghash_get(d->nscache,host->server);
-    xmlnode_free(cache); /* free any existing entry to replace it */
+    /* first, get existing cache so we can dump it later */
+    old = (xmlnode)ghash_get(d->nscache,host->server);
 
     /* new cache */
     cache = xmlnode_new_tag("d");
@@ -198,6 +197,9 @@ void dialback_ip_set(db d, jid host, char *ip)
     xmlnode_put_attrib(cache,"i",ip);
     ghash_put(d->nscache,xmlnode_get_attrib(cache,"h"),(void*)cache);
     log_debug(ZONE,"cached ip %s for %s",ip,host->server);
+
+    /* free any old entry that's been replaced */
+    xmlnode_free(old);
 }
 
 /* phandler callback, send packets to another server */
