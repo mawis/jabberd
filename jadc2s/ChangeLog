@@ -1,3 +1,12 @@
+2004-03-17  Matthias Wimmer  <m@tthias.net>
+
+    * jadc2s.xml.dist: Configuration option if IP addresses should be logged
+    * jadc2s.c: same
+    * jadc2s.h: same
+    * connect.c: same
+    * clients.c: same
+    * conn.c: More debugging
+
 2004-03-16  Matthias Wimmer  <m@tthias.net>
 
     * conn.c: Added more SSL error logging
