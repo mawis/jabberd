@@ -58,6 +58,7 @@ conn_t conn_new(c2s_t c2s, int fd)
     c->last_read = 0;
     c->read_bytes = 0;
     c->sid = NULL;
+    c->root_name = NULL;
     c->state = state_NONE;
     c->type = type_NORMAL;
     c->start = time(NULL);
@@ -69,7 +70,7 @@ conn_t conn_new(c2s_t c2s, int fd)
     snprintf(buf,16,"%d",up++);
     jid_set(c->myid, buf, JID_USER);
     xhash_put(c2s->conns,jid_full(c->myid), (void*)c);
-
+    
     return c;
 }
 
@@ -77,6 +78,7 @@ conn_t conn_new(c2s_t c2s, int fd)
 void conn_free(conn_t c)
 {
     if (c->sid != NULL) free(c->sid);
+    if (c->root_name != NULL) free(c->root_name);
     XML_ParserFree(c->expat);
 #ifdef USE_SSL
     SSL_free(c->ssl);
@@ -89,15 +91,23 @@ void conn_free(conn_t c)
 /* write errors out and close streams */
 void conn_close(conn_t c, char *err)
 {
-    if(c == NULL) return;
-    log_debug(ZONE,"closing stream with error: %s",err);
-    _write_actual(c, c->fd, "<stream:error>",14);
-    if(err != NULL)
-        _write_actual(c, c->fd, err, strlen(err));
-    else
-        _write_actual(c, c->fd, "Unknown Error", 13);
-    _write_actual(c, c->fd, "</stream:error></stream:stream>",31);
-    mio_close(c->c2s->mio, c->fd); /* remember, c is gone after this, re-entrant */
+    if(c != NULL)
+    {
+        char* footer;
+        footer = malloc( 3 + strlen(c->root_name) );
+        sprintf(footer,"</%s>",c->root_name);
+    
+        log_debug(ZONE,"closing stream with error: %s",err);
+        _write_actual(c, c->fd, "<stream:error>",14);
+        if(err != NULL)
+            _write_actual(c, c->fd, err, strlen(err));
+        else
+            _write_actual(c, c->fd, "Unknown Error", 13);
+        _write_actual(c, c->fd, "</stream:error>",15);
+        _write_actual(c, c->fd, footer, strlen(footer));
+        free(footer);
+        mio_close(c->c2s->mio, c->fd); /* remember, c is gone after this, re-entrant */
+    }
 }
 
 /* create a new chunk, using the nad from this conn */
@@ -257,7 +267,11 @@ int conn_read(conn_t c, char *buf, int len)
     /* if we got </stream:stream>, this is set */
     if(c->depth < 0)
     {
-        _write_actual(c, c->fd, "</stream:stream>", 16);
+        char* footer;
+        footer = malloc( 3 + strlen(c->root_name) );
+        sprintf(footer,"</%s>",c->root_name);
+        _write_actual(c, c->fd, footer, strlen(footer));
+        free(footer);
         mio_close(c->c2s->mio, c->fd);
         return 0;
     }
@@ -312,7 +326,7 @@ int _read_actual(conn_t c, int fd, char *buf, size_t count)
 {
 
 #ifdef USE_SSL
-    if(c->ssl_flag)
+    if(c->ssl != NULL)
         return SSL_read(c->ssl, buf, count);
 #endif
     return read(fd, buf, count);
@@ -323,7 +337,7 @@ int _peek_actual(conn_t c, int fd, char *buf, size_t count)
 {
     
 #ifdef USE_SSL
-    if(c->ssl_flag)
+    if(c->ssl != NULL)
         return SSL_peek(c->ssl, buf, count);
 #endif
 
@@ -343,7 +357,7 @@ int _write_actual(conn_t c, int fd, const char *buf, size_t count)
     }
             
 #ifdef USE_SSL
-    if(c->ssl_flag)
+    if(c->ssl != NULL)
         return SSL_write(c->ssl, realbuf, count);
 #endif
 

@@ -73,9 +73,9 @@ struct conn_st
     conn_state_t state;
     conn_type_t type;
     time_t start;
-#ifdef USE_SSL    
-    int ssl_flag;
+    char *root_name;
 
+#ifdef USE_SSL    
     SSL *ssl;
 #endif
 
