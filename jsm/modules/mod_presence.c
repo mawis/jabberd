@@ -314,11 +314,14 @@ void mod_presence_roster(mapi m, jid notify)
  * Unavailable presences are broadcasted to everyone that thinks we are online,
  * available presence are broadcasted to everyone that has subscribed to our presence.
  *
+ * If we are already online with other resources, our existing presences are sent to
+ * our new resource.
+ *
+ * Presence probes are sent out to our contacts we are subscribed to.
+ *
  * @note this is our second callback for outgoing presences, mod_presence_avails() should have handled the presence first
  *
  * @todo think about if we shouldn't check the presence's priority earlier, maybe in mod_presence_avails()
- *
- * @todo Check if I described right what this function does. I do not completely understand the second half of the function.
  *
  * @param m the mapi structure
  * @param arg pointer to the modpres structure containing the module's data for this session
