@@ -11,7 +11,7 @@
     </service>
 */
 
-/* gcc -fPIC -shared -o pthsock_client.so pthsock_client.c -I../src -g -O2*/
+/* gcc -fPIC -shared -o pthsock_client.so pthsock_client.c -I../src -g -O2 -Wall */
 
 #include <jabberd.h>
 
@@ -57,7 +57,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
 
     if (p->id->user == NULL)
     {
-        log_debug(ZONE,"no user %s",xmlnode2str(p->x));
+        log_debug(ZONE,"not a user %s",xmlnode2str(p->x));
         return r_ERR;
     }
 
@@ -65,7 +65,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     if (sock == 0)
         return r_ERR;
 
-    log_debug(ZONE,"looking up %d",sock);
+    log_debug(ZONE,"pthsock_client looking up %d",sock);
 
     for (cur = si->conns; cur != NULL; cur = cur->next)
         if (sock == cur->sock)
@@ -77,6 +77,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
             return r_DONE;
         }
 
+    log_debug(ZONE,"pthsock_client connection not found");
     return r_ERR;
 }
 
@@ -91,6 +92,9 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
     switch(type)
     {
     case XSTREAM_ROOT:
+        log_debug(ZONE,"root received for %d",r->sock);
+
+        /* write are stream header */
         r->host = pstrdup(r->p,xmlnode_get_attrib(x,"to"));
         h = xstream_header("jabber:client",NULL,r->host);
         block = xstream_header_char(h);
@@ -99,6 +103,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         break;
 
     case XSTREAM_NODE:
+        log_debug(ZONE,"node received for %d",r->sock);
         //log_debug(ZONE,">>>> %s",xmlnode2str(x));
 
         /* only allow auth and registration queries at this point */
@@ -176,7 +181,7 @@ int pthsock_client_write(csock r, dpacket p)
     char *block;
     int ret = 1;
 
-    log_debug(ZONE,"incoming message for %d",r->sock);
+    log_debug(ZONE,"message for %d",r->sock);
 
     /* check to see if the session manager killed the session */
     if (*(xmlnode_get_name(p->x)) == 'm')
@@ -193,7 +198,8 @@ int pthsock_client_write(csock r, dpacket p)
     {
         if (j_strcmp(xmlnode_get_attrib(p->x,"type"),"result") == 0)
         {
-            /* change the host id just incase */
+            log_debug(ZONE,"auth for %d successful",r->sock);
+            /* change the host id */
             r->host = pstrdup(r->p,xmlnode_get_attrib(p->x,"sfrom"));
             r->state = state_AUTHD;
         }
@@ -202,14 +208,15 @@ int pthsock_client_write(csock r, dpacket p)
             log_debug(ZONE,"user auth/registration falid");
     }
 
+    log_debug(ZONE,"writing %d",r->sock);
+
     xmlnode_hide_attrib(p->x,"sto");
     xmlnode_hide_attrib(p->x,"sfrom");
-
-    /* write the packet */
     block = xmlnode2str(p->x);
 
-    //log_debug(ZONE,"<<<< %s",block);
-   
+//  log_debug(ZONE,"<<<< %s",block);
+
+    /* write the packet */
     if(pth_write(r->sock,block,strlen(block)) <= 0)
         return 0;
 
@@ -318,7 +325,7 @@ void *pthsock_client_main(void *arg)
         /* handle packets that need to be writen */
         if (pth_event_occurred(wevt))
         {
-            log_debug(ZONE,"write");
+            log_debug(ZONE,"write event");
             while (1)
             {
                 /* get the packet */
@@ -331,6 +338,7 @@ void *pthsock_client_main(void *arg)
                     if (r->state != state_CLOSING)
                     {
                         log_debug(ZONE,"pth_write failed");
+                        /* bounce d->p */
                     }
 
                     FD_CLR(d->r->sock,&rfds);
@@ -342,7 +350,7 @@ void *pthsock_client_main(void *arg)
         /* add accepted connections to the fdset */
         if (pth_event_occurred(aevt))
         {
-            log_debug(ZONE,"accept");
+            log_debug(ZONE,"accept event");
             while (1)
             {
                 /* get the packet */
@@ -352,7 +360,6 @@ void *pthsock_client_main(void *arg)
                 FD_SET(r->sock,&rfds);
                 if (r->sock > maxfd)
                     maxfd = r->sock;
-                log_debug(ZONE,"%d max",maxfd);
             }
         }
     }
