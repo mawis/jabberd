@@ -145,7 +145,7 @@
       with your server. Comment it out to disable this function.
       -->
 
-      <welcome>
+      <welcome xml:lang='en'>
         <subject>Welcome!</subject>
         <body>Welcome to the Jabber server at localhost -- we hope you enjoy this service! For information about how to use Jabber, visit the Jabber User's Guide at http://jabbermanual.jabberstudio.org/</body>
       </welcome>
@@ -182,7 +182,7 @@
       <admin>
         <read>support@localhost</read>
         <write>admin@localhost</write>
-        <reply>
+        <reply xml:lang='en'>
           <subject>Auto Reply</subject>
           <body>This is a special administrative address.  Your message was received and forwarded to server administrators.</body>
         </reply>

@@ -313,18 +313,26 @@ mreturn mod_admin_message(mapi m, void *arg)
     /* reply, but only if we haven't in the last few or so jids */
     if((cur = js_config(m->si,"admin/reply")) != NULL && strstr(jidlist,jid_full(jid_user(m->packet->from))) == NULL)
     {
+	char *lang = NULL;
+
         /* tack the jid onto the front of the list, depreciating old ones off the end */
         char njidlist[1024];
         snprintf(njidlist,1024,"%s %s",jid_full(jid_user(m->packet->from)),jidlist);
         memcpy(jidlist,njidlist,1024);
 
-        if(xmlnode_get_tag(cur,"subject") != NULL)
-        {
-            xmlnode_hide(xmlnode_get_tag(m->packet->x,"subject"));
-            xmlnode_insert_tag_node(m->packet->x,xmlnode_get_tag(cur,"subject"));
-        }
-        xmlnode_hide(xmlnode_get_tag(m->packet->x,"body"));
-        xmlnode_insert_tag_node(m->packet->x,xmlnode_get_tag(cur,"body"));
+	/* hide original subject and body */
+	xmlnode_hide(xmlnode_get_tag(m->packet->x, "subject"));
+	xmlnode_hide(xmlnode_get_tag(m->packet->x, "body"));
+
+	/* copy the xml:lang attribute to the message */
+	lang = xmlnode_get_attrib(cur, "xml:lang");
+	if (lang != NULL) {
+	    xmlnode_put_attrib(m->packet->x, "xml:lang", lang);
+	}
+
+	/* copy subject and body to the message */
+	xmlnode_insert_node(m->packet->x, xmlnode_get_firstchild(cur));
+
         jutil_tofrom(m->packet->x);
         jpacket_reset(m->packet);
         js_deliver(m->si,m->packet);
