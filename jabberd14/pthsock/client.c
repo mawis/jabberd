@@ -165,7 +165,12 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
         return r_DONE;
     }
 
-    mio_write(m,xmlnode_get_firstchild(p->x),NULL,0);
+    log_debug(ZONE,"Writing packet to MIO: %s", xmlnode2str(p->x));
+
+    if(xmlnode_get_firstchild(p->x) == NULL)
+        xmlnode_free(p->x);
+    else
+        mio_write(m,xmlnode_get_firstchild(p->x),NULL,0);
     return r_DONE;
 }
 
