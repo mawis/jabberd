@@ -1,26 +1,32 @@
-Welcome to the world of Jabber 1.1.2!
+Welcome to the world of Jabber 1.2RC!
 
-This is going to be short, experts only, to be filled in by later development releases:
+This is a Release Candidate, and although the software is nearing release, the polished README's and documentation needs some attention yet :)
 
-To build, run "./configure" and then type "make"
+-----------------------
 
-To configure, edit jabber.xml, edit the <host> section near the top to replace "localhost", edit other values as desired
+  To build, run "./configure" and then type "make"
 
-To start, ./jabberd/jabberd
+  Optional: edit jabber.xml, edit the <host> section near the top to replace "localhost", edit other values as desired
 
-For lots of debug output, use the -D flag
+  To start, ./jabberd/jabberd -h your.domain.name
 
-If it starts up (just sits there), you should be able to connect and register new users, most of the 1.0 functionality should work
+  Optional: for lots of debug output, use the -D flag
+
+-----------------------
+
+If it starts up (just sits there), you should be able to connect to the domain name you used with any client and register new users.
 
 If anything goes awry, feel free to email bug reports to bugs@jabber.org, including your config file (if you've made any significant changes), -D debug output, and a backtrace if it cored
 
-For any more details, consult the source :)
+We're working on documentation in the docs/ folder, and if you find any rough areas or problems on any platforms or environments, we're looking for any and all assistance in making this a smooth release!
 
 Latest CVS is always available as "jabber2" on jabber.org.
 
-Thanks to the following for their important work on this release:
+Thanks to the following for their important contributions to this release:
 	Jeremie Miller <jeremie@jabber.org>
 	Keith Minkler <tsbandit@jabber.org>
 	David Smith <dizzyd@jabber.org>
 	Schuyler Heath <sheath@jabber.org>
+	Thomas Muldowney <temas@jabber.org>
+	Craig Kaes <craigk@jabber.org>
 	And all the rest of the Jabber developers!

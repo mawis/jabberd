@@ -3,7 +3,7 @@
 #
 include ../platform-settings
 
-DEFINES=-DVERSION=\"1.1.4\"
+DEFINES=-DVERSION=\"1.2RC\"
 CFLAGS:=$(CFLAGS) $(DEFINES) -I../jabberd/
 
 jsm_HEADERS=jsm.h ../jabberd/jabberd.h
