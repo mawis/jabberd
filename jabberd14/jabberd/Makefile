@@ -17,7 +17,6 @@ jabberd_EXOBJECTS = \
 	gen/base_host.o \
 	io/base_connect.o \
 	io/base_exec.o \
-	io/base_farm.o \
 	io/base_stdout.o \
 	io/base_load.o \
 	io/base_accept.o \
