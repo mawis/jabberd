@@ -1,5 +1,5 @@
 CFLAGS=-fPIC -g $(DEFINES) -I./ -I../ -I../jabberd `libxode-config --cflags` `jabber-config --cflags` -Wall
-LDFLAGS=`libxode-config --ldflags --libs` `pth-config --libs --ldflags` `jabber-config --ldflags --libs` -ldl
+LDFLAGS=`libxode-config --ldflags` `libxode-config --libs` `pth-config --libs --ldflags` `jabber-config --ldflags` `jabber-config --libs` -ldl
 
 all: pthsock_server pthsock_client
 
