@@ -701,8 +701,8 @@ int _pthsock_server_beat(void *arg, const void *key, void *data)
 {
     host h = (host)data;
 
-    /* any invalid hosts older than 60 seconds, timed out */
-    if(!h->valid && (time(NULL) - h->created) > 60)
+    /* any invalid hosts older than 120 seconds, timed out */
+    if(!h->valid && (time(NULL) - h->created) > 120)
     {
         log_notice(h->id->server,"server connection timed out");
         _pthsock_server_host_validated(0,h);

@@ -3,8 +3,7 @@ Laundry List
 ===================================
 
 jabber.xml cleanup
-<admin> use jids
-make install and <jabberd:install/> in config?
+make install, cwd in jabberd
 check error code usage, use more custom ones?
 dialback better error bounce messages
 Unresolved happening incorrectly?
