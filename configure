@@ -13,6 +13,7 @@
 ##
 WANT_SSL=0;
 WANT_IPV6=0;
+WANT_IDN=0;
 
 for x in $@; do
     case x$x in
@@ -20,6 +21,8 @@ for x in $@; do
         WANT_SSL=1;;
       x--enable-ipv6)
         WANT_IPV6=1;;
+      x--enable-idn)
+        WANT_IDN=1;;
     esac;
 done;
 ##
@@ -89,6 +92,15 @@ fi;
 ##
 # Resolv Settings
 ##
+printf "Support for IDNs...";
+if [ $WANT_IDN -eq 1 ]; then
+    # we should add some checks if all the needed functions are available
+    printf "             Enabled.\n";
+    CFLAGS="$CFLAGS -DLIBIDN `pkg-config libidn --cflags`";
+    LDFLAGS="$LDFLAGS `pkg-config libidn --libs`";
+else
+    printf "             Disabled.\n";
+fi;
 
 ##
 # Pth check
