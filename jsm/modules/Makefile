@@ -1,6 +1,5 @@
 include ../../platform-settings
 
-CC=gcc
 DEFINES=-DVERSION=\"1.1.4\" -DPACKAGE=\"jsm\"
 CFLAGS:=$(CFLAGS) $(DEFINES) -I../../jabberd/
 

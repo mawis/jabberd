@@ -1,7 +1,5 @@
 include ../../platform-settings
 
-CC=gcc
-
 io_HEADERS=../jabberd.h
 
 io_OBJECTS=\

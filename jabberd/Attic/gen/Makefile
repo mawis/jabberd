@@ -1,7 +1,5 @@
 include ../../platform-settings
 
-CC=gcc
-
 gen_HEADERS=../jabberd.h
 
 gen_OBJECTS=\

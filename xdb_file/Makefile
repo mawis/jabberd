@@ -2,8 +2,6 @@ include ../platform-settings
 
 CFLAGS:=$(CFLAGS) -I../jabberd
 
-CC=gcc
-
 xdb_file_OBJECTS=xdb_file.o
 
 all: xdb_file
