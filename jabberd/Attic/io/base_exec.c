@@ -127,8 +127,6 @@ void base_exec_handle_xstream_event(int type, xmlnode x, void* arg)
 	  deliver(dpacket_new(x), pi->inst);
 	  break;
      case XSTREAM_CLOSE:
-	  /* Set the closed state  */
-	  pi->state = p_CLOSED;
      case XSTREAM_ERR:
 	  /* FIXME: Who knows? The _SHADOW_ knows. */
      }
@@ -196,16 +194,14 @@ void* base_exec_process_io(void* threadarg)
      pth_event_free(pi->e_read, PTH_FREE_THIS);
      pth_event_free(pi->e_write, PTH_FREE_THIS);
 
-     /* If the process didn't send a closing XML tag, assume it crashed
-	and restart it */
-     if (pi->state == p_OPEN)
-     {
-	  /* Exec and capture the STDIN/STDOUT */
-	  exec_and_capture(pi->processcmd, &(pi->stdin), &(pi->stdout));
+     /* FIXME: Future optimization is that the exec'd process should not be restarted
+	if the server is in the middle of shutting down */
 
-	  /* Recreate the thread */
-	  pth_spawn(PTH_ATTR_DEFAULT, base_exec_process_io, (void*) pi);
-     }
+     /* Exec and capture the STDIN/STDOUT */
+     exec_and_capture(pi->processcmd, &(pi->stdin), &(pi->stdout));
+
+     /* Recreate the thread */
+     pth_spawn(PTH_ATTR_DEFAULT, base_exec_process_io, (void*) pi);
 
      return NULL;
 }
