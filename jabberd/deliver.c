@@ -4,9 +4,12 @@
 void register_phandler(instance id, order o, phandler f, void *arg)
 {
     handel newh, h1;
+    pool p;
 
     /* create handel and setup */
-    newh = pmalloc_x(id->p, sizeof(_handel), 0);
+    p = pool_new(); /* use our own little pool */
+    newh = pmalloc_x(p, sizeof(_handel), 0);
+    newh->p = p;
     newh->f = f;
     newh->arg = arg;
     newh->o = o;
@@ -101,7 +104,8 @@ void register_instance(instance id, char *host)
     id->flag_used++;
 }
 
-void deliver_fail(dpacket p)
+/* bounce on the delivery, use the result to better gague what went wrong */
+void deliver_fail(dpacket p, result r)
 {
     switch(p->type)
     {
@@ -118,32 +122,96 @@ void deliver_fail(dpacket p)
 }
 
 /* actually perform the delivery to an instance */
-void deliver_instance(instance id, dpacket p)
+result deliver_instance(instance id, dpacket p, result best)
 {
-    handel h;
+    handel h, hlast;
     result r;
-
-    p->flag_used++;
+    dpacket pig = p;
 
     /* try all the handlers */
-    for(h = id->hds; h != NULL; h = h->next)
+    hlast = h = id->hds;
+    while(h != NULL)
     {
+        if(h->o == o_DELIVER && h->next != NULL)
+            pig = dpacket_copy(p); /* make a backup copy first if we have to */
         r = (h->f)(id,p,h->arg);
-        if(r > p->flag_best) /* store the best response */
-            p->flag_best = r;
+        if(r > best) /* track the best result */
+            best = r;
+
+        if(h->o == o_DELIVER && h->next != NULL)
+            p = pig; /* use that backup copy since the delivery handler ate it */
+
+        if(r == r_UNREG)
+        {
+            if(h == id->hds)
+            { /* removing the first in the list */
+                id->hds = h->next;
+                pool_free(h->p);
+                hlast = h = id->hds;
+            }else{ /* removing from anywhere in the list */
+                hlast->next = h->next;
+                pool_free(h->p);
+                h = hlast->next;
+            }
+            continue; /* skip to next handler */
+        }
 
         /* only try another one if this one passed */
         if(r == r_PASS)
+        {
+            hlast = h;
+            h = h->next;
             continue;
+        }
 
         break;
     }
+
+    return best;
+}
+
+hostid deliver_get_next_hostid(hostid cur, char *host)
+{
+    while(cur != NULL)
+
+    {
+        if(host != NULL && cur->host != NULL && strcmp(cur->host,host) == 0 && cur->id->hds != NULL)
+            break; /* matched hostname */
+        if(host == NULL && cur->host == NULL)
+            break; /* all-matching instance */
+        cur = cur->next;
+    }
+    return cur;
+}
+
+result deliver_hostid(hostid cur, char *host, dpacket p, result best)
+{
+    hostid next;
+    dpacket pig;
+
+    if(cur == NULL || p == NULL) return;
+
+    /* get the next match, if there is one make a copy of the packet */
+    next = deliver_get_next_hostid(cur->next, host);
+    if(next != NULL)
+        pig = dpacket_copy(p);
+
+    /* deliver to the current one */
+    best = deliver_instance(cur->id, p, best);
+
+    if(next == NULL)
+        return best;
+
+    /* if there was another match, (tail) recurse to it with the copy */
+    return deliver_hostid(next, host, pig, best);
 }
 
 /* deliver the packet, where all the smarts happen, take the sending instance as well */
 void deliver(dpacket p, instance i)
 {
     hostid list, cur;
+    result best = r_NONE;
+    char *host = p->host;
 
     /* XXX once we switch to pthreads, deliver() will have to queue until configuration is done, since threads may have started during config and be delivering already */
 
@@ -168,28 +236,26 @@ void deliver(dpacket p, instance i)
 
     /* XXX optimize by having seperate lists for instances for hosts and general ones (NULL) */
 
-    /* send the packet to every exact matching instance */
-    for(cur = list; cur != NULL; cur = cur->next)
-        if(cur->host != NULL && strcmp(cur->host,p->host) == 0)
-            deliver_instance(cur->id, p);
+    cur = deliver_get_next_hostid(list, host);
+    if(cur == NULL) /* if there are no exact matching ones */
+    {
+        host = NULL;
+        cur = deliver_get_next_hostid(list, host);
+    }
 
-    /* if it didn't get delivered at all, send the packet to instances that handle any host */
-    if(!(p->flag_used))
-        for(cur = list; cur != NULL; cur = cur->next)
-            if(cur->host == NULL)
-                deliver_instance(cur->id, p);
+    if(cur != NULL)
+        best = deliver_hostid(cur, host, p, best);
 
     /* if nobody actually handled it, we've got problems */
-    if(p->flag_best != r_OK)
-        deliver_fail(p);
+    if(best != r_OK)
+        deliver_fail(p, best);
     
-    /* we cleanup the packet */
-    pool_free(p->p);        
 }
 
 dpacket dpacket_new(xmlnode x)
 {
     dpacket p;
+    pool mem;
 
     if(x == NULL)
         return NULL;
@@ -218,3 +284,15 @@ dpacket dpacket_new(xmlnode x)
     p->host = p->id->server;
     return p;
 }
+
+dpacket dpacket_copy(dpacket p)
+{
+    dpacket p2;
+
+    p2 = dpacket_new(xmlnode_dup(p->x));
+    return p2;
+}
+
+
+
+

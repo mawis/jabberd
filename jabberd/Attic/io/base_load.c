@@ -202,7 +202,7 @@ xmlnode xdb_get(xdbcache xc, char *host, jid owner, char *ns)
     xmlnode_put_attrib(x,"from",host);
     sprintf(ids,"%d",newx.id);
     xmlnode_put_attrib(x,"id",ids); /* to track response */
-    deliver(dpacket_new(x));
+    deliver(dpacket_new(x), xc->i);
 
     /* if it hasn't already returned, we should block here until it returns */
     if(newx.preblock)
@@ -268,7 +268,7 @@ int xdb_set(xdbcache xc, char *host, jid owner, xmlnode data)
     sprintf(ids,"%d",newx.id);
     xmlnode_put_attrib(x,"id",ids); /* to track response */
     xmlnode_insert_tag_node(x,data); /* copy in the data */
-    deliver(dpacket_new(x));
+    deliver(dpacket_new(x), xc->i);
 
     /* if it hasn't already returned, we should block here until it returns */
     if(newx.preblock)

@@ -70,7 +70,7 @@ void logger(char *type, char *host, char *message)
         xmlnode_put_attrib(log,"from","_internal");
     xmlnode_insert_cdata(log,message,strlen(message));
 
-    deliver(dpacket_new(log));
+    deliver(dpacket_new(log), NULL);
 }
 
 void log_notice(char *host, const char *msgfmt, ...)

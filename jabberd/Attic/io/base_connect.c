@@ -10,7 +10,12 @@
 
 */
 
-base_connect_phandler(instance, packet, sink)
+typedef struct sink_struct
+{
+    void *foo;
+} *sink, _sink;
+
+void base_connect_phandler(instance i, dpacket p, sink s)
 {
     /* write packets to sink */
 }
@@ -22,7 +27,7 @@ void *base_connect_write(void *arg)
     /* if the write() fails, return the packet to the sink and die */
 }
 
-void base_connect_read_packets(xstream...)
+void base_connect_read_packets(xstream xs)
 {
     /* check status on socket, if the secret has been accepted, unblock the write thread */
     /* deliver packets normally */

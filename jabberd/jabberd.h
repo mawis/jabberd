@@ -8,7 +8,7 @@ typedef enum { p_NONE, p_NORM, p_XDB, p_LOG } ptype;
 typedef enum { o_PRECOND, o_COND, o_MODIFY, o_DELIVER } order;
 
 /* result types, unregister me, I pass, I should be last, I suck, I rock */
-typedef enum { r_UNREG, r_PASS, r_LAST, r_ERR, r_OK } result;
+typedef enum { r_UNREG, r_NONE, r_PASS, r_LAST, r_ERR, r_OK } result;
 
 typedef struct instance_struct *instance, _instance;
 
@@ -20,8 +20,6 @@ typedef struct dpacket_struct
     ptype type;
     pool p;
     xmlnode x;
-    result flag_best; /* the best result type for this packet, to know if it was actually handled */
-    int flag_used; /* number of instances that have handled it */
 } *dpacket, _dpacket;
 
 /* delivery handler function callback definition */
@@ -30,6 +28,7 @@ typedef result (*phandler)(instance id, dpacket p, void *arg);
 /* delivery handler list */
 typedef struct handel_struct
 {
+    pool p;
     phandler f;
     void *arg;
     order o; /* for sorting new handlers as they're inserted */
@@ -60,6 +59,7 @@ void register_instance(instance id, char *host); /* associate an id with a hostn
 void register_beat(int freq, beathandler f, void *arg); /* register the function to be called from the heartbeat, freq is how often, 0 is always */
 
 dpacket dpacket_new(xmlnode x); /* create a new delivery packet from source xml */
+dpacket dpacket_copy(dpacket p); /* copy a packet (and it's flags) */
 void deliver(dpacket p, instance i); /* deliver packet from sending instance */
 
 /*** global logging symbols ***/

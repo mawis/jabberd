@@ -12,7 +12,12 @@
 
 */
 
-base_accept_phandler(instance, packet, sink)
+typedef struct sink_struct
+{
+    void *foo;
+} *sink, _sink;
+
+void base_accept_phandler(instance i, dpacket p, sink s)
 {
     /* write packets to sink */
 }
@@ -24,7 +29,7 @@ void *base_accept_write(void *arg)
     /* if the write() fails, return the packet to the sink */
 }
 
-void base_accept_read_packets(xstream...)
+void base_accept_read_packets(xstream xs)
 {
     /* after getting a root, send header */
     /* check status on socket, if it's sent a secret, then deliver the packet, otherwise only validate a secret */
