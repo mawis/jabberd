@@ -81,8 +81,66 @@ mreturn mod_auth_digest_yum(mapi m, void *arg)
     return M_HANDLED;
 }
 
+int mod_auth_digest_reset(mapi m, jid id, xmlnode pass)
+{
+    log_debug("mod_auth_digest","resetting password");
+
+    xmlnode_put_attrib(pass,"xmlns",NS_AUTH);
+    return xdb_set(m->si->xc, id, NS_AUTH, pass);
+}
+
+/* handle saving the password for registration */
+mreturn mod_auth_digest_reg(mapi m, void *arg)
+{
+    jid id;
+    xmlnode pass;
+
+    if(jpacket_subtype(m->packet) == JPACKET__GET)
+    { /* type=get means we flag that the server can do plain-text regs */
+        xmlnode_insert_tag(m->packet->iq,"password");
+        return M_PASS;
+    }
+
+    if(jpacket_subtype(m->packet) != JPACKET__SET || (pass = xmlnode_get_tag(m->packet->iq,"password")) == NULL) return M_PASS;
+
+    /* get the jid of the user, depending on how we were called */
+    if(m->user == NULL)
+        id = jid_user(m->packet->to);
+    else
+        id = m->user->id;
+
+    /* tuck away for a rainy day */
+    if(mod_auth_digest_reset(m,id,pass))
+    {
+        jutil_error(m->packet->x,(terror){500,"Password Storage Failed"});
+        return M_HANDLED;
+    }
+
+    return M_PASS;
+}
+
+/* handle password change requests from a session */
+mreturn mod_auth_digest_server(mapi m, void *arg)
+{
+    mreturn ret;
+
+    /* pre-requisites */
+    if(m->packet->type != JPACKET_IQ) return M_IGNORE;
+    if(m->user == NULL) return M_PASS;
+    if(!NSCHECK(m->packet->iq,NS_REGISTER)) return M_PASS;
+
+    /* just do normal reg process, but deliver afterwards */
+    ret = mod_auth_digest_reg(m,arg);
+    if(ret == M_HANDLED)
+        js_deliver(m->si, jpacket_reset(m->packet));
+
+    return ret;
+}
+
 void mod_auth_digest(jsmi si)
 {
     log_debug("mod_auth_digest","init");
     js_mapi_register(si,e_AUTH, mod_auth_digest_yum, NULL);
+    js_mapi_register(si,e_SERVER, mod_auth_digest_server, NULL);
+    if (js_config(si,"register") != NULL) js_mapi_register(si, e_REGISTER, mod_auth_digest_reg, NULL);
 }
