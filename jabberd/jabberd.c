@@ -72,6 +72,7 @@ int config_reload(char *file);
 int  instance_startup(xmlnode x, int exec);
 void instance_shutdown(instance i);
 void _jabberd_signal(int sig);
+void _jabberd_atexit(void);
 
 
 int main (int argc, char** argv)
@@ -84,6 +85,9 @@ int main (int argc, char** argv)
     int do_background = 0;      /* Daemonize option, default no */
 
     jabberd__runtime = pool_new();
+
+    /* register this handler to remove our pidfile at exit */
+    atexit(_jabberd_atexit);
 
     /* start by assuming the parameters were entered correctly */
     help = 0;
@@ -298,9 +302,6 @@ void _jabberd_restart(void)
 
 void _jabberd_shutdown(void)
 {
-    xmlnode pidfile;
-    char *pidpath;
-
     log_notice(NULL,"shutting down server");
 
     /* pause deliver() this sucks, cuase we lose shutdown messages */
@@ -317,6 +318,18 @@ void _jabberd_shutdown(void)
     /* kill any leftover threads */
     pth_kill();
 
+    /* exit jabberd, _jabberd_atexit() will be called */
+    exit(0);
+}
+
+/* remove the pid file of this process, done in an atexit function
+ * because there are multiple occurences of exit() where
+ * _jabberd_shutdown is not called */
+void _jabberd_atexit(void)
+{
+    xmlnode pidfile;
+    char *pidpath;
+
     /* Get rid of our pid file */
     pidfile = xmlnode_get_tag(greymatter__, "pidfile");
     if(pidfile != NULL)
@@ -329,8 +342,6 @@ void _jabberd_shutdown(void)
 
     /* base modules use jabberd__runtime to know when to shutdown */
     pool_free(jabberd__runtime);
-
-    exit(0);
 }
 
 /* process the signal */
