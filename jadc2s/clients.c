@@ -495,13 +495,13 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
             c->ssl = SSL_new(c->c2s->ssl_ctx);
 	    if (c->ssl == NULL)
 	    {
-		log_write(c->c2s->log, LOG_WARNING, "failed to create SSL structure for connection, closing");
+		log_write(c->c2s->log, LOG_WARNING, "failed to create SSL structure for connection on fd %i, closing", fd);
 		log_ssl_errors(c->c2s->log, LOG_WARNING);
 		return 1;
 	    }
             if (!SSL_set_fd(c->ssl, fd))
 	    {
-		log_write(c->c2s->log, LOG_WARNING, "failed to connect SSL object with accepted socket, closing");
+		log_write(c->c2s->log, LOG_WARNING, "failed to connect SSL object with accepted socket on fd %i, closing", fd);
 		log_ssl_errors(c->c2s->log, LOG_WARNING);
 		return 1;
 	    }
@@ -695,11 +695,11 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
 	{
 	    /* if the user never authenticated, we still have to write its IP */
 	    if (c->state != state_OPEN)
-		log_write(c->c2s->log, LOG_NOTICE, "user %s, ip=%s never authenticated", jid_full(c->userid), c->ip);
+		log_write(c->c2s->log, LOG_NOTICE, c->c2s->iplog ? "user %s on fd %i, ip=%s never authenticated" : "user %s never authenticated", jid_full(c->userid), c->fd, c->ip);
 
 
 	    /* write it to the logfile */
-	    log_write(c->c2s->log, LOG_NOTICE, "user %s disconnected, in=%lu B, out=%lu B, stanzas_in=%u, stanzas_out=%u", jid_full(c->userid), c->in_bytes, c->out_bytes, c->in_stanzas, c->out_stanzas);
+	    log_write(c->c2s->log, LOG_NOTICE, "user %s on fd %i disconnected, in=%lu B, out=%lu B, stanzas_in=%u, stanzas_out=%u", jid_full(c->userid), c->fd, c->in_bytes, c->out_bytes, c->in_stanzas, c->out_stanzas);
 
 	    /* send a notification message if requested */
 	    connectionstate_send(c->c2s->config, c->c2s->sm, c, 0);

@@ -246,7 +246,7 @@ void _connect_process(conn_t c) {
             pending->state = state_SESS;
 
 	    /* log the successfull login */
-	    log_write(c->c2s->log, LOG_NOTICE, "user %s connected from %s on fd %i", jid_full(target->userid), target->ip, target->fd);
+	    log_write(c->c2s->log, LOG_NOTICE, target->c2s->iplog ? "user %s connected on fd %i from %s" : "user %s connected on fd %i", jid_full(target->userid), target->fd, target->ip);
 	   
 	    /* send a notification message if requested */
 	    connectionstate_send(c->c2s->config, c, target, 1);
@@ -390,6 +390,10 @@ int connect_new(c2s_t c2s)
 	fd = socket(addr_itr->ai_family, addr_itr->ai_socktype, addr_itr->ai_protocol);
 	if (fd != -1) {
 	    if (connect(fd, addr_itr->ai_addr, addr_itr->ai_addrlen)) {
+		/* is it a connection socket? */
+		if (fd < c2s->min_client_fd)
+		    log_write(c2s->log, LOG_ERR, "Internal Error: we seem to close a wrong fd in connect_new() #1! (fd=%i)", fd);
+
 		close(fd);
 		continue;
 	    }
@@ -403,6 +407,10 @@ int connect_new(c2s_t c2s)
     if (addr_itr == NULL) {
 	log_write(c2s->log, LOG_ERR, "failed to connect to router");
 	if (fd != -1) {
+	    /* is it a connection socket? */
+	    if (fd < c2s->min_client_fd)
+		log_write(c2s->log, LOG_ERR, "Internal Error: we seem to close a wrong fd in connect_new() #2! (fd=%i)", fd);
+
 	    close(fd);
 	}
 	return 0;
@@ -438,6 +446,11 @@ int connect_new(c2s_t c2s)
     if(connect(fd,(struct sockaddr*)&sa,sizeof(sa)) < 0)
     {
         log_write(c2s->log, LOG_ERR, "failed to connect to sm: %s", strerror(errno));
+
+	/* is it a connection socket? */
+	if (fd < c2s->min_client_fd)
+	    log_write(c2s->log, LOG_ERR, "Internal Error: we seem to close a wrong fd in connect_new() #1/2! (fd=%i)", fd);
+
         close(fd);
         return 0;
     }
@@ -447,6 +460,11 @@ int connect_new(c2s_t c2s)
     if(mio_fd(c2s->mio, fd, NULL, NULL) < 0)
     {
         log_write(c2s->log, LOG_ERR, "failed to connect to sm: %s", strerror(errno));
+
+	/* is it a connection socket? */
+	if (fd < c2s->min_client_fd)
+	    log_write(c2s->log, LOG_ERR, "Internal Error: we seem to close a wrong fd in connect_new() #3! (fd=%i)", fd);
+
         close(fd);
         return 0;
     }
@@ -472,11 +490,7 @@ int connect_new(c2s_t c2s)
     /* loop reading until it's open or dead */
     while(c->state != state_OPEN) _connect_io(c2s->mio, action_READ, fd, NULL, (void*)c);    
 
-    log_write(c2s->log, LOG_NOTICE, "connection to sm completed");
+    log_write(c2s->log, LOG_NOTICE, "connection to sm completed on fd %i", fd);
 
     return 1;
 }
-
-
-
-
