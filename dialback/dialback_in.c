@@ -28,18 +28,7 @@
  * 
  * --------------------------------------------------------------------------*/
 
-#include <jabberd.h>
 #include "dialback.h"
-
-dialback_in_read()
-    if result, make a valid, set from=d->i->id, deliver it
-    if packet, check in_ok hash for from/to key and make sure m==m
-
-dialback_in_packets
-    if route, get child and flag as invalid
-    get mio from id hash (and remove from that has)
-    put in valid hash
-    send result
 
 /* 
 On incoming connections, it's our job to validate any packets we receive on this server
@@ -51,66 +40,94 @@ We verify w/ the dialback process, then we'll send back:
 
 */
 
+/* db in connections */
+typedef struct dbic_struct
+{
+    mio m;
+    char *id;
+    xmlnode results; /* contains all pending results we've sent out */
+    db d;
+} *dbic, _dbic;
+
+/* clean up a hashtable entry containing this miod */
+void dialback_in_dbic_cleanup(void *arg)
+{
+    dbic c = (dbic)arg;
+    if(ghash_get(c->d->in_id,c->id) == c)
+        ghash_remove(c->d->in_id,c->id);
+}
+
+/* nice new dbic */
+dbic dialback_in_dbic_new(db d, mio m)
+{
+    dbic c;
+
+    c = pmalloco(m->p, sizeof(_dbic));
+    c->m = m;
+    c->id = pstrdup(m->p,dialback_randstr());
+    c->results = xmlnode_new_tag_pool(m->p,"r");
+    c->d = d;
+    pool_cleanup(m->p,dialback_in_dbic_cleanup, (void *)c);
+    ghash_put(d->in_id, c->id, (void *)c);
+    return c;
+}
 
 /* callback for mio for accepted sockets that are dialback */
-void dialback_in_read_db(mio s, int flags, void *arg, xmlnode x)
+void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
 {
-    miod md = (miod)arg;
+    dbic c = (dbic)arg;
+    miod md;
+    jid key;
+    xmlnode x2;
 
     if(flags != MIO_XML_NODE) return;
 
     /* incoming verification request, check and respond */
     if(j_strcmp(xmlnode_get_name(x),"db:verify") == 0)
     {
-        if(j_strcmp( xmlnode_get_data(x), _pthsock_server_merlin(xmlnode_pool(x), c->si->secret, xmlnode_get_attrib(x,"from"), xmlnode_get_attrib(x,"id"))) == 0)
+        if(j_strcmp( xmlnode_get_data(x), dialback_merlin(xmlnode_pool(x), c->d->secret, xmlnode_get_attrib(x,"from"), xmlnode_get_attrib(x,"id"))) == 0)
             xmlnode_put_attrib(x,"type","valid");
         else
             xmlnode_put_attrib(x,"type","invalid");
         jutil_tofrom(x);
-        mio_write(c->s, x, NULL, 0);
+        mio_write(m, x, NULL, 0);
         return;
     }
 
-    /* incoming result, make a host and forward on */
+    /* make a key of the sender/recipient addresses on the packet */
+    key = jid_new(xmlnode_pool(x),xmlnode_get_attrib(x,"to"));
+    jid_set(key,xmlnode_get_attrib(x,"from"),JID_RESOURCE);
+    jid_set(key,c->id,JID_USER); /* special user of the id attrib makes this key unique */
+
+    /* incoming result, track it and forward on */
     if(j_strcmp(xmlnode_get_name(x),"db:result") == 0)
     {
-        /* make a new host */
-        h = pmalloco(c->p, sizeof(_host));
-        h->type = htype_IN;
-        h->si = c->si;
-        h->c = c;
-        h->id = jid_new(c->p,xmlnode_get_attrib(x,"to"));
-        jid_set(h->id,xmlnode_get_attrib(x,"from"),JID_RESOURCE);
-        jid_set(h->id,c->id,JID_USER); /* special user of the id attrib makes this key unique */
-        ghash_put(c->si->hosts,jid_full(h->id),h); /* register us */
-        pool_cleanup(c->p,_pthsock_server_host_cleanup,(void *)h); /* make sure things get put back to normal afterwards */
+        /* store the result in the connection, for later validation */
+        xmlnode_put_attrib(xmlnode_insert_tag_node(c->results, x),"key",jid_full(key));
 
         /* send the verify back to them, on another outgoing trusted socket, via deliver (so it is real and goes through dnsrv and anything else) */
         x2 = xmlnode_new_tag_pool(xmlnode_pool(x),"db:verify");
         xmlnode_put_attrib(x2,"to",xmlnode_get_attrib(x,"from"));
-        xmlnode_put_attrib(x2,"from",xmlnode_get_attrib(x,"to"));
+        xmlnode_put_attrib(x2,"ofrom",xmlnode_get_attrib(x,"to"));
+        xmlnode_put_attrib(x2,"from",c->d->i->id); /* so bounces come back to us to get tracked */
         xmlnode_put_attrib(x2,"id",c->id);
         xmlnode_insert_node(x2,xmlnode_get_firstchild(x)); /* copy in any children */
-        deliver(dpacket_new(x2),c->si->i);
+        deliver(dpacket_new(x2),c->d->i);
 
         return;
     }
 
-    /* hmm, incoming packet on dialback line, there better be a host for it or else! */
-    to = jid_new(xmlnode_pool(x),xmlnode_get_attrib(x,"to"));
-    from = jid_new(xmlnode_pool(x),xmlnode_get_attrib(x,"from"));
-    if(to != NULL && from != NULL)
-        h = ghash_get(c->si->hosts, spools(xmlnode_pool(x),c->id,"@",to->server,"/",from->server,xmlnode_pool(x)));
-    if(h == NULL || !h->valid || h->c != c)
+    /* hmm, incoming packet on dialback line, there better be a valid entry for it or else! */
+    md = ghash_get(c->d->in_ok_db, jid_full(key));
+    if(md == NULL || md->m != m)
     { /* dude, what's your problem!  *click* */
-        mio_write(c->s, NULL, "<stream:error>Invalid Packets Recieved!</stream:error>", -1);
-        mio_close(c->s);
+        mio_write(m, NULL, "<stream:error>Invalid Packets Recieved!</stream:error>", -1);
+        mio_close(m);
         xmlnode_free(x);
-        break;
+        return;
     }
 
-    md->last = time(NULL);
-    deliver(dpacket_new(x),d->i);
+    dialback_miod_write(md, x);
 }
 
 
@@ -121,75 +138,109 @@ void dialback_in_read_legacy(mio s, int flags, void *arg, xmlnode x)
 
     if(flags != MIO_XML_NODE) return;
 
-    md->last = time(NULL);
-    deliver(dpacket_new(x),d->i);
+    dialback_miod_write(md, x);
 }
 
 /* callback for mio for accepted sockets */
-void dialback_in_read(mio s, int flags, void *arg, xmlnode x)
+void dialback_in_read(mio m, int flags, void *arg, xmlnode x)
 {
     db d = (db)arg;
     xmlnode x2;
-    jid to, from;
+    miod md;
+    jid key;
+    char strid[10];
+    dbic c;
 
     if(flags == MIO_NEW)
     {
-        log_debug(ZONE,"NEW incoming server socket connected at %d",s->fd);
-        c = pmalloco(s->p, sizeof(_conn)); /* we get free'd with the socket */
-        c->s = s;
-        c->p = s->p;
-        c->si = (ssi)arg; /* old arg is si */
-        mio_reset(s, pthsock_server_inread, (void*)c);
+        log_debug(ZONE,"NEW incoming server socket connected at %d",m->fd);
         return;
     }
 
-    if(flags == MIO_XML_ROOT)
-    {
-        /* new incoming connection sent a header, write our header */
-        x2 = xstream_header("jabber:server", NULL, xmlnode_get_attrib(x,"to"));
-        xmlnode_put_attrib(x2,"xmlns:db","jabber:server:dialback"); /* flag ourselves as dialback capable */
-        c->id = pstrdup(c->p,_pthsock_server_randstr());
-        xmlnode_put_attrib(x2,"id",c->id); /* send random id as a challenge */
-        mio_write(c->s,NULL, xstream_header_char(x2), -1);
-        xmlnode_free(x2);
+    if(flags != MIO_XML_ROOT)
+        return;
 
-        /* validate namespace */
-        if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:server") != 0)
+    /* validate namespace */
+    if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:server") != 0)
+    {
+        mio_write(m, NULL, "<stream:stream><stream:error>Invalid Stream Header!</stream:error>", -1);
+        mio_close(m);
+        xmlnode_free(x);
+        return;
+    }
+
+    snprintf(strid, 9, "%X", m); /* for hashes for later */
+
+    /* legacy, icky */
+    if(xmlnode_get_attrib(x,"xmlns:db") == NULL)
+    {
+        key = jid_new(xmlnode_pool(x), xmlnode_get_attrib(x, "to"));
+        mio_write(m,NULL, xstream_header_char(xstream_header("jabber:server", NULL, jid_full(key))), -1);
+        if(d->legacy && key != NULL)
         {
-            mio_write(c->s, NULL, "<stream:error>Invalid Stream Header!</stream:error>", -1);
-            mio_close(c->s);
+            log_notice(d->i->id,"legacy server incoming connection to %s established from %s",key->server, m->ip);
+            md = dialback_miod_new(d, m);
+            jid_set(key,strid,JID_USER);
+            dialback_miod_hash(md, d->in_ok_legacy, jid_user(key)); /* register 5A55BD@toname for tracking in the hash */
+            mio_reset(m, dialback_in_read_legacy, (void *)md); /* set up legacy handler for all further packets */
             xmlnode_free(x);
             return;
         }
-
-        if(xmlnode_get_attrib(x,"xmlns:db") == NULL)
-        {
-            if(c->si->legacy)
-            {
-                c->legacy = 1;
-                log_notice(xmlnode_get_attrib(x,"to"),"legacy server incoming connection established from %s",c->s->ip);
-            }else{
-                mio_write(c->s, NULL, "<stream:error>Legacy Access Denied!</stream:error>", -1);
-                mio_close(c->s);
-                xmlnode_free(x);
-                return;
-            }
-        }
-
+        mio_write(m, NULL, "<stream:error>Legacy Access Denied!</stream:error>", -1);
+        mio_close(m);
         xmlnode_free(x);
+        return;
     }
+
+    /* dialback connection */
+    c = dialback_in_dbic_new(d, m);
+
+    /* write our header */
+    x2 = xstream_header("jabber:server", NULL, xmlnode_get_attrib(x,"to"));
+    xmlnode_put_attrib(x2,"xmlns:db","jabber:server:dialback"); /* flag ourselves as dialback capable */
+    xmlnode_put_attrib(x2,"id",c->id); /* send random id as a challenge */
+    mio_write(m,NULL, xstream_header_char(x2), -1);
+    xmlnode_free(x2);
+    xmlnode_free(x);
+
+    /* reset to a dialback packet reader */
+    mio_reset(m, dialback_in_read_db, (void *)c);
 }
 
-void dialback_in_packet(db d, xmlnode x)
+/* we take in db:valid packets that have been processed, and expect the to="" to be our name and from="" to be the remote name */
+void dialback_in_validate(db d, xmlnode x)
 {
-    /* if the route packet we generated failed, we get routed errors too */
-    if(j_strcmp(xmlnode_get_name(x),"route") == 0)
+    dbic c;
+    xmlnode x2;
+    jid key;
+
+    /* check for the stored incoming connection first */
+    if((c = ghash_get(d->in_id, xmlnode_get_attrib(x,"id"))) == NULL)
     {
+        log_warn(d->i->id, "dropping broken dialback validating request: %s", xmlnode2str(x));
+        xmlnode_free(x);
+        return;
     }
 
-    if route, get child and flag as invalid
-    get mio from id hash (and remove from that has)
-    put in valid hash
-    send result
+    /* make a key of the sender/recipient addresses on the packet */
+    key = jid_new(xmlnode_pool(x),xmlnode_get_attrib(x,"to"));
+    jid_set(key,xmlnode_get_attrib(x,"from"),JID_RESOURCE);
+    jid_set(key,c->id,JID_USER); /* special user of the id attrib makes this key unique */
+
+    if((x2 = xmlnode_get_tag(c->results, spools(xmlnode_pool(x),"?key=",jid_full(key),xmlnode_pool(x)))) == NULL)
+    {
+        log_warn(d->i->id, "dropping broken dialback validating request: %s", xmlnode2str(x));
+        xmlnode_free(x);
+        return;
+    }
+    xmlnode_hide(x2);
+
+    /* valid requests get the honour of being miod */
+    if(j_strcmp(xmlnode_get_attrib(x,"type"),"valid") == 0)
+        dialback_miod_hash(dialback_miod_new(c->d, c->m), c->d->in_ok_db, key);
+
+    /* send on to the socket */
+    jutil_tofrom(x);
+    mio_write(c->m, x, NULL, -1);
 
 }

@@ -37,25 +37,32 @@ typedef struct db_struct
     HASHTABLE out_connecting; /* where unvalidated in-progress connections are, key is to/from */
     HASHTABLE out_ok_db; /* hash table of all connected dialback hosts, key is same to/from */
     HASHTABLE out_ok_legacy; /* hash table of all connected legacy hosts, key is same to/from */
-    HASHTABLE in_check; /* all the incoming connections waiting to be checked, id attrib is key */
-    HASHTABLE in_ok; /* all the incoming connections that are ok, to/from is key (just to if legacy) */
+    HASHTABLE in_id; /* all the incoming connections waiting to be checked, rand id attrib is key */
+    HASHTABLE in_ok_db; /* all the incoming dialback connections that are ok, ID@to/from is key  */
+    HASHTABLE in_ok_legacy; /* all the incoming legacy connections that are ok, ID@to is key */
     char *secret; /* our dialback secret */
     int legacy; /* flag to allow old servers */
+    int timeout_packets;
+    int timeout_idle;
 } *db, _db;
 
 /* wrap an mio and track the idle time of it */
 typedef struct miod_struct
 {
     mio m;
-    int last;
+    int last, count;
     db d;
 } *miod, _miod;
 
 void dialback_out_packet(db d, xmlnode x, char *ip);
-void dialback_out_verify(db d, xmlnode x);
+result dialback_out_beat_packets(void *arg);
 
 void dialback_in_read(mio s, int flags, void *arg, xmlnode x);
-void dialback_in_packet(db d, xmlnode x);
+void dialback_in_verify(db d, xmlnode x);
 
-void _dialback_randstr(void);
-char *_dialback_merlin(pool p, char *secret, char *to, char *challenge);
+char *dialback_randstr(void);
+char *dialback_merlin(pool p, char *secret, char *to, char *challenge);
+void dialback_miod_hash(miod md, HASHTABLE ht, jid key);
+miod dialback_miod_new(db d, mio m);
+void dialback_miod_write(miod md, xmlnode x);
+
