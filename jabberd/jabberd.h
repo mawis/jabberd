@@ -216,11 +216,11 @@ typedef struct mio_st
 } *mio, _mio;
 
 /* MIO SOCKET HANDLERS */
-typedef ssize_t (*mio_read_func)    (int fd, void*            buf,       size_t     count);
-typedef ssize_t (*mio_write_func)   (int fd, const void*      buf,       size_t     count); 
+typedef ssize_t (*mio_read_func)    (mio m, void*            buf,       size_t     count);
+typedef ssize_t (*mio_write_func)   (mio m, const void*      buf,       size_t     count); 
 typedef void    (*mio_parser_func)  (mio m,  const void*      buf,       size_t     bufsz);
-typedef int     (*mio_accept_func)  (int fd, struct sockaddr* serv_addr, socklen_t* addrlen);
-typedef int     (*mio_connect_func) (int fd, struct sockaddr* serv_addr, socklen_t  addrlen);
+typedef int     (*mio_accept_func)  (mio m, struct sockaddr* serv_addr, socklen_t* addrlen);
+typedef int     (*mio_connect_func) (mio m, struct sockaddr* serv_addr, socklen_t  addrlen);
 
 /* the MIO handlers data type */
 typedef struct mio_handlers_st
@@ -238,11 +238,15 @@ typedef struct mio_handlers_st
 #define MIO_ACCEPT_FUNC  pth_accept
 #define MIO_CONNECT_FUNC pth_connect
 
+ssize_t _mio_raw_read(mio m, void *buf, size_t count);
+ssize_t _mio_raw_write(mio m, void *buf, size_t count);
+int _mio_raw_accept(mio m, struct sockaddr* serv_addr, socklen_t* addrlen);
 void _mio_raw_parser(mio m, const void *buf, size_t bufsz);
-#define MIO_RAW_READ    (mio_read_func)&MIO_READ_FUNC
-#define MIO_RAW_WRITE   (mio_write_func)&MIO_WRITE_FUNC
-#define MIO_RAW_ACCEPT  (mio_accept_func)&MIO_ACCEPT_FUNC
-#define MIO_RAW_CONNECT (mio_connect_func)&MIO_CONNECT_FUNC
+int _mio_raw_connect(mio m, struct sockaddr* serv_addr, socklen_t  addrlen);
+#define MIO_RAW_READ    (mio_read_func)&_mio_raw_read
+#define MIO_RAW_WRITE   (mio_write_func)&_mio_raw_write
+#define MIO_RAW_ACCEPT  (mio_accept_func)&_mio_raw_accept
+#define MIO_RAW_CONNECT (mio_connect_func)&_mio_raw_connect
 #define MIO_RAW_PARSER  (mio_parser_func)&_mio_raw_parser
 
 void _mio_xml_parser(mio m, const void *buf, size_t bufsz);

@@ -184,7 +184,7 @@ int _mio_write_dump(mio m)
         log_debug(ZONE, "write_dump writing data: %s", cur->cur);
 
         /* write a bit from the current buffer */
-        len = (*m->mh->write)(m->fd, cur->cur, cur->len);
+        len = (*m->mh->write)(m, cur->cur, cur->len);
         /* we had an error on the write */
         if(len == 0)
         {
@@ -283,7 +283,7 @@ mio _mio_accept(mio m)
     log_debug(ZONE, "_mio_accept calling accept on fd #%d", m->fd);
 
     /* pull a socket off the accept queue */
-    fd = (*m->mh->accept)(m->fd, (struct sockaddr*)&serv_addr, &addrlen);
+    fd = (*m->mh->accept)(m, (struct sockaddr*)&serv_addr, &addrlen);
     if(fd <= 0)
     {
         return NULL;
@@ -335,8 +335,10 @@ void _mio_connect(void *arg)
     struct sockaddr_in sa;
     struct in_addr     *saddr;
     int                fd,
-                       flag = 1;
+                       flag = 1,
+                       flags;
     mio                new;
+    pool               p;
     sigset_t           set;
 
     sigemptyset(&set);
@@ -357,7 +359,6 @@ void _mio_connect(void *arg)
         return;
     }
 
-
     saddr = make_addr(cd->ip);
     if(saddr == NULL)
     {
@@ -372,7 +373,19 @@ void _mio_connect(void *arg)
     sa.sin_port = htons(cd->port);
     sa.sin_addr.s_addr = saddr->s_addr;
 
-    if((*cd->cf)(fd, (struct sockaddr*)&sa, sizeof sa) < 0)
+    /* create the new mio object, can't call mio_new.. don't want it in select yet */
+    p           = pool_new();
+    new         = pmalloco(p, sizeof(_mio));
+    new->p      = p;
+    new->type   = type_NORMAL;
+    new->state  = state_ACTIVE;
+    new->fd     = fd;
+    new->cb     = (void*)cd->cb;
+    new->cb_arg = cd->cb_arg;
+    mio_set_handlers(new, cd->mh);
+
+    log_debug(ZONE, "calling the connect handler for mio object %X", new);
+    if((*cd->cf)(new, (struct sockaddr*)&sa, sizeof sa) < 0)
     {
         int cleanup = 0;
 
@@ -381,7 +394,8 @@ void _mio_connect(void *arg)
 
         close(fd);
 
-        /* failed to connect, notify callback */
+        pool_free(p);
+
         if(cd->cb != NULL)
             (*(mio_std_cb)cd->cb)(NULL, MIO_CLOSED, cd->cb_arg);
 
@@ -395,10 +409,22 @@ void _mio_connect(void *arg)
 
     /* XXX pthreads race condition.. cd->connected may be checked in the timeout, and cd freed before these calls */
 
-    /* create the mio for this socket */
-    new = mio_new(fd, cd->cb, cd->cb_arg, cd->mh);
+    /* set the default karma values */
+    mio_karma(new, KARMA_INIT, KARMA_MAX, KARMA_INC, KARMA_DEC, KARMA_PENALTY, KARMA_RESTORE);
+    
+    /* set the socket to non-blocking */
+    flags =  fcntl(fd, F_GETFL, 0);
+    flags |= O_NONBLOCK;
+    fcntl(fd, F_SETFL, flags);
+
+    /* add to the select loop */
+    _mio_link(new);
     new->ip = pstrdup(new->p, cd->ip);
     cd->connected = 1; 
+
+    /* notify the select loop */
+    if(mio__data != NULL)
+        pth_raise(mio__data->t, SIGUSR2);
 
     /* notify the client that the socket is born */
     if(new->cb != NULL)
@@ -526,7 +552,7 @@ void _mio_main(void *arg)
 
                 if(maxlen > 8191) maxlen = 8191;
 
-                len = (*(cur->mh->read))(cur->fd, buf, maxlen);
+                len = (*(cur->mh->read))(cur, buf, maxlen);
 
                 /* if we had a bad read */
                 if(len == 0)

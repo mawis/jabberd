@@ -34,3 +34,23 @@ void _mio_raw_parser(mio m, const void *buf, size_t bufsz)
 {
     (*(mio_raw_cb)m->cb)(m, MIO_BUFFER, m->cb_arg, (char*)buf, bufsz);
 }
+
+ssize_t _mio_raw_read(mio m, void *buf, size_t count)
+{
+    return MIO_READ_FUNC(m->fd, buf, count);
+}
+
+ssize_t _mio_raw_write(mio m, void *buf, size_t count)
+{
+    return MIO_WRITE_FUNC(m->fd, buf, count);
+}
+
+int _mio_raw_accept(mio m, struct sockaddr* serv_addr, socklen_t* addrlen)
+{
+    return MIO_ACCEPT_FUNC(m->fd, serv_addr, addrlen);
+}
+
+int _mio_raw_connect(mio m, struct sockaddr* serv_addr, socklen_t  addrlen)
+{
+    return MIO_CONNECT_FUNC(m->fd, serv_addr, addrlen);
+}
