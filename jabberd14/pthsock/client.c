@@ -370,6 +370,7 @@ void pthsock_client(instance i, xmlnode x)
     xmlnode cur;
     int rate_time=0,rate_points=0;
     char *host, *port=0;
+    struct karma k;
 
     log_debug(ZONE,"pthsock_client loading");
 
@@ -387,6 +388,14 @@ void pthsock_client(instance i, xmlnode x)
     si->cfg = xdb_get(xc,NULL,jid_new(xmlnode_pool(x),"config@-internal"),"jabber:config:pth-csock");
 
     si->host = host = i->id;
+
+    k.val=KARMA_INIT;
+    k.bytes=0;
+    k.max=KARMA_MAX;
+    k.inc=KARMA_INC;
+    k.dec=KARMA_DEC;
+    k.restore=KARMA_RESTORE;
+    k.penalty=KARMA_PENALTY;
 
     for(cur=xmlnode_get_firstchild(si->cfg);cur!=NULL;cur=cur->next)
     {
@@ -428,6 +437,25 @@ void pthsock_client(instance i, xmlnode x)
                 rate_points=atoi(p);
             }
         }
+        else if(j_strcmp(xmlnode_get_name(cur),"karma")==0)
+        {
+            xmlnode kcur=xmlnode_get_firstchild(cur);
+            for(;kcur!=NULL;kcur=xmlnode_get_nextsibling(kcur))
+            {
+                if(kcur->type!=NTYPE_TAG) continue;
+                if(xmlnode_get_data(kcur)==NULL) continue;
+                if(j_strcmp(xmlnode_get_name(kcur),"max")==0)
+                    k.max=atoi(xmlnode_get_data(kcur));
+                else if(j_strcmp(xmlnode_get_name(kcur),"inc")==0)
+                    k.inc=atoi(xmlnode_get_data(kcur));
+                else if(j_strcmp(xmlnode_get_name(kcur),"dec")==0)
+                    k.dec=atoi(xmlnode_get_data(kcur));
+                else if(j_strcmp(xmlnode_get_name(kcur),"restore")==0)
+                    k.restore=atoi(xmlnode_get_data(kcur));
+                else if(j_strcmp(xmlnode_get_name(kcur),"penalty")==0)
+                    k.penalty=atoi(xmlnode_get_data(kcur));
+            }
+        }
     }
 
     if (host == NULL || port == NULL)
@@ -437,7 +465,7 @@ void pthsock_client(instance i, xmlnode x)
     }
 
     /* register data callbacks */
-    io_select_listen(atoi(port),NULL,pthsock_client_read,(void*)si,rate_time,rate_points);
+    io_select_listen_ex(atoi(port),NULL,pthsock_client_read,(void*)si,rate_time,rate_points,&k);
     register_phandler(i,o_DELIVER,pthsock_client_packets,(void*)si);
     register_beat(1,pthsock_client_heartbeat,(void*)si);
 }
