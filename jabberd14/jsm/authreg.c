@@ -36,7 +36,7 @@ void js_authreg(void *arg)
         for(ul = p->to->user;*ul != '\0'; ul++)
             *ul = tolower(*ul);
 
-    if(p->to->user != NULL && p->to->resource != NULL && NSCHECK(p->iq,NS_AUTH))
+    if(p->to->user != NULL && (jpacket_subtype(p) == JPACKET__GET || p->to->resource != NULL) && NSCHECK(p->iq,NS_AUTH))
     {   /* is this a valid auth request? */
 
         log_debug(ZONE,"auth request");
@@ -44,11 +44,20 @@ void js_authreg(void *arg)
         /* attempt to fetch user data based on the username */
         user = js_user(si, p->to, NULL);
         if(user == NULL)
+        {
             jutil_error(p->x, TERROR_AUTH);
-        else if(!js_mapi_call(si, e_AUTH, p, user, NULL))
-            jutil_error(p->x, TERROR_INTERNAL);
+        }else if(!js_mapi_call(si, e_AUTH, p, user, NULL)){
+            if(jpacket_subtype(p) == JPACKET__GET)
+            { /* if it's a type="get" for auth, everybody mods it and we result and return it */
+                xmlnode_insert_tag(p->iq,"resource"); /* of course, resource is required :) */
+                xmlnode_put_attrib(p->x,"type","result");
+                jutil_tofrom(p->x);
+            }else{ /* type="set" that didn't get handled is a proble */
+                jutil_error(p->x, TERROR_INTERNAL);
+            }
+        }
 
-    }else if(p->to->user != NULL && NSCHECK(p->iq,NS_REGISTER)){ /* is this a registration request? */
+    }else if((jpacket_subtype(p) == JPACKET__GET || p->to->user != NULL) && NSCHECK(p->iq,NS_REGISTER)){ /* is this a registration request? */
 
         log_debug(ZONE,"registration request");
 

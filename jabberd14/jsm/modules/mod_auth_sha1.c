@@ -30,6 +30,12 @@ mreturn mod_auth_digest(mapi m, void *arg)
 
     log_debug("mod_auth_sha1","checking");
 
+    if(jpacket_subtype(m->packet) == JPACKET__GET)
+    { /* type=get means we flag that the server can do digest auth */
+        xmlnode_insert_tag(m->packet->iq,"digest");
+        return M_PASS;
+    }
+
     xdb = xdb_get(m->si->xc, m->user->id->server, m->user->id, NS_AUTH);
     passxdb = xmlnode_get_data(xdb);
     digest = xmlnode_get_tag_data(m->packet->iq, "digest");
