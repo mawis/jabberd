@@ -1,3 +1,31 @@
+jabberd 1.4.4
+=============
+- fix cygwin build
+- remove cleanup segfault (happens on open connections)
+- clean xdbfiletool, libtool complains that we link against a module
+- compatibility checks for STARTTLS on s2s with other implementations
+- configure STARTTLS per destination (e.g. disabling for some hosts)
+- configuration of TLS (e.g. cipher selection)
+
+later
+=====
+- allow <jabberd:include/> in configuration to include directories
+  (including all files in the directory)
+- privacy lists (XMPP)
+- correct namespace handling (XMPP)
+- handling of xml:lang (XMPP)
+- SASL (XMPP)
+- STARTTLS for c2s conns (XMPP)
+- allowing some actions only over secured connection (auth, register)
+- interface to call scripts on account deletion
+- admin interface especially to change user passwords (JEP-0133)
+- http binding (maybe only in jadc2s)
+- other xdb modules (sql, ldap, bdbxml)
+- remove global variables
+- change threading library
+
+>>>>>>>> old TODO follows >>>>>>>>
+
 ===================================
 Testing
 ===================================

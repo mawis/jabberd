@@ -104,12 +104,15 @@ mreturn mod_auth_plain_reg(mapi m, void *arg)
 	return M_HANDLED;
     }
 
-    /* and take care that the <username/> element contains the right user */
-    id = jid_new(m->packet->p, jid_full(m->user->id));
-    jid_set(id, xmlnode_get_tag_data(m->packet->iq, "username"), JID_USER);
-    if (jid_cmpx(m->user->id, id, JID_USER) != 0) {
-	jutil_error_xmpp(m->packet->x, (xterror){400, "Wrong or missing username", "modify", "bad-request"});
-	return M_HANDLED;
+    /* and take care that the <username/> element contains the right user
+     * if it is the request of an existing user */
+    if (m->user != NULL) {
+	id = jid_new(m->packet->p, jid_full(m->user->id));
+	jid_set(id, xmlnode_get_tag_data(m->packet->iq, "username"), JID_USER);
+	if (jid_cmpx(m->user->id, id, JID_USER) != 0) {
+	    jutil_error_xmpp(m->packet->x, (xterror){400, "Wrong or missing username", "modify", "bad-request"});
+	    return M_HANDLED;
+	}
     }
 
     /* get the jid of the user, depending on how we were called */

@@ -688,6 +688,7 @@ typedef struct xterror_struct
 
 #define NS_CLIENT    "jabber:client"
 #define NS_SERVER    "jabber:server"
+#define NS_DIALBACK  "jabber:server:dialback"
 #define NS_AUTH      "jabber:iq:auth"
 #define NS_AUTH_CRYPT "jabber:iq:auth:crypt"
 #define NS_REGISTER  "jabber:iq:register"
@@ -723,6 +724,7 @@ typedef struct xterror_struct
 #define NS_XDBNSLIST  "jabber:xdb:nslist"
 
 #define NS_XMPP_STANZAS "urn:ietf:params:xml:ns:xmpp-stanzas"
+#define NS_XMPP_TLS  "urn:ietf:params:xml:ns:xmpp-tls"
 
 
 /* --------------------------------------------------------- */
