@@ -164,6 +164,7 @@ session js_session_new(jsmi si, jid owner, jid sid)
     pool p;         /* a memory pool for the session */
     session s;      /* the session being created */
     jid uid;        /* a general jid for the session - ie with no resource */
+    int i;
 
     /* screen out illegal calls */
     if(sid == NULL || owner == NULL || owner->resource == NULL)
@@ -197,6 +198,8 @@ session js_session_new(jsmi si, jid owner, jid sid)
     xmlnode_put_attrib(s->presence,"from",jid_full(s->id));
     s->c_in = s->c_out = 0;
     s->worker = NULL;
+    for(i = 0; i < es_LAST; i++)
+        s->events[i] = NULL;
 
     /* remove any other session w/ this resource */
     js_session_end(js_session_get(s->u, owner->resource), "Replaced by new connection");

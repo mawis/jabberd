@@ -33,7 +33,7 @@ void *js_server_main(void *arg)
     log_debug(ZONE,"THREAD:SERVER starting");
 
     /* create the message port and event ring */
-    mp = pth_msgport_create("js_server");
+    si->mpserver = mp = pth_msgport_create("js_server");
     ev = pth_event(PTH_EVENT_MSG,mp);
 
     /* infinite loop */
