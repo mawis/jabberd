@@ -26,6 +26,8 @@
         <!-- <ip>0.0.0.0</ip> -->
         
         <!--  port to bind to (default: 5222)                              -->
+        <!--  specify 0 to not bind to this port. this is useful for an    -->
+        <!--  SSL-only installation                                        -->
         <port>5222</port>
 
         <!--  SSL configuration                                            -->
