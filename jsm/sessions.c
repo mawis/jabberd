@@ -28,13 +28,6 @@
  * 
  * sessions.c -- handle messages to and from user sessions
  *
- *  Notes:
- *  Changes to the threading model: Session packets are now handled
- *  by generic worker threads. The js_session_to and _from functions
- *  start these for incoming packets. When one frees up it goes in to the
- *  pool of idle threads. spackets are dispatched to the worker threads 
- *  via pth message ports.
- *
  * --------------------------------------------------------------------------*/
 
 #include "jsm.h"

@@ -48,7 +48,7 @@ void js_deliver_local(jsmi si, jpacket p, HASHTABLE ht)
 
     if(p->to->user == NULL)
     { /* this is for the server */
-        js_psend(si->mpserver,p);
+        js_psend(si,p,js_server_main);
         return;
     }
 
@@ -61,8 +61,8 @@ void js_deliver_local(jsmi si, jpacket p, HASHTABLE ht)
     if(user != NULL)
     { /* valid user, but no session */
         p->aux1 = (void *)user; /* performance hack, we already know the user */
-        user->ref++; /* so it doesn't get cleaned up before the thread gets it */
-        js_psend(si->mpoffline,p);
+        user->ref++; /* so it doesn't get cleaned up before the offline thread gets it */
+        js_psend(si,p,js_offline_main);
         return;
     }
 
@@ -249,19 +249,20 @@ void js_deliver(jsmi si, jpacket p)
 }
 
 
-void js_psend(pth_msgport_t mp, jpacket p)
+void js_psend(jsmi si, jpacket p, mtq_callback f)
 {
     jpq q;
 
-    if(p == NULL || mp == NULL)
+    if(p == NULL || si == NULL)
         return;
 
-    log_debug(ZONE,"psending to %X packet %X",mp,p);
+    log_debug(ZONE,"psending to %X packet %X",f,p);
 
     q = pmalloc(p->p, sizeof(_jpq));
     q->p = p;
+    q->si = si;
 
-    pth_msgport_put(mp, (pth_message_t *)q);
+    mtq_send(NULL, p->p, f, (void *)q);
 }
 
 

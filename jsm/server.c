@@ -32,49 +32,20 @@
 
 #include "jsm.h"
 
-void *js_server_main(void *arg)
+void js_server_main(void *arg)
 {
-    jsmi si = (jsmi)arg;
-    pth_event_t ev;		/* event ring for receiving messages */
-    pth_msgport_t mp;	/* message port for receiving messages */
-    jpq q;				/* a jabber packet */
+    jpq q = (jpq)arg;
     udata u = NULL;
 
-    /* debug message */
-    log_debug(ZONE,"THREAD:SERVER starting");
+    log_debug(ZONE,"THREAD:SERVER received a packet: %s",xmlnode2str(q->p->x));
 
-    /* create the message port and event ring */
-    si->mpserver = mp = pth_msgport_create("js_server");
-    ev = pth_event(PTH_EVENT_MSG,mp);
+    /* get the user struct for convience if the sender was local */
+    if(js_islocal(q->si, q->p->from))
+        u = js_user(q->si, q->p->from, NULL);
 
-    /* infinite loop */
-    while(1)
-    {
-        /* wait for a message */
-        pth_wait(ev);
-
-        /* get a packet from the message port */
-        while((q = (jpq)pth_msgport_get(mp)) != NULL)
-        {
-            u = NULL;
-            /* debug message */
-            log_debug(ZONE,"THREAD:SERVER received a packet: %s",xmlnode2str(q->p->x));
-
-            /* get the user struct for convience if the sender was local */
-            if(js_islocal(si, q->p->from))
-                u = js_user(si, q->p->from, NULL);
-
-            /* let the modules have a go at the packet; if nobody handles it... */
-            if(!js_mapi_call(si, e_SERVER, q->p, u, NULL))
-                js_bounce(si,q->p->x,TERROR_NOTFOUND);
-
-        }
-    }
-
-    /* shouldn't arrive here, but clean up, just in case */
-    pth_event_free(ev,PTH_FREE_ALL);
-    pth_msgport_destroy(mp);
-
+    /* let the modules have a go at the packet; if nobody handles it... */
+    if(!js_mapi_call(q->si, e_SERVER, q->p, u, NULL))
+        js_bounce(q->si,q->p->x,TERROR_NOTFOUND);
 }
 
 

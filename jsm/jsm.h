@@ -90,7 +90,6 @@ struct jsmi_struct
     instance i;
     xmlnode config;
     HASHTABLE hosts;
-    pth_msgport_t mpoffline, mpserver;
     xdbcache xc;
     mlist events[e_LAST];
     pool p;
@@ -140,23 +139,23 @@ struct session_struct
 };
 
 session js_session_new(jsmi si, dpacket p);
-void *js_session_main(void *arg);
 void js_session_end(session s, char *reason);
 session js_session_get(udata user, char *res);
 session js_session_primary(udata user);
 void js_session_to(session s, jpacket p);
 void js_session_from(session s, jpacket p);
 
-void *js_server_main(void *arg);
-void *js_offline_main(void *arg);
-void *js_users_main(void *arg);
+void js_server_main(void *arg);
+void js_offline_main(void *arg);
+result js_users_gc(void *arg);
 
-typedef struct {
-    pth_message_t head; /* the standard pth message header */
+typedef struct jpq_struct
+{
+    jsmi si;
     jpacket p;
 } _jpq, *jpq;
 
-void js_psend(pth_msgport_t mp, jpacket p); /* sends p to a pth message port */
+void js_psend(jsmi si, jpacket p, mtq_callback f); /* sends p to a function */
 
 void js_bounce(jsmi si, xmlnode x, terror terr); /* logic to bounce packets w/o looping, eats x and delivers error */
 

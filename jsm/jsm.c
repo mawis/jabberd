@@ -102,11 +102,6 @@ void jsm(instance i, xmlnode x)
     for(n=0;n<e_LAST;n++)
         si->events[n] = NULL;
 
-    /* start threads */
-    pth_spawn(PTH_ATTR_DEFAULT, js_offline_main, (void *)si); /* the thread handling all offline packets */
-    pth_spawn(PTH_ATTR_DEFAULT, js_server_main, (void *)si);  /* all traffic to server resources */
-    pth_spawn(PTH_ATTR_DEFAULT, js_users_main, (void *)si);   /* free cached user data */
-
     /* fire up the modules by scanning the attribs on the xml we received */
     for(cur = xmlnode_get_firstattrib(x); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
@@ -126,4 +121,5 @@ void jsm(instance i, xmlnode x)
     pool_cleanup(i->p, jsm_shutdown, (void*)si);
     register_phandler(i, o_DELIVER, js_packet, (void *)si);
     register_beat(5,jsm_stat,NULL);
+    register_beat(j_atoi(xmlnode_get_tag_data(si->config,"usergc"),60),js_users_gc,(void *)si);
 }

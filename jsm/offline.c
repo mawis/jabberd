@@ -31,51 +31,24 @@
  * --------------------------------------------------------------------------*/
 #include "jsm.h"
 
-void *js_offline_main(void *arg)
+void js_offline_main(void *arg)
 {
-    jsmi si = (jsmi)arg;
-    pth_event_t ev;		/* event ring for retreiving messages */
-    pth_msgport_t mp;	/* message port for sending messages to the thread */
-    jpq q;
-    udata user;			/* user data */
+    jpq q = (jpq)arg;
+    udata user;
+
+    /* performace hack, don't lookup the udata again */
+    user = (udata)q->p->aux1;
 
     /* debug message */
-    log_debug(ZONE,"THREAD:OFFLINE starting");
+    log_debug(ZONE,"THREAD:OFFLINE received %s's packet: %s",jid_full(user->id),xmlnode2str(q->p->x));
 
-    /* create the message port */
-    si->mpoffline = mp = pth_msgport_create("js_offline");
+    /* let the modules handle the packet */
+    if(!js_mapi_call(q->si, e_OFFLINE, q->p, user, NULL))
+        js_bounce(q->si,q->p->x,TERROR_UNAVAIL);
 
-    /* create an event ring for messages on the port */
-    ev = pth_event(PTH_EVENT_MSG,mp);
+    /* it can be cleaned up now */
+    user->ref--;
 
-    /* infinite loop */
-    while(1)
-    {
-        /* wait for a message */
-        pth_wait(ev);
-
-        /* get the packet from the message port */
-        while((q = (jpq)pth_msgport_get(mp)) != NULL)
-        {
-            /* performace hack, don't lookup the udata again */
-            user = (udata)q->p->aux1;
-
-            /* debug message */
-            log_debug(ZONE,"THREAD:OFFLINE received %s's packet: %s",jid_full(user->id),xmlnode2str(q->p->x));
-
-            /* let the modules handle the packet */
-            if(!js_mapi_call(si, e_OFFLINE, q->p, user, NULL))
-                js_bounce(si,q->p->x,TERROR_UNAVAIL);
-
-            /* it can be cleaned up now */
-            user->ref--;
-
-        }
-    }
-
-    /* shouldn't end up here, but just in case */
-    pth_event_free(ev,PTH_FREE_ALL);
-    pth_msgport_destroy(mp);
 }
 
 
