@@ -91,7 +91,11 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
             xmlnode_put_attrib(x,"type","valid");
         else
             xmlnode_put_attrib(x,"type","invalid");
+
+        /* reformat the packet reply */
         jutil_tofrom(x);
+        while((x2 = xmlnode_get_firstchild(x)) != NULL)
+            xmlnode_hide(x2); /* hide the contents */
         mio_write(m, x, NULL, 0);
         return;
     }
@@ -240,8 +244,11 @@ void dialback_in_verify(db d, xmlnode x)
     if(j_strcmp(xmlnode_get_attrib(x,"type"),"valid") == 0)
         dialback_miod_hash(dialback_miod_new(c->d, c->m), c->d->in_ok_db, key);
 
-    /* send on to the socket */
-    jutil_tofrom(x);
-    mio_write(c->m, x, NULL, -1);
+    /* rewrite and send on to the socket */
+    x2 = xmlnode_new_tag_pool(xmlnode_pool(x),"db:result");
+    xmlnode_put_attrib(x2,"to",xmlnode_get_attrib(x,"from"));
+    xmlnode_put_attrib(x2,"from",xmlnode_get_attrib(x,"to"));
+    xmlnode_put_attrib(x2,"type",xmlnode_get_attrib(x,"type"));
+    mio_write(c->m, x2, NULL, -1);
 
 }
