@@ -158,7 +158,7 @@ xdbcache xdb_cache(instance id)
     newx->next = newx->prev = newx; /* init ring */
 
     /* register the handler in the instance to filter out xdb results */
-    register_phandler(id, o_FIRST, xdb_results, (void *)newx);
+    register_phandler(id, o_PRECOND, xdb_results, (void *)newx);
 
     return newx;
 }
@@ -172,7 +172,7 @@ xmlnode xdb_get(xdbcache xc, char *host, jid owner, char *ns)
     pth_mutex_t mutex = PTH_MUTEX_INIT;
     pth_cond_t cond = PTH_COND_INIT;
 
-    if(xc == NULL || host == NULL || owner == NULL || ns == NULL)
+    if(xc == NULL || owner == NULL || ns == NULL)
     {
         fprintf(stderr,"Programming Error: xdb_get() called with NULL\n");
         return NULL;

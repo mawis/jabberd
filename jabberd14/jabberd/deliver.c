@@ -21,12 +21,12 @@ void register_phandler(instance id, order o, phandler f, void *arg)
     /* place according to handler preference */
     switch(o)
     {
-    case o_FIRST:
+    case o_PRECOND:
         newh->next = id->hds;
         id->hds = newh;
         break;
-    case o_ANY:
-        for(h1 = id->hds; h1->next != NULL && h1->next->o != o_FIRST; h1 = h1->next);
+    case o_COND:
+        for(h1 = id->hds; h1->next != NULL && h1->next->o != o_COND; h1 = h1->next);
         if(h1->next == NULL)
         {
             h1->next = newh;
@@ -35,7 +35,17 @@ void register_phandler(instance id, order o, phandler f, void *arg)
             h1->next = newh;
         }
         break;
-    case o_LAST:
+    case o_MODIFY:
+        for(h1 = id->hds; h1->next != NULL && h1->next->o != o_MODIFY; h1 = h1->next);
+        if(h1->next == NULL)
+        {
+            h1->next = newh;
+        }else{
+            newh->next = h1->next;
+            h1->next = newh;
+        }
+        break;
+    case o_DELIVER:
         for(h1 = id->hds; h1->next != NULL; h1 = h1->next);
         h1->next = newh;
         break;
@@ -141,6 +151,10 @@ void deliver(dpacket p, instance i)
         list = deliver__log;
         break;
     case p_XDB:
+        if(xmlnode_get_attrib(p->x, "from") == NULL)
+        { /* no from="" attrib implies it's a special xdb request to get data from the config file */
+            
+        }
         list = deliver__xdb;
         break;
     case p_NORM:
