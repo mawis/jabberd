@@ -144,6 +144,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         block = xstream_header_char(h);
         pth_write(c->sock,block,strlen(block));
         xmlnode_free(h);
+        xmlnode_free(x);
         break;
 
     case XSTREAM_NODE:
@@ -160,6 +161,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
                 log_debug(ZONE,"user tried to send packet in unknown state");
                 c->state = state_CLOSING;
                 /* bounce */
+                xmlnode_free(x);
                 return;
             }
             else if (NSCHECK(q,NS_AUTH))
@@ -183,6 +185,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         pth_write(c->sock,"<stream::error>You sent malformed XML</stream:error>",52);
     case XSTREAM_CLOSE:
         log_debug(ZONE,"closing XSTREAM");
+
         if (c->state == state_AUTHD)
         {
             c->state = state_CLOSING;
@@ -197,6 +200,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         }
         else
             c->state = state_CLOSING;
+        xmlnode_free(x);
     }
 }
 
@@ -351,13 +355,13 @@ void *pthsock_client_main(void *arg)
     asock = si->asock;
     wmp = si->wmp;
 
-    wevt = pth_event(PTH_EVENT_MSG,wmp);
-    sevt = pth_event(PTH_EVENT_SELECT,&nready,FD_SETSIZE,&rfds,NULL,NULL);
-    ering = pth_event_concat(wevt,sevt,NULL);
-
     FD_ZERO(&rfds);
     FD_ZERO(&afds);
     FD_SET(asock,&rfds);
+
+    wevt = pth_event(PTH_EVENT_MSG,wmp);
+    sevt = pth_event(PTH_EVENT_SELECT,&nready,FD_SETSIZE,&rfds,NULL,NULL);
+    ering = pth_event_concat(wevt,sevt,NULL);
 
     while (1)
     {
