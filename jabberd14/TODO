@@ -11,12 +11,8 @@ jpolld component minimally working
 sheath	9/15/00 in progress
 s2s SRV dns lookup support
 
-any	9/15/00 easy
-kill HUP logs notice, can't do anything till 1.3
-
 jer	9/15/00 thinking
 consistent usage of namespaces for streams and config sections
-
 
 ===================================
 Pre-FFreeze
