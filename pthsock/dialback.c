@@ -27,7 +27,7 @@
  * suggestions and support of Jabber.
  * 
  * --------------------------------------------------------------------------*/
- 
+
 /*
     <!-- For use without an external DNS component -->
   <service id="127.0.0.1 s2s">
@@ -56,12 +56,9 @@ A->B
 
 A->B
     B: <db:result type="valid" to=A from=B/>
-
-
 */
 
-#include "jabberd.h"
-
+#include <jabberd.h>
 
 /************************ OBJECTS ****************************/
 
@@ -80,7 +77,7 @@ typedef struct conn_struct
 {
     /* used for in and out connections */
     ssi si;
-    mio s;         /* socket once it's connected */
+    mio s;          /* socket once it's connected */
     xstream xs;     /* xml stream */
     int legacy;     /* flag that we're in legacy mode */
     char *id;       /* the id="" attrib from the other side or the one we sent */
@@ -100,18 +97,18 @@ typedef enum { htype_IN, htype_OUT } htype;
 typedef struct host_struct
 {
     /* used for in and out connections */
-    htype type;     /* type of host, in or out */
-    jid id;         /* the funky id for the hashes, to/from */
-    int valid;      /* flag if we've been validated */
-    ssi si;         /* instance tracker */
-    int created;    /* when the host entry was created */
+    htype type;        /* type of host, in or out */
+    jid id;            /* the funky id for the hashes, to/from */
+    int valid;         /* flag if we've been validated */
+    ssi si;            /* instance tracker */
+    int created;       /* when the host entry was created */
 
     /* outgoing connections only */
-    conn c;         /* the ip we're connected on */
-    pth_msgport_t mp; /* pre-validated write queue */
+    conn c;            /* the ip we're connected on */
+    pth_msgport_t mp;  /* pre-validated write queue */
 
     /* incoming connections */
-    mio s;         /* the incoming connection that we're associated with */
+    mio s;             /* the incoming connection that we're associated with */
 
 } *host, _host;
 
@@ -148,7 +145,7 @@ void _pthsock_server_host_validated(int valid, host h)
         {
             /* dequeue and send the waiting packets */
             while((q = (dpq)pth_msgport_get(h->mp)) != NULL)
-                mio_write(h->c->s,q->x,NULL,0);
+                mio_write(h->c->s,q->x, NULL, 0);
             pth_msgport_destroy(h->mp);
             h->mp = NULL;
         }
@@ -215,8 +212,7 @@ void _pthsock_server_host_result(void *arg)
         xmlnode_put_attrib(x, "from", h->id->resource);
         xmlnode_insert_cdata(x,  _pthsock_server_merlin(xmlnode_pool(x), h->si->secret, h->id->server, h->c->id), -1);
         log_debug(ZONE,"host result generated %s",xmlnode2str(x));
-        mio_write(h->c->s,NULL,xmlnode2str(x),-1);
-        xmlnode_free(x);
+        mio_write(h->c->s,x, NULL, 0);
         return;
     }
 
@@ -243,8 +239,7 @@ void _pthsock_server_host_verify(void *arg)
     if(!c->legacy && c->connected)
     {
         xmlnode_hide_attrib(x,"c"); /* hide it again */
-        mio_write(c->s,NULL,xmlnode2str(x),-1);
-        xmlnode_free(x);
+        mio_write(c->s, x, NULL, 0);
         return;
     }
 
@@ -260,30 +255,45 @@ void _pthsock_server_host_verify(void *arg)
     xmlnode_put_attrib(x,"type","invalid");
     h = ghash_get(c->si->hosts,spools(xmlnode_pool(x),xmlnode_get_attrib(x,"id"),"@",xmlnode_get_attrib(x,"from"),"/",xmlnode_get_attrib(x,"to"),xmlnode_pool(x))); /* should be getting the incon host */
     if(h != NULL)
-        mio_write(h->c->s, NULL, xmlnode2str(x), -1);
-    xmlnode_free(x);
+        mio_write(h->c->s, x, NULL, 0);
 }
 
 
 /************************ OUTGOING CONNECTIONS ****************************/
 
-/* process xml from a socket we made */
-void pthsock_server_outx(int type, xmlnode x, void *arg)
+/* callback for io_select for connections we've made */
+void pthsock_server_outread(mio s, int flags, void *arg, xmlnode x)
 {
     conn c = (conn)arg;
+    xmlnode header;
     host h;
     xmlnode x2;
+    char *ip, *colon;
+    int port = 5269;
 
-    log_debug(ZONE,"outgoing conn %s XML[%d]: %s",c->ips,type,xmlnode2str(x));
+    log_debug(ZONE,"outgoing conn %s IO[%d]",c->ips,flags);
 
-    switch(type)
+    switch(flags)
     {
-    case XSTREAM_ROOT:
+    case MIO_NEW: /* new socket from io_select */
+        log_debug(ZONE,"NEW outgoing server socket connected at %d",s->fd);
+        c->s = s;
+
+        /* outgoing conneciton, write the header */
+        header = xstream_header("jabber:server", c->legacy_to, NULL);
+        xmlnode_put_attrib(header,"xmlns:db","jabber:server:dialback"); /* flag ourselves as dialback capable */
+        log_debug(ZONE,"writing header to server: %s",xmlnode2str(header));
+        mio_write(c->s, NULL, xstream_header_char(header), -1);
+        xmlnode_free(header);
+
+        break;
+    case MIO_XML_ROOT:
         /* validate namespace */
         if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:server") != 0)
         {
-            mio_write(c->s, NULL, "<stream:error>Invalid Stream Header!</stream:error></stream:stream>", -1);
+            mio_write(c->s, NULL, "<stream:error>Invalid Stream Header!</stream:error>", -1);
             mio_close(c->s);
+            xmlnode_free(x);
             break;
         }
         /* check for old servers */
@@ -292,8 +302,9 @@ void pthsock_server_outx(int type, xmlnode x, void *arg)
             if(!c->si->legacy)
             { /* Muahahaha!  you suck! *click* */
                 log_notice(c->legacy_to,"Legacy server access denied to do configuration");
-                mio_write(c->s, NULL, "<stream:error>Legacy Access Denied!</stream:error></stream:stream>", -1);
+                mio_write(c->s, NULL, "<stream:error>Legacy Access Denied!</stream:error>", -1);
                 mio_close(c->s);
+                xmlnode_free(x);
                 break;
             }
             c->legacy = 1;
@@ -306,8 +317,9 @@ void pthsock_server_outx(int type, xmlnode x, void *arg)
         c->id = pstrdup(c->p,xmlnode_get_attrib(x,"id")); /* store this for the result generation */
         pool_free(c->pre); /* flag that we're clear-to-send */
         c->pre = NULL;
+        xmlnode_free(x);
         break;
-    case XSTREAM_NODE:
+    case MIO_XML_NODE:
         /* we only get db:* packets incoming! */
         if(j_strcmp(xmlnode_get_name(x),"db:result") == 0)
         {
@@ -315,8 +327,9 @@ void pthsock_server_outx(int type, xmlnode x, void *arg)
             if(h == NULL || h->c != c)
             { /* naughty... *click* */
                 log_warn(c->legacy_to,"Received illegal dialback validation from %s to %s",xmlnode_get_attrib(x,"from"),xmlnode_get_attrib(x,"to"));
-                mio_write(c->s, NULL, "<stream:error>Invalid Dialback Result!</stream:error></stream:stream>", -1);
+                mio_write(c->s, NULL, "<stream:error>Invalid Dialback Result!</stream:error>", -1);
                 mio_close(c->s);
+                xmlnode_free(x);
                 break;
             }
 
@@ -326,6 +339,7 @@ void pthsock_server_outx(int type, xmlnode x, void *arg)
             else
                 _pthsock_server_host_validated(0,h);
 
+            xmlnode_free(x);
             break;
         }
         if(j_strcmp(xmlnode_get_name(x),"db:verify") == 0)
@@ -335,15 +349,19 @@ void pthsock_server_outx(int type, xmlnode x, void *arg)
             if(h == NULL || h->c != c)
             { /* naughty... *click* */
                 log_warn(c->legacy_to,"Received illegal dialback verification from %s to %s",xmlnode_get_attrib(x,"from"),xmlnode_get_attrib(x,"to"));
-                mio_write(c->s,NULL, "<stream:error>Invalid Dialback Verify!</stream:error></stream:stream>", -1);
+                mio_write(c->s, NULL, "<stream:error>Invalid Dialback Verify!</stream:error>", -1);
                 mio_close(c->s);
+                xmlnode_free(x);
                 break;
             }
 
             /* get the incoming host */
             h = ghash_get(c->si->hosts,spools(xmlnode_pool(x),xmlnode_get_attrib(x,"id"),"@",xmlnode_get_attrib(x,"to"),"/",xmlnode_get_attrib(x,"from"),xmlnode_pool(x)));
             if(h == NULL)
+            {
+                xmlnode_free(x);
                 break; /* musta distapeared */
+            }
 
             /* if they're cool in your book, we'll agree, enable them to send packets */
             if(j_strcmp(xmlnode_get_attrib(x,"type"),"valid") == 0)
@@ -355,50 +373,11 @@ void pthsock_server_outx(int type, xmlnode x, void *arg)
             xmlnode_put_attrib(x2,"from",xmlnode_get_attrib(x,"to"));
             xmlnode_put_attrib(x2,"type",xmlnode_get_attrib(x,"type"));
             mio_write(h->c->s, NULL, xmlnode2str(x2), -1);
+            xmlnode_free(x);
             break;
         }
         /* other data on the stream? */
-    case XSTREAM_ERR:
-    case XSTREAM_CLOSE:
-        /* IO cleanup will take care of everything else */
-        mio_write(c->s, NULL, "</stream:stream>", -1);
-        mio_close(c->s);
-        break;
-    }
-    xmlnode_free(x);
-}
-
-/* callback for io_select for connections we've made */
-void pthsock_server_outread(mio s, int flags, void *arg, char *buffer, int bufsz)
-{
-    conn c = (conn)arg;
-    xmlnode x;
-    char *ip, *colon;
-    int port = 5269;
-
-    log_debug(ZONE,"outgoing conn %s IO[%d]",c->ips,flags);
-
-    switch(flags)
-    {
-    case MIO_NEW: /* new socket from io_select */
-        log_debug(ZONE,"NEW outgoing server socket connected at %d",s->fd);
-        c->xs = xstream_new(c->p, pthsock_server_outx, (void *)c);
-        c->s = s;
-
-        /* outgoing conneciton, write the header */
-        x = xstream_header("jabber:server", c->legacy_to, NULL);
-        xmlnode_put_attrib(x,"xmlns:db","jabber:server:dialback"); /* flag ourselves as dialback capable */
-        log_debug(ZONE,"writing header to server: %s",xmlnode2str(x));
-        mio_write(c->s,NULL, xstream_header_char(x), -1);
-        xmlnode_free(x);
-
-        break;
-    case MIO_BUFFER:
-        /* yum yum */
-        xstream_eat(c->xs,buffer,bufsz);
-        break;
     case MIO_CLOSED:
-
         /* remove us if we were advertised */
         ghash_remove(c->si->ips, c->ips);
 
@@ -420,18 +399,13 @@ void pthsock_server_outread(mio s, int flags, void *arg, char *buffer, int bufsz
                 colon++;
                 port=atoi(colon);
             }
-            mio_connect(ip, port, pthsock_server_outread, (void *)c, 10, NULL, NULL);
+            mio_connect(ip, port, pthsock_server_outread, (void *)c, 10, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER));
             return;
         }
 
         /* hrm, we're here, so this means we're giving up on connecting */
         pool_free(c->pre);
         pool_free(c->p);
-        break;
-    case MIO_ERROR:
-        /* bounce the write queue */
-        while((x = mio_cleanup(c->s)) != NULL )
-            deliver_fail(dpacket_new(x), "External Server Error");
         break;
     }
 }
@@ -499,7 +473,7 @@ result pthsock_server_packets(instance i, dpacket dp, void *arg)
                 colon++;
                 port=atoi(colon);
             }
-            mio_connect(ip, port, pthsock_server_outread, (void *)c, 10, NULL, NULL);
+            mio_connect(ip, port, pthsock_server_outread, (void *)c, 10, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER));
         }
 
         /* make a new host */
@@ -550,19 +524,27 @@ result pthsock_server_packets(instance i, dpacket dp, void *arg)
 
 /************************ INCOMING CONNECTIONS ****************************/
 
-/* process xml from an accept'd socket */
-void pthsock_server_inx(int type, xmlnode x, void *arg)
+/* callback for io_select for accepted sockets */
+void pthsock_server_inread(mio s, int flags, void *arg, xmlnode x)
 {
     conn c = (conn)arg;
     xmlnode x2;
     host h = NULL;
     jid to, from;
 
-    log_debug(ZONE,"incoming conn %X XML[%d]: %s",c,type,xmlnode2str(x));
+    log_debug(ZONE,"incoming conn %X IO[%d]",c,flags);
 
-    switch(type)
+    switch(flags)
     {
-    case XSTREAM_ROOT:
+    case MIO_NEW: /* new socket from io_select */
+        log_debug(ZONE,"NEW incoming server socket connected at %d",s->fd);
+        c = pmalloco(s->p, sizeof(_conn)); /* we get free'd with the socket */
+        c->s = s;
+        c->p = s->p;
+        c->si = (ssi)arg; /* old arg is si */
+        s->cb_arg = (void *)c; /* the new arg is c */
+        break;
+    case MIO_XML_ROOT:
         /* new incoming connection sent a header, write our header */
         x2 = xstream_header("jabber:server", NULL, xmlnode_get_attrib(x,"to"));
         xmlnode_put_attrib(x2,"xmlns:db","jabber:server:dialback"); /* flag ourselves as dialback capable */
@@ -574,8 +556,9 @@ void pthsock_server_inx(int type, xmlnode x, void *arg)
         /* validate namespace */
         if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:server") != 0)
         {
-            mio_write(c->s, NULL, "<stream:error>Invalid Stream Header!</stream:error></stream:stream>", -1);
+            mio_write(c->s, NULL, "<stream:error>Invalid Stream Header!</stream:error>", -1);
             mio_close(c->s);
+            xmlnode_free(x);
             break;
         }
 
@@ -586,14 +569,16 @@ void pthsock_server_inx(int type, xmlnode x, void *arg)
                 c->legacy = 1;
                 log_notice(xmlnode_get_attrib(x,"to"),"legacy server incoming connection established from %s",c->s->ip);
             }else{
-                mio_write(c->s, NULL, "<stream:error>Legacy Access Denied!</stream:error></stream:stream>", -1);
+                mio_write(c->s, NULL, "<stream:error>Legacy Access Denied!</stream:error>", -1);
                 mio_close(c->s);
+                xmlnode_free(x);
                 break;
             }
         }
 
+        xmlnode_free(x);
         break;
-    case XSTREAM_NODE:
+    case MIO_XML_NODE:
         /* check for a legacy socket */
         if(c->legacy)
         {
@@ -609,7 +594,7 @@ void pthsock_server_inx(int type, xmlnode x, void *arg)
             else
                 xmlnode_put_attrib(x,"type","invalid");
             jutil_tofrom(x);
-            mio_write(c->s, NULL, xmlnode2str(x), -1);
+            mio_write(c->s, x, NULL, 0);
             break;
         }
 
@@ -645,42 +630,15 @@ void pthsock_server_inx(int type, xmlnode x, void *arg)
             h = ghash_get(c->si->hosts, spools(xmlnode_pool(x),c->id,"@",to->server,"/",from->server,xmlnode_pool(x)));
         if(h == NULL || !h->valid || h->c != c)
         { /* dude, what's your problem!  *click* */
-            mio_write(c->s, NULL, "<stream:error>Invalid Packets Recieved!</stream:error></stream:stream>", -1);
+            mio_write(c->s, NULL, "<stream:error>Invalid Packets Recieved!</stream:error>", -1);
             mio_close(c->s);
+            xmlnode_free(x);
             break;
         }
 
         /* all cool */
         deliver(dpacket_new(x),c->si->i);
         return;
-    case XSTREAM_ERR:
-    case XSTREAM_CLOSE:
-        /* things clean up for themselves */
-        mio_write(c->s, NULL, "</stream:stream>", -1);
-        mio_close(c->s);
-        break;
-    }
-    xmlnode_free(x);
-}
-
-/* callback for io_select for accepted sockets */
-void pthsock_server_inread(mio s, int flags, void *arg, char *buffer, int bufsz)
-{
-    conn c = (conn)arg;
-
-    switch(flags)
-    {
-    case MIO_NEW: /* new socket from io_select */
-        log_debug(ZONE,"NEW incoming server socket connected at %d",s->fd);
-        c = pmalloco(s->p, sizeof(_conn)); /* we get free'd with the socket */
-        c->s = s;
-        c->p = s->p;
-        c->si = (ssi)arg;
-        c->xs = xstream_new(c->p, pthsock_server_inx, (void *)c);
-        mio_reset(s, pthsock_server_inread, (void*)c);
-        break;
-    case MIO_BUFFER:
-        xstream_eat(c->xs,buffer,bufsz);
     }
 }
 
@@ -753,19 +711,21 @@ void pthsock_server(instance i, xmlnode x)
     if((cur = xmlnode_get_tag(cfg,"ip")) != NULL)
         for(;cur != NULL; xmlnode_hide(cur), cur = xmlnode_get_tag(cfg,"ip"))
         {
-            mio m = mio_listen(j_atoi(xmlnode_get_attrib(cur, "port"), 5269), xmlnode_get_data(cur), pthsock_server_inread, (void*)si, NULL, NULL);
+            mio m;
+            m = mio_listen(j_atoi(xmlnode_get_attrib(cur,"port"),5269),xmlnode_get_data(cur),pthsock_server_inread,(void*)si, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER));
             mio_rate(m, j_atoi(xmlnode_get_attrib(xmlnode_get_tag(cfg,"rate"),"time"),5),j_atoi(xmlnode_get_attrib(xmlnode_get_tag(cfg,"rate"),"points"),25));
             mio_karma2(m, &k);
         }
     else /* no special config, use defaults */
     {
-        mio m = mio_listen(5269, NULL, pthsock_server_inread, (void*)si, NULL, NULL);
-        mio_rate(m, j_atoi(xmlnode_get_attrib(xmlnode_get_tag(cfg,"rate"),"time"),5),j_atoi(xmlnode_get_attrib(xmlnode_get_tag(cfg,"rate"),"points"),25));
+        mio m;
+        m = mio_listen(5269,NULL,pthsock_server_inread,(void*)si, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER));
+        mio_rate(m, j_atoi(xmlnode_get_attrib(xmlnode_get_tag(cfg,"rate"),"time"),5), j_atoi(xmlnode_get_attrib(xmlnode_get_tag(cfg,"rate"),"points"),25));
         mio_karma2(m, &k);
     }
 
     register_phandler(i,o_DELIVER,pthsock_server_packets,(void*)si);
-    pool_cleanup(i->p, pthsock_server_shutdown, (void*)si);
+    register_shutdown(pthsock_server_shutdown, (void*)si);
     register_beat(15, pthsock_server_beat, (void *)si);
 
     xmlnode_free(cfg);
