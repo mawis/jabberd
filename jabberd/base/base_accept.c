@@ -71,7 +71,7 @@ typedef struct accept_instance_st
     xdbcache offline;
     jid offjid;
     queue q;
-    //dpacket dplast;
+    /* dpacket dplast; */
 } *accept_instance, _accept_instance;
 
 void base_accept_queue(accept_instance ai, xmlnode x)

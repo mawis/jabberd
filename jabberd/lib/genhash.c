@@ -41,8 +41,6 @@
 
 #include <jabberdlib.h>
 
-#ifdef INCLUDE_LEGACY
-
 /**
  * @file genhash.c
  * @brief stubs that hook back to new xhash - DEPRECATED
@@ -54,6 +52,8 @@
  *
  * @deprecated use xhash instead!
  */
+
+#ifdef INCLUDE_LEGACY
 
 /**
  * create a 'ghash'

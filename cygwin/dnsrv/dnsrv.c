@@ -96,8 +96,9 @@ typedef struct __dns_packet_list
 
 
 
-// ---------------------------------------------------------------------------
-// This code is not used in cygwin
+/* ---------------------------------------------------------------------------
+ * This code is not used in cygwin
+ */
 #ifndef __CYGWIN__
 
 
@@ -224,8 +225,9 @@ int dnsrv_fork_and_capture(RESOLVEFUNC f, dns_io di)
 
 
 
-// ---------------------------------------------------------------------------
-// Replacement functions for cygwin
+/* ---------------------------------------------------------------------------
+ * Replacement functions for cygwin
+ */
 
 #ifdef __CYGWIN__
 
@@ -251,29 +253,30 @@ int dnsrv_fork_and_capture(RESOLVEFUNC f, dns_io di)
   int READ=0;
   int WRITE=1;
   
-  // create pipes for communication with child
+  /* create pipes for communication with child */
   pipe(childToParent);
   pipe(parentToChild);
 
-  // convert the handles as they should be seen by the child to 
-  // strings so we can pass them as arguments to it
+  /* convert the handles as they should be seen by the child to 
+   * strings so we can pass them as arguments to it
+   */
   sprintf(childWriteHandle, "%i", childToParent[WRITE]);
   sprintf(childReadHandle, "%i", parentToChild[READ]);
   sprintf(debugging, "%i", get_debug_flag());
   
-  // try and spawn the child process
+  /* try and spawn the child process */
   pid = spawnlp(_P_NOWAIT, "jabadns", "jabadns", 
                 childReadHandle, childWriteHandle, debugging, NULL);
   if (pid < 0) {
     return -1;
   }
   
-  // setup di structure
+  /* setup di structure */
   di->pid = pid;
   di->in = childToParent[READ];
   di->out = parentToChild[WRITE];
   
-  // OK!
+  /* OK! */
   return pid;
 }
 
