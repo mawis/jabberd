@@ -64,7 +64,7 @@ typedef struct accept_instance_st
     char *secret;
     int port;
     int timeout;
-    int restrict;
+    int restrict_var;
     xdbcache offline;
     jid offjid;
     queue q;
@@ -157,7 +157,7 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
                 */
 
                 /* if we are supposed to be careful about what comes from this socket */
-                if(ai->restrict)
+                if(ai->restrict_var)
                 {
                     jp = jpacket_new(x);
                     if(jp->type == JPACKET_UNKNOWN || jp->to == NULL || jp->from == NULL || deliver_hostcheck(jp->from->server) != ai->i)
@@ -358,7 +358,7 @@ result base_accept_config(instance id, xmlnode x, void *arg)
     inst->port        = port;
     inst->timeout     = j_atoi(xmlnode_get_tag_data(x, "timeout"),10);
     if(xmlnode_get_tag(x,"restrict") != NULL)
-        inst->restrict = 1;
+        inst->restrict_var = 1;
     if(xmlnode_get_tag(x,"offline") != NULL)
     {
         inst->offline = xdb_cache(id);
