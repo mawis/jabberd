@@ -132,11 +132,13 @@ void base_accept_read_packets(int type, xmlnode x, void *arg)
         cur = xstream_header("jabberd:sockets",NULL,NULL);
         a->id = pstrdup(a->p,xmlnode_get_attrib(cur,"id"));
         block = xstream_header_char(cur);
+        log_debug(ZONE,"socket connected, sending xstream header: %s",block);
         pth_write(a->sock,block,strlen(block));
         xmlnode_free(cur);
         xmlnode_free(x);
         break;
     case XSTREAM_NODE:
+        log_debug(ZONE,"base_accept: %s",xmlnode2str(x));
         if(a->emp != NULL) /* we're full open */
         {
             deliver(dpacket_new(x), a->s->i);

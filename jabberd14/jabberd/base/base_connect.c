@@ -114,7 +114,7 @@ void base_connect_handle_xstream_event(int type, xmlnode x, void* arg)
      conn_info ci  = (conn_info)arg;
      xmlnode   cur = NULL;
      char*     strbuf = NULL;
-      char      hashbuf[40];      
+     char*     hashbuf;      
 
      switch(type)
      {
@@ -122,12 +122,12 @@ void base_connect_handle_xstream_event(int type, xmlnode x, void* arg)
 	  /* Extract the stream ID and generate a key to hash*/
 	  strbuf = spools(x->p, xmlnode_get_attrib(x, "id"),ci->secret, x->p);
 	  /* Calculate SHA hash */
-	  shahash_r(strbuf,hashbuf);
-	  log_debug(ZONE, "Hashing: %s\t\nResult: %s\n", strbuf, &hashbuf);
+	  hashbuf=shahash(strbuf);
+	  log_debug(ZONE, "Hashing: %s\t\nResult: %s\n", strbuf, hashbuf);
 
 	  /* Build a handshake packet */
 	  cur = xmlnode_new_tag_pool(x->p, "handshake");
-	  xmlnode_insert_cdata(cur, (const char*) &hashbuf, sizeof(hashbuf));
+	  xmlnode_insert_cdata(cur, hashbuf,-1);
 	  /* Transmit handshake request */	  
 	  strbuf = xmlnode2str(cur);
 	  pth_write(ci->socket, strbuf, strlen(strbuf));
@@ -264,7 +264,6 @@ result base_connect_config(instance id, xmlnode x, void *arg)
      if(id == NULL)
      {
         spool sp=NULL;
-        char *secret=xmlnode_get_data(xmlnode_get_tag(x,"secret"));
         int error=0;
 
         log_debug(ZONE,"base_accept_config validating configuration\n");

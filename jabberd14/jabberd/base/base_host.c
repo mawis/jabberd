@@ -21,7 +21,7 @@
 
 /*
     <host>hostname.org</host>
-    <host>.polld.isp.net</host> [the . flags any domain matching that]
+    <host>*.polld.isp.net</host> [the . flags any domain matching that]
     <host/>
 */
 
