@@ -44,6 +44,14 @@
  * @brief header for the dialback implementation
  */
 
+/**
+ * @dir dialback
+ * @brief implementation of the server to server connection manager
+ *
+ * The dialback directory contains the module, that implements server to server (s2s)
+ * connections.
+ */
+
 #include <jabberd.h>
 
 /** s2s instance */
