@@ -133,26 +133,31 @@ xmlnode mod_groups_get_top(mod_groups_i  mi, pool p, char *host)
 
 int _mod_groups_require(void *arg, const void *gid, void *data)
 {
-    xmlnode result = (xmlnode) arg;
     xmlnode gc = (xmlnode) data;
-    xmlnode group;
-    pool p;
 
-    if (xmlnode_get_tag(gc,"require") == NULL) return 1;
-
-    log_debug("mod_groups","required group %s",gid);
-
-    p = xmlnode_pool(result);
-    group = xmlnode_get_tag(result,spools(p,"?id=",gid,p));
-
-    if (group == NULL)
+    if (xmlnode_get_tag(gc,"require"))
     {
-        group = xmlnode_insert_tag(result,"group");
-        xmlnode_put_attrib(group,"id",gid);
-    }
+        xmlnode result = (xmlnode) arg;
+        xmlnode group;
+        pool p;
 
-    if (xmlnode_get_tag(xmlnode_get_tag(gc,"users"),xmlnode_get_attrib(result,"jid")) != NULL)
-        xmlnode_put_attrib(group,"subscription","both");
+        log_debug("mod_groups","required group %s",gid);
+
+        p = xmlnode_pool(result);
+        group = xmlnode_get_tag(result,spools(p,"?id=",gid,p));
+
+        if (group == NULL)
+        {
+            group = xmlnode_insert_tag(result,"group");
+            xmlnode_put_attrib(group,"id",gid);
+
+            /* remember, jid attrib is "?jid=<jid>" */
+            if (xmlnode_get_tag(xmlnode_get_tag(gc,"users"),xmlnode_get_attrib(result,"jid")) != NULL)
+                xmlnode_put_attrib(group,"subscription","both");
+        }
+        else
+            xmlnode_put_attrib(group,"subscription","both");  
+    }
 
     return 1;
 }
@@ -162,7 +167,8 @@ xmlnode mod_groups_get_current(mod_groups_i mi, jid id)
     xmlnode result;
     pool p;
 
-    result = xdb_get(mi->xc,jid_user(id),NS_XGROUPS);
+    id = jid_user(id);
+    result = xdb_get(mi->xc,id,NS_XGROUPS);
 
     if (result == NULL)
         result = xmlnode_new_tag("query");
@@ -387,8 +393,12 @@ void mod_groups_browse_result(pool p, jpacket jp, xmlnode group, char *host)
     char *name, *id;
 
     jutil_iqresult(jp->x);
-    q = xmlnode_insert_tag(jp->x,"query");
-    xmlnode_put_attrib(q,"xmlns",NS_XGROUPS);
+    q = xmlnode_insert_tag(jp->x,"item");
+    xmlnode_put_attrib(q,"xmlns",NS_BROWSE);
+    xmlnode_put_attrib(q,"jid",jid_full(jp->to));
+
+    name = xmlnode_get_tag_data(group,"name");
+    xmlnode_put_attrib(q,"name",name ? name : "Toplevel groups");
 
     for (cur = xmlnode_get_firstchild(group); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
@@ -398,7 +408,7 @@ void mod_groups_browse_result(pool p, jpacket jp, xmlnode group, char *host)
 
         if (j_strcmp(name,"group") == 0)
         {
-            tag = xmlnode_insert_tag(q,"folder");
+            tag = xmlnode_insert_tag(q,"item");
             xmlnode_put_attrib(tag,"name",xmlnode_get_attrib(cur,"name"));
             id = spools(p,host,"/groups/",xmlnode_get_attrib(cur,"id"),p);
             xmlnode_put_attrib(tag,"jid",id);
@@ -406,7 +416,8 @@ void mod_groups_browse_result(pool p, jpacket jp, xmlnode group, char *host)
         else if (j_strcmp(name,"user") == 0)
         {
             tag = xmlnode_insert_tag(q,"user");
-            xmlnode_put_attrib(tag,"jid",xmlnode_get_attrib(cur,"jid"));
+            xmlnode_put_attrib(tag,"jid",xmlnode_get_attrib(cur,"jid")); 
+            xmlnode_put_attrib(tag,"name",xmlnode_get_attrib(cur,"name"));
         }
     }
 }
@@ -416,10 +427,9 @@ void mod_groups_browse(mod_groups_i mi, mapi m)
     jpacket jp = m->packet;
     udata u = m->user;
     xmlnode group;
-    pool p;
+    pool p = jp->p;
     char *res, *host, *gid;
 
-    p = xmlnode_pool(jp->x);
     host = u->id->server;
     res = pstrdup(p,jp->to->resource);
 
