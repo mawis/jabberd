@@ -90,6 +90,24 @@ void dialback_miod_write(miod md, xmlnode x)
     mio_write(md->m, x, NULL, -1);
 }
 
+void dialback_miod_read(miod md, xmlnode x)
+{
+    jpacket jp = jpacket_new(x);
+
+    /* only accept valid jpackets! */
+    if(jp == NULL)
+    {
+        log_warn(md->d->i->id, "dropping invalid packet from server: %s",xmlnode2str(x));
+        xmlnode_free(x);
+        return;
+    }
+
+    /* send it on! */
+    md->count++;
+    md->last = time(NULL);
+    deliver(dpacket_new(x),md->d->i);
+}
+
 miod dialback_miod_new(db d, mio m)
 {
     miod md;

@@ -133,7 +133,7 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
         return;
     }
 
-    dialback_miod_write(md, x);
+    dialback_miod_read(md, x);
 }
 
 
