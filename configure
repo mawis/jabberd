@@ -85,7 +85,7 @@ case $hosttype in
         if [ -n "$LDTEST" ]; then
             XLDFLAGS="$XLDFLAGS -Wl,-export-dynamic"
         fi
-        CFLAGS="$CFLAGS"
+        CFLAGS="$CFLAGS -D_REENTRANT"
         LIBS="$LIBS -ldl -lsocket -lnsl -lresolv";;
     FreeBSD)
         XLDFLAGS="$XLDFLAGS -Wl,-E";;
