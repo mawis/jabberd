@@ -321,6 +321,7 @@ int _connect_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
         break;
 
     case action_ACCEPT:
+    case action_IDLE:
         break;
     }
     return 0;
