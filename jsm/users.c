@@ -43,22 +43,36 @@
 
 #include "jsm.h"
 
-int js__usercount = 0;
-/*
- *  _js_users_del -- call-back for deleting user from the hash table
+/**
+ * @file users.c
+ * @brief functions for manipulating data for logged in users
+ *
+ * Contains the garbage collector for user records we don't need in memory anymore and
+ * the function to load user records to memory.
+ */
+
+/**
+ * structure used to pass a hashtable and a counter to _js_users_del()
+ */
+typedef struct ht_count_struct {
+    xht ht;		/**< hashtable containing the users of a host */
+    int *count;		/**< reference to the counter for the number of online users */
+} *ht_count, _ht_count;
+
+/**
+ * call-back for deleting user from the hash table
  *  
- *  This function is called periodically by the user data garbage collection
- *  thread. It removes users aren't logged in from the global hashtable.
+ * This function is called periodically by the user data garbage collection
+ * thread. It removes users aren't logged in from the global hashtable.
  *
- *  parameters
- *  	arg -- not used
- *		key -- the users key in the hashtable, not used
- *      data -- the user data to check
- *
+ * @param h the hash table containing the users of the presently cleaned host
+ * @param key the user
+ * @param data the user's data
+ * @param arg structure holding the hashtable of hosts and the user counter
  */
 void _js_users_del(xht h, const char *key, void *data, void *arg)
 {
-    xht ht = (xht)arg;
+    ht_count htc = (ht_count)arg;
     udata u = (udata)data;	/* cast the pointer into udata */
 
     /*
@@ -66,50 +80,66 @@ void _js_users_del(xht h, const char *key, void *data, void *arg)
      * is positive, or if there are active sessions
      * we can't free it, so return immediately
      */
-    if(u->ref > 0 || (u->sessions != NULL && ++js__usercount))
+    if(u->ref > 0 || (u->sessions != NULL && ++*(htc->count)))
         return;
 
     log_debug2(ZONE, LOGT_SESSION, "freeing %s",u->user);
 
-    xhash_zap(ht,u->user);
+    xhash_zap(htc->ht,u->user);
     pool_free(u->p);
 }
 
 
-/* callback for walking the host hash tree */
+/**
+ * xhash_walker callback for walking the host hash tree
+ *
+ * @param h the hash table containing all hosts
+ * @param key the host for which the callback ist called
+ * @param data the hashtable containing the users of this host
+ * @param arg pointer to the user counter
+ */
 void _js_hosts_del(xht h, const char *key, void *data, void *arg)
 {
-    xht ht = (xht)data;
+    _ht_count htc;
+    htc.ht = (xht)data;
+    htc.count = (int*)arg;
 
     log_debug2(ZONE, LOGT_SESSION, "checking users for host %s",(char*)key);
 
-    xhash_walk(ht,_js_users_del,ht);
+    xhash_walk(htc.ht, _js_users_del, &htc);
 }
 
-/*
- *  js_users_gc is a heartbeat that
- *  flushes old users from memory.  
+/**
+ *  js_users_gc is a heartbeat that flushes old users from memory.  
+ *
+ *  @param arg the session manager internal data
+ *  @return always r_DONE
  */
 result js_users_gc(void *arg)
 {
     jsmi si = (jsmi)arg;
 
     /* free user struct if we can */
-    js__usercount = 0;
-    xhash_walk(si->hosts,_js_hosts_del,NULL);
+    int js__usercount = 0;
+    xhash_walk(si->hosts,_js_hosts_del, &js__usercount);
     log_debug2(ZONE, LOGT_STATUS, "%d\ttotal users",js__usercount);
     return r_DONE;
 }
 
 
 
-/*
- *  js_user -- gets the udata record for a user
+/**
+ *  get the udata record for a user
  *  
  *  js_user attempts to locate the user data record
  *  for the specifed id. First it looks in current list,
  *  if that fails, it looks in xdb and creates new list entry.
  *  If THAT fails, it returns NULL (not a user).
+ *
+ *  @param si the session manager instance data
+ *  @param id which user to load
+ *  @param ht the hash table for the host the user belongs to (may be NULL)
+ *  @return the udata record for the user, NULL if no such user
  */
 udata js_user(jsmi si, jid id, xht ht)
 {
@@ -148,8 +178,8 @@ udata js_user(jsmi si, jid id, xht ht)
     /* try to get the user auth data from xdb */
     x = xdb_get(si->xc, uid, NS_AUTH);
 
-    /* try to get hashed user auth data from xdb */
-    y = xdb_get(si->xc, uid, NS_AUTH_CRYPT);
+    /* try to get hashed user auth data from xdb, if there was no plain data */
+    y = (x == NULL) ? xdb_get(si->xc, uid, NS_AUTH_CRYPT) : NULL;
 
     /* does the user exist? */
     if (x == NULL && y == NULL)

@@ -43,18 +43,19 @@
 
 #include "jsm.h"
 
-/*
- *  js_bounce_xmpp -- short_desc
- *  
- *  Long_description
- *
- *  parameters
- *  	x -- the node to bounce
- *      xterr - the error code describing the reason for the bounce
- *
+/**
+ * @file util.c
+ * @brief utility functions for jsm
  */
-void js_bounce_xmpp(jsmi si, xmlnode x, xterror xterr)
-{
+
+/**
+ * generate an error packet, that bounces a packet back to the server
+ *
+ * @param si the session manger instance
+ * @param x the xmlnode for which the bounce packet should be generated
+ * @param xterr the reason for the bounce
+ */
+void js_bounce_xmpp(jsmi si, xmlnode x, xterror xterr) {
     /* if the node is a subscription */
     if(j_strcmp(xmlnode_get_name(x),"presence") == 0 && j_strcmp(xmlnode_get_attrib(x,"type"),"subscribe") == 0)
     {
@@ -83,16 +84,15 @@ void js_bounce_xmpp(jsmi si, xmlnode x, xterror xterr)
 
 }
 
-
-/*
- *  js_bounce -- short_desc
- *  
- *  Long_description
+#ifdef INCLUDE_LEGACY
+/**
+ * generate an error packet, that bounces a packet back to the server - using a legacy/pre-xmpp reason
  *
- *  parameters
- *  	x -- the node to bounce
- *      terr - the error code describing the reason for the bounce
+ * This function mapps the legacy/pre-xmpp reason to a xmpp-style reasond and calls js_bounce_xmpp() with that.
  *
+ * @param si the session manager instance
+ * @param x the xmlnode that generated the bounce
+ * @param terr the error code describing the reason for the bounce
  */
 void js_bounce(jsmi si, xmlnode x, terror terr)
 {
@@ -101,23 +101,19 @@ void js_bounce(jsmi si, xmlnode x, terror terr)
     jutil_error_map(terr, &xterr);
     js_bounce_xmpp(si, x, xterr);
 }
+#endif
 
 
-/*
- *  js_config -- get a configuration node
+/**
+ * get a configuration node inside the session manager configuration
  *
- *  parameters
- *      si -- session instance
- *      query -- the path through the tag hierarchy of the desired tag
- *               eg. for the conf file <foo><bar>bar value</bar><baz/><foo>
- *               use "foo/bar" to retreive the bar node
- *
- *  returns
- *      a pointer to the xmlnode specified in query
- *      or the root config node if query is null
+ * @param si the session manager instance data
+ * @param query the path through the tag hierarchy of the desired tag, eg. for the conf file
+ * 	<foo><bar>bar value</bar><baz/></foo> use "foo/bar" to retrieve the bar node, may be
+ * 	NULL to get the root node of the jsm config
+ * @return a pointer to the xmlnode, or NULL if no such node could be found
  */
-xmlnode js_config(jsmi si, char *query)
-{
+xmlnode js_config(jsmi si, char *query) {
 
     log_debug2(ZONE, LOGT_CONFIG, "config query %s",query);
 
@@ -127,7 +123,13 @@ xmlnode js_config(jsmi si, char *query)
         return xmlnode_get_tag(si->config, query);
 }
 
-/* macro to make sure the jid is a local user */
+/**
+ * macro to make sure the jid is a local user
+ *
+ * @param si the session manager instance data
+ * @param id the user to test
+ * @return 0 if the user is not local, 1 if the user is local
+ */
 int js_islocal(jsmi si, jid id)
 {
     if(id == NULL || id->user == NULL) return 0;
@@ -135,19 +137,22 @@ int js_islocal(jsmi si, jid id)
     return 1;
 }
 
-/* macro to validate a user as an admin */
-int js_admin(udata u, int flag)
-{
+/**
+ * macro to validate a user as an admin
+ *
+ * @param u the udata structure of the user
+ * @param flag for which right we want to check ADMIN_READ or ADMIN_WRITE
+ * @return 1 if the user has the queried admin right, 0 if not
+ */
+int js_admin(udata u, int flag) {
     if(u == NULL || u->admin == ADMIN_NONE) return 0;
 
-    if(u->admin == ADMIN_UNKNOWN)
-    {
-        if(js_config(u->si, spools(u->p,"admin/write=",jid_full(u->id),u->p)) != NULL)
-        {
+    if(u->admin == ADMIN_UNKNOWN) {
+        if(js_config(u->si, spools(u->p,"admin/write=",jid_full(u->id),u->p)) != NULL) {
             u->admin = ADMIN_READ | ADMIN_WRITE;
-        }else if(js_config(u->si, spools(u->p,"admin/read=",jid_full(u->id),u->p)) != NULL){
+        } else if (js_config(u->si, spools(u->p,"admin/read=",jid_full(u->id),u->p)) != NULL) {
             u->admin = ADMIN_READ;
-        }else{
+        } else {
             u->admin = ADMIN_NONE;
         }
     }
@@ -158,9 +163,13 @@ int js_admin(udata u, int flag)
     return 0;
 }
 
-
-jid js_trustees(udata u)
-{
+/**
+ * get the list of jids, that are subscribed to a given user
+ *
+ * @param u for which user to get the list
+ * @return pointer to the first list entry
+ */
+jid js_trustees(udata u) {
     xmlnode roster, cur;
 
     if(u == NULL) return NULL;
@@ -174,8 +183,7 @@ jid js_trustees(udata u)
 
     /* fill in rest from roster */
     roster = xdb_get(u->si->xc, u->id, NS_ROSTER);
-    for(cur = xmlnode_get_firstchild(roster); cur != NULL; cur = xmlnode_get_nextsibling(cur))
-    {
+    for(cur = xmlnode_get_firstchild(roster); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
         if(j_strcmp(xmlnode_get_attrib(cur,"subscription"),"from") == 0 || j_strcmp(xmlnode_get_attrib(cur,"subscription"),"both") == 0)
             jid_append(u->utrust,jid_new(u->p,xmlnode_get_attrib(cur,"jid")));
     }
@@ -185,7 +193,13 @@ jid js_trustees(udata u)
 }
 
 
-/* this tries to be a smarter jid matcher, where a "host" matches any "user@host" and "user@host" matches "user@host/resource" */
+/**
+ * this tries to be a smarter jid matcher, where a "host" matches any "user@host" and "user@host" matches "user@host/resource"
+ *
+ * @param id the jid that should be checked
+ * @param match the jid that should be matched
+ * @return 0 if it did not match, 1 if it did match
+ */
 int _js_jidscanner(jid id, jid match)
 {
     for(;id != NULL; id = id->next)
@@ -200,7 +214,13 @@ int _js_jidscanner(jid id, jid match)
     return 0;
 }
 
-/* returns true if id is trusted for this user */
+/**
+ * check if a id is trusted (allowed to see the presence of a user)
+ *
+ * @param u the user for which the check should be made
+ * @param id the jid which should be checked if it is trusted
+ * @return 0 if it is not trusted, 1 if it is trusted
+ */
 int js_trust(udata u, jid id)
 {
     if(u == NULL || id == NULL) return 0;
@@ -214,16 +234,18 @@ int js_trust(udata u, jid id)
     return 0;
 }
 
-
-/* returns true if this mapi call is for the "online" event, sucks, should just rewrite the whole mapi to make things like this better */
-int js_online(mapi m)
-{
+/**
+ * check if a mapi call is for the "online" event
+ *
+ * sucks, should just rewrite the whole mapi to make things like this better
+ *
+ * @param m the mapi call
+ * @return 1 if the mapi call is for the "online" event, 0 else
+ */
+int js_online(mapi m) {
     if(m == NULL || m->packet == NULL || m->packet->to != NULL || m->s == NULL || m->s->priority >= -128) return 0;
 
     if(jpacket_subtype(m->packet) == JPACKET__AVAILABLE || jpacket_subtype(m->packet) == JPACKET__INVISIBLE) return 1;
 
     return 0;
 }
-
-
-
