@@ -1,0 +1,143 @@
+-------------------------
+Config File Documentation
+-------------------------
+
+--  <jabberd:include/> and <jabberd:cmdline/> for special config 
+    file manipulation.  <jabberd:include/> will insert an xml 
+    file in place, where the <jabberd:include/> tag is located. 
+    NOTE: there are a few odities that should be mentioned here.
+    the xml from the new file is inserted into the parent tag
+    that has the <jabberd:include/> tag in it. (the include tag
+    is removed). and the new file's xml data is inserted after
+    all the other children in the tag.
+    ALSO NOTE: if the parent tag does not match the root tag of
+    the inserted file, then the whole new xml file is inserted
+    into the first file, root tag and all.  HOWEVER, if the 
+    inserted file's root tag matches the parent tag of the include,
+    then only the data INSIDE the root tag is inserted.  for example,
+    consider this file:
+
+            <jabberd>
+              <jabberd:include>test.xml</jabberd:include>
+              <service id="bar">
+                ...
+              </service>
+            </jabberd>
+
+            -- test.xml --
+
+            <jabberd>
+              <service id="foo">
+                ...
+              </service>
+            </jabberd>
+
+    in this case, since the root tag of test.xml is <jabberd/>, and
+    matches the parent tag that has the <jabberd:include/> tag in it,
+    the CONTENTS of the root tag are inserted, to create this file:
+
+            <jabberd>
+              <service id="foo">
+                ...
+              </service>
+              <service id="bar">
+                ...
+              </service>
+            </jabberd>
+
+    however, if you consider these two files:
+
+            <jabberd>
+                <service id="foo">
+                    <jabberd:include>test.xml</jabberd:include>
+                </service>
+            </jabberd>
+
+            -- test.xml --
+
+            <accept>
+              <ip>12.34.56.78</ip>
+            </accept>
+
+    after test.xml is included, you end up with this xml file:
+
+            <jabberd>
+              <service id="foo">
+                  <accept>
+                    <ip>12.34.56.78</ip>
+                  </accept>
+              </service>
+            </jabberd>
+
+
+
+ -- <jabberd:cmdline/> tag:  The jabberd:cmdline tag can be used
+    to grab data off of the jabberd command line, and insert it
+    into the current tag.  You can also use this tag to specify
+    a default value, if the commandline flag isn't given.
+    For example, consider the following config file:
+
+            <jabberd>
+             <service id="foo">
+              <host><jabberd:cmdline flag="h">localhost</jabberd:cmdline></host>
+             </service>
+            </jabberd>
+
+    if jabberd is run with the following line:
+
+        $ jabberd -h foo.com
+
+    The text inside of <host/> will be replaced with "foo.com", 
+    so the resulting xml will be:
+
+            <jabberd>
+             <service id="foo">
+              <host>foo.com</host>
+             </service>
+            </jabberd>
+
+    However, if jabberd is run with this command:
+
+        $ jabberd
+
+    The <host/> tag will contain "localhost" (the default value from
+    above).  You can specify any number of command line options.  The
+    Only characters that have special meaning are -D, to enable debug
+    output, and -c, to specify a config file to use.  (note that you
+    could use the tag <jabberd:cmdline flag="c"/> to insert the name
+    of the config file into your config file.
+
+----------------------------
+Jabberd Command Line Parsing
+----------------------------
+
+    The jabberd command line offers a wide range of possibilties,
+    especially when used with the jabberd:cmdline tag in your config
+    files.  Take the following Command line:
+
+        $ jabberd -D -c jabber.xml -h foo.com -p 5222
+
+    The -D flag enables debugging output to be displayed to stderr,
+    the "-c jabber.xml" flag tells jabberd to use jabber.xml for its
+    config file.  The other two flags are not used directly by jabberd,
+    but are passed on to the config file, and can be used in the 
+    <jabberd:cmdline/> tags, to fill in values. Each command has to have
+    a value after it.  The following command line is invalid:
+
+        $ jabberd -c -h
+
+    Because there is no value to pass onto the -c flag.  Also, you may
+    rewrite the first example as:
+
+        $ jabberd -Dchp jabber.xml foo.com 5222
+
+    and jabberd will know to associeate the -c with jabber.xml, the -h
+    with foo.com and the -p with 5222.
+
+        $ jabberd -Dc jabber.xml -hp foo.com 5222
+
+    is also perfectly legal.  NOTE that only the -D and -c command line
+    flags have special meaning to jabberd.  The -D enables debug output,
+    and the -c flag specifies the config file to use. (this flag is also
+    passed on to the config file, and may be used to insert the name of
+    the config file, into the config file).
