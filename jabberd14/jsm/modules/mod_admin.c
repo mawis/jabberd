@@ -302,7 +302,7 @@ mreturn mod_admin_message(mapi m, void *arg)
     for(cur = xmlnode_get_firstchild(js_config(m->si,"admin")); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
 	element_name = xmlnode_get_name(cur);
-        if(element_name == NULL || (j_strcmp(element_name, "read")!=NULL && j_strcmp(element_name, "write")!=NULL) || xmlnode_get_data(cur) == NULL) continue;
+        if(element_name == NULL || (j_strcmp(element_name, "read")!=0 && j_strcmp(element_name, "write")!=0) || xmlnode_get_data(cur) == NULL) continue;
 
         p = jpacket_new(xmlnode_dup(m->packet->x));
         p->to = jid_new(p->p,xmlnode_get_data(cur));
