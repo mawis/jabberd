@@ -186,6 +186,7 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
             {
                 mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Invalid handshake</text></stream:error>", -1);
                 mio_close(m);
+		break;
             }
 
             /* Send a handshake confirmation */

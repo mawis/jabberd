@@ -1,3 +1,10 @@
+2004-05-23  Matthias Wimmer  <m@tthias.net>
+
+    * jabber.xml.dist.in: send an xml:lang attribute in messages
+    * jsm/modules/mod_admin.c: same
+    * jsm/modules/mod_register.c: same
+    * jabberd/base/base_accept.c: don't send <handshake/> after auth failure
+
 2004-05-22  Matthias Wimmer  <m@tthias.net>
 
     * configure.in: creating platform-settings file for old transports
