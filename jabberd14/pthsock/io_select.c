@@ -174,7 +174,7 @@ void io_write_str(sock c,char *buffer)
     write(c->fd,buffer,strlen(buffer));
 }
 
-/* write an xmlnode */
+/* adds an xmlnode to the write buffer */
 void io_write(sock c,xmlnode x)
 {
     ios io_data=(ios)c->iodata;
@@ -198,6 +198,7 @@ void io_write(sock c,xmlnode x)
     pth_raise(io_data->t,SIGUSR2);
 }
 
+/* struct passed to the connecting thread */
 typedef struct connect_st
 {
     pool p;
@@ -206,6 +207,8 @@ typedef struct connect_st
     int port;
 } _conn_st, *conn_st;
 
+/* pth thread to connect to a remote host */
+/* if this were using pthreads, this wouldn't block the server */
 void _io_select_connect(void *arg)
 {
     conn_st cst=(conn_st)arg;
@@ -274,6 +277,7 @@ void _io_select_connect(void *arg)
     pth_raise(io_data->t,SIGUSR2);
 }
 
+/* request to connect to a remote host */
 void io_select_connect(iosi io_instance,char *host, int port,void *arg)
 {
     sock c;
@@ -294,6 +298,7 @@ void io_select_connect(iosi io_instance,char *host, int port,void *arg)
     pth_spawn(PTH_ATTR_DEFAULT,(void*)_io_select_connect,(void*)cst);
 }
 
+/* accept an incoming connection from a listen sock */
 sock _io_accept(ios io_data,int asock)
 {
     struct sockaddr_in sa;
@@ -314,7 +319,6 @@ sock _io_accept(ios io_data,int asock)
 
     log_debug(ZONE,"pthsock_client: new socket accepted (fd: %d, ip: %s, port: %d)",fd,inet_ntoa(sa.sin_addr),ntohs(sa.sin_port));
 
-
     p = pool_new();
     c = pmalloco(p, sizeof(_sock));
     log_debug(ZONE,"new sock created as %X",c);
@@ -330,11 +334,7 @@ sock _io_accept(ios io_data,int asock)
     return c;
 }
 
-void sig_handler(int arg)
-{
-    log_debug(ZONE,"\n\n\n\nSIGNAL CAUGHT\n\n\n\n\n");
-}
-
+/* main select loop thread */
 void _io_main(void *arg)
 {
     ios io_data=(ios)arg;
@@ -472,7 +472,7 @@ void _io_main(void *arg)
     }
 }
 
-/* everything starts here */
+/* call to start listening with select */
 iosi io_select(int port,io_cb cb,void *arg)
 {
     ios io_data;
