@@ -23,7 +23,7 @@ jabberd_OBJECTS = \
 	mio.o \
 	mio_raw.o \
 	mio_xml.o \
-    mio_ssl.o \
+	mio_ssl.o \
 	deliver.o \
 	heartbeat.o \
 	jabberd.o \
@@ -64,7 +64,7 @@ jabberd_EXOBJECTS = \
 	base/base_format.o \
 	base/base_stderr.o \
 	base/base_to.o
-	
+
 jabberd_STATICOBJS=\
 	$(JHOME)/jsm/deliver.o \
 	$(JHOME)/jsm/jsm.o \
@@ -96,12 +96,20 @@ jabberd_STATICOBJS=\
 	$(JHOME)/jsm/modules/mod_offline.o \
 	$(JHOME)/jsm/modules/mod_xml.o \
 	$(JHOME)/dnsrv/dnsrv.o \
-	$(JHOME)/dnsrv/srv_resolv.o \
-    $(JHOME)/dialback/dialback.o \
-    $(JHOME)/dialback/dialback_out.o \
-    $(JHOME)/dialback/dialback_in.o \
+	$(JHOME)/dialback/dialback.o \
+	$(JHOME)/dialback/dialback_out.o \
+	$(JHOME)/dialback/dialback_in.o \
 	$(JHOME)/pthsock/client.o \
 	$(JHOME)/xdb_file/xdb_file.o
+
+ifneq ($(__CYGWIN__),1)
+jabberd_STATICOBJS+= $(JHOME)/dnsrv/srv_resolv.o
+endif
+
+ifeq ($(__CYGWIN__),1)
+PTHLIB=$(shell pth-config --libdir)/libpth.a
+EXTRALIBS=$(LIBS) /lib/crt0.o $(shell gcc -print-libgcc-file-name) -lcygwin -lkernel32
+endif
 
 single: static
 
@@ -114,7 +122,26 @@ static: static-recursive
 $(jabberd_OBJECTS): $(jabberd_HEADERS)
 
 all-local: $(jabberd_OBJECTS)
+ifeq ($(__CYGWIN__),1)
+# Make .def file:
+# deliver__flag, found in jabberd.c, is used in MU-Conference v0.5.2, so
+# we need to export this symbol so MU-Conference will build properly.
+	echo EXPORTS > jabberd.def
+	echo deliver__flag >> jabberd.def
+	nm $(jabberd_OBJECTS) $(jabberd_EXOBJECTS) $(PTHLIB) | grep '^........ [T] _' | sed 's/[^_]*_//' | sort >> jabberd.def
+
+# Link DLL.
+	ld --base-file jabberd.base -o jabberd.exe $(jabberd_OBJECTS) $(jabberd_EXOBJECTS) $(dllinit_OBJECTS) $(EXTRALIBS) $(LDFLAGS)
+	dlltool --as=as --dllname jabberd.exe --def jabberd.def --base-file jabberd.base --output-exp jabberd.exp
+	ld --base-file jabberd.base jabberd.exp -o jabberd.exe $(jabberd_OBJECTS) $(jabberd_EXOBJECTS) $(dllinit_OBJECTS) $(EXTRALIBS) $(LDFLAGS)
+	dlltool --as=as --dllname jabberd.exe --def jabberd.def --base-file jabberd.base --output-exp jabberd.exp
+	ld jabberd.exp -o jabberd.exe $(jabberd_OBJECTS) $(jabberd_EXOBJECTS) $(dllinit_OBJECTS) $(EXTRALIBS) $(LDFLAGS)
+
+# Build the jabberd.a lib to link to:
+	dlltool --as=as --dllname jabberd.exe --def jabberd.def --output-lib jabberd.a
+else
 	$(CC) $(CFLAGS) -o jabberd $(jabberd_OBJECTS) $(jabberd_EXOBJECTS) $(XLDFLAGS) $(LDFLAGS) $(LIBS) $(PLINK)
+endif
 
 static-local: $(jabberd_OBJECTS)
 	$(CC) $(CFLAGS) -o jabberd $(jabberd_OBJECTS) $(jabberd_EXOBJECTS) $(jabberd_STATICOBJS) $(LDFLAGS) $(SLIBS) $(PLINK)
@@ -147,7 +174,11 @@ check-recursive installcheck-recursive info-recursive static-recursive:
 	fi; test -z "$$fail"
 
 clean-local:
+ifeq ($(__CYGWIN__),1)
+	rm -f $(jabberd_OBJECTS) jabberd *.exe *.a *.base *.def *.exp
+else
 	rm -f $(jabberd_OBJECTS) jabberd
+endif
 
 mostlyclean-recursive clean-recursive distclean-recursive \
 maintainer-clean-recursive:

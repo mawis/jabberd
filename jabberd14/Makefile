@@ -3,7 +3,23 @@
 #
 include platform-settings
 
+ifeq ($(__CYGWIN__),1)
+
+ifeq ($(MAKECMDGOALS), single)
+SUBDIRS:=jabberd/lib pthsock xdb_file dnsrv jsm dialback jabberd
+else 
+ifeq ($(MAKECMDGOALS), static)
+SUBDIRS:=jabberd/lib pthsock xdb_file dnsrv jsm dialback jabberd
+else
+SUBDIRS:=jabberd pthsock xdb_file dnsrv jsm dialback
+endif
+endif
+
+else
+
 SUBDIRS=pthsock xdb_file dnsrv jsm dialback jabberd
+
+endif
 
 all: all-recursive
 
