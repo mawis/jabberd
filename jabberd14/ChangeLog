@@ -1,3 +1,8 @@
+2005-02-17  Matthias Wimmer  <m@tthias.net>
+
+    * jsm/server.c: bugfix, jsm could be crashed
+    * jsm/deliver.c: same
+
 2004-10-12  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/jabberd.c: restored 1.4.3 behaviour of -D option, new one is -d
