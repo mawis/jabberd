@@ -69,7 +69,7 @@ mreturn mod_announce_dispatch(mapi m, void *arg)
     if(j_strncmp(m->packet->to->resource,"announce/",9) != 0) return M_PASS;
 
     /* ensure that the user is local */
-    if(js_config(m->si,"admin") == NULL || m->packet->from == NULL || m->packet->from->user == NULL || ghash_get(m->si->hosts, m->packet->from->server) != NULL)
+    if(js_config(m->si,"admin") == NULL || m->packet->from == NULL || m->packet->from->user == NULL || ghash_get(m->si->hosts, m->packet->from->server) == NULL)
     {
         js_bounce(m->si,m->packet->x,TERROR_NOTALLOWED);
         return M_HANDLED;

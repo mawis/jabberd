@@ -209,12 +209,18 @@ mreturn mod_admin_message(mapi m, void *arg)
 {
     jpacket p;
     xmlnode cur;
+    char *subject;
 
     if(m->packet->type != JPACKET_MESSAGE) return M_IGNORE;
     if(m->packet->to->resource != NULL) return M_PASS;
 
     log_debug("mod_admin","delivering admin message from %s",jid_full(m->packet->from));
-    xmlnode_put_attrib(m->packet->x,"type","headline");
+    /* XXX in the future, this should just be x:envelope, when
+     * it has more support, so that the subject is preserved */
+    subject=spools(m->packet->p,"Admin Message sent to: ",m->packet->to->server,m->packet->p);
+    xmlnode_hide(xmlnode_get_tag(m->packet->x,"subject"));
+    xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->x,"subject"),subject,-1);
+
 
     for(cur = xmlnode_get_firstchild(js_config(m->si,"admin")); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
