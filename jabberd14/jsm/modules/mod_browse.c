@@ -162,7 +162,7 @@ mreturn mod_browse_reply(mapi m, void *arg)
     xmlnode_free(ns);
 
     /* include any connected resources if there's a s10n from them */
-    if(js_s10n(m->si, m->user, m->packet->from))
+    if(js_trust(m->user, m->packet->from))
         for(s = m->user->sessions; s != NULL; s = s->next)
         {
             /* if(s->priority < 0) continue; *** include all resources I guess */

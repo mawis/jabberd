@@ -99,13 +99,14 @@ struct jsmi_struct
     xdbcache xc;
     mlist events[e_LAST];
     pool p;
+    jid gtrust;
 };
 
 struct udata_struct
 {
     char *user;
     char *pass;
-    jid id;
+    jid id, utrust;
     jsmi si;
     session sessions;
     int scount, ref, admin;
@@ -175,6 +176,7 @@ int js_admin(udata u, int flag);
 
 result js_packet(instance i, dpacket p, void *arg);
 int js_islocal(jsmi si, jid id);
-int js_s10n(jsmi si, udata u, jid id);
+int js_trust(udata u, jid id); /* checks if id is trusted by user u */
+jid js_trustees(udata u); /* returns list of trusted jids */
 
 void jsm_shutdown(void *arg);

@@ -139,9 +139,6 @@ void mod_roster_pforce(udata u, jid to, int uflag)
     /* loop through all the sessions */
     for(s = u->sessions; s != NULL; s = s->next)
     {
-        /* ignore local-only sessions */
-        if(xmlnode_get_attrib(s->presence,"to") != NULL) continue;
-
         if(uflag)
             x = jutil_presnew(JPACKET__UNAVAILABLE,NULL,NULL);
         else
@@ -155,6 +152,7 @@ mreturn mod_roster_out_s10n(mapi m)
 {
     xmlnode roster, item;
     int newflag, to, from;
+    jid curr;
 
     if(m->packet->to == NULL) return M_PASS;
     if(jid_cmpx(jid_user(m->s->id),m->packet->to,JID_USER|JID_SERVER) == 0) return M_PASS; /* vanity complex */
@@ -184,6 +182,7 @@ mreturn mod_roster_out_s10n(mapi m)
         break;
     case JPACKET__SUBSCRIBED:
         mod_roster_set_s10n(S10N_ADD_FROM,item); /* update subscription */
+        jid_append(js_trustees(m->user),m->packet->to); /* make them trusted now */
         xmlnode_hide_attrib(item,"subscribe"); /* cancel any pending requests */
         xmlnode_hide_attrib(item,"hidden"); /* don't hide it anymore */
         mod_roster_pforce(m->user, m->packet->to, 0); /* they are now subscribed to us, send them our presence */
@@ -202,7 +201,11 @@ mreturn mod_roster_out_s10n(mapi m)
         if(from)
         {
             mod_roster_set_s10n(S10N_REM_FROM,item); /* update subscription */
-            mod_roster_pforce(m->user, m->packet->to, 1); /* they shouldn't see ANY presence from ANY session anymore */
+            /* remove them from the user trusted list */
+            for(curr = js_trustees(m->user);curr != NULL && jid_cmp(curr->next,m->packet->to) != 0;curr = curr->next);
+            if(curr != NULL && curr->next != NULL)
+                curr->next = curr->next->next;
+            mod_roster_pforce(m->user, m->packet->to, 1); /* make us offline */
             mod_roster_push(m->user, item);
         }else if(newflag){
             xmlnode_hide(item);

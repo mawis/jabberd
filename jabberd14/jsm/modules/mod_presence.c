@@ -29,24 +29,33 @@
  * --------------------------------------------------------------------------*/
 #include "jsm.h"
 
+/* track our two lists */
+typedef struct modpres_struct
+{
+    jid avails;
+    jid bcc;
+} *modpres, _modpres;
+
+
 /* util to check if someone knows about us */
-int _mod_presence_notified(jid id, jid notify)
+int _mod_presence_search(jid id, jid ids)
 {
     jid cur;
-    for(cur = notify; cur != NULL; cur = cur->next)
+    for(cur = ids; cur != NULL; cur = cur->next)
         if(jid_cmp(cur,id) == 0)
             return 1;
     return 0;
 }
 
 /* just brute force broadcast the presence packets to whoever should be notified */
-void _mod_presence_broadcast(session s, jid notify, xmlnode x)
+void _mod_presence_broadcast(session s, jid notify, xmlnode x, jid safe)
 {
     jid cur;
     xmlnode pres;
 
     for(cur = notify; cur != NULL; cur = cur->next)
     {
+        if(safe != NULL && !_mod_presence_search(cur,safe)) continue; /* when in safe mode, make sure in safe list too */
         s->c_out++;
         pres = xmlnode_dup(x);
         xmlnode_put_attrib(pres, "to",jid_full(cur));
@@ -57,7 +66,8 @@ void _mod_presence_broadcast(session s, jid notify, xmlnode x)
 /* filter the incoming presence to this session */
 mreturn mod_presence_in(mapi m, void *arg)
 {
-    jid curr, notify = (jid)arg;
+    jid curr;
+    modpres mp = (modpres)arg;
 
     if(m->packet->type != JPACKET_PRESENCE) return M_IGNORE;
 
@@ -68,7 +78,7 @@ mreturn mod_presence_in(mapi m, void *arg)
         if(m->s->presence == NULL)
         {
             log_debug("mod_presence","probe from %s and no presence to return",jid_full(m->packet->from));
-        }else if(_mod_presence_notified(m->packet->from,notify))
+        }else if(js_trust(m->user,m->packet->from) || _mod_presence_search(m->packet->from,mp->avails)) /* either trusted or avails */
         {
             xmlnode pres = xmlnode_dup(m->s->presence);
             log_debug("mod_presence","got a probe, responding to %s",jid_full(m->packet->from));
@@ -90,7 +100,7 @@ mreturn mod_presence_in(mapi m, void *arg)
     /* if a presence packet bounced, disable sending that jid any more presence */
     if(jpacket_subtype(m->packet) == JPACKET__ERROR)
     {
-        for(curr = notify;curr != NULL && jid_cmp(curr->next,m->packet->to) != 0;curr = curr->next);
+        for(curr = mp->avails;curr != NULL && jid_cmp(curr->next,m->packet->to) != 0;curr = curr->next);
         if(curr != NULL && curr->next != NULL)
             curr->next = curr->next->next;
     }
@@ -101,17 +111,10 @@ mreturn mod_presence_in(mapi m, void *arg)
 mreturn mod_presence_out(mapi m, void *arg)
 {
     xmlnode pnew, roster, cur, delay;
-    jid id, notify = (jid)arg;
+    jid id;
+    modpres mp = (modpres)arg;
     session top;
     int from, to, oldpri, local;
-
-    /* we need to notify ppl that we accept s10ns from in the same session (if it's not local presence only) */
-    if(m->packet->type == JPACKET_S10N)
-    {
-    	if(jpacket_subtype(m->packet) == JPACKET__SUBSCRIBED && xmlnode_get_attrib(m->s->presence,"to") == NULL && m->packet->to != NULL)
-            jid_append(notify, m->packet->to);
-    	return M_PASS;
-    }
 
     if(m->packet->type != JPACKET_PRESENCE) return M_IGNORE;
 
@@ -141,14 +144,19 @@ mreturn mod_presence_out(mapi m, void *arg)
 
     log_debug(ZONE,"presence oldp %d newp %d top %X",oldpri,m->s->priority,top);
 
-    /* we handle simple presence changes to those that have been notified */
+    /* we handle simple presence changes */
     if(oldpri >= 0)
     {
-        _mod_presence_broadcast(m->s,notify,m->packet->x);
-        xmlnode_free(m->packet->x);
-        /* we're going offline now, clear everything out */
+        /* if we're going offline now, let everyone know */
         if(m->s->priority < 0)
-            notify->next = NULL;
+        {
+            _mod_presence_broadcast(m->s,mp->bcc,m->packet->x,NULL);
+            _mod_presence_broadcast(m->s,mp->avails,m->packet->x,NULL);
+            mp->avails->next = NULL;
+        }else{ /* just let the trusted know, and just those that think were available at least */
+            _mod_presence_broadcast(m->s,js_trustees(m->user),m->packet->x,mp->avails);
+        }
+        xmlnode_free(m->packet->x);
         return M_HANDLED;
     }
 
@@ -197,7 +205,7 @@ mreturn mod_presence_out(mapi m, void *arg)
         if(from && !local)
         {
             log_debug("mod_presence","we need to notify them");
-            jid_append(notify, id);
+            jid_append(mp->avails, id);
         }
 
     }
@@ -205,14 +213,16 @@ mreturn mod_presence_out(mapi m, void *arg)
     xmlnode_free(roster);
 
     /* we broadcast this baby! */
-    _mod_presence_broadcast(m->s,notify,m->packet->x);
+    _mod_presence_broadcast(m->s,mp->bcc,m->packet->x,NULL);
+    _mod_presence_broadcast(m->s,mp->avails,m->packet->x,NULL); /* avails list is freshly populated from trusted roster */
     xmlnode_free(m->packet->x);
     return M_HANDLED;
 }
 
 mreturn mod_presence_avails(mapi m, void *arg)
 {
-    jid curr, notify = (jid)arg;
+    jid curr;
+    modpres mp = (modpres)arg;
 
     if(m->packet->type != JPACKET_PRESENCE) return M_IGNORE;
 
@@ -222,12 +232,12 @@ mreturn mod_presence_avails(mapi m, void *arg)
 
     /* add to the list, or init it */
     if(jpacket_subtype(m->packet) == JPACKET__AVAILABLE)
-        jid_append(notify, m->packet->to);
+        jid_append(mp->avails, m->packet->to);
 
     /* remove from the list */
     if(jpacket_subtype(m->packet) == JPACKET__UNAVAILABLE)
     {
-        for(curr = notify;curr != NULL && jid_cmp(curr->next,m->packet->to) != 0;curr = curr->next);
+        for(curr = mp->avails->next;curr != NULL && jid_cmp(curr->next,m->packet->to) != 0;curr = curr->next);
         if(curr != NULL && curr->next != NULL)
             curr->next = curr->next->next;
     }
@@ -237,13 +247,14 @@ mreturn mod_presence_avails(mapi m, void *arg)
 
 mreturn mod_presence_avails_end(mapi m, void *arg)
 {
-    jid notify = (jid)arg;
+    modpres mp = (modpres)arg;
 
     log_debug("mod_presence","avail tracker guarantee checker");
 
     /* send  the current presence (which the server set to unavail) */
     xmlnode_put_attrib(m->s->presence, "from",jid_full(m->s->id));
-    _mod_presence_broadcast(m->s, notify, m->s->presence);
+    _mod_presence_broadcast(m->s, mp->bcc, m->s->presence, NULL);
+    _mod_presence_broadcast(m->s, mp->avails, m->s->presence, NULL);
 
     return M_PASS;
 }
@@ -251,16 +262,17 @@ mreturn mod_presence_avails_end(mapi m, void *arg)
 mreturn mod_presence_session(mapi m, void *arg)
 {
     jid bcc = (jid)arg;
-    jid notify = jid_new(m->s->p, jid_full(jid_user(m->s->id)));
+    modpres mp;
 
-    /* hack!  copy instance-wide configured bcc's to the notify list */
-    for(;bcc != NULL; bcc = bcc->next)
-        jid_append(notify,bcc);
+    /* track our session stuff */
+    mp = pmalloco(m->s->p, sizeof(_modpres));
+    mp->avails = jid_user(m->s->id);
+    mp->bcc = bcc; /* no no, it's ok, these live longer than us */
 
-    js_mapi_session(es_IN, m->s, mod_presence_in, notify);
-    js_mapi_session(es_OUT, m->s, mod_presence_avails, notify); /* must come first, it passes, _out handles */
-    js_mapi_session(es_OUT, m->s, mod_presence_out, notify);
-    js_mapi_session(es_END, m->s, mod_presence_avails_end, notify);
+    js_mapi_session(es_IN, m->s, mod_presence_in, mp);
+    js_mapi_session(es_OUT, m->s, mod_presence_avails, mp); /* must come first, it passes, _out handles */
+    js_mapi_session(es_OUT, m->s, mod_presence_out, mp);
+    js_mapi_session(es_END, m->s, mod_presence_avails_end, mp);
 
     return M_PASS;
 }
