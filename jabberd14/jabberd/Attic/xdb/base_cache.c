@@ -17,6 +17,16 @@
  *  Copyright (C) 1998-1999 The Jabber Team http://jabber.org/
  */
 
+/*
+
+theory:
+    we can sit in the middle and intercept all packets
+    we watch all xdb set's, and store them in a hash based on owner jid
+    we watch all gets, and check to see if we have something stored
+    if we do, we check the lsat time it was set and compare against timeout
+
+*/
+
 #include "jabberd.h"
 
 result base_cache_config(instance id, xmlnode x, void *arg)
