@@ -48,7 +48,7 @@ void register_phandler(instance id, order o, phandler f, void *arg)
         id->hds = newh;
         break;
     case o_COND:
-        for(h1 = id->hds; h1->next != NULL && h1->next->o != o_COND; h1 = h1->next);
+        for(h1 = id->hds; h1->next != NULL && h1->next->o == o_PRECOND; h1 = h1->next);
         if(h1->next == NULL)
         {
             h1->next = newh;
@@ -58,7 +58,7 @@ void register_phandler(instance id, order o, phandler f, void *arg)
         }
         break;
     case o_PREDELIVER:
-        for(h1 = id->hds; h1->next != NULL && h1->next->o != o_PREDELIVER; h1 = h1->next);
+        for(h1 = id->hds; h1->next != NULL && h1->next->o != o_DELIVER; h1 = h1->next);
         if(h1->next == NULL)
         {
             h1->next = newh;
