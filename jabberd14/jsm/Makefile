@@ -23,6 +23,7 @@ jsm_EXOBJECTS = \
 	modules/mod_announce.o \
 	modules/mod_auth_plain.o \
 	modules/mod_auth_digest.o \
+	modules/mod_auth_0k.o \
 	modules/mod_echo.o \
 	modules/mod_filter.o \
 	modules/mod_groups.o \
@@ -36,6 +37,8 @@ jsm_EXOBJECTS = \
 	modules/mod_log.o \
 	modules/mod_last.o \
 	modules/mod_offline.o \
+	modules/mod_agents.o \
+	modules/mod_browse.o \
 	modules/mod_disco.o
 
 SUBDIRS=modules
