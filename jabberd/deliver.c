@@ -236,16 +236,13 @@ void deliver_fail(dpacket p, char *err)
             log_warn(p->host,"dropping a packet to %s from %s",xmlnode_get_attrib(p->x,"to"),xmlnode_get_attrib(p->x,"from"));
 
             /* turn into an error */
-            t.code = 502;
-            t.msg[0] = '\0';
-            strcat(t.msg,err);
             if(err == NULL)
             {
                 jutil_error(p->x,TERROR_EXTERNAL);
             }else{
                 t.code = 502;
                 t.msg[0] = '\0';
-                strcat(t.msg,err); /* why do I have to do this?  uhgly */
+                strcat(t.msg,err); /* c sucks */
                 jutil_error(p->x,t);
             }
             deliver(dpacket_new(p->x),NULL);

@@ -422,6 +422,8 @@ void *mtq_main(void *arg)
     pth_event_t mpevt;
     mtqcall c;
 
+    log_debug(ZONE,"THREAD:WORKER %X starting",t->mp);
+
     /* create an event ring for receiving messges */
     mpevt = pth_event(PTH_EVENT_MSG,t->mp);
 
@@ -457,7 +459,6 @@ void *mtq_main(void *arg)
             break;
     }
 
-    /* debug: note that the thread is dying */
     log_debug(ZONE,"THREAD:WORKER %X exiting",t->mp);
 
     /* free all memory stuff associated with the thread */
