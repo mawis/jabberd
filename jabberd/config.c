@@ -42,9 +42,9 @@
 #include "jabberd.h"
 #include "single.h"
 #define MAX_INCLUDE_NESTING 20
-extern HASHTABLE cmd__line;
+extern xht cmd__line;
 extern pool      jabberd__runtime;
-HASHTABLE instance__ids=NULL;
+xht instance__ids=NULL;
 
 typedef struct shutdown_list
 {
@@ -117,7 +117,7 @@ void cmdline_replace(xmlnode x)
             continue;
         }
         flag=xmlnode_get_attrib(cur,"flag");
-        replace_text=ghash_get(cmd__line,flag);
+        replace_text=xhash_get(cmd__line,flag);
         if(replace_text==NULL) replace_text=xmlnode_get_data(cur);
 
         xmlnode_hide(xmlnode_get_firstchild(x));
@@ -199,7 +199,7 @@ int configurate(char *file)
     }
 
     /* parse -i foo.xml,bar.xml */
-    if((realfile = ghash_get(cmd__line,"i")) != NULL)
+    if((realfile = xhash_get(cmd__line,"i")) != NULL)
         while(realfile != NULL)
         {
             c = strchr(realfile,',');
@@ -288,11 +288,11 @@ cfg cfget(char *node)
 /* 
  * walk through the instance HASH, and cleanup the instances
  */
-int _instance_cleanup(void *arg,const void *key,void *data)
+void _instance_cleanup(xht h, const char *key, void *data, void *arg)
 {
     instance i=(instance)data;
     unregister_instance(i,i->id);
-    ghash_remove(instance__ids, i->id);
+    xhash_zap(instance__ids, i->id);
     while(i->hds)
     {
         handel h=i->hds->next;
@@ -300,8 +300,9 @@ int _instance_cleanup(void *arg,const void *key,void *data)
         i->hds=h;
     }
     pool_free(i->p);
-    return 1;
 }
+
+void instance_shutdown(instance i);
 
 int instance_startup(xmlnode x, int exec)
 {
@@ -346,7 +347,7 @@ int instance_startup(xmlnode x, int exec)
 
     if(exec == 1)
     {
-        newi = ghash_get(instance__ids, xmlnode_get_attrib(x,"id"));
+        newi = xhash_get(instance__ids, xmlnode_get_attrib(x,"id"));
         if(newi != NULL)
         {
             fprintf(stderr, "ERROR: Multiple Instances with same id: %s\n",xmlnode_get_attrib(x,"id"));
@@ -372,8 +373,9 @@ int instance_startup(xmlnode x, int exec)
             pool_free(p);
             return -1;
         }
-        ghash_put(instance__ids,newi->id,newi);
+        xhash_put(instance__ids,newi->id,newi);
         register_instance(newi,newi->id);
+	register_shutdown((shutdown_func)instance_shutdown, newi);
     }
 
 
@@ -414,7 +416,7 @@ int configo(int exec)
     xmlnode cur;
 
     if(instance__ids==NULL)
-        instance__ids = ghash_create_pool(jabberd__runtime, 19,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+	instance__ids = xhash_new(19);
 
     for(cur = xmlnode_get_firstchild(greymatter__); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
@@ -439,7 +441,7 @@ void instance_shutdown(instance i)
     if(i != NULL)
     {
         unregister_instance(i,i->id);
-        ghash_remove(instance__ids, i->id);
+        xhash_zap(instance__ids, i->id);
         while(i->hds)
         {
             handel h=i->hds->next;
@@ -450,7 +452,7 @@ void instance_shutdown(instance i)
     }
     else
     {
-        ghash_walk(instance__ids, _instance_cleanup, NULL);
+        xhash_walk(instance__ids, _instance_cleanup, NULL);
     }
 }
 

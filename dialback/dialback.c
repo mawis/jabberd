@@ -135,15 +135,15 @@ miod dialback_miod_new(db d, mio m)
 struct miodc
 {
     miod md;
-    HASHTABLE ht;
+    xht ht;
     jid key;
 };
 /* clean up a hashtable entry containing this miod */
 void _dialback_miod_hash_cleanup(void *arg)
 {
     struct miodc *mdc = (struct miodc *)arg;
-    if(ghash_get(mdc->ht,jid_full(mdc->key)) == mdc->md)
-        ghash_remove(mdc->ht,jid_full(mdc->key));
+    if(xhash_get(mdc->ht,jid_full(mdc->key)) == mdc->md)
+        xhash_zap(mdc->ht,jid_full(mdc->key));
 
     log_debug(ZONE,"miod cleaning out socket %d with key %s to hash %X",mdc->md->m->fd, jid_full(mdc->key), mdc->ht);
     /* cool place for logging, eh? interesting way of detecting things too, *g* */
@@ -159,7 +159,7 @@ void _dialback_miod_hash_cleanup(void *arg)
         log_record(mdc->key->server, "in", "legacy", "%d %s %s", mdc->md->count, mdc->md->m->ip, mdc->key->resource);
     }
 }
-void dialback_miod_hash(miod md, HASHTABLE ht, jid key)
+void dialback_miod_hash(miod md, xht ht, jid key)
 {
     struct miodc *mdc;
     log_debug(ZONE,"miod registering socket %d with key %s to hash %X",md->m->fd, jid_full(key), ht);
@@ -168,7 +168,7 @@ void dialback_miod_hash(miod md, HASHTABLE ht, jid key)
     mdc->ht = ht;
     mdc->key = jid_new(md->m->p,jid_full(key));
     pool_cleanup(md->m->p, _dialback_miod_hash_cleanup, (void *)mdc);
-    ghash_put(ht, jid_full(mdc->key), md);
+    xhash_put(ht, jid_full(mdc->key), md);
 
     /* dns saver, only when registering on outgoing hosts dynamically */
     if(ht == md->d->out_ok_db || ht == md->d->out_ok_legacy)
@@ -187,7 +187,7 @@ char *dialback_ip_get(db d, jid host, char *ip)
     if(ip != NULL)
         return ip;
 
-    ret =  pstrdup(host->p,xmlnode_get_attrib((xmlnode)ghash_get(d->nscache,host->server),"i"));
+    ret =  pstrdup(host->p,xmlnode_get_attrib((xmlnode)xhash_get(d->nscache,host->server),"i"));
     log_debug(ZONE,"returning cached ip %s for %s",ret,host->server);
     return ret;
 }
@@ -200,13 +200,13 @@ void dialback_ip_set(db d, jid host, char *ip)
         return;
 
     /* first, get existing cache so we can dump it later */
-    old = (xmlnode)ghash_get(d->nscache,host->server);
+    old = (xmlnode)xhash_get(d->nscache,host->server);
 
     /* new cache */
     cache = xmlnode_new_tag("d");
     xmlnode_put_attrib(cache,"h",host->server);
     xmlnode_put_attrib(cache,"i",ip);
-    ghash_put(d->nscache,xmlnode_get_attrib(cache,"h"),(void*)cache);
+    xhash_put(d->nscache,xmlnode_get_attrib(cache,"h"),(void*)cache);
     log_debug(ZONE,"cached ip %s for %s",ip,host->server);
 
     /* free any old entry that's been replaced */
@@ -244,7 +244,7 @@ result dialback_packets(instance i, dpacket dp, void *arg)
 
 
 /* callback for walking each miod-value host hash tree */
-int _dialback_beat_idle(void *arg, const void *key, void *data)
+void _dialback_beat_idle(xht h, const char *key, void *data, void *arg)
 {
     miod md = (miod)data;
     if(((int)*(time_t*)arg - md->last) >= md->d->timeout_idle)
@@ -252,7 +252,6 @@ int _dialback_beat_idle(void *arg, const void *key, void *data)
         log_debug(ZONE,"Idle Timeout on socket %d to %s",md->m->fd, md->m->ip);
         mio_close(md->m);
     }
-    return 1;
 }
 
 /* heartbeat checker for timed out idle hosts */
@@ -263,10 +262,10 @@ result dialback_beat_idle(void *arg)
 
     log_debug(ZONE,"dialback idle check");
     time(&ttmp);
-    ghash_walk(d->out_ok_db,_dialback_beat_idle,(void*)&ttmp);
-    ghash_walk(d->out_ok_legacy,_dialback_beat_idle,(void*)&ttmp);
-    ghash_walk(d->in_ok_db,_dialback_beat_idle,(void*)&ttmp);
-    ghash_walk(d->in_ok_legacy,_dialback_beat_idle,(void*)&ttmp);
+    xhash_walk(d->out_ok_db,_dialback_beat_idle,(void*)&ttmp);
+    xhash_walk(d->out_ok_legacy,_dialback_beat_idle,(void*)&ttmp);
+    xhash_walk(d->in_ok_db,_dialback_beat_idle,(void*)&ttmp);
+    xhash_walk(d->in_ok_legacy,_dialback_beat_idle,(void*)&ttmp);
     return r_DONE;
 }
 
@@ -288,13 +287,20 @@ void dialback(instance i, xmlnode x)
 
     max = j_atoi(xmlnode_get_tag_data(cfg,"maxhosts"),997);
     d = pmalloco(i->p,sizeof(_db));
-    d->nscache = ghash_create(max,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
-    d->out_connecting = ghash_create(67,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
-    d->out_ok_db = ghash_create(max,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
-    d->out_ok_legacy = ghash_create(max,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
-    d->in_id = ghash_create(max,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
-    d->in_ok_db = ghash_create(max,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
-    d->in_ok_legacy = ghash_create(max,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+    d->nscache = xhash_new(max);
+    pool_cleanup(i->p, (pool_cleaner)xhash_free, d->nscache);
+    d->out_connecting = xhash_new(67);
+    pool_cleanup(i->p, (pool_cleaner)xhash_free, d->out_connecting);
+    d->out_ok_db = xhash_new(max);
+    pool_cleanup(i->p, (pool_cleaner)xhash_free, d->out_ok_db);
+    d->out_ok_legacy = xhash_new(max);
+    pool_cleanup(i->p, (pool_cleaner)xhash_free, d->out_ok_legacy);
+    d->in_id = xhash_new(max);
+    pool_cleanup(i->p, (pool_cleaner)xhash_free, d->in_id);
+    d->in_ok_db = xhash_new(max);
+    pool_cleanup(i->p, (pool_cleaner)xhash_free, d->in_ok_db);
+    d->in_ok_legacy = xhash_new(max);
+    pool_cleanup(i->p, (pool_cleaner)xhash_free, d->in_ok_legacy);
     d->i = i;
     d->timeout_idle = j_atoi(xmlnode_get_tag_data(cfg,"idletimeout"),900);
     d->timeout_packets = j_atoi(xmlnode_get_tag_data(cfg,"queuetimeout"),30);

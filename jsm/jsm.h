@@ -106,7 +106,7 @@ struct jsmi_struct
 {
     instance i;
     xmlnode config;
-    HASHTABLE hosts;
+    xht hosts;
     xdbcache xc;
     mlist events[e_LAST];
     pool p;
@@ -127,7 +127,7 @@ struct udata_struct
 
 xmlnode js_config(jsmi si, char *query);
 
-udata js_user(jsmi si, jid id, HASHTABLE ht);
+udata js_user(jsmi si, jid id, xht ht);
 void js_deliver(jsmi si, jpacket p);
 
 

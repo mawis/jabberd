@@ -40,7 +40,7 @@
  * --------------------------------------------------------------------------*/
 #include "jsm.h"
 
-int _mod_admin_browse(void *arg, const void *key, void *data)
+void _mod_admin_browse(xht h, const char *key, void *data, void *arg)
 {
     xmlnode browse = (xmlnode)arg;
     udata u = (udata)data;
@@ -56,7 +56,7 @@ int _mod_admin_browse(void *arg, const void *key, void *data)
     if(s == NULL)
     {
         xmlnode_put_attrib(x,"name",u->user);
-        return 1;
+        return;
     }
     sp = spool_new(xmlnode_pool(browse));
     spooler(sp,u->user," (",sp);
@@ -70,8 +70,6 @@ int _mod_admin_browse(void *arg, const void *key, void *data)
     spooler(sp,buff,")",sp);
 
     xmlnode_put_attrib(x,"name",spool_print(sp));
-
-    return 1;
 }
 
 /* who */
@@ -90,7 +88,7 @@ void mod_admin_browse(jsmi si, jpacket p)
         log_debug("mod_admin","handling who GET");
 
         /* walk the users on this host */
-        ghash_walk(ghash_get(si->hosts, p->to->server),_mod_admin_browse,(void *)browse);
+        xhash_walk(xhash_get(si->hosts, p->to->server),_mod_admin_browse,(void *)browse);
     }
 
     if(jpacket_subtype(p) == JPACKET__SET)
@@ -104,7 +102,7 @@ void mod_admin_browse(jsmi si, jpacket p)
     js_deliver(si,p);
 }
 
-int _mod_admin_who(void *arg, const void *key, void *data)
+void _mod_admin_who(xht ht, const char *key, void *data, void *arg)
 {
     xmlnode who = (xmlnode)arg;
     udata u = (udata)data;
@@ -131,8 +129,6 @@ int _mod_admin_who(void *arg, const void *key, void *data)
         sprintf(buff,"%d", s->c_out);
         xmlnode_put_attrib(x,"to",buff);
     }
-
-    return 1;
 }
 
 /* who */
@@ -145,7 +141,7 @@ mreturn  mod_admin_who(jsmi si, jpacket p)
         log_debug("mod_admin","handling who GET");
 
         /* walk the users on this host */
-        ghash_walk(ghash_get(si->hosts, p->to->server),_mod_admin_who,(void *)who);
+        xhash_walk(xhash_get(si->hosts, p->to->server),_mod_admin_who,(void *)who);
     }
 
     if(jpacket_subtype(p) == JPACKET__SET)

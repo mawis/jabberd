@@ -48,6 +48,9 @@ HASHTABLE ghash_create(int buckets, KEYHASHFUNC hash, KEYCOMPAREFUNC cmp)
     return xhash_new(buckets);
 }
 
+/**
+ * create a ghash that is freed if the pool is freed
+ */
 HASHTABLE ghash_create_pool(pool p, int buckets, KEYHASHFUNC hash, KEYCOMPAREFUNC cmp)
 {
     xht h = xhash_new(buckets);

@@ -1,6 +1,6 @@
 #define SINGLE_STARTUP \
-    home = ghash_get(cmd__line,"H"); \
-    if(ghash_get(cmd__line,"h") == NULL || (home == NULL && (ghash_get(cmd__line,"s") == NULL || ghash_get(cmd__line,"l") == NULL))) \
+    home = xhash_get(cmd__line,"H"); \
+    if(xhash_get(cmd__line,"h") == NULL || (home == NULL && (xhash_get(cmd__line,"s") == NULL || xhash_get(cmd__line,"l") == NULL))) \
     { /* require hostname, and either a HOME or the spool and logs specifically */ \
         fprintf(stderr, "\
 Usage:\n\

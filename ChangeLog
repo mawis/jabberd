@@ -1,3 +1,36 @@
+2004-06-24  Matthias Wimmer  <m@tthias.net>
+
+    * cygwin/dnsrv/dnsrv.c: use xhash instead of ghash
+    * cygwin/dnsrv/dnsrv_coprocess.c: same
+    * cygwin/dnsrv/srv_resolv.c: same
+    * dialback/dialback.c: use xhash instead of ghash
+    * dialback/dialback.h: same
+    * dialback/dialback_in.c: same
+    * dialback/dialback_out.c: same
+    * dnsrv/dnsrv.c: same
+    * dnsrv/srv_resolv.c: same
+    * jabberd/config.c: same
+    * jabberd/deliver.c: same
+    * jabberd/jabberd.c: same
+    * jabberd/log.c: same
+    * jabberd/mio_ssl.c: same
+    * jabberd/single.h: same
+    * jabberd/base/base_dynamic.c: same
+    * jabberd/lib/genhash.c: same
+    * jabberd/lib/jabberdlib.h: same
+    * jabberd/lib/pool.c: same
+    * jsm/deliver.c: same
+    * jsm/jsm.c: same
+    * jsm/jsm.h: same
+    * jsm/users.c: same
+    * jsm/util.c: same
+    * jsm/modules/mod_admin.c: same
+    * jsm/modules/mod_announce.c: same
+    * pthsock/client.c: same
+    * xdb_file/xdb_file.c: same
+    * jabberd/lib/jid.c: cleanup on shutdown
+    * jsm/modules/mod_filter.c: same
+
 2004-06-15  Matthias Wimmer  <m@tthias.net>
 
     * configure.in: link against libresolv or libbind if required
