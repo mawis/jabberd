@@ -544,8 +544,7 @@ void mtq_send(mtq q, pool p, mtq_callback f, void *arg)
 {
     mtqcall c;
     mth t = NULL;
-    int n;
-    pool newp;
+    int n; pool newp;
     pth_msgport_t mp = NULL; /* who to send the call too */
     pth_attr_t attr;
 
@@ -582,6 +581,10 @@ void mtq_send(mtq q, pool p, mtq_callback f, void *arg)
     {
         log_debug("mtqoverflow","%d overflowing %X",mtq__master->overflow,arg);
         mp = mtq__master->mp;
+        /* XXX this is a race condition in pthreads.. if the overflow
+         * is not put on the mp, before a worker thread checks the mp
+         * for messages, then it will set this variable to 0 and not
+         * check the overflow mp until another item overflows it */
         mtq__master->overflow++;
     }
 
