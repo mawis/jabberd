@@ -280,6 +280,7 @@ void _io_main(void *arg)
         while(cur != NULL)
         {
             FD_SET(cur->fd,&all_rfds);
+            printf("\n\nPOOL %X for sock %d size: %d",cur->fd,cur->fd,pool_size(cur->p));
             if(cur->state==state_CLOSE)
             {
                 temp=cur;
