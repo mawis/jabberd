@@ -28,7 +28,9 @@
  * 
  * --------------------------------------------------------------------------*/
 #include "jsm.h"
-#include "crypt.h"
+
+#define _XOPEN_SOURCE
+#include <unistd.h>
 
 #define HASH_CRYPT 1
 #define HASH_SHA1  2
