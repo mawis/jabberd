@@ -3,7 +3,6 @@
 #define PSBACKLOG 10
 #define PSTHREAD_MAX 10
 #define PSBUFFSZ 1024
-#define PSWMP "__pthsockman_main_mp"
 
 typedef struct __stream
 {
@@ -37,7 +36,7 @@ void pthsockman_mpsend(smsg m)
 {
     static pth_msgport_t write_mp = NULL;
 
-    if (write_mp == NULL) write_mp = pth_msgport_find(PSWMP);
+    if (write_mp == NULL) write_mp = pth_msgport_find("pthsockman_main");
     pth_msgport_put(write_mp,(void *) m);     /* send to main thread */
 }
 
@@ -127,6 +126,9 @@ stream pthsockman_accecpt(int fd)
     return s;
 }
 
+/* This thread listen's on a port and accepts new connections.  it then notifies
+   the main thread when there is a new connections so it can be added to the main
+   thread's list of connections */
 void pthsockman_acceptor(void *arg)
 {
     stream s;
@@ -139,7 +141,7 @@ void pthsockman_acceptor(void *arg)
     sock = (int) arg;
     printf("pthsockman listening on %d\n",sock);
 
-    mp = pth_msgport_find("__pthsockman_add_mp");
+    mp = pth_msgport_find("pthsockman_main_add");
     while (1)
     {
         fd = pth_accept(sock,(struct sockaddr *) &sa,(int *)&sa_size);
@@ -159,6 +161,7 @@ void pthsockman_acceptor(void *arg)
     }
 }
 
+/* this thread is used to parse received XML in */
 void pthsockman_stmain(void *arg)
 {
     pth_msgport_t mp = (pth_msgport_t) arg;
@@ -200,7 +203,7 @@ void pthsockman_stmain(void *arg)
                     break;
                 }
 
-        if (exit == 1) break;/* Idle pool is full */
+        if (exit == 1) break;   /* Idle pool is full */
     }
 
     printf("stmain[%X] exiting\n",(int)mp);
@@ -243,8 +246,8 @@ void pthsockman_main(void *arg)
     printf("pthsockman_main starting\n");
 
     shead = NULL;
-    write_mp = pth_msgport_create(PSWMP);
-    add_mp = pth_msgport_create("__pthsockman_add_mp");
+    write_mp = pth_msgport_create("pthsockman_main");
+    add_mp = pth_msgport_create("pthsockman_main_add");
     wevt = pth_event(PTH_EVENT_MSG,write_mp);
     aevt = pth_event(PTH_EVENT_MSG,add_mp);
     evt_ring = pth_event_concat(wevt,aevt,NULL);
@@ -374,7 +377,7 @@ void pthsockman_main(void *arg)
                 while (sent != m->sz)
                 {
                     sz = pth_write(s->fd, m->data + sent,m->sz - sent);
-                    if(sz == -1 && errno != EAGAIN)
+                    if(sz < 0)
                     {
                         printf("stream write error '%s' on socket: %d\n",strerror(errno),s->fd);
 
