@@ -187,8 +187,9 @@ typedef struct mio_wb_q_st
     struct mio_wb_q_st *next;
 } _mio_wbq,*mio_wbq;
 
-/* the mio data type */
+struct mio_handlers_st; /* grr.. stupid fsking chicken and egg C definitions */
 
+/* the mio data type */
 typedef enum { state_ACTIVE, state_CLOSE } mio_state;
 typedef enum { type_LISTEN, type_NORMAL } mio_type;
 typedef struct mio_st
@@ -205,6 +206,7 @@ typedef struct mio_st
 
     void *cb_arg;    /* do not modify directly */
     void *cb;     /* do not modify directly */
+    struct mio_handlers_st *mh;
 
     xstream xs;   /* XXX kill me, I suck */
     XML_Parser parser;
@@ -217,20 +219,69 @@ typedef struct mio_st
     char *ip;
 } *mio, _mio;
 
-/* callback flags */
+/* MIO SOCKET HANDLERS */
+typedef int     (*mio_read_func)    (mio m); /* calls read on a ready socket */
+typedef ssize_t (*mio_write_func)   (int fd, const void*      buf,       size_t     count); 
+typedef int     (*mio_accept_func)  (int fd, struct sockaddr* serv_addr, socklen_t* addrlen);
+typedef int     (*mio_connect_func) (int fd, struct sockaddr* serv_addr, socklen_t  addrlen);
+
+/* the MIO handlers data type */
+typedef struct mio_handlers_st
+{
+    pool  p;
+    mio_read_func   read;
+    mio_write_func  write;
+    mio_accept_func accept;
+} _mio_handlers, *mio_handlers; 
+
+/* standard read/write/accept/connect functions */
+#define MIO_READ_FUNC    pth_read
+#define MIO_WRITE_FUNC   pth_write
+#define MIO_ACCEPT_FUNC  pth_accept
+#define MIO_CONNECT_FUNC pth_connect
+
+/* returns -1 on error, 0 on OK */
+int _mio_std_read(mio m);
+#define MIO_STD_READ    _mio_std_read
+#define MIO_STD_WRITE   MIO_WRITE_FUNC
+#define MIO_STD_ACCEPT  MIO_ACCEPT_FUNC
+#define MIO_STD_CONNECT MIO_CONNECT_FUNC
+
+/* returns -1 on error, 0 on OK */
+int _mio_xml_read(mio m);
+#define MIO_XML_READ    _mio_xml_read
+#define MIO_XML_WRITE   MIO_STD_WRITE
+#define MIO_XML_ACCEPT  MIO_STD_ACCEPT
+#define MIO_XML_CONNECT MIO_STD_CONNECT
+
+/* SSL functions */
+int     _mio_ssl_read    (mio m);
+ssize_t _mio_ssl_write   (int fd, const void*      buf,       size_t     count);
+int     _mio_ssl_accept  (int fd, struct sockaddr* serv_addr, socklen_t* addrlen);
+int     _mio_ssl_connect (int fd, struct sockaddr* serv_addr, socklen_t  addrlen);
+#define MIO_SSL_READ    _mio_ssl_read
+#define MIO_SSL_WRITE   _mio_ssl_write
+#define MIO_SSL_ACCEPT  _mio_ssl_accept
+#define MIO_SSL_CONNECT _mio_ssl_connect
+
+/* MIO handlers helper functions */
+mio_handlers mio_handlers_new(mio_read_func rf, mio_write_func wf);
+void         mio_handlers_free(mio_handlers mh);
+void         mio_set_handlers(mio m, mio_handlers mh);
+
+/* callback state flags */
 #define MIO_NEW       0
 #define MIO_BUFFER    1
-#define MIO_CLOSED    2
-#define MIO_ERROR     3
-#define MIO_XML_ROOT  4
-#define MIO_XML_NODE  5 
-#define MIO_XML_CLOSE 6
-#define MIO_XML_ERROR 7
-#define MIO_TIMEOUT   8
+#define MIO_XML_ROOT  2
+#define MIO_XML_NODE  3 
+#define MIO_CLOSED    4
+#define MIO_ERROR     5
 
-/* i/o callback function definition */
-typedef void (*mio_cb)(mio m,int state, void *arg, char *buffer,int bufsz);
-typedef void (*mio_xml_cb)(mio m, int state, void* arg, xmlnode x);
+/* standard i/o callback function definition */
+typedef void (*mio_std_cb)(mio m, int state, void *arg);
+typedef void (*mio_xml_cb)(mio m, int state, void *arg, xmlnode x);
+typedef void (*mio_raw_cb)(mio m, int state, void *arg, char *buffer,int bufsz);
+typedef void (*mio_ssl_cb)(mio m, int state, void *arg, char *buffer,int bufsz);
 
 /* initializes the MIO subsystem */
 void mio_init(void);
@@ -239,8 +290,7 @@ void mio_init(void);
 void mio_stop(void);
 
 /* create a new mio object from a file descriptor */
-mio mio_new(int fd, mio_cb cb, void *cb_arg);
-mio mio_new_xml(int fd, mio_xml_cb cb, void* cb_arg);
+mio mio_new(int fd, void *cb, void *cb_arg, mio_handlers mh);
 
 /* reset the callback and argument for an mio object */
 mio mio_reset(mio m, void *cb, void *arg);
@@ -262,20 +312,10 @@ void mio_rate(mio m, int rate_time, int max_points);
 xmlnode mio_cleanup(mio m);
 
 /* connects to an ip */
-mio mio_connect(char *host, int port, mio_cb cb, int timeout, void *cb_arg);
-mio mio_connect_xml(char* host, int port, mio_xml_cb cb, int timeout, void* cb_arg);
+mio mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_connect_func f, mio_handlers mh);
 
 /* starts listening on a port/ip, returns NULL if failed to listen */
-mio mio_listen(int port, char *sourceip, mio_cb cb, void *cb_arg);
-mio mio_listen_xml(int port, char* sourceip, mio_xml_cb cb, void* cb_arg);
-
-/* Note that timers are only accurate to within a second or so */
-
-/* Add a timer to an mio. */
-void mio_add_timer(mio m, int seconds);
-
-/* Remove that timer */
-void mio_remove_timer(mio m);
+mio mio_listen(int port, char *sourceip, void *cb, void *cb_arg, mio_accept_func f, mio_handlers mh);
 
 /* some nice api utilities */
 #define mio_pool(m) (m->p)

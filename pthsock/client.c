@@ -451,7 +451,7 @@ void pthsock_client(instance i, xmlnode x)
         for(;cur != NULL; xmlnode_hide(cur), cur = xmlnode_get_tag(s__i->cfg,"ip"))
         {
             mio m;
-            m = mio_listen(j_atoi(xmlnode_get_attrib(cur,"port"),5222), xmlnode_get_data(cur), pthsock_client_read, NULL);
+            m = mio_listen(j_atoi(xmlnode_get_attrib(cur,"port"),5222), xmlnode_get_data(cur), pthsock_client_read, NULL, NULL, NULL);
             if(m == NULL)
                 return;
             mio_rate(m, rate_time, rate_points);
@@ -460,7 +460,7 @@ void pthsock_client(instance i, xmlnode x)
     else /* no special config, use defaults */
     {
         mio m;
-        m = mio_listen(5222, NULL, pthsock_client_read, NULL);
+        m = mio_listen(5222, NULL, pthsock_client_read, NULL, NULL, NULL);
         if(m == NULL)
             return;
         mio_rate(m, rate_time, rate_points);
