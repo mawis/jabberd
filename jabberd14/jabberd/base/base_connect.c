@@ -145,7 +145,8 @@ void base_connect_process_xml(mio m, int state, void* arg, xmlnode x)
             mio_write(m, NULL, xmlnode2str(cur), -1);
 
             xmlnode_free(cur);
-            break;
+            xmlnode_free(x);
+            return;
 
         case MIO_XML_NODE:
             /* Only deliver packets after the connection is auth'd */
@@ -167,7 +168,8 @@ void base_connect_process_xml(mio m, int state, void* arg, xmlnode x)
                 /* Update connection state flag */
                 ci->state = conn_AUTHD;
             }
-            break;
+            xmlnode_free(x);
+            return;
 
         case MIO_CLOSED:
 
@@ -191,7 +193,6 @@ void base_connect_process_xml(mio m, int state, void* arg, xmlnode x)
 
             return;
     }
-    xmlnode_free(x);
 }
 
 void base_connect_kill(void *arg)
