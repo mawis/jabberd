@@ -3,7 +3,7 @@
 #
 include ../platform-settings
 
-CFLAGS:=$(CFLAGS) $(DEFINES) -I../jabberd/
+CFLAGS=$(CCFLAGS) $(DEFINES) -I../jabberd/
 
 jsm_HEADERS=jsm.h ../jabberd/jabberd.h
 
