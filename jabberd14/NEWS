@@ -47,3 +47,5 @@
     * jabberd14 now detects HTTP requests and bounces the user to a configured
       URI. This might be especially useful for Jabber servers running on
       port 80.
+    * jabberd14 has a new xdb module for storing data in SQL databases,
+      currently only mysql is supported yet
