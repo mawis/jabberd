@@ -44,46 +44,9 @@ void _js_session_to(void *arg);
 void _js_session_from(void *arg);
 void _js_session_end(void *arg);
 
-/* adds a new jid to be dup'd session packets */
-void js_session_dup(session s, jid id)
-{
-    if(s->sids == NULL)
-        s->sids = jid_new(s->p,jid_full(id));
-    else
-        jid_append(s->sids,id);
-}
-
-/* removes jid from list */
-void js_session_dedup(session s, jid id)
-{
-    jid cur, prev;
-
-    for(prev = cur = s->sids; cur != NULL; prev = cur, cur = cur->next)
-    {
-        if(jid_cmp(cur,id) == 0)
-        {
-            if(cur == s->sids)
-                s->sids = cur->next;
-            else
-                prev->next = cur->next;
-            /* can't free it, its' session mem */
-        }
-    }
-}
-
 /* delivers a route packet to all listeners for this session */
 void js_session_route(session s, xmlnode in)
 {
-    jid id;
-    xmlnode x;
-
-    /* if there's nobody to notify... *shrug* */
-    if(s->sids == NULL)
-    {
-        xmlnode_free(in);
-        return;
-    }
-
     /* NULL means this is an error from the session ending */
     if(in == NULL)
     {
@@ -94,16 +57,9 @@ void js_session_route(session s, xmlnode in)
         in = xmlnode_wrap(in,"route");
     }
 
-    for(id = s->sids; id != NULL; id = id->next)
-    {
-        if(id->next != NULL)
-            x = xmlnode_dup(in);
-        else
-            x = in;
-        xmlnode_put_attrib(x, "from", jid_full(s->route));
-        xmlnode_put_attrib(x, "to", jid_full(id));
-        deliver(dpacket_new(x), s->si->i);
-    }
+    xmlnode_put_attrib(in, "from", jid_full(s->route));
+    xmlnode_put_attrib(in, "to", jid_full(s->sid));
+    deliver(dpacket_new(in), s->si->i);
 }
 
 /*
@@ -135,12 +91,8 @@ session js_session_new(jsmi si, dpacket dp)
     s->p = p;
     s->si = si;
 
-    /* save authorative id */
-    s->aid = jid_new(p, xmlnode_get_attrib(dp->x,"from"));
-
-    /* if they want to receive data too */
-    if(j_strcmp(xmlnode_get_attrib(dp->x,"type"),"session") == 0)
-        js_session_dup(s, s->aid);
+    /* save authorative remote session id */
+    s->sid = jid_new(p, xmlnode_get_attrib(dp->x,"from"));
 
     /* session identity */
     s->id = jid_new(p, jid_full(dp->id));

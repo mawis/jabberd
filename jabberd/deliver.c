@@ -310,14 +310,26 @@ void unregister_instance(instance i, char *host)
 result deliver_config_host(instance i, xmlnode x, void *arg)
 {
     char *host;
+    int c;
+
     if(i == NULL)
         return r_PASS;
 
     host = xmlnode_get_data(x);
     if(host == NULL)
+    {
         register_instance(i, "*");
-    else
-        register_instance(i, host);
+        return r_DONE;
+    }
+
+    for(c = 0; host[c] != '\0'; c++)
+        if(isspace(host[c]))
+        {
+            xmlnode_put_attrib(x,"error","The host tag contains illegal whitespace.");
+            return r_ERR;
+        }
+
+    register_instance(i, host);
 
     return r_DONE;
 }

@@ -79,7 +79,6 @@ result js_packet(instance i, dpacket p, void *arg)
     session s = NULL;
     udata u;
     char *type, *authto;
-    jid from;
 
     log_debug(ZONE,"(%X)incoming packet %s",si,xmlnode2str(p->x));
 
@@ -98,7 +97,7 @@ result js_packet(instance i, dpacket p, void *arg)
         type = xmlnode_get_attrib(p->x,"type");
 
         /* new session requests */
-        if(j_strcmp(type,"session") == 0 || j_strcmp(type,"noisses") == 0)
+        if(j_strcmp(type,"session") == 0)
         {
             if((s = js_session_new(si, p)) == NULL)
             {
@@ -159,30 +158,14 @@ result js_packet(instance i, dpacket p, void *arg)
             if(j_strcmp(p->id->resource, s->route->resource) == 0)
                 break;
 
-        /* if it's a dup request */
-        if(j_strcmp(type,"dup") == 0)
-        {
-            /* reply? */
-            jutil_tofrom(p->x);
-            deliver(dpacket_new(p->x), i);
-            return r_DONE;
-        }
-
         /* if it's an error */
         if(j_strcmp(type,"error") == 0)
         {
-            /* ooh, incoming routed errors in reference to this session */
+            /* ooh, incoming routed errors in reference to this session, the session is kaput */
             if(s != NULL)
             {
-                from = jid_new(p->p,xmlnode_get_attrib(p->x,"from"));
-                js_session_dedup(s, from); /* remove them from the recipients of course */
-                if(jid_cmp(s->aid,from) == 0)
-                { /* if this is the authorative id, the one that created the session, die */
-                    js_session_end(s, "Disconnected");
-                }else{ /* hmm, not the authorative id?  then we don't care */
-                    xmlnode_free(p->x);
-                    return r_DONE;
-                }
+                s->sid = NULL; /* they generated the error, no use in sending there anymore! */
+                js_session_end(s, "Disconnected");
             }
 
             /* if this was a message, it should have been delievered to that session, store offline */
