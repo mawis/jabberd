@@ -123,9 +123,9 @@ void *load_loader(char *file)
     so_h = dlopen(file,RTLD_LAZY);
 
     /* check for a load error */
-    dlerr = dlerror();
-    if(dlerr != NULL)
+    if(!so_h)
     {
+        dlerr = dlerror();
         snprintf(message, MAX_LOG_SIZE, "Loading %s failed: '%s'\n",file,dlerr);
         fprintf(stderr, "%s\n", message);
         return NULL;
