@@ -270,7 +270,7 @@ mreturn mod_admin_message(mapi m, void *arg)
     char *subject;
 
     if(m->packet->type != JPACKET_MESSAGE) return M_IGNORE;
-    if(m->packet->to->resource != NULL) return M_PASS;
+    if(m->packet->to->resource != NULL || js_config(m->si,"admin") == NULL) return M_PASS;
 
     log_debug("mod_admin","delivering admin message from %s",jid_full(m->packet->from));
 
@@ -290,7 +290,21 @@ mreturn mod_admin_message(mapi m, void *arg)
         js_deliver(m->si,p);
     }
 
-    xmlnode_free(m->packet->x);
+    if((cur = js_config(m->si,"admin/reply")) != NULL)
+    {
+        if(xmlnode_get_tag(cur,"subject") != NULL)
+        {
+            xmlnode_hide(xmlnode_get_tag(m->packet->x,"subject"));
+            xmlnode_insert_tag_node(m->packet->x,xmlnode_get_tag(cur,"subject"));
+        }
+        xmlnode_hide(xmlnode_get_tag(m->packet->x,"body"));
+        xmlnode_insert_tag_node(m->packet->x,xmlnode_get_tag(cur,"body"));
+        jutil_tofrom(m->packet->x);
+        jpacket_reset(m->packet);
+        js_deliver(m->si,m->packet);
+    }else{
+        xmlnode_free(m->packet->x);
+    }
     return M_HANDLED;
 }
 
