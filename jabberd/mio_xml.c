@@ -164,6 +164,7 @@ Connection: close
     if(XML_Parse(m->parser, buf, bufsz, 0) == 0)
         if(m->cb != NULL)
         {
+            log_debug("mio", "[%s] XML Parsing Error: %s", ZONE, XML_ErrorString(XML_GetErrorCode(m->parser)));
             (*(mio_std_cb)m->cb)(m, MIO_ERROR, m->cb_arg);
             mio_write(m, NULL, "<stream:error>Invalid XML</stream:error>", -1);
             mio_close(m);
