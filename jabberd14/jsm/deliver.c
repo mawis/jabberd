@@ -164,6 +164,7 @@ result js_packet(instance i, dpacket p, void *arg)
     /* normal server-server packet, should we make sure it's not spoofing us?  if so, if ghash_get(p->to->server) then bounce w/ security error */
 
     jp = jpacket_new(p->x);
+    if(jp == NULL)
     {
         log_notice(p->host,"Dropping invalid incoming packet: %s",xmlnode2str(p->x));
         xmlnode_free(p->x);
