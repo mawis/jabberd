@@ -147,6 +147,23 @@ void jsm(instance i, xmlnode x)
     for(n=0;n<e_LAST;n++)
         si->events[n] = NULL;
 
+    /* enable history storage? */
+    cur = xmlnode_get_tag(si->config, "history");
+    if (cur != NULL) {
+	xmlnode nodeptr = NULL;
+	nodeptr = xmlnode_get_tag(cur, "sent");
+	if (nodeptr != NULL) {
+	    si->history_sent.general = 1;
+	    si->history_sent.special = j_strcmp(xmlnode_get_attrib(nodeptr, "special"), "store") == 0 ? 1 : 0;
+	}
+	nodeptr = xmlnode_get_tag(cur, "recv");
+	if (nodeptr != NULL) {
+	    si->history_recv.general = 1;
+	    si->history_recv.special = j_strcmp(xmlnode_get_attrib(nodeptr, "special"), "store") == 0 ? 1 : 0;
+	    si->history_recv.offline = j_strcmp(xmlnode_get_attrib(nodeptr, "offline"), "store") == 0 ? 1 : 0;
+	}
+    }
+
     /* initialize globally trusted ids */
     for(cur = xmlnode_get_firstchild(xmlnode_get_tag(si->config,"admin")); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
