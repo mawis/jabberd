@@ -119,6 +119,9 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
 
         xmlnode_hide_attrib(x,"etherx:from");
         xmlnode_hide_attrib(x,"etherx:to");
+        xmlnode_hide_attrib(x,"sto");
+        xmlnode_hide_attrib(x,"sfrom");
+        xmlnode_hide_attrib(x,"ip");
 
         /* make sure we don't get packets on an incoming connection */
         /* that are destined for a connection we have established */
