@@ -97,7 +97,8 @@ static void usage(void)
         "Usage: jadc2s <options>\n"
         "Options are:\n"
 	"   -h              output this help message\n"
-        "   -c <config>     config file to use [default: jadc2s.xml]\n"
+        "   -c <config>     config file to use\n"
+	"                   [default: " CONFIG_DIR "/jadc2s.xml]\n"
 	"   -r <randdev>    device to read randomization seed from\n"
         "   -o key=value    override config file property\n"
         "   -b              run in background\n", stdout);
@@ -163,7 +164,7 @@ int main(int argc, char **argv)
         }
     }
 
-    if(!config_loaded && config_load(c2s->config, "jadc2s.xml"))
+    if(!config_loaded && config_load(c2s->config, CONFIG_DIR "/jadc2s.xml"))
     {
         fprintf(stderr, "no config loaded, aborting\n");
         usage();

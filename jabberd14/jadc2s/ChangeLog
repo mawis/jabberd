@@ -1,3 +1,10 @@
+2003-12-14  Matthias Wimmer  <m@tthias.net>
+
+    * ac-helpers/ac_define_dir.m4: Added new macro from the GNU archive
+    * Makefile.am: install the configuration file
+    * configure.in: place the jadc2s.xml configuration file in the sysconfdir
+    * jadc2s.c: same
+
 2003-12-13  Matthias Wimmer  <m@tthias.net>
 
     * ChangeLog: Added ChangeLog file

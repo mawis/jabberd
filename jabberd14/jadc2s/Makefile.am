@@ -1,3 +1,4 @@
+sysconf_DATA = jadc2s.xml
 EXTRA_DIST = PROTO
 
 SUBDIRS = ac-helpers mio util xmlparse
