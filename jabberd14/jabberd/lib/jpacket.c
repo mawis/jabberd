@@ -68,6 +68,8 @@ jpacket jpacket_reset(jpacket p)
             p->subtype = JPACKET__PROBE;
         else if(strcmp(val,"error") == 0)
             p->subtype = JPACKET__ERROR;
+        else if(strcmp(val,"invisible") == 0)
+            p->subtype = JPACKET__INVISIBLE;
         else if(*val == 's' || *val == 'u')
             p->type = JPACKET_S10N;
         else if(strcmp(val,"available") == 0)
