@@ -433,6 +433,17 @@ void _io_select_connect(void *arg)
         return;
     }
 
+    /* XXX grr.. why do i need this? */
+    if(fd<=0)
+    {
+        log_debug(ZONE,"io_select connect failed to connect to: %s",cst->host);
+        (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg);
+        (*(io_cb)c->cb)(c,NULL,0,IO_CLOSED,c->cb_arg);
+        close(fd);
+        pool_free(c->p);
+        return;
+    }
+
     /* set to non-blocking */
     flags=fcntl(fd,F_GETFL,0);
     flags|=O_NONBLOCK;
