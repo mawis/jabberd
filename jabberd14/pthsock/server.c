@@ -311,5 +311,11 @@ void pthsock_server(instance i, xmlnode x)
     si->i=i;
 
     io__instance=io_select(5269,pthsock_server_read,(void*)si);
+    if(io_instance==NULL)
+    {
+        log_debug(ZONE,"Server to Server Failed to listen on 5269");
+        log_warn("Server 2 Server Component","Failed to listen on 5269");
+        exit(1);
+    }
     register_phandler(i,o_DELIVER,pthsock_server_packets,(void*)si);
 }
