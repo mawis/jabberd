@@ -319,10 +319,10 @@ void mio_run(mio_t m, int timeout)
                         mio_debug(ZONE, "Socket %d has idled to death", fd);
                         mio_close(m, fd);
                     }
-                }
 
-                /* We have send a space, wait again until we send the next */
-                FD(m,fd).last_activity = time(NULL);
+		    /* We have send a space, wait again until we send the next */
+		    FD(m,fd).last_activity = time(NULL);
+		}
             }
         }
             
