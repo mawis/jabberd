@@ -48,6 +48,7 @@ int exec_and_capture(char* const args[], int* in, int* out)
      }
      else			/* Child */
      {
+      char *last,*cur;
 	  /* Close unneeded file handles */
 	  close(left_fds[STDOUT_FILENO]);
 	  close(right_fds[STDIN_FILENO]);
@@ -64,6 +65,14 @@ int exec_and_capture(char* const args[], int* in, int* out)
 	       close(right_fds[STDOUT_FILENO]);
 	  }
 	  /* Execute another process */
+      for(last=NULL,cur=strchr(args[0],'/');cur!=NULL;last=cur+1,cur=strchr(last,'/'));
+      if(last!=NULL)
+      {
+        last--;
+        last[0]='\0';
+        chdir(args[0]);
+        args[0]=last+1;
+      }
 	  if( execv((char*)args[0], args) < 0)
 	       exit(1);
      }
