@@ -73,11 +73,11 @@ hosttype=`uname -s`
 case $hosttype in
     Linux)
         CFLAGS="$CFLAGS"
-        LIBS="$LIBS -ldl"
+        LIBS="$LIBS -ldl -lresolv"
         XLDFLAGS="$XLDFLAGS -Wl,--export-dynamic";;
     SunOS)
         CFLAGS="$CFLAGS"
-        LIBS="$LIBS -ldl -lsocket -lnsl";;
+        LIBS="$LIBS -ldl -lsocket -lnsl -lresolv";;
 esac
 printf "     Done.\n"
 ##
