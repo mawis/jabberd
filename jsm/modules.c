@@ -20,7 +20,7 @@
  *
  */
 
-#include "jserver.h"
+#include "jsm.h"
 
 /*
  *  js_mapi_master -- retreive a MAPI master list 
@@ -29,7 +29,7 @@
  *  for a particular phase of server operation
  *
  *  parameters
- *  	p -- the phase. values are #defined in jserver.hs
+ *  	p -- the phase. values are #defined in jsm.hs
  *
  *  returns
  *      a pointer to the master list for phase p 
@@ -66,7 +66,7 @@ mmaster js_mapi_master(mphase p)
  *  call back list for the phase p
  *
  *  parameters
- *  	p -- the phase. values are #defined in jserver.hs
+ *  	p -- the phase. values are #defined in jsm.hs
  *      c -- pointer to an mcall function
  *      arg -- an argument to pass to c when it is called
  *
@@ -114,7 +114,7 @@ void js_mapi_register(mphase p, mcall c, void *arg)
  *  applies to the specified session.
  *
  *  parameters
- *  	p -- the phase. values are #defined in jserver.h
+ *  	p -- the phase. values are #defined in jsm.h
  *		s -- the session to register the call with
  *      c -- pointer to an mcall function
  *      arg -- an argument to pass to c when it is called
@@ -173,7 +173,7 @@ void js_mapi_session(mphase p, session s, mcall c, void *arg)
  *  js_mapi_call -- call all the module call-backs for a phase
  *  
  *  parameters
- *  	phase -- the phase. values are #defined in jserver.h
+ *  	phase -- the phase. values are #defined in jsm.h
  *		l -- the list of functions to call
  *      packet -- the packet being processed, may be NULL
  *      user -- the user data for the current session

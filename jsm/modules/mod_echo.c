@@ -1,4 +1,4 @@
-#include "jserver.h"
+#include "jsm.h"
 
 mreturn mod_echo_reply(mapi m, void *arg)
 {
@@ -17,7 +17,7 @@ mreturn mod_echo_reply(mapi m, void *arg)
     return M_HANDLED;
 }
 
-void mod_echo(void)
+void mod_echo(jsmi i)
 {
     js_mapi_register(P_SERVER,mod_echo_reply,NULL);
 }

@@ -20,7 +20,7 @@
  *
  */
 
-#include "jserver.h"
+#include "jsm.h"
 
 /* global hash table of logged in users */
 HASHTABLE js__users = NULL;

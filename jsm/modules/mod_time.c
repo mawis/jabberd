@@ -1,4 +1,4 @@
-#include "jserver.h"
+#include "jsm.h"
 
 mreturn mod_time_reply(mapi m, void *arg)
 {
@@ -34,7 +34,7 @@ mreturn mod_time_reply(mapi m, void *arg)
     return M_HANDLED;
 }
 
-void mod_time(void)
+void mod_time(jsmi i)
 {
     js_mapi_register(P_SERVER,mod_time_reply,NULL);
 }

@@ -1,4 +1,4 @@
-#include "jserver.h"
+#include "jsm.h"
 
 thread mod_log__session = NULL;
 thread mod_log__packet = NULL;
@@ -142,7 +142,7 @@ mreturn mod_log_session(mapi m, void *arg)
     return M_PASS;
 }
 
-void mod_log(void)
+void mod_log(jsmi i)
 {
     log_debug(ZONE,"init");
     mod_log_init();

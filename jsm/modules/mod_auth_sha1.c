@@ -1,4 +1,4 @@
-#include <jserver.h>
+#include <jsm.h>
 
 mreturn mod_auth_digest(mapi m, void *arg)
 {
@@ -37,7 +37,7 @@ mreturn mod_auth_digest(mapi m, void *arg)
     return M_HANDLED;
 }
 
-void mod_auth_sha1(void)
+void mod_auth_sha1(jsmi i)
 {
     log_debug("mod_auth_sha1","init");
     js_mapi_register(P_OFFLINE, mod_auth_digest, NULL);

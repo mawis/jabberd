@@ -1,4 +1,4 @@
-#include "jserver.h"
+#include "jsm.h"
 
 int _mod_announce_avail(void *arg, const void *key, void *data)
 {
@@ -64,7 +64,7 @@ mreturn mod_announce_dispatch(mapi m, void *arg)
     return M_HANDLED;
 }
 
-void mod_announce(void)
+void mod_announce(jsmi i)
 {
     js_mapi_register(P_SERVER,mod_announce_dispatch,NULL);
 }

@@ -1,4 +1,4 @@
-#include "jserver.h"
+#include "jsm.h"
 
 /* THIS MODULE will soon be depreciated by mod_filter */
 
@@ -115,7 +115,7 @@ mreturn mod_offline_session(mapi m, void *arg)
     return M_PASS;
 }
 
-void mod_offline(void)
+void mod_offline(jsmi i)
 {
     log_debug("mod_offline","init");
     js_mapi_register(P_OFFLINE, mod_offline_handler, NULL);

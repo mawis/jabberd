@@ -1,4 +1,4 @@
-#include "jserver.h"
+#include "jsm.h"
 
 mreturn mod_private_set(mapi m, void *arg)
 {
@@ -64,7 +64,7 @@ mreturn mod_private_session(mapi m, void *arg)
     return M_PASS;
 }
 
-void mod_private(void)
+void mod_private(jsmi i)
 {
     js_mapi_register(P_SESSION,mod_private_session,NULL);
 }

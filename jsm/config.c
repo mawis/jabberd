@@ -20,7 +20,7 @@
  *  Functions to handle loading and querying the server configuration file
  */
 
-#include "jserver.h"
+#include "jsm.h"
 
 /*
  *  Global variable: js_config
@@ -44,51 +44,6 @@ char *js__hostname;
 int js_config_load(char *file)
 {
 
-    /* CONFIGXML is the default name for the config file - defined by the build system */
-    char def[] = CONFIGXML;
-    char *realfile = (char *)def;
-    xmlnode oldcfg = js__config;
-
-    /* if no file name is specified, fall back to the default file */
-    if(file != NULL)
-        realfile = file;
-
-    /* read and parse file */
-    js__config = xmlnode_file(realfile);
-
-    /* was the there a read/parse error? */
-    if(js__config == NULL)
-    {
-
-        /* error! Do we have an existing configuration to fall back to? */
-        if(oldcfg != NULL)
-        {
-
-            /* this was a failed HUP reload -- restore the existing configuration */
-            js__config = oldcfg;
-            log_error("jserver","RE-Configuration using %s failed, using existing config",realfile);
-            return 1;
-
-        }
-
-        /* no fallback configuration - report configuration failure */
-        log_error("jserver","Configuration using %s failed",realfile);
-        printf("Configuration using %s failed\n",realfile);
-        return 0;
-
-    }
-
-    /* configuration was successful -- is this a HUP reload? */
-    if(oldcfg != NULL)    {
-
-        /*
-         *  FIXME: notify modules, services etc to use the new configuration
-         *  FIXME: free the old configuration
-         */
-
-    }
-
-    /* if we got this far, everything is fine */
     return 1;
 
 }
@@ -134,7 +89,7 @@ struct name_list
  *  Use it to check if a name is local.
  *
  *  parameters
- *      cmd -- one of the commands #defined in jserver.h
+ *      cmd -- one of the commands #defined in jsm.h
  *      name -- the hostname in question
  *
  *  returns
@@ -186,7 +141,7 @@ int js_config_name(command cmd, char *name)
         /* enforce */
         if(js__hostname == NULL)
         {
-            log_error("jserver","Unable to determine default hostname! (check config file)");
+            log_error("jsm","Unable to determine default hostname! (check config file)");
             raise(SIGTERM);
         }
 

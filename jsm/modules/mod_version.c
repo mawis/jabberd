@@ -1,4 +1,4 @@
-#include "jserver.h"
+#include "jsm.h"
 #include <sys/utsname.h>
 
 mreturn mod_version_reply(mapi m, void *arg)
@@ -45,13 +45,13 @@ void *_mod_version_check(void *arg)
     /* temp hack, till we have an INIT phase and mod_version can do it */
     cur = xmlnode_new_tag("presence");
     xmlnode_put_attrib(cur,"from",js__hostname);
-    xmlnode_put_attrib(cur,"to","jserver@update.jabber.org/" VERSION);
+    xmlnode_put_attrib(cur,"to","jsm@update.jabber.org/" VERSION);
     js_deliver(jpacket_new(cur));
 
     return NULL;
 }
 
-void mod_version(void)
+void mod_version(jsmi i)
 {
     js_mapi_register(P_SERVER,mod_version_reply,NULL);
 

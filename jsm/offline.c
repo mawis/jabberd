@@ -21,7 +21,7 @@
  *
  */
 
-#include "jserver.h"
+#include "jsm.h"
 
 /*
  *  js_offline_main -- entry point for the offline thread

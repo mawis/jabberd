@@ -1,4 +1,4 @@
-#include "jserver.h"
+#include "jsm.h"
 
 mreturn mod_vcard_jud(mapi m)
 {
@@ -136,7 +136,7 @@ mreturn mod_vcard_session(mapi m, void *arg)
     return M_PASS;
 }
 
-void mod_vcard(void)
+void mod_vcard(jsmi i)
 {
     js_mapi_register(P_SESSION,mod_vcard_session,NULL);
     js_mapi_register(P_OFFLINE,mod_vcard_reply,NULL);

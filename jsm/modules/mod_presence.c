@@ -1,4 +1,4 @@
-#include "jserver.h"
+#include "jsm.h"
 
 /* util to check for valid roster items */
 int mod_presence_roster(udata user, jid id)
@@ -257,7 +257,7 @@ mreturn mod_presence_deliver(mapi m, void *arg)
     return M_PASS;
 }
 
-void mod_presence(void)
+void mod_presence(jsmi i)
 {
     log_debug("mod_presence","init");
     js_mapi_register(P_DELIVER, mod_presence_deliver, NULL);
