@@ -1,9 +1,4 @@
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #include <jabber/jabber.h>
-#include <etherx.h>
 
 #define HASH_PRIME 509 /* set to a prime number larger then the average max # of users, for the master hash */
 
@@ -38,6 +33,11 @@ typedef enum {M_PASS,   /* we don't want this packet this tim */
               M_HANDLED /* stop mapi processing on this packet */
              } mreturn;
 
+/* globals for this instance of jsm */
+typedef struct jsmi_struct
+{
+    /* hold the lists of registrations here */
+} *jsmi, _jsmi;
 
 typedef struct udata_struct *udata, _udata;
 typedef struct session_struct *session, _session;

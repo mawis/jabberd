@@ -16,11 +16,11 @@
  *  Jabber
  *  Copyright (C) 1998-1999 The Jabber Team http://jabber.org/
  *
- *  util.c -- utility functions for jserver
+ *  util.c -- utility functions for jsm
  *
  */
 
-#include "jserver.h"
+#include "jsm.h"
 
 /*
  *  js_bounce -- short_desc

@@ -20,7 +20,7 @@
  *
  */
 
-#include "jserver.h"
+#include "jsm.h"
 
 /*
  *  js_unknown_main -- entry point for the unknown thread

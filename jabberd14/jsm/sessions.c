@@ -27,7 +27,7 @@
  *
  */
 
-#include "jserver.h"
+#include "jsm.h"
 
 /* worker thread waiting pool */
 #define SESSION_WAITERS 10

@@ -1,4 +1,4 @@
-#include "jserver.h"
+#include "jsm.h"
 
 xmlnode mod_roster_get(udata u)
 {
@@ -432,7 +432,7 @@ mreturn mod_roster_s10n(mapi m, void *arg)
     return M_HANDLED;
 }
 
-void mod_roster(void)
+void mod_roster(jsmi i)
 {
     /* we just register for new sessions */
     js_mapi_register(P_SESSION,mod_roster_session,NULL);

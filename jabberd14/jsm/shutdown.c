@@ -20,7 +20,7 @@
  *
  */
 
-#include "jserver.h"
+#include "jsm.h"
 
 /*
  *  jabber_transport_exit -- notify all modules that we are exiting

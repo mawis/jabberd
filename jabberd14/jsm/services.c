@@ -20,7 +20,7 @@
  *
  */
 
-#include "jserver.h"
+#include "jsm.h"
 
 
 /*
@@ -172,7 +172,7 @@ void js_service_listen(char *svc, tlisten_onConnect evt)
         /* create thread to listen on the host and port */
         if(tlisten_new(port, ip, evt, NULL) == NULL)
         {
-            log_error("jserver","failed to listen on %s:%d",ip,port);
+            log_error("jsm","failed to listen on %s:%d",ip,port);
         }else{
             log_debug(ZONE,"listening on %s:%d",ip,port);
             flag = 1;
@@ -181,5 +181,5 @@ void js_service_listen(char *svc, tlisten_onConnect evt)
 
     /* log and error if the listen failed */
     if(flag == 0)
-        log_error("jserver","Failed to listen for service %s",svc);
+        log_error("jsm","Failed to listen for service %s",svc);
 }

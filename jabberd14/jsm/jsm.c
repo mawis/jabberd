@@ -16,11 +16,11 @@
  *  Jabber
  *  Copyright (C) 1998-1999 The Jabber Team http://jabber.org/
  *
- *  main.c -- entry point for the jserver executable
+ *  main.c -- entry point for the jsm executable
  *
  */
 
-#include "jserver.h"
+#include "jsm.h"
 
 /*
  *  main -- executable entry point
@@ -74,7 +74,7 @@ int main (int argc, char** argv)
     {
 
         /* bad param, provide help message */
-        printf("Usage:\njserver [-D] [-c config.xml]\n");
+        printf("Usage:\njsm [-D] [-c config.xml]\n");
         exit(0);
 
     }
@@ -111,7 +111,7 @@ int main (int argc, char** argv)
     }
 
     /* we left the main loop, so we must have recieved a kill signal */
-    log_error("jserver","Received KILL, gracefully shutting down server");
+    log_error("jsm","Received KILL, gracefully shutting down server");
 
     /* start the shutdown sequence */
     jabber_transport_exit();

@@ -20,7 +20,7 @@
  *
  */
 
-#include "jserver.h"
+#include "jsm.h"
 #ifdef HAVE_OPENSSL
 #include "svc/client/svc_client_ssl.h"
 #endif /* HAVE_OPENSSL */
@@ -44,10 +44,10 @@ void jabber_transport()
         log_init(LOGFILE,log);
     }else{
         log_init(LOGSTDERR,NULL);
-        log_warn("jserver","Error log not configured, printing to STDERR");
+        log_warn("jsm","Error log not configured, printing to STDERR");
     }
 
-    log_warn("jserver","Initializing Services");
+    log_warn("jsm","Initializing Services");
 
     /* set up attributes for system threads */
     attr = pth_attr_new();

@@ -20,7 +20,7 @@
  *				administration, public IQ (agents, etc)
  */
 
-#include "jserver.h"
+#include "jsm.h"
 
 /*
  *  js_server_main -- entry point for the server thread

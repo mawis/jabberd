@@ -1,4 +1,4 @@
-#include "jserver.h"
+#include "jsm.h"
 
 int _mod_admin_who(void *arg, const void *key, void *data)
 {
@@ -234,7 +234,7 @@ mreturn mod_admin_message(mapi m, void *arg)
     return M_HANDLED;
 }
 
-void mod_admin(void)
+void mod_admin(jsmi i)
 {
     js_mapi_register(P_SERVER,mod_admin_dispatch,NULL);
     js_mapi_register(P_SERVER,mod_admin_message,NULL);

@@ -1,4 +1,4 @@
-#include "jserver.h"
+#include "jsm.h"
 
 mreturn mod_auth_plain(mapi m, void *arg)
 {
@@ -24,7 +24,7 @@ mreturn mod_auth_plain(mapi m, void *arg)
     return M_HANDLED;
 }
 
-void mod_auth(void)
+void mod_auth(jsmi i)
 {
     log_debug("mod_auth","init");
     js_mapi_register(P_OFFLINE, mod_auth_plain, NULL);

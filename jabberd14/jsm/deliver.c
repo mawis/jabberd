@@ -1,4 +1,4 @@
-#include "jserver.h"
+#include "jsm.h"
 
 /* NOTE: any jpacket sent to deliver *MUST* match jpacket_new(p->x),
  * jpacket is simply a convenience wrapper
@@ -28,14 +28,14 @@ void js_deliver(jpacket p)
 
     if(p->to == NULL)
     {
-        log_warn("jserver","Invalid Recipient, returning data %s",xmlnode2str(p->x));
+        log_warn("jsm","Invalid Recipient, returning data %s",xmlnode2str(p->x));
         js_bounce(p->x,TERROR_BAD);
         return;
     }
 
     if(p->from == NULL)
     {
-        log_warn("jserver","Invalid Sender, discarding data %s",xmlnode2str(p->x));
+        log_warn("jsm","Invalid Sender, discarding data %s",xmlnode2str(p->x));
         xmlnode_free(p->x);
         return;
     }
