@@ -2,7 +2,7 @@
 #include <pth.h>
 
 /* packet types */
-typedef enum { p_NONE, p_NORM, p_SESS, p_XDB, p_LOG } ptype;
+typedef enum { p_NONE, p_NORM, p_XDB, p_LOG } ptype;
 
 /* ordering types */
 typedef enum { o_FIRST, o_ANY, o_LAST } order;
@@ -55,7 +55,7 @@ typedef result (*cfgene)(idnode id, xmlnode x, void *arg);
 void cfreg(char *node, cfgene f, void *arg); /* register a function to handle that node in the config file */
 void hdreg(idnode id, order o, hdgene f, void *arg); /* register a function to handle delivery for this idnode */
 void idreg(idnode id, char *host); /* associate an id with a hostname for that packet type */
-
+dpacket dpacket_new(xmlnode x); /* create a new delivery packet from source xml */
 
 /*** internal functions ***/
 int configurator(char *cfgfile);
