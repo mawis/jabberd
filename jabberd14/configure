@@ -12,11 +12,14 @@
 # You only need to run this once to setup your platforms options
 ##
 WANT_SSL=0;
+WANT_IPV6=0;
 
 for x in $@; do
     case x$x in
       x--enable-ssl)
         WANT_SSL=1;;
+      x--enable-ipv6)
+        WANT_IPV6=1;;
     esac;
 done;
 ##
@@ -67,6 +70,18 @@ if [ $WANT_SSL -eq 1 ]; then
     if test x_$found_ssl != x_yes; then
         printf "         Not Found.\n"
     fi
+fi;
+
+##
+# IPv6 check
+##
+printf "Support for IPv6...";
+if [ $WANT_IPV6 -eq 1 ]; then
+    # we should add some checks if all the needed functions are available
+    printf "             Enabled.\n";
+    CFLAGS="$CFLAGS -DWITH_IPV6";
+else
+    printf "             Disabled.\n";
 fi;
 
 ##

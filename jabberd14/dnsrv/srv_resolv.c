@@ -66,6 +66,14 @@ char* srv_inet_ntoa(pool p, unsigned char* addrptr)
      return pstrdup(p, result);
 }
 
+#ifdef WITH_IPV6
+char* srv_inet_ntop(pool p, const unsigned char* addrptr, int af)
+{
+    char result[INET6_ADDRSTRLEN];
+    inet_ntop(af, addrptr, result, sizeof(result));
+    return pstrdup(p, result);
+}
+#endif
 
 char* srv_port2str(pool p, unsigned short port)
 {
@@ -91,12 +99,51 @@ char* srv_lookup(pool p, const char* service, const char* domain)
      spool            result;
      char*            ipname;
      char*            ipaddr;
+#ifdef WITH_IPV6
+     int	      error_code;
+     struct addrinfo  hints;
+     struct addrinfo* addr_res;
+#else
      struct hostent*  hp;
+#endif
 
      /* If no service is specified, use a standard gethostbyname call */
      if (service == NULL)
      {
 	  log_debug(ZONE, "srv: Standard resolution of %s", domain);
+#ifdef WITH_IPV6
+	  hints.ai_flags = 0;
+	  hints.ai_family = PF_UNSPEC;
+	  hints.ai_socktype = SOCK_STREAM;
+	  hints.ai_protocol = 0;
+	  hints.ai_addrlen = 0;
+	  hints.ai_canonname = NULL;
+	  hints.ai_addr = NULL;
+	  hints.ai_next = NULL;
+
+	  error_code = getaddrinfo(domain, NULL, &hints, &addr_res);
+	  if (error_code)
+	  {
+	      log_debug(ZONE, "srv: Error while resolving %s: %s", domain, gai_strerror(error_code));
+	      return NULL;
+	  }
+
+	  switch (addr_res->ai_family)
+	  {
+	      case PF_INET:
+		  ipaddr = pstrdup(p, srv_inet_ntop(p, (char *)&((struct sockaddr_in*)addr_res->ai_addr)->sin_addr, addr_res->ai_family));
+		  break;
+	      case PF_INET6:
+		  ipaddr = pstrdup(p, srv_inet_ntop(p, (char *)&((struct sockaddr_in6*)addr_res->ai_addr)->sin6_addr, addr_res->ai_family));
+		  break;
+	      default:
+		  ipaddr = NULL;
+	  }
+
+	  freeaddrinfo(addr_res);
+	  log_debug(ZONE, "srv: Resolved %s to: %s", domain, ipaddr);
+	  return ipaddr;
+#else
 	  hp = gethostbyname(domain);
 	  if (!hp)
 	  {
@@ -107,6 +154,7 @@ char* srv_lookup(pool p, const char* service, const char* domain)
 	  {
 	       return pstrdup(p, srv_inet_ntoa(p, hp->h_addr));
 	  }
+#endif
      }
 
      log_debug(ZONE, "srv: SRV resolution of %s.%s", service, domain);
@@ -173,6 +221,19 @@ char* srv_lookup(pool p, const char* service, const char* domain)
 	       /* Process the RR */
 	       switch(rrtype)
 	       {
+#ifdef WITH_IPV6
+		   /* AAAA records should be hashed for the duration of this lookup */
+	       case T_AAAA:
+		   /* Allocate a new string to hold the IP address */
+		   ipaddr = srv_inet_ntop(p, rrptr, AF_INET6);
+		   /* Copy the domain name */
+		   ipname = pstrdup(p, host);
+
+		   /* Insert name/ip into hash table for future reference */
+		   ghash_put(arr_table, ipname, ipaddr);
+
+		   break;
+#endif
 		    /* A records should be hashed for the duration of this lookup */
 	       case T_A: 
 		    /* Allocate a new string to hold the IP address */
@@ -243,11 +304,59 @@ char* srv_lookup(pool p, const char* service, const char* domain)
 	       ipaddr = (char*)ghash_get(arr_table, iternode->host);
 	       if (ipaddr != NULL)
 	       {
-		    spooler(result, ipaddr, ":", iternode->port, result);
+#ifdef WITH_IPV6
+	            if (strchr(ipaddr, ':')) {
+			spooler(result, "[", ipaddr, "]:", iternode->port, result);
+		    }
+		    else
+		    {
+#endif
+		        spooler(result, ipaddr, ":", iternode->port, result);
+#ifdef WITH_IPV6
+		    }
+#endif
 	       }
 	       /* Otherwise, request the A record */
 	       else
 	       {
+#ifdef WITH_IPV6
+		    log_debug(ZONE, "srv: attempting A / AAAA record lookup.");
+
+		    hints.ai_flags = 0;
+		    hints.ai_family = PF_UNSPEC;
+		    hints.ai_socktype = SOCK_STREAM;
+		    hints.ai_protocol = 0;
+		    hints.ai_addrlen = 0;
+		    hints.ai_canonname = NULL;
+		    hints.ai_addr = NULL;
+		    hints.ai_next = NULL;
+
+		    error_code = getaddrinfo(iternode->host, NULL, &hints, &addr_res);
+		    if (error_code)
+		    {
+			log_debug(ZONE, "srv: Error while resolving %s: %s", domain, gai_strerror(error_code));
+		    }
+		    else
+		    {
+			switch (addr_res->ai_family)
+			{
+			    case PF_INET:
+				spooler(result,
+					srv_inet_ntop(p, (char *)&((struct sockaddr_in*)addr_res->ai_addr)->sin_addr, addr_res->ai_family),
+					":", iternode->port, result);
+				break;
+			    case PF_INET6:
+				spooler(result, "[",
+					srv_inet_ntop(p, (char *)&((struct sockaddr_in6*)addr_res->ai_addr)->sin6_addr, addr_res->ai_family),
+					"]:", iternode->port, result);
+				break;
+			    default:
+				ipaddr = NULL;
+			}
+
+			freeaddrinfo(addr_res);
+		    }
+#else
 		    log_debug(ZONE, "srv: attempting A record lookup.");
 		    /* FIXME: Is this really retrv'ing A record? */
 		    hp = gethostbyname(iternode->host);
@@ -259,6 +368,7 @@ char* srv_lookup(pool p, const char* service, const char* domain)
 		    {
 			 spooler(result, srv_inet_ntoa(p, hp->h_addr), ":", iternode->port, result);
 		    }
+#endif
 	       }
 	       iternode = iternode->next;
 	  }

@@ -23,6 +23,10 @@
 
 #include "xmlparse.h"
 
+#ifdef WITH_IPV6
+#include <resolv.h>
+#endif
+
 /*
 **  Arrange to use either varargs or stdargs
 */
@@ -155,6 +159,9 @@ int pool_size(pool p); /* returns total bytes allocated in this pool */
 int make_netsocket(u_short port, char *host, int type);
 struct in_addr *make_addr(char *host);
 int set_fd_close_on_exec(int fd, int flag);
+#ifdef WITH_IPV6
+struct in6_addr *make_addr_ipv6(char *host);
+#endif
 #endif
 
 
