@@ -208,14 +208,18 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    /* then make sure we can listen */
-    if(mio_listen(c2s->mio, c2s->local_port, c2s->local_ip, client_io, (void*)c2s) < 0)
+    /* only bind the unencrypted port if we have a real port number for it */
+    if(c2s->local_port > 0)
     {
-        log_write(c2s->log, LOG_ERR, "failed to listen on port %d!", c2s->local_port);
-        return 1;
-    }
+        /* then make sure we can listen */
+        if(mio_listen(c2s->mio, c2s->local_port, c2s->local_ip, client_io, (void*)c2s) < 0)
+        {
+            log_write(c2s->log, LOG_ERR, "failed to listen on port %d!", c2s->local_port);
+            return 1;
+        }
 
-    log_write(c2s->log, LOG_NOTICE, "listening for client connections on port %d", c2s->local_port);
+        log_write(c2s->log, LOG_NOTICE, "listening for client connections on port %d", c2s->local_port);
+    }
 
 #ifdef USE_SSL
     /* get the SSL port all set up */
@@ -237,7 +241,7 @@ int main(int argc, char **argv)
         {
             if(!SSL_CTX_check_private_key(c2s->ssl_ctx))
                 log_write(c2s->log, LOG_WARNING, "private key does not match certificate public key, ssl disabled");
-            else if(mio_listen(c2s->mio, c2s->local_sslport, NULL, client_io, (void*)c2s) < 0)
+            else if(mio_listen(c2s->mio, c2s->local_sslport, c2s->local_ip, client_io, (void*)c2s) < 0)
                 log_write(c2s->log, LOG_ERR, "failed to listen on port %d!", c2s->local_sslport);
             else
                 log_write(c2s->log, LOG_NOTICE, "listening for ssl client connections on port %d", c2s->local_sslport);
