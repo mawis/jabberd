@@ -351,7 +351,7 @@ void mod_groups_register_set(mod_groups_i mi, mapi m)
             user = xmlnode_insert_tag(users,"user");
             xmlnode_put_attrib(user,"jid",jid_full(u->id));
             xmlnode_put_attrib(user,"name",u->id->user);
-            xdb_set(m->si->xc,id,NS_XGROUPS,xmlnode_dup(users));
+            xdb_set(m->si->xc,id,NS_XGROUPS,users);
 
             /* push the new user */
             mod_groups_push_item(mi,u,gid,xmlnode_get_tag_data(users,"name"),1);

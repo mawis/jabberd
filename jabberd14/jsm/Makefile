@@ -32,7 +32,7 @@ jsm_EXOBJECTS = \
 	modules/mod_filter.o \
 	modules/mod_groups.o \
 	modules/mod_presence.o \
-	modules/mod_private.o \
+	modules/mod_xml.o \
 	modules/mod_roster.o \
 	modules/mod_time.o \
 	modules/mod_vcard.o \

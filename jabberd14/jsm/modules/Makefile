@@ -18,7 +18,7 @@ jsm_modules_OBJECTS=\
 	mod_filter.o \
 	mod_groups.o \
 	mod_presence.o \
-	mod_private.o \
+	mod_xml.o \
 	mod_roster.o \
 	mod_time.o \
 	mod_vcard.o \
