@@ -1,5 +1,5 @@
 CC=gcc
-DEFINES=-DCONFIGXML="\"jabberd.xml\""
+DEFINES=-DCONFIGXML="\"jabber.xml\""
 CFLAGS=-fPIC -g $(DEFINES) -I./ -I../ `libxode-config --cflags` -Wall
 LDFLAGS=`libxode-config --ldflags --libs` `pth-config --libs --ldflags` `jabber-config --ldflags --libs` -ldl
 

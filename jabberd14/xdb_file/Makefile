@@ -1,13 +1,7 @@
-all: xdb_file pthsock_client pthsock_server
+all: xdb_file
 
 xdb_file:
-	gcc -fPIC -shared -o xdb_file.so xdb_file.c -I../src
-
-pthsock_client:
-	gcc -fPIC -shared -o pthsock_client.so pthsock_client.c -I../src
-
-pthsock_server:
-	gcc -fPIC -shared -o pthsock_server.so pthsock_server.c -I../src
+	gcc -fPIC -shared -o xdb_file.so xdb_file.c -I../jabberd
 
 clean:
-	rm xdb_file.so pthsock_client.so
+	rm -f xdb_file.so

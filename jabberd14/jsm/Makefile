@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-fPIC -g -DVERSION=\"0.1\" -DPACKAGE=\"jsm\" -I./ -I../ `libxode-config --cflags` -Wall -I../jabberd/src
+CFLAGS=-fPIC -g -DVERSION=\"1.1.1\" -DPACKAGE=\"jsm\" -I./ -I../ `libxode-config --cflags` -Wall -I../jabberd
 
 SUBDIRS = modules
 
@@ -35,4 +35,4 @@ jsm_build: $(jsm_OBJECTS)
 	$(CC) -fPIC -shared -o jsm.so $(jsm_OBJECTS)
 
 clean:
-	rm $(jsm_OBJECTS) jsm.so
+	rm -f $(jsm_OBJECTS) jsm.so
