@@ -1,122 +1,92 @@
 #include <libxode.h>
 
-/* DUDE, this is a PROTOTYPE playground, go away :) */
+typedef int (*RESOLVEFUNC)(int in, int out);
 
-/* resolve an address and send the result to the parent */
-void dnsrv_worker_resolve(char *addr, int parent)
+/* --------------------------------------- */
+/* Struct to keep track of a DNS coprocess */
+typedef struct _dns_io
 {
-    struct in_addr *in;
+     int           in;		 /* Inbound data handle */
+     int           out;		 /* Outbound data handle */
+     pth_message_t write_queue;
+} *dns_io;
 
- /* struct hostent *hp;
-    hp = gethostbyname(buff); 
-    printf("resolved ip %s\n",inet_ntoa((struct in_addr)**(hp->h_addr_list))); */
 
-    printf("resolving name %s\n",addr);
-    in = make_addr(addr);
-    printf("resolved ip %s\n",inet_ntoa(*in));
+/* --------------------------------------------------- */
+/* Struct to store a dpacket that needs to be resolved */
+typedef struct
+{
+     pth_message_t head;
+     dpacket       packet;
+} *dns_write_buf;
+
+
+/* ----------------------------------------------------------- */
+/* Struct to store list of dpackets which need to be delivered */
+typedef struct _dns_packet_list
+{
+     dpacket           packet;
+     _dns_packet_list* next;
+} *dns_packet_list;
+
+
+int dns_fork_and_capture(RESOLVEFUNC f, int* in, int* out)
+{
+     int left_fds[2], right_fds[2];
+     int pid;
+
+     /* Create left and right pipes */
+     if (pipe(left_fds) < 0 || pipe(right_fds) < 0)
+	  return r_ERR;
+
+     pid = fork();
+     if (pid < 0)
+	  return r_ERR;
+     else if (pid > 0)		/* Parent */
+     {
+	  /* Close unneeded file handles */
+	  close(left_fds[STDIN_FILENO]);
+	  close(right_fds[STDOUT_FILENO]);
+	  /* Return the in and out file descriptors */
+	  *in = right_fds[STDIN_FILENO];
+	  *out = left_fds[STDOUT_FILENO];
+	  return pid;
+     }
+     else			/* Child */
+     {
+	  /* Close unneeded file handles */
+	  close(left_fds[STDOUT_FILENO]);
+	  close(right_fds[STDIN_FILENO]);
+	  /* Start the specified function, passing the in/out descriptors */
+	  return (*f)(left_fds[STDIN_FILENO], right_fds[STDOUT_FILENO]);
+     }
+}
+
+void dns_process_io(void* threadarg)
+{
+     dns_io di = (dns_io)threadarg;
+}
+
+int dnsrv_resolve_main(int in, int out)
+{
 
 }
 
-/* simple xstream callback, we only care about data in the nodes */
-void dnsrv_worker_stream(int type, xmlnode x, void *arg)
+void dnsrv(instance i, xmlnode x)
 {
+     /* Setup a struct to hold dns_io handles */
+     dns_io di;
+     di = pmalloco(i->p, sizeof(_dns_io));
 
-    if(type == XSTREAM_NODE)
-        dnsrv_worker_resolve(xmlnode_get_data(x),(int)arg);
+     /* Initialize a message port to handle incoming dpackets */
+     di->write_queue = pth_msgport_create(i->id);
 
-    xmlnode_free(x);
-}
+     /* Fork out resolver function/process */
+     dns_fork_and_capture(dnsrv_resolve_main, &(di->in), &(di->out));
 
-void dnsrv_worker_main(int io[2])
-{
-    pool p = pool_new();
-    xstream xs;
+     /* Start IO thread */
+     pth_spawn(PTH_ATTR_DEFAULT, dnsrv_process_io, di);
 
-    xs = xstream_new(p, dnsrv_worker_resolve, (void *)io[1]);
-    while(1)
-    {
-        printf("child waiting\n");
-        n = read(socks[0],buff,1023);
-        if(n < 0)
-        {
-            printf("child died %s\n",strerror(errno));
-            break;
-        }
-
-        buff[n] = '\0';
-        printf("child read %s\n",buff);
-        xstream_eat(xs,buff,n);
-    }
-
-    pool_free(p);
-}
-
-
-/* xstream callback, resolved ip's being returned */
-void dnsrv_parent_stream(int type, xmlnode x, void *arg)
-{
-
-    if(type == XSTREAM_NODE)
-    {
-        printf("parent got node %s\n",xmlnode2str(x));
-    }
-
-    xmlnode_free(x);
-}
-
-void dnsrv_parent_main(int io[2])
-{
-    pool p = pool_new();
-    xstream xs;
-
-    xs = xstream_new(p, dnsrv_worker_resolve, (void *)io[1]);
-    while(1)
-    {
-        printf("parent waiting\n");
-        n = read(socks[0],buff,1023);
-        if(n < 0)
-        {
-            printf("child died %s\n",strerror(errno));
-            break;
-        }
-
-        buff[n] = '\0';
-        printf("child read %s\n",buff);
-        xstream_eat(xs,buff,n);
-    }
-
-    pool_free(p);
-}
-
-int main(void)
-{
-    int io_child[2];
-    int io_parent[2];
-    int io_pass[2];
-    int n;
-    char buff[1024];
-    int i=0;
-
-    printf("starting\n");
-
-    n = pipe(socks);
-
-    printf("%d got server %d client %d\n",n,socks[0],socks[1]);
-
-    if(fork())
-    {
-        while(1)
-        {
-            usleep(1000);
-            printf("parent writing\n");
-            write(socks[1],"foobar",6);
-            if(n < 0)
-            {
-                printf("parent died %s\n",strerror(errno));
-                exit(1);
-            }
-        }
-    }
-
-
+     /* Register an incoming packet handler */
+     register_phandler(id, o_DELIVER, dns_process_io, (void*)di);
 }
