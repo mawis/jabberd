@@ -51,7 +51,6 @@ typedef struct
 
 mreturn mod_version_reply(mapi m, void *arg)
 {
-    xmlnode os, version;
     mod_version_i mi = (mod_version_i)arg;
 
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
