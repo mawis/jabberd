@@ -9,7 +9,7 @@ temas	9/15/00 almost
 jpolld component minimally working
 
 sheath	9/15/00 in progress
-s2s SRV dns lookup support, nonblocking?
+s2s SRV dns lookup support
 
 any	9/15/00 easy
 kill HUP logs notice, can't do anything till 1.3
@@ -51,9 +51,6 @@ jer	9/15/00
 deliver() queueing during config
 use a temporary global message port which is cleared out after config is done?
 
-jer	9/15/00 thinking
-iq:agents support again
-
 ?	9/15/00 open, needs some docu from jer
 base_farm for simple hashing name distribution
 
@@ -61,6 +58,9 @@ base_farm for simple hashing name distribution
 ===================================
 1.2
 ===================================
+
+jer 9/26/00 future junk
+A way to gracefully shut down the server, and notify all components is needed
 
 dizzyd	9/15/00 owner
 test python scripts, "make test"

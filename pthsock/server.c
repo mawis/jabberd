@@ -233,6 +233,7 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
 
     to=jid_new(xmlnode_pool(dp->x),xmlnode_get_attrib(dp->x,"to"));
     from=jid_new(xmlnode_pool(dp->x),xmlnode_get_attrib(dp->x,"from"));
+
     ip=xmlnode_get_attrib(dp->x,"ip"); /* look for ip="12.34.56.78:5269" header */ 
     if(ip!=NULL)
     {

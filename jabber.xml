@@ -23,7 +23,15 @@
       <mod_filter>./jsm/jsm.so</mod_filter>
     </load>
     <jsm xmlns="jabberd:jsm:config">
-      <agents/>
+      <agents>
+       <agent jid="users.jabber.org">
+        <name>Jabber User Directory</namd>
+        <description>You may register and create a public searchable profile, and search for other registered Jabber users.</description>
+        <service>jud</service>
+        <register/>
+        <search/>
+       </agent>
+      </agents>
       <register/>
     </jsm>
   </service>
