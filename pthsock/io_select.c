@@ -434,13 +434,13 @@ void _io_main(void *arg)
                 _io_close(temp);
                 continue;
             }
-            /* if there are packets to be written, wait for a write slot */
-            if(cur->xbuffer!=NULL) FD_SET(cur->fd,&all_wfds);
-            else FD_CLR(cur->fd,&all_wfds);
 
-            if(cur->fd>maxfd)maxfd=cur->fd;
             cur = cur->next;
         }
+        /* (XXX, yes, spin through the entire list again, otherwise you can't write to a socket from another socket's read call) if there are packets to be written, wait for a write slot */
+        for(cur = io__data->master__list; cur != NULL; cur = cur->next)
+            if(cur->xbuffer!=NULL) FD_SET(cur->fd,&all_wfds);
+            else FD_CLR(cur->fd,&all_wfds);
     }
 }
 
