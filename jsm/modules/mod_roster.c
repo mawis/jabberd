@@ -351,9 +351,8 @@ mreturn mod_roster_out_iq(mapi m) {
 		id = jid_new(m->packet->p,xmlnode_get_attrib(cur,"jid"));
 		if (id == NULL || jid_cmpx(jid_user(m->s->id),id,JID_USER|JID_SERVER) == 0) continue;
 
-		/* zoom to find the existing item in the current roster, and hide it */
+		/* zoom to find the existing item in the current roster */
 		item = mod_roster_get_item(roster, id, &newflag);
-		xmlnode_hide(item);
 
 		/* drop you sukkah */
 		if (j_strcmp(xmlnode_get_attrib(cur,"subscription"),"remove") == 0) {
