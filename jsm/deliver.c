@@ -151,7 +151,8 @@ result js_packet(instance i, dpacket p, void *arg)
                 return r_DONE;
             }
             /* drop and return */
-            log_notice(p->host, "Dropping a bounced session packet to %s", jid_full(p->id));
+            if(xmlnode_get_firstchild(p->x) != NULL)
+                log_notice(p->host, "Dropping a bounced session packet to %s", jid_full(p->id));
             xmlnode_free(p->x);
             return r_DONE;
         }
