@@ -108,11 +108,23 @@ void base_connect_handle_xstream_event(int type, xmlnode x, void* arg)
 	  /* Transmit handshake request */	  
 	  strbuf = xmlnode2str(cur);
 	  pth_write(ci->socket, strbuf, strlen(strbuf));
+	  break;
      case XSTREAM_NODE:
-	  /* Check connection status - if not auth'd yet and this isn't
-	     a handshake packet, drop it
-	     Otherwise, deliver the packet */
-	  deliver(dpacket_new(x), NULL);
+	  /* Only deliver packets after the connection is auth'd */
+	  if (ci->state == conn_AUTHD)
+	  {
+	       deliver(dpacket_new(x), NULL);
+	  }
+	  else
+	  {
+	       /* If a handshake packet is recv'd from the server, we
+		  have successfully auth'd */
+	       if (strcmp(xmlnode_get_name(x), "handshake") == 0)
+		    ci->state = conn_AUTHD;
+	       /* Drop the packet, regardless */
+	       pool_free(x->p);
+	  }
+	  break;
      case XSTREAM_CLOSE:
      case XSTREAM_ERR:
 	  /* FIXME: Who knows? The _SHADOW_ knows. */
@@ -140,12 +152,13 @@ void* base_connect_process_io(void* arg)
      /* Attempt to connect... */
      while (ci->socket < 0)
      {
-	  /* Sleep for a bit... */
-	  pth_nap(pth_time(10, 0));
 	  /* Log the attempt to connect */
 	  log_debug(ZONE, "Attempting to connect to: %s : %d\n", ci->hostip, ci->hostport);
 	  /* Attempt to connect */
 	  ci->socket = make_netsocket(ci->hostport, ci->hostip, NETSOCKET_CLIENT);
+	  /* Sleep for a bit... */
+	  if (ci->socket < 0) 
+	       pth_nap(pth_time(5, 0));
      }
 
     /* Setup initial event ring for this socket */
@@ -156,7 +169,7 @@ void* base_connect_process_io(void* arg)
      ci->state = conn_OPEN;
 
      /* Transmit stream header */  
-     pth_write(ci->socket, "<root>", sizeof("<root>"));
+     pth_write(ci->socket, "<root>", strlen("<root>"));
 
      /* Loop on events */
      while (pth_wait(ci->events) > 0)

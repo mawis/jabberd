@@ -30,6 +30,9 @@ if __name__ == "__main__":
         # ns3_filter_xdb
         es.write("<xdb to='%s/xdb:test3'/>" % (dest_host))
 
+        # ns4_filter_xdb
+        es.write("<xdb to='foobar.org'/>")
+
         # Delay so user can examine results
         time.sleep(60)
     except:
