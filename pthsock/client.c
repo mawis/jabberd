@@ -255,7 +255,7 @@ cdata pthsock_client_cdata(smi si,sock c)
     cd = pmalloco(c->p, sizeof(_cdata));
     cd->pre_auth_mp=pth_msgport_create("pre_auth_mp");
     cd->i = (void*)si;
-    c->xs = xstream_new(c->p,pthsock_client_stream,(void*)c);
+    c->xs = xstream_new(c->p,(void*)pthsock_client_stream,(void*)c);
     cd->state = state_UNKNOWN;
     cd->arg=(void*)c;
 
