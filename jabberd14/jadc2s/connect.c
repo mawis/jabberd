@@ -340,15 +340,61 @@ int _connect_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
 int connect_new(c2s_t c2s)
 {
     int fd;
+#ifdef USE_IPV6
+    char port[6];	/* we could pass it as a string,
+			   enabling the user to use names as well */
+    struct addrinfo hints, *addr_res, *addr_itr;
+#else
     unsigned long int ip = 0;
     struct hostent *h;
     char iphost[16];
     struct sockaddr_in sa;
+#endif
     conn_t c;
     char dummy[] = "<stream:stream xmlns='jabber:component:accept' xmlns:stream='http://etherx.jabber.org/streams' to='";
 
     log_write(c2s->log, LOG_NOTICE, "attempting connection to sm at %s:%d as %s", c2s->sm_host, c2s->sm_port, c2s->sm_id);
 
+#ifdef USE_IPV6
+    /* prepare resolving of router address */
+    if (snprintf(port, sizeof(port), "%i", c2s->sm_port) < 0) {
+	log_write(c2s->log, LOG_ERR, "handling of port %i failed", c2s->sm_port);
+	exit(1);
+    }
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = IPPROTO_TCP;
+
+    /* resolve all addresses */
+    if (getaddrinfo(c2s->sm_host, port, &hints, &addr_res)) {
+	log_write(c2s->log, LOG_ERR, "dns lookup for %s failed", c2s->sm_host);
+	exit(1);
+    }
+
+    /* iterate through the resolved addresses and try to connect */
+    for (addr_itr = addr_res; addr_itr != NULL; addr_itr = addr_itr->ai_next) {
+	fd = socket(addr_itr->ai_family, addr_itr->ai_socktype, addr_itr->ai_protocol);
+	if (fd != -1) {
+	    if (connect(fd, addr_itr->ai_addr, addr_itr->ai_addrlen)) {
+		close(fd);
+		continue;
+	    }
+	    break;
+	}
+    }
+
+    /* free the result of the resolving */
+    freeaddrinfo(addr_res);
+
+    if (addr_itr == NULL) {
+	log_write(c2s->log, LOG_ERR, "failed to connect to router");
+	if (fd != -1) {
+	    close(fd);
+	}
+	return 0;
+    }
+#else
     /* get the ip to connect to */
     if(c2s->sm_host != NULL) {
         h = gethostbyname(c2s->sm_host);
@@ -382,6 +428,7 @@ int connect_new(c2s_t c2s)
         close(fd);
         return 0;
     }
+#endif
 
     /* make sure mio will take this fd */
     if(mio_fd(c2s->mio, fd, NULL, NULL) < 0)
