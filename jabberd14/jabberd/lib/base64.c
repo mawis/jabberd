@@ -31,6 +31,11 @@
 #include <jabberdlib.h>
 
 /**
+ * @file base64.c
+ * @brief Functions to handle Base64 encoding and decoding
+ */
+
+/**
  * characters used for Base64 encoding
  */
 const char *BASE64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
