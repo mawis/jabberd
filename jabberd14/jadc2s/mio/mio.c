@@ -51,6 +51,9 @@
 #include "mio_select.h"
 #endif
 
+#include <sys/socket.h>
+#include <netinet/tcp.h>
+
 /* our internal wrapper around a fd */
 typedef enum { 
     type_CLOSED = 0x00, 
@@ -408,6 +411,8 @@ int mio_listen(mio_t m, int port, char *sourceip, mio_handler_t app, void *arg)
     /* attempt to create a socket */
     if((fd = socket(AF_INET,SOCK_STREAM,0)) < 0) return -1;
     if(setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char*)&flag, sizeof(flag)) < 0) return -1;
+    if(setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char*)&flag, sizeof(flag)) < 0)
+        return(-1);
 
     /* set up and bind address info */
     memset(&sa, 0, sizeof(sa));
