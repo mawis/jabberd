@@ -417,6 +417,8 @@ dpacket dpacket_new(xmlnode x)
     /* determine who to route it to, overriding the default to="" attrib only for sto="" special case */
     if(p->type == p_NORM && xmlnode_get_attrib(x, "sto") != NULL)
         p->id = jid_new(p->p, xmlnode_get_attrib(x, "sto"));
+    else if(p->type == p_LOG)
+        p->id = jid_new(p->p, xmlnode_get_attrib(x, "from"));
     else
         p->id = jid_new(p->p, xmlnode_get_attrib(x, "to"));
 
