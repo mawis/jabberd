@@ -54,7 +54,7 @@ typedef struct accept_instance_st
     int port;
     int timeout;
     queue q;
-    dpacket dplast;
+    //dpacket dplast;
 } *accept_instance, _accept_instance;
 
 void base_accept_queue(accept_instance ai, xmlnode x)
@@ -77,9 +77,14 @@ result base_accept_deliver(instance i, dpacket p, void* arg)
     /* Insert the message into the write_queue if we don't have a MIO socket yet.. */
     if (ai->state == A_READY)
     {
-        if(ai->dplast == p) /* don't return packets that they sent us! circular reference! */
+        /*
+         * TSBandit -- this doesn't work, since many components simply modify the node in-place
+        if(ai->dplast == p) // don't return packets that they sent us! circular reference!
+        {
             deliver_fail(p,"Circular Refernce Detected");
+        }
         else
+        */
             mio_write(ai->m, p->x, NULL, 0);
         return r_DONE;
     }
@@ -129,9 +134,13 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
                 /* Hide 1.0 style transports etherx:* attribs */
                 xmlnode_hide_attrib(x, "etherx:to");
                 xmlnode_hide_attrib(x, "etherx:from");
+                /*
+                 * TSBandit -- this doesn't work.. since many components modify the node in-place
                 ai->dplast = dpacket_new(x);
                 deliver(ai->dplast, ai->i);
                 ai->dplast = NULL;
+                */
+                deliver(dpacket_new(x), ai->i);
                 return;
             }
 
