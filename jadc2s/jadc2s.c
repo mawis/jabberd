@@ -92,6 +92,7 @@ static void usage(void)
         "Usage: jadc2s <options>\n"
         "Options are:\n"
         "   -c <config>     config file to use [default: jadc2s.xml]\n"
+	"   -r <randdev>    device to read randomization seed from\n"
         "   -o key=value    override config file property\n"
         "   -b              run in background\n", stdout);
 }
@@ -115,7 +116,9 @@ int main(int argc, char **argv)
     time_t last_log, last_pending, now;
     char optchar;
     int config_loaded = 0;
-    int i;
+    int i, fd;
+    char *rand_dev = NULL;
+    unsigned int rand_seed = 0;
 
     signal(SIGINT, onSignal);
     signal(SIGPIPE, SIG_IGN);
@@ -124,17 +127,24 @@ int main(int argc, char **argv)
     c2s = (c2s_t)malloc(sizeof(struct c2s_st));
     memset(c2s, 0, sizeof(struct c2s_st));
 
+    /* set default for rand_dev */
+    rand_dev = strdup("/dev/urandom");
+
     /* load our config */
     c2s->config = config_new();
 
     /* cmdline parsing */
-    while((optchar = getopt(argc, argv, "c:bh?")) >= 0)
+    while((optchar = getopt(argc, argv, "cr:bh?")) >= 0)
     {
         switch(optchar)
         {
             case 'h': case '?':
                 usage();
                 return 1;
+	    case 'r':
+		free(rand_dev);
+		rand_dev = strdup(optarg);
+		break;
             case 'c':
                 if(!config_load(c2s->config, optarg))
                     config_loaded++;
@@ -203,7 +213,22 @@ int main(int argc, char **argv)
     /* start logging */
     c2s->log = log_new("jadc2s");
     log_write(c2s->log, LOG_NOTICE, "starting up");
-   
+
+    /* seed the random number generator */
+    fd = open(rand_dev, O_RDONLY|O_NOCTTY);
+    if (fd != -1)
+    {
+	read(fd, &rand_seed, sizeof(rand_seed));
+	close(fd);
+    }
+    if (rand_seed == 0)
+    {
+	log_write(c2s->log, LOG_NOTICE, "could not seed random number generator from %s - using time", rand_dev);
+	rand_seed = time(NULL);
+    }
+    srand(rand_seed);
+    free(rand_dev);
+
     /* first, make sure we can connect to our sm */
     if (!connect_new(c2s))
     {
