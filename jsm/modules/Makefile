@@ -15,6 +15,7 @@ jsm_modules_OBJECTS=\
 	mod_auth_0k.o \
 	mod_echo.o \
 	mod_filter.o \
+	mod_groups.o \
 	mod_presence.o \
 	mod_private.o \
 	mod_roster.o \
