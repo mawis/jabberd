@@ -1,3 +1,8 @@
+2004-01-15  Matthias Wimmer  <m@tthias.net>
+
+    * jadc2s.c: Connection to sm is closed last, slightly better conf errors
+    * mio/rate.c: This file is not used, remove it
+
 2004-01-14  Matthias Wimmer  <m@tthias.net>
 
     * log.c: Do not limit the length of a filename for the logfile
