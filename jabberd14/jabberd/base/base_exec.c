@@ -25,7 +25,7 @@ int exec_and_capture(char* const args[], int* in, int* out)
 	  /* Return the in and out file descriptors */
 	  *in = right_fds[STDIN_FILENO];
 	  *out = left_fds[STDOUT_FILENO];
-	  return 0;
+	  return pid;
      }
      else			/* Child */
      {
@@ -104,7 +104,8 @@ typedef enum { p_OPEN, p_CLOSED } pstate;
 typedef struct
 {
      char**        args;	   /* Process arguments (ala argv[]) */
-     pstate        state;	   /* Process state flag*/
+     int           pid;		   /* Process ID */
+     pstate        state;	   /* Process state flag */
      pool          mempool;	   /* Memory pool for this structt */
      instance      inst;	   /* Instance this coprocess is assoc. with */
      int           stdin;	   /* Coprocess stdin filehandle */
@@ -169,6 +170,7 @@ void base_exec_handle_xstream_event(int type, xmlnode x, void* arg)
 void* base_exec_process_io(void* threadarg)
 {
      process_info pi = (process_info)threadarg;
+     int      retcode = 0;	   /* Process return code */
      char     readbuf[1024];	   /* Raw buffer to read into */
      int      readlen = 0;	   /* Amount of data read into readbuf */
 
@@ -193,9 +195,10 @@ void* base_exec_process_io(void* threadarg)
 	       readlen = pth_read(pi->stdin, readbuf, sizeof(readbuf));
 	       if (readlen <= 0)
 	       {
-		    printf("base_exec_process_io Read error!\n");
+		    printf("base_exec_process_io Read error on process!\n");
 		    break;
 	       }
+
 	       if (xstream_eat(xs, readbuf, readlen) > XSTREAM_NODE)
 		    break;
 	  }
@@ -211,6 +214,8 @@ void* base_exec_process_io(void* threadarg)
 	       /* Write the raw buffer */
 	       if (pth_write(pi->stdout, writebuf, strlen(writebuf)) < 0)
 	       {
+		    /* FIXME: it would be cool to make this completely safe by reinserting
+		       the message back in the queue until the the process is restarted */
 		    printf("base_exec_process_io Write error.\n");
 		    break;
 	       }
@@ -219,6 +224,11 @@ void* base_exec_process_io(void* threadarg)
 	       pool_free(pwb->packet->p);
 	  }
      }
+
+     /* If we've reached this point, it's reasonable to assume that the coprocess is 
+	messed up somehow. As such, we'll wait for a termination status.
+	FIXME: Should this exist in a seperate thread? */
+     pth_waitpid(pi->pid, &retcode, 0);
 
      /* Cleanup... */
      close(pi->stdout);
@@ -230,7 +240,7 @@ void* base_exec_process_io(void* threadarg)
 	if the server is in the middle of shutting down */
 
      /* Exec and capture the STDIN/STDOUT */
-     exec_and_capture(pi->args, &(pi->stdin), &(pi->stdout));
+     pi->pid = exec_and_capture(pi->args, &(pi->stdin), &(pi->stdout));
 
      /* Recreate the thread */
      pth_spawn(PTH_ATTR_DEFAULT, base_exec_process_io, (void*) pi);
@@ -268,7 +278,11 @@ result base_exec_config(instance id, xmlnode x, void *arg)
     pi->args = tokenize_args(pi->mempool, xmlnode_get_data(x));
 
     /* Exec and capture the STDIN/STDOUT of the child process */
-    exec_and_capture(pi->args, &(pi->stdin), &(pi->stdout));
+    pi->pid = exec_and_capture(pi->args, &(pi->stdin), &(pi->stdout));
+    if (pi->pid == 0)
+    {
+	 printf("BLAH!\n");
+    }
 
     /* Spawn a new thread to handle IO for this coprocess */
     pth_spawn(PTH_ATTR_DEFAULT, base_exec_process_io, (void*) pi);

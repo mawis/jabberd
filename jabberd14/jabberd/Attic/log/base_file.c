@@ -17,7 +17,9 @@ result base_file_deliver(instance id, dpacket p, void* arg)
         printf("base_file_deliver error: error writing to file(%d).\n", errno);
         return r_ERR;
     }
-        
+    fflush(f);
+
+    /* Release the packet */
     pool_free(p->p);
     return r_OK;    
 }
@@ -44,11 +46,12 @@ result base_file_config(instance id, xmlnode x, void *arg)
         printf("base_file_config error: error opening file (%d)\n", errno);
         return r_ERR;
     }
-    
+
     /* Register a handler for this instance... */
-    register_phandler(id, o_DELIVER, base_file_deliver, (void*) filehandle); 
+    register_phandler(id, o_DELIVER, base_file_deliver, (void*)filehandle); 
     
     printf("base_file_config performing configuration %s\n",xmlnode2str(x));
+    return r_OK;
 }
 
 void base_file(void)

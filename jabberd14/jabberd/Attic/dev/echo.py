@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from sys import *
+import time
 import getopt, string
 import UserDict
 from jpy import Judo, Jabber
@@ -42,7 +43,7 @@ class EchoStream(Judo.TagStream):
 
     def write(self, buf):
         stderr.write("<< %s: %s\n" % (self.id, buf))
-        stdout.write(buf)
+        stdout.write("%s\n" % buf)
         stdout.flush()
 
 
@@ -53,6 +54,9 @@ if __name__ == "__main__":
     if not a.has_key("id"):
         stderr.write("Echo.py error: You must provide at least an ID for this component.\n")
         exit(-1)
+
+    # Delay for a few seconds..
+    time.sleep(10)
         
     # Create the echo stream handler & send the <root> tag
     es = EchoStream(a["id"], a.has_key("drop"))
@@ -62,5 +66,6 @@ if __name__ == "__main__":
     while (es.waitForTag()):
         pass
     stderr.write("Done for %s\n" % (a["id"]))
+    stderr.flush()
 
 
