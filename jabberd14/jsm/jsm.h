@@ -40,43 +40,48 @@
  * --------------------------------------------------------------------------*/
 #include "jabberd.h"
 
-/* worker thread max waiting pool size */
+/**
+ * @file jsm.h
+ * @brief definition of the jsm API
+ */
+
+/** worker thread max waiting pool size */
 #define SESSION_WAITERS 10
 
-/* set to a prime number larger then the average max # of hosts, and another for the max # of users for any single host */
-#define HOSTS_PRIME 17
-#define USERS_PRIME 3001
+#define HOSTS_PRIME 17	/**< set to a prime number larger then the average max # of hosts */
+#define USERS_PRIME 3001 /**<set to a  prime number larger then the average max # of users for any single host */
 
-/* master event types */
+/** master event types */
 typedef int event;
-#define e_SESSION  0  /* when a session is starting up */
-#define e_OFFLINE  1  /* data for an offline user */
-#define e_SERVER   2  /* packets for the server.host */
-#define e_DELIVER  3  /* about to deliver a packet to an mp */
-#define e_SHUTDOWN 4  /* server is shutting down, last chance! */
-#define e_AUTH     5  /* authentication handlers */
-#define e_REGISTER 6  /* registration request */
+#define e_SESSION  0  /**< event type: when a session is starting up */
+#define e_OFFLINE  1  /**< event type: data for an offline user */
+#define e_SERVER   2  /**< event type: packets for the server.host */
+#define e_DELIVER  3  /**< event type: about to deliver a packet to an mp */
+#define e_SHUTDOWN 4  /**< event type: server is shutting down, last chance! */
+#define e_AUTH     5  /**< event type: authentication handlers */
+#define e_REGISTER 6  /**< event type: registration request */
 /* always add new event types here, to maintain backwards binary compatibility */
-#define e_LAST     7  /* flag for the highest */
+#define e_LAST     7  /**< flag for the highest event type*/
 
 /* session event types */
-#define es_IN      0  /* for packets coming into the session */
-#define es_OUT     1  /* for packets originating from the session */
-#define es_END     2  /* when a session ends */
+#define es_IN      0  /**< session event type: for packets coming into the session */
+#define es_OUT     1  /**< session event type: for packets originating from the session (packets we just received from our own client) */
+#define es_END     2  /**< session event type: when a session ends */
 /* always add new event types here, to maintain backwards binary compatibility */
-#define es_LAST    3  /* flag for the highest */
+#define es_LAST    3  /**< flag for the highest session event type */
 
 /* admin user account flags */
-#define ADMIN_UNKNOWN   0x00
-#define ADMIN_NONE      0x01
-#define ADMIN_READ      0x02
-#define ADMIN_WRITE     0x04
+#define ADMIN_UNKNOWN   0x00	/**< it has not yet checked if the user is an admin */
+#define ADMIN_NONE      0x01	/**< the user has no admin rights */
+#define ADMIN_READ      0x02	/**< the user has read admin rights */
+#define ADMIN_WRITE     0x04	/**< the user has write admin rights */
 
-
-typedef enum {M_PASS,   /* we don't want this packet this tim */
-              M_IGNORE, /* we don't want this packet ever */
-              M_HANDLED /* stop mapi processing on this packet */
-             } mreturn;
+/** return codes for mapi callback calls */
+typedef enum {
+    M_PASS,   /**< we don't want this packet this time */
+    M_IGNORE, /**< we don't want packets of this stanza type ever */
+    M_HANDLED /**< stop mapi processing on this packet */
+} mreturn;
 
 typedef struct udata_struct *udata, _udata;
 typedef struct session_struct *session, _session;
@@ -154,8 +159,8 @@ struct session_struct
     mtq q; /* thread queue */
 
     /* our routed id, and remote session id */
-    jid route;
-    jid sid;
+    jid route;		/**< our id to send packets to c2s for this session */
+    jid sid;		/**< the id of the c2s 'user' that handles this session */
 
     struct session_struct *next;
 };
@@ -179,7 +184,9 @@ typedef struct jpq_struct
 
 void js_psend(jsmi si, jpacket p, mtq_callback f); /* sends p to a function */
 
+#ifdef INCLUDE_LEGACY
 void js_bounce(jsmi si, xmlnode x, terror terr); /* logic to bounce packets w/o looping, eats x and delivers error */
+#endif
 void js_bounce_xmpp(jsmi si, xmlnode x, xterror xterr); /* logic to bounce packets w/o looping, eats x and delivers error */
 
 void js_mapi_register(jsmi si, event e, mcall c, void *arg);

@@ -36,13 +36,23 @@
  * delete the provisions above, a recipient may use your version of this file
  * under either the JOSL or the GPL. 
  * 
- *
- * server.c - thread that handles messages/packets intended for the server:
- *            administration, public IQ (agents, etc)
  * --------------------------------------------------------------------------*/
 
 #include "jsm.h"
 
+/**
+ * @file server.c
+ * @brief handle packets intended for the server: administration, public IQ (agents, etc)
+ */
+
+/**
+ * handle a packet addressed to the server itself (no node part in the JID)
+ *
+ * Pass the packet to the modules, that registered for the e_SERVER event. If none
+ * of the modules handled the packet, it is bounced as "not-found".
+ *
+ * @param arg jpq structure containing the session manager instance data and the packet
+ */
 void js_server_main(void *arg)
 {
     int incremented=0;
@@ -70,5 +80,3 @@ void js_server_main(void *arg)
 	u->ref--;
     }
 }
-
-
