@@ -121,7 +121,10 @@ void io_unlink(sock c)
 /* link a socket to the master list */
 void io_link(sock c)
 {
-    c->next=io__data->master__list;
+    if(io__data!=NULL)
+        c->next=io__data->master__list;
+    else
+        c->next=NULL;
     c->prev=NULL;
     if(io__data->master__list!=NULL) io__data->master__list->prev=c;
     io__data->master__list=c;
@@ -444,8 +447,6 @@ void _io_select_connect(void *arg)
         flags|=O_NONBLOCK;
         fcntl(fd,F_SETFL,flags);
         c->fd=fd;
-        io_link(c);
-        (*(io_cb)c->cb)(c,NULL,0,IO_NEW,c->cb_arg);
     }
 
     if(io__data==NULL)
@@ -453,7 +454,6 @@ void _io_select_connect(void *arg)
         p=pool_new();
         io__data = pmalloco(p,sizeof(_ios));
         io__data->p=p;
-        io__data->master__list=c;
         attr = pth_attr_new();
         pth_attr_set(attr,PTH_ATTR_JOINABLE,FALSE);
 
@@ -462,12 +462,9 @@ void _io_select_connect(void *arg)
         pth_attr_destroy(attr);
         pth_yield(NULL);
     }
-    else
-    {
-        if(io__data->master__list!=NULL)io__data->master__list->prev=c;
-        c=io__data->master__list;
-        io__data->master__list=c;
-    }
+
+    io_link(c);
+    (*(io_cb)c->cb)(c,NULL,0,IO_NEW,c->cb_arg);
     /* notify the select loop */
     pth_raise(io__data->t,SIGUSR2);
 }
@@ -540,7 +537,6 @@ void io_select_listen(int port,char *listen_host,io_cb cb,void *arg)
         p=pool_new();
         io__data = pmalloco(p,sizeof(_ios));
         io__data->p=p;
-        io__data->master__list=new;
         attr = pth_attr_new();
         pth_attr_set(attr,PTH_ATTR_JOINABLE,FALSE);
 
@@ -549,11 +545,6 @@ void io_select_listen(int port,char *listen_host,io_cb cb,void *arg)
         pth_attr_destroy(attr);
         pth_yield(NULL);
     }
-    else
-    {
-        if(io__data->master__list!=NULL)io__data->master__list->prev=new;
-        new=io__data->master__list;
-        io__data->master__list=new;
-    }
+    io_link(new);
     pth_raise(io__data->t,SIGUSR2); /* notify the select loop */
 }
