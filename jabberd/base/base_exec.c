@@ -3,11 +3,6 @@
 /* ---------------------------------------------------------
    base_exec - Starts a specified coprocess and exchanges 
                xmlnodes with it via piped IO
-
-   Questions:
-     - How does the child process recover when the pipe gets
-       borken from the server shutting down?
-     - Should the server restart a child process if it dies?
    ---------------------------------------------------------*/
 
 int exec_and_capture(const char* exe, int* in, int* out)
@@ -58,9 +53,14 @@ int exec_and_capture(const char* exe, int* in, int* out)
 
 /* Structures -------------------------------------------------------------------------------*/
 
+/* process states */
+typedef enum { p_OPEN, p_CLOSED } pstate;
+
 /* process_info - stores thread data for a coprocess */
 typedef struct
 {
+     char*         processcmd;	   /* Process command string */
+     pstate        state;	   /* Process state flag*/
      pool          mempool;	   /* Memory pool for this structt */
      instance      inst;	   /* Instance this coprocess is assoc. with */
      int           stdin;	   /* Coprocess stdin filehandle */
@@ -87,14 +87,26 @@ result base_exec_deliver(instance i, dpacket p, void* args)
      process_info pi = (process_info)args;
      process_write_buf wb = NULL;
 
-     /* Allocate a new write buffer */
-     wb         = pmalloco(p->p, sizeof(_process_write_buf));
-     wb->packet = p;
+     /* Ensure this process is open */
+     if (pi->state == p_OPEN)
+     {
+	  /* Allocate a new write buffer */
+	  wb         = pmalloco(p->p, sizeof(_process_write_buf));
+	  wb->packet = p;
+	  
+	  /* Send the buffer to the processing thread */
+	  pth_msgport_put(pi->write_queue, (pth_message_t*)wb);
 
-     /* Send the buffer to the processing thread */
-     pth_msgport_put(pi->write_queue, (pth_message_t*)wb);
-
-     return r_OK;          
+	  return r_OK;   
+     }
+     /* Otherwise, release the process info and unreg this handler */
+     /* FIXME: Should i bounce the packet? */
+     else
+     {
+	  pth_msgport_destroy(pi->write_queue);
+	  pool_free(pi->mempool);
+	  return r_UNREG;
+     }
 }
 
 void base_exec_handle_xstream_event(int type, xmlnode x, void* arg)
@@ -104,6 +116,11 @@ void base_exec_handle_xstream_event(int type, xmlnode x, void* arg)
      switch(type)
      {
      case XSTREAM_ROOT:
+	  /* Return a fake root tag */
+	  pth_write(pi->stdout, "<root>\n", strlen("<root>\n"));
+	  /* Hook the event for delivering messages to the coprocess */
+  	  pi->e_write = pth_event(PTH_EVENT_MSG, pi->write_queue);  
+  	  pi->events  = pth_event_concat(pi->e_read, pi->e_write, NULL);  
 	  /* Validate namespace */
 	  break;
      case XSTREAM_NODE:
@@ -111,8 +128,10 @@ void base_exec_handle_xstream_event(int type, xmlnode x, void* arg)
 	  deliver(dpacket_new(x), pi->inst);
 	  break;
      case XSTREAM_CLOSE:
+	  /* Set the closed state  */
+	  pi->state = p_CLOSED;
      case XSTREAM_ERR:
-	  /* Who knows? The _SHADOW_ knows. */
+	  /* FIXME: Who knows? The _SHADOW_ knows. */
      }
 
 }
@@ -129,6 +148,9 @@ void* base_exec_process_io(void* threadarg)
      process_write_buf pwb;	   /* Process write buffer */
      char*             writebuf;   /* Raw buffer to write */
      
+     /* Setup event ring for this coprocess */
+     pi->e_read  = pth_event(PTH_EVENT_FD|PTH_UNTIL_FD_READABLE, pi->stdin);
+     pi->events  = pth_event_concat(pi->e_read, NULL);
 
      /* Allocate an xstream for this coprocess */
      xs = xstream_new(pi->mempool, base_exec_handle_xstream_event, threadarg);
@@ -140,32 +162,52 @@ void* base_exec_process_io(void* threadarg)
 	  if (pth_event_occurred(pi->e_read))
 	  {
 	       readlen = pth_read(pi->stdin, readbuf, sizeof(readbuf));
-	       if (readlen < 0)
+	       if (readlen <= 0)
+	       {
+		    printf("base_exec_process_io Read error!\n");
 		    break;
-	       if (xstream_eat(xs, readbuf, readlen))
+	       }
+	       if (xstream_eat(xs, readbuf, readlen) > XSTREAM_NODE)
 		    break;
 	  }
-	  /* Data is available to be written to the coprocess */
+	  /* Data is available to be written to the coprocess, and the coprocess is ready */
 	  if (pth_event_occurred(pi->e_write))
 	  {
 	       /* Get the packet.. */
 	       pwb = (process_write_buf)pth_msgport_get(pi->write_queue);
-
+	       
 	       /* Serialize the packet.. */
 	       writebuf = xmlnode2tstr(pwb->packet->x);
 
 	       /* Write the raw buffer */
-	       if (pth_write(pi->stdout, writebuf, strlen(writebuf)) <= 0)
+	       if (pth_write(pi->stdout, writebuf, strlen(writebuf)) < 0)
+	       {
+		    printf("base_exec_process_io Write error.\n");
 		    break;
-
+	       }
+	       
 	       /* Data is sent, release the packet */
 	       pool_free(pwb->packet->p);
 	  }
      }
 
-     /* Cleanup and quit...should be error handling here? */
+     /* Cleanup... */
      close(pi->stdout);
      close(pi->stdin);
+     pth_event_free(pi->e_read, PTH_FREE_THIS);
+     pth_event_free(pi->e_write, PTH_FREE_THIS);
+
+     /* If the process didn't send a closing XML tag, assume it crashed
+	and restart it */
+     if (pi->state == p_OPEN)
+     {
+	  /* Exec and capture the STDIN/STDOUT */
+	  exec_and_capture(pi->processcmd, &(pi->stdin), &(pi->stdout));
+
+	  /* Recreate the thread */
+	  pth_spawn(PTH_ATTR_DEFAULT, base_exec_process_io, (void*) pi);
+     }
+
      return NULL;
 }
 
@@ -191,15 +233,13 @@ result base_exec_config(instance id, xmlnode x, void *arg)
     /* Allocate an info structure, and associate with the
        instance pool */
     pi = pmalloco(id->p, sizeof(_process_info));
-    pi->inst    = id;
-    pi->mempool = id->p;
-    pi->stdin   = stdin;
-    pi->stdout  = stdout;
-    pi->write_queue = pth_msgport_create("piwq");
-    /* Setup event ring for this coprocess */
-    pi->e_read  = pth_event(PTH_EVENT_FD|PTH_UNTIL_FD_READABLE, pi->stdin);
-    pi->e_write = pth_event(PTH_EVENT_MSG, pi->write_queue);
-    pi->events  = pth_event_concat(pi->e_read, pi->e_write, NULL);
+    pi->processcmd  = pstrdup(id->p, xmlnode_get_data(x));
+    pi->inst        = id;
+    pi->mempool     = id->p;
+    pi->stdin       = stdin;
+    pi->stdout      = stdout;
+    pi->write_queue = pth_msgport_create(id->id);   
+    pi->state       = p_OPEN;
 
     /* Spawn a new thread to handle IO for this coprocess */
     pth_spawn(PTH_ATTR_DEFAULT, base_exec_process_io, (void*) pi);
