@@ -30,7 +30,7 @@ typedef struct deliver_mp_st
 /* register a function to handle delivery for this instance */
 void register_phandler(instance id, order o, phandler f, void *arg)
 {
-    handel newh, h1;
+    handel newh, h1, last;
     pool p;
 
     /* create handel and setup */
@@ -52,30 +52,62 @@ void register_phandler(instance id, order o, phandler f, void *arg)
     switch(o)
     {
     case o_PRECOND:
+        /* always goes to front of list */
         newh->next = id->hds;
         id->hds = newh;
         break;
     case o_COND:
-        for(h1 = id->hds; h1->next != NULL && h1->next->o == o_PRECOND; h1 = h1->next);
-        if(h1->next == NULL)
+        h1 = id->hds;
+        last = NULL;
+        while(h1->o < o_PREDELIVER)
         {
-            h1->next = newh;
-        }else{
-            newh->next = h1->next;
-            h1->next = newh;
+            last = h1;
+            h1 = h1->next;
+            if(h1 == NULL)
+                break; 
+        }
+        if(last == NULL)
+        { /* goes to front of list */
+            newh->next = h1;
+            id->hds = newh;
+        }
+        else if(h1 == NULL)
+        { /* goes at end of list */
+            last->next = newh;
+        }
+        else
+        { /* goes between last and h1 */
+            newh->next = h1;
+            last->next = newh;
         }
         break;
     case o_PREDELIVER:
-        for(h1 = id->hds; h1->next != NULL && h1->next->o != o_DELIVER; h1 = h1->next);
-        if(h1->next == NULL)
+        h1 = id->hds;
+        last = NULL;
+        while(h1->o < o_DELIVER)
         {
-            h1->next = newh;
-        }else{
-            newh->next = h1->next;
-            h1->next = newh;
+            last = h1;
+            h1 = h1->next;
+            if(h1 == NULL)
+                break; 
+        }
+        if(last == NULL)
+        { /* goes to front of list */
+            newh->next = h1;
+            id->hds = newh;
+        }
+        else if(h1 == NULL)
+        { /* goes at end of list */
+            last->next = newh;
+        }
+        else
+        { /* goes between last and h1 */
+            newh->next = h1;
+            last->next = newh;
         }
         break;
     case o_DELIVER:
+        /* always add to the end */
         for(h1 = id->hds; h1->next != NULL; h1 = h1->next);
         h1->next = newh;
         break;
