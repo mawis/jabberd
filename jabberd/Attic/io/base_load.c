@@ -524,6 +524,7 @@ void mtq_send(mtq q, pool p, mtq_callback f, void *arg)
     int n;
     pool newp;
     pth_msgport_t mp = NULL; /* who to send the call too */
+    pth_attr_t attr;
 
     /* initialization stuff */
     if(mtq__master == NULL)
@@ -536,7 +537,10 @@ void mtq_send(mtq q, pool p, mtq_callback f, void *arg)
             t = pmalloco(newp, sizeof(_mth));
             t->p = newp;
             t->mp = pth_msgport_create("mth");
-            t->id = pth_spawn(PTH_ATTR_DEFAULT, mtq_main, (void *)t);
+            attr = pth_attr_new();
+            pth_attr_set(attr, PTH_ATTR_PRIO, PTH_PRIO_MAX);
+            t->id = pth_spawn(attr, mtq_main, (void *)t);
+            pth_attr_destroy(attr);
             mtq__master->all[n] = t; /* assign it as available */
         }
     }
@@ -572,6 +576,9 @@ void mtq_send(mtq q, pool p, mtq_callback f, void *arg)
 
     /* if we have a queue, insert it there */
     pth_msgport_put(q->mp, (pth_message_t *)c);
+
+    /*if(pth_msgport_pending(q->mp) > 10)
+        log_debug("mtqoverflow","%d queue overflow on %X",pth_msgport_pending(q->mp),q->mp);*/
 
     /* if we haven't told anyone to take this queue yet */
     if(q->routed == 0)
