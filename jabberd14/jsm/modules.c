@@ -37,19 +37,25 @@
  */
 void js_mapi_register(jsmi si, event e, mcall c, void *arg)
 {
-    mlist newl;
+    mlist newl, curl;
 
     if(c == NULL || si == NULL || e >= e_LAST) return;
-
-    log_debug(ZONE,"mapi_register %d",e);
 
     /* create a new mlist record for the call back */
     newl = pmalloc(si->p, sizeof(_mlist));
     newl->c = c;
     newl->arg = arg;
     newl->mask = 0x00;
-    newl->next = si->events[e];
-    si->events[e] = newl;
+
+    /* append */
+    if(si->events[e] == NULL)
+    {
+        si->events[e] = newl;
+    }else{
+        for(curl = si->events[e]; curl->next != NULL; curl = curl->next); /* spin to end of list */
+        curl->next = newl;
+    }
+    log_debug(ZONE,"mapi_register %d %X",e,newl);
 }
 
 /*
@@ -67,19 +73,26 @@ void js_mapi_register(jsmi si, event e, mcall c, void *arg)
  */
 void js_mapi_session(event e, session s, mcall c, void *arg)
 {
-    mlist newl;
+    mlist newl, curl;
 
     if(c == NULL || s == NULL || e >= es_LAST) return;
 
-    log_debug(ZONE,"mapi_register_session %d",e);
-
     /* create item for the call list */
-    newl = pmalloc(s->p, sizeof(_mlist));
+    newl = pmalloco(s->p, sizeof(_mlist));
     newl->c = c;
     newl->arg = arg;
     newl->mask = 0x00;
-    newl->next = s->events[e];
-    s->events[e] = newl;
+
+    /* append */
+    if(s->events[e] == NULL)
+    {
+        s->events[e] = newl;
+    }else{
+        for(curl = s->events[e]; curl->next != NULL; curl = curl->next); /* spin to end of list */
+        curl->next = newl;
+    }
+
+    log_debug(ZONE,"mapi_register_session %d %X",e,newl);
 }
 
 /*
@@ -120,7 +133,7 @@ int js_mapi_call(jsmi si, event e, jpacket packet, udata user, session s)
     {
         /* skip call-back if the packet type mask matches */
         if(packet != NULL && (packet->type & l->mask) == packet->type) continue;
-
+log_debug(ZONE,"MAPI %X",l);
         /* call the function and handle the result */
         switch((*(l->c))(&m, l->arg))
         {

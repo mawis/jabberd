@@ -22,7 +22,6 @@
 mreturn mod_register_new(mapi m, void *arg)
 {
     xmlnode q, reg;
-    udata u;
 
     if((reg = js_config(m->si, "register")) == NULL) return M_PASS;
 
@@ -41,23 +40,11 @@ mreturn mod_register_new(mapi m, void *arg)
         /* copy in the registration fields from the config file */
         xmlnode_insert_node(q,xmlnode_get_firstchild(reg));
 
-        /* make sure we ask for the username and password, otherwise what's the point? */
-        xmlnode_insert_tag(q,"username");
-        xmlnode_insert_tag(q,"password");
-
         /* insert the key, we don't need to check it, but we'll send it :) */
         xmlnode_insert_cdata(xmlnode_insert_tag(q,"key"),jutil_regkey(NULL,"foobar"),-1);
         break;
 
     case JPACKET__SET:
-
-        /* make sure the username they want isn't in use */
-        u = js_user(m->si, m->packet->to, NULL);
-        if(u != NULL)
-        {
-            jutil_error(m->packet->x, (terror){409,"Username Not Available"});
-            break;
-        }
 
         log_debug(ZONE,"processing valid registration for %s",jid_full(m->packet->to));
 
@@ -71,6 +58,7 @@ mreturn mod_register_new(mapi m, void *arg)
         /* save the registration data */
         xmlnode_hide(xmlnode_get_tag(m->packet->iq,"password")); /* hide the username/password from the reg db */
         xmlnode_hide(xmlnode_get_tag(m->packet->iq,"username"));
+        jutil_delay(m->packet->iq,"registered");
         xdb_set(m->si->xc, m->packet->to->server, m->packet->to, NS_REGISTER, m->packet->iq);
 
         /* clean up and respond */
@@ -87,31 +75,17 @@ mreturn mod_register_new(mapi m, void *arg)
 mreturn mod_register_server(mapi m, void *arg)
 {
     xmlnode q, reg, cur, check;
-    udata u;
 
     /* pre-requisites */
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
     if(!NSCHECK(m->packet->iq,NS_REGISTER)) return M_PASS;
-    if(m->packet->from->user == NULL || !ghash_get(m->si->hosts, m->packet->from->server)) return M_PASS;
+    if(!js_islocal(m->si, m->packet->from)) return M_PASS;
     if(js_config(m->si,"register") == NULL) return M_PASS;
 
     log_debug("mod_register","updating");
 
-    /* get the sender */
-    u = js_user(m->si,m->packet->from,NULL);
-    if(u == NULL)
-    {
-        js_bounce(m->si, m->packet->x,TERROR_FORBIDDEN);
-        return M_HANDLED;
-    }
-
     /* check for their registration */
     reg =  xdb_get(m->si->xc, m->packet->to->server, m->packet->to, NS_REGISTER);
-    if(reg == NULL)
-    {
-        js_bounce(m->si, m->packet->x,TERROR_REGISTER);
-        return M_HANDLED;
-    }
 
     switch(jpacket_subtype(m->packet))
     {
@@ -122,6 +96,7 @@ mreturn mod_register_server(mapi m, void *arg)
         /* create a new query */
         q = xmlnode_insert_tag(m->packet->x, "query");
         xmlnode_put_attrib(q,"xmlns",NS_REGISTER);
+        xmlnode_insert_tag(q,"password");
 
         /* copy in the registration fields from the config file */
         xmlnode_insert_node(q,xmlnode_get_firstchild(js_config(m->si,"register")));
@@ -142,34 +117,29 @@ mreturn mod_register_server(mapi m, void *arg)
 
         /* add the registered flag and hide the username flag */
         xmlnode_insert_tag(q,"registered");
-        xmlnode_hide(xmlnode_get_tag(q,"username"));
 
         break;
 
     case JPACKET__SET:
         if(xmlnode_get_tag(m->packet->iq,"remove") != NULL)
         {
-            log_debug(ZONE,"REMOVING registration for %s",u->user);
+            log_notice(m->packet->from->server,"User Unregistered: %s",m->packet->from->user);
 
-            /* remove the registration and auth and any misc data */
+            /* XXX BRUTE FORCE: remove the registration and auth and any misc data */
             xdb_set(m->si->xc, m->packet->from->server, m->packet->from, NS_REGISTER, NULL);
             xdb_set(m->si->xc, m->packet->from->server, m->packet->from, NS_AUTH, NULL);
             xdb_set(m->si->xc, m->packet->from->server, m->packet->from, NS_PRIVATE, NULL);
             xdb_set(m->si->xc, m->packet->from->server, m->packet->from, NS_ROSTER, NULL);
             xdb_set(m->si->xc, m->packet->from->server, m->packet->from, NS_VCARD, NULL);
+            xdb_set(m->si->xc, m->packet->from->server, m->packet->from, NS_OFFLINE, NULL);
+            xdb_set(m->si->xc, m->packet->from->server, m->packet->from, NS_FILTER, NULL);
         }else{
-            log_debug(ZONE,"updating registration for %s",u->user);
-
-            /* try to reset the password */
-            if(xdb_set(m->si->xc, m->packet->from->server, m->packet->from, NS_AUTH, xmlnode_get_tag(m->packet->iq,"password")))
-            {
-                js_bounce(m->si, m->packet->x,TERROR_FORBIDDEN); /* or 503? */
-                return M_HANDLED;
-            }
+            log_debug(ZONE,"updating registration for %s",jid_full(m->packet->from));
 
             /* update the registration data */
             xmlnode_hide(xmlnode_get_tag(m->packet->iq,"username")); /* hide the username/password from the reg db */
             xmlnode_hide(xmlnode_get_tag(m->packet->iq,"password"));
+            jutil_delay(m->packet->iq,"updated");
             xdb_set(m->si->xc, m->packet->from->server, m->packet->from, NS_REGISTER, m->packet->iq);
 
         }
@@ -178,6 +148,7 @@ mreturn mod_register_server(mapi m, void *arg)
         break;
 
     default:
+        xmlnode_free(reg);
         return M_PASS;
     }
 

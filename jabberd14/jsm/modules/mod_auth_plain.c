@@ -55,8 +55,51 @@ mreturn mod_auth_plain_jane(mapi m, void *arg)
     return M_HANDLED;
 }
 
+int mod_auth_plain_reset(mapi m, xmlnode pass)
+{
+    log_debug("mod_auth_plain","resetting password");
+    if(xmlnode_get_data(pass) == NULL) return 1;
+
+    return xdb_set(m->si->xc, m->packet->to->server, m->packet->to, NS_AUTH, pass);
+}
+
+/* handle saving the password for registration */
+mreturn mod_auth_plain_reg(mapi m, void *arg)
+{
+    if(jpacket_subtype(m->packet) != JPACKET__SET) return M_PASS;
+
+    if(mod_auth_plain_reset(m,xmlnode_get_tag(m->packet->iq,"password")))
+    {
+        jutil_error(m->packet->x,(terror){500,"Password Storage Failed"});
+        return M_HANDLED;
+    }
+
+    return M_PASS;
+}
+
+/* handle password change requests from a session */
+mreturn mod_auth_plain_server(mapi m, void *arg)
+{
+    xmlnode pass;
+
+    /* pre-requisites */
+    if(m->packet->type != JPACKET_IQ) return M_IGNORE;
+    if(jpacket_subtype(m->packet) != JPACKET__SET || !NSCHECK(m->packet->iq,NS_REGISTER)) return M_PASS;
+    if(!js_islocal(m->si, m->packet->from)) return M_PASS;
+    if((pass = xmlnode_get_tag(m->packet->iq,"password")) == NULL) return M_PASS;
+
+    if(mod_auth_plain_reset(m,pass))
+    {
+        js_bounce(m->si,m->packet->x,(terror){500,"Password Storage Failed"});
+        return M_HANDLED;
+    }
+    return M_PASS;
+}
+
 void mod_auth_plain(jsmi si)
 {
     log_debug("mod_auth_plain","init");
-    js_mapi_register(si,e_AUTH, mod_auth_plain_jane, NULL);
+    js_mapi_register(si, e_REGISTER, mod_auth_plain_reg, NULL);
+    js_mapi_register(si, e_AUTH, mod_auth_plain_jane, NULL);
+    js_mapi_register(si, e_SERVER, mod_auth_plain_server, NULL);
 }

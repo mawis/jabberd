@@ -87,3 +87,10 @@ xmlnode js_config(jsmi si, char *query)
         return xmlnode_get_tag(si->config, query);
 }
 
+/* macro to make sure the jid is a local user */
+int js_islocal(jsmi si, jid id)
+{
+    if(id == NULL || id->user == NULL) return 0;
+    if(ghash_get(si->hosts, id->server) == NULL) return 0;
+    return 1;
+}
