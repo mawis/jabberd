@@ -19,23 +19,23 @@
 
 #include "io.h"
 
-
 /* struct to hold data for our instance */
 typedef struct io_st
 {
     pool p;             /* pool to hold this data */
-    int master_fd;      /* our listening socket */
     sock master__list;  /* a list of all the socks */
     pth_t t;            /* a pointer to thread for signaling */
-    io_cb cb;           /* the callback function we are using */
-    void *cb_arg;       /* the argument to pass to the callback */
     void *arg;          /* hanging data */
 } _ios,*ios;
 
+ios io__data=NULL;
+
 /* returns a list of all the sockets in this instance */
-sock io_select_get_list(iosi io_instance)
+sock io_select_get_list(void)
 {
-    return ((ios)io_instance)->master__list;
+    if(io__data==NULL) return NULL;
+    log_debug(ZONE,"returning master__list %X",io__data->master__list);
+    return io__data->master__list;
 }
 
 /* dump as much of the write queue as we can */
@@ -115,23 +115,18 @@ int _io_write_dump(sock c)
 /* unlink this socket from the master list */
 void io_unlink(sock c)
 {
-    ios io_data=(ios)c->iodata;
-
-    if(io_data->master__list==c) io_data->master__list=io_data->master__list->next;
+    if(io__data->master__list==c) io__data->master__list=io__data->master__list->next;
     if(c->prev!=NULL) c->prev->next=c->next;
     if(c->next!=NULL) c->next->prev=c->prev;
-
 }
 
 /* link a socket to the master list */
 void io_link(sock c)
 {
-    ios io_data=(ios)c->iodata;
-
-    c->next=io_data->master__list;
+    c->next=io__data->master__list;
     c->prev=NULL;
-    if(io_data->master__list!=NULL) io_data->master__list->prev=c;
-    io_data->master__list=c;
+    if(io__data->master__list!=NULL) io__data->master__list->prev=c;
+    io__data->master__list=c;
 }
 
 /* client call to close the socket */
@@ -162,7 +157,6 @@ void _io_close(sock c)
 /* write a str to the client socket */
 void io_write_str(sock c,char *buffer)
 {
-    ios io_data=(ios)c->iodata;
     wbq q;
     pool p=pool_new();
     if(c->wbuffer!=NULL)
@@ -181,13 +175,12 @@ void io_write_str(sock c,char *buffer)
         c->pbuffer=p;
     }
     /* notify the select loop that a packet needs writing */
-    pth_raise(io_data->t,SIGUSR2);
+    pth_raise(io__data->t,SIGUSR2);
 }
 
 /* adds an xmlnode to the write buffer */
 void io_write(sock c,xmlnode x)
 {
-    ios io_data=(ios)c->iodata;
     wbq q;
 
     if(c->xbuffer!=NULL)
@@ -205,7 +198,7 @@ void io_write(sock c,xmlnode x)
         c->pbuffer=xmlnode_pool(x);
     }
     /* notify the select loop that a packet needs writing */
-    pth_raise(io_data->t,SIGUSR2);
+    pth_raise(io__data->t,SIGUSR2);
 }
 
 /* struct passed to the connecting thread */
@@ -217,99 +210,9 @@ typedef struct connect_st
     int port;
 } _conn_st, *conn_st;
 
-/* pth thread to connect to a remote host */
-/* if this were using pthreads, this wouldn't block the server */
-void _io_select_connect(void *arg)
-{
-    conn_st cst=(conn_st)arg;
-    sock c=cst->c;
-    ios io_data=(ios)c->iodata;
-    pth_event_t evt;
-    struct sockaddr_in sa;
-    struct in_addr *saddr;
-    int fd,flag=1;
-    int flags;
-
-    log_debug(ZONE,"io_select Connecting to host: %s",cst->host);
-
-    bzero((void*)&sa,sizeof(struct sockaddr_in));
-
-    if((fd=socket(AF_INET,SOCK_STREAM,0))<0)
-    {
-        (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg);
-        (*(io_cb)c->cb)(c,NULL,0,IO_CLOSED,c->cb_arg);
-        pool_free(c->p);
-        return;
-    }
-    if(setsockopt(fd,SOL_SOCKET,SO_REUSEADDR,(char*)&flag,sizeof(flag))<0)
-    {
-        (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg);
-        (*(io_cb)c->cb)(c,NULL,0,IO_CLOSED,c->cb_arg);
-        pool_free(c->p);
-        return;
-    }
-
-    saddr=make_addr(cst->host);
-    if(saddr==NULL)
-    {
-        (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg);
-        (*(io_cb)c->cb)(c,NULL,0,IO_CLOSED,c->cb_arg);
-        pool_free(c->p);
-        return;
-    }
-
-    sa.sin_family=AF_INET;
-    sa.sin_port=htons(cst->port);
-    sa.sin_addr.s_addr=saddr->s_addr;
-
-    /* wait a max of 10 seconds for this connect */
-    evt=pth_event(PTH_EVENT_TIME,pth_timeout(10,0));
-    if(pth_connect_ev(fd,(struct sockaddr*)&sa,sizeof sa,evt) < 0)
-    {
-        log_debug(ZONE,"io_select connect failed to connect to: %s",cst->host);
-        (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg);
-        (*(io_cb)c->cb)(c,NULL,0,IO_CLOSED,c->cb_arg);
-        close(fd);
-        pool_free(c->p);
-        return;
-    }
-    else
-    {
-        /* set to non-blocking */
-        flags=fcntl(fd,F_GETFL,0);
-        flags|=O_NONBLOCK;
-        fcntl(fd,F_SETFL,flags);
-        c->fd=fd;
-        io_link(c);
-        (*(io_cb)c->cb)(c,NULL,0,IO_NEW,c->cb_arg);
-    }
-    /* notify the select loop */
-    pth_raise(io_data->t,SIGUSR2);
-}
-
-/* request to connect to a remote host */
-void io_select_connect(iosi io_instance,char *host, int port,void *arg)
-{
-    sock c;
-    ios io_data=(ios)io_instance;
-    pool p=pool_new();
-    conn_st cst=pmalloco(p,sizeof(_conn_st));
-    cst->host=pstrdup(p,host);
-    cst->port=port;
-    c=pmalloco(p,sizeof(_sock));
-    c->queue=pth_msgport_create("queue");
-    c->p=p;
-    c->arg=arg;
-    c->cb=io_data->cb;
-    c->cb_arg=io_data->cb_arg;
-    c->iodata=io_data;
-    cst->c=c;
-    
-    pth_spawn(PTH_ATTR_DEFAULT,(void*)_io_select_connect,(void*)cst);
-}
 
 /* accept an incoming connection from a listen sock */
-sock _io_accept(ios io_data,int asock)
+sock _io_accept(sock s)
 {
     struct sockaddr_in sa;
     size_t sa_size = sizeof(sa);
@@ -317,7 +220,7 @@ sock _io_accept(ios io_data,int asock)
     sock c;
     pool p;
 
-    fd = accept(asock,(struct sockaddr*)&sa,(int*)&sa_size);
+    fd = accept(s->fd,(struct sockaddr*)&sa,(int*)&sa_size);
     if(fd <= 0)
     { /* this will try again eventually */
         return NULL; 
@@ -335,9 +238,9 @@ sock _io_accept(ios io_data,int asock)
     c->p = p;
     c->fd = fd;
     c->state = state_ACTIVE;
-    c->iodata=(void*)io_data;
-    c->cb=io_data->cb;
-    c->cb_arg=io_data->cb_arg;
+    c->type=type_NORMAL;
+    c->cb=s->cb;
+    c->cb_arg=s->cb_arg;
     io_link(c);
     c->p = p;
     return c;
@@ -346,31 +249,32 @@ sock _io_accept(ios io_data,int asock)
 /* main select loop thread */
 void _io_main(void *arg)
 {
-    ios io_data=(ios)arg;
     fd_set wfds,rfds, all_wfds,all_rfds; /* writes, reads, all */
     pth_event_t wevt;
     sigset_t sigs;
     int sig;
     sock cur, c,temp;    
     char buff[1024];
-    int len, asock;
+    int len;
     int maxfd=0;
 
-    /* init the socket junk */
-    asock = io_data->master_fd;
-    maxfd=asock;
-    FD_ZERO(&all_wfds);
-    FD_ZERO(&all_rfds);
-    FD_SET(asock,&all_rfds);
-    
     /* init the signal junk */
     sigemptyset(&sigs);
     sigaddset(&sigs,SIGUSR2);
     pth_sigmask(SIG_BLOCK,&sigs,NULL);
+
+    /* init the socket junk */
+    maxfd=0;
+    if(io__data->master__list!=NULL)maxfd=io__data->master__list->fd;
+    FD_ZERO(&all_wfds);
+    FD_ZERO(&all_rfds);
+    if(maxfd!=0)FD_SET(maxfd,&all_rfds);
+    
     wevt=pth_event(PTH_EVENT_SIGS,&sigs,&sig);
 
     /* init the client */
-    (*(io_cb)io_data->cb)(NULL,NULL,0,IO_INIT,NULL); 
+    if(io__data->master__list!=NULL)
+        (*(io_cb)io__data->master__list->cb)(NULL,NULL,0,IO_INIT,NULL); 
 
     while (1)
     {
@@ -378,25 +282,13 @@ void _io_main(void *arg)
         wfds=all_wfds;
         pth_select_ev(maxfd+1,&rfds,&wfds,NULL,NULL,wevt);
 
-        maxfd=asock;
-
+        maxfd=0;
         FD_ZERO(&all_rfds); /* reset our "all" set */
-        FD_SET(asock,&all_rfds);
 
-        if (FD_ISSET(asock,&rfds)) /* new connection */
-        {
-            c=_io_accept(io_data,asock);
-            if(c!=NULL) 
-            {
-               (*(io_cb)c->cb)(c,NULL,0,IO_NEW,c->cb_arg);
-               FD_SET(c->fd,&all_rfds);           
-               if(c->fd>maxfd)maxfd=c->fd;
-            }
-        }
-
-        cur = io_data->master__list;
+        cur=io__data->master__list;
         while(cur != NULL)
         {
+            FD_SET(cur->fd,&all_rfds);
             if(cur->state==state_CLOSE)
             {
                 temp=cur;
@@ -406,8 +298,17 @@ void _io_main(void *arg)
                 _io_close(temp);
                 continue;
             }
-            FD_SET(cur->fd,&all_rfds);
-            if (FD_ISSET(cur->fd,&rfds))
+            else if(FD_ISSET(cur->fd,&rfds)&&cur->type==type_LISTEN) /* new connection */
+            {
+                c=_io_accept(cur);
+                if(c!=NULL) 
+                {
+                    (*(io_cb)c->cb)(c,NULL,0,IO_NEW,c->cb_arg);
+                    FD_SET(c->fd,&all_rfds);           
+                    if(c->fd>maxfd)maxfd=c->fd;
+                }
+            }
+            else if (FD_ISSET(cur->fd,&rfds))
             { /* we need to read from a socket */
                 len = read(cur->fd,buff,sizeof(buff));
                 if(len==0)
@@ -481,57 +382,181 @@ void _io_main(void *arg)
     }
 }
 
-/* call to start listening with select */
-iosi io_select(int port,io_cb cb,void *arg)
+/* pth thread to connect to a remote host */
+/* if this were using pthreads, this wouldn't block the server */
+void _io_select_connect(void *arg)
 {
-    ios io_data;
-    iosi ret;
+    conn_st cst=(conn_st)arg;
+    sock c=cst->c;
+    pth_event_t evt;
+    struct sockaddr_in sa;
+    struct in_addr *saddr;
+    pool p;
+    pth_attr_t attr;
+    int fd,flag=1;
+    int flags;
+
+    log_debug(ZONE,"io_select Connecting to host: %s",cst->host);
+
+    bzero((void*)&sa,sizeof(struct sockaddr_in));
+
+    if((fd=socket(AF_INET,SOCK_STREAM,0))<0)
+    {
+        (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg);
+        (*(io_cb)c->cb)(c,NULL,0,IO_CLOSED,c->cb_arg);
+        pool_free(c->p);
+        return;
+    }
+    if(setsockopt(fd,SOL_SOCKET,SO_REUSEADDR,(char*)&flag,sizeof(flag))<0)
+    {
+        (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg);
+        (*(io_cb)c->cb)(c,NULL,0,IO_CLOSED,c->cb_arg);
+        pool_free(c->p);
+        return;
+    }
+
+    saddr=make_addr(cst->host);
+    if(saddr==NULL)
+    {
+        (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg);
+        (*(io_cb)c->cb)(c,NULL,0,IO_CLOSED,c->cb_arg);
+        pool_free(c->p);
+        return;
+    }
+
+    sa.sin_family=AF_INET;
+    sa.sin_port=htons(cst->port);
+    sa.sin_addr.s_addr=saddr->s_addr;
+
+    /* wait a max of 10 seconds for this connect */
+    evt=pth_event(PTH_EVENT_TIME,pth_timeout(10,0));
+    if(pth_connect_ev(fd,(struct sockaddr*)&sa,sizeof sa,evt) < 0)
+    {
+        log_debug(ZONE,"io_select connect failed to connect to: %s",cst->host);
+        (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg);
+        (*(io_cb)c->cb)(c,NULL,0,IO_CLOSED,c->cb_arg);
+        close(fd);
+        pool_free(c->p);
+        return;
+    }
+    else
+    {
+        /* set to non-blocking */
+        flags=fcntl(fd,F_GETFL,0);
+        flags|=O_NONBLOCK;
+        fcntl(fd,F_SETFL,flags);
+        c->fd=fd;
+        io_link(c);
+        (*(io_cb)c->cb)(c,NULL,0,IO_NEW,c->cb_arg);
+    }
+
+    if(io__data==NULL)
+    {
+        p=pool_new();
+        io__data = pmalloco(p,sizeof(_ios));
+        io__data->p=p;
+        io__data->master__list=c;
+        attr = pth_attr_new();
+        pth_attr_set(attr,PTH_ATTR_JOINABLE,FALSE);
+
+        /* start main accept/read/write thread */
+        io__data->t=pth_spawn(attr,(void*)_io_main,(void*)io__data);
+        pth_attr_destroy(attr);
+        pth_yield(NULL);
+    }
+    else
+    {
+        if(io__data->master__list!=NULL)io__data->master__list->prev=c;
+        c=io__data->master__list;
+        io__data->master__list=c;
+    }
+    /* notify the select loop */
+    pth_raise(io__data->t,SIGUSR2);
+}
+
+/* request to connect to a remote host */
+void io_select_connect(char *host, int port,io_cb cb,void *arg)
+{
+    sock c;
     pool p=pool_new();
+    conn_st cst=pmalloco(p,sizeof(_conn_st));
+    cst->host=pstrdup(p,host);
+    cst->port=port;
+    c=pmalloco(p,sizeof(_sock));
+    c->queue=pth_msgport_create("queue");
+    c->type=type_NORMAL;
+    c->state=state_ACTIVE;
+    c->p=p;
+    c->arg=arg;
+    c->cb=cb;
+    c->cb_arg=arg;
+    cst->c=c;
+    
+    pth_spawn(PTH_ATTR_DEFAULT,(void*)_io_select_connect,(void*)cst);
+}
+
+/* call to start listening with select */
+void io_select_listen(int port,char *listen_host,io_cb cb,void *arg)
+{
+    sock new;
+    pool p;
     pth_attr_t attr;
     int fd;
     int flags;
 
-    log_debug(ZONE,"io_select to listen on %d [%X]",port,(void*)cb);
+    log_debug(ZONE,"io_select to listen on %d [%s]",port,listen_host);
 
-    io_data = pmalloco(p,sizeof(_ios));
 
-    /* write mp */
-    io_data->p=p;
-    io_data->cb=cb;
-    io_data->cb_arg=arg;
-
-    fd = make_netsocket(port,NULL,NETSOCKET_SERVER);
+    fd = make_netsocket(port,listen_host,NETSOCKET_SERVER);
     if(fd < 0)
     {
-        log_alert(NULL,"io_select is unable to listen on %d",port);
+        log_alert(NULL,"io_select is unable to listen on %d [%s]",port,listen_host);
         pool_free(p);
-        return NULL;
+        return;
     }
 
     if(listen(fd,10) < 0)
     {
-        log_alert(NULL,"io_select is unable to listen on %d",port);
+        log_alert(NULL,"io_select is unable to listen on %d [%s]",port,listen_host);
         pool_free(p);
-        return NULL;
+        return;
     }
 
     (flags=fcntl(fd,F_GETFL,0));
     flags|=O_NONBLOCK;
     fcntl(fd,F_SETFL,flags);
 
-    io_data->master_fd = fd;
+    p=pool_new();
+    new=pmalloco(p,sizeof(_sock));
+    new->fd=fd;
+    new->p=p;
+    new->type=type_LISTEN;
+    new->state=state_ACTIVE;
+    new->queue=pth_msgport_create("queue");
+    new->cb=cb;
+    new->cb_arg=arg;
 
-    attr = pth_attr_new();
-    pth_attr_set(attr,PTH_ATTR_JOINABLE,FALSE);
 
-    /* start main accept/read/write thread */
-    io_data->t=pth_spawn(attr,(void*)_io_main,(void*)io_data);
+    log_notice(NULL,"io_select starting to listen on %d [%s]",port,listen_host);
+    if(io__data==NULL)
+    {
+        p=pool_new();
+        io__data = pmalloco(p,sizeof(_ios));
+        io__data->p=p;
+        io__data->master__list=new;
+        attr = pth_attr_new();
+        pth_attr_set(attr,PTH_ATTR_JOINABLE,FALSE);
 
-    pth_attr_destroy(attr);
-
-    ret=pmalloco(p,sizeof(iosi));
-    ret=(iosi)io_data;
-
-    log_notice(NULL,"io_select starting to listen on %d",port);
-    return ret;
+        /* start main accept/read/write thread */
+        io__data->t=pth_spawn(attr,(void*)_io_main,(void*)io__data);
+        pth_attr_destroy(attr);
+        pth_yield(NULL);
+    }
+    else
+    {
+        if(io__data->master__list!=NULL)io__data->master__list->prev=new;
+        new=io__data->master__list;
+        io__data->master__list=new;
+    }
+    pth_raise(io__data->t,SIGUSR2); /* notify the select loop */
 }

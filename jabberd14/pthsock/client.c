@@ -93,7 +93,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
         return r_DONE;
     }
 
-    for (cur=io_select_get_list(io__instance);cur!=NULL;cur=cur->next)
+    for (cur=io_select_get_list();cur!=NULL;cur=cur->next)
     {
         cdcur=((cdata)cur->arg);
         if (fd == cur->fd)
@@ -258,7 +258,6 @@ void pthsock_client_read(sock c,char *buffer,int bufsz,int flags,void *arg)
         c->arg=(void*)cd;
         break;
     case IO_NORMAL:
-        log_debug(ZONE,"io_select NORMAL data");
         ret=xstream_eat(c->xs,buffer,bufsz);
         break;
     case IO_CLOSED:
@@ -334,12 +333,6 @@ void pthsock_client(instance i, xmlnode x)
     }
 
     /* register data callbacks */
-    io__instance=io_select(atoi(port),pthsock_client_read,(void*)si);
-    if(io__instance==NULL)
-    {
-        log_debug(ZONE,"Server to Server Failed to listen on 5222");
-        log_warn("Server 2 Server Component","Failed to listen on 5222");
-        exit(1);
-    }
+    io_select_listen(atoi(port),NULL,pthsock_client_read,(void*)si);
     register_phandler(i,o_DELIVER,pthsock_client_packets,(void*)si);
 }

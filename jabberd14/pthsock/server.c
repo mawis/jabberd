@@ -289,7 +289,7 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
         sd->queue = pth_msgport_create("queue");
         ghash_put(si->out_tab,sd->to,sd);
 
-        io_select_connect(io__instance,ip,port,(void*)sd);
+        io_select_connect(ip,port,pthsock_server_read,(void*)sd);
     }
 
     xmlnode_hide_attrib(q->x,"sto");
@@ -317,12 +317,6 @@ void pthsock_server(instance i, xmlnode x)
     si->out_tab = ghash_create(20,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
     si->i=i;
 
-    io__instance=io_select(5269,pthsock_server_read,(void*)si);
-    if(io__instance==NULL)
-    {
-        log_debug(ZONE,"Server to Server Failed to listen on 5269");
-        log_warn("Server 2 Server Component","Failed to listen on 5269");
-        exit(1);
-    }
+    io_select_listen(5269,NULL,pthsock_server_read,(void*)si);
     register_phandler(i,o_DELIVER,pthsock_server_packets,(void*)si);
 }

@@ -31,9 +31,11 @@ typedef struct wb_q_st
 } _wbq,*wbq;
 
 typedef enum { state_ACTIVE, state_CLOSE } conn_state;
+typedef enum { type_LISTEN, type_NORMAL } sock_type;
 typedef struct sock_st
 {
     pool p;
+    sock_type type;
     conn_state state;
     xstream xs;
     int fd;
@@ -60,9 +62,9 @@ typedef void *iosi;
 typedef void (*io_onNode)(int type, xmlnode x, void *arg);
 typedef void (*io_cb)(sock c,char *buffer,int bufsz,int flags,void *arg);
 
-iosi io_select(int port,io_cb cb,void *arg); /* start listening with select */
+void io_select_listen(int port,char *listen_host,io_cb cb,void *arg); /* start listening with select */
 void io_write_str(sock c,char *buffer); /* write a str to a socket */
 void io_write(sock c,xmlnode x); /*write and eat an xmlnode to the socket */
 void io_close(sock c); /* request to close the socket */
-void io_select_connect(iosi io_instance,char *host,int port,void *arg);
-sock io_select_get_list(iosi io_instance);
+void io_select_connect(char *host,int port,io_cb cb,void *arg); /* connect */
+sock io_select_get_list(void); /* returns a list of sockets */

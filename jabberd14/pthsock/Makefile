@@ -7,7 +7,7 @@ pthsock_client:
 	gcc -fPIC -shared -o pthsock_client.so io_select.c client.c $(CFLAGS) $(LDFLAGS)
 
 pthsock_server:
-	gcc -fPIC -shared -o pthsock_server.so server.c io_select.c $(CFLAGS) $(LDFLAGS)
+	gcc -fPIC -shared -o pthsock_server.so io_select.c server.c $(CFLAGS) $(LDFLAGS)
 
 clean:
 	rm -f pthsock_client.so pthsock_server.so
