@@ -311,7 +311,8 @@ void pthsock_client_read(mio m,char *buffer,int bufsz,int flag,void *arg)
         break;
     case IO_NEW:
         log_debug(ZONE,"io_select NEW socket connected at %d",m->fd);
-        cd=pthsock_client_cdata(m);
+        if(cd == NULL)
+            cd=pthsock_client_cdata(m);
         cd->connect_time=time(NULL);
         mio_reset(m, pthsock_client_read, (void*)cd);
         break;
@@ -456,7 +457,7 @@ void pthsock_client(instance i, xmlnode x)
     else /* no special config, use defaults */
     {
         mio m;
-        m = mio_listen(5222, NULL, pthsock_client_read, (void*)s__i);
+        m = mio_listen(5222, NULL, pthsock_client_read, NULL);
         if(m == NULL)
             return;
         mio_rate(m, rate_time, rate_points);
@@ -465,8 +466,7 @@ void pthsock_client(instance i, xmlnode x)
 
     /* register data callbacks */
     log_debug(ZONE,"looking at: %s\n",port);
-    register_phandler(i,o_DELIVER,pthsock_client_packets, (void*)s__i);
-//  register_beat(15,pthsock_client_heartbeat, (void*)si);
+    register_phandler(i,o_DELIVER,pthsock_client_packets, NULL);
     register_shutdown(pthsock_client_shutdown, (void*)s__i);
 }
 
