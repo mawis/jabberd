@@ -241,17 +241,13 @@ void _client_process(conn_t c) {
     
     log_debug(ZONE, "tag(%s)",NAD_ENAME(chunk->nad, 0));
 
-    //
-    // XXX Fix the register stuff... Right now you can't request the fields
-    // because it requires a username.
-    //
-
     /* handle auth requests */
-    if((j_strncmp(NAD_ENAME(chunk->nad, 0), "iq", 2) == 0) && 
-            (c->state != state_OPEN))
+    if((c->state != state_OPEN) && 
+       (j_strncmp(NAD_ENAME(chunk->nad, 0), "iq", 2) == 0))
     {
         attr = nad_find_attr(chunk->nad, 1, "xmlns", NULL);
-        if ( (attr >= 0) && ((j_strncmp(NAD_AVAL(chunk->nad, attr), "jabber:iq:auth", 14) == 0) || (j_strncmp(NAD_AVAL(chunk->nad, attr), "jabber:iq:register", 18) == 0)) )
+        if (attr >= 0 &&
+            (j_strncmp(NAD_AVAL(chunk->nad, attr), "jabber:iq:auth", 14) == 0))
         {
             /* sort out the username */
             elem = nad_find_elem(chunk->nad, 0, "username", 2);
@@ -261,15 +257,15 @@ void _client_process(conn_t c) {
                 chunk_free(chunk);
                 return;
             }
-
+    
             snprintf(str, 770, "%.*s", NAD_CDATA_L(chunk->nad, elem), NAD_CDATA(chunk->nad, elem));
             jid_set(c->smid, str, JID_USER);
 
             /* and the resource, for sets */
             attr2 = nad_find_attr(chunk->nad, 0, "type", NULL);
             if(attr2 >= 0 && 
-                    j_strncmp(NAD_AVAL(chunk->nad, attr2), "set", 3) == 0 &&
-                    j_strncmp(NAD_AVAL(chunk->nad, attr), "jabber:iq:auth", 14) == 0)
+               j_strncmp(NAD_AVAL(chunk->nad, attr2), "set", 3) == 0 &&
+               j_strncmp(NAD_AVAL(chunk->nad, attr), "jabber:iq:auth", 14) == 0)
             {
                 elem = nad_find_elem(chunk->nad, 0, "resource", 2);
                 if(elem == -1)
@@ -278,7 +274,7 @@ void _client_process(conn_t c) {
                     chunk_free(chunk);
                     return;
                 }
-
+                
                 snprintf(str, 770, "%.*s", NAD_CDATA_L(chunk->nad, elem), NAD_CDATA(chunk->nad, elem));
                 jid_set(c->smid, str, JID_RESOURCE);
 
@@ -286,7 +282,7 @@ void _client_process(conn_t c) {
                 elem = nad_find_elem(chunk->nad, 0, "digest", 2);
                 if(elem >= 0 && c->sid != NULL)
                     nad_set_attr(chunk->nad, elem, "sid", c->sid);
-
+                
                 /* we're in the auth state */
                 c->state = state_AUTH;
             }
@@ -456,7 +452,7 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
 
         case state_NONE:
             /* before the client is authorized, we tip-toe through the data to find the auth packets */
-            while(c->state == state_NONE)
+            while(c->state == state_NONE || c->state == state_AUTH)
             {
                 len = _read_actual(c, fd, buf, 10);
                 if((ret = conn_read(c, buf, len)) == 0) return 0;
