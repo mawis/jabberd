@@ -179,7 +179,7 @@ mreturn mod_filter_handler(mapi m, void *arg)
     jp=m->packet;
     if(m->packet->type!=JPACKET_MESSAGE) return M_IGNORE;
     if(m->user==NULL) return M_PASS;
-    if(jpacket_subtype(m->packet)==JPACKET__ERROR) return M_PASS; /* don't filter error messages */
+/*    if(jpacket_subtype(m->packet)==JPACKET__ERROR) return M_PASS; XXX don't filter error messages (why not?) */
     p=pool_new();
     cur_action=pmalloc(p,sizeof(_action));
     memset(cur_action,0,sizeof(_action));
