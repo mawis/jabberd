@@ -22,9 +22,8 @@ typedef struct ssock_st
     conn_type type;
     xstream xs;
     char *to;
-    int sock;
-    int open;
-    drop dlist; /* packets that need writting */
+    int sock, open;
+    drop dlist; /* packets that are waiting written */
     struct ssock_st *next;
 } *ssock, _ssock;
 
@@ -40,10 +39,10 @@ struct drop_st
 typedef struct ssi_st
 {
     instance i;
-    pth_msgport_t wmp;
-    pth_msgport_t amp;
     ssock conns;
     HASHTABLE out_tab;
+    pth_msgport_t wmp;
+    pth_msgport_t amp;
     int asock;
 } *ssi, _ssi;
 
@@ -94,23 +93,6 @@ void *pthsock_server_connect(void *arg)
     return s;
 }
 
-void pthsock_server_close(ssi si, ssock s)
-{
-    log_debug(ZONE,"closing socket '%d'",s->sock);
-
-    if (s->type == conn_OUT)
-        ghash_remove(si->out_tab,s->to);
-
-    if (s->open) /* if this is true, then it's ok to still write to this socket */
-    {
-        s->open = 0;
-        pth_write(s->sock,"</stream:stream>",16);
-    }
-
-    s->type = conn_CLOSED;
-    close(s->sock);
-}
-
 void pthsock_server_out(int type, xmlnode x, void *arg)
 {
     ssock s = (ssock) arg;
@@ -151,10 +133,17 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
     ssock s;
     char *to;
     drop d, cur;
+    jid from;
 
     to = dp->id->server;
+    from = jid_new(xmlnode_pool(dp->x),xmlnode_get_attrib(dp->x,"from"));
 
     log_debug(ZONE,"pthsock_server looking up %s",to);
+
+    /* XXX is this right?? */
+    if (from)
+        xmlnode_put_attrib(dp->x,"etherx:from",from->server);
+    xmlnode_put_attrib(dp->x,"etherx:to",to);
 
     s = ghash_get(si->out_tab,to);
 
@@ -224,17 +213,12 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
     case XSTREAM_ROOT:
         log_debug(ZONE,"root received for %d",s->sock);
 
-        if(xmlnode_get_attrib(x, "xmlns:etherx") != NULL && xmlnode_get_attrib(x,"etherx:secret") != NULL) /* it wants to be a transport, to bad */
-        {
-            s->type = conn_CLOSED;
-        }
-        else
+        if(xmlnode_get_attrib(x, "xmlns:etherx") == NULL && xmlnode_get_attrib(x,"etherx:secret") == NULL)
         {
             to = xmlnode_get_attrib(x,"to");
             if (to == NULL)
             {
-                if (pth_write(s->sock,
-                              "<stream::error>You didn't send your to='host' attribute.</stream:error>",71) <= 0)
+                if (pth_write(s->sock,"<stream::error>You didn't send your to='host' attribute.</stream:error>",71) <= 0)
                     s->open = 0;
 
                 s->type = conn_CLOSED;
@@ -251,11 +235,13 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
                 xmlnode_free(h);
             }
         }
+        else
+            s->type = conn_CLOSED;   /* it wants to be a transport, to bad */
+
         break;
 
     case XSTREAM_NODE:
         log_debug(ZONE,"node received for %d",s->sock);
-        log_debug(ZONE,">>>> %s",xmlnode2str(x));
 
         xmlnode_hide_attrib(x,"etherx:from");
         xmlnode_hide_attrib(x,"etherx:to");
@@ -264,12 +250,12 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
         break;
 
     case XSTREAM_ERR:
-        log_debug(ZONE,"error XSTREAM");
+        log_debug(ZONE,"failed to parse XML for %d",s->sock);
         if (pth_write(s->sock,"<stream::error>You sent malformed XML</stream:error>",52))
             s->open = 0;
     case XSTREAM_CLOSE:
         /* they closed there connections to us */
-        log_debug(ZONE,"closing XSTREAM");
+        log_debug(ZONE,"closing XML stream for %d",s->sock);
     }
 }
 
@@ -289,6 +275,23 @@ void pthsock_server_remove(ssi si, ssock s)
         }
 
     pool_free(s->p);
+}
+
+void pthsock_server_close(ssi si, ssock s)
+{
+    log_debug(ZONE,"closing socket '%d'",s->sock);
+
+    if (s->type == conn_OUT)
+        ghash_remove(si->out_tab,s->to);
+
+    if (s->open) /* if this is true, then it's ok to still write to this socket */
+    {
+        s->open = 0;
+        pth_write(s->sock,"</stream:stream>",16);
+    }
+
+    s->type = conn_CLOSED;
+    close(s->sock);
 }
 
 int pthsock_server_write(ssi si, ssock s, dpacket p)
@@ -495,7 +498,6 @@ void *pthsock_server_main(void *arg)
         }
     }
 }
-
 
 /* everything starts here */
 void pthsock_server(instance i, xmlnode x)
