@@ -317,3 +317,133 @@ void set_debug_facility(int facility) {
     }
 #endif
 }
+
+/**
+ * get the level value for a syslog level
+ *
+ * @param level as a string
+ * @return numerical level value or -1 on error
+ */
+int log_get_level(const char *level) {
+    /* XXX is there any portable way other than this? */
+#ifdef LOG_NOTICE
+    if (j_strcmp(level, "notice") == 0 || j_strcmp(level, "record") == 0)
+	return LOG_NOTICE;
+#endif
+#ifdef LOG_WARN
+    if (j_strcmp(level, "warn") == 0)
+	return LOG_WARN;
+#endif
+#ifdef LOG_ALERT
+    if (j_strcmp(level, "alert") == 0)
+	return LOG_ALERT;
+#endif
+#ifdef LOG_INFO
+    if (j_strcmp(level, "stat") == 0 || j_strcmp(level, "info") == 0)
+	return LOG_INFO;
+#endif
+#ifdef LOG_EMERG
+    if (j_strcmp(level, "emerg") == 0)
+	return LOG_EMERG;
+#endif
+#ifdef LOG_CRIT
+    if (j_strcmp(level, "crit") == 0)
+	return LOG_CRIT;
+#endif
+#ifdef LOG_ERR
+    if (j_strcmp(level, "err") == 0)
+	return LOG_ERR;
+#endif
+#ifdef LOG_DEBUG
+    if (j_strcmp(level, "debug") == 0)
+	return LOG_DEBUG;
+#endif
+    return -1;
+}
+
+/**
+ * get the facility value for a syslog facility
+ *
+ * @param facility as a string
+ * @return numerical facility value or -1 on error
+ */
+int log_get_facility(const char *facility) {
+    /* XXX is there any portable way other than this? */
+#ifdef LOG_DAEMON
+    if (j_strcmp(facility, "daemon") == 0)
+	return LOG_DAEMON;
+#endif
+#ifdef LOG_LOCAL0
+    if (j_strcmp(facility, "local0") == 0)
+	return LOG_LOCAL0;
+#endif
+#ifdef LOG_LOCAL1
+    if (j_strcmp(facility, "local1") == 0)
+	return LOG_LOCAL1;
+#endif
+#ifdef LOG_LOCAL2
+    if (j_strcmp(facility, "local2") == 0)
+	return LOG_LOCAL2;
+#endif
+#ifdef LOG_LOCAL3
+    if (j_strcmp(facility, "local3") == 0)
+	return LOG_LOCAL3;
+#endif
+#ifdef LOG_LOCAL4
+    if (j_strcmp(facility, "local4") == 0)
+	return LOG_LOCAL4;
+#endif
+#ifdef LOG_LOCAL5
+    if (j_strcmp(facility, "local5") == 0)
+	return LOG_LOCAL5;
+#endif
+#ifdef LOG_LOCAL6
+    if (j_strcmp(facility, "local6") == 0)
+	return LOG_LOCAL6;
+#endif
+#ifdef LOG_LOCAL7
+    if (j_strcmp(facility, "local7") == 0)
+	return LOG_LOCAL7;
+#endif
+#ifdef LOG_AUTH
+    if (j_strcmp(facility, "auth") == 0)
+	return LOG_AUTH;
+#endif
+#ifdef LOG_AUTHPRIV
+    if (j_strcmp(facility, "authpriv") == 0)
+	return LOG_AUTHPRIV;
+#endif
+#ifdef LOG_CRON
+    if (j_strcmp(facility, "cron") == 0)
+	return LOG_CRON;
+#endif
+#ifdef LOG_KERN
+    if (j_strcmp(facility, "kern") == 0)
+	return LOG_KERN;
+#endif
+#ifdef LOG_LPR
+    if (j_strcmp(facility, "lpr") == 0)
+	return LOG_LPR;
+#endif
+#ifdef LOG_MAIL
+    if (j_strcmp(facility, "mail") == 0)
+	return LOG_MAIL;
+#endif
+#ifdef LOG_NEWS
+    if (j_strcmp(facility, "news") == 0)
+	return LOG_NEWS;
+#endif
+#ifdef LOG_SYSLOG
+    if (j_strcmp(facility, "syslog") == 0)
+	return LOG_SYSLOG;
+#endif
+#ifdef LOG_USER
+    if (j_strcmp(facility, "user") == 0)
+	return LOG_USER;
+#endif
+#ifdef LOG_UUCP
+    if (j_strcmp(facility, "uucp") == 0)
+	return LOG_UUCP;
+#endif
+    return -1;
+}

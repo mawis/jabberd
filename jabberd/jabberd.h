@@ -123,6 +123,8 @@ instance deliver_hostcheck(char *host); /* util that returns the instance handli
 #define LOGT_SESSION 65536
 #define LOGT_ROSTER 131072
 
+int log_get_facility(const char *facility);
+int log_get_level(const char *level);
 #define MAX_LOG_SIZE 1024
 extern int debug_flag;
 inline int get_debug_flag(void);
