@@ -44,12 +44,14 @@ ios io__data=NULL;
 result karma_heartbeat(void*arg)
 {
     sock cur;
+    int was_negative = 0;
     if(io__data==NULL||io__data->master__list==NULL) return r_DONE;
     for(cur=io__data->master__list;cur!=NULL;cur=cur->next)
     {
-        if(cur->state==state_CLOSE&&cur->k.val!=KARMA_INIT) continue;
+        if(cur->state==state_CLOSE||cur->k.val==KARMA_INIT) continue;
+        if(cur->k.val < 0) was_negative = 1; 
         karma_increment( &cur->k );
-        if(cur->k.val==0)  /* punishment is over */
+        if(was_negative && cur->k.val == cur->k.restore)  /* punishment is over */
             pth_raise(io__data->t,SIGUSR2);
     }
     return r_DONE;
@@ -383,7 +385,7 @@ void _io_main(void *arg)
                     _io_close(temp);
                     continue;
                 }
-                if(len<0)
+                else if(len<0)
                 { /* only check errno if -1 returned.. */
                   /* errno is undefined otherwise      */
                     if(errno==EWOULDBLOCK||errno==EINTR||errno==EAGAIN) 
@@ -407,6 +409,7 @@ void _io_main(void *arg)
                             log_notice("io_select","socket #%d is out of karma",cur->fd);
                             /* pay the penence */
                             FD_CLR(cur->fd,&all_rfds); 
+                            /* let them process this read */
                         }
                     }
                     buff[len]='\0';
@@ -452,7 +455,7 @@ void _io_main(void *arg)
             else FD_CLR(cur->fd,&all_wfds);
 
         if(io__data->master__list==NULL)
-            break;
+            break; /* no more sockets to loop on */
     }
     pool_free(io__data->p);
     io__data=NULL;

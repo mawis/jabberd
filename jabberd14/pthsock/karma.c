@@ -42,27 +42,43 @@ void karma_copy(struct karma *new, struct karma *old)
 
 void karma_increment(struct karma *k)
 {
+    /* set the current time, and check if we can increment */
     time_t cur_time = time(NULL);
     int punishment_over = 0;
+    
+    /* only increment every KARMA_HEARTBEAT seconds */
     if( ( k->last_update + KARMA_HEARTBEAT > cur_time ) && k->last_update != 0)
         return;
+
+    /* if incrementing will raise over 0 */
     if( ( k->val < 0 ) && ( k->val + k->inc > 0 ) )
         punishment_over = 1;
+
+    /* increment the karma value */
     k->val += k->inc;
     if( k->val > k->max ) k->val = k->max; /* can only be so good */
+
+    /* lower our byte count, if we have good karma */
     if( k->val > 0 ) k->bytes -= ( KARMA_READ_MAX(k->val) );
     if( k->bytes <0 ) k->bytes = 0;
+
+    /* our karma has *raised* to 0 */
     if( punishment_over )
     {
         k->val = k->restore;
-        /* call back for no more punishment */
+        /* XXX call back for no more punishment */
     }
+
+    /* reset out counter */
     k->last_update = cur_time;
 }
 
 void karma_decrement(struct karma *k)
 {
+    /* lower our karma */
     k->val -= k->dec;
+
+    /* if below zero, set to penalty */
     if( k->val <= 0 ) 
         k->val = k->penalty;
 }

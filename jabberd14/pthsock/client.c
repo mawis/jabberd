@@ -397,7 +397,7 @@ void pthsock_client(instance i, xmlnode x)
     si = pmalloco(i->p,sizeof(_smi));
     si->auth_timeout=DEFAULT_AUTH_TIMEOUT;
     si->i = i;
-    si->aliases=ghash_create(27,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+    si->aliases=ghash_create(7,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
 
     /* get the config */
     xc = xdb_cache(i);
