@@ -29,7 +29,7 @@ result base_ns_filter(instance i, dpacket p, void *arg)
         if(j_strcmp(p->id->resource, xmlnode_get_data(x)) == 0)
             return r_PASS;
 
-    return r_ERR;
+    return r_LAST;
 }
 
 result base_ns_config(instance id, xmlnode x, void *arg)

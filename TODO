@@ -44,10 +44,6 @@ zero-knowledge auth plugin
 jer	9/15/00 easy
 base_cache for caching xdb requests in memory
 
-jer	9/15/00
-deliver() queueing during config
-use a temporary global message port which is cleared out after config is done?
-
 ?	9/15/00 open, needs some docu from jer
 base_farm for simple hashing name distribution
 

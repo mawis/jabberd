@@ -20,7 +20,6 @@
 #define MAX_INCLUDE_NESTING 20
 extern HASHTABLE cmd__line;
 
-
 xmlnode greymatter__ = NULL;
 
 void do_include(int nesting_level,xmlnode x)
@@ -115,7 +114,6 @@ int configurate(char *file)
     /* check greymatter for additional includes */
     do_include(0,greymatter__);
     cmdline_replace(greymatter__);
-    printf("SPILLING GREYMATTER:\n%s\n",xmlnode2str(greymatter__));
 
     return 0;
 }
