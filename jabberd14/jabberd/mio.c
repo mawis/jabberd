@@ -745,7 +745,7 @@ void mio_init(void)
     pth_attr_t attr;
     xmlnode io = xmlnode_get_tag(greymatter__, "io");
 
-#ifdef HAVESSL
+#ifdef HAVE_SSL
     if(xmlnode_get_tag(io, "ssl") != NULL)
         mio_ssl_init(xmlnode_get_tag(io, "ssl"));
 #endif
