@@ -169,7 +169,6 @@ void register_instance(instance id, char *host)
     newh->host = pstrdup(p,host);
     newh->id = id;
 
-    /* should check to see if this instance+hostname is already in use in the tree */
     /* hook into global */
     switch(id->type)
     {
