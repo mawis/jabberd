@@ -237,7 +237,7 @@ result base_connect_config(instance id, xmlnode x, void *arg)
         return r_PASS;
     }
 
-    log_debug(ZONE, LOGT_INIT|LOGT_CONFIG, "Activating configuration: %s\n", xmlnode2str(x));
+    log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "Activating configuration: %s\n", xmlnode2str(x));
 
     /* Allocate a conn structures, using this instances' mempool */
     ci              = pmalloco(id->p, sizeof(_conn_info));

@@ -1,6 +1,6 @@
 #include "jabberd.h"
 #ifdef HAVE_SSL
-#include <err.h>
+#include <openssl/err.h>
 
 xht ssl__ctxs;
 extern int mio__errno;
@@ -67,7 +67,7 @@ void mio_ssl_init(xmlnode x)
     SSL_load_error_strings();
 
     /* Setup our hashtable */
-    ssl__ctxs = xhash_create(19);
+    ssl__ctxs = xhash_new(19);
 
     /* Walk our node and add the created contexts */
     for(cur = xmlnode_get_tag(x, "key"); cur != NULL; 
