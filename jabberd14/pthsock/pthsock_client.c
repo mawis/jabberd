@@ -24,7 +24,7 @@ typedef struct csock_st
     conn_state state;
     xstream xs;
     pth_event_t ering;
-    char *id, *host, *sid, *res;
+    char *id, *host, *sid, *res, *auth_id;
     int sock;
     struct csock_st *next;
 } *csock, _csock;
@@ -79,7 +79,6 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
             }
             else
             {
-                
                 deliver(dpacket_new(p->x),si->i);
             }
             return r_DONE;
@@ -148,7 +147,15 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
                 return;
             }
             else if (NSCHECK(q,NS_AUTH))
+            {
                 xmlnode_put_attrib(xmlnode_get_tag(q,"digest"),"sid",r->sid);
+                r->auth_id = pstrdup(r->p,xmlnode_get_attrib(x,"id"));
+                if (r->auth_id == NULL) /* if they didn't supply an id, then we make one */
+                {
+                    r->auth_id = pstrdup(r->p,"1234");
+                    xmlnode_put_attrib(x,"id","1234");
+                }
+            }
         }
 
         xmlnode_put_attrib(x,"sfrom",r->id);
@@ -230,10 +237,15 @@ int pthsock_client_write(csock r, dpacket p)
     {
         if (j_strcmp(xmlnode_get_attrib(p->x,"type"),"result") == 0)
         {
-            log_debug(ZONE,"auth for %d successful",r->sock);
-            /* change the host id */
-            r->host = pstrdup(r->p,xmlnode_get_attrib(p->x,"sfrom"));
-            r->state = state_AUTHD;
+            if (j_strcmp(r->auth_id,xmlnode_get_attrib(p->x,"id")) == 0)
+            {
+                log_debug(ZONE,"auth for %d successful",r->sock);
+                /* change the host id */
+                r->host = pstrdup(r->p,xmlnode_get_attrib(p->x,"sfrom"));
+                r->state = state_AUTHD;
+            }
+            else
+                log_debug(ZONE,"reg for %d successful",r->sock);
         }
         else
             /* they didn't get authed/registered */
