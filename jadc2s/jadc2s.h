@@ -52,9 +52,6 @@ typedef struct chunk_st
     char *wcur;
     int wlen;
 
-    /* nad cache, so we can free the nad later */
-    nad_cache_t nads;
-
     /* for linking chunks together */
     struct chunk_st *next;
 } *chunk_t;

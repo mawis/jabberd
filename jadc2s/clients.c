@@ -218,7 +218,7 @@ void _client_endElement(void *arg, const char* name)
         _client_process(c);
         if(c->nad != NULL)
         {   
-            nad_free(c->c2s->nads, c->nad);
+            nad_free(c->nad);
             c->nad = NULL;
         }
     }
@@ -516,7 +516,7 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
                 /* if there was a nad being created, ditch it */
                 if(c->nad != NULL)
                 {
-                    nad_free(c->c2s->nads, c->nad);
+                    nad_free(c->nad);
                     c->nad = NULL;
                 }
                 /* always send some sort of error */

@@ -59,7 +59,7 @@ static void _config_startElement(void *arg, const char *name, const char **atts)
     int i = 0;
     
     nad_append_elem(bd->nad, (char *) name, bd->depth);
-    while(atts[i] != '\0')
+    while(atts[i] != NULL)
     {
         nad_append_attr(bd->nad, (char *) atts[i], (char *) atts[i + 1]);
         i += 2;
@@ -203,7 +203,7 @@ int config_load(config_t c, char *file)
         /* make room for the attribute lists */
         elem->attrs = realloc((void *) elem->attrs, sizeof(char **) * (elem->nvalues + 1));
         elem->attrs[elem->nvalues] = NULL;
-        
+
         /* count the attributes */
         for(attr = bd.nad->elems[i].attr, j = 0; attr >= 0; attr = bd.nad->attrs[attr].next, j++);
 
@@ -212,7 +212,7 @@ int config_load(config_t c, char *file)
         {
             /* make space */
             elem->attrs[elem->nvalues] = pmalloc(xhash_pool(c), sizeof(char *) * (j * 2 + 2));
-
+            
             /* copy them in */
             j = 0;
             attr = bd.nad->elems[i].attr;
@@ -229,7 +229,7 @@ int config_load(config_t c, char *file)
             elem->attrs[elem->nvalues][j] = NULL;
             elem->attrs[elem->nvalues][j + 1] = NULL;
         }
-        
+
         elem->nvalues++;
     }
 
@@ -276,13 +276,12 @@ int config_count(config_t c, char *key)
 char *config_get_attr(config_t c, char *key, int num, char *attr)
 {
     config_elem_t elem = xhash_get(c, key);
-    
+
     if(elem->attrs == NULL)
         return NULL;
 
     return j_attr((const char **) elem->attrs, attr);
 }
-
 
 /* cleanup helper */
 static void _config_reaper(xht h, const char *key, void *val, void *arg)
@@ -300,4 +299,3 @@ void config_free(config_t c)
 
     xhash_free(c);
 }
-
