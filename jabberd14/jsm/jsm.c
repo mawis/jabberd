@@ -41,24 +41,38 @@
  * --------------------------------------------------------------------------*/
 #include "jsm.h"
 
-/*
+/**
+ * @file jsm.c
+ * @brief main part of the jsm (Jabberd session manager) module
+ *
+ * This file contains the function that is called by jabberd to load this
+ * module jsm() and we load the modules, that are plugged in the session
+ * manager
+ */
 
-packet handler
-    check for new session auth/reg request, handle seperately
-    check master jid hash table for session
-    pass to offline thread
-    track server names for master "i am" table
-
-*/
-
+/**
+ * template for the load function of jsm modules
+ *
+ * @param si the mapi, that should be used by the modules to interact with jsm
+ */
 typedef void (*modcall)(jsmi si);
 
+/*
 result jsm_stat(void *arg)
 {
     pool_stat(0);
     return r_DONE;
 }
+*/
 
+/**
+ * xhash walker function to signal all sessions the server shutdown
+ *
+ * @param h the hashtable containing all users of a host
+ * @param key the user
+ * @param data the user's data
+ * @param arg unused/ignored
+ */
 void __jsm_shutdown(xht h, const char *key, void *data, void *arg)
 {
     udata u = (udata)data;	/* cast the pointer into udata */
@@ -71,7 +85,15 @@ void __jsm_shutdown(xht h, const char *key, void *data, void *arg)
 }
 
 
-/* callback for walking the host hash tree */
+/**
+ * xhash walker function over all hosts of the session manager,
+ * used to signal all sessions the server shutdown
+ *
+ * @param h the hashtable containing all hosts
+ * @param key the host
+ * @param data the table of users on this host
+ * @param arg unused/ignored
+ */
 void _jsm_shutdown(xht h, const char *key, void *data, void *arg)
 {
     xht ht = (xht)data;
@@ -83,6 +105,11 @@ void _jsm_shutdown(xht h, const char *key, void *data, void *arg)
     xhash_free(ht);
 }
 
+/**
+ * callback function where jabberd signals the shutdown of the server
+ *
+ * @param our instance internal jsm data
+ */
 void jsm_shutdown(void *arg)
 {
     jsmi si = (jsmi)arg;
@@ -95,6 +122,12 @@ void jsm_shutdown(void *arg)
     xmlnode_free(si->config);
 }
 
+/**
+ * startup the jsm module, register the jsm modules in jsm
+ *
+ * @param i the instance we are in jabberd
+ * @param x the <load/> module that instructed the moduleloader to load us
+ */
 void jsm(instance i, xmlnode x)
 {
     jsmi si;
@@ -141,8 +174,15 @@ void jsm(instance i, xmlnode x)
         (module)(si);
     }
 
+    /* register us for being notified of the server shutdown */
     pool_cleanup(i->p, jsm_shutdown, (void*)si);
+
+    /* register js_packet() as the handler for packets to this instance */
     register_phandler(i, o_DELIVER, js_packet, (void *)si);
-    register_beat(5,jsm_stat,NULL);
+
+    /* XXX do we still need this? we have the pool_stat() call in jabberd/jabberd.c now */
+    /* register_beat(5,jsm_stat,NULL); */
+   
+    /* register js_users_gc() to be called frequently, once per minute by default */
     register_beat(j_atoi(xmlnode_get_tag_data(si->config,"usergc"),60),js_users_gc,(void *)si);
 }

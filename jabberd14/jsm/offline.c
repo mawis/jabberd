@@ -36,12 +36,21 @@
  * delete the provisions above, a recipient may use your version of this file
  * under either the JOSL or the GPL. 
  * 
- * 
- * offline.c -- thread that handles data for other packets,
- * 	        which might be for offline or unknown users
  * --------------------------------------------------------------------------*/
 #include "jsm.h"
 
+/**
+ * @file offline.c
+ * @brief handle packets addressed to existing but offline users
+ */
+
+/**
+ * function that handles packets that are sent to a valid user account, that has no online session
+ *
+ * First try if one of the e_OFFLINE modules handles the packet, if not it is bounced as recipient-unavailable
+ *
+ * @param arg the jpq_struct for this packet (contains the session manager instance data and the packet)
+ */
 void js_offline_main(void *arg)
 {
     jpq q = (jpq)arg;
@@ -55,11 +64,8 @@ void js_offline_main(void *arg)
 
     /* let the modules handle the packet */
     if(!js_mapi_call(q->si, e_OFFLINE, q->p, user, NULL))
-        js_bounce_xmpp(q->si,q->p->x,XTERROR_UNAVAIL);
+        js_bounce_xmpp(q->si,q->p->x,XTERROR_RECIPIENTUNAVAIL);
 
     /* it can be cleaned up now */
     user->ref--;
-
 }
-
-
