@@ -147,25 +147,28 @@ void chunk_write(conn_t c, chunk_t chunk, char *to, char *from, char *type)
     if(chunk->nad == NULL)
         chunk->nad = nad_new(c->c2s->nads);
 
+    elem = chunk->packet_elem;
+
     /* prepend optional route data */
     if(to != NULL)
     {
         if(chunk->nad->ecur <= chunk->packet_elem)
-        {
-            nad_append_elem(chunk->nad, "route", 1);
-            elem = 0;
-        } else {
+            elem = nad_append_elem(chunk->nad, "route", 1);
+
+        else {
             nad_wrap_elem(chunk->nad, chunk->packet_elem, "route");
             elem = chunk->packet_elem;
         }
+
         nad_set_attr(chunk->nad, elem, "to", to);
         nad_set_attr(chunk->nad, elem, "from", from);
+
         if(type != NULL)
             nad_set_attr(chunk->nad, elem, "type", type);
     }
 
     /* turn the nad into xml */
-    nad_print(chunk->nad, chunk->packet_elem, &chunk->wcur, &chunk->wlen);
+    nad_print(chunk->nad, elem, &chunk->wcur, &chunk->wlen);
 
     /* append to the outgoing write queue, if any */
     if(c->qtail == NULL)
