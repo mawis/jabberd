@@ -73,6 +73,13 @@
             <connects>0</connects>
             <seconds>0</seconds>
         </connection_limits>
+
+	<!--  send notifies about connecting and disconnecting users       -->
+	<!--  to a configured component (default: do not send anything)    -->
+	<!--
+	<notifies>connections@localhost</notifies>
+	-->
+
     </io>
 
 </jadc2s>

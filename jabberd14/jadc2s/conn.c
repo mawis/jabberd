@@ -400,3 +400,68 @@ int _write_actual(conn_t c, int fd, const char *buf, size_t count)
     return written;
 }
 
+void connectionstate_fillnad(nad_t nad, char *from, char *to, char *user, int is_login, char *ip, const char *ssl_version, const char *ssl_cipher, char *ssl_size_secret, char *ssl_size_algorithm)
+{
+    nad_append_elem(nad, "message", 0);
+    nad_append_attr(nad, "from", from);
+    nad_append_attr(nad, "to", to);
+    nad_append_elem(nad, "update", 1);
+    nad_append_attr(nad, "xmlns", "http://amessage.info/protocol/connectionstate");
+    nad_append_elem(nad, "jid", 2);
+    nad_append_cdata(nad, user, j_strlen(user), 3);
+    if (is_login)
+	nad_append_elem(nad, "login", 2);
+    else
+	nad_append_elem(nad, "logout", 2);
+    nad_append_elem(nad, "ip", 2);
+    nad_append_cdata(nad, ip, j_strlen(ip), 3);
+    if (ssl_version != NULL && ssl_cipher != NULL)
+    {
+	char *tls_version = strdup(ssl_version);
+	char *tls_cipher = strdup(ssl_cipher);
+	nad_append_elem(nad, "tls", 2);
+	nad_append_elem(nad, "version", 3);
+	nad_append_cdata(nad, tls_version, j_strlen(ssl_version), 4);
+	nad_append_elem(nad, "cipher", 3);
+	nad_append_cdata(nad, tls_cipher, j_strlen(ssl_cipher), 4);
+	nad_append_elem(nad, "bits", 3);
+	nad_append_attr(nad, "secret", ssl_size_secret);
+	nad_append_attr(nad, "algorithm", ssl_size_algorithm);
+	free(tls_version);
+	free(tls_cipher);
+    }
+}
+
+void connectionstate_send(config_t config, conn_t c, conn_t client, int is_login)
+{
+    char *receiver;
+    chunk_t chunk;
+    int i;
+
+    /* send the connection state update to each configured destination */
+    for (i=0; (receiver=config_get_one(config, "io.notifies", i)); i++)
+    {
+	const char *ssl_version = NULL;
+	const char *ssl_cipher = NULL;
+	char ssl_size_secret[11] = "0";
+	char ssl_size_algorithm[11] = "0";
+
+#ifdef USE_SSL
+	if (client->ssl != NULL)
+	{
+	    int bits_secret, bits_algorithm;
+
+	    ssl_version = SSL_get_version(client->ssl);
+	    ssl_cipher = SSL_get_cipher(client->ssl);
+	    bits_secret = SSL_get_cipher_bits(client->ssl, &bits_algorithm);
+	    snprintf(ssl_size_secret, sizeof(ssl_size_secret), "%i", bits_secret);
+	    snprintf(ssl_size_algorithm, sizeof(ssl_size_algorithm), "%i", bits_algorithm);
+	}
+#endif
+
+	c->nad = nad_new(c->c2s->nads);
+	connectionstate_fillnad(c->nad, jid_full(client->myid), receiver, jid_full(client->userid), is_login, client->ip, ssl_version, ssl_cipher, ssl_size_secret, ssl_size_algorithm);
+	chunk = chunk_new(c);
+	chunk_write(c, chunk, NULL, NULL, NULL);
+    }
+}

@@ -235,6 +235,12 @@ void _connect_process(conn_t c) {
             chunk_write(c, chunk, jid_full(target->smid), jid_full(pending->myid), "session");
             pending->state = state_SESS;
 
+	    /* log the successfull login */
+	    log_write(c->c2s->log, LOG_NOTICE, "user %s connected from %s", jid_full(target->userid), target->ip);
+	   
+	    /* send a notification message if requested */
+	    connectionstate_send(c->c2s->config, c, target, 1);
+
             return;
         }else{ /* start over */
             pending->state = state_NONE;
