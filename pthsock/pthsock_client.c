@@ -75,12 +75,16 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     if (p->id->user == NULL)
     {
         log_debug(ZONE,"not a user %s",xmlnode2str(p->x));
+        xmlnode_free(p->x);
         return r_DONE;
     }
 
     sock = atoi(p->id->user); 
     if (sock == 0)
+    {
+        xmlnode_free(p->x);
         return r_DONE;
+    }
 
     log_debug(ZONE,"pthsock_client looking up %d",sock);
 
@@ -104,7 +108,10 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     if (*(xmlnode_get_name(p->x)) == 'm')
         if (j_strcmp(xmlnode_get_attrib(p->x,"type"),"error") == 0)
             if (j_strcmp(xmlnode_get_attrib(xmlnode_get_tag(p->x,"error"),"code"),"510") == 0)
+            {
+                xmlnode_free(p->x);
                 return r_DONE;
+            }
 
     log_debug(ZONE,"pthsock_client connection not found");
 
@@ -200,6 +207,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         }
         else
             c->state = state_CLOSING;
+        xmlnode_free(p->x);
     }
 }
 
@@ -449,6 +457,7 @@ void *pthsock_client_main(void *arg)
             }
         }
     }
+    pth_event_free(ering,PTH_FREE_ALL);
     return NULL;
 }
 
