@@ -170,6 +170,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         pth_write(r->sock,"<stream::error>You sent malformed XML</stream:error>",52);
     case XSTREAM_CLOSE:
         log_debug(ZONE,"closing XSTREAM");
+        r->state = state_CLOSING;
         if (r->state == state_AUTHD)
         {
             /* notify the session manager */
@@ -180,7 +181,6 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
             xmlnode_put_attrib(h,"sfrom",r->id);
             deliver(dpacket_new(h),r->i);
         }
-        r->state = state_CLOSING;
     }
 }
 
@@ -201,7 +201,9 @@ void pthsock_client_close(smi si, csock r)
         deliver(dpacket_new(x),r->i);
     }
     else
+    {
         pth_write(r->sock,"</stream:stream>",16);
+    }
 
     /* remove connection from the list */
     for (cur = si->conns,prev = NULL; cur != NULL; prev = cur,cur = cur->next)
@@ -345,17 +347,20 @@ void *pthsock_client_main(void *arg)
 
     while (1)
     {
-        pth_select_ev(FD_SETSIZE,&rfds,NULL,NULL,NULL,ering);
-
         if (pth_select_ev(FD_SETSIZE,&rfds,NULL,NULL,NULL,ering) > 0)
         {
             log_debug(ZONE,"select");
+
+            FD_ZERO(&afds);
 
             if (FD_ISSET(asock,&rfds)) /* new connection */
             {
                 sock = pth_accept(asock,(struct sockaddr*)&sa,(int*)&sa_size);
                 if(sock < 0)
+                {
+                    log_debug(ZONE,"accept error");
                     break;
+                }
 
                 log_debug(ZONE,"pthsock_client: new socket accepted (fd: %d, ip: %s, port: %d)",sock,inet_ntoa(sa.sin_addr),ntohs(sa.sin_port));
 
@@ -372,7 +377,7 @@ void *pthsock_client_main(void *arg)
                 snprintf(buf,bufsz,"%d@%s/%s",sock,host,r->res);
                 r->id = pstrdup(p,buf);
 
-                FD_SET(sock,&rfds);
+                FD_SET(sock,&afds);
 
                 log_debug(ZONE,"socket id:%s",r->id);
 
@@ -393,17 +398,21 @@ void *pthsock_client_main(void *arg)
                         log_debug(ZONE,"Error reading on '%d', %s",cur->sock,strerror(errno));
                         pthsock_client_close(si,cur);
                     }
-
+ 
                     log_debug(ZONE,"read %d bytes",len);
                     xstream_eat(cur->xs,buff,len);
                     if (cur->state == state_CLOSING)
                         pthsock_client_close(si,cur);
+                    else
+                        FD_SET(cur->sock,&afds);
                 }
-                FD_SET(cur->sock,&afds);
+                else
+                    FD_SET(cur->sock,&afds);
+
                 cur = cur->next;
             }
             rfds = afds;
-            FD_ZERO(&afds);
+           
         }
 
         /* handle packets that need to be writen */
