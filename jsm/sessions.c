@@ -29,11 +29,6 @@
 
 #include "jsm.h"
 
-/* worker thread waiting pool */
-#define SESSION_WAITERS 10
-pth_msgport_t swaiters[SESSION_WAITERS];
-int swaiters_init = 1;
-
 /* definition of spacket types */
 #define SPACKET_TO 1
 #define SPACKET_FROM 2
@@ -65,10 +60,6 @@ void *js_worker_main(void *arg);
  */
 pth_msgport_t js_session_worker(session s)
 {
-
-    pth_attr_t attr;    /* thread attributes and pointer */
-    thread t;           /* for spawning a new thread if none are available */
-
     pth_msgport_t mp;   /* message port used by the worker thread */
     int i;              /* index into the array of worker threads */
 
@@ -78,34 +69,24 @@ pth_msgport_t js_session_worker(session s)
 
     /* scan for a waiting worker */
     for(i=0;i<SESSION_WAITERS; i++)
-        if(swaiters[i] != NULL)
+        if(s->si->waiting[i] != NULL)
         {
             /* found an idle thread, return it */
-            log_debug(ZONE,"worker fetch returning swaiters[%d] %X",i,swaiters[i]);
-            s->worker = swaiters[i];
-            return swaiters[i];
+            log_debug(ZONE,"worker fetch returning swaiters[%d] %X",i,s->si->waiting[i]);
+            s->worker = s->si->waiting[i];
+            return s->worker;
         }
 
 
     /* there were no idle threads, so we have to create one */
-    /* create new thread and msgport */
     mp = pth_msgport_create("js_worker");
-    t = thread_new();
-    pool_label(t->p,"worker",0);
-    t->data = (void *)mp;
-
-    /* start new worker thread */
-    attr = pth_attr_new();
-    pth_attr_set(attr, PTH_ATTR_JOINABLE, FALSE);
-    pth_attr_set(attr, PTH_ATTR_STACK_SIZE, 2*etherx_stack_default);
-    t->id = pth_spawn(attr, js_worker_main, (void *)t);
-    pth_attr_destroy(attr);
+    pth_spawn(PTH_ATTR_DEFAULT, js_worker_main, (void *)mp);
 
     /* put it in the waiting pool */
     for(i=0;i<SESSION_WAITERS; i++)
-        if(swaiters[i] == NULL)
+        if(s->si->waiting[i] == NULL)
         {
-            swaiters[i] = mp;
+            s->si->waiting[i] = mp;
             break;
         }
 

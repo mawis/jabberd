@@ -23,106 +23,49 @@
 #include "jsm.h"
 
 /*
- *  main -- executable entry point
- *  
- *  parameters
- *      argc -- the number of arguments passed in from the command line
- *      argv -- an array of strings containing the arguments
- *
- *  returns
- *      0 if the server exits normally 
- *      1 if the server encounters a fatal error
- */
 
-void jabber_transport(void);
-void jabber_transport_exit(void);
+packet handler
+    check for new session auth/reg request, handle seperately
+    check master jid hash table for session
+    pass to offline thread
+    track server names for master "i am" table
 
-int main (int argc, char** argv)
+*/
+
+void jsm(instance i, xmlnode x)
 {
+    jsmi si;
+    xmlnode cur;
+    char *name;
+    void (*module)(jsmi si);
+    int n;
 
-    sigset_t set;               /* a set of signals to trap */
-    int help, sig, i;           /* temporary variables */
-    char *cfgfile = NULL, *c;   /* strings used to load the server config */
+    log_debug(NULL,"jsm initializing for section '%s'",i->id);
 
-    /* start by assuming the parameters were entered correctly */
-    help = 0;
+    /* create and init the jsm instance handle */
+    si = palloco(i->p, sizeof(_jsmi));
+    si->i = i;
+    si->xc = xdb_cache(i); /* getting xdb_* handle and fetching config */
+    si->config = xmlnode_get_firstchild(xdb_get(si->xc, NULL, jid_new(xmlnode_pool(x),"config@-internal"),"test"));
+    for(n=0;i<SESSION_WAITERS;n++)
+        si->waiting[n] = NULL;
 
-    /* process the parameterss one at a time */
-    for(i = 1; i < argc; i++)
+    /* start threads */
+    pth_spawn(attr, js_offline_main, (void *)si); /* the thread handling all offline packets */
+    pth_spawn(attr, js_server_main, (void *)si);  /* all traffic to server resources */
+    pth_spawn(attr, js_users_main, (void *)si);   /* free cached user data */
+
+    /* fire up the modules */
+    for(cur = xmlnode_get_firstchild(cur); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
-        /* a pointer to the parameter */
-        c = argv[i] + 1;
+        if((name = xmlnode_get_name(cur)) == NULL)
+            continue;
 
-        /* check possible values */
-        switch(*c)
-        {
-        case 'D': /* turn on debugging */
-            etherx_debug();
-            break;
+        module = (void (*module)(jsmi si))xmlnode_get_vattrib(cur,name);
+        if(module == NULL)
+            continue;
 
-        case 'c': /* get name of config file */
-            cfgfile = strdup(argv[++i]);
-            break;
-
-        default: /* unrecognized parameter */
-            help = 1;
-        }
+        /* call this module for this session instance */
+        (module)(si);
     }
-
-    /* were there any bad parameters? */
-    if(help)
-    {
-
-        /* bad param, provide help message */
-        printf("Usage:\njsm [-D] [-c config.xml]\n");
-        exit(0);
-
-    }
-
-    /* load the config passing the file if it was manually set */
-    if(!js_config_load(cfgfile))
-        exit(1);
-
-    /* fire it up baby! */
-    jabber_transport();
-
-    /* trap signals HUP, INT and TERM */
-    sigemptyset(&set);
-    sigaddset(&set, SIGHUP);
-    sigaddset(&set, SIGINT);
-    sigaddset(&set, SIGTERM);
-    pth_sigmask(SIG_UNBLOCK, &set, NULL);
-
-    /* main server loop */
-    while(1)
-    {
-        /* debug message */
-        log_debug(ZONE,"Main loop waiting");
-
-        /* wait for a signal */
-        pth_sigwait(&set, &sig);
-
-        /* if it's not HUP, exit the loop */
-        if(sig != SIGHUP) break;
-
-        /* it was HUP, time to reload the config file */
-        log_debug(ZONE,"HUP received, reloading config");
-        js_config_load(cfgfile);
-    }
-
-    /* we left the main loop, so we must have recieved a kill signal */
-    log_error("jsm","Received KILL, gracefully shutting down server");
-
-    /* start the shutdown sequence */
-    jabber_transport_exit();
-
-    /* one last chance for threads to finish shutting down */
-    pth_sleep(1);
-
-    /* kill any leftover threads */
-    pth_kill();
-
-    /* we're done! */
-    return 0;
-
 }
