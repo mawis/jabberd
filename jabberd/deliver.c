@@ -193,6 +193,7 @@ void register_instance(instance id, char *host)
 void deliver_fail(dpacket p, char *err)
 {
     terror t;
+    char message[MAX_LOG_SIZE];
 
     log_debug(ZONE,"delivery failed (%s)",err);
 
@@ -202,7 +203,8 @@ void deliver_fail(dpacket p, char *err)
     {
     case p_LOG:
         /* stderr and drop */
-        fprintf(stderr,"WARNING!  Logging Failed: %s\n",xmlnode2str(p->x));
+        snprintf(message, MAX_LOG_SIZE, "WARNING!  Logging Failed: %s\n",xmlnode2str(p->x));
+        fprintf(stderr, message);
         pool_free(p->p);
         break;
     case p_XDB:

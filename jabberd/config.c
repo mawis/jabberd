@@ -26,6 +26,8 @@ xmlnode greymatter__ = NULL;
 void do_include(int nesting_level,xmlnode x)
 {
     xmlnode cur;
+    char message[MAX_LOG_SIZE];
+
     cur=xmlnode_get_firstchild(x);
     for(;cur!=NULL;)
     {
@@ -42,7 +44,8 @@ void do_include(int nesting_level,xmlnode x)
             /* check for bad nesting */
             if(nesting_level>MAX_INCLUDE_NESTING)
             {
-                fprintf(stderr,"ERROR: Included files nested %d levels deep.  Possible Recursion\n",nesting_level);
+                snprintf(message, MAX_LOG_SIZE, "ERROR: Included files nested %d levels deep.  Possible Recursion\n",nesting_level);
+                fprintf(stderr, message);
                 exit(1);
             }
             include=cur;
@@ -97,6 +100,7 @@ int configurate(char *file)
     /* CONFIGXML is the default name for the config file - defined by the build system */
     char def[] = CONFIGXML;
     char *realfile = (char *)def;
+    char message[MAX_LOG_SIZE];
 
     /* if no file name is specified, fall back to the default file */
     if(file != NULL)
@@ -108,7 +112,8 @@ int configurate(char *file)
     /* was the there a read/parse error? */
     if(greymatter__ == NULL)
     {
-        fprintf(stderr,"Configuration using %s failed\n",realfile);
+        snprintf(message, MAX_LOG_SIZE, "Configuration using %s failed\n",realfile);
+        fprintf(stderr, message);
         return 1;
     }
 
@@ -168,6 +173,7 @@ int configo(int exec)
     ptype type;
     instance newi = NULL;
     pool p;
+    char message[MAX_LOG_SIZE];
 
     instance__ids=ghash_create(20,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
 
@@ -187,19 +193,29 @@ int configo(int exec)
 
         if(type == p_NONE || xmlnode_get_attrib(curx,"id") == NULL || xmlnode_get_firstchild(curx) == NULL)
         {
-            fprintf(stderr,"Configuration error in:\n%s\n",xmlnode2str(curx));
-            if(type==p_NONE) fprintf(stderr,"ERROR: Invalid Tag type: %s\n",xmlnode_get_name(curx));
-            if(xmlnode_get_attrib(curx,"id")==NULL)
-                fprintf(stderr,"ERROR: Section needs an 'id' attribute\n");
-            if(xmlnode_get_firstchild(curx)==NULL)
-                fprintf(stderr,"ERROR: Section Has no data in it\n");
+            snprintf(message, MAX_LOG_SIZE, "Configuration error in:\n%s\n",xmlnode2str(curx));
+            fprintf(stderr, message);
+            if(type==p_NONE) {
+	    	snprintf(message, MAX_LOG_SIZE, "ERROR: Invalid Tag type: %s\n",xmlnode_get_name(curx));
+	    	fprintf(stderr, message);
+	    }
+            if(xmlnode_get_attrib(curx,"id")==NULL){
+            	snprintf(message, MAX_LOG_SIZE, "ERROR: Section needs an 'id' attribute\n");
+                fprintf(stderr, message);
+	    }
+            if(xmlnode_get_firstchild(curx)==NULL){
+                snprintf(message, MAX_LOG_SIZE, "ERROR: Section Has no data in it\n");
+                fprintf(stderr, message);
+	    }
             return 1;
+	   
         }
 
         newi=ghash_get(instance__ids,xmlnode_get_attrib(curx,"id"));
         if(newi!=NULL)
         {
-            fprintf(stderr,"ERROR: Multiple Instances with same id: %s\n",xmlnode_get_attrib(curx,"id"));
+            snprintf(message, MAX_LOG_SIZE, "ERROR: Multiple Instances with same id: %s\n",xmlnode_get_attrib(curx,"id"));
+            fprintf(stderr, message);
             exit(1);
         }
 
@@ -217,7 +233,8 @@ int configo(int exec)
             temp=jid_new(p,newi->id);
             if(temp==NULL||j_strcmp(temp->server,newi->id)!=0)
             {
-                fprintf(stderr,"ERROR: Invalid id name: %s\n",newi->id);
+                snprintf(message, MAX_LOG_SIZE, "ERROR: Invalid id name: %s\n",newi->id);
+                fprintf(stderr, message);
                 pool_free(p);
                 exit(1);
             }
@@ -240,11 +257,16 @@ int configo(int exec)
             {
                 char *error=pstrdup(xmlnode_pool(curx2),xmlnode_get_attrib(curx2,"error"));
                 xmlnode_hide_attrib(curx2,"error");
-                fprintf(stderr,"Invalid Configuration in instance '%s':\n%s\n",xmlnode_get_attrib(curx,"id"),xmlnode2str(curx2));
-                if(c==NULL) fprintf(stderr,"ERROR: Unknown Base Tag: %s\n",xmlnode_get_name(curx2));
+                snprintf(message, MAX_LOG_SIZE, "Invalid Configuration in instance '%s':\n%s\n",xmlnode_get_attrib(curx,"id"),xmlnode2str(curx2));
+                fprintf(stderr, message);
+                if(c==NULL) {
+			snprintf(message, MAX_LOG_SIZE, "ERROR: Unknown Base Tag: %s\n",xmlnode_get_name(curx2));
+			fprintf(stderr, message);
+		}
                 else if(error!=NULL)
                 {
-                    fprintf(stderr,"ERROR: Base Handler Returned an Error:\n%s\n",error);
+                    snprintf(message, MAX_LOG_SIZE, "ERROR: Base Handler Returned an Error:\n%s\n",error);
+                    fprintf(stderr, message);
                 }
                 return 1;
             }

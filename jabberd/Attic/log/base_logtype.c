@@ -30,10 +30,12 @@ result base_logtype_filter(instance id, dpacket p, void* arg)
 result base_logtype_config(instance id, xmlnode x, void *arg)
 {
     char* name = NULL;
+    char message[MAX_LOG_SIZE];
     name = xmlnode_get_name(x);
     if(id == NULL)
     {
-        fprintf(stderr,"validating config: %s\n",name);
+        snprintf(message, MAX_LOG_SIZE, "validating config: %s\n",name);
+        fprintf(stderr, message);
         /* Ensure that the name of the tag is either "notice", "warn", or "alert" */
         if (strcmp(name, "notice") && strcmp(name, "warn") && strcmp(name, "alert"))
         {
