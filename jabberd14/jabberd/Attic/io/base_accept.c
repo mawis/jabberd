@@ -253,6 +253,7 @@ void *base_accept_io(void *arg)
 
             /* get packet */
             d = (drop)pth_msgport_get(a->s->mp);
+            if(d == NULL) continue;
             p = d->p;
 
             /* write packet phase */
