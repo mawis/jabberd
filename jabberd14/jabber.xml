@@ -50,7 +50,7 @@
   <!-- external resolver, so that dns lookups don't block the server -->
   <service id="External DNS resolver">
     <host/>
-    <load><dnsrv>./dnsrv/dnsrv</dnsrv></load>
+    <load><dnsrv>./dnsrv/dnsrv.so</dnsrv></load>
     <dnsrv xmlns="jabberd:dnsrv:config">
      <replyhost>s2s-127.0.0.1</replyhost>
     </dnsrv>
