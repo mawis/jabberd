@@ -77,7 +77,7 @@ case $hosttype in
         XLDFLAGS="$XLDFLAGS -Wl,--export-dynamic";;
     SunOS)
         CFLAGS="$CFLAGS -fPIC"
-        LIBS="$LIBS -ld -lsocket -lnsl";;
+        LIBS="$LIBS -ldl -lsocket -lnsl";;
 esac
 printf "     Done.\n"
 ##
