@@ -141,7 +141,7 @@ int main(int argc, char **argv)
     c2s->config = config_new();
 
     /* cmdline parsing */
-    while((optchar = getopt(argc, argv, "cr:bh?")) >= 0)
+    while((optchar = getopt(argc, argv, "c:r:bh?")) >= 0)
     {
         switch(optchar)
         {
