@@ -1,0 +1,55 @@
+
+<!-- jadc2s config -->
+<jadc2s>
+
+  <!-- Session Manager                     -->
+  <!--   We need to know where jabberd is  -->
+  <!-- and how to talk to it.              -->
+  <sm>
+    <host>localhost</host>
+    <port>5111</port>
+    <id>jadc2s</id>
+    <secret>secret</secret>
+    <!-- How many times to try and reconnect
+           Default: 5
+           Uncomment to enable
+    <retries>3</retries>
+    -->
+  </sm>
+
+  <!-- C2S Settings                        -->
+  <!--   Where does jadc2s listen for      -->
+  <!-- incoming connections?               -->
+  <local>
+    <host>crevice.sc.ti.com</host>
+    <!-- If you need to bind to a specifc IP -->
+    <!-- <ip>www.xxx.yyy.zzz</ip> -->
+    <port>5221</port>
+    <ssl>
+      <port>5224</port>
+      <pemfile>../key.pem</pemfile>
+    </ssl>
+    <!-- max number of connections.  This should be -->
+    <!-- a prime number. They system will use seven -->
+    <!-- (7) of these sockets.  Default:  1023      -->
+    <max_conns>3001</max_conns>
+  </local>
+
+  <!-- 
+  Connection rate limits:
+    How many connections may happen in the following number of seconds
+    Uncomment to enable
+  <connection_limits>
+    <connects>5</connects>
+    <seconds>10</seconds>
+  </connection_limits>
+  -->
+  
+  <!-- 
+  Max Bits Per Second:
+    Uncomment to enable 
+  <max_bps>48</max_bps>
+  -->
+
+
+</jadc2s>

@@ -1,0 +1,37 @@
+Some quick notes on how a client socket manager talks to the session manager:
+
+At any time c2s can send the sm "auth" packets.  These are usually iq:auth get requests or registrations.
+They must be addressed to the user@host based on the data specified in the packet from the client.
+The return address is whatever the c2s needs to locate that connected client again.
+
+<route to="user@host" from="id@c2s" type="auth">
+	... the packet from the client
+</route>
+
+For these requests, or for ANY request, you may get back a route type="error", meaning disconnect
+the client.
+
+Otherwise, the sm will just respond with an identical route (to/from reversed) containing 
+the packet to send to the client.
+
+The actual authentication works the same way, but additionally c2s must extract and specify the resource
+in the to="user@host/resource".  It is up to c2s to look into the returning packet for that request
+to determine if it was type="result" or type="error" to know if the user was actually authenticated.
+(Yes, big hack, too late to fix it now)
+
+After being authenticated, c2s must send a simple session-start request with the full user jid:
+
+<route to="user@host/resource" from="id@c2s" type="session"/>
+
+When the session is created, the reply from the sm will look like:
+
+<route from="id@sm" to="id@c2s" type="session"/>
+
+The sending from is important, that is the address all client packets must be sent to:
+
+<route to="id@sm" from="id@c2s">
+	... client packet
+</route>
+
+A type="error" from c2s to the id@sm signifies that the client has disconnected.
+
