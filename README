@@ -2,7 +2,7 @@ Welcome to the world of Jabber 1.1.2!
 
 This is going to be short, experts only, to be filled in by later development releases:
 
-To build, type "make"
+To build, run "./configure" and then type "make"
 
 To configure, edit jabber.xml, edit the <host> section near the top to replace "localhost", edit other values as desired
 
