@@ -70,6 +70,7 @@ void _mio_xstream_cleanup(void* arg)
 
 mio _mio_xstream_init(mio m)
 {
+    log_debug(ZONE, "INIT EXPAT FOR SOCKET %d", m->fd);
     if (m != NULL)
     {
 	/* Initialize the parser */
@@ -92,6 +93,8 @@ int _mio_xml_read(mio m)
          len;
     char buff[8192]; /* max socket read */
 
+    log_debug(ZONE, "READING FROM XML_READ");
+
     maxlen = KARMA_READ_MAX(m->k.val);
 
     if(maxlen > 8191) maxlen = 8191;
@@ -103,6 +106,7 @@ int _mio_xml_read(mio m)
 
     if(len < 0)
     {
+    log_debug(ZONE, "ERROR READING FROM XML_READ");
         if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN) 
             return 0;
         else
@@ -126,6 +130,7 @@ int _mio_xml_read(mio m)
 
     if(XML_Parse(m->parser, buff, len, 0) < 0)
     {
+    log_debug(ZONE, "ERROR READING FROM XML_READ");
         if(m->cb != NULL)
             (*(mio_std_cb)m->cb)(m, MIO_ERROR, m->cb_arg);
         return -1;

@@ -99,7 +99,7 @@ result base_connect_deliver(instance i, dpacket p, void* arg)
 
 void base_connect_process_xml(mio m, int state, void* arg, xmlnode x)
 {
-    conn_info ci = (conn_info)ci;
+    conn_info ci = (conn_info)arg;
 
     switch (state)
     {
@@ -112,10 +112,10 @@ void base_connect_process_xml(mio m, int state, void* arg, xmlnode x)
 	        ci->io = m;
 
 	        /* Send a stream header to the server */
+            log_debug(ZONE, "base_connecting: %X, %X, %X, %s", ci, ci->inst, ci->inst->id, ci->inst->id); 
 	        headernode = xstream_header("jabber:component:accept", ci->inst->id, NULL);
 	        header = xstream_header_char(headernode);
-	        mio_write(m, NULL, header, strlen(header));
-	        xmlnode_free(headernode);
+	        mio_write(m, headernode, header, strlen(header));
 
 	        break;
         }
@@ -186,11 +186,13 @@ pool      G_pool;
 void base_connect_conn_cleanup(void *arg)
 {
     conn_info ci = (conn_info)arg;
+    log_debug(ZONE, "CLEANUP CONN");
     ghash_remove(G_conns, ci->keybuf);
 }
 
 void base_connect_cleanup(void *arg)
 {
+    log_debug(ZONE, "CLEANUP");
     ghash_destroy(G_conns);
 }
 
@@ -225,6 +227,7 @@ result base_connect_config(instance id, xmlnode x, void *arg)
 
      if(G_conns == NULL)
      {
+             log_debug(ZONE, "createing hash for base_connect");
         G_conns = ghash_create(23, (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
         G_pool = jabberd__runtime;
         pool_cleanup(G_pool, base_connect_cleanup, NULL);
@@ -235,6 +238,7 @@ result base_connect_config(instance id, xmlnode x, void *arg)
 
      /* Search for an existing connection structure */
     ci = ghash_get(G_conns, keybuf);
+    log_debug(ZONE, "id: %s, found item %X for %s in hash", id->id, ci,(char*)&keybuf);
 
      /* No connection was found, so create one.. */
      if (ci == NULL)
@@ -260,7 +264,11 @@ result base_connect_config(instance id, xmlnode x, void *arg)
      register_phandler(id, o_DELIVER, base_connect_deliver, (void*)ci);
      
      /* Make a connection to the host */
-     mio_connect(ip, atoi(port), base_connect_process_xml, (void*)ci, timeout, NULL, mio_handlers_new(MIO_XML_READ, MIO_XML_WRITE));
+     if((mio_connect(ip, atoi(port), base_connect_process_xml, (void*)ci, timeout, NULL, mio_handlers_new(MIO_XML_READ, MIO_XML_WRITE))) == NULL)
+     {
+        log_warn("MIO_CONNECT", "failed to connect to %s on port %d for instance %s", ip, port, id->id);
+        exit(1);
+     }
 
      log_debug(ZONE, "Activating configuration: %s\n", xmlnode2str(x));
      return r_DONE;
