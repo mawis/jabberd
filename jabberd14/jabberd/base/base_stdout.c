@@ -204,7 +204,11 @@ result base_stdout_config(instance id, xmlnode x, void *arg)
 {
     static pth_msgport_t mp = NULL;
 
-    if(id == NULL) return r_PASS;
+    if(id == NULL) 
+    {
+        register_beat(2,base_stdout_heartbeat,NULL);
+        return r_PASS;
+    }
 
     log_debug(ZONE,"base_stdout_config performing configuration");
 
@@ -226,5 +230,4 @@ void base_stdout(void)
 {
     log_debug(ZONE,"base_stdout loading...\n");
     register_config("stdout",base_stdout_config,NULL);
-    register_beat(2,base_stdout_heartbeat,NULL);
 }
