@@ -265,26 +265,6 @@ int _mio_write_dump(mio m)
     {
         cur = m->queue;
 
-        /* setup the write */
-        switch(cur->type)
-        {
-            case queue_XMLNODE:
-                /* if not already done, set the data to write */
-                if(cur->data == NULL)
-                {
-                    cur->data = xmlnode2str(cur->x);
-                    if(cur->data == NULL) cur->len = 0;
-                    else cur->len = strlen(cur->data);
-                }
-            case queue_CDATA:
-                /* set the current write position */
-                if(cur->cur == NULL) cur->cur = cur->data;
-                break;
-            default:
-                log_alert(NULL,"MIO unable to write buffer type: %d", cur->type);
-                break;
-        }
-
         log_debug(ZONE, "write_dump writing data: %.*s", cur->len, cur->cur);
 
         /* write a bit from the current buffer */
@@ -934,13 +914,14 @@ void mio_write(mio m, xmlnode x, char *buffer, int len)
     else
     {
         new->type = queue_XMLNODE;
+        new->data = xmlnode2str(x);
+        len = new->data ? strlen(new->data) : 0;
     }
 
     /* assign values */
     new->x    = x;
     new->cur  = new->data;
 
-    /* if this is an xmlnode, this len gets set by the xml2str len prior to writing */
     new->len = len;
 
     /* put at end of queue */
