@@ -6,10 +6,15 @@ dialback
 	whitespace keepalive
 	log_record
 	ssl
+	only karma non-db conns
 evaluate escaped cdata performance (xstream and file parsing)
-compiled-in config
 c2s ssl
-roster browse items
+jid case sensitivity
+filter offline fixes and ns
+mio
+	top-level config
+	disable karma by default
+	mio_gen stable symbols
 
 
 ===================================
@@ -37,6 +42,7 @@ static
 admin + config edit
 announce/motd
 groups
+roster bookmarks
 
 
 ===================================

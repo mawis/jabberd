@@ -36,6 +36,7 @@
  */
 
 #include "jabberd.h"
+#include "single.h"
 HASHTABLE cmd__line, debug__zones;
 extern HASHTABLE instance__ids;
 extern int deliver__flag;
@@ -60,14 +61,15 @@ int main (int argc, char** argv)
 {
     sigset_t set;               /* a set of signals to trap */
     int help, sig, i;           /* temporary variables */
-    char *cfgfile = NULL, *c, *cmd;   /* strings used to load the server config */
+    char *cfgfile = NULL, *c, *cmd, *home = NULL;   /* strings used to load the server config */
     pool cfg_pool=pool_new();
     xmlnode temp_greymatter;
+
+    jabberd__runtime = pool_new();
 
     /* start by assuming the parameters were entered correctly */
     help = 0;
     cmd__line=ghash_create(11,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
-
 
     /* process the parameterss one at a time */
     for(i = 1; i < argc; i++)
@@ -97,7 +99,6 @@ int main (int argc, char** argv)
             }
         }
     }
-    cfgfile=ghash_get(cmd__line,"c");
 
     /* the special -Z flag provides a list of zones to filter debug output for, flagged w/ a simple hash */
     if((cmd = ghash_get(cmd__line,"Z")) != NULL)
@@ -119,21 +120,26 @@ int main (int argc, char** argv)
         debug__zones = NULL;
     }
 
+#ifdef SINGLE
+    SINGLE_STARTUP
+#else
     /* were there any bad parameters? */
     if(help)
     {
-        /* bad param, provide help message */
-        fprintf(stderr,"Usage:\njabberd [-c config.xml] [-D]\n");
+        fprintf(stderr,"Usage:\njabberd &\n Optional Parameters:\n -c\t\t configuration file\n -D\t\tenable debug output\n -H\t\tlocation of home folder\n");
         exit(0);
     }
 
-    jabberd__runtime = pool_new();
+    if((home = ghash_get(cmd__line,"H")) == NULL)
+        home = pstrdup(jabberd__runtime,HOME);
+#endif
 
     /* change the current working directory so everything is "local" */
-    if(chdir(HOME))
-        fprintf(stderr,"Unable to access home folder " HOME ": %s\n",strerror(errno));
+    if(home != NULL && chdir(home))
+        fprintf(stderr,"Unable to access home folder %s: %s\n",home,strerror(errno));
 
     /* load the config passing the file if it was manually set */
+    cfgfile=ghash_get(cmd__line,"c");
     if(configurate(cfgfile))
         exit(1);
 
