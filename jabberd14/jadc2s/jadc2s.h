@@ -67,6 +67,7 @@ struct conn_st
 
     /* vars for this conn */
     int fd;
+    char *ip;
     int read_bytes;
     time_t last_read;
     conn_state_t state;
@@ -82,7 +83,7 @@ struct conn_st
     /* tracking the id for the conn or chunk */
     pool idp;
     char *sid;
-    jid myid, smid;
+    jid myid, smid, userid;
 
     /* chunks being written */
     chunk_t writeq, qtail;
@@ -122,6 +123,10 @@ int conn_max_read_len(conn_t c);
 /* read/write wrappers for a conn */
 int conn_read(conn_t c, char *buf, int len);
 int conn_write(conn_t c);
+
+/* fill a nad with information about a user's connection */
+void connectionstate_fillnad(nad_t nad, char *from, char *to, char *user, int is_login, char *ip, const char *ssl_version, const char *ssl_cipher, char *ssl_size_secret, char *ssl_size_algorithm);
+void connectionstate_send(config_t config, conn_t c, conn_t client, int is_login);
 
 /* maximum number of xml children in a chunk (checked by conn_read) */
 #define MAXDEPTH 10000
