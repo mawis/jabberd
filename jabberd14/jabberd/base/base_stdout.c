@@ -48,6 +48,22 @@ typedef struct
     dpacket p;
 } *drop, _drop;
 
+result base_stdout_heartbeat(void *arg)
+{
+    static int parent = 0;
+
+    if(parent == 0) parent = getppid();
+
+    if(parent != getppid())
+    {
+        /* parent pid has changed, bail */
+        log_alert("stdout","Parent PID has changed, Server Exiting");
+        exit(1);
+    }
+
+    return r_DONE;
+}
+
 /* write packets to sink */
 result base_stdout_phandler(instance i, dpacket p, void *arg)
 {
@@ -211,4 +227,5 @@ void base_stdout(void)
     log_debug(ZONE,"base_stdout loading...\n");
 
     register_config("stdout",base_stdout_config,NULL);
+    register_beat(2,base_stdout_heartbeat,NULL);
 }
