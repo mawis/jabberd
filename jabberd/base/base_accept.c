@@ -573,6 +573,12 @@ result base_accept_config(instance id, xmlnode x, void *arg)
     return r_DONE;
 }
 
+void base_accept_cleanup(void *arg)
+{
+    pool_free(G_pool);
+    ghash_destroy(G_listeners);
+}
+
 void base_accept(void)
 {
     log_debug(ZONE,"base_accept loading...\n");
@@ -583,5 +589,6 @@ void base_accept(void)
 	/* Setup global memory pool for misc allocs */
 	G_pool = pool_new();
 	
+    register_shutdown(base_accept_cleanup, NULL);
     register_config("accept",base_accept_config,NULL);
 }

@@ -211,6 +211,9 @@ cfg cfget(char *node)
     return next;
 }
 
+/* 
+ * walk through the instance HASH, and cleanup the instances
+ */
 int _instance_cleanup(void *arg,const void *key,void *data)
 {
     instance i=(instance)data;
