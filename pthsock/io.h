@@ -49,6 +49,8 @@ typedef struct sock_st
     void *arg;    /* yours to define */
     void *cb;     /* do not modify directly */
     void *cb_arg; /* do not modify directly */
+    time_t lr; /*last read*/
+    int lrsz; /* last read size */
 } *sock, _sock;
 
 typedef void *iosi;

@@ -30,6 +30,59 @@ typedef struct io_st
 
 ios io__data=NULL;
 
+/****************************************
+ * PER SOCKET RATE LIMIT GARBAGE        *
+ ****************************************/
+
+/* no more than 2000 bytes sent per second */
+#define HARDLIMIT 2000
+/* naughty people have to wait 5 seconds */
+#define TIMEOUT_PERIOD 5
+
+typedef struct bad_boys
+{
+    pool p;
+    sock s;
+    time_t timeout;
+    struct bad_boys *next;
+} _nl,*nl;
+nl naughty__list=NULL;
+nl second__chance=NULL;
+
+result naughty_heartbeat(void*arg)
+{
+    nl last=NULL,cur=naughty__list;
+    for(;cur!=NULL;)
+    {
+        if(cur->timeout<time(NULL))
+        {
+            /* santa knows who's naughty or nice */
+            if(last==NULL)
+            {
+                naughty__list=naughty__list->next;
+                cur->next=second__chance;
+                second__chance=cur;
+                cur=naughty__list;
+            }
+            else
+            {
+                last->next=cur->next;
+                cur->next=second__chance;
+                second__chance=cur;
+                /* start over */
+                last=NULL;
+                cur=naughty__list;
+            }
+            continue;
+        }
+        last=cur;
+        cur=cur->next;
+    }
+    if(second__chance!=NULL&&io__data!=NULL) pth_raise(io__data->t,SIGUSR2);
+    return r_DONE;
+}
+
+
 /* returns a list of all the sockets in this instance */
 sock io_select_get_list(void)
 {
@@ -257,6 +310,7 @@ void _io_main(void *arg)
     sigset_t sigs;
     int sig;
     sock cur, c,temp;    
+    nl curnl;
     char buff[1024];
     int len;
     int maxfd=0;
@@ -287,6 +341,15 @@ void _io_main(void *arg)
 
         maxfd=0;
         FD_ZERO(&all_rfds); /* reset our "all" set */
+
+        while(second__chance!=NULL)
+        { /* check for punished sockets */
+            curnl=second__chance;
+            second__chance=second__chance->next;
+            log_notice("io_select","by the power of greyskull, sock %d is now allowed to read data again",curnl->s->fd,TIMEOUT_PERIOD);
+            FD_SET(curnl->s->fd,&all_rfds);
+            pool_free(curnl->p);
+        }
 
         cur=io__data->master__list;
         while(cur != NULL)
@@ -343,6 +406,30 @@ void _io_main(void *arg)
                 }
                 else
                 {
+                    if(cur->lr+1<time(NULL))
+                    { /* reset our hard limit */
+                        cur->lrsz=len;
+                        cur->lr=time(NULL);
+                    }
+                    else
+                    {
+                        cur->lrsz+=len;
+                        if(cur->lrsz>=HARDLIMIT)
+                        { /* they are hammering the server */
+                            /* they can process data this time, but
+                             * they won't be read from again until
+                             * TIMOUT_PERIOD has expired */
+                            pool p=pool_new();
+                            nl new=pmalloco(p,sizeof(_nl));
+                            new->p=p;
+                            new->s=cur;
+                            new->timeout=time(NULL)+TIMEOUT_PERIOD;
+                            new->next=naughty__list;
+                            naughty__list=new;
+                            FD_CLR(cur->fd,&all_rfds);
+                            log_notice("io_select","sock %d is being i/o rate limited.  not reading data for %d seconds",cur->fd,TIMEOUT_PERIOD);
+                        }
+                    }
                     buff[len]='\0';
                     (*(io_cb)cur->cb)(cur,buff,len,IO_NORMAL,cur->cb_arg);
                 }
@@ -466,6 +553,7 @@ void _io_select_connect(void *arg)
 
     if(io__data==NULL)
     {
+        register_beat(1,naughty_heartbeat,NULL);
         p=pool_new();
         io__data = pmalloco(p,sizeof(_ios));
         io__data->p=p;
@@ -553,6 +641,7 @@ void io_select_listen(int port,char *listen_host,io_cb cb,void *arg,int rate_tim
     log_notice(NULL,"io_select starting to listen on %d [%s]",port,listen_host);
     if(io__data==NULL)
     {
+        register_beat(1,naughty_heartbeat,NULL);
         p=pool_new();
         io__data = pmalloco(p,sizeof(_ios));
         io__data->p=p;
