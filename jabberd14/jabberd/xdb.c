@@ -202,6 +202,7 @@ xmlnode xdb_get(xdbcache xc, jid owner, char *ns)
         newx.cond = &cond;
         pth_mutex_acquire(&mutex, FALSE, NULL);
         pth_cond_await(&cond, &mutex, NULL); /* blocks thread */
+        pth_mutex_release(&mutex);
         log_debug(ZONE,"xdb_get() done waiting for %s %s",jid_full(owner),ns);
     }
 
@@ -260,6 +261,7 @@ int xdb_act(xdbcache xc, jid owner, char *ns, char *act, char *match, xmlnode da
         newx.cond = &cond;
         pth_mutex_acquire(&mutex, FALSE, NULL);
         pth_cond_await(&cond, &mutex, NULL); /* blocks thread */
+        pth_mutex_release(&mutex);
         log_debug(ZONE,"xdb_set() done waiting for %s %s",jid_full(owner),ns);
     }
 
