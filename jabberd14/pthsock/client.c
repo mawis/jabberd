@@ -585,7 +585,7 @@ void pthsock_client(instance i, xmlnode x)
             /* Set New rate and points */
             if(set_rate == 1) mio_rate(m, rate_time, rate_points);
             /* set karma valuse */
-            if(set_karma == 1) mio_karma2(m, &k);
+            if(set_karma == 1) mio_karma2(m, k);
         }
     }
     else
@@ -597,7 +597,7 @@ void pthsock_client(instance i, xmlnode x)
         /* Set New rate and points */
         if(set_rate == 1) mio_rate(m, rate_time, rate_points);
         /* Set New karma values */ 
-        if(set_karma == 1) mio_karma2(m, &k);
+        if(set_karma == 1) mio_karma2(m, k);
     }
                    
 #endif
