@@ -1,8 +1,6 @@
 SUBDIRS = modules
 DIST_SUBDIRS = modules
 
-EXTRA_DIST = README
-
 lib_LTLIBRARIES = libjabberdsm.la
 
 noinst_HEADERS = jsm.h
