@@ -33,8 +33,8 @@
 #define SESSION_WAITERS 10
 
 /* set to a prime number larger then the average max # of hosts, and another for the max # of users for any single host */
-#define HOSTS_PRIME 5
-#define USERS_PRIME 509
+#define HOSTS_PRIME 17
+#define USERS_PRIME 3001
 
 /* master event types */
 typedef int event;

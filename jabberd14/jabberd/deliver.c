@@ -374,6 +374,18 @@ log_debug(ZONE,"PUT: LOG(%s): %X",type,l);
     return r_DONE;
 }
 
+result deliver_config_uplink(instance i, xmlnode x, void *arg)
+{
+    if(i == NULL)
+        return r_PASS;
+
+    if(deliver__uplink != NULL)
+        return r_ERR;
+
+    deliver__uplink = i;
+    return r_DONE;
+}
+
 void deliver(dpacket p, instance i)
 {
     ilist a, b;
@@ -432,6 +444,7 @@ void deliver_init(void)
     register_config("host",deliver_config_host,NULL);
     register_config("ns",deliver_config_ns,NULL);
     register_config("logtype",deliver_config_logtype,NULL);
+    register_config("uplink",deliver_config_uplink,NULL);
 }
 
 /* register a function to handle delivery for this instance */
