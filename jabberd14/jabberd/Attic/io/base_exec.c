@@ -17,9 +17,10 @@
 
 typedef struct
 {
-     pool p;
-     int  stdin;
-     int  stdout;
+     pool     p;
+     instance i;
+     int      stdin;
+     int      stdout;
 } *exe_info, _exe_info;
 
 int exec_and_capture(const char* exe, int* in, int* out)
@@ -77,6 +78,7 @@ result base_exec_deliver(instance i, dpacket p, void* args)
      /* Serialize the node in the dpacket */
      rawxml = xmlnode2str(p->x);
 
+     /* FIXME : this is a blocking write...no ability to queue up data properly */
      /* Write the raw data to the child process */
      result = pth_write(ei->stdout, (void*)rawxml, strlen(rawxml));
      if (result < 0)
@@ -97,7 +99,21 @@ result base_exec_deliver(instance i, dpacket p, void* args)
 
 void base_exec_handle_xstream_event(int type, xmlnode x, void* arg)
 {
-     printf("Recv'd node: %s\n", xmlnode2str(x));
+     exe_info ei = (exe_info)arg;
+     switch(type)
+     {
+     case XSTREAM_ROOT:
+	  /* Validate namespace */
+	  break;
+     case XSTREAM_NODE:
+	  /* Deliver the packet */
+	  deliver(dpacket_new(x, ei->i));
+	  break;
+     case XSTREAM_CLOSE:
+     case XSTREAM_ERR:
+	  /* Who knows? The _SHADOW_ knows. */
+     }
+
 }
 
 /* Process incoming data from the coprocess */
@@ -147,6 +163,7 @@ result base_exec_config(instance id, xmlnode x, void *arg)
     /* Allocate a info structure, and associate with the
        instance pool */
     ei = pmalloc(id->p, sizeof(_exe_info));
+    ei->i       = id;
     ei->p       = id->p;
     ei->stdin   = stdin;
     ei->stdout  = stdout;
