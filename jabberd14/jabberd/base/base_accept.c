@@ -53,6 +53,9 @@ typedef struct accept_instance_st
     char *secret;
     int port;
     int timeout;
+    int restrict;
+    xdbcache offline;
+    jid offjid;
     queue q;
     //dpacket dplast;
 } *accept_instance, _accept_instance;
@@ -98,9 +101,10 @@ result base_accept_deliver(instance i, dpacket p, void* arg)
 void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
 {
     accept_instance ai = (accept_instance)arg;
-    xmlnode cur;
+    xmlnode cur, off;
     queue q, q2;
     char hashbuf[41];
+    jpacket jp;
 
     log_debug(ZONE, "process XML: m:%X state:%d, arg:%X, x:%X", m, state, arg, x);
 
@@ -140,6 +144,19 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
                 deliver(ai->dplast, ai->i);
                 ai->dplast = NULL;
                 */
+
+                /* if we are supposed to be careful about what comes from this socket */
+                if(ai->restrict)
+                {
+                    jp = jpacket_new(x);
+                    if(jp->type == JPACKET_UNKNOWN || jp->to == NULL || jp->from == NULL || deliver_hostcheck(jp->from->server) != ai->i)
+                    {
+                        jutil_error(x,TERROR_INTERNAL);
+                        mio_write(m,x,NULL,0);
+                        return;
+                    }
+                }
+
                 deliver(dpacket_new(x), ai->i);
                 return;
             }
@@ -174,6 +191,20 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
             /* hook us up! */
             ai->m = m;
             ai->state = A_READY;
+
+            /* if offline, get anything stored and deliver */
+            if(ai->offline != NULL)
+            {
+                off = xdb_get(ai->offline, ai->offjid, "base:accept:offline");
+                for(cur = xmlnode_get_firstchild(off); cur != NULL; cur = xmlnode_get_nextsibling(cur))
+                {
+                    /* dup and deliver stored packets... XXX should probably handle NS_EXPIRE, I get lazy at 6am */
+                    mio_write(m,xmlnode_dup(cur),NULL,0);
+                    xmlnode_hide(cur);
+                }
+                xdb_set(ai->offline, ai->offjid, "base:accept:offline", off);
+                xmlnode_free(off);
+            }
 
             /* flush old queue */
             q = ai->q;
@@ -216,6 +247,35 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
     xmlnode_free(x);
 }
 
+/* bounce messages/pres-s10n differently if in offline mode */
+void base_accept_offline(accept_instance ai, xmlnode x)
+{
+    jpacket p;
+
+    if(ai->offline == NULL)
+    {
+        deliver_fail(dpacket_new(x),"Internal Timeout");
+        return;
+    }
+
+    p = jpacket_new(x);
+    switch(p->type)
+    {
+        case JPACKET_MESSAGE:
+            /* XXX should probably handle offline events I guess, more lazy */
+        case JPACKET_S10N:
+            if(xdb_act(ai->offline, ai->offjid, "base:accept:offline", "insert", NULL, x) == 0)
+            {
+                xmlnode_free(x);
+                return;
+            }
+            break;
+        default:
+    }
+
+    deliver_fail(dpacket_new(x),"Internal Timeout");
+}
+
 /* check the packet queue for stale packets */
 result base_accept_beat(void *arg)
 {
@@ -251,7 +311,7 @@ result base_accept_beat(void *arg)
     while(bouncer != NULL)
     {
         next = bouncer->next;
-        deliver_fail(dpacket_new(bouncer->x),"Internal Timeout");
+        base_accept_offline(ai, bouncer->x);
         bouncer = next;
     }
     
@@ -285,6 +345,13 @@ result base_accept_config(instance id, xmlnode x, void *arg)
     inst->ip          = xmlnode_get_tag_data(x,"ip");
     inst->port        = port;
     inst->timeout     = j_atoi(xmlnode_get_tag_data(x, "timeout"),10);
+    if(xmlnode_get_tag(x,"restrict") != NULL)
+        inst->restrict = 1;
+    if(xmlnode_get_tag(x,"offline") != NULL)
+    {
+        inst->offline = xdb_cache(id);
+        inst->offjid = jid_new(id->p,id->id);
+    }
 
     /* Start a new listening thread and associate this <listen> tag with it */
     if(mio_listen(inst->port, inst->ip, base_accept_process_xml, (void*)inst, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER)) == NULL)
