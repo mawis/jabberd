@@ -55,7 +55,7 @@ void js_offline_main(void *arg)
 
     /* let the modules handle the packet */
     if(!js_mapi_call(q->si, e_OFFLINE, q->p, user, NULL))
-        js_bounce(q->si,q->p->x,TERROR_UNAVAIL);
+        js_bounce_xmpp(q->si,q->p->x,XTERROR_UNAVAIL);
 
     /* it can be cleaned up now */
     user->ref--;

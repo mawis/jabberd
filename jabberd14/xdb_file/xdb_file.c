@@ -40,6 +40,7 @@
  * --------------------------------------------------------------------------*/
  
 #include <jabberd.h>
+#include <dirent.h>
 
 #define FILES_PRIME 509
 
@@ -70,6 +71,7 @@ typedef struct xdbf_struct
     instance i;
     int timeout;
     HASHTABLE cache;
+    int sizelimit;
 } *xdbf, _xdbf;
 
 int _xdb_file_purge(void *arg, const void *key, void *data)
@@ -136,26 +138,123 @@ xmlnode xdb_file_load(char *host, char *fname, HASHTABLE cache)
     return data;
 }
 
-/* simple utility for concat strings */
-char *xdb_file_full(int create, pool p, char *spl, char *host, char *file, char *ext)
+/**
+ * calculate the left-most four digits of the SHA-1 hash over a filename
+ *
+ * @param filename the filename
+ * @param digit01 where to place the first two digits (size 3 chars!)
+ * @param digit23 where to place the next two digits (size 3 chars!)
+ */
+void _xdb_get_hashes(const char *filename, char digit01[3], char digit23[3])
+{
+    char hashedfilename[9];
+    
+    /* generate a hash over the filename */
+    bzero(hashedfilename, sizeof(hashedfilename));
+    bzero(digit01, sizeof(digit01));
+    bzero(digit23, sizeof(digit23));
+    crc32_r(filename, hashedfilename);
+    log_debug(ZONE, "hash of %s is %s", filename, hashedfilename);
+    memcpy(digit01, hashedfilename+1, 2);
+    memcpy(digit23, hashedfilename+4, 2);
+
+    return;
+}
+
+/**
+ * create folders in the spool
+ *
+ * @param spoolroot the root of the spool
+ * @param host the host for which the directory should be created
+ * @param hash1 the hash for the first subdirectory
+ * @param hash2 the second subdirectory
+ * @param use_subdirs true if file should be located in subdirectories
+ * @return 1 on success, 0 on failure
+ */
+int _xdb_gen_dirs(spool sp, const char *spoolroot, char *host, const char *hash1, const char *hash2, int use_subdirs)
 {
     struct stat s;
-    spool sp = spool_new(p);
-    char *ret;
+    char *tmp;
 
-    /* path to host-named folder */
-    spooler(sp,spl,"/",host,sp);
-    ret = spool_print(sp);
-
-    /* ensure that it exists, or create it */
-    if(create && stat(ret,&s) < 0 && mkdir(ret, S_IRWXU) < 0)
+    /* check that the root of the spool structure exists */
+    if (stat(spoolroot, &s) < 0)
     {
-        log_error(host,"xdb request failed, error accessing spool loaction %s: %s",ret,strerror(errno));
-        return NULL;
+	log_error(host, "the spool root directory %s does not seem to exist", spoolroot);
+	return 0;
+    }
+
+    /* check and create the host-named folder */
+    spooler(sp, spoolroot, "/", host, sp);
+    tmp = spool_print(sp);
+    if(stat(tmp,&s) < 0 && mkdir(tmp, S_IRWXU) < 0)
+    {
+	log_error(host, "could not create spool folder %s: %s", tmp, strerror(errno));
+	return 0;
+    }
+
+    if (use_subdirs)
+    {
+	/* check or create the first level subdirectory */
+	spooler(sp, "/", hash1, sp);
+	tmp = spool_print(sp);
+	if(stat(tmp,&s) < 0 && mkdir(tmp, S_IRWXU) < 0)
+	{
+	    log_error(host, "could not create spool folder %s: %s", tmp, strerror(errno));
+	    return 0;
+	}
+
+	/* check or create the second level subdirectory */
+	spooler(sp, "/", hash2, sp);
+	tmp = spool_print(sp);
+	if(stat(tmp,&s) < 0 && mkdir(tmp, S_IRWXU) < 0)
+	{
+	    log_error(host, "could not create spool folder %s: %s", tmp, strerror(errno));
+	    return 0;
+	}
+    }
+
+    return 1;
+}
+
+/**
+ * utility that generates the filename for a spool file
+ *
+ * @param create true if the directory for the file should be generated
+ * @param p pool that should be used for string operations
+ * @param spl location for the spool root
+ * @param host host of the xdb request (the 'spool folder')
+ * @param file the basename of the xdb file
+ * @param ext the extension for the xdb file
+ * @param use_subdirs true if file should be located in subdirectories
+ * @return concatenated string of the form spl+"/"+somehashes+"/"+file+"."+ext
+ */
+char *xdb_file_full(int create, pool p, char *spl, char *host, char *file, char *ext, int use_subdirs)
+{
+    spool sp = spool_new(p);
+    char digit01[3], digit23[3];
+    char *ret;
+    char *filename;
+
+    filename = spools(p, file, ".", ext, p);
+
+    _xdb_get_hashes(filename, digit01, digit23);
+
+    /* is the creation of the folder requested? */
+    if(create)
+    {
+	if (!_xdb_gen_dirs(sp, spl, host, digit01, digit23, use_subdirs))
+	{
+	    log_error(host, "xdb request failed, necessary directory was not created");
+	    return NULL;
+	}
+    } else if (use_subdirs) {
+	spooler(sp, spl, "/", host, "/", digit01, "/", digit23, sp);
+    } else {
+	spooler(sp, spl, "/", host, digit23, sp);
     }
 
     /* full path to file */
-    spooler(sp,"/",file,".",ext,sp);
+    spooler(sp,"/",filename, sp);
     ret = spool_print(sp);
 
     return ret;
@@ -179,9 +278,9 @@ result xdb_file_phandler(instance i, dpacket p, void *arg)
 
     /* is this request specific to a user or global data? use that for the file name */
     if(p->id->user != NULL)
-        full = xdb_file_full(flag_set, p->p, xf->spool, p->id->server, p->id->user, "xml");
+        full = xdb_file_full(flag_set, p->p, xf->spool, p->id->server, p->id->user, "xml", 1);
     else
-        full = xdb_file_full(flag_set, p->p, xf->spool, p->id->server, "global", "xdb");
+        full = xdb_file_full(flag_set, p->p, xf->spool, p->id->server, "global", "xdb", 0);
 
     if(full == NULL)
         return r_ERR;
@@ -245,10 +344,16 @@ result xdb_file_phandler(instance i, dpacket p, void *arg)
         }
 
         /* save the file if we still want to */
-        if(flag_set && xmlnode2file(full,file) < 0)
-            log_error(p->id->server,"xdb request failed, unable to save to file %s",full);
-        else
-            ret = 1;
+	if (flag_set)
+	{
+	    int tmp = xmlnode2file_limited(full,file,xf->sizelimit);
+	    if (tmp == 0)
+		log_notice(p->id->server,"xdb request failed, due to the size limit of %i to file %s", xf->sizelimit, full);
+	    else if (tmp < 0)
+		log_error(p->id->server,"xdb request failed, unable to save to file %s",full);
+	    else
+		ret = 1;
+	}
     }else{
         /* a get always returns, data or not */
         ret = 1;
@@ -285,6 +390,129 @@ void xdb_file_cleanup(void *arg)
     ghash_destroy(xf->cache);
 }
 
+/**
+ * convert a spool directory for a given host from the old format
+ * to the new one which distributes the files over several subdirs
+ *
+ * @param p the memory pool we can use
+ * @param spoolroot the root folder of the spool
+ * @param host the host for which we should try to convert
+ */
+void _xdb_convert_hostspool(pool p, const char *spoolroot, char *host)
+{
+    DIR *sdir;
+    struct dirent *dent;
+    char digit01[3], digit23[3];
+    char *hostspool;
+
+    /* get the dir location */
+    hostspool = spools(p, spoolroot, "/", host, p);
+
+    log_notice(ZONE, "trying to convert spool %s (this may take some time)", hostspool);
+
+    /* we have to convert the spool */
+    sdir = opendir(hostspool);
+    if (sdir == NULL)
+    {
+	log_error("xdb_file", "failed to open directory %s for conversion: %s", hostspool, strerror(errno));
+	return;
+    }
+
+    while ((dent = readdir(sdir))!=NULL)
+    {
+	char *str_ptr;
+	size_t filenamelength = strlen(dent->d_name);
+
+	if (filenamelength<4)
+	    continue;
+
+	str_ptr = (dent->d_name)+filenamelength-4;
+
+	/* do we have to convert this file? */
+	if (j_strcmp(str_ptr, ".xml") == 0)
+	{
+	    char *oldname, *newname;
+	    _xdb_get_hashes(dent->d_name, digit01, digit23);
+
+	    oldname = spools(p, hostspool, "/", dent->d_name, p);
+	    newname = spools(p, hostspool, "/", digit01, "/", digit23, "/", dent->d_name, p);
+
+	    if (!_xdb_gen_dirs(spool_new(p), spoolroot, host, digit01, digit23, 1))
+		log_error("xdb_file", "failed to create necessary directory for conversion");
+	    else if (rename(oldname, newname) < 0)
+		log_error("xdb_file", "failed to move %s to %s while converting spool: %s", oldname, newname, strerror(errno));
+	}
+    }
+
+    /* close the directory */
+    closedir(sdir);
+}
+
+/**
+ * convert a spool directory from the old format to the new one
+ * which distributes the files over several subdirs
+ *
+ * @param spoolroot the root folder of the spool
+ */
+void _xdb_convert_spool(const char *spoolroot)
+{
+    DIR *sdir;
+    struct dirent *dent;
+    pool p;
+    char *flagfile;
+    struct stat s;
+    FILE *flagfileh;
+
+    /* use our own memory pool */
+    p = pool_new();
+
+    /* check if we already converted this spool */
+    flagfile = spools(p, spoolroot, "/.hashspool", p);
+    if (stat(flagfile, &s) == 0)
+    {
+	log_debug(ZONE,"there is already a new hashspool");
+	pool_free(p);
+	return;
+    }
+
+    /* what is in this directory? */
+    sdir = opendir(spoolroot);
+
+    if (sdir == NULL)
+    {
+	pool_free(p);
+	return;
+    }
+
+    while ((dent = readdir(sdir)) != NULL)
+    {
+	struct stat s;
+	char *dirname = spools(p, spoolroot, "/", dent->d_name, p);
+
+	if (stat(dirname, &s)<0)
+	    continue;
+
+	/* we only care about directories */
+	if (!S_ISDIR(s.st_mode))
+	    continue;
+
+	if (dent->d_name[0]!='\0' && dent->d_name[0]!='.')
+	    _xdb_convert_hostspool(p, spoolroot, dent->d_name);
+    }
+    closedir(sdir);
+
+    /* write the flag that we converted the spool */
+    flagfileh = fopen(flagfile, "w");
+    if (flagfileh != NULL)
+    {
+	fwrite("Please do not delete this file.\n", 1, 32, flagfileh);
+	fclose(flagfileh);
+    }
+
+    /* cleanup */
+    pool_free(p);
+}
+
 void xdb_file(instance i, xmlnode x)
 {
     char *spl, *to;
@@ -292,6 +520,7 @@ void xdb_file(instance i, xmlnode x)
     xdbcache xc;
     xdbf xf;
     int timeout = -1; /* defaults to timeout forever */
+    int sizelimit = 0; /* defaults to no size limit */
 
     log_debug(ZONE,"xdb_file loading");
 
@@ -304,6 +533,11 @@ void xdb_file(instance i, xmlnode x)
         log_error(NULL,"xdb_file: No filesystem spool location configured");
         return;
     }
+
+    _xdb_convert_spool(spl);
+
+    sizelimit = j_atoi(xmlnode_get_tag_data(config, "sizelimit"), 0);
+    
     to = xmlnode_get_tag_data(config,"timeout");
     if(to != NULL)
         timeout = atoi(to);
@@ -311,6 +545,7 @@ void xdb_file(instance i, xmlnode x)
     xf = pmalloco(i->p,sizeof(_xdbf));
     xf->spool = pstrdup(i->p,spl);
     xf->timeout = timeout;
+    xf->sizelimit = sizelimit;
     xf->i = i;
     xf->cache = ghash_create(j_atoi(xmlnode_get_tag_data(config,"maxfiles"),FILES_PRIME),(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
 

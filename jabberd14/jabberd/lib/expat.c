@@ -181,8 +181,22 @@ char* xmlnode_file_borked(char *file)
 
 int xmlnode2file(char *file, xmlnode node)
 {
+    return xmlnode2file_limited(file, node, 0);
+}
+
+/**
+ * write an xmlnode to a file, limited by size
+ *
+ * @param file the target file
+ * @param node the xmlnode that should be written
+ * @param sizelimit the maximum length of the file to be written
+ * @return 1 on success, 0 if failed due to size limit, -1 on failure
+ */
+int xmlnode2file_limited(char *file, xmlnode node, size_t sizelimit)
+{
     char *doc, *ftmp;
     int fd, i;
+    size_t doclen;
 
     if(file == NULL || node == NULL)
         return -1;
@@ -193,7 +207,15 @@ int xmlnode2file(char *file, xmlnode node)
         return -1;
 
     doc = xmlnode2str(node);
-    i = write(fd,doc,strlen(doc));
+    doclen = strlen(doc);
+
+    if (sizelimit > 0 && doclen > sizelimit)
+    {
+	close(fd);
+	return 0;
+    }
+
+    i = write(fd,doc,doclen);
     if(i < 0)
         return -1;
 
