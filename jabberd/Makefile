@@ -42,6 +42,7 @@ jabberd_OBJECTS = \
 	lib/xmltok.o \
 	lib/xstream.o \
 	base/base_connect.o \
+	base/base_dynamic.o \
 	base/base_exec.o \
 	base/base_stdout.o \
 	base/base_accept.o \

@@ -38,6 +38,7 @@ void base_format(void);
 void base_to(void);
 void base_stderr(void);
 void base_stdout(void);
+void base_dynamic(void);
 
 /* load all base modules */
 void static_init(void)
@@ -50,5 +51,6 @@ void static_init(void)
     base_to();
     base_stderr();
     base_stdout();
+    base_dynamic();
 }
 
