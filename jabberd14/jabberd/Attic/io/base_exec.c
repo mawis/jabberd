@@ -173,6 +173,7 @@ void base_exec_handle_xstream_event(int type, xmlnode x, void* arg)
   	  pi->e_write = pth_event(PTH_EVENT_MSG, pi->write_queue);  
   	  pi->events  = pth_event_concat(pi->e_read, pi->e_write, NULL);  
 	  /* Validate namespace */
+      xmlnode_free(x);
 	  break;
      case XSTREAM_NODE:
 	  /* Deliver the packet */
@@ -180,6 +181,7 @@ void base_exec_handle_xstream_event(int type, xmlnode x, void* arg)
 	  break;
      case XSTREAM_CLOSE:
      case XSTREAM_ERR:
+      xmlnode_free(x);
 	  /* FIXME: Who knows? The _SHADOW_ knows. */
      }
 
@@ -236,6 +238,7 @@ void* base_exec_process_io(void* threadarg)
 		    /* FIXME: it would be cool to make this completely safe by reinserting
 		       the message back in the queue until the the process is restarted */
 		    log_debug(ZONE,"base_exec_process_io Write error.\n");
+            pool_free(pwb->packet->p);
 		    break;
 	       }
 	       

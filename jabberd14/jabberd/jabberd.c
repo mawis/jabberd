@@ -78,6 +78,8 @@ int main (int argc, char** argv)
     if(configurate(cfgfile))
         exit(1);
 
+    free(cfgfile);
+
     /* EPIPE is easier to handle than a signal */
     signal(SIGPIPE, SIG_IGN);
 
