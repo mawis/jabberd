@@ -230,7 +230,7 @@ result base_connect_config(instance id, xmlnode x, void *arg)
     /* Make a connection to the host */
     mio_connect(ci->hostip, ci->hostport, base_connect_process_xml, (void*)ci, ci->timeout, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER));
 
-    pool_cleanup(id->p, base_connect_kill, (void *)ci);
+    register_shutdown(base_connect_kill, (void *)ci);
 
     return r_DONE;
 }
