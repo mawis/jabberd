@@ -1,9 +1,6 @@
 <!--  Jabber2 - jabberd JBOX configuration  -->
 <jbox project='lib'>
   <build>
-    <variables>
-      <var name='DEFINES'><value>-DCONFIGXML="\"jabber.xml\"" -DHOME="\"$(JHOME)\""</value></var>
-    </variables>
     <make>
       <macro name='HEADERS'>
         <file>../jabberd.h</file>
@@ -28,6 +25,7 @@
         <file>xmlrole.o</file>
         <file>xmltok.o</file>
         <file>xstream.o</file>
+        <file>xhash.o</file>
       </macro>
       <compile>
  	<objectfile macro='OBJECTS'>

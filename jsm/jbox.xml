@@ -2,7 +2,6 @@
 <jbox project='jsm'>
   <build>
     <variables>
-      <var name='DEFINES'><value>-DVERSION=\"1.2\"</value></var>
       <var name='CFLAGS'><value>-I ../jabberd/</value></var>
     </variables>
     <make>

@@ -2,7 +2,6 @@
 <jbox project='modules'>
   <build>
     <variables>
-      <var name='DEFINES'><value>-DPACKAGE=\"jsm\"</value></var>
       <var name='CFLAGS'><value>-I ../../jabberd/</value></var>
     </variables>
     <make>

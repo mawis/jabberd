@@ -13,7 +13,8 @@
         </version>
 	<var name='CFLAGS'><command>pth-config --cflags</command></var>
 	<var name='LDFLAGS'><command>pth-config --ldflags</command></var>
-	<var name='LIBS'><command>pth-config --libs</command></var>
+	<var name='LIBS' type='dynamic'><command>pth-config --libs</command></var>
+	<var name='PTHLIBDIR'><command>pth-config --libdir</command></var>
       </library>
     </libraries>
     <make>
@@ -49,6 +50,10 @@
 	<macro project='/pthsock'>client_OBJECTS</macro>
 	<macro project='/xdb_file'>OBJECTS</macro>
       </macro>
+      <macro name='STATICLIBS'>
+        <file>$(PTHLIBDIR)/libpth.a</file>
+	<file>/usr/lib/libresolv.a</file>
+      </macro>
       <compile>
  	<objectfile macro='OBJECTS'>
 	  <dep><macro>HEADERS</macro></dep>
@@ -64,6 +69,7 @@
             <macro>OBJECTS</macro>
             <macro>EXOBJECTS</macro>
             <macro>STATICOBJECTS</macro>
+            <macro>STATICLIBS</macro>
           </dep>
         </binary>
         <binary name='jabberd' type='single'>
@@ -71,6 +77,7 @@
             <macro>OBJECTS</macro>
             <macro>EXOBJECTS</macro>
             <macro>STATICOBJECTS</macro>
+            <macro>STATICLIBS</macro>
           </dep>
         </binary>
       </compile>
