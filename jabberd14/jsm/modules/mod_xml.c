@@ -45,13 +45,13 @@ mreturn mod_xml_set(mapi m, void *arg)
         private = 1;
         inx = xmlnode_get_tag(m->packet->iq,"?xmlns");
         ns = xmlnode_get_attrib(inx,"xmlns");
-        if(ns == NULL || strncmp(ns,"jabber:",7) == 0)
+        if(ns == NULL || strncmp(ns,"jabber:",7) == 0 || strcmp(ns,"vcard-temp") == 0)
         { /* uhoh, can't use jabber: namespaces inside iq:private! */
             jutil_error(m->packet->x,TERROR_NOTACCEPTABLE);
             js_session_to(m->s,m->packet);
             return M_HANDLED;
         }
-    }else if(j_strncmp(ns,"jabber:",7) == 0){ /* cant set public xml jabber: namespaces either! */
+    }else if(j_strncmp(ns,"jabber:",7) == 0 || j_strcmp(ns,"vcard-temp") == 0){ /* cant set public xml jabber: namespaces either! */
          return M_PASS;
     }
 
@@ -138,7 +138,7 @@ mreturn mod_xml_get(mapi m, void *arg)
     char *ns = xmlnode_get_attrib(m->packet->iq,"xmlns");
 
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
-    if(j_strncmp(ns,"jabber:",7) == 0) return M_PASS; /* only handle alternate namespaces */
+    if(j_strncmp(ns,"jabber:",7) == 0 || j_strcmp(ns,"vcard-temp") == 0) return M_PASS; /* only handle alternate namespaces */
 
     /* first, is this a valid request? */
     switch(jpacket_subtype(m->packet))
