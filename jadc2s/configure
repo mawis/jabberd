@@ -115,7 +115,6 @@ if test x$SSL = "xy"; then
     echo -e "\t\t\tyes"
     DEFINES="$DEFINES -DUSE_SSL"
     LDFLAGS="$LDFLAGS -lssl"
-    EXTRA_OBJECTS="$EXTRA_OBJECTS readwrite.o"
 else
     echo -e "\t\t\tno"
 fi

@@ -61,6 +61,7 @@ typedef struct chunk_st
 
 /* connection data */
 typedef enum { state_NONE, state_AUTH, state_SESS, state_OPEN } conn_state_t;
+typedef enum { type_NORMAL, type_HTTP, type_FLASH } conn_type_t;
 struct conn_st
 {
     c2s_t c2s;
@@ -70,6 +71,7 @@ struct conn_st
     int read_bytes;
     time_t last_read;
     conn_state_t state;
+    conn_type_t type;
     time_t start;
 #ifdef USE_SSL    
     int ssl_flag;
@@ -190,13 +192,9 @@ int daemonize(void);
 int ignore_term_signals(void);
 
 /* wrappers around read() and write(), with ssl support */
-#ifdef USE_SSL
 int _read_actual(conn_t c, int fd, char *buf, size_t count);
+int _peek_actual(conn_t c, int fd, char *buf, size_t count);
 int _write_actual(conn_t c, int fd, const char *buf, size_t count);
-#else
-# define _read_actual(c, fd, buf, count) read(fd, buf, count)
-# define _write_actual(c, fd, buf, count) write(fd, buf, count)
-#endif
 
 /* debug logging */
 void debug_log(char *file, int line, const char *msgfmt, ...);
