@@ -52,17 +52,6 @@ typedef struct sdata_st
     void *arg;
 } *sdata, _sdata;
 
-void pthsock_server_close(ssi si, sdata s)
-{
-    log_debug(ZONE,"closing socket '%d'",((sock)s->arg)->fd);
-
-    if (s->type == conn_OUT)
-        ghash_remove(si->out_tab,s->to);
-
-    io_close((sock)s->arg);
-    s->type = conn_CLOSED;
-}
-
 /* recieve data from io_select */
 void pthsock_server_in(int type, xmlnode x, void *arg)
 {
@@ -104,9 +93,15 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
             else
             {
                 io_write_str(c,"<stream::error>Transport Access is Denied</stream:error>");
-                pthsock_server_close(sd->i,sd);
+                io_close((sock)sd->arg);
                 sd->type = conn_CLOSED;   /* it wants to be a transport, to bad */
             }
+        }
+        else
+        { /* we finnally connected, dump the queue */
+            drop d;
+            while((d=(drop)pth_msgport_get(sd->queue))!=NULL)
+                io_write(c,d->x);
         }
 
         xmlnode_free(x);
@@ -126,7 +121,7 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
     case XSTREAM_CLOSE:
         /* they closed there connections to us */
         log_debug(ZONE,"closing XML stream for %d",c->fd);
-        pthsock_server_close(sd->i,sd);
+        io_close(c);
     }
 }
 
@@ -163,10 +158,11 @@ void pthsock_server_read(sock c,char *buffer,int bufsz,int flags,void *arg)
         }
         else 
         {
-            drop d;
+            xmlnode x=xstream_header("jabber:server",sd->to,NULL);
+            sd->arg=(void*)c;
+            io_write_str(c,xstream_header_char(x));
+            xmlnode_free(x);
             sd->type=conn_OUT;
-            while((d=(drop)pth_msgport_get(sd->queue))!=NULL)
-                io_write(c,d->x);
         }
         c->xs = xstream_new(c->p,(void*)pthsock_server_in,(void*)c);
         break;
@@ -181,6 +177,7 @@ void pthsock_server_read(sock c,char *buffer,int bufsz,int flags,void *arg)
         if(sd==si->conns) si->conns=si->conns->next;
         if(sd->next!=NULL) sd->next->prev=sd->prev;
         if(sd->prev!=NULL) sd->prev->next=sd->next;
+        if(sd->p!=NULL)pool_free(sd->p);
     }
 
 }
@@ -224,6 +221,11 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
         sd->i = si;
         sd->queue = pth_msgport_create("queue");
         ghash_put(si->out_tab,sd->to,sd);
+
+        /* link it to the master list */
+        if(si->conns!=NULL)si->conns->prev=sd;
+        sd->next=si->conns;
+        si->conns=sd;
 
         io_select_connect(io__instance,to,5269,(void*)sd);
         pth_msgport_put(sd->queue,(void*)d);

@@ -2,13 +2,22 @@
 
 typedef enum { state_UNKNOWN, state_AUTHD, state_CLOSE } conn_state;
 
+typedef struct wb_q_st
+{
+    pth_message_t head; /* the standard pth message header */
+    xmlnode x;
+} _wbq,*wbq;
+
 typedef struct sock_st
 {
     pool p;
     conn_state state;
     xstream xs;
     int fd;
-    char *wbuffer;
+    pth_msgport_t queue; /* write buffer queue */
+    xmlnode xbuffer;     /* current xmlnode */
+    char *wbuffer;       /* current write buffer */
+    char *cbuffer;       /* position in write buffer */
     struct sock_st *prev,*next;
     void *arg;    /* yours to define */
     void *cb;     /* do not modify directly */
@@ -42,3 +51,4 @@ void io_write_str(sock c,char *buffer); /* write a str to a socket */
 void io_write(sock c,xmlnode x); /*write and eat an xmlnode to the socket */
 void io_close(sock c); /* request to close the socket */
 void io_select_connect(iosi io_instance,char *host,int port,void *arg);
+sock io_select_get_list(iosi io_instance);
