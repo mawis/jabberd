@@ -21,6 +21,12 @@ consistent usage of namespaces for streams and config sections
 Pre-FFreeze
 ===================================
 
+keith --
+mod_filter rule caching
+
+jer --
+jsm roster caching
+
 keith 9/26/00 ----
 base_accept plumber algorithm needs improvement..
 perhaps a timout for each individual packet?
