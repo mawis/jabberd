@@ -42,6 +42,7 @@ void *heartbeat(void *arg)
     while(1)
     {
 	pth_sleep(1);
+    if(heartbeat__ring==NULL) break;
 
 	/* run through the ring */
 	for(b = heartbeat__ring->next; b != heartbeat__ring; b = b->next)
@@ -108,4 +109,26 @@ void heartbeat_birth(void)
 
     /* start the thread */
     pth_spawn(PTH_ATTR_DEFAULT, heartbeat, NULL);
+}
+
+void heartbeat_death(void)
+{
+    beat cur;
+    while(heartbeat__ring!=NULL)
+    {
+       cur=heartbeat__ring;
+       if(heartbeat__ring->next==heartbeat__ring) 
+       {
+           heartbeat__ring=NULL;
+       }
+       else
+       {
+           if(heartbeat__ring->next!=NULL)
+               heartbeat__ring->next->prev=heartbeat__ring->prev;
+           if(heartbeat__ring->prev!=NULL) 
+               heartbeat__ring->prev->next=heartbeat__ring->next;
+           heartbeat__ring=heartbeat__ring->next;
+       }
+       pool_free(cur->p);
+    }
 }

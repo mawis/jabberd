@@ -30,12 +30,16 @@
 #include "jabberd.h"
 HASHTABLE cmd__line;
 extern int deliver__flag;
+extern xmlnode greymatter__;
 
 /*** internal functions ***/
 int configurate(char *file);
 void loader(void);
 void heartbeat_birth(void);
+void heartbeat_death(void);
 int configo(int exec);
+void config_cleanup(void);
+void shutdown_callbacks(void);
 
 int main (int argc, char** argv)
 {
@@ -44,6 +48,7 @@ int main (int argc, char** argv)
     char *cfgfile = NULL, *c;   /* strings used to load the server config */
     pool cfg_pool=pool_new();
 
+    mwDoFlush(1);
     /* start by assuming the parameters were entered correctly */
     help = 0;
     cmd__line=ghash_create(20,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
@@ -65,7 +70,9 @@ int main (int argc, char** argv)
                 char *cmd=pmalloco(cfg_pool,2);
                 cmd[0]=*c;
                 if(i+1<argc)
+                {
                     ghash_put(cmd__line,cmd,argv[++i]);
+                }
                 else
                 {
                     help=1;
@@ -135,10 +142,11 @@ int main (int argc, char** argv)
         }
     }
 
-    pool_free(cfg_pool);
     log_alert(NULL,"Recieved Kill.  Jabberd shutting down.");
     /* we left the main loop, so we must have recieved a kill signal */
-    /* XXX start the shutdown sequence */
+    /* start the shutdown sequence */
+    shutdown_callbacks();
+    heartbeat_death();
 
     /* one last chance for threads to finish shutting down */
     pth_sleep(1);
@@ -146,6 +154,10 @@ int main (int argc, char** argv)
     /* kill any leftover threads */
     pth_kill();
 
+    pool_free(cfg_pool);
+    xmlnode_free(greymatter__);
+    config_cleanup();
+    ghash_destroy(cmd__line);
     /* we're done! */
     return 0;
 

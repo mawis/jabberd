@@ -107,7 +107,7 @@ void unregister_instance(instance id,char *host)
     switch(id->type)
     {
     case p_LOG:
-        if(deliver__log->id==id&&j_strcmp(deliver__log->host,host)==0)
+        if(deliver__log->id==id&&(j_strcmp(deliver__log->host,host)==0||(host==NULL&&deliver__log->host==NULL)))
         {
             cur=deliver__log;
             deliver__log=deliver__log->next;
@@ -117,7 +117,7 @@ void unregister_instance(instance id,char *host)
         cur=deliver__log;
         break;
     case p_XDB:
-        if(deliver__xdb->id==id&&j_strcmp(deliver__xdb->host,host)==0)
+        if(deliver__xdb->id==id&&(j_strcmp(deliver__xdb->host,host)==0||(host==NULL&&deliver__xdb->host==NULL)))
         {
             cur=deliver__xdb;
             deliver__xdb=deliver__xdb->next;
@@ -128,7 +128,7 @@ void unregister_instance(instance id,char *host)
         break;
     case p_NORM:
     case p_ROUTE:
-        if(deliver__norm->id==id&&j_strcmp(deliver__norm->host,host)==0)
+        if(deliver__norm->id==id&&(j_strcmp(deliver__norm->host,host)==0||(host==NULL&&deliver__norm->host==NULL)))
         {
             cur=deliver__norm;
             deliver__norm=deliver__norm->next;
@@ -142,7 +142,7 @@ void unregister_instance(instance id,char *host)
 
     for(;cur!=NULL;prev=cur,cur=cur->next)
     {
-        if(cur->id==id&&j_strcmp(cur->host,host)==0)
+        if(cur->id==id&&(j_strcmp(cur->host,host)==0||(host==NULL&&cur->host==NULL)))
         {
             prev->next=cur->next;
             cur->next=NULL;
