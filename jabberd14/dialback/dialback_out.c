@@ -75,6 +75,9 @@ typedef struct
     pool p;
     dboq q;
     mio m; /* for that short time when we're connected and open, but haven't auth'd ourselves yet */
+    int xmpp_version;
+    int xmpp_no_tls;
+    xmlnode outstanding_db;
 } *dboc, _dboc;
 
 void dialback_out_read(mio m, int flags, void *arg, xmlnode x);
@@ -155,6 +158,8 @@ dboc dialback_out_connection(db d, jid key, char *ip)
     c->stamp = time(NULL);
     c->verifies = xmlnode_new_tag_pool(p,"v");
     c->ip = pstrdup(p,ip);
+    /* XXX add config option, to disable XMPP for configured hosts */
+    c->xmpp_version = 1;
 
     /* insert in the hash */
     xhash_put(d->out_connecting, jid_full(c->key), (void *)c);
@@ -351,6 +356,8 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
     dboc c = (dboc)arg;
     xmlnode cur;
     miod md;
+    int version = 0;
+    char *dbns = NULL;
 
     log_debug2(ZONE, LOGT_IO, "dbout read: fd %d flag %d key %s",m->fd, flags, jid_full(c->key));
 
@@ -361,7 +368,10 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 
         /* outgoing conneciton, write the header */
         cur = xstream_header("jabber:server", c->key->server, NULL);
-        xmlnode_put_attrib(cur,"xmlns:db","jabber:server:dialback"); /* flag ourselves as dialback capable */
+        xmlnode_put_attrib(cur,"xmlns:db","jabber:server:dialback");	/* flag ourselves as dialback capable */
+	if (c->xmpp_version == 1) {					/* should we flag XMPP support? */
+	    xmlnode_put_attrib(cur, "version", "1.0");
+	}
         mio_write(m, NULL, xstream_header_char(cur), -1);
         xmlnode_free(cur);
         return;
@@ -385,9 +395,12 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
             break;
         }
 
+	/* check version */
+	version = j_atoi(xmlnode_get_attrib(x, "version"), 0);
+	dbns = xmlnode_get_attrib(x, "xmlns:db");
+
         /* check for old servers */
-        if(xmlnode_get_attrib(x,"xmlns:db") == NULL)
-        {
+	if (version < 1 && dbns == NULL) {
             if(!c->d->legacy)
             { /* Muahahaha!  you suck! *click* */
                 log_notice(c->key->server,"Legacy server access denied due to configuration");
@@ -405,23 +418,108 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
             break;
         }
 
+	/* peer is XMPP server, but does not support dialback */
+	if (dbns == NULL) {
+	    log_notice(c->d->i->id, "We cannot send to %s. This XMPP server does not support dialback.", c->key->server);
+	    mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Sorry, we only support dialback to 'authenticate' our peers. SASL is not supported by us. It seems we cannot communicate to you :-(</text></stream:error>", -1);
+	    mio_close(m);
+	    break;
+	}
+
         /* create and send our result request to initiate dialback */
         cur = xmlnode_new_tag("db:result");
         xmlnode_put_attrib(cur, "to", c->key->server);
         xmlnode_put_attrib(cur, "from", c->key->resource);
         xmlnode_insert_cdata(cur,  dialback_merlin(xmlnode_pool(cur), c->d->secret, c->key->server, xmlnode_get_attrib(x,"id")), -1);
-        mio_write(m,cur, NULL, 0);
+	if (version && c->outstanding_db == NULL) {
+	    c->outstanding_db = cur;
+	} else {
+	    mio_write(m,cur, NULL, 0);
+	}
 
         /* well, we're connected to a dialback server, we can at least send verify requests now */
         c->m = m;
-        for(cur = xmlnode_get_firstchild(c->verifies); cur != NULL; cur = xmlnode_get_nextsibling(cur))
-        {
-            mio_write(m, xmlnode_dup(cur), NULL, -1);
-            xmlnode_hide(cur);
-        }
+	if (version < 1) {
+	    for(cur = xmlnode_get_firstchild(c->verifies); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
+		mio_write(m, xmlnode_dup(cur), NULL, -1);
+		xmlnode_hide(cur);
+	    }
+	}
 
         break;
     case MIO_XML_NODE:
+	/* watch for stream:features */
+	if (j_strcmp(xmlnode_get_name(x), "stream:features") == 0) {
+#ifdef HAVE_SSL
+	    /* is starttls supported? */
+	    if (xmlnode_get_tag(x, "starttls?xmlns=" NS_XMPP_TLS) != NULL) {
+		/* don't start if forbidden by caller (configuration) */
+		if (c->xmpp_no_tls) {
+		    log_notice(c->d->i->id, "Server %s advertized starttls, but disabled by our configuration.", c->key->server);
+		    break;
+		}
+
+		/* check if our side is prepared for starttls */
+		if (mio_ssl_starttls_possible(m, c->key->resource)) {
+		    xmlnode starttls = NULL;
+
+		    /* request to start tls on this connection */
+		    log_debug2(ZONE, LOGT_IO, "requesting starttls for an outgoing connection to %s", c->key->server);
+
+		    starttls = xmlnode_new_tag("starttls");
+		    xmlnode_put_attrib(starttls, "xmlns", NS_XMPP_TLS);
+		    mio_write(m, starttls, NULL, 0);
+		    break;
+		}
+	    }
+#endif /* HAVE_SSL */
+
+	    /* no stream:feature we'd like to use, we can now send the outstanding db:result */
+	    if (c->outstanding_db) {
+		mio_write(m, c->outstanding_db, NULL, 0);
+		c->outstanding_db = NULL;
+	    }
+
+	    /* and we can send the verify requests */
+	    for(cur = xmlnode_get_firstchild(c->verifies); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
+		mio_write(m, xmlnode_dup(cur), NULL, -1);
+		xmlnode_hide(cur);
+	    }
+
+	    /* finished processing stream:features */
+	    break;
+	}
+
+#ifdef HAVE_SSL
+	/* watch for positive starttls result */
+	if (j_strcmp(xmlnode_get_name(x), "proceed") == 0 && j_strcmp(xmlnode_get_attrib(x, "xmlns"), NS_XMPP_TLS) == 0) {
+	    /* start tls on our side */
+	    if (mio_xml_starttls(m, 1, c->key->resource)) {
+		/* starting tls failed */
+		log_warn(c->d->i->id, "Starting TLS on an outgoing s2s to %s failed on our side (%s).", c->key->server, c->key->resource);
+		mio_close(m);
+	    }
+
+	    /* forget outstanding <db:result/>, stream state is reset */
+	    if (c->outstanding_db != NULL) {
+		xmlnode_free(c->outstanding_db);
+		c->outstanding_db = NULL;
+	    }
+
+	    /* send stream header again */
+	    dialback_out_read(m, MIO_NEW, c, NULL);
+
+	    break;
+	}
+
+	/* watch for negative starttls result */
+	if (j_strcmp(xmlnode_get_name(x), "failure") == 0 && j_strcmp(xmlnode_get_attrib(x, "xmlns"), NS_XMPP_TLS) == 0) {
+	    log_warn(c->d->i->id, "Starting TLS on an outgoing s2s to %s failed on the other side.", c->key->server);
+	    mio_close(m);
+	    break;
+	}
+#endif /* HAVE_SSL */
+
         /* watch for a valid result, then we're set to rock! */
         if(j_strcmp(xmlnode_get_name(x),"db:result") == 0)
         {
