@@ -285,7 +285,7 @@ int _connect_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
         if(c->state != state_OPEN)
         {
             /* !!! handle this better */
-            log_write(c2s->log, LOG_ERR, "secret is wrong or sm kicked us off for some other reason");
+            log_write(c->c2s->log, LOG_ERR, "secret is wrong or sm kicked us off for some other reason");
             exit(1);
         }
 
@@ -293,29 +293,32 @@ int _connect_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
 
         /* try to connect again */
         c2s = c->c2s;
-        retries = j_atoi(config_get_one(c2s->config, "sm.retries", 0), 5);
-        for (x = 0; x < retries; x++)
-        {
-            if (connect_new(c2s))
-                break;
-            /* XXX: Make this an option? */
-            sleep(5);
-        }
+	if (!c2s->shutting_down)
+	{
+	    retries = j_atoi(config_get_one(c2s->config, "sm.retries", 0), 5);
+	    for (x = 0; x < retries; x++)
+	    {
+		if (connect_new(c2s))
+		    break;
+		/* XXX: Make this an option? */
+		sleep(5);
+	    }
 
-        /* See if we were able to reconnect */
-        if (x == retries)
-        {
-            log_write(c2s->log, LOG_ERR, "Unable to reconnect to the SM.");
-            exit(1);
-        }
+	    /* See if we were able to reconnect */
+	    if (x == retries)
+	    {
+		log_write(c2s->log, LOG_ERR, "Unable to reconnect to the SM.");
+		exit(1);
+	    }
 
-        /* copy over old write queue if any */
-        if(c->writeq != NULL)
-        {
-            c2s->sm->writeq = c->writeq;
-            c2s->sm->qtail = c->qtail;
-            mio_write(c2s->mio, c2s->sm->fd);
-        }
+	    /* copy over old write queue if any */
+	    if(c->writeq != NULL)
+	    {
+		c2s->sm->writeq = c->writeq;
+		c2s->sm->qtail = c->qtail;
+		mio_write(c2s->mio, c2s->sm->fd);
+	    }
+	}
 
         conn_free(c);
         break;
