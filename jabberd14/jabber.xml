@@ -4,8 +4,12 @@
   This is the Jabber server configuration file. The file is
   broken into different sections based on the services being 
   managed by jabberd, the server daemon. Most of the important 
-  sections have comments and are easy to modify. You can find
-  further instructions at http://jabberd.jabberstudio.org/1.4/.
+  sections have comments and are easy to modify.
+
+  At http://jabberd.jabberstudio.org/1.4/ you find further
+  instructions including an annotated version of this con-
+  figuration file and an installation guide.
+  
   Note that when you see a tag like "jabberd:cmdline", it's
   automatically replaced on startup with the command line flag
   passed in to jabberd. This enables you to override para-
@@ -35,8 +39,12 @@
   <service id="sessions">
 
     <!-- 
-    Change hostname below to something other than "localhost", 
-    i.e., to the hostname or IP address of your Jabber server. 
+    Replace all occurrences of "localhost" in this file by
+    the hostname of your Jabber server. Be aware changing
+    the server's name is all but impossible once users start
+    to use the server. So choose a name that is permanent
+    (especially no Intranet hostnames or IP addresses).
+
     Multiple <host/> entries are allowed - each one is for a 
     separate virtual server. Note that each host entry must 
     be on one line, the server doesn't like it otherwise! :)
@@ -116,14 +124,14 @@
       <vCard>
         <FN>Jabber Server</FN>
         <DESC>A Jabber Server!</DESC>
-        <URL>http://www.jabber.org/</URL>
+        <URL>http://localhost/</URL>
       </vCard>
 
       <!-- 
       Registration instructions and required fields. The 
       notify attribute will send the server administrator(s)
-      a message after each valid registration if it is set
-      to "yes".
+      a message after each valid registration if the notify
+      attribute is present.
       -->
 
       <register notify="yes">
@@ -198,8 +206,8 @@
       defined in its own <service/> section below. These services 
       will appear in the user interface of Jabber clients that
       connect to your server.
-      The <browse/> tag is also used by mod_disco (see below) for
-      building the disco#items reply.
+      The <browse/> section is also used by mod_disco (see below)
+      for building the disco#items reply.
       -->
 
       <browse>
@@ -242,7 +250,7 @@
       <!--
         "Service Discovery" (disco, JEP-0030) supersedes
         "Jabber Browsing" (JEP-0011).
-        The <disco/> tag is used for building the disco#info
+        The <disco/> section is used for building the disco#info
         reply.
       -->
       <disco>
@@ -256,14 +264,14 @@
       </disco>
 
       <!--
-        Select the hashing algorithm that mod_auth_crypt uses
-	for storing passwords
-	Possible values:
-	crypt ... traditional hashing as impelemented in crypt()
-	SHA1  ... using SHA1 hashes
+      Select the hashing algorithm that mod_auth_crypt uses
+      for storing passwords
+      Possible values:
+      crypt ... traditional hashing as implemented in crypt()
+      SHA1  ... using SHA1 hashes
       -->
       <mod_auth_crypt>
-	<hash>SHA1</hash>
+        <hash>SHA1</hash>
       </mod_auth_crypt>
 
     </jsm>
@@ -354,14 +362,13 @@
       Otherwise the server won't notice that they are offline until
       someone tries to send a packet to them (and the message is
       lost).  Example: <heartbeat>60</heartbeat>
-      NOTE: Exodus 0.6.0.0 will stop working if you turn this 
-      feature on!  There is a fix in Exodus's CVS for this.
 
     * karma - this is an input/output rate limiting system that
       the Jabber team came up with to prevent bandwidth hogging.
       For details about karma, read the io section at the bottom.
       These are the low settings and apply per connection/socket
       and can be changed as desired.
+      To disable rate limiting just delete the <karma/> section.
   -->
 
   <service id="c2s">
@@ -383,7 +390,8 @@
       <!-- 
       Use these to listen on particular addresses and/or ports.
       Example: <ip port="5222">127.0.0.1</ip>
-      Remove the <ip/> tag to disable non-ssl client connections.
+      Default is to listen on port 5222 on every interface.
+      Remove the <ip/> section to disable non-ssl client connections.
       -->
       <ip port="5222"/>
 
