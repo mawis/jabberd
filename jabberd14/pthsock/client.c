@@ -332,7 +332,7 @@ void pthsock_client(instance i, xmlnode x)
     smi si;
     xdbcache xc;
     xmlnode cur;
-    char *host, *port;
+    char *host, *port=0;
 
     log_debug(ZONE,"pthsock_client loading");
 
@@ -350,9 +350,10 @@ void pthsock_client(instance i, xmlnode x)
 
     si->host = host = i->id;
 
-    for(cur=si->cfg;cur!=NULL;cur=cur->next)
+    for(cur=xmlnode_get_firstchild(si->cfg);cur!=NULL;cur=cur->next)
     {
-        if(j_strcmp(xmlnode_get_name(cur),"listen")==0)
+        if(cur->type!=NTYPE_TAG) continue;
+        if(j_strcmp(xmlnode_get_name(cur),"listen")==0&&xmlnode_get_data(cur)!=NULL)
         {
             port = xmlnode_get_data(cur);
         }
