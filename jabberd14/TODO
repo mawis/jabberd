@@ -1,86 +1,36 @@
 ===================================
-Features/Crit
+Laundry List
 ===================================
 
-jer
-base_host matching of *.jabber.org
-
-temas
-jpolld component
-
-jer
-dialback hostname authentication using sha
-jsm should manage stateless sessions too
-
-?
-base_farm meshing and hashed jid distribution
-
-jer/diz
-rate limits
-
-
-===================================
-Code Double Checks
-===================================
-
-consistent jabber:* namespaces and checks -- TSB 10/11/00 OK
-clean up log_* calls, make sure right type, looks sane
-check XXX/TODO comment flags
-check error codes, use timeout ones?
-
-
-===================================
-TESTING
-===================================
-
-base modules:
-	base_accept, filtering, void, queue timeouts
-	base_connect, chaining, queueing and reconnecting
-	base_exec, restarting, proper shutdown?
-	base_stdout, chaining, xdb/log/stderr/debug handling?
-	logging: file, formatting, forwarding -- TSB 10/11/00 OK
-	xdb: seperating namespaces
-
-overall:
-	mem leaks, watching pool debug
-     -- s2s verified leak free -- TSB 10/11/00 -- recheck for dialback!
-	performance
-
-components:
-	dnsrv, general SRV and A testing
-	s2s, timeouts, drops, 1.0/1.2
-	jsm, virtual hosting, mod_admin doesn't work
-	xdb_file, io error handling, heavy load?
-	c2s, bad streams/ids, bad auth, bad reg, queueing, timeouts -- TSB 10/11/00 OK
-	jud/privacy
-
-builds:
-	XP to gcc on linux/solaris2.6+/*bsd
-	personal
-	intranet/internal
-	isp/general
-	developer
-
-
-===================================
-1.2 Cleanup/Release
-===================================
-
-all
 existing/known bugs or issues with 1.0, protocol things?
+rapid auth rate limits
+base_accept connection rate limits
+prime# configurable for all ghashes
+other configurable knobs? (timers)
+re-evaluate escaped cdata performance (xstream and file parsing)
+malloc-null sleep
+xmlnode_get_tag("tag/=data")
+s2s idle timeout & whitespace keepalive
+log_* cleanup and evaluation, eliminate useless log_debugs, add others?  make sure log_notice/warn/alert provides usefull error message
+s2s namespace validation
+s2s host registration
+compiled-in config
+check XXX/TODO comment flags
+check error code usage, use more custom ones?
+jud/update disabling
+c2s socket ioctl tweaks, r/w buffers, reduce data loss, shorten timeouts
 
-jer
-deliver safety, validating routable bits of the packets
-deliver optimization/logic review
-prime# configs for ghashes
-configurable knobs?
 
-dizzyd
-test python scripts, "make test"
+===================================
+Post-1.2
+===================================
 
-?
-need nice READMEs and man page(s)
-socket ioctl tweaks, r/w buffers, reduce data loss, shorten timeouts
+base_farm meshing and hashed jid distribution
+managed IO: mio_* w/ pluggable select/poll/aio in the background and smart xmlnode/char* write buffering
+pth_msgport replacement w/ socketpair and fd events for easier pthread handling
+pthreads
+mod_welcome, mod_announce, & last xdb
+stateless jsm
 
 
 ===================================
@@ -88,11 +38,8 @@ socket ioctl tweaks, r/w buffers, reduce data loss, shorten timeouts
 ===================================
 
 config: register a command description like apache?
-pthreads
-admin
+admin/snmp
 dynamic config
 smarter failure handling and detection (component keepalive?)
-managed IO: mio_* w/ pluggable select/poll/aio in the background and smart xmlnode/char* write buffering
-pth_msgport replacement w/ socketpair and fd events for easier pthread handling
 
 
