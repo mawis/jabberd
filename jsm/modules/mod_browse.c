@@ -157,7 +157,7 @@ mreturn mod_browse_reply(mapi m, void *arg)
     /* insert the namespaces */
     ns = xdb_get(m->si->xc, m->packet->to, NS_XDBNSLIST);
     for(cur = xmlnode_get_firstchild(ns); cur != NULL; cur = xmlnode_get_nextsibling(cur))
-        if(xmlnode_get_attrib(cur,"tyoe") == NULL)
+        if(xmlnode_get_attrib(cur,"type") == NULL)
             xmlnode_insert_tag_node(browse,cur); /* only include the generic <ns>foo</ns> */
     xmlnode_free(ns);
 
@@ -165,6 +165,7 @@ mreturn mod_browse_reply(mapi m, void *arg)
     for(s = m->user->sessions; s != NULL; s = s->next)
     {
         /* if(s->priority < 0) continue; *** include all resources I guess */
+        if(xmlnode_get_tag(browse,spools(m->packet->p,"?jid=",jid_full(s->id),m->packet->p)) != NULL) continue; /* already in the browse result */
         cur = xmlnode_insert_tag(browse,"user");
         xmlnode_put_attrib(cur,"type", "client");
         xmlnode_put_attrib(cur,"jid", jid_full(s->id));
@@ -218,3 +219,11 @@ void mod_browse(jsmi si)
 }
 
 
+/*
+<mass> wow
+<mass> they had this four gallon thing of detergent at costco
+<mass> I'm set for about two years
+ * mass goes to read the directions on how to get soap out of it
+<mass> the thing is really complicated. I'm reminded of the lament cube from Hellraiser
+<mass> although I'm hoping I get soap instead of pinhead
+*/
