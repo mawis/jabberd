@@ -615,11 +615,11 @@ mio _mio_accept(mio m)
 #ifdef WITH_IPV6
     if(m->rated && jlimit_check(m->rate, addr_str, 1))
     {
-	log_warn("io_select", "%s(%d) is being connection rate limited - the connection attempts from this IP exceed the rate limit defined in jabberd config", addr_str, fd);
+	log_warn(NULL, "%s(%d) is being connection rate limited - the connection attempts from this IP exceed the rate limit defined in jabberd config", addr_str, fd);
 #else
     if(m->rated && jlimit_check(m->rate, inet_ntoa(serv_addr.sin_addr), 1))
     {
-        log_warn("io_select", "%s(%d) is being connection rate limited - the connection attempts from this IP exceed the rate limit defined in jabberd config", inet_ntoa(serv_addr.sin_addr), fd);
+        log_warn(NULL, "%s(%d) is being connection rate limited - the connection attempts from this IP exceed the rate limit defined in jabberd config", inet_ntoa(serv_addr.sin_addr), fd);
 #endif
         close(fd);
         return NULL;
@@ -1531,7 +1531,7 @@ mio mio_listen(int port, char *listen_host, void *cb, void *arg, mio_accept_func
 
     mh->accept = f;
 
-    log_debug2(ZONE, LOGT_IO, "io_select to listen on %d [%s]",port, listen_host);
+    log_debug2(ZONE, LOGT_IO, "mio to listen on %d [%s]",port, listen_host);
 
     /* attempt to open a listening socket */
     fd = make_netsocket(port, listen_host, NETSOCKET_SERVER);
@@ -1539,14 +1539,14 @@ mio mio_listen(int port, char *listen_host, void *cb, void *arg, mio_accept_func
     /* if we got a bad fd we can't listen */
     if(fd < 0)
     {
-        log_alert(NULL, "io_select unable to listen on %d [%s]: jabberd already running or invalid interface?", port, listen_host);
+        log_alert(NULL, "mio unable to listen on %d [%s]: jabberd already running or invalid interface?", port, listen_host);
         return NULL;
     }
 
     /* start listening with a max accept queue of 10 */
     if(listen(fd, 10) < 0)
     {
-        log_alert(NULL, "io_select unable to listen on %d [%s]: jabberd already running or invalid interface?", port, listen_host);
+        log_alert(NULL, "mio unable to listen on %d [%s]: jabberd already running or invalid interface?", port, listen_host);
         return NULL;
     }
 
@@ -1555,7 +1555,7 @@ mio mio_listen(int port, char *listen_host, void *cb, void *arg, mio_accept_func
     new->type = type_LISTEN;
     new->ip   = pstrdup(new->p, listen_host);
 
-    log_debug2(ZONE, LOGT_IO, "io_select starting to listen on %d [%s]", port, listen_host);
+    log_debug2(ZONE, LOGT_IO, "mio starting to listen on %d [%s]", port, listen_host);
 
     return new;
 }
