@@ -279,10 +279,6 @@ result base_exec_config(instance id, xmlnode x, void *arg)
 
     /* Exec and capture the STDIN/STDOUT of the child process */
     pi->pid = exec_and_capture(pi->args, &(pi->stdin), &(pi->stdout));
-    if (pi->pid == 0)
-    {
-	 printf("BLAH!\n");
-    }
 
     /* Spawn a new thread to handle IO for this coprocess */
     pth_spawn(PTH_ATTR_DEFAULT, base_exec_process_io, (void*) pi);
