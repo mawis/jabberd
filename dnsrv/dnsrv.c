@@ -82,7 +82,6 @@ int dnsrv_child_main(int in, int out)
      xstream xs  = xstream_new(p, dnsrv_child_process_xstream_io, &fout);
      int     readlen = 0;
      char    readbuf[1024];
-     pth_event_t tevt;
 
 
      /* Transmit stream header */
@@ -91,7 +90,6 @@ int dnsrv_child_main(int in, int out)
      /* Loop forever, processing requests and feeding them to the xstream*/     
      while (1)
      {
-        tevt=pth_event(PTH_EVENT_TIME,pth_timeout(5,0));
        readlen = pth_read(in, &readbuf, 1024);
        if(readlen > 0)
        {
@@ -99,7 +97,6 @@ int dnsrv_child_main(int in, int out)
        }
        else
        {
-         pth_event_free(tevt,PTH_FREE_THIS);
          if(getppid()==1) break; /* our parent has died */
        }
      }	  
