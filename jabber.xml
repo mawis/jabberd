@@ -51,7 +51,7 @@
 
       <filter> <!-- mod filter settings -->
           <!-- Default rule persists - a user cannot delete it -->
-          <default><rule name="server default"/>
+          <default/>
           <!-- Max number of rules in a user's rule set -->
           <max_size>100</max_size>
           <!-- specify which conditions/actions to allow -->
