@@ -127,7 +127,7 @@ case $hosttype in
         XLDFLAGS="$XLDFLAGS -Wl,-E";;
     Darwin)
         CFLAGS="$CFLAGS -DTMZONE"
-        MCFLAGS="-bundle -undefined suppress";
+        MCFLAGS="-bundle -undefined suppress -flat_namespace";
         LIBS="$LIBS -ldl";;
     AIX)
         # create an export file for AIX:
