@@ -70,7 +70,7 @@ void _xstream_startElement(void *parser, const char* name, const char** atts)
 
     if(xs->node == NULL)
     {
-        p = pool_heap(3*1024); /* 3k, used to be 5K, but since we may not ever use it, with otf xmlnodes, i lowered it */
+        p = pool_heap(1024); /* 3k, used to be 5K, but since we may not ever use it, with otf xmlnodes, i lowered it */
         xs->node = xmlnode_new_tag_pool(p,name);
         xmlnode_put_expat_attribs(xs->node, atts);
 
@@ -179,7 +179,7 @@ int xstream_eat(xstream xs, char *buff, int len)
 
     if(xs == NULL)
     {
-        fprintf(stderr,"Fatal Programming Error: xstream_eat() was improperly called with NULL.\n");
+        //fprintf(stderr,"Fatal Programming Error: xstream_eat() was improperly called with NULL.\n");
         return XSTREAM_ERR;
     }
 

@@ -30,8 +30,6 @@
 
 #include "lib.h"
 
-XML_Parser __xmlnode_parser = NULL;
-
 //void debug_log(char *zone, const char *msgfmt, ...);
 /* Internal routines */
 typedef struct xml_parse_st
@@ -40,6 +38,11 @@ typedef struct xml_parse_st
     int cur_depth;
     int max_depth;
 } _xmlnode_parse, *xmlnode_parse;
+
+void __parse_cleanup_expat(void *arg)
+{
+    XML_ParserFree(arg);
+}
 
 void __parse_defaultHandler(void *parser, const XML_Char *s, int len)
 {
@@ -149,22 +152,21 @@ void _parse_xmlnode(xmlnode current, int parse_depth)
     x->max_depth = parse_depth;
     
     /* create a expat parser, and parse the xmlnode */
-    if(__xmlnode_parser == NULL) 
-    {
-        __xmlnode_parser = XML_ParserCreate(NULL);
-        current->complete = parse_depth; /* flag for how far to traverse the nodes */
-        XML_SetUserData(__xmlnode_parser, (void*)x);
-        XML_UseParserAsHandlerArg(__xmlnode_parser);
-        XML_SetElementHandler(__xmlnode_parser, (void*)__parse_startElement, (void*)__parse_endElement);
-        XML_SetDefaultHandler(__xmlnode_parser, (void*)__parse_defaultHandler);
-        XML_SetCharacterDataHandler(__xmlnode_parser, (void*)__parse_cdataHandler);
-        XML_SetCommentHandler(__xmlnode_parser, (void*)__parse_commentHandler);
-    }
+    p = XML_ParserCreate(NULL);
+    pool_cleanup(xmlnode_pool(current), __parse_cleanup_expat, p);
+    current->complete = parse_depth; /* flag for how far to traverse the nodes */
+    XML_SetUserData(p, (void*)x);
+    XML_UseParserAsHandlerArg(p);
+    XML_SetElementHandler(p, (void*)__parse_startElement, (void*)__parse_endElement);
+    XML_SetDefaultHandler(p, (void*)__parse_defaultHandler);
+    XML_SetCharacterDataHandler(p, (void*)__parse_cdataHandler);
+    XML_SetCommentHandler(p, (void*)__parse_commentHandler);
 
     //debug_log("otfxml", "xmlnode %X being parsed...", current);
     /* perform the parsing */
-    if(!XML_Parse(__xmlnode_parser, current->full, strlen(current->full), 1))
+    if(!XML_Parse(p, current->full, strlen(current->full), 1))
     {
+        //debug_log("otfxml","\n\nERROR PARSING XMLNODE: %s\n", XML_ErrorString(XML_GetErrorCode(p)));
         /* XXX hrmm.. parsing error.. this should never happen,
          * since expat already has parsed this text, and was error free */
     }
@@ -187,7 +189,7 @@ xmlnode _xmlnode_new(pool p, const char* name, unsigned int type)
 
     if (p == NULL)
     {
-        p = pool_heap(1*1024);
+        p = pool_heap(1024);
     }
 
     /* Allocate & zero memory */
@@ -523,7 +525,8 @@ xmlnode xmlnode_get_tag(xmlnode parent, const char* name)
     char *str, *slash, *qmark, *equals;
     xmlnode step, ret;
 
-    if(parent != NULL && parent->complete == 0)
+    if(parent != NULL) printf("XMLNODE_GET_TAG: called on %d complete node\n", parent->complete);
+    if(parent != NULL && !parent->complete)
         _parse_xmlnode(parent, 1);
 
     if(parent == NULL || parent->firstchild == NULL || name == NULL || name == '\0') return NULL;
