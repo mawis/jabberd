@@ -45,6 +45,32 @@
 
     <jsm xmlns="jabber:config:jsm">
 
+      <filter> <!-- mod filter settings -->
+          <!-- Default rule persists - a user cannot delete it -->
+          <default><rule name="server default"><unavailable/><offline/></rule></default>
+          <!-- Max number of rules in a user's rule set -->
+          <max_size>100</max_size>
+          <!-- specify which conditions/actions to allow -->
+          <allow>
+              <conditions>
+                  <unavailable/> [matches when user is unavailable]
+                  <from/> [matches the sender of the message]
+                  <resource/> [matches the receiver's resource]
+                  <subject/> [matches the subject of the message]
+                  <body/> [matches the body of the message]
+                  <show/> [matches the show tag on the receiver's presence]
+                  <type/> [matches the type of the message]
+              </conditions>
+              <actions>
+                  <offline/> [stores the messages offline]
+                  <forward/> [forwards the message to another jid]
+                  <reply/> [sends a reply to the sender of the message]
+                  <continue/> [continues processing of the rules]
+                  <settype/> [changes the type of the message]
+              </actions>
+          </allow>
+      </filter>
+
       <!-- The server vCard -->
 
       <vCard>
