@@ -198,10 +198,8 @@ int dnsrv_fork_and_capture(RESOLVEFUNC f, dns_io di)
      }
      else			/* Child */
      {
-      if(!pth_kill())
-      {
-        log_debug(ZONE,"\n\n\n\n\n\nPTH KILL FAILED MISERABLY\n\n\n\n\n\n");
-      } /* Close unneeded file handles */
+          /* Close unneeded file handles */
+          pth_kill();
 	  close(left_fds[STDOUT_FILENO]);
 	  close(right_fds[STDIN_FILENO]);
 	  /* Start the specified function, passing the in/out descriptors */
