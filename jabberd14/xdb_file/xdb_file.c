@@ -19,6 +19,8 @@
 
 #include <jabberd.h>
 
+#define FILES_PRIME 509
+
 /* 
 gcc -fPIC -shared -o xdb_file.so xdb_file.c -I../src
 
@@ -33,49 +35,108 @@ within the spool, xdb_file will make folders for hostnames it has to save data f
 
 */
 
+typedef struct cacher_struct
+{
+    char *fname;
+    xmlnode file;
+    int lastset;
+} *cacher, _cacher;
+
+typedef struct xdbf_struct
+{
+    char *spool;
+    instance i;
+    int timeout;
+    HASHTABLE cache;
+} *xdbf, _xdbf;
+
+int _xdb_file_purge(void *arg, const void *key, void *data)
+{
+    xdbf xf = (xdbf)arg;
+    cacher c = (cacher)data;
+    int now = time(NULL);
+
+    if((now - c->lastset) > xf->timeout)
+    {
+        log_debug(ZONE,"purging %s",c->fname);
+        ghash_remove(xf->cache,c->fname);
+        xmlnode_free(c->file);
+    }
+
+    return 1;
+}
+
+/* walk the table looking for stale files to expire */
+result xdb_file_purge(void *arg)
+{
+    xdbf xf = (xdbf)arg;
+
+    log_debug(ZONE,"purge check");
+    ghash_walk(xf->cache,_xdb_file_purge,(void *)xf);
+
+    return r_DONE;
+}
 
 /* this function acts as a loader, getting xml data from a file */
-xmlnode xdb_file_load(char *fname)
+xmlnode xdb_file_load(char *host, char *fname, HASHTABLE cache)
 {
-    xmlnode data;
+    xmlnode data = NULL;
+    cacher c;
+    int fd;
 
     log_debug(ZONE,"loading %s",fname);
 
-    data = xmlnode_file(fname);
+    /* first, check the cache */
+    if((c = ghash_get(cache,fname)) != NULL)
+        return c->file;
+
+    /* test the file first, so we can be more descriptive */
+    fd = open(fname,O_RDONLY);
+    if(fd < 0)
+    {
+        log_notice(host,"xdb_file failed to open file %s: %s",fname,strerror(errno));
+    }else{
+        close(fd);
+        data = xmlnode_file(fname);
+    }
 
     /* if there's nothing on disk, create an empty root node */
     if(data == NULL)
+    {
         data = xmlnode_new_tag("xdb");
+    }else{
+        c = pmalloco(xmlnode_pool(data),sizeof(_cacher));
+        c->fname = pstrdup(xmlnode_pool(data),fname);
+        c->lastset = time(NULL);
+        c->file = data;
+        ghash_put(cache,c->fname,c);
+        log_debug(ZONE,"caching %s",c->fname);
+    }
 
     return data;
 }
 
 /* simple utility for concat strings */
-char *xdb_file_full(int create, char *spl, char *host, char *file, char *ext)
+char *xdb_file_full(int create, pool p, char *spl, char *host, char *file, char *ext)
 {
     struct stat s;
+    spool sp = spool_new(p);
     char *ret;
 
     /* path to host-named folder */
-    ret = malloc(strlen(spl) + strlen(host) + strlen(file) + strlen(ext) + 4);
-    *ret = '\0';
-    strcat(ret,spl);
-    strcat(ret,"/");
-    strcat(ret,host);
+    spooler(sp,spl,"/",host,sp);
+    ret = spool_print(sp);
 
     /* ensure that it exists, or create it */
     if(create && stat(ret,&s) < 0 && mkdir(ret, S_IRWXU) < 0)
     {
         log_error(host,"xdb request failed, error accessing spool loaction %s: %s",ret,strerror(errno));
-        free(ret);
         return NULL;
     }
 
     /* full path to file */
-    strcat(ret,"/");
-    strcat(ret,file);
-    strcat(ret,".");
-    strcat(ret,ext);
+    spooler(sp,"/",file,".",ext,sp);
+    ret = spool_print(sp);
 
     return ret;
 }
@@ -83,7 +144,8 @@ char *xdb_file_full(int create, char *spl, char *host, char *file, char *ext)
 /* the callback to handle xdb packets */
 result xdb_file_phandler(instance i, dpacket p, void *arg)
 {
-    char *full, *query, *spl = (char *)arg;
+    char *full;
+    xdbf xf = (xdbf)arg;
     xmlnode file, data;
     int ret = 0, flag_set = 0;
 
@@ -94,23 +156,18 @@ result xdb_file_phandler(instance i, dpacket p, void *arg)
 
     /* is this request specific to a user or global data? use that for the file name */
     if(p->id->user != NULL)
-        full = xdb_file_full(flag_set, spl, p->id->server, p->id->user, "xml");
+        full = xdb_file_full(flag_set, p->p, xf->spool, p->id->server, p->id->user, "xml");
     else
-        full = xdb_file_full(flag_set, spl, p->id->server, "global", "xdb");
+        full = xdb_file_full(flag_set, p->p, xf->spool, p->id->server, "global", "xdb");
 
     if(full == NULL)
         return r_ERR;
 
     /* load the data from disk/cache */
-    file = xdb_file_load(full);
+    file = xdb_file_load(p->host, full, xf->cache);
 
     /* just query the relevant namespace */
-    query = malloc(strlen(p->id->resource) + 8);
-    *query = '\0';
-    strcat(query,"?xdbns=");
-    strcat(query,p->id->resource);
-    data = xmlnode_get_tag(file,query);
-    free(query);
+    data = xmlnode_get_tag(file,spools(p->p,"?xdbns=",p->id->resource,p->p));
 
     if(flag_set)
     {
@@ -136,15 +193,20 @@ result xdb_file_phandler(instance i, dpacket p, void *arg)
         }
     }
 
-    xmlnode_free(file);
-    free(full);
-
     if(ret)
     {
         xmlnode_put_attrib(p->x,"type","result");
         xmlnode_put_attrib(p->x,"to",xmlnode_get_attrib(p->x,"from"));
         xmlnode_put_attrib(p->x,"from",jid_full(p->id));
         deliver(dpacket_new(p->x), NULL); /* dpacket_new() shouldn't ever return NULL */
+
+        /* remove the cache'd item if it was a set or we're not configured to cache */
+        if(xf->timeout == 0 || flag_set)
+        {
+            log_debug(ZONE,"decaching %s",full);
+            ghash_remove(xf->cache,full);
+            xmlnode_free(file);
+        }
         return r_DONE;
     }else{
         return r_ERR;
@@ -153,9 +215,11 @@ result xdb_file_phandler(instance i, dpacket p, void *arg)
 
 void xdb_file(instance i, xmlnode x)
 {
-    char *spl;
+    char *spl, *to;
     xmlnode config;
     xdbcache xc;
+    xdbf xf;
+    int timeout = -1; /* defaults to timeout forever */
 
     log_debug(ZONE,"xdb_file loading");
 
@@ -168,8 +232,20 @@ void xdb_file(instance i, xmlnode x)
         log_error(NULL,"xdb_file: No filesystem spool location configured");
         return;
     }
+    to = xmlnode_get_tag_data(config,"timeout");
+    if(to != NULL)
+        timeout = atoi(to);
 
-    register_phandler(i, o_DELIVER, xdb_file_phandler, (void *)pstrdup(i->p,spl));
+    xf = pmalloco(i->p,sizeof(_xdbf));
+    xf->spool = pstrdup(i->p,spl);
+    xf->timeout = timeout;
+    xf->i = i;
+    xf->cache = ghash_create(FILES_PRIME,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+
+    register_phandler(i, o_DELIVER, xdb_file_phandler, (void *)xf);
+    if(timeout > 0) /* 0 is expired immediately, -1 is cached forever */
+        register_beat(30, xdb_file_purge, (void *)xf);
+
     xmlnode_free(config);
 }
 
