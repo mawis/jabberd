@@ -108,7 +108,6 @@ struct udata_struct
     jsmi si;
     session sessions;
     int scount, ref, admin;
-    ppdb p_cache;
     pool p;
     struct udata_struct *next;
 };
@@ -124,7 +123,7 @@ struct session_struct
     /* general session data */
     jsmi si;
     char *res;
-    jid id, uid;
+    jid id;
     udata u;
     xmlnode presence;
     int priority, roster;

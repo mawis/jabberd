@@ -157,6 +157,7 @@ log_debug(ZONE,"MAPI %X",l);
         case M_HANDLED:
             return 1;
         default:
+            ;
         }
     }
 

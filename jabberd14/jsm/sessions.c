@@ -89,8 +89,6 @@ session js_session_new(jsmi si, dpacket dp)
 
     /* session identity */
     s->id = jid_new(p, jid_full(dp->id));
-    s->uid = jid_new(p, jid_full(dp->id));
-    jid_set(s->uid, NULL, JID_RESOURCE);
     s->route = jid_new(p, jid_full(dp->id));
     snprintf(routeres,9,"%X",s);
     jid_set(s->route, routeres, JID_RESOURCE);
@@ -237,7 +235,7 @@ void _js_session_from(void *arg)
     s->c_out++;
 
     /* make sure we have our from set correctly for outgoing packets */
-    if(jid_cmp(p->from,s->uid) != 0 && jid_cmp(p->from,s->id) != 0)
+    if(jid_cmpx(p->from,s->id,JID_USER|JID_SERVER) != 0)
     {
         /* nope, fix it */
         xmlnode_put_attrib(p->x,"from",jid_full(s->id));
@@ -245,9 +243,9 @@ void _js_session_from(void *arg)
     }
 
     /* if you use to="yourself@yourhost" it's the same as not having a to, the modules use the NULL as a self-flag */
-    if(jid_cmp(p->to,s->uid) == 0)
+    if(jid_cmpx(p->to,s->id,JID_USER|JID_SERVER) == 0)
     {
-        xmlnode_hide_attrib(p->x,"to");
+        /* xmlnode_hide_attrib(p->x,"to"); */
         p->to = NULL;
     }
 
@@ -258,8 +256,8 @@ void _js_session_from(void *arg)
     /* no module handled it, so restore the to attrib to us */
     if(p->to == NULL)
     {
-        xmlnode_put_attrib(p->x,"to",jid_full(s->uid));
-        p->to = jid_new(p->p,jid_full(s->uid));
+        xmlnode_put_attrib(p->x,"to",jid_full(jid_user(s->id)));
+        p->to = jid_new(p->p,jid_full(jid_user(s->id)));
     }
 
     /* pass these to the general delivery function */

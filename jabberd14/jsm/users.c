@@ -63,11 +63,6 @@ int _js_users_del(void *arg, const void *key, void *data)
     log_debug(ZONE,"freeing %s",u->user);
 
     ghash_remove(ht,u->user);
-
-    /* free the data structures */
-    ppdb_free(u->p_cache);
-    /* XXX add back in rates! 
-    rate_free(u->rate); */
     pool_free(u->p);
 
     return 1;

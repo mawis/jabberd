@@ -134,7 +134,7 @@ mreturn mod_roster_out_s10n(mapi m)
     int probeflag, newflag, to, from;
 
     if(m->packet->to == NULL) return M_PASS;
-    if(jid_cmpx(m->s->uid,m->packet->to,JID_USER|JID_SERVER) == 0) return M_PASS; /* vanity complex */
+    if(jid_cmpx(jid_user(m->s->id),m->packet->to,JID_USER|JID_SERVER) == 0) return M_PASS; /* vanity complex */
 
     log_debug("mod_roster","handling outgoing s10n");
 
@@ -198,13 +198,13 @@ mreturn mod_roster_out_s10n(mapi m)
     /* send ourselves a probe from them so they can be immediately informed */
     if(probeflag)
     {
-        item = jutil_presnew(JPACKET__PROBE,jid_full(m->s->uid),NULL);
+        item = jutil_presnew(JPACKET__PROBE,jid_full(jid_user(m->s->id)),NULL);
         xmlnode_put_attrib(item,"from",jid_full(m->packet->to));
         js_deliver(m->si,jpacket_new(item));
     }
 
     /* make sure it's sent from the *user*, not the resource */
-    xmlnode_put_attrib(m->packet->x,"from",jid_full(m->s->uid));
+    xmlnode_put_attrib(m->packet->x,"from",jid_full(jid_user(m->s->id)));
     jpacket_reset(m->packet);
 
     xmlnode_free(roster);
@@ -269,7 +269,7 @@ mreturn mod_roster_out_iq(mapi m)
                 continue;
 
             id = jid_new(m->packet->p,xmlnode_get_attrib(cur,"jid"));
-            if(id == NULL || jid_cmpx(m->s->uid,id,JID_USER|JID_SERVER) == 0) continue;
+            if(id == NULL || jid_cmpx(jid_user(m->s->id),id,JID_USER|JID_SERVER) == 0) continue;
 
             /* zoom to find the existing item in the current roster, and hide it */
             item = mod_roster_get_item(roster, id, &newflag);
