@@ -451,12 +451,17 @@
       <key ip='192.168.1.100'>/path/to/other/cert_and_key.pem</key>
     </ssl>
     -->
+
     <!-- 
-    The following section is to allow or deny IP networks or addressses
-    If no allow section, ALL IPs are allowed to connect if you allow one
-    block, only that block may connect.  
-    NOTE: allow is checked before deny, if an address is allowed in a 
-    denied network, that address will be denied still
+    The following section is used to allow or deny 
+    communications from specified IP networks or 
+    addressses. If there is no <allow/> section, 
+    then *all* IPs will be allowed to connect. If 
+    you allow one block, then only that block may 
+    connect. Note that <allow/> is checked before
+    <deny/>, so if a specific address is allowed 
+    but the network for that address is denied, 
+    then that address will still be denied.
     -->
     <!--
     <allow><ip>127.0.0.0</ip><mask>255.255.255.0</mask></allow>
