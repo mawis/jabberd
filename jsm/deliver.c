@@ -145,7 +145,7 @@ result js_packet(instance i, dpacket p, void *arg)
         if(u == NULL)
         {
             /* no user!?!?! */
-            log_notice(p->host,"Bouncing %s packet intended for nonexistant user %s",xmlnode_get_name(p->x),jid_full(p->id));
+            log_notice(p->host,"Bouncing packet intended for nonexistant user: %s",xmlnode2str(p->x));
             jutil_tofrom(p->x);
             xmlnode_put_attrib(p->x,"type","error");
             xmlnode_put_attrib(p->x,"error","Invalid User");
