@@ -1,94 +1,76 @@
 <jabber>
 
-  <!-- All xdb lookups go here -->
-  <xdb id="xdb file">
-    <host/>
-    <load><xdb_file>xdb_file.so</xdb_file></load>
-    <!-- Change this directory to where you want to store user files -->
-    <xdb_file xmlns="jabberd:xdb_file:config"><spool><jabberd:cmdline flag="s">/var/tmp</jabberd:cmdling></spool></xdb_file>
-  </xdb>
+  <service id="sessions">
 
-  <service id="session manager">
     <!-- change hostname below! -->
     <host><jabberd:cmdline flag="h">localhost</jabberd:cmdline></host>
 
     <load main="jsm">
-      <jsm>jsm.so</jsm>
-      <mod_echo>jsm.so</mod_echo>
-      <mod_roster>jsm.so</mod_roster>
-      <mod_time>jsm.so</mod_time>
-      <mod_vcard>jsm.so</mod_vcard>
-      <mod_version>jsm.so</mod_version>
-      <mod_announce>jsm.so</mod_announce>
-      <mod_agents>jsm.so</mod_agents>
-      <mod_admin>jsm.so</mod_admin>
-      <mod_private>jsm.so</mod_private>
-      <mod_register>jsm.so</mod_register>
-      <mod_presence>jsm.so</mod_presence>
-      <mod_auth>jsm.so</mod_auth>
-      <mod_auth_sha1>jsm.so</mod_auth_sha1>
-      <mod_filter>jsm.so</mod_filter>
+      <jsm>./jsm/jsm.so</jsm>
+      <mod_echo>./jsm/jsm.so</mod_echo>
+      <mod_roster>./jsm/jsm.so</mod_roster>
+      <mod_time>./jsm/jsm.so</mod_time>
+      <mod_vcard>./jsm/jsm.so</mod_vcard>
+      <mod_version>./jsm/jsm.so</mod_version>
+      <mod_announce>./jsm/jsm.so</mod_announce>
+      <mod_agents>./jsm/jsm.so</mod_agents>
+      <mod_admin>./jsm/jsm.so</mod_admin>
+      <mod_private>./jsm/jsm.so</mod_private>
+      <mod_register>./jsm/jsm.so</mod_register>
+      <mod_presence>./jsm/jsm.so</mod_presence>
+      <mod_auth>./jsm/jsm.so</mod_auth>
+      <mod_auth_sha1>./jsm/jsm.so</mod_auth_sha1>
+      <mod_filter>./jsm/jsm.so</mod_filter>
+      <mod_log>./jsm/jsm.so</mod_log>
     </load>
     <jsm xmlns="jabberd:jsm:config">
       <agents>
-        <jabberd:include>agents_list.xml</jabberd:include>
-        <agent jid="aim.jabber.org">
-         <name>AIM transport on jabber.org</name>
-         <description>AIM Transport</description>
-         <service>aim</service>
-         <transport>screenname:</transport>
-         <register/>
-        </agent>
-        <agent jid="conference.jabber.org">
-         <name>conferencing on jabber.org</name>
-         <description>groupchat agent</description>
-         <service>privatechat</service>
-         <register/>
-         <groupchat/>
-        </agent>
-        <agent jid="groups.jabber.org">
-         <name>groupchat 2.0 on jabber.org</name>
-         <description>this agent supports</description>
-         <service>privatechat</service>
-         <register/>
-         <groupchat/>
-        </agent>
-        <agent jid="icq.jabber.org">
-         <name>ICQ transport on jabber.org</name>
-         <description>ICQ Transport</description>
-         <service>icq</service>
-         <transport>UIN #</transport>
-         <register/>
-        </agent>
+       <agent jid="users.jabber.org">
+        <name>Jabber User Directory</name>
+        <description>You may register and create a public searchable profile, and search for other registered Jabber users.</description>
+        <service>jud</service>
+        <register/>
+        <search/>
+       </agent>
       </agents>
       <register/>
+      <log>
+        <file>/tmp/jsession.log</file>
+        <type>session</type>
+      </log>
     </jsm>
   </service>
 
+  <!-- All xdb lookups go here -->
+  <xdb id="xdb">
+    <host/>
+    <load><xdb_file>./xdb_file/xdb_file.so</xdb_file></load>
+    <xdb_file xmlns="jabberd:xdb_file:config"><spool><jabberd:cmdline flag="s">/var/tmp</jabberd:cmdline></spool></xdb_file>
+  </xdb>
+
   <!-- Service to manage incoming client socket connections -->
-  <service id="pthsock client to server manager">
+  <service id="c2s">
     <host>pth-csock.127.0.0.1</host>
-    <load><pthsock_client>pthsock_client.so</pthsock_client></load>
+    <load><pthsock_client>./pthsock/pthsock_client.so</pthsock_client></load>
     <pthcsock xmlns='jabberd:pth-csock:config'>
-      <host>pth-csock.127.0.0.1</host>
       <listen>5222</listen>
     </pthcsock>
   </service>
 
-  <!-- the following two services are for Server to server packets   -->
+
+  <!-- the following two services are for Server to server packets -->
   <!-- external resolver, so that dns lookups don't block the server -->
-  <service id="External DNS resolver">
+  <service id="dnsrv">
     <host/>
-    <load><dnsrv>dnsrv.so</dnsrv></load>
+    <load><dnsrv>./dnsrv/dnsrv.so</dnsrv></load>
     <dnsrv xmlns="jabberd:dnsrv:config">
      <resendhost>s2s-127.0.0.1</resendhost>
     </dnsrv>
   </service>
   <!-- performs server connections can also perform blocking dns lookups -->
-  <!-- note, this service listens on port 5269 for server-to-server      -->
-  <service id="pthsock server to server manager">
+  <service id="s2s">
     <host>s2s-127.0.0.1</host>
-    <load><pthsock_server>pthsock_server.so</pthsock_server></load>
+    <load><pthsock_server>./pthsock/pthsock_server.so</pthsock_server></load>
   </service>
 
 </jabber>

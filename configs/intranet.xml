@@ -1,14 +1,14 @@
 <jabber>
 
   <!-- All xdb lookups go here -->
-  <xdb id="xdb file">
+  <xdb id="xdb">
     <host/>
     <load><xdb_file>xdb_file.so</xdb_file></load>
     <!-- Change this directory to where you want to store user files -->
     <xdb_file xmlns="jabberd:xdb_file:config"><spool><jabberd:cmdline flag="s">/var/tmp</jabberd:cmdline></spool></xdb_file>
   </xdb>
 
-  <service id="session manager">
+  <service id="sessions">
     <!-- change hostname below! -->
     <host><jabberd:cmdline flag="h">localhost</jabberd:cmdline></host>
 
@@ -35,7 +35,7 @@
   </service>
 
   <!-- Service to manage incoming client socket connections -->
-  <service id="pthsock client to server manager">
+  <service id="c2s">
     <host>pth-csock.127.0.0.1</host>
     <load><pthsock_client>pthsock_client.so</pthsock_client></load>
     <pthcsock xmlns='jabberd:pth-csock:config'>

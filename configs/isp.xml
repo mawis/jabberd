@@ -2,14 +2,14 @@
 
   <!-- All xdb lookups go here                           -->
   <!-- TODO: Change this to a mySQL or Oracle connection -->
-  <xdb id="xdb file">
+  <xdb id="xdb">
     <host/>
     <load><xdb_file>xdb_file.so</xdb_file></load>
     <!-- Change this directory to where you want to store user files -->
     <xdb_file xmlns="jabberd:xdb_file:config"><spool>/var/tmp</spool></xdb_file>
   </xdb>
 
-  <service id="session manager">
+  <service id="sessions">
     <host>ispname.com</host>
     <host>virtualhost.com</host>
     <host>otherhosts.com</host>
@@ -43,7 +43,7 @@
 
   <!-- Service to manage incoming client socket connections -->
   <!-- TODO: Change this to polld                           -->
-  <service id="pthsock client to server manager">
+  <service id="c2s">
     <host>pth-csock.127.0.0.1</host>
     <load><pthsock_client>pthsock_client.so</pthsock_client></load>
     <pthcsock xmlns='jabberd:pth-csock:config'>
@@ -54,7 +54,7 @@
 
   <!-- the following two services are for Server to server packets   -->
   <!-- external resolver, so that dns lookups don't block the server -->
-  <service id="External DNS resolver">
+  <service id="dnsrv">
     <host/>
     <load><dnsrv>dnsrv.so</dnsrv></load>
     <dnsrv xmlns="jabberd:dnsrv:config">
@@ -63,7 +63,7 @@
   </service>
   <!-- performs server connections can also perform blocking dns lookups -->
   <!-- note, this service listens on port 5269 for server-to-server      -->
-  <service id="pthsock server to server manager">
+  <service id="s2s">
     <host>s2s-127.0.0.1</host>
     <load><pthsock_server>pthsock_server.so</pthsock_server></load>
   </service>
