@@ -1,3 +1,8 @@
+2005-02-28  Matthias Wimmer  <m@tthias.net>
+
+    * pthsock/client.c: support for the register stream feature
+    * dialback/dialback_in.c: fixed problem if compiled without SSL support
+
 2005-02-27  Matthias Wimmer  <m@tthias.net>
 
     * configure.in: Check for existence of crypt.h header file

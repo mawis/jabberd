@@ -148,6 +148,7 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
     /* incoming starttls */
     if (j_strcmp(xmlnode_get_name(x), "starttls") == 0 && j_strcmp(xmlnode_get_attrib(x, "xmlns"), NS_XMPP_TLS) == 0) {
 	/* starting TLS possible? */
+#ifdef HAVE_SSL
 	if (mio_ssl_starttls_possible(m, c->we_domain)) {
 	    /* ACK the start */
 	    xmlnode proceed = xmlnode_new_tag("proceed");
@@ -166,12 +167,15 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
 	    
 	    return;
 	} else {
+#endif
 	    /* NACK */
 	    mio_write(m, NULL, "<failure xmlns='" NS_XMPP_TLS "'/></stream:stream>", -1);
 	    mio_close(m);
 	    xmlnode_free(x);
 	    return;
+#ifdef HAVE_SSL
 	}
+#endif
     }
 
     /* incoming verification request, check and respond */
@@ -335,12 +339,14 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x)
     /* write stream features */
     if (version >= 1) {
 	xmlnode features = xmlnode_new_tag("stream:features");
+#ifdef HAVE_SSL
 	if (mio_ssl_starttls_possible(m, c->we_domain)) {
 	    xmlnode starttls = NULL;
 
 	    starttls = xmlnode_insert_tag(features, "starttls");
 	    xmlnode_put_attrib(starttls, "xmlns", NS_XMPP_TLS);
 	}
+#endif
 	mio_write(m, features, NULL, 0);
     }
 }

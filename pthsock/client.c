@@ -69,10 +69,11 @@ typedef struct smi_st
     xht users;
     xmlnode cfg;
     char *host;
+    int register_feature;	/**< should we advertise the register stream feature? */
 } *smi, _smi;
 
 typedef enum { state_UNKNOWN, state_AUTHD } user_state;
-typedef struct cdata_st
+typedef struct edata_st
 {
     smi si;
     int aliased;
@@ -382,6 +383,14 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
 	    }
 #endif /* HAVE_SSL */
 
+	    /* advertise registration of accounts? */
+	    if (cd->si->register_feature != 0) {
+		xmlnode register_element = NULL;
+
+		register_element = xmlnode_insert_tag(features, "register");
+		xmlnode_put_attrib(register_element, "xmlns", NS_REGISTER_FEATURE);
+	    }
+
 	    /* Non-SASL Authentication JEP-0078 */
 	    xmlnode_put_attrib(xmlnode_insert_tag(features, "auth"), "xmlns", NS_IQ_AUTH);
 
@@ -415,6 +424,7 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
             xmlnode q = xmlnode_get_tag(x, "query");
 	    if (j_strcmp(xmlnode_get_name(x), "starttls") == 0 && j_strcmp(xmlnode_get_attrib(x, "xmlns"), NS_XMPP_TLS) == 0) {
 		/* starting TLS possible? */
+#ifdef HAVE_SSL
 		if (mio_ssl_starttls_possible(m, cd->session_id->server)) {
 		    /* ACK the start */
 		    xmlnode proceed = xmlnode_new_tag("proceed");
@@ -427,10 +437,13 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
 			mio_close(m);
 		    }
 		} else {
+#endif
 		    /* NACK */
 		    mio_write(m, NULL, "<failure xmlns='" NS_XMPP_TLS "'/></stream:stream>", -1);
 		    mio_close(m);
+#ifdef HAVE_SSL
 		}
+#endif
 
 		/* free the <starttls/> element and return */
 		xmlnode_free(x);
@@ -600,6 +613,7 @@ void pthsock_client(instance i, xmlnode x)
     s__i->i            = i;
     s__i->aliases      = xhash_new(7);
     s__i->users        = xhash_new(503);
+    s__i->register_feature = 1;
 
     /* get the config */
     xc = xdb_cache(i);
@@ -652,7 +666,9 @@ void pthsock_client(instance i, xmlnode x)
             k->penalty = j_atoi(xmlnode_get_tag_data(cur, "penalty"), KARMA_PENALTY);
             k->reset_meter = j_atoi(xmlnode_get_tag_data(cur, "resetmeter"), KARMA_RESETMETER);
             set_karma = 1; /* set to true */
-        }
+        } else if (j_strcmp(xmlnode_get_name(cur), "noregister") == 0) {
+	    s__i->register_feature = 0;
+	}
     }
 
     /* start listening */
