@@ -9,6 +9,18 @@ void loader_static(void)
     /* call static modules */
     /* gen_foo(); io_foo(); ... */
     base_host();
+    base_accept();
+    base_cache();
+    base_connect();
+    base_exec();
+    base_file();
+    base_fork();
+    base_format();
+    base_load();
+    base_logtype();
+    base_ns();
+    base_to();
+    base_stderr();
 }
 
 void loader_dso(char *so, char *init)
