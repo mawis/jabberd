@@ -197,7 +197,7 @@ void base_exec_handle_xstream_event(int type, xmlnode x, void* arg)
             /* Log that this component sent an invalid namespace... */
             log_warn(pi->inst->id, "Recv'd invalid namespace. Stopping component.");
             /* Notify component with stream:error */
-            pth_write(pi->out, SERROR_NAMESPACE, strlen(SERROR_NAMESPACE)); 
+            MIO_WRITE_FUNC(pi->out, SERROR_NAMESPACE, strlen(SERROR_NAMESPACE)); 
             pi->state = p_CLOSED;
             xmlnode_free(x);
             return;
@@ -206,7 +206,7 @@ void base_exec_handle_xstream_event(int type, xmlnode x, void* arg)
 	  headernode = xstream_header("jabber:component:exec",NULL, pi->inst->id);
       header     = xstream_header_char(headernode);
 	  /* Return a fake root tag */
-	  pth_write(pi->out, header, strlen(header));
+	  MIO_WRITE_FUNC(pi->out, header, strlen(header));
       xmlnode_free(headernode);
 	  /* Hook the event for delivering messages to the coprocess */
 	  pi->e_write = pth_event(PTH_EVENT_MSG, pi->write_queue);  
@@ -252,7 +252,7 @@ void* base_exec_process_io(void* threadarg)
 	  /* Data is available from coprocess */
 	  if (pth_event_occurred(pi->e_read))
 	  {
-	       readlen = pth_read(pi->in, readbuf, sizeof(readbuf));
+	       readlen = MIO_READ_FUNC(pi->in, readbuf, sizeof(readbuf));
 	       if (readlen <= 0)
 	       {
 		    log_debug(ZONE,"base_exec_process_io Read error on process!\n");
@@ -280,7 +280,7 @@ void* base_exec_process_io(void* threadarg)
 	       writebuf = xmlnode2tstr(pwb->packet->x);
 
 	       /* Write the raw buffer */
-	       if (pth_write(pi->out, writebuf, strlen(writebuf)) < 0)
+	       if (MIO_WRITE_FUNC(pi->out, writebuf, strlen(writebuf)) < 0)
 	       {
 		    /* FIXME: it would be cool to make this completely safe by reinserting
 		       the message back in the queue until the the process is restarted */
