@@ -1,4 +1,4 @@
-#!/bin/sh
+1#!/bin/sh
 ##
 # Copyright 2000 Thomas "temas" Muldowney and The Jabber Team
 #   Feel free to take parts of this and use it.  It's a quicky
@@ -27,7 +27,7 @@ if [ -n "$CC" ]; then
 else
     CC="gcc";
 fi;
-CFLAGS="$CFLAGS -g -Wall -fPIC -I. -I.."
+CFLAGS="$CFLAGS -g -Wall -I. -I.."
 MCFLAGS="$MCFLAGS -shared"
 LDFLAGS="$LDFLAGS"
 LIBS="$LIBS"
@@ -111,7 +111,7 @@ printf "Setting Build Parameters..."
 hosttype=`uname -s`
 case $hosttype in
     Linux)
-        CFLAGS="$CFLAGS"
+        CFLAGS="$CFLAGS -fPIC"
         LIBS="$LIBS -ldl -lresolv"
         SLIBS="$SLIBS /usr/lib/libresolv.a";
         XLDFLAGS="$XLDFLAGS -Wl,--export-dynamic";;
@@ -120,17 +120,18 @@ case $hosttype in
         if [ -n "$LDTEST" ]; then
             XLDFLAGS="$XLDFLAGS -Wl,-export-dynamic"
         fi
-        CFLAGS="$CFLAGS -D_REENTRANT"
+        CFLAGS="$CFLAGS -fPIC -D_REENTRANT"
         SLIBS="$SLIBS /usr/lib/libresolv.a";
         LIBS="$LIBS -ldl -lsocket -lnsl -lresolv";;
     FreeBSD)
+	CFLAGS="$CFLAGS -fPIC"
         XLDFLAGS="$XLDFLAGS -Wl,-E";;
     CYGWIN*)
         sh ./cygwin/setup.sh
         CYGWIN="1";;
     Darwin)
         CC="cc"
-        CFLAGS="$CFLAGS -DTMZONE"
+        CFLAGS="$CFLAGS -fPIC -DTMZONE"
         MCFLAGS="-bundle -undefined suppress -flat_namespace";
         LIBS="$LIBS -ldl";;
     AIX)
@@ -141,7 +142,7 @@ _mio_xml_parser
 _pool_new
 _pool_new_heap
 EOF
-CFLAGS="$CFLAGS -DMAXDNAME=1025"
+CFLAGS="$CFLAGS -fPIC -DMAXDNAME=1025"
 MCFLAGS="$MCFLAGS -Wl,-G"
 XLDFLAGS="$XLDFLAGS -Wl,-brtl,-bexpall,-bE:jabberd.exp";;
 
