@@ -1,7 +1,6 @@
 jabberd 1.4.4
 =============
 - fix cygwin build
-- clean xdbfiletool, libtool complains that we link against a module
 
 later
 =====

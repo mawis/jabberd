@@ -1,3 +1,10 @@
+2005-03-30  Matthias Wimmer  <m@tthias.net>
+
+    * xdb_file/xdbfiletool.c: don't link against libjabberdxdbfile, but load
+    	the module at runtime
+    * xdb_file/jabberdxdbfile.h: header not used anymore
+    * xdb_file/xdb_file.c: same
+
 2005-03-29  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/lib/jabberdlib.h: optional history storage

@@ -39,7 +39,7 @@
  * 
  * --------------------------------------------------------------------------*/
  
-#include <jabberdxdbfile.h>
+#include <jabberd.h>
 #include <dirent.h>
 
 #define FILES_PRIME 509
