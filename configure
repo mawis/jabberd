@@ -103,7 +103,12 @@ if [ -n "$PTH_CFLAGS" ]; then
     SLIBS="$SLIBS $PTH_LIBDIR/libpth.a";
     printf "         Done.\n";
 else
+    printf "____________________________________________________________\n";
+    printf "GNU pth is not currently installed.\n";
+    printf "GNU pth is required for building Jabberd.\n";
+    printf "____________________________________________________________\n";
     if [ -d "jabberd/pth-1.4.0" ]; then
+        printf "pth-1.4.0 found.  Configuring...\n";
         opwd=`pwd`
         cd jabberd/pth-1.4.0;
         ./configure || (printf "Error Configuring pth"; exit 1);
@@ -112,6 +117,17 @@ else
         PTHP=`pwd`"/jabberd/pth-1.4.0";
         PLINK="$PTHP/pth_*.o";
         CFLAGS="$CFLAGS -I`pwd`/jabberd/pth-1.4.0";
+        printf "\nGNU pth-1.4.0 configured.  To install:\n\n";
+        printf "\t________________________________________\n";
+        printf "\tcd $PTHP\n";
+        printf "\tmake\n";
+        printf "\tmake test\n";
+        printf "\tmake install\n";
+        printf "\t________________________________________\n";
+        printf "\nNOTE:  If installing under Cygwin, it may be necessary to";
+        printf "\n       install pth first, then redo ./configure before";
+        printf "\n       doing a make on jabberd.\n";
+        printf "____________________________________________________________\n";
     else
         printf "          Error.\n\n No version of PTH is available on this system\nhttp://www.gnu.org/software/pth/";
     fi

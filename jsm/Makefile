@@ -18,6 +18,10 @@ jsm_OBJECTS = \
 	users.o \
 	util.o
 
+ifeq ($(__CYGWIN__),1)
+jsm_OBJECTS+= ../cygwin/dllinit.o
+endif
+
 jsm_EXOBJECTS = \
 	modules/mod_admin.o \
 	modules/mod_announce.o \
@@ -53,7 +57,14 @@ clean: clean-recursive
 $(jsm_OBJECTS): $(jsm_HEADERS)
 
 all-local: $(jsm_OBJECTS) $(jsm_HEADERS)
-	$(CC) $(CFLAGS) $(MCFLAGS) -o jsm.so $(jsm_OBJECTS) $(jsm_EXOBJECTS) $(LDFLAGS) $(LIBS) -lcrypt
+ifeq ($(__CYGWIN__),1)
+# Make .def file:
+	echo EXPORTS > jsm.def
+	nm $(jsm_OBJECTS) $(jsm_EXOBJECTS) $(PTHLIB) | grep '^........ [T] _' | sed 's/[^_]*_//' | sort >> jsm.def
+	dllwrap --def jsm.def --driver-name $(CC) -o jsm.dll $(jsm_OBJECTS) $(jsm_EXOBJECTS) ../jabberd/jabberd.a $(LDFLAGS)
+else
+	$(CC) $(CFLAGS) $(MCFLAGS) -o jsm.so $(jsm_OBJECTS) $(jsm_EXOBJECTS) $(LDFLAGS) $(LIBS)
+endif
 
 static: static-recursive
 
@@ -83,7 +94,11 @@ check-recursive installcheck-recursive info-recursive static-recursive:
 	fi; test -z "$$fail"
 
 clean-local:
+ifeq ($(__CYGWIN__),1)
+	rm -f $(jsm_OBJECTS) jsm.dll *.a *.def *.exp
+else
 	rm -f $(jsm_OBJECTS) jsm.so
+endif
 
 mostlyclean-recursive clean-recursive distclean-recursive \
 maintainer-clean-recursive:
