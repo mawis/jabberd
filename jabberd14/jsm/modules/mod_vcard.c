@@ -51,7 +51,7 @@ mreturn mod_vcard_jud(mapi m)
 
 mreturn mod_vcard_set(mapi m, void *arg)
 {
-    xmlnode vcard, cur;
+    xmlnode vcard, cur, judreg;
 
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
     if(m->packet->to != NULL || !NSCHECK(m->packet->iq,NS_VCARD)) return M_PASS;
@@ -94,10 +94,10 @@ mreturn mod_vcard_set(mapi m, void *arg)
         {
             if(j_strcmp(xmlnode_get_tag_data(cur,"service"),"jud") != 0) continue;
 
-            vcard = jutil_iqnew(JPACKET__GET,NS_REGISTER);
-            xmlnode_put_attrib(vcard,"to",xmlnode_get_attrib(cur,"jid"));
-            xmlnode_put_attrib(vcard,"id","mod_vcard_jud");
-            js_session_from(m->s,jpacket_new(vcard));
+            judreg = jutil_iqnew(JPACKET__GET,NS_REGISTER);
+            xmlnode_put_attrib(judreg,"to",xmlnode_get_attrib(cur,"jid"));
+            xmlnode_put_attrib(judreg,"id","mod_vcard_jud");
+            js_session_from(m->s,jpacket_new(judreg));
         }
         break;
     default:
