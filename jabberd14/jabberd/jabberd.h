@@ -136,7 +136,7 @@ typedef struct xdbcache_struct
     jid owner;
     int sent;
     int preblock;
-    pth_cond_t *cond;
+    pth_cond_t cond;
     pth_mutex_t mutex;
     struct xdbcache_struct *prev;
     struct xdbcache_struct *next;

@@ -79,7 +79,7 @@ result xdb_results(instance id, dpacket p, void *arg)
 
     /* set the flag to not block, and signal */
     curx->preblock = 0;
-    pth_cond_notify(curx->cond, FALSE);
+    pth_cond_notify(&(curx->cond), FALSE);
 
     /* Now release the master xc mutex */
     pth_mutex_release(&(xc->mutex));
@@ -137,9 +137,11 @@ result xdb_thump(void *arg)
             cur->data = NULL;
 
             /* free the thread! */
-            cur->preblock = 0;
-            if(cur->cond != NULL)
-                pth_cond_notify(cur->cond, FALSE);
+            if (cur->preblock)
+            {
+                cur->preblock = 0;
+                pth_cond_notify(&(cur->cond), FALSE);
+            }
 
             cur = next;
             continue;
@@ -186,7 +188,7 @@ xmlnode xdb_get(xdbcache xc, jid owner, char *ns)
 {
     _xdbcache newx;
     xmlnode x;
-    pth_cond_t cond = PTH_COND_INIT;
+    //pth_cond_t cond = PTH_COND_INIT;
 
     if(xc == NULL || owner == NULL || ns == NULL)
     {
@@ -202,7 +204,7 @@ xmlnode xdb_get(xdbcache xc, jid owner, char *ns)
     newx.owner = owner;
     newx.sent = time(NULL);
     newx.preblock = 1; /* flag */
-    newx.cond = &cond;
+    pth_cond_init(&(newx.cond));
 
     /* in the future w/ real threads, would need to lock xc to make these changes to the ring */
     pth_mutex_acquire(&(xc->mutex), FALSE, NULL);
@@ -216,7 +218,8 @@ xmlnode xdb_get(xdbcache xc, jid owner, char *ns)
     xdb_deliver(xc->i, &newx);
 
     log_debug(ZONE,"xdb_get() waiting for %s %s",jid_full(owner),ns);
-    pth_cond_await(&(newx.cond), &(xc->mutex), NULL); /* blocks thread */
+    if (newx.preblock)
+        pth_cond_await(&(newx.cond), &(xc->mutex), NULL); /* blocks thread */
     pth_mutex_release(&(xc->mutex));
 
     /* we got signalled */
@@ -239,7 +242,6 @@ xmlnode xdb_get(xdbcache xc, jid owner, char *ns)
 int xdb_act(xdbcache xc, jid owner, char *ns, char *act, char *match, xmlnode data)
 {
     _xdbcache newx;
-    pth_cond_t cond = PTH_COND_INIT;
 
     if(xc == NULL || owner == NULL || ns == NULL)
     {
@@ -257,7 +259,7 @@ int xdb_act(xdbcache xc, jid owner, char *ns, char *act, char *match, xmlnode da
     newx.owner = owner;
     newx.sent = time(NULL);
     newx.preblock = 1; /* flag */
-    newx.cond = &cond;
+    pth_cond_init(&(newx.cond));
 
     /* in the future w/ real threads, would need to lock xc to make these changes to the ring */
     pth_mutex_acquire(&(xc->mutex), FALSE, NULL);
@@ -272,7 +274,9 @@ int xdb_act(xdbcache xc, jid owner, char *ns, char *act, char *match, xmlnode da
 
     /* wait for the condition var */
     log_debug(ZONE,"xdb_set() waiting for %s %s",jid_full(owner),ns);
-    pth_cond_await(&(newx.cond), &(xc->mutex), NULL); /* blocks thread */
+    /* preblock is set to 0 if it beats us back here */
+    if (newx.preblock)
+        pth_cond_await(&(newx.cond), &(xc->mutex), NULL); /* blocks thread */
     pth_mutex_release(&(xc->mutex));
 
     /* we got signalled */
