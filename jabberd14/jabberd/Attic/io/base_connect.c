@@ -115,7 +115,7 @@ void base_connect_handle_xstream_event(int type, xmlnode x, void* arg)
      conn_info ci  = (conn_info)arg;
      xmlnode   cur = NULL;
      char*     strbuf = NULL;
-     char*     hashbuf;      
+     char     hashbuf[41];      
 
      switch(type)
      {
