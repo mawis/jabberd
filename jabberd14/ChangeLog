@@ -1,9 +1,18 @@
+2004-07-23  Matthias Wimmer  <m@tthias.net>
+
+    * dialback/dialback.c: allow clustering of s2s components
+    * dialback/dialback_in.c: same
+    * dialback/dialback_out.c: same
+    * dnsrv/dnsrv.c: same
+    * jabber.xml.dist.in: same
+
 2004-07-15  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/lib/base64.c: moved str_b64decode from str.c to base64.c
     * jabberd/lib/str.c: same
     * jabberd/lib/jid.c: free the caching strcuture on server shutdown
     * jabberd/lib/pool.c: do not try to allocate memory indefinitely
+    * man/jabberd.8.in: documented exit states
 
 2004-07-07  Matthias Wimmer  <m@tthias.net>
 

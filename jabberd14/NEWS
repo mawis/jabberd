@@ -21,3 +21,7 @@
       support for SSL
     * support for legacy jabberd 1.0 server to server communication is now
       disabled by default as it has not protection against identity spoofing
+    * jabberd14 now supports clustering of the s2s component. The distribution
+      among the components for incoming connections has to be managed using
+      DNS records. For outgoing connections the DNS resolver (dnsrv) is
+      responsible for distributing the connections among the components

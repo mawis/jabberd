@@ -1,4 +1,4 @@
-.TH jabberd 8 "26 Jun 2004" "@VERSION@" "jabberd14 project"
+.TH jabberd 8 "15 Jul 2004" "@VERSION@" "jabberd14 project"
 .SH NAME
 jabberd \- jabberd daemon
 .SH SYNOPSIS
@@ -38,6 +38,16 @@ Limit the debugging output to a given set of zones in the source code.
 Comma separated list of zones. Zones are the file names of the source
 files without the extension. (E.g. debugging statements in 'jabberd.c'
 correspond to the zone 'jabberd'.)
+.SS Exit states
+.TP
+.B 0
+jabberd exited normally
+.TP
+.B 1
+jabberd exited while starting out, probably the configuration is broken
+.TP
+.B 999
+jabberd exited because the server ran up of memory
 .SH SEE ALSO
 .BR jabber.xml (5)
 .SH AUTHOR
