@@ -9,6 +9,9 @@ all: all-recursive
 
 clean: clean-recursive
 
+install:
+	printf "\n\nNo actual make install, you just run it out of the directory!\n"
+
 all-local:
 
 install-local:
