@@ -127,8 +127,8 @@ typedef struct
      pstate        state;	   /* Process state flag */
      pool          mempool;	   /* Memory pool for this structt */
      instance      inst;	   /* Instance this coprocess is assoc. with */
-     int           stdin;	   /* Coprocess stdin filehandle */
-     int           stdout;	   /* "     "   stdout "      " */
+     int           in;	   /* Coprocess stdin filehandle */
+     int           out;	   /* "     "   stdout "      " */
      pth_msgport_t write_queue;	   /* Queue of write_buf packets which need to be written */
      pth_event_t   e_write;	   /* Event set when data is available to be written */
      pth_event_t   e_read;	   /* Event set when data is available to be read */
@@ -168,7 +168,7 @@ void base_exec_handle_xstream_event(int type, xmlnode x, void* arg)
      {
      case XSTREAM_ROOT:
 	  /* Return a fake root tag */
-	  pth_write(pi->stdout, "<root>\n", strlen("<root>\n"));
+	  pth_write(pi->out, "<root>\n", strlen("<root>\n"));
 	  /* Hook the event for delivering messages to the coprocess */
   	  pi->e_write = pth_event(PTH_EVENT_MSG, pi->write_queue);  
   	  pi->events  = pth_event_concat(pi->e_read, pi->e_write, NULL);  
@@ -199,7 +199,7 @@ void* base_exec_process_io(void* threadarg)
      char*             writebuf;   /* Raw buffer to write */
      
      /* Setup event ring for this coprocess */
-     pi->e_read  = pth_event(PTH_EVENT_FD|PTH_UNTIL_FD_READABLE, pi->stdin);
+     pi->e_read  = pth_event(PTH_EVENT_FD|PTH_UNTIL_FD_READABLE, pi->in);
      pi->events  = pth_event_concat(pi->e_read, NULL);
 
      /* Allocate an xstream for this coprocess */
@@ -211,7 +211,7 @@ void* base_exec_process_io(void* threadarg)
 	  /* Data is available from coprocess */
 	  if (pth_event_occurred(pi->e_read))
 	  {
-	       readlen = pth_read(pi->stdin, readbuf, sizeof(readbuf));
+	       readlen = pth_read(pi->in, readbuf, sizeof(readbuf));
 	       if (readlen <= 0)
 	       {
 		    log_debug(ZONE,"base_exec_process_io Read error on process!\n");
@@ -231,7 +231,7 @@ void* base_exec_process_io(void* threadarg)
 	       writebuf = xmlnode2tstr(pwb->packet->x);
 
 	       /* Write the raw buffer */
-	       if (pth_write(pi->stdout, writebuf, strlen(writebuf)) < 0)
+	       if (pth_write(pi->out, writebuf, strlen(writebuf)) < 0)
 	       {
 		    /* FIXME: it would be cool to make this completely safe by reinserting
 		       the message back in the queue until the the process is restarted */
@@ -250,8 +250,8 @@ void* base_exec_process_io(void* threadarg)
      pth_waitpid(pi->pid, &retcode, 0);
 
      /* Cleanup... */
-     close(pi->stdout);
-     close(pi->stdin);
+     close(pi->out);
+     close(pi->in);
      pth_event_free(pi->e_read, PTH_FREE_THIS);
      pth_event_free(pi->e_write, PTH_FREE_THIS);
 
@@ -259,7 +259,7 @@ void* base_exec_process_io(void* threadarg)
 	if the server is in the middle of shutting down */
 
      /* Exec and capture the STDIN/STDOUT */
-     pi->pid = exec_and_capture(pi->args, &(pi->stdin), &(pi->stdout));
+     pi->pid = exec_and_capture(pi->args, &(pi->in), &(pi->out));
 
      /* Recreate the thread */
      pth_spawn(PTH_ATTR_DEFAULT, base_exec_process_io, (void*) pi);
@@ -270,7 +270,7 @@ void* base_exec_process_io(void* threadarg)
 result base_exec_config(instance id, xmlnode x, void *arg)
 {
     process_info pi = NULL;
-    int   stdin, stdout;
+    int   in, out;
 	  
     if(id == NULL)
     {	 
@@ -288,8 +288,8 @@ result base_exec_config(instance id, xmlnode x, void *arg)
     pi = pmalloco(id->p, sizeof(_process_info));
     pi->inst        = id;
     pi->mempool     = id->p;
-    pi->stdin       = stdin;
-    pi->stdout      = stdout;
+    pi->in          = in;
+    pi->out         = out;
     pi->write_queue = pth_msgport_create(id->id);   
     pi->state       = p_OPEN;
 
@@ -297,7 +297,7 @@ result base_exec_config(instance id, xmlnode x, void *arg)
     pi->args = tokenize_args(pi->mempool, xmlnode_get_data(x));
 
     /* Exec and capture the STDIN/STDOUT of the child process */
-    pi->pid = exec_and_capture(pi->args, &(pi->stdin), &(pi->stdout));
+    pi->pid = exec_and_capture(pi->args, &(pi->in), &(pi->out));
 
     /* Spawn a new thread to handle IO for this coprocess */
     pth_spawn(PTH_ATTR_DEFAULT, base_exec_process_io, (void*) pi);
