@@ -173,7 +173,7 @@ result base_dynamic_config(instance i, xmlnode x, void *arg)
         return r_PASS;
     }
 
-    log_debug(ZONE, "base_dynamic configuring instance %s", i->id);
+    log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_dynamic configuring instance %s", i->id);
 
     if(i->type != p_NORM)
     {
@@ -194,6 +194,6 @@ result base_dynamic_config(instance i, xmlnode x, void *arg)
 
 void base_dynamic(void)
 {
-    log_debug(ZONE,"base_dynamic loading...");
+    log_debug2(ZONE, LOGT_INIT, "base_dynamic loading...");
     register_config("dynamic",base_dynamic_config,NULL);
 }

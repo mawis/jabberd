@@ -46,7 +46,7 @@ int mod_auth_0k_set(mapi m, jid id, char *hash, char *token, char *sequence)
 
     if(id == NULL || hash == NULL || token == NULL || sequence == NULL) return 1;
 
-    log_debug(ZONE,"saving 0k data");
+    log_debug2(ZONE, LOGT_DELIVER|LOGT_AUTH, "saving 0k data");
 
     /* when this is a new registration and in case there is no mod_auth_plain, we need to ensure the NS_AUTH flag exists */
     if(m->user == NULL)
@@ -55,7 +55,7 @@ int mod_auth_0k_set(mapi m, jid id, char *hash, char *token, char *sequence)
         { /* cool, they exist */
             xmlnode_free(x);
         }else{ /* make them exist with an empty password */
-            log_debug(ZONE,"NS_AUTH flag doesn't exist, creating");
+            log_debug2(ZONE, LOGT_AUTH, "NS_AUTH flag doesn't exist, creating");
             x = xmlnode_new_tag_pool(m->packet->p,"password");
             xmlnode_put_attrib(x,"xmlns",NS_AUTH);
             if(xdb_set(m->si->xc, id, NS_AUTH, x))
@@ -81,7 +81,7 @@ int mod_auth_0k_reset(mapi m, jid id, char *pass)
 
     if(pass == NULL) return 1;
 
-    log_debug(ZONE,"resetting 0k variables");
+    log_debug2(ZONE, LOGT_AUTH, "resetting 0k variables");
 
     /* figure out how many sequences to generate */
     seqs = xmlnode_get_tag_data(js_config(m->si, "mod_auth_0k"),"sequences");
@@ -115,7 +115,7 @@ mreturn mod_auth_0k_go(mapi m, void *enable)
           (pass = xmlnode_get_tag_data(m->packet->iq,"password")) == NULL)
         return M_PASS;
 
-    log_debug(ZONE,"checking");
+    log_debug2(ZONE, LOGT_AUTH, "checking");
 
     /* first we need to see if this user is using or can use 0k */
     if((xdb = xdb_get(m->si->xc, m->user->id, NS_AUTH_0K)) == NULL)
@@ -151,7 +151,7 @@ mreturn mod_auth_0k_go(mapi m, void *enable)
     /* by this point if there's no c_hash, then there is a pass, and we need to generate the right c_hash */
     if(c_hash == NULL && enable)
     {
-        log_debug(ZONE,"generating our own 0k from the plaintext password to match the stored vars");
+        log_debug2(ZONE, LOGT_AUTH, "generating our own 0k from the plaintext password to match the stored vars");
         c_hash = pmalloc(m->packet->p,sizeof(char)*41);
         /* first, hash the pass */
         shahash_r(pass,c_hash);
@@ -161,7 +161,7 @@ mreturn mod_auth_0k_go(mapi m, void *enable)
         for(i = 1; i < sequence; i++, shahash_r(c_hash,c_hash));
     }
 
-    log_debug("mod_auth_0k","got client hash %s for sequence %d and token %s",c_hash,sequence,token);
+    log_debug2(ZONE, LOGT_AUTH, "got client hash %s for sequence %d and token %s",c_hash,sequence,token);
 
     /* only way this passes is if they got a valid get result from above, and had the pass to generate this new hash */
     if(j_strcmp(shahash(c_hash), hash) != 0)
@@ -248,7 +248,7 @@ void mod_auth_0k(jsmi si)
 {
     void *enable = 0;
 
-    log_debug(ZONE,"there goes the neighborhood");
+    log_debug2(ZONE, LOGT_AUTH, "there goes the neighborhood");
 
     /* check once for enabling plaintext->0k auth */
     if(js_config(si, "mod_auth_0k/enable_plaintext") != NULL)

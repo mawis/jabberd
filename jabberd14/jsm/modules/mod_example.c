@@ -79,7 +79,7 @@ mreturn mod_example_server(mapi m, void *arg)
     /* second, is this message sent to the right resource? */
     if(m->packet->to->resource == NULL || strncasecmp(m->packet->to->resource,"example",7) != 0) return M_PASS;
 
-    log_debug("mod_example","handling example request from %s",jid_full(m->packet->from));
+    log_debug2(ZONE, LOGT_DELIVER, "handling example request from %s",jid_full(m->packet->from));
 
     /* switch the to/from headers, using a utility */
     jutil_tofrom(m->packet->x);
@@ -122,8 +122,9 @@ mreturn mod_example_generic(mapi m, void *arg)
     /* second, you usually validate that it is a valid request, or one relevant to what you want to do */
     if( /* some condition */ 0) return M_PASS;
 
-    /* it's usually useful at this point to add some debugging output, the first argument ZONE includes the mod_example.c:123, the rest is the same as a printf */
-    log_debug(ZONE,"handling example request from %s",jid_full(m->packet->from));
+    /* it's usually useful at this point to add some debugging output, the first argument ZONE includes the mod_example.c:127,
+     * the second argument sepecifies a category of debugging areas, the rest is the same as a printf */
+    log_debug2(ZONE, LOGT_DELIVER, "handling example request from %s",jid_full(m->packet->from));
 
     /* here you can perform some logic on the packet, modifying it, and free'ing or delivering it elsewhere */
 

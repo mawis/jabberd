@@ -90,7 +90,7 @@ char *dialback_merlin(pool p, char *secret, char *to, char *challenge)
     shahash_r(spools(p, res, to, p),        res);
     shahash_r(spools(p, res, challenge, p), res);
 
-    log_debug(ZONE,"merlin casts his spell(%s+%s+%s) %s",secret,to,challenge,res);
+    log_debug2(ZONE, LOGT_AUTH, "merlin casts his spell(%s+%s+%s) %s",secret,to,challenge,res);
     return res;
 }
 
@@ -145,7 +145,7 @@ void _dialback_miod_hash_cleanup(void *arg)
     if(xhash_get(mdc->ht,jid_full(mdc->key)) == mdc->md)
         xhash_zap(mdc->ht,jid_full(mdc->key));
 
-    log_debug(ZONE,"miod cleaning out socket %d with key %s to hash %X",mdc->md->m->fd, jid_full(mdc->key), mdc->ht);
+    log_debug2(ZONE, LOGT_CLEANUP|LOGT_AUTH, "miod cleaning out socket %d with key %s to hash %X",mdc->md->m->fd, jid_full(mdc->key), mdc->ht);
     /* cool place for logging, eh? interesting way of detecting things too, *g* */
     if(mdc->ht == mdc->md->d->out_ok_db){
         unregister_instance(mdc->md->d->i, mdc->key->server); /* dynamic host resolution thingie */
@@ -162,7 +162,7 @@ void _dialback_miod_hash_cleanup(void *arg)
 void dialback_miod_hash(miod md, xht ht, jid key)
 {
     struct miodc *mdc;
-    log_debug(ZONE,"miod registering socket %d with key %s to hash %X",md->m->fd, jid_full(key), ht);
+    log_debug2(ZONE, LOGT_AUTH, "miod registering socket %d with key %s to hash %X",md->m->fd, jid_full(key), ht);
     mdc = pmalloco(md->m->p,sizeof(struct miodc));
     mdc->md = md;
     mdc->ht = ht;
@@ -188,7 +188,7 @@ char *dialback_ip_get(db d, jid host, char *ip)
         return ip;
 
     ret =  pstrdup(host->p,xmlnode_get_attrib((xmlnode)xhash_get(d->nscache,host->server),"i"));
-    log_debug(ZONE,"returning cached ip %s for %s",ret,host->server);
+    log_debug2(ZONE, LOGT_IO, "returning cached ip %s for %s",ret,host->server);
     return ret;
 }
 
@@ -207,7 +207,7 @@ void dialback_ip_set(db d, jid host, char *ip)
     xmlnode_put_attrib(cache,"h",host->server);
     xmlnode_put_attrib(cache,"i",ip);
     xhash_put(d->nscache,xmlnode_get_attrib(cache,"h"),(void*)cache);
-    log_debug(ZONE,"cached ip %s for %s",ip,host->server);
+    log_debug2(ZONE, LOGT_IO, "cached ip %s for %s",ip,host->server);
 
     /* free any old entry that's been replaced */
     xmlnode_free(old);
@@ -249,7 +249,7 @@ void _dialback_beat_idle(xht h, const char *key, void *data, void *arg)
     miod md = (miod)data;
     if(((int)*(time_t*)arg - md->last) >= md->d->timeout_idle)
     {
-        log_debug(ZONE,"Idle Timeout on socket %d to %s",md->m->fd, md->m->ip);
+        log_debug2(ZONE, LOGT_IO, "Idle Timeout on socket %d to %s",md->m->fd, md->m->ip);
         mio_close(md->m);
     }
 }
@@ -260,7 +260,7 @@ result dialback_beat_idle(void *arg)
     db d = (db)arg;
     time_t ttmp;
 
-    log_debug(ZONE,"dialback idle check");
+    log_debug2(ZONE, LOGT_EXECFLOW, "dialback idle check");
     time(&ttmp);
     xhash_walk(d->out_ok_db,_dialback_beat_idle,(void*)&ttmp);
     xhash_walk(d->out_ok_legacy,_dialback_beat_idle,(void*)&ttmp);
@@ -279,7 +279,7 @@ void dialback(instance i, xmlnode x)
     int rate_time, rate_points;
     int set_rate = 0, set_karma=0;
 
-    log_debug(ZONE,"dialback loading");
+    log_debug2(ZONE, LOGT_INIT, "dialback loading");
     srand(time(NULL));
 
     /* get the config */

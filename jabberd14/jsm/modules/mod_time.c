@@ -56,7 +56,7 @@ mreturn mod_time_reply(mapi m, void *arg)
         return M_HANDLED;
     }
 
-    log_debug("mod_time","handling time query from %s",jid_full(m->packet->from));
+    log_debug2(ZONE, LOGT_DELIVER, "handling time query from %s",jid_full(m->packet->from));
 
     jutil_iqresult(m->packet->x);
     xmlnode_put_attrib(xmlnode_insert_tag(m->packet->x,"query"),"xmlns",NS_TIME);

@@ -50,7 +50,7 @@ result base_stderr_display(instance i, dpacket p, void* args)
 
     if(message == NULL)
     {
-        log_debug(ZONE,"base_stderr_deliver: no message available to print.");
+        log_debug2(ZONE, LOGT_STRANGE, "base_stderr_deliver: no message available to print.");
         return r_ERR;
     }
 
@@ -72,7 +72,7 @@ result base_stderr_config(instance id, xmlnode x, void *arg)
         return r_ERR;
     }
 
-    log_debug(ZONE,"base_stderr configuring instance %s",id->id);
+    log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_stderr configuring instance %s",id->id);
 
     /* Register the handler, for this instance */
     register_phandler(id, o_DELIVER, base_stderr_display, NULL);
@@ -82,6 +82,6 @@ result base_stderr_config(instance id, xmlnode x, void *arg)
 
 void base_stderr(void)
 {
-    log_debug(ZONE,"base_stderr loading...");
+    log_debug2(ZONE, LOGT_INIT, "base_stderr loading...");
     register_config("stderr", base_stderr_config, NULL);
 }

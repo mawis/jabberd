@@ -45,7 +45,7 @@ mreturn mod_log_session_end(mapi m, void *arg)
 {
     time_t t = time(NULL);
 
-    log_debug(ZONE,"creating session log entry");
+    log_debug2(ZONE, LOGT_SESSION, "creating session log entry");
 
     log_record(jid_full(m->user->id), "session", "end", "%d %d %d %s", (int)(t - m->s->started), m->s->c_in, m->s->c_out, m->s->res);
 
@@ -59,7 +59,7 @@ mreturn mod_log_archiver(mapi m, void* arg)
     
     if(m->packet->type != JPACKET_MESSAGE) return M_IGNORE;
 
-    log_debug(ZONE,"archiving message");
+    log_debug2(ZONE, LOGT_DELIVER, "archiving message");
 
     /* get a copy wrapped w/ a route and stamp it w/ a type='archive' (why not?) */
     x = xmlnode_wrap(xmlnode_dup(m->packet->x), "route");
@@ -102,7 +102,7 @@ void mod_log(jsmi si)
     xmlnode cfg = js_config(si,"archive");
     jid svcs = NULL;
 
-    log_debug(ZONE,"mod_log init");
+    log_debug2(ZONE, LOGT_INIT, "mod_log init");
 
     /* look for archiving service too */
     for(cfg = xmlnode_get_firstchild(cfg); cfg != NULL; cfg = xmlnode_get_nextsibling(cfg))

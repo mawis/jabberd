@@ -87,7 +87,7 @@ session js_session_new(jsmi si, dpacket dp)
     if(dp == NULL || dp->id->user == NULL || dp->id->resource == NULL || xmlnode_get_attrib(dp->x,"from") == NULL || (u = js_user(si,dp->id,NULL)) == NULL)
         return NULL;
 
-    log_debug(ZONE,"session_create %s",jid_full(dp->id));
+    log_debug2(ZONE, LOGT_SESSION, "session_create %s",jid_full(dp->id));
 
     /* create session */
     p = pool_heap(2*1024);
@@ -156,7 +156,7 @@ void js_session_end(session s, char *reason)
         return;
 
     /* log the reason the session ended */
-    log_debug(ZONE,"end %d '%s'",s,reason);
+    log_debug2(ZONE, LOGT_SESSION, "end %d '%s'",s,reason);
 
     /* flag the session to exit ASAP */
     s->exit_flag = 1;
@@ -243,7 +243,7 @@ void _js_session_from(void *arg)
     }
 
     /* debug message */
-    log_debug(ZONE,"THREAD:SESSION:FROM received a packet!");
+    log_debug2(ZONE, LOGT_DELIVER, "THREAD:SESSION:FROM received a packet!");
 
     /* increment packet out count */
     s->c_out++;
@@ -298,7 +298,7 @@ void _js_session_to(void *arg)
     }
 
     /* debug message */
-    log_debug(ZONE,"THREAD:SESSION:TO received data from %s!",jid_full(p->from));
+    log_debug2(ZONE, LOGT_DELIVER, "THREAD:SESSION:TO received data from %s!",jid_full(p->from));
 
     /* increment packet in count */
     s->c_in++;
@@ -328,7 +328,7 @@ void _js_session_end(void *arg)
     session s = (session)arg;
 
     /* debug message */
-    log_debug(ZONE,"THREAD:SESSION exiting");
+    log_debug2(ZONE, LOGT_SESSION, "THREAD:SESSION exiting");
 
     /* decrement the user's session count */
     s->u->scount--;

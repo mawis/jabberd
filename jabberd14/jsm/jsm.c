@@ -76,7 +76,7 @@ void _jsm_shutdown(xht h, const char *key, void *data, void *arg)
 {
     xht ht = (xht)data;
 
-    log_debug(ZONE,"JSM SHUTDOWN: deleting users for host %s",(char*)key);
+    log_debug2(ZONE, LOGT_CLEANUP, "JSM SHUTDOWN: deleting users for host %s",(char*)key);
 
     xhash_walk(ht,__jsm_shutdown,NULL);
 
@@ -87,7 +87,7 @@ void jsm_shutdown(void *arg)
 {
     jsmi si = (jsmi)arg;
 
-    log_debug(ZONE, "JSM SHUTDOWN: Begining shutdown sequence");
+    log_debug2(ZONE, LOGT_CLEANUP, "JSM SHUTDOWN: Begining shutdown sequence");
     js_mapi_call(si, e_SHUTDOWN, NULL, NULL, NULL);
 
     xhash_walk(si->hosts,_jsm_shutdown,arg);
@@ -102,7 +102,7 @@ void jsm(instance i, xmlnode x)
     modcall module;
     int n;
 
-    log_debug(ZONE,"jsm initializing for section '%s'",i->id);
+    log_debug2(ZONE, LOGT_INIT, "jsm initializing for section '%s'",i->id);
 
     /* create and init the jsm instance handle */
     si = pmalloco(i->p, sizeof(_jsmi));
@@ -137,7 +137,7 @@ void jsm(instance i, xmlnode x)
             continue;
 
         /* call this module for this session instance */
-        log_debug(ZONE,"jsm: loading module %s",xmlnode_get_name(cur));
+        log_debug2(ZONE, LOGT_INIT, "jsm: loading module %s",xmlnode_get_name(cur));
         (module)(si);
     }
 

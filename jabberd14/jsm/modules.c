@@ -76,7 +76,7 @@ void js_mapi_register(jsmi si, event e, mcall c, void *arg)
         for(curl = si->events[e]; curl->next != NULL; curl = curl->next); /* spin to end of list */
         curl->next = newl;
     }
-    log_debug(ZONE,"mapi_register %d %X",e,newl);
+    log_debug2(ZONE, LOGT_INIT, "mapi_register %d %X",e,newl);
 }
 
 /*
@@ -114,7 +114,7 @@ void js_mapi_session(event e, session s, mcall c, void *arg)
         curl->next = newl;
     }
 
-    log_debug(ZONE,"mapi_register_session %d %X",e,newl);
+    log_debug2(ZONE, LOGT_INIT, "mapi_register_session %d %X",e,newl);
 }
 
 /*
@@ -132,7 +132,7 @@ int js_mapi_call(jsmi si, event e, jpacket packet, udata user, session s)
     mlist l;
     _mapi m;		/* mapi structure to be passed to the call back */
 
-    log_debug(ZONE,"mapi_call %d",e);
+    log_debug2(ZONE, LOGT_EXECFLOW, "mapi_call %d",e);
 
     /* this is a session event */
     if(si == NULL && s != NULL)
@@ -155,7 +155,7 @@ int js_mapi_call(jsmi si, event e, jpacket packet, udata user, session s)
     {
         /* skip call-back if the packet type mask matches */
         if(packet != NULL && (packet->type & l->mask) == packet->type) continue;
-log_debug(ZONE,"MAPI %X",l);
+log_debug2(ZONE, LOGT_EXECFLOW, "MAPI %X",l);
         /* call the function and handle the result */
         switch((*(l->c))(&m, l->arg))
         {
@@ -172,7 +172,7 @@ log_debug(ZONE,"MAPI %X",l);
         }
     }
 
-    log_debug(ZONE,"mapi_call returning unhandled");
+    log_debug2(ZONE, LOGT_EXECFLOW, "mapi_call returning unhandled");
 
     /* if we got here, no module handled the packet */
     return 0;

@@ -81,7 +81,7 @@ result base_stdout_phandler(instance i, dpacket p, void *arg)
     pth_msgport_t mp = (pth_msgport_t)arg;
     drop d;
 
-    log_debug(ZONE,"stdout packet being queued");
+    log_debug2(ZONE, LOGT_THREAD, "stdout packet being queued");
 
     d = pmalloco(p->p, sizeof(_drop));
     d->p = p;
@@ -96,12 +96,12 @@ void base_stdin_packets(int type, xmlnode x, void *arg)
     switch(type)
     {
     case XSTREAM_ROOT:
-        log_debug(ZONE,"stdin opened stream");
+        log_debug2(ZONE, LOGT_IO, "stdin opened stream");
         xmlnode_free(x);
         break;
     case XSTREAM_NODE:
         /* deliver the packets coming on stdin... they aren't associated with an instance really */
-        log_debug(ZONE,"stdin incoming packet");
+        log_debug2(ZONE, LOGT_IO, "stdin incoming packet");
         deliver(dpacket_new(x), NULL); 
         break;
     default:
@@ -131,7 +131,7 @@ void *base_stdoutin(void *arg)
     sigemptyset(&sigs);
     sigaddset(&sigs,SIGUSR2);
 
-    log_debug(ZONE,"io thread starting");
+    log_debug2(ZONE, LOGT_IO|LOGT_THREAD, "io thread starting");
 
     /* send the header to stdout */
     x = xstream_header("jabber:component:exec",NULL,NULL);
@@ -162,7 +162,7 @@ void *base_stdoutin(void *arg)
         /* handle reading the incoming stream */
         if(pth_event_occurred(eread))
         {
-            log_debug(ZONE,"stdin read event");
+            log_debug2(ZONE, LOGT_IO, "stdin read event");
             len = MIO_READ_FUNC(STDIN_FILENO, buff, 1024);
             if(len <= 0) break;
 
@@ -172,7 +172,7 @@ void *base_stdoutin(void *arg)
         /* handle the packets to be sent to the socket */
         if(pth_event_occurred(emp))
         {
-            log_debug(ZONE,"io incoming message event for stdout");
+            log_debug2(ZONE, LOGT_IO, "io incoming message event for stdout");
 
             /* get packet */
             d = (drop)pth_msgport_get(mp);
@@ -190,7 +190,7 @@ void *base_stdoutin(void *arg)
 
     }
 
-    log_debug(ZONE,"thread exiting");
+    log_debug2(ZONE, LOGT_THREAD, "thread exiting");
 
     /* we shouldn't ever get here, I don't think */
     pth_event_free(ering, PTH_FREE_ALL);
@@ -221,7 +221,7 @@ result base_stdout_config(instance id, xmlnode x, void *arg)
         return r_PASS;
     }
 
-    log_debug(ZONE,"base_stdout_config performing configuration");
+    log_debug2(ZONE, LOGT_INIT|LOGT_THREAD, "base_stdout_config performing configuration");
 
     /* create the mp and start the io thread only once */
     if(mp == NULL)
@@ -239,6 +239,6 @@ result base_stdout_config(instance id, xmlnode x, void *arg)
 
 void base_stdout(void)
 {
-    log_debug(ZONE,"base_stdout loading...\n");
+    log_debug2(ZONE, LOGT_INIT, "base_stdout loading...\n");
     register_config("stdout",base_stdout_config,NULL);
 }

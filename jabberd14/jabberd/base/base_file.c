@@ -49,13 +49,13 @@ result base_file_deliver(instance id, dpacket p, void* arg)
     message = xmlnode_get_data(p->x);
     if (message == NULL)
     {
-       log_debug(ZONE,"base_file_deliver error: no message available to print.\n");
+       log_debug2(ZONE, LOGT_STRANGE, "base_file_deliver error: no message available to print.\n");
        return r_ERR;
     }
 
     if (fprintf(f,"%s\n", message) == EOF)
     {
-        log_debug(ZONE,"base_file_deliver error: error writing to file(%d).\n", errno);
+        log_debug2(ZONE, LOGT_IO, "base_file_deliver error: error writing to file(%d).\n", errno);
         return r_ERR;
     }
     fflush(f);
@@ -77,18 +77,18 @@ result base_file_config(instance id, xmlnode x, void *arg)
         
     if(id == NULL)
     {
-        log_debug(ZONE,"base_file_config validating configuration");
+        log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_file_config validating configuration");
 
         if (xmlnode_get_data(x) == NULL)
         {
-            log_debug(ZONE,"base_file_config error: no filename provided.");
+            log_debug2(ZONE, LOGT_STRANGE|LOGT_CONFIG|LOGT_INIT, "base_file_config error: no filename provided.");
             xmlnode_put_attrib(x,"error","'file' tag must contain a filename to write to");
             return r_ERR;
         }
         return r_PASS;
     }
 
-    log_debug(ZONE,"base_file configuring instance %s",id->id);
+    log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_file configuring instance %s",id->id);
 
     if(id->type != p_LOG)
     {
@@ -114,6 +114,6 @@ result base_file_config(instance id, xmlnode x, void *arg)
 
 void base_file(void)
 {
-    log_debug(ZONE,"base_file loading...");
+    log_debug2(ZONE, LOGT_INIT, "base_file loading...");
     register_config("file",base_file_config,NULL);
 }

@@ -112,13 +112,13 @@ void dnsrv_child_process_xstream_io(int type, xmlnode x, void* args)
      {
 	  /* Get the hostname out... */
 	  hostname = xmlnode_get_data(x);
-	  log_debug(ZONE, "dnsrv: Recv'd lookup request for %s", hostname);
+	  log_debug2(ZONE, LOGT_IO, "dnsrv: Recv'd lookup request for %s", hostname);
 	  if (hostname != NULL)
 	  {
 #ifdef LIBIDN
 	      if (idna_to_ascii_8z(hostname, &ascii_hostname, 0) == IDNA_SUCCESS)
 	      {
-		  log_debug(ZONE, "dnsrv: IDN conversion %s to %s", hostname, ascii_hostname);
+		  log_debug2(ZONE, LOGT_IO, "dnsrv: IDN conversion %s to %s", hostname, ascii_hostname);
 		  hostname = ascii_hostname;
 	      }
 #endif
@@ -130,7 +130,7 @@ void dnsrv_child_process_xstream_io(int type, xmlnode x, void* args)
 		    str = srv_lookup(x->p, iternode->service, hostname);
 		    if (str != NULL)
 		    {
-			 log_debug(ZONE, "Resolved %s(%s): %s\tresend to:%s", hostname, iternode->service, str, iternode->host);
+			 log_debug2(ZONE, LOGT_IO, "Resolved %s(%s): %s\tresend to:%s", hostname, iternode->service, str, iternode->host);
 			 xmlnode_put_attrib(x, "ip", str);
 			 xmlnode_put_attrib(x, "to", iternode->host);
 			 break;
@@ -155,7 +155,7 @@ int dnsrv_child_main(dns_io di)
      int     len;
      char    readbuf[1024];
 
-     log_debug(ZONE,"DNSRV CHILD: starting");
+     log_debug2(ZONE, LOGT_INIT, "DNSRV CHILD: starting");
 
      /* Transmit stream header */
      write(di->out, "<stream>", 8);
@@ -166,21 +166,21 @@ int dnsrv_child_main(dns_io di)
        len = read(di->in, &readbuf, 1024);
        if (len <= 0)
        {
-           log_debug(ZONE,"dnsrv: Read error on coprocess(%d): %d %s",getppid(),errno,strerror(errno));
+           log_debug2(ZONE, LOGT_IO|LOGT_STRANGE, "dnsrv: Read error on coprocess(%d): %d %s",getppid(),errno,strerror(errno));
            break;
        }
 
-       log_debug(ZONE, "DNSRV CHILD: Read from buffer: %.*s",len,readbuf);
+       log_debug2(ZONE, LOGT_IO, "DNSRV CHILD: Read from buffer: %.*s",len,readbuf);
 
        if (xstream_eat(xs, readbuf, len) > XSTREAM_NODE)
        {
-           log_debug(ZONE, "DNSRV CHILD: xstream died");
+           log_debug2(ZONE, LOGT_IO|LOGT_STRANGE, "DNSRV CHILD: xstream died");
            break;
        }
      }
 
      /* child is out of loop... normal exit so parent will start us again */
-     log_debug(ZONE, "DNSRV CHILD: out of loop.. exiting normal");
+     log_debug2(ZONE, LOGT_STRANGE|LOGT_CLEANUP, "DNSRV CHILD: out of loop.. exiting normal");
      pool_free(p);
      exit(0);
      return 0;
@@ -264,7 +264,7 @@ void dnsrv_lookup(dns_io d, dpacket p)
        so push the packet on the top of the list (most recent at the top) */
     if (l != NULL)
     {
-	 log_debug(ZONE, "dnsrv: Adding lookup request for %s to pending queue.", p->host);
+	 log_debug2(ZONE, LOGT_IO, "dnsrv: Adding lookup request for %s to pending queue.", p->host);
 	 lnew = pmalloco(p->p, sizeof(_dns_packet_list));
 	 lnew->packet = p;
 	 lnew->stamp = time(NULL);
@@ -275,7 +275,7 @@ void dnsrv_lookup(dns_io d, dpacket p)
 
     /* insert the packet into the packet_table using the hostname
        as the key and send a request to the coprocess */
-    log_debug(ZONE, "dnsrv: Creating lookup request queue for %s", p->host);
+    log_debug2(ZONE, LOGT_IO, "dnsrv: Creating lookup request queue for %s", p->host);
     l = pmalloco(p->p, sizeof(_dns_packet_list));
     l->packet = p;
     l->stamp  = time(NULL);
@@ -284,7 +284,7 @@ void dnsrv_lookup(dns_io d, dpacket p)
     xmlnode_insert_cdata(req,p->host,-1);
 
     reqs = xmlnode2str(req);
-    log_debug(ZONE, "dnsrv: Transmitting lookup request: %s", reqs);
+    log_debug2(ZONE, LOGT_IO, "dnsrv: Transmitting lookup request: %s", reqs);
     pth_write(d->out, reqs, strlen(reqs));
 }
 
@@ -349,7 +349,7 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg)
      /* Node Format: <host ip="201.83.28.2">foo.org</host> */
      if (type == XSTREAM_NODE)
      {	  
-          log_debug(ZONE,"incoming resolution: %s",xmlnode2str(x));
+          log_debug2(ZONE, LOGT_IO, "incoming resolution: %s",xmlnode2str(x));
 	  hostname = xmlnode_get_data(x);
 
           /* whatever the response was, let's cache it */
@@ -382,7 +382,7 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg)
 	  }
 	  /* Host name was not found, something is _TERRIBLY_ wrong! */
 	  else
-	       log_debug(ZONE, "Resolved unknown host/ip request: %s\n", xmlnode2str(x));
+	       log_debug2(ZONE, LOGT_IO, "Resolved unknown host/ip request: %s\n", xmlnode2str(x));
 
           return; /* we cached x above, so we don't free it below :) */
      }
@@ -407,7 +407,7 @@ void* dnsrv_process_io(void* threadarg)
        readlen = pth_read(di->in, readbuf, sizeof(readbuf));
        if (readlen <= 0)
        {
-           log_debug(ZONE,"dnsrv: Read error on coprocess: %d %s",errno,strerror(errno));
+           log_debug2(ZONE, LOGT_IO|LOGT_STRANGE, "dnsrv: Read error on coprocess: %d %s",errno,strerror(errno));
            break;
        }
 
@@ -424,7 +424,7 @@ void* dnsrv_process_io(void* threadarg)
      /* silly to restart it if it died cuz we're shutting down, pretty hackish to do it this way tho... must be hackish when the comment is longer than the code itself, but I'm rambling */
      if(jabberd__signalflag == SIGTERM || jabberd__signalflag == SIGINT) return NULL;
 
-     log_debug(ZONE, "child being restarted...");
+     log_debug2(ZONE, LOGT_INIT, "child being restarted...");
 
      /* Fork out resolver function/process */
      di->pid = dnsrv_fork_and_capture(dnsrv_child_main, di);
@@ -527,7 +527,7 @@ void dnsrv(instance i, xmlnode x)
 	  /* Move to next child */
 	  iternode = xmlnode_get_prevsibling(iternode);
      }
-     log_debug(ZONE, "dnsrv debug: %s\n", xmlnode2str(config));
+     log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "dnsrv debug: %s\n", xmlnode2str(config));
 
      /* Setup the hash of dns_packet_list */
      di->packet_table = xhash_new(j_atoi(xmlnode_get_attrib(config,"queuemax"),101));

@@ -85,7 +85,7 @@ void mod_admin_browse(jsmi si, jpacket p)
 
     if(jpacket_subtype(p) == JPACKET__GET)
     {
-        log_debug("mod_admin","handling who GET");
+        log_debug2(ZONE, LOGT_DELIVER, "handling who GET");
 
         /* walk the users on this host */
         xhash_walk(xhash_get(si->hosts, p->to->server),_mod_admin_browse,(void *)browse);
@@ -93,7 +93,7 @@ void mod_admin_browse(jsmi si, jpacket p)
 
     if(jpacket_subtype(p) == JPACKET__SET)
     {
-        log_debug("mod_admin","handling who SET");
+        log_debug2(ZONE, LOGT_DELIVER, "handling who SET");
 
         /* kick them? */
     }
@@ -138,7 +138,7 @@ mreturn  mod_admin_who(jsmi si, jpacket p)
 
     if(jpacket_subtype(p) == JPACKET__GET)
     {
-        log_debug("mod_admin","handling who GET");
+        log_debug2(ZONE, LOGT_DELIVER, "handling who GET");
 
         /* walk the users on this host */
         xhash_walk(xhash_get(si->hosts, p->to->server),_mod_admin_who,(void *)who);
@@ -146,7 +146,7 @@ mreturn  mod_admin_who(jsmi si, jpacket p)
 
     if(jpacket_subtype(p) == JPACKET__SET)
     {
-        log_debug("mod_admin","handling who SET");
+        log_debug2(ZONE, LOGT_DELIVER, "handling who SET");
 
         /* kick them? */
     }
@@ -166,7 +166,7 @@ mreturn mod_admin_config(jsmi si, jpacket p)
 
     if(jpacket_subtype(p) == JPACKET__GET)
     {
-        log_debug("mod_admin","handling config GET");
+        log_debug2(ZONE, LOGT_DELIVER|LOGT_CONFIG, "handling config GET");
 
         /* insert the loaded config file */
         xmlnode_insert_node(config,xmlnode_get_firstchild(si->config));
@@ -174,7 +174,7 @@ mreturn mod_admin_config(jsmi si, jpacket p)
 
     if(jpacket_subtype(p) == JPACKET__SET)
     {
-        log_debug("mod_admin","handling config SET");
+        log_debug2(ZONE, LOGT_DELIVER|LOGT_CONFIG, "handling config SET");
 
         /* XXX FIX ME, like do init stuff for the new config, etc */
         si->config = xmlnode_dup(config);
@@ -197,12 +197,12 @@ mreturn mod_admin_user(jsmi si, jpacket p)
 {
     if(jpacket_subtype(p) == JPACKET__GET)
     {
-        log_debug("mod_admin","handling user GET");
+        log_debug2(ZONE, LOGT_DELIVER, "handling user GET");
     }
 
     if(jpacket_subtype(p) == JPACKET__SET)
     {
-        log_debug("mod_admin","handling user SET");
+        log_debug2(ZONE, LOGT_DELIVER, "handling user SET");
     }
 
     jutil_tofrom(p->x);
@@ -217,12 +217,12 @@ mreturn mod_admin_monitor(jsmi si, jpacket p)
 {
     if(jpacket_subtype(p) == JPACKET__GET)
     {
-        log_debug("mod_admin","handling monitor GET");
+        log_debug2(ZONE, LOGT_DELIVER, "handling monitor GET");
     }
 
     if(jpacket_subtype(p) == JPACKET__SET)
     {
-        log_debug("mod_admin","handling monitor SET");
+        log_debug2(ZONE, LOGT_DELIVER, "handling monitor SET");
     }
 
     jutil_tofrom(p->x);
@@ -251,7 +251,7 @@ mreturn mod_admin_dispatch(mapi m, void *arg)
     /* now normal iq:admin stuff */
     if(!NSCHECK(m->packet->iq,NS_ADMIN)) return M_PASS;
 
-    log_debug("mod_admin","checking admin request from %s",jid_full(m->packet->from));
+    log_debug2(ZONE, LOGT_AUTH|LOGT_DELIVER, "checking admin request from %s",jid_full(m->packet->from));
 
     if(js_admin(m->user,ADMIN_READ))
     {
@@ -288,7 +288,7 @@ mreturn mod_admin_message(mapi m, void *arg)
         return M_HANDLED;
     }
 
-    log_debug("mod_admin","delivering admin message from %s",jid_full(m->packet->from));
+    log_debug2(ZONE, LOGT_DELIVER, "delivering admin message from %s",jid_full(m->packet->from));
 
     subject=spools(m->packet->p,"Admin: ",xmlnode_get_tag_data(m->packet->x,"subject")," (",m->packet->to->server,")",m->packet->p);
     xmlnode_hide(xmlnode_get_tag(m->packet->x,"subject"));

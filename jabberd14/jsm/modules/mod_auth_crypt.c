@@ -69,7 +69,7 @@ mreturn mod_auth_crypt_jane(mapi m, void *arg)
     char shahash[35];
     xmlnode xdb;
 
-    log_debug("mod_auth_crypt","checking");
+    log_debug2(ZONE, LOGT_AUTH, "checking");
 
     if(jpacket_subtype(m->packet) == JPACKET__GET)
     { /* type=get means we flag that the server can do plain-text auth */
@@ -94,7 +94,7 @@ mreturn mod_auth_crypt_jane(mapi m, void *arg)
 	/* it is SHA-1 */
 	mod_auth_crypt_sha1(passA, shahash, sizeof(shahash));
 	passA = shahash;
-	log_debug("mod_auth_crypt","comparing %s %s",shahash,passB);
+	log_debug2(ZONE, LOGT_AUTH, "comparing %s %s",shahash,passB);
     }
     else
     {
@@ -102,7 +102,7 @@ mreturn mod_auth_crypt_jane(mapi m, void *arg)
 	strncpy(salt, passB, 2);
 	salt[2] = '\0';
 	passA = crypt(passA, salt);
-	log_debug("mod_auth_crypt","comparing %s %s",passA,passB);
+	log_debug2(ZONE, LOGT_AUTH, "comparing %s %s",passA,passB);
     }
 
     if(strcmp(passA, passB) != 0)
@@ -140,7 +140,7 @@ int mod_auth_crypt_reset(mapi m, jid id, xmlnode pass)
     char* hashalgo;
     int usedhashalgo;
 
-    log_debug("mod_auth_crypt","resetting password");
+    log_debug2(ZONE, LOGT_AUTH, "resetting password");
 
     hashalgo = xmlnode_get_tag_data(js_config(m->si, "mod_auth_crypt"), "hash");
     if (j_strcasecmp(hashalgo, "SHA1") == 0)
@@ -160,7 +160,7 @@ int mod_auth_crypt_reset(mapi m, jid id, xmlnode pass)
     {
 	case HASH_SHA1:
 	    mod_auth_crypt_sha1(password, shahash, sizeof(shahash));
-	    log_debug("mod_auth_crypt", "SHA1 hash is %s", shahash);
+	    log_debug2(ZONE, LOGT_AUTH, "SHA1 hash is %s", shahash);
 	    if (xmlnode_insert_cdata(newpass, shahash, -1) == NULL)
 		return -1;
 	    break;
@@ -208,7 +208,7 @@ mreturn mod_auth_crypt_server(mapi m, void *arg)
 
 void mod_auth_crypt(jsmi si)
 {
-    log_debug("mod_auth_crypt","init");
+    log_debug2(ZONE, LOGT_INIT, "init");
 
     js_mapi_register(si, e_AUTH, mod_auth_crypt_jane, NULL);
     js_mapi_register(si, e_SERVER, mod_auth_crypt_server, NULL);
