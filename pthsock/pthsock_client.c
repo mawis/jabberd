@@ -93,7 +93,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         break;
 
     case XSTREAM_NODE:
-        log_debug(ZONE,">>>> %s",xmlnode2str(x));
+        //log_debug(ZONE,">>>> %s",xmlnode2str(x));
 
         /* only allow auth and registration queries at this point */
         if (r->state == state_UNKNOWN)
@@ -204,7 +204,7 @@ int pthsock_client_write(reader r, dpacket p)
     /* write the packet */
     block = xmlnode2str(p->x);
 
-    log_debug(ZONE,"<<<< %s",r->sock,block);
+    //log_debug(ZONE,"<<<< %s",r->sock,block);
 
     if(pth_write(r->sock,block,strlen(block)) <= 0)
         return 0;
@@ -212,6 +212,43 @@ int pthsock_client_write(reader r, dpacket p)
     pool_free(p->p);
 
     return ret;
+}
+
+typedef struct tout_st
+{
+    struct timeval last;
+    struct timeval timeout;
+} tout;
+
+/* yes, it's true, pth sucks */
+int pthsock_client_time(void *arg)
+{
+    tout *t = (tout *) arg;
+    struct timeval now, diff;
+
+    if (t->last.tv_sec == 0)
+    {
+        gettimeofday(&t->last,NULL);
+        return 0;
+    }
+
+    gettimeofday(&now,NULL);
+    diff.tv_sec = now.tv_sec - t->last.tv_sec;
+    diff.tv_usec = now.tv_usec - t->last.tv_usec;
+
+    if (diff.tv_sec > t->timeout.tv_sec)
+    {
+        gettimeofday(&t->last,NULL);
+        return 1;
+    }
+
+    if (diff.tv_sec == t->timeout.tv_sec && diff.tv_usec >= t->timeout.tv_usec)
+    {
+        gettimeofday(&t->last,NULL);
+        return 1;
+    }
+
+    return 0;
 }
 
 void *pthsock_client_main(void *arg)
@@ -223,11 +260,16 @@ void *pthsock_client_main(void *arg)
     drop d;
     char buff[1024], *block;
     int len, selc, maxfd;
+    tout t;
+
+    t.timeout.tv_sec = 0;
+    t.timeout.tv_usec = 20000;
+    t.last.tv_sec = 0;
 
     amp =  pth_msgport_find("pthsock_client_amp");
     aevt = pth_event(PTH_EVENT_MSG,amp);
     wevt = pth_event(PTH_EVENT_MSG,wmp);
-    tevt = pth_event(PTH_EVENT_TIME, pth_timeout(0,10));
+    tevt = pth_event(PTH_EVENT_FUNC,pthsock_client_time,&t,pth_time(0,20000));
     ering = pth_event_concat(aevt,wevt,tevt,NULL);
 
     FD_ZERO(&rfds);
@@ -268,37 +310,43 @@ void *pthsock_client_main(void *arg)
         }
 
         /* handle packets that need to be writen */
-        while (1)
+        if (pth_event_occurred(wevt))
         {
-            /* get the packet */
-            d = (drop)pth_msgport_get(wmp);
-            if (d == NULL) break;
-
-            log_debug(ZONE,"write");
-            r = d->r;
-            if (pthsock_client_write(r,d->p) == 0)
+            while (1)
             {
-                if (r->state != state_CLOSING)
-                {
-                    log_debug(ZONE,"pth_write failed");
-                }
+                /* get the packet */
+                d = (drop)pth_msgport_get(wmp);
+                if (d == NULL) break;
 
-                FD_CLR(d->r->sock,&rfds);
-                pthsock_client_close(d->r);
+                log_debug(ZONE,"write");
+                r = d->r;
+                if (pthsock_client_write(r,d->p) == 0)
+                {
+                    if (r->state != state_CLOSING)
+                    {
+                        log_debug(ZONE,"pth_write failed");
+                    }
+
+                    FD_CLR(d->r->sock,&rfds);
+                    pthsock_client_close(d->r);
+                }
             }
         }
 
         /* add accepted connections to the fdset */
-        while (1)
+        if (pth_event_occurred(aevt))
         {
-            /* get the packet */
-            d = (drop)pth_msgport_get(amp);
-            if (d == NULL) break;
-            log_debug(ZONE,"accept");
-            FD_SET(d->r->sock,&rfds);
-            if (d->r->sock > maxfd)
-                maxfd = d->r->sock;
-            log_debug(ZONE,"%d max",maxfd);
+            while (1)
+            {
+                /* get the packet */
+                d = (drop)pth_msgport_get(amp);
+                if (d == NULL) break;
+                log_debug(ZONE,"accept");
+                FD_SET(d->r->sock,&rfds);
+                if (d->r->sock > maxfd)
+                    maxfd = d->r->sock;
+                log_debug(ZONE,"%d max",maxfd);
+            }
         }
     }
 }
