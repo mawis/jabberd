@@ -211,7 +211,7 @@ void _js_session_from(void *arg)
 {
     jpacket p = (jpacket)arg;
     session s = (session)(p->aux1);
-    jid jidOldTo;
+    jid jidOldTo = NULL;
 
     /* if this session is dead */
     if(s->exit_flag)
