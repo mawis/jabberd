@@ -74,6 +74,6 @@ void js_authreg(jsmi si, jpacket p, HASHTABLE ht)
     /* make sure packet goes back to the other side of the session */
     xmlnode_put_attrib(p->x,"sto",xmlnode_get_attrib(p->x,"sfrom"));
  
-    deliver(dpacket_new(p->x));
+    deliver(dpacket_new(p->x), si->i);
 }
 

@@ -35,7 +35,7 @@
  *      arg -- an argument to pass to c when it is called
  *
  */
-void js_mapi_register(event e, jsmi si, mcall c, void *arg)
+void js_mapi_register(jsmi si, event e, mcall c, void *arg)
 {
     mlist newl;
 
@@ -69,9 +69,9 @@ void js_mapi_session(event e, session s, mcall c, void *arg)
 {
     mlist newl;
 
-    if(si == NULL || c == NULL || s == NULL || e >= es_LAST) return;
+    if(c == NULL || s == NULL || e >= es_LAST) return;
 
-    log_debug(ZONE,"mapi_register_session %d",p);
+    log_debug(ZONE,"mapi_register_session %d",e);
 
     /* create item for the call list */
     newl = pmalloc(s->p, sizeof(_mlist));

@@ -32,31 +32,34 @@ packet handler
 
 */
 
+typedef void (*modcall)(jsmi si);
+
 void jsm(instance i, xmlnode x)
 {
     jsmi si;
     xmlnode cur;
     char *name;
-    void (*module)(jsmi si);
+    modcall module;
     int n;
 
     log_debug(NULL,"jsm initializing for section '%s'",i->id);
 
     /* create and init the jsm instance handle */
-    si = palloco(i->p, sizeof(_jsmi));
+    si = pmalloco(i->p, sizeof(_jsmi));
     si->i = i;
+    si->p = i->p;
     si->xc = xdb_cache(i); /* getting xdb_* handle and fetching config */
     si->config = xmlnode_get_firstchild(xdb_get(si->xc, NULL, jid_new(xmlnode_pool(x),"config@-internal"),"test"));
     si->hosts = ghash_create(HOSTS_PRIME,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp); /* XXX hostname hash, make PRIME configurable */
-    for(n=0;i<SESSION_WAITERS;n++)
+    for(n=0;n<SESSION_WAITERS;n++)
         si->waiting[n] = NULL;
-    for(n=0;i<e_LAST;n++)
+    for(n=0;n<e_LAST;n++)
         si->events[n] = NULL;
 
     /* start threads */
-    pth_spawn(attr, js_offline_main, (void *)si); /* the thread handling all offline packets */
-    pth_spawn(attr, js_server_main, (void *)si);  /* all traffic to server resources */
-    pth_spawn(attr, js_users_main, (void *)si);   /* free cached user data */
+    pth_spawn(PTH_ATTR_DEFAULT, js_offline_main, (void *)si); /* the thread handling all offline packets */
+    pth_spawn(PTH_ATTR_DEFAULT, js_server_main, (void *)si);  /* all traffic to server resources */
+    pth_spawn(PTH_ATTR_DEFAULT, js_users_main, (void *)si);   /* free cached user data */
 
     /* fire up the modules */
     for(cur = xmlnode_get_firstchild(cur); cur != NULL; cur = xmlnode_get_nextsibling(cur))
@@ -64,7 +67,7 @@ void jsm(instance i, xmlnode x)
         if((name = xmlnode_get_name(cur)) == NULL)
             continue;
 
-        module = (void (*module)(jsmi si))xmlnode_get_vattrib(cur,name);
+        module = (modcall)xmlnode_get_vattrib(cur,name);
         if(module == NULL)
             continue;
 

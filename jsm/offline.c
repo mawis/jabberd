@@ -53,11 +53,11 @@ void *js_offline_main(void *arg)
             user = (udata)q->p->aux1;
 
             /* debug message */
-            log_debug(ZONE,"THREAD:OFFLINE received %s's packet: %s",jid_full(udata->id),xmlnode2str(q->p->x));
+            log_debug(ZONE,"THREAD:OFFLINE received %s's packet: %s",jid_full(user->id),xmlnode2str(q->p->x));
 
             /* let the modules handle the packet */
             if(!js_mapi_call(si, e_OFFLINE, q->p, user, NULL))
-                js_bounce(q->p->x,TERROR_UNAVAIL);
+                js_bounce(si,q->p->x,TERROR_UNAVAIL);
 
             /* it can be cleaned up now */
             user->ref--;

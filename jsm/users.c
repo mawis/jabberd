@@ -38,6 +38,7 @@
  */
 int _js_users_del(void *arg, const void *key, void *data)
 {
+    HASHTABLE ht = (HASHTABLE)arg;
     udata u = (udata)data;	/* cast the pointer into udata */
 
     /*
@@ -50,11 +51,12 @@ int _js_users_del(void *arg, const void *key, void *data)
 
     log_debug(ZONE,"freeing %s",u->user);
 
-    ghash_remove(js__users,u->user);
+    ghash_remove(ht,u->user);
 
     /* free the data structures */
     ppdb_free(u->p_cache);
-    rate_free(u->rate);
+    /* XXX add back in rates! 
+    rate_free(u->rate); */
     pool_free(u->p);
 
     return 1;
@@ -68,7 +70,7 @@ int _js_hosts_del(void *arg, const void *key, void *data)
 
     log_debug(ZONE,"checking users for host %s",(char*)key);
 
-    ghash_walk(ht,_js_users_del,NULL);
+    ghash_walk(ht,_js_users_del,ht);
 
     return 1;
 }
@@ -134,7 +136,7 @@ udata js_user(jsmi si, jid id, HASHTABLE ht)
     if(ht == NULL) return NULL;
 
     /* copy the user name and convert to lower case */
-    for(ustr = u = strdup(user); *ustr != '\0'; ustr++)
+    for(ustr = u = strdup(id->user); *ustr != '\0'; ustr++)
         *ustr = tolower(*ustr);
 
     /* debug message */
