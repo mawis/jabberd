@@ -214,6 +214,9 @@ int conn_read(conn_t c, char *buf, int len)
 {
     char *err = NULL;
 
+    log_debug(ZONE,"conn_read: len(%d)",len);
+    log_debug(ZONE,"conn_read: errno(%d : %s)",errno,strerror(errno));
+
     /* client gone */
     if(len == 0)
     {

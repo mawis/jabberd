@@ -147,6 +147,7 @@ void _connect_process(conn_t c) {
 
     snprintf(cid, 770, "%.*s", NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr));
     target = xhash_get(c->c2s->conns, cid);
+
     log_debug(ZONE, "processing route to %s with target %X", cid, target);
 
     attr = nad_find_attr(c->nad, 0, "type", NULL);
@@ -169,14 +170,17 @@ void _connect_process(conn_t c) {
 
     /* look for session creation responses and change client accordingly 
      * (note: if no target drop through w/ chunk since it'll error in endElement) */
-    attr = nad_find_attr(c->nad, 0, "type", NULL);
-    if(attr >= 0 && j_strncmp(NAD_AVAL(c->nad, attr), "session", 7) == 0)
+    if (target != NULL)
     {
-        log_debug(ZONE, "client %d now has a session %s", target->fd, str);
-        target->state = state_OPEN;
-        xhash_zap(c->c2s->pending, jid_full(target->myid));
-        target->smid = jid_new(target->idp, str);
-        mio_read(c->c2s->mio, target->fd); /* start reading again now */
+        attr = nad_find_attr(c->nad, 0, "type", NULL);
+        if(attr >= 0 && j_strncmp(NAD_AVAL(c->nad, attr), "session", 7) == 0)
+        {
+            log_debug(ZONE, "client %d now has a session %s", target->fd, str);
+            target->state = state_OPEN;
+            xhash_zap(c->c2s->pending, jid_full(target->myid));
+            target->smid = jid_new(target->idp, str);
+            mio_read(c->c2s->mio, target->fd); /* start reading again now */
+        }
     }
 
     /* the rest of them we just need a chunk to store until they get sent to the client */
