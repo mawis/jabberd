@@ -39,8 +39,34 @@
  * 
  * --------------------------------------------------------------------------*/
 
+/**
+ * @file expat.c
+ * @brief reading/writing xmlnodes from/to files, reading xmlnodes from strings
+ *
+ * This file implements some tools for the xmlnode implementation in xmlnode.c
+ *
+ * The name of this file is confusing. This file does not contain the expat
+ * implementation. It contains some code that uses expat to parse XML and
+ * build xmlnodes.
+ *
+ * @note jabberd14's codebase up to jabberd 1.4.3 had included expat's source.
+ * Later versions dynamically link against expat and don't include the code
+ * anymore.
+ */
+
 #include <jabberdlib.h>
 
+/**
+ * callback function used for start elements
+ *
+ * This function is used internally by expat.c as a callback function
+ * given to expat. It will create a new xmlnode and add it to the
+ * already created xmlnode tree.
+ *
+ * @param userdata pointer to the parent xmlnode instance (NULL if this function is called for the root note)
+ * @param name name of the starting element
+ * @param atts attributes that are contained in the start element
+ */
 void expat_startElement(void* userdata, const char* name, const char** atts)
 {
     /* get the xmlnode pointed to by the userdata */
@@ -61,6 +87,16 @@ void expat_startElement(void* userdata, const char* name, const char** atts)
     }
 }
 
+/**
+ * callback function used for end elements
+ *
+ * This function is used internally by expat.c as a callback function
+ * given to expat. It will complete an xmlnode and update the userdata pointer
+ * to point to the node that is parent of the next starting element.
+ *
+ * @param userdata pointer to the current xmlnode
+ * @param name name of the ending element (ignored by this function)
+ */
 void expat_endElement(void* userdata, const char* name)
 {
     xmlnode *x = userdata;
@@ -74,6 +110,15 @@ void expat_endElement(void* userdata, const char* name)
         *x = current;
 }
 
+/**
+ * callback function for CDATA nodes
+ *
+ * This function will insert CDATA in an xmlnode
+ *
+ * @param userdata pointer to the current xmlnode
+ * @param s pointer to the CDATA string (not zero terminated!)
+ * @param len length of the CDATA string
+ */
 void expat_charData(void* userdata, const char* s, int len)
 {
     xmlnode *x = userdata;
@@ -82,7 +127,15 @@ void expat_charData(void* userdata, const char* s, int len)
     xmlnode_insert_cdata(current, s, len);
 }
 
-
+/**
+ * create an xmlnode instance (possibly including other xmlnode instances) by parsing a string
+ *
+ * This function will parse a string containing an XML document and create an xmlnode graph
+ *
+ * @param str the string containing the XML document (not necessarily zero terminated)
+ * @param len the length of the string (without the zero byte, if present)
+ * @return the graph of xmlnodes that represent the parsed document, NULL on failure
+ */
 xmlnode xmlnode_str(char *str, int len)
 {
     XML_Parser p;
@@ -110,6 +163,14 @@ xmlnode xmlnode_str(char *str, int len)
     return node; /* return the xmlnode x points to */
 }
 
+/**
+ * create an xmlnode instance (possibly including other xmlnode instances) by parsing a file
+ *
+ * This function will parse a file containing an XML document and create an xmlnode graph
+ *
+ * @param file the filename
+ * @return the graph of xmlnodes that represent the parsed document, NULL on failure
+ */
 xmlnode xmlnode_file(char *file)
 {
     XML_Parser p;
@@ -150,12 +211,19 @@ xmlnode xmlnode_file(char *file)
     return node; /* return the xmlnode x points to */
 }
 
-char* xmlnode_file_borked(char *file)
-{
+/**
+ * get message why parsing of a file failed
+ *
+ * This function can be used to get a textual message why parsing an XML file failed.
+ *
+ * @param file the filename
+ * @return pointer to a message why parsing failed, NULL if parsing did not fail
+ */
+char* xmlnode_file_borked(char *file) {
     XML_Parser p;
     char buf[BUFSIZ];
     static char err[1024];
-    int fd, len, done;
+    int fd, len, done=0;
 
     if(NULL == file)
         return "no file specified";
@@ -165,7 +233,7 @@ char* xmlnode_file_borked(char *file)
         return "unable to open file";
 
     p = XML_ParserCreate(NULL);
-    while(1)
+    while(!done)
     {
         len = read(fd, buf, BUFSIZ);
         done = len < BUFSIZ;
@@ -177,8 +245,17 @@ char* xmlnode_file_borked(char *file)
             return err;
         }
     }
+
+    return NULL;
 }
 
+/**
+ * write an xmlnode to a file (without a size limit)
+ *
+ * @param file the target file
+ * @param node the xmlnode that should be written
+ * @return 1 on success, -1 on failure
+ */
 int xmlnode2file(char *file, xmlnode node)
 {
     return xmlnode2file_limited(file, node, 0);
@@ -229,6 +306,12 @@ int xmlnode2file_limited(char *file, xmlnode node, size_t sizelimit)
     return 1;
 }
 
+/**
+ * append attributes in the expat format to an existing xmlnode
+ *
+ * @param owner where to add the attributes
+ * @param atts the attributes in expat format (even indexes are the attribute names, odd indexes the values)
+ */
 void xmlnode_put_expat_attribs(xmlnode owner, const char** atts)
 {
     int i = 0;

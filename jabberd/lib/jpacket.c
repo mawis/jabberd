@@ -39,8 +39,25 @@
  * 
  * --------------------------------------------------------------------------*/
 
+/**
+ * @file jpacket.c
+ * @brief a jpacket is a wrapper around an xmlnode that contains an XMPP stanza
+ *
+ * A jpacket adds some variables to an xmlnode that contains a stanza, so that
+ * jabberd is able to cache information on the stanza type (message, presence, iq)
+ * that is contained in this jpacket and to further classify the presence stanzas.
+ * It also adds some pointers to important data inside the xmlnode, that has
+ * to be accessed often (e.g. sender and receiver of a stanza).
+ */
+
 #include <jabberdlib.h>
 
+/**
+ * create a new jpacket by wrapping an xmlnode
+ *
+ * @param x the xmlnode that should be wrapped
+ * @return the newly created jpacket (NULL on failure)
+ */
 jpacket jpacket_new(xmlnode x)
 {
     jpacket p;
@@ -54,6 +71,12 @@ jpacket jpacket_new(xmlnode x)
     return jpacket_reset(p);
 }
 
+/**
+ * recalculate the information the jpacket holds about the stanza
+ *
+ * @param p the packet that should get its information recalculated
+ * @return the jpacket (as given as the p parameter)
+ */
 jpacket jpacket_reset(jpacket p)
 {
     char *val;
@@ -64,11 +87,9 @@ jpacket jpacket_reset(jpacket p)
     p->x = x;
     p->p = xmlnode_pool(x);
 
-    if(strncmp(xmlnode_get_name(x),"message",7) == 0)
-    {
+    if(strncmp(xmlnode_get_name(x),"message",7) == 0) {
         p->type = JPACKET_MESSAGE;
-    }else if(strncmp(xmlnode_get_name(x),"presence",8) == 0)
-    {
+    } else if(strncmp(xmlnode_get_name(x),"presence",8) == 0) {
         p->type = JPACKET_PRESENCE;
         val = xmlnode_get_attrib(x, "type");
         if(val == NULL)
@@ -83,14 +104,13 @@ jpacket jpacket_reset(jpacket p)
             p->subtype = JPACKET__INVISIBLE;
         else if(*val == 's' || *val == 'u')
             p->type = JPACKET_S10N;
-        else if(strcmp(val,"available") == 0)
-        { /* someone is using type='available' which is frowned upon */
+        else if(strcmp(val,"available") == 0) {
+	    /* someone is using type='available' which is frowned upon */
             xmlnode_hide_attrib(x,"type");
             p->subtype = JPACKET__AVAILABLE;
-        }else
+        } else
             p->type = JPACKET_UNKNOWN;
-    }else if(strncmp(xmlnode_get_name(x),"iq",2) == 0)
-    {
+    } else if(strncmp(xmlnode_get_name(x),"iq",2) == 0) {
         p->type = JPACKET_IQ;
         p->iq = xmlnode_get_tag(x,"?xmlns");
         p->iqns = xmlnode_get_attrib(p->iq,"xmlns");
@@ -109,7 +129,12 @@ jpacket jpacket_reset(jpacket p)
     return p;
 }
 
-
+/**
+ * get the subtype of a jpacket
+ *
+ * @param p the jpacket for which the caller wants to know the subtype
+ * @return the subtype of the jpacket (one of the JPACKET__* constants)
+ */
 int jpacket_subtype(jpacket p)
 {
     char *type;
