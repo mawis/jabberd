@@ -32,6 +32,7 @@
         <file>modules/mod_auth_0k.o</file>
         <file>modules/mod_echo.o</file>
         <file>modules/mod_filter.o</file>
+        <file>modules/mod_groups.o</file>
         <file>modules/mod_presence.o</file>
         <file>modules/mod_private.o</file>
         <file>modules/mod_roster.o</file>

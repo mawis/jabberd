@@ -44,6 +44,7 @@ void pthsock_server(instance i, xmlnode x);
 void xdb_file(instance i, xmlnode x);
 void dnsrv(instance i, xmlnode x);
 void mod_echo();
+void mod_groups();
 void mod_roster();
 void mod_time();
 void mod_vcard();
@@ -68,6 +69,7 @@ void *load_symbol(char *func, char *file)
     if(j_strcmp(func,"xdb_file") == 0) return xdb_file;
     if(j_strcmp(func,"dnsrv") == 0) return dnsrv;
     if(j_strcmp(func,"mod_echo") == 0) return mod_echo;
+    if(j_strcmp(func,"mod_groups") == 0) return mod_groups;
     if(j_strcmp(func,"mod_roster") == 0) return mod_roster;
     if(j_strcmp(func,"mod_time") == 0) return mod_time;
     if(j_strcmp(func,"mod_vcard") == 0) return mod_vcard;

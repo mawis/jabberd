@@ -185,6 +185,7 @@
       <mod_echo>./jsm/jsm.so</mod_echo>
       <mod_filter>./jsm/jsm.so</mod_filter>
       <mod_log>./jsm/jsm.so</mod_log>
+      <mod_groups>./jsm/jsm.so</mod_groups>
       <mod_presence>./jsm/jsm.so</mod_presence>
       <mod_private>./jsm/jsm.so</mod_private>
       <mod_register>./jsm/jsm.so</mod_register>

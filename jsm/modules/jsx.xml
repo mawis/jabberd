@@ -20,6 +20,7 @@
         <file>mod_auth_0k.o</file>
         <file>mod_echo.o</file>
         <file>mod_filter.o</file>
+        <file>mod_groups.o</file>
         <file>mod_presence.o</file>
         <file>mod_private.o</file>
         <file>mod_roster.o</file>
