@@ -12,12 +12,12 @@
         <file>jsm.h</file>
       </macro>
       <macro name='OBJECTS'>
+        <file>authreg.o</file>
         <file>deliver.o</file>
         <file>jsm.o</file>
         <file>modules.o</file>
         <file>offline.o</file>
         <file>server.o</file>
-        <file>authreg.o</file>
         <file>sessions.o</file>
         <file>users.o</file>
         <file>util.o</file>
@@ -25,23 +25,25 @@
       <macro name='EXOBJECTS'>
         <file>modules/mod_admin.o</file>
         <file>modules/mod_agents.o</file>
-        <file>modules/mod_archive.o</file>
         <file>modules/mod_announce.o</file>
-        <file>modules/mod_auth_plain.o</file>
-        <file>modules/mod_auth_digest.o</file>
+        <file>modules/mod_archive.o</file>
         <file>modules/mod_auth_0k.o</file>
+        <file>modules/mod_auth_digest.o</file>
+        <file>modules/mod_auth_plain.o</file>
+        <file>modules/mod_browse.o</file>
         <file>modules/mod_echo.o</file>
         <file>modules/mod_filter.o</file>
         <file>modules/mod_groups.o</file>
+        <file>modules/mod_last.o</file>
+        <file>modules/mod_log.o</file>
+        <file>modules/mod_offline.o</file>
         <file>modules/mod_presence.o</file>
-        <file>modules/mod_private.o</file>
+        <file>modules/mod_register.o</file>
         <file>modules/mod_roster.o</file>
         <file>modules/mod_time.o</file>
         <file>modules/mod_vcard.o</file>
         <file>modules/mod_version.o</file>
-        <file>modules/mod_register.o</file>
-        <file>modules/mod_log.o</file>
-        <file>modules/mod_offline.o</file>
+        <file>modules/mod_xml.o</file>
       </macro>
       <compile>
  	<objectfile macro='OBJECTS'>

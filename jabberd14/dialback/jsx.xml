@@ -1,0 +1,28 @@
+<!--  Jabber2 - dnsrv JSX configuration  -->
+<jsx project='dialback'>
+  <build>
+    <variables>
+      <var name='CFLAGS'><value>-I ../jabberd/</value></var>
+    </variables>
+    <make>
+      <macro name='HEADERS'>
+        <file>../jabberd/jabberd.h</file>
+      </macro>
+      <macro name='OBJECTS'>
+        <file>dialback.o</file>
+        <file>dialback_in.o</file>
+        <file>dialback_out.o</file>
+      </macro>
+      <compile>
+ 	<objectfile macro='OBJECTS'>
+	  <dep><macro>HEADERS</macro></dep>
+        </objectfile>
+        <sharedobject name='dialback.so'>
+          <dep filelist='1'>
+            <macro>OBJECTS</macro>
+          </dep>
+        </sharedobject>
+      </compile>
+    </make>
+  </build>
+</jsx>

@@ -7,6 +7,7 @@
       <project>xdb_file</project>
       <project>dnsrv</project> 
       <project>jsm</project>
+      <project>dialback</project>
     </make>
   </build>
 </jsx>
