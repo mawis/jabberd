@@ -253,10 +253,10 @@ void deliver_fail(dpacket p, char *err)
         /* route packet bounce */
         if(j_strcmp(xmlnode_get_attrib(p->x,"type"),"error") == 0)
         {   /* already bounced once, drop */
-            log_warn(p->host,"dropping a routed packet to %s from %s",xmlnode_get_attrib(p->x,"to"),xmlnode_get_attrib(p->x,"from"));
+            log_warn(p->host,"dropping a routed packet to %s from %s: %s",xmlnode_get_attrib(p->x,"to"),xmlnode_get_attrib(p->x,"from"),err);
             pool_free(p->p);
         }else{
-            log_notice(p->host,"bouncing a routed packet to %s from %s",xmlnode_get_attrib(p->x,"to"),xmlnode_get_attrib(p->x,"from"));
+            log_notice(p->host,"bouncing a routed packet to %s from %s: %s",xmlnode_get_attrib(p->x,"to"),xmlnode_get_attrib(p->x,"from"),err);
 
             /* turn into an error and bounce */
             jutil_tofrom(p->x);
@@ -269,10 +269,10 @@ void deliver_fail(dpacket p, char *err)
         /* normal packet bounce */
         if(j_strcmp(xmlnode_get_attrib(p->x,"type"),"error") == 0)
         { /* can't bounce an error */
-            log_warn(p->host,"dropping a packet to %s from %s",xmlnode_get_attrib(p->x,"to"),xmlnode_get_attrib(p->x,"from"));
+            log_warn(p->host,"dropping a packet to %s from %s: %s",xmlnode_get_attrib(p->x,"to"),xmlnode_get_attrib(p->x,"from"),err);
             pool_free(p->p);
         }else{
-            log_notice(p->host,"bouncing a packet to %s from %s",xmlnode_get_attrib(p->x,"to"),xmlnode_get_attrib(p->x,"from"));
+            log_notice(p->host,"bouncing a packet to %s from %s: %s",xmlnode_get_attrib(p->x,"to"),xmlnode_get_attrib(p->x,"from"),err);
 
             /* turn into an error */
             if(err == NULL)
