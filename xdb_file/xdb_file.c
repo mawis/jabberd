@@ -514,12 +514,12 @@ void xdb_convert_spool(const char *spoolroot)
 
 void xdb_file(instance i, xmlnode x)
 {
-    char *spl, *to;
+    char *spl, *temp;
     xmlnode config;
     xdbcache xc;
     xdbf xf;
-    int timeout = -1; /* defaults to timeout forever */
-    int sizelimit = 0; /* defaults to no size limit */
+    int timeout = 3600; /* defaults to timeout in 3600 seconds */
+    int sizelimit = 500000; /* defaults to 500000 bytes */
 
     log_debug2(ZONE, LOGT_INIT, "xdb_file loading");
 
@@ -533,11 +533,21 @@ void xdb_file(instance i, xmlnode x)
         return;
     }
 
-    sizelimit = j_atoi(xmlnode_get_tag_data(config, "sizelimit"), 0);
-    
-    to = xmlnode_get_tag_data(config,"timeout");
-    if(to != NULL)
-        timeout = atoi(to);
+    if(xmlnode_get_tag(config, "sizelimit")) {
+        temp = xmlnode_get_tag_data(config,"sizelimit");
+        if(temp != NULL)
+            sizelimit = atoi(temp);
+        else /* no value: disable timeout */
+            sizelimit = 0;
+    }
+
+    if(xmlnode_get_tag(config, "timeout")) {
+        temp = xmlnode_get_tag_data(config,"timeout");
+        if(temp != NULL)
+            timeout = atoi(temp);
+        else /* no value: disable timeout */
+            timeout = -1;
+    }
 
     xf = pmalloco(i->p,sizeof(_xdbf));
     xf->spool = pstrdup(i->p,spl);
@@ -545,7 +555,7 @@ void xdb_file(instance i, xmlnode x)
     xf->sizelimit = sizelimit;
     xf->i = i;
     xf->cache = xhash_new(j_atoi(xmlnode_get_tag_data(config,"maxfiles"),FILES_PRIME));
-    xf->use_hashspool = xmlnode_get_tag(config, "use_flat_spool") ? 0 : 1;
+    xf->use_hashspool = xmlnode_get_tag(config, "use_hierarchical_spool") ? 1 : 0;
 
     if (xf->use_hashspool)
 	xdb_convert_spool(spl);

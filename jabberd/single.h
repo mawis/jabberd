@@ -84,7 +84,6 @@ Optional Parameters:\n\
   <service id='s2s'> \
     <load><pthsock_server>./pthsock/pthsock_server.so</pthsock_server></load> \
     <pthssock xmlns='jabber:config:pth-ssock'> \
-      <legacy/> \
       <rate time='5' points='25'/> \
       <karma> \
         <init>50</init> \
