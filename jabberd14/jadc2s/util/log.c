@@ -25,11 +25,18 @@ void log_free(log_t l)
 log_t log_new(char *ident)
 {
     FILE *f;
-    char buf[MAX_LOG_FILENAME];
+    char *buf;
 
-    snprintf(buf, MAX_LOG_FILENAME, "%s.log", ident);
+    if (ident == NULL) {
+	buf = strdup("logfile.log");
+    } else {
+	buf = (char *)malloc(strlen(ident)+5);
+	strcpy(buf,ident);
+	strcat(buf, ".log");
+    }
 
     f = fopen(buf, "a+");
+    free(buf);
     if(f == NULL) {
         fprintf(stderr,
             "couldn't open %s for append: %s\n"
