@@ -241,6 +241,7 @@ void _js_session_from(void *arg)
 {
     jpacket p = (jpacket)arg;
     session s = (session)(p->aux1);
+    int store_history = s->si->history_sent.general;
     jid uid;
 
     /* if this session is dead */
@@ -281,6 +282,38 @@ void _js_session_from(void *arg)
         p->to = NULL;
     }
 
+    /* is history storage requested? */
+
+    /* only store messages */
+    if (store_history && p->type != JPACKET_MESSAGE)
+	store_history = 0;
+    /* don't store special messages, if not requested to do so */
+    if (store_history && !s->si->history_sent.special) {
+	switch (jpacket_subtype(p)) {
+	    case JPACKET__HEADLINE:
+	    case JPACKET__GROUPCHAT:
+	    case JPACKET__ERROR:
+		store_history = 0;
+	}
+    }
+    /* don't store events */
+    if (store_history && xmlnode_get_tag(p->x, "?xmlns=" NS_EVENT) != NULL)
+	if (xmlnode_get_tag(p->x, "body") == NULL)
+	    store_history = 0;
+
+    if (store_history) {
+	char *temp = xmlnode_get_attrib(p->x, "direction");
+	xmlnode_put_attrib(p->x, "direction", "sent");
+	xdb_act(s->si->xc, s->u->id, NS_JABBERD_HISTORY, "insert", NULL, p->x);
+	if (temp == NULL) {
+	    xmlnode_hide_attrib(p->x, "direction");
+	} else {
+	    xmlnode_put_attrib(p->x, "direction", temp);
+	}
+    }
+
+
+
     /* let the modules have their heyday */
     if(js_mapi_call(NULL, es_OUT,  p, s->u, s))
         return;
@@ -314,6 +347,7 @@ void _js_session_to(void *arg)
 {
     jpacket p = (jpacket)arg;
     session s = (session)(p->aux1);
+    int store_history = s->si->history_recv.general;
 
     /* if this session is dead... */
     if(s->exit_flag) {
@@ -344,6 +378,39 @@ void _js_session_to(void *arg)
         else
             xmlnode_free(p->x);
         return;
+    }
+
+    /* is history storage requested? */
+
+    /* only store messages */
+    if (store_history && p->type != JPACKET_MESSAGE)
+	store_history = 0;
+    /* don't store messages from offline storage, if not requested to do so */
+    if (store_history && p->flag == PACKET_FROM_OFFLINE_MAGIC && !s->si->history_recv.offline)
+	store_history = 0;
+    /* don't store special messages, if not requested to do so */
+    if (store_history && !s->si->history_recv.special) {
+	switch (jpacket_subtype(p)) {
+	    case JPACKET__HEADLINE:
+	    case JPACKET__GROUPCHAT:
+	    case JPACKET__ERROR:
+		store_history = 0;
+	}
+    }
+    /* don't store events */
+    if (store_history && xmlnode_get_tag(p->x, "?xmlns=" NS_EVENT) != NULL)
+	if (xmlnode_get_tag(p->x, "body") == NULL)
+	    store_history = 0;
+
+    if (store_history) {
+	char *temp = xmlnode_get_attrib(p->x, "direction");
+	xmlnode_put_attrib(p->x, "direction", "recv");
+	xdb_act(s->si->xc, s->u->id, NS_JABBERD_HISTORY, "insert", NULL, p->x);
+	if (temp == NULL) {
+	    xmlnode_hide_attrib(p->x, "direction");
+	} else {
+	    xmlnode_put_attrib(p->x, "direction", temp);
+	}
     }
 
     /* deliver to listeners on session */

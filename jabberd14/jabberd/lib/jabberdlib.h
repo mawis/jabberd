@@ -568,16 +568,16 @@ void	jid_clean_cache();		       /**< check the stringprep caches for expired ent
 
 typedef struct jpacket_struct
 {
-    unsigned char type;
-    int           subtype;
-    int           flag;
-    void*         aux1;
-    xmlnode       x;
-    jid           to;
-    jid           from;
-    char*         iqns;
-    xmlnode       iq;
-    pool          p;
+    unsigned char type;		    /**< stanza type (JPACKET_*) */
+    int           subtype;	    /**< subtype of a stanza */
+    int           flag;		    /**< used by the session manager to flag messages, that are read from offline storage */
+    void*         aux1;		    /**< pointer to data passed around with a jpacket, multiple use inside jsm */
+    xmlnode       x;		    /**< xmlnode containing the stanza inside the jpacket */
+    jid           to;		    /**< destination of the stanza */
+    jid           from;		    /**< source address for the stanza */
+    char*         iqns;		    /**< pointer to the namespace inside an IQ stanza */
+    xmlnode       iq;		    /**< "content" of an iq stanza, pointer to the element in its own namespace */
+    pool          p;		    /**< memory pool used for this stanza */
 } *jpacket, _jpacket;
  
 jpacket jpacket_new(xmlnode x);	    /* Creates a jabber packet from the xmlnode */
@@ -784,6 +784,7 @@ typedef struct xterror_struct
 #define NS_XMPP_STREAMS "urn:ietf:params:xml:ns:xmpp-streams"
 
 #define NS_JABBERD_STOREDPRESENCE "http://jabberd.org/ns/storedpresence"
+#define NS_JABBERD_HISTORY "http://jabberd.org/ns/history"
 
 
 /* --------------------------------------------------------- */

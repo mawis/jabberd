@@ -301,6 +301,29 @@
       <mod_xml>@libdir@/libjabberdsm.so</mod_xml>
     </load>
 
+    <!--
+    The history configuration element can be used to instruct the session
+    manager to store a copy of all messages to xdb.
+    The sent element will enable storage of sent messages, the recv
+    element will enable storage of received messages.
+    By default the session manager will not store messages it read
+    from offline storage (with xdb_sql you could construct a delete
+    query, that does not delete the message, but just flag it as delivered,
+    so we don't have to store the message in the history again.
+    Also messages with type error, headline, or groupchat are not stored
+    in the history. This can be changed by defining the attributes
+    special or offline with the values store.
+
+    This is an experimental feature, it might be removed in future
+    versions of this software or it might get incompatible changes.
+    -->
+    <!--
+    <history>
+        <sent special='ignore'/>
+	<recv special='ignore' offline='ignore'/>
+    </history>
+    -->
+
   </service>
 
   <!-- OK, we've finished defining the Jabber Session Manager. -->
