@@ -1,7 +1,14 @@
+jabberd 1.4
+===========
+http://jabberd.jabberstudio.org/1.4/
+
 Welcome to the world of Jabber 1.4!
 
-This README is very sparse, look for an updated Server-HOWTO at http://docs.jabber.org/ if this is insufficient.
-There is also an UPGRADE document included detailing the steps in upgrading from the old 1.0 or 1.2 server.
+This README is very sparse. Visit jabberd's homepage for further
+documentation.
+
+There is also an UPGRADE document included detailing the steps in
+upgrading from the old 1.0 or 1.2 server.
 
 -----------------------
 
