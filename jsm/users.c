@@ -160,7 +160,10 @@ udata js_user(jsmi si, jid id, HASHTABLE ht)
 
     /* try to get the user auth data from xdb */
     if((x = xdb_get(si->xc, id->server, id, NS_AUTH)) == NULL)
+    {
+        free(u);
         return NULL;
+    }
     else
         xmlnode_free(x);
 
