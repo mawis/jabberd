@@ -53,6 +53,7 @@ jabberd_EXOBJECTS = \
 	lib/xmlrole.o \
 	lib/xmltok.o \
 	lib/xstream.o \
+	lib/xhash.o \
 	base/base_connect.o \
 	base/base_dynamic.o \
 	base/base_exec.o \

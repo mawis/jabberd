@@ -356,7 +356,7 @@ void pthsock_client_listen(mio m, int flag, void *arg, xmlnode x)
 
     s__i = (smi)arg;
     cd = pthsock_client_cdata(m, s__i);
-    ghash_put_pool(cd->m->p, cd->si->users, cd->client_id, cd);
+    ghash_put(cd->si->users, cd->client_id, cd);
     mio_reset(m, pthsock_client_read, (void*)cd);
 }
 
@@ -456,11 +456,11 @@ void pthsock_client(instance i, xmlnode x)
            host = xmlnode_get_data(cur);
            if(host != NULL)
            {
-               ghash_put_pool(s__i->i->p, s__i->aliases, host, to);
+               ghash_put(s__i->aliases, host, to);
            }
            else
            {
-               ghash_put_pool(s__i->i->p, s__i->aliases, "default", to);
+               ghash_put(s__i->aliases, "default", to);
            }
         }
         else if(j_strcmp(xmlnode_get_name(cur), "authtime") == 0)
