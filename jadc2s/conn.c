@@ -460,7 +460,7 @@ int _read_actual(conn_t c, int fd, char *buf, size_t count)
 	if (!ssl_init_finished && SSL_is_init_finished(c->ssl))
 	    log_write(c->c2s->log, LOG_NOTICE, "ssl/tls established on fd %i: %s %s", c->fd, SSL_get_version(c->ssl), SSL_get_cipher(c->ssl));
 	if (bytes_read <= 0)
-	    _log_ssl_io_error(c->c2s->log, c->ssl, bytes_read);
+	    _log_ssl_io_error(c->c2s->log, c->ssl, bytes_read, c->fd);
         return bytes_read;
     }
 #endif
@@ -479,7 +479,7 @@ int _peek_actual(conn_t c, int fd, char *buf, size_t count)
     if(c->ssl != NULL) {
 	bytes_read = SSL_peek(c->ssl, buf, count);
 	if (bytes_read <= 0)
-	    _log_ssl_io_error(c->c2s->log, c->ssl, bytes_read);
+	    _log_ssl_io_error(c->c2s->log, c->ssl, bytes_read, c->fd);
 
         return bytes_read;
     }
@@ -510,7 +510,7 @@ int _write_actual(conn_t c, int fd, const char *buf, size_t count)
 	    }
 	}
 	else
-	    _log_ssl_io_error(c->c2s->log, c->ssl, written);
+	    _log_ssl_io_error(c->c2s->log, c->ssl, written, c->fd);
 
         return written;
     }
