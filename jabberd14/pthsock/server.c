@@ -36,7 +36,6 @@ iosi io__instance=NULL;
 typedef struct ssi_st
 {
     instance i;
-    struct sdata_st *conns;
     HASHTABLE out_tab;
     int asock;
 } *ssi, _ssi;
@@ -48,7 +47,6 @@ typedef struct sdata_st
     conn_type type;
     pth_msgport_t queue;
     char *to;
-    struct sdata_st *prev,*next;
     void *arg;
 } *sdata, _sdata;
 
@@ -107,6 +105,14 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
         xmlnode_free(x);
         break;
     case XSTREAM_NODE:
+        if(sd->type==conn_OUT)
+        {
+            xmlnode x=xmlnode_new_tag("stream:error");
+            log_debug(ZONE,"Outgoing connection tried to receive data!");
+            xmlnode_insert_cdata(x,"This connection does not accept incoming data",-1);
+            io_write(c,x);
+            break;
+        }
         log_debug(ZONE,"node received for %d",c->fd);
 
         xmlnode_hide_attrib(x,"etherx:from");
@@ -130,12 +136,9 @@ void pthsock_server_read(sock c,char *buffer,int bufsz,int flags,void *arg)
 {
     ssi si=(ssi)arg;
     sdata sd;
+    drop d;
+    wbq q;
     int ret;
-
-    if(c!=NULL){
-     log_debug(ZONE,"io_select read event on %d:%d:%d,[%s]",c->fd,flags,bufsz,buffer);}
-    else{
-     log_debug(ZONE,"io_select read event with flag: %d",flags);}
 
     switch(flags)
     {
@@ -152,9 +155,6 @@ void pthsock_server_read(sock c,char *buffer,int bufsz,int flags,void *arg)
             sd->arg=(void*)c;
             c->arg=(void*)sd;
             sd->i = si;
-            if(si->conns!=NULL) si->conns->prev=sd;
-            sd->next = si->conns;
-            si->conns = sd;
         }
         else 
         {
@@ -174,12 +174,31 @@ void pthsock_server_read(sock c,char *buffer,int bufsz,int flags,void *arg)
         sd=(sdata)c->arg;
         if (sd->type == conn_OUT)
             ghash_remove(si->out_tab,sd->to);
-        if(sd==si->conns) si->conns=si->conns->next;
-        if(sd->next!=NULL) sd->next->prev=sd->prev;
-        if(sd->prev!=NULL) sd->prev->next=sd->next;
         if(sd->p!=NULL)pool_free(sd->p);
+        break;
+    case IO_ERROR:
+        /* bounce the write queue */
+        /* check the sock queue */
+        sd=(sdata)c->arg;
+        if(c->xbuffer!=NULL)
+        {
+            jutil_error(c->xbuffer,TERROR_EXTERNAL);
+            deliver(dpacket_new(c->xbuffer),si->i);
+            c->xbuffer=NULL;
+            c->wbuffer=c->cbuffer=NULL;
+            while((q=(wbq)pth_msgport_get(c->queue))!=NULL)
+            {
+                jutil_error(q->x,TERROR_EXTERNAL);
+                deliver(dpacket_new(q->x),si->i);
+            }
+        }
+        /* as well as our queue */
+        while((d=(drop)pth_msgport_get(sd->queue))!=NULL)
+        {
+            jutil_error(d->x,TERROR_EXTERNAL);
+            deliver(dpacket_new(d->x),si->i);
+        }
     }
-
 }
 
 result pthsock_server_packets(instance id, dpacket dp, void *arg)
@@ -221,11 +240,6 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
         sd->i = si;
         sd->queue = pth_msgport_create("queue");
         ghash_put(si->out_tab,sd->to,sd);
-
-        /* link it to the master list */
-        if(si->conns!=NULL)si->conns->prev=sd;
-        sd->next=si->conns;
-        si->conns=sd;
 
         io_select_connect(io__instance,to,5269,(void*)sd);
         pth_msgport_put(sd->queue,(void*)d);
