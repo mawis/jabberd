@@ -350,7 +350,7 @@ void _client_charData(void *arg, const char *str, int len)
 void _client_process(conn_t c) {
     chunk_t chunk;
     int elem, attr, attr2;
-    char str[770]; /* see jep29, 256(node) + 1(@) + 255(domain) + 1(/) + 256(resource) + 1(\0) */
+    char str[3072]; /* see xmpp-core, 1023(node) + 1(@) + 1023(domain) + 1(/) + 1023(resource) + 1(\0) */
 
     log_debug(ZONE, "got packet from client, processing");
 
@@ -379,7 +379,7 @@ void _client_process(conn_t c) {
                 return;
             }
             
-            snprintf(str, 770, "%.*s", NAD_CDATA_L(chunk->nad, elem), NAD_CDATA(chunk->nad, elem));
+            snprintf(str, sizeof(str), "%.*s", NAD_CDATA_L(chunk->nad, elem), NAD_CDATA(chunk->nad, elem));
             jid_set(c->smid, str, JID_USER);
 
             /* and the resource, for sets */
@@ -395,7 +395,7 @@ void _client_process(conn_t c) {
                     return;
                 }
                 
-                snprintf(str, 770, "%.*s", NAD_CDATA_L(chunk->nad, elem), NAD_CDATA(chunk->nad, elem));
+                snprintf(str, sizeof(str), "%.*s", NAD_CDATA_L(chunk->nad, elem), NAD_CDATA(chunk->nad, elem));
                 jid_set(c->smid, str, JID_RESOURCE);
 
                 /* add the stream id to digest packets */
@@ -424,7 +424,7 @@ void _client_process(conn_t c) {
                 return;
             }
             
-            snprintf(str, 770, "%.*s", NAD_CDATA_L(chunk->nad, elem), NAD_CDATA(chunk->nad, elem));
+            snprintf(str, sizeof(str), "%.*s", NAD_CDATA_L(chunk->nad, elem), NAD_CDATA(chunk->nad, elem));
             jid_set(c->smid, str, JID_USER);
         }
     }
