@@ -143,6 +143,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
             /* change the host id */
             cdcur->host = pstrdup(cur->p,xmlnode_get_attrib(p->x,"from"));
             log_debug(ZONE,"Session Started");
+            xmlnode_free(p->x);
             /* if we have packets in the queue, write them */
             while((q=(wbq)pth_msgport_get(cdcur->pre_auth_mp))!=NULL)
             {
@@ -153,6 +154,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
             }
             pth_msgport_destroy(cdcur->pre_auth_mp);
             cdcur->pre_auth_mp=NULL;
+            return r_DONE;
         }
         log_debug(ZONE,"Writing packet to socket");
         io_write(cur,xmlnode_get_firstchild(p->x));
