@@ -97,12 +97,27 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     if(p->id->user != NULL)
         fd = atoi(p->id->user); 
     
-    if(p->type != p_ROUTE || fd == 0 || (cdcur = ghash_get(s__i->users, xmlnode_get_attrib(p->x, "to"))) == NULL)
+    if(p->type != p_ROUTE || fd == 0)
     { /* we only want <route/> packets or ones with a valid connection */
         log_warn(p->host, "pthsock_client bouncing invalid %s packet from %s", xmlnode_get_name(p->x), xmlnode_get_attrib(p->x,"from"));
         deliver_fail(p, "invalid client packet");
         return r_DONE;
     }
+
+
+    if ((cdcur = ghash_get(s__i->users, xmlnode_get_attrib(p->x,"to"))) == NULL)
+    {
+        if (!j_strcmp(xmlnode_get_attrib(p->x, "type"),  "session"))
+        {
+            jutil_tofrom(p->x);
+            xmlnode_put_attrib(p->x, "type", "error");
+            deliver(dpacket_new(p->x), s__i->i);
+        } else {
+            xmlnode_free(p->x);
+        return r_DONE;
+    }
+
+
 
     if (fd != cdcur->m->fd || cdcur->m->state != state_ACTIVE)
         m = NULL;
@@ -177,7 +192,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     }
 
 
-    if(xmlnode_get_firstchild(p->x) == NULL)
+    if(xmlnode_get_firstchild(p->x) == NULL || hash_get(s__i->users, xmlnode_get_attrib(p->x, "to")) == NULL)
     {
         xmlnode_free(p->x);
     }
