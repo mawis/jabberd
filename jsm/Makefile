@@ -69,7 +69,7 @@ check-recursive installcheck-recursive info-recursive dvi-recursive:
 	fi; test -z "$$fail"
 
 clean-local:
-	rm -f $(jsm_OBJECTS) jabberd
+	rm -f $(jsm_OBJECTS) jsm.so
 
 mostlyclean-recursive clean-recursive distclean-recursive \
 maintainer-clean-recursive:

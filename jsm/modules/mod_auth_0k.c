@@ -28,6 +28,9 @@ mreturn mod_auth_0k_go(mapi m, void *arg)
 
     log_debug("mod_auth_0k","checking");
 
+    if(jpacket_subtype(m->packet) == JPACKET__SET && (c_hash = xmlnode_get_tag_data(m->packet->iq,"hash")) == NULL)
+        return M_PASS;
+
     /* first we need to see if this user is using 0k */
     xdb = xdb_get(m->si->xc, m->user->id->server, m->user->id, NS_AUTH_0K);
     if(xdb == NULL)
@@ -44,16 +47,13 @@ mreturn mod_auth_0k_go(mapi m, void *arg)
     token = xmlnode_get_tag_data(xdb,"token");
     hash = xmlnode_get_tag_data(xdb,"hash");
 
-    if(hash != NULL && token != NULL && sequence > 0 && jpacket_subtype(m->packet) == JPACKET__GET)
-    { /* type=get, send back current 0k stuff */
-        xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"sequence"),seqs,-1);
-        xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"token"),token,-1);
-        xmlnode_free(xdb);
-        return M_PASS;
-    }
-
-    if((c_hash = xmlnode_get_tag_data(m->packet->iq, "hash")) == NULL)
-    {
+    if(jpacket_subtype(m->packet) == JPACKET__GET)
+    { /* type=get, send back current 0k stuff if we've got it */
+        if(hash != NULL && token != NULL && sequence > 0)
+        {
+            xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"sequence"),seqs,-1);
+            xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"token"),token,-1);
+        }
         xmlnode_free(xdb);
         return M_PASS;
     }
