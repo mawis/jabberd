@@ -3,15 +3,10 @@
 ===================================
 dialback
 	idle timeout
-	whitespace keepalive
 	log_record
 	ssl
-	only karma non-db conns
 c2s ssl
 jid case sensitivity
-mio
-	top-level config, karma and rate
-	disable karma by default
 
 
 ===================================

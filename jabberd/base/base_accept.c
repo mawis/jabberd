@@ -52,6 +52,7 @@ typedef struct accept_instance_st
     char *secret;
     int port;
     pth_msgport_t write_queue;
+    dpacket dplast;
 } *accept_instance, _accept_instance;
 
 /* Write packets to a xmlio object */
@@ -63,7 +64,10 @@ result base_accept_deliver(instance i, dpacket p, void* arg)
     /* Insert the message into the write_queue if we don't have a MIO socket yet.. */
     if (ai->state == A_READY)
     {
-        mio_write(ai->m, p->x, NULL, 0);
+        if(ai->dplast == p) /* don't return packets that they sent us! circular reference! */
+            deliver_fail(p,"Circular Refernce Detected");
+        else
+            mio_write(ai->m, p->x, NULL, 0);
         return r_DONE;
     }
         
@@ -114,7 +118,9 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
                 /* Hide 1.0 style transports etherx:* attribs */
                 xmlnode_hide_attrib(x, "etherx:to");
                 xmlnode_hide_attrib(x, "etherx:from");
-                deliver(dpacket_new(x), ai->i);
+                ai->dplast = dpacket_new(x);
+                deliver(ai->dplast, ai->i);
+                ai->dplast = NULL;
                 return;
             }
 
@@ -158,7 +164,7 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
         case MIO_ERROR:
             /* make sure it's the important one */
             if(m != ai->m)
-                break;
+                return;
 
             /* clean up any tirds */
             while((cur = mio_cleanup(m)) != NULL)
@@ -169,7 +175,7 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
         case MIO_CLOSED:
             /* make sure it's the important one */
             if(m != ai->m)
-                break;
+                return;
 
             log_debug(ZONE,"closing accepted socket");
             ai->m = NULL;
