@@ -12,8 +12,7 @@ Required Parameters:\n\
 Optional Parameters:\n\
  -H \t\t A 'home' folder, which can be used instead of the -s and -l above as the parent folder\n\
  -c \t\t Location of a configuration file to use instead of the built-in configuration\n\
- -v \t\tserver version\n\
- -V \t\tserver version\n\
+ -v \t\t server version\n\
  -D \t\t Enable verbose debug output\n"); \
         exit(0); \
     }
@@ -25,21 +24,19 @@ Optional Parameters:\n\
     <jsm xmlns='jabber:config:jsm'> \
       <register><instructions>Choose a username and password to register with this server.</instructions><name/><email/></register> \
       <update><jabberd:cmdline flag='h'>localhost</jabberd:cmdline></update> \
+      <vcard2jud/> \
       <browse><service type='jud' jid='users.jabber.org' name='Jabber User Directory'><ns>jabber:iq:search</ns><ns>jabber:iq:register</ns></service></browse> \
     </jsm> \
     <load main='jsm'> \
       <jsm>./jsm/jsm.so</jsm> \
-      <mod_echo>./jsm/jsm.so</mod_echo> \
       <mod_roster>./jsm/jsm.so</mod_roster> \
       <mod_time>./jsm/jsm.so</mod_time> \
       <mod_vcard>./jsm/jsm.so</mod_vcard> \
       <mod_last>./jsm/jsm.so</mod_last> \
       <mod_version>./jsm/jsm.so</mod_version> \
-      <mod_announce>./jsm/jsm.so</mod_announce> \
       <mod_agents>./jsm/jsm.so</mod_agents> \
       <mod_browse>./jsm/jsm.so</mod_browse> \
-      <mod_admin>./jsm/jsm.so</mod_admin> \
-      <mod_filter>./jsm/jsm.so</mod_filter> \
+      <mod_offline>./jsm/jsm.so</mod_offline> \
       <mod_presence>./jsm/jsm.so</mod_presence> \
       <mod_auth_plain>./jsm/jsm.so</mod_auth_plain> \
       <mod_auth_digest>./jsm/jsm.so</mod_auth_digest> \
@@ -60,18 +57,20 @@ Optional Parameters:\n\
       <authtime/> \
       <rate time='5' points='25'/> \
       <karma> \
+        <init>10</init> \
         <max>10</max> \
         <inc>1</inc> \
         <dec>1</dec> \
-        <restore>5</restore> \
-        <penalty>-5</penalty> \
+        <restore>10</restore> \
+        <penalty>-6</penalty> \
       </karma> \
+      <ip port='5222'/> \
     </pthcsock> \
   </service> \
   <log id='logger'> \
     <host/> \
     <format>%d: [%t] (%h): %s</format> \
-    <file>error.log</file> \
+    <file><jabberd:cmdline flag='l'>jabber.log</jabberd:cmdline></file> \
     <stderr/> \
   </log> \
   <service id='dnsrv'> \
@@ -88,12 +87,14 @@ Optional Parameters:\n\
       <legacy/> \
       <rate time='5' points='25'/> \
       <karma> \
-        <max>30</max> \
-        <inc>2</inc> \
+        <init>50</init> \
+        <max>50</max> \
+        <inc>4</inc> \
         <dec>1</dec> \
-        <restore>15</restore> \
-        <penalty>-1</penalty> \
+        <restore>50</restore> \
+        <penalty>-5</penalty> \
       </karma> \
+      <ip port='5269'/> \
     </pthssock> \
   </service> \
 </jabber>"
