@@ -175,6 +175,7 @@ void mod_offline_out_available(mapi m)
     int now = time(NULL);
     int expire, stored, diff;
     char str[10];
+    jpacket read_stanza = NULL;
 
     if (j_atoi(xmlnode_get_tag_data(m->packet->x, "priority"), 0) < 0) {
 	log_debug2(ZONE, LOGT_DELIVER, "negative priority, not delivering offline messages");
@@ -208,11 +209,14 @@ void mod_offline_out_available(mapi m)
             xmlnode_put_attrib(x,"seconds",str);
             xmlnode_hide_attrib(x,"stored");
         }
-        js_session_to(m->s,jpacket_new(xmlnode_dup(cur)));
+	read_stanza = jpacket_new(xmlnode_dup(cur));
+	read_stanza->flag = PACKET_FROM_OFFLINE_MAGIC;
+	log_debug2(ZONE, LOGT_DELIVER, "js_session_to for %s", xmlnode2str(cur));
+        js_session_to(m->s,read_stanza);
         xmlnode_hide(cur);
     }
     /* messages are gone, save the new sun-dried opts container */
-    xdb_set(m->si->xc, m->user->id, NS_OFFLINE, opts); /* can't do anything if this fails anyway :) */
+    xdb_set(m->si->xc, m->user->id, NS_OFFLINE, NULL); /* can't do anything if this fails anyway :) */
     xmlnode_free(opts);
 }
 
