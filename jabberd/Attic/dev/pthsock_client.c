@@ -1,7 +1,7 @@
 /*
     <service id="pthsock client">
       <host>pth-csock.127.0.0.1</host>
-      <load main='pthsock_client'>
+      <load>
 	    <pthsock_client>../load/pthsock_client.so</pthsock_client>
       </load>
       <pthcsock xmlns='jabberd:pth-csock:config'>
@@ -25,7 +25,7 @@ typedef struct csock_st
     xstream xs;
     pth_msgport_t mp;
     pth_event_t ering;
-    char *id, *host;
+    char *id, *host, *sid;
     int sock;
     struct csock_st *next;
 } *csock, _csock;
@@ -97,6 +97,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         /* write are stream header */
         r->host = pstrdup(r->p,xmlnode_get_attrib(x,"to"));
         h = xstream_header("jabber:client",NULL,r->host);
+        r->sid = pstrdup(r->p,xmlnode_get_attrib(h,"id"));
         block = xstream_header_char(h);
         pth_write(r->sock,block,strlen(block));
         xmlnode_free(h);
@@ -119,6 +120,8 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
                 r->ering = NULL;
                 return;
             }
+            else if (NSCHECK(q,NS_AUTH))
+                xmlnode_put_attrib(xmlnode_get_tag(q,"digest"),"sid",r->sid);
         }
 
         xmlnode_put_attrib(x,"sfrom",r->id);
