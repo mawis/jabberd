@@ -246,7 +246,7 @@ void _connect_process(conn_t c) {
     log_debug(ZONE,"sm sent us a chunk for %s", cid);
 
     /* either bounce or send the chunk to the client */
-    if(target->fd >= 0)
+    if(target->fd >= 0 && j_strcmp(jid_full(target->smid), str) == 0)
         chunk_write(target, chunk, NULL, NULL, NULL);
     else
         chunk_write(c, chunk, str, cid, "error");
