@@ -30,16 +30,6 @@ typedef struct io_st
 
 ios io__data=NULL;
 
-#define KARMA_DEBUG
-#define KARMA_READ_MAX(k) k*100 /* how much you are allowed to read off the sock */
-#define KARMA_PENALTY -5 /* where you go when you hit 0 karma */
-#define KARMA_RESTORE 5  /* where you go when you payed your penelty */
-#define MAX_KARMA 10     /* total max karma you can have */
-#define KARMA_INIT -10   /* internal "init" value, should not be able to get here */
-#define KARMA_HEARTBEAT 2 /* seconds to register for heartbeat */
-#define KARMA_INC 1      /* how much to increment every KARMA_HEARTBEAT seconds */
-#define KARMA_DEC 1      /* how much to penalize for reading KARMA_READ_MAX in
-                            KARMA_HEARTBEAT seconds */
 
 result karma_heartbeat(void*arg)
 {
@@ -47,16 +37,16 @@ result karma_heartbeat(void*arg)
     if(io__data==NULL||io__data->master__list==NULL) return r_DONE;
     for(cur=io__data->master__list;cur!=NULL;cur=cur->next)
     {
-        if(cur->state==state_CLOSE) continue;
-        cur->karma+=KARMA_INC;
-        if(cur->karma>0)cur->read_bytes-=(KARMA_READ_MAX(cur->karma));
-        if(cur->read_bytes<0)cur->read_bytes=0;
-        if(cur->karma==0) 
+        if(cur->state==state_CLOSE||cur->k.val==KARMA_INIT) continue;
+        cur->k.val+=cur->k.inc;
+        if(cur->k.val>0)cur->k.bytes-=(KARMA_READ_MAX(cur->k.val));
+        if(cur->k.bytes<0)cur->k.bytes=0;
+        if(cur->k.val==0)  /* punishment is over */
             pth_raise(io__data->t,SIGUSR2);
-        if(cur->karma>MAX_KARMA)cur->karma=MAX_KARMA; /* can only be so good */
 #ifdef KARMA_DEBUG
-        if(cur->karma!=MAX_KARMA)log_notice("karma","socket #%d granted %d karma, now: %d:%d",cur->fd,KARMA_INC,cur->karma,cur->read_bytes);
+        if(cur->k.val!=cur->k.max+1)log_notice("karma","socket #%d granted %d karma, now: %d:%d",cur->fd,cur->k.inc,cur->k.val,cur->k.bytes);
 #endif
+        if(cur->k.val>cur->k.max)cur->k.val=cur->k.max; /* can only be so good */
     }
     return r_DONE;
 }
@@ -270,7 +260,13 @@ sock _io_accept(sock s)
 
     p = pool_new();
     c = pmalloco(p, sizeof(_sock));
-    c->karma=KARMA_INIT;
+    c->k.val=s->k.max;
+    c->k.bytes=s->k.bytes;
+    c->k.max=s->k.max;
+    c->k.inc=s->k.inc;
+    c->k.dec=s->k.dec;
+    c->k.penalty=s->k.penalty;
+    c->k.restore=s->k.restore;
     c->queue=pth_msgport_create("queue");
     c->p = p;
     c->fd = fd;
@@ -304,7 +300,6 @@ void _io_main(void *arg)
     if(io__data->master__list!=NULL)maxfd=io__data->master__list->fd;
     FD_ZERO(&all_wfds);
     FD_ZERO(&all_rfds);
-    if(maxfd!=0)FD_SET(maxfd,&all_rfds);
     
     wevt=pth_event(PTH_EVENT_SIGS,&sigs,&sig);
 
@@ -323,9 +318,12 @@ void _io_main(void *arg)
         cur=io__data->master__list;
         while(cur != NULL)
         {
-            if((!FD_ISSET(cur->fd,&all_rfds)&&cur->karma==0)||cur->karma==KARMA_INIT)
+            if((!FD_ISSET(cur->fd,&all_rfds)&&cur->k.val==0)||cur->k.val==KARMA_INIT)
             {
-                cur->karma=KARMA_RESTORE;
+#ifdef KARMA_DEBUG
+                log_notice("karma","sock %d restoring to %d:%d karma",cur->fd,cur->k.restore,cur->k.bytes);
+#endif
+                cur->k.val=cur->k.restore;
                 FD_SET(cur->fd,&all_rfds); /* they can read again */
             }
             pth_yield(NULL);
@@ -351,7 +349,7 @@ void _io_main(void *arg)
             }
             else if (FD_ISSET(cur->fd,&rfds))
             { /* we need to read from a socket */
-                maxlen=KARMA_READ_MAX(cur->karma);
+                maxlen=KARMA_READ_MAX(cur->k.val);
                 len = read(cur->fd,buff,maxlen);
                 if(len==0)
                 { /* i don't care what the errno is.. */
@@ -380,20 +378,20 @@ void _io_main(void *arg)
                 }
                 else
                 {
-                    cur->read_bytes+=len;
+                    cur->k.bytes+=len;
 #ifdef KARMA_DEBUG
-                        log_notice("karma","socket #%d just read: %d of max %d, karma now: %d:%d",cur->fd,len,maxlen,cur->karma,cur->read_bytes);
+                        log_notice("karma","socket #%d just read: %d of max %d, karma now: %d:%d",cur->fd,len,maxlen,cur->k.val,cur->k.bytes);
 #endif
-                    if(cur->read_bytes>=maxlen)
+                    if(cur->k.bytes>=maxlen)
                     { /* they read the max, tsk tsk */
-                        cur->karma-=KARMA_DEC;
+                        cur->k.val-=cur->k.dec;
 #ifdef KARMA_DEBUG
-                        log_notice("karma","socket #%d lost %d karma, now: %d:%d",cur->fd,KARMA_DEC,cur->karma,cur->read_bytes);
+                        log_notice("karma","socket #%d lost %d karma, now: %d:%d",cur->fd,cur->k.dec,cur->k.val,cur->k.bytes);
 #endif
-                        if(cur->karma<=0) /* ran out of karma */
+                        if(cur->k.val<=0) /* ran out of karma */
                         {
                             log_notice("io_select","socket #%d is out of karma",cur->fd);
-                            cur->karma=KARMA_PENALTY; /* pay the penence */
+                            cur->k.val=cur->k.penalty; /* pay the penence */
                             FD_CLR(cur->fd,&all_rfds); 
                         }
                     }
@@ -540,7 +538,7 @@ void _io_select_connect(void *arg)
 }
 
 /* request to connect to a remote host */
-void io_select_connect(char *host, int port,void* arg,io_cb cb,void *cb_arg)
+void io_select_connect_ex(char *host, int port,void* arg,io_cb cb,void *cb_arg,struct karma *k)
 {
     sock c;
     pool p=pool_new();
@@ -550,7 +548,11 @@ void io_select_connect(char *host, int port,void* arg,io_cb cb,void *cb_arg)
     cst->port=port;
 
     c=pmalloco(p,sizeof(_sock));
-    c->karma=KARMA_INIT;
+    c->k.val=k->val;
+    c->k.bytes=k->bytes;
+    c->k.max=k->max;
+    c->k.inc=k->inc;
+    c->k.dec=k->dec;
     c->queue=pth_msgport_create("queue");
     c->type=type_NORMAL;
     c->state=state_ACTIVE;
@@ -564,8 +566,22 @@ void io_select_connect(char *host, int port,void* arg,io_cb cb,void *cb_arg)
     pth_spawn(PTH_ATTR_DEFAULT,(void*)_io_select_connect,(void*)cst);
 }
 
+/* request to connect to a remote host */
+void io_select_connect(char *host, int port,void* arg,io_cb cb,void *cb_arg)
+{
+    struct karma k;
+    k.val=KARMA_INIT;
+    k.bytes=0;
+    k.max=KARMA_MAX;
+    k.inc=KARMA_INC;
+    k.dec=KARMA_DEC;
+    k.penalty=KARMA_PENALTY;
+    k.restore=KARMA_RESTORE;
+    io_select_connect_ex(host,port,arg,cb,cb_arg,&k);
+}
+
 /* call to start listening with select */
-void io_select_listen(int port,char *listen_host,io_cb cb,void *arg,int rate_time,int max_points)
+void io_select_listen_ex(int port,char *listen_host,io_cb cb,void *arg,int rate_time,int max_points,struct karma *k)
 {
     sock new;
     pool p;
@@ -593,7 +609,13 @@ void io_select_listen(int port,char *listen_host,io_cb cb,void *arg,int rate_tim
 
     p=pool_new();
     new=pmalloco(p,sizeof(_sock));
-    new->karma=KARMA_INIT;
+    new->k.val=k->val;
+    new->k.bytes=k->bytes;
+    new->k.max=k->max;
+    new->k.inc=k->inc;
+    new->k.dec=k->dec;
+    new->k.restore=k->restore;
+    new->k.penalty=k->penalty;
     new->fd=fd;
     new->p=p;
     new->type=type_LISTEN;
@@ -624,4 +646,17 @@ void io_select_listen(int port,char *listen_host,io_cb cb,void *arg,int rate_tim
     }
     io_link(new);
     pth_raise(io__data->t,SIGUSR2); /* notify the select loop */
+}
+/* call to start listening with select */
+void io_select_listen(int port,char *listen_host,io_cb cb,void *arg,int rate_time,int max_points)
+{
+    struct karma k;
+    k.val=KARMA_INIT;
+    k.bytes=0;
+    k.max=KARMA_MAX;
+    k.inc=KARMA_INC;
+    k.dec=KARMA_DEC;
+    k.penalty=KARMA_PENALTY;
+    k.restore=KARMA_RESTORE;
+    io_select_listen_ex(port,listen_host,cb,arg,rate_time,max_points,&k);
 }
