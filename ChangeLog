@@ -1,3 +1,9 @@
+2005-02-18  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/xdb.c: added comments about xdb-set check action
+    * xdb_file/xdb_file.c: same
+    * jsm/modules/mod_auth_plain.c: 2004-09-24 change disabled unregistering
+
 2005-02-17  Matthias Wimmer  <m@tthias.net>
 
     * jsm/server.c: bugfix, jsm could be crashed
