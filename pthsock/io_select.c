@@ -306,7 +306,7 @@ void _io_main(void *arg)
     sigset_t sigs;
     int sig;
     sock cur, c,temp;    
-    char buff[1024];
+    char buff[8192]; /* max socket read */
     int len,maxlen;
     int maxfd=0;
 
@@ -374,6 +374,7 @@ void _io_main(void *arg)
 
                 /* we need to read from a socket */
                 maxlen=KARMA_READ_MAX(cur->k.val);
+                if(maxlen >= 8192) maxlen = 8191; /* leave room for the NULL */
                 len = read(cur->fd,buff,maxlen);
                 if(len==0)
                 { /* i don't care what the errno is.. */
