@@ -299,6 +299,8 @@ jid jid_user(jid a)
 {
     jid ret;
 
+    if(a == NULL || a->resource == NULL) return a;
+
     ret = pmalloco(a->p,sizeof(struct jid_struct));
     ret->p = a->p;
     ret->user = a->user;

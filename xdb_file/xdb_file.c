@@ -154,8 +154,8 @@ int xdb_file_insertcheck(char *ns, xmlnode data, xmlnode dnew)
 {
     char *str = NULL;
 
-    /* if the new stuff has a namespace, it's an entire replacement and not an insertion */
-    if(xmlnode_get_attrib(dnew,"xmlns") != NULL)
+    /* if there's no new stuff or if the new stuff has a namespace, it's an entire replacement and not an insertion */
+    if(dnew == NULL || xmlnode_get_attrib(dnew,"xmlns") != NULL)
         return 0;
 
     /* some namespaces are just generic insertable ones */

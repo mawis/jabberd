@@ -38,6 +38,7 @@ jsm_EXOBJECTS = \
 	modules/mod_version.o \
 	modules/mod_register.o \
 	modules/mod_log.o \
+	modules/mod_last.o \
 	modules/mod_offline.o
 
 SUBDIRS=modules
