@@ -2,17 +2,8 @@
 Crit/Bugs/Strangeness
 ===================================
 
-dizzyd?? 10/1/00 ...
-Base_exec and chaining jabberd's together MUST work correctly..
-
-?? 10/4/00 ...
-base_accept/connect and chaining jabberd's together MUST work correctly..
-
 temas	9/15/00 almost
 flat jpolld component minimally working
-
-dizzyd	9/15/00 in progress
-s2s SRV dns lookup support
 
 jer	9/15/00 thinking
 consistent usage of namespaces for streams and config sections
