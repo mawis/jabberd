@@ -80,11 +80,12 @@ jabberd_STATICOBJS=\
 	$(JHOME)/jsm/modules/mod_auth_plain.o \
 	$(JHOME)/jsm/modules/mod_auth_digest.o \
 	$(JHOME)/jsm/modules/mod_auth_0k.o \
+	$(JHOME)/jsm/modules/mod_browse.o \
 	$(JHOME)/jsm/modules/mod_echo.o \
 	$(JHOME)/jsm/modules/mod_filter.o \
 	$(JHOME)/jsm/modules/mod_groups.o \
+	$(JHOME)/jsm/modules/mod_last.o \
 	$(JHOME)/jsm/modules/mod_presence.o \
-	$(JHOME)/jsm/modules/mod_private.o \
 	$(JHOME)/jsm/modules/mod_roster.o \
 	$(JHOME)/jsm/modules/mod_time.o \
 	$(JHOME)/jsm/modules/mod_vcard.o \
@@ -92,6 +93,7 @@ jabberd_STATICOBJS=\
 	$(JHOME)/jsm/modules/mod_register.o \
 	$(JHOME)/jsm/modules/mod_log.o \
 	$(JHOME)/jsm/modules/mod_offline.o \
+	$(JHOME)/jsm/modules/mod_xml.o \
 	$(JHOME)/dnsrv/dnsrv.o \
 	$(JHOME)/dnsrv/srv_resolv.o \
 	$(JHOME)/pthsock/dialback.o \

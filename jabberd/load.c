@@ -36,6 +36,33 @@ int load_ref__count = 0;
 
 #ifdef STATIC
 /* optionally use static hardcoded symbols and don't compile in the dlopen stuff */
+void *jsm();
+void *pthsock_client();
+void *pthsock_server();
+void *xdb_file();
+void *dnsrv();
+void *mod_admin();
+void *mod_archive();
+void *mod_agents();
+void *mod_browse();
+void *mod_filter();
+void *mod_echo();
+void *mod_groups();
+void *mod_roster();
+void *mod_time();
+void *mod_vcard();
+void *mod_version();
+void *mod_announce();
+void *mod_private();
+void *mod_presence();
+void *mod_auth_plain();
+void *mod_auth_digest();
+void *mod_auth_0k();
+void *mod_register();
+void *mod_log();
+void *mod_xml();
+void *mod_last();
+void *mod_offline();
 
 void *load_symbol(char *func, char *file)
 {
@@ -44,6 +71,8 @@ void *load_symbol(char *func, char *file)
     if(j_strcmp(func,"pthsock_server") == 0) return (void (*)(instance,xmlnode))pthsock_server;
     if(j_strcmp(func,"xdb_file") == 0) return (void (*)(instance,xmlnode))xdb_file;
     if(j_strcmp(func,"dnsrv") == 0) return (void (*)(instance,xmlnode))dnsrv;
+    if(j_strcmp(func,"mod_browse") == 0) return (void (*)(void))mod_browse;
+    if(j_strcmp(func,"mod_archive") == 0) return (void (*)(void))mod_archive;
     if(j_strcmp(func,"mod_echo") == 0) return (void (*)(void))mod_echo;
     if(j_strcmp(func,"mod_groups") == 0) return (void (*)(void))mod_groups;
     if(j_strcmp(func,"mod_roster") == 0) return (void (*)(void))mod_roster;
@@ -53,7 +82,6 @@ void *load_symbol(char *func, char *file)
     if(j_strcmp(func,"mod_announce") == 0) return (void (*)(void))mod_announce;
     if(j_strcmp(func,"mod_agents") == 0) return (void (*)(void))mod_agents;
     if(j_strcmp(func,"mod_admin") == 0) return (void (*)(void))mod_admin;
-    if(j_strcmp(func,"mod_private") == 0) return (void (*)(void))mod_private;
     if(j_strcmp(func,"mod_filter") == 0) return (void (*)(void))mod_filter;
     if(j_strcmp(func,"mod_presence") == 0) return (void (*)(void))mod_presence;
     if(j_strcmp(func,"mod_auth_plain") == 0) return (void (*)(void))mod_auth_plain;
@@ -61,6 +89,9 @@ void *load_symbol(char *func, char *file)
     if(j_strcmp(func,"mod_auth_0k") == 0) return (void (*)(void))mod_auth_0k;
     if(j_strcmp(func,"mod_register") == 0) return (void (*)(void))mod_register;
     if(j_strcmp(func,"mod_log") == 0) return (void (*)(void))mod_log;
+    if(j_strcmp(func,"mod_xml") == 0) return (void (*)(void))mod_xml;
+    if(j_strcmp(func,"mod_last") == 0) return (void (*)(void))mod_last;
+    if(j_strcmp(func,"mod_offline") == 0) return (void (*)(void))mod_offline;
 
     return NULL;
 }
