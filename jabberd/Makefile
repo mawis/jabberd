@@ -12,7 +12,7 @@ ifeq ($(ISSTATIC),1)
 	DEFINES=-DHOME="\"$(JHOME)\"" -DSTATIC
 endif
 
-CFLAGS:=$(CFLAGS) $(DEFINES)
+CFLAGS=$(CCFLAGS) $(DEFINES)
 
 jabberd_HEADERS=jabberd.h single.h
 

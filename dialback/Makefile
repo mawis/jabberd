@@ -1,6 +1,6 @@
 include ../platform-settings
 
-CFLAGS:=$(CFLAGS) -I../jabberd
+CFLAGS=$(CCFLAGS) -I../jabberd
 
 dialback_OBJECTS=dialback.o dialback_in.o dialback_out.o
 

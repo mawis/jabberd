@@ -3,7 +3,7 @@
 #
 include ../../platform-settings
 
-CFLAGS:=$(CFLAGS)
+CFLAGS=$(CCFLAGS)
 
 base_OBJECTS = \
 	base_connect.o \

@@ -1,6 +1,6 @@
 include ../platform-settings
 
-CFLAGS:=$(CFLAGS) -I../jabberd/
+CFLAGS=$(CCFLAGS) -I../jabberd/
 
 dnsrv_HEADERS=srv_resolv.h ../jabberd/jabberd.h
 

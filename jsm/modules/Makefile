@@ -1,6 +1,6 @@
 include ../../platform-settings
 
-CFLAGS:=$(CFLAGS) $(DEFINES) -I../../jabberd/
+CFLAGS=$(CCFLAGS) $(DEFINES) -I../../jabberd/
 
 jsm_modules_HEADERS=../jsm.h ../../jabberd/jabberd.h
 

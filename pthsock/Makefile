@@ -1,6 +1,6 @@
 include ../platform-settings
 
-CFLAGS:=$(CFLAGS) -I../jabberd/
+CFLAGS=$(CCFLAGS) -I../jabberd/
 
 HEADERS=../jabberd/jabberd.h
 
