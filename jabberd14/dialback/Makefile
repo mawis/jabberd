@@ -18,7 +18,7 @@ ifeq ($(__CYGWIN__),1)
 # Make .def file:
 	echo EXPORTS > dialback.def
 	nm $(dialback_OBJECTS) $(PTHLIB) | grep '^........ [T] _' | sed 's/[^_]*_//' | sort >> dialback.def
-	dllwrap --def dialback.def --driver-name $(CC) -o dialback.dll $(dialback_OBJECTS) ../jabberd/jabberd.a $(LDFLAGS)
+	dllwrap --def dialback.def --driver-name $(CC) -o dialback.dll $(dialback_OBJECTS) ../jabberd/jabberd.a $(LDFLAGS) $(LIBS)
 else
 	$(CC) $(CFLAGS) $(MCFLAGS) -o dialback.so $(dialback_OBJECTS) $(LDFLAGS) $(LIBS)
 endif
