@@ -43,7 +43,7 @@ base modules:
 
 overall:
 	mem leaks, watching pool debug
-     -- s2s verified leak free -- TSB 10/11/00
+     -- s2s verified leak free -- TSB 10/11/00 -- recheck for dialback!
 	performance
 
 components:
@@ -70,7 +70,6 @@ all
 existing/known bugs or issues with 1.0, protocol things?
 
 jer
-A way to gracefully shut down the server, and notify all components is needed
 deliver safety, validating routable bits of the packets
 deliver optimization/logic review
 prime# configs for ghashes
