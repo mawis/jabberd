@@ -85,6 +85,7 @@
                   <type/> [matches the type of the message]
               </conditions>
               <actions>
+                  <error/> [replys with an error]
                   <offline/> [stores the messages offline]
                   <forward/> [forwards the message to another jid]
                   <reply/> [sends a reply to the sender of the message]
