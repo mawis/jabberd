@@ -649,7 +649,11 @@ void deliver_instance(instance i, dpacket p)
             pig = dpacket_copy(p);
 
         /* call the handler */
-        r = (h->f)(i,p,h->arg);
+        if((r = (h->f)(i,p,h->arg)) == r_ERR)
+        {
+            deliver_fail(p, "Internal Delivery Error");
+            break;
+        }
 
         /* if a non-delivery handler says it handled it, we have to be done */
         if(h->o != o_DELIVER && r == r_DONE)

@@ -284,14 +284,13 @@ mreturn mod_admin_message(mapi m, void *arg)
     subject=spools(m->packet->p,"Admin: ",xmlnode_get_tag_data(m->packet->x,"subject")," (",m->packet->to->server,")",m->packet->p);
     xmlnode_hide(xmlnode_get_tag(m->packet->x,"subject"));
     xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->x,"subject"),subject,-1);
-
+    jutil_delay(m->packet->x,"admin");
 
     for(cur = xmlnode_get_firstchild(js_config(m->si,"admin")); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
         if(xmlnode_get_name(cur) == NULL || xmlnode_get_data(cur) == NULL) continue;
 
         p = jpacket_new(xmlnode_dup(m->packet->x));
-        jutil_delay(p->x,"admin");
         p->to = jid_new(p->p,xmlnode_get_data(cur));
         xmlnode_put_attrib(p->x,"to",jid_full(p->to));
         js_deliver(m->si,p);
