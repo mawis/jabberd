@@ -1,3 +1,8 @@
+2004-09-28  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/lib/jabberdlib.h: added STARTTLS support for c2s conns
+    * pthsock/client.c: same
+
 2004-09-27  Matthias Wimmer  <m@tthias.net>
 
     * dialback/dialback_in.c: added STARTTLS support for s2s conns
