@@ -115,27 +115,51 @@ void _mio_xstream_init(mio m)
 }
 
 /* this function is called when a socket reads data */
-void _mio_xml_parser(mio m, const void *buf, size_t bufsz)
+void _mio_xml_parser(mio m, const void *vbuf, size_t bufsz)
 {
-    char *nul;
+    char *nul, *buf = (char*)vbuf;
 
     /* init the parser if this is the first read call */
     if(m->parser == NULL)
     {
         _mio_xstream_init(m);
         /* XXX pretty big hack here, if the initial read contained a nul, assume nul-packet-terminating format stream */
-        if((nul = strchr(buf,'\0')) != NULL && (nul - (char*)buf) < bufsz)
+        if((nul = strchr(buf,'\0')) != NULL && (nul - buf) < bufsz)
         {
             m->type = type_NUL;
             nul[-2] = ' '; /* assume it's .../>0 and make the stream open again */
         }
+        /* XXX another big hack/experiment, for bypassing dumb proxies */
+        if(*buf == 'P')
+            m->type = type_HTTP;
     }
 
-    while((nul = strchr(buf,'\0')) != NULL && (nul - (char*)buf) < bufsz)
+    /* XXX more http hack to catch the end of the headers */
+    if(m->type == type_HTTP)
     {
-        memmove(nul,nul+1,strlen(nul+1));
-        bufsz--;
+        if((nul = strstr(buf,"\r\n\r\n")) == NULL)
+            return;
+        nul += 4;
+        bufsz = bufsz - (nul - buf);
+        buf = nul;
+        mio_write(m,NULL,"HTTP/1.0 200 Ok
+Server: jabber/xmlstream-hack-0.1
+Expires: Fri, 10 Oct 1997 10:10:10 GMT
+Pragma: no-cache
+Cache-control: private
+Connection: close
+
+",-1);
+        m->type = type_NORMAL;
     }
+
+    /* XXX more nul-term hack to ditch the nul's whenever */
+    if(m->type == type_NUL)
+        while((nul = strchr(buf,'\0')) != NULL && (nul - buf) < bufsz)
+        {
+            memmove(nul,nul+1,strlen(nul+1));
+            bufsz--;
+        }
 
     if(XML_Parse(m->parser, buf, bufsz, 0) == 0)
         if(m->cb != NULL)
