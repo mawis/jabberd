@@ -28,6 +28,7 @@ jsm_OBJECTS = \
     modules/mod_version.o \
     modules/mod_register.o \
     modules/mod_log.o \
+    modules/mod_auth_0k.o \
     modules/mod_offline.o 
 
 all: jsm_build
