@@ -228,6 +228,11 @@ int main (int argc, char** argv)
     /* init pth */
     pth_init();
 
+#ifdef LIBIDN
+    /* init the stringprep caches for jid manipulation */
+    jid_init_cache();
+#endif
+
     /* fire em up baby! */
     heartbeat_birth();
 
@@ -257,7 +262,9 @@ int main (int argc, char** argv)
     {
         pth_ctrl(PTH_CTRL_GETAVLOAD, &avload);
         log_debug(ZONE,"main load check of %.2f with %ld total threads", avload, pth_ctrl(PTH_CTRL_GETTHREADS));
+#ifdef LIBIDN
 	jid_clean_cache();
+#endif
         pth_sleep(60);
     };
 
