@@ -55,8 +55,7 @@ void debug_log(char *zone, const char *msgfmt, ...)
     va_start(ap, msgfmt);
     vsnprintf(pos, MAX_LOG_SIZE - offset, msgfmt, ap);
     fprintf(stderr, message);
-
-    return;
+    fprintf(stderr, "\n");
 }
 
 void logger(char *type, char *host, char *message)
