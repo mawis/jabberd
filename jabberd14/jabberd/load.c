@@ -28,7 +28,6 @@
  * 
  * --------------------------------------------------------------------------*/
 #include "jabberd.h"
-
 /* IN-PROCESS component loader */
 
 typedef void (*load_init)(instance id, xmlnode x);
@@ -38,53 +37,30 @@ int load_ref__count = 0;
 #ifdef STATIC
 /* optionally use static hardcoded symbols and don't compile in the dlopen stuff */
 
-void jsm(instance id, xmlnode x);
-void pthsock_client(instance i, xmlnode x);
-void pthsock_server(instance i, xmlnode x);
-void xdb_file(instance i, xmlnode x);
-void dnsrv(instance i, xmlnode x);
-void mod_echo();
-void mod_groups();
-void mod_roster();
-void mod_time();
-void mod_vcard();
-void mod_version();
-void mod_announce();
-void mod_agents();
-void mod_admin();
-void mod_private();
-void mod_filter();
-void mod_presence();
-void mod_auth_plain();
-void mod_auth_digest();
-void mod_auth_0k();
-void mod_register();
-void mod_log();
-
 void *load_symbol(char *func, char *file)
 {
-    if(j_strcmp(func,"jsm") == 0) return jsm;
-    if(j_strcmp(func,"pthsock_client") == 0) return pthsock_client;
-    if(j_strcmp(func,"pthsock_server") == 0) return pthsock_server;
-    if(j_strcmp(func,"xdb_file") == 0) return xdb_file;
-    if(j_strcmp(func,"dnsrv") == 0) return dnsrv;
-    if(j_strcmp(func,"mod_echo") == 0) return mod_echo;
-    if(j_strcmp(func,"mod_groups") == 0) return mod_groups;
-    if(j_strcmp(func,"mod_roster") == 0) return mod_roster;
-    if(j_strcmp(func,"mod_time") == 0) return mod_time;
-    if(j_strcmp(func,"mod_vcard") == 0) return mod_vcard;
-    if(j_strcmp(func,"mod_version") == 0) return mod_version;
-    if(j_strcmp(func,"mod_announce") == 0) return mod_announce;
-    if(j_strcmp(func,"mod_agents") == 0) return mod_agents;
-    if(j_strcmp(func,"mod_admin") == 0) return mod_admin;
-    if(j_strcmp(func,"mod_private") == 0) return mod_private;
-    if(j_strcmp(func,"mod_filter") == 0) return mod_filter;
-    if(j_strcmp(func,"mod_presence") == 0) return mod_presence;
-    if(j_strcmp(func,"mod_auth_plain") == 0) return mod_auth_plain;
-    if(j_strcmp(func,"mod_auth_digest") == 0) return mod_auth_digest;
-    if(j_strcmp(func,"mod_auth_0k") == 0) return mod_auth_0k;
-    if(j_strcmp(func,"mod_register") == 0) return mod_register;
-    if(j_strcmp(func,"mod_log") == 0) return mod_log;
+    if(j_strcmp(func,"jsm") == 0) return (void (*)(instance,xmlnode))jsm;
+    if(j_strcmp(func,"pthsock_client") == 0) return (void (*)(instance,xmlnode))pthsock_client;
+    if(j_strcmp(func,"pthsock_server") == 0) return (void (*)(instance,xmlnode))pthsock_server;
+    if(j_strcmp(func,"xdb_file") == 0) return (void (*)(instance,xmlnode))xdb_file;
+    if(j_strcmp(func,"dnsrv") == 0) return (void (*)(instance,xmlnode))dnsrv;
+    if(j_strcmp(func,"mod_echo") == 0) return (void (*)(void))mod_echo;
+    if(j_strcmp(func,"mod_groups") == 0) return (void (*)(void))mod_groups;
+    if(j_strcmp(func,"mod_roster") == 0) return (void (*)(void))mod_roster;
+    if(j_strcmp(func,"mod_time") == 0) return (void (*)(void))mod_time;
+    if(j_strcmp(func,"mod_vcard") == 0) return (void (*)(void))mod_vcard;
+    if(j_strcmp(func,"mod_version") == 0) return (void (*)(void))mod_version;
+    if(j_strcmp(func,"mod_announce") == 0) return (void (*)(void))mod_announce;
+    if(j_strcmp(func,"mod_agents") == 0) return (void (*)(void))mod_agents;
+    if(j_strcmp(func,"mod_admin") == 0) return (void (*)(void))mod_admin;
+    if(j_strcmp(func,"mod_private") == 0) return (void (*)(void))mod_private;
+    if(j_strcmp(func,"mod_filter") == 0) return (void (*)(void))mod_filter;
+    if(j_strcmp(func,"mod_presence") == 0) return (void (*)(void))mod_presence;
+    if(j_strcmp(func,"mod_auth_plain") == 0) return (void (*)(void))mod_auth_plain;
+    if(j_strcmp(func,"mod_auth_digest") == 0) return (void (*)(void))mod_auth_digest;
+    if(j_strcmp(func,"mod_auth_0k") == 0) return (void (*)(void))mod_auth_0k;
+    if(j_strcmp(func,"mod_register") == 0) return (void (*)(void))mod_register;
+    if(j_strcmp(func,"mod_log") == 0) return (void (*)(void))mod_log;
 
     return NULL;
 }

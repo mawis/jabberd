@@ -271,14 +271,13 @@ mreturn mod_roster_out_iq(mapi m)
             id = jid_new(m->packet->p,xmlnode_get_attrib(cur,"jid"));
             if(id == NULL || jid_cmpx(m->s->uid,id,JID_USER|JID_SERVER) == 0) continue;
 
-            /* zoom to find the existing item in the current roster */
+            /* zoom to find the existing item in the current roster, and hide it */
             item = mod_roster_get_item(roster, id, &newflag);
+            xmlnode_hide(item);
 
             /* drop you sukkah */
             if(j_strcmp(xmlnode_get_attrib(cur,"subscription"),"remove") == 0)
             {
-                xmlnode_hide(item);
-
                 /* cancel our subscription to them */
                 if(j_strcmp(xmlnode_get_attrib(item,"subscription"),"both") == 0 || j_strcmp(xmlnode_get_attrib(item,"subscription"),"to") == 0 || j_strcmp(xmlnode_get_attrib(item,"ask"),"subscribe") == 0)
                     js_session_from(m->s,jpacket_new(jutil_presnew(JPACKET__UNSUBSCRIBE,xmlnode_get_attrib(cur,"jid"),NULL)));
@@ -292,16 +291,11 @@ mreturn mod_roster_out_iq(mapi m)
                 continue;
             }
 
-            /* remove old groups */
-            while(xmlnode_get_firstchild(item) != NULL)
-                xmlnode_hide(xmlnode_get_firstchild(item));
-            /* copy new groups */
-            if(xmlnode_has_children(cur))
-                xmlnode_insert_node(item, xmlnode_get_firstchild(cur));
-            /* copy name attrib */
-            xmlnode_put_attrib(item,"name",xmlnode_get_attrib(cur,"name"));
-            /* remove any server created flags */
-            xmlnode_hide_attrib(item,"hidden");
+            /* copy the old stuff into the new one and insert it into the roster */
+            xmlnode_put_attrib(cur,"subscription",xmlnode_get_attrib(item,"subscription"));
+            xmlnode_put_attrib(cur,"subscribe",xmlnode_get_attrib(item,"subscribe")); /* prolly not here, but just in case */
+            xmlnode_insert_tag_node(roster,cur);
+
             /* push the new item */
             mod_roster_push(m->user,item);
         }

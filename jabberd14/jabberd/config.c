@@ -29,6 +29,7 @@
  * --------------------------------------------------------------------------*/
 
 #include "jabberd.h"
+#include "single.h"
 #define MAX_INCLUDE_NESTING 20
 extern HASHTABLE cmd__line;
 HASHTABLE instance__ids=NULL;
@@ -115,9 +116,7 @@ void cmdline_replace(xmlnode x)
 
 int configurate(char *file)
 {
-    /* XXX-temas:  do this one */
-    /* CONFIGXML is the default name for the config file - defined by the build system */
-    char def[] = CONFIGXML;
+    char def[] = "jabber.xml";
     char *realfile = (char *)def;
 
     /* if no file name is specified, fall back to the default file */
@@ -127,10 +126,15 @@ int configurate(char *file)
     /* read and parse file */
     greymatter__ = xmlnode_file(realfile);
 
+#ifdef SINGLE
+    if(greymatter__ == NULL)
+        greymatter__ = xmlnode_str(SINGLE_CONFIG, strlen(SINGLE_CONFIG));
+#endif
+
     /* was the there a read/parse error? */
     if(greymatter__ == NULL)
     {
-        fprintf(stderr, "Configuration using %s failed\n",realfile);
+        fprintf(stderr, "Configuration parsing using %s failed\n",realfile);
         return 1;
     }
 

@@ -3,9 +3,7 @@
 #
 include ../../platform-settings
 
-# add -DSTATIC for a rudimentary static build, and make sure all the needed .o's are linked in below!
-DEFINES=-DCONFIGXML="\"jabber.xml\"" -DHOME="\"$(JHOME)\""
-CFLAGS:=$(CFLAGS) $(DEFINES)
+CFLAGS:=$(CFLAGS)
 
 base_OBJECTS = \
 	base_connect.o \

@@ -4,9 +4,9 @@
 include ../platform-settings
 
 ifeq ($(ISSTATIC),1)
-	DEFINES=-DCONFIGXML="\"jabber.xml\"" -DHOME="\"$(JHOME)\"" -DSTATIC
+	DEFINES=-DHOME="\"$(JHOME)\"" -DSTATIC
 else
-	DEFINES=-DCONFIGXML="\"jabber.xml\"" -DHOME="\"$(JHOME)\""
+	DEFINES=-DHOME="\"$(JHOME)\"" -DSINGLE
 endif
 
 CFLAGS:=$(CFLAGS) $(DEFINES)
