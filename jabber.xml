@@ -58,6 +58,7 @@
     <load><pthsock_client>./pthsock/pthsock_client.so</pthsock_client></load>
     <pthcsock xmlns='jabber:config:pth-csock'>
       <listen>5222</listen>
+      <authtime/> <!-- unlimited time to auth -->
     </pthcsock>
   </service>
 

@@ -138,7 +138,13 @@ void mod_filter_action_forward(mapi m,xmlnode rule,jid j)
                 char *fb=xmlnode_get_attrib(cur,"jid");
                 jid j=jid_new(m->packet->p,fb);
                 if(jid_cmpx(j,m->packet->to,JID_USER|JID_SERVER)==0)
-                    return; /* XXX this should bounce an error */
+                {
+                    x=xmlnode_dup(m->packet->x);
+                    xmlnode_put_attrib(x,"to",jid_full(j));
+                    xmlnode_put_attrib(x,"from",jid_full(m->packet->to));
+                    deliver_fail(dpacket_new(x),"Forwarding would result in infinite loop");
+                    return;
+                }
             }
         }
     }
@@ -179,7 +185,6 @@ mreturn mod_filter_handler(mapi m, void *arg)
     jp=m->packet;
     if(m->packet->type!=JPACKET_MESSAGE) return M_IGNORE;
     if(m->user==NULL) return M_PASS;
-/*    if(jpacket_subtype(m->packet)==JPACKET__ERROR) return M_PASS; XXX don't filter error messages (why not?) */
     p=pool_new();
     cur_action=pmalloc(p,sizeof(_action));
     memset(cur_action,0,sizeof(_action));

@@ -128,7 +128,7 @@ char** tokenize_args(pool p, const char* cmdstr)
 /* base_exec -------------------------------------------------------------------------------*/
 
 /* process states */
-typedef enum { p_OPEN, p_CLOSED } pstate;
+typedef enum { p_OPEN, p_CLOSED, p_RESTART } pstate;
 
 /* process_info - stores thread data for a coprocess */
 typedef struct
@@ -210,7 +210,7 @@ void base_exec_handle_xstream_event(int type, xmlnode x, void* arg)
      case XSTREAM_CLOSE:
      case XSTREAM_ERR:
 	  xmlnode_free(x);
-	  /* FIXME: Who knows? The _SHADOW_ knows. */
+      pi->state=p_RESTART;
      }
 
 }
@@ -253,7 +253,7 @@ void* base_exec_process_io(void* threadarg)
 
            /* Check state of the process..if it is now p_CLOSED, go ahead and kick out
             * of the while loop */
-           if (pi->state == p_CLOSED)
+           if (pi->state == p_CLOSED || pi->state == p_RESTART)
                    break;
 	  }
 	  /* Data is available to be written to the coprocess, and the coprocess is ready */
