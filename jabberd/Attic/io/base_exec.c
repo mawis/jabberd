@@ -5,7 +5,7 @@
                xmlnodes with it via piped IO
    ---------------------------------------------------------*/
 
-int exec_and_capture(const char* exe, int* in, int* out)
+int exec_and_capture(char* const args[], int* in, int* out)
 {
      int left_fds[2], right_fds[2];
      int pid;
@@ -45,13 +45,57 @@ int exec_and_capture(const char* exe, int* in, int* out)
 	       close(right_fds[STDOUT_FILENO]);
 	  }
 	  /* Execute another process */
-	  if( execl(exe, exe, (char*) 0) < 0)
+	  if( execv((char*)args[0], args) < 0)
 	       exit(1);
      }
      return 0;
 }
 
-/* Structures -------------------------------------------------------------------------------*/
+char** tokenize_args(pool p, const char* cmdstr)
+{
+     char** result      = NULL;
+     char* result_array[100];
+     char* result_data = NULL;
+     char* token       = NULL;
+     char* tokenbuf    = NULL;
+     int   tokencnt    = 0;
+     int   i           = 0;
+
+     /* Simplicity check */
+     if (cmdstr == NULL)
+	  return NULL;
+
+     /* Create a copy of the command str */
+     result_data = pstrdup(p, cmdstr);
+
+     /* Tokenize the string, storing the individual token
+	pointers in the result_array */
+     token = strtok_r(result_data, " ", &tokenbuf);
+     while ( (token != NULL) && (tokencnt < 100) )
+     {
+	  /* Insert this token into the result array, and increment our tokencnt */
+	  result_array[tokencnt++] = token;
+	  /* Get the next token */
+	  token = strtok_r(NULL, " ", &tokenbuf);
+     }
+
+     /* Allocate the result */
+     result = pmalloco(p, tokencnt * sizeof(char*));
+     
+     /* Iterate across the tokens and store in the result */
+     for (i = 0; i < tokencnt; i++)
+     {
+	  result[i] = result_array[i];
+     }
+
+     /* Be sure that the result in NULL terminated */
+     result[tokencnt] = NULL;
+
+     return result;
+}
+
+
+/* base_exec -------------------------------------------------------------------------------*/
 
 /* process states */
 typedef enum { p_OPEN, p_CLOSED } pstate;
@@ -59,7 +103,7 @@ typedef enum { p_OPEN, p_CLOSED } pstate;
 /* process_info - stores thread data for a coprocess */
 typedef struct
 {
-     char*         processcmd;	   /* Process command string */
+     char**         args;	   /* Process arguments (ala argv[]) */
      pstate        state;	   /* Process state flag*/
      pool          mempool;	   /* Memory pool for this structt */
      instance      inst;	   /* Instance this coprocess is assoc. with */
@@ -86,26 +130,14 @@ result base_exec_deliver(instance i, dpacket p, void* args)
      process_info pi = (process_info)args;
      process_write_buf wb = NULL;
 
-     /* Ensure this process is open */
-     if (pi->state == p_OPEN)
-     {
-	  /* Allocate a new write buffer */
-	  wb         = pmalloco(p->p, sizeof(_process_write_buf));
-	  wb->packet = p;
-	  
-	  /* Send the buffer to the processing thread */
-	  pth_msgport_put(pi->write_queue, (pth_message_t*)wb);
-
-	  return r_OK;   
-     }
-     /* Otherwise, release the process info and unreg this handler */
-     /* FIXME: Should i bounce the packet? */
-     else
-     {
-	  pth_msgport_destroy(pi->write_queue);
-	  pool_free(pi->mempool);
-	  return r_UNREG;
-     }
+     /* Allocate a new write buffer */
+     wb         = pmalloco(p->p, sizeof(_process_write_buf));
+     wb->packet = p;
+     
+     /* Send the buffer to the processing thread */
+     pth_msgport_put(pi->write_queue, (pth_message_t*)wb);
+     
+     return r_OK;   
 }
 
 void base_exec_handle_xstream_event(int type, xmlnode x, void* arg)
@@ -198,7 +230,7 @@ void* base_exec_process_io(void* threadarg)
 	if the server is in the middle of shutting down */
 
      /* Exec and capture the STDIN/STDOUT */
-     exec_and_capture(pi->processcmd, &(pi->stdin), &(pi->stdout));
+     exec_and_capture(pi->args, &(pi->stdin), &(pi->stdout));
 
      /* Recreate the thread */
      pth_spawn(PTH_ATTR_DEFAULT, base_exec_process_io, (void*) pi);
@@ -222,19 +254,21 @@ result base_exec_config(instance id, xmlnode x, void *arg)
 	 return r_PASS;
     }
 
-    /* Exec and capture the STDIN/STDOUT of the child process */
-    exec_and_capture(xmlnode_get_data(x), &stdin, &stdout);
-
     /* Allocate an info structure, and associate with the
        instance pool */
     pi = pmalloco(id->p, sizeof(_process_info));
-    pi->processcmd  = pstrdup(id->p, xmlnode_get_data(x));
     pi->inst        = id;
     pi->mempool     = id->p;
     pi->stdin       = stdin;
     pi->stdout      = stdout;
     pi->write_queue = pth_msgport_create(id->id);   
     pi->state       = p_OPEN;
+
+    /* Parse out command and arguments */
+    pi->args = tokenize_args(pi->mempool, xmlnode_get_data(x));
+
+    /* Exec and capture the STDIN/STDOUT of the child process */
+    exec_and_capture(pi->args, &(pi->stdin), &(pi->stdout));
 
     /* Spawn a new thread to handle IO for this coprocess */
     pth_spawn(PTH_ATTR_DEFAULT, base_exec_process_io, (void*) pi);
