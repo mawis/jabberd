@@ -6,6 +6,23 @@
 /* each instance can share ports */
 
 /*
+how does this mess work... hmmm...
+
+the accept section lives in an instance
+it can share an ip/port w/ another section, but the secret must be unique,
+so it either finds an existing listen thread and adds it's secret and instance pair to it,
+or starts a new listen thread
+and each section registers a "default" sink packet handler
+when new connections come in, a read and write thread are started to deal with it
+if a valid handshake is negotiated, the write thread starts to pull packets from the default sink handler
+if the default sink is already in use by another write thread, another sink packet handler is registered
+when the write threads exit, only the default sink would persist, others all r_UNREG
+
+the handshake is:
+<handshake host="1234.foo.jabber.org">SHAHASH of id+secret</handshake>
+the host attrib is optional, and when used causes a new sink/handler to be registerd in the o_FILTER stage to "hijack" packets to that host
+note: the use of the host attrib and <host> element in the config are not automagically paired, must be done by the administrator configuring jabberd and whatever app is using the socket
+also, set host="void" to disable any packets or data being written to the socket
 
 <accept>
   <ip>1.2.3.4</ip>
