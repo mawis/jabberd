@@ -37,6 +37,7 @@ typedef struct smi_st
 {
     instance i;
     xmlnode cfg;
+    HASHTABLE aliases;
     pth_msgport_t wmp;
     char *host;
 } *smi, _smi;
@@ -44,7 +45,7 @@ typedef struct smi_st
 typedef enum { state_UNKNOWN, state_AUTHD } user_state;
 typedef struct cdata_st
 {
-    smi* i;
+    smi i;
     jid host;
     user_state state;
     char *id, *sid, *res, *auth_id;
@@ -179,15 +180,20 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
 {
     sock c = (sock)arg;
     cdata cd=(cdata)c->arg;
+    char *alias,*to;
     xmlnode h;
 
     switch(type)
     {
     case XSTREAM_ROOT:
         log_debug(ZONE,"root received for %d",c->fd);
-
-        /* write are stream header */
-        cd->host = jid_new(c->p,xmlnode_get_attrib(x,"to"));
+        to=xmlnode_get_attrib(x,"to");
+        alias=ghash_get(cd->i->aliases,xmlnode_get_attrib(x,"to"));
+        if(alias==NULL) alias=ghash_get(cd->i->aliases,"default");
+        if(alias!=NULL)
+            cd->host=jid_new(c->p,alias);
+        else
+            cd->host=jid_new(c->p,to);
         h = xstream_header("jabber:client",NULL,jid_full(cd->host));
         cd->sid = pstrdup(c->p,xmlnode_get_attrib(h,"id"));
         io_write_str(c,xstream_header_char(h));
@@ -253,7 +259,7 @@ cdata pthsock_client_cdata(smi si,sock c)
 
     cd = pmalloco(c->p, sizeof(_cdata));
     cd->pre_auth_mp=pth_msgport_create("pre_auth_mp");
-    cd->i = (void*)si;
+    cd->i = si;
     c->xs = xstream_new(c->p,(void*)pthsock_client_stream,(void*)c);
     cd->state = state_UNKNOWN;
     cd->arg=(void*)c;
@@ -325,12 +331,15 @@ void pthsock_client(instance i, xmlnode x)
 {
     smi si;
     xdbcache xc;
+    xmlnode cur;
     char *host, *port;
 
     log_debug(ZONE,"pthsock_client loading");
 
     si = pmalloco(i->p,sizeof(_smi));
     si->i = i;
+    si->aliases=ghash_create(20,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+
 
     /* write mp */
     si->wmp = pth_msgport_create("pthsock_client_wmp");
@@ -340,8 +349,28 @@ void pthsock_client(instance i, xmlnode x)
     si->cfg = xdb_get(xc,NULL,jid_new(xmlnode_pool(x),"config@-internal"),"jabberd:pth-csock:config");
 
     si->host = host = i->id;
-    port = xmlnode_get_tag_data(si->cfg,"listen");
 
+    for(cur=si->cfg;cur!=NULL;cur=cur->next)
+    {
+        if(j_strcmp(xmlnode_get_name(cur),"listen")==0)
+        {
+            port = xmlnode_get_data(cur);
+        }
+        else if(j_strcmp(xmlnode_get_name(cur),"alias")==0)
+        {
+           char *host,*to;
+           if((to=xmlnode_get_attrib(cur,"to"))==NULL) continue;
+           host=xmlnode_get_data(cur);
+           if(host!=NULL)
+           {
+               ghash_put(si->aliases,host,to);
+           }
+           else
+           {
+               ghash_put(si->aliases,"default",to);
+           }
+        }
+    }
 
     if (host == NULL || port == NULL)
     {
