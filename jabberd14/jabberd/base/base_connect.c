@@ -64,6 +64,7 @@ typedef struct
     pool          mempool;	/* Memory pool for this struct */
     instance      inst;         /* Matching instance for this connection */
     pth_msgport_t   write_queue;	/* Queue of write_buf packets which need to be written */
+    dpacket dplast; /* special circular reference detector */
 } *conn_info, _conn_info;
 
 /* conn_write_buf - stores a dpacket that needs to be written to the socket */
@@ -89,7 +90,10 @@ result base_connect_deliver(instance i, dpacket p, void* arg)
     /* Otherwise, write directly to the MIO socket */
     else
     {
-        mio_write(ci->io, p->x, NULL, 0);
+        if(ci->dplast == p) /* don't handle packets that we generated! doh! */
+            deliver_fail(p,"Circular Reference Detected");
+        else
+            mio_write(ci->io, p->x, NULL, 0);
     }
 
     return r_DONE;
@@ -136,7 +140,9 @@ void base_connect_process_xml(mio m, int state, void* arg, xmlnode x)
             /* Only deliver packets after the connection is auth'd */
             if (ci->state == conn_AUTHD)
             {
-                deliver(dpacket_new(x), ci->inst);
+                ci->dplast = dpacket_new(x); /* store the addr of the dpacket we're sending to detect circular delevieries */
+                deliver(ci->dplast, ci->inst);
+                ci->dplast = NULL;
                 return;
             }
 

@@ -97,7 +97,7 @@ ppdb ppdb_insert(ppdb db, jid id, xmlnode x)
         /* no user entry, make one */
         if(curu == NULL)
         {
-            curu = _ppdb_new(db->p,id);
+            curu = _ppdb_new(db->p,jid_user(id));
             curu->next = db->next;
             db->next = curu;
         }
