@@ -224,6 +224,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
                 else if(j_strcmp(xmlnode_get_attrib(x,"type"),"get")==0)
                 { /* we are just doing an auth get */
                     /* just deliver the packet */
+                    jid_set(cd->host,xmlnode_get_data(xmlnode_get_tag(xmlnode_get_tag(x,"query?xmlns=jabber:iq:auth"),"username")),JID_USER);
                     x=pthsock_make_route(x,jid_full(cd->host),cd->id,"auth");
                     deliver(dpacket_new(x),((smi)cd->i)->i);
                 }
