@@ -34,6 +34,12 @@ packet handler
 
 typedef void (*modcall)(jsmi si);
 
+result jsm_stat(void *arg)
+{
+    pool_stat(0);
+    return r_DONE;
+}
+
 void jsm(instance i, xmlnode x)
 {
     jsmi si;
@@ -77,4 +83,5 @@ void jsm(instance i, xmlnode x)
     }
 
     register_phandler(i, o_DELIVER, js_packet, (void *)si);
+    register_beat(5,jsm_stat,NULL);
 }

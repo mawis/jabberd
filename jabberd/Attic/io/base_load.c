@@ -324,5 +324,6 @@ int xdb_set(xdbcache xc, char *host, jid owner, char *ns, xmlnode data)
     if(newx.data == NULL)
         return 1;
 
+    xmlnode_free(newx.data);
     return 0;
 }

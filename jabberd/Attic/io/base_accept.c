@@ -135,6 +135,7 @@ void base_accept_read_packets(int type, xmlnode x, void *arg)
         block = xstream_header_char(cur);
         pth_write(a->sock,block,strlen(block));
         xmlnode_free(cur);
+        xmlnode_free(x);
         break;
     case XSTREAM_NODE:
         if(a->emp != NULL) /* we're full open */
@@ -163,6 +164,7 @@ void base_accept_read_packets(int type, xmlnode x, void *arg)
             pth_write(a->sock,"<stream:error>Invalid Handshake</stream:error>",46);
             pth_write(a->sock,"</stream:stream>",16);
             a->ering = NULL; /* cancel the io loop */
+            xmlnode_free(x);
             return;
         }
 
@@ -197,6 +199,7 @@ void base_accept_read_packets(int type, xmlnode x, void *arg)
         /* set up the mp event into the ring to enable packets to be fed back */
         a->emp = pth_event(PTH_EVENT_MSG,a->s->mp);
         a->ering = pth_event_concat(a->eread, a->emp, NULL);
+        xmlnode_free(x);
         break;
     default:
     }
