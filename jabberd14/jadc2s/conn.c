@@ -453,17 +453,15 @@ int _log_ssl_io_error(log_t l, SSL *ssl, int retcode, int fd) {
 
     ssl_error = SSL_get_error(ssl, retcode);
 
-    if (ssl_error == SSL_ERROR_SYSCALL && errno == 0)
+    if (ssl_error == SSL_ERROR_WANT_READ ||
+	    ssl_error == SSL_ERROR_WANT_WRITE ||
+    	    (ssl_error == SSL_ERROR_SYSCALL && errno == 0))
 	return;
 
     log_write(l, LOG_NOTICE, "SSL_read() on fd %i returned %i", fd, retcode);
     switch (ssl_error) {
 	case SSL_ERROR_ZERO_RETURN:
 	    log_write(l, LOG_NOTICE, "TLS/SSL connection has been closed.");
-	    break;
-	case SSL_ERROR_WANT_READ:
-	case SSL_ERROR_WANT_WRITE:
-	    log_write(l, LOG_DEBUG, "SSL/TLS needs more data from BIO");
 	    break;
 	case SSL_ERROR_WANT_CONNECT:
 	case SSL_ERROR_WANT_ACCEPT:
