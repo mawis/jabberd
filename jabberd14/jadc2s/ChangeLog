@@ -1,3 +1,7 @@
+2003-12-16  Matthias Wimmer  <m@tthias.net>
+
+    * jadc2s.c: the -c option to select a configuration file did not work
+
 2003-12-14  Matthias Wimmer  <m@tthias.net>
 
     * ac-helpers/ac_define_dir.m4: Added new macro from the GNU archive
