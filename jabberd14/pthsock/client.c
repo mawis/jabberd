@@ -716,7 +716,7 @@ void pthsock_client(instance i, xmlnode x)
     if(s__i->heartbeat)
     {
         log_debug2(ZONE, LOGT_INIT, "Registering heartbeat: %d", s__i->heartbeat);
-        //Register a heartbeat to catch dead sockets.
+        /* Register a heartbeat to catch dead sockets. */
         register_beat(s__i->heartbeat, pthsock_client_heartbeat, (void*)s__i);
     }
 }

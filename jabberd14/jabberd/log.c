@@ -103,7 +103,7 @@ void debug_log(char *zone, const char *msgfmt, ...)
     /* only add timestamps if writing to standard output */
     if (_debug_facility == -1) {
 	snprintf(message, MAX_LOG_SIZE, "%s %s ", debug_log_timestamp(), zone);
-	for (pos = message; *pos != '\0'; pos++); //empty statement
+	for (pos = message; *pos != '\0'; pos++); /* empty statement */
      
 	offset = pos - message;
     } else {
@@ -142,7 +142,7 @@ void debug_log2(char *zone, const int type, const char *msgfmt, ...)
     /* only add timestamps if writing to standard output */
     if (_debug_facility == -1) {
 	snprintf(message, MAX_LOG_SIZE, "%s %s ", debug_log_timestamp(), zone);
-	for (pos = message; *pos != '\0'; pos++); //empty statement
+	for (pos = message; *pos != '\0'; pos++); /* empty statement */
      
 	offset = pos - message;
     } else {
