@@ -67,7 +67,12 @@ void js_session_route(session s, xmlnode in)
     jid id;
     xmlnode x;
 
-    if(s->sids == NULL) return;
+    /* if there's nobody to notify... *shrug* */
+    if(s->sids == NULL)
+    {
+        xmlnode_free(in);
+        return;
+    }
 
     /* NULL means this is an error from the session ending */
     if(in == NULL)
