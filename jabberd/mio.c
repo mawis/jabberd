@@ -439,8 +439,7 @@ void _mio_connect(void *arg)
     struct sockaddr_in sa;
     struct in_addr     *saddr;
     int                flag = 1,
-                       flags,
-                       sig;
+                       flags;
     mio                new;
     pool               p;
     sigset_t           set;
