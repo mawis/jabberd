@@ -2,7 +2,6 @@ jabberd 1.4.4
 =============
 - fix cygwin build
 - clean xdbfiletool, libtool complains that we link against a module
-- configure STARTTLS per destination (e.g. disabling for some hosts)
 - configuration of TLS (e.g. cipher selection)
 
 later

@@ -63,6 +63,8 @@ typedef struct db_struct
     xht out_ok_db;	/**< hash table of all connected dialback hosts, key is same to/from */
     xht in_id;		/**< all the incoming connections waiting to be checked, rand id attrib is key */
     xht in_ok_db;	/**< all the incoming dialback connections that are ok, ID@to/from is key */
+    xht hosts_xmpp;	/**< hash containing the hosts where no XMPP support should be advertized */
+    xht hosts_tls;	/**< hash containing the hosts where STARTTLS should not be tried or is required */
     char *secret;	/**< our dialback secret */
     int timeout_packets;/**< configuration option <queuetimeout/> */
     int timeout_idle;	/**< configuration option <idletimeout/> */
