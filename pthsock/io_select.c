@@ -346,6 +346,7 @@ void _io_main(void *arg)
         cur=io__data->master__list;
         while(cur != NULL)
         {
+            pth_yield(NULL);
             FD_SET(cur->fd,&all_rfds);
             if(cur->state==state_CLOSE)
             {
