@@ -44,6 +44,12 @@ result base_file_deliver(instance id, dpacket p, void* arg)
     return r_DONE;    
 }
 
+void _base_file_shutdown(void *arg)
+{
+    FILE *filehandle=(FILE*)arg;
+    fclose(filehandle);
+}
+
 result base_file_config(instance id, xmlnode x, void *arg)
 {
     FILE* filehandle = NULL;
@@ -78,6 +84,7 @@ result base_file_config(instance id, xmlnode x, void *arg)
 
     /* Register a handler for this instance... */
     register_phandler(id, o_DELIVER, base_file_deliver, (void*)filehandle); 
+    register_shutdown(_base_file_shutdown, (void*)filehandle); 
     
     log_debug(ZONE,"base_file_config performing configuration %s\n",xmlnode2str(x));
     return r_DONE;

@@ -25,8 +25,24 @@
     <host/>
 */
 
+typedef struct cleanup_struct
+{
+    pool p;
+    instance i;
+    char *hostname;
+} _cleanup,*cleanup;
+
+void _base_host_shutdown(void *arg)
+{
+    cleanup c=(cleanup)arg;
+    unregister_instance(c->i,c->hostname);
+    pool_free(c->p);
+}
+
 result base_host_config(instance id, xmlnode x, void *arg)
 {
+    pool p;
+    cleanup cl_new;
     if(id == NULL)
     {
         log_debug(ZONE,"base_host_config validating configuration %s\n",xmlnode2str(x));
@@ -35,6 +51,12 @@ result base_host_config(instance id, xmlnode x, void *arg)
 
     log_debug(ZONE,"base_host_config registering host %s with section '%s'\n",xmlnode_get_data(x), id->id);
     register_instance(id, xmlnode_get_data(x));
+    p=pool_new();
+    cl_new=pmalloco(p,sizeof(_cleanup));
+    cl_new->p=p;
+    cl_new->i=id;
+    cl_new->hostname=pstrdup(p,xmlnode_get_data(x));
+    register_shutdown(_base_host_shutdown,(void*)cl_new);
 
     return r_PASS;
 }
