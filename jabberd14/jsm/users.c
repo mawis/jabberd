@@ -115,8 +115,9 @@ udata js_user(jsmi si, jid id, HASHTABLE ht)
 {
     pool p;
     udata cur, newu;
-    char *ustr, *u;
+    char *ustr;
     xmlnode x;
+    jid uid;
 
     if(si == NULL || id == NULL || id->user == NULL) return NULL;
 
@@ -127,31 +128,24 @@ udata js_user(jsmi si, jid id, HASHTABLE ht)
     /* hrm, like, this isn't our user! */
     if(ht == NULL) return NULL;
 
-    /* copy the user name and convert to lower case */
-    for(ustr = u = strdup(id->user); *ustr != '\0'; ustr++)
+    /* copy the id and convert user to lower case */
+    uid = jid_new(id->p, jid_full(jid_user(id)));
+    for(ustr = uid->user; *ustr != '\0'; ustr++)
         *ustr = tolower(*ustr);
 
     /* debug message */
-    log_debug(ZONE,"js_user(%s,%X)",jid_full(id),ht);
+    log_debug(ZONE,"js_user(%s,%X)",jid_full(uid),ht);
 
     /* try to get the user data from the hash table */
-    cur = ghash_get(ht,u);
-    if(cur != NULL)
-    {
-        /* found it, free the search string and return the data */
-        free(u);
+    if((cur = ghash_get(ht,uid->user)) != NULL)
         return cur;
-    }
 
     /* debug message */
     log_debug(ZONE,"js_user not current");
 
     /* try to get the user auth data from xdb */
-    if((x = xdb_get(si->xc, jid_user(id), NS_AUTH)) == NULL)
-    {
-        free(u);
+    if((x = xdb_get(si->xc, uid, NS_AUTH)) == NULL)
         return NULL;
-    }
     else
         xmlnode_free(x);
 
@@ -160,10 +154,8 @@ udata js_user(jsmi si, jid id, HASHTABLE ht)
     newu = pmalloco(p, sizeof(_udata));
     newu->p = p;
     newu->si = si;
-    newu->user = pstrdup(p, u);
-    newu->id = jid_new(p,jid_full(id));
-    jid_set(newu->id,NULL,JID_RESOURCE);
-    free(u);
+    newu->user = pstrdup(p, uid->user);
+    newu->id = jid_new(p,jid_full(uid));
 
     /* got the user, add it to the user list */
     ghash_put(ht,newu->user,newu);

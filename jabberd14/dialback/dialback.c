@@ -236,7 +236,7 @@ int _dialback_beat_idle(void *arg, const void *key, void *data)
     miod md = (miod)data;
     if(((int)arg - md->last) >= md->d->timeout_idle)
     {
-        mio_write(md->m, NULL, "<stream:error>Idle Timeout</stream:error>", -1);
+        log_debug(ZONE,"Idle Timeout on socket %d to %s",md->m->fd, md->m->ip);
         mio_close(md->m);
     }
     return 1;
@@ -278,7 +278,7 @@ void dialback(instance i, xmlnode x)
     d->in_ok_db = ghash_create(max,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
     d->in_ok_legacy = ghash_create(max,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
     d->i = i;
-    d->timeout_idle = j_atoi(xmlnode_get_tag_data(cfg,"idletimeout"),600);
+    d->timeout_idle = j_atoi(xmlnode_get_tag_data(cfg,"idletimeout"),900);
     d->timeout_packets = j_atoi(xmlnode_get_tag_data(cfg,"queuetimeout"),30);
     d->secret = xmlnode_get_attrib(cfg,"secret");
     if(d->secret == NULL) /* if there's no configured secret, make one on the fly */
