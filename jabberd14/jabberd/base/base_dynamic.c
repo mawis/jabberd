@@ -63,6 +63,7 @@ result base_dynamic_deliver(instance i, dpacket p, void* arg)
     dfile f;
     pool pnew;
     void (*so)(instance,xmlnode) = NULL;
+    xmlnode x;
 
     if(d->match)
         match = p->id->resource;
@@ -122,9 +123,13 @@ result base_dynamic_deliver(instance i, dpacket p, void* arg)
 
         /* now, the fun part, start up the actual modules! */
         if(so != NULL)
+        {
             (so)(&(f->i), NULL);
-        else
-            base_exec_config(&(f->i), NULL, NULL);
+        }else{
+            x = xmlnode_new_tag_pool(f->i.p,"exec");
+            xmlnode_insert_cdata(x,f->file,-1);
+            base_exec_config(&(f->i), x, NULL);
+        }
 
         /* now we should have a deliver handler registered on here */
         if(f->i.hds == NULL)

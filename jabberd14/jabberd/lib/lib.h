@@ -1,3 +1,4 @@
+
 #include <string.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -16,11 +17,10 @@
 #include <arpa/inet.h>
 #include <resolv.h>
 #include <sys/time.h>
+#include <stdarg.h>
+#include <ctype.h>
 
 #include "xmlparse.h"
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif /* HAVE_CONFIG_H */
 
 /*
 **  Arrange to use either varargs or stdargs
@@ -48,8 +48,8 @@
 #endif /* __STDC__ */
 
 
-#ifndef INCL_LIBXODE_H
-#define INCL_LIBXODE_H
+#ifndef INCL_LIB_H
+#define INCL_LIB_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -384,41 +384,6 @@ int xstream_eat(xstream xs, char *buff, int len); /* parse new data for this xst
 xmlnode xstream_header(char *namespace, char *to, char *from);
 char *xstream_header_char(xmlnode x);
 
-/* SHA.H */
-/* 
- * The contents of this file are subject to the Mozilla Public
- * License Version 1.1 (the "License"); you may not use this file
- * except in compliance with the License. You may obtain a copy of
- * the License at http://www.mozilla.org/MPL/
- * 
- * Software distributed under the License is distributed on an "AS
- * IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
- * implied. See the License for the specific language governing
- * rights and limitations under the License.
- * 
- * The Original Code is SHA 180-1 Header File
- * 
- * The Initial Developer of the Original Code is Paul Kocher of
- * Cryptography Research.  Portions created by Paul Kocher are 
- * Copyright (C) 1995-9 by Cryptography Research, Inc.  All
- * Rights Reserved.
- * 
- * Contributor(s):
- *
- *     Paul Kocher
- * 
- * Alternatively, the contents of this file may be used under the
- * terms of the GNU General Public License Version 2 or later (the
- * "GPL"), in which case the provisions of the GPL are applicable 
- * instead of those above.  If you wish to allow use of your 
- * version of this file only under the terms of the GPL and not to
- * allow others to use your version of this file under the MPL,
- * indicate your decision by deleting the provisions above and
- * replace them with the notice and other provisions required by
- * the GPL.  If you do not delete the provisions above, a recipient
- * may use your version of this file under either the MPL or the
- * GPL.
- */
 
 typedef struct {
   unsigned long H[5];
@@ -433,59 +398,7 @@ void shaUpdate(SHA_CTX *ctx, unsigned char *dataIn, int len);
 void shaFinal(SHA_CTX *ctx, unsigned char hashout[20]);
 void shaBlock(unsigned char *dataIn, int len, unsigned char hashout[20]);
 
-
-/* END SHA.H */
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* INCL_LIBXODE_H */
-/*
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- *
- *  Jabber
- *  Copyright (C) 1998-1999 The Jabber Team http://jabber.org/
- */
-
-#include <string.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <stdio.h>
-#include <setjmp.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <signal.h>
-#include <stdarg.h>
-#include <syslog.h>
-#include <strings.h>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <sys/time.h>
-#include <ctype.h>
-
-#ifndef INCL_JABBER_H
-#define INCL_JABBER_H
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+/********** END OLD libxode.h BEGIN OLD jabber.h *************/
 
 /* --------------------------------------------------------- */
 /*                                                           */
@@ -782,4 +695,4 @@ char *jab_reg(jconn j);
 }
 #endif
 
-#endif	/* INCL_JABBER_H */
+#endif	/* INCL_LIB_H */
