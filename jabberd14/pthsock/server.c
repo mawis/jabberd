@@ -118,7 +118,19 @@ void pthsock_server_in(int type, xmlnode x, void *arg)
         xmlnode_hide_attrib(x,"etherx:from");
         xmlnode_hide_attrib(x,"etherx:to");
 
-        deliver(dpacket_new(x),sd->i->i);
+        /* make sure we don't get packets on an incoming connection */
+        /* that are destined for a connection we have established */
+        /* as outgoing.. this is to fix a looping issue */
+        c=ghash_get(sd->i->out_tab,(jid_new(xmlnode_pool(x),xmlnode_get_attrib(x,"to")))->server);
+        if(c==NULL)
+        {
+            deliver(dpacket_new(x),sd->i->i);
+        }
+        else
+        {
+            jutil_error(x,TERROR_EXTERNAL);
+            deliver(dpacket_new(x),sd->i->i);
+        }
         break;
 
     case XSTREAM_ERR:
