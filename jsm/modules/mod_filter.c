@@ -236,6 +236,17 @@ mreturn mod_filter_handler(mapi m, void *arg)
 
     jp=m->packet;
     if(m->packet->type!=JPACKET_MESSAGE) return M_IGNORE;
+
+    switch(jpacket_subtype(m->packet))
+    {
+    case JPACKET__NONE:
+    case JPACKET__ERROR:
+    case JPACKET__CHAT:
+        break;
+    default:
+        return M_PASS;
+    }
+
     if(m->user==NULL) return M_PASS;
     p=pool_new();
     cur_action=pmalloc(p,sizeof(_action));
