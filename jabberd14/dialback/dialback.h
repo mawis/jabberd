@@ -53,12 +53,9 @@ typedef struct db_struct
     xht nscache;	/**< host/ip local resolution cache */
     xht out_connecting;	/**< where unvalidated in-progress connections are, key is to/from */
     xht out_ok_db;	/**< hash table of all connected dialback hosts, key is same to/from */
-    xht out_ok_legacy;	/**< hash table of all connected legacy hosts, key is same to/from */
     xht in_id;		/**< all the incoming connections waiting to be checked, rand id attrib is key */
     xht in_ok_db;	/**< all the incoming dialback connections that are ok, ID@to/from is key */
-    xht in_ok_legacy;	/**< all the incoming legacy connections that are ok, ID@to is key */
     char *secret;	/**< our dialback secret */
-    int legacy;		/**< flag to allow old servers */
     int timeout_packets;/**< configuration option <queuetimeout/> */
     int timeout_idle;	/**< configuration option <idletimeout/> */
 } *db, _db;

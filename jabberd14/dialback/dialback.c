@@ -47,10 +47,6 @@
  *
  * The dialback protocol is documented in XMPP-core. This module only supports
  * identity verification using dialback, SASL is not supported.
- *
- * By adding a <legacy/> element to the dialback configuration you can also enable
- * the old stone-age server to server protocol which shouldn't be needed anymore.
- * The stone-age protocol as no protection against identity spoofing.
  */
 
 /*
@@ -199,13 +195,8 @@ void _dialback_miod_hash_cleanup(void *arg)
     if(mdc->ht == mdc->md->d->out_ok_db){
         unregister_instance(mdc->md->d->i, mdc->key->server); /* dynamic host resolution thingie */
         log_record(mdc->key->server, "out", "dialback", "%d %s %s", mdc->md->count, mdc->md->m->ip, mdc->key->resource);
-    }else if(mdc->ht == mdc->md->d->out_ok_legacy){
-        unregister_instance(mdc->md->d->i, mdc->key->server);
-        log_record(mdc->key->server, "out", "legacy", "%d %s %s", mdc->md->count, mdc->md->m->ip, mdc->key->resource);
     }else if(mdc->ht == mdc->md->d->in_ok_db){
         log_record(mdc->key->server, "in", "dialback", "%d %s %s", mdc->md->count, mdc->md->m->ip, mdc->key->resource);
-    }else if(mdc->ht == mdc->md->d->in_ok_legacy){
-        log_record(mdc->key->server, "in", "legacy", "%d %s %s", mdc->md->count, mdc->md->m->ip, mdc->key->resource);
     }
 }
 
@@ -228,7 +219,7 @@ void dialback_miod_hash(miod md, xht ht, jid key)
     xhash_put(ht, jid_full(mdc->key), md);
 
     /* dns saver, only when registering on outgoing hosts dynamically */
-    if(ht == md->d->out_ok_db || ht == md->d->out_ok_legacy)
+    if(ht == md->d->out_ok_db)
     {
         dialback_ip_set(md->d, key, md->m->ip); /* save the ip since it won't be going through the dnsrv anymore */
         register_instance(md->d->i, key->server);
@@ -360,9 +351,7 @@ result dialback_beat_idle(void *arg)
     log_debug2(ZONE, LOGT_EXECFLOW, "dialback idle check");
     time(&ttmp);
     xhash_walk(d->out_ok_db,_dialback_beat_idle,(void*)&ttmp);
-    xhash_walk(d->out_ok_legacy,_dialback_beat_idle,(void*)&ttmp);
     xhash_walk(d->in_ok_db,_dialback_beat_idle,(void*)&ttmp);
-    xhash_walk(d->in_ok_legacy,_dialback_beat_idle,(void*)&ttmp);
     return r_DONE;
 }
 
@@ -395,22 +384,16 @@ void dialback(instance i, xmlnode x)
     pool_cleanup(i->p, (pool_cleaner)xhash_free, d->out_connecting);
     d->out_ok_db = xhash_new(max);
     pool_cleanup(i->p, (pool_cleaner)xhash_free, d->out_ok_db);
-    d->out_ok_legacy = xhash_new(max);
-    pool_cleanup(i->p, (pool_cleaner)xhash_free, d->out_ok_legacy);
     d->in_id = xhash_new(max);
     pool_cleanup(i->p, (pool_cleaner)xhash_free, d->in_id);
     d->in_ok_db = xhash_new(max);
     pool_cleanup(i->p, (pool_cleaner)xhash_free, d->in_ok_db);
-    d->in_ok_legacy = xhash_new(max);
-    pool_cleanup(i->p, (pool_cleaner)xhash_free, d->in_ok_legacy);
     d->i = i;
     d->timeout_idle = j_atoi(xmlnode_get_tag_data(cfg,"idletimeout"),900);
     d->timeout_packets = j_atoi(xmlnode_get_tag_data(cfg,"queuetimeout"),30);
     d->secret = pstrdup(i->p,xmlnode_get_tag_data(cfg,"secret"));
     if(d->secret == NULL) /* if there's no configured secret, make one on the fly */
         d->secret = pstrdup(i->p,dialback_randstr());
-    if(xmlnode_get_tag(cfg,"legacy") != NULL)
-        d->legacy = 1;
 
     /* Get rate info if it exists */
     if((cur = xmlnode_get_tag(cfg, "rate")) != NULL)
