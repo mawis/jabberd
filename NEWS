@@ -20,7 +20,7 @@
     * jabberd14 now requires at least openssl version 0.9.7 to be build with
       support for SSL
     * support for legacy jabberd 1.0 server to server communication is now
-      disabled by default as it has not protection against identity spoofing
+      disabled by default as it has no protection against identity spoofing
     * jabberd14 now supports clustering of the s2s component. The distribution
       among the components for incoming connections has to be managed using
       DNS records. For outgoing connections the DNS resolver (dnsrv) is
@@ -29,3 +29,8 @@
       profiles; subscription state changes are only made if allowed,
       contacts cannot push themself on a user's roster; correct stanza errors
       are created
+    * The xdb_file module allows two directory layouts. The classic jabberd14
+      layout with one big directory containing all files for one domain, and
+      the layout adopted from wpjabber, where the files are distributed over
+      256 * 256 different directories, improoving performance on filesystems,
+      that are not well suited for large directories.
