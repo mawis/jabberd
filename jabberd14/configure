@@ -87,6 +87,8 @@ case $hosttype in
         fi
         CFLAGS="$CFLAGS"
         LIBS="$LIBS -ldl -lsocket -lnsl -lresolv";;
+    FreeBSD)
+        XLDFLAGS="$XLDFLAGS -Wl,-E";;
 esac
 printf "     Done.\n"
 ##
