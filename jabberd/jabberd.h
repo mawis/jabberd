@@ -82,8 +82,8 @@ typedef result (*beathandler)(void *arg);
 
 /*** public functions for base modules ***/
 void register_config(char *node, cfhandler f, void *arg); /* register a function to handle that node in the config file */
-void register_instance(instance id, char *host); /* associate an id with a hostname for that packet type */
-void unregister_instance(instance id, char *host); /* disassociate an id with a hostname for that packet type */
+void register_instance(instance i, char *host); /* associate an id with a hostname for that packet type */
+void unregister_instance(instance i, char *host); /* disassociate an id with a hostname for that packet type */
 void register_phandler(instance id, order o, phandler f, void *arg); /* register a function to handle delivery for this instance */
 void register_beat(int freq, beathandler f, void *arg); /* register the function to be called from the heartbeat, freq is how often, <= 0 is ignored */
 typedef void(*shutdown_func)(void*arg);
@@ -93,7 +93,7 @@ dpacket dpacket_new(xmlnode x); /* create a new delivery packet from source xml 
 dpacket dpacket_copy(dpacket p); /* copy a packet (and it's flags) */
 void deliver(dpacket p, instance i); /* deliver packet from sending instance */
 void deliver_fail(dpacket p, char *err); /* bounce a packet intelligently */
-result deliver_instance(instance i, dpacket p); /* deliver packet TO the instance, if the result != r_DONE, you have to handle the packet! */
+void deliver_instance(instance i, dpacket p); /* deliver packet TO the instance, if the result != r_DONE, you have to handle the packet! */
 
 /*** global logging symbols ***/
 #define MAX_LOG_SIZE 1024

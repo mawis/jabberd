@@ -30,14 +30,11 @@
 
 #include "jabberd.h"
 
-void base_host(void);
 void base_accept(void);
 void base_connect(void);
 void base_exec(void);
 void base_file(void);
 void base_format(void);
-void base_logtype(void);
-void base_ns(void);
 void base_to(void);
 void base_stderr(void);
 void base_stdout(void);
@@ -45,14 +42,11 @@ void base_stdout(void);
 /* load all base modules */
 void static_init(void)
 {
-    base_host();
     base_accept();
     base_connect();
     base_exec();
     base_file();
     base_format();
-    base_logtype();
-    base_ns();
     base_to();
     base_stderr();
     base_stdout();

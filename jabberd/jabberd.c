@@ -46,6 +46,7 @@ pool jabberd__runtime = NULL;
 int configurate(char *file);
 void static_init(void);
 void dynamic_init(void);
+void deliver_init(void);
 void heartbeat_birth(void);
 void heartbeat_death(void);
 int configo(int exec);
@@ -150,6 +151,7 @@ int main (int argc, char** argv)
 
     static_init();
     dynamic_init();
+    deliver_init();
 
     /* everything should be registered for the config pass, validate */
     deliver__flag=0;
@@ -157,8 +159,8 @@ int main (int argc, char** argv)
         exit(1);
 
     /* karma granted, rock on */
-
-    configo(1);
+    if(configo(1))
+        exit(1);
 
     /* begin delivery of queued msgs */
     deliver__flag=1;

@@ -28,7 +28,9 @@
  * 
  * --------------------------------------------------------------------------*/
 
-/* <jer mode="pondering">
+/* WARNING: the comments in here are random ramblings across the timespan this file has lived, don't rely on them for anything except entertainment (and if this entertains you, heh, you need to get out more :)
+
+<jer mode="pondering">
 
 ok, the whole <xdb/> <log/> <service/> and id="" and <host/> have gotten us this far, barely, but it needs some rethought.
 
@@ -173,8 +175,12 @@ ilist deliver_hashmatch(HASHTABLE ht, char *key)
 {
     ilist l;
     l = ghash_get(ht, key);
+log_debug(ZONE,"HM: %X(%s):%X",ht,key,l);
     if(l == NULL)
+    {
         l = ghash_get(ht, "*");
+log_debug(ZONE,"HM: %X(*):%X",ht,l);
+    }
     return l;
 }
 
@@ -216,45 +222,102 @@ instance deliver_intersect(ilist a, ilist b)
     return i;
 }
 
-void deliver_xdb(dpacket p)
+/* special case handler for xdb calls @-internal */
+void deliver_internal(dpacket p, instance i)
 {
-    ilist a, b;
+    xmlnode x;
 
-    b = NULL;
-    a = deliver_hashmatch(deliver_hashtable(p->type), p->host);
-    if(p->type == p_XDB)
-        b = deliver_hashmatch(deliver__ns, p->id->resource); /* XXX xdb ns/folder support? */
-    else if(p->type == p_LOG)
-        b = deliver_hashmatch(deliver__ns, xmlnode_get_attrib(p->x,"type"));
+    log_debug(ZONE,"@-internal processing %s",xmlnode2str(p->x));
 
-    deliver_instance(deliver_intersect(a, b), p);
+    if(j_strcmp(p->id->user,"config") == 0)
+    { /* config@-internal means it's a special xdb request to get data from the config file */
+        for(x = xmlnode_get_firstchild(i->x); x != NULL; x = xmlnode_get_nextsibling(x))
+        {
+            if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),p->id->resource) != 0)
+                continue;
+
+            /* insert results */
+            xmlnode_insert_tag_node(p->x, x);
+        }
+
+        /* reformat packet as a reply */
+        xmlnode_put_attrib(p->x,"type","result");
+        jutil_tofrom(p->x);
+        p->type = p_NORM;
+
+        /* deliver back to the sending instance */
+        deliver_instance(i, p);
+        return;
+    }
+
+    if(j_strcmp(p->id->user,"host") == 0)
+    { /* dynamic register_instance crap */
+        register_instance(i,p->id->resource);
+        return;
+    }
+
+    if(j_strcmp(p->id->user,"unhost") == 0)
+    { /* dynamic register_instance crap */
+        unregister_instance(i,p->id->resource); 
+        return;
+    }
 }
 
-
-result deliver_config_host(instance i, xmlnode x, void *arg)
+/* register this instance as a possible recipient of packets to this host */
+void register_instance(instance i, char *host)
 {
     ilist l;
     HASHTABLE ht;
-    char *host, star[] = "*";
 
-    if(i == NULL)
-        return r_PASS;
-
-    /* do some validation checks here */
+    log_debug(ZONE,"Registering %s with instance %s",host,i->id);
 
     /* fail, since ns is required on every XDB instance if it's used on any one */
-    if(i->type == p_XDB && deliver__ns != NULL && xmlnode_get_tag(i->x, "ns") == NULL) return r_ERR;
+    if(i->type == p_XDB && deliver__ns != NULL && xmlnode_get_tag(i->x, "ns") == NULL)
+    {
+        fprintf(stderr, "Configuration Error!  If <ns> is used in any xdb section, it must be used in all sections for correct packet routing.");
+        exit(1);
+    }
     /* fail, since logtype is required on every LOG instance if it's used on any one */
-    if(i->type == p_LOG && deliver__logtype != NULL && xmlnode_get_tag(i->x, "logtype") == NULL) return r_ERR;
-
-    host = xmlnode_get_data(x);
-    if(host == NULL)
-        host = star;
+    if(i->type == p_LOG && deliver__logtype != NULL && xmlnode_get_tag(i->x, "logtype") == NULL)
+    {
+        fprintf(stderr, "Configuration Error!  If <logtype> is used in any log section, it must be used in all sections for correct packet routing.");
+        exit(1);
+    }
 
     ht = deliver_hashtable(i->type);
     l = ghash_get(ht, host);
     l = ilist_add(l, i);
+log_debug(ZONE,"PUT: %X(%s): %X",ht,host,l);
     ghash_put(ht, host, (void *)l);
+}
+
+void unregister_instance(instance i, char *host)
+{
+    ilist l;
+    HASHTABLE ht;
+
+    log_debug(ZONE,"Unregistering %s with instance %s",host,i->id);
+
+    ht = deliver_hashtable(i->type);
+    l = ghash_get(ht, host);
+    l = ilist_rem(l, i);
+    if(l == NULL)
+        ghash_remove(ht, host);
+    else
+        ghash_put(ht, host, (void *)l);
+}
+
+result deliver_config_host(instance i, xmlnode x, void *arg)
+{
+    char *host;
+    if(i == NULL)
+        return r_PASS;
+
+    host = xmlnode_get_data(x);
+    if(host == NULL)
+        register_instance(i, "*");
+    else
+        register_instance(i, host);
 
     return r_DONE;
 }
@@ -274,8 +337,12 @@ result deliver_config_ns(instance i, xmlnode x, void *arg)
     if(ns == NULL)
         ns = star;
 
+    if(deliver__ns == NULL)
+        deliver__ns =  ghash_create(401,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+
     l = ghash_get(deliver__ns, ns);
     l = ilist_add(l, i);
+log_debug(ZONE,"PUT: NS(%s): %X",ns,l);
     ghash_put(deliver__ns, ns, (void *)l);
 
     return r_DONE;
@@ -296,11 +363,65 @@ result deliver_config_logtype(instance i, xmlnode x, void *arg)
     if(type == NULL)
         type = star;
 
+    if(deliver__logtype == NULL)
+        deliver__logtype =  ghash_create(401,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+
     l = ghash_get(deliver__logtype, type);
     l = ilist_add(l, i);
+log_debug(ZONE,"PUT: LOG(%s): %X",type,l);
     ghash_put(deliver__logtype, type, (void *)l);
 
     return r_DONE;
+}
+
+void deliver(dpacket p, instance i)
+{
+    ilist a, b;
+
+    if(deliver__flag == 1 && p == NULL && i == NULL)
+    { /* begin delivery of postponed messages */
+        deliver_msg d;
+        while((d=(deliver_msg)pth_msgport_get(deliver__mp))!=NULL)
+        {
+            deliver(d->p,d->i);
+        }
+        pth_msgport_destroy(deliver__mp);
+        deliver__mp = NULL;
+        deliver__flag = -1; /* disable all queueing crap */
+    }
+
+    /* Ensure the packet is valid */
+    if (p == NULL)
+	 return;
+
+    /* catch the @-internal xdb crap */
+    if(p->type == p_XDB && *(p->host) == '-')
+        return deliver_internal(p, i);
+
+    if(deliver__flag == 0)
+    { /* postpone delivery till later */
+        deliver_msg d = pmalloco(xmlnode_pool(p->x) ,sizeof(_deliver_msg));
+        
+        if(deliver__mp == NULL)
+            deliver__mp = pth_msgport_create("deliver__");
+        
+        d->i = i;
+        d->p = p;
+        
+        pth_msgport_put(deliver__mp, (void*)d);
+        return;
+    }
+
+    log_debug(ZONE,"DELIVER %d:%s %s",p->type,p->host,xmlnode2str(p->x));
+
+    b = NULL;
+    a = deliver_hashmatch(deliver_hashtable(p->type), p->host);
+    if(p->type == p_XDB)
+        b = deliver_hashmatch(deliver__ns, p->id->resource); /* XXX xdb ns/folder support? */
+    else if(p->type == p_LOG)
+        b = deliver_hashmatch(deliver__logtype, xmlnode_get_attrib(p->x,"type"));
+log_debug(ZONE,"#D %X %X",a,b);
+    deliver_instance(deliver_intersect(a, b), p);
 }
 
 void deliver_init(void)
@@ -402,147 +523,6 @@ void register_phandler(instance id, order o, phandler f, void *arg)
 }
 
 
-/* private struct for lists of hostname to instance mappings */
-typedef struct hostid_struct
-{
-    char *host;
-    pool p;
-    instance id;
-    struct hostid_struct *next;
-} *hostid, _hostid;
-
-/* three internal lists for log, xdb, and normal (session is same instances as normal) */
-hostid deliver__log = NULL;
-hostid deliver__xdb = NULL;
-hostid deliver__norm = NULL;
-
-void unregister_instance(instance id,char *host)
-{
-    hostid prev=NULL,cur=NULL;
-
-    log_debug(ZONE,"Unregistering %s with instance %s",host,id->id);
-
-    switch(id->type)
-    {
-    case p_LOG:
-        if(deliver__log->id==id&&(j_strcmp(deliver__log->host,host)==0||(host==NULL&&deliver__log->host==NULL)))
-        {
-            cur=deliver__log;
-            deliver__log=deliver__log->next;
-            pool_free(cur->p);
-            return;
-        }
-        cur=deliver__log;
-        break;
-    case p_XDB:
-        if(deliver__xdb->id==id&&(j_strcmp(deliver__xdb->host,host)==0||(host==NULL&&deliver__xdb->host==NULL)))
-        {
-            cur=deliver__xdb;
-            deliver__xdb=deliver__xdb->next;
-            pool_free(cur->p);
-            return;
-        }
-        cur=deliver__xdb;
-        break;
-    case p_NORM:
-    case p_ROUTE:
-        if(deliver__norm->id==id&&(j_strcmp(deliver__norm->host,host)==0||(host==NULL&&deliver__norm->host==NULL)))
-        {
-            cur=deliver__norm;
-            deliver__norm=deliver__norm->next;
-            pool_free(cur->p);
-            return;
-        }
-        cur=deliver__norm;
-        break;
-    default:
-    }
-
-    for(;cur!=NULL;prev=cur,cur=cur->next)
-    {
-        if(cur->id==id&&(j_strcmp(cur->host,host)==0||(host==NULL&&cur->host==NULL)))
-        {
-            prev->next=cur->next;
-            cur->next=NULL;
-            pool_free(cur->p);
-            break;
-        }
-    }
-
-}
-
-/* register an instance into the delivery tree */
-void register_instance(instance id, char *host)
-{
-    hostid newh;
-    hostid cur;
-    pool p;
-
-    log_debug(ZONE,"Registering %s with instance %s",host,id->id);
-
-    /* create and setup */
-    p=pool_new();
-    newh = pmalloc_x(p, sizeof(_hostid), 0);
-    newh->p=p;
-    newh->host = pstrdup(p,host);
-    newh->id = id;
-
-    /* hook into global */
-    switch(id->type)
-    {
-    case p_LOG:
-        /* check if it's already registered */
-        for(cur=deliver__log;cur!=NULL;cur=cur->next)
-        {
-            if(cur->id==id)
-            {
-                if(j_strcmp(host,cur->host)==0)
-                { /* already registered */
-                    pool_free(p);
-                    return;
-                }
-            }
-        }
-        newh->next = deliver__log;
-        deliver__log = newh;
-        break;
-    case p_XDB:
-        /* check if it's already registered */
-        for(cur=deliver__xdb;cur!=NULL;cur=cur->next)
-        {
-            if(cur->id==id)
-            {
-                if(j_strcmp(host,cur->host)==0)
-                { /* already registered */
-                    pool_free(p);
-                    return;
-                }
-            }
-        }
-        newh->next = deliver__xdb;
-        deliver__xdb = newh;
-        break;
-    case p_NORM:
-    case p_ROUTE:
-        /* check if it's already registered */
-        for(cur=deliver__norm;cur!=NULL;cur=cur->next)
-        {
-            if(cur->id==id)
-            {
-                if(j_strcmp(host,cur->host)==0)
-                { /* already registered */
-                    pool_free(p);
-                    return;
-                }
-            }
-        }
-        newh->next = deliver__norm;
-        deliver__norm = newh;
-        break;
-    default:
-    }
-}
-
 /* bounce on the delivery, use the result to better gague what went wrong */
 void deliver_fail(dpacket p, char *err)
 {
@@ -609,16 +589,16 @@ void deliver_fail(dpacket p, char *err)
 }
 
 /* actually perform the delivery to an instance */
-result deliver_instance(instance i, dpacket p)
+void deliver_instance(instance i, dpacket p)
 {
     handel h, hlast;
-    result r, best = r_NONE;
+    result r;
     dpacket pig = p;
 
     if(i == NULL)
     {
         deliver_fail(p, "Unable to deliver, destination unknown");
-        return r_ERR;
+        return;
     }
 
     log_debug(ZONE,"delivering to instance '%s'",i->id);
@@ -633,9 +613,6 @@ result deliver_instance(instance i, dpacket p)
 
         /* call the handler */
         r = (h->f)(i,p,h->arg);
-
-        if(r > best) /* track the best result */
-            best = r;
 
         /* if a non-delivery handler says it handled it, we have to be done */
         if(h->o != o_DELIVER && r == r_DONE)
@@ -674,166 +651,6 @@ result deliver_instance(instance i, dpacket p)
         h = h->next;
     }
 
-    /* the packet is still valid if best != r_DONE */
-    return best;
-}
-
-hostid deliver_get_next_hostid(hostid cur, char *host)
-{
-    while(cur != NULL)
-
-    {
-        if(host != NULL && cur->host != NULL && strcmp(cur->host,host) == 0 && cur->id->hds != NULL)
-            break; /* matched hostname */
-        if(host == NULL && cur->host == NULL)
-            break; /* all-matching instance */
-        cur = cur->next;
-    }
-    return cur;
-}
-
-result deliver_hostid(hostid cur, char *host, dpacket inp, result inbest)
-{
-    hostid next;
-    result best = r_NONE;
-    dpacket p = inp;
-
-    if(cur == NULL || p == NULL) return inbest;
-
-    /* get the next match, if there is one make a copy of the packet */
-    next = deliver_get_next_hostid(cur->next, host);
-    if(next != NULL)
-        p = dpacket_copy(p);
-
-    /* deliver to the current one */
-    best = deliver_instance(cur->id, p);
-
-    /* if we made a copy and it was not used */
-    if(next != NULL && best != r_DONE)
-        pool_free(p->p);
-
-    /* track the highest result */
-    if(best > inbest)
-        inbest = best;
-
-    if(next == NULL)
-        return best;
-
-    /* if there was another match, (tail) recurse to it with the copy */
-    return deliver_hostid(next, host, inp, best);
-}
-
-/* deliver the packet, where all the smarts happen, take the sending instance as well */
-void deliver(dpacket p, instance i)
-{
-    hostid list = NULL, cur;
-    result best = r_NONE;
-    char *host;
-    xmlnode x;
-
-    if(deliver__flag == 1 && p == NULL && i == NULL)
-    { /* begin delivery of postponed messages */
-        deliver_msg d;
-        while((d=(deliver_msg)pth_msgport_get(deliver__mp))!=NULL)
-        {
-            deliver(d->p,d->i);
-        }
-        pth_msgport_destroy(deliver__mp);
-        deliver__mp = NULL;
-        deliver__flag = -1; /* disable all queueing crap */
-    }
-
-    /* Ensure the packet is valid */
-    if (p == NULL)
-	 return;
-
-    /* Get the host */
-    host = p->host;
-
-    log_debug(ZONE,"DELIVER %d:%s %s",p->type,p->host,xmlnode2str(p->x));
-
-    /* based on type, pick instance list */
-    switch(p->type)
-    {
-    case p_LOG:
-        list = deliver__log;
-        break;
-    case p_XDB:
-        if(xmlnode_get_attrib(p->x, "from") == NULL && i != NULL && p->id->resource != NULL && j_strcmp(host,"-internal") == 0 && j_strcmp(p->id->user,"config") == 0)
-        { /* no from="" attrib is a performance flag, and config@-internal means it's a special xdb request to get data from the config file */
-            log_debug(ZONE,"processing xdb configuration request %s",xmlnode2str(p->x));
-            for(x = xmlnode_get_firstchild(i->x); x != NULL; x = xmlnode_get_nextsibling(x))
-            {
-                if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),p->id->resource) != 0)
-                    continue;
-
-                /* insert results */
-                xmlnode_insert_tag_node(p->x, x);
-            }
-
-            /* reformat packet as a reply */
-            xmlnode_put_attrib(p->x,"type","result");
-            jutil_tofrom(p->x);
-            p->type = p_NORM;
-
-            /* deliver back to the sending instance */
-            deliver_instance(i, p);
-            /* XXX i guess we assume that the instance handled it :) should log error */
-            return;
-        }
-        else if(xmlnode_get_attrib(p->x, "from") == NULL && i != NULL && p->id->resource != NULL && j_strcmp(host,"-internal") == 0 && j_strcmp(p->id->user,"host") == 0)
-        { /* dynamic register_instance crap */
-            register_instance(i,p->id->resource); 
-        }
-        else if(xmlnode_get_attrib(p->x, "from") == NULL && i != NULL && p->id->resource != NULL && j_strcmp(host,"-internal") == 0 && j_strcmp(p->id->user,"unhost") == 0)
-        { /* dynamic register_instance crap */
-            unregister_instance(i,p->id->resource); 
-        }
-        list = deliver__xdb;
-        break;
-    case p_NORM:
-    case p_ROUTE:
-        list = deliver__norm;
-        break;
-    default:
-    }
-
-
-    if(deliver__flag == 0)
-    { /* postpone delivery till later */
-        deliver_msg d = pmalloco(xmlnode_pool(p->x) ,sizeof(_deliver_msg));
-        
-        if(deliver__mp == NULL)
-            deliver__mp = pth_msgport_create("deliver__");
-        
-        d->i = i;
-        d->p = p;
-        
-        pth_msgport_put(deliver__mp, (void*)d);
-        return;
-    }
-
-    /* XXX optimize by having seperate lists for instances for hosts and general ones (NULL) */
-
-    cur = deliver_get_next_hostid(list, host);
-    if(cur == NULL && p->type != p_ROUTE) /* if there are no exact matching ones (and this is not a routed packet) */
-    {
-        host = NULL;
-        cur = deliver_get_next_hostid(list, host);
-    }
-
-    if(cur != NULL)
-        best = deliver_hostid(cur, host, p, best);
-
-    /* if nobody actually handled it, we've got problems */
-    if(best != r_DONE)
-    {
-        if(best == r_ERR)
-            deliver_fail(p, "Server Delivery Error");
-        else
-            deliver_fail(p, "Server Configuration Error");
-    }
-    
 }
 
 dpacket dpacket_new(xmlnode x)
