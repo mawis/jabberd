@@ -1,0 +1,31 @@
+fix deliver() to handle built-in xdb requests (namespace in config, no "from" attrib as key so we dont have to check EVERY request)
+
+fix order checking, so that only one o_DELIVERY can be registered for xdb or services, multiple for logging
+
+fix delivery so that when there are multiple deliveries or instances, the packet is copied, so expensive copying is reduced when not needed and modules need not worry about copying, can just OWN the packet if they deliver it
+
+register function for heartbeat with frequency, have heartbeat timer thread firing registered functions
+
+base_accept/connect
+	have one delivery handler registered
+	buffer all packets to common sink
+	the write thread can check/block on getting packets from that sink
+	when there is no write thread, they just accumulate
+	heartbeat to check/warn/bounce from sink
+	for accept, always write stream header ASAP to socket w/ id
+	for connect, read stream header and id, then return w/ hashed secret
+	no "host" identity exchanged, must be configured on each side
+	for connect, cleanup on death to attempt reconnect frequently
+
+
+
+
+
+
+
+
+
+
+
+
+
