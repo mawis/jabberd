@@ -356,6 +356,10 @@ result xdb_file_phandler(instance i, dpacket p, void *arg)
 		 * It should be checked if the xdb_act(...) in mod_auth_plain_jane(...)
 		 * is needed. If it isn't, we could remove the check action from
 		 * xdb completely.
+		 *
+		 * Please see also:
+		 * http://web.archive.org/web/20020601233959/http://jabberd.jabberstudio.org/1.4/142changelog.html
+		 * In that case it seems to be a bug here ...
 		 */
                 break;
             default:
