@@ -253,8 +253,9 @@ mreturn mod_presence_session(mapi m, void *arg)
     jid bcc = (jid)arg;
     jid notify = jid_new(m->s->p, jid_full(jid_user(m->s->id)));
 
-    /* hack!  attach instance-wide configured bcc's to the end if any */
-    notify->next = bcc;
+    /* hack!  copy instance-wide configured bcc's to the notify list */
+    for(;bcc != NULL; bcc = bcc->next)
+        jid_append(notify,bcc);
 
     js_mapi_session(es_IN, m->s, mod_presence_in, notify);
     js_mapi_session(es_OUT, m->s, mod_presence_avails, notify); /* must come first, it passes, _out handles */
