@@ -188,6 +188,7 @@
       <admin>
         <read>support@localhost</read>
         <write>admin@localhost</write>
+	<write-only>admin2@localhost</write-only>
         <reply xml:lang='en'>
           <subject>Auto Reply</subject>
           <body>This is a special administrative address.  Your message was received and forwarded to server administrators.</body>
