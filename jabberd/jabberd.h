@@ -27,12 +27,15 @@
  * suggestions and support of Jabber.
  * 
  * --------------------------------------------------------------------------*/
+
+#ifdef HAVE_CONFIG_H
+#   include <config.h>
+#endif
+
 #include "lib/lib.h"
 #ifdef HAVE_SSL
-#include <ssl.h>
+#include <openssl/ssl.h>
 #endif /* HAVE_SSL */
-
-#define VERSION "1.4cvs"
 
 /* packet types */
 typedef enum { p_NONE, p_NORM, p_XDB, p_LOG, p_ROUTE } ptype;

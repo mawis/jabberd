@@ -104,7 +104,7 @@ void mod_version(jsmi si)
     version = xmlnode_get_tag(config, "version");
     os = xmlnode_get_tag(config, "os");
 
-    mi->name = pstrdup(p, name ? xmlnode_get_data(name) : "jabberd");
+    mi->name = pstrdup(p, name ? xmlnode_get_data(name) : PACKAGE);
     if (version)
 	mi->version = pstrdup(p, xmlnode_get_data(version));
     else

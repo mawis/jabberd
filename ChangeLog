@@ -1,0 +1,45 @@
+2004-05-20  Matthias Wimmer i <m@tthias.net>
+
+    * ac-helpers/ac_define_dir.m4: Macro from the M4 archive
+    * ac-helpers/Makefile.am: Makefile for this directory
+    * ac-helpers/openssl.m4: Macro to detect openssl
+    * AUTHORS: Authors as listed in README
+    * bootstrap: generate configure script and Makefiles
+    * ChangeLog: track changes to the jabberd14 project
+    * config.rpath: system abstraction for environment vars
+    * config.xml: removed, this is now auto-created
+    * config.xml.dist.in: template for the configuration file
+    * configure: removed, this is now auto-created
+    * configure.in: template for the configure script
+    * dialback/Makefile: removed, this is now auto-created
+    * dialback/Makefile.am: template for the Makefile
+    * dnsrv/Makefile: removed, this is now auto-created
+    * dnsrv/Makefile.am: template for the Makefile
+    * jabberd/base/Makefile: removed, this is now auto-created
+    * jabberd/base/Makefile.am: template for the Makefile
+    * jabberd/config.c: Search for configuration file in sysconfdir
+    * jabberd/lib/Makefile: removed, this is now auto-created
+    * jabberd/lib/Makefile.am: template for the Makefile
+    * jabberd/lib/xmldef.h: removed, using installed expat
+    * jabberd/lib/xmlparse.c: same
+    * jabberd/lib/xmlparse.h: same
+    * jabberd/lib/xmlrole.c: same
+    * jabberd/lib/xmlrole.h: same
+    * jabberd/lib/xmltok.c: same
+    * jabberd/lib/xmltok.h: same
+    * jabberd/lib/xmltok_impl.c: same
+    * jabberd/lib/xmltok_impl.h: same
+    * jabberd/lib/xmltok_ns.c: same
+    * jabberd/Makefile: removed, this is now auto-created
+    * jabberd/Makefile.am: template for the Makefile
+    * jsm/Makefile: removed, this is not auto-created
+    * jsm/Makefile.am: template for the Makefile
+    * jsm/modules/Makefile: removed, this is not auto-created
+    * jsm/modules/Makefile.am: template for the Makefile
+    * jsm/modules/mod_version.c: use PACKAGE as the software name
+    * Makefile: removed, this is now auto-created
+    * NEWS: major changes in jabberd14
+    * pthsock/Makefile: removed, this is now auto-created
+    * pthsock/Makefile.am: template for the Makefile
+    * xdb_file/Makefile: removed, this is not auto-created
+    * xdb_file/Makefile.am: template for the Makefile
