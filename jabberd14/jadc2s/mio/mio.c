@@ -90,8 +90,19 @@ struct mio_st
 void _mio_debug(int line, const char *msgfmt, ...)
 {
     va_list ap;
+    char *pos;
+    int sz;
+    time_t t;
+
+    /* timestamp */
+    t = time(NULL);
+    pos = ctime(&t);
+    sz = strlen(pos);
+    /* chop off the \n */
+    pos[sz-1]=' ';
+
     va_start(ap,msgfmt);
-    fprintf(stderr,"mio.c#%d: ",line);
+    fprintf(stderr,"%smio.c#%d: ",pos,line);
     vfprintf(stderr,msgfmt,ap);
     fprintf(stderr,"\n");
 }
