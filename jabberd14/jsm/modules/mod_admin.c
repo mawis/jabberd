@@ -180,20 +180,13 @@ mreturn mod_admin_dispatch(mapi m, void *arg)
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
     if(!NSCHECK(m->packet->iq,NS_ADMIN)) return M_PASS;
 
-    /* ensure that the user is local */
-    if(js_config(m->si,"admin") == NULL || m->packet->from == NULL || m->packet->from->user == NULL || ghash_get(m->si->hosts, m->packet->from->server) == NULL)
-    {
-        js_bounce(m->si,m->packet->x,TERROR_NOTALLOWED);
-        return M_HANDLED;
-    }
-
     log_debug("mod_admin","checking admin request from %s",jid_full(m->packet->from));
 
     for(cur = xmlnode_get_firstchild(js_config(m->si,"admin")); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
-        if(j_strcmp(xmlnode_get_name(cur),"read") == 0 && xmlnode_get_data(cur) != NULL && strcasecmp(m->packet->from->user,xmlnode_get_data(cur)) == 0)
+        if(j_strcmp(xmlnode_get_name(cur),"read") == 0 && jid_cmpx(jid_new(xmlnode_pool(m->packet->x),xmlnode_get_data(cur)),m->packet->from,JID_USER|JID_SERVER) == 0)
             f_read = 1;
-        if(j_strcmp(xmlnode_get_name(cur),"write") == 0 && xmlnode_get_data(cur) != NULL && strcasecmp(m->packet->from->user,xmlnode_get_data(cur)) == 0)
+        if(j_strcmp(xmlnode_get_name(cur),"write") == 0 && jid_cmpx(jid_new(xmlnode_pool(m->packet->x),xmlnode_get_data(cur)),m->packet->from,JID_USER|JID_SERVER) == 0)
             f_read = f_write = 1;
     }
 
@@ -238,9 +231,8 @@ mreturn mod_admin_message(mapi m, void *arg)
 
         p = jpacket_new(xmlnode_dup(m->packet->x));
         jutil_delay(p->x,"admin");
-        jid_set(p->to,xmlnode_get_data(cur),JID_USER);
+        p->to = jid_new(p->p,xmlnode_get_data(cur));
         xmlnode_put_attrib(p->x,"to",jid_full(p->to));
-        jpacket_reset(p);
         js_deliver(m->si,p);
     }
 

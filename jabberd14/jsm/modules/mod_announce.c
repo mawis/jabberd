@@ -78,18 +78,11 @@ mreturn mod_announce_dispatch(mapi m, void *arg)
     if(m->packet->type != JPACKET_MESSAGE) return M_IGNORE;
     if(j_strncmp(m->packet->to->resource,"announce/",9) != 0) return M_PASS;
 
-    /* ensure that the user is local */
-    if(js_config(m->si,"admin") == NULL || m->packet->from == NULL || m->packet->from->user == NULL || ghash_get(m->si->hosts, m->packet->from->server) == NULL)
-    {
-        js_bounce(m->si,m->packet->x,TERROR_NOTALLOWED);
-        return M_HANDLED;
-    }
-
     log_debug("mod_announce","handling announce message from %s",jid_full(m->packet->from));
 
     for(cur = xmlnode_get_firstchild(js_config(m->si,"admin")); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
-        if(j_strcmp(xmlnode_get_name(cur),"write") == 0 && xmlnode_get_data(cur) != NULL && strcasecmp(m->packet->from->user,xmlnode_get_data(cur)) == 0)
+        if(j_strcmp(xmlnode_get_name(cur),"write") == 0 && jid_cmpx(jid_new(xmlnode_pool(m->packet->x),xmlnode_get_data(cur)),m->packet->from,JID_USER|JID_SERVER) == 0)
             admin = 1;
     }
 

@@ -100,7 +100,7 @@ int _io_write_dump(sock c)
     {
         /* write a bit from the current buffer */
         len=write(c->fd,c->cbuffer,strlen(c->cbuffer));
-        //printf("WRITE %d len %d of %s\n",c->fd,len,c->cbuffer);
+        log_debug(ZONE,"WRITE %d len %d of %s\n",c->fd,len,c->cbuffer);
         if(len==0)
         {
             (*(io_cb)c->cb)(c,NULL,0,IO_ERROR,c->cb_arg); /* bounce the queue */
