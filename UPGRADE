@@ -1,3 +1,52 @@
+Upgrading from 1.4.3 to 1.?.?
+-----------------------------
+
+The makefile now has an 'install' target which installs all files
+required at runtime to the places specified using the configure script
+(the default is to place the server in the /usr/local filesystem tree).
+Update your scripts that start the server to reflect the new file
+locations and move your old configuration files and the spool directory
+to the new location.
+
+In your existing configuration file update the filenames of the shared
+objects implementing the services. Check for the following shared
+objects in your configuration:
+      old name		      new name
+	jsm.so			libjabberdsm.so
+	xdb_file.so		libjabberdxdbfile.so
+	pthsock_client.so	libjabberdpthsock.so
+	dnsrv.so		libjabberddnsrv.so
+	dialback.so		libjabberddialback.so
+Do not forget to update the path to these shared objects!
+(The names have changed because we are installing jabberd and do not want
+to clash with the file names of other libraries.)
+
+jabberd will not change to its build directory anymore but start running
+in the current directory. If you are using relative paths in your
+configuration file, change to the right directory before starting jabberd
+or use the -H command line option.
+
+The -D command line option now takes an argument to select a class of
+debugging messages. The argument is a numerical value interpreted as a
+bit field. To get all debugging output (the old behaviour) use '-1' as the
+argument of this option.
+
+The spool directory structure has been changed. The user's spool files will
+now distributed over 256 times 256 directories to speed up access on some
+UNIX filesystems that are slow in accessing big directories. The structure
+has been taken from wpjabber and should be compatible with this server.
+jabberd will convert an existing spool directory of the old format to the
+new format at startup automatically, note that this can take some time.
+If you want to convert it back to the old structure, you can use the following
+command:
+	cd ${your_spool_directory_root}; \
+	for f in * ; do find $f -name "*.xml" -exec mv {} $f \; ; done; \
+	rm .hashspool
+(Of course replace ${your_spool_directory_root} with the location of your
+spool directory structure configured using the <spool/> element in your
+server's configuration.)
+
+
 Upgrading from 1.4.2 to 1.4.3
 -----------------------------
 

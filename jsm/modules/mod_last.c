@@ -40,6 +40,30 @@
  * --------------------------------------------------------------------------*/
 #include "jsm.h"
 
+/**
+ * @file mod_last.c
+ * @brief Implement handling of jabber:iq:last (JEP-0012) in the session manager
+ *
+ * By sending a jabber:iq:last query of type get the server will either reply
+ * with its own startup time (query sent to the session manager's address) or
+ * with the time a user last went offline or the time of the user's registration
+ * if it never was online (query sent to a user's address).
+ *
+ * jabber:iq:last queries are only processed if the querying entity has a
+ * subscription to the queried user's presence.
+ */
+
+/**
+ * handle iq queries addresses to the server
+ *
+ * all but iq stanzas are ignored, stanzas not of type get or not in the jabber:iq:last namespace are not processed
+ *
+ * return the time when the server was started
+ *
+ * @param m the mapi structure
+ * @param arg time_t timestamp when the server was started
+ * @return M_IGNORE if the stanza was no iq, M_PASS if the stanza has not been processed, M_HANDLED if the stanza has been handled
+ */
 mreturn mod_last_server(mapi m, void *arg)
 {
     time_t start = time(NULL) - *(time_t*)arg;
@@ -63,6 +87,13 @@ mreturn mod_last_server(mapi m, void *arg)
     return M_HANDLED;
 }
 
+/**
+ * function that updates the stored last information in xdb
+ *
+ * @param m the mapi structure
+ * @param to which user should be updated
+ * @param reason why the stored last information is updated
+ */
 void mod_last_set(mapi m, jid to, char *reason)
 {
     xmlnode last;
@@ -80,6 +111,15 @@ void mod_last_set(mapi m, jid to, char *reason)
     xmlnode_free(last);
 }
 
+/**
+ * callback that gets called on newly created accounts
+ *
+ * will initialize the stored last information with the account creation time
+ *
+ * @param m the mapi structure
+ * @param arg unused/ignored
+ * @return always M_PASS
+ */
 mreturn mod_last_init(mapi m, void *arg)
 {
     if(jpacket_subtype(m->packet) != JPACKET__SET) return M_PASS;
@@ -89,6 +129,15 @@ mreturn mod_last_init(mapi m, void *arg)
     return M_PASS;
 }
 
+/**
+ * callback that gets called on ending sessions
+ *
+ * update the stored information that contains the time of the ending of the last session
+ *
+ * @param m the mapi structure
+ * @param arg unused/ignored
+ * @return always M_PASS
+ */
 mreturn mod_last_sess_end(mapi m, void *arg)
 {
     if(m->s->presence != NULL) /* presence is only set if there was presence sent, and we only track logins that were available */
@@ -97,6 +146,15 @@ mreturn mod_last_sess_end(mapi m, void *arg)
     return M_PASS;
 }
 
+/**
+ * callback that gets called on new sessions
+ *
+ * register a callback to get notified if the session ends
+ *
+ * @param m the mapi structure
+ * @param arg unused/ignored
+ * @return always M_PASS
+ */
 mreturn mod_last_sess(mapi m, void *arg)
 {
     js_mapi_session(es_END, m->s, mod_last_sess_end, NULL);
@@ -104,6 +162,18 @@ mreturn mod_last_sess(mapi m, void *arg)
     return M_PASS;
 }
 
+/**
+ * handle jabber:iq:last queries sent to a user's address
+ *
+ * everything but iq stanzas are ignored, everything but jabber:iq:last ist not processed.
+ *
+ * queries of type 'set' are rejected, queries of type 'get' are replied if the querying entity is subscribed to the user's presence,
+ * other types are not processed.
+ *
+ * @param m the mapi structure
+ * @param arg unused/ignored
+ * @return M_IGNORE if it is no iq stanza, M_PASS if the stanza nas not been processed, M_HANDLED if the stanza has been handled
+ */
 mreturn mod_last_reply(mapi m, void *arg)
 {
     xmlnode last;
@@ -152,7 +222,19 @@ mreturn mod_last_reply(mapi m, void *arg)
     return M_HANDLED;
 }
 
-
+/**
+ * init the mod_last module
+ *
+ * register different callbacks:
+ * - mod_last_init for new user registrations
+ * - mod_last_sess for new sessions
+ * - mod_last_reply for stanzas  sent to an offline user
+ * - mod_last_server for stanzas sent to the session manager's address
+ *
+ * The server's startup time is stored as the argument to the mod_last_server callback.
+ *
+ * @param si the session manager instance
+ */
 void mod_last(jsmi si)
 {
     time_t *ttmp;
