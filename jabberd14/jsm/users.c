@@ -32,6 +32,7 @@
 
 #include "jsm.h"
 
+int js__usercount = 0;
 /*
  *  _js_users_del -- call-back for deleting user from the hash table
  *  
@@ -56,7 +57,7 @@ int _js_users_del(void *arg, const void *key, void *data)
      * is positive, or if there are active sessions
      * we can't free it, so return immediately
      */
-    if(u->ref > 0 || u->sessions != NULL)
+    if(u->ref > 0 || (u->sessions != NULL && ++js__usercount))
         return 1;
 
     log_debug(ZONE,"freeing %s",u->user);
@@ -106,7 +107,9 @@ void *js_users_main(void *arg)
         pth_sleep(5);
 
         /* free user struct if we can */
+        js__usercount = 0;
         ghash_walk(si->hosts,_js_hosts_del,NULL);
+        log_debug("usercount","%d\ttotal users",js__usercount);
     }
 }
 

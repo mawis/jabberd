@@ -318,6 +318,7 @@ void pthsock_client_read(sock c,char *buffer,int bufsz,int flags,void *arg)
         break;
     case IO_CLOSED:
         cd=(cdata)c->arg;
+        if(cd == NULL) break;
         log_debug(ZONE,"io_select Socket %d close notification",c->fd);
         if(cd->state==state_AUTHD)
         {
