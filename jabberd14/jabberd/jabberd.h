@@ -56,6 +56,7 @@ void register_config(char *node, cfhandler f, void *arg); /* register a function
 void register_phandler(instance id, order o, phandler f, void *arg); /* register a function to handle delivery for this instance */
 void register_instance(instance id, char *host); /* associate an id with a hostname for that packet type */
 dpacket dpacket_new(xmlnode x); /* create a new delivery packet from source xml */
+void deliver(dpacket p, instance i); /* deliver packet from sending instance */
 
 /*** global logging symbols ***/
 extern int debug_flag;

@@ -127,8 +127,8 @@ void deliver_instance(instance id, dpacket p)
     }
 }
 
-/* deliver the packet, where all the smarts happen */
-void deliver(dpacket p)
+/* deliver the packet, where all the smarts happen, take the sending instance as well */
+void deliver(dpacket p, instance i)
 {
     hostid list, cur;
 

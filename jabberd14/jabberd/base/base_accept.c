@@ -5,6 +5,12 @@
 /* if registered as * for the host, then any name can be used as sender, and module delivers appropriately */
 /* module must scan config for <host/> elements and configure itself appropriately */
 
+/* each <accept> can contain an additional <host> section that will limit it to accepting those hosts w/ that secret, but they must exist at the parent level as well (as likely in <host/>) */
+
+/* each instance can share ports */
+
+/* struct that contains meta-info for each accept: instance, host (start local, then parent, is a list) */
+
 result base_accept_config(instance id, xmlnode x, void *arg)
 {
     if(id == NULL)
