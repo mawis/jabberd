@@ -100,8 +100,15 @@ int xdb_set(xdbcache xc, char *host, jid owner, char *ns, xmlnode data); /* send
 /* base_load initialization function definition */
 typedef void (*base_load_init)(instance id, xmlnode x);
 
+/* Error messages */
+#define SERROR_NAMESPACE "<stream:error>Invalid namespace specified.</stream:error>"
 
-/*** managed thread queue utilities, only used by base_load'd extensions and only available when base_load is used  ***/
+/* ------------------------------------
+/* Managed Thread Queue (MTQ) utilities 
+ *   used only by base_load'd extensions 
+ *   and only available when base_load is 
+ *   used.
+ * ------------------------------------*/
 
 /* default waiting threads */
 #define MTQ_THREADS 10

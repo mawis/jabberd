@@ -48,6 +48,7 @@ typedef struct
      u_short       hostport;	/* Server port */
      char*         secret;	/* Connection secret */
      pool          mempool;	/* Memory pool for this struct */
+     instance      inst;    /* Matching instance for this connection */
      pth_msgport_t write_queue;	/* Queue of write_buf packets which need to be written */
      pth_event_t   e_read;	/* Event which is set when socket is ready for reading */
      pth_event_t   e_write;	/* Event which is set when socket is ready for writing */
@@ -119,11 +120,13 @@ void base_connect_handle_xstream_event(int type, xmlnode x, void* arg)
      switch(type)
      {
      case XSTREAM_ROOT:
+      /* Make sure that the incoming stream matches our outgoing.. */
+      if (j_strcmp(xmlnode_get_attrib(x, "from"), ci->inst->id) != 0)
+              log_warn(ci->inst->id, "From/to on stream header do not match: %s/%s", xmlnode_get_attrib(x, "from"), ci->inst->id);
 	  /* Extract the stream ID and generate a key to hash*/
 	  strbuf = spools(x->p, xmlnode_get_attrib(x, "id"),ci->secret, x->p);
 	  /* Calculate SHA hash */
-	  hashbuf=shahash(strbuf);
-	  log_debug(ZONE, "Hashing: %s\t\nResult: %s\n", strbuf, hashbuf);
+	  shahash_r(strbuf, hashbuf);
 
 	  /* Build a handshake packet */
 	  cur = xmlnode_new_tag_pool(x->p, "handshake");
@@ -165,6 +168,9 @@ void base_connect_handle_xstream_event(int type, xmlnode x, void* arg)
 void* base_connect_process_io(void* arg)
 {
      conn_info ci = (conn_info)arg;
+     /* Header vars */
+     xmlnode headernode;
+     char*   header;
      /* XML processor */
      xstream xs;
 
@@ -199,8 +205,11 @@ void* base_connect_process_io(void* arg)
      ci->state = conn_OPEN;
 
      /* Transmit stream header */  
-     pth_write(ci->socket, "<root>", strlen("<root>"));
+     headernode = xstream_header("jabber:component:connect", ci->inst->id, NULL);
+     header = xstream_header_char(headernode);
+     pth_write(ci->socket, header, strlen(header));
 
+     
      /* Loop on events */
      while (pth_wait(ci->events) > 0)
      {
@@ -241,6 +250,8 @@ void* base_connect_process_io(void* arg)
 	and reconnect -- messages in the queue don't need to be bounced */
 
      /* Cleanup.. */
+     if (headernode != NULL)
+        pool_free(headernode->p);
      close(ci->socket);
      ci->state  = conn_CLOSED;
      ci->socket = -1;
@@ -326,6 +337,7 @@ result base_connect_config(instance id, xmlnode x, void *arg)
 	  ci              = pmalloco(id->p, sizeof(_conn_info));
 	  ci->mempool     = id->p;
 	  ci->state       = conn_CLOSED;
+      ci->inst        = id;
 	  ci->socket      = -1;
 	  ci->hostip      = pstrdup(ci->mempool, ip);
 	  ci->hostport    = atoi(port);
