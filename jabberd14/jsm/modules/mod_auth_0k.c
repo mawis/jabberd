@@ -92,12 +92,11 @@ int mod_auth_0k_reset(mapi m, jid id, char *pass)
     return mod_auth_0k_set(m, id, hash, token, seqs);
 }
 
-mreturn mod_auth_0k_go(mapi m, void *arg)
+mreturn mod_auth_0k_go(mapi m, void *enable)
 {
     char *token, *hash, *seqs, *pass;
     char *c_hash = NULL;
     int sequence = 0, i;
-    int enable = (int)arg;
     xmlnode xdb;
 
     if(   jpacket_subtype(m->packet) == JPACKET__SET && 
@@ -236,15 +235,15 @@ mreturn mod_auth_0k_server(mapi m, void *arg)
 
 void mod_auth_0k(jsmi si)
 {
-    int enable = 0;
+    void *enable = 0;
 
     log_debug(ZONE,"there goes the neighborhood");
 
     /* check once for enabling plaintext->0k auth */
     if(js_config(si, "mod_auth_0k/enable_plaintext") != NULL)
-        enable = 1;
+        enable = (void*)1;
 
-    js_mapi_register(si, e_AUTH, mod_auth_0k_go, (void*)enable);
+    js_mapi_register(si, e_AUTH, mod_auth_0k_go, enable);
     js_mapi_register(si, e_SERVER, mod_auth_0k_server, NULL);
     if (js_config(si,"register") != NULL) js_mapi_register(si, e_REGISTER, mod_auth_0k_reg, NULL);
 }

@@ -234,7 +234,7 @@ result dialback_packets(instance i, dpacket dp, void *arg)
 int _dialback_beat_idle(void *arg, const void *key, void *data)
 {
     miod md = (miod)data;
-    if(((int)arg - md->last) >= md->d->timeout_idle)
+    if(((int)*(time_t*)arg - md->last) >= md->d->timeout_idle)
     {
         log_debug(ZONE,"Idle Timeout on socket %d to %s",md->m->fd, md->m->ip);
         mio_close(md->m);
@@ -246,11 +246,14 @@ int _dialback_beat_idle(void *arg, const void *key, void *data)
 result dialback_beat_idle(void *arg)
 {
     db d = (db)arg;
+    time_t ttmp;
+
     log_debug(ZONE,"dialback idle check");
-    ghash_walk(d->out_ok_db,_dialback_beat_idle,(void*)time(NULL));
-    ghash_walk(d->out_ok_legacy,_dialback_beat_idle,(void*)time(NULL));
-    ghash_walk(d->in_ok_db,_dialback_beat_idle,(void*)time(NULL));
-    ghash_walk(d->in_ok_legacy,_dialback_beat_idle,(void*)time(NULL));
+    time(&ttmp);
+    ghash_walk(d->out_ok_db,_dialback_beat_idle,(void*)&ttmp);
+    ghash_walk(d->out_ok_legacy,_dialback_beat_idle,(void*)&ttmp);
+    ghash_walk(d->in_ok_db,_dialback_beat_idle,(void*)&ttmp);
+    ghash_walk(d->in_ok_legacy,_dialback_beat_idle,(void*)&ttmp);
     return r_DONE;
 }
 
