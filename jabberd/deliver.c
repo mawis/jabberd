@@ -118,6 +118,7 @@ void deliver_fail(dpacket p, result r)
     case p_NORM:
         /* normal packet bounce */
         break;
+    default:
     }
 }
 
@@ -189,7 +190,7 @@ result deliver_hostid(hostid cur, char *host, dpacket p, result best)
     hostid next;
     dpacket pig;
 
-    if(cur == NULL || p == NULL) return;
+    if(cur == NULL || p == NULL) return best;
 
     /* get the next match, if there is one make a copy of the packet */
     next = deliver_get_next_hostid(cur->next, host);
@@ -213,8 +214,8 @@ void deliver(dpacket p, instance i)
     result best = r_NONE;
     char *host;
 
-    /* Ensure the packet & instance is valid */
-    if (p == NULL || i == NULL)
+    /* Ensure the packet is valid */
+    if (p == NULL)
 	 return;
 
     /* Get the host */
@@ -262,7 +263,6 @@ void deliver(dpacket p, instance i)
 dpacket dpacket_new(xmlnode x)
 {
     dpacket p;
-    pool mem;
 
     if(x == NULL)
         return NULL;

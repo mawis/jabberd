@@ -24,6 +24,7 @@ void loader_static(void)
     base_ns();
     base_to();
     base_stderr();
+    base_stdout();
 }
 
 void loader_dso(char *so, char *init)

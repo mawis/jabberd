@@ -21,6 +21,7 @@ jabberd_OBJECTS = \
 	gen/base_to.o \
 	io/base_connect.o \
 	io/base_exec.o \
+	io/base_stdout.o \
 	io/base_load.o \
 	io/base_accept.o \
 	log/base_file.o \
