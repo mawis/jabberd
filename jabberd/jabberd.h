@@ -105,6 +105,7 @@ void log_warn(char *host, const char *msgfmt, ...);
 void log_alert(char *host, const char *msgfmt, ...);
 #define log_error log_alert
 void logger(char *type, char *host, char *message); /* actually creates and delivers the log message */
+void log_record(char *id, char *type, char *action, const char *msgfmt, ...); /* for generic logging support, like log_record("jer@jabber.org","session","end","...") */
 
 /*** xdb utilities ***/
 
@@ -113,7 +114,9 @@ typedef struct xdbcache_struct
 {
     instance i;
     int id;
-    char *ns; /* for get */
+    char *ns;
+    char *act; /* for set */
+    char *match; /* for set */
     xmlnode data; /* for set */
     jid owner;
     int sent;
@@ -125,6 +128,7 @@ typedef struct xdbcache_struct
 
 xdbcache xdb_cache(instance i); /* create a new xdb cache for this instance */
 xmlnode xdb_get(xdbcache xc,  jid owner, char *ns); /* blocks until namespace is retrieved, returns xmlnode or NULL if failed */
+int xdb_act(xdbcache xc, jid owner, char *ns, char *act, char *match, xmlnode data); /* sends new xml action, returns non-zero if failure */
 int xdb_set(xdbcache xc, jid owner, char *ns, xmlnode data); /* sends new xml to replace old, returns non-zero if failure */
 
 /* Error messages */

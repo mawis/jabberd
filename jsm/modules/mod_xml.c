@@ -102,7 +102,7 @@ mreturn mod_xml_set(mapi m, void *arg)
         xmlnode_insert_cdata(storedx,ns,-1);
         if(private)
             xmlnode_put_attrib(storedx,"type","private");
-        xdb_set(m->si->xc, to, NS_XDBNSLIST, storedx);
+        xdb_act(m->si->xc, to, NS_XDBNSLIST, "insert", spools(m->packet->p,"ns=",ns,m->packet->p), storedx); /* match and replace any existing namespaces already listed */
         xmlnode_free(storedx);
 
         /* if it's to a resource that isn't browseable yet, fix that */

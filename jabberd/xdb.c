@@ -53,8 +53,11 @@ result xdb_results(instance id, dpacket p, void *arg)
         return r_DONE;
     }
 
-    /* associte packet w/ waiting cache */
-    curx->data = p->x;
+    /* associte only a non-error packet w/ waiting cache */
+    if(j_strcmp(xmlnode_get_attrib(p->x,"type"),"error") == 0)
+        curx->data = NULL;
+    else
+        curx->data = p->x;
 
     /* remove from ring */
     curx->prev->next = curx->next;
@@ -81,6 +84,10 @@ void xdb_deliver(instance i, xdbcache xc)
     }else{
         xmlnode_put_attrib(x,"type","set");
         xmlnode_insert_tag_node(x,xc->data); /* copy in the data */
+        if(xc->act != NULL)
+            xmlnode_put_attrib(x,"action",xc->act);
+        if(xc->match != NULL)
+            xmlnode_put_attrib(x,"match",xc->match);
     }
     xmlnode_put_attrib(x,"to",jid_full(xc->owner));
     xmlnode_put_attrib(x,"from",i->id);
@@ -210,8 +217,10 @@ xmlnode xdb_get(xdbcache xc, jid owner, char *ns)
     return x;
 }
 
-/* sends new xml to replace old, data is NOT freed, app responsible for freeing it */
-int xdb_set(xdbcache xc, jid owner, char *ns, xmlnode data)
+/* sends new xml xdb action, data is NOT freed, app responsible for freeing it */
+/* act must be NULL or "insert" for now, insert will either blindly insert data into the parent (creating one if needed) or use match */
+/* match will find a child in the parent, and either replace (if it's an insert) or remove (if data is NULL) */
+int xdb_act(xdbcache xc, jid owner, char *ns, char *act, char *match, xmlnode data)
 {
     _xdbcache newx;
     pth_mutex_t mutex = PTH_MUTEX_INIT;
@@ -227,6 +236,8 @@ int xdb_set(xdbcache xc, jid owner, char *ns, xmlnode data)
     newx.i = NULL;
     newx.data = data;
     newx.ns = ns;
+    newx.act = act;
+    newx.match = match;
     newx.owner = owner;
     newx.sent = time(NULL);
     newx.preblock = 1; /* flag */
@@ -262,3 +273,8 @@ int xdb_set(xdbcache xc, jid owner, char *ns, xmlnode data)
     return 0;
 }
 
+/* sends new xml to replace old, data is NOT freed, app responsible for freeing it */
+int xdb_set(xdbcache xc, jid owner, char *ns, xmlnode data)
+{
+    return xdb_act(xc, owner, ns, NULL, NULL, data);
+}

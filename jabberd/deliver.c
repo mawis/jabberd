@@ -1,4 +1,4 @@
-        /* --------------------------------------------------------------------------
+/* --------------------------------------------------------------------------
  *
  * License
  *
@@ -175,11 +175,9 @@ ilist deliver_hashmatch(HASHTABLE ht, char *key)
 {
     ilist l;
     l = ghash_get(ht, key);
-log_debug(ZONE,"HM: %X(%s):%X",ht,key,l);
     if(l == NULL)
     {
         l = ghash_get(ht, "*");
-log_debug(ZONE,"HM: %X(*):%X",ht,l);
     }
     return l;
 }
@@ -288,7 +286,6 @@ void register_instance(instance i, char *host)
     ht = deliver_hashtable(i->type);
     l = ghash_get(ht, host);
     l = ilist_add(l, i);
-log_debug(ZONE,"PUT: %X(%s): %X",ht,host,l);
     ghash_put(ht, host, (void *)l);
 }
 
@@ -355,7 +352,6 @@ result deliver_config_ns(instance i, xmlnode x, void *arg)
 
     l = ghash_get(deliver__ns, ns);
     l = ilist_add(l, i);
-log_debug(ZONE,"PUT: NS(%s): %X",ns,l);
     ghash_put(deliver__ns, ns, (void *)l);
 
     return r_DONE;
@@ -381,7 +377,6 @@ result deliver_config_logtype(instance i, xmlnode x, void *arg)
 
     l = ghash_get(deliver__logtype, type);
     l = ilist_add(l, i);
-log_debug(ZONE,"PUT: LOG(%s): %X",type,l);
     ghash_put(deliver__logtype, type, (void *)l);
 
     return r_DONE;
@@ -457,10 +452,9 @@ void deliver(dpacket p, instance i)
     b = NULL;
     a = deliver_hashmatch(deliver_hashtable(p->type), p->host);
     if(p->type == p_XDB)
-        b = deliver_hashmatch(deliver__ns, p->id->resource); /* XXX xdb ns/folder support? */
+        b = deliver_hashmatch(deliver__ns, xmlnode_get_attrib(p->x,"ns"));
     else if(p->type == p_LOG)
         b = deliver_hashmatch(deliver__logtype, xmlnode_get_attrib(p->x,"type"));
-log_debug(ZONE,"#D %X %X",a,b);
     deliver_instance(deliver_intersect(a, b), p);
 }
 
@@ -585,9 +579,8 @@ void deliver_fail(dpacket p, char *err)
         break;
     case p_XDB:
         /* log_warning and drop */
-        log_warn(p->host,"dropping an xdb request for %s",xmlnode_get_attrib(p->x,"to"));
-        pool_free(p->p);
-        break;
+        log_warn(p->host,"dropping a %s xdb request to %s for %s",xmlnode_get_attrib(p->x,"type"),xmlnode_get_attrib(p->x,"to"),xmlnode_get_attrib(p->x,"ns"));
+        /* drop through and treat like a route failure */
     case p_ROUTE:
         /* route packet bounce */
         if(j_strcmp(xmlnode_get_attrib(p->x,"type"),"error") == 0)

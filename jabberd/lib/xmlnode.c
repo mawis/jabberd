@@ -325,7 +325,8 @@ xmlnode xmlnode_insert_cdata(xmlnode parent, const char* CDATA, unsigned int siz
  *              "name/name" for a sub child (recurses)
  *              "?attrib" to match the first tag with that attrib defined
  *              "?attrib=value" to match the first tag with that attrib and value
- *              or any combination: "name/name/?attrib", etc
+ *              "=cdata" to match the cdata contents of the child
+ *              or any combination: "name/name/?attrib", "name=cdata", etc
  *
  *  results
  *      a pointer to the tag matching search criteria
@@ -341,11 +342,36 @@ xmlnode xmlnode_get_tag(xmlnode parent, const char* name)
     if(strstr(name, "/") == NULL && strstr(name,"?") == NULL)
         return _xmlnode_search(parent->firstchild, name, NTYPE_TAG);
 
-    /* jer's note: why can't I modify the name directly, why do I have to strdup it?  damn c grrr! */
     str = strdup(name);
     slash = strstr(str, "/");
     qmark = strstr(str, "?");
     equals = strstr(str, "=");
+
+    if(equals != NULL && (slash == NULL || equals < slash) && (qmark == NULL || equals < qmark))
+    { /* of type =cdata */
+
+        *equals = '\0';
+        equals++;
+
+        for(step = parent->firstchild; step != NULL; step = xmlnode_get_nextsibling(step))
+        {
+            if(xmlnode_get_type(step) != NTYPE_TAG)
+                continue;
+
+            if(*str != '\0')
+                if(j_strcmp(xmlnode_get_name(step),str) != 0)
+                    continue;
+
+            if(j_strcmp(xmlnode_get_data(step),equals) != 0)
+                continue;
+
+            break;
+        }
+
+        free(str);
+        return step;
+    }
+
 
     if(qmark != NULL && (slash == NULL || qmark < slash))
     { /* of type ?attrib */
