@@ -1,3 +1,7 @@
+2005-03-13  Matthias Wimmer  <m@tthias.net>
+
+    * xdb_sql/xdb_sql.c: fix for constructing queries for non-existant values
+
 2005-03-11  Matthias Wimmer  <m@tthias.net>
 
     * jsm/modules/mod_auth_plain.c: log new account registrations
