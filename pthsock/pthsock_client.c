@@ -32,7 +32,9 @@
 
 #include <jabberd.h>
 
-typedef enum { state_UNKNOWN, state_AUTHD } conn_state;
+pth_mutex_t m_sync=PTH_MUTEX_INIT;
+
+typedef enum { state_UNKNOWN, state_AUTHD, state_CLOSE } conn_state;
 
 typedef struct csock_st
 {
@@ -89,6 +91,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
         return r_DONE;
     }
 
+    pth_mutex_acquire(&m_sync,0,NULL);
     log_debug(ZONE,"pthsock_client looking up %d",sock);
 
     for (cur = si->conns; cur != NULL; cur = cur->next)
@@ -104,6 +107,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
             else
                 break;
 
+            pth_mutex_release(&m_sync);
             return r_DONE;
         }
 
@@ -113,6 +117,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
             if (j_strcmp(xmlnode_get_attrib(xmlnode_get_tag(p->x,"error"),"code"),"510") == 0)
             {
                 xmlnode_free(p->x);
+                pth_mutex_release(&m_sync);
                 return r_DONE;
             }
 
@@ -131,29 +136,30 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     jutil_tofrom(p->x);
     deliver(dpacket_new(p->x),si->i);
 
+    pth_mutex_release(&m_sync);
     return r_DONE;
 }
 
 int pthsock_client_write_dump(csock c)
 {
     int len,retval;
-    pth_event_t etime=pth_event(PTH_EVENT_TIME,pth_timeout(2,0));
-
 
     if(c->wbuffer==NULL) return 0;
 
-    log_debug(ZONE,"about to dump to socket %d",c->sock);
-    len=pth_write_ev(c->sock,c->wbuffer,strlen(c->wbuffer),etime);
+    len=write(c->sock,c->wbuffer,strlen(c->wbuffer));
     log_debug(ZONE,"dumped %d bytes of %d",len,strlen(c->wbuffer));
-    if(len==0||pth_event_occurred(etime))
+    if(len==0)
     {
         /* we didn't write anything.. postpone the write */
         retval=1;
     }
     if(len<0)
     { /* error occured while writing the packet */
-        free(c->wbuffer);
-        c->wbuffer=NULL;
+        if(errno!=EWOULDBLOCK)
+        {
+            free(c->wbuffer);
+            c->wbuffer=NULL;
+        }
         return -1;
     }
     else if(len!=strlen(c->wbuffer))
@@ -250,8 +256,6 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         break;
 
     case XSTREAM_NODE:
-        log_debug(ZONE,"node received for %d",c->sock);
-
         log_debug(ZONE,">>>> %s",xmlnode2str(x));
 
         /* only allow auth and registration queries at this point */
@@ -263,7 +267,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
                 log_debug(ZONE,"user tried to send packet in unknown state");
                 /* bounce */
                 xmlnode_free(x);
-                pthsock_client_close(NULL,c);
+                c->state=state_CLOSE;
                 return;
             }
             else if (NSCHECK(q,NS_AUTH))
@@ -287,10 +291,11 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         if(c->wbuffer!=NULL) free(c->wbuffer);
         c->wbuffer=strdup("<stream::error>You sent malformed XML</stream:error>");
         if(pthsock_client_write_dump(c)&&c->wbuffer!=NULL) free(c->wbuffer);
+        c->wbuffer=NULL;
     case XSTREAM_CLOSE:
         log_debug(ZONE,"closing XSTREAM");
 
-        pthsock_client_close(NULL,c);
+        c->state=state_CLOSE;
         xmlnode_free(x);
     }
 }
@@ -309,6 +314,8 @@ int pthsock_client_write(csock c, dpacket p)
             if(c->wbuffer!=NULL) free(c->wbuffer);
             c->wbuffer=strdup("<stream:error>Disconnected</stream:error>");
             if(pthsock_client_write_dump(c)&&c->wbuffer!=NULL) free(c->wbuffer);
+            c->wbuffer=NULL;
+            c->state=state_CLOSE;
             return -1;
         }
 
@@ -330,8 +337,6 @@ int pthsock_client_write(csock c, dpacket p)
             /* they didn't get authed/registered */
             log_debug(ZONE,"user auth/registration falid");
     }
-
-    log_debug(ZONE,"writing %d",c->sock);
 
     xmlnode_hide_attrib(p->x,"sto");
     xmlnode_hide_attrib(p->x,"sfrom");
@@ -394,15 +399,17 @@ csock pthsock_client_accept(smi si,int asock)
 {
     struct sockaddr_in sa;
     size_t sa_size = sizeof(sa);
-    pth_event_t etime=pth_event(PTH_EVENT_TIME,pth_timeout(2,0));
-    int sock;
+    int sock,flags;
     csock c;
-    sock = pth_accept_ev(asock,(struct sockaddr*)&sa,(int*)&sa_size,etime);
-    if(sock < 0||pth_event_occurred(etime))
+    sock = accept(asock,(struct sockaddr*)&sa,(int*)&sa_size);
+    if(sock < 0)
     {
-        log_debug(ZONE,"accept error");
         return NULL; 
     }
+
+    (flags=fcntl(sock,F_GETFL,0));
+    flags|=O_NONBLOCK;
+    fcntl(sock,F_SETFL,flags);
 
     log_debug(ZONE,"pthsock_client: new socket accepted (fd: %d, ip: %s, port: %d)",sock,inet_ntoa(sa.sin_addr),ntohs(sa.sin_port));
 
@@ -418,64 +425,67 @@ void *pthsock_client_main(void *arg)
     smi si = (smi) arg;     /* our instance object */
     pth_event_t wevt;       /* the pth event for the mp */
     fd_set wfds,rfds, all_wfds,all_rfds; /* writes, reads, all */
-    csock cur, c;    
+    csock cur, c,temp;    
     drop d;
     char buff[1024];
     int len, asock;
+    int maxfd=0;
 
     asock = si->asock;
+    maxfd=asock;
 
-    FD_ZERO(&rfds);
-    FD_ZERO(&wfds);
     FD_ZERO(&all_wfds);
     FD_ZERO(&all_rfds);
-    FD_SET(asock,&rfds);
+    FD_SET(asock,&all_rfds);
 
     wevt = pth_event(PTH_EVENT_MSG,si->wmp);
 
     while (1)
     {
-        pth_select_ev(FD_SETSIZE,&rfds,&wfds,NULL,NULL,wevt);
+        log_debug(ZONE,"%d:%d Watching %d total sockets",asock,maxfd,maxfd-asock);
+        rfds=all_rfds;
+        wfds=all_wfds;
+        pth_select_ev(maxfd+1,&rfds,&wfds,NULL,NULL,wevt);
 
-        log_debug(ZONE,"out of pth select");
+        pth_mutex_acquire(&m_sync,0,NULL); 
 
         /* handle packets that need to be written */
         if (pth_event_occurred(wevt))
         {
-            while (1)
+            while ((d=(drop)pth_msgport_get(si->wmp))!=NULL)
             {
                 int ret;
-
-                /* get the packet */
-                d = (drop)pth_msgport_get(si->wmp);
-                if (d == NULL) break;
-
                 c = d->c;
+
+                if(c->state==state_CLOSE){
+                        pool_free(d->p->p);
+                        continue;
+                }
 
                 log_debug(ZONE,"write event for %d",c->sock);
                 ret=pthsock_client_write(c,d->p);
                 if(ret<0) /* error occured here */
                 {
-                    log_debug(ZONE,"error writing to socket, closing ");
-                    FD_CLR(c->sock,&all_rfds);
-                    FD_CLR(c->sock,&all_wfds);
-                    pthsock_client_close(si,c);
+                    if(errno!=EWOULDBLOCK)
+                    {
+                        FD_CLR(c->sock,&all_rfds);
+                        FD_CLR(c->sock,&all_wfds);
+                        pthsock_client_close(si,c);
+                        continue;
+                    }
+                    else 
+                    {
+                        FD_SET(c->sock,&all_wfds);
+                    }
                 }
                 else if(ret) /* didn't write all the data */
-                {
-                    log_debug(ZONE,"data still to write on %d",c->sock);
                     FD_SET(c->sock,&all_wfds);
-                }
                 else /* good write */
-                {
-                    log_debug(ZONE,"finished writing on %d",c->sock);
                     FD_CLR(c->sock,&all_wfds);
-                }
             }
         }
 
-        log_debug(ZONE,"normal select loop section...");
-        
+        maxfd=asock;
 
         FD_ZERO(&all_rfds); /* reset our "all" set */
         FD_SET(asock,&all_rfds);
@@ -483,24 +493,43 @@ void *pthsock_client_main(void *arg)
         if (FD_ISSET(asock,&rfds)) /* new connection */
         {
             c=pthsock_client_accept(si,asock);
-            if(c!=NULL) FD_SET(c->sock,&all_rfds);           
+            if(c!=NULL) 
+            {
+               FD_SET(c->sock,&all_rfds);           
+               if(c->sock>maxfd)maxfd=c->sock;
+            }
         }
 
         cur = si->conns;
         log_debug(ZONE,"looping through sockets");
         while(cur != NULL)
         {
-            log_debug(ZONE,"checking socket %d",cur->sock);
+            FD_SET(cur->sock,&all_rfds);
+            if(cur->state==state_CLOSE)
+            {
+                temp=cur;
+                cur=cur->next;
+                pthsock_client_close(si,temp);
+                FD_CLR(temp->sock,&all_rfds);
+                FD_CLR(temp->sock,&all_wfds);
+                continue;
+            }
             if (FD_ISSET(cur->sock,&rfds))
             { /* we need to read from a socket */
                 log_debug(ZONE,"read event for %d",cur->sock);
-                len = pth_read(cur->sock,buff,sizeof(buff));
+                len = read(cur->sock,buff,sizeof(buff));
                 if(len <= 0)
                 {
-                    log_debug(ZONE,"Error reading on '%d', %s",cur->sock,strerror(errno));
-                    FD_CLR(cur->sock,&all_rfds);
-                    FD_CLR(cur->sock,&all_wfds);
-                    pthsock_client_close(si,cur);
+                    if(errno!=EWOULDBLOCK)
+                    {
+                        temp=cur;
+                        cur=cur->next;
+                        log_debug(ZONE,"Error reading on '%d', %s",temp->sock,strerror(errno));
+                        FD_CLR(temp->sock,&all_rfds);
+                        FD_CLR(temp->sock,&all_wfds);
+                        pthsock_client_close(si,temp);
+                        continue;
+                    }
                 }
                 else
                 {
@@ -514,34 +543,27 @@ void *pthsock_client_main(void *arg)
                 log_debug(ZONE,"write event for %d",cur->sock);
                 if(ret<0)
                 {
-                    log_debug(ZONE,"error writing to socket %d",cur->sock);
-                    FD_CLR(cur->sock,&all_rfds);
-                    FD_CLR(cur->sock,&all_wfds);
-                    pthsock_client_close(si,cur);
+                    if(errno!=EWOULDBLOCK)
+                    {
+                        temp=cur;
+                        cur=cur->next;
+                        log_debug(ZONE,"error writing to socket %d:%s",temp->sock,strerror(errno));
+                        FD_CLR(temp->sock,&all_rfds);
+                        FD_CLR(temp->sock,&all_wfds);
+                        pthsock_client_close(si,temp);
+                        continue;
+                    } else FD_SET(cur->sock,&all_wfds);
                 }
-                else if(!ret)
-                { /* write was successfull */
-                    FD_CLR(cur->sock,&all_wfds);
-                }
-                else
-                    log_debug(ZONE,"data still to be written on %d",cur->sock); 
+                else if(!ret) FD_CLR(cur->sock,&all_wfds);
+                else FD_SET(cur->sock,&all_wfds);
             }
 
-            FD_SET(cur->sock,&all_rfds);
-            if(cur->wbuffer!=NULL) 
-            {
-                log_debug(ZONE,"fd write SET for %d",cur->sock);
-                FD_SET(cur->sock,&all_wfds);
-            }
-            else
-            {
-                FD_CLR(cur->sock,&all_wfds);
-            }
+            if(cur->wbuffer!=NULL) FD_SET(cur->sock,&all_wfds);
+            else FD_CLR(cur->sock,&all_wfds);
+            if(cur->sock>maxfd)maxfd=cur->sock;
             cur = cur->next;
         }
-        log_debug(ZONE,"setting fds");
-        wfds = all_wfds;
-        rfds = all_rfds;
+        pth_mutex_release(&m_sync);
     }
     log_debug(ZONE,"\n\n\n\nWHOA! WE ARE OUT OF THE LOOP!!!\nCLIENTS ARE DISCONNECTED NOW!!!\n\n\n");
     pth_event_free(wevt,PTH_FREE_THIS);
@@ -556,6 +578,7 @@ void pthsock_client(instance i, xmlnode x)
     pth_attr_t attr;
     char *host, *port;
     int sock;
+    int flags;
 
     log_debug(ZONE,"pthsock_client loading");
 
@@ -589,6 +612,10 @@ void pthsock_client(instance i, xmlnode x)
         log_error(NULL,"pthsock_client is unable to listen on %d",atoi(port));
         return;
     }
+
+    (flags=fcntl(sock,F_GETFL,0));
+    flags|=O_NONBLOCK;
+    fcntl(sock,F_SETFL,flags);
 
     si->asock = sock;
 
