@@ -205,6 +205,9 @@ void base_accept_read_packets(int type, xmlnode x, void *arg)
 		 * setup, go ahead and deliver the the packet directly */
         if ((a->state == A_DUPLEX) && (a->emp != NULL))
         {
+            /* for 1.0 style transports */
+            xmlnode_hide_attrib(x,"etherx:to");
+            xmlnode_hide_attrib(x,"etherx:from");
             deliver(dpacket_new(x), a->s->i);
             return;
         }
