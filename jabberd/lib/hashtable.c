@@ -19,7 +19,7 @@ Contributor(s):
 
 */
 
-#include "xmldef.h"
+#include <expat.h>
 
 #ifdef XML_UNICODE_WCHAR_T
 #ifndef XML_UNICODE

@@ -295,22 +295,22 @@
     -->
 
     <load main="jsm">
-      <jsm>./jsm/jsm.so</jsm>
-      <mod_stat>./jsm/jsm.so</mod_stat>
-      <mod_echo>./jsm/jsm.so</mod_echo>
-      <mod_roster>./jsm/jsm.so</mod_roster>
-      <mod_time>./jsm/jsm.so</mod_time>
-      <mod_vcard>./jsm/jsm.so</mod_vcard>
-      <mod_last>./jsm/jsm.so</mod_last>
-      <mod_version>./jsm/jsm.so</mod_version>
-      <mod_announce>./jsm/jsm.so</mod_announce>
-      <mod_agents>./jsm/jsm.so</mod_agents>
-      <mod_browse>./jsm/jsm.so</mod_browse>
-      <mod_disco>./jsm/jsm.so</mod_disco>
-      <mod_admin>./jsm/jsm.so</mod_admin>
-      <mod_filter>./jsm/jsm.so</mod_filter>
-      <mod_offline>./jsm/jsm.so</mod_offline>
-      <mod_presence>./jsm/jsm.so</mod_presence>
+      <jsm>@libdir@/libjabberdsm.so</jsm>
+      <mod_stat>@libdir@/libjabberdsm.so</mod_stat>
+      <mod_echo>@libdir@/libjabberdsm.so</mod_echo>
+      <mod_roster>@libdir@/libjabberdsm.so</mod_roster>
+      <mod_time>@libdir@/libjabberdsm.so</mod_time>
+      <mod_vcard>@libdir@/libjabberdsm.so</mod_vcard>
+      <mod_last>@libdir@/libjabberdsm.so</mod_last>
+      <mod_version>@libdir@/libjabberdsm.so</mod_version>
+      <mod_announce>@libdir@/libjabberdsm.so</mod_announce>
+      <mod_agents>@libdir@/libjabberdsm.so</mod_agents>
+      <mod_browse>@libdir@/libjabberdsm.so</mod_browse>
+      <mod_disco>@libdir@/libjabberdsm.so</mod_disco>
+      <mod_admin>@libdir@/libjabberdsm.so</mod_admin>
+      <mod_filter>@libdir@/libjabberdsm.so</mod_filter>
+      <mod_offline>@libdir@/libjabberdsm.so</mod_offline>
+      <mod_presence>@libdir@/libjabberdsm.so</mod_presence>
 
       <!--
       Authentication
@@ -326,19 +326,19 @@
       -->
       <!-- mod_auth_digest: Password in clear text in storage,
            encrypted/hashed on the wire -->
-      <mod_auth_digest>./jsm/jsm.so</mod_auth_digest>
+      <mod_auth_digest>@libdir@/libjabberdsm.so</mod_auth_digest>
       <!-- mod_auth_plain: Password in clear text in storage
            and on the wire. Disable this if you do not use clients
            that need plaintext auth -->
-      <mod_auth_plain>./jsm/jsm.so</mod_auth_plain>
+      <mod_auth_plain>@libdir@/libjabberdsm.so</mod_auth_plain>
       <!-- mod_auth_crypt: Password encrypted/hashed in storage,
            clear text on the wire. Disabled as this only makes
            sense when used exclusively and with SSL mandatory
-      <mod_auth_crypt>./jsm/jsm.so</mod_auth_crypt> -->
+      <mod_auth_crypt>@libdir@/libjabberdsm.so</mod_auth_crypt> -->
 
-      <mod_log>./jsm/jsm.so</mod_log>
-      <mod_register>./jsm/jsm.so</mod_register>
-      <mod_xml>./jsm/jsm.so</mod_xml>
+      <mod_log>@libdir@/libjabberdsm.so</mod_log>
+      <mod_register>@libdir@/libjabberdsm.so</mod_register>
+      <mod_xml>@libdir@/libjabberdsm.so</mod_xml>
     </load>
 
   </service>
@@ -354,10 +354,10 @@
   <xdb id="xdb">
     <host/>
     <load>
-      <xdb_file>./xdb_file/xdb_file.so</xdb_file>
+      <xdb_file>@libdir@/libjabberdxdbfile.so</xdb_file>
     </load>
     <xdb_file xmlns="jabber:config:xdb_file">
-      <spool><jabberd:cmdline flag='s'>./spool</jabberd:cmdline></spool>
+      <spool><jabberd:cmdline flag='s'>@localstatedir@/spool/jabberd</jabberd:cmdline></spool>
       <!-- how long should results be kept in memory? -->
       <!-- <timeout>3600</timeout> -->
       <!-- what is the maximum size of a spool file? -->
@@ -392,7 +392,7 @@
 
   <service id="c2s">
     <load>
-      <pthsock_client>./pthsock/pthsock_client.so</pthsock_client>
+      <pthsock_client>@libdir@/libjabberdpthsock.so</pthsock_client>
     </load>
     <pthcsock xmlns='jabber:config:pth-csock'>
       <authtime/>
@@ -435,7 +435,7 @@
     <host/>
     <logtype/>
     <format>%d: [%t] (%h): %s</format>
-    <file>error.log</file>
+    <file>@localstatedir@/log/jabberd/error.log</file>
     <stderr/>
   </log>
 
@@ -448,7 +448,7 @@
     <host/>
     <logtype>record</logtype>
     <format>%d %h %s</format>
-    <file>record.log</file>
+    <file>@localstatedir@/log/jabberd/record.log</file>
   </log>
 
   <!-- The following two services are for handling server-to-server traffic. -->
@@ -458,7 +458,7 @@
   <service id="dnsrv">
     <host/>
     <load>
-      <dnsrv>./dnsrv/dnsrv.so</dnsrv>
+      <dnsrv>@libdir@/libjabberddnsrv.so</dnsrv>
     </load>
     <dnsrv xmlns="jabber:config:dnsrv">
     	<resend service="_xmpp-server._tcp">s2s</resend> <!-- for supporting XMPP compliant SRV records -->
@@ -478,7 +478,7 @@
 
   <service id="s2s">
     <load>
-      <dialback>./dialback/dialback.so</dialback>
+      <dialback>@libdir@/libjabberddialback.so</dialback>
     </load>
     <dialback xmlns='jabber:config:dialback'>
       <legacy/>
@@ -646,8 +646,8 @@
     -->
     <!--
     <ssl>
-      <key ip='192.168.1.1'>/path/to/cert_and_key.pem</key>
-      <key ip='192.168.1.100'>/path/to/other/cert_and_key.pem</key>
+      <key ip='192.168.1.1'>@sysconfdir@/cert_and_key.pem</key>
+      <key ip='192.168.1.100'>@sysconfdir@/other_cert_and_key.pem</key>
     </ssl>
     -->
 
@@ -673,7 +673,7 @@
   <!--
   This specifies the file to store the pid of the process in.
   -->
-  <pidfile>./jabber.pid</pidfile>
+  <pidfile>@localstatedir@/log/jabberd/jabber.pid</pidfile>
 
 
 </jabber>

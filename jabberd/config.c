@@ -174,7 +174,7 @@ void show_pid(xmlnode x)
 
 int configurate(char *file)
 {
-    char def[] = "jabber.xml";
+    char def[] = CONFIG_DIR"/jabber.xml";
     char *realfile = (char *)def;
     xmlnode incl;
     char *c;

@@ -72,7 +72,7 @@ result base_stderr_config(instance id, xmlnode x, void *arg)
         return r_ERR;
     }
 
-    log_debug(ZONE,"base_stderr configuring instnace %s",id->id);
+    log_debug(ZONE,"base_stderr configuring instance %s",id->id);
 
     /* Register the handler, for this instance */
     register_phandler(id, o_DELIVER, base_stderr_display, NULL);
