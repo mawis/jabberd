@@ -82,7 +82,7 @@ mreturn mod_auth_0k_go(mapi m, void *arg)
     return M_HANDLED;
 }
 
-int mod_auth_0k_reset(mapi m, xmlnode xpass)
+int mod_auth_0k_reset(mapi m, jid id, xmlnode xpass)
 {
     char token[10];
     char seqs_default[] = "500";
@@ -92,6 +92,16 @@ int mod_auth_0k_reset(mapi m, xmlnode xpass)
 
     log_debug("mod_auth_0k","resetting 0k variables");
     if((pass = xmlnode_get_data(xpass)) == NULL) return 1;
+
+    /* in case there is no mod_auth_plain, we need to validate the account since xdb's iq:auth is used as flag that a user exists */
+    if((x = xdb_get(m->si->xc, id->server, id, NS_AUTH)) != NULL)
+    { /* cool, they exist */
+        xmlnode_free(x);
+    }else{ /* make them exist with an empty password */
+        if(xdb_set(m->si->xc, id->server, id, NS_AUTH, xmlnode_new_tag_pool(xmlnode_pool(xpass),"password")))
+        return 1; /* uhoh */
+    }
+
 
     /* figure out how many sequences to generate */
     seqs = xmlnode_get_tag_data(js_config(m->si, "mod_auth_0k"),"sequences");
@@ -114,16 +124,15 @@ int mod_auth_0k_reset(mapi m, xmlnode xpass)
     xmlnode_insert_cdata(xmlnode_insert_tag(x,"hash"),hash,-1);
     xmlnode_insert_cdata(xmlnode_insert_tag(x,"token"),token,-1);
     xmlnode_insert_cdata(xmlnode_insert_tag(x,"sequence"),seqs,-1);
-    return xdb_set(m->si->xc, m->packet->to->server, m->packet->to, NS_AUTH_0K, x);
+    return xdb_set(m->si->xc, id->server, id, NS_AUTH_0K, x);
 }
 
 /* handle saving the password for registration */
 mreturn mod_auth_0k_reg(mapi m, void *arg)
 {
-log_debug(ZONE,"GOGOGO");
     if(jpacket_subtype(m->packet) != JPACKET__SET) return M_PASS;
 
-    if(mod_auth_0k_reset(m,xmlnode_get_tag(m->packet->iq,"password")))
+    if(mod_auth_0k_reset(m,m->packet->to,xmlnode_get_tag(m->packet->iq,"password")))
     {
         jutil_error(m->packet->x,(terror){500,"Password Storage Failed"});
         return M_HANDLED;
@@ -140,10 +149,10 @@ mreturn mod_auth_0k_server(mapi m, void *arg)
     /* pre-requisites */
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
     if(jpacket_subtype(m->packet) != JPACKET__SET || !NSCHECK(m->packet->iq,NS_REGISTER)) return M_PASS;
-    if(!js_islocal(m->si, m->packet->from)) return M_PASS;
+    if(m->user == NULL) return M_PASS;
     if((pass = xmlnode_get_tag(m->packet->iq,"password")) == NULL) return M_PASS;
 
-    if(mod_auth_0k_reset(m,pass))
+    if(mod_auth_0k_reset(m,m->user->id,pass))
     {
         js_bounce(m->si,m->packet->x,(terror){500,"Password Storage Failed"});
         return M_HANDLED;

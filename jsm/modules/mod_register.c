@@ -79,13 +79,13 @@ mreturn mod_register_server(mapi m, void *arg)
     /* pre-requisites */
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
     if(!NSCHECK(m->packet->iq,NS_REGISTER)) return M_PASS;
-    if(!js_islocal(m->si, m->packet->from)) return M_PASS;
+    if(m->user == NULL) return M_PASS;
     if(js_config(m->si,"register") == NULL) return M_PASS;
 
-    log_debug("mod_register","updating server: %s, user %s",m->packet->from->server,jid_full(m->packet->from));
+    log_debug("mod_register","updating server: %s, user %s",m->user->id->server,jid_full(m->user->id));
 
     /* check for their registration */
-    reg =  xdb_get(m->si->xc, m->packet->from->server, m->packet->from, NS_REGISTER);
+    reg =  xdb_get(m->si->xc, m->user->id->server, m->user->id, NS_REGISTER);
 
     switch(jpacket_subtype(m->packet))
     {
@@ -123,24 +123,24 @@ mreturn mod_register_server(mapi m, void *arg)
     case JPACKET__SET:
         if(xmlnode_get_tag(m->packet->iq,"remove") != NULL)
         {
-            log_notice(m->packet->from->server,"User Unregistered: %s",m->packet->from->user);
+            log_notice(m->user->id->server,"User Unregistered: %s",m->user->user);
 
             /* XXX BRUTE FORCE: remove the registration and auth and any misc data */
-            xdb_set(m->si->xc, m->packet->from->server, m->packet->from, NS_REGISTER, NULL);
-            xdb_set(m->si->xc, m->packet->from->server, m->packet->from, NS_AUTH, NULL);
-            xdb_set(m->si->xc, m->packet->from->server, m->packet->from, NS_PRIVATE, NULL);
-            xdb_set(m->si->xc, m->packet->from->server, m->packet->from, NS_ROSTER, NULL);
-            xdb_set(m->si->xc, m->packet->from->server, m->packet->from, NS_VCARD, NULL);
-            xdb_set(m->si->xc, m->packet->from->server, m->packet->from, NS_OFFLINE, NULL);
-            xdb_set(m->si->xc, m->packet->from->server, m->packet->from, NS_FILTER, NULL);
+            xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_REGISTER, NULL);
+            xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_AUTH, NULL);
+            xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_PRIVATE, NULL);
+            xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_ROSTER, NULL);
+            xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_VCARD, NULL);
+            xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_OFFLINE, NULL);
+            xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_FILTER, NULL);
         }else{
-            log_debug(ZONE,"updating registration for %s",jid_full(m->packet->from));
+            log_debug(ZONE,"updating registration for %s",jid_full(m->user->id));
 
             /* update the registration data */
             xmlnode_hide(xmlnode_get_tag(m->packet->iq,"username")); /* hide the username/password from the reg db */
             xmlnode_hide(xmlnode_get_tag(m->packet->iq,"password"));
             jutil_delay(m->packet->iq,"updated");
-            xdb_set(m->si->xc, m->packet->from->server, m->packet->from, NS_REGISTER, m->packet->iq);
+            xdb_set(m->si->xc, m->user->id->server, m->user->id, NS_REGISTER, m->packet->iq);
 
         }
         /* clean up and respond */
