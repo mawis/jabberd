@@ -47,9 +47,12 @@ base_cache for caching xdb requests in memory
 ?	9/15/00 open, needs some docu from jer
 base_farm for simple hashing name distribution
 
-jer/tsb	10/8/00 grunt
+jer/diz	10/4/00 grunt
 rate limits
 
+all	10/5/00 cleanup
+existing/known bugs or issues with 1.0, protocol things?
+register get
 
 ===================================
 TESTING
@@ -95,6 +98,7 @@ deliver optimization
 all	9/15/00
 clean up log_* calls, make sure right type, looks sane
 check XXX/TODO comment flags
+check error codes, use timeout ones?
 
 jer	9/15/00
 socket ioctl tweaks, r/w buffers, reduce data loss, shorten timeouts

@@ -26,6 +26,12 @@ mreturn mod_auth_plain(mapi m, void *arg)
 
     log_debug("mod_auth_plain","checking");
 
+    if(jpacket_subtype(m->packet) == JPACKET__GET)
+    { /* type=get means we flag that the server can do plain-text auth */
+        xmlnode_insert_tag(m->packet->iq,"password");
+        return M_PASS;
+    }
+
     if((passA = xmlnode_get_tag_data(m->packet->iq, "password")) == NULL)
         return M_PASS;
 
