@@ -863,7 +863,7 @@ void xmlnode_hide_attrib(xmlnode parent, const char *name)
  */
 char *xmlnode2str(xmlnode node)
 {
-    if(!node->dirty)
+    if(!node->dirty && node->full != NULL)
         return node->full;
 
      return spool_print(_xmlnode2spool(node));
@@ -1016,6 +1016,7 @@ xmlnode xmlnode_wrap(xmlnode x,const char *wrapper)
     if(wrap==NULL) return NULL;
     wrap->firstchild=x;
     wrap->lastchild=x;
+    wrap->complete = 1;
     x->parent=wrap;
     return wrap;
 }
