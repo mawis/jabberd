@@ -41,14 +41,44 @@
 #include "jsm.h"
 #include <sys/utsname.h>
 
+/**
+ * @file mod_version.c
+ * @brief implements handling of 'jabber:iq:version' (JEP-0092) in the session manager
+ *
+ * This session manager module implements the 'Software Version' protocol in the
+ * session manager. It can be used to request which version of the Jabber server
+ * (the version of the session manager) is running on which operating system version.
+ * The information presented by this module is gathered automatically but the
+ * administrator has the possibility to overwrite or hide this information.
+ */
+
+
+/**
+ * @brief structure that holds precomputed strings for jabber:iq:version reply
+ *
+ * This structure keeps the strings used to build a reply for a version query.
+ * Normally it is filled with collected information on the module startup, but
+ * the administrator of the server is able to overwrite all fields in the session
+ * manager configuration file.
+ */
 typedef struct
 {
-    pool p;
-    char *name;
-    char *version;
-    char *os;
+    pool p;		/**< memory pool used to build the strings in this structure */
+    char *name;		/**< the natural-language name of the software */
+    char *version;	/**< the specific version of the software */
+    char *os;		/**< the operating system */
 } _mod_version_i, *mod_version_i;
 
+/**
+ * callback function that handles jabber:iq:version queries
+ *
+ * All non iq stanzas are ignored by this function. Only queries in the jabber:iq:version
+ * namespace are handled. Queries of type set are rejected, queries of type get are replied.
+ *
+ * @param m the mapi structure
+ * @param arg pointer to the _mod_version_t structure of this module instance
+ * @return M_IGNORED if not a iq stanza, M_PASS if stanza not handled, M_HANDLED if stanza has been handled
+ */
 mreturn mod_version_reply(mapi m, void *arg)
 {
     mod_version_i mi = (mod_version_i)arg;
@@ -77,6 +107,13 @@ mreturn mod_version_reply(mapi m, void *arg)
     return M_HANDLED;
 }
 
+/**
+ * free memory allocated by this module instance
+ *
+ * @param m the mapi structure
+ * @param arg pointer to the _mod_version_t structure holding the data of this module instance
+ * @return always M_PASS
+ */
 mreturn mod_version_shutdown(mapi m, void *arg)
 {
     mod_version_i mi = (mod_version_i)arg;
@@ -85,6 +122,11 @@ mreturn mod_version_shutdown(mapi m, void *arg)
     return M_PASS;
 }
 
+/**
+ * register this module's callbacks in the session manager, allocate memory and precompute the replies
+ *
+ * @param si the session manager instance
+ */
 void mod_version(jsmi si)
 {
     char *from;
@@ -127,6 +169,7 @@ void mod_version(jsmi si)
     js_mapi_register(si,e_SHUTDOWN,mod_version_shutdown,(void *)mi);
 
     /* check for updates */
+    /* update.jabber.org is gone for a long time ...
     from = xmlnode_get_data(js_config(si,"update"));
     if(from == NULL) return;
 
@@ -134,5 +177,5 @@ void mod_version(jsmi si)
     xmlnode_put_attrib(x,"from",from);
     xmlnode_put_attrib(x,"to","jsm@update.jabber.org/" VERSION);
     deliver(dpacket_new(x), si->i);
+    */
 }
-

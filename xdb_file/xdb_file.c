@@ -39,7 +39,7 @@
  * 
  * --------------------------------------------------------------------------*/
  
-#include <jabberd.h>
+#include <jabberdxdbfile.h>
 #include <dirent.h>
 
 #define FILES_PRIME 509
@@ -452,7 +452,7 @@ void _xdb_convert_hostspool(pool p, const char *spoolroot, char *host)
  *
  * @param spoolroot the root folder of the spool
  */
-void _xdb_convert_spool(const char *spoolroot)
+void xdb_convert_spool(const char *spoolroot)
 {
     DIR *sdir;
     struct dirent *dent;
@@ -532,7 +532,7 @@ void xdb_file(instance i, xmlnode x)
         return;
     }
 
-    _xdb_convert_spool(spl);
+    xdb_convert_spool(spl);
 
     sizelimit = j_atoi(xmlnode_get_tag_data(config, "sizelimit"), 0);
     
