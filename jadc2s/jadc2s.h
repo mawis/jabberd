@@ -168,6 +168,7 @@ struct c2s_st
 
     /* setup */
     config_elem_t local_id;
+    config_elem_t local_alias;
     char *local_ip;
     int local_port;
 #ifdef USE_SSL
