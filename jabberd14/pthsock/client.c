@@ -31,18 +31,16 @@
 */
 
 #include "io.h"
+pth_mutex_t s__m=PTH_MUTEX_INIT;
+iosi io__instance=NULL;
 
 /* socket manager instance */
-struct cdata_st;
-
 typedef struct smi_st
 {
     instance i;
-    struct cdata_st *conns;
     xmlnode cfg;
     pth_msgport_t wmp;
     char *host;
-    int asock;  /* socket we accept connections on */
 } *smi, _smi;
 
 typedef struct cdata_st
@@ -54,33 +52,10 @@ typedef struct cdata_st
     struct cdata_st *next;
 } _cdata,*cdata;
 
-void pthsock_client_unlink(smi si, sock c)
-{
-    cdata cur, prev;
-
-    log_debug(ZONE,"Unlinking Local sock copy %d",c->fd);
-
-    /* remove connection from the list */
-    for (cur = si->conns,prev = NULL; cur != NULL; prev = cur,cur = cur->next)
-        if ((sock)cur->arg == c)
-        {
-            if (prev != NULL)
-                prev->next = cur->next;
-            else
-                si->conns = cur->next;
-            break;
-        }
-}
-
 void pthsock_client_close(sock c)
 {
     xmlnode x;
     cdata cd=(cdata)c->arg;
-    smi si=(smi)cd->i;
-
-    log_debug(ZONE,"asking %d to close",c->fd);
-    io_close(c);
-    pthsock_client_unlink(si,c);
 
     log_debug(ZONE,"send 510 to session manager");
     x = xmlnode_new_tag("message");
@@ -88,12 +63,16 @@ void pthsock_client_close(sock c)
     xmlnode_put_attrib(x,"sto",cd->host);
     xmlnode_put_attrib(x,"sfrom",cd->id);
     deliver(dpacket_new(x),((smi)cd->i)->i);
+
+    log_debug(ZONE,"asking %d to close",c->fd);
+    io_close(c);
 }
 
 result pthsock_client_packets(instance id, dpacket p, void *arg)
 {
     smi si=(smi)arg;
     cdata cdcur;
+    sock all_socks=io_select_get_list(io__instance);
     sock cur;
     char *type;
     int fd;
@@ -115,11 +94,13 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     }
 
     log_debug(ZONE,"pthsock_client looking up %d",fd);
+    
 
+    pth_mutex_acquire(&s__m,0,NULL);
     /* XXX this for loop is UUUU-GLY */
-    for (cdcur = si->conns; cdcur != NULL; cdcur = cdcur->next)
+    for (cur = all_socks; cur != NULL; cur = cur->next)
     {
-        cur=((sock)cdcur->arg);
+        cdcur=((cdata)cur->arg);
         if (fd == cur->fd)
         {
             if (j_strcmp(p->id->resource,cdcur->res) == 0)
@@ -128,9 +109,12 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
                 {
                     if (xmlnode_get_tag(p->x,"error?code=510")!=NULL)
                     {
+                        xmlnode x=xmlnode_new_tag("stream:error");
+                        xmlnode_insert_cdata(x,"Disconnected",-1);
                         log_debug(ZONE,"received disconnect message from session manager");
-                        io_write_str(cur,"<stream:error>Disconnected</stream:error>");
+                        io_write(cur,x);
                         pthsock_client_close(cur);
+                        pth_mutex_release(&s__m);
                         return -1;
                     }
                 }
@@ -158,9 +142,11 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
             }
             else 
                 break;
+            pth_mutex_release(&s__m);
             return r_DONE;
         }
     }
+    pth_mutex_release(&s__m);
 
     /* don't bounce if it's error 510 */
     if (*(xmlnode_get_name(p->x)) == 'm')
@@ -195,10 +181,10 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
     sock c = (sock)arg;
     cdata cs=(cdata)c->arg;
     xmlnode h;
-    char *block;
 
     log_debug(ZONE,"Got Type %d packet from io_select: %s",type,xmlnode2str(x));
 
+    pth_mutex_acquire(&s__m,0,NULL);
     switch(type)
     {
     case XSTREAM_ROOT:
@@ -208,8 +194,7 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         cs->host = pstrdup(c->p,xmlnode_get_attrib(x,"to"));
         h = xstream_header("jabber:client",NULL,cs->host);
         cs->sid = pstrdup(c->p,xmlnode_get_attrib(h,"id"));
-        block = xstream_header_char(h);
-        io_write_str(c,block);
+        io_write_str(c,xstream_header_char(h));
         xmlnode_free(h);
         xmlnode_free(x);
         break;
@@ -226,7 +211,8 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
                 log_debug(ZONE,"user tried to send packet in unknown state");
                 /* bounce */
                 xmlnode_free(x);
-                c->state=state_CLOSE;
+                pthsock_client_close(c);
+                pth_mutex_release(&s__m);
                 return;
             }
             else if (NSCHECK(q,NS_AUTH))
@@ -247,12 +233,15 @@ void pthsock_client_stream(int type, xmlnode x, void *arg)
         break;
 
     case XSTREAM_ERR:
-        io_write_str(c,"<stream:error>You sent malformed XML</stream:error>");
+        h=xmlnode_new_tag("stream:error");
+        xmlnode_insert_cdata(h,"You sent malformed XML",-1);
+        io_write(c,h);
     case XSTREAM_CLOSE:
         log_debug(ZONE,"closing XSTREAM");
         pthsock_client_close(c);
         xmlnode_free(x);
     }
+    pth_mutex_release(&s__m);
 }
 
 
@@ -267,9 +256,6 @@ cdata pthsock_client_cdata(smi si,sock c)
     c->xs = xstream_new(c->p,pthsock_client_stream,(void*)c);
     cd->state = state_UNKNOWN;
     cd->arg=(void*)c;
-
-    cd->next=si->conns;
-    si->conns=cd;
 
     memset(buf,0,99);
 
@@ -290,16 +276,9 @@ void pthsock_client_read(sock c,char *buffer,int bufsz,int flags,void *arg)
 {
     smi si=(smi)arg;
     cdata cd;
+    wbq q;
+    xmlnode x;
     int ret;
-
-    if(c!=NULL) 
-    {
-     log_debug(ZONE,"io_select read event on %d:%d:%d, [%s]",c->fd,flags,bufsz,buffer);
-    }
-    else
-    {
-     log_debug(ZONE,"io_select read event [%s]:%d:%d",buffer,bufsz,flags);
-    }
 
     switch(flags)
     {
@@ -316,9 +295,28 @@ void pthsock_client_read(sock c,char *buffer,int bufsz,int flags,void *arg)
         ret=xstream_eat(c->xs,buffer,bufsz);
         break;
     case IO_CLOSED:
+        cd=(cdata)c->arg;
         log_debug(ZONE,"io_select Socket %d close notification",c->fd);
-        pthsock_client_unlink(si,c);
+        log_debug(ZONE,"send 510 to session manager");
+        x = xmlnode_new_tag("message");
+        jutil_error(x,TERROR_DISCONNECTED);
+        xmlnode_put_attrib(x,"sto",cd->host);
+        xmlnode_put_attrib(x,"sfrom",cd->id);
+        deliver(dpacket_new(x),((smi)cd->i)->i);
         break;
+    case IO_ERROR:
+        log_debug(ZONE,"error on one of the sockets, bouncing queue");
+        if(c->xbuffer!=NULL)
+        {
+            jutil_error(c->xbuffer,TERROR_EXTERNAL);
+            deliver(dpacket_new(c->xbuffer),si->i);
+            while((q=(wbq)pth_msgport_get(c->queue))!=NULL)
+            {
+                jutil_error(q->x,TERROR_EXTERNAL);
+                deliver(dpacket_new(q->x),si->i);
+            }
+        }
+        
     }
 }
 
@@ -351,6 +349,6 @@ void pthsock_client(instance i, xmlnode x)
     }
 
     /* register data callbacks */
-    io_select(atoi(port),pthsock_client_read,(void*)si);
+    io__instance=io_select(atoi(port),pthsock_client_read,(void*)si);
     register_phandler(i,o_DELIVER,pthsock_client_packets,(void*)si);
 }

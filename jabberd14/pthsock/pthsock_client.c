@@ -215,6 +215,7 @@ void pthsock_client_close(smi si,csock c)
     c->wbuffer=strdup("</stream:stream>");
     if(pthsock_client_write_dump(c)&&c->wbuffer!=NULL)
        free(c->wbuffer); 
+    c->wbuffer=NULL;
 
     close(c->sock);
     pool_free(c->p);
