@@ -157,6 +157,7 @@ void unregister_instance(instance id,char *host)
 void register_instance(instance id, char *host)
 {
     hostid newh;
+    hostid cur;
     pool p;
 
     log_debug(ZONE,"Registering %s with instance %s",host,id->id);
@@ -168,19 +169,56 @@ void register_instance(instance id, char *host)
     newh->host = pstrdup(p,host);
     newh->id = id;
 
+    /* should check to see if this instance+hostname is already in use in the tree */
     /* hook into global */
     switch(id->type)
     {
     case p_LOG:
+        /* check if it's already registered */
+        for(cur=deliver__log;cur!=NULL;cur=cur->next)
+        {
+            if(cur->id==id)
+            {
+                if(j_strcmp(host,cur->host)==0)
+                { /* already registered */
+                    pool_free(p);
+                    return;
+                }
+            }
+        }
         newh->next = deliver__log;
         deliver__log = newh;
         break;
     case p_XDB:
+        /* check if it's already registered */
+        for(cur=deliver__xdb;cur!=NULL;cur=cur->next)
+        {
+            if(cur->id==id)
+            {
+                if(j_strcmp(host,cur->host)==0)
+                { /* already registered */
+                    pool_free(p);
+                    return;
+                }
+            }
+        }
         newh->next = deliver__xdb;
         deliver__xdb = newh;
         break;
     case p_NORM:
     case p_ROUTE:
+        /* check if it's already registered */
+        for(cur=deliver__norm;cur!=NULL;cur=cur->next)
+        {
+            if(cur->id==id)
+            {
+                if(j_strcmp(host,cur->host)==0)
+                { /* already registered */
+                    pool_free(p);
+                    return;
+                }
+            }
+        }
         newh->next = deliver__norm;
         deliver__norm = newh;
         break;
