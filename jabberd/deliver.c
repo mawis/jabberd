@@ -308,11 +308,11 @@ result deliver_instance(instance i, dpacket p)
                 pool_free(h->p);
                 h = hlast->next;
             }
+            continue;
         }
 
         hlast = h;
-        /* h might have become NULL after an r_UNREG */
-        if(h!=NULL)h = h->next;
+        h = h->next;
     }
 
     /* the packet is still valid if best != r_DONE */
