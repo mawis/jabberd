@@ -73,6 +73,7 @@ typedef struct chunk_st
 /* connection data */
 typedef enum { state_NONE, state_NEGO, state_AUTH, state_SESS, state_OPEN } conn_state_t;
 typedef enum { type_NORMAL, type_HTTP, type_FLASH } conn_type_t;
+typedef enum { autodetect_NONE, autodetect_READY, autodetect_PLAIN, autodetect_TLS } autodetect_state_t;
 struct conn_st
 {
     c2s_t c2s;
@@ -90,6 +91,7 @@ struct conn_st
 
 #ifdef USE_SSL    
     SSL *ssl;
+    autodetect_state_t autodetect_tls;
 #endif
 
     /* tracking the id for the conn or chunk */
@@ -188,6 +190,7 @@ struct c2s_st
     int ssl_no_ssl_v3;
     int ssl_no_tls_v1;
     int ssl_enable_workarounds;
+    int ssl_enable_autodetect;
 
     SSL_CTX *ssl_ctx;
 #endif
@@ -209,8 +212,6 @@ struct c2s_st
     int timeout; /* how long to process mio */
 
     int max_fds;
-    int min_client_fd; /* it seems we are closing the log sometimes */
-	   /* and log messages are then written to client connections */
 
     int num_clients;
 

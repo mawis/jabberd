@@ -489,21 +489,9 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
         getsockname(fd, (struct sockaddr *)&sa, &namelen);
         if(ntohs(sa.sin_port) == c->c2s->local_sslport) {
 
-	    /* enable SSL/TLS on this socket */
-            c->ssl = SSL_new(c->c2s->ssl_ctx);
-	    if (c->ssl == NULL)
-	    {
-		log_write(c->c2s->log, LOG_WARNING, "failed to create SSL structure for connection on fd %i, closing", fd);
-		log_ssl_errors(c->c2s->log, LOG_WARNING);
-		return 1;
-	    }
-            if (!SSL_set_fd(c->ssl, fd))
-	    {
-		log_write(c->c2s->log, LOG_WARNING, "failed to connect SSL object with accepted socket on fd %i, closing", fd);
-		log_ssl_errors(c->c2s->log, LOG_WARNING);
-		return 1;
-	    }
-            SSL_accept(c->ssl);
+	    /* flag this connection as being able to use SSL/TLS */
+	    c->autodetect_tls = autodetect_READY;
+
         }
 #endif
 
@@ -528,6 +516,42 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
         break;
 
     case action_READ:
+
+#ifdef USE_SSL
+	/* check if we have to autodetect SSL/TLS */
+	if (c->autodetect_tls == autodetect_READY)
+	{
+	    if (!c->c2s->ssl_enable_autodetect || _peek_actual(c, fd, first, 1)!=1 || first[0]==0x16 || first[0]==-128 || first[0]==0)
+	    {
+		/* we start SSL/TLS if
+		 * - we are not configured to autodetect SSL/TLS
+		 * - we were not able to read the first byte from the socket
+		 * - the first byte was 0x16 (Handshake record type in SSLv3/TLSv1)
+		 * - the first byte was 0x80 or 0x00 (reasonable high order byte of record length in SSLv2)
+		 */
+		c->autodetect_tls = autodetect_TLS;
+
+		/* enable SSL/TLS on this socket */
+		c->ssl = SSL_new(c->c2s->ssl_ctx);
+		if (c->ssl == NULL)
+		{
+		    log_write(c->c2s->log, LOG_WARNING, "failed to create SSL structure for connection on fd %i, closing", fd);
+		    log_ssl_errors(c->c2s->log, LOG_WARNING);
+		    return 1;
+		}
+		if (!SSL_set_fd(c->ssl, fd))
+		{
+		    log_write(c->c2s->log, LOG_WARNING, "failed to connect SSL object with accepted socket on fd %i, closing", fd);
+		    log_ssl_errors(c->c2s->log, LOG_WARNING);
+		    return 1;
+		}
+		SSL_accept(c->ssl);
+	    } else {
+		/* it seems this is no Jabber over SSL/TLS connection */
+		c->autodetect_tls = autodetect_PLAIN;
+	    }
+	}
+#endif
 
         /* Big hack time... Flash sucks by the way */
         if (c->flash_hack == 1)
