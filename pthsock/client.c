@@ -117,7 +117,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
         xmlnode_free(p->x);
         return r_DONE;
     }
-    else if(cdcur->state==state_UNKNOWN&&j_strcmp(xmlnode_get_attrib(p->x,"type"),"auth")==0&&cdcur->auth_id!=NULL&&j_strcmp(xmlnode_get_attrib(p->x,"id"),cdcur->auth_id)==0)
+    else if(cdcur->state==state_UNKNOWN&&j_strcmp(xmlnode_get_attrib(p->x,"type"),"auth")==0)
     { /* look for our auth packet back */
         char *type=xmlnode_get_attrib(xmlnode_get_firstchild(p->x),"type");
         char *id=xmlnode_get_attrib(xmlnode_get_tag(p->x,"iq"),"id");
