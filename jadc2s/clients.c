@@ -318,14 +318,14 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
 
     case action_READ:
 
+        log_debug(ZONE,"io action %d with fd %d in state %d",a,fd,c->state);
+
         /* we act differently when reading data from the client based on it's auth state */
         switch(c->state)
         {
         case state_OPEN:
             /* read a chunk at a time */
             len = _read_actual(c, fd, buf, conn_max_read_len(c));
-            if (len == 0)
-                return 0;
             return conn_read(c, buf, len);
 
         case state_NONE:
