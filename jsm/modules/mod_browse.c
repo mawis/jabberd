@@ -68,7 +68,7 @@ mreturn mod_browse_set(mapi m, void *arg)
 
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
     if(!NSCHECK(m->packet->iq,NS_BROWSE) || jpacket_subtype(m->packet) != JPACKET__SET) return M_PASS;
-    if(m->packet->to != NULL && jid_cmpx(m->packet->to,m->user->id, JID_USER|JID_SERVER) != 0) return M_PASS; /* if its to someone other than ourselves */
+    if(m->packet->to != NULL) return M_PASS; /* if its to someone other than ourselves */
 
     log_debug("mod_browse","handling set request %s",xmlnode2str(m->packet->iq));
 

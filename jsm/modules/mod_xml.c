@@ -56,7 +56,7 @@ mreturn mod_xml_set(mapi m, void *arg)
     }
 
     /* if its to someone other than ourselves */
-    if(m->packet->to != NULL && jid_cmpx(m->packet->to,m->user->id, JID_USER|JID_SERVER) != 0) return M_PASS;
+    if(m->packet->to != NULL) return M_PASS;
 
     log_debug(ZONE,"handling user request %s",xmlnode2str(m->packet->iq));
 
