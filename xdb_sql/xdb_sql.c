@@ -553,11 +553,13 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
 	    deliver(dpacket_new(p->x), NULL);
 	    return r_DONE;
 	} else if (j_strcmp(action, "insert") == 0) {
+	    char *query = NULL;
+
 	    /* start the transaction */
 	    xdb_sql_execute(i, xq, "BEGIN", NULL, NULL);
 
 	    /* insert new values */
-	    char *query = xdb_sql_construct_query(ns_def->set, p->x);
+	    query = xdb_sql_construct_query(ns_def->set, p->x);
 	    log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for insertion: %s", query);
 	    if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
 		/* SQL query failed */
