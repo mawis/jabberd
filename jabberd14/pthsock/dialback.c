@@ -1,98 +1,4 @@
 
-/* cleans up the host (removes from hashes) */
-void dbhost_cleanup(void *arg); 
-
-/* is called when the dbip gets connected, to send a result or verify packet */
-void dbhost_sendspecial(void *arg);
-
-/* sends packet out (or bounces or drops) */
-result pthsock_server_packets(instance i, dpacket dp, void *arg)
-{
-    ssi si = (ssi) arg;
-    dbhost h;
-    dbip ip;
-    jid to, from;
-    xmlnode x;
-
-    /* unwrap the route packet */
-    x = xmlnode_get_firstchild(dp->x);
-
-    to = jid_new(dp->p,xmlnode_get_attrib(x,"to"));
-    from = jid_new(dp->p,xmlnode_get_attrib(x,"from"));
-    jid_set(id,NULL,JID_USER);
-
-    get the id
-    host = ghash_get(si->hashout,id)
-    if(host == NULL)
-        ip = ghash_get(si->haship,ip);
-        if(ip == NULL)
-            new ip
-            connect(ip)
-        new host
-        cleanup when ip dies
-        ghash_put
-        if ip->state != state_OK
-            cleanup when ip->pre_ok to generate and send a db:result
-        else
-            send db:result
-
-    if(host->valid)
-        send to host->ip->sock
-        return;
-
-    if packet is a db:verify
-        if(host->ip->state != state_OK)
-            cleanup when ip->pre_ok to generate and send the packet
-        else
-            send db:verify on
-    else
-        queue
-
-}
-
-outconn_read
-    if(db:result)
-        host = ghash_get(si->hashout)
-        if(host->outconn != us)
-            log_notice and drop?
-        host->valid = 1
-        empty host->queue onto the wire
-    if(db:verify)
-        if(ghash_get(si->hashout) && that->outconn == us)
-            were getting a verify with invalid to/from, drop conn
-        host = ghash_get(si->hashin)
-        if(host == NULL)
-            log_notice
-        host->valid = 1;
-        write(host->sock
-
-inconn_read
-    if(db:result)
-        new host, valid=0, cleanup on inconn pool to take out of ghash
-        ghash_put si->hashin
-        forward verify into deliver, going back to sender on outconn
-        return
-    if(db:verify)
-        send response
-        return
-    host = ghash_get(si->hashin)
-    if host->valid && host->s == us
-        send
-    else
-        drop connection
-
-hashtable keys: id@to/from
-
-UGH, handle multiple inconns from the same to/from, other side is multiple nodes on a farm
-
-A->B
-    A: <db:result to=B from=A>...</db:result>
-B->A
-    B: <db:verify to=A from=B id=asdf>...</db:verify>
-    A: <db:verify type="valid" to=B from=A id=asdf/>
-A->B
-    B: <db:result type="valid" to=A from=B/>
-
 
 /*
  *  This program is free software; you can redistribute it and/or modify
@@ -129,6 +35,18 @@ A->B
       <pthsock_server>../load/pthsock_server.so</pthsock_server>
     </load>
   </service>
+
+DIALBACK: 
+
+A->B
+    A: <db:result to=B from=A>...</db:result>
+B->A
+    B: <db:verify to=A from=B id=asdf>...</db:verify>
+    A: <db:verify type="valid" to=B from=A id=asdf/>
+A->B
+    B: <db:result type="valid" to=A from=B/>
+
+
 */
 
 #include "io.h"
@@ -145,12 +63,18 @@ typedef enum { cstate_START, cstate_OK } cstate;
 
 typedef struct conn_struct
 {
-    cstate state;
-    char *ipp;      /* the ip:port */
-    sock s;         /* socket once it's connected */
-    pool p;         /* pool for this struct */
-    pool pre_ok;    /* pool for queing activity that happens as soon as the socket is spiffy */
+    /* used for in and out connections */
     ssi si;
+    sock s;         /* socket once it's connected */
+    xstream xs;     /* xml stream */
+
+    /* outgoing connections only */
+    int connected;  /* flag for connecting process */
+    char *ipp;      /* the ip:port */
+    pool p;         /* pool for this struct */
+    char *inid      /* the id="" attrib from the other side */
+    pool pre;       /* pool for queing activity that happens as soon as the socket is spiffy */
+
 } *conn, _conn;
 
 typedef enum { htype_IN, htype_OUT } htype;
@@ -172,25 +96,13 @@ typedef struct host_struct
 
 } *host, _host;
 
-
-/* process xml from an accept'd socket */
-void pthsock_server_inx(int type, xmlnode x, void *arg)
+/* msgport wrapper struct to deliver dpackets to a queue */
+typedef struct
 {
-    sock c=(sock)arg;
+    pth_message_t head; /* the standard pth message header */
+    dpacket p;
+} _dpq, *dpq;
 
-    switch(type)
-    {
-    case XSTREAM_ROOT:
-        break;
-    case XSTREAM_NODE:
-        break;
-    case XSTREAM_ERR:
-        break;
-    case XSTREAM_CLOSE:
-        break;
-    }
-    xmlnode_free(x);
-}
 
 /* process xml from a socket we made */
 void pthsock_server_outx(int type, xmlnode x, void *arg)
@@ -200,9 +112,32 @@ void pthsock_server_outx(int type, xmlnode x, void *arg)
     switch(type)
     {
     case XSTREAM_ROOT:
+        /* XXX write stream header */
+        c->connected = 1;
+        pool_free(c->pre); /* flag that we're clear-to-send */
         break;
     case XSTREAM_NODE:
-        break;
+        if( /* db:result */)
+        { /*
+            host = ghash_get(si->hashout)
+            if(host->outconn != us)
+                log_notice and drop?
+            host->valid = 1
+            empty host->queue onto the wire */
+            break;
+        }
+        if(/* db:verify */)
+        { /*
+            if(ghash_get(si->hashout) && that->outconn == us)
+                were getting a verify with invalid to/from, drop conn
+            host = ghash_get(si->hashin)
+            if(host == NULL)
+                log_notice
+            host->valid = 1;
+            write(host->sock */
+            break;
+        }
+        /* other data on the stream? */
     case XSTREAM_ERR:
         break;
     case XSTREAM_CLOSE:
@@ -212,49 +147,146 @@ void pthsock_server_outx(int type, xmlnode x, void *arg)
 }
 
 /* callback for io_select for connections we've made */
-void pthsock_server_outread(sock c, char *buffer, int bufsz, int flags, void *arg)
+void pthsock_server_outread(sock s, char *buffer, int bufsz, int flags, void *arg)
 {
-    ssi si=(ssi)arg;
+    conn c = (conn)arg;
 
     switch(flags)
     {
     case IO_INIT:
         break; /* umm.. who cares? */
     case IO_NEW: /* new socket from io_select */
-        log_debug(ZONE,"NEW server socket connected at %d",c->fd);
+        log_debug(ZONE,"NEW outgoing server socket connected at %d",s->fd);
+        c->xs = xstream_new(c->p, pthsock_server_outx, (void *)c);
+        c->s = s;
         break;
     case IO_NORMAL:
         /* yum yum */
-        ret=xstream_eat(c->xs,buffer,bufsz);
+        xstream_eat(c->xs,buffer,bufsz);
         break;
     case IO_CLOSED:
+        /* if we were connected, just free ourselves and be done */
+        if(c->connected)
+        {
+            pool_free(c->p);
+            return;
+        }
+        if(!c->connected && /* XXX ip's left */)
+        { /* if we've never connected yet, then try another ip:port in the list (if any) */
+            /* XXX do */
+            return;
+        }
+        /* hrm, we're here, so this means we're giving up on connecting */
+        /* XXX give up! */
         break;
     case IO_ERROR:
         /* bounce the write queue */
     }
 }
 
-/* callback for io_select for accepted sockets */
-void pthsock_server_inread(sock c,char *buffer,int bufsz,int flags,void *arg)
+/* process xml from an accept'd socket */
+void pthsock_server_inx(int type, xmlnode x, void *arg)
 {
-    ssi si=(ssi)arg;
+    sock c=(sock)arg;
+
+    switch(type)
+    {
+    case XSTREAM_ROOT:
+        /* send stream header w/ random id="challenge" */
+        break;
+    case XSTREAM_NODE:
+        if( /* db:result */)
+        { /*
+            new host, valid=0, cleanup on inconn pool to take out of ghash
+            ghash_put si->hashin
+            forward verify into deliver, going back to sender on outconn */
+            return;
+        }
+        if( /* db:verify */)
+        {
+            /* send response */
+            return
+        }
+        host = ghash_get(si->hashin);
+        if(host->valid && host->s == us)
+        {
+            send
+        }else{
+            drop connection
+        }
+        break;
+    case XSTREAM_ERR:
+        break;
+    case XSTREAM_CLOSE:
+        break;
+    }
+    xmlnode_free(x);
+}
+
+/* callback for io_select for accepted sockets */
+void pthsock_server_inread(sock s, char *buffer, int bufsz, int flags, void *arg)
+{
+    conn c = (conn)arg;
 
     switch(flags)
     {
     case IO_INIT:
         break; /* umm.. who cares? */
     case IO_NEW: /* new socket from io_select */
-        log_debug(ZONE,"NEW server socket connected at %d",c->fd);
+        log_debug(ZONE,"NEW incoming server socket connected at %d",s->fd);
+        c = pmalloco(s->p, sizeof(_conn)); /* we get free'd with the socket */
+        c->s = s;
+        c->p = s->p;
+        c->si = (ssi)arg; /* old arg is si */
+        c->xs = xstream_new(c->p, pthsock_server_inx, (void *)c);
+        s->cb_arg = (void *)c; /* the new arg is c */
         break;
     case IO_NORMAL:
         /* yum yum */
-        ret=xstream_eat(c->xs,buffer,bufsz);
+        xstream_eat(c->xs,buffer,bufsz);
         break;
     case IO_CLOSED:
+        /* we don't care, pools will clean themselves up */
         break;
     case IO_ERROR:
-        /* bounce the write queue */
+        /* we don't care, we don't ever write real packets to an incoming connection! */
+        break;
     }
+}
+
+/* send the db:result to the other side, can be called as a pool_cleanup or directly, reacts intelligently */
+void _pthsock_server_host_result(void *arg)
+{
+    host h = (host)arg;
+
+    /* XXX need to check and make sure the socket quitting */
+
+    if(!h->c->connected)
+    {
+        pool_cleanup(h->c->pre, _pthsock_server_host_result, arg);
+        return;
+    }
+
+    /* XXX generate the result */
+    /* write to the socket */
+}
+
+/* send the db:verify to the other side, can be called as a pool_cleanup or directly, reacts intelligently */
+void _pthsock_server_host_verify(void *arg)
+{
+    dpacket p = (dpacket)arg;
+    conn c = xmlnode_get_vattrib(p->x,"c"); /* hidden c on the xmlnode */
+
+    /* XXX need to check and make sure the socket quitting */
+
+    if(!c->connected)
+    {
+        pool_cleanup(c->pre, _pthsock_server_host_verify, arg);
+        return;
+    }
+
+    xmlnode_hide_attrib(p->x,"c"); /* hide it again */
+    /* XXX write to the socket */
 }
 
 /* phandler callback, send packets to another server */
@@ -268,6 +300,7 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
     conn c;
     char *ip, *colon;
     int port = 5269;
+    dpq q;
 
     if(dp->type != p_ROUTE || (x = xmlnode_get_firstchild(dp->x)) == NULL || (to = jid_new(dp->p,xmlnode_get_attrib(x,"to"))) == NULL || (from = jid_new(dp->p,xmlnode_get_attrib(x,"from"))) == NULL || (ip = xmlnode_get_attrib(dp->x,"ip")) == NULL)
     {
@@ -289,7 +322,6 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
             /* new conn struct */
             p = pool_new();
             c = pmalloco(p, sizeof(_conn));
-            c->state = cstate_START;
             c->ips = pstrdup(p,ip);
             c->p = p;
             c->si = si;
@@ -312,13 +344,30 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
         h->c = c;
         h->id = jid_new(c->p,jid_full(id));
 
-        if(c->state == cs
-
-
-
+        /* send result */
+        _pthsock_server_host_result((void *)h);
     }
-    
-    ip = xmlnode_get_attrib(dp->x,"ip"); /* look for ip="12.34.56.78:5269" header */
+
+    if(h->valid)
+    {
+        /* XXX write the packet to the socket, it's safe */
+        return r_DONE;
+    }
+
+    if( /* XXX it's not a db:verify */ )
+    {
+        if(h->mp == NULL)
+            h->mp = pth_msgport_create(jid_full(id));
+
+        q = pmalloco(dp->p, sizeof(_dpq));
+        q->dp = dp;
+        pth_msgport_put(h->mp,dp);
+        return r_DONE;
+    }
+
+    /* all we have left is db:verify packets */
+    xmlnode_put_vattrib(p->x,"c",(void *)c); /* ugly, but hide the c on the xmlnode */
+    _pthsock_server_host_verify((void *)p);
 
     return r_DONE;
 }
@@ -333,8 +382,8 @@ void pthsock_server(instance i, xmlnode x)
 
     /* XXX make the hash sizes configurable */
     si = pmalloco(i->p,sizeof(_ssi));
-    si->ips = ghash_create(67,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
-    si->hosts = ghash_create(67,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp);
+    si->ips = ghash_create(67,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp); /* keys are "ip:port" */
+    si->hosts = ghash_create(67,(KEYHASHFUNC)str_hash_code,(KEYCOMPAREFUNC)j_strcmp); /* keys are jids: "id@to/from" */
     si->i=i;
 
     /* XXX make configurable rate limits */
