@@ -172,7 +172,8 @@ int _mio_write_dump(mio m)
         }
         /* we didnt' write it all, move the current buffer up */
         else if(len < cur->len)
-        {  
+        { 
+
             cur->cur += len;
             cur->len -= len;
             return 1;
@@ -528,6 +529,9 @@ mio mio_new(int fd, mio_cb cb, void *arg)
     int flags           = 0;
     static int one_time = 1;
     pth_attr_t attr     = NULL;
+
+    if(fd <= 0) 
+        return NULL;
     
     /* create the new MIO object */
     p          = pool_new();
@@ -589,7 +593,8 @@ mio mio_new(int fd, mio_cb cb, void *arg)
 */
 mio mio_reset(mio m, mio_cb cb, void *arg)
 {
-    if(m == NULL) return NULL;
+    if(m == NULL) 
+        return NULL;
 
     m->cb  = cb;
     m->arg = arg;
@@ -601,6 +606,9 @@ mio mio_reset(mio m, mio_cb cb, void *arg)
  */
 void mio_close(mio m) 
 {
+    if(m == NULL) 
+        return;
+
     m->state = state_CLOSE;
     if(mio__data != NULL)
         pth_raise(mio__data->t, SIGUSR2);
@@ -613,6 +621,9 @@ void mio_write(mio m, xmlnode x, char *buffer, int len)
 {
     mio_wbq new, cur;
     pool p;
+
+    if(m == NULL) 
+        return;
 
     /* if there is nothing to write */
     if(x == NULL && buffer == NULL)
@@ -678,6 +689,9 @@ void mio_write(mio m, xmlnode x, char *buffer, int len)
 */
 void mio_karma(mio m, int val, int max, int inc, int dec, int penalty, int restore)
 {
+    if(m == NULL)
+       return;
+
     m->k.val     = val;
     m->k.max     = max;
     m->k.inc     = inc;
@@ -688,6 +702,9 @@ void mio_karma(mio m, int val, int max, int inc, int dec, int penalty, int resto
 
 void mio_karma2(mio m, struct karma *k)
 {
+    if(m == NULL)
+       return;
+
     m->k.val     = k->val;
     m->k.max     = k->max;
     m->k.inc     = k->inc;
@@ -701,7 +718,8 @@ void mio_karma2(mio m, struct karma *k)
 */
 void mio_rate(mio m, int rate_time, int max_points)
 {
-    if(m == NULL) return;
+    if(m == NULL) 
+        return;
 
     m->rated = 1;
     if(m->rate != NULL)
