@@ -204,7 +204,8 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
     }
     else
     {
-        /* change the to name to match what the client wants to hear */
+        /* change the to name to match what the client wants to hear 
+	 * jer: I have no sympathy for clients that can't handle this right, they should check the stream from="" anyway
         if(cdcur->aliased)
         {
             jid j = jid_new(p->p, xmlnode_get_attrib(xmlnode_get_firstchild(p->x), "to"));
@@ -216,11 +217,11 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
 
             j = jid_new(p->p, xmlnode_get_attrib(xmlnode_get_firstchild(p->x), "from"));
             if(j != NULL && j->user == NULL && j_strcmp(j->server, cdcur->session_id->server) == 0)
-            { /* if this is from the aliased server, change it to the clients server */
+            {
                 jid_set(j, cdcur->sending_id->server, JID_SERVER);
                 xmlnode_put_attrib(xmlnode_get_firstchild(p->x), "from", jid_full(j));
             }
-        }
+        }*/
         log_debug("c2s", "[%s] Writing packet to MIO: %s", ZONE, xmlnode2str(xmlnode_get_firstchild(p->x)));
         mio_write(m, xmlnode_get_firstchild(p->x), NULL, 0);
     }
@@ -341,10 +342,16 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
         if(cd->aliased)
         {
             jid j = jid_new(xmlnode_pool(x), xmlnode_get_attrib(x, "to"));
-            if(j != NULL && j->user == NULL && j_strcmp(j->server, cd->sending_id->server) == 0)
+            if(j != NULL && j_strcmp(j->server, cd->sending_id->server) == 0)
             {
                 jid_set(j, cd->session_id->server, JID_SERVER);
                 xmlnode_put_attrib(x, "to", jid_full(j));
+            }
+            j = jid_new(xmlnode_pool(x), xmlnode_get_attrib(x, "from"));
+            if(j != NULL && j_strcmp(j->server, cd->sending_id->server) == 0)
+            {
+                jid_set(j, cd->session_id->server, JID_SERVER);
+                xmlnode_put_attrib(x, "from", jid_full(j));
             }
         }
 
