@@ -73,14 +73,16 @@ void check_karma(c2s_t c2s)
         mio_read(c2s->mio, cur->c->fd);
         /* cleanup and move on in the list */
         free(cur);
-        if (next == NULL)
-        {
-            c2s->bad_conns = NULL;
-            /* XXX Make this a config option? */
-            c2s->timeout = 15;
-            break;
-        }
+
         cur = next;
+    }
+
+    /* update the pointer to the first bad connection */
+    c2s->bad_conns = cur;
+    if (c2s->bad_conns == NULL)
+    {
+	/* XXX Make this a config option? */
+	c2s->timeout = 15;
     }
 }
 
