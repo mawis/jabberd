@@ -40,6 +40,7 @@
 
 #include "jadc2s.h"
 
+
 /* these flags are for processing cdata specially */
 #define CDATA_NONE 0
 #define CDATA_USERNAME 1
@@ -52,6 +53,9 @@ void _client_startElement(void *arg, const char* name, const char** atts)
     int i = 0, error, header_len;
     char *header;
     char sid[24];
+
+    if (j_strcmp(name, "flash:stream") == 0)
+        c->type = type_FLASH;
 
     /* process stream header first */
     if(c->depth == 0)
@@ -98,6 +102,39 @@ void _client_startElement(void *arg, const char* name, const char** atts)
                 if (j_strcmp(atts[i+1], c->c2s->local_host) != 0)
                 {
                     _write_actual(c, c->fd, "<stream:error>Invalid to address</stream:error></stream:stream>", 62);
+                    c->depth = -1;
+                    return;
+                }
+
+                error--;
+            }
+
+            /* stream namespace */
+            /* If the root tag is flash:stream then this is a Flash connection */
+            if ((j_strcmp(name, "flash:stream") == 0) &&
+                (j_strcmp(atts[i], "xmlns:flash") == 0))
+            {
+                log_debug(ZONE, "checking xmlns:flash: %s", atts[i+1]);
+                if (j_strncasecmp(atts[i+1], 
+                                  "http://www.jabber.com/streams/flash", 35) != 0)
+                {
+                    /* XXX error */
+                    _write_actual(c, c->fd, "<stream:error>Invalid stream namespace</stream:error></stream:stream>", 68);
+                    c->depth = -1;
+                    return;
+                }
+
+                error--;
+            }
+            /* This is a normal stream:stream tag... */
+            else if (j_strcmp(atts[i], "xmlns:stream") == 0)
+            {
+                log_debug(ZONE, "checking xmlns:stream: %s", atts[i+1]);
+                if (j_strncasecmp(atts[i+1], 
+                                  "http://etherx.jabber.org/streams", 32) != 0)
+                {
+                    /* XXX error */
+                    _write_actual(c, c->fd, "<stream:error>Invalid stream namespace</stream:error></stream:stream>", 68);
                     c->depth = -1;
                     return;
                 }
@@ -270,6 +307,8 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
     int namelen = sizeof(struct sockaddr_in);
 #endif
     chunk_t chunk;
+    int firstlen;
+    char first[2];
 
     log_debug(ZONE,"io action %d with fd %d",a,fd);
 
@@ -289,6 +328,7 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
         /* set up the new client conn */
         c = conn_new((c2s_t)arg, fd);
         mio_app(m, fd, client_io, (void*)c);
+
 
 #ifdef USE_SSL
         /* figure out if they came in on the ssl port or not, and flag them accordingly */
@@ -312,6 +352,56 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
         XML_SetElementHandler(c->expat, (void*)_client_startElement, (void*)_client_endElement);
         XML_SetCharacterDataHandler(c->expat, (void*)_client_charData);
 
+#ifdef USE_SSL
+        /* Ok... we only check for HTTP connections on non-ssl connections. */
+        if (!c->ssl_flag)
+        {
+#endif
+            /* Read the first character... It means something */
+            log_debug(ZONE,"Check the first char");
+            while((firstlen = _peek_actual(c,fd,first,1)) == -1) { }
+            log_debug(ZONE,"char(%c)",first[0]);
+        
+            /* If the first char is P then it's for HTTP (PUT ....) */
+            if (first[0] == 'P')
+            {
+                char* http = "HTTP/1.0 200 Ok\r\nServer: jabber/xmlstream-hack-0.1\r\nExpires: Fri, 10 Oct 1997 10:10:10 GMT\r\nPragma: no-cache\r\nCache-control: private\r\nConnection: close\r\n\r\n";
+                char peek[5];
+                int search = 1;
+
+                peek[4] = '\0';
+            
+                log_debug(ZONE,"This is an incoming HTTP connection");
+
+                _write_actual(c,fd,http,strlen(http));
+
+                log_debug(ZONE,"Look for the ending \\r\\n\\r\\n");
+                while( search && ((_peek_actual(c,fd,peek,4)) > 0))
+                {
+                    if (strcmp(peek,"\r\n\r\n") == 0)
+                    {
+                        search = 0;
+                        _read_actual(c,fd,peek,4);
+                    }
+                    else
+                        _read_actual(c,fd,peek,1);
+                }
+                c->type = type_HTTP;
+            }
+
+            /* If the first char is a \0 then the other side expects that all
+             * packets will end in a \0.  All packets.  This means that we
+             * need to make sure that we handle it correctly in all cases.
+             */
+            if (first[0] == '\0')
+            {
+                _read_actual(c,fd,first,1);
+                c->type = type_FLASH;
+            }
+            
+#ifdef USE_SSL
+        }
+#endif
         /* get read events */
         mio_read(m, fd);
         break;

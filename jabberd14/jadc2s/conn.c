@@ -59,6 +59,7 @@ conn_t conn_new(c2s_t c2s, int fd)
     c->read_bytes = 0;
     c->sid = NULL;
     c->state = state_NONE;
+    c->type = type_NORMAL;
     c->start = time(NULL);
     c->expat = XML_ParserCreate(NULL);
 
@@ -294,7 +295,7 @@ int conn_write(conn_t c)
             return 1;
         }
         else /* we wrote the entire node, kill it and move on */
-        {
+        {    
             c->writeq = cur->next;
 
             if(c->writeq == NULL)
@@ -305,3 +306,47 @@ int conn_write(conn_t c)
     } 
     return 0;
 }
+
+
+int _read_actual(conn_t c, int fd, char *buf, size_t count)
+{
+
+#ifdef USE_SSL
+    if(c->ssl_flag)
+        return SSL_read(c->ssl, buf, count);
+#endif
+    return read(fd, buf, count);
+}
+
+
+int _peek_actual(conn_t c, int fd, char *buf, size_t count)
+{
+    
+#ifdef USE_SSL
+    if(c->ssl_flag)
+        return SSL_peek(c->ssl, buf, count);
+#endif
+
+    return recv(fd, buf, count, MSG_PEEK);
+}
+
+
+int _write_actual(conn_t c, int fd, const char *buf, size_t count)
+{
+    char realbuf[count+1];
+
+    strncpy(realbuf,buf,count);
+    if (c->type == type_FLASH)
+    {
+        realbuf[count] = '\0';
+        count++;
+    }
+            
+#ifdef USE_SSL
+    if(c->ssl_flag)
+        return SSL_write(c->ssl, realbuf, count);
+#endif
+
+    return write(fd, realbuf, count);
+}
+
