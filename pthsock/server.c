@@ -283,7 +283,7 @@ result pthsock_server_packets(instance id, dpacket dp, void *arg)
     sd = ghash_get(si->out_tab,to->server);
 
     if (sd != NULL) /* make sure we found a valid outgoing socket */
-        if (sd->type!=conn_OUT||sd->arg==NULL||((sock)sd->arg)->state!=state_ACTIVE)
+        if ((sd->type!=conn_OUT&&sd->type!=conn_CONNECTING)||sd->arg==NULL||((sock)sd->arg)->state!=state_ACTIVE)
             sd = NULL;
 
     q=pmalloco(dp->p,sizeof(_wbq));
