@@ -1,6 +1,19 @@
+2004-04-04  Matthias Wimmer  <m@tthias.net>
+
+    * clients.c: Optional autodetection if SSL/TLS is used on port 5223
+    * conn.c: same
+    * jadc2s.c: same
+    * jadc2s.h: same
+    * jadc2s.xml.dist: same
+    * connect.c: Removed debugging messages
+
 2004-03-30  Matthias Wimmer  <m@tthias.net>
 
     * util/jid.c: Minimize the number of necessary stringprep calls
+    * conn.c: Removing debugging information used to find a now fixed bug
+    * connect.c: same
+    * jadc2s.c: same
+    * jadc2s.h: same
 
 2004-03-29  Matthias Wimmer  <m@tthias.net>
 

@@ -46,6 +46,7 @@
 	<!--  <no_tls_v1/> (disables TLS protocol version 1, aka SSL 3.1)  -->
 	<!--  <ciphers/>   (set list of available ciphers, man 1 ciphers)  -->
 	<!--  <enable_workarounds/> (should not be needed)                 -->
+	<!--  <enable_autodetect/> (autodetect if SSL/TLS is used or not)  -->
         <!--
         <ssl>
             <port>5223</port>

@@ -78,6 +78,10 @@ conn_t conn_new(c2s_t c2s, int fd)
     c->in_stanzas = 0;
     c->out_stanzas = 0;
 
+#ifdef USE_SSL
+    c->autodetect_tls = autodetect_NONE;
+#endif
+
     return c;
 }
 
@@ -141,10 +145,6 @@ void conn_close(conn_t c, char *condition, char *err)
     if(c != NULL)
     {
 	char* footer;
-
-	/* is it a connection socket? */
-	if (c->fd < c->c2s->min_client_fd)
-	    log_write(c->c2s->log, LOG_ERR, "Internal Error: we seem to close a wrong fd in conn_close()! (fd=%i)", c->fd);
 
 	/* send the stream error */
 	conn_error(c, condition, err);
@@ -304,10 +304,6 @@ int conn_read(conn_t c, char *buf, int len)
     /* client gone */
     if(len == 0)
     {
-	/* is it a connection socket? */
-	if (c->fd < c->c2s->min_client_fd)
-	    log_write(c->c2s->log, LOG_ERR, "Internal Error: we seem to close a wrong fd in conn_read(), len == 0! (fd=%i)", c->fd);
-
         mio_close(c->c2s->mio, c->fd);
         return 0;
     }
@@ -320,10 +316,6 @@ int conn_read(conn_t c, char *buf, int len)
         if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN)
             return 2; /* flag that we're blocking now */
 	
-	/* is it a connection socket? */
-	if (c->fd < c->c2s->min_client_fd)
-	    log_write(c->c2s->log, LOG_ERR, "Internal Error: we seem to close a wrong fd in conn_read(), len < 0! (fd=%i)", c->fd);
-
         mio_close(c->c2s->mio, c->fd);
         return 0;
     }
@@ -367,10 +359,6 @@ int conn_read(conn_t c, char *buf, int len)
         /* oh darn */
         if((err != NULL) && (c->flash_hack == 0))
         {
-	    /* is it a connection socket? */
-	    if (c->fd < c->c2s->min_client_fd)
-		log_write(c->c2s->log, LOG_ERR, "Internal Error: we seem to close a wrong fd in conn_read() at processing XML! (fd=%i)", c->fd);
-
             conn_close(c, STREAM_ERR_INVALID_XML, err);
             return 0;
         }
@@ -385,10 +373,6 @@ int conn_read(conn_t c, char *buf, int len)
             snprintf(footer, footersz+1, "</%s>", c->root_name);
             _write_actual(c, c->fd, footer, footersz);
             free(footer);
-
-	    /* is it a connection socket? */
-	    if (c->fd < c->c2s->min_client_fd)
-		log_write(c->c2s->log, LOG_ERR, "Internal Error: we seem to close a wrong fd in conn_read() at end of stream! (fd=%i)", c->fd);
 
             mio_close(c->c2s->mio, c->fd);
             return 0;
@@ -422,10 +406,6 @@ int conn_write(conn_t c)
             if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN)
                 return 2; /* flag that we're blocking now */
 	    
-	    /* is it a connection socket? */
-	    if (c->fd < c->c2s->min_client_fd)
-		log_write(c->c2s->log, LOG_ERR, "Internal Error: we seem to close a wrong fd in conn_write() with len<0! (fd=%i)", c->fd);
-
             mio_close(c->c2s->mio, c->fd);
             return 0;
         }
