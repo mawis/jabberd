@@ -78,6 +78,13 @@ typedef struct __dns_packet_list
 } *dns_packet_list, _dns_packet_list;
 
 
+/* ------------------------- */
+/* just die after any signal */
+void _dnsrv_signal(int sig)
+{
+    exit(0);
+}
+
 /* ----------------------- */
 /* Coprocess functionality */
 void dnsrv_child_process_xstream_io(int type, xmlnode x, void* args)
@@ -122,12 +129,6 @@ int dnsrv_child_main(dns_io di)
      xstream xs  = xstream_new(p, dnsrv_child_process_xstream_io, di);
      int     len;
      char    readbuf[1024];
-     sigset_t sigs;
-
-
-     sigemptyset(&sigs);
-     sigaddset(&sigs, SIGHUP);
-     sigprocmask(SIG_BLOCK, &sigs, NULL);
 
      log_debug(ZONE,"DNSRV CHILD: starting");
 
@@ -189,8 +190,11 @@ int dnsrv_fork_and_capture(RESOLVEFUNC f, dns_io di)
      }
      else			/* Child */
      {
-          /* Close unneeded file handles */
+          /* set up the new process */
           pth_kill();
+	  signal(SIGHUP,_dnsrv_signal);
+	  signal(SIGINT,_dnsrv_signal);
+	  signal(SIGTERM,_dnsrv_signal);
 	  close(left_fds[STDOUT_FILENO]);
 	  close(right_fds[STDIN_FILENO]);
 	  /* Start the specified function, passing the in/out descriptors */
@@ -361,16 +365,9 @@ void* dnsrv_process_io(void* threadarg)
 {
      /* Get DNS IO info */
      dns_io di = (dns_io)threadarg;
-     int  retcode       = 0;
-     int  pid           = 0;
      int  readlen       = 0;
      char readbuf[1024];
      xstream  xs       = NULL;       
-     sigset_t sigs;
-
-     sigemptyset(&sigs);
-     sigaddset(&sigs, SIGHUP);
-     sigprocmask(SIG_BLOCK, &sigs, NULL);
 
      /* Allocate an xstream for talking to the process */
      xs = xstream_new(di->mempool, dnsrv_process_xstream_io, di);
@@ -390,42 +387,21 @@ void* dnsrv_process_io(void* threadarg)
            break;
      }
 
-     /* If we reached this point, the coprocess probably is dead, so 
-	process the SIG_CHLD */
-     pid = pth_waitpid(di->pid, &retcode, 0);
-
-     if(pid == -1)
-     {
-        log_debug(ZONE, "pth_waitpid returned -1: %s", strerror(errno));
-     }
-     else if(pid == 0)
-     {
-        log_debug(ZONE, "no child available to call waitpid on");
-     }
-     else
-     {
-        log_debug(ZONE, "pid %d, exit status: %d", pid, WEXITSTATUS(retcode));
-     }
-
      /* Cleanup */
      close(di->in);
      close(di->out);
      di->out = 0;
 
-     log_debug(ZONE,"child returned %d",WEXITSTATUS(retcode));
+     /* silly to restart it if it died cuz we're shutting down, pretty hackish to do it this way tho... must be hackish when the comment is longer than the code itself, but I'm rambling */
+     if(jabberd__signalflag == SIGTERM || jabberd__signalflag == SIGINT) return NULL;
 
-     if(WIFEXITED(retcode)) /* if the child exited normally */
-     {
-        log_debug(ZONE, "child being restarted...");
-        /* Fork out resolver function/process */
-        di->pid = dnsrv_fork_and_capture(dnsrv_child_main, di);
+     log_debug(ZONE, "child being restarted...");
 
-        /* Start IO thread */
-        pth_spawn(PTH_ATTR_DEFAULT, dnsrv_process_io, (void*)di);
-        return NULL;
-     }
+     /* Fork out resolver function/process */
+     di->pid = dnsrv_fork_and_capture(dnsrv_child_main, di);
 
-     log_debug(ZONE, "child dying...");
+     /* Start new IO thread */
+     pth_spawn(PTH_ATTR_DEFAULT, dnsrv_process_io, (void*)di);
      return NULL;
 }
 
@@ -435,14 +411,6 @@ void *dnsrv_thread(void *arg)
      /* Fork out resolver function/process */
      di->pid = dnsrv_fork_and_capture(dnsrv_child_main, di);
      return NULL;
-}
-
-void dnsrv_shutdown(void *arg)
-{
-     dns_io di=(dns_io)arg;
-     ghash_destroy(di->packet_table);
-
-     /* spawn a thread that get's forked, and wait for it since it sets up the fd's */
 }
 
 /* callback for walking the connecting hash tree */
@@ -560,6 +528,4 @@ void dnsrv(instance i, xmlnode x)
 
      /* Register an incoming packet handler */
      register_phandler(i, o_DELIVER, dnsrv_deliver, (void*)di);
-     /* register a cleanup function */
-     pool_cleanup(i->p, dnsrv_shutdown, (void*)di);
 }

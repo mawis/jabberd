@@ -51,8 +51,9 @@ void *heartbeat(void *arg)
 
     while(1)
     {
-	pth_sleep(1);
-    if(heartbeat__ring==NULL) break;
+        pth_sleep(1);
+        if(jabberd__signalflag) jabberd_signal();
+        if(heartbeat__ring==NULL) break;
 
 	/* run through the ring */
 	for(b = heartbeat__ring->next; b != heartbeat__ring; b = b->next)

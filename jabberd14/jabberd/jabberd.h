@@ -100,7 +100,7 @@ void deliver(dpacket p, instance i); /* deliver packet from sending instance */
 void deliver_fail(dpacket p, char *err); /* bounce a packet intelligently */
 void deliver_instance(instance i, dpacket p); /* deliver packet TO the instance, if the result != r_DONE, you have to handle the packet! */
 
-/*** global logging symbols ***/
+/*** global logging/signal symbols ***/
 #define MAX_LOG_SIZE 1024
 extern int debug_flag;
 void debug_log(char *zone, const char *msgfmt, ...);
@@ -111,6 +111,8 @@ void log_alert(char *host, const char *msgfmt, ...);
 #define log_error log_alert
 void logger(char *type, char *host, char *message); /* actually creates and delivers the log message */
 void log_record(char *id, char *type, char *action, const char *msgfmt, ...); /* for generic logging support, like log_record("jer@jabber.org","session","end","...") */
+extern int jabberd__signalflag; /* set to the last signal to be processed */
+void jabberd_signal(void); /* process the signal, called from the heartbeat thread */
 
 /*** xdb utilities ***/
 

@@ -129,6 +129,9 @@ void show_pid(xmlnode x)
     int fd;
     pid_t pid;
 
+    /* HACKAGE: if we're reloading, ignore this check */
+    if(jabberd__signalflag == SIGHUP) return;
+
     pidfile = xmlnode_get_tag(x, "pidfile");
     if(pidfile == NULL)
         return;
