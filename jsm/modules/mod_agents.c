@@ -51,7 +51,7 @@ mreturn mod_agents_agents(mapi m)
     if(agents == NULL)
         return M_PASS;
 
-    log_debug("mod_agents","handling agents query");
+    log_debug2(ZONE, LOGT_DELIVER, "handling agents query");
 
     /* build the result IQ */
     ret = jutil_iqresult(m->packet->x);
@@ -110,7 +110,7 @@ mreturn mod_agents_agent(mapi m)
     if(info == NULL && agents == NULL && reg == NULL)
         return M_PASS;
 
-    log_debug("mod_agent","handling agent query");
+    log_debug2(ZONE, LOGT_DELIVER, "handling agent query");
 
     /* build the result IQ */
     ret = jutil_iqresult(m->packet->x);
@@ -162,7 +162,7 @@ mreturn mod_agents_shack(mapi m, void *arg)
 
 void mod_agents(jsmi si)
 {
-    log_debug("mod_agents","init");
+    log_debug2(ZONE, LOGT_INIT, "init");
     js_mapi_register(si,e_SERVER, mod_agents_handler, NULL);
     js_mapi_register(si,e_SESSION, mod_agents_shack, NULL);
 }

@@ -40,7 +40,10 @@
  * --------------------------------------------------------------------------*/
 #include "jabberd.h"
 
+int _debug_facility = -1;
 int debug_flag = 0;
+int cmdline_debug_flag = 0;
+
 extern xht debug__zones;
 
 char *debug_log_timestamp(void)
@@ -62,37 +65,102 @@ char *debug_log_timestamp(void)
     return tmp_str;
 }
 
-void debug_log(char *zone, const char *msgfmt, ...)
-{
-    va_list ap;
-    char message[MAX_LOG_SIZE];
+/**
+ * check if the specified debugging zone has been selected
+ *
+ * @param zone the zone where the logging message comes from
+ * @return 1 if it should be logged, 0 if not
+ */
+inline int _debug_log_zonefilter(char *zone) {
     char *pos, c = '\0';
-    int offset;
-
-    /* special per-zone filtering */
     if(zone != NULL && debug__zones != NULL)
     {
-        pos = strchr(zone,'.');
+	pos = strchr(zone,'.');
         if(pos != NULL)
         {
             c = *pos;
             *pos = '\0'; /* chop */
         }
         if(xhash_get(debug__zones,zone) == NULL)
-            return;
+            return 0;
         if(pos != NULL)
             *pos = c; /* restore */
     }
+    return 1;
+}
 
-    snprintf(message, MAX_LOG_SIZE, "%s %s ", debug_log_timestamp(), zone);
-    for (pos = message; *pos != '\0'; pos++); //empty statement
+void debug_log(char *zone, const char *msgfmt, ...)
+{
+    va_list ap;
+    char message[MAX_LOG_SIZE];
+    int offset;
+    char *pos;
+
+    /* special per-zone filtering */
+    if (!_debug_log_zonefilter(zone))
+	return;
+
+    /* only add timestamps if writing to standard output */
+    if (_debug_facility == -1) {
+	snprintf(message, MAX_LOG_SIZE, "%s %s ", debug_log_timestamp(), zone);
+	for (pos = message; *pos != '\0'; pos++); //empty statement
      
-    offset = pos - message;
+	offset = pos - message;
+    } else {
+	pos = message;
+	offset = 0;
+    }
 
     va_start(ap, msgfmt);
     vsnprintf(pos, MAX_LOG_SIZE - offset, msgfmt, ap);
-    fprintf(stderr,"%s", message);
-    fprintf(stderr, "\n");
+#ifdef HAVE_SYSLOG
+    if (_debug_facility == -1) {
+	fprintf(stderr,"%s\n", message);
+    } else {
+	syslog(LOG_DEBUG|_debug_facility, "%s", message);
+    }
+#else
+    syslog(LOG_DEBUG|_debug_facility, "%s", message);
+#endif
+}
+
+void debug_log2(char *zone, const int type, const char *msgfmt, ...)
+{
+    va_list ap;
+    char message[MAX_LOG_SIZE];
+    int offset;
+    char *pos;
+
+    /* debug type filtering */
+    if (!(get_debug_flag()&type))
+	return;
+
+    /* special per-zone filtering */
+    if (!_debug_log_zonefilter(zone))
+	return;
+
+    /* only add timestamps if writing to standard output */
+    if (_debug_facility == -1) {
+	snprintf(message, MAX_LOG_SIZE, "%s %s ", debug_log_timestamp(), zone);
+	for (pos = message; *pos != '\0'; pos++); //empty statement
+     
+	offset = pos - message;
+    } else {
+	pos = message;
+	offset = 0;
+    }
+
+    va_start(ap, msgfmt);
+    vsnprintf(pos, MAX_LOG_SIZE - offset, msgfmt, ap);
+#ifdef HAVE_SYSLOG
+    if (_debug_facility == -1) {
+	fprintf(stderr,"%s\n", message);
+    } else {
+	syslog(LOG_DEBUG|_debug_facility, "%s", message);
+    }
+#else
+    syslog(LOG_DEBUG|_debug_facility, "%s", message);
+#endif
 }
 
 void logger(char *type, char *host, char *message)
@@ -113,7 +181,7 @@ void logger(char *type, char *host, char *message)
         xmlnode_put_attrib(log,"from","-internal");
     xmlnode_insert_cdata(log,message,strlen(message));
 
-    log_debug(ZONE,"%s",xmlnode2str(log));
+    log_debug2(ZONE, LOGT_DELIVER, "%s", xmlnode2str(log));
     deliver(dpacket_new(log), NULL);
 }
 
@@ -194,7 +262,7 @@ void log_generic(char *logtype, char *id, char *type, char *action, const char *
     xmlnode_insert_cdata(log," ",1);
     xmlnode_insert_cdata(log,logmsg,strlen(logmsg));
 
-    log_debug(ZONE,"%s",xmlnode2str(log));
+    log_debug2(ZONE, LOGT_DELIVER, "%s", xmlnode2str(log));
     deliver(dpacket_new(log), NULL);
 }
 
@@ -209,12 +277,43 @@ void log_record(char *id, char *type, char *action, const char *msgfmt, ...) {
     log_generic("record", type, action, "%s", logmsg);
 }
 
-int get_debug_flag()
+inline int get_debug_flag()
 {
     return debug_flag;
 }
 
-void set_debug_flag(int v)
-{
-    debug_flag = v;
+/**
+ * set the debugging mask, if 0 no debugging is requested
+ * for other values debugging is enabled, the different bits in the value enable different log message types
+ * the value set with set_cmdline_debug_flag() (what the user specified on the command line) is always ORed to this value
+ *
+ * @param v the new debugging mask
+ */
+void set_debug_flag(int v) {
+    debug_flag = v|cmdline_debug_flag;
+}
+
+/**
+ * set the value of the cmdline_debug_flag which is always ORed to the value that is set by set_debug_flag()
+ * this will reset the mask set with set_debug_flag(), so set_cmdline_debug_flag() should be called first.
+ *
+ * @param v the debug mask given on the command line
+ */
+void set_cmdline_debug_flag(int v) {
+    debug_flag = cmdline_debug_flag = v;
+}
+
+/**
+ * set the facility used to write debugging messages to syslog
+ *
+ * @param facility the facility to use, -1 if writing to the standard output is requested
+ */
+void set_debug_facility(int facility) {
+#ifdef HAVE_SYSLOG
+    _debug_facility = facility;
+#else
+    if (facility != -1) {
+	log_warn(NULL, PACKAGE " configured to debug to syslog, but compiled without syslog support");
+    }
+#endif
 }

@@ -92,7 +92,7 @@ result base_format_modify(instance id, dpacket p, void *arg)
             spooler(log_result, xmlnode_get_data(p->x), log_result);
             break;
         default:
-            log_debug(ZONE, "Invalid argument: %s", nxt[0]);
+            log_debug2(ZONE, LOGT_CONFIG|LOGT_STRANGE, "Invalid argument: %s", nxt[0]);
         }
         
         cur = ++nxt;
@@ -110,17 +110,17 @@ result base_format_config(instance id, xmlnode x, void *arg)
 {
     if(id == NULL)
     {
-        log_debug(ZONE,"base_format_config validating configuration");
+        log_debug2(ZONE, LOGT_CONFIG|LOGT_INIT, "base_format_config validating configuration");
         if(xmlnode_get_data(x) == NULL)
         {
-            log_debug(ZONE,"base_format invald format");
+            log_debug2(ZONE, LOGT_CONFIG|LOGT_INIT|LOGT_STRANGE, "base_format invald format");
             xmlnode_put_attrib(x, "error", "'format' tag must contain a format string:\nUse %h to insert Hostname\nUse %t to insert Type of Log (notice,warn,alert)\nUse %d to insert Timestamp\nUse %s to insert the body of the message\n\nExample: '[%t] - %h - %d: %s'");
             return r_ERR;
         }
         return r_PASS;
     }
     
-    log_debug(ZONE,"base_format configuring instance %s ", id->id);
+    log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_format configuring instance %s ", id->id);
 
     if(id->type != p_LOG)
     {
@@ -135,6 +135,6 @@ result base_format_config(instance id, xmlnode x, void *arg)
 
 void base_format(void)
 {
-    log_debug(ZONE,"base_format loading...");
+    log_debug2(ZONE, LOGT_INIT, "base_format loading...");
     register_config("format",base_format_config,NULL);
 }

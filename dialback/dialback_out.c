@@ -96,7 +96,7 @@ void dialback_out_connect(dboc c)
         c->ip++;
     }
 
-    log_debug(ZONE, "Attempting to connect to %s at %s",jid_full(c->key),ip);
+    log_debug2(ZONE, LOGT_IO, "Attempting to connect to %s at %s",jid_full(c->key),ip);
 
     /* get the ip/port for io_select */
 #ifdef WITH_IPV6
@@ -214,7 +214,7 @@ void dialback_out_packet(db d, xmlnode x, char *ip)
         return;
     }
 
-    log_debug(ZONE,"dbout packet[%s]: %s",ip,xmlnode2str(x));
+    log_debug2(ZONE, LOGT_IO, "dbout packet[%s]: %s",ip,xmlnode2str(x));
 
     /* db:verify packets come in with us as the sender */
     if(j_strcmp(from->server,d->i->id) == 0)
@@ -234,7 +234,7 @@ void dialback_out_packet(db d, xmlnode x, char *ip)
     if((md = xhash_get(d->out_ok_db, jid_full(key))) == NULL && verify == 0)
         md = xhash_get(d->out_ok_legacy, jid_full(key));
 
-    log_debug(ZONE,"outgoing packet with key %s and located existing %X",jid_full(key),md);
+    log_debug2(ZONE, LOGT_IO, "outgoing packet with key %s and located existing %X",jid_full(key),md);
 
     /* yay! that was easy, just send the packet :) */
     if(md != NULL)
@@ -304,9 +304,9 @@ void dialback_out_read_db(mio m, int flags, void *arg, xmlnode x)
 
     if(j_strcmp(xmlnode_get_name(x),"stream:error") == 0)
     {
-        log_debug(ZONE,"reveived stream error: %s",xmlnode_get_data(x));
+        log_debug2(ZONE, LOGT_IO, "reveived stream error: %s",xmlnode_get_data(x));
     }else{
-        mio_write(m, NULL, "<stream:error><undefined-condition xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Not Allowed to send data on this socket!</text></stream:error>", -1);
+        mio_write(m, NULL, "<stream:error><undefined-condition xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Received data on a send-only socket. You are not Allowed to send data on this socket!</text></stream:error>", -1);
     }
     
     mio_close(m);
@@ -321,9 +321,9 @@ void dialback_out_read_legacy(mio m, int flags, void *arg, xmlnode x)
     /* other data on the stream? naughty you! */
     if(j_strcmp(xmlnode_get_name(x),"stream:error") == 0)
     {
-        log_debug(ZONE,"reveived stream error: %s",xmlnode_get_data(x));
+        log_debug2(ZONE, LOGT_IO, "reveived stream error: %s",xmlnode_get_data(x));
     }else{
-        mio_write(m, NULL, "<stream:error><undefined-condition xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Not Allowed to send data on this socket!</text></stream:error>", -1);
+        mio_write(m, NULL, "<stream:error><undefined-condition xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Received data on a send-only socket. You are not Allowed to send data on this socket!</text></stream:error>", -1);
     }
     
     mio_close(m);
@@ -351,12 +351,12 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
     xmlnode cur;
     miod md;
 
-    log_debug(ZONE,"dbout read: fd %d flag %d key %s",m->fd, flags, jid_full(c->key));
+    log_debug2(ZONE, LOGT_IO, "dbout read: fd %d flag %d key %s",m->fd, flags, jid_full(c->key));
 
     switch(flags)
     {
     case MIO_NEW:
-        log_debug(ZONE,"NEW outgoing server socket connected at %d",m->fd);
+        log_debug2(ZONE, LOGT_IO, "NEW outgoing server socket connected at %d",m->fd);
 
         /* outgoing conneciton, write the header */
         cur = xstream_header("jabber:server", c->key->server, NULL);
@@ -366,7 +366,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
         return;
 
     case MIO_XML_ROOT:
-        log_debug(ZONE,"Incoming root %s",xmlnode2str(x));
+        log_debug2(ZONE, LOGT_IO, "Incoming root %s",xmlnode2str(x));
         /* validate namespace */
         if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:server") != 0)
         {

@@ -72,7 +72,7 @@ void js_bounce_xmpp(jsmi si, xmlnode x, xterror xterr)
     /* if it's a presence packet, just drop it */
     if(j_strcmp(xmlnode_get_name(x),"presence") == 0 || j_strcmp(xmlnode_get_attrib(x,"type"),"error") == 0)
     {
-        log_debug(ZONE,"dropping %d packet %s",xterr.code,xmlnode2str(x));
+        log_debug2(ZONE, LOGT_DELIVER, "dropping %d packet %s",xterr.code,xmlnode2str(x));
         xmlnode_free(x);
         return;
     }
@@ -119,7 +119,7 @@ void js_bounce(jsmi si, xmlnode x, terror terr)
 xmlnode js_config(jsmi si, char *query)
 {
 
-    log_debug(ZONE,"config query %s",query);
+    log_debug2(ZONE, LOGT_CONFIG, "config query %s",query);
 
     if(query == NULL)
         return si->config;
@@ -167,7 +167,7 @@ jid js_trustees(udata u)
 
     if(u->utrust != NULL) return u->utrust;
 
-    log_debug(ZONE,"generating trustees list for user %s",jid_full(u->id));
+    log_debug2(ZONE, LOGT_SESSION, "generating trustees list for user %s",jid_full(u->id));
 
     /* initialize with at least self */
     u->utrust = jid_user(u->id);

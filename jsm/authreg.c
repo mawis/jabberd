@@ -60,7 +60,7 @@ void js_authreg(void *arg)
     if(p->to->user != NULL && (jpacket_subtype(p) == JPACKET__GET || p->to->resource != NULL) && NSCHECK(p->iq,NS_AUTH))
     {   /* is this a valid auth request? */
 
-        log_debug(ZONE,"auth request");
+        log_debug2(ZONE, LOGT_AUTH, "auth request");
 
         /* attempt to fetch user data based on the username */
         user = js_user(si, p->to, NULL);
@@ -81,7 +81,7 @@ void js_authreg(void *arg)
     }else if(NSCHECK(p->iq,NS_REGISTER)){ /* is this a registration request? */
         if(jpacket_subtype(p) == JPACKET__GET)
         {
-            log_debug(ZONE,"registration get request");
+            log_debug2(ZONE, LOGT_AUTH, "registration get request");
             /* let modules try to handle it */
             if(!js_mapi_call(si, e_REGISTER, p, NULL, NULL))
             {
@@ -92,7 +92,7 @@ void js_authreg(void *arg)
                 xmlnode_insert_tag(p->iq,"username");
             }
         }else{
-            log_debug(ZONE,"registration set request");
+            log_debug2(ZONE, LOGT_AUTH, "registration set request");
             if(p->to->user == NULL || xmlnode_get_tag_data(p->iq,"password") == NULL)
             {
                 jutil_error_xmpp(p->x, XTERROR_NOTACCEPTABLE);

@@ -49,7 +49,7 @@ result xdb_results(instance id, dpacket p, void *arg)
 
     if(p->type != p_NORM || *(xmlnode_get_name(p->x)) != 'x') return r_PASS; /* yes, we are matching ANY <x*> element */
 
-    log_debug(ZONE,"xdb_results checking xdb packet %s",xmlnode2str(p->x));
+    log_debug2(ZONE, LOGT_STORAGE, "xdb_results checking xdb packet %s",xmlnode2str(p->x));
 
     if((idstr = xmlnode_get_attrib(p->x,"id")) == NULL) return r_ERR;
 
@@ -217,13 +217,13 @@ xmlnode xdb_get(xdbcache xc, jid owner, char *ns)
     /* send it on it's way, holding the lock */
     xdb_deliver(xc->i, &newx);
 
-    log_debug(ZONE,"xdb_get() waiting for %s %s",jid_full(owner),ns);
+    log_debug2(ZONE, LOGT_STORAGE|LOGT_THREAD, "xdb_get() waiting for %s %s",jid_full(owner),ns);
     if (newx.preblock)
         pth_cond_await(&(newx.cond), &(xc->mutex), NULL); /* blocks thread */
     pth_mutex_release(&(xc->mutex));
 
     /* we got signalled */
-    log_debug(ZONE,"xdb_get() done waiting for %s %s",jid_full(owner),ns);
+    log_debug2(ZONE, LOGT_STORAGE|LOGT_THREAD, "xdb_get() done waiting for %s %s",jid_full(owner),ns);
 
     /* newx.data is now the returned xml packet */
     /* return the xmlnode inside <xdb>...</xdb> */
@@ -273,14 +273,14 @@ int xdb_act(xdbcache xc, jid owner, char *ns, char *act, char *match, xmlnode da
     xdb_deliver(xc->i, &newx);
 
     /* wait for the condition var */
-    log_debug(ZONE,"xdb_set() waiting for %s %s",jid_full(owner),ns);
+    log_debug2(ZONE, LOGT_STORAGE|LOGT_THREAD, "xdb_set() waiting for %s %s",jid_full(owner),ns);
     /* preblock is set to 0 if it beats us back here */
     if (newx.preblock)
         pth_cond_await(&(newx.cond), &(xc->mutex), NULL); /* blocks thread */
     pth_mutex_release(&(xc->mutex));
 
     /* we got signalled */
-    log_debug(ZONE,"xdb_set() done waiting for %s %s",jid_full(owner),ns);
+    log_debug2(ZONE, LOGT_STORAGE|LOGT_THREAD, "xdb_set() done waiting for %s %s",jid_full(owner),ns);
 
     /* newx.data is now the returned xml packet or NULL if it was unsuccessful */
     /* if it didn't actually get set, flag that */

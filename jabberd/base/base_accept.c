@@ -117,7 +117,7 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
     char hashbuf[41];
     jpacket jp;
 
-    log_debug(ZONE, "process XML: m:%X state:%d, arg:%X, x:%X", m, state, arg, x);
+    log_debug2(ZONE, LOGT_XML, "process XML: m:%X state:%d, arg:%X, x:%X", m, state, arg, x);
 
     switch(state)
     {
@@ -248,7 +248,7 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
             if(m != ai->m)
                 return;
 
-            log_debug(ZONE,"closing accepted socket");
+            log_debug2(ZONE, LOGT_IO, "closing accepted socket");
             ai->m = NULL;
             ai->state = A_ERROR;
 
@@ -345,7 +345,7 @@ result base_accept_config(instance id, xmlnode x, void *arg)
 
     if(id == NULL)
     {
-        log_debug(ZONE,"base_accept_config validating configuration...");
+        log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_accept_config validating configuration...");
         if (port == 0 || (xmlnode_get_tag(x,"secret") == NULL))
         {
             xmlnode_put_attrib(x,"error","<accept> requires the following subtags: <port>, and <secret>");
@@ -354,7 +354,7 @@ result base_accept_config(instance id, xmlnode x, void *arg)
         return r_PASS;
     }
 
-    log_debug(ZONE,"base_accept_config performing configuration %s\n",xmlnode2str(x));
+    log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_accept_config performing configuration %s\n",xmlnode2str(x));
 
     /* Setup the default sink for this instance */ 
     inst              = pmalloco(id->p, sizeof(_accept_instance));
@@ -391,6 +391,6 @@ result base_accept_config(instance id, xmlnode x, void *arg)
 
 void base_accept(void)
 {
-    log_debug(ZONE,"base_accept loading...\n");
+    log_debug2(ZONE, LOGT_INIT, "base_accept loading...\n");
     register_config("accept",base_accept_config,NULL);
 }

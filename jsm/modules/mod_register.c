@@ -46,7 +46,7 @@ mreturn mod_register_new(mapi m, void *arg)
 
     if((reg = js_config(m->si, "register")) == NULL) return M_PASS;
 
-    log_debug("mod_register","checking");
+    log_debug2(ZONE, LOGT_AUTH, "checking");
 
     switch(jpacket_subtype(m->packet))
     {
@@ -59,7 +59,7 @@ mreturn mod_register_new(mapi m, void *arg)
 
     case JPACKET__SET:
 
-        log_debug(ZONE,"processing valid registration for %s",jid_full(m->packet->to));
+        log_debug2(ZONE, LOGT_AUTH, "processing valid registration for %s",jid_full(m->packet->to));
 
         /* save the registration data */
         jutil_delay(m->packet->iq,"registered");
@@ -116,7 +116,7 @@ mreturn mod_register_server(mapi m, void *arg)
     if(m->user == NULL) return M_PASS;
     if(js_config(m->si,"register") == NULL) return M_PASS;
 
-    log_debug("mod_register","updating server: %s, user %s",m->user->id->server,jid_full(m->user->id));
+    log_debug2(ZONE, LOGT_AUTH, "updating server: %s, user %s", m->user->id->server, jid_full(m->user->id));
 
     /* check for their registration */
     reg =  xdb_get(m->si->xc, m->user->id, NS_REGISTER);
@@ -167,7 +167,7 @@ mreturn mod_register_server(mapi m, void *arg)
 		peer = jid_new(m->packet->p, xmlnode_get_attrib(cur, "jid"));
 		subscription = xmlnode_get_attrib(cur, "subscription");
 
-		log_debug(ZONE, "removing subscription %s (%s)", subscription, jid_full(peer));
+		log_debug2(ZONE, LOGT_ROSTER, "removing subscription %s (%s)", subscription, jid_full(peer));
 
 		if (subscription == NULL)
 		    continue;
@@ -211,7 +211,7 @@ mreturn mod_register_server(mapi m, void *arg)
             xdb_set(m->si->xc, m->user->id, NS_OFFLINE, NULL);
             xdb_set(m->si->xc, m->user->id, NS_FILTER, NULL);
         }else{
-            log_debug(ZONE,"updating registration for %s",jid_full(m->user->id));
+            log_debug2(ZONE, LOGT_ROSTER, "updating registration for %s",jid_full(m->user->id));
 
             /* update the registration data */
             xmlnode_hide(xmlnode_get_tag(m->packet->iq,"username")); /* hide the username/password from the reg db */
@@ -236,7 +236,7 @@ mreturn mod_register_server(mapi m, void *arg)
 
 void mod_register(jsmi si)
 {
-    log_debug("mod_register","init");
+    log_debug2(ZONE, LOGT_INIT, "init");
     js_mapi_register(si, e_REGISTER, mod_register_new, NULL);
     js_mapi_register(si, e_SERVER, mod_register_server, NULL);
 }

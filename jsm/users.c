@@ -69,7 +69,7 @@ void _js_users_del(xht h, const char *key, void *data, void *arg)
     if(u->ref > 0 || (u->sessions != NULL && ++js__usercount))
         return;
 
-    log_debug(ZONE,"freeing %s",u->user);
+    log_debug2(ZONE, LOGT_SESSION, "freeing %s",u->user);
 
     xhash_zap(ht,u->user);
     pool_free(u->p);
@@ -81,7 +81,7 @@ void _js_hosts_del(xht h, const char *key, void *data, void *arg)
 {
     xht ht = (xht)data;
 
-    log_debug(ZONE,"checking users for host %s",(char*)key);
+    log_debug2(ZONE, LOGT_SESSION, "checking users for host %s",(char*)key);
 
     xhash_walk(ht,_js_users_del,ht);
 }
@@ -97,7 +97,7 @@ result js_users_gc(void *arg)
     /* free user struct if we can */
     js__usercount = 0;
     xhash_walk(si->hosts,_js_hosts_del,NULL);
-    log_debug("usercount","%d\ttotal users",js__usercount);
+    log_debug2(ZONE, LOGT_STATUS, "%d\ttotal users",js__usercount);
     return r_DONE;
 }
 
@@ -134,14 +134,14 @@ udata js_user(jsmi si, jid id, xht ht)
         *ustr = tolower(*ustr);
 
     /* debug message */
-    log_debug(ZONE,"js_user(%s,%X)",jid_full(uid),ht);
+    log_debug2(ZONE, LOGT_SESSION, "js_user(%s,%X)",jid_full(uid),ht);
 
     /* try to get the user data from the hash table */
     if((cur = xhash_get(ht,uid->user)) != NULL)
         return cur;
 
     /* debug message */
-    log_debug(ZONE,"## js_user not current ##");
+    log_debug2(ZONE, LOGT_SESSION, "## js_user not current ##");
 
     /* try to get the user auth data from xdb */
     x = xdb_get(si->xc, uid, NS_AUTH);
@@ -169,7 +169,7 @@ udata js_user(jsmi si, jid id, xht ht)
 
     /* got the user, add it to the user list */
     xhash_put(ht,newu->user,newu);
-    log_debug(ZONE,"js_user debug %X %X",xhash_get(ht,newu->user),newu);
+    log_debug2(ZONE, LOGT_SESSION, "js_user debug %X %X",xhash_get(ht,newu->user),newu);
 
     return newu;
 }

@@ -63,7 +63,7 @@ mreturn mod_version_reply(mapi m, void *arg)
         return M_HANDLED;
     }
 
-    log_debug("mod_version","handling query from",jid_full(m->packet->from));
+    log_debug2(ZONE, LOGT_DELIVER, "handling query from",jid_full(m->packet->from));
 
     jutil_iqresult(m->packet->x);
     xmlnode_put_attrib(xmlnode_insert_tag(m->packet->x,"query"),"xmlns",NS_VERSION);

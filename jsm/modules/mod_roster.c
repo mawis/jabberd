@@ -44,13 +44,13 @@ xmlnode mod_roster_get(udata u)
 {
     xmlnode ret;
 
-    log_debug("mod_roster","getting %s's roster",u->user);
+    log_debug2(ZONE, LOGT_ROSTER, "getting %s's roster",u->user);
 
     /* get the existing roster */
     ret = xdb_get(u->si->xc, u->id, NS_ROSTER);
     if(ret == NULL)
     { /* there isn't one, sucky, create a container node and let xdb manage it */
-        log_debug("mod_roster","creating");
+        log_debug2(ZONE, LOGT_ROSTER, "creating");
         ret = xmlnode_new_tag("query");
         xmlnode_put_attrib(ret,"xmlns",NS_ROSTER);
     }
@@ -62,13 +62,13 @@ xmlnode mod_roster_get_item(xmlnode roster, jid id, char *name, int *newflag)
 {
     xmlnode ret;
 
-    log_debug("mod_roster","getting item %s",jid_full(id));
+    log_debug2(ZONE, LOGT_ROSTER, "getting item %s",jid_full(id));
 
     ret = jid_nodescan(id,roster);
 
     if(ret == NULL)
     { /* there isn't one, brew one up */
-        log_debug("mod_roster","creating");
+        log_debug2(ZONE, LOGT_ROSTER, "creating");
         ret = xmlnode_insert_tag(roster,"item");
         xmlnode_put_attrib(ret,"jid",jid_full(id));
         if(name != NULL)
@@ -85,7 +85,7 @@ void mod_roster_push(udata user, xmlnode item)
     session cur;
     xmlnode packet, query;
 
-    log_debug("mod_roster","pushing %s",xmlnode2str(item));
+    log_debug2(ZONE, LOGT_ROSTER, "pushing %s",xmlnode2str(item));
 
     if(xmlnode_get_attrib(item,"hidden") != NULL) return;
 
@@ -147,7 +147,7 @@ void mod_roster_pforce(udata u, jid to, int uflag)
     session s;
     xmlnode x;
 
-    log_debug(ZONE,"brute forcing presence updates");
+    log_debug2(ZONE, LOGT_ROSTER, "brute forcing presence updates");
 
     /* loop through all the sessions */
     for(s = u->sessions; s != NULL; s = s->next)
@@ -170,7 +170,7 @@ mreturn mod_roster_out_s10n(mapi m)
     if(m->packet->to == NULL) return M_PASS;
     if(jid_cmpx(jid_user(m->s->id),m->packet->to,JID_USER|JID_SERVER) == 0) return M_PASS; /* vanity complex */
 
-    log_debug("mod_roster","handling outgoing s10n");
+    log_debug2(ZONE, LOGT_ROSTER, "handling outgoing s10n");
 
     newflag = to = from = 0;
     roster = mod_roster_get(m->user);
@@ -257,7 +257,7 @@ mreturn mod_roster_out_iq(mapi m)
     switch(jpacket_subtype(m->packet))
     {
     case JPACKET__GET:
-        log_debug("mod_roster","handling get request");
+        log_debug2(ZONE, LOGT_ROSTER, "handling get request");
         xmlnode_put_attrib(m->packet->x,"type","result");
         m->s->roster = 1;
 
@@ -292,7 +292,7 @@ mreturn mod_roster_out_iq(mapi m)
 
         break;
     case JPACKET__SET:
-        log_debug("mod_roster","handling set request");
+        log_debug2(ZONE, LOGT_ROSTER, "handling set request");
 
         /* loop through the incoming items updating or creating */
         for(cur = xmlnode_get_firstchild(m->packet->iq); cur != NULL; cur = xmlnode_get_nextsibling(cur))
@@ -338,7 +338,7 @@ mreturn mod_roster_out_iq(mapi m)
         js_session_to(m->s,m->packet);
 
         /* save the changes */
-        log_debug(ZONE,"SROSTER: %s",xmlnode2str(roster));
+        log_debug2(ZONE, LOGT_ROSTER, "SROSTER: %s",xmlnode2str(roster));
         /* XXX what do we do if the set fails?  hrmf... */
         xdb_set(m->si->xc, m->user->id, NS_ROSTER, roster);
 
@@ -388,7 +388,7 @@ mreturn mod_roster_s10n(mapi m, void *arg)
     reply2 = reply = NULL;
     jid_set(m->packet->to,NULL,JID_RESOURCE); /* make sure we're only dealing w/ the user id */
 
-    log_debug("mod_roster","s10n %s request from %s with existing item %s",xmlnode_get_attrib(m->packet->x,"type"),jid_full(m->packet->from),xmlnode2str(item));
+    log_debug2(ZONE, LOGT_ROSTER, "s10n %s request from %s with existing item %s",xmlnode_get_attrib(m->packet->x,"type"),jid_full(m->packet->from),xmlnode2str(item));
 
     /* vars */
     if(j_strcmp(xmlnode_get_attrib(item,"subscription"),"to") == 0)

@@ -50,7 +50,7 @@ mreturn mod_vcard_jud(mapi m)
 
     if(vcard != NULL)
     {
-        log_debug("mod_vcard_jud","sending registration for %s",jid_full(m->packet->to));
+        log_debug2(ZONE, LOGT_DELIVER, "sending registration for %s",jid_full(m->packet->to));
         reg = jutil_iqnew(JPACKET__SET,NS_REGISTER);
         xmlnode_put_attrib(reg,"to",jid_full(m->packet->from));
         xmlnode_put_attrib(reg,"from",jid_full(m->packet->to));
@@ -82,7 +82,7 @@ mreturn mod_vcard_set(mapi m, void *arg)
     switch(jpacket_subtype(m->packet))
     {
     case JPACKET__GET:
-        log_debug("mod_vcard","handling get request");
+        log_debug2(ZONE, LOGT_DELIVER, "handling get request");
         xmlnode_put_attrib(m->packet->x,"type","result");
 
         /* insert the vcard into the result */
@@ -94,7 +94,7 @@ mreturn mod_vcard_set(mapi m, void *arg)
 
         break;
     case JPACKET__SET:
-        log_debug("mod_vcard","handling set request %s",xmlnode2str(m->packet->iq));
+        log_debug2(ZONE, LOGT_DELIVER, "handling set request %s",xmlnode2str(m->packet->iq));
 
         /* save and send response to the user */
         if(xdb_set(m->si->xc, m->user->id, NS_VCARD, m->packet->iq))
@@ -154,7 +154,7 @@ mreturn mod_vcard_reply(mapi m, void *arg)
         return M_HANDLED;
     }
 
-    log_debug("mod_vcard","handling query for user %s",m->user->user);
+    log_debug2(ZONE, LOGT_DELIVER, "handling query for user %s",m->user->user);
 
     /* get this guys vcard info */
     vcard = xdb_get(m->si->xc, m->user->id, NS_VCARD);
@@ -186,7 +186,7 @@ mreturn mod_vcard_server(mapi m, void *arg)
     if((vcard = js_config(m->si,"vCard")) == NULL)
         return M_PASS;
 
-    log_debug(ZONE,"handling server vcard query");
+    log_debug2(ZONE, LOGT_DELIVER, "handling server vcard query");
 
     /* build the result IQ */
     jutil_iqresult(m->packet->x);
