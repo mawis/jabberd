@@ -638,6 +638,7 @@ typedef struct terror_struct
 #define NS_GATEWAY   "jabber:iq:gateway"
 #define NS_LAST      "jabber:iq:last"
 #define NS_ENVELOPE  "jabber:x:envelope"
+#define NS_EXPIRE    "jabber:x:expire"
 #define NS_XHTML     "http://www.w3.org/1999/xhtml"
 
 #define NS_XDBGINSERT "jabber:xdb:ginsert"
