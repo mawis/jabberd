@@ -52,14 +52,14 @@ struct karma *karma_new(pool p)
     new          = pmalloco(p, sizeof(struct karma));
     new->init    = 0;
     new->bytes   = 0;
-    new->val     = KARMA_DEF_INIT;
-    new->max     = KARMA_DEF_MAX;
-    new->inc     = KARMA_DEF_INC;
-    new->dec     = KARMA_DEF_DEC;
-    new->penalty = KARMA_DEF_PENALTY;
-    new->restore = KARMA_DEF_RESTORE;
+    new->val     = KARMA_INIT;
+    new->max     = KARMA_MAX;
+    new->inc     = KARMA_INC;
+    new->dec     = KARMA_DEC;
+    new->penalty = KARMA_PENALTY;
+    new->restore = KARMA_RESTORE;
     new->last_update = 0;
-    new->reset_meter = KARMA_DEF_RESETMETER;
+    new->reset_meter = KARMA_RESETMETER;
 
     return new;
 }
@@ -70,8 +70,8 @@ void karma_increment(struct karma *k)
     time_t cur_time = time(NULL);
     int punishment_over = 0;
     
-    /* only increment every KARMA_DEF_HEARTBEAT seconds */
-    if( ( k->last_update + KARMA_DEF_HEARTBEAT > cur_time ) && k->last_update != 0)
+    /* only increment every KARMA_HEARTBEAT seconds */
+    if( ( k->last_update + KARMA_HEARTBEAT > cur_time ) && k->last_update != 0)
         return;
 
     /* if incrementing will raise >= 0 */

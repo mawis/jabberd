@@ -55,6 +55,8 @@ typedef struct mio_main_st
     pth_t t;            /* a pointer to thread for signaling */
     int shutdown;
     int zzz[2];
+    struct karma k; /* default karma */
+    int rate_t, rate_p; /* default rate, if any */
 } _ios,*ios;
 
 typedef struct mio_connect_st
@@ -74,17 +76,6 @@ typedef struct mio_connect_st
 int mio__errno = 0;
 ios mio__data = NULL;
 extern xmlnode greymatter__;
-
-int KARMA_DEF_HEARTBEAT  = KARMA_HEARTBEAT;
-int KARMA_DEF_INIT       = KARMA_INIT;
-int KARMA_DEF_MAX        = KARMA_MAX;
-int KARMA_DEF_INC        = KARMA_INC;
-int KARMA_DEF_DEC        = KARMA_DEC;
-int KARMA_DEF_PENALTY    = KARMA_PENALTY;
-int KARMA_DEF_RESTORE    = KARMA_RESTORE;
-int KARMA_DEF_RESETMETER = KARMA_RESETMETER;
-int KARMA_DEF_RATE_T     = 5;
-int KARMA_DEF_RATE_P     = 25;
 
 int _mio_allow_check(const char *address)
 {
@@ -538,7 +529,7 @@ void _mio_connect(void *arg)
     /* XXX pthreads race condition.. cd->connected may be checked in the timeout, and cd freed before these calls */
 
     /* set the default karma values */
-    mio_karma(new, KARMA_INIT, KARMA_MAX, KARMA_INC, KARMA_DEC, KARMA_PENALTY, KARMA_RESTORE);
+    mio_karma2(new, &mio__data->k);
     
     /* add to the select loop */
     _mio_link(new);
@@ -824,23 +815,9 @@ void mio_init(void)
         mio_ssl_init(xmlnode_get_tag(io, "ssl"));
 #endif
 
-    KARMA_DEF_INIT       = j_atoi(xmlnode_get_tag_data(io, "karma/init"), KARMA_INIT);
-    KARMA_DEF_MAX        = j_atoi(xmlnode_get_tag_data(io, "karma/max"), KARMA_MAX);
-    KARMA_DEF_INC        = j_atoi(xmlnode_get_tag_data(io, "karma/inc"), KARMA_INC);
-    KARMA_DEF_DEC        = j_atoi(xmlnode_get_tag_data(io, "karma/dec"), KARMA_DEC);
-    KARMA_DEF_PENALTY    = j_atoi(xmlnode_get_tag_data(io, "karma/penalty"), KARMA_PENALTY);
-    KARMA_DEF_RESTORE    = j_atoi(xmlnode_get_tag_data(io, "karma/restore"), KARMA_RESTORE);
-    KARMA_DEF_RATE_T     = j_atoi(xmlnode_get_attrib(xmlnode_get_tag(io, "rate"), "time"), 5);
-    KARMA_DEF_RATE_P     = j_atoi(xmlnode_get_attrib(xmlnode_get_tag(io, "rate"), "points"), 25);
-    KARMA_DEF_RESETMETER = j_atoi(xmlnode_get_tag_data(io, "karma/resetmeter"), KARMA_RESETMETER);
-
-    /* Global settings for karma */
-    KARMA_DEF_HEARTBEAT = j_atoi(xmlnode_get_tag_data(io, "karma/heartbeat"), KARMA_HEARTBEAT);
-
-
     if(mio__data == NULL)
     {
-        register_beat(KARMA_DEF_HEARTBEAT, _karma_heartbeat, NULL);
+        register_beat(j_atoi(xmlnode_get_tag_data(io, "karma/heartbeat"), KARMA_HEARTBEAT), _karma_heartbeat, NULL);
 
         /* malloc our instance object */
         p            = pool_new();
@@ -857,6 +834,16 @@ void mio_init(void)
         /* give time to init the signal handlers */
         pth_yield(NULL);
     }
+    mio__data->k.init        = j_atoi(xmlnode_get_tag_data(io, "karma/init"), KARMA_INIT);
+    mio__data->k.max         = j_atoi(xmlnode_get_tag_data(io, "karma/max"), KARMA_MAX);
+    mio__data->k.inc         = j_atoi(xmlnode_get_tag_data(io, "karma/inc"), KARMA_INC);
+    mio__data->k.dec         = j_atoi(xmlnode_get_tag_data(io, "karma/dec"), KARMA_DEC);
+    mio__data->k.penalty     = j_atoi(xmlnode_get_tag_data(io, "karma/penalty"), KARMA_PENALTY);
+    mio__data->k.restore     = j_atoi(xmlnode_get_tag_data(io, "karma/restore"), KARMA_RESTORE);
+    mio__data->k.reset_meter = j_atoi(xmlnode_get_tag_data(io, "karma/resetmeter"), KARMA_RESETMETER);
+    mio__data->rate_t        = j_atoi(xmlnode_get_attrib(xmlnode_get_tag(io, "rate"), "time"), 0);
+    mio__data->rate_p        = j_atoi(xmlnode_get_attrib(xmlnode_get_tag(io, "rate"), "points"), 0);
+
 }
 
 /*
@@ -916,8 +903,8 @@ mio mio_new(int fd, void *cb, void *arg, mio_handlers mh)
     mio_set_handlers(new, mh);
 
     /* set the default karma values */
-    mio_karma(new, KARMA_INIT, KARMA_MAX, KARMA_INC, KARMA_DEC, KARMA_PENALTY, KARMA_RESTORE);
-    mio_rate(new, KARMA_DEF_RATE_T, KARMA_DEF_RATE_P);
+    mio_karma2(new, &mio__data->k);
+    mio_rate(new, mio__data->rate_t, mio__data->rate_p);
     
     /* set the socket to non-blocking */
     flags =  fcntl(fd, F_GETFL, 0);
@@ -1069,7 +1056,7 @@ void mio_karma2(mio m, struct karma *k)
 */
 void mio_rate(mio m, int rate_time, int max_points)
 {
-    if(m == NULL) 
+    if(m == NULL || rate_time == 0) 
         return;
 
     m->rated = 1;
