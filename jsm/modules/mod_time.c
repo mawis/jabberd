@@ -33,6 +33,7 @@ mreturn mod_time_reply(mapi m, void *arg)
 {
     time_t t;
     char *tstr;
+    struct tm *tmd;
 
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
     if(!NSCHECK(m->packet->iq,NS_TIME) || m->packet->to->resource != NULL) return M_PASS;
@@ -50,13 +51,15 @@ mreturn mod_time_reply(mapi m, void *arg)
     xmlnode_put_attrib(xmlnode_insert_tag(m->packet->x,"query"),"xmlns",NS_TIME);
     jpacket_reset(m->packet);
     xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"utc"),jutil_timestamp(),-1);
-    xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"tz"),tzname[0],-1);
 
     /* create nice display time */
     t = time(NULL);
     tstr = ctime(&t);
     tstr[strlen(tstr) - 1] = '\0'; /* cut off newline */
     xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"display"),tstr,-1);
+    tzset();
+    tmd = localtime(&t);
+    xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"tz"),tmd->tm_zone,-1);
 
     js_deliver(m->si,m->packet);
 
