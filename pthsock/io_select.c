@@ -43,7 +43,6 @@ result karma_heartbeat(void*arg)
         if(cur->karma==0) 
             pth_raise(io__data->t,SIGUSR2);
         if(cur->karma>10)cur->karma=10; /* can only be so good */
-        if(cur->karma<0)log_notice("karma","sock %d is getting karma, now %d",cur->fd,cur->karma);
     }
     return r_DONE;
 }
@@ -313,7 +312,6 @@ void _io_main(void *arg)
             if((!FD_ISSET(cur->fd,&all_rfds)&&cur->karma==0)||cur->karma==-10)
             {
                 cur->karma=5;
-                log_notice("io_select","socket #%d has karma again",cur->fd);
                 FD_SET(cur->fd,&all_rfds); /* they can read again */
             }
             pth_yield(NULL);
@@ -368,7 +366,6 @@ void _io_main(void *arg)
                 }
                 else
                 {
-                    log_notice("io_select","%d: read: %d, max: %d, karma: %d, read_bytes: %d",cur->fd,len,maxlen,cur->karma,cur->read_bytes);
                     cur->read_bytes+=len;
                     if(cur->read_bytes>=maxlen)
                     { /* they read the max, tsk tsk */
@@ -379,7 +376,6 @@ void _io_main(void *arg)
                             cur->karma=-5; /* pay the penence */
                             FD_CLR(cur->fd,&all_rfds); 
                         }
-                        log_notice("karma","sock %d lost karma, now %d",cur->fd,cur->karma);
                     }
                     buff[len]='\0';
                     (*(io_cb)cur->cb)(cur,buff,len,IO_NORMAL,cur->cb_arg);
