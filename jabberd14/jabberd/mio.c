@@ -782,11 +782,13 @@ mio mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_c
                        flag = 1;
     mio                new;
 
+    log_debug(ZONE, "MIO: %X, %X, %X", cb, cb_arg, mh);
+
     if(f == NULL)
-        f = (mio_connect_func)&MIO_STD_CONNECT;
+        f = MIO_STD_CONNECT;
 
     if(mh == NULL)
-        mh = mio_handlers_new((mio_read_func)&MIO_STD_READ, (mio_write_func)&MIO_STD_WRITE);
+        mh = mio_handlers_new(MIO_STD_READ, MIO_STD_WRITE);
 
     log_debug(ZONE, "_mio_std_connect Connecting to host: %s:%d", host, port);
 
@@ -807,16 +809,19 @@ mio mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_c
     sa.sin_port = htons(port);
     sa.sin_addr.s_addr = saddr->s_addr;
 
+    log_debug(ZONE, "calling connect handler %X", f);
     if((*f)(fd, (struct sockaddr*)&sa, sizeof sa) < 0)
     {
         log_debug(ZONE, "_mio_std_connect failed to connect to: %s", host);
         close(fd);
         return 0;
     }
+    log_debug(ZONE, "connected on socket %d", fd);
 
     /* create the mio for this socket */
     new = mio_new(fd, cb, cb_arg, mh);
 
+    log_debug(ZONE, "MIO: %X, %X, %X, %X, %X", new->cb, new->cb_arg, new->mh, new->mh->read, new->mh->write);
     /* notify the client that the socket is born */
     if(new->cb != NULL)
         (*(mio_std_cb)new->cb)(new, MIO_NEW, new->cb_arg);
@@ -833,10 +838,10 @@ mio mio_listen(int port, char *listen_host, void *cb, void *arg, mio_accept_func
     int        fd;
 
     if(f == NULL)
-        f = (mio_accept_func)&MIO_STD_ACCEPT;
+        f = MIO_STD_ACCEPT;
 
     if(mh == NULL)
-        mh = mio_handlers_new((mio_read_func)&MIO_STD_READ, (mio_write_func)&MIO_STD_WRITE);
+        mh = mio_handlers_new(MIO_STD_READ, MIO_STD_WRITE);
 
     mh->accept = f;
 
@@ -877,13 +882,14 @@ mio_handlers mio_handlers_new(mio_read_func rf, mio_write_func wf)
 
     new->p = p;
 
+    log_debug(ZONE, "new handlers: %X and %X", rf, wf);
     if(rf == NULL)
-        new->read = (mio_read_func)MIO_STD_READ;
+        new->read = MIO_STD_READ;
     else
         new->read = rf;
 
     if(wf == NULL)
-        new->write = (mio_write_func)MIO_STD_WRITE;
+        new->write = MIO_STD_WRITE;
     else
         new->write = wf;
 

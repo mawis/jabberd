@@ -242,14 +242,14 @@ typedef struct mio_handlers_st
 
 /* returns -1 on error, 0 on OK */
 int _mio_std_read(mio m);
-#define MIO_STD_READ    _mio_std_read
-#define MIO_STD_WRITE   MIO_WRITE_FUNC
-#define MIO_STD_ACCEPT  MIO_ACCEPT_FUNC
-#define MIO_STD_CONNECT MIO_CONNECT_FUNC
+#define MIO_STD_READ    (mio_read_func)&_mio_std_read
+#define MIO_STD_WRITE   (mio_write_func)&MIO_WRITE_FUNC
+#define MIO_STD_ACCEPT  (mio_accept_func)&MIO_ACCEPT_FUNC
+#define MIO_STD_CONNECT (mio_connect_func)&MIO_CONNECT_FUNC
 
 /* returns -1 on error, 0 on OK */
 int _mio_xml_read(mio m);
-#define MIO_XML_READ    _mio_xml_read
+#define MIO_XML_READ    (mio_read_func)&_mio_xml_read
 #define MIO_XML_WRITE   MIO_STD_WRITE
 #define MIO_XML_ACCEPT  MIO_STD_ACCEPT
 #define MIO_XML_CONNECT MIO_STD_CONNECT
