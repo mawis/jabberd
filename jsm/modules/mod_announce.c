@@ -128,6 +128,7 @@ mreturn mod_announce_sess_avail(mapi m, void *arg)
     xmlnode last;
     session s;
     xmlnode msg;
+    int lastt;
 
     if(m->packet->type != JPACKET_PRESENCE) return M_IGNORE;
     if(a->x == NULL) return M_IGNORE;
@@ -138,7 +139,8 @@ mreturn mod_announce_sess_avail(mapi m, void *arg)
 
     /* check the last time we were on to see if we haven't gotten the announcement yet */
     last = xdb_get(m->si->xc, m->user->id, NS_LAST);
-    if(last != NULL && j_strcmp(xmlnode_get_attrib(last,"stamp"),a->stamp) > 0) /* if there's a last and it's newer than the announcement, ignore us */
+    lastt = j_atoi(xmlnode_get_attrib(last,"last"),0);
+    if(lastt > 0 && lastt > a->set) /* if there's a last and it's newer than the announcement, ignore us */
         return M_IGNORE;
 
     /* check the primary session, if it's older than the announcement, we'll just assume we've already seen it */
