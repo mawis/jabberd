@@ -220,7 +220,7 @@ void _mio_link(mio m)
 void _mio_close(mio m)
 {
     int ret = 0;
-    wbq cur;
+    xmlnode cur;
 
     /* ensure that the state is set to CLOSED */
     m->state = state_CLOSE;
@@ -252,7 +252,7 @@ void _mio_close(mio m)
     /* cleanup the write queue */
     while((cur = mio_cleanup(m)) != NULL)
     {
-        pool_free(cur->p);
+        xmlnode_free(cur);
     }
 
     pool_free(m->p);
