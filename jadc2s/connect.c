@@ -122,7 +122,7 @@ void _connect_charData(void *arg, const char *str, int len)
 /* process completed nads */
 void _connect_process(conn_t c) {
     chunk_t chunk;
-    int attr;
+    int attr, id;
     char *chr, str[770], cid[770]; /* see jep29, 256(node) + 1(@) + 255(domain) + 1(/) + 256(resource) + 1(\0) */
     conn_t target, pending;
 
@@ -154,7 +154,13 @@ void _connect_process(conn_t c) {
         return;
     }
     *chr = '\0';
-    target = &c->c2s->conns[atoi(str)];
+
+    id = atoi(str);
+    if(id >= c->c2s->max_fds || ((target = &c->c2s->conns[id]) && target->fd == -1))
+    {
+        log_debug(ZONE, "dropping packet for invalid conn %d", id);
+        return;
+    }
 
     log_debug(ZONE, "processing route to %s with target %X", cid, target);
 

@@ -113,7 +113,7 @@ int main(int argc, char **argv)
     time_t last_log, last_pending, now;
     char optchar;
     int config_loaded = 0;
-    int max_fds, i;
+    int i;
 
     signal(SIGINT, onSignal);
     signal(SIGPIPE, SIG_IGN);
@@ -160,11 +160,11 @@ int main(int argc, char **argv)
     c2s->timeout = 15;
 
     /* conn setup */
-    max_fds = j_atoi(config_get_one(c2s->config, "io.max_fds", 0), 1023);
-    c2s->mio = mio_new(max_fds);
-    c2s->conns = (struct conn_st *) malloc(sizeof(struct conn_st) * max_fds);
-    memset(c2s->conns, 0, sizeof(struct conn_st) * max_fds);
-    for(i = 0; i < max_fds; i++)
+    c2s->max_fds = j_atoi(config_get_one(c2s->config, "io.max_fds", 0), 1023);
+    c2s->mio = mio_new(c2s->max_fds);
+    c2s->conns = (struct conn_st *) malloc(sizeof(struct conn_st) * c2s->max_fds);
+    memset(c2s->conns, 0, sizeof(struct conn_st) * c2s->max_fds);
+    for(i = 0; i < c2s->max_fds; i++)
         c2s->conns[i].fd = -1;      /* -1 == unused */
 
     /* nad cache */
