@@ -58,28 +58,15 @@ typedef struct
      int             in;		 /* Inbound data handle */
      int             out;		 /* Outbound data handle */
      int             pid;		 /* Coprocess PID */
-     pth_msgport_t   write_queue;
      HASHTABLE       packet_table; /* Hash of dns_packet_lists */
      int             packet_timeout; /* how long to keep packets in the queue */
      HASHTABLE       cache_table; /* Hash of resolved IPs */
      int             cache_timeout; /* how long to keep resolutions in the cache */
-     pth_event_t     e_read;
-     pth_event_t     e_write;
-     pth_event_t     events;
      pool            mempool;
      dns_resend_list svclist;
 } *dns_io, _dns_io;
 
 typedef int (*RESOLVEFUNC)(dns_io di);
-
-/* --------------------------------------------------- */
-/* Struct to store a dpacket that needs to be resolved */
-typedef struct
-{
-     pth_message_t head;
-     dpacket       packet;
-} *dns_write_buf, _dns_write_buf;
-
 
 /* ----------------------------------------------------------- */
 /* Struct to store list of dpackets which need to be delivered */
@@ -97,8 +84,7 @@ void dnsrv_child_process_xstream_io(int type, xmlnode x, void* args)
 {
      dns_io di = (dns_io)args;
      char*  hostname;
-     char*  resolvestr = NULL;
-     char*  response = NULL;
+     char*  str = NULL;
      dns_resend_list iternode = NULL;
 
      if (type == XSTREAM_NODE)
@@ -113,18 +99,18 @@ void dnsrv_child_process_xstream_io(int type, xmlnode x, void* args)
 	       iternode = di->svclist;
 	       while (iternode != NULL)
 	       {
-		    resolvestr = srv_lookup(x->p, iternode->service, hostname);
-		    if (resolvestr != NULL)
+		    str = srv_lookup(x->p, iternode->service, hostname);
+		    if (str != NULL)
 		    {
-			 log_debug(ZONE, "Resolved %s(%s): %s\tresend to:%s", hostname, iternode->service, resolvestr, iternode->host);
-			 xmlnode_put_attrib(x, "ip", resolvestr);
+			 log_debug(ZONE, "Resolved %s(%s): %s\tresend to:%s", hostname, iternode->service, str, iternode->host);
+			 xmlnode_put_attrib(x, "ip", str);
 			 xmlnode_put_attrib(x, "to", iternode->host);
 			 break;
 		    }
 		    iternode = iternode->next;
 	       }
-	       response = xmlnode2str(x);
-	       pth_write(di->out, response, strlen(response));
+               str = xmlnode2str(x);
+	       write(di->out, str, strlen(str));
           }
      }
      xmlnode_free(x);
@@ -134,15 +120,16 @@ int dnsrv_child_main(dns_io di)
 {
      pool    p   = pool_new();
      xstream xs  = xstream_new(p, dnsrv_child_process_xstream_io, di);
-     int     readlen = 0;
+     int     len;
      char    readbuf[1024];
      sigset_t sigs;
-     int result;
 
 
      sigemptyset(&sigs);
      sigaddset(&sigs, SIGHUP);
      sigprocmask(SIG_BLOCK, &sigs, NULL);
+
+     log_debug(ZONE,"DNSRV CHILD: starting");
 
      /* Transmit stream header */
      write(di->out, "<stream>", 8);
@@ -150,25 +137,24 @@ int dnsrv_child_main(dns_io di)
      /* Loop forever, processing requests and feeding them to the xstream*/     
      while (1)
      {
-       readlen = pth_read(di->in, &readbuf, 1024);
-       if(readlen > 0)
+       len = read(di->in, &readbuf, 1024);
+       if (len <= 0)
        {
-        log_debug(ZONE, "DNSRV CHILD: Read from buffer: %.*s",readlen,readbuf);
-        result = xstream_eat(xs, readbuf, readlen);
-        log_debug(ZONE, "DNSRV CHILD: result %d",result);
+           log_debug(ZONE,"dnsrv: Read error on coprocess(%d): %d %s",getppid(),errno,strerror(errno));
+           break;
        }
-       else
+
+       log_debug(ZONE, "DNSRV CHILD: Read from buffer: %.*s",len,readbuf);
+
+       if (xstream_eat(xs, readbuf, len) > XSTREAM_NODE)
        {
-        if(errno == EINTR)
-        {
-            log_debug(ZONE, "DNSRV CHILD: EINTR");
-        }
-        log_debug(ZONE, "DNSRV CHILD: error on read");
-         if(getppid()==1) break; /* our parent has died */
+           log_debug(ZONE, "DNSRV CHILD: xstream died");
+           break;
        }
-     }	  
+     }
+
      /* child is out of loop... normal exit so parent will start us again */
-        log_debug(ZONE, "DNSRV CHILD: out of loop.. exiting normal");
+     log_debug(ZONE, "DNSRV CHILD: out of loop.. exiting normal");
      pool_free(p);
      exit(0);
      return 0;
@@ -225,10 +211,56 @@ void dnsrv_resend(xmlnode pkt, char *ip, char *to)
     deliver(dpacket_new(pkt),NULL);
 }
 
+
+/* Hostname lookup requested */
+void dnsrv_lookup(dns_io d, dpacket p)
+{
+    dns_packet_list l, lnew;
+    xmlnode req;
+    char *reqs;
+
+    /* make sure we have a child! */
+    if(d->out <= 0)
+    {
+        deliver_fail(p, "DNS Resolver Error");
+        return;
+    }
+
+    /* Attempt to lookup this hostname in the packet table */
+    l = (dns_packet_list)ghash_get(d->packet_table, p->host);
+
+    /* IF: hashtable has the hostname, a lookup is already pending,
+       so push the packet on the top of the list (most recent at the top) */
+    if (l != NULL)
+    {
+	 log_debug(ZONE, "dnsrv: Adding lookup request for %s to pending queue.", p->host);
+	 lnew = pmalloco(p->p, sizeof(_dns_packet_list));
+	 lnew->packet = p;
+	 lnew->stamp = time(NULL);
+	 lnew->next = l;
+         ghash_put(d->packet_table, p->host, lnew);
+         return;
+    }
+
+    /* insert the packet into the packet_table using the hostname
+       as the key and send a request to the coprocess */
+    log_debug(ZONE, "dnsrv: Creating lookup request queue for %s", p->host);
+    l = pmalloco(p->p, sizeof(_dns_packet_list));
+    l->packet = p;
+    l->stamp  = time(NULL);
+    ghash_put(d->packet_table, p->host, l);
+    req = xmlnode_new_tag_pool(p->p,"host");
+    xmlnode_insert_cdata(req,p->host,-1);
+
+    reqs = xmlnode2str(req);
+    log_debug(ZONE, "dnsrv: Transmitting lookup request: %s", reqs);
+    pth_write(d->out, reqs, strlen(reqs));
+}
+
+
 result dnsrv_deliver(instance i, dpacket p, void* args)
 {
      dns_io di = (dns_io)args;
-     dns_write_buf wb = NULL;
      xmlnode c;
      int timeout = di->cache_timeout;
      char *ip;
@@ -267,14 +299,8 @@ result dnsrv_deliver(instance i, dpacket p, void* args)
          }
      }
 
-     /* Allocate a new write buffer */
-     wb = pmalloco(p->p, sizeof(_dns_write_buf));
-     wb->packet = p;
-
-     /* Send the buffer to the IO thread */
-     pth_msgport_put(di->write_queue, (pth_message_t*)wb);
-
-     return r_DONE;
+    dnsrv_lookup(di, p);
+    return r_DONE;
 }
 
 void dnsrv_process_xstream_io(int type, xmlnode x, void* arg)
@@ -331,18 +357,11 @@ void* dnsrv_process_io(void* threadarg)
 {
      /* Get DNS IO info */
      dns_io di = (dns_io)threadarg;
-
      int  retcode       = 0;
      int  pid           = 0;
      int  readlen       = 0;
      char readbuf[1024];
-
-     dns_write_buf   wb       = NULL;
-     dns_packet_list lst      = NULL;
-     dns_packet_list lsthead  = NULL;
-
      xstream  xs       = NULL;       
-     char*    request  = NULL;
      sigset_t sigs;
 
      sigemptyset(&sigs);
@@ -353,80 +372,21 @@ void* dnsrv_process_io(void* threadarg)
      xs = xstream_new(di->mempool, dnsrv_process_xstream_io, di);
 
      /* Transmit root element to coprocess */
-     pth_write(di->out, "<stream>", strlen("<stream>"));
+     pth_write(di->out, "<stream>", 8);
 
-     /* Setup event ring for coprocess reading and message queue events */
-     di->e_read  = pth_event(PTH_EVENT_FD|PTH_UNTIL_FD_READABLE, di->in);
-     di->e_write = pth_event(PTH_EVENT_MSG, di->write_queue);
-     di->events  = pth_event_concat(di->e_read, di->e_write, NULL);
-
-     /* Loop on events */
-     while (pth_wait(di->events) > 0)
+     /* Loop forever */
+     while (1)
      {
-	  /* Hostname lookup completed from coprocess */
-	  if (pth_event_occurred(di->e_read))
-	  {
-	       /* Read the data from the coprocess into the parser */
-	       readlen = pth_read(di->in, readbuf, sizeof(readbuf));
-               if (readlen <= 0)
-               {
-                    if(errno == EINTR) 
-                    {
-                        log_debug(ZONE, "socket interupted");
-                    }
-                    log_debug(ZONE,"dnsrv: Read error on coprocess!\n");
-	                while((wb = (dns_write_buf)pth_msgport_get(di->write_queue)) != NULL)
-                    {
-                        pool_free(wb->packet->p);
-                    }
-                    break;
-               }
+       /* Hostname lookup completed from coprocess */
+       readlen = pth_read(di->in, readbuf, sizeof(readbuf));
+       if (readlen <= 0)
+       {
+           log_debug(ZONE,"dnsrv: Read error on coprocess: %d %s",errno,strerror(errno));
+           break;
+       }
 
-               if (xstream_eat(xs, readbuf, readlen) > XSTREAM_NODE)
-                    break;
-          }
-
-	  /* Hostname lookup requested */
-	  if (pth_event_occurred(di->e_write))
-	  {
-	       /* Get the packet from the write_queue */
-	       wb = (dns_write_buf)pth_msgport_get(di->write_queue);
-
-	    /* Attempt to lookup this hostname in the packet table */
-	    lsthead = (dns_packet_list)ghash_get(di->packet_table, wb->packet->host);
-	    
-	    /* IF: hashtable has the hostname, a lookup is already pending,
-	       so stick the packet in the list */
-	    if (lsthead != NULL)
-	    {
-		 log_debug(ZONE, "dnsrv: Adding lookup request for %s to pending queue.", wb->packet->host);
-		 /* Allocate a new list entry */
-		 lst = pmalloco(wb->packet->p, sizeof(_dns_packet_list));
-		 lst->packet   = wb->packet;
-		 lst->stamp    = time(NULL);
-		 lst->next     = lsthead->next;
-		 lsthead->next = lst;		    
-	    }
-	    /* ELSE: insert the packet into the packet_table using the hostname
-	       as the key and send a request to the coprocess */
-	    else
-	    {
-		 log_debug(ZONE, "dnsrv: Creating lookup request queue for %s", wb->packet->host);
-		 /* Allocate a new list head */
-		 lsthead = pmalloco(wb->packet->p, sizeof(_dns_packet_list));
-		 lsthead->packet = wb->packet;
-		 lsthead->stamp  = time(NULL);
-		 lsthead->next   = NULL;
-		 /* Insert the packet list into the hash */
-		 ghash_put(di->packet_table, lsthead->packet->host, lsthead);
-		 /* Spool up a request */
-		 request = spools(lsthead->packet->p, "<host>", lsthead->packet->host, "</host>", lsthead->packet->p);
-
-		 log_debug(ZONE, "dnsrv: Transmitting lookup request for %s to coprocess", wb->packet->host);
-		 /* Send a request to the coprocess */
-		 pth_write(di->out, request, strlen(request));
-	    }
-	  }
+       if (xstream_eat(xs, readbuf, readlen) > XSTREAM_NODE)
+           break;
      }
 
      /* If we reached this point, the coprocess probably is dead, so 
@@ -449,10 +409,11 @@ void* dnsrv_process_io(void* threadarg)
      /* Cleanup */
      close(di->in);
      close(di->out);
+     di->out = 0;
 
      log_debug(ZONE,"child returned %d",WEXITSTATUS(retcode));
 
-     if(WIFEXITED(retcode)&&WIFSIGNALED(retcode)) /* if the child exited normally */
+     if(WIFEXITED(retcode)) /* if the child exited normally */
      {
         log_debug(ZONE, "child being restarted...");
         /* Fork out resolver function/process */
@@ -463,14 +424,7 @@ void* dnsrv_process_io(void* threadarg)
         return NULL;
      }
 
-     log_debug(ZONE, "child dying...4");
-     log_debug(ZONE, "child dying...3");
-     pth_event_free(di->e_read, PTH_FREE_THIS);
-     log_debug(ZONE, "child dying...2");
-     pth_event_free(di->e_write, PTH_FREE_THIS);
-     log_debug(ZONE, "child dying...1");
-     pth_msgport_destroy(di->write_queue);
-     log_debug(ZONE, "child dying...0");
+     log_debug(ZONE, "child dying...");
      return NULL;
 }
 
@@ -494,7 +448,7 @@ void dnsrv_shutdown(void *arg)
 int _dnsrv_beat_packets(void *arg, const void *key, void *data)
 {
     dns_io di = (dns_io)arg;
-    dns_packet_list n, l = (dns_packet_list)data, d = (dns_packet_list)data;
+    dns_packet_list n, l = (dns_packet_list)data;
     int now = time(NULL);
     int reap = 0;
 
@@ -513,8 +467,6 @@ int _dnsrv_beat_packets(void *arg, const void *key, void *data)
                 n = l->next;
                 l->next = NULL; /* chop off packets to be killed */
                 l = n;
-                /* tricky!  if we're going to reap packets on the end of the list, one if these contains the char* that's the key for ghash, reset ghash! */
-                ghash_put(di->packet_table,d->packet->host, data);
                 break;
             }
             l = l->next;
@@ -581,9 +533,6 @@ void dnsrv(instance i, xmlnode x)
      }
      log_debug(ZONE, "dnsrv debug: %s\n", xmlnode2str(config));
 
-     /* Initialize a message port to handle incoming dpackets */
-     di->write_queue = pth_msgport_create(i->id);
-
      /* Setup the hash of dns_packet_list */
      di->packet_table = ghash_create(j_atoi(xmlnode_get_attrib(config,"queuemax"),101), (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
      di->packet_timeout = j_atoi(xmlnode_get_attrib(config,"queuetimeout"),60);
@@ -592,7 +541,7 @@ void dnsrv(instance i, xmlnode x)
 
      /* Setup the internal hostname cache */
      di->cache_table = ghash_create(j_atoi(xmlnode_get_attrib(config,"cachemax"),1999), (KEYHASHFUNC)str_hash_code, (KEYCOMPAREFUNC)j_strcmp);
-     di->cache_timeout = j_atoi(xmlnode_get_attrib(config,"cachetimeout"),21600); /* 6 hour dns cache? XXX would be nice to get the right value from dns! */
+     di->cache_timeout = j_atoi(xmlnode_get_attrib(config,"cachetimeout"),3600); /* 1 hour dns cache? XXX would be nice to get the right value from dns! */
 
      xmlnode_free(config);
 
