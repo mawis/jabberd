@@ -815,6 +815,12 @@ void mio_write(mio m, xmlnode x, char *buffer, int len)
     if(buffer != NULL)
     {
         new->type = queue_CDATA;
+
+        if (len == -1)
+            len = strlen(buffer);
+
+        new->data = pmalloco(p,len);
+        memcpy(new->data,buffer,len);
     }
     else
     {
@@ -823,19 +829,10 @@ void mio_write(mio m, xmlnode x, char *buffer, int len)
 
     /* assign values */
     new->x    = x;
-    new->data = pstrdup(new->p, buffer);
     new->cur  = new->data;
-    
-    /* find the len of the queue item */
-    if(len == -1 && buffer != NULL)
-    {
-        new->len = strlen(buffer);
-    }
+
     /* if this is an xmlnode, this len gets set by the xml2str len prior to writing */
-    else
-    {
-        new->len = len;
-    }
+    new->len = len;
 
     /* put at end of queue */
     if(m->tail == NULL)
