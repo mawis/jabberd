@@ -6,7 +6,7 @@
 
 <!ENTITY chintro      SYSTEM "chapters/intro.sgml">
 <!ENTITY chbackground SYSTEM "chapters/background.sgml">
-<!ENTITY chconfigfile SYSTEM "chapters/background.sgml">
+<!ENTITY chconfigfile SYSTEM "chapters/config.sgml">
 <!ENTITY chgoals      SYSTEM "chapters/goals.sgml">
 <!ENTITY charchitecture SYSTEM "chapters/arch.sgml">
 
@@ -34,6 +34,14 @@
 					<address><email>dave@jabber.org</email></address>
 				</affiliation>
 			</author>
+            <author>
+                <firstname>Keith</firstname>
+                <surname>Minkler</surname>
+                <affiliation>
+                    <orgname>Jabber.com, Inc.</orgname>
+                    <address><email>kminkler@jabber.com</email></address>
+                </affiliation>
+            </author>
 		</authorgroup>
 		<copyright>
 			<year>2000</year>
