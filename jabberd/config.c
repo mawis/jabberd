@@ -165,6 +165,8 @@ int configurate(char *file)
 {
     char def[] = "jabber.xml";
     char *realfile = (char *)def;
+    xmlnode incl;
+    char *c;
 
     /* if no file name is specified, fall back to the default file */
     if(file != NULL)
@@ -184,6 +186,28 @@ int configurate(char *file)
         fprintf(stderr, "Configuration parsing using %s failed: %s\n",realfile,xmlnode_file_borked(realfile));
         return 1;
     }
+
+    /* parse -i foo.xml,bar.xml */
+    if((realfile = ghash_get(cmd__line,"i")) != NULL)
+        while(realfile != NULL)
+        {
+            c = strchr(realfile,',');
+            if(c != NULL)
+            {
+                *c = '\0';
+                c++;
+            }
+            if((incl = xmlnode_file(realfile)) == NULL)
+            {
+                fprintf(stderr, "Configuration parsing included file %s failed: %s\n",realfile,xmlnode_file_borked(realfile));
+                return 1;
+            }else{
+                xmlnode_insert_tag_node(greymatter__,incl);
+                xmlnode_free(incl);
+            }
+            realfile = c;
+        }
+
 
     /* check greymatter for additional includes */
     do_include(0,greymatter__);
