@@ -1,3 +1,4 @@
+    * Support for jabberd 1.4.x style alias handling [mawis]
     * IPv6 support [mawis]
     * Sending and logging connection information [mawis]
     * Autotools-based build system [mawis]

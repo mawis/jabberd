@@ -2,6 +2,11 @@
 
     * conn.c: copy the root_name, it gets free()d afterwards
     * Makefile.am: add jadc2s.xml.dist to the distribution package
+    * util/config.c: config_get_attr(...) was broken and has been fixed
+    * clients.c: added support for aliases
+    * jadc2s.c: same
+    * jadc2s.h: same
+    * jadc2s.xml.dist: same
 
 2003-12-26  Matthias Wimmer  <m@tthias.net>
 

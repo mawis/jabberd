@@ -202,6 +202,7 @@ int main(int argc, char **argv)
     
     /* XXX Change before release */
     c2s->local_id = config_get(c2s->config,"local.id");
+    c2s->local_alias = config_get(c2s->config,"local.alias");
     c2s->local_ip = config_get_one(c2s->config, "local.ip", 0);
     c2s->local_port = j_atoi(config_get_one(c2s->config, "local.port", 0), 5222);
 #ifdef USE_SSL
