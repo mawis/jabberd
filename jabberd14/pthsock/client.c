@@ -583,6 +583,10 @@ void pthsock_client(instance i, xmlnode x)
             if(set_karma == 1) mio_karma2(m, k);
         }
     }
+/* XXX Added by temas on Feb 26, 2003:  This makes it actually able to remove
+ * port 5222
+ */
+#if 0
     else /* no special config, use defaults */
     {
         mio m;
@@ -594,6 +598,7 @@ void pthsock_client(instance i, xmlnode x)
         /* set new karma valuse */
         if(set_karma == 1) mio_karma2(m, k);
     }
+#endif
 
 #ifdef HAVE_SSL
     /* listen on SSL sockets */
