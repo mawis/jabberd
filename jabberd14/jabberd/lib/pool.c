@@ -39,27 +39,62 @@
  * 
  * --------------------------------------------------------------------------*/
 
+/**
+ * @file pool.c
+ * @brief Handling of memory pools
+ *
+ * Jabberd handles its memory allocations in pools. You create a pool, can
+ * allocate memory from it and all allocations will be freed if you free
+ * the pool. Therefore you don't have to care that each malloc is freed,
+ * you only have to take care that the pool is freed.
+ *
+ * The normal call-flow for pools is:
+ *
+ * pool p = pool_new();
+ * struct mystruct *allocation1 = pmalloc(sizeof(struct mystruct));
+ * struct myotherstruct *allocation2 = pmalloc(sizeof(struct myotherstruct));
+ * ...
+ * pool_free(p);
+ */
+
 #include <jabberdlib.h>
 
 #define MAX_MALLOC_TRIES 10 /**< how many seconds we try to allocate memory */
 
 #ifdef POOL_DEBUG
-int pool__total = 0;
+int pool__total = 0;		/**< how many memory blocks are allocated */
 int pool__ltotal = 0;
 xht pool__disturbed = NULL;
+
+/**
+ * create a new memory allocation and increment the pool__total counter
+ *
+ * only used if POOL_DEBUG is defined, else it is an alias for malloc
+ *
+ * @param size size of the memory to allocate
+ * @return pointer to the allocated memory
+ */
 void *_pool__malloc(size_t size)
 {
     pool__total++;
     return malloc(size);
 }
+
+/**
+ * free memory and decrement the pool__total counter
+ *
+ * only used if POOL_DEBUG is defined, else it is an alias for free
+ *
+ * @param block pointer to the memory allocation that should be freed
+ */
 void _pool__free(void *block)
 {
     pool__total--;
     free(block);
 }
 #else
-#define _pool__malloc malloc
-#define _pool__free free
+#define _pool__malloc malloc	/**< _pool__malloc updates pool__total counter if POOL_DEBUG is defined */
+#define _pool__free free	/**< _pool__free updates pool__total counter if POOL_DEBUG is defined */
 #endif
 
 /**
@@ -86,7 +121,16 @@ inline void *_retried__malloc(size_t size) {
     return allocated_memory;
 }
 
-/* make an empty pool */
+/**
+ * make an empty pool
+ *
+ * Use the macro pool_new() instead of a direct call to this function. The
+ * macro will create the parameters for you.
+ *
+ * @param zone the file in which the pool_new macro is called
+ * @param line the line in the file in which the pool_new macro is called
+ * @return the new allocated memory pool
+ */
 pool _pool_new(char *zone, int line)
 {
     int malloc_tries = 0;
@@ -121,7 +165,11 @@ pool _pool_new(char *zone, int line)
     return p;
 }
 
-/* free a heap */
+/**
+ * free a memory heap (struct pheap)
+ *
+ * @param arg which heep should be freed
+ */
 void _pool_heap_free(void *arg)
 {
     struct pheap *h = (struct pheap *)arg;
@@ -130,7 +178,17 @@ void _pool_heap_free(void *arg)
     _pool__free(h);
 }
 
-/* mem should always be freed last */
+/**
+ * append a pool_cleaner function (callback) to a pool
+ *
+ * mem should always be freed last
+ *
+ * All appended pool_cleaner functions will be called if a pool is freed.
+ * This might be used to clean logically subpools.
+ *
+ * @param p to which pool the pool_cleaner should be added
+ * @param pf structure containing the reference to the pool_cleaner and links for the list
+ */
 void _pool_cleanup_append(pool p, struct pfree *pf)
 {
     struct pfree *cur;
@@ -147,7 +205,16 @@ void _pool_cleanup_append(pool p, struct pfree *pf)
     cur->next = pf;
 }
 
-/* create a cleanup tracker */
+/**
+ * create a cleanup tracker
+ *
+ * this function is used to create a pfree structure that can be passed to _pool_cleanup_append()
+ *
+ * @param p the pool to which the pool_cleaner should be added
+ * @param f the function that should be called if the pool is freed
+ * @param arg the parameter that should be passed to the pool_cleaner function
+ * @return pointer to the new pfree structure
+ */
 struct pfree *_pool_free(pool p, pool_cleaner f, void *arg)
 {
     struct pfree *ret;
@@ -161,7 +228,17 @@ struct pfree *_pool_free(pool p, pool_cleaner f, void *arg)
     return ret;
 }
 
-/* create a heap and make sure it get's cleaned up */
+/**
+ * create a heap and make sure it get's cleaned up
+ *
+ * pheaps are used by memory pools internally to handle the memory allocations
+ *
+ * @note the macro pool_heap calls _pool_new_heap and NOT _pool_heap
+ *
+ * @param p for which pool the heap should be created
+ * @param size how big the pool should be
+ * @return pointer to the new pheap
+ */
 struct pheap *_pool_heap(pool p, int size)
 {
     struct pheap *ret;
@@ -182,6 +259,16 @@ struct pheap *_pool_heap(pool p, int size)
     return ret;
 }
 
+/**
+ * create a new memory pool and set the initial heap size
+ *
+ * @note you should not call this function but use the macro pool_heap instead which fills zone and line automatically
+ *
+ * @param size the initial size of the memory pool
+ * @param zone the file where this function is called (for debugging)
+ * @param line the line in the file where this function is called
+ * @return the new memory pool
+ */
 pool _pool_new_heap(int size, char *zone, int line)
 {
     pool p;
@@ -190,6 +277,13 @@ pool _pool_new_heap(int size, char *zone, int line)
     return p;
 }
 
+/**
+ * allocate memory from a memory pool
+ *
+ * @param p the pool to use
+ * @param size how much memory to allocate
+ * @return pointer to the allocated memory
+ */
 void *pmalloc(pool p, int size)
 {
     void *block;
@@ -223,6 +317,16 @@ void *pmalloc(pool p, int size)
     return block;
 }
 
+/**
+ * allocate memory and initialize the memory with the given char c
+ *
+ * @deprecated jabberd does use pmalloco instead, this function will be removed
+ *
+ * @param p which pool to use
+ * @param size the size of the allocation
+ * @param c the initialization character
+ * @return pointer to the allocated memory
+ */
 void *pmalloc_x(pool p, int size, char c)
 {
    void* result = pmalloc(p, size);
@@ -231,7 +335,15 @@ void *pmalloc_x(pool p, int size, char c)
    return result;
 }  
 
-/* easy safety utility (for creating blank mem for structs, etc) */
+/**
+ * allocate memory and initialize the memory with zero bytes
+ * 
+ * easy safety utility (for creating blank mem for structs, etc)
+ *
+ * @param p which pool to use
+ * @param size the size of the allocation
+ * @return pointer to the allocated memory
+ */
 void *pmalloco(pool p, int size)
 {
     void *block = pmalloc(p, size);
@@ -239,7 +351,15 @@ void *pmalloco(pool p, int size)
     return block;
 }  
 
-/* XXX efficient: move this to const char * and then loop throug the existing heaps to see if src is within a block in this pool */
+/**
+ * duplicate a string and allocate memory for it
+ *
+ * @todo efficient: move this to const char* and then loop through the existing heaps to see if src is within a block in this pool
+ *
+ * @param p the pool to use
+ * @param src the string that should be duplicated
+ * @return the duplicated string
+ */
 char *pstrdup(pool p, const char *src)
 {
     char *ret;
@@ -253,12 +373,20 @@ char *pstrdup(pool p, const char *src)
     return ret;
 }
 
-/* when move above, this one would actually return a new block */
+/**
+ * when pstrdup() is moved to "const char*", this one would actually return a new block
+ */
 char *pstrdupx(pool p, const char *src)
 {
     return pstrdup(p, src);
 }
 
+/**
+ * get the size of a memory pool
+ *
+ * @param p the pool
+ * @return the size
+ */
 int pool_size(pool p)
 {
     if(p == NULL) return 0;
@@ -266,6 +394,11 @@ int pool_size(pool p)
     return p->size;
 }
 
+/**
+ * free a pool (and all memory that is allocated in it)
+ *
+ * @param p which pool to free
+ */
 void pool_free(pool p)
 {
     struct pfree *cur, *stub;
@@ -289,7 +422,9 @@ void pool_free(pool p)
 
 }
 
-/* public cleanup utils, insert in a way that they are run FIFO, before mem frees */
+/**
+ * public cleanup utils, insert in a way that they are run FIFO, before mem frees
+ */
 void pool_cleanup(pool p, pool_cleaner f, void *arg)
 {
     struct pfree *clean;
@@ -315,7 +450,7 @@ void _pool_stat(xht h, const char *key, void *data, void *arg)
 }
 
 /**
- * print memory pool statistics
+ * print memory pool statistics (for debugging purposes)
  *
  * @param full make a full report? (0 = no, 1 = yes)
  */
@@ -332,6 +467,11 @@ void pool_stat(int full)
     return;
 }
 #else
+/**
+ * dummy implementation: print memory pool statistics (for debugging purposes, real implementation if POOL_DEBUG is defined)
+ *
+ * @param full make a full report? (0 = no, 1 = yes)
+ */
 void pool_stat(int full)
 {
     return;

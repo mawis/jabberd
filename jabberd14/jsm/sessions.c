@@ -425,6 +425,16 @@ session js_session_primary(udata user)
 
 void js_session_to(session s, jpacket p)
 {
+    /* XXX: Florian had on his server the case where mod_offline.c called this function
+     * with p==NULL, I don't know how this could happen yet. I have to check further if
+     * this is a bug that is remotly expoitable ... if NULL is passed as p, p->p in this
+     * function will cause a segmentation violation!
+     */
+    if (s==NULL || p==NULL) {
+	log_debug(ZONE, "logic error? js_session_to(%x, %x)", s, p);
+	return;
+    }
+
     /* queue the call to child, hide session in packet */
     p->aux1 = (void *)s;
     mtq_send(s->q, p->p, _js_session_to, (void *)p);
@@ -432,6 +442,12 @@ void js_session_to(session s, jpacket p)
 
 void js_session_from(session s, jpacket p)
 {
+    /* check the provided parameters */
+    if (s==NULL || p==NULL) {
+	log_debug(ZONE, "logic error? js_session_from(%x, %x)", s, p);
+	return;
+    }
+
     /* queue the call to child, hide session in packet */
     p->aux1 = (void *)s;
     mtq_send(s->q, p->p, _js_session_from, (void *)p);

@@ -1,3 +1,10 @@
+2004-09-01  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/config.c: use pmalloco instead of pmalloc_x
+    * jabberd/deliver.c: same
+    * jabberd/heartbeat.c: same
+    * jsm/sessions.c: Added parameter check for js_session_to()/_from()
+
 2004-07-23  Matthias Wimmer  <m@tthias.net>
 
     * dialback/dialback.c: allow clustering of s2s components

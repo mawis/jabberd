@@ -20,10 +20,23 @@
  *
  */
 
+/**
+ * @file sha.c
+ * @brief calculate SHA-1 hash values
+ *
+ * SHA-1 hash values are used very much in the Jabber protocols and in this file
+ * the SHA-1 hash algorithm is implemented
+ */
+
 #include <jabberdlib.h>
 
 static void shaHashBlock(j_SHA_CTX *ctx);
 
+/**
+ * initialize the calculation of a SHA-1 value
+ *
+ * @param ctx the context to be used
+ */
 void shaInit(j_SHA_CTX *ctx) {
   int i;
 
@@ -42,7 +55,13 @@ void shaInit(j_SHA_CTX *ctx) {
     ctx->W[i] = 0;
 }
 
-
+/**
+ * expand the byte string for which we want to know the SHA-1 hash value
+ *
+ * @param ctx the context to be used
+ * @param dataIn the data that should be added
+ * @param len length of the data
+ */
 void shaUpdate(j_SHA_CTX *ctx, unsigned char *dataIn, int len) {
   int i;
 
@@ -60,7 +79,13 @@ void shaUpdate(j_SHA_CTX *ctx, unsigned char *dataIn, int len) {
   }
 }
 
-
+/**
+ * get back the SHA-1 hash value that has been calculated with the
+ * previous calls to shaUpdate()
+ *
+ * @param ctx the context that has been used to calculate the SHA-1 hash value
+ * @param hashout where to store the result of the hashing (binary, 20 bytes)
+ */
 void shaFinal(j_SHA_CTX *ctx, unsigned char hashout[20]) {
   unsigned char pad0x80 = 0x80;
   unsigned char pad0x00 = 0x00;
@@ -95,7 +120,13 @@ void shaFinal(j_SHA_CTX *ctx, unsigned char hashout[20]) {
   shaInit(ctx); 
 }
 
-
+/**
+ * function that calles everything needed to calculate the SHA-1 hash value for a byte string
+ *
+ * @param dataIn the byte array containing the data that should be hashed
+ * @param len the length of the input array
+ * @param hashout where to store the result of the hashing (binary, 20 bytes)
+ */
 void shaBlock(unsigned char *dataIn, int len, unsigned char hashout[20]) {
   j_SHA_CTX ctx;
 
@@ -107,6 +138,11 @@ void shaBlock(unsigned char *dataIn, int len, unsigned char hashout[20]) {
 
 #define SHA_ROTL(X,n) ((((X) << (n)) | ((X) >> (32-(n)))) & 0xffffffffL)
 
+/**
+ * this function is internally used by shaUpdate and should not be called from outside this file
+ *
+ * @param ctx the context
+ */
 static void shaHashBlock(j_SHA_CTX *ctx) {
   int t;
   unsigned long A,B,C,D,E,TEMP;
@@ -150,8 +186,17 @@ static void shaHashBlock(j_SHA_CTX *ctx) {
  * This code added by Thomas "temas" Muldowney for Jabber compatability
  *
  *---------------------------------------------------------------------------*/
-char *shahash(char *str)
-{
+
+/**
+ * calculate the hex ASCII representation of the SHA-1 hash value for a given zero terminated string
+ *
+ * @deprecated this function is not thread safe, the result will be overwritten by each call to this function:
+ * shahash_r is a threadsave version of this call
+ *
+ * @param str the string for which the SHA-1 hash should be calculated
+ * @return string that represents the hash value
+ */
+char *shahash(char *str) {
     static char final[41];
     char *pos;
     unsigned char hashval[20];
@@ -171,6 +216,12 @@ char *shahash(char *str)
     return (char *)final;
 }
 
+/**
+ * calculate the hex ASCII representation of the SHA-1 hash value for a given zero terminated string
+ *
+ * @param str the string for which the SHA-1 hash should be calculated
+ * @param hashbuf where the result string can be written to
+ */
 void shahash_r(const char* str, char hashbuf[41])
 {
     int x;

@@ -53,6 +53,15 @@
  * <panos@alumni.cs.colorado.edu> for xinetd.
  */
 
+/**
+ * @file snprintf.c
+ * @brief implement snprintf if not present in the libc
+ *
+ * snprintf is not implemented by all libc implementations, this file implements this
+ * function, if it is not already present. You should not call any of the functions
+ * in this file directly!
+ */
+
 #include <jabberdlib.h>
 
 #if !defined(HAVE_SNPRINTF) || !defined(HAVE_VSNPRINTF)
