@@ -29,12 +29,12 @@ typedef struct csock_st
 /* socket manager instance */
 typedef struct smi_st
 {
-    pth_msgport_t wmp;
-    csock conns;
     instance i;
+    csock conns;
     xmlnode cfg;
+    pth_msgport_t wmp;
     char *host;
-    int asock;  /* sock we accept connections on */
+    int asock;  /* socket we accept connections on */
 } *smi, _smi;
 
 /* simple wrapper around the pth messages to pass packets */
@@ -42,7 +42,7 @@ typedef struct
 {
     pth_message_t head; /* the standard pth message header */
     dpacket p;
-    csock r;
+    csock c;
 } *drop, _drop;
 
 result pthsock_client_packets(instance id, dpacket p, void *arg)
@@ -72,7 +72,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
             {
                 d = pmalloc(xmlnode_pool(p->x),sizeof(_drop));
                 d->p = p;
-                d->r = cur;
+                d->c = cur;
                 pth_msgport_put(si->wmp,(void*)d);
             }
             else
@@ -81,7 +81,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
             return r_DONE;
         }
 
-    /* don't bounce if its error 510 */
+    /* don't bounce if it's error 510 */
     if (*(xmlnode_get_name(p->x)) == 'm')
         if (j_strcmp(xmlnode_get_attrib(p->x,"type"),"error") == 0)
             if (j_strcmp(xmlnode_get_attrib(xmlnode_get_tag(p->x,"error"),"code"),"510") == 0)
@@ -220,11 +220,11 @@ void pthsock_client_close(csock c)
     c->state = state_CLOSED;
 }
 
-int pthsock_client_write(csock r, dpacket p)
+int pthsock_client_write(csock c, dpacket p)
 {
     char *block;
 
-    log_debug(ZONE,"message for %d",r->sock);
+    log_debug(ZONE,"message for %d",c->sock);
 
     /* check to see if the session manager killed the session */
     if (*(xmlnode_get_name(p->x)) == 'm')
@@ -232,31 +232,39 @@ int pthsock_client_write(csock r, dpacket p)
             if (j_strcmp(xmlnode_get_attrib(xmlnode_get_tag(p->x,"error"),"code"),"510") == 0)
             {
                 log_debug(ZONE,"received disconnect message from session manager");
-                r->state = state_CLOSING;
-                pth_write(r->sock,"<stream:error>Disconnected</stream:error>",41);
+                if (c->state != state_CLOSED)
+                {
+                    c->state = state_CLOSED;
+                    if (pth_write(c->sock,"<stream:error>Disconnected</stream:error>",41) > 0)
+                        pth_write(c->sock,"</stream:stream>",16);
+                    close(c->sock);
+                    log_debug(ZONE,"done");
+                }
+                else
+                    log_debug(ZONE,"socket already closed");
                 return 0;
             }
 
-    if (r->state == state_UNKNOWN && *(xmlnode_get_name(p->x)) == 'i')
+    if (c->state == state_UNKNOWN && *(xmlnode_get_name(p->x)) == 'i')
     {
         if (j_strcmp(xmlnode_get_attrib(p->x,"type"),"result") == 0)
         {
-            if (j_strcmp(r->auth_id,xmlnode_get_attrib(p->x,"id")) == 0)
+            if (j_strcmp(c->auth_id,xmlnode_get_attrib(p->x,"id")) == 0)
             {
-                log_debug(ZONE,"auth for %d successful",r->sock);
+                log_debug(ZONE,"auth for %d successful",c->sock);
                 /* change the host id */
-                r->host = pstrdup(r->p,xmlnode_get_attrib(p->x,"sfrom"));
-                r->state = state_AUTHD;
+                c->host = pstrdup(c->p,xmlnode_get_attrib(p->x,"sfrom"));
+                c->state = state_AUTHD;
             }
             else
-                log_debug(ZONE,"reg for %d successful",r->sock);
+                log_debug(ZONE,"reg for %d successful",c->sock);
         }
         else
             /* they didn't get authed/registered */
             log_debug(ZONE,"user auth/registration falid");
     }
 
-    log_debug(ZONE,"writing %d",r->sock);
+    log_debug(ZONE,"writing %d",c->sock);
 
     xmlnode_hide_attrib(p->x,"sto");
     xmlnode_hide_attrib(p->x,"sfrom");
@@ -265,11 +273,14 @@ int pthsock_client_write(csock r, dpacket p)
     log_debug(ZONE,"<<<< %s",block);
 
     /* write the packet */
-    if(pth_write(r->sock,block,strlen(block)) <= 0)
+    if(pth_write(c->sock,block,strlen(block)) <= 0)
+    {
+        c->state = state_CLOSED;
+        /* bounce p->p */
         return 0;
+    }
 
-    pool_free(p->p);
-
+    pool_free(p->p);;
     return 1;
 }
 
@@ -347,22 +358,17 @@ void *pthsock_client_main(void *arg)
     fd_set rfds, afds;
     csock cur, c;
     drop d;
-    char buff[1024], *buf, *host;
-    int len, bufsz, asock, sock;
+    char buff[1024];
+    int len, asock, sock;
     struct sockaddr_in sa;
     size_t sa_size = sizeof(sa);
-   
-    asock = si->asock;
-    host = si->host;
-
-    bufsz = strlen(si->host) + 30;
-    buf = malloc(bufsz * sizeof(char));
-
-    wmp = si->wmp;
 
     t.timeout.tv_sec = 0;
     t.timeout.tv_usec = 20000;
     t.last.tv_sec = 0;
+
+    asock = si->asock;
+    wmp = si->wmp;
 
     wevt = pth_event(PTH_EVENT_MSG,wmp);
     tevt = pth_event(PTH_EVENT_FUNC,pthsock_client_time,&t,pth_time(0,20000));
@@ -431,7 +437,7 @@ void *pthsock_client_main(void *arg)
             rfds = afds;
         }
 
-        /* handle packets that need to be writen */
+        /* handle packets that need to be written */
         if (pth_event_occurred(wevt))
         {
             log_debug(ZONE,"write event");
@@ -441,19 +447,15 @@ void *pthsock_client_main(void *arg)
                 d = (drop)pth_msgport_get(wmp);
                 if (d == NULL) break;
 
-                c = d->r;
+                c = d->c;
                 if (c->state == state_CLOSING || c->state == state_CLOSED)
-                    continue;
-
-                if (pthsock_client_write(c,d->p) == 0)
                 {
-                    if (c->state != state_CLOSING)
-                    {
-                        log_debug(ZONE,"pth_write failed");
-                        /* bounce d->p */
-                    }
-                    pthsock_client_close(c);
+                    /* bounce */
+                    continue;
                 }
+
+                if (!pthsock_client_write(c,d->p))
+                    FD_CLR(c->sock,&rfds);
             }
         }
     }
