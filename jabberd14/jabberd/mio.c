@@ -122,7 +122,7 @@ int _mio_allow_check(const char *address)
         else
         {
             if(in_ip.s_addr == in_address.s_addr)
-                return 1; /* must be an exact match, if no netmask */
+                return 2; /* exact matches hold greater weight */
         }
     }
 
@@ -136,7 +136,7 @@ int _mio_deny_check(const char *address)
     xmlnode cur;
 
     if(xmlnode_get_tag(io, "deny") == NULL)
-        return 1; /* if there is no allow section, allow all */
+        return 0; /* if there is no allow section, allow all */
 
     for(cur = xmlnode_get_firstchild(io); cur != NULL; cur = xmlnode_get_nextsibling(cur))
     {
@@ -164,17 +164,17 @@ int _mio_deny_check(const char *address)
             inet_aton(netmask, &in_netmask);
             if((in_address.s_addr & in_netmask.s_addr) == (in_ip.s_addr & in_netmask.s_addr))
             { /* this ip is in the deny network */
-                return 0;
+                return 1;
             }
         }
         else
         {
             if(in_ip.s_addr == in_address.s_addr)
-                return 0; /* must be an exact match, if no netmask */
+                return 2; /* must be an exact match, if no netmask */
         }
     }
 
-    return 1;
+    return 0;
 }
 
 /*
@@ -382,6 +382,7 @@ mio _mio_accept(mio m)
     struct sockaddr_in serv_addr;
     size_t addrlen = sizeof(serv_addr);
     int fd;
+    int allow, deny;
     mio new;
 
     log_debug(ZONE, "_mio_accept calling accept on fd #%d", m->fd);
@@ -393,16 +394,12 @@ mio _mio_accept(mio m)
         return NULL;
     }
 
-    if(!_mio_allow_check(inet_ntoa(serv_addr.sin_addr)))
+    allow = _mio_allow_check(inet_ntoa(serv_addr.sin_addr));
+    deny  = _mio_deny_check(inet_ntoa(serv_addr.sin_addr));
+
+    if(deny >= allow)
     {
         log_warn("mio", "%s was denied access, due to the allow list of IPs", inet_ntoa(serv_addr.sin_addr));
-        close(fd);
-        return NULL;
-    }
-
-    if(!_mio_deny_check(inet_ntoa(serv_addr.sin_addr)))
-    {
-        log_warn("mio", "%s was denied access, due to the deny list of IPs", inet_ntoa(serv_addr.sin_addr));
         close(fd);
         return NULL;
     }
@@ -1010,23 +1007,12 @@ xmlnode mio_cleanup(mio m)
 {
     mio_wbq     cur;
     
-    if(m == NULL) 
+    if(m == NULL || m->queue == NULL) 
         return NULL;
 
     /* find the first queue item with a xmlnode attached */
     for(cur = m->queue; cur != NULL;)
     {
-        /* if there is no node attached */
-        if(cur->x == NULL)
-        {
-            /* just kill this item, and move on..
-             * only pop xmlnodes 
-             */
-            mio_wbq next = cur->next;
-            pool_free(cur->p);
-            cur = next;
-            continue;
-        }
 
         /* move the queue up */
         m->queue = cur->next;
@@ -1034,6 +1020,18 @@ xmlnode mio_cleanup(mio m)
         /* set the tail pointer if needed */
         if(m->queue == NULL)
             m->tail = NULL;
+
+        /* if there is no node attached */
+        if(cur->x == NULL)
+        {
+            /* just kill this item, and move on..
+             * only pop xmlnodes 
+             */
+            mio_wbq next = m->queue;
+            pool_free(cur->p);
+            cur = next;
+            continue;
+        }
 
         /* and pop this xmlnode */
         return cur->x;
