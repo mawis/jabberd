@@ -492,15 +492,15 @@ void base_accept_sink_cleanup(void *arg)
 
 /* A global hash table keyed by ip:port string, with xmlnode
  * values that store an vattrib list of instance id->sinks */
-HASHTABLE G_listeners = NULL;
-pool      G_pool      = NULL;
-int       ref__count  = 0;
+HASHTABLE G_listeners            = NULL;
+pool      G_pool                 = NULL;
+int       base_accept_ref__count = 0;
 
 void base_accept_cleanup(void *arg)
 {
-    ref__count--;
+    base_accept_ref__count--;
 
-    if(ref__count == 0)
+    if(base_accept_ref__count == 0)
     {
         pool_free(G_pool);
         ghash_destroy(G_listeners);
@@ -556,7 +556,7 @@ result base_accept_config(instance id, xmlnode x, void *arg)
     if(G_pool == NULL)
 	    G_pool = pool_new();
 
-    ref__count++;
+    base_accept_ref__count++;
     pool_cleanup(id->p, base_accept_sink_cleanup, (void*)s);
 
     log_debug(ZONE,"base_accept_config performing configuration %s\n",xmlnode2str(x));
