@@ -386,6 +386,21 @@ result deliver_config_uplink(instance i, xmlnode x, void *arg)
     return r_DONE;
 }
 
+/* NULL that sukkah! */
+result deliver_null(instance i, dpacket p, void* arg)
+{
+    pool_free(p->p);
+    return r_DONE;
+}
+result deliver_config_null(instance i, xmlnode x, void *arg)
+{
+    if(i == NULL)
+        return r_PASS;
+
+    register_phandler(i, o_DELIVER, deliver_null, NULL);
+    return r_DONE;
+}
+
 void deliver(dpacket p, instance i)
 {
     ilist a, b;
@@ -445,6 +460,7 @@ void deliver_init(void)
     register_config("ns",deliver_config_ns,NULL);
     register_config("logtype",deliver_config_logtype,NULL);
     register_config("uplink",deliver_config_uplink,NULL);
+    register_config("null",deliver_config_null,NULL);
 }
 
 /* register a function to handle delivery for this instance */
