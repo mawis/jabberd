@@ -9,6 +9,7 @@
     * connect.c: same
     * util/util.h: let jit_set() and nad_append_cdata() take const strings
     * util/nad.c: same
+    * clients.c: do not printf() debugging information, we closed stdin
 
 2004-03-26  Matthias Wimmer  <m@tthias.net>
 
