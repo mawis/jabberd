@@ -89,7 +89,7 @@ int main (int argc, char** argv)
     if(configurate(cfgfile))
         exit(1);
 
-    free(cfgfile);
+    if(cfgfile!=NULL)free(cfgfile);
 
     /* EPIPE is easier to handle than a signal */
     signal(SIGPIPE, SIG_IGN);
@@ -124,9 +124,11 @@ int main (int argc, char** argv)
         /* if it's not HUP, exit the loop */
         if(sig != SIGHUP) break;
 
+        log_notice(NULL,"SIGHUP recieved.  Reloading config file");
         /* XXX it was HUP, time to reload the config file */
     }
 
+    log_alert(NULL,"Recieved Kill.  Jabberd shutting down.");
     /* XXX we left the main loop, so we must have recieved a kill signal */
 
     /* XXX start the shutdown sequence */
