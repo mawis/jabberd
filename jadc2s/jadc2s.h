@@ -99,6 +99,7 @@ typedef enum {
  */
 typedef enum {
     type_NORMAL,/**< stone age Jabber protocol connection */
+    type_XMPP,  /**< XMPP1.0 connection */
     type_HTTP,	/**< stone age Jabber packet in a single HTTP request */
     type_FLASH	/**< stone age Jabber using the flash hack */
 } conn_type_t;
@@ -184,6 +185,9 @@ struct conn_st {
     unsigned long int out_bytes;/**< how many bytes have been written */
     unsigned int in_stanzas;	/**< how many stanzas have been read */
     unsigned int out_stanzas;	/**< how many stanzas have been written */
+
+    /* reset stream */
+    int reset_stream;		/**< if set to 1 the stream will be reset (restarted) */
 };
 
 /* conn happy/sad */
@@ -248,6 +252,8 @@ struct c2s_st
     /* setup */
     config_elem_t local_id;
     config_elem_t local_alias;
+    config_elem_t local_noregister;
+    config_elem_t local_nolegacyauth;
     char *local_ip;
     int local_port;
 #ifdef USE_SSL
@@ -261,6 +267,8 @@ struct c2s_st
     int ssl_enable_autodetect;
 
     SSL_CTX *ssl_ctx;
+
+    int tls_required;
 #endif
 
     xht config;			/**< our configuration */
