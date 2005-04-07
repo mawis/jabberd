@@ -206,6 +206,8 @@ int main(int argc, char **argv)
     /* XXX Change before release */
     c2s->local_id = config_get(c2s->config,"local.id");
     c2s->local_alias = config_get(c2s->config,"local.alias");
+    c2s->local_noregister = config_get(c2s->config,"local.noregister");
+    c2s->local_nolegacyauth = config_get(c2s->config,"local.nolegacyauth");
     c2s->local_ip = config_get_one(c2s->config, "local.ip", 0);
     c2s->local_port = j_atoi(config_get_one(c2s->config, "local.port", 0), 5222);
 #ifdef USE_SSL
@@ -289,8 +291,9 @@ int main(int argc, char **argv)
 
 #ifdef USE_SSL
     /* get the SSL port all set up */
-    if(c2s->local_sslport == 0 || c2s->pemfile == NULL)
-        log_write(c2s->log, LOG_WARNING, "ssl port or pem file not specified, ssl disabled");
+// XXX    if(c2s->local_sslport == 0 || c2s->pemfile == NULL)
+    if(c2s->pemfile == NULL)
+        log_write(c2s->log, LOG_WARNING, "ssl/tls pem file not specified, ssl disabled");
     else
     {
         /* init the OpenSSL library */
@@ -310,11 +313,13 @@ int main(int argc, char **argv)
 	{
             log_write(c2s->log, LOG_WARNING, "failed to load certificate from %s, ssl disabled", c2s->pemfile);
 	    log_ssl_errors(c2s->log, LOG_WARNING);
+	    c2s->ssl_ctx = NULL;
 	}
         else if(SSL_CTX_use_PrivateKey_file(c2s->ssl_ctx, c2s->pemfile, SSL_FILETYPE_PEM) != 1)
 	{
             log_write(c2s->log, LOG_WARNING, "failed to load private key from %s, ssl disabled", c2s->pemfile);
 	    log_ssl_errors(c2s->log, LOG_WARNING);
+	    c2s->ssl_ctx = NULL;
 	}
         else
         {
@@ -322,6 +327,7 @@ int main(int argc, char **argv)
 	    {
                 log_write(c2s->log, LOG_WARNING, "private key does not match certificate public key, ssl disabled");
 		log_ssl_errors(c2s->log, LOG_WARNING);
+		c2s->ssl_ctx = NULL;
 	    }
 	    else
 	    {
@@ -329,11 +335,14 @@ int main(int argc, char **argv)
 		{
 		    log_write(c2s->log, LOG_ERR, "non of the configured ciphers could be enabled, ssl disabled");
 		    log_ssl_errors(c2s->log, LOG_ERR);
+		    c2s->ssl_ctx = NULL;
 		}
-		if(mio_listen(c2s->mio, c2s->local_sslport, c2s->local_ip, client_io, (void*)c2s) < 0)
-		    log_write(c2s->log, LOG_ERR, "failed to listen on port %d!", c2s->local_sslport);
-		else
-		    log_write(c2s->log, LOG_NOTICE, "listening for ssl client connections on port %d", c2s->local_sslport);
+		if(c2s->local_sslport != 0 ) {
+		    if(mio_listen(c2s->mio, c2s->local_sslport, c2s->local_ip, client_io, (void*)c2s) < 0)
+			log_write(c2s->log, LOG_ERR, "failed to listen on port %d!", c2s->local_sslport);
+		    else
+			log_write(c2s->log, LOG_NOTICE, "listening for ssl client connections on port %d", c2s->local_sslport);
+		}
 	    }
         }
 

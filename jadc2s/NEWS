@@ -2,3 +2,4 @@
     * IPv6 support [mawis]
     * Sending and logging connection information [mawis]
     * Autotools-based build system [mawis]
+    * Support for STARTTLS

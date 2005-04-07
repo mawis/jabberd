@@ -51,13 +51,13 @@ static char header_start_flash[] = "<flash:stream xmlns='jabber:client' xmlns:st
 #endif
 
 /**
- * check if the host is valid to connect to or a valid alias
+ * check if the host is contained in a list of hosts
  *
  * @param config a configuration element containing valid hosts or valid aliases
  * @param host the host which should be checked
  * @return -1 if host invalid, if valid the index in the configuration is returned
  * */
-int _client_check_valid_host(config_elem_t config, const char* host)
+int _client_check_in_hostlist(config_elem_t config, const char* host)
 {
     int id;
 
@@ -86,7 +86,7 @@ int _client_root_attribute_to(conn_t c, const char *value) {
     log_debug(ZONE, "checking to: %s", value);
 
     /* check if the to attribute is a real host */
-    id = _client_check_valid_host(c->c2s->local_id, value);
+    id = _client_check_in_hostlist(c->c2s->local_id, value);
     if (id != -1)
     {
 	c->local_id = c->c2s->local_id->values[id];
@@ -96,7 +96,7 @@ int _client_root_attribute_to(conn_t c, const char *value) {
     /* if host not yet confirmed, check if there is an alias */
     if (c->local_id == NULL)
     {
-	id = _client_check_valid_host(c->c2s->local_alias, value);
+	id = _client_check_in_hostlist(c->c2s->local_alias, value);
 	if (id != -1)
 	{
 	    if (c->c2s->local_alias->attrs == NULL)
@@ -142,6 +142,35 @@ int _client_root_attribute_xmlns(conn_t c, const char *value) {
     return 0;
 }
 
+/**
+ * process the version attribute of the incoming stream root element
+ *
+ * @param c the connection of the stream
+ * @param value the value of the attribute
+ * @return 1 if we don't have to further process this element, 0 else
+ */
+int _client_root_attribute_version(conn_t c, const char *value) {
+    int version = 0;
+
+    /* stone age Jabber protocol */
+    if (value == NULL) {
+	return 0;
+    }
+
+    version = j_atoi(value, 0);
+    if (version >= 1) {
+	if (c->type == type_NORMAL) {
+	    c->type = type_XMPP;
+	} else {
+	    /* only accept XMPP streams if no hacks are active */
+	    conn_error(c, STREAM_ERR_BAD_FORMAT, "Please don't use HTTP headers or the Flash hack for XMPP streams");
+	    c->depth = -1;
+	    return 1;
+	}
+    }
+    return 0;
+}
+
 #ifdef FLASH_HACK
 /**
  * process the xmlns:flash 'attribute' of the incoming stream root element
@@ -183,7 +212,32 @@ int _client_root_attribute_stream_ns(conn_t c, const char *value) {
 }
 
 /**
- * send our own stream root element to the client
+ * check if it is possible to start a TLS layer
+ *
+ * @param c the connection to be checked
+ * @param host the host for which it should be checked
+ * @return 1 if it is possible to start a TLS layer, 0 if not
+ */
+int _client_check_tls_possible(conn_t c, const char *host) {
+#ifdef USE_SSL
+    /* SSL/TLS already active? */
+    if (c->ssl != NULL)
+	return 0;
+
+    /* is there an SSL context? */
+    if (c->c2s->ssl_ctx == NULL)
+	return 0;
+
+    /* no reason why it shouldn't be possible */
+    return 1;
+#else
+    /* without SSL/TLS support it's never possible */
+    return 0;
+#endif
+}
+
+/**
+ * send our own stream root element to the client, for XMPP streams also send the stream features
  *
  * @param c the connection on which we will sent the root element
  */
@@ -203,23 +257,43 @@ void _client_stream_send_root(conn_t c) {
 
     sprintf(header_id, " id='%s'", sid);
 
-    /* generate if for flash or not? */
+    /* generate which stream header? */
+    if (c->type == type_XMPP) {
+	header = malloc( strlen(header_start) + strlen(header_from) + strlen(header_id) + 16);
+	sprintf(header,"%s%s%s version='1.0'>",header_start,header_from,header_id);
+	c->root_element = root_element_NORMAL;
 #ifdef FLASH_HACK
-    if (c->type == type_FLASH) {
+    } else if (c->type == type_FLASH) {
 	header = malloc( strlen(header_start_flash) + strlen(header_from) + strlen(header_id) + 3);
 	sprintf(header,"%s%s%s/>",header_start_flash,header_from,header_id);
 	c->root_element = root_element_FLASH;
-    } else {
 #endif
+    } else {
 	header = malloc( strlen(header_start) + strlen(header_from) + strlen(header_id) + 2);
 	sprintf(header,"%s%s%s>",header_start,header_from,header_id);
 	c->root_element = root_element_NORMAL;
-#ifdef FLASH_HACK
     }
-#endif
 
     /* sent it to the client */
     _write_actual(c,c->fd,header,strlen(header));
+
+    /* send stream features */
+    if (c->type == type_XMPP) {
+	_write_actual(c, c->fd, "<stream:features>", 17);
+	if (_client_check_in_hostlist(c->c2s->local_noregister, header_from) == -1)
+	    _write_actual(c, c->fd, "<register xmlns='http://jabber.org/features/iq-register'/>", 58);
+	if (_client_check_in_hostlist(c->c2s->local_nolegacyauth, header_from) == -1)
+	    _write_actual(c, c->fd, "<auth xmlns='http://jabber.org/features/iq-auth'/>", 50);
+#ifdef USE_SSL
+	if (_client_check_tls_possible(c, header_from)) {
+	    if (!c->c2s->tls_required)
+		_write_actual(c, c->fd, "<starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/>", 51);
+	    else
+		_write_actual(c, c->fd, "<starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'><required/></starttls>", 72);
+	}
+#endif
+	_write_actual(c, c->fd, "</stream:features>", 18);
+    }
 
     /* free the memory we allocated */
     free(header);
@@ -284,6 +358,9 @@ void _client_stream_root(conn_t c, const char *name, const char **atts) {
 	    if(_client_root_attribute_stream_ns(c, atts[i+1]))
 		return;
 	    got_stream_namespace = 1;
+	} else if (j_strcmp(atts[i], "version") == 0) {
+	    if(_client_root_attribute_version(c, atts[i+1]))
+		return;
 	}
 
 	/* move to the next attribute */
@@ -537,9 +614,29 @@ void _client_process(conn_t c) {
     log_debug(ZONE, "tag(%.*s)", NAD_ENAME_L(chunk->nad, 0), NAD_ENAME(chunk->nad, 0));
 
     /* handle stoneage auth requests */
-    if((c->state != state_OPEN) && (j_strncmp(NAD_ENAME(chunk->nad, 0), "iq", 2) == 0)) {
+    if((c->state != state_OPEN) && (j_strncmp(NAD_ENAME(chunk->nad, 0), "iq", NAD_ENAME_L(chunk->nad, 0)) == 0)) {
 	if (_client_process_stoneage_auth(c, chunk))
 	    return;
+    }
+
+    /* handle starttls */
+    if ((c->state != state_OPEN) && (j_strncmp(NAD_ENAME(chunk->nad, 0), "starttls", NAD_ENAME_L(chunk->nad, 0)) == 0)) {
+#ifdef USE_SSL
+	if (!_client_check_tls_possible(c, c->local_id)) {
+	    _write_actual(c, c->fd, "<failure xmlns='urn:ietf:params:xml:ns:xmpp-tls'/></stream:stream>", 66);
+	    c->depth = -1;	/* flag to close the connection */
+	    return;
+	}
+	_write_actual(c, c->fd, "<proceed xmlns='urn:ietf:params:xml:ns:xmpp-tls'/>", 50);
+	c->ssl = SSL_new(c->c2s->ssl_ctx);
+	SSL_set_fd(c->ssl, c->fd);
+	SSL_accept(c->ssl);
+	c->reset_stream = 1;
+#else
+	_write_actual(c, c->fd, "<failure xmlns='urn:ietf:params:xml:ns:xmpp-tls'/></stream:stream>", 66);
+	c->depth = -1;	/* flag to close the connection */
+	return;
+#endif
     }
 
     /* send it */
@@ -683,6 +780,22 @@ int _client_autodetect_tls(int fd, conn_t c) {
 }
 #endif
 
+/**
+ * replace the parser for a connection
+ *
+ * @param c the connection for which we have to replace expat
+ */
+void _client_replace_parser(conn_t c) {
+    if (c->expat != NULL)
+	XML_ParserFree(c->expat);
+    c->expat = XML_ParserCreate(NULL);
+
+    /* set up expat callbacks */
+    XML_SetUserData(c->expat, (void*)c);
+    XML_SetElementHandler(c->expat, (void*)_client_startElement, (void*)_client_endElement);
+    XML_SetCharacterDataHandler(c->expat, (void*)_client_charData);
+}
+
 #ifdef FLASH_HACK
 /**
  * If we are handling a flash client, it has closed the root element of the stream
@@ -693,16 +806,9 @@ int _client_autodetect_tls(int fd, conn_t c) {
  *
  * @param c the connection for which we have to replace expat
  */
-void _client_replace_parser(conn_t c) {
+void _client_replace_parser_flash(conn_t c) {
     log_debug(ZONE,"Flash Hack... get rid of the old Parser, and make a new one... stupid Flash...");
-    XML_ParserFree(c->expat);
-    c->expat = XML_ParserCreate(NULL);
-
-    /* set up expat callbacks */
-    XML_SetUserData(c->expat, (void*)c);
-    XML_SetElementHandler(c->expat, (void*)_client_startElement, (void*)_client_endElement);
-    XML_SetCharacterDataHandler(c->expat, (void*)_client_charData);
-
+    _client_replace_parser(c);
     XML_Parse(c->expat, "<stream:stream>", 15, 0);
 
     /* we do not have to replace expat again */
@@ -830,8 +936,21 @@ int _client_io_read(mio_t m, int fd, conn_t c) {
      * expat things the complete document has been read.
      * We need a new instance of it. */
     if (c->flash_hack == 1)
-	_client_replace_parser(c);
+	_client_replace_parser_flash(c);
 #endif
+
+    if (c->reset_stream > 0) {
+	c->reset_stream = 0;
+	c->state = state_NONE;
+	c->type = type_NORMAL;
+	c->root_element = root_element_NONE;
+	c->local_id = NULL;
+	if (c->sid != NULL)
+	    free(c->sid);
+	c->sid = NULL;
+	_client_replace_parser(c);
+	c->depth = 0;
+    }
     
     log_debug(ZONE,"io action_READ with fd %d in state %d", fd, c->state);
 

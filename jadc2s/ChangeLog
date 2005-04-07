@@ -1,3 +1,9 @@
+2005-04-07  Matthias Wimmer  <m@tthias.net>
+
+    * clients.c: implemented STARTTLS
+    * jadc2s.c: same
+    * jadc2s.h: same
+
 2004-10-09  Matthias Wimmer  <m@tthias.net>
 
     * clients.c: Fixing problem reported by Pablo Herrero
