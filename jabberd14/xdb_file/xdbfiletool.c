@@ -108,10 +108,9 @@ int main(int argc, char **argv) {
 	return 0;
     }
 
-    if (argc == 6 && strcmp(argv[1], "get")==0) {
+    if ((argc == 7 && strcmp(argv[1], "set") == 0) || (argc == 6 && (strcmp(argv[1], "get")==0 || strcmp(argv[1], "del") == 0))) {
 	char *spoolfile = NULL;
 	xmlnode file = NULL;
-	char *tagdata = NULL;
 
 	host = strchr(argv[5], '@');
 	if (host == NULL) {
@@ -131,14 +130,47 @@ int main(int argc, char **argv) {
 	    return 4;
 	}
 
-	tagdata = xmlnode_get_tag_data(file, argv[2]);
+	if (strcmp(argv[1], "get") == 0) {
+	    char *tagdata = NULL;
 
-	if (tagdata == NULL) {
-	    fprintf(stderr, "No such data for this user.\n");
-	    return 4;
+	    tagdata = xmlnode_get_tag_data(file, argv[2]);
+
+	    if (tagdata == NULL) {
+		fprintf(stderr, "No such data for this user.\n");
+		return 4;
+	    }
+
+	    printf("%s\n", tagdata);
+	} else {
+	    xmlnode element = NULL;
+
+	    element = xmlnode_get_tag(file, argv[2]);
+
+	    if (element == NULL) {
+		fprintf(stderr, "No such element!\n");
+		return 5;
+	    }
+
+	    if (strcmp(argv[1], "del") == 0) {
+		/* for deletion we just hide */
+		xmlnode_hide(element);
+	    } else {
+		/* for update we hide only CDATA children and set new CDATA */
+		xmlnode iter_element = NULL;
+
+		for (iter_element = xmlnode_get_firstchild(element); iter_element!=NULL; iter_element = xmlnode_get_nextsibling(iter_element)) {
+		    if (xmlnode_get_type(iter_element) == NTYPE_CDATA) {
+			xmlnode_hide(iter_element);
+		    }
+		}
+		xmlnode_insert_cdata(element, argv[6], strlen(argv[6]));
+	    }
+
+	    /* write the file back */
+	    if (xmlnode2file_limited(spoolfile, file, 0) <= 0) {
+		fprintf(stderr, "Failed to write spoolfile\n");
+	    }
 	}
-
-	printf("%s\n", tagdata);
 	
 	return 0;
     }
@@ -147,6 +179,8 @@ int main(int argc, char **argv) {
 	printf("%s <user>\n", argv[0]);
 	printf("%s convert <basedir>\n", argv[0]);
 	printf("%s get ?xdbns=jabber:iq:auth hash|flat <basedir> <user>\n", argv[0]);
+	printf("%s set ?xdbns=jabber:iq:auth hash|flat <basedir> <user> <newvalue>\n", argv[0]);
+	printf("%s del ?xdbns=jabber:iq:auth hash|flat <basedir> <user>\n", argv[0]);
 	return 1;
     }
 
