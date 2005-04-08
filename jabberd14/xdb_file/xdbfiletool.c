@@ -66,6 +66,7 @@ void *so_h = NULL;
 /* functions in libjabberdxdbfile.so used */
 char* (*xdb_file_full)(int create, pool p, char *spl, char *host, char *file, char *ext, int use_subdirs);
 void (*xdb_convert_spool)(const char *spoolroot);
+xmlnode (*xdb_file_load)(char *host, char *fname, xht cache);
 
 int main(int argc, char **argv) {
     pool p;
@@ -94,6 +95,11 @@ int main(int argc, char **argv) {
 	fprintf(stderr, "Whilte loading xdb_convert_spool: %s\n", dlerror());
 	return 3;
     }
+    *(void **) (&xdb_file_load) = dlsym(so_h, "xdb_file_load");
+    if ((error = dlerror()) != NULL) {
+	fprintf(stderr, "Whilte loading xdb_file_load: %s\n", dlerror());
+	return 3;
+    }
 
     if (argc == 3 && strcmp(argv[1], "convert")==0) {
 	printf("Converting xdb_file's spool directories in %s ... this may take some time!\n", argv[2]);
@@ -102,9 +108,45 @@ int main(int argc, char **argv) {
 	return 0;
     }
 
+    if (argc == 6 && strcmp(argv[1], "get")==0) {
+	char *spoolfile = NULL;
+	xmlnode file = NULL;
+	char *tagdata = NULL;
+
+	host = strchr(argv[5], '@');
+	if (host == NULL) {
+	    printf("%s is no valid JID\n", argv[5]);
+	    return 2;
+	}
+	*(host++) = 0;
+	p = pool_new();
+
+	spoolfile = (*xdb_file_full)(0, p, argv[4], host, argv[5], "xml", j_strcmp(argv[3], "flat")==0 ? 0 : 1);
+
+	/* load the spool file */
+	file = (*xdb_file_load)(NULL, spoolfile, NULL);
+
+	if (file == NULL) {
+	    fprintf(stderr, "No such user.\n");
+	    return 4;
+	}
+
+	tagdata = xmlnode_get_tag_data(file, argv[2]);
+
+	if (tagdata == NULL) {
+	    fprintf(stderr, "No such data for this user.\n");
+	    return 4;
+	}
+
+	printf("%s\n", tagdata);
+	
+	return 0;
+    }
+
     if (argc != 2) {
 	printf("%s <user>\n", argv[0]);
 	printf("%s convert <basedir>\n", argv[0]);
+	printf("%s get ?xdbns=jabber:iq:auth hash|flat <basedir> <user>\n", argv[0]);
 	return 1;
     }
 
