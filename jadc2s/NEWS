@@ -1,5 +1,11 @@
     * Support for jabberd 1.4.x style alias handling [mawis]
     * IPv6 support [mawis]
     * Sending and logging connection information [mawis]
+    * Optional logging of client IP addresses [mawis]
     * Autotools-based build system [mawis]
-    * Support for STARTTLS
+    * Support for STARTTLS [mawis]
+    * SSL/TLS error logging [mawis]
+    * SSL/TLS autodetection on the SSL port (you can use unencrypted
+      connections to this port) [mawis]
+    * Preparation of JabberIDs according to stringprep profiles [mawis]
+    * XMPP style stream errors [mawis]
