@@ -33,6 +33,7 @@ CREATE UNIQUE INDEX jid ON presence (jid(16));
 
 CREATE TABLE messages (
     jid TEXT NOT NULL,
+    node VARCHAR(24),
     correspondent TEXT NOT NULL,
     type ENUM('offline', 'recv', 'sent') NOT NULL,
     storetime datetime NOT NULL,
