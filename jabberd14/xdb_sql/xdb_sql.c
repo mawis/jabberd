@@ -558,13 +558,26 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
 	    /* start the transaction */
 	    xdb_sql_execute(i, xq, "BEGIN", NULL, NULL);
 
-	    /* insert new values */
-	    query = xdb_sql_construct_query(ns_def->set, p->x);
-	    log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for insertion: %s", query);
-	    if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
-		/* SQL query failed */
-		xdb_sql_execute(i, xq, "ROLLBACK", NULL, NULL);
-		return r_ERR;
+	    /* delete matches */
+	    if (match != NULL) {
+		query = xdb_sql_construct_query(ns_def->delete, p->x);
+		log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for insert/match deletion: %s", query);
+		if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
+		    /* SQL query failed */
+		    xdb_sql_execute(i, xq, "ROLLBACK", NULL, NULL);
+		    return r_ERR;
+		}
+	    }
+
+	    /* insert new values if there are any */
+	    if (xmlnode_get_firstchild(p->x) != NULL) {
+		query = xdb_sql_construct_query(ns_def->set, p->x);
+		log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for insertion: %s", query);
+		if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
+		    /* SQL query failed */
+		    xdb_sql_execute(i, xq, "ROLLBACK", NULL, NULL);
+		    return r_ERR;
+		}
 	    }
 
 	    /* commit the transaction */
