@@ -208,6 +208,7 @@
         <feature var='jabber:iq:time'/>
         <feature var='jabber:iq:last'/>
         <feature var='jabber:iq:version'/>
+	<feature var='http://jabber.org/protocol/offline'/>
       </disco>
 
       <!--

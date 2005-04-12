@@ -231,7 +231,7 @@ int xstream_eat(xstream xs, char *buff, int len)
  */
 xmlnode xstream_header(char *namespace, char *to, char *from) {
     xmlnode x;
-    char id[10];
+    char id[11];
 
     sprintf(id,"%X",(int)time(NULL));
 
