@@ -1,5 +1,12 @@
-Upgrading from 1.4.3(.1) to 1.4.4
+Upgrading from 1.4.4 to 1.4.5
 -----------------------------
+
+The example template for handling of jabber:x:offline namespace in
+xdb_sql has changed to support Flexible Offline Message Retrieval.
+A new field "node VARCHAR(24)" is needed in the database table messages.
+
+Upgrading from 1.4.3(.1) to 1.4.4
+---------------------------------
 
 Some configuration defaults have been changed in the binary.
   xdb_file: keep data in memory for 3600 seconds (previously unlimited)
