@@ -91,7 +91,7 @@ mreturn mod_offline_message(mapi m, modoffline_conf conf)
 {
     session top;
     xmlnode cur = NULL, cur2;
-    char str[10];
+    char str[11];
 
     /* if there's an existing session, just give it to them */
     if((top = js_session_primary(m->user)) != NULL)
@@ -221,7 +221,7 @@ void mod_offline_out_available(mapi m)
     xmlnode opts, cur, x;
     int now = time(NULL);
     int expire, stored, diff;
-    char str[10];
+    char str[11];
     jpacket read_stanza = NULL;
 
     if (j_atoi(xmlnode_get_tag_data(m->packet->x, "priority"), 0) < 0) {

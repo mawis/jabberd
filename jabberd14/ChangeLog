@@ -1,3 +1,9 @@
+2005-04-12  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/lib/xstream.c: expected unixtime to have 9 digits only
+    * jsm/modules/mod_last.c: same
+    * jsm/modules/mod_offline.c: same
+
 2005-04-06  Matthias Wimmer  <m@tthias.net>
 
     * xdb_sql/xdb_sql.c: gcc 2.95.x fix
