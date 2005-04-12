@@ -5,7 +5,7 @@ dnl that is for most parts the jabberd2 configure script
 AC_PREREQ(2.50)
 
 AC_INIT(jabberd/jabberd.h)
-AM_INIT_AUTOMAKE(jabberd,1.4.4-RC-20050406)
+AM_INIT_AUTOMAKE(jabberd,1.4.4-RC-20050412)
 AM_CONFIG_HEADER(config.h)
 
 dnl helper macros

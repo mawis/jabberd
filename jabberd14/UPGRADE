@@ -1,5 +1,5 @@
 Upgrading from 1.4.3(.1) to 1.4.4
------------------------------
+---------------------------------
 
 Some configuration defaults have been changed in the binary.
   xdb_file: keep data in memory for 3600 seconds (previously unlimited)
