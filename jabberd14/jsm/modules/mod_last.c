@@ -67,7 +67,7 @@
 mreturn mod_last_server(mapi m, void *arg)
 {
     time_t start = time(NULL) - *(time_t*)arg;
-    char str[10];
+    char str[11];
     xmlnode last;
 
     /* pre-requisites */
@@ -97,7 +97,7 @@ mreturn mod_last_server(mapi m, void *arg)
 void mod_last_set(mapi m, jid to, char *reason)
 {
     xmlnode last;
-    char str[10];
+    char str[11];
 
     log_debug2(ZONE, LOGT_SESSION, "storing last for user %s",jid_full(to));
 
@@ -178,7 +178,7 @@ mreturn mod_last_reply(mapi m, void *arg)
 {
     xmlnode last;
     int lastt;
-    char str[10];
+    char str[11];
 
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
     if(!NSCHECK(m->packet->iq,NS_LAST)) return M_PASS;

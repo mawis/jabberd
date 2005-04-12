@@ -1,3 +1,13 @@
+2005-04-12  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/lib/xstream.c: expected unixtime to have 9 digits only
+    * jsm/modules/mod_last.c: same
+    * jabber.xml.dist.in: support for JEP-0013
+    * jabberd/lib/jabberdlib.h: same
+    * jabberd/lib/jutil.h: same
+    * jsm/modules/mod_offline.c: same
+    * jabberd/lib/str.h: declared parameters const
+
 2005-04-08  Matthias Wimmer  <m@tthias.net>
 
     * xdb_file/xdbfiletool.c: simple limited function to get data from xdb

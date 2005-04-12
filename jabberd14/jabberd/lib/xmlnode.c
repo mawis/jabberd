@@ -39,11 +39,24 @@
  * 
  * --------------------------------------------------------------------------*/
 
+/**
+ * @file xmlnode.c
+ * @brief handling of XML documents in a DOM like way
+ */
+
 #include <jabberdlib.h>
 
 /* Internal routines */
-xmlnode _xmlnode_new(pool p, const char* name, unsigned int type)
-{
+
+/**
+ * create a new xmlnode element
+ *
+ * @param p existing memory pool to use, if NULL a new memory pool will be created
+ * @param name name of the element to be created (ignored for NTYPE_CDATA)
+ * @param type type of the element to be created (NTYPE_CDATA, NTYPE_TAG, NTYPE_ATTRIB)
+ * @return the new xmlnode, NULL on failure
+ */
+xmlnode _xmlnode_new(pool p, const char* name, unsigned int type) {
     xmlnode result = NULL;
     if (type > NTYPE_LAST)
         return NULL;
@@ -51,8 +64,7 @@ xmlnode _xmlnode_new(pool p, const char* name, unsigned int type)
     if (type != NTYPE_CDATA && name == NULL)
         return NULL;
 
-    if (p == NULL)
-    {
+    if (p == NULL) {
         p = pool_heap(1*1024);
     }
 
@@ -67,13 +79,21 @@ xmlnode _xmlnode_new(pool p, const char* name, unsigned int type)
     return result;
 }
 
-static xmlnode _xmlnode_append_sibling(xmlnode lastsibling, const char* name, unsigned int type)
-{
+/**
+ * create a new xmlnode as a sibling of an existing xmlnode
+ *
+ * @note the sibling given as lastsibling has to be the last sibling in the list of siblings
+ *
+ * @param lastsibling last sibling in a list of siblings, where the new sibling should be added
+ * @param name name of the new sibling
+ * @param type type of the new sibling (NTYPE_TAG, NTYPE_CDATA, NTYPE_ATTRIB)
+ * @return the new xmlnode, NULL on failure
+ */
+static xmlnode _xmlnode_append_sibling(xmlnode lastsibling, const char* name, unsigned int type) {
     xmlnode result;
 
     result = _xmlnode_new(xmlnode_pool(lastsibling), name, type);
-    if (result != NULL)
-    {
+    if (result != NULL) {
         /* Setup sibling pointers */
         result->prev = lastsibling;
         lastsibling->next = result;
@@ -81,48 +101,61 @@ static xmlnode _xmlnode_append_sibling(xmlnode lastsibling, const char* name, un
     return result;
 }
 
-static xmlnode _xmlnode_insert(xmlnode parent, const char* name, unsigned int type)
-{
+/**
+ * create a new xmlnode as a child of an existing xmlnode
+ *
+ * The xmlnode may already contain child nodes, in that case the new xmlnode is added as a sibling to the existing childs.
+ *
+ * @param parent the xmlnode, that becomes parent of the new xmlnode
+ * @param name the name of the new sibling (ignored for NTYPE_CDATA)
+ * @param type type of the new sibling (NTYPE_TAG, NTYPE_CDATA, NTYPE_ATTRIB)
+ * @return the new xmlnode, NULL on failure
+ */
+static xmlnode _xmlnode_insert(xmlnode parent, const char* name, unsigned int type) {
     xmlnode result;
 
     if(parent == NULL || (type != NTYPE_CDATA && name == NULL)) return NULL;
 
     /* If parent->firstchild is NULL, simply create a new node for the first child */
-    if (parent->firstchild == NULL)
-    {
+    if (parent->firstchild == NULL) {
         result = _xmlnode_new(parent->p, name, type);
         parent->firstchild = result;
-    }
-    /* Otherwise, append this to the lastchild */
-    else
-    {
+    } else {
+	/* Otherwise, append this to the lastchild */
         result= _xmlnode_append_sibling(parent->lastchild, name, type);
     }
     result->parent = parent;
     parent->lastchild = result;
     return result;
-
 }
 
-static xmlnode _xmlnode_search(xmlnode firstsibling, const char* name, unsigned int type)
-{
+/**
+ * Walk the sibling list, looging for a xmlnode of the specified name and type
+ *
+ * @param firstsibling where to start seaching in a list of siblings
+ * @param name name of the sibling to search for
+ * @param type type of the sibling to search for
+ * @return found xmlnode or NULL if no such xmlnode
+ */
+static xmlnode _xmlnode_search(xmlnode firstsibling, const char* name, unsigned int type) {
     xmlnode current;
 
-    /* Walk the sibling list, looking for a NTYPE_TAG xmlnode with
-    the specified name */
-    current = firstsibling;
-    while (current != NULL)
-    {
-        if ((current->type == type) && (j_strcmp(current->name, name) == 0))
-            return current;
-        else
-            current = current->next;
+    /* iterate on the siblings */
+    for (current = firstsibling; current != NULL; current = current->next) {
+	if ((current->type == type) && (j_strcmp(current->name, name) == 0 || (current->name == NULL && name == NULL)))
+	    return current;
     }
+
+    /* nothing found */
     return NULL;
 }
 
-void _xmlnode_merge(xmlnode data)
-{
+/**
+ * merge multiple xmlnodes siblings of type NTYPE_CDATA to one xmlnode
+ *
+ * @param data first xmlnode in a list of NTYPE_CDATA siblings
+ */
+void _xmlnode_merge(xmlnode data) {
     xmlnode cur;
     char *merge, *scur;
     int imerge;
@@ -134,8 +167,7 @@ void _xmlnode_merge(xmlnode data)
 
     /* copy in current data and then spin through all of them and merge */
     scur = merge = pmalloc(data->p,imerge + 1);
-    for(cur = data; cur != NULL && cur->type == NTYPE_CDATA; cur = cur->next)
-    {
+    for(cur = data; cur != NULL && cur->type == NTYPE_CDATA; cur = cur->next) {
         memcpy(scur,cur->data,cur->data_sz);
         scur += cur->data_sz;
     }
@@ -154,8 +186,12 @@ void _xmlnode_merge(xmlnode data)
     
 }
 
-static void _xmlnode_hide_sibling(xmlnode child)
-{
+/**
+ * hide an xmlnode in a list of siblings (remove it from the list)
+ *
+ * @param child the xmlnode to hide
+ */
+static void _xmlnode_hide_sibling(xmlnode child) {
     if(child == NULL)
         return;
 
@@ -165,70 +201,94 @@ static void _xmlnode_hide_sibling(xmlnode child)
         child->next->prev = child->prev;
 }
 
-void _xmlnode_tag2str(spool s, xmlnode node, int flag)
-{
+/**
+ * Write a tag (including attributes) to a spool
+ *
+ * @param s spool to write the tag to
+ * @param node xmlnode for which a tag should be written
+ * @param flag 0 = write a empty-element tag, 1 = write a start-tag, 2 = write a end-tag
+ */
+void _xmlnode_tag2str(spool s, xmlnode node, int flag) {
     xmlnode tmp;
 
-    if(flag==0 || flag==1)
-    {
-	    spooler(s,"<",xmlnode_get_name(node),s);
-	    tmp = xmlnode_get_firstattrib(node);
-	    while(tmp) {
-	        spooler(s," ",xmlnode_get_name(tmp),"='",strescape(xmlnode_pool(node),xmlnode_get_data(tmp)),"'",s);
-	        tmp = xmlnode_get_nextsibling(tmp);
-	    }
-	    if(flag==0)
-	        spool_add(s,"/>");
-	    else
-	        spool_add(s,">");
-    }
-    else
-    {
-	    spooler(s,"</",xmlnode_get_name(node),">",s);
+    if(flag==0 || flag==1) {
+	/* tag that includes attributes */
+	spooler(s, "<", xmlnode_get_name(node), s);
+	
+	/* iterate on attributes and write them */
+	for (tmp = xmlnode_get_firstattrib(node); tmp != NULL; tmp = xmlnode_get_nextsibling(tmp)) {
+	    spooler(s, " ", xmlnode_get_name(tmp), "='", strescape(xmlnode_pool(node), xmlnode_get_data(tmp)), "'", s);
+	}
+
+	if(flag==0)
+	    spool_add(s,"/>");
+	else
+	    spool_add(s,">");
+    } else {
+	/* end tag does not include attributes */
+	spooler(s,"</",xmlnode_get_name(node),">",s);
     }
 }
 
-spool _xmlnode2spool(xmlnode node)
-{
+/**
+ * Print an xmlnode including child nodes to a (new) spool
+ *
+ * @note the xmlnode has to be of type NTYPE_TAG
+ *
+ * @param node the xmlnode to write
+ * @return spool where the xmlnode has been printed to
+ */
+spool _xmlnode2spool(xmlnode node) {
     spool s;
-    int level=0,dir=0;
+    int level=0;
+    int dir=0;	/* 0 = descending (writing start tags), ascending in the xmlnode tree */
     xmlnode tmp;
 
-    if(!node || xmlnode_get_type(node)!=NTYPE_TAG)
+    /* we don't print attributes or CDATA nodes as base nodes */
+    if (!node || xmlnode_get_type(node)!=NTYPE_TAG)
         return NULL;
 
     s = spool_new(xmlnode_pool(node));
-    if(!s) return(NULL);
+    if (!s)
+	return NULL;
 
-    while(1)
-    {
-        if(dir==0)
-        {
-    	    if(xmlnode_get_type(node) == NTYPE_TAG)
-            {
-                if(xmlnode_has_children(node))
-                {
+    while (1) {
+        if (dir==0) {
+	    /* we are descending in the tree, write start-tags */
+    	    if(xmlnode_get_type(node) == NTYPE_TAG) {
+		/* NTYPE_TAG nodes */
+                if(xmlnode_has_children(node)) {
+		    /* node has children, write start-tag and childrens */
                     _xmlnode_tag2str(s,node,1);
                     node = xmlnode_get_firstchild(node);
                     level++;
                     continue;
-                }else{
+                } else {
+		    /* node has no children, write empty tag */
                     _xmlnode_tag2str(s,node,0);
                 }
-            }else{
+            } else {
+		/* NTYPE_CDATA nodes */
                 spool_add(s,strescape(xmlnode_pool(node),xmlnode_get_data(node)));
             }
         }
 
+	/* check if there is another sibling we have to print */
     	tmp = xmlnode_get_nextsibling(node);
-        if(!tmp)
-        {
+        if(!tmp) {
+	    /* all siblings processed, write end-tag of the parent */
             node = xmlnode_get_parent(node);
             level--;
-            if(level>=0) _xmlnode_tag2str(s,node,2);
-            if(level<1) break;
+            if(level>=0)
+		_xmlnode_tag2str(s,node,2);
+	    /* complete xmlnode including children printed? */
+            if(level<1)
+		break;
+
+	    /* nothing to descend into ... we are ascending */
             dir = 1;
-        }else{
+        } else {
+	    /* sibling found where we descend again to */
             node = tmp;
             dir = 0;
         }

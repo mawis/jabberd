@@ -202,8 +202,7 @@ spool spool_new(pool p)
     return s;
 }
 
-void spool_add(spool s, char *str)
-{
+void spool_add(spool s, const char *str) {
     struct spool_node *sn;
     int len;
 
