@@ -297,7 +297,7 @@ typedef struct spool_struct
 spool spool_new(pool p); /* create a string pool */
 void spooler(spool s, ...); /* append all the char * args to the pool, terminate args with s again */
 char *spool_print(spool s); /* return a big string */
-void spool_add(spool s, char *str); /* add a single char to the pool */
+void spool_add(spool s, const char *str); /* add a single char to the pool */
 char *spools(pool p, ...); /* wrap all the spooler stuff in one function, the happy fun ball! */
 
 
@@ -773,6 +773,7 @@ typedef struct xterror_struct
 #define NS_XHTML     "http://www.w3.org/1999/xhtml"
 #define NS_DISCO_INFO "http://jabber.org/protocol/disco#info"
 #define NS_DISCO_ITEMS "http://jabber.org/protocol/disco#items"
+#define NS_FLEXIBLE_OFFLINE "http://jabber.org/protocol/offline"
 #define NS_IQ_AUTH    "http://jabber.org/features/iq-auth"
 #define NS_REGISTER_FEATURE "http://jabber.org/features/iq-register"
 
@@ -801,6 +802,7 @@ int     jutil_priority(xmlnode x);			 /* Determine priority of this packet */
 void    jutil_tofrom(xmlnode x);			 /* Swaps to/from fields on a packet */
 xmlnode jutil_iqresult(xmlnode x);			 /* Generate a skeleton iq/result, given a iq/query */
 char*   jutil_timestamp(void);				 /* Get stringified timestamp */
+char*   jutil_timestamp_ms(char *buffer);		 /* Get stringified timestamp including milliseconds */
 void    jutil_error(xmlnode x, terror E);		 /* Append an <error> node to x */
 void    jutil_error_xmpp(xmlnode x, xterror E);		 /* Append an <error> node to x using XMPP syntax */
 void	jutil_error_map(terror old, xterror *mapped);	 /* map an old terror structure to a new xterror structure */

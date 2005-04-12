@@ -42,7 +42,7 @@
 
 /**
  * @file mod_offline.c
- * @brief Handle offline messages to users (including message expiration (JEP-0023), that is DEPRICATED by JEP-0079, and message events (JEP-0022), that might become DEPRICATED by JEP-0085 or a successor)
+ * @brief Handle offline messages to users (including message expiration (JEP-0023), that is DEPRICATED by JEP-0079, message events (JEP-0022), that might become DEPRICATED by JEP-0085 or a successor, and flexible offline message retrieval (JEP-0013))
  * 
  * This module is responsible for checking if a message can be delivered to a user session
  * or if it has to be stored in xdb for later delivery.
@@ -53,6 +53,8 @@
  *
  * If a message is stored offline, this module will check if the sender wants to get an event and send it
  * if requested. (Message Events - JEP-0022)
+ *
+ * This module supports flexible offline message retrieval (JEP-0013)
  *
  * mod_offline must go before mod_presence
  *
@@ -74,6 +76,13 @@ typedef struct modoffline_conf_struct {
 } *modoffline_conf, _modoffline_conf;
 
 /**
+ * data that is held for a single session of a user
+ */
+typedef struct modoffline_session_struct {
+    int jep0013;			/**< 0 for message flood after available presence, 1 for jep0013 */
+} *modoffline_session, _modoffline_session;
+
+/**
  * handle a message to the user
  *
  * checks if the user has an active session, that gets messages (has a non-negative priority) and delivers the message.
@@ -87,35 +96,32 @@ typedef struct modoffline_conf_struct {
  * @param m the mapi structure
  * @return M_HANDLED if the message has been stored offline or delivered to a user's session, M_PASS if the message is expired or could not be stored offline
  */
-mreturn mod_offline_message(mapi m, modoffline_conf conf)
-{
+mreturn mod_offline_message(mapi m, modoffline_conf conf) {
     session top;
     xmlnode cur = NULL, cur2;
-    char str[10];
+    char str[11];
+    char timestamp[25];
 
     /* if there's an existing session, just give it to them */
-    if((top = js_session_primary(m->user)) != NULL)
-    {
+    if ((top = js_session_primary(m->user)) != NULL) {
         js_session_to(top,m->packet);
         return M_HANDLED;
     }
 
    /* look for event messages */
     for (cur = xmlnode_get_firstchild(m->packet->x); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
-        if(NSCHECK(cur,NS_EVENT))
-        {
-            if(xmlnode_get_tag(cur,"id") != NULL)
+        if (NSCHECK(cur,NS_EVENT)) {
+            if (xmlnode_get_tag(cur,"id") != NULL)
                 return M_PASS; /* bah, we don't want to store events offline (XXX: do we?) */
-            if(xmlnode_get_tag(cur,"offline") != NULL)
+            if (xmlnode_get_tag(cur,"offline") != NULL)
                 break; /* cur remaining set is the flag */
         }
     }
 
     log_debug2(ZONE, LOGT_DELIVER, "handling message for %s",m->user->user);
 
-    if((cur2 = xmlnode_get_tag(m->packet->x,"x?xmlns=" NS_EXPIRE)) != NULL)
-    {
-        if(j_atoi(xmlnode_get_attrib(cur2, "seconds"),0) == 0)
+    if ((cur2 = xmlnode_get_tag(m->packet->x,"x?xmlns=" NS_EXPIRE)) != NULL) {
+        if (j_atoi(xmlnode_get_attrib(cur2, "seconds"),0) == 0)
             return M_PASS; 
         
         sprintf(str,"%d",(int)time(NULL));
@@ -160,21 +166,24 @@ mreturn mod_offline_message(mapi m, modoffline_conf conf)
     /* stamp the message to keep information when it has been received */
     jutil_delay(m->packet->x,"Offline Storage");
 
-    if(xdb_act(m->si->xc, m->user->id, NS_OFFLINE, "insert", NULL, m->packet->x)) /* feed the message itself, and do an xdb insert */
+    /* add node id for flexible offline message retrieval */
+    xmlnode_put_attrib(m->packet->x, "node", jutil_timestamp_ms(timestamp));
+
+    if (xdb_act(m->si->xc, m->user->id, NS_OFFLINE, "insert", NULL, m->packet->x)) /* feed the message itself, and do an xdb insert */
         return M_PASS;
 
-    if(cur != NULL)
-    { /* if there was an offline event to be sent, send it for gosh sakes! */
+    if (cur != NULL) {
+	/* if there was an offline event to be sent, send it for gosh sakes! */
 
         jutil_tofrom(m->packet->x);
 
         /* erease everything else in the message */
-        for(cur2 = xmlnode_get_firstchild(m->packet->x); cur2 != NULL; cur2 = xmlnode_get_nextsibling(cur2))
-            if(cur2 != cur)
+        for (cur2 = xmlnode_get_firstchild(m->packet->x); cur2 != NULL; cur2 = xmlnode_get_nextsibling(cur2))
+            if (cur2 != cur)
                 xmlnode_hide(cur2);
 
         /* erase any other events */
-        for(cur2 = xmlnode_get_firstchild(cur); cur2 != NULL; cur2 = xmlnode_get_nextsibling(cur2))
+        for (cur2 = xmlnode_get_firstchild(cur); cur2 != NULL; cur2 = xmlnode_get_nextsibling(cur2))
             xmlnode_hide(cur2);
 
         /* fill it in and send it on */
@@ -182,7 +191,7 @@ mreturn mod_offline_message(mapi m, modoffline_conf conf)
         xmlnode_insert_cdata(xmlnode_insert_tag(cur,"id"),xmlnode_get_attrib(m->packet->x,"id"), -1);
         js_deliver(m->si, jpacket_reset(m->packet));
 
-    }else{
+    } else {
         xmlnode_free(m->packet->x);
     }
     return M_HANDLED;
@@ -201,9 +210,143 @@ mreturn mod_offline_message(mapi m, modoffline_conf conf)
  * @return M_IGNORE if no message stanza, M_PASS if the message already expired or could not stored offline, M_HANDLED if it has been delivered or stored offline
  */
 mreturn mod_offline_handler(mapi m, void *arg) {
-    if(m->packet->type == JPACKET_MESSAGE) return mod_offline_message(m, (modoffline_conf)arg);
+    if (m->packet->type == JPACKET_MESSAGE)
+	return mod_offline_message(m, (modoffline_conf)arg);
 
     return M_IGNORE;
+}
+
+/**
+ * remove a single message from offline storage
+ *
+ * @param m the mapi structure
+ * @param filter which message to remove, NULL for all messages
+ */
+void mod_offline_remove_message(mapi m, const char *filter) {
+    spool s = NULL;
+
+    if (m == NULL)
+	return;
+
+    if (filter == NULL) {
+	xdb_set(m->si->xc, m->user->id, NS_OFFLINE, NULL); /* can't do anything if this fails anyway :) */
+	return;
+    }
+
+    /* generate the node path for the message to delete */
+    s = spool_new(m->packet->p);
+    spool_add(s, "message?node=");
+    spool_add(s, filter);
+
+    log_debug2(ZONE, LOGT_STORAGE, "removing message by matched xdb: %s", spool_print(s));
+
+    /* replace this message with nothing */
+    xdb_act(m->si->xc, m->user->id, NS_OFFLINE, "insert", spool_print(s), NULL);
+}
+
+/**
+ * check if a message has expired
+ *
+ * @param m the mapi_struct
+ * @param message xmlnode containing the message
+ * @return 1 if the message has expired, 0 else
+ */
+int mod_offline_check_expired(mapi m, xmlnode message) {
+    int expire = 0;
+    int stored = 0;
+    int diff = 0;
+    char str[11];
+    int now = time(NULL);
+    xmlnode x = xmlnode_get_tag(message, "x?xmlns=" NS_EXPIRE);
+
+    /* messages without expire information will never expire */
+    if (x == NULL)
+	return 0;
+
+    /* check if it expired */
+    expire = j_atoi(xmlnode_get_attrib(x,"seconds"),0);
+    stored = j_atoi(xmlnode_get_attrib(x,"stored"),now);
+    diff = now - stored;
+    if (diff >= expire) {
+	char *node = xmlnode_get_attrib(message, "node");
+
+	log_debug2(ZONE, LOGT_DELIVER, "dropping expired message %s",xmlnode2str(message));
+
+	/* delete the message from offline storage */
+	if (node != NULL) {
+	    mod_offline_remove_message(m, node);
+	}
+
+	return 1;
+    }
+
+    sprintf(str, "%d", expire - diff);
+    xmlnode_put_attrib(x, "seconds", str);
+    xmlnode_hide_attrib(x, "stored");
+    return 0;
+}
+
+/**
+ * send out offline messages
+ *
+ * @param m the mapi structure
+ * @param filter NULL to send all messages, else send only message with that node id
+ * @param offline_element 0 to not include the offline element, 1 to send offline element from JEP-0013
+ * @return number of messages that were sent
+ */
+int mod_offline_send_messages(mapi m, const char *filter, int offline_element) {
+    xmlnode opts = NULL;
+    xmlnode cur = NULL;
+    int sent_messages = 0;
+
+    if ((opts = xdb_get(m->si->xc, m->user->id, NS_OFFLINE)) == NULL)
+        return 0;
+
+    /* check for msgs */
+    for (cur = xmlnode_get_firstchild(opts); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
+	xmlnode x = NULL;
+	jpacket read_stanza = NULL;
+
+	/* ignore CDATA between <message/> elements */
+	if (xmlnode_get_type(cur) != NTYPE_TAG)
+	    continue;
+
+	/* if there is a filter, only process messages matching the filter */
+	if (filter != NULL && j_strcmp(xmlnode_get_attrib(cur, "node"), filter) != 0) {
+	    continue;
+	}
+
+        /* check for expired stuff */
+	if (mod_offline_check_expired(m, cur)) {
+	    xmlnode_hide(cur);
+	    continue;
+	}
+
+	/* insert information for flexible offline message retrieval JEP-0013 */
+	if (offline_element != 0) {
+	    xmlnode offline = NULL;
+	    xmlnode item = NULL;
+
+	    offline = xmlnode_insert_tag(cur, "offline");
+	    xmlnode_put_attrib(offline, "xmlns", NS_FLEXIBLE_OFFLINE);
+
+	    item = xmlnode_insert_tag(offline, "item");
+	    xmlnode_put_attrib(item, "node", xmlnode_get_attrib(cur, "node"));
+	}
+
+	/* hide our node attribute, we added for flexible offline message retrieval handling */
+	xmlnode_hide_attrib(cur, "node");
+
+	/* send the message */
+	read_stanza = jpacket_new(xmlnode_dup(cur));
+	read_stanza->flag = PACKET_FROM_OFFLINE_MAGIC;
+	log_debug2(ZONE, LOGT_DELIVER, "js_session_to for %s", xmlnode2str(cur));
+        js_session_to(m->s,read_stanza);
+        xmlnode_hide(cur);
+    }
+
+    /* free the xdb result containing the messages */
+    xmlnode_free(opts);
 }
 
 /**
@@ -215,14 +358,13 @@ mreturn mod_offline_handler(mapi m, void *arg) {
  * user.
  *
  * @param m the mapi strcuture
+ * @param session_conf configuration data for the user's session
  */
-void mod_offline_out_available(mapi m)
-{
-    xmlnode opts, cur, x;
-    int now = time(NULL);
-    int expire, stored, diff;
-    char str[10];
-    jpacket read_stanza = NULL;
+void mod_offline_out_available(mapi m, modoffline_session session_conf) {
+    if (session_conf->jep0013) {
+	log_debug2(ZONE, LOGT_DELIVER, "session used Flexible Offline Message Retrieval (JEP-0013) not flooding messages");
+	return;
+    }
 
     if (j_atoi(xmlnode_get_tag_data(m->packet->x, "priority"), 0) < 0) {
 	log_debug2(ZONE, LOGT_DELIVER, "negative priority, not delivering offline messages");
@@ -231,57 +373,164 @@ void mod_offline_out_available(mapi m)
 
     log_debug2(ZONE, LOGT_DELIVER, "avability established, check for messages");
 
-    if((opts = xdb_get(m->si->xc, m->user->id, NS_OFFLINE)) == NULL)
-        return;
+    /* send out messages and delete them from offline storage */
+    if (mod_offline_send_messages(m, NULL, 0) > 0) {
+	mod_offline_remove_message(m, NULL);
+    }
+}
 
-    /* check for msgs */
-    for(cur = xmlnode_get_firstchild(opts); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
+/**
+ * handle requests for the list of offline messages
+ *
+ * @param m the mapi structure
+ */
+void mod_offline_out_get_message_list(mapi m) {
+    xmlnode offline_messages = NULL;
+    xmlnode cur = NULL;
+    xmlnode query = NULL;
+
+    /* get messages from xdb storage */
+    offline_messages = xdb_get(m->si->xc, m->user->id, NS_OFFLINE);
+
+    log_debug2(ZONE, LOGT_STORAGE, "got offline messages from xdb: %s", xmlnode2str(offline_messages));
+
+    jutil_iqresult(m->packet->x);
+    query = xmlnode_insert_tag(m->packet->x, "query");
+    xmlnode_put_attrib(query, "xmlns", NS_DISCO_ITEMS);
+    xmlnode_put_attrib(query, "node", NS_FLEXIBLE_OFFLINE);
+
+    /* iterate over the messages and add them to the result */
+    for (cur = xmlnode_get_firstchild(offline_messages); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
+	xmlnode item = NULL;
+
 	/* ignore CDATA between <message/> elements */
 	if (xmlnode_get_type(cur) != NTYPE_TAG)
 	    continue;
 
-        /* check for expired stuff */
-        if((x = xmlnode_get_tag(cur,"x?xmlns=" NS_EXPIRE)) != NULL)
-        {
-            expire = j_atoi(xmlnode_get_attrib(x,"seconds"),0);
-            stored = j_atoi(xmlnode_get_attrib(x,"stored"),now);
-            diff = now - stored;
-            if(diff >= expire)
-            {
-                log_debug2(ZONE, LOGT_DELIVER, "dropping expired message %s",xmlnode2str(cur));
-                xmlnode_hide(cur);
-                continue;
-            }
-            sprintf(str,"%d",expire - diff);
-            xmlnode_put_attrib(x,"seconds",str);
-            xmlnode_hide_attrib(x,"stored");
-        }
-	read_stanza = jpacket_new(xmlnode_dup(cur));
-	read_stanza->flag = PACKET_FROM_OFFLINE_MAGIC;
-	log_debug2(ZONE, LOGT_DELIVER, "js_session_to for %s", xmlnode2str(cur));
-        js_session_to(m->s,read_stanza);
-        xmlnode_hide(cur);
+	log_debug2(ZONE, LOGT_STORAGE, "processing message %s", xmlnode2str(cur));
+
+	/* check if the message expired */
+	if (mod_offline_check_expired(m, cur)) {
+	    xmlnode_hide(cur);
+	    continue;
+	}
+
+	/* add an item element */
+	item = xmlnode_insert_tag(query, "item");
+	xmlnode_put_attrib(item, "jid", jid_full(m->user->id));
+	xmlnode_put_attrib(item, "node", xmlnode_get_attrib(cur, "node"));
+	xmlnode_put_attrib(item, "name", xmlnode_get_attrib(cur, "from"));
     }
-    /* messages are gone, save the new sun-dried opts container */
-    xdb_set(m->si->xc, m->user->id, NS_OFFLINE, NULL); /* can't do anything if this fails anyway :) */
-    xmlnode_free(opts);
+    
+    jpacket_reset(m->packet);
+    js_deliver(m->si,m->packet);
+
+    if (offline_messages != NULL) {
+	xmlnode_free(offline_messages);
+    }
 }
 
 /**
- * callback that handles outgoing presences of the user, we are waiting for the user to come online
+ * process iqs that contain an offline element
+ * (retrieving and deleting offline messages)
+ *
+ * This function "consumes" the packet and frees it.
+ *
+ * @param m the mapi_struct
+ */
+mod_offline_out_handle_query(mapi m) {
+    xmlnode cur = NULL;
+    int subtype = jpacket_subtype(m->packet);
+    
+    /* iterate over the commands */
+    for (cur = xmlnode_get_firstchild(m->packet->iq); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
+	/* ignore CDATA between <message/> elements */
+	if (xmlnode_get_type(cur) != NTYPE_TAG)
+	    continue;
+
+	if (j_strcmp(xmlnode_get_name(cur), "purge") == 0 && subtype == JPACKET__SET) {
+	    /* purge command */
+	    xdb_set(m->si->xc, m->user->id, NS_OFFLINE, NULL); /* can't do anything if this fails anyway :) */
+	} else if (j_strcmp(xmlnode_get_name(cur), "fetch") == 0 && subtype == JPACKET__GET) {
+	    /* fetch all messages */
+	    mod_offline_send_messages(m, NULL, 1);
+	} else if (j_strcmp(xmlnode_get_name(cur), "item") == 0) {
+	    if (j_strcmp(xmlnode_get_attrib(cur, "action"), "view") == 0 && subtype == JPACKET__GET) {
+		/* view a single message */
+		mod_offline_send_messages(m, xmlnode_get_attrib(cur, "node"), 1);
+	    } else if (j_strcmp(xmlnode_get_attrib(cur, "action"), "remove") == 0 && subtype == JPACKET__SET) {
+		/* remove a single message */
+		mod_offline_remove_message(m, xmlnode_get_attrib(cur, "node"));
+	    }
+	}
+
+	log_debug2(ZONE, LOGT_STORAGE, "processing offline command %s", xmlnode2str(cur));
+    }
+
+    /* confirm that we processed the request */
+    jutil_iqresult(m->packet->x);
+    jpacket_reset(m->packet);
+    js_deliver(m->si, m->packet);
+}
+
+/**
+ * handle iq stanzas send by the user to himself ... check for JEP-0013 queries
+ *
+ * @param m the mapi structure
+ * @param session_conf configuration data for this users session
+ * @return M_HANDLED if the iq has been handled, M_PASS else
+ */
+mreturn mod_offline_out_iq(mapi m, modoffline_session session_conf) {
+    /* only packets sent by the user to himself */
+    if (m->packet->to != NULL)
+	return M_PASS;
+
+    /* handle requests for message list */
+    if (NSCHECK(m->packet->iq, NS_DISCO_ITEMS)) {
+	if (j_strcmp(xmlnode_get_attrib(m->packet->iq, "node"), NS_FLEXIBLE_OFFLINE) == 0) {
+	    if (jpacket_subtype(m->packet) == JPACKET__GET) {
+		/* don't flood messages on available presence */
+		session_conf->jep0013 = 1;
+
+		mod_offline_out_get_message_list(m);
+	    } else {
+		js_bounce_xmpp(m->si, m->packet->x, XTERROR_FORBIDDEN);
+	    }
+	    return M_HANDLED;
+	}
+    }
+
+    /* handle request for retrieving and deleting offline messages */
+    if (NSCHECK(m->packet->iq, NS_FLEXIBLE_OFFLINE)) {
+	if (j_strcmp(xmlnode_get_name(m->packet->iq), "offline") == 0) {
+	    /* don't flood messages on available presence */
+	    session_conf->jep0013 = 1;
+
+	    mod_offline_out_handle_query(m);
+	    return M_HANDLED;
+	}
+    }
+
+    return M_PASS;
+}
+
+/**
+ * callback that handles outgoing presences and iqs of the user, we are waiting for the user to come online
  *
  * if the user sends an available presence, we have to check for offline messages and send them to the user
  *
  * @param m the mapi structure
  * @param arg unused/ignored
- * @return M_IGNORE if the stanza is no presence, M_PASS else
+ * @return M_IGNORE if the stanza is no presence, M_HANDLED if we handled an iq query, M_PASS else
  */
-mreturn mod_offline_out(mapi m, void *arg)
-{
-    if(m->packet->type != JPACKET_PRESENCE) return M_IGNORE;
+mreturn mod_offline_out(mapi m, void *arg) {
+    if (m->packet->type == JPACKET_IQ)
+	return mod_offline_out_iq(m, (modoffline_session)arg);
 
-    if(js_online(m))
-        mod_offline_out_available(m);
+    if (m->packet->type != JPACKET_PRESENCE) return M_IGNORE;
+
+    if (js_online(m))
+        mod_offline_out_available(m, (modoffline_session)arg);
 
     return M_PASS;
 }
@@ -293,11 +542,16 @@ mreturn mod_offline_out(mapi m, void *arg)
  * @param arg unused/ignored
  * @return always M_PASS
  */
-mreturn mod_offline_session(mapi m, void *arg)
-{
+mreturn mod_offline_session(mapi m, void *arg) {
+    modoffline_session session_data = NULL;
+
     log_debug2(ZONE, LOGT_SESSION, "session init");
 
-    js_mapi_session(es_OUT, m->s, mod_offline_out, NULL);
+    /* allocate configuration data structure for this session */
+    session_data = (modoffline_session)pmalloco(m->s->p, sizeof(_modoffline_session));
+
+    /* register handler for packets the user sends */
+    js_mapi_session(es_OUT, m->s, mod_offline_out, session_data);
 
     return M_PASS;
 }

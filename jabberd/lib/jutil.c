@@ -278,6 +278,26 @@ char *jutil_timestamp(void)
 }
 
 /**
+ * get the present time as a textual timestamp in the format YYYY-MM-DDTHH:MM:SS.MMMZ
+ *
+ * @param buffer pointer to the place where the timestamp should be written, must have at least 25 characters
+ * @return pointer to the buffer
+ */
+char *jutil_timestamp_ms(char *buffer) {
+    struct timeval tv;
+    struct timezone tz;
+    struct tm *new_time = NULL;
+
+    gettimeofday(&tv, &tz);
+    new_time = gmtime(&(tv.tv_sec));
+    snprintf(buffer, 25, "%d-%02d-%02dT%02d:%02d:%02d.%03dZ", 1900+new_time->tm_year,
+	     new_time->tm_mon+1, new_time->tm_mday, new_time->tm_hour,
+	     new_time->tm_min, new_time->tm_sec, tv.tv_usec/1000);
+    
+    return buffer;
+}
+
+/**
  * map a terror structure to a xterror structure
  *
  * terror structures have been used in jabberd14 up to version 1.4.3 but
