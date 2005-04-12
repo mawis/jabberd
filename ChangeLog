@@ -6,6 +6,7 @@
     * jabberd/lib/jabberdlib.h: same
     * jabberd/lib/jutil.h: same
     * jsm/modules/mod_offline.c: same
+    * xdb_sql/xdb_sql.c: same
     * jabberd/lib/str.h: declared parameters const
 
 2005-04-08  Matthias Wimmer  <m@tthias.net>
