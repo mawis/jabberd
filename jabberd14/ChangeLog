@@ -1,3 +1,7 @@
+2005-04-16  Matthias Wimmer  <m@tthias.net>
+
+    * configure.in: version 1.4.4
+
 2005-04-12  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/lib/xstream.c: expected unixtime to have 9 digits only

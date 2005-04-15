@@ -1,0 +1,40 @@
+This is a list of XMPP/Jabber protocols, that relate to Jabber server
+implementations and their state in jabberd 1.4.4
+
+RFC 3920	XMPP Core				mostly
+RFC 3921	XMPP IM					mostly
+
+JEP-0004	Data Forms				-
+JEP-0011	Jabber Browsing				supported
+JEP-0012	Last Activity				supported
+JEP-0013	Flexible Offline Message Retrieval	-
+JEP-0018	Invisible Presence			supported
+JEP-0022	Message Events				supported
+JEP-0023	Message Expiration			supported
+JEP-0030	Service Discovery			supported
+JEP-0045	Multi-User Chat				(by add-on)
+JEP-0049	Private XML Storage			supported
+JEP-0050	Ad-Hoc Commands				-
+JEP-0054	vcard-temp				supported
+JEP-0055	Jabber Search				(by add-on)
+JEP-0060	Publish-Subscribe			(by add-on)
+JEP-0065	SOCKS5 Bytestreams			(by add-on)
+JEP-0077	In-Band Registration			mostly
+JEP-0078	Non-SASL Authentication			supported
+JEP-0079	Advanced Message Processing		-
+JEP-0086	Error Condition Mappings		supported
+JEP-0090	Entity Time				supported
+JEP-0091	Delayed Delivery			supported
+JEP-0092	Software Version			supported
+JEP-0093	Agent Information			supported
+JEP-0114	Jabber Component Protocol		supported
+JEP-0124	HTTP Binding				-
+JEP-0133	Service Administration			-
+
+
+Additional features supported by jabberd 1.4.4 (without plugins):
+
+- Server admin address
+- Offline message storage
+- Message archiving
+- Storage in files, MySQL, PostreSQL

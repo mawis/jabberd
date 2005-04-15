@@ -6,9 +6,9 @@
   managed by jabberd, the server daemon. Most of the important 
   sections have comments and are easy to modify.
 
-  At http://jabberd.jabberstudio.org/1.4/ you find further
-  instructions including an annotated version of this con-
-  figuration file and an installation guide.
+  At http://jabberd.org/1.4/ you find further instructions
+  including an annotated version of this configuration file
+  and an installation guide.
   
   Note that when you see a tag like "jabberd:cmdline", it's
   automatically replaced on startup with the command line flag
@@ -335,7 +335,7 @@
       (LDAP...).
       Switching from plain/digest to crypt needs manual work for
       existing accounts, the reverse is not possible.
-      http://jabberd.jabberstudio.org/1.4/doc/adminguide#security
+      http://jabberd.org/1.4/doc/adminguide#security
       -->
       <!-- mod_auth_digest: Password in clear text in storage,
            encrypted/hashed on the wire -->
@@ -419,6 +419,9 @@
   <xdb id="xdbsql">
     <host/>
     <ns>jabber:iq:auth</ns>
+    <ns>jabber:iq:last</ns>
+    <ns>jabber:iq:register</ns>
+    <ns>jabber:iq:roster</ns>
     <ns>jabber:x:offline</ns>
     <ns>http://jabberd.org/ns/history</ns>
     <ns>http://jabberd.org/ns/storedpresence</ns>
@@ -443,6 +446,30 @@
 	 </get>
 	 <set>INSERT INTO users (jid,password) VALUES ('{attribute::to}', '{password/text()}')</set>
 	 <delete>DELETE FROM users WHERE jid='{attribute::to}'</delete>
+      </handler>
+      <handler ns="jabber:iq:last">
+        <get>
+	  <query>SELECT xml FROM last WHERE jid='{attribute::to}'</query>
+	  <result><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
+	</get>
+	<set>INSERT INTO last (jid,xml) VALUES ('{attribute::to}', '{query}')</set>
+	<delete>DELETE FROM last WHERE jid='{attribute::to}'</delete>
+      </handler>
+      <handler ns="jabber:iq:register">
+        <get>
+          <query>SELECT SUBSTRING(jid, 1, INSTR(jid, '@')-1) as user,mailaddress FROM mailaddresses WHERE jid='{attribute::to}'</query>
+          <result><query xmlns='jabber:iq:roster'><name><value xmlns='http://jabberd.org/ns/xdbsql' value='1'/></name><email><value xmlns='http://jabberd.org/ns/xdbsql' value='2'/></email></query></result>
+          </get>
+          <set>INSERT INTO mailaddresses (jid, mailaddress, lastmodified) VALUES ('{attribute::to}', IF('{query/email/text()}'='', NULL, '{query/email/text()}'), now())</set>
+          <delete>DELETE FROM mailaddresses WHERE jid='{attribute::to}'</delete>
+      </handler>
+      <handler ns="jabber:iq:roster">
+        <get>
+          <query>SELECT xml FROM roster WHERE jid='{attribute::to}'</query>
+          <result><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
+        </get>
+        <set>INSERT INTO roster (jid,xml) VALUES ('{attribute::to}', '{query}')</set>
+        <delete>DELETE FROM roster WHERE jid='{attribute::to}'</delete>
       </handler>
       <handler ns="jabber:x:offline">
         <get>

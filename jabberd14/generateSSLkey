@@ -18,7 +18,7 @@ printf "If you want to change any of the settings, you'll need to\n";
 printf "either modify this script, or execute the commands herein\n";
 printf "by hand and make adjustments as needed.\n\n"
 printf "For further documentation, see the Admin Guide:\n"
-printf "http://jabberd.jabberstudio.org/1.4/doc/adminguide\n"
+printf "http://jabberd.org/1.4/doc/adminguide\n"
 printf "____________________________________________________________\n\n";
 printf "Press [Enter] when ready, [Ctrl]-C to abort";
 read input
