@@ -32,7 +32,7 @@ JEP-0124	HTTP Binding				-
 JEP-0133	Service Administration			-
 
 
-Additional features supported by jabberd 1.4.4 (without plugins):
+Additional features supported by jabberd 1.4.5-alpha (without plugins):
 
 - Server admin address
 - Offline message storage
