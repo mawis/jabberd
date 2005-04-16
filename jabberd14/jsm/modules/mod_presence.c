@@ -633,6 +633,18 @@ mreturn mod_presence_deliver(mapi m, void *arg)
 }
 
 /**
+ * delete stored presence on user deletion
+ *
+ * @param m the mapi_struct
+ * @param arg unused/ignored
+ * @return always M_PASS
+ */
+mreturn mod_presence_delete(mapi m, void *arg) {
+    xdb_set(m->si->xc, m->user->id, NS_JABBERD_STOREDPRESENCE, NULL);
+    return M_PASS;
+}
+
+/**
  * init the module, register callbacks
  *
  * builds a list of JabberIDs where presences should be blind carbon copied to.
@@ -670,4 +682,5 @@ void mod_presence(jsmi si)
 
     js_mapi_register(si,e_DELIVER, mod_presence_deliver, NULL);
     js_mapi_register(si,e_SESSION, mod_presence_session, (void*)conf);
+    js_mapi_register(si, e_DELETE, mod_presence_delete, NULL);
 }

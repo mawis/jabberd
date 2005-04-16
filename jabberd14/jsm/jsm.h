@@ -54,7 +54,7 @@
 #define SESSION_WAITERS 10
 
 #define HOSTS_PRIME 17	/**< set to a prime number larger then the average max # of hosts */
-#define USERS_PRIME 3001 /**<set to a  prime number larger then the average max # of users for any single host */
+#define USERS_PRIME 3001 /**<set to a prime number larger then the average max # of users */
 
 /** master event types */
 typedef int event;
@@ -65,8 +65,10 @@ typedef int event;
 #define e_SHUTDOWN 4  /**< event type: server is shutting down, last chance! */
 #define e_AUTH     5  /**< event type: authentication handlers */
 #define e_REGISTER 6  /**< event type: registration request */
+#define e_CREATE   7  /**< event type: create a user */
+#define e_DELETE   8  /**< event type: delete a user (remove data stored by the module for this user) */
 /* always add new event types here, to maintain backwards binary compatibility */
-#define e_LAST     7  /**< flag for the highest event type*/
+#define e_LAST     9  /**< flag for the highest event type*/
 
 /* session event types */
 #define es_IN      0  /**< session event type: for packets coming into the session */
@@ -128,6 +130,7 @@ struct jsmi_struct {
     instance i;			/**< jabberd's instance data for the jsm component */
     xmlnode config;		/**< jsm configuration */
     xht hosts;			/**< hash with hosts as keys and hashtables (key: user, value: udata_struct) as values */
+    xht sc_sessions;		/**< hash containing pointers to the udata_struct for sessions initiated by the session control protocol */
     xdbcache xc;		/**< xdbcache used to query xdb */
     mlist events[e_LAST];	/**< list of registered modules for the existing event types */
     pool p;			/**< memory pool for the instance */
@@ -155,6 +158,8 @@ struct udata_struct
 xmlnode js_config(jsmi si, char *query);
 
 udata js_user(jsmi si, jid id, xht ht);
+int js_user_create(jsmi si, jid id);
+int js_user_delete(jsmi si, jid id);
 void js_deliver(jsmi si, jpacket p);
 
 
@@ -181,6 +186,8 @@ struct session_struct {
     /* our routed id, and remote session id */
     jid route;		/**< our id to send packets to c2s for this session */
     jid sid;		/**< the id of the c2s 'user' that handles this session */
+    char *sc_c2s;	/**< the identifier for the session on c2s if session control protocol is used */
+    char *sc_sm;	/**< the identifier for the session on the session manager if session control protocol is used */
 
     struct session_struct *next; /**< pointer to the next list element of sessions, NULL for the last entry */
 };
@@ -192,6 +199,7 @@ struct session_struct {
 #define PACKET_FORCE_SENT_MAGIC 1836017748
 
 session js_session_new(jsmi si, dpacket p);
+session js_sc_session_new(jsmi si, dpacket p, xmlnode sc_session);
 void js_session_end(session s, char *reason);
 session js_session_get(udata user, char *res);
 session js_session_primary(udata user);

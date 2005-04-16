@@ -267,7 +267,7 @@ char *jutil_timestamp(void)
         return NULL;
     new_time = gmtime(&t);
 
-    ret = snprintf(timestamp, 18, "%d%02d%02dT%02d:%02d:%02d", 1900+new_time->tm_year,
+    ret = snprintf(timestamp, sizeof(timestamp), "%d%02d%02dT%02d:%02d:%02d", 1900+new_time->tm_year,
                    new_time->tm_mon+1, new_time->tm_mday, new_time->tm_hour,
                    new_time->tm_min, new_time->tm_sec);
 
@@ -280,17 +280,17 @@ char *jutil_timestamp(void)
 /**
  * get the present time as a textual timestamp in the format YYYY-MM-DDTHH:MM:SS.MMMZ
  *
- * @param buffer pointer to the place where the timestamp should be written, must have at least 25 characters
+ * @param buffer place where the timestamp should be written
  * @return pointer to the buffer
  */
-char *jutil_timestamp_ms(char *buffer) {
+char *jutil_timestamp_ms(char buffer[25]) {
     struct timeval tv;
     struct timezone tz;
     struct tm *new_time = NULL;
 
     gettimeofday(&tv, &tz);
     new_time = gmtime(&(tv.tv_sec));
-    snprintf(buffer, 25, "%d-%02d-%02dT%02d:%02d:%02d.%03dZ", 1900+new_time->tm_year,
+    snprintf(buffer, sizeof(buffer), "%d-%02d-%02dT%02d:%02d:%02d.%03dZ", 1900+new_time->tm_year,
 	     new_time->tm_mon+1, new_time->tm_mday, new_time->tm_hour,
 	     new_time->tm_min, new_time->tm_sec, tv.tv_usec/1000);
     
@@ -505,7 +505,7 @@ char *jutil_regkey(char *key, char *seed)
     if(key == NULL && seed != NULL)
     {
         /* create a random key hash and store it */
-        sprintf(strint,"%d",rand());
+        snprintf(strint, sizeof(strint), "%d", rand());
         strcpy(keydb[last],shahash(strint));
 
         /* store a hash for the seed associated w/ this key */

@@ -248,7 +248,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg)
 cdata pthsock_client_cdata(mio m, smi s__i)
 {
     cdata cd;
-    char *buf;
+    char buf[100];
 
     cd               = pmalloco(m->p, sizeof(_cdata));
     cd->pre_auth_mp  = pth_msgport_create("pre_auth_mp");
@@ -258,14 +258,12 @@ cdata pthsock_client_cdata(mio m, smi s__i)
     cd->m            = m;
     cd->si           = s__i;
 
-    buf = pmalloco(m->p, 100);
-
     /* HACK to fix race conditon */
-    snprintf(buf, 99, "%X", m);
+    snprintf(buf, sizeof(buf), "%X", m);
     cd->res = pstrdup(m->p, buf);
 
     /* we use <fd>@host to identify connetions */
-    snprintf(buf, 99, "%d@%s/%s", m->fd, s__i->host, cd->res);
+    snprintf(buf, sizeof(buf), "%d@%s/%s", m->fd, s__i->host, cd->res);
     cd->client_id = pstrdup(m->p, buf);
 
     return cd;

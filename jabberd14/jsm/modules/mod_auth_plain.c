@@ -208,6 +208,18 @@ mreturn mod_auth_plain_server(mapi m, void *arg) {
     return ret;
 }
 
+/**
+ * if a user is deleted, delete his authentication data
+ *
+ * @param m the mapi_struct
+ * @param arg unused/ignored
+ * @return always M_PASS
+ */
+mreturn mod_auth_plain_delete(mapi m, void *arg) {
+    xdb_set(m->si->xc, m->user->id, NS_AUTH, NULL);
+    xdb_set(m->si->xc, m->user->id, NS_AUTH_CRYPT, NULL); /* to be sure */
+    return M_PASS;
+}
 
 /**
  * register this module in the session manager
@@ -227,4 +239,5 @@ void mod_auth_plain(jsmi si)
     js_mapi_register(si, e_AUTH, mod_auth_plain_jane, NULL);
     js_mapi_register(si, e_SERVER, mod_auth_plain_server, NULL);
     if (js_config(si,"register") != NULL) js_mapi_register(si, e_REGISTER, mod_auth_plain_reg, "registered account");
+    js_mapi_register(si, e_DELETE, mod_auth_plain_delete, NULL);
 }
