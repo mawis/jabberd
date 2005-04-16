@@ -262,6 +262,19 @@ mreturn mod_auth_crypt_server(mapi m, void *arg) {
 }
 
 /**
+ * delete the password if a user is deleted
+ *
+ * @param m the mapi_struct
+ * @param arg unused/ignored
+ * @return always M_PASS
+ */
+mreturn mod_auth_crypt_delete(mapi m, void *arg) {
+    xdb_set(m->si->xc, m->user->id, NS_AUTH, NULL); /* to be sure */
+    xdb_set(m->si->xc, m->user->id, NS_AUTH_CRYPT, NULL);
+    return M_PASS;
+}
+
+/**
  * init the mod_auth_crypt module, register the callbacks with the Jabber session manager
  *
  * @param si the jsmi_struct containing session manager instance-internal data
@@ -272,4 +285,5 @@ void mod_auth_crypt(jsmi si) {
     js_mapi_register(si, e_AUTH, mod_auth_crypt_jane, NULL);
     js_mapi_register(si, e_SERVER, mod_auth_crypt_server, NULL);
     if (js_config(si,"register") != NULL) js_mapi_register(si, e_REGISTER, mod_auth_crypt_reg, NULL);
+    js_mapi_register(si, e_DELETE, mod_auth_crypt_delete, NULL);
 }

@@ -253,6 +253,18 @@ mreturn mod_vcard_server(mapi m, void *arg) {
 }
 
 /**
+ * delete a users vcard if the user is deleted
+ *
+ * @param m the mapi_struct
+ * @param arg unused/ignored
+ * @return always M_PASS
+ */
+mreturn mod_vcard_delete(mapi m, void *arg) {
+    xdb_set(m->si->xc, m->user->id, NS_VCARD, NULL);
+    return M_PASS;
+}
+
+/**
  * Init the module, register callbacks in the session manager
  *
  * Register mod_vcard_session to be called for new established sessions,
@@ -265,4 +277,5 @@ void mod_vcard(jsmi si) {
     js_mapi_register(si,e_SESSION,mod_vcard_session,NULL);
     js_mapi_register(si,e_OFFLINE,mod_vcard_reply,NULL);
     js_mapi_register(si,e_SERVER,mod_vcard_server,NULL);
+    js_mapi_register(si, e_DELETE, mod_vcard_delete, NULL);
 }

@@ -71,7 +71,7 @@ void *load_loader(char *file) {
     /* check for a load error */
     if(!so_h) {
         dlerr = dlerror();
-        snprintf(message, MAX_LOG_SIZE, "Loading %s failed: '%s'\n",file,dlerr);
+        snprintf(message, sizeof(message), "Loading %s failed: '%s'\n",file,dlerr);
         fprintf(stderr, "%s\n", message);
         return NULL;
     }
@@ -108,7 +108,7 @@ void *load_symbol(char *func, char *file) {
     if(dlerr != NULL)
     {
         /* pregenerate the error, since our stuff below may overwrite dlerr */
-        snprintf(message, MAX_LOG_SIZE, "Executing %s() in %s failed: '%s'\n",func,file,dlerr);
+        snprintf(message, sizeof(message), "Executing %s() in %s failed: '%s'\n",func,file,dlerr);
 
         /* ARG! simple stupid string handling in C sucks, there HAS to be a better way :( */
         /* AND no less, we're having to check for an underscore symbol?  only evidence of this is http://bugs.php.net/?id=3264 */

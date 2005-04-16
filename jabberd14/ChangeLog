@@ -1,3 +1,41 @@
+2005-04-16  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/lib/jabberdlib.h: support for the session control protocol
+    	documented in http://jabberd.jabberstudio.org/dev/docs/session.shtml,
+	new mapi events e_CREATE and e_DELETE for user creation/deletion
+    * jsm/deliver.c: same
+    * jsm/jsm.c: same
+    * jsm/jsm.h: same
+    * jsm/sessions.c: same
+    * jsm/users.c: same
+    * jsm/modules/mod_auth_crypt.c: same
+    * jsm/modules/mod_auth_plain.c: same
+    * jsm/modules/mod_browse.c: same
+    * jsm/modules/mod_filter.c: same
+    * jsm/modules/mod_last.c: same
+    * jsm/modules/mod_offline.c: same
+    * jsm/modules/mod_presence.c: same
+    * jsm/modules/mod_register.c: same
+    * jsm/modules/mod_roster.c: same
+    * jsm/modules/mod_vcard.c: same
+    * jsm/modules/mod_xml.c: same
+    * dialback/dialback.c: replace sprintf() usage by snprintf()
+    * jabberd/xdb.c: same
+    * jabberd/lib/crc32.c: same
+    * jabberd/lib/jutil.c: same
+    * jsm/modules/mod_admin.c: same
+    * dialback/dialback_in.c: use sizeof() as second argument to snprintf()
+    * dnsrv/srv_resolv.c: same
+    * jabberd/config.c: same
+    * jabberd/load.c: same
+    * jabberd/log.c: same
+    * jabberd/mio.c: same
+    * jabberd/xdb.c: same
+    * jabberd/lib/expat.c: same
+    * jabberd/lib/str.c: same
+    * pthsock/client.c: same
+    * jabberd/lib/xstream.c: don't use time() for id attribute generation
+
 2005-04-12  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/lib/xstream.c: expected unixtime to have 9 digits only

@@ -144,6 +144,7 @@ void jsm(instance i, xmlnode x)
     si->xc = xdb_cache(i); /* getting xdb_* handle and fetching config */
     si->config = xdb_get(si->xc, jid_new(xmlnode_pool(x),"config@-internal"),"jabber:config:jsm");
     si->hosts = xhash_new(j_atoi(xmlnode_get_tag_data(si->config,"maxhosts"),HOSTS_PRIME));
+    si->sc_sessions = xhash_new(j_atoi(xmlnode_get_tag_data(si->config,"maxusers"), USERS_PRIME));
     for(n=0;n<e_LAST;n++)
         si->events[n] = NULL;
 

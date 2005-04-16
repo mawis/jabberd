@@ -417,7 +417,7 @@ char *zonestr(char *file, int line)
     static char buff[64];
     int i;
 
-    i = snprintf(buff,63,"%s:%d",file,line);
+    i = snprintf(buff, sizeof(buff), "%s:%d", file, line);
     buff[i] = '\0';
 
     return buff;

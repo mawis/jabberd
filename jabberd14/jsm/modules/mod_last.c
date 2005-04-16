@@ -79,7 +79,7 @@ mreturn mod_last_server(mapi m, void *arg)
 
     last = xmlnode_insert_tag(m->packet->x,"query");
     xmlnode_put_attrib(last,"xmlns",NS_LAST);
-    sprintf(str,"%d",(int)start);
+    snprintf(str, sizeof(str), "%d", (int)start);
     xmlnode_put_attrib(last,"seconds",str);
 
     js_deliver(m->si,m->packet);
@@ -104,7 +104,7 @@ void mod_last_set(mapi m, jid to, char *reason)
     /* make a generic last chunk and store it */
     last = xmlnode_new_tag("query");
     xmlnode_put_attrib(last,"xmlns",NS_LAST);
-    sprintf(str,"%d",(int)time(NULL));
+    snprintf(str, sizeof(str), "%d", (int)time(NULL));
     xmlnode_put_attrib(last,"last",str);
     xmlnode_insert_cdata(last,reason,-1);
     xdb_set(m->si->xc, jid_user(to), NS_LAST, last);
@@ -212,7 +212,7 @@ mreturn mod_last_reply(mapi m, void *arg)
     {
         xmlnode_hide_attrib(last,"last");
         lastt = time(NULL) - lastt;
-        sprintf(str,"%d",lastt);
+        snprintf(str, sizeof(str), "%d", lastt);
         xmlnode_put_attrib(last,"seconds",str);
         xmlnode_insert_tag_node(m->packet->x,last);
     }
@@ -220,6 +220,18 @@ mreturn mod_last_reply(mapi m, void *arg)
 
     xmlnode_free(last);
     return M_HANDLED;
+}
+
+/**
+ * delete stored data if a user is deleted
+ *
+ * @param m the mapi_struct
+ * @param arg unused/ignored
+ * @return always M_PASS
+ */
+mreturn mod_last_delete(mapi m, void *arg) {
+    xdb_set(m->si->xc, m->user->id, NS_LAST, NULL);
+    return M_PASS;
 }
 
 /**
@@ -248,4 +260,5 @@ void mod_last(jsmi si)
     ttmp = pmalloc(si->p, sizeof(time_t));
     time(ttmp);
     js_mapi_register(si, e_SERVER, mod_last_server, (void *)ttmp);
+    js_mapi_register(si, e_DELETE, mod_last_delete, NULL);
 }
