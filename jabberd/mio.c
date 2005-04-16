@@ -907,7 +907,7 @@ void _mio_main(void *arg)
         if(FD_ISSET(mio__data->zzz[0],&rfds))
         {
 	    log_debug2(ZONE, LOGT_EXECFLOW, "got a notify on zzz");
-            pth_read(mio__data->zzz[0],buf,8192);
+            pth_read(mio__data->zzz[0], buf, sizeof(buf));
 	    mio__data->zzz_active = 0;
         }
 
@@ -923,7 +923,7 @@ void _mio_main(void *arg)
             xmlnode curx;
             curx = xmlnode_get_firstchild(xmlnode_get_tag(greymatter__,"io/announce"));
             /* XXX pth <1.4 doesn't have pth_* wrapper for recvfrom or sendto! */
-            len = recvfrom(bcast,buf,8192,0,(struct sockaddr*)&remote_addr,&addrlen);
+            len = recvfrom(bcast, buf, sizeof(buf), 0, (struct sockaddr*)&remote_addr, &addrlen);
 #ifdef WITH_IPV6
             log_debug2(ZONE, LOGT_IO, "ANNOUNCER: received some data from %s: %.*s",inet_ntop(AF_INET, &remote_addr.sin6_addr, addr_str, sizeof(addr_str)),len,buf);
 #else
@@ -933,7 +933,9 @@ void _mio_main(void *arg)
             for(; curx != NULL; curx = xmlnode_get_nextsibling(curx))
             {
                 if(xmlnode_get_type(curx) != NTYPE_TAG) continue;
-                len = snprintf(buf,8192,"%s",xmlnode2str(curx));
+                len = snprintf(buf, sizeof(buf), "%s", xmlnode2str(curx));
+		if (len >= sizeof(buf))
+		    len = sizeof(buf)-1; /* XXX snprintf returns what would have been written if enough space, but if we truncate we still have problems! */
                 log_debug2(ZONE, LOGT_IO, "announcement packet: %.*s",len,buf);
                 sendto(bcast,buf,len,0,(struct sockaddr*)&remote_addr,addrlen);
             }
@@ -1013,7 +1015,7 @@ void _mio_main(void *arg)
                 {
                     maxlen = KARMA_READ_MAX(cur->k.val);
 
-                    if(maxlen > 8191) maxlen = 8191;
+                    if(maxlen > sizeof(buf)-1) maxlen = sizeof(buf)-1;
 
                     len = (*(cur->mh->read))(cur, buf, maxlen);
 
@@ -1333,8 +1335,6 @@ void mio_write(mio m, xmlnode x, char *buffer, int len)
             memcpy(new->data,buffer,len);
             memcpy((new->data + len) - 1, "/>",3);
             len++;
-            /* THIS WAS DUMB, I'm just leaving it here to remind me of how dumb it was :)
-            sprintf(new->data,"%.*s/>",len-2,buffer); */
         }else{
             new->data = pmalloco(p,len+1);
             memcpy(new->data,buffer,len);

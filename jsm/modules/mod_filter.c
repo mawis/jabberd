@@ -833,6 +833,18 @@ mreturn mod_filter_shutdown(mapi m, void *arg) {
 }
 
 /**
+ * delete data stored for a user, if the user is deleted
+ *
+ * @param m the mapi_struct
+ * @param arg unused/ignored
+ * @return always M_PASS
+ */
+mreturn mod_filter_delete(mapi m, void *arg) {
+    xdb_set(m->si->xc, m->user->id, NS_FILTER, NULL);
+    return M_PASS;
+}
+
+/**
  * init mod_filter, register callbacks in the Jabber session manager and load the configuration (default rules)
  *
  * register mod_filter_handler as callback for the e_DELIVER event
@@ -859,4 +871,5 @@ void mod_filter(jsmi si) {
     js_mapi_register(si, e_DELIVER, mod_filter_handler, mod_filter__default);
     js_mapi_register(si, e_SESSION, mod_filter_session, NULL);
     js_mapi_register(si, e_SHUTDOWN, mod_filter_shutdown, mod_filter__default);
+    js_mapi_register(si, e_DELETE, mod_filter_delete, NULL);
 }

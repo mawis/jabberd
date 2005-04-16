@@ -237,6 +237,84 @@ result _js_routed_error_packet(instance i, dpacket p, jsmi si, xht ht, jpacket j
 }
 
 /**
+ * handle incoming route packets, that contain sc:session elements
+ * for the new session control protocol
+ *
+ * @param i the jsm instance we are running in
+ * @param p the route packet
+ * @param sc_session the xmlnode containing the sc:session element
+ * @param si the session manager instance
+ * @return always r_DONE
+ */
+result _js_routed_session_control_packet(instance i, dpacket p, xmlnode sc_session, jsmi si) {
+    char *action = xmlnode_get_attrib(sc_session, "action");
+
+    if (j_strcmp(action, "start") == 0) {
+	session s = js_sc_session_new(si, p, sc_session);
+	/* try to create the new session */
+	if (s == NULL) {
+	    /* session start failed */
+	    log_warn(p->host,"Unable to create session %s",jid_full(p->id));
+	    xmlnode_put_attrib(sc_session, "failed", "Session Failed");
+	} else {
+	    /* confirm the session */
+	    xmlnode_put_attrib(sc_session, "action", "started");
+	    xmlnode_put_attrib(sc_session, "sc:sm", s->sc_sm);
+	}
+    } else if (j_strcmp(action, "end") == 0) {
+	session s = NULL;
+
+	/* close existing session */
+	char *sc_sm = xmlnode_get_attrib(sc_session, "sc:sm");
+	udata u = (udata)xhash_get(si->sc_sessions, sc_sm);
+	if (sc_sm != NULL && u != NULL) {
+	    for (s = u->sessions; s != NULL; s = s->next) {
+		if (j_strcmp(sc_sm, s->sc_sm) == 0) {
+		    break;
+		}
+	    }
+	    if (s != NULL)
+		js_session_end(s, "Disconnected");
+	}
+
+	/* confirm closed session */
+	xmlnode_put_attrib(sc_session, "action", "ended");
+    } else if (j_strcmp(action, "create") == 0) {
+	/* notify modules */
+	jid user_id = jid_new(p->p, xmlnode_get_attrib(sc_session, "target"));
+	if (user_id != NULL) {
+	    js_user_create(si, user_id);
+    
+	    /* confirm creation */
+	    xmlnode_put_attrib(sc_session, "action", "created");
+	} else {
+	    xmlnode_put_attrib(sc_session, "failed", "no valid target");
+	}
+    } else if (j_strcmp(action, "delete") == 0) {
+	/* notify modules */
+	jid user_id = jid_new(p->p, xmlnode_get_attrib(sc_session, "target"));
+	if (user_id != NULL) {
+	    js_user_delete(si, user_id);
+	    
+	    /* confirm deletion */
+	    xmlnode_put_attrib(sc_session, "action", "deleted");
+	} else {
+	    xmlnode_put_attrib(sc_session, "failed", "no valid target");
+	}
+    } else {
+	/* unknown action */
+	log_warn(p->host, "Session control packet with unknown action: %s", action);
+	xmlnode_put_attrib(sc_session, "failed", "Unknown session control action");
+    }
+
+    /* reply */
+    jutil_tofrom(p->x);
+    deliver(dpacket_new(p->x), i);
+
+    return r_DONE;
+}
+
+/**
  * handle incoming <route/> packets, we get passed from jabberd
  *
  * @param i the jsm instance we are running in
@@ -251,6 +329,7 @@ result _js_routed_packet(instance i, dpacket p, jsmi si, xht ht) {
     char *type = NULL;		/* the type of the route packet: NULL, auth, session, or error */
     session s = NULL;		/* the session this packet is for */
     udata u = NULL;		/* the user's data */
+    char *sc_sm = NULL;		/* sc:sm attribute value for new session control protocol */
 
     type = xmlnode_get_attrib(p->x,"type");
 
@@ -266,6 +345,10 @@ result _js_routed_packet(instance i, dpacket p, jsmi si, xht ht) {
 	child = xmlnode_get_nextsibling(child);
     }
     
+    /* packets for the new session control protocol */
+    if (child != NULL && j_strcmp(xmlnode_get_name(child), "sc:session") == 0)
+	return _js_routed_session_control_packet(i, p, child, si);
+
     /* As long as we found one process */
     if (child != NULL)
 	jp = jpacket_new(child);
@@ -285,9 +368,24 @@ result _js_routed_packet(instance i, dpacket p, jsmi si, xht ht) {
 	return r_DONE;
     }
 
-    for(s = u->sessions; s != NULL; s = s->next)
-	if(j_strcmp(p->id->resource, s->route->resource) == 0)
-	    break;
+    /* find session using old or new c2s-sm-protocol? */
+    sc_sm = xmlnode_get_attrib(child, "sc:sm");
+    if (sc_sm == NULL) {
+	/* old protocol */
+	for (s = u->sessions; s != NULL; s = s->next)
+	    if(j_strcmp(p->id->resource, s->route->resource) == 0)
+		break;
+
+	/* hide routing attributes */
+	xmlnode_hide_attrib(child, "xmlns:sc");
+	xmlnode_hide_attrib(child, "sc:sm");
+	xmlnode_hide_attrib(child, "sc:c2s");
+    } else {
+	/* new session control protocol */
+	for (s = u->sessions; s != NULL; s = s->next)
+	    if (j_strcmp(sc_sm, s->sc_sm) == 0)
+		break;
+    }
 
     /* if it's an error */
     if(j_strcmp(type,"error") == 0)

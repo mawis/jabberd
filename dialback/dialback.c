@@ -76,7 +76,7 @@ char *dialback_randstr(void)
 {
     static char ret[41];
 
-    sprintf(ret,"%d",rand());
+    snprintf(ret, sizeof(ret), "%d", rand());
     shahash_r(ret,ret);
     return ret;
 }

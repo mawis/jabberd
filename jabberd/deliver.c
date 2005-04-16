@@ -629,7 +629,7 @@ void deliver_fail(dpacket p, char *err)
     {
     case p_LOG:
         /* stderr and drop */
-        snprintf(message, MAX_LOG_SIZE, "WARNING!  Logging Failed: %s\n",xmlnode2str(p->x));
+        snprintf(message, sizeof(message), "WARNING!  Logging Failed: %s\n", xmlnode2str(p->x));
         fprintf(stderr, "%s\n", message);
         pool_free(p->p);
         break;

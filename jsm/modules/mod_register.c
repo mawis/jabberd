@@ -197,69 +197,14 @@ mreturn mod_register_server(mapi m, void *arg)
         break;
 
     case JPACKET__SET:
-        if(xmlnode_get_tag(m->packet->iq,"remove") != NULL)
-        {
+        if(xmlnode_get_tag(m->packet->iq,"remove") != NULL) {
 	    xmlnode roster, cur;
 	    
             log_notice(m->user->id->server,"User Unregistered: %s",m->user->user);
 
-	    /* remove subscriptions */
-	    roster = xdb_get(m->si->xc, m->user->id, NS_ROSTER);
-	    for (cur = xmlnode_get_firstchild(roster); cur!=NULL; cur=xmlnode_get_nextsibling(cur)) {
-		int unsubscribe = 0, unsubscribed = 0;
-		jid peer;
-		char *subscription;
-		jpacket jp = NULL;
-
-		peer = jid_new(m->packet->p, xmlnode_get_attrib(cur, "jid"));
-		subscription = xmlnode_get_attrib(cur, "subscription");
-
-		log_debug2(ZONE, LOGT_ROSTER, "removing subscription %s (%s)", subscription, jid_full(peer));
-
-		if (subscription == NULL)
-		    continue;
-
-		/* unsubscribe for existing subscriptions */
-		if (j_strcmp(subscription, "to") == 0)
-		    unsubscribe = 1;
-		else if (j_strcmp(subscription, "from") == 0)
-		    unsubscribed = 1;
-		else if (j_strcmp(subscription, "both") == 0)
-		    unsubscribe = unsubscribed = 1;
-	
-		/* unsubscribe for requested subscriptions */
-		if (xmlnode_get_attrib(cur, "ask"))
-		    unsubscribe = 1;
-		if (xmlnode_get_attrib(cur, "subscribe"))
-		    unsubscribed = 1;
-
-		/* send the unsubscribe/unsubscribed requests */
-		if (unsubscribe) {
-		    xmlnode pp = jutil_presnew(JPACKET__UNSUBSCRIBE, jid_full(peer), NULL);
-		    xmlnode_put_attrib(pp, "from", jid_full(m->user->id));
-		    jp = jpacket_new(pp);
-		    jp->flag = PACKET_FORCE_SENT_MAGIC; /* we are removing the roster, sent anyway */
-		    js_deliver(m->si, jp);
-		}
-		if (unsubscribed) {
-		    xmlnode pp = jutil_presnew(JPACKET__UNSUBSCRIBED, jid_full(peer), NULL);
-		    xmlnode_put_attrib(pp, "from", jid_full(m->user->id));
-		    jp = jpacket_new(pp);
-		    jp->flag = PACKET_FORCE_SENT_MAGIC; /* we are removing the roster, sent anyway */
-		    js_deliver(m->si, jp);
-		}
-	    }
-
-            /* XXX BRUTE FORCE: remove the registration and auth and any misc data */
-            xdb_set(m->si->xc, m->user->id, NS_REGISTER, NULL);
-            xdb_set(m->si->xc, m->user->id, NS_AUTH, NULL);
-            xdb_set(m->si->xc, m->user->id, NS_AUTH_CRYPT, NULL);
-            xdb_set(m->si->xc, m->user->id, NS_PRIVATE, NULL);
-            xdb_set(m->si->xc, m->user->id, NS_ROSTER, NULL);
-            xdb_set(m->si->xc, m->user->id, NS_VCARD, NULL);
-            xdb_set(m->si->xc, m->user->id, NS_OFFLINE, NULL);
-            xdb_set(m->si->xc, m->user->id, NS_FILTER, NULL);
-        }else{
+	    /* let the modules remove their data for this user */
+	    js_user_delete(m->si, m->user->id);
+        } else {
             log_debug2(ZONE, LOGT_ROSTER, "updating registration for %s",jid_full(m->user->id));
 
             /* update the registration data */
@@ -267,7 +212,6 @@ mreturn mod_register_server(mapi m, void *arg)
             xmlnode_hide(xmlnode_get_tag(m->packet->iq,"password"));
             jutil_delay(m->packet->iq,"updated");
             xdb_set(m->si->xc, m->user->id, NS_REGISTER, m->packet->iq);
-
         }
         /* clean up and respond */
         jutil_iqresult(m->packet->x);
@@ -284,6 +228,19 @@ mreturn mod_register_server(mapi m, void *arg)
 }
 
 /**
+ * delete data in the jabber:iq:register namespace if a user is deleted
+ *
+ * @param m the mapi_struct
+ * @param arg unused/ignored
+ * @return always M_PASS
+ */
+mreturn mod_register_delete(mapi m, void *arg) {
+    xdb_set(m->si->xc, m->user->id, NS_REGISTER, NULL);
+    return M_PASS;
+}
+
+
+/**
  * init the module, register callbacks
  *
  * registers mod_register_new() as the callback for new user's registration requests,
@@ -291,9 +248,9 @@ mreturn mod_register_server(mapi m, void *arg)
  *
  * @param si the session manager instance
  */
-void mod_register(jsmi si)
-{
+void mod_register(jsmi si) {
     log_debug2(ZONE, LOGT_INIT, "init");
     js_mapi_register(si, e_REGISTER, mod_register_new, NULL);
     js_mapi_register(si, e_SERVER, mod_register_server, NULL);
+    js_mapi_register(si, e_DELETE, mod_register_delete, NULL);
 }

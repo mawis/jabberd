@@ -108,7 +108,7 @@ void xdb_deliver(instance i, xdbcache xc)
     xmlnode_put_attrib(x,"to",jid_full(xc->owner));
     xmlnode_put_attrib(x,"from",i->id);
     xmlnode_put_attrib(x,"ns",xc->ns);
-    sprintf(ids,"%d",xc->id);
+    snprintf(ids, sizeof(ids), "%d", xc->id);
     xmlnode_put_attrib(x,"id",ids); /* to track response */
     deliver(dpacket_new(x), i);
 }

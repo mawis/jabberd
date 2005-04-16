@@ -84,11 +84,11 @@ void _mod_admin_browse(xht h, const char *key, void *data, void *arg)
     spooler(sp,u->user," (",sp);
 
     /* insert extended data for the primary session */
-    sprintf(buff,"%d", (int)(t - s->started));
+    snprintf(buff, sizeof(buff), "%d", (int)(t - s->started));
     spooler(sp,buff,", ",sp);
-    sprintf(buff,"%d", s->c_out);
+    snprintf(buff, sizeof(buff), "%d", s->c_out);
     spooler(sp,buff,", ",sp);
-    sprintf(buff,"%d", s->c_in);
+    snprintf(buff, sizeof(buff), "%d", s->c_in);
     spooler(sp,buff,")",sp);
 
     xmlnode_put_attrib(x,"name",spool_print(sp));
@@ -160,11 +160,11 @@ void _mod_admin_who(xht ht, const char *key, void *data, void *arg)
         xmlnode_put_attrib(x,"xmlns","jabber:mod_admin:who");
 
         /* insert extended data */
-        sprintf(buff,"%d", (int)(t - s->started));
+        snprintf(buff, sizeof(buff), "%d", (int)(t - s->started));
         xmlnode_put_attrib(x,"timer",buff);
-        sprintf(buff,"%d", s->c_in);
+        snprintf(buff, sizeof(buff), "%d", s->c_in);
         xmlnode_put_attrib(x,"from",buff);
-        sprintf(buff,"%d", s->c_out);
+        snprintf(buff, sizeof(buff), "%d", s->c_out);
         xmlnode_put_attrib(x,"to",buff);
     }
 }
@@ -356,7 +356,7 @@ mreturn mod_admin_message(mapi m, void *arg)
 
         /* tack the jid onto the front of the list, depreciating old ones off the end */
         char njidlist[1024];
-        snprintf(njidlist,1024,"%s %s",jid_full(jid_user(m->packet->from)),jidlist);
+        snprintf(njidlist, sizeof(njidlist), "%s %s", jid_full(jid_user(m->packet->from)), jidlist);
         memcpy(jidlist,njidlist,1024);
 
 	/* hide original subject and body */

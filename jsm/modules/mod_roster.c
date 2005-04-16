@@ -591,6 +591,73 @@ mreturn mod_roster_s10n(mapi m, void *arg) {
 }
 
 /**
+ * delete the roster of a user if the user is deleted
+ *
+ * @param m the mapi_struct
+ * @param arg unused/ignored
+ * @return always M_PASS
+ */
+mreturn mod_roster_delete(mapi m, void *arg) {
+    xmlnode roster = NULL;
+    xmlnode cur = NULL;
+    pool p = pool_new();
+
+    /* remove subscriptions */
+    roster = xdb_get(m->si->xc, m->user->id, NS_ROSTER);
+    for (cur = xmlnode_get_firstchild(roster); cur!=NULL; cur=xmlnode_get_nextsibling(cur)) {
+	int unsubscribe = 0, unsubscribed = 0;
+	jid peer;
+	char *subscription;
+	jpacket jp = NULL;
+
+	peer = jid_new(p, xmlnode_get_attrib(cur, "jid"));
+	subscription = xmlnode_get_attrib(cur, "subscription");
+
+	log_debug2(ZONE, LOGT_ROSTER, "removing subscription %s (%s)", subscription, jid_full(peer));
+
+	if (subscription == NULL)
+	    continue;
+
+	/* unsubscribe for existing subscriptions */
+	if (j_strcmp(subscription, "to") == 0)
+	    unsubscribe = 1;
+	else if (j_strcmp(subscription, "from") == 0)
+	    unsubscribed = 1;
+	else if (j_strcmp(subscription, "both") == 0)
+	    unsubscribe = unsubscribed = 1;
+
+	/* unsubscribe for requested subscriptions */
+	if (xmlnode_get_attrib(cur, "ask"))
+	    unsubscribe = 1;
+	if (xmlnode_get_attrib(cur, "subscribe"))
+	    unsubscribed = 1;
+
+	/* send the unsubscribe/unsubscribed requests */
+	if (unsubscribe) {
+	    xmlnode pp = jutil_presnew(JPACKET__UNSUBSCRIBE, jid_full(peer), NULL);
+	    xmlnode_put_attrib(pp, "from", jid_full(m->user->id));
+	    jp = jpacket_new(pp);
+	    jp->flag = PACKET_FORCE_SENT_MAGIC; /* we are removing the roster, sent anyway */
+	    js_deliver(m->si, jp);
+	}
+	if (unsubscribed) {
+	    xmlnode pp = jutil_presnew(JPACKET__UNSUBSCRIBED, jid_full(peer), NULL);
+	    xmlnode_put_attrib(pp, "from", jid_full(m->user->id));
+	    jp = jpacket_new(pp);
+	    jp->flag = PACKET_FORCE_SENT_MAGIC; /* we are removing the roster, sent anyway */
+	    js_deliver(m->si, jp);
+	}
+    }
+    xmlnode_free(roster);
+
+    pool_free(p);
+
+    /* remove roster */
+    xdb_set(m->si->xc, m->user->id, NS_ROSTER, NULL);
+    return M_PASS;
+}
+
+/**
  * init the mod_roster module
  *
  * Register the following callbacks:
@@ -604,4 +671,5 @@ void mod_roster(jsmi si)
     /* we just register for new sessions */
     js_mapi_register(si,e_SESSION,mod_roster_session,NULL);
     js_mapi_register(si,e_DELIVER,mod_roster_s10n,NULL);
+    js_mapi_register(si, e_DELETE, mod_roster_delete, NULL);
 }

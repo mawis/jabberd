@@ -124,7 +124,7 @@ mreturn mod_offline_message(mapi m, modoffline_conf conf) {
         if (j_atoi(xmlnode_get_attrib(cur2, "seconds"),0) == 0)
             return M_PASS; 
         
-        sprintf(str,"%d",(int)time(NULL));
+        snprintf(str, sizeof(str), "%d", (int)time(NULL));
         xmlnode_put_attrib(cur2,"stored",str);
     }
 
@@ -280,7 +280,7 @@ int mod_offline_check_expired(mapi m, xmlnode message) {
 	return 1;
     }
 
-    sprintf(str, "%d", expire - diff);
+    snprintf(str, sizeof(str), "%d", expire - diff);
     xmlnode_put_attrib(x, "seconds", str);
     xmlnode_hide_attrib(x, "stored");
     return 0;
@@ -557,6 +557,19 @@ mreturn mod_offline_session(mapi m, void *arg) {
 }
 
 /**
+ * delete offline messages if a user gets deleted
+ *
+ * @param m the mapi_struct
+ * @param arg unused/ignored
+ * @return always M_PASS
+ */
+mreturn mod_offline_delete(mapi m, void *arg) {
+    /* XXX should we bounce the messages instead of just deleting them? */
+    xdb_set(m->si->xc, m->user->id, NS_OFFLINE, NULL);
+    return M_PASS;
+}
+
+/**
  * startup this module, register its callbacks
  *
  * two callbacks have to be registered: we have to receive the messages addressed to the user (mod_offline_handler)
@@ -587,4 +600,5 @@ void mod_offline(jsmi si) {
     log_debug2(ZONE, LOGT_INIT, "init");
     js_mapi_register(si,e_OFFLINE, mod_offline_handler, (void*)conf);
     js_mapi_register(si,e_SESSION, mod_offline_session, NULL);
+    js_mapi_register(si, e_DELETE, mod_offline_delete, NULL);
 }

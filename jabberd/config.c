@@ -202,7 +202,7 @@ void show_pid(xmlnode x)
         unlink(path);
     }
     pid = getpid();
-    snprintf(pidstr, 16, "%d", pid);
+    snprintf(pidstr, sizeof(pidstr), "%d", pid);
     write(fd, &pidstr, strlen(pidstr));
     close(fd);
 

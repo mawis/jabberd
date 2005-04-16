@@ -239,7 +239,7 @@ char* xmlnode_file_borked(char *file) {
         done = len < BUFSIZ;
         if(!XML_Parse(p, buf, len, done))
         {
-            snprintf(err,1023,"%s at line %d and column %d",XML_ErrorString(XML_GetErrorCode(p)),XML_GetErrorLineNumber(p),XML_GetErrorColumnNumber(p));
+            snprintf(err, sizeof(err), "%s at line %d and column %d", XML_ErrorString(XML_GetErrorCode(p)), XML_GetErrorLineNumber(p), XML_GetErrorColumnNumber(p));
             XML_ParserFree(p);
             close(fd);
             return err;

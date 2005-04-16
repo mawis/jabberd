@@ -296,6 +296,18 @@ mreturn mod_browse_server(mapi m, void *arg)
 }
 
 /**
+ * delete browse data for a user on user deletion
+ *
+ * @param m the mapi_struct
+ * @param arg unused/ignored
+ * @return always M_PASS
+ */
+mreturn mod_browse_delete(mapi m, void *arg) {
+    xdb_set(m->si->xc, m->user->id, NS_BROWSE, NULL);
+    return M_PASS;
+}
+
+/**
  * init the mod_browse module in the session manager
  * registers three callbacks: if a session is started, mod_browse_session should be called,
  * if an offline user gets a stanza, mod_browse_reply should be called,
@@ -308,6 +320,7 @@ void mod_browse(jsmi si)
     js_mapi_register(si,e_SESSION,mod_browse_session,NULL);
     js_mapi_register(si,e_OFFLINE,mod_browse_reply,NULL);
     js_mapi_register(si,e_SERVER,mod_browse_server,NULL);
+    js_mapi_register(si, e_DELETE, mod_browse_delete, NULL);
 }
 
 

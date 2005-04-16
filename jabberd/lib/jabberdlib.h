@@ -787,6 +787,8 @@ typedef struct xterror_struct
 #define NS_JABBERD_STOREDPRESENCE "http://jabberd.org/ns/storedpresence"
 #define NS_JABBERD_HISTORY "http://jabberd.org/ns/history"
 
+#define NS_SESSION "http://jabberd.jabberstudio.org/ns/session/1.0"
+
 
 /* --------------------------------------------------------- */
 /*                                                           */

@@ -231,9 +231,10 @@ int xstream_eat(xstream xs, char *buff, int len)
  */
 xmlnode xstream_header(char *namespace, char *to, char *from) {
     xmlnode x;
-    char id[11];
+    char id[41];
 
-    sprintf(id,"%X",(int)time(NULL));
+    snprintf(id, sizeof(id), "%08X%08X%08X%08X%08X", rand(), rand(), rand(), rand(), rand());
+    shahash_r(id, id); /* don't let them see what our rand() returns */
 
     x = xmlnode_new_tag("stream:stream");
     xmlnode_put_attrib(x, "xmlns:stream", "http://etherx.jabber.org/streams");
