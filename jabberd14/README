@@ -1,6 +1,7 @@
-jabberd 1.4.4
+jabberd 1.4.5
 =============
-http://jabberd.jabberstudio.org/1.4/
+
+http://jabberd.org/1.4/
 
 Welcome to the world of Jabber 1.4!
 
@@ -19,7 +20,7 @@ users of prior versions of this software.
   Installation instructions
 
     Read
-    http://jabberd.jabberstudio.org/1.4/doc/adminguide
+    http://jabberd.org/1.4/doc/adminguide
     for an in-depth installation guide!
 
   First, untar or move this folder into the final install location
