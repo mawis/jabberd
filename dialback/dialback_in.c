@@ -310,7 +310,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x)
         return;
     }
 
-    snprintf(strid, 9, "%X", m); /* for hashes for later */
+    snprintf(strid, sizeof(strid), "%X", m); /* for hashes for later */
 
     /* check stream version */
     version = j_atoi(xmlnode_get_attrib(x, "version"), 0);

@@ -108,7 +108,7 @@ void debug_log(char *zone, const char *msgfmt, ...)
 
     /* only add timestamps if writing to standard output */
     if (_debug_facility == -1) {
-	snprintf(message, MAX_LOG_SIZE, "%s %s ", debug_log_timestamp(), zone);
+	snprintf(message, sizeof(message), "%s %s ", debug_log_timestamp(), zone);
 	for (pos = message; *pos != '\0'; pos++); /* empty statement */
      
 	offset = pos - message;
@@ -118,7 +118,7 @@ void debug_log(char *zone, const char *msgfmt, ...)
     }
 
     va_start(ap, msgfmt);
-    vsnprintf(pos, MAX_LOG_SIZE - offset, msgfmt, ap);
+    vsnprintf(pos, sizeof(message) - offset, msgfmt, ap);
 #ifdef HAVE_SYSLOG
     if (_debug_facility == -1) {
 	fprintf(stderr,"%s\n", message);
@@ -147,7 +147,7 @@ void debug_log2(char *zone, const int type, const char *msgfmt, ...)
 
     /* only add timestamps if writing to standard output */
     if (_debug_facility == -1) {
-	snprintf(message, MAX_LOG_SIZE, "%s %s ", debug_log_timestamp(), zone);
+	snprintf(message, sizeof(message), "%s %s ", debug_log_timestamp(), zone);
 	for (pos = message; *pos != '\0'; pos++); /* empty statement */
      
 	offset = pos - message;
@@ -157,7 +157,7 @@ void debug_log2(char *zone, const int type, const char *msgfmt, ...)
     }
 
     va_start(ap, msgfmt);
-    vsnprintf(pos, MAX_LOG_SIZE - offset, msgfmt, ap);
+    vsnprintf(pos, sizeof(message) - offset, msgfmt, ap);
 #ifdef HAVE_SYSLOG
     if (_debug_facility == -1) {
 	fprintf(stderr,"%s\n", message);
@@ -198,7 +198,7 @@ void log_notice(char *host, const char *msgfmt, ...)
 
 
     va_start(ap, msgfmt);
-    vsnprintf(logmsg, 512, msgfmt, ap);
+    vsnprintf(logmsg, sizeof(logmsg), msgfmt, ap);
 
     logger("notice",host,logmsg);
 }
@@ -210,7 +210,7 @@ void log_warn(char *host, const char *msgfmt, ...)
 
 
     va_start(ap, msgfmt);
-    vsnprintf(logmsg, 512, msgfmt, ap);
+    vsnprintf(logmsg, sizeof(logmsg), msgfmt, ap);
 
     logger("warn",host,logmsg);
 }
@@ -222,7 +222,7 @@ void log_alert(char *host, const char *msgfmt, ...)
 
 
     va_start(ap, msgfmt);
-    vsnprintf(logmsg, 512, msgfmt, ap);
+    vsnprintf(logmsg, sizeof(logmsg), msgfmt, ap);
 
     logger("alert",host,logmsg);
 }
@@ -246,7 +246,7 @@ void log_generic(char *logtype, char *id, char *type, char *action, const char *
     }
 
     va_start(ap, msgfmt);
-    vsnprintf(logmsg, 512, msgfmt, ap);
+    vsnprintf(logmsg, sizeof(logmsg), msgfmt, ap);
 
     log = xmlnode_new_tag("log");
     xmlnode_put_attrib(log,"type", logtype);

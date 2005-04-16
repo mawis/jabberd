@@ -141,8 +141,7 @@ result js_users_gc(void *arg)
  *  @param ht the hash table for the host the user belongs to (may be NULL)
  *  @return the udata record for the user, NULL if no such user
  */
-udata js_user(jsmi si, jid id, xht ht)
-{
+udata js_user(jsmi si, jid id, xht ht) {
     pool p;
     udata cur, newu;
     char *ustr;
@@ -206,3 +205,34 @@ udata js_user(jsmi si, jid id, xht ht)
     return newu;
 }
 
+/**
+ * inform registered modules of a newly created user
+ *
+ * @param si the session manager instance
+ * @param id the jid of the new user
+ * @return 1 if the call was handled by a module, 0 if not
+ */
+int js_user_create(jsmi si, jid id) {
+    udata u = js_user(si, id, NULL); /* XXX: flag it as unconditional */
+    if (u != NULL) {
+	return js_mapi_call(si, e_CREATE, NULL, u, NULL);
+    }
+
+    return 0;
+}
+
+/**
+ * inform registered modules of a deleted user
+ *
+ * @param si the session manager instance
+ * @param id the jid of the deleted user
+ * @return 1 if the call was handled by a module, 0 if not
+ */
+int js_user_delete(jsmi si, jid id) {
+    udata u = js_user(si, id, NULL);
+    if (u != NULL) {
+	return js_mapi_call(si, e_DELETE, NULL, u, NULL);
+    }
+
+    return 0;
+}

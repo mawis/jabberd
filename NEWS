@@ -1,7 +1,13 @@
 Version 1.4.5 - not released yet
 
+Changes in administration of the server
+    * Jabberd14 now understands the protocol between c2s and session manager
+      components of jabberd2. This allows development and usage of
+      c2s components for both server implementations.
+
 Changes in features visible to the user
     * Support for Flexible Offline Message Retrieval (JEP-0013)
+
 
 Version 1.4.4 - 2005-04-16
 

@@ -241,6 +241,18 @@ mreturn mod_xml_session(mapi m, void *arg)
 }
 
 /**
+ * if a user is deleted, delete his stored data
+ *
+ * @param m the mapi structure
+ * @param arg unused/ignored
+ * @return always M_PASS
+ */
+mreturn mod_xml_delete(mapi m, void *arg) {
+    xdb_set(m->si->xc, m->user->id, NS_PRIVATE, NULL);
+    return M_PASS;
+}
+
+/**
  * init the mod_xml module by registering callbacks
  *
  * mod_xml_get will handle requests from other users
@@ -254,4 +266,5 @@ void mod_xml(jsmi si)
 {
     js_mapi_register(si,e_SESSION,mod_xml_session,NULL);
     js_mapi_register(si,e_OFFLINE,mod_xml_get,NULL);
+    js_mapi_register(si, e_DELETE, mod_xml_delete, NULL);
 }
