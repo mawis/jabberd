@@ -1,5 +1,11 @@
 This file contains a short introduction using SQL (MySQL or PostgreSQL)
-as storage for jabberd 1.4.4 RC1.
+as storage for jabberd 1.4.5.
+
+
+Note: SQL storage is disabled by default in the configuration file. You
+have to uncomment the xdbsql section in jabber.xml to enable SQL.
+
+
 
 The xdb_sql storage module does not define any database layout by itself,
 you define how your tables are organized yourself and can create queries
@@ -43,6 +49,29 @@ CREATE TABLE messages (
     xml TEXT NOT NULL);
 
 CREATE UNIQUE INDEX jid ON messages (jid(16));
+
+CREATE TABLE mailaddresses (
+    jid TEXT NOT NULL,
+    mailaddress TINYTEXT,
+    lastmodified datetime);
+
+CREATE UNIQUE INDEX jid ON mailaddresses (jid(16));
+
+CREATE TABLE last (
+    jid TEXT NOT NULL,
+    xml TEXT NOT NULL);
+
+CREATE UNIQUE INDEX jid ON last (jid(16));
+
+CREATE TABLE roster (
+    jid TEXT NOT NULL,
+    xml TEXT NOT NULL);
+
+CREATE UNIQUE INDEX jid ON roster (jid(16));
+
+Note: last activity data and the roster is stored unparsed if you use the
+example queries. It is planned for the next release of jabberd to store
+this data more SQL like (e.g. one record per roster item).
 
 
 If you use virtual hosting of multiple domains on your server, I would
@@ -99,6 +128,59 @@ For presence:
   </delete>
 </handler>
 
+For messages:
+
+<handler ns='jabber:x:offline'>
+  <get>
+    <query>SELECT xml FROM messages WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1) AND type='offline'</query>
+    <result group='foo'><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
+  </get>
+  <set>INSERT INTO messages (user, realm, node, correspondent, type, storetime, subject, body, xml) VALUES (SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1), SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1), IF('{message/attribute::node}'=='', NULL, '{message/attribute::node}'), REVERSE(SUBSTRING(REVERSE('{message/attribute::from}'), INSTR(REVERSE('{message/attribute::from}'), '/')+1)) , 'offline', now(), IF ('{message/subject}'='', NULL, '{message/subject/text()}'), '{message/body/text()}', '{message}')</set>
+  <delete>DELETE FROM messages WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1) AND type='offline'</delete>
+</handler>
+
+<handler ns='http://jabberd.org/ns/history'>
+  <get>
+    <query>SELECT xml FROM messages WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1) AND type!='offline'</query>
+    <result group='foo'><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
+  </get>
+  <set>INSERT INTO messages (user, realm, correspondent, type, storetime, delivertime, subject, body, xml) VALUES (SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1), SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1), IF ('{message/attribute::direction}'='sent', REVERSE(SUBSTRING(REVERSE('{message/attribute::to}'), INSTR(REVERSE('{message/attribute::to}'), '/')+1)), REVERSE(SUBSTRING(REVERSE('{message/attribute::from}'), INSTR(REVERSE('{message/attribute::from}'), '/')+1))), IF ('{message/attribute::direction}'='sent', 'sent', 'recv'), now(), IF ('{message/attribute::direction}'='sent', NULL, now()), '{message/subject/text()}', '{message/body/text()}', '{message}')</set>
+  <delete>DELETE FROM messages WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1)</delete>
+</handler>
+
+For registration data:
+
+<handler ns='jabber:iq:register'>
+  <get>
+    <query>SELECT user,mailaddress FROM mailaddresses WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}'</query>
+    <result><query xmlns='jabber:iq:roster'><name><value xmlns='http://jabberd.org/ns/xdbsql' value='1'/></name><email><value xmlns='http://jabberd.org/ns/xdbsql' value='2'/></email></query></result>
+  </get>
+  <set>INSERT INTO mailaddresses (user, realm, mailaddress, lastmodified) VALUES (SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1), SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1), IF('{query/email/text()}'='', NULL, '{query/email/text()}'), now())</set>
+  <delete>DELETE FROM mailaddresses WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1)</delete>
+</handler>
+
+For last activity data:
+
+<handler ns='jabber:iq:last'>
+  <get>
+    <query>SELECT xml FROM last WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}'</query>
+    <result><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
+  </get>
+  <set>INSERT INTO last (user, realm, xml) VALUES (SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1), SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1), '{query}')</set>
+  <delete>DELETE FROM last WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1)</delete>
+</handler>
+
+For roster data:
+
+<handler ns='jabber:iq:roster'>
+  <get>
+    <query>SELECT xml FROM roster WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}'</query>
+    <result><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
+  </get>
+  <set>INSERT INTO roster (user, realm, xml) VALUES (SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1), SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1), '{query}')</set>
+  <delete>DELETE FROM roster WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1)</delete>
+</handler>
+
 The corresponding tables are:
 
 CREATE TABLE users (
@@ -118,6 +200,41 @@ CREATE TABLE presence (
   status TEXT NOT NULL);
 
 CREATE UNIQUE KEY jid ON presence(realm(16), `user`(16));
+
+CREATE TABLE messages (
+  user TEXT NOT NULL,
+  realm TINYTEXT NOT NULL,
+  correspondent TEXT NOT NULL,
+  type ENUM('offline', 'recv', 'sent') NOT NULL,
+  storetime datetime NOT NULL,
+  delivertime datetime,
+  subject TINYTEXT,
+  body TEXT NOT NULL,
+  xml TEXT NOT NULL);
+
+CREATE UNIQUE KEY jid ON messages(realm(16), `user`(16));
+
+CREATE TABLE mailaddresses (
+  user TEXT NOT NULL,
+  realm TINYTEXT NOT NULL,
+  mailaddress TINYTEXT,
+  lastmodified datetime);
+
+CREATE UNIQUE KEY jid ON mailaddresses(realm(16), `user`(16));
+
+CREATE TABLE last (
+  user TEXT NOT NULL,
+  realm TINYTEXT NOT NULL,
+  xml TEXT NOT NULL);
+
+CREATE UNIQUE KEY jid ON last(realm(16), `user`(16));
+
+CREATE TABLE roster (
+  user TEXT NOT NULL,
+  realm TINYTEXT NOT NULL,
+  xml TEXT NOT NULL);
+
+CREATE UNIQUE KEY jid ON roster(realm(16), `user`(16));
 
 Note: How many characters you use in the key for the realm value depends
 on how many characters are needed to differentiate between all the domains

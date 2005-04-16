@@ -1,15 +1,19 @@
-jabberd 1.4.4
+jabberd 1.4.5
 =============
-- fix cygwin build
 
-later
-=====
+- privacy lists (XMPP)
+- SASL (XMPP)
+- flexible offline message retrieval (JEP-0013)
+- xdb_sql improvements
+
+jabberd 1.4.5 or later
+======================
+
+- fix cygwin build
 - allow <jabberd:include/> in configuration to include directories
   (including all files in the directory)
-- privacy lists (XMPP)
 - correct namespace handling (XMPP)
 - handling of xml:lang (XMPP)
-- SASL (XMPP)
 - allowing some actions only over secured connection (auth, register)
 - interface to call scripts on account deletion
 - admin interface especially to change user passwords (JEP-0133)
@@ -56,9 +60,9 @@ farming: meshing and hashed jid distribution
 c2s socket ioctl tweaks, r/w buffers, reduce data loss, shorten timeouts
 
 
-===================================
-2.0+
-===================================
+=====================================================
+2.0+ (jabberd 2.0 is something completely different!)
+=====================================================
 
 pthreads
 poll
