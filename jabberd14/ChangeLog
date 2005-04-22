@@ -1,3 +1,11 @@
+2005-04-22  Matthias Wimmer  <m@tthias.net>
+
+    * configure.in: version 1.4.4 GPL / require OpenSSL
+    * jsm/modules/mod_groups.c: removed
+    * jabberd/lib/snprintf.c: removed
+    * jabberd/lib/sha.c: reimplemented
+    * jabberd/lib/jabberdlib.h: reimplemented
+
 2005-04-16  Matthias Wimmer  <m@tthias.net>
 
     * configure.in: version 1.4.4

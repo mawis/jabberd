@@ -5,7 +5,7 @@ dnl that is for most parts the jabberd2 configure script
 AC_PREREQ(2.50)
 
 AC_INIT(jabberd/jabberd.h)
-AM_INIT_AUTOMAKE(jabberd,1.4.4-RC-20050412)
+AM_INIT_AUTOMAKE(jabberd,1.4.4-GPL)
 AM_CONFIG_HEADER(config.h)
 
 dnl helper macros
@@ -264,6 +264,7 @@ else
 	LDFLAGS="$LDFLAGS $JABBERD_SSL_LIBS $OPENSSL_LIBS"
     else
 	AC_MSG_RESULT(no)
+	AC_MSG_ERROR([This version of jabberd required to be linked against OpenSSL. (--enable-ssl or --with-ssl-legacy)])
     fi
 fi
 AC_SUBST(HAVE_SSL)
@@ -370,7 +371,6 @@ AC_DEFINE_DIR(CONFIG_DIR,sysconfdir,[where the configuration file can be found])
 
 dnl Create the makefiles
 AC_OUTPUT(Makefile \
-	  ac-helpers/Makefile \
 	  jabberd/Makefile \
 	  jabberd/base/Makefile \
 	  jabberd/lib/Makefile \
