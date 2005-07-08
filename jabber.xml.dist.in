@@ -307,7 +307,9 @@
       <mod_useridpolicy>
         <!-- usernames that are not available for registration -->
         <forbidden>admin</forbidden>
+	<forbidden>administrator</forbidden>
 	<forbidden>chatmaster</forbidden>
+	<forbidden>hostmaster</forbidden>
 	<forbidden>jabbermaster</forbidden>
 	<forbidden>postmaster</forbidden>
 	<forbidden>root</forbidden>
