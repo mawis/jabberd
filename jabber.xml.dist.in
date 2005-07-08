@@ -299,6 +299,25 @@
 	<error/>
       </mod_offline>
       -->
+
+      <!--
+      Configuration of mod_useridpolicy: block some usernames
+      from being registered
+      -->
+      <mod_useridpolicy>
+        <!-- usernames that are not available for registration -->
+        <forbidden>admin</forbidden>
+	<forbidden>chatmaster</forbidden>
+	<forbidden>jabbermaster</forbidden>
+	<forbidden>postmaster</forbidden>
+	<forbidden>root</forbidden>
+	<forbidden>support</forbidden>
+	<forbidden>system</forbidden>
+	<forbidden>webmaster</forbidden>
+	<!-- minimum and maximum length of usernames that can be registered -->
+	<minlen>3</minlen>
+	<maxlen>16</maxlen>
+      </mod_useridpolicy>
     </jsm>
 
     <!--
@@ -325,6 +344,7 @@
       <mod_admin>@libdir@/libjabberdsm.so</mod_admin>
       <mod_offline>@libdir@/libjabberdsm.so</mod_offline>
       <mod_presence>@libdir@/libjabberdsm.so</mod_presence>
+      <mod_useridpolicy>@libdir@/libjabberdsm.so</mod_useridpolicy>
 
       <!--
       Authentication
