@@ -1,3 +1,8 @@
+2005-07-08  Matthias Wimmer  <m@tthias.net>
+
+    * jsm/modules/mod_useridpolicy.c: allow blocking of usernames, size limits
+    * jabber.xml.dist.in: same (configuration for it)
+
 2005-04-16  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/lib/jabberdlib.h: support for the session control protocol
