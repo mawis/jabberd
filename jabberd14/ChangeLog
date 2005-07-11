@@ -1,3 +1,9 @@
+2005-07-11  Matthias Wimmer  <m@tthias.net>
+
+   * jabberd/lib/crc32.c: fixing sizeof() problem with arrays as function args
+   * jabberd/lib/jutil.c: same
+   * xdb_file/xdb_file.c: same
+
 2005-07-08  Matthias Wimmer  <m@tthias.net>
 
     * jsm/modules/mod_useridpolicy.c: allow blocking of usernames, size limits

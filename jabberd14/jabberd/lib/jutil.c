@@ -290,7 +290,7 @@ char *jutil_timestamp_ms(char buffer[25]) {
 
     gettimeofday(&tv, &tz);
     new_time = gmtime(&(tv.tv_sec));
-    snprintf(buffer, sizeof(buffer), "%d-%02d-%02dT%02d:%02d:%02d.%03dZ", 1900+new_time->tm_year,
+    snprintf(buffer, sizeof(char[25]), "%d-%02d-%02dT%02d:%02d:%02d.%03dZ", 1900+new_time->tm_year,
 	     new_time->tm_mon+1, new_time->tm_mday, new_time->tm_hour,
 	     new_time->tm_min, new_time->tm_sec, tv.tv_usec/1000);
     

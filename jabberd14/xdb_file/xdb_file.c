@@ -153,8 +153,8 @@ void _xdb_get_hashes(const char *filename, char digit01[3], char digit23[3])
     
     /* generate a hash over the filename */
     bzero(hashedfilename, sizeof(hashedfilename));
-    bzero(digit01, sizeof(digit01));
-    bzero(digit23, sizeof(digit23));
+    bzero(digit01, sizeof(char[3]));
+    bzero(digit23, sizeof(char[3]));
     crc32_r(filename, hashedfilename);
     log_debug2(ZONE, LOGT_STORAGE, "hash of %s is %s", filename, hashedfilename);
     memcpy(digit01, hashedfilename+1, 2);
