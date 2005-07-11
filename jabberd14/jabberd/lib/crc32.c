@@ -105,7 +105,7 @@ void crc32_r(const char *str, char crc32buf[9]) {
 
     if (ptr == NULL)
     {
-	bzero(crc32buf, sizeof(crc32buf));
+	bzero(crc32buf, 9);
 	return;
     }
 
@@ -114,5 +114,5 @@ void crc32_r(const char *str, char crc32buf[9]) {
 	CRC32_UPDATE(temp, *ptr++);
     }
 
-    snprintf(crc32buf, sizeof(crc32buf), "%08X", temp);
+    snprintf(crc32buf, sizeof(char[9]), "%08X", temp);
 }
