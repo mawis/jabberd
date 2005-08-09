@@ -48,6 +48,7 @@
 
 void base_accept(void);
 void base_connect(void);
+void base_dir(void);
 void base_exec(void);
 void base_file(void);
 void base_format(void);
@@ -65,6 +66,7 @@ void static_init(void)
 {
     base_accept();
     base_connect();
+    base_dir();
     base_exec();
     base_file();
     base_format();
