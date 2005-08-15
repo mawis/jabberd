@@ -11,6 +11,9 @@ Changes in administration of the server
       *.stanza files. These files are read, parsed, the content is
       processed as a stanza, and the file is deleted afterwards. This can
       be useful to inject messages and other stanzas to the server.
+      Stanzas sent to the handler are written as files using the *.out
+      extension. The directories for reading and writing are configured
+      using the <in/> and <out/> elements inside the <dir/> element.
 
 Changes in features visible to the user
     * Support for Flexible Offline Message Retrieval (JEP-0013)
