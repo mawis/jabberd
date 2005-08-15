@@ -359,8 +359,11 @@ result _js_routed_packet(instance i, dpacket p, jsmi si, xht ht) {
 
     /* this is a packet to be processed as outgoing for a session */
 
-    /* attempt to locate the session by matching the special resource */
-    u = js_user(si, p->id, ht);
+    /* find session using old or new c2s-sm-protocol? */
+    sc_sm = xmlnode_get_attrib(child, "sc:sm");
+
+    /* get user data */
+    u = sc_sm == NULL ? js_user(si, p->id, ht) : (udata)xhash_get(si->sc_sessions, sc_sm);
     if (u == NULL) {
 	/* no user!?!?! */
 	log_notice(p->host,"Bouncing packet intended for nonexistant user: %s",xmlnode2str(p->x));
@@ -368,8 +371,7 @@ result _js_routed_packet(instance i, dpacket p, jsmi si, xht ht) {
 	return r_DONE;
     }
 
-    /* find session using old or new c2s-sm-protocol? */
-    sc_sm = xmlnode_get_attrib(child, "sc:sm");
+    /* get session */
     if (sc_sm == NULL) {
 	/* old protocol */
 	for (s = u->sessions; s != NULL; s = s->next)
