@@ -1,3 +1,8 @@
+2005-08-15  Matthias Wimmer  <m@tthias.net>
+
+    * jsm/deliver.c: fix for the new session control protocol
+    * jabberd/base/base_dir.c: make base_dir a bidirectional handler
+
 2005-08-09  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/static.c: new base handler base_dir for reading stanza files

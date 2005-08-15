@@ -58,7 +58,9 @@
  */
 typedef struct base_dir_struct {
     instance	id;		/**< the instance this base_dir is running in */
-    char*	directory;	/**< the directory that is monitored */
+    char*	in_dir;		/**< the directory that is monitored */
+    char*	out_dir;	/**< where stanzas are written */
+    int		serial;		/**< serial number for writing stanzas */
 } *base_dir_st, _base_dir_st;
 
 /**
@@ -77,11 +79,11 @@ result base_dir_read(void *arg) {
     jpacket jp = NULL;
 
     /* open the directory */
-    dir = opendir(conf_data->directory);
+    dir = opendir(conf_data->in_dir);
 
     /* could it be opened? */
     if (dir == NULL) {
-	log_error(conf_data->id->id, "could not open directory %s", conf_data->directory);
+	log_error(conf_data->id->id, "could not open directory %s for reading", conf_data->in_dir);
 	return r_UNREG;
     }
 
@@ -98,12 +100,12 @@ result base_dir_read(void *arg) {
 	}
 
 	/* get the full filename */
-	filename = spools(p, conf_data->directory, "/", dir_ent->d_name, p);
+	filename = spools(p, conf_data->in_dir, "/", dir_ent->d_name, p);
 
 	/* process the stanza file */
 	x = xmlnode_file(filename);
 	jp = jpacket_new(x);
-	if (jp != NULL && jp->type != JPACKET_UNKNOWN) {
+	if (jp != NULL && (jp->type != JPACKET_UNKNOWN || j_strcmp(xmlnode_get_name(x), "route")==0)) {
 	    deliver(dpacket_new(x), conf_data->id);
 	} else {
 	    log_warn(conf_data->id->id, "deleted invalid stanza %s", filename);
@@ -120,6 +122,28 @@ result base_dir_read(void *arg) {
     closedir(dir);
     pool_free(p);
     return r_DONE;
+}
+
+/**
+ * processing outgoing stanzas
+ *
+ * write stanzas to files
+ */
+result base_dir_deliver(instance id, dpacket p, void *arg) {
+    base_dir_st conf_data = (base_dir_st)arg;
+    char serial[9];
+    char timestamp[25];
+
+    /* check the parameters */
+    if (id == NULL || p == NULL || conf_data == NULL) {
+	return r_ERR;
+    }
+
+    /* get string for the serial */
+    snprintf(serial, sizeof(serial), "%08x", conf_data->serial++);
+
+    /* write to file */
+    return xmlnode2file(spools(p->p, conf_data->out_dir, "/", id->id, "-", jutil_timestamp_ms(timestamp), "-", serial, ".out", p->p), p->x) > 0 ? r_DONE : r_ERR;
 }
 
 /**
@@ -140,21 +164,35 @@ result base_dir_config(instance id, xmlnode x, void *arg) {
 
     log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_dir configuring instance %s", id->id);
 
-    if(id->type != p_NORM) {
-        log_alert(NULL, "ERROR in instance %s: <dir>..</dir> element only allowed in service sections", id->id);
-        return r_ERR;
-    }
-
+    /* process configuration */
     conf_data = pmalloc(id->p, sizeof(_base_dir_st));
-    conf_data->directory = pstrdup(id->p, xmlnode_get_data(x));
+    conf_data->in_dir = pstrdup(id->p, xmlnode_get_tag_data(x, "in"));
+    conf_data->out_dir = pstrdup(id->p, xmlnode_get_tag_data(x, "out"));
     conf_data->id = id;
+    conf_data->serial = 0;
 
-    if (conf_data->directory == NULL) {
-	log_alert(NULL, "ERROR in instance %s: <dir>...</dir> element needs directory as an argument", id->id);
-	return r_ERR;
+    /* read legacy configuration: no subelement of the dir element */
+    if (conf_data->in_dir == NULL && conf_data->out_dir == NULL) {
+	conf_data->in_dir = conf_data->out_dir = xmlnode_get_data(x);
+
+	/* still no configuration? */
+	if (conf_data->in_dir == NULL) {
+	    log_alert(id->id, "ERROR in instance %s: <dir>...</dir> element needs at least one directory as an argument", id->id);
+	    return r_ERR;
+	} else {
+	    log_notice(id->id, "Better use the elements <in/> and <out/> inside the <dir/> element to configure the base_dir handler");
+	}
     }
 
-    register_beat(1, base_dir_read, (void*)conf_data);
+    /* register beat for regular check directory for incoming stanzas */
+    if (conf_data->in_dir != NULL) {
+	register_beat(1, base_dir_read, (void*)conf_data);
+    }
+
+    /* register handler for outgoing stanzas */
+    if (conf_data->out_dir != NULL) {
+	register_phandler(id, o_DELIVER, base_dir_deliver, (void*)conf_data);
+    }
 
     return r_DONE;
 }
