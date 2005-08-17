@@ -89,7 +89,11 @@ void _mod_announce_avail(xht h, const char *key, void *data, void *arg)
     udata u = (udata)data;
     session s = js_session_primary(u);
 
+    /* no active session */
     if(s == NULL) return;
+    
+    /* no broadcast to users with a priority below 0 */
+    if (s->priority < 0) return;
 
     msg = xmlnode_dup(msg);
     xmlnode_put_attrib(msg,"to",jid_full(s->id));
