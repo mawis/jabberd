@@ -102,8 +102,8 @@ mreturn mod_offline_message(mapi m, modoffline_conf conf) {
     char str[11];
     char timestamp[25];
 
-    /* if there's an existing session, just give it to them */
-    if ((top = js_session_primary(m->user)) != NULL) {
+    /* if there's an existing session with a priority of at least 0, just give it to them */
+    if ((top = js_session_primary(m->user)) != NULL && top->priority >= 0) {
         js_session_to(top,m->packet);
         return M_HANDLED;
     }
@@ -342,11 +342,15 @@ int mod_offline_send_messages(mapi m, const char *filter, int offline_element) {
 	read_stanza->flag = PACKET_FROM_OFFLINE_MAGIC;
 	log_debug2(ZONE, LOGT_DELIVER, "js_session_to for %s", xmlnode2str(cur));
         js_session_to(m->s,read_stanza);
+	sent_messages++;
         xmlnode_hide(cur);
     }
 
     /* free the xdb result containing the messages */
     xmlnode_free(opts);
+
+    /* return the number of sent messages */
+    return sent_messages;
 }
 
 /**
@@ -529,8 +533,12 @@ mreturn mod_offline_out(mapi m, void *arg) {
 
     if (m->packet->type != JPACKET_PRESENCE) return M_IGNORE;
 
-    if (js_online(m))
+    log_debug2(ZONE, LOGT_IO, "handling presence packet: %s", xmlnode2str(m->packet->x));
+
+    /* If its an available presence, we have to check for offline messages */
+    if (m != NULL && m->packet != NULL && (jpacket_subtype(m->packet) == JPACKET__AVAILABLE || jpacket_subtype(m->packet) == JPACKET__INVISIBLE)) {
         mod_offline_out_available(m, (modoffline_session)arg);
+    }
 
     return M_PASS;
 }
