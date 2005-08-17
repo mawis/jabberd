@@ -1,3 +1,9 @@
+2005-08-18  Matthias Wimmer  <m@tthias.net>
+
+    * jsm/sessions.c: Fixed remaining issue of negative priorities
+    * jsm/modules/mod_announce.c: same
+    * jsm/modules/mod_offline.c: same + deleting delivered offline messages
+
 2005-08-15  Matthias Wimmer  <m@tthias.net>
 
     * jsm/deliver.c: fix for the new session control protocol
