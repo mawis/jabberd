@@ -17,6 +17,9 @@ Changes in administration of the server
 
 Changes in features visible to the user
     * Support for Flexible Offline Message Retrieval (JEP-0013)
+    * FIX: Handling of presences with negative priority had bugs, e.g.
+      messages were not delivered when changing from negative to
+      non-negative priority.
 
 
 Version 1.4.4 - 2005-04-16
