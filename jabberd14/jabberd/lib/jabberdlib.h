@@ -713,7 +713,7 @@ typedef struct xterror_struct
 #define XTERROR_NOTALLOWED	(xterror){405,"Not Allowed","cancel","not-allowed"}
 #define XTERROR_AUTH		(xterror){401,"Unauthorized","auth","not-authorized"}
 #define XTERROR_PAY		(xterror){402,"Payment Required","auth","payment-required"}
-#define XTERROR_RECIPIENTUNAVAIL (xterror){404,"Receipient Is Unavailable","wait","recipient-unavailable"}
+#define XTERROR_RECIPIENTUNAVAIL (xterror){404,"Recipient Is Unavailable","wait","recipient-unavailable"}
 #define XTERROR_REDIRECT	(xterror){302,"Redirect","modify","redirect"}
 #define XTERROR_REGISTER	(xterror){407,"Registration Required","auth","registration-required"}
 #define XTERROR_REMOTENOTFOUND	(xterror){404,"Remote Server Not Found","cancel","remote-server-not-found"}
