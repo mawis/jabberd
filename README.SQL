@@ -118,7 +118,8 @@ For presence:
   VALUES (SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1),
   SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1),
   IF ('{presence}'='','unavailable',
-    IF ('{presence/show/text()}'='','available', '{presence/show/text()}')),
+    IF ('{presence/show/text()}'='invisible','unavailable',
+      IF ('{presence/show/text()}'='','available', '{presence/show/text()}'))),
   IF ('{presence/priority/text()}'='', '0', '{presence/priority/text()}'),
   '{presence/status/text()}', now())</set>
   <delete>DELETE FROM presence WHERE
@@ -132,7 +133,7 @@ For messages:
 
 <handler ns='jabber:x:offline'>
   <get>
-    <query>SELECT xml FROM messages WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1) AND type='offline'</query>
+    <query>SELECT xml FROM messages WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1) AND type='offline' ORDER BY storetime</query>
     <result group='foo'><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
   </get>
   <set>INSERT INTO messages (user, realm, node, correspondent, type, storetime, subject, body, xml) VALUES (SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1), SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1), IF('{message/attribute::node}'=='', NULL, '{message/attribute::node}'), REVERSE(SUBSTRING(REVERSE('{message/attribute::from}'), INSTR(REVERSE('{message/attribute::from}'), '/')+1)) , 'offline', now(), IF ('{message/subject}'='', NULL, '{message/subject/text()}'), '{message/body/text()}', '{message}')</set>
