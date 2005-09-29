@@ -496,7 +496,7 @@
       </handler>
       <handler ns="jabber:x:offline">
         <get>
-          <query>SELECT xml FROM messages WHERE jid='{attribute::to}' AND type='offline'</query>
+          <query>SELECT xml FROM messages WHERE jid='{attribute::to}' AND type='offline' ORDER BY storetime</query>
           <result group='foo'><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
         </get>
         <set>INSERT INTO messages (jid, node, correspondent, type, storetime, subject, body, xml) VALUES ('{attribute::to}', IF('{message/attribute::node}'='', NULL, '{message/attribute::node}'), '{message/attribute::from}', 'offline', now(), IF ('{message/subject}'='', NULL, '{message/subject/text()}'), '{message/body/text()}', '{message}')</set>
@@ -515,7 +515,7 @@
           <query>SELECT 'this namespace is never selected'</query>
           <result><this-namespace-is-never-selected/></result>
         </get>
-        <set>INSERT INTO presence (jid,presence,priority,status) VALUES ('{attribute::to}', IF ('{presence}'='','unavailable', IF ('{presence/show/text()}'='','available', '{presence/show/text()}')), IF ('{presence/priority/text()}'='', '0', '{presence/priority/text()}'), '{presence/status/text()}')</set>
+        <set>INSERT INTO presence (jid,presence,priority,status) VALUES ('{attribute::to}', IF ('{presence}'='','unavailable', IF ('{presence/show/text()}'='invisible' , 'unavailable', IF ('{presence/show/text()}'='','available', '{presence/show/text()}'))), IF ('{presence/priority/text()}'='', '0', '{presence/priority/text()}'), '{presence/status/text()}')</set>
         <delete>DELETE FROM presence WHERE jid='{attribute::to}'</delete>
       </handler>
     </xdb_sql>
