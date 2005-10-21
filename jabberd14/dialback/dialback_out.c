@@ -114,6 +114,7 @@ typedef struct {
     		/* original comment: for that short time when we're connected and open, but haven't auth'd ourselves yet */
     int xmpp_version; /**< 0 if no version should be advertized, 1 if XMPP 1.0 should be advertized */
     int xmpp_no_tls; /**< 0 if starting TLS is allowed, 1 if TLS should not be established */
+    int securitysetting_failed; /**< 1 if the connection has been droped as security settings where not acceptable, 0 else */
     char *stream_id; /**< the stream id the connected entity assigned */
     db_request db_state; /**< if we want to send a <db:result/> and if we already did */
     db_connection_state connection_state; /**< how far did we proceed in connecting to the other host */
@@ -234,11 +235,11 @@ dboc dialback_out_connection(db d, jid key, char *ip, db_request db_state) {
     c->stamp = time(NULL);
     c->verifies = xmlnode_new_tag_pool(p,"v");
     c->ip = pstrdup(p,ip);
-    c->xmpp_version = j_strcmp(xhash_get(d->hosts_xmpp, c->key->server), "no")==0 ? 0 : 1;
+    c->xmpp_version = j_strcmp(dialback_get_domain_setting(d->hosts_xmpp, c->key->server), "no")==0 ? 0 : 1;
     if (c->xmpp_version == 0) {
 	log_debug2(ZONE, LOGT_IO, "disabled XMPP due to configuration for host %s", c->key->server);
     }
-    c->xmpp_no_tls = j_strcmp(xhash_get(d->hosts_tls, c->key->server), "no")==0 ? 1 : 0;
+    c->xmpp_no_tls = j_strcmp(dialback_get_domain_setting(d->hosts_tls, c->key->server), "no")==0 ? 1 : 0;
     if (c->xmpp_no_tls != 0) {
 	log_debug2(ZONE, LOGT_IO, "disabled STARTTLS due to configuration for host %s", c->key->server);
     }
@@ -317,10 +318,14 @@ void dialback_out_connection_cleanup(dboc c)
     if (cur != NULL) {
 	/* generate bounce message, but only if there are queued messages */
 	errmsg = spool_new(c->p);
-	spool_add(errmsg, "Failed to deliver stanza to other server while ");
-	spool_add(errmsg, dialback_out_connection_state_string(c->connection_state));
-	spool_add(errmsg, ": ");
-	spool_add(errmsg, connect_results);
+	if (c->securitysetting_failed) {
+	    spool_add(errmsg, "Failed to deliver stanz to other server because of configured security parameters.");
+	} else {
+	    spool_add(errmsg, "Failed to deliver stanza to other server while ");
+	    spool_add(errmsg, dialback_out_connection_state_string(c->connection_state));
+	    spool_add(errmsg, ": ");
+	    spool_add(errmsg, connect_results);
+	}
 	bounce_reason = spool_print(errmsg);
     }
     while(cur != NULL) {
@@ -611,8 +616,15 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 
 	    /* create and send our result request to initiate dialback for non XMPP-sessions (XMPP has to wait for stream features) */
 	    if (version < 1) {
+		/* check the require-tls setting */
+		if (dialback_check_securitysetting(c->d, m, c->key->server, 1) == 0) {
+		    c->securitysetting_failed = 1;
+		    break;
+		}
+
 		log_debug2(ZONE, LOGT_IO, "pre-XMPP stream could now send <db:result/>");
 		if (c->db_state == want_request) {
+		    /* send db request */
 		    cur = xmlnode_new_tag("db:result");
 		    xmlnode_put_attrib(cur, "to", c->key->server);
 		    xmlnode_put_attrib(cur, "from", c->key->resource);
@@ -699,9 +711,16 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 		}
 #endif /* HAVE_SSL */
 
-		/* no stream:feature we'd like to use, we can now send the outstanding db:result - or we could, if we did not want */
+		/* no stream:feature we'd like to use, now check the require-tls setting */
+		if (dialback_check_securitysetting(c->d, m, c->key->server, 1) == 0) {
+		    c->securitysetting_failed = 1;
+		    break;
+		}
+
+		/* new connection established, we can now send the outstanding db:result - or we could, if we did not want */
 		log_debug2(ZONE, LOGT_IO, "XMPP-stream: we could now send <db:result/>s");
 		if (c->db_state == want_request) {
+		    /* send the dialback query */
 		    cur = xmlnode_new_tag("db:result");
 		    xmlnode_put_attrib(cur, "to", c->key->server);
 		    xmlnode_put_attrib(cur, "from", c->key->resource);

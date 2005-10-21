@@ -14,6 +14,10 @@ Changes in administration of the server
       Stanzas sent to the handler are written as files using the *.out
       extension. The directories for reading and writing are configured
       using the <in/> and <out/> elements inside the <dir/> element.
+    * Settings in the dialback component configuration for disabling
+      xmpp streams or disabling tls now also affect subdomains of the
+      configured host. It is now also possible to require s2s connections
+      to some or all other hosts to be encrypted.
 
 Changes in features visible to the user
     * Support for Flexible Offline Message Retrieval (JEP-0013)

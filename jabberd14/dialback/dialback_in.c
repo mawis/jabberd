@@ -434,9 +434,15 @@ void dialback_in_verify(db d, xmlnode x)
 
     /* valid requests get the honour of being miod */
     type = xmlnode_get_attrib(x, "type");
-    if(j_strcmp(type,"valid") == 0)
+    if(j_strcmp(type,"valid") == 0) {
+	/* check the security settings for this connection */
+	if (!dialback_check_securitysetting(c->d, c->m, xmlnode_get_attrib(x, "from"), 0)) {
+	    return;
+	}
+
+	/* accept incoming stanzas on this connection */
         dialback_miod_hash(dialback_miod_new(c->d, c->m), c->d->in_ok_db, key);
-    else
+    } else
 	log_warn(d->i->id, "Denying peer to use the domain %s. Dialback failed (%s): %s", key->resource, type ? type : "timeout", xmlnode2str(x2));
 
     /* rewrite and send on to the socket */

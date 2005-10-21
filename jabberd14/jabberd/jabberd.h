@@ -332,6 +332,8 @@ int     _mio_ssl_connect (mio m, struct sockaddr* serv_addr, socklen_t  addrlen)
 #define MIO_SSL_ACCEPT  _mio_ssl_accept
 #define MIO_SSL_CONNECT _mio_ssl_connect
 
+int	mio_is_encrypted(mio m);
+
 /* MIO handlers helper functions */
 mio_handlers mio_handlers_new(mio_read_func rf, mio_write_func wf, mio_parser_func pf);
 void         mio_handlers_free(mio_handlers mh);

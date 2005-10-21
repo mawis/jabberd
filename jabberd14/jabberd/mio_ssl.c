@@ -103,8 +103,9 @@ void mio_ssl_init(xmlnode x)
 
     log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "Handling configuration using: %s", xmlnode2str(x));
     /* Generic SSL Inits */
-	OpenSSL_add_all_algorithms();    
+    OpenSSL_add_all_algorithms();    
     SSL_load_error_strings();
+    SSL_library_init();
 
     /* Setup our hashtable */
     ssl__ctxs = xhash_new(19);
@@ -133,8 +134,8 @@ void mio_ssl_init(xmlnode x)
         
             e = ERR_get_error();
             buf = ERR_error_string(e, NULL);
-            log_warn(NULL, "Could not create SSL Context: %s", buf);
-            return;
+            log_warn(host, "Could not create SSL Context: %s", buf);
+            continue;
         }
 
 #ifndef NO_RSA
@@ -414,6 +415,20 @@ int _mio_ssl_connect(mio m, struct sockaddr *serv_addr, socklen_t addrlen)
     m->ssl = ssl;
 
     return fd;
+}
+
+/**
+ * check if a connection is encrypted
+ *
+ * @param m the connection
+ * @return 0 if the connection is not encrypted, 1 if the connection is integrity protected, >1 if encrypted
+ */
+int mio_is_encrypted(mio m) {
+#ifdef HAVE_SSL
+    return m->ssl == NULL ? 0 : SSL_get_cipher_bits(m->ssl, NULL);
+#else
+    return 0;
+#endif
 }
 
 /**
