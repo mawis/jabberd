@@ -1,7 +1,13 @@
 2005-10-21  Matthias Wimmer  <m@tthias.net>
 
+    * dialback/dialback.h: added setting to require STARTTLS for connections
+    * dialback/dialback.c: same
+    * dialback/dialback_in.c: same
+    * dialback/dialback_out.c: same
     * jabberd/base/base_dir.c: changed output file naming for base_dir handler
     * jabberd/lib/jabberdlib.h: the SHA1 hashing result ends with a zero byte
+    * jabberd/jabberd.h: new function to query TLS protection state of a conn
+    * jabberd/mio_ssl.c: same + better openssl library initialization
 
 2005-08-18  Matthias Wimmer  <m@tthias.net>
 

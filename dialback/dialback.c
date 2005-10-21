@@ -66,6 +66,75 @@ A->B
 #include "dialback.h"
 
 /**
+ * get a setting out of a hash for a given domain, checking subdomains in their domains as well
+ *
+ * e.g. for the host a.example.com the following domains are checked: a.example.com, example.com,
+ * com, * and the first match is returned. If nothing matches NULL is returned
+ *
+ * @param xhash the hash containing the settings
+ * @param host the host that should be checked
+ */
+const char *dialback_get_domain_setting(xht h, const char* host) {
+    const char* next_token = host;
+
+    while (next_token != NULL) {
+	/* is there a setting for this level of subdomains? */
+	const char *result = xhash_get(h, next_token);
+
+	log_debug2(ZONE, LOGT_IO, "checking %s: %s", next_token, result);
+
+	if (result != NULL) {
+	    return result;
+	}
+
+	/* skip one level of subdomains */
+	next_token = strstr(next_token, ".");
+	if (next_token != NULL) {
+	    next_token++;
+	}
+    }
+
+    /* nothing found: return the default, or NULL */
+    return xhash_get(h, "*");
+}
+
+/**
+ * check security settings for a dialback connection
+ *
+ * @param d the dialback instance
+ * @param m the connection
+ * @param server the host at the other end of the connection
+ * @param 0 for an outgoing connection, 1 for an incoming connection
+ * @return 0 if connection is not allowed, else connection is acceptable
+ */
+int dialback_check_securitysetting(db d, mio m, const char *server, int is_outgoing) {
+    int required_protection = 0;
+    int protection_level = mio_is_encrypted(m);
+    const char *require_tls = dialback_get_domain_setting(d->hosts_tls, server);
+    if (j_strncmp(require_tls, "require", 7) == 0) {
+	required_protection = 2;
+    } else {
+	required_protection = j_atoi(require_tls, 0);
+    }
+    log_debug2(ZONE, LOGT_IO, "requiring protection level %i for connection %s %s", required_protection, is_outgoing ? "to" : "from", server);
+    if (protection_level < required_protection) {
+	log_warn(d->i->id, "stopping dialback %s %s - stream protection level (%i) of established connection not good enough", is_outgoing ? "to" : "from", server, protection_level);
+	mio_write(m, NULL, "<stream:error><policy-violation xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>We are configured to interconnect to your host only using a stream protected with STARTTLS or require a stronger encryption algorithm.</text></stream:error>", -1);
+	mio_close(m);
+	return 0;
+    }
+    if (protection_level < 1) {
+	log_notice(d->i->id, "%s %s using unencrypted connection", is_outgoing ? "connected to" : "connection from", server);
+    } else if (protection_level == 1) {
+	log_notice(d->i->id, "%s %s using integrity protected connection", is_outgoing ? "connected to" : "connection from", server);
+    } else {
+	log_notice(d->i->id, "%s %s using encrypted connection (protection level: %i bit)", is_outgoing ? "connected to" : "connection from", server, protection_level);
+    }
+    return 1;
+}
+
+
+/**
  * generate a random string (not thead-safe)
  *
  * This function generates a random ASCII string.
