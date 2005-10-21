@@ -1,3 +1,8 @@
+2005-10-21  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/base/base_dir.c: changed output file naming for base_dir handler
+    * jabberd/lib/jabberdlib.h: the SHA1 hashing result ends with a zero byte
+
 2005-08-18  Matthias Wimmer  <m@tthias.net>
 
     * jsm/sessions.c: Fixed remaining issue of negative priorities
