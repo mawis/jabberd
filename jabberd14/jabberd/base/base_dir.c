@@ -133,6 +133,7 @@ result base_dir_deliver(instance id, dpacket p, void *arg) {
     base_dir_st conf_data = (base_dir_st)arg;
     char serial[9];
     char timestamp[25];
+    char jid_hash[41];
 
     /* check the parameters */
     if (id == NULL || p == NULL || conf_data == NULL) {
@@ -142,8 +143,11 @@ result base_dir_deliver(instance id, dpacket p, void *arg) {
     /* get string for the serial */
     snprintf(serial, sizeof(serial), "%08x", conf_data->serial++);
 
+    /* get hash of the destination JID */
+    shahash_r(jid_full(p->id), jid_hash);
+
     /* write to file */
-    return xmlnode2file(spools(p->p, conf_data->out_dir, "/", id->id, "-", jutil_timestamp_ms(timestamp), "-", serial, ".out", p->p), p->x) > 0 ? r_DONE : r_ERR;
+    return xmlnode2file(spools(p->p, conf_data->out_dir, "/", id->id, "-", jid_hash, "-", jutil_timestamp_ms(timestamp), "-", serial, ".out", p->p), p->x) > 0 ? r_DONE : r_ERR;
 }
 
 /**
