@@ -38,6 +38,46 @@
  * 
  * --------------------------------------------------------------------------*/
 
+/**
+ * @mainpage jabberd14 - implementation of an instant messaging server using the Jabber/XMPP protocols in C
+ *
+ * @section BigPicture The big picture
+ *
+ * jabberd14 consists of a base executable (the jabberd binary) implemented inside in the directory @link jabberd jabberd.@endlink
+ * This base executable implements a router for XML fragments (called packets or stanzas). The routing at this level is in general
+ * not visible to the user of the Jabber server, but used by the components, that form the Jabber server to exchange such
+ * XML fragments with each other.
+ *
+ * The other parts of jabberd14 are the components, which are all implemented in their own directories. These components are:
+ * - The client connection manager, which task is to accept incoming TCP/IP connections from clients and forwards incoming
+ *   stanzas from the client to an other component called session manager (JSM) and forwards packets from the session manager
+ *   back to the client on the TCP/IP connection. The exchange of the stanzas between the client connection manager and
+ *   the session manager is done using the routing functionallity provided by the jabberd executable. The client connection
+ *   manager (historically sometimes called pthsock_client) is implemented inside the directory @link pthsock pthsock.@endlink
+ * - The Jabber session manager, which task is to implement the visible business logic. It implements what is afterwards
+ *   seen as the Jabber server and addressed by the domain used by this server. It maintains presence subscriptions,
+ *   the presence of the current sessions of a user and forwards messages or stores them offline. The session manager is
+ *   implemented inside the directory @link jsm jsm.@endlink
+ * - The DNS resolver (@link dnsrv dnsrv@endlink) typically handles all packets on the XML router that have no configured destination on
+ *   the router (which is as you remember implemented by the jabberd binary). It will try to resolve the destination domain
+ *   using DNS and if a DNS entry is found, it tags the XML fragment with a list of resolved IP addresses and resends
+ *   the XML fragment using the XML router to one (or many in case of clustering) component, that is then responsible for
+ *   sending the XML fragment to another host. This other component is the dialback component as described below.
+ * - The dialback component implements the interconnection between the local Jabber server and other Jabber servers using
+ *   the server to server protocol of XMPP/Jabber. It establishes connections to other servers and accepts incoming
+ *   connections from them. This component is implemented inside the directory @link dialback dialback.@endlink
+ * - There is typically at least one other component plugged into the XML router which is responsible for the persistant
+ *   storing of data. This component handles special XML fragments router on the XML router. This special fragments are
+ *   instructions for such storrage components and their replies to the requestor. There are two implementations of
+ *   such a component inside the base package of jabberd14. The one implementation implements storing data to
+ *   XML files and is implemented inside the directory @link xdb_file xdb_file,@endlink the other implementation
+ *   uses SQL databases to store data and is implemented inside the directory @link xdb_sql xdb_sql.@endlink
+ *
+ * The components are compiled as shared objects (*.so files) and are loaded by the jabberd base executable on startup as
+ * configured inside the configuration file using the &lt;load/&gt; element inside &lt;section/&gt;s. Each section inside the
+ * configuration file defines one component.
+ */
+
 #ifdef HAVE_CONFIG_H
 #   include <config.h>
 #endif
