@@ -43,6 +43,36 @@
 /**
  * @dir jsm
  * @brief Contains the Jabber session manager, that is extended by modules contained in jsm/modules
+ *
+ * The Jabber session manager (JSM) is the component of jabberd14, that handles the visible
+ * part of transporting and storing messages, and managing presence and presence subscriptions.
+ * It implements the bussiness logic of the instant messaging and presence handling.
+ *
+ * The JSM component itself is devided into two parts: The base JSM component and modules
+ * plugged into this base JSM component.
+ *
+ * The base JSM component (implemented inside this directory) has as less bussiness logic
+ * as possible. Its main task is to manage lists of event subscriptions and to call all
+ * registered event handlers if an event gets triggered. Events can either be triggered
+ * by incoming stanzas, or may be triggered inside the handling of other events.
+ *
+ * Which modules have to be loaded is configured inside the jabberd14 configuration file.
+ * The configured modules are loaded on startof of the JSM component by calling
+ * a function named like the XML element, that was used inside the load element in the
+ * configuration file. This function than have to initialize the module and register
+ * for the callbacks, the module wants to handle.
+ *
+ * The events are devided into two categories. The two category of events differ on
+ * if they are bound to a specific session of a user or not. Events bound to a session
+ * of a user are prefixed by "es_" while the other event names are prefixed just by "e_".
+ * Typically a module registers for the es_ events inside the #e_SESSION event, that
+ * is called when a new session starts up.
+ *
+ * The events are defined inside the file jsm.h. The events not bound to a specific
+ * session are: #e_SESSION, #e_OFFLINE, #e_SERVER, #e_DELIVER, #e_SHUTDOWN, #e_AUTH,
+ * #e_REGISTER, #e_CREATE, and #e_DELETE. The events bound to a specific session are:
+ * #es_IN, #es_OUT, and #es_END.
+ *
  */
 
 /**
