@@ -115,7 +115,7 @@
  * 
  * Stanzas for online users (and stanzas addressed to an explicit resource, that is currently
  * online) generate an #es_IN event. If one of the modules handling the #es_IN event
- * returned #M_HANDLED, the stanzas is considered to be processed and no further actions
+ * returned #M_HANDLED, the stanza is considered to be processed and no further actions
  * are taken for this stanza. If no module returned #M_HANDLED, the session manager
  * delivers the stanza to the client, by wrapping the stanza inside a &lt;route/&gt; stanza
  * and sending the packet to the responsible client connection manager. While stanzas for
@@ -125,7 +125,7 @@
  * above.
  *
  * Stanzas addressed to the server (no user part in the Jabber ID) generate an #e_SERVER
- * event. Again the stanzas is considered to be handled, if one of the modules, that
+ * event. Again the stanza is considered to be handled, if one of the modules, that
  * registered for this event, returned #M_HANDLED, or else it is bounced with #XTERROR_NOTFOUND.
  *
  * The processing for &lt;route/&gt;ed stanzas is as the following: It is first checked
@@ -258,7 +258,7 @@ typedef int event;
  * in case there is no session yet. Therefore it is used to process new user
  * registration requests.
  *
- * Only the stanzas is passed as ::jpacket_struct. No session and no user is passed to
+ * Only the stanza is passed as ::jpacket_struct. No session and no user is passed to
  * a handler registered for this event.
  */
 #define e_REGISTER 6
