@@ -49,7 +49,8 @@
  * It implements the bussiness logic of the instant messaging and presence handling.
  *
  * The JSM component itself is devided into two parts: The base JSM component and modules
- * plugged into this base JSM component.
+ * plugged into this base JSM component. (The modules can be found inside the directory
+ * @link jsm/modules jsm/modules.@endlink)
  *
  * The base JSM component (implemented inside this directory) has as less bussiness logic
  * as possible. Its main task is to manage lists of event subscriptions and to call all
@@ -135,7 +136,8 @@
  *
  * All session control packets share the same set of events: #e_SESSION is called, when a
  * new session is created (in case of the traditional protocol, the session is not yet
- * authenticated!); #e_REGISTER is called, for processing registration requests; #e_CREATE
+ * authenticated!); #es_END is called, when a session is closed (a user logs out);
+ * #e_REGISTER is called, for processing registration requests; #e_CREATE
  * is called if a user successfully registered for an account; #e_DELETE is called if an
  * account is being destroyed; #e_AUTH is an event only called for the traditional protocol,
  * when a packet arrives, that contain stanzas from a user, that is just authenticating
@@ -164,22 +166,173 @@
 
 /** master event types */
 typedef int event;
-#define e_SESSION  0  /**< event type: when a session is starting up */
-#define e_OFFLINE  1  /**< event type: data for an offline user */
-#define e_SERVER   2  /**< event type: packets for the server.host */
-#define e_DELIVER  3  /**< event type: about to deliver a packet to an mp */
-#define e_SHUTDOWN 4  /**< event type: server is shutting down, last chance! */
-#define e_AUTH     5  /**< event type: authentication handlers */
-#define e_REGISTER 6  /**< event type: registration request */
-#define e_CREATE   7  /**< event type: create a user */
-#define e_DELETE   8  /**< event type: delete a user (remove data stored by the module for this user) */
+
+/**
+ * e_SESSION is a mapi event, that is fired when a new session is created. The new
+ * session might just be created, but not yet authenticated by the user.
+ *
+ * The called module gets passed the ::udata_struct structure of the user and the ::session_struct
+ * structure of the user. No ::jpacket_struct (stanza) is passed to the module.
+ */
+#define e_SESSION  0
+
+/**
+ * e_OFFLINE is a mapi event, that is fired for an incoming stanza for a user, that
+ * is currently not online (or that is addressed to a resource, for which there is
+ * no active session).
+ *
+ * The called module gets passed the ::jpacket_struct (stanza) and the ::udata_struct (user data),
+ * but gets passed no ::session_struct as there is no such session.
+ */
+#define e_OFFLINE  1
+
+/**
+ * e_SERVER is a mapi event, that is fired for an incoming stanza, that is addressed
+ * to a Jabber ID, that does not contain a node (user part), but just a domain and
+ * optionally a resource. In the session manager of jabberd14, these packets are
+ * considered to be addressed to the server.
+ *
+ * The called module gets passed the ::jpacket_struct (stanza), but no ::session_struct (as
+ * there are no sessions for such addresses). If the stanza is sent by a local user,
+ * the ::udata_struct of the sending user is passed to the module (this is a preformance
+ * hack, the module should not rely on this fact and expect to get NULL passed for local
+ * users as well).
+ */
+#define e_SERVER   2
+
+/**
+ * e_DELIVER is the first mapi event, that is fired on stanzas received for an address
+ * handled by the session manager. It is called for all incoming stanzas before the session
+ * manager calls the different events #e_SERVER, #e_OFFLINE, or #es_IN. If the stanza is
+ * #M_HANDLED by on of the modules registered for this event, the session manager will even
+ * not call one of these three other events.
+ *
+ * The called module gets passed the ::jpacket_struct (stanza). If the packet is addressed
+ * to an existing user, the user's ::udata_struct is passed. If the stanza is for a
+ * valid session, the ::session_struct is passed as well.
+ *
+ * The event is called in any case, even if the stanza is addressed to a non-existant
+ * user.
+ */
+#define e_DELIVER  3
+
+/**
+ * e_SHUTDOWN is the mapi event, that should be called if the session manager is shutting
+ * down.
+ *
+ * The called module gets passed nothing (NULL) as the stanza, user, and session.
+ *
+ * This event is disabled at present (since just before the release of version 1.4.4)
+ * as we have problems with the memory management else. We have to free memory in the
+ * right order, which is not guarantied the way it is impelemented at present.
+ * To not get a software crash at shutdown, we just don't free the memory we needed all
+ * the time at present. This is not really a problem, it just makes memory profilers
+ * unhappy as we do not free all memory before exiting the process.
+ */
+#define e_SHUTDOWN 4
+
+/**
+ * e_AUTH is the mapi event, that is used for processing jabber:iq:auth packets while
+ * the user did not yet authenticate. This processing is only done by the session
+ * manager for sessions using the traditional session control protocol of jabberd14.
+ * The jabberd2 compatible session control protocol implies that the authentication
+ * is already done by the client connection manager (or another component that
+ * starts the session).
+ *
+ * This event is called for get requests as well as for set requests. Inside handling of get
+ * requests, the modules have to add their fields into the passed stanza and have
+ * to return #M_PASS to let other modules add their fields as well. Inside handling of set
+ * requests, the modules have to try to authenticate the user. If the module handled the
+ * authentication (either by accepting or denying the authentication), it has to return
+ * #M_HANDLED, else it has to return #M_PASS. If no module registered for this event
+ * authenticated the set request, the session manager will deny the authentication
+ * request itself.
+ *
+ * The registered module is passed the ::jpacket_struct (stanza) as well as the
+ * ::udata_struct (user data). No ::session_struct is passed to the module.
+ */
+#define e_AUTH     5
+
+/**
+ * e_REGISTER is the mapi event, that is used for processing jabber:iq:register packets
+ * in case there is no session yet. Therefore it is used to process new user
+ * registration requests.
+ *
+ * Only the stanzas is passed as ::jpacket_struct. No session and no user is passed to
+ * a handler registered for this event.
+ */
+#define e_REGISTER 6
+
+/**
+ * e_CREATE is the mapi event, that is fired if a new user has just been created.
+ *
+ * Only the ::udata_struct of the new user is passed to the handler registered for
+ * this event. Nothing is passed as the ::jpacket_struct nor as the ::session_struct.
+ *
+ * Do not be surprised, that there are no modules registering for this event at
+ * present. The event has been introduced as the jabberd2 compatible session control
+ * protocol has such an event, and it might be useful in the future. (The event is
+ * fired for users that have been created by the traditional session control
+ * protocol as well.)
+ */
+#define e_CREATE   7
+
+/**
+ * e_DELETE is the mapi event, that is fired if a user gets deleted.
+ *
+ * This event can be used by modules to register handlers, that remove state, that
+ * has been kept for this user. This might be cancling subscritions of the user
+ * as well as just deleting the user's data stored in xdb.
+ *
+ * The handler is passed the user's ::udata_struct. Nothing is passed as the
+ * ::session_struct nor as the ::jpacket__struct.
+ */
+#define e_DELETE   8
+
 /* always add new event types here, to maintain backwards binary compatibility */
 #define e_LAST     9  /**< flag for the highest event type*/
 
 /* session event types */
-#define es_IN      0  /**< session event type: for packets coming into the session */
-#define es_OUT     1  /**< session event type: for packets originating from the session (packets we just received from our own client) */
-#define es_END     2  /**< session event type: when a session ends */
+
+/**
+ * es_IN is the mapi event, that is fired for stanzas that are received from
+ * other entities on the Jabber network for a local user. (INcoming stanzas from
+ * the user's view.)
+ *
+ * The handler is passed the ::udata_struct of the destination user, the
+ * ::jpacket_struct containing the stanza, and the ::session_struct for the
+ * correct user's session.
+ *
+ * As all es_ events, the es_IN event has to be registered for a session using
+ * the js_mapi_session() call.
+ */
+#define es_IN      0
+
+/**
+ * es_OUT is the mapi event, that is fired for stanzas, that are received from
+ * a user (forwarded by the client connection manager). (OUTgoing stanzas from
+ * the user's view.)
+ *
+ * The handler is passed the ::udata_struct of the sending user, the
+ * ::jpacket_struct containing the stanza, and the ::session_struct for the
+ * session, that is sending this packet.
+ *
+ * As all es_ events, the es_IN event has to be registered for a session using
+ * the js_mapi_session() call.
+ */
+#define es_OUT     1
+
+/**
+ * es_END is the mapi event, that is fired if a session ends.
+ *
+ * The handler is passed the ::udata_struct of the user, that is logged out; and
+ * the ::session_struct for the session that is closed. No stanza is passed in
+ * ::jpacket_struct.
+ *
+ * As all es_ events, the es_IN event has to be registered for a session using
+ * the js_mapi_session() call.
+ */
+#define es_END     2
 /* always add new event types here, to maintain backwards binary compatibility */
 #define es_LAST    3  /**< flag for the highest session event type */
 
