@@ -659,7 +659,7 @@ void js_session_to(session s, jpacket p)
  * jabberd. These are packets we get from the client connection manager,
  * that are from one of our users.
  *
- * Pass them to _js_session_from() ...
+ * Pass them to _js_session_from() to get executed by an own execution thread.
  *
  * @param s the session of the user
  * @param p the received packet

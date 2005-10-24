@@ -315,7 +315,37 @@ result _js_routed_session_control_packet(instance i, dpacket p, xmlnode sc_sessi
 }
 
 /**
- * handle incoming <route/> packets, we get passed from jabberd
+ * handle incoming &lt;route/&gt; packets, we get passed from the @link jabberd XML router (jabberd)@endlink
+ *
+ * &lt;route/&gt; packets are normally received from the client connection manager, that puts the
+ * stanzas received from the client inside the &lt;route/&gt; packet to ensure, that the packet is
+ * routed to the session manager component instead of directly to the destination address. This is
+ * necessary as the session manager might want to trigger actions, drop the stanza, or just has to
+ * ensure, that the client is not spoofing the source address.
+ *
+ * The function checks if it is a special stanza used to establish sessions of a user (in which case
+ * the client connection manager also tells the session manager, how it has to identify the
+ * connection on packets it sends to the client connection manager to get delivered to the client),
+ * or if it is a forwarded stanza of a user for an existing connection.
+ *
+ * In case of a special stanza to establish sessions, this function has to check which protocol
+ * is used by this session. This version of the session manager supports two protocols for this.
+ * On the one hand the traditional jabberd 1.x protocol (handled by _js_routed_session_packet()),
+ * and on the other hand the session control protocol introduced by jabberd2 (handled by
+ * _js_routed_session_control_packet()).
+ *
+ * In case of the traditional jabberd 1.x protocol establishing a session consists of multiple steps
+ * and before the session is really established, the authentication has to be done by the session
+ * manager (for the new jabberd2 protocol, authentication has to be done by the client connection
+ * manager itself). For handling packets of the traditional protocol until authentication has been
+ * done, the packet is passed to _js_routed_auth_packet().
+ *
+ * If it is no session establishment packet, it is then checked if the stanza is an error stanza,
+ * in which case it is passed to _js_routed_error_packet(). If it is no error stanza, the session
+ * of this packet is identified. If there is no such session, the stanza gets bounced back to
+ * the forwarder of it (which normally will be the client connection manager, which then closes
+ * the corresponding connection to the user). If there is such a session, the stanza is passed
+ * together with the corresponding session data to the function js_session_from().
  *
  * @param i the jsm instance we are running in
  * @param p the packet we should receive
@@ -413,9 +443,20 @@ result _js_routed_packet(instance i, dpacket p, jsmi si, xht ht) {
 }
 
 /**
- * handle packets we get passed from jabberd
+ * handle packets we get passed from the @link jabberd XML router (jabberd)@endlink
  *
- * This is the input for packets we receive from jabberd ...
+ * The JSM component receives the packets from the XML router by a call to this function. Therefore each incoming
+ * stanza (either from other servers received by the @link dialback dialback component@endlink or from a client
+ * connection received by the @link pthsock client connection manager@endlink) generates a call of this function.
+ *
+ * This function ensures, that there is a hash table for the destination domain containing all users, that
+ * are currently online on this host (it might be the first packet addresses to this host in which case this
+ * hash is not present before). After this is done, it checks if it is either a stanza, that has been forwarded
+ * by an other component on the XML router (typically this is the client connection manager) in which case the
+ * stanza is passed to _js_routed_packet(), or if it is a non-forwarded packet, which typically means it is an
+ * incoming stanza from either a remote server or another session manager instance on the same XML router, or
+ * a stanza from a transport/gateway. In the second case of a non-forwarded stanza, the stanza is passed to the
+ * function js_deliver_local().
  *
  * @param i the jsm instance we are running in
  * @param p the packet we should receive

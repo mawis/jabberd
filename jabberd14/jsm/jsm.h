@@ -73,6 +73,10 @@
  * #e_REGISTER, #e_CREATE, and #e_DELETE. The events bound to a specific session are:
  * #es_IN, #es_OUT, and #es_END.
  *
+ * When this component is started by a call of jsm(), it initializes internal data,
+ * registers the function js_packet() to get called by the @link jabberd XML router@endlink
+ * for packets addressed to the domain(s) that this session manager instance handles,
+ * and registers the function js_users_gc() to get called periodically.
  */
 
 /**
