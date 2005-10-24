@@ -77,6 +77,78 @@
  * registers the function js_packet() to get called by the @link jabberd XML router@endlink
  * for packets addressed to the domain(s) that this session manager instance handles,
  * and registers the function js_users_gc() to get called periodically.
+ *
+ * If a stanza is routed to the JSM and received by js_packet(), it is first checked
+ * which type of stanza it is. Different actions are taken for &lt;route/&gt; stanzas
+ * than for other stanzas (&lt;message/&gt;, &lt;iq/&gt;, or &lt;presence/&gt;). Inside the
+ * &lt;route/&gt; elements there are stanzas forwarded by a component to the JSM. Normally
+ * this are elements received from the client by the @link pthsock client connection manager@endlink and
+ * forwarded to the session manager. They are wrapped inside this forwarding stanza,
+ * to ensure that each stanza of a user is send through the user's session manager
+ * and not to the recepient directly. Also there are special &lt;route/&gt; stanzas
+ * used to establish sessions (supporting two types of session establishment
+ * protocols: the traditional jabberd14 protocol (see http://svn.jabberd.org/trunk/jadc2s/PROTO)
+ * as well es a new protocol introduced by jabberd2
+ * (see http://jabberd.jabberstudio.org/dev/docs/component.shtml)). The other stanzas are stanzas
+ * normally received from an other session manager (either local or remote in which case the
+ * stanzas already passed the @link dialback dialback@endlink component) or a gateway/transport.
+ *
+ * The normal, non-&lt;route/&gt;d stanzas are processed the following way (starting processing
+ * in js_deliver_local()):
+ * All modules registered for the #e_DELIVER event are called. If one of the called modules
+ * returned #M_HANDLED, the stanza is considered to be processed and no further actions are taken.
+ * If non of the modules handled the packet, the further processing is different for the following
+ * types of stanzas: Stanzas addressed just to the server domain or the domain and a resource, but
+ * no user; stanzas addressed to an existing user address for a user that is; stanzas
+ * addressed to an existing user address, but the user is not online or the stanza is addressed
+ * to a specified resource of the user and there is no session for this resource; and stanzas
+ * addressed to non-existing users.
+ *
+ * Stanzas for non-existing users are just bounced with #XTERROR_NOTFOUND, no further events
+ * are generated.
+ *
+ * Stanzas for offline users and resources that are not online at present generate an
+ * #e_OFFLINE event. If one of the modules registered for this event returns #M_HANDLED, the
+ * stanzas is considered handled and not further processed. If no module returned #M_HANDLED,
+ * the stanza is bounced using #XTERROR_RECIPIENTUNAVAIL.
+ * 
+ * Stanzas for online users (and stanzas addressed to an explicit resource, that is currently
+ * online) generate an #es_IN event. If one of the modules handling the #es_IN event
+ * returned #M_HANDLED, the stanzas is considered to be processed and no further actions
+ * are taken for this stanza. If no module returned #M_HANDLED, the session manager
+ * delivers the stanza to the client, by wrapping the stanza inside a &lt;route/&gt; stanza
+ * and sending the packet to the responsible client connection manager. While stanzas for
+ * online users are processed, it is checked before and after the #es_IN event, if the
+ * session is still existing and not marked as being shut down. If it is marked as being
+ * shut down, the packet is reprocessed starting with the #e_DELIVER process as described
+ * above.
+ *
+ * Stanzas addressed to the server (no user part in the Jabber ID) generate an #e_SERVER
+ * event. Again the stanzas is considered to be handled, if one of the modules, that
+ * registered for this event, returned #M_HANDLED, or else it is bounced with #XTERROR_NOTFOUND.
+ *
+ * The processing for &lt;route/&gt;ed stanzas is as the following: It is first checked
+ * if is a session control packet. Session control packets are processed by the following
+ * functions: _js_routed_session_packet(), _js_routed_auth_packet(), and _js_routed_error_packet()
+ * for the traditional jabberd14 session control protocol; and by _js_routed_session_control_packet()
+ * for stanzas for the jabberd2 compatible session control protocol.
+ *
+ * All session control packets share the same set of events: #e_SESSION is called, when a
+ * new session is created (in case of the traditional protocol, the session is not yet
+ * authenticated!); #e_REGISTER is called, for processing registration requests; #e_CREATE
+ * is called if a user successfully registered for an account; #e_DELETE is called if an
+ * account is being destroyed; #e_AUTH is an event only called for the traditional protocol,
+ * when a packet arrives, that contain stanzas from a user, that is just authenticating
+ * (for the jabberd2 compatible protocol it is the task of the client connection manager
+ * to authenticate the user, therefore the session manager never gets stanzas while the
+ * user is not yet authenticated).
+ *
+ * Normal &lt;route/&gt;d stanzas are processed by js_session_from(), which first checks
+ * if the from address is a valid address of this user and is present at all. Afterwards
+ * the #es_OUT event is called. If one of the modules registered for this event returned
+ * #M_HANDLED, the processing of the stanza is stopped. Else the stanza is considered to
+ * be okay and will just be delivered to the address, it is sent to by a call to
+ * js_deliver().
  */
 
 /**
