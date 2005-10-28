@@ -78,6 +78,34 @@
  * configuration file defines one component.
  */
 
+/**
+ * @dir jabberd
+ * @brief Containing the base executable (the jabberd binary) implementing an XML router and helpers
+ *
+ * In this directory you find the implementation of the jabberd executable, which is just something, that is able to
+ * route XML fragments between the base handlers (most of them are implemented in files inthe directory
+ * @link jabberd/base jabberd/base@endlink.)
+ * The base handlers (which are a part of the jabberd binary) are than able to connect targets and sources to this
+ * XML routing. The most known base handler might be the handler for the &lt;load/&gt; target in the configuration
+ * file. This handler loads a shared object file containing a component and connects this component to the
+ * XML routing.
+ * Other important base handlers are the handlers implemented in base_accept.c and base_connect.c, which implement
+ * the &lt;accept/&gt; and &lt;connect/&gt; targets used to connect two (or more) instances of jabberd running to build
+ * a single server.
+ *
+ * In addition to the XML routing, you find the implementation of the multithreading (mtq.c), a scedular to invoke
+ * regularly tasks (heartbeat.c), logging services (log.c), the handling of the configuration file (config.c),
+ * the handling of network sockets (mio.c, mio_raw.c, mio_ssl.c, mio_xml.c), and the XML database interface (xdb.c).
+ *
+ * The XML routing itself is implemented in the file deliver.c. Routines used for the startup of the server can
+ * be found in jabberd.c and static.c. load.c implements the base handler for the &lt;load/&gt; target in the
+ * configuration file.
+ *
+ * The jabberd executable also contains a library of functions used either by the base executable itself or
+ * that are of general use for components (which are implemented as loadable objects). This jabberd library
+ * is implemented in @link jabberd/lib jabberd/lib.@endlink
+ */
+
 #ifdef HAVE_CONFIG_H
 #   include <config.h>
 #endif
