@@ -39,6 +39,35 @@
  * 
  * --------------------------------------------------------------------------*/
 
+/**
+ * @file jabberd/deliver.c
+ * @brief implements the XML stanza routing of jabberd
+ *
+ * The jabberd execuatable is mainly a router for XML stanzas, that routes stanzas between the base handlers, that connect the components
+ * of the jabberd server to this XML routing. Inside this file the XML routing inside the jabberd server is implemented.
+ *
+ * There are actually three routings, that are defined: One routing for &lt;log/&gt; stanzas (used to send log messages to
+ * a component, that logs the message to a file or the syslog), the second for &lt;xdb/&gt; stanzas (used to abstract database
+ * access into xdb handlers), and the third routing for other stanzas (&lt;route/&gt;, &lt;message/&gt;, &lt;presence/&gt;,
+ * and &lt;iq/&gt;).
+ *
+ * The basic routing is defined on startup using the configuration file. &lt;xdb/&gt; sections in the configuration are registered in
+ * the routing for &lt;xdb/&gt; stanzas, &lt;log/&gt; sections in the configuration are registered in the routing for
+ * &lt;log/&gt; stanzas, &lt;service/&gt; sections are registered in the routing for the other stanzas.
+ *
+ * Routing is done based on the domain part of a JID. The components can be registered to get stanzas for domains. On startup
+ * the component is registered for the domain contained in the value of the id attribute of the configuration file element as
+ * well as for all domains configured with &lt;host/&gt; elements inside the section of the component. Where each &lt;host/&gt;
+ * element contains a single additional domain, and an empty &lt;host/&gt; registers the component to be a default handler if
+ * no other component has explicitly registered to handle the domain. (Additionally there is the &lt;uplink/&gt; element,
+ * which is nearly the same as an empty &lt;host/&gt; element, but registers a routing not only in a single routing, but in
+ * all three XML routings. To be more precise: It is the fallback if there is even no default component for a given routing.
+ * There can be only one uplink in a single instance of jabberd.)
+ *
+ * After a component has started, it can register for additional routings using the register_instance() function, or unregister
+ * an existing routing using the unregister_instance() function.
+ */
+
 /* WARNING: the comments in here are random ramblings across the timespan this file has lived, don't rely on them for anything except entertainment (and if this entertains you, heh, you need to get out more :)
 
 <jer mode="pondering">
@@ -122,14 +151,22 @@ typedef struct deliver_mp_st
     dpacket p;
 } _deliver_msg,*deliver_msg;
 
-typedef struct ilist_struct
-{
+/**
+ * list of all instances of ::instance
+ */
+typedef struct ilist_struct {
     instance i;
     struct ilist_struct *next;
 } *ilist, _ilist;
 
-ilist ilist_add(ilist il, instance i)
-{
+/**
+ * add an ::instance to the list of all instances
+ *
+ * @param il the existing list
+ * @param i the instance to be added
+ * @return the new list
+ */
+ilist ilist_add(ilist il, instance i) {
     ilist cur, ilnew;
 
     for(cur = il; cur != NULL; cur = cur->next)
@@ -142,8 +179,14 @@ ilist ilist_add(ilist il, instance i)
     return ilnew;
 }
 
-ilist ilist_rem(ilist il, instance i)
-{
+/**
+ * remove an ::instance from the list of instances
+ *
+ * @param il the existing list
+ * @param i the instance to be deleted
+ * @return the new list
+ */
+ilist ilist_rem(ilist il, instance i) {
     ilist cur;
 
     if(il == NULL) return NULL;
@@ -164,16 +207,21 @@ ilist ilist_rem(ilist il, instance i)
 
 /* set up our global delivery logic tracking vars */
 
-xht deliver__hnorm = NULL; /* hosts for normal packets, important and most frequently used one */
-xht deliver__hxdb = NULL; /* host filters for xdb requests */
-xht deliver__hlog = NULL; /* host filters for logging */
-xht deliver__ns = NULL; /* namespace filters for xdb */
-xht deliver__logtype = NULL; /* log types, fixed set, but it's easier (wussier) to just be consistent and use a hashtable */
+xht deliver__hnorm = NULL; /**< hosts for normal packets, important and most frequently used one */
+xht deliver__hxdb = NULL; /**< host filters for xdb requests */
+xht deliver__hlog = NULL; /**< host filters for logging */
+xht deliver__ns = NULL; /**< namespace filters for xdb */
+xht deliver__logtype = NULL; /**< log types, fixed set, but it's easier (wussier) to just be consistent and use a hashtable */
 
-ilist deliver__all = NULL; /* all instances */
-instance deliver__uplink = NULL; /* uplink instance, only one */
+ilist deliver__all = NULL; /**< all instances */
+instance deliver__uplink = NULL; /**< uplink instance, only one */
 
-/* utility to find the right hashtable based on type */
+/**
+ * utility to find the right routing hashtable based on type of a stanza
+ *
+ * @param ptype the ::type of a packet
+ * @return the correct hashtable used for the routing of this stanza type
+ */
 xht deliver_hashtable(ptype type)
 {
     switch(type)
@@ -187,7 +235,13 @@ xht deliver_hashtable(ptype type)
     }
 }
 
-/* utility to find the right ilist in the hashtable */
+/**
+ * utility to find the right ilist in the hashtable
+ *
+ * @param ht the hashtable for the routing of a stanzatype
+ * @param key the domain to be looked up (or "*" if the default routing is searched)
+ * @return the list of instances registered for this routing
+ */
 ilist deliver_hashmatch(xht ht, char *key)
 {
     ilist l;
@@ -199,7 +253,13 @@ ilist deliver_hashmatch(xht ht, char *key)
     return l;
 }
 
-/* find and return the instance intersecting both lists, or react intelligently */
+/**
+ * find and return the instance intersecting both lists, or react intelligently
+ *
+ * @param a first list of instances
+ * @param b second list of instances
+ * @return the ::instance, that is in both lists - or NULL if the intersection contains multiple instances - or the instance registered as uplink, if there was no match
+ */
 instance deliver_intersect(ilist a, ilist b)
 {
     ilist cur = NULL, cur2;
@@ -237,7 +297,20 @@ instance deliver_intersect(ilist a, ilist b)
     return i;
 }
 
-/* special case handler for xdb calls @-internal */
+/**
+ * special case handler for xdb calls @-internal
+ *
+ * "-internal" is a special domain. Using config@-internal as JID a component can access the 
+ * configuration file of jabberd. Using host@-internal or unhost@-internal a component can
+ * register/unregister for the routing of a domain that is specified as the resource of the
+ * JID.
+ *
+ * @TODO The whole thing is a bit hacky. As long as we are using this hack, we might
+ * at least better use one of the RFC 2606 domains.
+ *
+ * @param p the packet to deliver
+ * @param i the sender instance of the packet
+ */
 void deliver_internal(dpacket p, instance i)
 {
     xmlnode x;
@@ -279,7 +352,12 @@ void deliver_internal(dpacket p, instance i)
     }
 }
 
-/* register this instance as a possible recipient of packets to this host */
+/**
+ * register this instance as a possible recipient of packets to this host
+ *
+ * @param i the instance to register
+ * @param host the domain to register this instance for (or "*" to register as the default routing)
+ */
 void register_instance(instance i, char *host)
 {
     ilist l;
@@ -306,6 +384,12 @@ void register_instance(instance i, char *host)
     xhash_put(ht, pstrdup(i->p,host), (void *)l);
 }
 
+/**
+ * unregister an instance as a possible recipient of packets for a domain
+ *
+ * @param i the instance to unregister
+ * @param host the domain to unregister (or "*" to unregister as the default routing)
+ */
 void unregister_instance(instance i, char *host)
 {
     ilist l;
@@ -322,6 +406,14 @@ void unregister_instance(instance i, char *host)
         xhash_put(ht, pstrdup(i->p,host), (void *)l);
 }
 
+/**
+ * handler for the &lt;host/&gt; configuration element
+ *
+ * @param i the instance the element is read for
+ * @param x the configuration element
+ * @param arg unused/ignored
+ * @return r_DONE if the instance is registered, r_ERR on error, r_PASS if no instance provided by the caller
+ */
 result deliver_config_host(instance i, xmlnode x, void *arg)
 {
     char *host;
@@ -349,6 +441,14 @@ result deliver_config_host(instance i, xmlnode x, void *arg)
     return r_DONE;
 }
 
+/**
+ * handler for the &lt;ns/&gt; configuration element
+ *
+ * @param i the instance the element is read for
+ * @param x the configuration element
+ * @param arg unused/ignored
+ * @return r_DONE if the instance is registered, r_ERR on error, r_PASS if no instance provided by the caller
+ */
 result deliver_config_ns(instance i, xmlnode x, void *arg)
 {
     ilist l;
@@ -376,6 +476,14 @@ result deliver_config_ns(instance i, xmlnode x, void *arg)
     return r_DONE;
 }
 
+/**
+ * handler for the &lt;logtype/&gt; configuration element
+ * 
+ * @param i the instance the element is read for
+ * @param x the configuration element
+ * @param arg unused/ignored
+ * @return r_DONE if the instance is registered, r_ERR on error, r_PASS if no instance provided by the caller
+ */
 result deliver_config_logtype(instance i, xmlnode x, void *arg)
 {
     ilist l;
@@ -403,6 +511,14 @@ result deliver_config_logtype(instance i, xmlnode x, void *arg)
     return r_DONE;
 }
 
+/**
+ * handler for the &lt;uplink/&gt; configuration element
+ * 
+ * @param i the instance the element is read for
+ * @param x the configuration element
+ * @param arg unused/ignored
+ * @return r_DONE if the instance is registered, r_ERR on error, r_PASS if no instance provided by the caller
+ */
 result deliver_config_uplink(instance i, xmlnode x, void *arg)
 {
     if(i == NULL)
@@ -416,12 +532,30 @@ result deliver_config_uplink(instance i, xmlnode x, void *arg)
 }
 
 /* NULL that sukkah! */
+/**
+ * handler for the &lt;null/&gt; delivery target
+ *
+ * It just deletes packets
+ *
+ * @param i unused/ignored
+ * @param p the packet to delete
+ * @param arg unused/ignored
+ * @return always r_DONE
+ */
 result deliver_null(instance i, dpacket p, void* arg)
 {
     pool_free(p->p);
     return r_DONE;
 }
 
+/**
+ * handler for the &lt;null/&gt; configuration element
+ *
+ * @param i the instance the element is in
+ * @param x the configuration element
+ * @param arg unused/ignored
+ * @return r_DONE on success, r_PASS if no instance is given
+ */
 result deliver_config_null(instance i, xmlnode x, void *arg)
 {
     if(i == NULL)
@@ -431,6 +565,12 @@ result deliver_config_null(instance i, xmlnode x, void *arg)
     return r_DONE;
 }
 
+/**
+ * deliver a ::dpacket to an ::instance using the configured XML routings
+ *
+ * @param p the packet that should be delivered
+ * @param i the instance of the sender (!) of the packet
+ */
 void deliver(dpacket p, instance i)
 {
     ilist a, b;
@@ -484,7 +624,12 @@ void deliver(dpacket p, instance i)
 }
 
 
-/* util to check and see which instance this hostname is going to get mapped to for normal packets */
+/**
+ * util to check and see which instance this hostname is going to get mapped to for normal packets
+ *
+ * @param host the hostname to get checked
+ * @return the instance packets of this host get mapped to
+ */
 instance deliver_hostcheck(char *host)
 {
     ilist l;
@@ -495,7 +640,9 @@ instance deliver_hostcheck(char *host)
     return l->i;
 }
 
-
+/**
+ * initialize the XML delivery system
+ */
 void deliver_init(void)
 {
     deliver__hnorm = xhash_new(401);
@@ -525,7 +672,9 @@ void deliver_shutdown(void) {
 	xhash_free(deliver__logtype);
 }
 
-/* register a function to handle delivery for this instance */
+/**
+ * register a function to handle delivery for this instance
+ */
 void register_phandler(instance id, order o, phandler f, void *arg)
 {
     handel newh, h1, last;
@@ -615,7 +764,9 @@ void register_phandler(instance id, order o, phandler f, void *arg)
 }
 
 
-/* bounce on the delivery, use the result to better gague what went wrong */
+/**
+ * bounce on the delivery, use the result to better gague what went wrong
+ */
 void deliver_fail(dpacket p, char *err)
 {
     xterror xt;
@@ -680,7 +831,9 @@ void deliver_fail(dpacket p, char *err)
     }
 }
 
-/* actually perform the delivery to an instance */
+/**
+ * actually perform the delivery to an instance
+ */
 void deliver_instance(instance i, dpacket p)
 {
     handel h, hlast;
@@ -749,6 +902,12 @@ void deliver_instance(instance i, dpacket p)
 
 }
 
+/**
+ * create a new deliverable packet out of an ::xmlnode
+ *
+ * @param x the xmlnode to generate the deliverable packet for
+ * @return the deliverable packet that has been created
+ */
 dpacket dpacket_new(xmlnode x)
 {
     dpacket p;
@@ -822,6 +981,9 @@ dpacket dpacket_new(xmlnode x)
     return p;
 }
 
+/**
+ * create a clone of a deliverable packet
+ */
 dpacket dpacket_copy(dpacket p)
 {
     dpacket p2;
