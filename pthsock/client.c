@@ -39,6 +39,25 @@
  * 
  * --------------------------------------------------------------------------*/
 
+/**
+ * @dir pthsock
+ * @brief implementation of the client connection manager
+ *
+ * This directory contains the implementation of the pthsock_client component
+ * for the jabberd14 server. The task of this component is to accept incoming
+ * TCP/IP requests from Jabber clients, and to forward the received stanzas
+ * to the session manager of the user. It is the task of the client connection
+ * manager to multiplex the stanzas of all incoming connection by sending them
+ * through the XML router to the session manager, that handles the domain of the
+ * user. Therefore the session manager do not themself have to manage all the
+ * user connections.
+ */
+
+/**
+ * @file client.c
+ * @brief this file implements the client connection manager
+ */
+
 /*
     <service id="pthsock client">
       <host>pth-csock.127.0.0.1</host> <!-- Can be anything -->
