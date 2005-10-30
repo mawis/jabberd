@@ -39,6 +39,11 @@
  * 
  * --------------------------------------------------------------------------*/
 
+/**
+ * @file mio_raw.c
+ * @brief MIO read/write functions to read/write on unencrypted network sockets
+ */
+
 #include <jabberd.h>
 
 void _mio_raw_parser(mio m, const void *buf, size_t bufsz)

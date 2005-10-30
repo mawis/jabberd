@@ -38,6 +38,12 @@
  *
  *
  * --------------------------------------------------------------------------*/
+
+/**
+ * @file xdb.c
+ * @brief implement the interface to the XML database access
+ */
+
 #include "jabberd.h"
 
 result xdb_results(instance id, dpacket p, void *arg)
