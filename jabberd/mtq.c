@@ -42,7 +42,7 @@
 
 /**
  * @file mtq.c
- * @brief mtq is Managed Thread Queues
+ * @brief mtq is Managed Thread Queues - it manages the multithreading in jabberd
  *
  * they queue calls to be run sequentially on a thread, that comes from a system pool of threads
  */
