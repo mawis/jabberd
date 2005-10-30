@@ -39,6 +39,11 @@
  * 
  * --------------------------------------------------------------------------*/
 
+/**
+ * @file config.c
+ * @brief handle the configuration file
+ */
+
 #include "jabberd.h"
 #define MAX_INCLUDE_NESTING 20
 extern pool      jabberd__runtime;

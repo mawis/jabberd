@@ -38,6 +38,11 @@
  * 
  * --------------------------------------------------------------------------*/
 
+/**
+ * @file mio_ssl.c
+ * @brief MIO read/write functions to read/write on TLS encrypted sockets and handling for TLS in general
+ */
+
 #include "jabberd.h"
 #ifdef HAVE_SSL
 #include <openssl/err.h>
