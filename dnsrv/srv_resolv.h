@@ -38,6 +38,23 @@
  * 
  * 
  * --------------------------------------------------------------------------*/
+
+/**
+ * @dir dnsrv
+ * @brief implement the DNS resolver of jabberd14
+ *
+ * The dnsrv component implements the DNS resolver. It might be important to note, that this
+ * resolver is doing all resolving by just using DNS queries. It does not read the /etc/hosts
+ * file on unix systems. Therefore jabberd in general ignores the contents of this file.
+ *
+ * The dnsrv component is normally registered for the default routing in the
+ * @link jabberd jabberd XML router@endlink and therefore gets all stanzas not intended
+ * to be delivered locally. The dnsrv component than starts resolving of the domain, tags
+ * the stanza with the IP addresses of the foreign host and then resends the tagged stanza
+ * to one of the @link dialback server connection managers,@endlink that are configured in
+ * the configuration section of the dnsrv component. This resending is done by wrapping
+ * the stanza in a &lt;route/&gt; stanza.
+ */
 #ifndef INCL_SRV_RESOLV_H
 #define INCL_SRV_RESOLV_H
 
