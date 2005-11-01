@@ -635,8 +635,9 @@ void _client_process(conn_t c) {
 #else
 	_write_actual(c, c->fd, "<failure xmlns='urn:ietf:params:xml:ns:xmpp-tls'/></stream:stream>", 66);
 	c->depth = -1;	/* flag to close the connection */
-	return;
 #endif
+	chunk_free(chunk);
+	return;
     }
 
     /* send it */
@@ -673,7 +674,7 @@ int _client_io_accept(mio_t m, int fd, const char *ip, c2s_t c2s) {
     conn_t c;
 #ifdef USE_SSL
     struct sockaddr_in sa;
-    int namelen = sizeof(struct sockaddr_in);
+    socklen_t namelen = sizeof(struct sockaddr_in);
 #endif
 
     log_debug(ZONE, "new client conn %d from ip %s", fd, ip);
