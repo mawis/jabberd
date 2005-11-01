@@ -170,7 +170,7 @@ static void _mio_accept(mio_t m, int fd)
     mio_debug(ZONE, "accepting on fd #%d", fd);
 
     /* pull a socket off the accept queue and check */
-    newfd = accept(fd, (struct sockaddr*)&serv_addr, (int*)&addrlen);
+    newfd = accept(fd, (struct sockaddr*)&serv_addr, (socklen_t *)&addrlen);
     if(newfd <= 0) return;
 
 #ifdef USE_IPV6
