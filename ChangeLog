@@ -5,6 +5,8 @@
     * jabberd/mio_ssl.c: same
     * dialback/dialback.c: same
     * jabberd/log.c: makeing arguments const for some logging funcs
+    * jabberd/lib/jabberdlib.h: make 2nd arg to jid_new const
+    * jabberd/lib/jid.c: same
 
 2005-10-21  Matthias Wimmer  <m@tthias.net>
 
