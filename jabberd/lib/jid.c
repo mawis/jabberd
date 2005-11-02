@@ -510,7 +510,7 @@ jid jid_safe(jid id)
     return id;
 }
 
-jid jid_new(pool p, char *idstr)
+jid jid_new(pool p, const char *idstr)
 {
     char *server, *resource, *type, *str;
     jid id;

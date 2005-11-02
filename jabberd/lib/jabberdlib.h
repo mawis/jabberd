@@ -523,7 +523,7 @@ typedef struct jid_struct
     struct jid_struct *next; /* for lists of jids */
 } *jid;
   
-jid     jid_new(pool p, char *idstr);	       /* Creates a jabber id from the idstr */
+jid     jid_new(pool p, const char *idstr);	       /* Creates a jabber id from the idstr */
 void    jid_set(jid id, char *str, int item);  /* Individually sets jid components */
 char*   jid_full(jid id);		       /* Builds a string type=user/resource@server from the jid data */
 int     jid_cmp(jid a, jid b);		       /* Compares two jid's, returns 0 for perfect match */
