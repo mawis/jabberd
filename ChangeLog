@@ -1,3 +1,11 @@
+2005-11-02  Matthias Wimmer  <m@tthias.net>
+
+    * jabber.xml.dist.in: certificate validation part 1
+    * jabberd/jabberd.h: same
+    * jabberd/mio_ssl.c: same
+    * dialback/dialback.c: same
+    * jabberd/log.c: makeing arguments const for some logging funcs
+
 2005-10-21  Matthias Wimmer  <m@tthias.net>
 
     * dialback/dialback.h: added setting to require STARTTLS for connections
