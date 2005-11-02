@@ -208,6 +208,7 @@ void mio_ssl_init(xmlnode x) {
             log_warn(host, "Could not load file the CA certs for verification: %s", buf);
 	    continue;
 	}
+	/* set which CAs we advertize to clients for client auth */
 	if (cafile != NULL) {
 	    STACK_OF(X509_NAME) *stack_of_names = SSL_load_client_CA_file(cafile);
 	    if (stack_of_names == NULL) {
@@ -571,6 +572,12 @@ int mio_ssl_starttls(mio m, int originator, const char* identity) {
 int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
     long verify_result = 0;
     X509 *peer_cert = NULL;
+    X509_NAME *peer_subject_name = NULL;
+    ASN1_OBJECT *obj_id_on_xmppAddr = NULL;
+    int lastpos = 0;
+    int id_on_xmppAddr_count = 0;
+    pool p = NULL;
+    jid jid_xmppAddr = NULL;
 
     /* sanity checks */
     if (m == NULL || m->ssl == NULL)
@@ -660,8 +667,104 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 	return 0;
     }
 
-    /* certificate is valid */
-    return 1;
+    /* if no id_on_xmppAddr is given, we don't have to check the subject: consider cert valid! */
+    if (id_on_xmppAddr == NULL)
+	return 1;
+
+    /* get a memory pool for the checks */
+    p = pool_new();
+    jid_xmppAddr = jid_new(p, id_on_xmppAddr);
+
+    /* check the subject of the certificate */
+    peer_subject_name = X509_get_subject_name(peer_cert);
+
+    /* check id-on-xmppAddr first */
+    obj_id_on_xmppAddr = OBJ_txt2obj("1.3.6.1.5.5.7.8.5", 1);
+    for (lastpos = X509_NAME_get_index_by_OBJ(peer_subject_name, obj_id_on_xmppAddr, -1); lastpos!=-1; lastpos = X509_NAME_get_index_by_OBJ(peer_subject_name, obj_id_on_xmppAddr, lastpos)) {
+	X509_NAME_ENTRY *name_entry = NULL;
+	ASN1_STRING *asn1_data = NULL;
+	int string_len = 0;
+	unsigned char *string_buf = NULL;
+	jid jid_x509 = NULL;
+
+	/* count number of found id-on-xmppAddr */
+	id_on_xmppAddr_count++;
+
+	/* get the id-on-xmppAddr as UTF-8 string */
+	name_entry = X509_NAME_get_entry(peer_subject_name, lastpos);
+	asn1_data = X509_NAME_ENTRY_get_data(name_entry);
+	string_len = ASN1_STRING_to_UTF8(&string_buf, asn1_data);
+
+	/* check it */
+	jid_x509 = jid_new(p, (const char *)string_buf);
+	if (jid_cmp(jid_xmppAddr, jid_x509) == 0) {
+	    /* match! */
+	    OPENSSL_free(string_buf);
+	    log_notice(id_on_xmppAddr, "TLS verification success: subject match on id-on-xmppAddr");
+	    pool_free(p);
+	    return 1;
+	}
+
+	if (string_buf != NULL)
+	    OPENSSL_free(string_buf);
+    }
+
+    /* if id-on-xmppAddr was present, but no match, the cert is not okay */
+    if (id_on_xmppAddr_count > 0) {
+	log_notice(id_on_xmppAddr, "TLS verification failed: id-on-xmppAddr present but no match");
+	pool_free(p);
+	return 0;
+    }
+
+    /* check CN */
+    for (lastpos = X509_NAME_get_index_by_NID(peer_subject_name, NID_commonName, -1); lastpos != -1; lastpos = X509_NAME_get_index_by_NID(peer_subject_name, NID_commonName, lastpos)) {
+	X509_NAME_ENTRY *name_entry = NULL;
+	ASN1_STRING *asn1_data = NULL;
+	int string_len = 0;
+	unsigned char *string_buf = NULL;
+	jid jid_x509 = NULL;
+
+	/* get the commonName as UTF-8 string */
+	name_entry = X509_NAME_get_entry(peer_subject_name, lastpos);
+	asn1_data = X509_NAME_ENTRY_get_data(name_entry);
+	string_len = ASN1_STRING_to_UTF8(&string_buf, asn1_data);
+
+	/* special check for *.domain CNs (but only for domains, not in other JIDs) */
+	if (string_len > 2 && string_buf != NULL && strchr((const char *)string_buf, '@') == NULL && strchr((const char *)string_buf, '/') == NULL && j_strncmp((const char *)string_buf, "*.", 2) == 0) {
+	    char *preped_cert_domain = jid_full(jid_new(p, (const char *)string_buf+2));
+	    int id_on_xmppAddr_len = j_strlen(id_on_xmppAddr);
+
+	    /* only check if our expected domain is at least as long as the wildcard string (there must be a subdomain!) */
+	    if (id_on_xmppAddr_len > j_strlen(preped_cert_domain)+1) {
+		if (j_strcmp(id_on_xmppAddr+id_on_xmppAddr_len-j_strlen(preped_cert_domain), preped_cert_domain) == 0 && id_on_xmppAddr[id_on_xmppAddr_len-j_strlen(preped_cert_domain)-1] == '.') {
+		    /* match! */
+		    OPENSSL_free(string_buf);
+		    log_notice(id_on_xmppAddr, "TLS verification success: subject match on commonName (wildcard-match: %s against *.%s", id_on_xmppAddr, preped_cert_domain);
+		    pool_free(p);
+		    return 1;
+		}
+	    }
+
+	} else {
+	    /* standard check: try to take it as a JID */
+	    jid_x509 = jid_new(p, (const char *)string_buf);
+	    if (jid_cmp(jid_xmppAddr, jid_x509) == 0) {
+		/* match! */
+		OPENSSL_free(string_buf);
+		log_notice(id_on_xmppAddr, "TLS verification success: subject match on commonName");
+		pool_free(p);
+		return 1;
+	    }
+	}
+
+	if (string_buf != NULL)
+	    OPENSSL_free(string_buf);
+    }
+
+    /* neither id-on-xmppAddr nor commonName matched: certificate is invalid */
+    log_notice(id_on_xmppAddr, "TLS verification failed: neither id-on-xmppAddr (prefered) nor commonName matched expected address");
+    pool_free(p);
+    return 0;
 }
 
 #endif /* HAVE_SSL */
