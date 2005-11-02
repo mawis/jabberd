@@ -894,6 +894,8 @@
       <key id='192.168.1.100'>@sysconfdir@/other_cert_and_key.pem</key>
       <key id='localhost'>@sysconfdir@/localhost.pem</key>
       <key id='*'>@sysconfdir@/default-STARTTLS.pem</key>
+
+      <cacertfile>@sysconfdir/cacerts.pem</cacertfile>
     </ssl>
     -->
 

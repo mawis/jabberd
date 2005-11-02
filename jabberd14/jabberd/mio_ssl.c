@@ -78,8 +78,7 @@ RSA *_ssl_tmp_rsa_cb(SSL *ssl, int export, int keylength)
  *   <key ip='192.168.1.1'>/path/to/the/key/file.pem</key>
  * </ssl>   
  **************************************************************************/
-void mio_ssl_init(xmlnode x)
-{
+void mio_ssl_init(xmlnode x) {
 /* PSEUDO CODE
 
   for $key in children(xmlnode x)
@@ -96,6 +95,7 @@ void mio_ssl_init(xmlnode x)
     xmlnode cur;
     char *host;
     char *keypath;
+    char *cafile = NULL;
 
     log_debug2(ZONE, LOGT_INIT, "MIO SSL init");
 
@@ -115,10 +115,17 @@ void mio_ssl_init(xmlnode x)
     /* Setup our hashtable */
     ssl__ctxs = xhash_new(19);
 
+    /* which CAs to use? */
+    cafile = xmlnode_get_tag_data(x, "cacertfile");
+
     /* Walk our node and add the created contexts */
-    for(cur = xmlnode_get_tag(x, "key"); cur != NULL; 
-                    cur = xmlnode_get_nextsibling(cur))
-    {
+    for(cur = xmlnode_get_tag(x, "key"); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
+	/* we only care for the <key/> elements */
+	if (cur->type != NTYPE_TAG)
+	    continue;
+	if (j_strcmp(xmlnode_get_name(cur), "key") != 0)
+	    continue;
+
 	/* ip is the fallback for jabberd 1.4.3 compatibility */
 	host = xmlnode_get_attrib(cur, "id");
 	if (host == NULL)
@@ -159,7 +166,7 @@ void mio_ssl_init(xmlnode x)
         log_debug2(ZONE, LOGT_INIT, "Loading SSL certificate %s for %s", keypath, host);
         if(!SSL_CTX_use_certificate_file(ctx, keypath,SSL_FILETYPE_PEM)) 
         {
-            log_warn(NULL, "SSL Error using certificate file");
+            log_warn(NULL, "SSL Error using certificate file: %s", keypath);
             SSL_CTX_free(ctx);
             continue;
         }
@@ -189,6 +196,30 @@ void mio_ssl_init(xmlnode x)
 		SSL_CTX_free(ctx);
 		continue;
 	    }
+	}
+
+	/* load CAs for this context */
+	if (cafile != NULL && !SSL_CTX_load_verify_locations(ctx, cafile, NULL)) {
+            unsigned long e;
+            static char *buf;
+        
+            e = ERR_get_error();
+            buf = ERR_error_string(e, NULL);
+            log_warn(host, "Could not load file the CA certs for verification: %s", buf);
+	    continue;
+	}
+	if (cafile != NULL) {
+	    STACK_OF(X509_NAME) *stack_of_names = SSL_load_client_CA_file(cafile);
+	    if (stack_of_names == NULL) {
+		unsigned long e;
+		static char *buf;
+	    
+		e = ERR_get_error();
+		buf = ERR_error_string(e, NULL);
+		log_warn(host, "Could not set names of CAs for client authentication: %s", buf);
+		continue;
+	    }
+	    SSL_CTX_set_client_CA_list(ctx, stack_of_names);
 	}
 	
         xhash_put(ssl__ctxs, host, ctx);
@@ -528,6 +559,109 @@ int mio_ssl_starttls(mio m, int originator, const char* identity) {
     log_debug2(ZONE, LOGT_IO, "TLS established on fd %i", m->fd);
 
     return 0;
+}
+
+/**
+ * verify the SSL/TLS certificate of the peer for the given MIO connection
+ *
+ * @param m the connection for which the peer should be verified
+ * @param the JabberID, that the certificate should be checked for, if NULL it is only checked if the certificate is valid and trusted
+ * @return 0 the certificate is invalid, 1 the certificate is valid
+ */
+int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
+    long verify_result = 0;
+    X509 *peer_cert = NULL;
+
+    /* sanity checks */
+    if (m == NULL || m->ssl == NULL)
+	return 0;
+
+    /* check if we have a peer certificate */
+    peer_cert = SSL_get_peer_certificate(m->ssl);
+    if (peer_cert == NULL) {
+	log_notice(id_on_xmppAddr, "TLS verification failed: no peer certificate");
+	return 0;
+    }
+
+    /* check if the certificate is valid */
+    verify_result = SSL_get_verify_result(m->ssl);
+    if (verify_result != X509_V_OK) {
+	switch (verify_result) {
+	    case X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT:
+		log_notice(id_on_xmppAddr, "TLS verification failed: unable to get issuer certificate");
+		break;
+	    case X509_V_ERR_UNABLE_TO_DECRYPT_CERT_SIGNATURE:
+		log_notice(id_on_xmppAddr, "TLS verification failed: unable to decrypt certificate's signature");
+		break;
+	    case X509_V_ERR_UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY:
+		log_notice(id_on_xmppAddr, "TLS verification failed: unable to decode issuer public key");
+		break;
+	    case X509_V_ERR_CERT_SIGNATURE_FAILURE:
+		log_notice(id_on_xmppAddr, "TLS verification failed: certificate signature failure");
+		break;
+	    case X509_V_ERR_CERT_NOT_YET_VALID:
+		log_notice(id_on_xmppAddr, "TLS verification failed: certificate is not yet valid");
+		break;
+	    case X509_V_ERR_CERT_HAS_EXPIRED:
+		log_notice(id_on_xmppAddr, "TLS verification failed: certificate has expired");
+		break;
+	    case X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD:
+		log_notice(id_on_xmppAddr, "TLS verification failed: format error in certificate's notBefore field");
+		break;
+	    case X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD:
+		log_notice(id_on_xmppAddr, "TLS verification failed: format error in certificate's notAfter field");
+		break;
+	    case X509_V_ERR_ERROR_IN_CRL_LAST_UPDATE_FIELD:
+		log_notice(id_on_xmppAddr, "TLS verification failed: format error in CRL's lastUpdate field");
+		break;
+	    case X509_V_ERR_OUT_OF_MEM:
+		log_notice(id_on_xmppAddr, "TLS verification failed: out of memory");
+		break;
+	    case X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT:
+		log_notice(id_on_xmppAddr, "TLS verification failed: self signed certificate");
+		break;
+	    case X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN:
+		log_notice(id_on_xmppAddr, "TLS verification failed: self signed certificate in certificate chain");
+		break;
+	    case X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY:
+		log_notice(id_on_xmppAddr, "TLS verification failed: unable to get local issuer certificate");
+		break;
+	    case X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE:
+		log_notice(id_on_xmppAddr, "TLS verification failed: unable to verify the first certificate");
+		break;
+	    case X509_V_ERR_INVALID_CA:
+		log_notice(id_on_xmppAddr, "TLS verification failed: invalid CA certificate");
+		break;
+	    case X509_V_ERR_PATH_LENGTH_EXCEEDED:
+		log_notice(id_on_xmppAddr, "TLS verification failed: path length constraint exceeded");
+		break;
+	    case X509_V_ERR_INVALID_PURPOSE:
+		log_notice(id_on_xmppAddr, "TLS verification failed: unsupported certificate purpose");
+		break;
+	    case X509_V_ERR_CERT_UNTRUSTED:
+		log_notice(id_on_xmppAddr, "TLS verification failed: certificate not trusted");
+		break;
+	    case X509_V_ERR_CERT_REJECTED:
+		log_notice(id_on_xmppAddr, "TLS verification failed: certificate rejected");
+		break;
+	    case X509_V_ERR_SUBJECT_ISSUER_MISMATCH:
+		log_notice(id_on_xmppAddr, "TLS verification failed: subject issuer mismatch");
+		break;
+	    case X509_V_ERR_AKID_SKID_MISMATCH:
+		log_notice(id_on_xmppAddr, "TLS verification failed: authority and subject key identifier mismatch");
+		break;
+	    case X509_V_ERR_AKID_ISSUER_SERIAL_MISMATCH:
+		log_notice(id_on_xmppAddr, "TLS verification failed: authority and issuer serial number mismatch");
+		break;
+	    case X509_V_ERR_KEYUSAGE_NO_CERTSIGN:
+		log_notice(id_on_xmppAddr, "TLS verification failed: key usage does not include certificate signing");
+		break;
+	}
+	return 0;
+    }
+
+    /* certificate is valid */
+    return 1;
 }
 
 #endif /* HAVE_SSL */
