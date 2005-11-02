@@ -111,6 +111,7 @@ int dialback_check_securitysetting(db d, mio m, const char *server, int is_outgo
     int required_protection = 0;
     int protection_level = mio_is_encrypted(m);
     const char *require_tls = dialback_get_domain_setting(d->hosts_tls, server);
+    
     if (j_strncmp(require_tls, "require", 7) == 0) {
 	required_protection = 2;
     } else {
@@ -126,9 +127,9 @@ int dialback_check_securitysetting(db d, mio m, const char *server, int is_outgo
     if (protection_level < 1) {
 	log_notice(d->i->id, "%s %s using unencrypted connection", is_outgoing ? "connected to" : "connection from", server);
     } else if (protection_level == 1) {
-	log_notice(d->i->id, "%s %s using integrity protected connection", is_outgoing ? "connected to" : "connection from", server);
+	log_notice(d->i->id, "%s %s using integrity protected connection, certificate is %s", is_outgoing ? "connected to" : "connection from", server, mio_ssl_verify(m, server) ? "valid" : "invalid");
     } else {
-	log_notice(d->i->id, "%s %s using encrypted connection (protection level: %i bit)", is_outgoing ? "connected to" : "connection from", server, protection_level);
+	log_notice(d->i->id, "%s %s using encrypted connection (protection level: %i bit, certificate is %s)", is_outgoing ? "connected to" : "connection from", server, protection_level, mio_ssl_verify(m, server) ? "valid" : "invalid");
     }
     return 1;
 }

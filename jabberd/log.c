@@ -169,7 +169,7 @@ void debug_log2(char *zone, const int type, const char *msgfmt, ...)
 #endif
 }
 
-void logger(char *type, char *host, char *message)
+void logger(char *type, const char *host, char *message)
 {
     xmlnode log;
 
@@ -191,7 +191,7 @@ void logger(char *type, char *host, char *message)
     deliver(dpacket_new(log), NULL);
 }
 
-void log_notice(char *host, const char *msgfmt, ...)
+void log_notice(const char *host, const char *msgfmt, ...)
 {
     va_list ap;
     char logmsg[512] = "";
@@ -203,7 +203,7 @@ void log_notice(char *host, const char *msgfmt, ...)
     logger("notice",host,logmsg);
 }
 
-void log_warn(char *host, const char *msgfmt, ...)
+void log_warn(const char *host, const char *msgfmt, ...)
 {
     va_list ap;
     char logmsg[512] = "";
@@ -215,7 +215,7 @@ void log_warn(char *host, const char *msgfmt, ...)
     logger("warn",host,logmsg);
 }
 
-void log_alert(char *host, const char *msgfmt, ...)
+void log_alert(const char *host, const char *msgfmt, ...)
 {
     va_list ap;
     char logmsg[512] = "";
