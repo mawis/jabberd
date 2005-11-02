@@ -218,11 +218,11 @@ void set_debug_facility(int facility);
 #endif
 void debug_log(char *zone, const char *msgfmt, ...);
 void debug_log2(char *zone, const int type, const char *msgfmt, ...);
-void log_notice(char *host, const char *msgfmt, ...);
-void log_warn(char *host, const char *msgfmt, ...);
-void log_alert(char *host, const char *msgfmt, ...);
+void log_notice(const char *host, const char *msgfmt, ...);
+void log_warn(const char *host, const char *msgfmt, ...);
+void log_alert(const char *host, const char *msgfmt, ...);
 #define log_error log_alert
-void logger(char *type, char *host, char *message); /* actually creates and delivers the log message */
+void logger(char *type, const char *host, char *message); /* actually creates and delivers the log message */
 void log_record(char *id, char *type, char *action, const char *msgfmt, ...); /* for generic logging support, like log_record("jer@jabber.org","session","end","...") */
 extern int jabberd__signalflag; /* set to the last signal to be processed */
 void jabberd_signal(void); /* process the signal, called from the heartbeat thread */
@@ -390,6 +390,7 @@ void _mio_xml_parser(mio m, const void *buf, size_t bufsz);
 void    mio_ssl_init     (xmlnode x);
 int	mio_ssl_starttls (mio m, int originator, const char* identity);
 int	mio_ssl_starttls_possible (mio m, const char* identity);
+int	mio_ssl_verify(mio m, const char *id_on_xmppAddr);
 void    _mio_ssl_cleanup (void *arg);
 ssize_t _mio_ssl_read    (mio m, void *buf, size_t count);
 ssize_t _mio_ssl_write   (mio m, const void*      buf,       size_t     count);
