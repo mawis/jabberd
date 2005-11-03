@@ -1,3 +1,10 @@
+2005-11-03  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/jabberd.h: new select() loop, and client certificate validation
+    * jabberd/mio_ssl.c: same
+    * jabberd/mio_xml.c: new select() loop
+    * jabberd/mio.c: same
+
 2005-11-02  Matthias Wimmer  <m@tthias.net>
 
     * jabber.xml.dist.in: certificate validation part 1
