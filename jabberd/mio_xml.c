@@ -169,10 +169,10 @@ void _mio_xml_parser(mio m, const void *vbuf, size_t bufsz)
     char *nul, *buf = (char*)vbuf;
 
     /* check if the stream has to be resetted (after STARTTLS) */
-    if (m->reset_stream > 0) {
+    if (m->flags.reset_stream) {
 	_mio_xstream_cleanup(m);
 	m->root = 0;	/* read root element again */
-	m->reset_stream = 0;
+	m->flags.reset_stream = 0;
     }
 
     /* init the parser if this is the first read call */
@@ -258,7 +258,7 @@ int mio_xml_starttls(mio m, int originator, const char *identity) {
     /* flag that the stream has to be resetted, we cannot reset it
      * here, as we might have been called from within expat and the
      * return would fail then */
-    m->reset_stream = 1;
+    m->flags.reset_stream = 1;
 
     return 0;
 #else /* no SSL enabled */
