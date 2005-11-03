@@ -312,8 +312,7 @@ typedef enum { state_ACTIVE, state_CLOSE } mio_state;
 typedef enum { type_LISTEN, type_NORMAL, type_NUL, type_HTTP } mio_type;
 
 /** Managed I/O. TCP socket management. */
-typedef struct mio_st
-{
+typedef struct mio_st {
     pool p;
     int fd;
     mio_type type; /* listen (server) socket or normal (client) socket */
@@ -333,7 +332,14 @@ typedef struct mio_st
     int        root;
     xmlnode    stacknode;
     void       *ssl;
-    int	       reset_stream; /**< set to 1, if stream has to be resetted */
+    struct {
+	int	reset_stream:1;		/**< set to 1, if stream has to be resetted */
+	int	recall_read_when_readable:1;	/**< recall the read function, when the socket has data available for reading */
+	int	recall_read_when_writeable:1;	/**< recall the read function, when the socket has data available for writing */
+	int	recall_write_when_readable:1;	/**< recall the write function, when the socket has data available for reading */
+	int	recall_write_when_writeable:1;	/**< recall the write function, when the socket allows writing again */
+	int	ssl_reread:1;		/**< there might be more data available to be read from the SSL/TLS library */
+    } flags;
 
     struct karma k;
     int rated;   /* is this socket rate limted? */
