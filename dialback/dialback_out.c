@@ -96,6 +96,9 @@ typedef enum {
     sent_db_request,	/**< we sent out a dialback request */
     db_succeeded,	/**< we had success with our dialback request */
     db_failed,		/**< dialback failed */
+    sasl_started,	/**< we started to authenticate using sasl */
+    sasl_fail,		/**< there was a failure in using sasl */
+    sasl_success	/**< we successfully used sasl */
 } db_connection_state;
 
 /* for connecting db sockets */
@@ -282,6 +285,12 @@ char *dialback_out_connection_state_string(db_connection_state state) {
 	    return "dialback succeeded";
 	case db_failed:
 	    return "dialback failed";
+	case sasl_started:
+	    return "started using SASL";
+	case sasl_fail:
+	    return "failed to auth using SASL";
+	case sasl_success:
+	    return "SASL succeeded";
     }
     return "unknown connection state";
 }
@@ -617,7 +626,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 	    /* create and send our result request to initiate dialback for non XMPP-sessions (XMPP has to wait for stream features) */
 	    if (version < 1) {
 		/* check the require-tls setting */
-		if (dialback_check_securitysetting(c->d, m, c->key->server, 1) == 0) {
+		if (dialback_check_securitysetting(c->d, m, c->key->server, 1, 0) == 0) {
 		    c->securitysetting_failed = 1;
 		    break;
 		}
@@ -689,6 +698,8 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 	    }
 	    /* watch for stream:features */
 	    if (j_strcmp(xmlnode_get_name(x), "stream:features") == 0) {
+		xmlnode mechanisms = NULL;
+
 		c->connection_state = got_features;
 #ifdef HAVE_SSL
 		/* is starttls supported? */
@@ -709,10 +720,52 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 			break;
 		    }
 		}
+		
 #endif /* HAVE_SSL */
 
+		/* is sasl-external supported? */
+		mechanisms = xmlnode_get_tag(x, "mechanisms?xmlns=" NS_XMPP_SASL);
+		if (mechanisms != NULL) {
+		    xmlnode mechanism = NULL;
+		    xmlnode auth = NULL;
+		    char *base64_source_domain = NULL;
+		    size_t base64_source_domain_len = 0;
+		    
+		    /* check for mechanism EXTERNAL */
+		    for (mechanism = xmlnode_get_firstchild(mechanisms); mechanism!=NULL; mechanism = xmlnode_get_nextsibling(mechanism)) {
+			if (xmlnode_get_type(mechanism) != NTYPE_TAG)
+			    continue;
+			if (j_strcasecmp(xmlnode_get_data(mechanism), "EXTERNAL") != 0)
+			    continue;
+
+			/* SASL EXTERNAL is supported: use it */
+			log_debug2(ZONE, LOGT_IO, "SASL EXTERNAL seems to be supported: %s", xmlnode2str(mechanisms));
+			auth = xmlnode_new_tag("auth");
+			xmlnode_put_attrib(auth, "xmlns", NS_XMPP_SASL);
+			xmlnode_put_attrib(auth, "mechanism", xmlnode_get_data(mechanism));
+
+			/* add our id as base64 encoded CDATA */
+			base64_source_domain_len = (j_strlen(c->key->resource)+2)/3*4+1;
+			base64_source_domain = pmalloco(xmlnode_pool(x), base64_source_domain_len);
+			base64_encode((unsigned char *)c->key->resource, j_strlen(c->key->resource), base64_source_domain, base64_source_domain_len);
+			xmlnode_insert_cdata(auth, base64_source_domain, -1);
+
+			/* send the initial exchange */
+			log_debug2(ZONE, LOGT_IO, "trying authentication: %s", xmlnode2str(auth));
+			mio_write(m, auth, NULL, 0);
+
+			c->db_state = sent_request;
+			c->connection_state = sasl_started;
+			break;
+		    }
+
+		    /* SASL EXTERNAL found and used */
+		    if (mechanism != NULL)
+			break;
+		}
+
 		/* no stream:feature we'd like to use, now check the require-tls setting */
-		if (dialback_check_securitysetting(c->d, m, c->key->server, 1) == 0) {
+		if (dialback_check_securitysetting(c->d, m, c->key->server, 1, 0) == 0) {
 		    c->securitysetting_failed = 1;
 		    break;
 		}
@@ -771,6 +824,43 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 		break;
 	    }
 #endif /* HAVE_SSL */
+
+	    /* watch for SASL success */
+	    if (j_strcmp(xmlnode_get_name(x), "success") == 0 && j_strcmp(xmlnode_get_attrib(x, "xmlns"), NS_XMPP_SASL) == 0) {
+		log_debug2(ZONE, LOGT_IO, "SASL success response: %s", xmlnode2str(x));
+
+		c->connection_state = sasl_success;
+
+		mio_reset(m, dialback_out_read_db, (void *)(c->d)); /* different handler now */
+		md = dialback_miod_new(c->d, m); /* set up the mio wrapper */
+		dialback_miod_hash(md, c->d->out_ok_db, c->key); /* this registers us to get stuff directly now */
+
+		/* flush the queue of packets */
+		dialback_out_qflush(md, c->q);
+		c->q = NULL;
+
+		/* we are connected, and can trash this now */
+		dialback_out_connection_cleanup(c);
+		break;
+	    }
+
+	    /* watch for SASL failure */
+	    if (j_strcmp(xmlnode_get_name(x), "failure") == 0 && j_strcmp(xmlnode_get_attrib(x, "xmlns"), NS_XMPP_SASL) == 0) {
+		log_debug2(ZONE, LOGT_IO, "SASL failure response: %s", xmlnode2str(x));
+		
+		/* something went wrong, we were invalid? */
+		c->connection_state = sasl_fail;
+		if (c->connect_results != NULL) {
+		    spool_add(c->connect_results, " (SASL EXTERNAL auth failed: ");
+		    spool_add(c->connect_results, xmlnode2str(x));
+		    spool_add(c->connect_results, ")");
+		}
+		log_alert(c->d->i->id, "SASL EXTERNAL authentication failed on authenticating ourselfs to %s (sending name: %s)",c->key->server,c->key->resource);
+		/* close the stream (in former times we sent a stream error, but I think we shouldn't. There is stream fault by the other entity!) */ 
+		mio_write(m, NULL, "</stream:stream>", -1);
+		mio_close(m);
+		break;
+	    }
 
 	    /* watch for a valid result, then we're set to rock! */
 	    if(j_strcmp(xmlnode_get_name(x),"db:result") == 0) {

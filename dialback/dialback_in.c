@@ -80,6 +80,7 @@ typedef struct dbic_struct {
     char *we_domain;	/**< who the other end expects us to be
 			  (to attribute of stream head) for selecting
 			  a certificate at STARTTLS */
+    char *other_domain;	/**< who the other end told to be in its stream root from attribute (if present) */
 } *dbic, _dbic;
 
 /**
@@ -100,9 +101,10 @@ void dialback_in_dbic_cleanup(void *arg) {
  * @param d the dialback instance
  * @param m the connection of this stream
  * @param we_domain what the other end expects to be our main domain (for STARTTLS)
+ * @param other_domain who the other end told to be in its stream root from attribute (if present)
  * @return the new instance of dbic
  */
-dbic dialback_in_dbic_new(db d, mio m, const char *we_domain) {
+dbic dialback_in_dbic_new(db d, mio m, const char *we_domain, const char *other_domain) {
     dbic c;
 
     c = pmalloco(m->p, sizeof(_dbic));
@@ -111,6 +113,7 @@ dbic dialback_in_dbic_new(db d, mio m, const char *we_domain) {
     c->results = xmlnode_new_tag_pool(m->p,"r"); /* wrapper element, we add the db:result elements inside this one */
     c->d = d;
     c->we_domain = pstrdup(m->p, we_domain);
+    c->other_domain = pstrdup(m->p, other_domain);
     pool_cleanup(m->p,dialback_in_dbic_cleanup, (void *)c); /* remove us automatically if our memory pool is freed */
     xhash_put(d->in_id, c->id, (void *)c); /* insert ourself in the hash of not yet verified connections */
     log_debug2(ZONE, LOGT_IO, "created incoming connection %s from %s",c->id,m->ip);
@@ -200,6 +203,76 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
 #ifdef HAVE_SSL
 	}
 #endif
+    }
+    
+    /* incoming SASL */
+    if (j_strcmp(xmlnode_get_name(x), "auth") == 0 && j_strcmp(xmlnode_get_attrib(x, "xmlns"), NS_XMPP_SASL) == 0) {
+	const char *initial_exchange = xmlnode_get_data(x);
+	char *decoded_initial_exchange = NULL;
+	jid other_side_jid = NULL;
+
+	log_debug2(ZONE, LOGT_IO, "incoming SASL: %s", xmlnode2str(x));
+
+	/* check that the other end is requesting the EXTERNAL mechanism */
+	if (j_strcasecmp(xmlnode_get_attrib(x, "mechanism"), "EXTERNAL") != 0) {
+	    /* unsupported mechanism */
+	    mio_write(m, NULL, "<failure xmlns='" NS_XMPP_SASL "'><invalid-mechanism/></failure></stream:stream>", -1);
+	    mio_close(m);
+	    xmlnode_free(x);
+	    return;
+	}
+
+	/* XXX: empty initial exchange? send empty challenge */
+	if (initial_exchange == NULL) {
+	    /*
+	    mio_write(m, NULL, "<challenge xmlns='" NS_XMPP_SASL "'>=</challenge>", -1);
+	    */
+	    mio_write(m, NULL, "<failure xmlns='" NS_XMPP_SASL "'><not-authorized/></failure></stream:stream>", -1);
+	    mio_close(m);
+	    xmlnode_free(x);
+	    return;
+	}
+
+	/* decode initial exchange */
+	decoded_initial_exchange = pmalloco(x->p, (j_strlen(initial_exchange)+3)/4*3+1);
+	base64_decode(initial_exchange, (unsigned char *)decoded_initial_exchange, (j_strlen(initial_exchange)+3)/4*3+1);
+	other_side_jid = jid_new(x->p, decoded_initial_exchange);
+
+	/* we only accept servers, no users */
+	if (!other_side_jid || other_side_jid->user || other_side_jid->resource) {
+	    mio_write(m, NULL, "<failure xmlns='" NS_XMPP_SASL "'><invalid-authzid/></failure></stream:stream>", -1);
+	    mio_close(m);
+	    xmlnode_free(x);
+	    return;
+	}
+
+	/* check if the other host is who it supposes to be */
+	if (!mio_ssl_verify(m, jid_full(other_side_jid))) {
+	    mio_write(m, NULL, "<failure xmlns='" NS_XMPP_SASL "'><not-authorized/></failure></stream:stream>", -1);
+	    mio_close(m);
+	    xmlnode_free(x);
+	    return;
+	}
+
+	/* check the security settings */
+	if (!dialback_check_securitysetting(c->d, c->m, xmlnode_get_attrib(x, "from"), 0, 1)) {
+	    mio_write(m, NULL, "<failure xmlns='" NS_XMPP_SASL "'><mechanism-too-weak/></failure></stream:stream>", -1);
+	    mio_close(m);
+	    xmlnode_free(x);
+	    return;
+	}
+	
+	/* authorization was successfull! */
+	mio_write(m, NULL, "<success xmlns='" NS_XMPP_SASL "'/>", -1);
+
+	/* authorize the connection */
+	key = jid_new(xmlnode_pool(x),c->we_domain);
+	jid_set(key,jid_full(other_side_jid),JID_RESOURCE);
+	jid_set(key,c->id,JID_USER); /* special user of the id attrib makes this key unique */
+        dialback_miod_hash(dialback_miod_new(c->d, c->m), c->d->in_ok_db, key);
+
+	xmlnode_free(x);
+	return;
     }
 
     /* incoming verification request, check and respond */
@@ -295,6 +368,10 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x)
     dbic c;
     int version = 0;
     const char *dbns = NULL;
+    int can_offer_starttls = 0;
+    int can_do_sasl_external = 0;
+    const char *we_domain = NULL;
+    const char *other_domain = NULL;
 
     log_debug2(ZONE, LOGT_IO, "dbin read: fd %d flag %d",m->fd, flags);
 
@@ -312,9 +389,17 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x)
 
     snprintf(strid, sizeof(strid), "%X", m); /* for hashes for later */
 
-    /* check stream version */
+    /* check stream version and possible features */
     version = j_atoi(xmlnode_get_attrib(x, "version"), 0);
     dbns = xmlnode_get_attrib(x, "xmlns:db");
+    we_domain = xmlnode_get_attrib(x, "to");
+    other_domain = xmlnode_get_attrib(x, "from");
+#ifdef HAVE_SSL
+    can_offer_starttls = mio_ssl_starttls_possible(m, we_domain) ? 1 : 0;
+    can_do_sasl_external = (mio_is_encrypted(m) > 0 && mio_ssl_verify(m, other_domain)) ? 1 : 0;
+#endif
+
+    log_debug2(ZONE, LOGT_IO, "outgoing conn: can_offer_starttls=%i, can_do_sasl_external=%i", can_offer_starttls, can_do_sasl_external);
 
     /* deprecated non-dialback protocol, reject connection */
     if(version < 1 && dbns == NULL)
@@ -327,9 +412,9 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x)
         return;
     }
 
-    /* peer is XMPP server but does not support dialback (probably it implements only SASL) */
-    if (dbns == NULL) {
-	mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Sorry, we only support dialback to 'authenticate' our peers. SASL is not supported by us. You need to support dialback to communicate with this host.</text></stream:error>", -1);
+    /* no support for dialback and we won't be able to offer starttls to this host? */
+    if (dbns == NULL && !can_do_sasl_external) {
+	mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>It seems you do not support dialback, and we cannot validate your TLS certificate. No authentication is possible. We are sorry.</text></stream:error>", -1);
 	mio_close(m);
 	xmlnode_free(x);
 	return;
@@ -344,7 +429,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x)
     }
 
     /* dialback connection */
-    c = dialback_in_dbic_new(d, m, xmlnode_get_attrib(x, "to"));
+    c = dialback_in_dbic_new(d, m, we_domain, other_domain);
 
     /* write our header */
     x2 = xstream_header(NS_SERVER, NULL, c->we_domain);
@@ -364,13 +449,23 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x)
     if (version >= 1) {
 	xmlnode features = xmlnode_new_tag("stream:features");
 #ifdef HAVE_SSL
-	if (mio_ssl_starttls_possible(m, c->we_domain)) {
+	if (can_offer_starttls) {
 	    xmlnode starttls = NULL;
 
 	    starttls = xmlnode_insert_tag(features, "starttls");
 	    xmlnode_put_attrib(starttls, "xmlns", NS_XMPP_TLS);
 	}
+	if (can_do_sasl_external) {
+	    xmlnode mechanisms = NULL;
+	    xmlnode mechanism = NULL;
+
+	    mechanisms = xmlnode_insert_tag(features, "mechanisms");
+	    xmlnode_put_attrib(mechanisms, "xmlns", NS_XMPP_SASL);
+	    mechanism = xmlnode_insert_tag(mechanisms, "mechanism");
+	    xmlnode_insert_cdata(mechanism, "EXTERNAL", -1);
+	}
 #endif
+	log_debug2(ZONE, LOGT_IO, "sending stream features: %s", xmlnode2str(features));
 	mio_write(m, features, NULL, 0);
     }
 }
@@ -436,7 +531,7 @@ void dialback_in_verify(db d, xmlnode x)
     type = xmlnode_get_attrib(x, "type");
     if(j_strcmp(type,"valid") == 0) {
 	/* check the security settings for this connection */
-	if (!dialback_check_securitysetting(c->d, c->m, xmlnode_get_attrib(x, "from"), 0)) {
+	if (!dialback_check_securitysetting(c->d, c->m, xmlnode_get_attrib(x, "from"), 0, 0)) {
 	    return;
 	}
 
