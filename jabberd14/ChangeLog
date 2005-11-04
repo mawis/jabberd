@@ -1,3 +1,10 @@
+2005-11-04  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/jabberd.h: we have to reset the stream after SASL ;)
+    * jabberd/mio_xml.c: same
+    * dialback/dialback_in.c: same
+    * dialback/dialback_out.c: same
+
 2005-11-03  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/jabberd.h: new select() loop, and client certificate validation
