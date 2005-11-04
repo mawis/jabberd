@@ -86,7 +86,7 @@ void dialback_in_read(mio s, int flags, void *arg, xmlnode x);
 void dialback_in_verify(db d, xmlnode x);
 
 const char *dialback_get_domain_setting(xht h, const char* host);
-int dialback_check_securitysetting(db d, mio m, const char *server, int is_outgoing);
+int dialback_check_securitysetting(db d, mio m, const char *server, int is_outgoing, int auth_type);
 char *dialback_randstr(void);
 char *dialback_merlin(pool p, char *secret, char *to, char *challenge);
 void dialback_miod_hash(miod md, xht ht, jid key);
