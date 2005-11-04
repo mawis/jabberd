@@ -46,9 +46,7 @@
     (especially no Intranet hostnames or IP addresses).
 
     Multiple <host/> entries are allowed - each one is for a 
-    separate virtual server. Note that each host entry must 
-    be on one line, the server doesn't like it otherwise! :)
-    Use lowercase for the hostname.
+    separate virtual server.
     -->
 
     <host><jabberd:cmdline flag="h">localhost</jabberd:cmdline></host>

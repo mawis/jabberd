@@ -265,11 +265,10 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
 	/* authorization was successfull! */
 	mio_write(m, NULL, "<success xmlns='" NS_XMPP_SASL "'/>", -1);
 
-	/* authorize the connection */
-	key = jid_new(xmlnode_pool(x),c->we_domain);
-	jid_set(key,jid_full(other_side_jid),JID_RESOURCE);
-	jid_set(key,c->id,JID_USER); /* special user of the id attrib makes this key unique */
-        dialback_miod_hash(dialback_miod_new(c->d, c->m), c->d->in_ok_db, key);
+	/* reset the stream */
+	m->authed_other_side = pstrdup(m->p, jid_full(other_side_jid));
+	mio_xml_reset(m);
+	mio_reset(m, dialback_in_read, (void *)c->d);
 
 	xmlnode_free(x);
 	return;
@@ -358,8 +357,7 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
  * @param arg the db instance
  * @param x the stream root element
  */
-void dialback_in_read(mio m, int flags, void *arg, xmlnode x)
-{
+void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     db d = (db)arg;
     xmlnode x2;
     miod md;
@@ -393,10 +391,10 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x)
     version = j_atoi(xmlnode_get_attrib(x, "version"), 0);
     dbns = xmlnode_get_attrib(x, "xmlns:db");
     we_domain = xmlnode_get_attrib(x, "to");
-    other_domain = xmlnode_get_attrib(x, "from");
+    other_domain = m->authed_other_side ? m->authed_other_side : xmlnode_get_attrib(x, "from");
 #ifdef HAVE_SSL
-    can_offer_starttls = mio_ssl_starttls_possible(m, we_domain) ? 1 : 0;
-    can_do_sasl_external = (mio_is_encrypted(m) > 0 && mio_ssl_verify(m, other_domain)) ? 1 : 0;
+    can_offer_starttls = m->authed_other_side==NULL && mio_ssl_starttls_possible(m, we_domain) ? 1 : 0;
+    can_do_sasl_external = m->authed_other_side==NULL && (mio_is_encrypted(m) > 0 && mio_ssl_verify(m, other_domain)) ? 1 : 0;
 #endif
 
     log_debug2(ZONE, LOGT_IO, "outgoing conn: can_offer_starttls=%i, can_do_sasl_external=%i", can_offer_starttls, can_do_sasl_external);
@@ -412,8 +410,8 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x)
         return;
     }
 
-    /* no support for dialback and we won't be able to offer starttls to this host? */
-    if (dbns == NULL && !can_do_sasl_external) {
+    /* no support for dialback and we won't be able to offer SASL to this host? */
+    if (dbns == NULL && !can_do_sasl_external && m->authed_other_side==NULL) {
 	mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>It seems you do not support dialback, and we cannot validate your TLS certificate. No authentication is possible. We are sorry.</text></stream:error>", -1);
 	mio_close(m);
 	xmlnode_free(x);
@@ -430,6 +428,12 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x)
 
     /* dialback connection */
     c = dialback_in_dbic_new(d, m, we_domain, other_domain);
+
+    /* restarted after SASL? authorize the connection */
+    key = jid_new(xmlnode_pool(x),c->we_domain);
+    jid_set(key,c->other_domain,JID_RESOURCE);
+    jid_set(key,c->id,JID_USER); /* special user of the id attrib makes this key unique */
+    dialback_miod_hash(dialback_miod_new(c->d, c->m), c->d->in_ok_db, key);
 
     /* write our header */
     x2 = xstream_header(NS_SERVER, NULL, c->we_domain);

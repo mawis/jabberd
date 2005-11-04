@@ -558,10 +558,12 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 	    log_debug2(ZONE, LOGT_IO, "NEW outgoing server socket connected at %d",m->fd);
 
 	    /* add to the connect result messages */
-	    if (c->connect_results != NULL) {
-		spool_add(c->connect_results, "Connected");
+	    if (c->connection_state != sasl_success) {
+		if (c->connect_results != NULL && c->connection_state != connected) {
+		    spool_add(c->connect_results, "Connected");
+		}
+		c->connection_state = connected;
 	    }
-	    c->connection_state = connected;
 
 	    /* outgoing conneciton, write the header */
 	    cur = xstream_header("jabber:server", c->key->server, NULL);
@@ -576,7 +578,8 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 
 	case MIO_XML_ROOT:
 	    log_debug2(ZONE, LOGT_IO, "Incoming root %s",xmlnode2str(x));
-	    c->connection_state = got_streamroot;
+	    if (c->connection_state != sasl_success)
+		c->connection_state = got_streamroot;
 
 	    /* validate namespace */
 	    if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:server") != 0) {
@@ -646,7 +649,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 		    c->db_state = could_request;
 		    log_debug2(ZONE, LOGT_IO, "... but we didn't want yet");
 		}
-	    } else {
+	    } else if (c->connection_state != sasl_success) {
 		c->connection_state = waiting_features;
 	    }
 
@@ -699,6 +702,22 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 	    /* watch for stream:features */
 	    if (j_strcmp(xmlnode_get_name(x), "stream:features") == 0) {
 		xmlnode mechanisms = NULL;
+
+		/* the stream has just restarted after SASL? */
+		if (c->connection_state == sasl_success) {
+		    mio_reset(m, dialback_out_read_db, (void *)(c->d)); /* different handler now */
+		    md = dialback_miod_new(c->d, m); /* set up the mio wrapper */
+		    dialback_miod_hash(md, c->d->out_ok_db, c->key); /* this registers us to get stuff directly now */
+
+		    /* flush the queue of packets */
+		    dialback_out_qflush(md, c->q);
+		    c->q = NULL;
+
+		    /* we are connected, and can trash this now */
+		    dialback_out_connection_cleanup(c);
+
+		    break;
+		}
 
 		c->connection_state = got_features;
 #ifdef HAVE_SSL
@@ -831,16 +850,12 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 
 		c->connection_state = sasl_success;
 
-		mio_reset(m, dialback_out_read_db, (void *)(c->d)); /* different handler now */
-		md = dialback_miod_new(c->d, m); /* set up the mio wrapper */
-		dialback_miod_hash(md, c->d->out_ok_db, c->key); /* this registers us to get stuff directly now */
+		/* reset the stream */
+		mio_xml_reset(m);
 
-		/* flush the queue of packets */
-		dialback_out_qflush(md, c->q);
-		c->q = NULL;
+		/* send stream head again */
+		dialback_out_read(m, MIO_NEW, c, NULL);
 
-		/* we are connected, and can trash this now */
-		dialback_out_connection_cleanup(c);
 		break;
 	    }
 
