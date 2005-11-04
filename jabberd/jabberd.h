@@ -346,6 +346,7 @@ typedef struct mio_st {
     jlimit rate; /* if so, what is the rate?    */
     char *ip;
     char *connect_errmsg; /**< error message on failed connects (don't free messages) */
+    char *authed_other_side; /**< if the other side of the stream is authenticated, the identity can be placed here */
 } *mio, _mio;
 
 /* MIO SOCKET HANDLERS */
@@ -382,6 +383,7 @@ int _mio_raw_connect(mio m, struct sockaddr* serv_addr, socklen_t  addrlen);
 #define MIO_RAW_CONNECT (mio_connect_func)&_mio_raw_connect
 #define MIO_RAW_PARSER  (mio_parser_func)&_mio_raw_parser
 
+void mio_xml_reset(mio m);
 int  mio_xml_starttls(mio m, int originator, const char *identity);
 void _mio_xml_parser(mio m, const void *buf, size_t bufsz);
 #define MIO_XML_PARSER  (mio_parser_func)&_mio_xml_parser
