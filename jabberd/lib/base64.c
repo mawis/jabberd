@@ -132,7 +132,7 @@ int base64_encode(unsigned char *source, size_t sourcelen, char *target, size_t 
 void str_b64decode(char* str) {
     size_t decoded_length;
 
-    decoded_length = base64_decode(str, str, strlen(str));
+    decoded_length = base64_decode(str, (unsigned char *)str, strlen(str));
     str[decoded_length] = '\0';
 }
 
@@ -144,8 +144,8 @@ void str_b64decode(char* str) {
  * @param targetlen length of the target buffer
  * @return length of converted data on success, -1 otherwise
  */
-size_t base64_decode(char *source, unsigned char *target, size_t targetlen) {
-    char *cur;
+size_t base64_decode(const char *source, unsigned char *target, size_t targetlen) {
+    const char *cur;
     unsigned char *dest, *max_dest;
     int d, dlast, phase;
     unsigned char c;

@@ -4,6 +4,12 @@
     * jabberd/mio_ssl.c: same
     * jabberd/mio_xml.c: new select() loop
     * jabberd/mio.c: same
+    * jabberd/lib/base64.c: declaring things as const
+    * jabberd/lib/jabberdlib.h: same
+    * dialback/dialback.h: SASL EXTERNAL on s2s
+    * dialback/dialback_in.c: same
+    * dialback/dialback_out.c: same
+    * dialback/dialback.c: same
 
 2005-11-02  Matthias Wimmer  <m@tthias.net>
 
