@@ -230,6 +230,18 @@ void _mio_xml_parser(mio m, const void *vbuf, size_t bufsz)
 }
 
 /**
+ * reset a stream (restart it)
+ *
+ * @param m the stream to reset
+ */
+void mio_xml_reset(mio m) {
+    /* flag that the stream has to be resetted, we cannot reset it
+     * here, as we might have been called from within expat and the
+     * return would fail then */
+    m->flags.reset_stream = 1;
+}
+
+/**
  * restart a stream, starting the use of a TLS layer
  *
  * @param m the connection
@@ -255,10 +267,7 @@ int mio_xml_starttls(mio m, int originator, const char *identity) {
 	return result;
     }
 
-    /* flag that the stream has to be resetted, we cannot reset it
-     * here, as we might have been called from within expat and the
-     * return would fail then */
-    m->flags.reset_stream = 1;
+    mio_xml_reset(m);
 
     return 0;
 #else /* no SSL enabled */
