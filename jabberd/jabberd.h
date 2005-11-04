@@ -200,6 +200,7 @@ instance deliver_hostcheck(char *host); /* util that returns the instance handli
 #define LOGT_AUTH 32768
 #define LOGT_SESSION 65536
 #define LOGT_ROSTER 131072
+#define LOGT_BYTES 262144
 
 int log_get_facility(const char *facility);
 int log_get_level(const char *level);
