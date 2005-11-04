@@ -255,7 +255,7 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
 	}
 
 	/* check the security settings */
-	if (!dialback_check_securitysetting(c->d, c->m, xmlnode_get_attrib(x, "from"), 0, 1)) {
+	if (!dialback_check_securitysetting(c->d, c->m, other_side_jid->server, 0, 1)) {
 	    mio_write(m, NULL, "<failure xmlns='" NS_XMPP_SASL "'><mechanism-too-weak/></failure></stream:stream>", -1);
 	    mio_close(m);
 	    xmlnode_free(x);

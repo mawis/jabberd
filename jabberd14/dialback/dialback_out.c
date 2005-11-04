@@ -580,6 +580,12 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 	    log_debug2(ZONE, LOGT_IO, "Incoming root %s",xmlnode2str(x));
 	    if (c->connection_state != sasl_success)
 		c->connection_state = got_streamroot;
+	    else {
+		if (dialback_check_securitysetting(c->d, m, c->key->server, 1, 1) == 0) {
+		    c->securitysetting_failed = 1;
+		    break;
+		}
+	    }
 
 	    /* validate namespace */
 	    if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:server") != 0) {

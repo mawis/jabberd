@@ -4,6 +4,7 @@
     * jabberd/mio_xml.c: same
     * dialback/dialback_in.c: same
     * dialback/dialback_out.c: same
+    * jabberd/mio.c: debugging possibility to get dumped all socket data
 
 2005-11-03  Matthias Wimmer  <m@tthias.net>
 

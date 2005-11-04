@@ -447,6 +447,7 @@ int _mio_write_dump(mio m) {
 
         /* write a bit from the current buffer */
         len = (*m->mh->write)(m, cur->cur, cur->len);
+	log_debug2(ZONE, LOGT_BYTES, "OUT (%i of %i, fd#%i): %.*s", len, cur->len, m->fd, len, cur->cur);
         /* we had an error on the write */
         if (len == 0) {
             if (m->cb != NULL)
@@ -873,6 +874,7 @@ static int _mio_read_from_socket(mio m, fd_set *all_rfds, fd_set *all_wfds) {
 	    maxlen = sizeof(buf)-1;
 
 	len = (*(m->mh->read))(m, buf, maxlen);
+	log_debug2(ZONE, LOGT_BYTES, "IN (%i of max %i, fd#%i): %.*s", len, maxlen, m->fd, len, buf);
 
 	/* if we had a bad read */
 	if (len == 0 && maxlen > 0) { 
