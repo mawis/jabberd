@@ -104,10 +104,11 @@ const char *dialback_get_domain_setting(xht h, const char* host) {
  * @param d the dialback instance
  * @param m the connection
  * @param server the host at the other end of the connection
- * @param 0 for an outgoing connection, 1 for an incoming connection
+ * @param is_outgoing 0 for an outgoing connection, 1 for an incoming connection
+ * @param auth_type 0 for dialback, 1 for sasl
  * @return 0 if connection is not allowed, else connection is acceptable
  */
-int dialback_check_securitysetting(db d, mio m, const char *server, int is_outgoing) {
+int dialback_check_securitysetting(db d, mio m, const char *server, int is_outgoing, int auth_type) {
     int required_protection = 0;
     int protection_level = mio_is_encrypted(m);
     const char *require_tls = dialback_get_domain_setting(d->hosts_tls, server);
@@ -125,11 +126,11 @@ int dialback_check_securitysetting(db d, mio m, const char *server, int is_outgo
 	return 0;
     }
     if (protection_level < 1) {
-	log_notice(d->i->id, "%s %s using unencrypted connection", is_outgoing ? "connected to" : "connection from", server);
+	log_notice(d->i->id, "%s %s using unencrypted connection (auth=%s)", is_outgoing ? "connected to" : "connection from", server, auth_type ? "sasl" : "db");
     } else if (protection_level == 1) {
-	log_notice(d->i->id, "%s %s using integrity protected connection, certificate is %s", is_outgoing ? "connected to" : "connection from", server, mio_ssl_verify(m, server) ? "valid" : "invalid");
+	log_notice(d->i->id, "%s %s using integrity protected connection, certificate is %s (auth=%s)", is_outgoing ? "connected to" : "connection from", server, mio_ssl_verify(m, server) ? "valid" : "invalid", auth_type ? "sasl" : "db");
     } else {
-	log_notice(d->i->id, "%s %s using encrypted connection (protection level: %i bit, certificate is %s)", is_outgoing ? "connected to" : "connection from", server, protection_level, mio_ssl_verify(m, server) ? "valid" : "invalid");
+	log_notice(d->i->id, "%s %s using encrypted connection (protection level: %i bit, certificate is %s, auth=%s)", is_outgoing ? "connected to" : "connection from", server, protection_level, mio_ssl_verify(m, server) ? "valid" : "invalid", auth_type ? "sasl" : "db");
     }
     return 1;
 }

@@ -187,7 +187,7 @@ void str_b64decode(char *str); /* what it says */
 /*                                                           */
 /* --------------------------------------------------------- */
 int base64_encode(unsigned char *source, size_t sourcelen, char *target, size_t targetlen);
-size_t base64_decode(char *source, unsigned char *target, size_t targetlen);
+size_t base64_decode(const char *source, unsigned char *target, size_t targetlen);
 
 
 /* --------------------------------------------------------- */
@@ -782,6 +782,7 @@ typedef struct xterror_struct
 #define NS_XMPP_STANZAS "urn:ietf:params:xml:ns:xmpp-stanzas"
 #define NS_XMPP_TLS  "urn:ietf:params:xml:ns:xmpp-tls"
 #define NS_XMPP_STREAMS "urn:ietf:params:xml:ns:xmpp-streams"
+#define NS_XMPP_SASL "urn:ietf:params:xml:ns:xmpp-sasl"
 
 #define NS_JABBERD_STOREDPRESENCE "http://jabberd.org/ns/storedpresence"
 #define NS_JABBERD_HISTORY "http://jabberd.org/ns/history"
