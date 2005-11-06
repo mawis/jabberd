@@ -229,7 +229,7 @@ int xstream_eat(xstream xs, char *buff, int len)
  * @param from where we are (source of the stream)
  * @return the xmlnode that has been generated as the template
  */
-xmlnode xstream_header(char *namespace, char *to, char *from) {
+xmlnode xstream_header(const char *namespace, const char *to, const char *from) {
     xmlnode x;
     char id[41];
 

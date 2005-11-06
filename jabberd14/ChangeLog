@@ -1,3 +1,11 @@
+2005-11-05  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/lib/xstream.c: making args of xstream_header() const
+    * jabberd/lib/jabberdlib.h: same
+    * dialback/dialback.c: always sending from and to attribute on s2s
+    * dialback/dialback_in.c: same
+    * dialback/dialback_out.c: same
+
 2005-11-04  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/jabberd.h: we have to reset the stream after SASL ;)
