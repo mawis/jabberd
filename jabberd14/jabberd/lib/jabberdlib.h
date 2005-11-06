@@ -437,7 +437,7 @@ xstream xstream_new(pool p, xstream_onNode f, void *arg); /* create a new xstrea
 int xstream_eat(xstream xs, char *buff, int len); /* parse new data for this xstream, returns last XSTREAM_* status */
 
 /* convience functions */
-xmlnode xstream_header(char *namespace, char *to, char *from);
+xmlnode xstream_header(const char *namespace, const char *to, const char *from);
 char *xstream_header_char(xmlnode x);
 
 /** error cause types for streams, see section 4.7.3 of RFC 3920 */
