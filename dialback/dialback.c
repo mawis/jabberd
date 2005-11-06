@@ -126,11 +126,11 @@ int dialback_check_securitysetting(db d, mio m, const char *server, int is_outgo
 	return 0;
     }
     if (protection_level < 1) {
-	log_notice(d->i->id, "%s %s using unencrypted connection (auth=%s)", is_outgoing ? "connected to" : "connection from", server, auth_type ? "sasl" : "db");
+	log_notice(d->i->id, "%s %s (unencrypted, no certificate, auth=%s)", is_outgoing ? "connected to" : "connection from", server, auth_type ? "sasl" : "db");
     } else if (protection_level == 1) {
-	log_notice(d->i->id, "%s %s using integrity protected connection, certificate is %s (auth=%s)", is_outgoing ? "connected to" : "connection from", server, mio_ssl_verify(m, server) ? "valid" : "invalid", auth_type ? "sasl" : "db");
+	log_notice(d->i->id, "%s %s (integrity protected, certificate is %s, auth=%s)", is_outgoing ? "connected to" : "connection from", server, mio_ssl_verify(m, server) ? "valid" : "invalid", auth_type ? "sasl" : "db");
     } else {
-	log_notice(d->i->id, "%s %s using encrypted connection (protection level: %i bit, certificate is %s, auth=%s)", is_outgoing ? "connected to" : "connection from", server, protection_level, mio_ssl_verify(m, server) ? "valid" : "invalid", auth_type ? "sasl" : "db");
+	log_notice(d->i->id, "%s %s (encrypted: %i bit, certificate is %s, auth=%s)", is_outgoing ? "connected to" : "connection from", server, protection_level, mio_ssl_verify(m, server) ? "valid" : "invalid", auth_type ? "sasl" : "db");
     }
     return 1;
 }

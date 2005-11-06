@@ -403,7 +403,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     if(version < 1 && dbns == NULL)
     {
         key = jid_new(xmlnode_pool(x), xmlnode_get_attrib(x, "to"));
-        mio_write(m,NULL, xstream_header_char(xstream_header("jabber:server", NULL, jid_full(key))), -1);
+        mio_write(m,NULL, xstream_header_char(xstream_header("jabber:server", other_domain, jid_full(key))), -1);
         mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Legacy Access Denied!</text></stream:error>", -1);
         mio_close(m);
         xmlnode_free(x);
@@ -436,7 +436,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     dialback_miod_hash(dialback_miod_new(c->d, c->m), c->d->in_ok_db, key);
 
     /* write our header */
-    x2 = xstream_header(NS_SERVER, NULL, c->we_domain);
+    x2 = xstream_header(NS_SERVER, c->other_domain, c->we_domain);
     xmlnode_put_attrib(x2, "xmlns:db", NS_DIALBACK); /* flag ourselves as dialback capable */
     if (version >= 1) {
 	xmlnode_put_attrib(x2, "version", "1.0");	/* flag us as XMPP capable */
