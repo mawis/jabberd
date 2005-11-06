@@ -566,7 +566,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 	    }
 
 	    /* outgoing conneciton, write the header */
-	    cur = xstream_header("jabber:server", c->key->server, NULL);
+	    cur = xstream_header("jabber:server", c->key->server, c->key->resource);
 	    xmlnode_hide_attrib(cur, "id");					/* no, we don't need the id on this stream */
 	    xmlnode_put_attrib(cur,"xmlns:db","jabber:server:dialback");	/* flag ourselves as dialback capable */
 	    if (c->xmpp_version == 1) {					/* should we flag XMPP support? */
