@@ -1,3 +1,7 @@
+2005-11-07  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/mio_ssl.c: checking subjectAltName/otherName/id-on-xmppAddr
+
 2005-11-05  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/lib/xstream.c: making args of xstream_header() const
