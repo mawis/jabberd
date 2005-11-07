@@ -537,6 +537,40 @@ int mio_ssl_starttls(mio m, int originator, const char* identity) {
 }
 
 /**
+ * check if two domains are matching
+ *
+ * Used to check if a domain in a x509 certificate matches an expected domain name
+ *
+ * @param p memory pool, that can be used for the comparison
+ * @param cert_dom the domain out of a x509 domain, may contain wildcards as in RFC2818
+ * @param true_dom the expected domain (may NOT contain wildcards)
+ * @return 0 if the domains are matching, non-zero else
+ */
+static int _mio_ssl_cert_match(pool p, const char *cert_dom, const char *true_dom) {
+    /* sanity check */
+    if (p == NULL || cert_dom == NULL || true_dom == NULL) {
+	return 1;
+    }
+
+    /* does cert_dom contain wildcards? */
+    if (strchr(cert_dom, '*') == NULL) {
+	/* no wildcards */
+
+	/* make it a JID to get the domains stringpreped */
+	jid jid_cert = jid_new(p, cert_dom);
+	jid jid_true = jid_new(p, true_dom);
+
+	/* compare */
+	return jid_cmp(jid_cert, jid_true);
+    } else {
+	/* there are wildcards, match domain name fragment by fragment */
+
+	/* XXX: to be implemented - asume no match for now */
+	return 1;
+    }
+}
+
+/**
  * verify the SSL/TLS certificate of the peer for the given MIO connection
  *
  * @param m the connection for which the peer should be verified
@@ -551,6 +585,8 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
     int lastpos = 0;
     int id_on_xmppAddr_count = 0;
     int id_on_xmppAddr_match = 0;
+    int dNSName_count = 0;
+    int dNSName_match = 0;
     pool p = NULL;
     jid jid_xmppAddr = NULL;
 
@@ -708,6 +744,22 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 
 		    OPENSSL_free(string_buf);
 		}
+	    } else if (alt_name->type == GEN_DNS) {
+		/* it's a dNSName */
+		char *dNSName = NULL;
+
+		dNSName_count++;
+
+		dNSName = pmalloco(p, ASN1_STRING_length(alt_name->d.ia5)+1);
+		strncpy(dNSName, (const char*)ASN1_STRING_data(alt_name->d.ia5), ASN1_STRING_length(alt_name->d.ia5));
+
+		/* check for a match */
+		if (_mio_ssl_cert_match(p, dNSName, id_on_xmppAddr) == 0) {
+		    dNSName_match++;
+		    log_debug2(ZONE, LOGT_AUTH|LOGT_IO, "Found MATCHING subjectAltName/dNSName: %s", dNSName);
+		} else {
+		    log_debug2(ZONE, LOGT_AUTH|LOGT_IO, "Found subjectAltName/dNSName: %s", dNSName);
+		}
 	    }
 	}
     }
@@ -721,6 +773,19 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
     /* no match but id-on-xmppAddr present? */
     if (id_on_xmppAddr_count > 0) {
 	log_notice(id_on_xmppAddr, "TLS verification failed: id-on-xmppAddr present but no match");
+	pool_free(p);
+	return 0;
+    }
+
+    /* was there a match on dNSName? */
+    if (dNSName_match > 0) {
+	pool_free(p);
+	return 1;
+    }
+
+    /* no match, but dNSName present? */
+    if (dNSName_count > 0) {
+	log_notice(id_on_xmppAddr, "TLS verification failed: dNSName present but no match");
 	pool_free(p);
 	return 0;
     }
@@ -739,40 +804,22 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 	asn1_data = X509_NAME_ENTRY_get_data(name_entry);
 	string_len = ASN1_STRING_to_UTF8(&string_buf, asn1_data);
 
-	/* special check for *.domain CNs (but only for domains, not in other JIDs) */
-	if (string_len > 2 && string_buf != NULL && strchr((const char *)string_buf, '@') == NULL && strchr((const char *)string_buf, '/') == NULL && j_strncmp((const char *)string_buf, "*.", 2) == 0) {
-	    char *preped_cert_domain = jid_full(jid_new(p, (const char *)string_buf+2));
-	    int id_on_xmppAddr_len = j_strlen(id_on_xmppAddr);
+	if (string_buf == NULL)
+	    continue;
 
-	    /* only check if our expected domain is at least as long as the wildcard string (there must be a subdomain!) */
-	    if (id_on_xmppAddr_len > j_strlen(preped_cert_domain)+1) {
-		if (j_strcmp(id_on_xmppAddr+id_on_xmppAddr_len-j_strlen(preped_cert_domain), preped_cert_domain) == 0 && id_on_xmppAddr[id_on_xmppAddr_len-j_strlen(preped_cert_domain)-1] == '.') {
-		    /* match! */
-		    OPENSSL_free(string_buf);
-		    log_notice(id_on_xmppAddr, "TLS verification success: subject match on commonName (wildcard-match: %s against *.%s", id_on_xmppAddr, preped_cert_domain);
-		    pool_free(p);
-		    return 1;
-		}
-	    }
-
-	} else {
-	    /* standard check: try to take it as a JID */
-	    jid_x509 = jid_new(p, (const char *)string_buf);
-	    if (jid_cmp(jid_xmppAddr, jid_x509) == 0) {
-		/* match! */
-		OPENSSL_free(string_buf);
-		log_notice(id_on_xmppAddr, "TLS verification success: subject match on commonName");
-		pool_free(p);
-		return 1;
-	    }
+	/* does the content of the CN match? */
+	if (_mio_ssl_cert_match(p, (char *)string_buf, id_on_xmppAddr) == 0) {
+	    log_debug2(ZONE, LOGT_AUTH|LOGT_IO, "TLS verification success: subject match on commonName: %s matches %s", id_on_xmppAddr, string_buf);
+	    OPENSSL_free(string_buf);
+	    pool_free(p);
+	    return 1;
 	}
 
-	if (string_buf != NULL)
-	    OPENSSL_free(string_buf);
+	OPENSSL_free(string_buf);
     }
 
     /* neither id-on-xmppAddr nor commonName matched: certificate is invalid */
-    log_notice(id_on_xmppAddr, "TLS verification failed: neither id-on-xmppAddr (prefered) nor commonName matched expected address");
+    log_notice(id_on_xmppAddr, "TLS verification failed: neither id-on-xmppAddr, dNSName (both prefered), nor commonName matched expected address");
     pool_free(p);
     return 0;
 }
