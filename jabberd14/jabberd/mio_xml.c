@@ -270,7 +270,7 @@ int mio_xml_starttls(mio m, int originator, const char *identity) {
     mio_xml_reset(m);
 
     return 0;
-#else /* no SSL enabled */
+#else /* no TLS enabled */
     return 1;
 #endif /* HAVE_SSL */
 }

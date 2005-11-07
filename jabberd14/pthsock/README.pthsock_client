@@ -54,9 +54,9 @@ Pthsock client configuration
         <ip port="5222">12.34.56.78</ip> <!-- listen on 12.34.56.78 port 5222 -->
         <ip port="5222"/>                <!-- listen on port 5222 all IPs     -->
 
-        <!-- these are the ip and ports the server should listen on for SSL client connections -->
-        <ssl port="5223">12.34.56.78</ip> <!-- listen on 12.34.56.78 port 5223 -->
-        <ssl port="5223"/>                <!-- listen on port 5223 all IPs     -->
+        <!-- these are the ip and ports the server should listen on for TLS client connections -->
+        <tls port="5223">12.34.56.78</tls> <!-- listen on 12.34.56.78 port 5223 -->
+        <tls port="5223"/>                 <!-- listen on port 5223 all IPs     -->
 
     </config>
 </service>
