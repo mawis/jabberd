@@ -35,7 +35,7 @@ Changes in compiling and installing jabberd
       will use "make install" after compiling jabberd and after that
       you can now delete the source.
     * Jabberd14 now requires at least openssl version 0.9.7 to be build with
-      support for SSL.
+      support for SSL/TLS.
 
 Changes in administration of the server
     * Jabberd14 now supports encrypted connections using the STARTTLS

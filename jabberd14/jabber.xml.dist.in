@@ -350,7 +350,7 @@
       Authentication
       For standard setups mod_auth_digest is recommended. Additionally
       enable mod_auth_plain if you need plaintext authentication.
-      For maximum security, force SSL connections and use mod_auth_crypt
+      For maximum security, force TLS connections and use mod_auth_crypt
       exclusively. Be aware encrypted password storage can lead to
       problems when migrating to other authentication mechanisms
       (LDAP...).
@@ -367,7 +367,7 @@
       <mod_auth_plain>@libdir@/libjabberdsm.so</mod_auth_plain>
       <!-- mod_auth_crypt: Password encrypted/hashed in storage,
            clear text on the wire. Disabled as this only makes
-           sense when used exclusively and with SSL mandatory
+           sense when used exclusively and with TLS mandatory
       <mod_auth_crypt>@libdir@/libjabberdsm.so</mod_auth_crypt> -->
 
       <mod_log>@libdir@/libjabberdsm.so</mod_log>
@@ -564,17 +564,26 @@
       Use these to listen on particular addresses and/or ports.
       Example: <ip port="5222">127.0.0.1</ip>
       Default is to listen on port 5222 on every interface.
-      Remove the <ip/> section to disable non-ssl client connections.
+      Remove the <ip/> section to disable non-TLS client connections.
       -->
       <ip port="5222"/>
 
       <!--
-      The <ssl/> tag acts pretty much like the <ip/> tag,
-      except it defines that SSL is to be used on the 
+      The <tls/> tag acts pretty much like the <ip/> tag,
+      except it defines that TLS is to be used on the 
       ports and IP addresses specified. You must specify
       an IP address here, or the connections will fail.
-      <ssl port='5223'>127.0.0.1</ssl>
-      <ssl port='5224'>192.168.1.100</ssl>
+
+      * Please note that this is NOT the STARTTLS feature.
+      * STARTTLS will be available on the sockets defined with
+      * the <ip/> element!
+      * TLS is just what you mean, when you are typically talking
+      * about SSL. SSL is a protocol by Netscape, while TLS
+      * is an improved version of this protocol defined by the
+      * IETF in RFC 2246.
+
+      <tls port='5223'>127.0.0.1</tls>
+      <tls port='5224'>192.168.1.100</tls>
       -->
 
       <!--
@@ -869,8 +878,9 @@
     <rate points="5" time="25"/>
 
     <!-- 
-    The following section initializes SSL for top-level I/O.
-    This works only when the server is compiled with openssl!
+    The following section initializes TLS (also known as SSL)
+    for top-level I/O.
+    This works only when the server is compiled with OpenSSL!
 
     As the id, use one of the following things:
     - and IP address for usage with client conns on port 5223
@@ -887,14 +897,14 @@
     are allowed to be used.
     -->
     <!--
-    <ssl>
+    <tls>
       <key id='192.168.1.1'>@sysconfdir@/cert_and_key.pem</key>
       <key id='192.168.1.100'>@sysconfdir@/other_cert_and_key.pem</key>
       <key id='localhost'>@sysconfdir@/localhost.pem</key>
       <key id='*'>@sysconfdir@/default-STARTTLS.pem</key>
 
       <cacertfile>@sysconfdir/cacerts.pem</cacertfile>
-    </ssl>
+    </tls>
     -->
 
     <!-- 

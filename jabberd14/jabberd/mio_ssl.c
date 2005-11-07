@@ -108,16 +108,16 @@ void mio_ssl_init(xmlnode x) {
     char *keypath;
     char *cafile = NULL;
 
-    log_debug2(ZONE, LOGT_INIT, "MIO SSL init");
+    log_debug2(ZONE, LOGT_INIT, "MIO TLS init");
 
     /* Make sure we have a valid xmlnode to play with */
     if (x == NULL && xmlnode_has_children(x)) {
-        log_debug2(ZONE, LOGT_INIT|LOGT_STRANGE, "SSL Init called with invalid xmlnode");
+        log_debug2(ZONE, LOGT_INIT|LOGT_STRANGE, "TLS initialization called with invalid xmlnode");
         return;
     }
 
     log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "Handling configuration using: %s", xmlnode2str(x));
-    /* Generic SSL Inits */
+    /* Generic TLS Inits */
     OpenSSL_add_all_algorithms();    
     SSL_load_error_strings();
     SSL_library_init();
@@ -155,7 +155,7 @@ void mio_ssl_init(xmlnode x) {
         
             e = ERR_get_error();
             buf = ERR_error_string(e, NULL);
-            log_warn(host, "Could not create SSL Context: %s", buf);
+            log_warn(host, "Could not create TLS context: %s", buf);
             continue;
         }
 
@@ -172,14 +172,14 @@ void mio_ssl_init(xmlnode x) {
          */
 
         /* Setup the keys and certs */
-        log_debug2(ZONE, LOGT_INIT, "Loading SSL certificate %s for %s", keypath, host);
+        log_debug2(ZONE, LOGT_INIT, "Loading TLS certificate %s for %s", keypath, host);
         if (!SSL_CTX_use_certificate_file(ctx, keypath,SSL_FILETYPE_PEM)) {
-            log_warn(NULL, "SSL Error using certificate file: %s", keypath);
+            log_warn(NULL, "TLS error using certificate file: %s", keypath);
             SSL_CTX_free(ctx);
             continue;
         }
         if (!SSL_CTX_use_PrivateKey_file(ctx, keypath,SSL_FILETYPE_PEM)) {
-            log_warn(NULL, "SSL Error using Private Key file");
+            log_warn(NULL, "TLS error using Private Key file");
             SSL_CTX_free(ctx);
             continue;
         }
@@ -199,7 +199,7 @@ void mio_ssl_init(xmlnode x) {
 	}
 	if (xmlnode_get_attrib(cur, "ciphers") != NULL) {
 	    if (!SSL_CTX_set_cipher_list(ctx, xmlnode_get_attrib(cur, "ciphers"))) {
-		log_warn(NULL, "SSL Error selecting ciphers");
+		log_warn(NULL, "TLS error selecting ciphers");
 		SSL_CTX_free(ctx);
 		continue;
 	    }
@@ -241,7 +241,7 @@ void _mio_ssl_cleanup(void *arg)
 {
     SSL *ssl = (SSL *)arg;
 
-    log_debug2(ZONE, LOGT_CLEANUP, "SSL Cleanup for %x", ssl);
+    log_debug2(ZONE, LOGT_CLEANUP, "TLS cleanup for %x", ssl);
     SSL_free(ssl);
 }
 
@@ -258,7 +258,7 @@ ssize_t _mio_ssl_read(mio m, void *buf, size_t count) {
     log_debug2(ZONE, LOGT_IO, "Asked to read %d bytes from %d", count, m->fd);
 
     /* we are rereading, gets set again if neccessary */
-    m->flags.ssl_reread = 0;
+    m->flags.tls_reread = 0;
 
     /* we are recalling, reset the flags - if neccessary, they are set again later */
     m->flags.recall_read_when_readable = 0;
@@ -269,8 +269,8 @@ ssize_t _mio_ssl_read(mio m, void *buf, size_t count) {
 
     /* if we read as much as possible, there might be more */
     if (ret == count) {
-	m->flags.ssl_reread = 1;
-        log_debug2(ZONE, LOGT_IO, "SSL Asked to reread from %d", m->fd);
+	m->flags.tls_reread = 1;
+        log_debug2(ZONE, LOGT_IO, "OpenSSL asked to reread from %d", m->fd);
     }
 
     if (ret < 0) {
@@ -288,7 +288,7 @@ ssize_t _mio_ssl_read(mio m, void *buf, size_t count) {
 		return -1;
 	}
     } else if (ret > 0) {
-	log_debug2(ZONE, LOGT_IO, "Read from SSL/TLS socket: %.*s", ret, buf);
+	log_debug2(ZONE, LOGT_IO, "Read from TLS socket: %.*s", ret, buf);
     }
 
     return ret;
@@ -299,7 +299,7 @@ ssize_t _mio_ssl_write(mio m, const void *buf, size_t count) {
     SSL *ssl;
     ssl = m->ssl;
    
-    log_debug2(ZONE, LOGT_IO, "writing to SSL/TLS socket: %.*s", count, buf);
+    log_debug2(ZONE, LOGT_IO, "writing to TLS socket: %.*s", count, buf);
 
     /* we are recalling write, reset flags - they get set again if neccessary */
     m->flags.recall_write_when_readable = 0;
@@ -341,20 +341,19 @@ int _mio_ssl_accept(mio m, struct sockaddr *serv_addr, socklen_t *addrlen)
     flags |= O_NONBLOCK;
     fcntl(fd, F_SETFL, flags);
 
-    if(m->ip == NULL)
-    {
-        log_warn(ZONE, "SSL accept but no IP given in configuration");
+    if(m->ip == NULL) {
+        log_warn(ZONE, "TLS accept but no IP given in configuration");
         return -1;
     }
 
     ctx = xhash_get(ssl__ctxs, m->ip);
     if(ctx == NULL)
     {
-        log_warn(NULL, "No SSL key configured for IP %s", m->ip);
+        log_warn(NULL, "No TLS key configured for IP %s", m->ip);
         return -1;
     }
     ssl = SSL_new(ctx);
-    log_debug2(ZONE, LOGT_IO, "SSL accepting socket from %s with new session %x",
+    log_debug2(ZONE, LOGT_IO, "TLS accepting socket from %s with new session %x",
                     m->ip, ssl);
     SSL_set_fd(ssl, fd);
     SSL_set_accept_state(ssl);
@@ -373,8 +372,8 @@ int _mio_ssl_accept(mio m, struct sockaddr *serv_addr, socklen_t *addrlen)
         }
         e = ERR_get_error();
         buf = ERR_error_string(e, NULL);
-        log_debug2(ZONE, LOGT_IO, "Error from SSL: %s", buf);
-        log_debug2(ZONE, LOGT_IO, "SSL Error in SSL_accept call");
+        log_debug2(ZONE, LOGT_IO, "Error from TLS: %s", buf);
+        log_debug2(ZONE, LOGT_IO, "TLS error in SSL_accept call");
         SSL_free(ssl);
         close(fd);
         return -1;
@@ -383,7 +382,7 @@ int _mio_ssl_accept(mio m, struct sockaddr *serv_addr, socklen_t *addrlen)
     m->k.val = 100;
     m->ssl = ssl;
 
-    log_debug2(ZONE, LOGT_IO, "Accepted new SSL socket %d for %s", fd, m->ip);
+    log_debug2(ZONE, LOGT_IO, "Accepted new TLS socket %d for %s", fd, m->ip);
 
     return fd;
 }
@@ -403,19 +402,19 @@ int _mio_ssl_connect(mio m, struct sockaddr *serv_addr, socklen_t addrlen)
 
     /* PSEUDO
      I need to actually look this one up, but I assume it's similar to the
-       SSL accept stuff.
+       TLS accept stuff.
     */
     SSL *ssl=NULL;
     SSL_CTX *ctx = NULL;
     int fd;
 
-    log_debug2(ZONE, LOGT_IO, "Connecting new SSL socket for %s", m->ip);
+    log_debug2(ZONE, LOGT_IO, "Connecting new TLS socket for %s", m->ip);
     ctx = xhash_get(ssl__ctxs, m->ip);
     
     fd = connect(m->fd, serv_addr, addrlen);
     SSL_set_fd(ssl, fd);
     if(SSL_connect(ssl) <= 0){
-        log_debug2(ZONE, LOGT_IO, "SSL Error in SSL_connect call");
+        log_debug2(ZONE, LOGT_IO, "TLS error in SSL_connect call");
         SSL_free(ssl);
         close(fd);
         return -1;
@@ -519,8 +518,8 @@ int mio_ssl_starttls(mio m, int originator, const char* identity) {
         }
         e = ERR_get_error();
         buf = ERR_error_string(e, NULL);
-        log_debug2(ZONE, LOGT_IO, "Error from SSL: %s", buf);
-        log_debug2(ZONE, LOGT_IO, "SSL Error in SSL_%s call", originator ? "connect" : "accept");
+        log_debug2(ZONE, LOGT_IO, "Error from TLS: %s", buf);
+        log_debug2(ZONE, LOGT_IO, "TLS error in SSL_%s call", originator ? "connect" : "accept");
         SSL_free(ssl);
 	mio_close(m);
         return 1;

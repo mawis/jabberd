@@ -339,7 +339,7 @@ typedef struct mio_st {
 	int	recall_read_when_writeable:1;	/**< recall the read function, when the socket has data available for writing */
 	int	recall_write_when_readable:1;	/**< recall the write function, when the socket has data available for reading */
 	int	recall_write_when_writeable:1;	/**< recall the write function, when the socket allows writing again */
-	int	ssl_reread:1;		/**< there might be more data available to be read from the SSL/TLS library */
+	int	tls_reread:1;		/**< there might be more data available to be read from the TLS library */
     } flags;
 
     struct karma k;
@@ -395,7 +395,7 @@ void _mio_xml_parser(mio m, const void *buf, size_t bufsz);
 #define MIO_LISTEN_XML NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER)
 #define MIO_CONNECT_XML  NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER)
 
-/* SSL functions */
+/* TLS functions */
 void    mio_ssl_init     (xmlnode x);
 int	mio_ssl_starttls (mio m, int originator, const char* identity);
 int	mio_ssl_starttls_possible (mio m, const char* identity);
