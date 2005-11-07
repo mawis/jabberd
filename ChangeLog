@@ -1,6 +1,7 @@
 2005-11-07  Matthias Wimmer  <m@tthias.net>
 
-    * jabberd/mio_ssl.c: checking subjectAltName/otherName/id-on-xmppAddr
+    * jabberd/mio_ssl.c: checking subjectAltName/otherName/id-on-xmppAddr,
+	as well as subjectAltName/dNSName
 
 2005-11-05  Matthias Wimmer  <m@tthias.net>
 
