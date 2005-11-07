@@ -905,7 +905,7 @@ static int _mio_read_from_socket(mio m, fd_set *all_rfds, fd_set *all_wfds) {
 	    log_debug2(ZONE, LOGT_IO, "MIO read from socket %d: %s", m->fd, buf);
 	    (*m->mh->parser)(m, buf, len);
 	}
-    } while (m->flags.ssl_reread);
+    } while (m->flags.tls_reread);
 
     return 0;
 }
@@ -1105,10 +1105,19 @@ void mio_init(void) {
     pth_attr_t attr;
     xmlnode io = xmlnode_get_tag(greymatter__, "io");
     xmlnode karma = xmlnode_get_tag(io, "karma");
+    xmlnode tls = NULL;
 
 #ifdef HAVE_SSL
-    if (xmlnode_get_tag(io, "ssl") != NULL)
-        mio_ssl_init(xmlnode_get_tag(io, "ssl"));
+    tls = xmlnode_get_tag(io, "tls");
+    if (tls == NULL) {
+	tls = xmlnode_get_tag(io, "ssl");
+	if (tls != NULL) {
+	    log_warn(NULL, "Please update your configuration. The <ssl/> elements have been renamed to <tls/>. Falling back to use <ssl/> for now: %s", xmlnode2str(tls));
+	}
+    }
+    if (tls != NULL) {
+        mio_ssl_init(tls);
+    }
 #endif
 
     /* where to bounce HTTP requests to */
