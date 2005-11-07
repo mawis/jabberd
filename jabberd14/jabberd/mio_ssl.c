@@ -46,6 +46,7 @@
 #include "jabberd.h"
 #ifdef HAVE_SSL
 #include <openssl/err.h>
+#include <openssl/x509v3.h>
 
 xht ssl__ctxs;
 
@@ -549,6 +550,7 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
     ASN1_OBJECT *obj_id_on_xmppAddr = NULL;
     int lastpos = 0;
     int id_on_xmppAddr_count = 0;
+    int id_on_xmppAddr_match = 0;
     pool p = NULL;
     jid jid_xmppAddr = NULL;
 
@@ -648,41 +650,75 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
     p = pool_new();
     jid_xmppAddr = jid_new(p, id_on_xmppAddr);
 
-    /* check the subject of the certificate */
-    peer_subject_name = X509_get_subject_name(peer_cert);
-
-    /* check id-on-xmppAddr first */
+    /* check subjectAltName/otherName/id-on-xmppAddr first */
     obj_id_on_xmppAddr = OBJ_txt2obj("1.3.6.1.5.5.7.8.5", 1);
-    for (lastpos = X509_NAME_get_index_by_OBJ(peer_subject_name, obj_id_on_xmppAddr, -1); lastpos!=-1; lastpos = X509_NAME_get_index_by_OBJ(peer_subject_name, obj_id_on_xmppAddr, lastpos)) {
-	X509_NAME_ENTRY *name_entry = NULL;
-	ASN1_STRING *asn1_data = NULL;
-	int string_len = 0;
-	unsigned char *string_buf = NULL;
-	jid jid_x509 = NULL;
+    for (lastpos = X509_get_ext_by_NID(peer_cert, NID_subject_alt_name, -1); lastpos != -1; lastpos = X509_get_ext_by_NID(peer_cert, NID_subject_alt_name, lastpos)) {
+	X509_EXTENSION *subject_alt_name = NULL;
+	STACK_OF(GENERAL_NAME) *alt_names = NULL;
+	int alt_names_count = 0;
+	int iterator = 0;
 
-	/* count number of found id-on-xmppAddr */
-	id_on_xmppAddr_count++;
-
-	/* get the id-on-xmppAddr as UTF-8 string */
-	name_entry = X509_NAME_get_entry(peer_subject_name, lastpos);
-	asn1_data = X509_NAME_ENTRY_get_data(name_entry);
-	string_len = ASN1_STRING_to_UTF8(&string_buf, asn1_data);
-
-	/* check it */
-	jid_x509 = jid_new(p, (const char *)string_buf);
-	if (jid_cmp(jid_xmppAddr, jid_x509) == 0) {
-	    /* match! */
-	    OPENSSL_free(string_buf);
-	    log_notice(id_on_xmppAddr, "TLS verification success: subject match on id-on-xmppAddr");
-	    pool_free(p);
-	    return 1;
+	/* get the subjectAltName extension */
+	subject_alt_name = X509_get_ext(peer_cert, lastpos);
+	if (subject_alt_name == NULL) {
+	    log_notice(id_on_xmppAddr, "Error getting extension %i of peer certificate. Error in certificate?", lastpos);
+	    break;
 	}
 
-	if (string_buf != NULL)
-	    OPENSSL_free(string_buf);
+	/* parse the subjectAltName */
+	alt_names = X509V3_EXT_d2i(subject_alt_name);
+	if (alt_names == NULL) {
+	    log_notice(id_on_xmppAddr, "Error parsing subjectAltName in certificate at extPos %i. Error in peer certificate?", lastpos);
+	    break;
+	}
+
+	/* iterate over the content: check for otherName entries */
+	alt_names_count = sk_GENERAL_NAME_num(alt_names);
+	for (iterator = 0; iterator < alt_names_count; iterator++) {
+	    GENERAL_NAME *alt_name = NULL;
+
+	    alt_name = sk_GENERAL_NAME_value(alt_names, iterator);
+
+	    /* is it an otherName? */
+	    if (alt_name->type == GEN_OTHERNAME) {
+		OTHERNAME *otherName = NULL;
+
+		otherName = alt_name->d.otherName;
+
+		/* is the content an id-on-xmppAddr? */
+		if (OBJ_cmp(otherName->type_id, obj_id_on_xmppAddr) == 0) {
+		    ASN1_STRING *asn1_string = NULL;
+		    int string_len = 0;
+		    unsigned char *string_buf = NULL;
+		    jid jid_x509 = NULL;
+
+		    id_on_xmppAddr_count++;
+
+		    asn1_string = otherName->value->value.utf8string;
+		    string_len = ASN1_STRING_to_UTF8(&string_buf, asn1_string);
+
+		    /* compare with what we are looking for ... */
+		    jid_x509 = jid_new(p, (const char *)string_buf);
+		    if (jid_cmp(jid_xmppAddr, jid_x509) == 0) {
+			id_on_xmppAddr_match++;
+			log_debug2(ZONE, LOGT_AUTH|LOGT_IO, "Found MATCHING subjectAltName/otherName/id-on-xmppAddr: %s", string_buf);
+		    } else {
+			log_debug2(ZONE, LOGT_AUTH|LOGT_IO, "Found subjectAltName/otherName/id-on-xmppAddr: %s", string_buf);
+		    }
+
+		    OPENSSL_free(string_buf);
+		}
+	    }
+	}
     }
 
-    /* if id-on-xmppAddr was present, but no match, the cert is not okay */
+    /* was there a match on id-on-xmppAddr? */
+    if (id_on_xmppAddr_match > 0) {
+	pool_free(p);
+	return 1;
+    }
+
+    /* no match but id-on-xmppAddr present? */
     if (id_on_xmppAddr_count > 0) {
 	log_notice(id_on_xmppAddr, "TLS verification failed: id-on-xmppAddr present but no match");
 	pool_free(p);
@@ -690,6 +726,7 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
     }
 
     /* check CN */
+    peer_subject_name = X509_get_subject_name(peer_cert);
     for (lastpos = X509_NAME_get_index_by_NID(peer_subject_name, NID_commonName, -1); lastpos != -1; lastpos = X509_NAME_get_index_by_NID(peer_subject_name, NID_commonName, lastpos)) {
 	X509_NAME_ENTRY *name_entry = NULL;
 	ASN1_STRING *asn1_data = NULL;
