@@ -5,6 +5,24 @@ The example template for handling of jabber:x:offline namespace in
 xdb_sql has changed to support Flexible Offline Message Retrieval.
 A new field "node VARCHAR(24)" is needed in the database table messages.
 
+When someone is talking about SSL, he normally speaks about the TLS
+protocol. SSL is an old protocol defined by Netscape, while TLS is
+a newer version of it, standardized by the IETF as RFC 2246.
+Nearly nobody still uses real SSL our days, but now uses TLS. To
+reflect this fact, the <ssl/> configuration elements have been renamed
+to <tls/>, but the old elements are still processed.
+Please note, that there is a difference between TLS and STARTTLS.
+TLS is (like SSL) just a protocol to encrypt data sent on a network socket,
+while STARTTLS is a protocol used to establish a TLS protected connection.
+
+The dialback component (which implements the s2s connection manager) now
+supports authenticating peers using SASL EXTERNAL authentication (instead
+of the older dialback protocol). SASL EXTERNAL is implemented to
+authenticate the peer using X.509 certificates. To enable this feature,
+you have to configure jabberd14 to know which certification authorities
+you are trusting. This is done using the <cacertfile/> configuration
+element. An example is present in the default configuration file.
+
 Upgrading from 1.4.3(.1) to 1.4.4
 ---------------------------------
 

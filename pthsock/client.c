@@ -621,6 +621,7 @@ void pthsock_client(instance i, xmlnode x)
     char *host;
     struct karma *k = karma_new(i->p); /* Get new inialized karma */
     int set_karma = 0; /* Default false; Did they want to change the karma parameters */
+    char *tls_config_element_name = "tls";
 
     log_debug2(ZONE, LOGT_INIT, "[%s] pthsock_client loading", ZONE);
 
@@ -706,22 +707,24 @@ void pthsock_client(instance i, xmlnode x)
     }
 
 #ifdef HAVE_SSL
-    /* listen on SSL sockets */
-    if((cur = xmlnode_get_tag(s__i->cfg, "ssl")) != NULL)
-    {
-        for(; cur != NULL; xmlnode_hide(cur), cur = xmlnode_get_tag(s__i->cfg, "ssl"))
-        {
-            mio m;
-            m = mio_listen(j_atoi(xmlnode_get_attrib(cur, "port"), 5223), xmlnode_get_data(cur), pthsock_client_listen, (void*)s__i, MIO_SSL_ACCEPT, mio_handlers_new(MIO_SSL_READ, MIO_SSL_WRITE, MIO_XML_PARSER));
-            if(m == NULL)
-                return;
-            /* Set New rate and points */
-            if(set_rate == 1) mio_rate(m, rate_time, rate_points);
-            /* set karma valuse */
-            if(set_karma == 1) mio_karma2(m, k);
-        }
+    if (xmlnode_get_tag(s__i->cfg, "tls") == NULL && xmlnode_get_tag(s__i->cfg, "ssl") != NULL) {
+	log_warn(NULL, "Processing legacy <ssl/> element(s) inside pthsock_client configuration. The element has been renamed to <tls/>.");
+	tls_config_element_name = "ssl";
     }
-                   
+
+    /* listen on TLS sockets */
+    for (cur = xmlnode_get_tag(s__i->cfg, tls_config_element_name); cur != NULL; xmlnode_hide(cur), cur = xmlnode_get_tag(s__i->cfg, tls_config_element_name)) {
+	mio m;
+	m = mio_listen(j_atoi(xmlnode_get_attrib(cur, "port"), 5223), xmlnode_get_data(cur), pthsock_client_listen, (void*)s__i, MIO_SSL_ACCEPT, mio_handlers_new(MIO_SSL_READ, MIO_SSL_WRITE, MIO_XML_PARSER));
+	if (m == NULL)
+	    return;
+	/* Set New rate and points */
+	if (set_rate == 1)
+	    mio_rate(m, rate_time, rate_points);
+	/* set karma valuse */
+	if (set_karma == 1)
+	    mio_karma2(m, k);
+    }
 #endif
 
     /* register data callbacks */
