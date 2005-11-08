@@ -41,15 +41,15 @@
 
 /**
  * @file load.c
- * @brief module loader: handles the loading of components, that are installed as loadable modules
+ * @brief module loader: handles the loading of components, that are installed as loadable modules - the &lt;load/&gt; configuration element
  */
 
 #include "jabberd.h"
 /* IN-PROCESS component loader */
 
-typedef void (*load_init)(instance id, xmlnode x);
-xmlnode load__cache = NULL;
-int load_ref__count = 0;
+typedef void (*load_init)(instance id, xmlnode x);	/**< prototype for the initialization function of a component */
+xmlnode load__cache = NULL;				/**< hacky: xml document containing loaded shared objects as attributes */
+int load_ref__count = 0;				/**< counts loaded components. triggers shutdown if all components are unloaded */
 
 /* use dynamic dlopen/dlsym stuff here! */
 #include <dlfcn.h>
@@ -60,7 +60,7 @@ int load_ref__count = 0;
  *
  * @param file the dynamic library file to load
  */
-void *load_loader(char *file) {
+static void *load_loader(char *file) {
     void *so_h;
     const char *dlerr;
     char message[MAX_LOG_SIZE];
@@ -134,8 +134,7 @@ void *load_symbol(char *func, char *file) {
  *
  * @param arg unused/ignored
  */
-void load_shutdown(void *arg)
-{
+static void load_shutdown(void *arg) {
     load_ref__count--;
     if(load_ref__count != 0)
         return;
@@ -152,7 +151,7 @@ void load_shutdown(void *arg)
  * @param arg unused/ignored
  * @return r_ERR on error, r_PASS on success
  */
-result load_config(instance id, xmlnode x, void *arg) {
+static result load_config(instance id, xmlnode x, void *arg) {
     xmlnode so;
     char *init = xmlnode_get_attrib(x,"main");
     void *f;

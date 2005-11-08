@@ -142,13 +142,16 @@ deliver()
 #include "jabberd.h"
 extern pool jabberd__runtime;
 
-int deliver__flag=0;
-pth_msgport_t deliver__mp=NULL;
-typedef struct deliver_mp_st
-{
-    pth_message_t head;
-    instance i;
-    dpacket p;
+int deliver__flag=0;	/**< 0 = pause delivery on startup and queue for later delivery, 1 = normal operation, -1 = shutdown: no delivery, no queueing */
+pth_msgport_t deliver__mp=NULL;	/**< message port, that contains all queued messages for later delivery while ::deliver__flag = 0 */
+
+/**
+ * queue item for the list of queued messages for later delivery, used while ::deliver__flag = 0
+ */
+typedef struct deliver_mp_st {
+    pth_message_t head;	/**< the standard pth message header */
+    instance i;		/**< the sending instance */
+    dpacket p;		/**< the queued packet */
 } _deliver_msg,*deliver_msg;
 
 /**
@@ -166,7 +169,7 @@ typedef struct ilist_struct {
  * @param i the instance to be added
  * @return the new list
  */
-ilist ilist_add(ilist il, instance i) {
+static ilist ilist_add(ilist il, instance i) {
     ilist cur, ilnew;
 
     for(cur = il; cur != NULL; cur = cur->next)
@@ -186,7 +189,7 @@ ilist ilist_add(ilist il, instance i) {
  * @param i the instance to be deleted
  * @return the new list
  */
-ilist ilist_rem(ilist il, instance i) {
+static ilist ilist_rem(ilist il, instance i) {
     ilist cur;
 
     if(il == NULL) return NULL;
@@ -213,7 +216,7 @@ xht deliver__hlog = NULL; /**< host filters for logging */
 xht deliver__ns = NULL; /**< namespace filters for xdb */
 xht deliver__logtype = NULL; /**< log types, fixed set, but it's easier (wussier) to just be consistent and use a hashtable */
 
-ilist deliver__all = NULL; /**< all instances */
+/* ilist deliver__all = NULL; / all instances - not used anymore!? */
 instance deliver__uplink = NULL; /**< uplink instance, only one */
 
 /**
@@ -222,8 +225,7 @@ instance deliver__uplink = NULL; /**< uplink instance, only one */
  * @param ptype the ::type of a packet
  * @return the correct hashtable used for the routing of this stanza type
  */
-xht deliver_hashtable(ptype type)
-{
+static xht deliver_hashtable(ptype type) {
     switch(type)
     {
     case p_LOG:
@@ -242,8 +244,7 @@ xht deliver_hashtable(ptype type)
  * @param key the domain to be looked up (or "*" if the default routing is searched)
  * @return the list of instances registered for this routing
  */
-ilist deliver_hashmatch(xht ht, char *key)
-{
+static ilist deliver_hashmatch(xht ht, char *key) {
     ilist l;
     l = xhash_get(ht, key);
     if(l == NULL)
@@ -260,8 +261,7 @@ ilist deliver_hashmatch(xht ht, char *key)
  * @param b second list of instances
  * @return the ::instance, that is in both lists - or NULL if the intersection contains multiple instances - or the instance registered as uplink, if there was no match
  */
-instance deliver_intersect(ilist a, ilist b)
-{
+static instance deliver_intersect(ilist a, ilist b) {
     ilist cur = NULL, cur2;
     instance i = NULL;
 
@@ -311,8 +311,7 @@ instance deliver_intersect(ilist a, ilist b)
  * @param p the packet to deliver
  * @param i the sender instance of the packet
  */
-void deliver_internal(dpacket p, instance i)
-{
+static void deliver_internal(dpacket p, instance i) {
     xmlnode x;
     char *ns = xmlnode_get_attrib(p->x, "ns");
 
@@ -414,8 +413,7 @@ void unregister_instance(instance i, char *host)
  * @param arg unused/ignored
  * @return r_DONE if the instance is registered, r_ERR on error, r_PASS if no instance provided by the caller
  */
-result deliver_config_host(instance i, xmlnode x, void *arg)
-{
+static result deliver_config_host(instance i, xmlnode x, void *arg) {
     char *host;
     int c;
 
@@ -449,8 +447,7 @@ result deliver_config_host(instance i, xmlnode x, void *arg)
  * @param arg unused/ignored
  * @return r_DONE if the instance is registered, r_ERR on error, r_PASS if no instance provided by the caller
  */
-result deliver_config_ns(instance i, xmlnode x, void *arg)
-{
+static result deliver_config_ns(instance i, xmlnode x, void *arg) {
     ilist l;
     char *ns, star[] = "*";
 
@@ -484,8 +481,7 @@ result deliver_config_ns(instance i, xmlnode x, void *arg)
  * @param arg unused/ignored
  * @return r_DONE if the instance is registered, r_ERR on error, r_PASS if no instance provided by the caller
  */
-result deliver_config_logtype(instance i, xmlnode x, void *arg)
-{
+static result deliver_config_logtype(instance i, xmlnode x, void *arg) {
     ilist l;
     char *type, star[] = "*";
 
@@ -519,8 +515,7 @@ result deliver_config_logtype(instance i, xmlnode x, void *arg)
  * @param arg unused/ignored
  * @return r_DONE if the instance is registered, r_ERR on error, r_PASS if no instance provided by the caller
  */
-result deliver_config_uplink(instance i, xmlnode x, void *arg)
-{
+static result deliver_config_uplink(instance i, xmlnode x, void *arg) {
     if(i == NULL)
         return r_PASS;
 
@@ -542,8 +537,7 @@ result deliver_config_uplink(instance i, xmlnode x, void *arg)
  * @param arg unused/ignored
  * @return always r_DONE
  */
-result deliver_null(instance i, dpacket p, void* arg)
-{
+static result deliver_null(instance i, dpacket p, void* arg) {
     pool_free(p->p);
     return r_DONE;
 }
@@ -556,8 +550,7 @@ result deliver_null(instance i, dpacket p, void* arg)
  * @param arg unused/ignored
  * @return r_DONE on success, r_PASS if no instance is given
  */
-result deliver_config_null(instance i, xmlnode x, void *arg)
-{
+static result deliver_config_null(instance i, xmlnode x, void *arg) {
     if(i == NULL)
         return r_PASS;
 

@@ -60,12 +60,13 @@
 #include <syslog.h>
 #endif
 
-xht cmd__line, debug__zones;
+xht cmd__line;			/**< hash where unused command-line options are stored to */
+xht debug__zones;		/**< the debugging zones, that are enabled (key = zone string, value = zone string) */
 extern int deliver__flag;
 extern xmlnode greymatter__;
-pool jabberd__runtime = NULL;
-static char *cfgfile = NULL;
-int jabberd__signalflag = 0;
+pool jabberd__runtime = NULL;	/**< pool for the memory used by the jabberd runtime ("global memory") */
+static char *cfgfile = NULL;	/**< the configuration file the user specified he wants to use (NULL for default file) */
+int jabberd__signalflag = 0;	/**< set to the signal value, if jabberd receives a signal */
 
 extern xht instance__ids;
 
@@ -80,12 +81,18 @@ void heartbeat_death(void);
 int configo(int exec);
 void shutdown_callbacks(void);
 void instance_shutdown(instance i);
-void _jabberd_signal(int sig);
-void _jabberd_atexit(void);
+static void _jabberd_signal(int sig);
+static void _jabberd_atexit(void);
 
 
-int main (int argc, char** argv)
-{
+/**
+ * the entry point to jabberd
+ *
+ * @param argc the number of arguments on the command line used to start jabberd
+ * @param argv array of the arguments
+ * @return 0 on successfull shutdown, 1 else
+ */
+int main (int argc, char** argv) {
     int help, i;           /* temporary variables */
     char *c, *cmd, *home = NULL;   /* strings used to load the server config */
     pool cfg_pool=pool_new();
@@ -294,14 +301,24 @@ int main (int argc, char** argv)
     return 0;
 }
 
-void _jabberd_signal(int sig)
-{
+/**
+ * jabberd signal handler
+ *
+ * puts the received signal in the ::jabberd__signalflag variable and returns
+ */
+static void _jabberd_signal(int sig) {
     log_debug2(ZONE, LOGT_EVENT, "received signal %d", sig);
     jabberd__signalflag = sig;
 }
 
-void _jabberd_restart(void)
-{
+/**
+ * reload the configuration file
+ *
+ * this gets called if jabberd receives a SIGHUP signal
+ *
+ * The configuration file is reloaded, but not much is done with the reloaded configuration file yet :(
+ */
+static void _jabberd_restart(void) {
     xmlnode temp_greymatter;
 
     log_notice(NULL, "reloading configuration");
@@ -330,8 +347,12 @@ void _jabberd_restart(void)
 
 }
 
-void _jabberd_shutdown(void)
-{
+/**
+ * shutdown the jabberd process
+ *
+ * this gets called if jabberd receives any non-SIGHUP signal
+ */
+static void _jabberd_shutdown(void) {
     log_notice(NULL,"shutting down server");
 
     /* pause deliver() this sucks, cuase we lose shutdown messages */
@@ -355,11 +376,14 @@ void _jabberd_shutdown(void)
     exit(0);
 }
 
-/* remove the pid file of this process, done in an atexit function
+/**
+ * do jobs, that have to be done even on fatal server shutdowns (if the exit() function is called)
+ *
+ * remove the pid file of this process, done in an atexit function
  * because there are multiple occurences of exit() where
- * _jabberd_shutdown is not called */
-void _jabberd_atexit(void)
-{
+ * _jabberd_shutdown is not called
+ */
+static void _jabberd_atexit(void) {
     xmlnode pidfile;
     char *pidpath;
 
@@ -399,7 +423,9 @@ void _jabberd_atexit(void)
 #endif
 }
 
-/* process the signal */
+/**
+ * process a receives signal
+ */
 void jabberd_signal(void)
 {
     if(jabberd__signalflag == SIGHUP)
