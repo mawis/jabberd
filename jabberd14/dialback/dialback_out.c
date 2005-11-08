@@ -115,13 +115,15 @@ typedef struct {
     dboq q;	/**< pending stanzas, that need to be sent to the peer */
     mio m;	/**< the mio connection this outgoing stream is using */
     		/* original comment: for that short time when we're connected and open, but haven't auth'd ourselves yet */
-    int xmpp_version; /**< 0 if no version should be advertized, 1 if XMPP 1.0 should be advertized */
-    int xmpp_no_tls; /**< 0 if starting TLS is allowed, 1 if TLS should not be established */
-    int securitysetting_failed; /**< 1 if the connection has been droped as security settings where not acceptable, 0 else */
+    int xmpp_version; /**< version the peer supports, -1 not yet known, 0 preXMPP */
+    int settings_failed; /**< 1 if the connection has been droped as configured settings where not fulfilled (e.g. TLS required), 0 else */
     char *stream_id; /**< the stream id the connected entity assigned */
     db_request db_state; /**< if we want to send a <db:result/> and if we already did */
     db_connection_state connection_state; /**< how far did we proceed in connecting to the other host */
     spool connect_results; /**< result messages for the connection attempts */
+    struct {
+	int db:1;	/**< if the peer supports dialback */
+    } flags;
 } *dboc, _dboc;
 
 /* forward declaration */
@@ -238,17 +240,10 @@ dboc dialback_out_connection(db d, jid key, char *ip, db_request db_state) {
     c->stamp = time(NULL);
     c->verifies = xmlnode_new_tag_pool(p,"v");
     c->ip = pstrdup(p,ip);
-    c->xmpp_version = j_strcmp(dialback_get_domain_setting(d->hosts_xmpp, c->key->server), "no")==0 ? 0 : 1;
-    if (c->xmpp_version == 0) {
-	log_debug2(ZONE, LOGT_IO, "disabled XMPP due to configuration for host %s", c->key->server);
-    }
-    c->xmpp_no_tls = j_strcmp(dialback_get_domain_setting(d->hosts_tls, c->key->server), "no")==0 ? 1 : 0;
-    if (c->xmpp_no_tls != 0) {
-	log_debug2(ZONE, LOGT_IO, "disabled STARTTLS due to configuration for host %s", c->key->server);
-    }
     c->db_state = db_state;
     c->connection_state = created;
     c->connect_results = spool_new(p);
+    c->xmpp_version = -1;
 
     /* insert in the hash */
     xhash_put(d->out_connecting, jid_full(c->key), (void *)c);
@@ -327,8 +322,8 @@ void dialback_out_connection_cleanup(dboc c)
     if (cur != NULL) {
 	/* generate bounce message, but only if there are queued messages */
 	errmsg = spool_new(c->p);
-	if (c->securitysetting_failed) {
-	    spool_add(errmsg, "Failed to deliver stanz to other server because of configured security parameters.");
+	if (c->settings_failed) {
+	    spool_add(errmsg, "Failed to deliver stanz to other server because of configured stream parameters.");
 	} else {
 	    spool_add(errmsg, "Failed to deliver stanza to other server while ");
 	    spool_add(errmsg, dialback_out_connection_state_string(c->connection_state));
@@ -533,6 +528,25 @@ void dialback_out_qflush(miod md, dboq q)
 }
 
 /**
+ * send pending db:verify requests, when the connection is read
+ *
+ * @param m the ::mio to send the verifies to
+ * @param c the ::dboc containing the db:verify packets
+ */
+static void dialback_out_send_verifies(mio m, dboc c) {
+    xmlnode cur = NULL;
+
+    /* sanity check */
+    if (m == NULL || c == NULL)
+	return;
+
+    for (cur = xmlnode_get_firstchild(c->verifies); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
+	mio_write(m, xmlnode_dup(cur), NULL, -1);
+	xmlnode_hide(cur);
+    }
+}
+
+/**
  * handle the early connection process
  *
  * What to do:
@@ -548,8 +562,6 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
     dboc c = (dboc)arg;
     xmlnode cur;
     miod md;
-    int version = 0;
-    char *dbns = NULL;
 
     log_debug2(ZONE, LOGT_IO, "dbout read: fd %d flag %d key %s",m->fd, flags, jid_full(c->key));
 
@@ -568,8 +580,10 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 	    /* outgoing conneciton, write the header */
 	    cur = xstream_header("jabber:server", c->key->server, c->key->resource);
 	    xmlnode_hide_attrib(cur, "id");					/* no, we don't need the id on this stream */
-	    xmlnode_put_attrib(cur,"xmlns:db","jabber:server:dialback");	/* flag ourselves as dialback capable */
-	    if (c->xmpp_version == 1) {					/* should we flag XMPP support? */
+	    if (j_strcmp(dialback_get_domain_setting(c->d->hosts_auth, c->key->server), "sasl") != 0)
+		xmlnode_put_attrib(cur,"xmlns:db", NS_DIALBACK);	/* flag ourselves as dialback capable */
+	    if (j_strcmp(dialback_get_domain_setting(c->d->hosts_xmpp, c->key->server), "no") != 0) {
+		/* we flag support for XMPP 1.0 */
 		xmlnode_put_attrib(cur, "version", "1.0");
 	    }
 	    mio_write(m, NULL, xstream_header_char(cur), -1);
@@ -581,8 +595,8 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 	    if (c->connection_state != sasl_success)
 		c->connection_state = got_streamroot;
 	    else {
-		if (dialback_check_securitysetting(c->d, m, c->key->server, 1, 1) == 0) {
-		    c->securitysetting_failed = 1;
+		if (dialback_check_settings(c->d, m, c->key->server, 1, 1, c->xmpp_version) == 0) {
+		    c->settings_failed = 1;
 		    break;
 		}
 	    }
@@ -612,11 +626,13 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 	    }
 
 	    /* check version */
-	    version = j_atoi(xmlnode_get_attrib(x, "version"), 0);
-	    dbns = xmlnode_get_attrib(x, "xmlns:db");
+	    c->xmpp_version = j_atoi(xmlnode_get_attrib(x, "version"), 0);
+	    if (j_strcmp(xmlnode_get_attrib(x, "xmlns:db"), NS_DIALBACK) == 0) {
+		c->flags.db = 1;
+	    }
 
 	    /* deprecated non-dialback protocol, reject connection */
-	    if (version < 1 && dbns == NULL) {
+	    if (c->xmpp_version < 1 && !c->flags.db) {
 		/* Muahahaha!  you suck! *click* */
 		log_notice(c->key->server,"Legacy server access denied");
 		mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Legacy Access Denied!</text></stream:error>", -1);
@@ -624,19 +640,18 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 		break;
 	    }
 
-	    /* peer is XMPP server, but does not support dialback */
-	    if (dbns == NULL) {
-		log_notice(c->d->i->id, "We cannot send to %s. This XMPP server does not support dialback.", c->key->server);
-		mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Sorry, we only support dialback to 'authenticate' our peers. SASL is not supported by us. It seems we cannot communicate to you :-(</text></stream:error>", -1);
-		mio_close(m);
-		break;
-	    }
-
 	    /* create and send our result request to initiate dialback for non XMPP-sessions (XMPP has to wait for stream features) */
-	    if (version < 1) {
+	    if (c->xmpp_version < 1) {
 		/* check the require-tls setting */
-		if (dialback_check_securitysetting(c->d, m, c->key->server, 1, 0) == 0) {
-		    c->securitysetting_failed = 1;
+		if (dialback_check_settings(c->d, m, c->key->server, 1, 0, c->xmpp_version) == 0) {
+		    c->settings_failed = 1;
+		    break;
+		}
+
+		if (j_strcmp(dialback_get_domain_setting(c->d->hosts_auth, "sasl"), "sasl") == 0) {
+		    log_warn(c->d->i->id, "preXMPP peer %s cannot support SASL, but we are configured to require this.", c->key->server);
+		    mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Sorry, but we require SASL auth, but you seem to only support dialback.</text></stream:error>", -1);
+		    mio_close(m);
 		    break;
 		}
 
@@ -661,7 +676,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 
 	    /* well, we're connected to a dialback server, we can at least send verify requests now */
 	    c->m = m;
-	    if (version < 1) {
+	    if (c->xmpp_version < 1) {
 		for(cur = xmlnode_get_firstchild(c->verifies); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
 		    mio_write(m, xmlnode_dup(cur), NULL, -1);
 		    xmlnode_hide(cur);
@@ -691,16 +706,16 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 		/* logging */
 		switch (errstruct->severity) {
 		    case normal:
-			log_debug2(ZONE, LOGT_IO, "stream error on outgoing %s conn to %s (%s): %s", c->xmpp_version < 1 ? "preXMPP" : "XMPP1.0", mio_ip(m), jid_full(c->key), errmsg);
+			log_debug2(ZONE, LOGT_IO, "stream error on outgoing%s conn to %s (%s): %s", c->xmpp_version < 0 ? "" : c->xmpp_version == 0 ? " preXMPP" : " XMPP1.0", mio_ip(m), jid_full(c->key), errmsg);
 			break;
 		    case configuration:
 		    case feature_lack:
 		    case unknown:
-			log_warn(c->d->i->id, "received stream error on outgoing %s conn to %s (%s): %s", c->xmpp_version < 1 ? "preXMPP" : "XMPP1.0", mio_ip(m), jid_full(c->key), errmsg);
+			log_warn(c->d->i->id, "received stream error on outgoing%s conn to %s (%s): %s", c->xmpp_version < 0 ? "" : c->xmpp_version == 0 ? " preXMPP" : " XMPP1.0", mio_ip(m), jid_full(c->key), errmsg);
 			break;
 		    case error:
 		    default:
-			log_error(c->d->i->id, "received stream error on outgoing %s conn to %s (%s): %s", c->xmpp_version < 1 ? "preXMPP" : "XMPP1.0", mio_ip(m), jid_full(c->key), errmsg);
+			log_error(c->d->i->id, "received stream error on outgoing%s conn to %s (%s): %s", c->xmpp_version < 0 ? "" : c->xmpp_version == 0 ? " preXMPP" : " XMPP1.0", mio_ip(m), jid_full(c->key), errmsg);
 		}
 		mio_close(m);
 		break;
@@ -714,6 +729,9 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 		    mio_reset(m, dialback_out_read_db, (void *)(c->d)); /* different handler now */
 		    md = dialback_miod_new(c->d, m); /* set up the mio wrapper */
 		    dialback_miod_hash(md, c->d->out_ok_db, c->key); /* this registers us to get stuff directly now */
+
+		    /* send the db:verify packets */
+		    dialback_out_send_verifies(m, c);
 
 		    /* flush the queue of packets */
 		    dialback_out_qflush(md, c->q);
@@ -730,7 +748,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 		/* is starttls supported? */
 		if (xmlnode_get_tag(x, "starttls?xmlns=" NS_XMPP_TLS) != NULL) {
 		    /* don't start if forbidden by caller (configuration) */
-		    if (c->xmpp_no_tls) {
+		    if (j_strcmp(dialback_get_domain_setting(c->d->hosts_tls, c->key->server), "no") == 0) {
 			log_notice(c->d->i->id, "Server %s advertized starttls, but disabled by our configuration.", c->key->server);
 		    } else if (mio_ssl_starttls_possible(m, c->key->resource)) {
 			/* our side is prepared for starttls */
@@ -789,9 +807,9 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 			break;
 		}
 
-		/* no stream:feature we'd like to use, now check the require-tls setting */
-		if (dialback_check_securitysetting(c->d, m, c->key->server, 1, 0) == 0) {
-		    c->securitysetting_failed = 1;
+		/* no stream:feature we'd like to use, now check the settings */
+		if (dialback_check_settings(c->d, m, c->key->server, 1, 0, c->xmpp_version) == 0) {
+		    c->settings_failed = 1;
 		    break;
 		}
 
@@ -813,10 +831,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 		}
 
 		/* and we can send the verify requests */
-		for(cur = xmlnode_get_firstchild(c->verifies); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
-		    mio_write(m, xmlnode_dup(cur), NULL, -1);
-		    xmlnode_hide(cur);
-		}
+		dialback_out_send_verifies(m, c);
 
 		/* finished processing stream:features */
 		break;
