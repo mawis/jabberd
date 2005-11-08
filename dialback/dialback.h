@@ -63,8 +63,9 @@ typedef struct db_struct
     xht out_ok_db;	/**< hash table of all connected dialback hosts, key is same to/from */
     xht in_id;		/**< all the incoming connections waiting to be checked, rand id attrib is key */
     xht in_ok_db;	/**< all the incoming dialback connections that are ok, ID@to/from is key */
-    xht hosts_xmpp;	/**< hash containing the hosts where no XMPP support should be advertized */
-    xht hosts_tls;	/**< hash containing the hosts where STARTTLS should not be tried or is required */
+    xht hosts_xmpp;	/**< hash containing the XMPP version configuration for peers */
+    xht hosts_tls;	/**< hash containing the STARTTLS configuration for peers */
+    xht hosts_auth;	/**< hash containing the authentiction configuration for peers */
     char *secret;	/**< our dialback secret */
     int timeout_packets;/**< configuration option <queuetimeout/> */
     int timeout_idle;	/**< configuration option <idletimeout/> */
@@ -86,7 +87,7 @@ void dialback_in_read(mio s, int flags, void *arg, xmlnode x);
 void dialback_in_verify(db d, xmlnode x);
 
 const char *dialback_get_domain_setting(xht h, const char* host);
-int dialback_check_securitysetting(db d, mio m, const char *server, int is_outgoing, int auth_type);
+int dialback_check_settings(db d, mio m, const char *server, int is_outgoing, int auth_type, int version);
 char *dialback_randstr(void);
 char *dialback_merlin(pool p, char *secret, char *to, char *challenge);
 void dialback_miod_hash(miod md, xht ht, jid key);

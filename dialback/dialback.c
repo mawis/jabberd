@@ -99,20 +99,24 @@ const char *dialback_get_domain_setting(xht h, const char* host) {
 }
 
 /**
- * check security settings for a dialback connection
+ * check TLS and authentication settings for a s2s connection
  *
  * @param d the dialback instance
  * @param m the connection
  * @param server the host at the other end of the connection
  * @param is_outgoing 0 for an outgoing connection, 1 for an incoming connection
  * @param auth_type 0 for dialback, 1 for sasl
+ * @param version 0 for a preXMPP stream, 1 for a XMPP1.0 stream
  * @return 0 if connection is not allowed, else connection is acceptable
  */
-int dialback_check_securitysetting(db d, mio m, const char *server, int is_outgoing, int auth_type) {
+int dialback_check_settings(db d, mio m, const char *server, int is_outgoing, int auth_type, int version) {
     int required_protection = 0;
     int protection_level = mio_is_encrypted(m);
     const char *require_tls = dialback_get_domain_setting(d->hosts_tls, server);
-    
+    const char *xmpp_version = version == -1 ? "unknown" : version == 0 ? "preXMPP" : "XMPP1.0";
+    const char *auth = dialback_get_domain_setting(d->hosts_auth, server);
+   
+    /* check the requirement of a TLS layer */
     if (j_strncmp(require_tls, "require", 7) == 0) {
 	required_protection = 2;
     } else {
@@ -125,12 +129,28 @@ int dialback_check_securitysetting(db d, mio m, const char *server, int is_outgo
 	mio_close(m);
 	return 0;
     }
+
+    /* check the required authentication mechanism */
+    if (j_strcmp(auth, "db") == 0 && auth_type == 1) {
+	log_warn(d->i->id, "closing connection %s %s: require dialback, but SASL has been used", is_outgoing ? "to" : "from", server);
+	mio_write(m, NULL, "<stream:error><policy-violation xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>We are configured to not support SASL AUTH.</text></stream:error>", -1);
+	mio_close(m);
+	return 0;
+    }
+    if (j_strcmp(auth, "sasl") == 0 && auth_type == 0) {
+	log_warn(d->i->id, "closing connection %s %s: require SASL, but dialback has been used", is_outgoing ? "to" : "from", server);
+	mio_write(m, NULL, "<stream:error><policy-violation xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>We are configured to not support dialback. Well, we shouldn't even have tried or advertized dialback ...</text></stream:error>", -1);
+	mio_close(m);
+	return 0;
+    }
+
+    /* log the connection */
     if (protection_level < 1) {
-	log_notice(d->i->id, "%s %s (unencrypted, no certificate, auth=%s)", is_outgoing ? "connected to" : "connection from", server, auth_type ? "sasl" : "db");
+	log_notice(d->i->id, "%s %s (unencrypted, no certificate, auth=%s, stream=%s)", is_outgoing ? "connected to" : "connection from", server, auth_type ? "sasl" : "db", xmpp_version);
     } else if (protection_level == 1) {
-	log_notice(d->i->id, "%s %s (integrity protected, certificate is %s, auth=%s)", is_outgoing ? "connected to" : "connection from", server, mio_ssl_verify(m, server) ? "valid" : "invalid", auth_type ? "sasl" : "db");
+	log_notice(d->i->id, "%s %s (integrity protected, certificate is %s, auth=%s, stream=%s)", is_outgoing ? "connected to" : "connection from", server, mio_ssl_verify(m, server) ? "valid" : "invalid", auth_type ? "sasl" : "db", xmpp_version);
     } else {
-	log_notice(d->i->id, "%s %s (encrypted: %i bit, certificate is %s, auth=%s)", is_outgoing ? "connected to" : "connection from", server, protection_level, mio_ssl_verify(m, server) ? "valid" : "invalid", auth_type ? "sasl" : "db");
+	log_notice(d->i->id, "%s %s (encrypted: %i bit, certificate is %s, auth=%s, stream=%s)", is_outgoing ? "connected to" : "connection from", server, protection_level, mio_ssl_verify(m, server) ? "valid" : "invalid", auth_type ? "sasl" : "db", xmpp_version);
     }
     return 1;
 }
@@ -516,18 +536,27 @@ void dialback(instance i, xmlnode x)
 
     /* check for hosts where we don't want to use XMPP streams or STARTTLS */
     for (cur = xmlnode_get_tag(cfg, "host"); cur != NULL; cur = xmlnode_get_tag(cfg, "host")) {
+	char *xmpp = NULL;
+	char *tls = NULL;
+	char *auth = NULL;
 	char *hostname = pstrdup(i->p, xmlnode_get_attrib(cur, "name"));
 
-	if (hostname != NULL) {
-	    char *xmpp = pstrdup(i->p, xmlnode_get_attrib(cur, "xmpp"));
-	    char *tls = pstrdup(i->p, xmlnode_get_attrib(cur, "tls"));
+	/* the default setting is stored as a setting for '*' */
+	if (hostname == NULL)
+	    hostname = "*";
 
-	    if (xmpp != NULL) {
-		xhash_put(d->hosts_xmpp, hostname, xmpp);
-	    }
-	    if (tls != NULL) {
-		xhash_put(d->hosts_tls, hostname, tls);
-	    }
+	xmpp = pstrdup(i->p, xmlnode_get_attrib(cur, "xmpp"));
+	tls = pstrdup(i->p, xmlnode_get_attrib(cur, "tls"));
+	auth = pstrdup(i->p, xmlnode_get_attrib(cur, "auth"));
+
+	if (xmpp != NULL) {
+	    xhash_put(d->hosts_xmpp, hostname, xmpp);
+	}
+	if (tls != NULL) {
+	    xhash_put(d->hosts_tls, hostname, tls);
+	}
+	if (auth != NULL) {
+	    xhash_put(d->hosts_auth, hostname, auth);
 	}
 
 	xmlnode_hide(cur);
