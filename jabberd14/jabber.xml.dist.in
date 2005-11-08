@@ -701,11 +701,43 @@
       -->
       <!-- <idletimeout>900</idletimeout> -->
 
-      <!-- disable advertizing of XMPP 1.0 or usage of STARTTLS -->
-      <!-- for _outgoing_ connections to a set of hosts.        -->
+      <!-- using the following configuration option, you can    -->
+      <!-- disable, enable, or force the usage of features for  -->
+      <!-- the interconnect to other servers.                   -->
+      <!-- A setting is also applied to subdomains. E.g. a      -->
+      <!-- setting for b.example.com is also used if the        -->
+      <!-- dialback component establishes a connection to       -->
+      <!-- service.b.example.com.                               -->
+      <!-- To configure the default settings, omit the name     -->
+      <!-- attribute.                                           -->
+      <!-- Note: On incoming connections, the peer might not    -->
+      <!-- tell who he is before we initialize our stream, and  -->
+      <!-- we do not know then who the other side is. In that   -->
+      <!-- case the default settings are used!                  -->
+      <!--                                                      -->
+      <!-- xmpp-attribute:                                      -->
+      <!-- 'yes':   allow advertizing of stream version 1.0     -->
+      <!--          (this is the default)                       -->
+      <!-- 'no':    do not advertize or use XMPP version '1.0'  -->
+      <!--                                                      -->
+      <!-- tls-attribute:                                       -->
+      <!-- 'yes':   allow usage of STARTTLS                     -->
+      <!--          (this is the default)                       -->
+      <!-- 'no':    do not use/offer STARTTLS                   -->
+      <!-- 'force': require usage of STARTTLS                   -->
+      <!-- number:  require usage of STARTTLS with a cipher     -->
+      <!--          of at least (number) bits secret key length -->
+      <!--                                                      -->
+      <!-- auth-attribute:                                      -->
+      <!-- 'any':   allow dialback as well as SASL EXTERNAL     -->
+      <!--          authentication (this is the default)        -->
+      <!-- 'db':    only allow usage of dialback, disable SASL  -->
+      <!-- 'sasl':  only allow usage of SASL EXTERNAL           -->
+      <!--          authentication                              -->
       <!--
       <host name='a.example.com' xmpp='no' tls='no'/>
       <host name='b.example.com' xmpp='no'/>
+      <host name='c.example.com' tls='256' auth='sasl'/>
       -->
 
       <!-- Use these to listen on particular addresses and/or ports.
