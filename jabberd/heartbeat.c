@@ -59,6 +59,11 @@ typedef struct beat_struct {
 /** master hook for the ring */
 beat heartbeat__ring;
 
+/**
+ * this thread continuously checks if a function, that is registered to be called regularly using register_beat() has to be called again
+ *
+ * @param arg unused/ignored
+ */
 void *heartbeat(void *arg) {
     beat b, b2;
     result r;

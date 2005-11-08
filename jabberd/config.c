@@ -45,23 +45,30 @@
  */
 
 #include "jabberd.h"
-#define MAX_INCLUDE_NESTING 20
+#define MAX_INCLUDE_NESTING 20 /**< the maximum number of nexted &lt;jabberd:include/&gt; elements in the configuration */
 extern pool      jabberd__runtime;
-xht instance__ids=NULL;
+xht instance__ids=NULL;	/**< hash of all created XML routing target instances (key is the id of the instance, value is the ::instance) */
 
-typedef struct shutdown_list
-{
-    pool p;
-    shutdown_func f;
-    void *arg;
-    struct shutdown_list *next;
+/**
+ * list element to hold a registered shutdown callback
+ */
+typedef struct shutdown_list {
+    pool p;		/**< memory pool: used to hold the instances memory itself */
+    shutdown_func f;	/**< the registered shutdown callback function */
+    void *arg;		/**< argument to pass to the shutdown callback function */
+    struct shutdown_list *next;	/**< pointer to the next list element */
 } _sd_list, *sd_list;
-sd_list shutdown__list=NULL;
+sd_list shutdown__list=NULL;	/**< list of registered shutdown callbacks */
 
-xmlnode greymatter__ = NULL;
+xmlnode greymatter__ = NULL;	/**< this holds the parsed configuration file */
 
-void do_include(int nesting_level,xmlnode x)
-{
+/**
+ * check the parsed configuration file for include instructions, process these instructions, and check again
+ *
+ * @param nesting_lefel nesting level of includes, used to stop recursion if nesting_level is bigger than ::MAX_INCLUDE_NESTING
+ * @param x the parsed configuration (modified by this function)
+ */
+static void do_include(int nesting_level,xmlnode x) {
     xmlnode cur;
 
     cur=xmlnode_get_firstchild(x);
@@ -105,8 +112,13 @@ void do_include(int nesting_level,xmlnode x)
     }
 }
 
-void cmdline_replace(xmlnode x, xht cmd_line)
-{
+/**
+ * replace &lt;jabberd:cmdline/&gt; elements in the configuration file with strings given at the command line
+ *
+ * @param x the parsed configuration file
+ * @param cmd_line a hash of given command line options
+ */
+static void cmdline_replace(xmlnode x, xht cmd_line) {
     char *flag;
     char *replace_text;
     xmlnode cur=xmlnode_get_firstchild(x);
@@ -134,7 +146,7 @@ void cmdline_replace(xmlnode x, xht cmd_line)
  *
  * @param x the parsed XML configuration file
  */
-void _set_configured_debug(xmlnode x) {
+static void _set_configured_debug(xmlnode x) {
     xmlnode debug, mask, facility;
     char *debugmask, *facility_str;
 
@@ -168,14 +180,14 @@ void _set_configured_debug(xmlnode x) {
     }
 }
 
-/* 
- * <pidfile>/path/to/pid.file</pidfile>
+/**
+ * check the configuration if a pidfile should be written and write it
  *
- * Ability to store the PID of the process in a file somewhere.
+ * If the pidfile already exists, the jabberd process is existed.
  *
+ * @param x the parsed configuration file
  */
-void show_pid(xmlnode x)
-{
+static void show_pid(xmlnode x) {
     xmlnode pidfile;
     char *path;
     char pidstr[16];
@@ -214,8 +226,14 @@ void show_pid(xmlnode x)
     return;
 }
 
-int configurate(char *file, xht cmd_line)
-{
+/**
+ * parse the configuration file, do inclusions and command line replacements
+ *
+ * @param file the file to parse (NULL to use the default)
+ * @param cmd_line the command line arguments
+ * @return 1 on error, 0 on success
+ */
+int configurate(char *file, xht cmd_line) {
     char def[] = CONFIG_DIR"/jabber.xml";
     char *realfile = (char *)def;
     xmlnode incl;
@@ -268,21 +286,27 @@ int configurate(char *file, xht cmd_line)
     return 0;
 }
 
-/* private config handler list */
-typedef struct cfg_struct
-{
-    char *node;
-    cfhandler f;
-    void *arg;
-    struct cfg_struct *next;
+/**
+ * private config handler list element
+ */
+typedef struct cfg_struct {
+    char *node;			/**< name of the node, that should be handled by this handler */
+    cfhandler f;		/**< function that handles the registered element */
+    void *arg;			/**< argument, that should be passed to the handler function */
+    struct cfg_struct *next;	/**< pointer to the next list element */
 } *cfg, _cfg;
 
-cfg cfhandlers__ = NULL;
-pool cfhandlers__p = NULL;
+cfg cfhandlers__ = NULL;	/**< list of config handlers */
+pool cfhandlers__p = NULL;	/**< memory pool for the list of config handlers */
 
-/* register a function to handle that node in the config file */
-void register_config(char *node, cfhandler f, void *arg)
-{
+/**
+ * register a function to handle that node in the config file
+ *
+ * @param node the node that should be handled by the handler
+ * @param f the handler function that should be registered
+ * @param arg argument, that should be passed to the handler function
+ */
+void register_config(char *node, cfhandler f, void *arg) {
     cfg newg;
 
     cfhandlers__p = jabberd__runtime;
@@ -298,9 +322,13 @@ void register_config(char *node, cfhandler f, void *arg)
     cfhandlers__ = newg;
 }
 
-/* util to scan through registered config callbacks */
-cfg cfget(char *node)
-{
+/**
+ * util to scan through registered config callbacks
+ *
+ * @param node the element name to search a handler for
+ * @return the list element for this element name, NULL if nothing found
+ */
+static cfg cfget(char *node) {
     cfg next = NULL;
 
     for(next = cfhandlers__; next != NULL && strcmp(node,next->node) != 0; next = next->next);
@@ -310,9 +338,13 @@ cfg cfget(char *node)
 
 /* 
  * walk through the instance HASH, and cleanup the instances
+ *
+ * @param h the hashtable to walk
+ * @param key the key name of the current element (instance name)
+ * @param data where the key points to (the ::instance)
+ * @param arg unused/ignored
  */
-void _instance_cleanup(xht h, const char *key, void *data, void *arg)
-{
+static void _instance_cleanup(xht h, const char *key, void *data, void *arg) {
     instance i=(instance)data;
     unregister_instance(i,i->id);
     xhash_zap(instance__ids, i->id);
@@ -327,8 +359,14 @@ void _instance_cleanup(xht h, const char *key, void *data, void *arg)
 
 void instance_shutdown(instance i);
 
-int instance_startup(xmlnode x, int exec)
-{
+/**
+ * handle a second-level configuration file element (beside the &lt;base/&gt; element)
+ *
+ * @param x the configuration element to be handled
+ * @param exec 0 for validation pass, 1 for real startup (init the instance)
+ * @return 0 on success, 1 on error
+ */
+static int instance_startup(xmlnode x, int exec) {
 
     ptype type;
     xmlnode cur;
@@ -435,9 +473,13 @@ int instance_startup(xmlnode x, int exec)
     return 0;
 }
 
-/* execute configuration file */
-int configo(int exec)
-{
+/**
+ * execute configuration file
+ *
+ * @param exec 0 for the first validation pass, 1 for real startup
+ * @return 0 on success, 1 on error
+ */
+int configo(int exec) {
     xmlnode cur;
 
     if(instance__ids==NULL)
@@ -458,11 +500,12 @@ int configo(int exec)
     return 0;
 }
 
-/* shuts down a single instance,
- * or all the instances, if i == NULL
+/**
+ * shuts down a single instance, or all the instances, if i == NULL
+ *
+ * @param i which instance to shut down
  */
-void instance_shutdown(instance i)
-{
+void instance_shutdown(instance i) {
     if(i != NULL)
     {
         unregister_instance(i,i->id);
@@ -481,8 +524,10 @@ void instance_shutdown(instance i)
     }
 }
 
-void shutdown_callbacks(void)
-{
+/**
+ * call all registered shutdown callbacks
+ */
+void shutdown_callbacks(void) {
     while(shutdown__list)
     {
         sd_list s=shutdown__list->next;
@@ -492,8 +537,13 @@ void shutdown_callbacks(void)
     }
 }
 
-void register_shutdown(shutdown_func f,void *arg)
-{
+/**
+ * register a function to be called on shutdown
+ *
+ * @param f the function to be called on shutdown
+ * @param arg the argument to be passed to the callback function
+ */
+void register_shutdown(shutdown_func f,void *arg) {
     pool p;
     sd_list new;
     if(f==NULL) return;
