@@ -81,6 +81,7 @@ typedef struct dbic_struct {
 			  (to attribute of stream head) for selecting
 			  a certificate at STARTTLS */
     char *other_domain;	/**< who the other end told to be in its stream root from attribute (if present) */
+    int xmpp_version;	/**< version of the stream, -1 not yet known, 0 preXMPP */
 } *dbic, _dbic;
 
 /**
@@ -102,9 +103,10 @@ void dialback_in_dbic_cleanup(void *arg) {
  * @param m the connection of this stream
  * @param we_domain what the other end expects to be our main domain (for STARTTLS)
  * @param other_domain who the other end told to be in its stream root from attribute (if present)
+ * @param xmpp_version version of the stream
  * @return the new instance of dbic
  */
-dbic dialback_in_dbic_new(db d, mio m, const char *we_domain, const char *other_domain) {
+static dbic dialback_in_dbic_new(db d, mio m, const char *we_domain, const char *other_domain, int xmpp_version) {
     dbic c;
 
     c = pmalloco(m->p, sizeof(_dbic));
@@ -114,6 +116,7 @@ dbic dialback_in_dbic_new(db d, mio m, const char *we_domain, const char *other_
     c->d = d;
     c->we_domain = pstrdup(m->p, we_domain);
     c->other_domain = pstrdup(m->p, other_domain);
+    c->xmpp_version = xmpp_version;
     pool_cleanup(m->p,dialback_in_dbic_cleanup, (void *)c); /* remove us automatically if our memory pool is freed */
     xhash_put(d->in_id, c->id, (void *)c); /* insert ourself in the hash of not yet verified connections */
     log_debug2(ZONE, LOGT_IO, "created incoming connection %s from %s",c->id,m->ip);
@@ -176,7 +179,7 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
     if (j_strcmp(xmlnode_get_name(x), "starttls") == 0 && j_strcmp(xmlnode_get_attrib(x, "xmlns"), NS_XMPP_TLS) == 0) {
 	/* starting TLS possible? */
 #ifdef HAVE_SSL
-	if (mio_ssl_starttls_possible(m, c->we_domain)) {
+	if (mio_ssl_starttls_possible(m, c->we_domain) && j_strcmp(dialback_get_domain_setting(c->d->hosts_tls, c->other_domain), "no")!=0) {
 	    /* ACK the start */
 	    xmlnode proceed = xmlnode_new_tag("proceed");
 	    xmlnode_put_attrib(proceed, "xmlns", NS_XMPP_TLS);
@@ -212,6 +215,14 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
 	jid other_side_jid = NULL;
 
 	log_debug2(ZONE, LOGT_IO, "incoming SASL: %s", xmlnode2str(x));
+
+	/* check that the peer is allowed to authenticate using SASL */
+	if (j_strcmp(dialback_get_domain_setting(c->d->hosts_auth, c->other_domain), "db") == 0) {
+	    mio_write(m, NULL, "<failure xmlns='" NS_XMPP_SASL "'><invalid-mechanism/></failure><stream:error><policy-violation xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>This server is configured to not accept SASL auth from your host!</text></stream:error></stream:stream>", -1);
+	    mio_close(m);
+	    xmlnode_free(x);
+	    return;
+	}
 
 	/* check that the other end is requesting the EXTERNAL mechanism */
 	if (j_strcasecmp(xmlnode_get_attrib(x, "mechanism"), "EXTERNAL") != 0) {
@@ -255,7 +266,7 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
 	}
 
 	/* check the security settings */
-	if (!dialback_check_securitysetting(c->d, c->m, other_side_jid->server, 0, 1)) {
+	if (!dialback_check_settings(c->d, c->m, other_side_jid->server, 0, 1, c->xmpp_version)) {
 	    mio_write(m, NULL, "<failure xmlns='" NS_XMPP_SASL "'><mechanism-too-weak/></failure></stream:stream>", -1);
 	    mio_close(m);
 	    xmlnode_free(x);
@@ -376,15 +387,6 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     if(flags != MIO_XML_ROOT)
         return;
 
-    /* validate namespace */
-    if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:server") != 0)
-    {
-        mio_write(m, NULL, "<stream:stream><stream:error><bad-namespace-prefix xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Invalid Stream Header!</text></stream:error>", -1);
-        mio_close(m);
-        xmlnode_free(x);
-        return;
-    }
-
     snprintf(strid, sizeof(strid), "%X", m); /* for hashes for later */
 
     /* check stream version and possible features */
@@ -397,12 +399,38 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     can_do_sasl_external = m->authed_other_side==NULL && (mio_is_encrypted(m) > 0 && mio_ssl_verify(m, other_domain)) ? 1 : 0;
 #endif
 
+    /* disable by configuration */
+    if (j_strcmp(dialback_get_domain_setting(d->hosts_tls, other_domain), "no") == 0)
+	can_offer_starttls = 0;
+    if (j_strcmp(dialback_get_domain_setting(d->hosts_auth, other_domain), "db") == 0)
+	can_do_sasl_external = 0;
+    if (j_strcmp(dialback_get_domain_setting(d->hosts_xmpp, other_domain), "no") == 0)
+	version = 0;
+    else if (j_strcmp(dialback_get_domain_setting(d->hosts_xmpp, other_domain), "force") == 0 && version == 0) {
+        key = jid_new(xmlnode_pool(x), we_domain);
+        mio_write(m,NULL, xstream_header_char(xstream_header("jabber:server", other_domain, jid_full(key))), -1);
+        mio_write(m, NULL, "<stream:error><unsupported-version xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>We are configured to not support preXMPP connections.</text></stream:error>", -1);
+        mio_close(m);
+        xmlnode_free(x);
+        return;
+    }
+
     log_debug2(ZONE, LOGT_IO, "outgoing conn: can_offer_starttls=%i, can_do_sasl_external=%i", can_offer_starttls, can_do_sasl_external);
+
+    /* validate namespace */
+    if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:server") != 0) {
+        key = jid_new(xmlnode_pool(x), we_domain);
+        mio_write(m,NULL, xstream_header_char(xstream_header("jabber:server", other_domain, jid_full(key))), -1);
+        mio_write(m, NULL, "<stream:error><bad-namespace-prefix xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Invalid Stream Header!</text></stream:error>", -1);
+        mio_close(m);
+        xmlnode_free(x);
+        return;
+    }
 
     /* deprecated non-dialback protocol, reject connection */
     if(version < 1 && dbns == NULL)
     {
-        key = jid_new(xmlnode_pool(x), xmlnode_get_attrib(x, "to"));
+        key = jid_new(xmlnode_pool(x), we_domain);
         mio_write(m,NULL, xstream_header_char(xstream_header("jabber:server", other_domain, jid_full(key))), -1);
         mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Legacy Access Denied!</text></stream:error>", -1);
         mio_close(m);
@@ -427,7 +455,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     }
 
     /* dialback connection */
-    c = dialback_in_dbic_new(d, m, we_domain, other_domain);
+    c = dialback_in_dbic_new(d, m, we_domain, other_domain, version);
 
     /* restarted after SASL? authorize the connection */
     key = jid_new(xmlnode_pool(x),c->we_domain);
@@ -437,8 +465,9 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
 
     /* write our header */
     x2 = xstream_header(NS_SERVER, c->other_domain, c->we_domain);
-    xmlnode_put_attrib(x2, "xmlns:db", NS_DIALBACK); /* flag ourselves as dialback capable */
-    if (version >= 1) {
+    if (j_strcmp(dialback_get_domain_setting(c->d->hosts_auth, c->other_domain), "sasl") != 0)
+	xmlnode_put_attrib(x2, "xmlns:db", NS_DIALBACK); /* flag ourselves as dialback capable */
+    if (c->xmpp_version >= 1) {
 	xmlnode_put_attrib(x2, "version", "1.0");	/* flag us as XMPP capable */
     }
     xmlnode_put_attrib(x2,"id",c->id); /* send random id as a challenge */
@@ -450,7 +479,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     mio_reset(m, dialback_in_read_db, (void *)c);
 
     /* write stream features */
-    if (version >= 1) {
+    if (c->xmpp_version >= 1) {
 	xmlnode features = xmlnode_new_tag("stream:features");
 #ifdef HAVE_SSL
 	if (can_offer_starttls) {
@@ -535,7 +564,7 @@ void dialback_in_verify(db d, xmlnode x)
     type = xmlnode_get_attrib(x, "type");
     if(j_strcmp(type,"valid") == 0) {
 	/* check the security settings for this connection */
-	if (!dialback_check_securitysetting(c->d, c->m, xmlnode_get_attrib(x, "from"), 0, 0)) {
+	if (!dialback_check_settings(c->d, c->m, xmlnode_get_attrib(x, "from"), 0, 0, c->xmpp_version)) {
 	    return;
 	}
 
