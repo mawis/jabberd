@@ -41,19 +41,35 @@
 
 /**
  * @file log.c
- * @brief functions used to generate log messages
+ * @brief functions used to generate log messages, and logging of debug messages
+ *
+ * Generated log messages are routed to a logging component using the XML router.
+ * Generated debug log messages are not routed but either displayed to the
+ * standard error output or sent to the syslog (Depending on the jabberd
+ * configuration).
  */
 
 #include "jabberd.h"
 
-int _debug_facility = -1;
-int debug_flag = 0;
-int cmdline_debug_flag = 0;
+int _debug_facility = -1;	/**< facility to use for sending debugging messages to syslog - or -1 for not using syslog but stderr */
+int debug_flag = 0;		/**< the active debugging mask (this is a bitmask of ORed LOGT_* constents) */
+int cmdline_debug_flag = 0;	/**< the debug mask given at the command line - this is ORed with the mask given in the configuration file */
 
 extern xht debug__zones;
 
-char *debug_log_timestamp(void)
-{
+/**
+ * get the formated current time for use as a timestamp in logging messages
+ *
+ * The returned pointer points to statically allocated memory used by the date
+ * and time functions of the C library. This memory might be overwritten by
+ * subsequent calls to date and time functions of the C library.
+ *
+ * This function returns ctime(time(NULL)) with the '\n' at the end of the
+ * result replaced by a space character.
+ *
+ * @return formated time stamp (NULL on error - should not happen)
+ */
+static char *debug_log_timestamp(void) {
     time_t t;
     int sz;
     char *tmp_str;
@@ -77,7 +93,7 @@ char *debug_log_timestamp(void)
  * @param zone the zone where the logging message comes from
  * @return 1 if it should be logged, 0 if not
  */
-inline int _debug_log_zonefilter(char *zone) {
+static inline int _debug_log_zonefilter(char *zone) {
     char *pos, c = '\0';
     if(zone != NULL && debug__zones != NULL)
     {
@@ -95,8 +111,19 @@ inline int _debug_log_zonefilter(char *zone) {
     return 1;
 }
 
-void debug_log(char *zone, const char *msgfmt, ...)
-{
+/**
+ * Generate a debug log message
+ *
+ * This generates a debugging message. The function should not be called
+ * directly. Instead the macro ::log_debug should be called, which first
+ * checks if debugging is enabled.
+ *
+ * Do not use this function or ::log_debug at all. Better use ::log_debug2.
+ *
+ * @param zone the zone (file) the function is called from. __ZONE__ should be used here.
+ * @param msgfmt the format string for the log message, parameters like for printf() are given afterwards
+ */
+void debug_log(char *zone, const char *msgfmt, ...) {
     va_list ap;
     char message[MAX_LOG_SIZE];
     int offset;
@@ -130,8 +157,18 @@ void debug_log(char *zone, const char *msgfmt, ...)
 #endif
 }
 
-void debug_log2(char *zone, const int type, const char *msgfmt, ...)
-{
+/**
+ * Generate a debug log message
+ *
+ * This generates a debugging message. The function should not be called
+ * directly. Instead the macro ::log_debug2 should be called, which first
+ * checks if debugging is enabled.
+ *
+ * @param zone the zone (file) the function is called from. __ZONE__ should be used here.
+ * @param type LOGT_* constent telling which type of debug log message is passed
+ * @param msgfmt the format string for the log message, parameters like for printf() are given afterwards
+ */
+void debug_log2(char *zone, const int type, const char *msgfmt, ...) {
     va_list ap;
     char message[MAX_LOG_SIZE];
     int offset;
@@ -169,8 +206,14 @@ void debug_log2(char *zone, const int type, const char *msgfmt, ...)
 #endif
 }
 
-void logger(char *type, const char *host, char *message)
-{
+/**
+ * send a log message to the logging components
+ *
+ * @param type the type of log message (one of "notice"+/"record", "warn"+, "alert", "stat"+, "info", "emerg", "crit", or "err"+ - in jabberd only the marked ones are used - "debug" should not be used as debugging messages should not be routed on the XML router)
+ * @param host the sending host (domain) of the message, or NULL if no sending host is known (the message are than logged as jabberd internal)
+ * @param message The message to be logged
+ */
+void logger(char *type, const char *host, char *message) {
     xmlnode log;
 
     if(type == NULL || message == NULL)
@@ -191,8 +234,13 @@ void logger(char *type, const char *host, char *message)
     deliver(dpacket_new(log), NULL);
 }
 
-void log_notice(const char *host, const char *msgfmt, ...)
-{
+/**
+ * generate a log message of type "notice"
+ *
+ * @param host the sending host (domain) of the log message - NULL if the host is not known, in that case the message is logged as jabberd internal
+ * @param msgfmt the format string for the message, parameters are passed afterwards like for the printf() function
+ */
+void log_notice(const char *host, const char *msgfmt, ...) {
     va_list ap;
     char logmsg[512] = "";
 
@@ -203,8 +251,13 @@ void log_notice(const char *host, const char *msgfmt, ...)
     logger("notice",host,logmsg);
 }
 
-void log_warn(const char *host, const char *msgfmt, ...)
-{
+/**
+ * generate a log message of type "warn"
+ *
+ * @param host the sending host (domain) of the log message - NULL if the host is not known, in that case the message is logged as jabberd internal
+ * @param msgfmt the format string for the message, parameters are passed afterwards like for the printf() function
+ */
+void log_warn(const char *host, const char *msgfmt, ...) {
     va_list ap;
     char logmsg[512] = "";
 
@@ -215,8 +268,13 @@ void log_warn(const char *host, const char *msgfmt, ...)
     logger("warn",host,logmsg);
 }
 
-void log_alert(const char *host, const char *msgfmt, ...)
-{
+/**
+ * generate a log message of type "alert"
+ *
+ * @param host the sending host (domain) of the log message - NULL if the host is not known, in that case the message is logged as jabberd internal
+ * @param msgfmt the format string for the message, parameters are passed afterwards like for the printf() function
+ */
+void log_alert(const char *host, const char *msgfmt, ...) {
     va_list ap;
     char logmsg[512] = "";
 
@@ -233,7 +291,8 @@ void log_alert(const char *host, const char *msgfmt, ...)
  * @param logtype logging type (e.g. "record")
  * @param id to which id is the message related
  * @param type type of the log message (e.g. "session")
- * @param msgfmt printf-like format string
+ * @param action action that is logged (e.g. a failed auth)
+ * @param msgfmt printf()-like format string, parameters are following
  */
 void log_generic(char *logtype, char *id, char *type, char *action, const char *msgfmt, ...) {
     va_list ap;
@@ -272,7 +331,14 @@ void log_generic(char *logtype, char *id, char *type, char *action, const char *
     deliver(dpacket_new(log), NULL);
 }
 
-/* generic log record support */
+/**
+ * generic log record support
+ *
+ * @param id to which id is the message related
+ * @param type the type of the log message (e.g. "session")
+ * @param action action that is logged (e.g. a failed auth)
+ * @param msgfmt printf()-like format string, parameters are following
+ */
 void log_record(char *id, char *type, char *action, const char *msgfmt, ...) {
     va_list ap;
     char logmsg[512] = "";
@@ -283,8 +349,10 @@ void log_record(char *id, char *type, char *action, const char *msgfmt, ...) {
     log_generic("record", id, type, action, "%s", logmsg);
 }
 
-inline int get_debug_flag()
-{
+/**
+ * get the current debugging mask
+ */
+inline int get_debug_flag() {
     return debug_flag;
 }
 
