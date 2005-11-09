@@ -371,9 +371,13 @@ result base_exec_config(instance id, xmlnode x, void *arg)
      return r_DONE;
 }
 
-void base_exec(void)
-{
+/**
+ * register the exec base handler
+ *
+ * @param p memory pool used to register the configuration handler, must be available for the livetime of jabberd
+ */
+void base_exec(pool p) {
      log_debug2(ZONE, LOGT_INIT, "base_exec loading...\n");
-     register_config("exec",base_exec_config,NULL);
+     register_config(p, "exec",base_exec_config,NULL);
 }
 

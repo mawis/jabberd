@@ -203,8 +203,10 @@ result base_dir_config(instance id, xmlnode x, void *arg) {
 
 /**
  * load the base_dir base module by registering a configuration handler for <dir/>
+ *
+ * @param p memory pool used to register the configuration handler (must be available for the livetime of jabberd)
  */
-void base_dir(void) {
+void base_dir(pool p) {
     log_debug2(ZONE, LOGT_INIT, "base_dir loading...");
-    register_config("dir", base_dir_config, NULL);
+    register_config(p, "dir", base_dir_config, NULL);
 }

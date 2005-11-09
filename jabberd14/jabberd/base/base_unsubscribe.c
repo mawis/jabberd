@@ -154,8 +154,10 @@ result base_unsubscribe_config(instance id, xmlnode x, void *arg) {
 
 /**
  * load the base_unsubscribe base module by registering a configuration handler for <unsubscribe/>
+ *
+ * @param p memory pool used to register the configuration handler, must be available for the livetime of jabberd
  */
-void base_unsubscribe(void) {
+void base_unsubscribe(pool p) {
     log_debug2(ZONE, LOGT_INIT, "base_unsubscribe loading...");
-    register_config("unsubscribe",base_unsubscribe_config,NULL);
+    register_config(p, "unsubscribe",base_unsubscribe_config,NULL);
 }

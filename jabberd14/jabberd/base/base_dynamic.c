@@ -192,8 +192,12 @@ result base_dynamic_config(instance i, xmlnode x, void *arg)
     return r_DONE;
 }
 
-void base_dynamic(void)
-{
+/**
+ * register the dynamic base handler
+ *
+ * @param p memory pool used to register the configuration handler (must be available for the livetime of jabberd)
+ */
+void base_dynamic(pool p) {
     log_debug2(ZONE, LOGT_INIT, "base_dynamic loading...");
-    register_config("dynamic",base_dynamic_config,NULL);
+    register_config(p, "dynamic",base_dynamic_config,NULL);
 }

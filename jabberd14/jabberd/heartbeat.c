@@ -70,7 +70,6 @@ void *heartbeat(void *arg) {
 
     while(1) {
         pth_sleep(1);
-        if(jabberd__signalflag) jabberd_signal();
         if(heartbeat__ring==NULL) break;
 
 	/* run through the ring */

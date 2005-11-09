@@ -1,3 +1,28 @@
+2005-11-08  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/jabberd.h: use less global variables
+    * jabberd/heartbeat.c: same
+    * jabberd/config.c: same
+    * jabberd/load.c: same
+    * jabberd/static.c: same
+    * jabberd/base/base_exec.c: same
+    * jabberd/base/base_dynamic.c: same
+    * jabberd/base/base_unsubscribe.c: same
+    * jabberd/base/base_format.c: same
+    * jabberd/base/base_connect.c: same
+    * jabberd/base/base_dir.c: same
+    * jabberd/base/base_accept.c: same
+    * jabberd/base/base_file.c: same
+    * jabberd/base/base_syslog.c: same
+    * jabberd/base/base_to.c: same
+    * jabberd/base/base_stdout.c: same
+    * jabberd/base/base_stderr.c: same
+    * jabberd/jabberd.c: same
+    * jabberd/deliver.c: same
+    * dnsrv/dnsrv.c: same
+    * xdb_file/xdbfiletool.c: same
+    * jsm/modules/mod_auth_crypt.c: fixed signedness warning
+
 2005-11-07  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/mio_ssl.c: checking subjectAltName/otherName/id-on-xmppAddr,

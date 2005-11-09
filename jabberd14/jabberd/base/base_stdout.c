@@ -235,8 +235,12 @@ result base_stdout_config(instance id, xmlnode x, void *arg)
     return r_DONE;
 }
 
-void base_stdout(void)
-{
+/**
+ * register the stdout base handler
+ *
+ * @param p memory pool used to register the configuration handler, must be available for the livetime of jabberd
+ */
+void base_stdout(pool p) {
     log_debug2(ZONE, LOGT_INIT, "base_stdout loading...\n");
-    register_config("stdout",base_stdout_config,NULL);
+    register_config(p, "stdout",base_stdout_config,NULL);
 }
