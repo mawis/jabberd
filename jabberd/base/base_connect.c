@@ -263,8 +263,12 @@ result base_connect_config(instance id, xmlnode x, void *arg)
     return r_DONE;
 }
 
-void base_connect(void)
-{
+/**
+ * register the connect base handler
+ *
+ * @param p memory pool used to register the handler for the &lt;connect/&gt; configuration element (must be available for the livetime of jabberd)
+ */
+void base_connect(pool p) {
     log_debug2(ZONE, LOGT_INIT, "base_connect loading...\n");
-    register_config("connect",base_connect_config,NULL);
+    register_config(p, "connect",base_connect_config,NULL);
 }

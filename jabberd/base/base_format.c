@@ -133,8 +133,12 @@ result base_format_config(instance id, xmlnode x, void *arg)
     return r_DONE;
 }
 
-void base_format(void)
-{
+/**
+ * register the format base handler
+ *
+ * @param p memory pool used for the registration of the config handler, must be available for the livetime of jabberd
+ */
+void base_format(pool p) {
     log_debug2(ZONE, LOGT_INIT, "base_format loading...");
-    register_config("format",base_format_config,NULL);
+    register_config(p, "format",base_format_config,NULL);
 }

@@ -199,9 +199,11 @@ static result load_config(instance id, xmlnode x, void *arg) {
  * init the module loader
  *
  * register that we want to handle the <load/> element in the configuration
+ *
+ * @param p memory pool used to register memory for the registration of handling the &lt;load/&gt; config element
  */
-void dynamic_init(void) {
+void dynamic_init(pool p) {
     log_debug2(ZONE, LOGT_DYNAMIC, "dynamic component loader initializing...\n");
-    register_config("load",load_config,NULL);
+    register_config(p, "load", load_config, NULL);
 }
 

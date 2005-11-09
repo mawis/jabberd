@@ -466,7 +466,12 @@ void* dnsrv_process_io(void* threadarg)
      waitpid(di->pid, &readlen, WNOHANG); /* reap any dead children */
 
      /* silly to restart it if it died cuz we're shutting down, pretty hackish to do it this way tho... must be hackish when the comment is longer than the code itself, but I'm rambling */
+     /* removing dependancy from jabberd__signalflag to get it more clear
+      * I guess we do not need this anyway. If we are restarting the child process
+      * while we are shutting down, the child process will get a SIGPIPE soon after
+      * and terminate again.
      if(jabberd__signalflag == SIGTERM || jabberd__signalflag == SIGINT) return NULL;
+     */
 
      log_debug2(ZONE, LOGT_INIT, "child being restarted...");
 

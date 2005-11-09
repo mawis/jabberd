@@ -46,34 +46,36 @@
 
 #include "jabberd.h"
 
-void base_accept(void);
-void base_connect(void);
-void base_dir(void);
-void base_exec(void);
-void base_file(void);
-void base_format(void);
-void base_to(void);
-void base_stderr(void);
-void base_stdout(void);
-void base_dynamic(void);
-void base_syslog(void);
-void base_unsubscribe(void);
+void base_accept(pool p);
+void base_connect(pool p);
+void base_dir(pool p);
+void base_exec(pool p);
+void base_file(pool p);
+void base_format(pool p);
+void base_to(pool p);
+void base_stderr(pool p);
+void base_stdout(pool p);
+void base_dynamic(pool p);
+void base_syslog(pool p);
+void base_unsubscribe(pool p);
 
 /**
  * load all base modules
+ *
+ * @param p memory pool, that can be used to register the configuration handlers, must be available for the livetime of jabberd
  */
-void static_init(void)
+void static_init(pool p)
 {
-    base_accept();
-    base_connect();
-    base_dir();
-    base_exec();
-    base_file();
-    base_format();
-    base_to();
-    base_stderr();
-    base_stdout();
-    base_dynamic();
-    base_syslog();
-    base_unsubscribe();
+    base_accept(p);
+    base_connect(p);
+    base_dir(p);
+    base_exec(p);
+    base_file(p);
+    base_format(p);
+    base_to(p);
+    base_stderr(p);
+    base_stdout(p);
+    base_dynamic(p);
+    base_syslog(p);
+    base_unsubscribe(p);
 }

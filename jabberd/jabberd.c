@@ -60,21 +60,17 @@
 #include <syslog.h>
 #endif
 
-xht cmd__line;			/**< hash where unused command-line options are stored to */
 xht debug__zones;		/**< the debugging zones, that are enabled (key = zone string, value = zone string) */
 extern int deliver__flag;
 extern xmlnode greymatter__;
-pool jabberd__runtime = NULL;	/**< pool for the memory used by the jabberd runtime ("global memory") */
-static char *cfgfile = NULL;	/**< the configuration file the user specified he wants to use (NULL for default file) */
-int jabberd__signalflag = 0;	/**< set to the signal value, if jabberd receives a signal */
 
 extern xht instance__ids;
 
 /*** internal functions ***/
-int configurate(char *file, xht cmd_line);
-void static_init(void);
-void dynamic_init(void);
-void deliver_init(void);
+int configurate(char *file, xht cmd_line, int is_restart);
+void static_init(pool p);
+void dynamic_init(pool p);
+void deliver_init(pool p);
 void deliver_shutdown(void);
 void heartbeat_birth(void);
 void heartbeat_death(void);
@@ -83,7 +79,19 @@ void shutdown_callbacks(void);
 void instance_shutdown(instance i);
 static void _jabberd_signal(int sig);
 static void _jabberd_atexit(void);
+static result jabberd_signal_handler(void *arg);
 
+/**
+ * structure that holds 'global' data
+ */
+typedef struct {
+    xht		cmd_line;	/**< hash where unused command-line options are stored to */
+    pool	runtime_pool;	/**< memory pool with a livetime of the jabber server */
+    int		signalflag;	/**< set to the signal value, if jabberd receives a signal */
+    char*	cfgfile;	/**< configuration file the user specified at the command line (NULL for the default file) */
+} jabberd_struct;
+
+jabberd_struct jabberd = { NULL, NULL, 0, NULL };		/**< global data for the jabberd */
 
 /**
  * the entry point to jabberd
@@ -102,14 +110,15 @@ int main (int argc, char** argv) {
 
     register_shutdown((shutdown_func)pool_free, cfg_pool);
 
-    jabberd__runtime = pool_new();
+    /* generate a memory pool that is available for the whole livetime of jabberd */
+    jabberd.runtime_pool = pool_new();
 
     /* register this handler to remove our pidfile at exit */
     atexit(_jabberd_atexit);
 
     /* start by assuming the parameters were entered correctly */
     help = 0;
-    cmd__line = xhash_new(11);
+    jabberd.cmd_line = xhash_new(11);
 
     /* process the parameterss one at a time */
     for(i = 1; i < argc; i++)
@@ -142,7 +151,7 @@ int main (int argc, char** argv) {
             cmd[0]=*c;
             if(i+1<argc)
             {
-               xhash_put(cmd__line,cmd,argv[++i]);
+               xhash_put(jabberd.cmd_line,cmd,argv[++i]);
             }else{
                 help=1;
                 break;
@@ -151,7 +160,7 @@ int main (int argc, char** argv) {
     }
 
     /* the special -Z flag provides a list of zones to filter debug output for, flagged w/ a simple hash */
-    if((cmd = xhash_get(cmd__line,"Z")) != NULL)
+    if((cmd = xhash_get(jabberd.cmd_line,"Z")) != NULL)
     {
         set_cmdline_debug_flag(-1);
 	debug__zones = xhash_new(11);
@@ -171,7 +180,7 @@ int main (int argc, char** argv) {
     }
 
     /* the -D flag provides a bitmask of debug types the user want to be logged */
-    if((cmd = xhash_get(cmd__line,"d")) != NULL) {
+    if((cmd = xhash_get(jabberd.cmd_line,"d")) != NULL) {
 	do_debug = atoi(cmd);
 
 	if (!do_debug) {
@@ -199,10 +208,10 @@ int main (int argc, char** argv) {
     /* set to debug mode if we have it */
     set_cmdline_debug_flag(do_debug);
 
-    if((home = xhash_get(cmd__line,"H")) == NULL)
-        home = pstrdup(jabberd__runtime,HOME);
+    if((home = xhash_get(jabberd.cmd_line,"H")) == NULL)
+        home = pstrdup(jabberd.runtime_pool,HOME);
     /* Switch to the specified user */
-    if ((cmd = xhash_get(cmd__line, "U")) != NULL)
+    if ((cmd = xhash_get(jabberd.cmd_line, "U")) != NULL)
     {
         struct passwd* user = NULL;
 
@@ -239,8 +248,8 @@ int main (int argc, char** argv) {
     }
 
     /* load the config passing the file if it was manually set */
-    cfgfile=xhash_get(cmd__line,"c");
-    if(configurate(cfgfile, cmd__line))
+    jabberd.cfgfile=xhash_get(jabberd.cmd_line,"c");
+    if(configurate(jabberd.cfgfile, jabberd.cmd_line, 0))
         exit(1);
 
     /* EPIPE is easier to handle than a signal */
@@ -262,12 +271,15 @@ int main (int argc, char** argv) {
     /* fire em up baby! */
     heartbeat_birth();
 
+    /* register a function that regularily checks the signal flag */
+    register_beat(1, jabberd_signal_handler, &jabberd);
+
     /* init MIO */
     mio_init();
 
-    static_init();
-    dynamic_init();
-    deliver_init();
+    static_init(jabberd.runtime_pool);
+    dynamic_init(jabberd.runtime_pool);
+    deliver_init(jabberd.runtime_pool);
 
     /* everything should be registered for the config pass, validate */
     deliver__flag = 0; /* pause deliver() while starting up */
@@ -308,7 +320,7 @@ int main (int argc, char** argv) {
  */
 static void _jabberd_signal(int sig) {
     log_debug2(ZONE, LOGT_EVENT, "received signal %d", sig);
-    jabberd__signalflag = sig;
+    jabberd.signalflag = sig;
 }
 
 /**
@@ -318,7 +330,7 @@ static void _jabberd_signal(int sig) {
  *
  * The configuration file is reloaded, but not much is done with the reloaded configuration file yet :(
  */
-static void _jabberd_restart(void) {
+static void _jabberd_restart(jabberd_struct *j) {
     xmlnode temp_greymatter;
 
     log_notice(NULL, "reloading configuration");
@@ -329,7 +341,7 @@ static void _jabberd_restart(void) {
     log_debug2(ZONE, LOGT_CONFIG, "Loading new config file");
 
     /* try to load the config file */
-    if(configurate(cfgfile, cmd__line))
+    if(configurate(j->cfgfile, j->cmd_line, 1))
     { /* failed to load.. restore the greymatter */
         log_debug2(ZONE, LOGT_CONFIG, "Failed to load new config, resetting greymatter");
         log_alert(ZONE, "Failed to reload config!  Resetting internal config -- please check your configuration!");
@@ -410,12 +422,12 @@ static void _jabberd_atexit(void) {
 	xhash_free(instance__ids);
 
     /* free command line options */
-    if (cmd__line != NULL)
-	xhash_free(cmd__line);
+    if (jabberd.cmd_line != NULL)
+	xhash_free(jabberd.cmd_line);
 
     /* free remaining global memory pools */
-    if (jabberd__runtime != NULL)
-	pool_free(jabberd__runtime);
+    if (jabberd.runtime_pool != NULL)
+	pool_free(jabberd.runtime_pool);
     
 #ifdef POOL_DEBUG
     /* print final pool statistics ... what we missed to free */
@@ -424,15 +436,28 @@ static void _jabberd_atexit(void) {
 }
 
 /**
- * process a receives signal
+ * check if a signal has been received, and process
+ *
+ * @param arg pointer to an int, that contains the last received signal
  */
-void jabberd_signal(void)
-{
-    if(jabberd__signalflag == SIGHUP)
-    {
-        _jabberd_restart();
-        jabberd__signalflag = 0;
-        return;
+static result jabberd_signal_handler(void *arg) {
+    jabberd_struct *j = (jabberd_struct *)arg;
+
+    /* no flag value location is given ... giving checks up */
+    if (j == NULL)
+	return r_UNREG;
+
+    /* action based on the content of the signalflag */
+    switch (j->signalflag) {
+	case 0:		/* no signal received */
+	    break;
+	case SIGHUP:
+	    _jabberd_restart(j);
+	    j->signalflag = 0;
+	    break;
+	default:
+	    _jabberd_shutdown();
     }
-    _jabberd_shutdown();
+
+    return r_DONE;
 }
