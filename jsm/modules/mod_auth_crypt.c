@@ -84,7 +84,7 @@ int mod_auth_crypt_sha1(char *password, char *buf, size_t buflen) {
 	return 0;
 
     /* calculate the hash */
-    shaBlock(password, j_strlen(password), hash);
+    shaBlock((unsigned char *)password, j_strlen(password), hash);
 
     /* write the result */
     strcpy(buf, "{SHA}");

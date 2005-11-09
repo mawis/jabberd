@@ -166,7 +166,7 @@ typedef result (*cfhandler)(instance id, xmlnode x, void *arg);
 typedef result (*beathandler)(void *arg);
 
 /*** public functions for base modules ***/
-void register_config(char *node, cfhandler f, void *arg); /* register a function to handle that node in the config file */
+void register_config(pool p, char *node, cfhandler f, void *arg); /* register a function to handle that node in the config file */
 void register_instance(instance i, char *host); /* associate an id with a hostname for that packet type */
 void unregister_instance(instance i, char *host); /* disassociate an id with a hostname for that packet type */
 void register_phandler(instance id, order o, phandler f, void *arg); /* register a function to handle delivery for this instance */
@@ -225,8 +225,6 @@ void log_alert(const char *host, const char *msgfmt, ...);
 #define log_error log_alert
 void logger(char *type, const char *host, char *message); /* actually creates and delivers the log message */
 void log_record(char *id, char *type, char *action, const char *msgfmt, ...); /* for generic logging support, like log_record("jer@jabber.org","session","end","...") */
-extern int jabberd__signalflag; /* set to the last signal to be processed */
-void jabberd_signal(void); /* process the signal, called from the heartbeat thread */
 
 /*** xdb utilities ***/
 

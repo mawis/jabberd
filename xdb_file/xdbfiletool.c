@@ -52,12 +52,7 @@
  *     inside the library
  */
 xht debug__zones;
-pool jabberd__runtime = NULL;
-int jabberd__signalflag = 0;
 
-void jabberd_signal(void)
-{
-}
 /* end of hack */
 
 /* handle of the shared object */

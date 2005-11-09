@@ -140,7 +140,6 @@ deliver()
 </jer> */
 
 #include "jabberd.h"
-extern pool jabberd__runtime;
 
 int deliver__flag=0;	/**< 0 = pause delivery on startup and queue for later delivery, 1 = normal operation, -1 = shutdown: no delivery, no queueing */
 pth_msgport_t deliver__mp=NULL;	/**< message port, that contains all queued messages for later delivery while ::deliver__flag = 0 */
@@ -635,17 +634,19 @@ instance deliver_hostcheck(char *host)
 
 /**
  * initialize the XML delivery system
+ *
+ * @param p memory pool that can be used to register config handlers (must be available for the livetime of jabberd)
  */
-void deliver_init(void)
+void deliver_init(pool p)
 {
     deliver__hnorm = xhash_new(401);
     deliver__hlog = xhash_new(401);
     deliver__hxdb = xhash_new(401);
-    register_config("host",deliver_config_host,NULL);
-    register_config("ns",deliver_config_ns,NULL);
-    register_config("logtype",deliver_config_logtype,NULL);
-    register_config("uplink",deliver_config_uplink,NULL);
-    register_config("null",deliver_config_null,NULL);
+    register_config(p, "host",deliver_config_host,NULL);
+    register_config(p, "ns",deliver_config_ns,NULL);
+    register_config(p, "logtype",deliver_config_logtype,NULL);
+    register_config(p, "uplink",deliver_config_uplink,NULL);
+    register_config(p, "null",deliver_config_null,NULL);
 }
 
 /**

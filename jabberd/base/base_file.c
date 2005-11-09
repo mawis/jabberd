@@ -112,8 +112,12 @@ result base_file_config(instance id, xmlnode x, void *arg)
     return r_DONE;
 }
 
-void base_file(void)
-{
+/**
+ * register the file base handler
+ *
+ * @param p memory pool used to register the configuration handler, must be available for the livetime of jabberd
+ */
+void base_file(pool p) {
     log_debug2(ZONE, LOGT_INIT, "base_file loading...");
-    register_config("file",base_file_config,NULL);
+    register_config(p, "file",base_file_config,NULL);
 }

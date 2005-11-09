@@ -123,8 +123,12 @@ result base_syslog_config(instance id, xmlnode x, void *arg) {
 }
 #endif
 
-void base_syslog(void)
-{
+/**
+ * register the syslog base handler
+ *
+ * @param p memory pool used to register the configuration handler, must be available for the livetime of jabberd
+ */
+void base_syslog(pool p) {
     log_debug2(ZONE, LOGT_INIT, "base_syslog loading...");
-    register_config("syslog",base_syslog_config,NULL);
+    register_config(p, "syslog",base_syslog_config,NULL);
 }

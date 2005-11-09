@@ -80,8 +80,12 @@ result base_stderr_config(instance id, xmlnode x, void *arg)
     return r_DONE;
 }
 
-void base_stderr(void)
-{
+/**
+ * register the stderr base handler
+ *
+ * @param p memory pool used to register the configuration handler, must be available for the livetime of jabberd
+ */
+void base_stderr(pool p) {
     log_debug2(ZONE, LOGT_INIT, "base_stderr loading...");
-    register_config("stderr", base_stderr_config, NULL);
+    register_config(p, "stderr", base_stderr_config, NULL);
 }
