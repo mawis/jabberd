@@ -94,8 +94,12 @@ result base_to_config(instance id, xmlnode x, void *arg)
     return r_DONE;
 }
 
-void base_to(void)
-{
+/**
+ * register the to base handler
+ *
+ * @param p memory pool used to register the configuration handler, must be available for the livetime of jabberd
+ */
+void base_to(pool p) {
     log_debug2(ZONE, LOGT_INIT, "base_to loading...");
-    register_config("to",base_to_config,NULL);
+    register_config(p, "to",base_to_config,NULL);
 }

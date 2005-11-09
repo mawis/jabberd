@@ -46,7 +46,6 @@
 
 #include "jabberd.h"
 #define MAX_INCLUDE_NESTING 20 /**< the maximum number of nexted &lt;jabberd:include/&gt; elements in the configuration */
-extern pool      jabberd__runtime;
 xht instance__ids=NULL;	/**< hash of all created XML routing target instances (key is the id of the instance, value is the ::instance) */
 
 /**
@@ -194,9 +193,6 @@ static void show_pid(xmlnode x) {
     int fd;
     pid_t pid;
 
-    /* HACKAGE: if we're reloading, ignore this check */
-    if(jabberd__signalflag == SIGHUP) return;
-
     pidfile = xmlnode_get_tag(x, "pidfile");
     if(pidfile == NULL)
         return;
@@ -231,9 +227,10 @@ static void show_pid(xmlnode x) {
  *
  * @param file the file to parse (NULL to use the default)
  * @param cmd_line the command line arguments
+ * @param is_restart 0 if it is the initial configuration processing, 1 if it is a restart
  * @return 1 on error, 0 on success
  */
-int configurate(char *file, xht cmd_line) {
+int configurate(char *file, xht cmd_line, int is_restart) {
     char def[] = CONFIG_DIR"/jabber.xml";
     char *realfile = (char *)def;
     xmlnode incl;
@@ -279,7 +276,9 @@ int configurate(char *file, xht cmd_line) {
     do_include(0,greymatter__);
     cmdline_replace(greymatter__, cmd_line);
 
-    show_pid(greymatter__);
+    /* if it is the initial configuration, we have to write the PID */
+    if (!is_restart)
+	show_pid(greymatter__);
 
     _set_configured_debug(greymatter__);
 
@@ -297,23 +296,21 @@ typedef struct cfg_struct {
 } *cfg, _cfg;
 
 cfg cfhandlers__ = NULL;	/**< list of config handlers */
-pool cfhandlers__p = NULL;	/**< memory pool for the list of config handlers */
 
 /**
  * register a function to handle that node in the config file
  *
+ * @param p memory pool used to allocate data belonging to this registration
  * @param node the node that should be handled by the handler
  * @param f the handler function that should be registered
  * @param arg argument, that should be passed to the handler function
  */
-void register_config(char *node, cfhandler f, void *arg) {
+void register_config(pool p, char *node, cfhandler f, void *arg) {
     cfg newg;
 
-    cfhandlers__p = jabberd__runtime;
-
     /* create and setup */
-    newg = pmalloco(cfhandlers__p, sizeof(_cfg));
-    newg->node = pstrdup(cfhandlers__p,node);
+    newg = pmalloco(p, sizeof(_cfg));
+    newg->node = pstrdup(p,node);
     newg->f = f;
     newg->arg = arg;
 

@@ -19,4 +19,4 @@ lib_LTLIBRARIES = libjabberd.la
 
 libjabberd_la_SOURCES = config.c heartbeat.c load.c mio.c mio_ssl.c mtq.c xdb.c deliver.c log.c mio_raw.c mio_xml.c
 libjabberd_la_LIBADD = -lexpat $(top_builddir)/jabberd/lib/libjabberdlib.la
-libjabberd_la_LDFLAGS = @LDFLAGS@ -export-dynamic
+libjabberd_la_LDFLAGS = @LDFLAGS@ @VERSION_INFO@ -export-dynamic
