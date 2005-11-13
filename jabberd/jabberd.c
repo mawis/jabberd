@@ -60,7 +60,7 @@
 #include <syslog.h>
 #endif
 
-xht debug__zones;		/**< the debugging zones, that are enabled (key = zone string, value = zone string) */
+xht debug__zones = NULL;		/**< the debugging zones, that are enabled (key = zone string, value = zone string) */
 extern int deliver__flag;
 extern xmlnode greymatter__;
 
