@@ -48,7 +48,7 @@
 #include <openssl/err.h>
 #include <openssl/x509v3.h>
 
-xht ssl__ctxs;
+xht ssl__ctxs = NULL;
 
 #ifndef NO_RSA
 /* This function will generate a temporary key for us */
