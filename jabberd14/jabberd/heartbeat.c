@@ -57,7 +57,7 @@ typedef struct beat_struct {
 } *beat, _beat;
 
 /** master hook for the ring */
-beat heartbeat__ring;
+beat heartbeat__ring = NULL;
 
 /**
  * this thread continuously checks if a function, that is registered to be called regularly using register_beat() has to be called again
