@@ -117,7 +117,7 @@ void base_connect_connect(void *arg)
 {
     conn_info ci = (conn_info)arg;
     pth_sleep(2); /* take a break */
-    mio_connect(ci->hostip, ci->hostport, base_connect_process_xml, (void*)ci, ci->timeout, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER));
+    mio_connect(ci->hostip, ci->hostport, base_connect_process_xml, (void*)ci, ci->timeout, mio_handlers_new(NULL, NULL, MIO_XML_PARSER));
 }
 
 void base_connect_process_xml(mio m, int state, void* arg, xmlnode x)

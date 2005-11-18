@@ -715,7 +715,11 @@ void pthsock_client(instance i, xmlnode x)
     /* listen on TLS sockets */
     for (cur = xmlnode_get_tag(s__i->cfg, tls_config_element_name); cur != NULL; xmlnode_hide(cur), cur = xmlnode_get_tag(s__i->cfg, tls_config_element_name)) {
 	mio m;
-	m = mio_listen(j_atoi(xmlnode_get_attrib(cur, "port"), 5223), xmlnode_get_data(cur), pthsock_client_listen, (void*)s__i, MIO_SSL_ACCEPTED, mio_handlers_new(MIO_SSL_READ, MIO_SSL_WRITE, MIO_XML_PARSER));
+	mio_handlers mh;
+
+	mh = mio_handlers_new(MIO_SSL_READ, MIO_SSL_WRITE, MIO_XML_PARSER);
+	mh->accepted = MIO_SSL_ACCEPTED;
+	m = mio_listen(j_atoi(xmlnode_get_attrib(cur, "port"), 5223), xmlnode_get_data(cur), pthsock_client_listen, (void*)s__i, mh);
 	if (m == NULL)
 	    return;
 	/* Set New rate and points */

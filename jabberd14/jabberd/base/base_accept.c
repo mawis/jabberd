@@ -376,8 +376,7 @@ result base_accept_config(instance id, xmlnode x, void *arg)
     }
 
     /* Start a new listening thread and associate this <listen> tag with it */
-    if(mio_listen(inst->port, inst->ip, base_accept_process_xml, (void*)inst, NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER)) == NULL)
-    {
+    if (mio_listen(inst->port, inst->ip, base_accept_process_xml, (void*)inst, mio_handlers_new(NULL, NULL, MIO_XML_PARSER)) == NULL) {
         xmlnode_put_attrib(x,"error","<accept> unable to listen on the configured ip and port");
         return r_ERR;
     }
