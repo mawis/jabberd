@@ -317,28 +317,31 @@ struct mio_handlers_st; /* grr.. stupid fsking chicken and egg C definitions */
 typedef enum { state_ACTIVE, state_CLOSE } mio_state;
 typedef enum { type_LISTEN, type_NORMAL, type_NUL, type_HTTP } mio_type;
 
-/** Managed I/O. TCP socket management. */
+/**
+ * Representation of a managed TCP socket
+ */
 typedef struct mio_st {
-    pool p;
-    int fd;
-    mio_type type; /* listen (server) socket or normal (client) socket */
-    mio_state state;
+    pool p;				/**< memory pool for data with the same lifetime as the socket */
+    int fd;				/**< file descriptor of the socket */
+    mio_type type;			/**< listen (server) socket or normal (client) socket */
+    mio_state state;			/**< state of this manages socket, used to flag a socket that it needs to be closed */
 
-    mio_wbq queue; /* write buffer queue */
-    mio_wbq tail;  /* the last buffer queue item */
+    mio_wbq queue;			/**< write buffer queue */
+    mio_wbq tail;			/**< the last buffer queue item */
 
-    struct mio_st *prev,*next;
+    struct mio_st *prev,*next;		/**< pointers to the previous and next item, if a list of mio_st elements is build */
 
-    void *cb_arg;    /* do not modify directly */
-    void *cb;     /* do not modify directly */
-    struct mio_handlers_st *mh;
+    void *cb_arg;			/**< MIO event callback argument (do not modify directly) */
+    void *cb;				/**< MIO event callback (do not modify directly) */
+    struct mio_handlers_st *mh;		/**< MIO internal handlers (for reading, writing, setting up TLS layers) */
 
     xstream    xs;   /* XXX kill me, I suck */
-    XML_Parser parser;
-    int        root;
-    xmlnode    stacknode;
-    void       *ssl;
+    XML_Parser parser;			/**< sax instance used for this mio socket if we layer an XML stream on top of it */
+    xmlnode    stacknode;		/**< the stanza that is currently received */
+    void       *ssl;			/**< TLS layer instance for this managed socket (either GNU TLS or OpenSSL) */
     struct {
+	int	root:1;			/**< 0 = waiting for the stream root tag, 1 = stream root tag already received */
+	int	rated:1;		/**< 0 = no rating for this socket, 1 = socket is rate limited (see ::rate) */
 	int	reset_stream:1;		/**< set to 1, if stream has to be resetted */
 	int	recall_read_when_readable:1;	/**< recall the read function, when the socket has data available for reading */
 	int	recall_read_when_writeable:1;	/**< recall the read function, when the socket has data available for writing */
@@ -349,21 +352,38 @@ typedef struct mio_st {
 	int	tls_reread:1;		/**< there might be more data available to be read from the TLS library */
     } flags;
 
-    struct karma k;
-    int rated;   /* is this socket rate limted? */
-    jlimit rate; /* if so, what is the rate?    */
-    char *peer_ip;	/**< IP address of the peer */
-    char *our_ip;	/**< our own IP address */
-    char *connect_errmsg; /**< error message on failed connects (don't free messages) */
-    char *authed_other_side; /**< if the other side of the stream is authenticated, the identity can be placed here */
+    struct karma k;			/**< karma for this socket, used to limit bandwidth of a connection */
+    jlimit rate;			/**< what is the rate if ::flags.rated is set */
+    char *peer_ip;			/**< IP address of the peer */
+    uint16_t peer_port;			/**< port of the peer */
+    char *our_ip;			/**< our own IP address */
+    uint16_t our_port;			/**< port of us */
+    char *connect_errmsg;		/**< error message on failed connects (don't free messages) */
+    char *authed_other_side;		/**< if the other side of the stream is authenticated, the identity can be placed here */
 } *mio, _mio;
+
+/**
+ * @brief structure that holds the global mio data
+ *
+ * MIO internal use only
+ */
+typedef struct mio_main_st {
+    pool p;             /**< (memory-)pool to hold this data */
+    mio master__list;   /**< a list of all the sockets */
+    pth_t t;            /**< a pointer to thread for signaling */
+    int shutdown;	/**< flag that the select loop can be left (if value is 1) */
+    int zzz[2];		/**< pipe used to send signals to the select loop */
+    int zzz_active;	/**< if set to something else then 1, there has been sent a signal already, that is not yet processed */
+    struct karma *k;	/**< default karma */
+    int rate_t, rate_p; /**< default rate, if any */
+    char *bounce_uri;	/**< where to bounce HTTP requests to */
+} _ios,*ios;
 
 /* MIO SOCKET HANDLERS */
 typedef ssize_t (*mio_read_func)      (mio m, void*            buf,       size_t     count);
 typedef ssize_t (*mio_write_func)     (mio m, const void*      buf,       size_t     count); 
 typedef void    (*mio_parser_func)    (mio m,  const void*      buf,       size_t     bufsz);
 typedef int     (*mio_accepted_func)  (mio m);
-typedef int     (*mio_connect_func)   (mio m, struct sockaddr* serv_addr, socklen_t  addrlen);
 typedef int	(*mio_handshake_func) (mio m);
 
 /** The MIO handlers data type */
@@ -385,11 +405,9 @@ typedef struct mio_handlers_st
 ssize_t _mio_raw_read(mio m, void *buf, size_t count);
 ssize_t _mio_raw_write(mio m, void *buf, size_t count);
 void _mio_raw_parser(mio m, const void *buf, size_t bufsz);
-int _mio_raw_connect(mio m, struct sockaddr* serv_addr, socklen_t  addrlen);
 #define MIO_RAW_READ     (mio_read_func)&_mio_raw_read
 #define MIO_RAW_WRITE    (mio_write_func)&_mio_raw_write
 #define MIO_RAW_ACCEPTED (mio_accepted_func)NULL
-#define MIO_RAW_CONNECT  (mio_connect_func)&_mio_raw_connect
 #define MIO_RAW_PARSER   (mio_parser_func)&_mio_raw_parser
 
 void mio_xml_reset(mio m);
@@ -398,10 +416,10 @@ void _mio_xml_parser(mio m, const void *buf, size_t bufsz);
 #define MIO_XML_PARSER  (mio_parser_func)&_mio_xml_parser
 
 /* function helpers */
-#define MIO_LISTEN_RAW NULL, mio_handlers_new(NULL, NULL, NULL)
-#define MIO_CONNECT_RAW  NULL, mio_handlers_new(NULL, NULL, NULL)
-#define MIO_LISTEN_XML NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER)
-#define MIO_CONNECT_XML  NULL, mio_handlers_new(NULL, NULL, MIO_XML_PARSER)
+#define MIO_LISTEN_RAW mio_handlers_new(NULL, NULL, NULL)
+#define MIO_CONNECT_RAW mio_handlers_new(NULL, NULL, NULL)
+#define MIO_LISTEN_XML mio_handlers_new(NULL, NULL, MIO_XML_PARSER)
+#define MIO_CONNECT_XML mio_handlers_new(NULL, NULL, MIO_XML_PARSER)
 
 /* TLS functions */
 void    mio_ssl_init     (xmlnode x);
@@ -447,7 +465,7 @@ void mio_stop(void);
 mio mio_new(int fd, void *cb, void *cb_arg, mio_handlers mh);
 
 /** Reset the callback and argument for an mio object */
-mio mio_reset(mio m, void *cb, void *arg);
+void mio_reset(mio m, void *cb, void *arg);
 
 /** Request the mio socket be closed */
 void mio_close(mio m);
@@ -466,13 +484,13 @@ void mio_rate(mio m, int rate_time, int max_points);
 xmlnode mio_cleanup(mio m);
 
 /** Connects to an ip */
-void mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_connect_func f, mio_handlers mh);
+void mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_handlers mh);
 
 /** Starts listening on a port/ip, returns NULL if failed to listen */
-mio mio_listen(int port, char *sourceip, void *cb, void *cb_arg, mio_accepted_func f, mio_handlers mh);
+mio mio_listen(int port, char *sourceip, void *cb, void *cb_arg, mio_handlers mh);
 
 /* some nice api utilities */
 #define mio_pool(m) (m->p)
-#define mio_ip(m) (m->peer_ip)
+#define mio_ip(m) (m ? m->peer_ip : NULL)
 #define mio_connect_errmsg(m) (m->connect_errmsg)
 

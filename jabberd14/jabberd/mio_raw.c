@@ -46,8 +46,18 @@
 
 #include <jabberd.h>
 
-void _mio_raw_parser(mio m, const void *buf, size_t bufsz)
-{
+/**
+ * receiving bytes on a network socket
+ *
+ * the _mio_raw_parser implements a mio parser, that does not parse the received
+ * data at all, but just passes the received data as bytes to the application
+ * callback function, that registered for this mio object
+ *
+ * @param m the mio object where the data has been read
+ * @param buf the data that has been read
+ * @param bufsz the number of bytes, that have been read on the socket
+ */
+void _mio_raw_parser(mio m, const void *buf, size_t bufsz) {
     (*(mio_raw_cb)m->cb)(m, MIO_BUFFER, m->cb_arg, (char*)buf, bufsz);
 }
 
@@ -105,18 +115,4 @@ ssize_t _mio_raw_write(mio m, void *buf, size_t count) {
     }
     
     return ret;
-}
-
-int _mio_raw_connect(mio m, struct sockaddr* serv_addr, socklen_t  addrlen)
-{
-    sigset_t set;
-    int sig;
-    pth_event_t wevt;
-
-    sigemptyset(&set);
-    sigaddset(&set, SIGUSR2);
-
-    wevt = pth_event(PTH_EVENT_SIGS, &set, &sig);
-    pth_fdmode(m->fd, PTH_FDMODE_BLOCK);
-    return pth_connect_ev(m->fd, serv_addr, addrlen, wevt);
 }
