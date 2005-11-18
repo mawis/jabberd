@@ -40,7 +40,7 @@
 
 /**
  * @file mio_ssl.c
- * @brief MIO read/write functions to read/write on TLS encrypted sockets and handling for TLS in general
+ * @brief MIO read/write functions to read/write on TLS encrypted sockets and handling for TLS in general (using the OpenSSL implementation)
  */
 
 #include "jabberd.h"
@@ -108,7 +108,7 @@ void mio_ssl_init(xmlnode x) {
     char *keypath;
     char *cafile = NULL;
 
-    log_debug2(ZONE, LOGT_INIT, "MIO TLS init");
+    log_debug2(ZONE, LOGT_INIT, "MIO TLS init (OpenSSL)");
 
     /* Make sure we have a valid xmlnode to play with */
     if (x == NULL && xmlnode_has_children(x)) {
@@ -325,106 +325,14 @@ ssize_t _mio_ssl_write(mio m, const void *buf, size_t count) {
     return ret;
 }
 
-int _mio_ssl_accept(mio m, struct sockaddr *serv_addr, socklen_t *addrlen)
-{
-    SSL *ssl=NULL;
-    SSL_CTX *ctx = NULL;
-    int fd;
-    int sret;
-    int flags;
-
-    fd = accept(m->fd, serv_addr, addrlen);
-
-    /* set the socket to non-blocking as this is not
-       inherited */
-    flags =  fcntl(fd, F_GETFL, 0);
-    flags |= O_NONBLOCK;
-    fcntl(fd, F_SETFL, flags);
-
-    if(m->ip == NULL) {
-        log_warn(ZONE, "TLS accept but no IP given in configuration");
-        return -1;
-    }
-
-    ctx = xhash_get(ssl__ctxs, m->ip);
-    if(ctx == NULL)
-    {
-        log_warn(NULL, "No TLS key configured for IP %s", m->ip);
-        return -1;
-    }
-    ssl = SSL_new(ctx);
-    log_debug2(ZONE, LOGT_IO, "TLS accepting socket from %s with new session %x",
-                    m->ip, ssl);
-    SSL_set_fd(ssl, fd);
-    SSL_set_accept_state(ssl);
-    sret = SSL_accept(ssl);
-    if(sret <= 0)
-    {
-        unsigned long e;
-        static char *buf;
-        
-        if((SSL_get_error(ssl, sret) == SSL_ERROR_WANT_READ) ||
-           (SSL_get_error(ssl, sret) == SSL_ERROR_WANT_WRITE))
-        {
-            m->ssl = ssl;
-            log_debug2(ZONE, LOGT_IO, "Accept blocked, returning");
-            return fd;
-        }
-        e = ERR_get_error();
-        buf = ERR_error_string(e, NULL);
-        log_debug2(ZONE, LOGT_IO, "Error from TLS: %s", buf);
-        log_debug2(ZONE, LOGT_IO, "TLS error in SSL_accept call");
-        SSL_free(ssl);
-        close(fd);
-        return -1;
-    }
-
-    m->k.val = 100;
-    m->ssl = ssl;
-
-    log_debug2(ZONE, LOGT_IO, "Accepted new TLS socket %d for %s", fd, m->ip);
-
-    return fd;
-}
-
 /**
- * connect to an other host using TLS
+ * a new connection has been accepted, start TLS layer (used e.g. for Jabber on port 5223)
  *
- * @todo I don't think this function works. ssl is not initialized.
- *
- * @param m the mio to use
- * @param serv_addr where to connect to
- * @param addrlen length of the address structure
- * @return file descriptor of the new connection, -1 on failure
+ * @param m the mio to start the TLS layer on
+ * @return -1 on error, 0 if handshake has not finished yet, 1 on success
  */
-int _mio_ssl_connect(mio m, struct sockaddr *serv_addr, socklen_t addrlen)
-{
-
-    /* PSEUDO
-     I need to actually look this one up, but I assume it's similar to the
-       TLS accept stuff.
-    */
-    SSL *ssl=NULL;
-    SSL_CTX *ctx = NULL;
-    int fd;
-
-    log_debug2(ZONE, LOGT_IO, "Connecting new TLS socket for %s", m->ip);
-    ctx = xhash_get(ssl__ctxs, m->ip);
-    
-    fd = connect(m->fd, serv_addr, addrlen);
-    SSL_set_fd(ssl, fd);
-    if(SSL_connect(ssl) <= 0){
-        log_debug2(ZONE, LOGT_IO, "TLS error in SSL_connect call");
-        SSL_free(ssl);
-        close(fd);
-        return -1;
-    }
-
-    pool_cleanup(m->p, _mio_ssl_cleanup, (void *)ssl);
-
-    m->ssl = ssl;
-
-    return fd;
+int _mio_ssl_accepted(mio m) {
+    return mio_ssl_starttls(m, 0, m->our_ip) == 0 ? 1 : -1;
 }
 
 /**
@@ -434,11 +342,7 @@ int _mio_ssl_connect(mio m, struct sockaddr *serv_addr, socklen_t addrlen)
  * @return 0 if the connection is not encrypted, 1 if the connection is integrity protected, >1 if encrypted
  */
 int mio_is_encrypted(mio m) {
-#ifdef HAVE_SSL
     return m->ssl == NULL ? 0 : SSL_get_cipher_bits(m->ssl, NULL);
-#else
-    return 0;
-#endif
 }
 
 /**
@@ -514,6 +418,7 @@ int mio_ssl_starttls(mio m, int originator, const char* identity) {
 	    m->mh->read = MIO_SSL_READ;
 	    m->mh->write = MIO_SSL_WRITE;
             log_debug2(ZONE, LOGT_IO, "TLS %s for existing connection blocked, returning", originator ? "connect" : "accept");
+	    pool_cleanup(m->p, _mio_ssl_cleanup, (void *)ssl);
             return 0;
         }
         e = ERR_get_error();
@@ -531,6 +436,7 @@ int mio_ssl_starttls(mio m, int originator, const char* identity) {
     m->mh->write = MIO_SSL_WRITE;
 
     log_debug2(ZONE, LOGT_IO, "TLS established on fd %i", m->fd);
+    pool_cleanup(m->p, _mio_ssl_cleanup, (void *)ssl);
 
     return 0;
 }

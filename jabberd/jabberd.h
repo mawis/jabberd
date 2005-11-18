@@ -111,8 +111,15 @@
 #endif
 
 #include <jabberdlib.h>
+
+#ifdef HAVE_GNUTLS
+#   include <gnutls/gnutls.h>
+#   define SUPPORT_TLS
+#endif /* HAVE_GNUTLS */
+
 #ifdef HAVE_SSL
-#include <openssl/ssl.h>
+#   include <openssl/ssl.h>
+#   define SUPPORT_TLS
 #endif /* HAVE_SSL */
 
 /** Packet types */
@@ -337,50 +344,53 @@ typedef struct mio_st {
 	int	recall_read_when_writeable:1;	/**< recall the read function, when the socket has data available for writing */
 	int	recall_write_when_readable:1;	/**< recall the write function, when the socket has data available for reading */
 	int	recall_write_when_writeable:1;	/**< recall the write function, when the socket allows writing again */
+	int	recall_handshake_when_readable:1; /**< recall the handshake function, when the socket has data available for reading */
+	int	recall_handshake_when_writeable:1; /**< recall the handshake function, when the socket allows writing again */
 	int	tls_reread:1;		/**< there might be more data available to be read from the TLS library */
     } flags;
 
     struct karma k;
     int rated;   /* is this socket rate limted? */
     jlimit rate; /* if so, what is the rate?    */
-    char *ip;
+    char *peer_ip;	/**< IP address of the peer */
+    char *our_ip;	/**< our own IP address */
     char *connect_errmsg; /**< error message on failed connects (don't free messages) */
     char *authed_other_side; /**< if the other side of the stream is authenticated, the identity can be placed here */
 } *mio, _mio;
 
 /* MIO SOCKET HANDLERS */
-typedef ssize_t (*mio_read_func)    (mio m, void*            buf,       size_t     count);
-typedef ssize_t (*mio_write_func)   (mio m, const void*      buf,       size_t     count); 
-typedef void    (*mio_parser_func)  (mio m,  const void*      buf,       size_t     bufsz);
-typedef int     (*mio_accept_func)  (mio m, struct sockaddr* serv_addr, socklen_t* addrlen);
-typedef int     (*mio_connect_func) (mio m, struct sockaddr* serv_addr, socklen_t  addrlen);
+typedef ssize_t (*mio_read_func)      (mio m, void*            buf,       size_t     count);
+typedef ssize_t (*mio_write_func)     (mio m, const void*      buf,       size_t     count); 
+typedef void    (*mio_parser_func)    (mio m,  const void*      buf,       size_t     bufsz);
+typedef int     (*mio_accepted_func)  (mio m);
+typedef int     (*mio_connect_func)   (mio m, struct sockaddr* serv_addr, socklen_t  addrlen);
+typedef int	(*mio_handshake_func) (mio m);
 
 /** The MIO handlers data type */
 typedef struct mio_handlers_st
 {
     pool  p;
-    mio_read_func   read;
-    mio_write_func  write;
-    mio_accept_func accept;
-    mio_parser_func parser;
+    mio_read_func	read;
+    mio_write_func	write;
+    mio_accepted_func	accepted;
+    mio_parser_func	parser;
+    mio_handshake_func	handshake;
 } _mio_handlers, *mio_handlers; 
 
 /* standard read/write/accept/connect functions */
 #define MIO_READ_FUNC    pth_read 
 #define MIO_WRITE_FUNC   pth_write
-#define MIO_ACCEPT_FUNC  pth_accept
 #define MIO_CONNECT_FUNC pth_connect
 
 ssize_t _mio_raw_read(mio m, void *buf, size_t count);
 ssize_t _mio_raw_write(mio m, void *buf, size_t count);
-int _mio_raw_accept(mio m, struct sockaddr* serv_addr, socklen_t* addrlen);
 void _mio_raw_parser(mio m, const void *buf, size_t bufsz);
 int _mio_raw_connect(mio m, struct sockaddr* serv_addr, socklen_t  addrlen);
-#define MIO_RAW_READ    (mio_read_func)&_mio_raw_read
-#define MIO_RAW_WRITE   (mio_write_func)&_mio_raw_write
-#define MIO_RAW_ACCEPT  (mio_accept_func)&_mio_raw_accept
-#define MIO_RAW_CONNECT (mio_connect_func)&_mio_raw_connect
-#define MIO_RAW_PARSER  (mio_parser_func)&_mio_raw_parser
+#define MIO_RAW_READ     (mio_read_func)&_mio_raw_read
+#define MIO_RAW_WRITE    (mio_write_func)&_mio_raw_write
+#define MIO_RAW_ACCEPTED (mio_accepted_func)NULL
+#define MIO_RAW_CONNECT  (mio_connect_func)&_mio_raw_connect
+#define MIO_RAW_PARSER   (mio_parser_func)&_mio_raw_parser
 
 void mio_xml_reset(mio m);
 int  mio_xml_starttls(mio m, int originator, const char *identity);
@@ -401,12 +411,10 @@ int	mio_ssl_verify(mio m, const char *id_on_xmppAddr);
 void    _mio_ssl_cleanup (void *arg);
 ssize_t _mio_ssl_read    (mio m, void *buf, size_t count);
 ssize_t _mio_ssl_write   (mio m, const void*      buf,       size_t     count);
-int     _mio_ssl_accept  (mio m, struct sockaddr* serv_addr, socklen_t* addrlen);
-int     _mio_ssl_connect (mio m, struct sockaddr* serv_addr, socklen_t  addrlen);
-#define MIO_SSL_READ    _mio_ssl_read
-#define MIO_SSL_WRITE   _mio_ssl_write
-#define MIO_SSL_ACCEPT  _mio_ssl_accept
-#define MIO_SSL_CONNECT _mio_ssl_connect
+int     _mio_ssl_accepted(mio m);
+#define MIO_SSL_READ     _mio_ssl_read
+#define MIO_SSL_WRITE    _mio_ssl_write
+#define MIO_SSL_ACCEPTED _mio_ssl_accepted
 
 int	mio_is_encrypted(mio m);
 
@@ -461,10 +469,10 @@ xmlnode mio_cleanup(mio m);
 void mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_connect_func f, mio_handlers mh);
 
 /** Starts listening on a port/ip, returns NULL if failed to listen */
-mio mio_listen(int port, char *sourceip, void *cb, void *cb_arg, mio_accept_func f, mio_handlers mh);
+mio mio_listen(int port, char *sourceip, void *cb, void *cb_arg, mio_accepted_func f, mio_handlers mh);
 
 /* some nice api utilities */
 #define mio_pool(m) (m->p)
-#define mio_ip(m) (m->ip)
+#define mio_ip(m) (m->peer_ip)
 #define mio_connect_errmsg(m) (m->connect_errmsg)
 

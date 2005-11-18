@@ -390,7 +390,7 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
 	/* send stream features for XMPP version 1.0 streams */
 	if (version>=1) {
 	    xmlnode features = xmlnode_new_tag("stream:features");
-#ifdef HAVE_SSL
+#ifdef SUPPORT_TLS
 	    /* TLS possible on this connection? */
 	    if (mio_ssl_starttls_possible(m, cd->session_id->server)) {
 		xmlnode starttls = NULL;
@@ -398,7 +398,7 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
 		starttls = xmlnode_insert_tag(features, "starttls");
 		xmlnode_put_attrib(starttls, "xmlns", NS_XMPP_TLS);
 	    }
-#endif /* HAVE_SSL */
+#endif /* SUPPORT_TLS */
 
 	    /* advertise registration of accounts? */
 	    if (cd->si->register_feature != 0) {
@@ -441,7 +441,7 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
             xmlnode q = xmlnode_get_tag(x, "query");
 	    if (j_strcmp(xmlnode_get_name(x), "starttls") == 0 && j_strcmp(xmlnode_get_attrib(x, "xmlns"), NS_XMPP_TLS) == 0) {
 		/* starting TLS possible? */
-#ifdef HAVE_SSL
+#ifdef SUPPORT_TLS
 		if (mio_ssl_starttls_possible(m, cd->session_id->server)) {
 		    /* ACK the start */
 		    xmlnode proceed = xmlnode_new_tag("proceed");
@@ -458,7 +458,7 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
 		    /* NACK */
 		    mio_write(m, NULL, "<failure xmlns='" NS_XMPP_TLS "'/></stream:stream>", -1);
 		    mio_close(m);
-#ifdef HAVE_SSL
+#ifdef SUPPORT_TLS
 		}
 #endif
 
@@ -706,7 +706,7 @@ void pthsock_client(instance i, xmlnode x)
         }
     }
 
-#ifdef HAVE_SSL
+#ifdef SUPPORT_TLS
     if (xmlnode_get_tag(s__i->cfg, "tls") == NULL && xmlnode_get_tag(s__i->cfg, "ssl") != NULL) {
 	log_warn(NULL, "Processing legacy <ssl/> element(s) inside pthsock_client configuration. The element has been renamed to <tls/>.");
 	tls_config_element_name = "ssl";
@@ -715,7 +715,7 @@ void pthsock_client(instance i, xmlnode x)
     /* listen on TLS sockets */
     for (cur = xmlnode_get_tag(s__i->cfg, tls_config_element_name); cur != NULL; xmlnode_hide(cur), cur = xmlnode_get_tag(s__i->cfg, tls_config_element_name)) {
 	mio m;
-	m = mio_listen(j_atoi(xmlnode_get_attrib(cur, "port"), 5223), xmlnode_get_data(cur), pthsock_client_listen, (void*)s__i, MIO_SSL_ACCEPT, mio_handlers_new(MIO_SSL_READ, MIO_SSL_WRITE, MIO_XML_PARSER));
+	m = mio_listen(j_atoi(xmlnode_get_attrib(cur, "port"), 5223), xmlnode_get_data(cur), pthsock_client_listen, (void*)s__i, MIO_SSL_ACCEPTED, mio_handlers_new(MIO_SSL_READ, MIO_SSL_WRITE, MIO_XML_PARSER));
 	if (m == NULL)
 	    return;
 	/* Set New rate and points */
