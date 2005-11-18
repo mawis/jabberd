@@ -1,13 +1,15 @@
 2005-11-18  Matthias Wimmer  <m@tthias.net>
 
     * jabber.xml.dist.in: advertize that we support offline storage
-    * jabberd/jabberd.h: started supporting GNU TLS
+    * jabberd/jabberd.h: started supporting GNU TLS, mio cleanup
     * jabberd/mio_xml.c: same
     * jabberd/mio_ssl.c: same
     * jabberd/mio_tls.c: same
     * jabberd/mio.c: same
     * jabberd/Makefile.am: same
     * jabberd/mio_raw.c: same
+    * jabberd/base/base_connect.c: same
+    * jabberd/base/base_accept.c: same
     * dialback/dialback_in.c: same
     * dialback/dialback_out.c: same
     * dialback/dialback.c: same
