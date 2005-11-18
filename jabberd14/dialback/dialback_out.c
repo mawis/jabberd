@@ -744,7 +744,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 		}
 
 		c->connection_state = got_features;
-#ifdef HAVE_SSL
+#ifdef SUPPORT_TLS
 		/* is starttls supported? */
 		if (xmlnode_get_tag(x, "starttls?xmlns=" NS_XMPP_TLS) != NULL) {
 		    /* don't start if forbidden by caller (configuration) */
@@ -764,7 +764,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 		    }
 		}
 		
-#endif /* HAVE_SSL */
+#endif /* SUPPORT_TLS */
 
 		/* is sasl-external supported? */
 		mechanisms = xmlnode_get_tag(x, "mechanisms?xmlns=" NS_XMPP_SASL);
@@ -837,7 +837,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 		break;
 	    }
 
-#ifdef HAVE_SSL
+#ifdef SUPPORT_TLS
 	    /* watch for positive starttls result */
 	    if (j_strcmp(xmlnode_get_name(x), "proceed") == 0 && j_strcmp(xmlnode_get_attrib(x, "xmlns"), NS_XMPP_TLS) == 0) {
 		/* start tls on our side */
@@ -863,7 +863,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 		mio_close(m);
 		break;
 	    }
-#endif /* HAVE_SSL */
+#endif /* SUPPORT_TLS */
 
 	    /* watch for SASL success */
 	    if (j_strcmp(xmlnode_get_name(x), "success") == 0 && j_strcmp(xmlnode_get_attrib(x, "xmlns"), NS_XMPP_SASL) == 0) {
@@ -946,7 +946,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 		return;
 	    }
 
-	    log_warn(c->d->i->id,"Dropping connection due to illegal incoming packet on an unverified socket from %s to %s (%s): %s",c->key->resource,c->key->server,m->ip,xmlnode2str(x));
+	    log_warn(c->d->i->id,"Dropping connection due to illegal incoming packet on an unverified socket from %s to %s (%s): %s",c->key->resource,c->key->server, mio_ip(m), xmlnode2str(x));
 	    mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Not Allowed to send data on this socket!</text></stream:error>", -1);
 	    mio_close(m);
 	    break;
