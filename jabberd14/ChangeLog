@@ -1,3 +1,7 @@
+2005-11-18  Matthias Wimmer  <m@tthias.net>
+
+    * jabber.xml.dist.in: advertize that we support offline storage
+
 2005-11-08  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/jabberd.h: use less global variables

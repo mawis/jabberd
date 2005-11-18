@@ -207,6 +207,7 @@
         <feature var='jabber:iq:last'/>
         <feature var='jabber:iq:version'/>
 	<feature var='http://jabber.org/protocol/offline'/>
+	<feature var='msgoffline'/>
       </disco>
 
       <!--
