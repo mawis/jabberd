@@ -63,20 +63,6 @@
  ********************************************************/
 
 /**
- * @brief structure that holds the global mio data
- */
-typedef struct mio_main_st {
-    pool p;             /**< (memory-)pool to hold this data */
-    mio master__list;   /**< a list of all the sockets */
-    pth_t t;            /**< a pointer to thread for signaling */
-    int shutdown;	/**< flag that the select loop can be left (if value is 1) */
-    int zzz[2];		/**< pipe used to send signals to the select loop */
-    int zzz_active;	/**< if set to something else then 1, there has been sent a signal already, that is not yet processed */
-    struct karma *k;	/**< default karma */
-    int rate_t, rate_p; /**< default rate, if any */
-} _ios,*ios;
-
-/**
  * @brief internal structure holding data of the destination where we connect to
  */
 typedef struct mio_connect_st {
@@ -85,15 +71,13 @@ typedef struct mio_connect_st {
     int port;		/**< port where to connect to */
     void *cb;		/**< callback function that should be notified on the new connection */
     void *cb_arg;	/**< argument that should be passed to the callback function */
-    mio_connect_func cf;
-    mio_handlers mh;
+    mio_handlers mh;	/**< mio internal handlers for different events, used to switch between raw and TLS-protected connections, XML streams or byte streams */
     pth_t t;		/**< thread for this connection */
     int connected;	/**< flag if the socket is connected */
 } _connect_data,  *connect_data;
 
 /* global object */
 ios mio__data = NULL;	/**< global data for mio */
-char *mio__bounce_uri = NULL; /**< where to bounce HTTP requests to */
 extern xmlnode greymatter__;
 
 #ifdef WITH_IPV6
@@ -158,12 +142,15 @@ static int _mio_netmask_to_ipv6(const char *netmask) {
 #endif
 
 /**
- * check if an IP address (IPv4 or IPv6) is allowed to connect
+ * check if an IP address (IPv4 or IPv6) is allowed/forbidden to connect
  *
  * @param address the address that should be checked
+ * @param check_allow 1 = check if it is allowed, 0 = check if it is forbidden
+ * allow:
  * @return 1 if allowed by default, or IP inside an allowed network, 2 if explicitly allowed IP address, 0 if not allowed
+ * deny:
  */
-static int _mio_allow_check(const char *address) {
+static int _mio_access_check(const char *address, int check_allow) {
 #ifdef WITH_IPV6
     char temp_address[INET6_ADDRSTRLEN];
     char temp_ip[INET6_ADDRSTRLEN];
@@ -181,8 +168,8 @@ static int _mio_allow_check(const char *address) {
     }
 #endif
 
-    if (xmlnode_get_tag(io, "allow") == NULL)
-        return 1; /* if there is no allow section, allow all */
+    if (xmlnode_get_tag(io, check_allow ? "allow" : "deny") == NULL)
+        return check_allow ? 1 : 0; /* if there is no allow/deny section, allow all */
 
     for (cur = xmlnode_get_firstchild(io); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
         char *ip, *netmask;
@@ -196,7 +183,7 @@ static int _mio_allow_check(const char *address) {
         if (xmlnode_get_type(cur) != NTYPE_TAG)
             continue;
 
-        if (j_strcmp(xmlnode_get_name(cur), "allow") != 0) 
+        if (j_strcmp(xmlnode_get_name(cur), check_allow ? "allow" : "deny") != 0) 
             continue;
 
         ip = xmlnode_get_tag_data(cur, "ip");
@@ -233,7 +220,7 @@ static int _mio_allow_check(const char *address) {
             inet_aton(netmask, &in_netmask);
             if((in_address.s_addr & in_netmask.s_addr) == (in_ip.s_addr & in_netmask.s_addr)) {
 #endif
-            	/* this ip is in the allow network */
+            	/* this ip is in the allow/deny network */
                 return 1;
             }
         } else {
@@ -246,99 +233,7 @@ static int _mio_allow_check(const char *address) {
         }
     }
 
-    /* deny the rest */
-    return 0;
-}
-
-/**
- * check if an IP address (IPv4 or IPv6) is forbitten to connect
- *
- * @param address the address that should be checked
- * @return 1 if forbidden by default, or IP inside an forbidden network, 2 if explicitly forbidden IP address, 0 if not allowed
- */
-static int _mio_deny_check(const char *address) {
-#ifdef WITH_IPV6
-    char temp_address[INET6_ADDRSTRLEN];
-    char temp_ip[INET6_ADDRSTRLEN];
-    static struct in_addr tmpa;
-#endif
-
-    xmlnode io = xmlnode_get_tag(greymatter__, "io");
-    xmlnode cur;
-
-#ifdef WITH_IPV6
-    if (inet_pton(AF_INET, address, &tmpa)) {
-	strcpy(temp_address, "::ffff:");
-	strcat(temp_address, address);
-	address = temp_address;
-    }
-#endif
-
-    if (xmlnode_get_tag(io, "deny") == NULL)
-        return 0; /* if there is no deny section, allow all */
-
-    for (cur = xmlnode_get_firstchild(io); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
-        char *ip, *netmask;
-#ifdef WITH_IPV6
-	struct in6_addr in_address, in_ip;
-	int in_netmask;
-#else
-        struct in_addr in_address, in_ip, in_netmask;
-#endif
-
-        if(xmlnode_get_type(cur) != NTYPE_TAG)
-            continue;
-
-        if(j_strcmp(xmlnode_get_name(cur), "deny") != 0) 
-            continue;
-
-        ip = xmlnode_get_tag_data(cur, "ip");
-        netmask = xmlnode_get_tag_data(cur, "mask");
-
-        if(ip == NULL)
-            continue;
-
-#ifdef WITH_IPV6
-	if (inet_pton(AF_INET, ip, &tmpa)) {
-	    strcpy(temp_ip, ":ffff:");
-	    strcat(temp_ip, ip);
-	    ip = temp_ip;
-	}
-
-	inet_pton(AF_INET6, address, &in_address);
-#else
-        inet_aton(address, &in_address);
-#endif
-
-        if(ip != NULL)
-#ifdef WITH_IPV6
-	    inet_pton(AF_INET6, ip, &in_ip);
-#else
-            inet_aton(ip, &in_ip);
-#endif
-
-        if(netmask != NULL) {
-#ifdef WITH_IPV6
-	    in_netmask = _mio_netmask_to_ipv6(netmask);
-
-	    if (_mio_compare_ipv6(&in_address, &in_ip, in_netmask)) {
-#else
-            inet_aton(netmask, &in_netmask);
-            if((in_address.s_addr & in_netmask.s_addr) == (in_ip.s_addr & in_netmask.s_addr)) {
-#endif
-            	/* this ip is in the deny network */
-                return 1;
-            }
-        } else {
-#ifdef WITH_IPV6
-	    if(_mio_compare_ipv6(&in_ip, &in_address, 128))
-#else
-            if(in_ip.s_addr == in_address.s_addr)
-#endif
-                return 2; /* must be an exact match, if no netmask */
-        }
-    }
-
+    /* deny/allow the rest */
     return 0;
 }
 
@@ -478,6 +373,7 @@ int _mio_write_dump(mio m) {
                 m->tail = NULL;
 
             pool_free(cur->p);
+	    cur->p=NULL;
         }
     } 
     return 0;
@@ -515,16 +411,18 @@ static void _mio_close(mio m) {
     /* close the socket, and free all memory */
     close(m->fd);
 
-    if (m->rated) 
+    if (m->flags.rated) 
         jlimit_free(m->rate);
 
     pool_free(m->mh->p);
+    m->mh->p = NULL;
 
     /* cleanup the write queue */
     while ((cur = mio_cleanup(m)) != NULL)
         xmlnode_free(cur);
 
     pool_free(m->p);
+    m->p = NULL;
 
     log_debug2(ZONE, LOGT_IO, "freed MIO socket");
 }
@@ -566,44 +464,46 @@ static mio _mio_accept(mio m) {
     /* pull a socket off the accept queue */
     fd = pth_accept(m->fd, (struct sockaddr*)&serv_addr, (socklen_t*)&addrlen);
     if (fd <= 0) {
+	log_debug2(ZONE, LOGT_IO, "pth_accept() failed to accept on socket #%i", m->fd);
         return NULL;
     }
 
-    log_debug2(ZONE, LOGT_IO, "_mio_accept accepted fd #%d", fd);
+    log_debug2(ZONE, LOGT_IO, "_mio_accept(%X) accepted fd #%d", m, fd);
 
+    /* access and rate checks */
 #ifdef WITH_IPV6
-    allow = _mio_allow_check(inet_ntop(AF_INET6, &serv_addr.sin6_addr, addr_str, sizeof(addr_str)));
-    deny = _mio_deny_check(addr_str);
-#else
-    allow = _mio_allow_check(inet_ntoa(serv_addr.sin_addr));
-    deny  = _mio_deny_check(inet_ntoa(serv_addr.sin_addr));
-#endif
+    allow = _mio_access_check(inet_ntop(AF_INET6, &serv_addr.sin6_addr, addr_str, sizeof(addr_str)), 1);
+    deny  = _mio_access_check(addr_str, 0);
 
     if (deny >= allow) {
-#ifdef WITH_IPV6
 	log_warn("mio", "%s was denied access, due to the allow list of IPs", addr_str);
-#else
-        log_warn("mio", "%s was denied access, due to the allow list of IPs", inet_ntoa(serv_addr.sin_addr));
-#endif
-        close(fd);
-        return NULL;
+	close(fd);
+	return NULL;
     }
 
-    /* make sure that we aren't rate limiting this IP */
-#ifdef WITH_IPV6
-    if (m->rated && jlimit_check(m->rate, addr_str, 1)) {
+    if (m->flags.rated && jlimit_check(m->rate, addr_str, 1)) {
 	log_warn(NULL, "%s(%d) is being connection rate limited - the connection attempts from this IP exceed the rate limit defined in jabberd config", addr_str, fd);
-#else
-    if (m->rated && jlimit_check(m->rate, inet_ntoa(serv_addr.sin_addr), 1)) {
-        log_warn(NULL, "%s(%d) is being connection rate limited - the connection attempts from this IP exceed the rate limit defined in jabberd config", inet_ntoa(serv_addr.sin_addr), fd);
-#endif
         close(fd);
         return NULL;
     }
 
-#ifdef WITH_IPV6
     log_debug2(ZONE, LOGT_IO, "new socket accepted (fd: %d, ip%s, port: %d)", fd, addr_str, ntohs(serv_addr.sin6_port));
-#else
+#else /* IPv6 not enabled */
+    allow = _mio_access_check(inet_ntoa(serv_addr.sin_addr), 1);
+    deny  = _mio_access_check(inet_ntoa(serv_addr.sin_addr), 0);
+
+    if (deny >= allow) {
+        log_warn("mio", "%s was denied access, due to the allow list of IPs", inet_ntoa(serv_addr.sin_addr));
+        close(fd);
+        return NULL;
+    }
+
+    if (m->flags.rated && jlimit_check(m->rate, inet_ntoa(serv_addr.sin_addr), 1)) {
+        log_warn(NULL, "%s(%d) is being connection rate limited - the connection attempts from this IP exceed the rate limit defined in jabberd config", inet_ntoa(serv_addr.sin_addr), fd);
+        close(fd);
+        return NULL;
+    }
+
     log_debug2(ZONE, LOGT_IO, "new socket accepted (fd: %d, ip: %s, port: %d)", fd, inet_ntoa(serv_addr.sin_addr), ntohs(serv_addr.sin_port));
 #endif
 
@@ -611,10 +511,15 @@ static mio _mio_accept(mio m) {
     new      = mio_new(fd, m->cb, m->cb_arg, mio_handlers_new(m->mh->read, m->mh->write, m->mh->parser));
 #ifdef WITH_IPV6
     new->peer_ip = pstrdup(new->p, addr_str);
+    new->peer_port = ntohs(serv_addr.sin6_port);
 #else
     new->peer_ip = pstrdup(new->p, inet_ntoa(serv_addr.sin_addr));
+    new->peer_port = ntohs(serv_addr.sin_port);
 #endif
     new->our_ip = pstrdup(new->p, m->our_ip);
+
+    /* copy karma settings */
+    mio_karma2(new, &m->k);
 
     /* is there an accepted handler? E.g. starting TLS layer at connection time if using Jabber over TLS on port 5223 */
     if (m->mh->accepted != NULL) {
@@ -622,14 +527,17 @@ static mio _mio_accept(mio m) {
 
 	ret = m->mh->accepted(new);
 
-	/* XXX handle errors! */
+	if (ret < 0) {
+	    mio_close(m);
+	    return new;	/* return it to get it really closed and destroyed again */
+	}
     }
 
-    mio_karma2(new, &m->k);
-
-    if(m->cb != NULL)
+    /* call the application callback, that wants to get notified for newly accepted sockets */
+    if(m->cb != NULL);
         (*(mio_std_cb)new->cb)(new, MIO_NEW, new->cb_arg);
 
+    /* return the new mio */
     return new;
 }
 
@@ -646,6 +554,7 @@ static result _mio_connect_timeout(void *arg) {
 
     if(cd->connected) {
         pool_free(cd->p);
+	cd->p = NULL;
         return r_UNREG;
     }
 
@@ -654,6 +563,22 @@ static result _mio_connect_timeout(void *arg) {
         pth_raise(cd->t, SIGUSR2);
 
     return r_DONE; /* loop again */
+}
+
+/**
+ * helper function for _mio_connect()
+ */
+static int _mio_connect_helper(mio m, struct sockaddr* serv_addr, socklen_t  addrlen) {
+    sigset_t set;
+    int sig;
+    pth_event_t wevt;
+
+    sigemptyset(&set);
+    sigaddset(&set, SIGUSR2);
+
+    wevt = pth_event(PTH_EVENT_SIGS, &set, &sig);
+    pth_fdmode(m->fd, PTH_FDMODE_BLOCK);
+    return pth_connect_ev(m->fd, serv_addr, addrlen, wevt);
 }
 
 /**
@@ -676,6 +601,7 @@ static void _mio_connect(void *arg) {
     pool               p;
     sigset_t           set;
 
+    /* _mio_connect_timeout() is sending SIGUSR2 to signal a connect timeout */
     sigemptyset(&set);
     sigaddset(&set, SIGUSR2);
     pth_sigmask(SIG_BLOCK, &set, NULL);
@@ -690,6 +616,7 @@ static void _mio_connect(void *arg) {
     new->type   = type_NORMAL;
     new->state  = state_ACTIVE;
     new->peer_ip= pstrdup(p,cd->ip);
+    new->peer_port = cd->port;
     new->cb     = (void*)cd->cb;
     new->cb_arg = cd->cb_arg;
     mio_set_handlers(new, cd->mh);
@@ -745,6 +672,7 @@ static void _mio_connect(void *arg) {
         bind(new->fd, (struct sockaddr*)&sa, sizeof(sa));
     }
 
+    /* parse the IP to connect to */
 #ifdef WITH_IPV6
     saddr = make_addr_ipv6(cd->ip);
 #else
@@ -774,7 +702,7 @@ static void _mio_connect(void *arg) {
 #endif
 
     log_debug2(ZONE, LOGT_IO, "calling the connect handler for mio object %X", new);
-    if ((*cd->cf)(new, (struct sockaddr*)&sa, sizeof sa) < 0) {
+    if (_mio_connect_helper(new, (struct sockaddr*)&sa, sizeof sa) < 0) {
 	/* get the error message */
 	new->connect_errmsg = strerror(errno);
 
@@ -858,30 +786,12 @@ static void _mio_process_broadcast(int bcast) {
 }
 
 /**
- * remove a socket from the all_rfds and all_wfds sets and actually close it
- *
- * This is a helper function for _mio_loop_process_a_socket() and should
- * probably not called elsewhere.
- *
- * @param m the ::mio to close
- * @param all_rfds the first fd_set from which the socket should be removed
- * @param all_wfds the second fd_set from which the socket should be removed
- */
-static void _mio_loop_close(mio m, fd_set *all_rfds, fd_set *all_wfds) {
-    FD_CLR(m->fd, all_rfds);
-    FD_CLR(m->fd, all_wfds);
-    _mio_close(m);
-}
-
-/**
  * read data from a socket
  *
  * @param m the ::mio to read from
  * @param all_rfds the set for file descriptors we are trying to read on (gets modified)
- * @param all_wfds the set for file descriptors we are trying to write to (gets modified)
- * @return 1 if the socket has been closed, 0 else
  */
-static int _mio_read_from_socket(mio m, fd_set *all_rfds, fd_set *all_wfds) {
+static void _mio_read_from_socket(mio m, fd_set *all_rfds) {
     char buf[8192]; /* max socket read buffer */
 
     do {
@@ -898,14 +808,12 @@ static int _mio_read_from_socket(mio m, fd_set *all_rfds, fd_set *all_wfds) {
 	/* if we had a bad read */
 	if (len == 0 && maxlen > 0) { 
 	    mio_close(m);
-	    _mio_loop_close(m, all_rfds, all_wfds);
-	    return 1;
+	    return;
 	} else if (len < 0) {
 	    if (!m->flags.recall_read_when_readable && !m->flags.recall_read_when_writeable) {
 		/* kill this socket and move on */
 		mio_close(m);
-		_mio_loop_close(m, all_rfds, all_wfds);
-		return 1;
+		return;
 	    }
 	    log_debug2(ZONE, LOGT_IO, "read returned negative, but not closing: errno=%i, m->flags.recall_read_when_readable=%i, ...writeable=%i", errno, m->flags.recall_read_when_readable, m->flags.recall_read_when_writeable);
 	} else {
@@ -926,12 +834,18 @@ static int _mio_read_from_socket(mio m, fd_set *all_rfds, fd_set *all_wfds) {
 	    (*m->mh->parser)(m, buf, len);
 	}
     } while (m->flags.tls_reread);
-
-    return 0;
 }
 
 /**
  * helper function to process a single socket inside the mio select() loop
+ *
+ * Steps:
+ * - Karma handling
+ * - Doing handshaking (TLS handshake)
+ * - Reading from sockets
+ * - Writing to sockets
+ *
+ * If one of these steps fails, the processing of this socket is stopped and the function returns
  *
  * @param cur the mio that should be processed
  * @param maxfd the maximum file descriptor (gets updated by this function)
@@ -941,15 +855,9 @@ static int _mio_read_from_socket(mio m, fd_set *all_rfds, fd_set *all_wfds) {
  * @param wfds (gets updated by this function)
  * @param select_retval the return value of the last pth_select() call
  */
-static void _mio_loop_process_a_socket(mio m, int *maxfd, fd_set *all_rfds, fd_set *all_wfds, fd_set *rfds, fd_set *wfds, int select_retval) {
+static void _mio_loop_process_a_socket(mio m, int *maxfd, fd_set *all_rfds, fd_set *rfds, fd_set *wfds, int select_retval) {
 
     log_debug2(ZONE, LOGT_IO, "processing mio %X (state %i)", m, m->state);
-
-    /* actually close a socket, that has been marked to be closed */
-    if (m->state == state_CLOSE) {
-	_mio_loop_close(m, all_rfds, all_wfds);
-	return;
-    }
 
     /* find the max fd: during a full interation on the master__list we always update maxfd as long as we find a higher fd  */
     if (m->fd > *maxfd)
@@ -992,17 +900,12 @@ static void _mio_loop_process_a_socket(mio m, int *maxfd, fd_set *all_rfds, fd_s
 	    }
 	}
 
-	if (m->state == state_CLOSE) {
-	    _mio_loop_close(m, all_rfds, all_wfds);
+	/* we do not continue processing this socket, if the handshake did not finish or the socket gets closed anyway */
+	if (m->state == state_CLOSE || m->flags.recall_handshake_when_readable || m->flags.recall_handshake_when_writeable) {
 	    return;
 	}
 
-	/* do not otherwise read or write until the handshake finished! */
-	if (m->flags.recall_handshake_when_readable || m->flags.recall_handshake_when_writeable) {
-	    return;
-	}
-
-	log_debug2(ZONE, LOGT_IO, "... not returning in handshake case ...");
+	log_debug2(ZONE, LOGT_IO, "... handshake seems to have finished ...");
     }
 
     /* if this socket needs to be read from */
@@ -1018,19 +921,18 @@ static void _mio_loop_process_a_socket(mio m, int *maxfd, fd_set *all_rfds, fd_s
 		if(accepted_m->fd > *maxfd)
 		    *maxfd=accepted_m->fd;
 	    }
+
+	    /* done accepting the socket (or it failed), further processing of the new socket using its own mio object */
 	    return;
 	}
 
 	/* current connection, read from it */
 	log_debug2(ZONE, LOGT_IO, "Calling read on MIO object %X, fd %i", m, m->fd);
-	if (_mio_read_from_socket(m, all_rfds, all_wfds)) {
-	    return;
-	}
+	_mio_read_from_socket(m, all_rfds);
     } 
 
-    /* we could have gotten a bad parse, and want to close */
+    /* we could have gotten a bad read or parse, and want to close - no writing then */
     if (m->state == state_CLOSE) {
-	_mio_loop_close(m, all_rfds, all_wfds);
 	return;
     }
 
@@ -1044,14 +946,9 @@ static void _mio_loop_process_a_socket(mio m, int *maxfd, fd_set *all_rfds, fd_s
 	/* if an error occured */
 	if(ret == -1) {
 	    mio_close(m);
-	    _mio_loop_close(m, all_rfds, all_wfds);
 	    return;
 	}
     }
-
-    /* we may have wanted the socket closed after this operation */
-    if(m->state == state_CLOSE)
-	_mio_loop_close(m, all_rfds, all_wfds);
 }
 
 /** 
@@ -1128,7 +1025,16 @@ static void _mio_main(void *arg) {
         /* loop through the sockets, check for stuff to do */
         for (cur = mio__data->master__list; cur != NULL; cur = next) {
 	    next = cur->next;		/* a mio might get deleted inside _mio_loop_process_a_socket() so that we cannot access cur afterwards! */
-	    _mio_loop_process_a_socket(cur, &maxfd, &all_rfds, &all_wfds, &rfds, &wfds, retval);
+	    /* if the mio socket is not closed, process it */
+	    if (cur->state != state_CLOSE) {
+		_mio_loop_process_a_socket(cur, &maxfd, &all_rfds, &rfds, &wfds, retval);
+	    }
+	    /* if the mio socket is closed, close it on the socket layer */
+	    if (cur->state == state_CLOSE) {
+		FD_CLR(cur->fd, &all_rfds);
+		FD_CLR(cur->fd, &all_wfds);
+		_mio_close(cur);
+	    }
 	}
 
 	/* XXX
@@ -1148,9 +1054,11 @@ static void _mio_main(void *arg) {
 *      E X T E R N A L   F U N C T I O N S          *
 \***************************************************/
 
-/* 
-   starts the _mio_main() loop
-*/
+/**
+ * Initialize manged I/O handling
+ *
+ * This must be called before MIO is used
+ */
 void mio_init(void) {
     pool p;
     pth_attr_t attr;
@@ -1170,9 +1078,6 @@ void mio_init(void) {
         mio_ssl_init(tls);
     }
 #endif
-
-    /* where to bounce HTTP requests to */
-    mio__bounce_uri = xmlnode_get_tag_data(io, "bounce");
 
     if (mio__data == NULL) {
         register_beat(KARMA_HEARTBEAT, _karma_heartbeat, NULL);
@@ -1197,6 +1102,9 @@ void mio_init(void) {
         pth_yield(NULL);
     }
 
+    /* where to bounce HTTP requests to */
+    mio__data->bounce_uri = xmlnode_get_tag_data(io, "bounce");
+
     if (karma != NULL) {
         mio__data->k->val        = j_atoi(xmlnode_get_tag_data(karma, "init"), KARMA_INIT);
         mio__data->k->max         = j_atoi(xmlnode_get_tag_data(karma, "max"), KARMA_MAX);
@@ -1211,7 +1119,7 @@ void mio_init(void) {
 
 }
 
-/*
+/**
  * Cleanup function when server is shutting down, closes
  * all sockets, so that everything can be cleaned up
  * properly.
@@ -1242,9 +1150,15 @@ void mio_stop(void) {
     mio__data = NULL;
 }
 
-/* 
-   creates a new mio object from a file descriptor
-*/
+/**
+ * creates a new mio object from a file descriptor
+ *
+ * @param fd the file descriptor the caller already has
+ * @param cb the callback function, MIO should call on events
+ * @param arg the argument MIO should pass to the callback function, when calling it
+ * @param mh which ::mio_handlers MIO should use for this connection
+ * @param pointer to the new MIO object, NULL on failure
+ */
 mio mio_new(int fd, void *cb, void *arg, mio_handlers mh) {
     mio   new    =  NULL;
     pool  p      =  NULL;
@@ -1298,21 +1212,25 @@ mio mio_new(int fd, void *cb, void *arg, mio_handlers mh) {
     return new;
 }
 
-/*
-   resets the callback function
-*/
-mio mio_reset(mio m, void *cb, void *arg) {
+/**
+ * resets the callback function
+ *
+ * @param m the mio to update the callback function for
+ * @param cb the new callback function
+ * @param arg the new argument MIO should pass to the callback function
+ */
+void mio_reset(mio m, void *cb, void *arg) {
     if (m == NULL) 
-        return NULL;
+        return;
 
     m->cb     = cb;
     m->cb_arg = arg;
-
-    return m;
 }
 
-/* 
- * client call to close the socket 
+/**
+ * client call to close the socket
+ *
+ * @param m the socket, that should be closed
  */
 void mio_close(mio m) {
     if (m == NULL) 
@@ -1330,13 +1248,20 @@ void mio_close(mio m) {
     }
 }
 
-/* 
- * writes a str, or xmlnode to the client socket 
+/** 
+ * writes a str, or xmlnode to the client socket
+ *
+ * You can only write the xmlnode OR the buffer to the mio. If the buffer argument is not equal to NULL,
+ * the buffer is used and the xmlnode is ignored.
+ *
+ * @param m the ::mio to write the data to
+ * @param x ::xmlnode containing the data, that should be written (gets freed after the data has been written)
+ * @param buffer pointer to a buffer of characters, that should be written to the connection
+ * @param len number of bytes contained in the buffer, that should be written (-1 to write a zero terminated string contained in the buffer)
  */
 void mio_write(mio m, xmlnode x, char *buffer, int len) {
     mio_wbq new;
     pool p;
-
 
     if (m == NULL) 
         return;
@@ -1414,9 +1339,9 @@ void mio_write(mio m, xmlnode x, char *buffer, int len) {
     }
 }
 
-/*
-   sets karma values
-*/
+/**
+ * sets karma values
+ */
 void mio_karma(mio m, int val, int max, int inc, int dec, int penalty, int restore) {
     if (m == NULL)
        return;
@@ -1429,6 +1354,12 @@ void mio_karma(mio m, int val, int max, int inc, int dec, int penalty, int resto
     m->k.restore = restore;
 }
 
+/**
+ * copy karma to a mio socket
+ *
+ * @param m the mio to copy the karma to
+ * @param k the karma to copy to the mio
+ */
 void mio_karma2(mio m, struct karma *k) {
     if (m == NULL)
        return;
@@ -1436,23 +1367,23 @@ void mio_karma2(mio m, struct karma *k) {
     karma_copy(&m->k, k);
 }
 
-/*
-   sets connection rate limits
-*/
+/**
+ * sets connection rate limits
+ */
 void mio_rate(mio m, int rate_time, int max_points) {
     if (m == NULL || rate_time == 0) 
         return;
 
-    m->rated = 1;
+    m->flags.rated = 1;
     if (m->rate != NULL)
         jlimit_free(m->rate);
 
     m->rate = jlimit_new(rate_time, max_points);
 }
 
-/*
-   pops the last xmlnode from the queue 
-*/
+/**
+ * pops the last xmlnode from the queue 
+ */
 xmlnode mio_cleanup(mio m) {
     mio_wbq     cur;
     
@@ -1476,6 +1407,7 @@ xmlnode mio_cleanup(mio m) {
              */
             mio_wbq next = m->queue;
             pool_free(cur->p);
+	    cur->p = NULL;
             cur = next;
             continue;
         }
@@ -1488,10 +1420,17 @@ xmlnode mio_cleanup(mio m) {
     return NULL;
 }
 
-/* 
+/** 
  * request to connect to a remote host 
+ *
+ * @param host the host where to connect to (either a IPv4 or IPv6)
+ * @param port the port number to connect to
+ * @param cb the application callback function
+ * @param cb_arg argument to pass to the application callback function
+ * @param timeout how long to wait for a connection to be established (0 for using the default value)
+ * @param mh the ::mio_handlers used to select the desired type of socket (e.g. an XML stream or a TLS protected socket)
  */
-void mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_connect_func f, mio_handlers mh) {
+void mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_handlers mh) {
     connect_data cd = NULL;
     pool         p  = NULL;
     pth_attr_t   attr;
@@ -1502,9 +1441,6 @@ void mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_
 
     if (timeout <= 0)
         timeout = 30; /* default timeout */
-
-    if (f == NULL)
-        f = MIO_RAW_CONNECT;
 
     if (mh == NULL)
         mh = mio_handlers_new(NULL, NULL, NULL);
@@ -1517,7 +1453,6 @@ void mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_
     cd->port   = port;
     cd->cb     = cb;
     cd->cb_arg = cb_arg;
-    cd->cf     = f;
     cd->mh     = mh;
 
 #ifdef WITH_IPV6
@@ -1535,20 +1470,24 @@ void mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_
     pth_attr_destroy(attr);
 
     register_beat(timeout, _mio_connect_timeout, (void*)cd);
-
 }
 
-/* 
+/**
  * call to start listening with select 
+ * 
+ * @param port port to listen at
+ * @param listen_host IPv4 or IPv6 address to listen at
+ * @param cb application callback function
+ * @param arg argument to pass to the application callback function
+ * @param mh ::mio_handlers used for this connection
+ * @return the listening mio object that has been created, NULL on failure
  */
-mio mio_listen(int port, char *listen_host, void *cb, void *arg, mio_accepted_func f, mio_handlers mh) {
+mio mio_listen(int port, char *listen_host, void *cb, void *arg, mio_handlers mh) {
     mio        new;
     int        fd;
 
     if (mh == NULL)
         mh = mio_handlers_new(NULL, NULL, NULL);
-
-    mh->accepted = f;
 
     log_debug2(ZONE, LOGT_IO, "mio to listen on %d [%s]",port, listen_host);
 
@@ -1577,6 +1516,21 @@ mio mio_listen(int port, char *listen_host, void *cb, void *arg, mio_accepted_fu
     return new;
 }
 
+/**
+ * create a ::mio_handlers instance, that can be passed to mio_listen() or mio_accept()
+ *
+ * The ::mio_handlers can be used to setup different 'types' of sockets
+ *
+ * Default is to have an unencrypted socket reading plain bytes.
+ *
+ * If you are requesting a TLS protected socket (using ::MIO_SSL_READ and ::MIO_SSL_WRITE),
+ * you also have to modify the accepted function in the returned ::mio_handlers afterwards!
+ *
+ * @param rf handler used for reading, NULL for default (may be ::MIO_RAW_READ or ::MIO_SSL_READ)
+ * @param wf handler used for writing, NULL for default (may be ::MIO_RAW_WRITE or ::MIO_SSL_WRITE)
+ * @param pf handler used for parsing, NULL for default (may be ::MIO_RAW_PARSER or ::MIO_XML_PARSER)
+ * @return new instance of ::mio_handlers
+ */
 mio_handlers mio_handlers_new(mio_read_func rf, mio_write_func wf, mio_parser_func pf) {
     pool p = pool_new();
     mio_handlers new;
@@ -1593,13 +1547,25 @@ mio_handlers mio_handlers_new(mio_read_func rf, mio_write_func wf, mio_parser_fu
     return new;
 }
 
+/**
+ * free a ::mio_handlers structure
+ *
+ * @param mh the ::mio_handlers structure that should be freed
+ */
 void mio_handlers_free(mio_handlers mh) {
     if (mh == NULL)
         return;
 
     pool_free(mh->p);
+    mh->p = NULL;
 }
 
+/**
+ * reset the handlers of a ::mio structure
+ *
+ * @param m the mio to set the handlers for
+ * @param mh the new handlers to set
+ */
 void mio_set_handlers(mio m, mio_handlers mh) {
     mio_handlers old;
 

@@ -3,7 +3,6 @@ jabberd 1.4.5
 
 - privacy lists (XMPP)
 - SASL (XMPP)
-- flexible offline message retrieval (JEP-0013)
 - xdb_sql improvements
 
 jabberd 1.4.5 or later

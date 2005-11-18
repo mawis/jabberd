@@ -52,7 +52,7 @@
 #include <jabberd.h>
 
 /* defined in mio.c */
-extern char *mio__bounce_uri;
+extern ios mio__data;
 
 /**
  * internal expat callback for start tags
@@ -71,13 +71,13 @@ void _mio_xstream_startElement(mio m, const char* name, const char** attribs)
 	xmlnode_put_expat_attribs(m->stacknode, attribs);
 
 	/* If the root is 0, this must be the root node.. */
-	if (m->root == 0) {
+	if (m->flags.root == 0) {
 	    if(m->cb != NULL)
 		(*(mio_xml_cb)m->cb)(m, MIO_XML_ROOT, m->cb_arg, m->stacknode);
 	    else
 		xmlnode_free(m->stacknode);
 	    m->stacknode = NULL;
-	    m->root = 1;
+	    m->flags.root = 1;
 	}
     } else {
 	m->stacknode = xmlnode_insert_tag(m->stacknode, name);
@@ -171,7 +171,7 @@ void _mio_xml_parser(mio m, const void *vbuf, size_t bufsz)
     /* check if the stream has to be resetted (after STARTTLS) */
     if (m->flags.reset_stream) {
 	_mio_xstream_cleanup(m);
-	m->root = 0;	/* read root element again */
+	m->flags.root = 0;	/* read root element again */
 	m->flags.reset_stream = 0;
     }
 
@@ -190,9 +190,9 @@ void _mio_xml_parser(mio m, const void *vbuf, size_t bufsz)
             m->type = type_HTTP;
 
 	/* Bounce HTTP-GET-Requests to the configured host */
-	if(*buf == 'G' && mio__bounce_uri != NULL) {
+	if(*buf == 'G' && mio__data->bounce_uri != NULL) {
 	    mio_write(m, NULL, "HTTP/1.1 301 Moved permanently\r\nServer: " PACKAGE " " VERSION "\r\nConnection: close\r\nLocation: ", -1);
-	    mio_write(m, NULL, mio__bounce_uri, -1);
+	    mio_write(m, NULL, mio__data->bounce_uri, -1);
 	    mio_write(m, NULL, "\r\n\r\n", -1);
 	    mio_close(m);
 	    return;
