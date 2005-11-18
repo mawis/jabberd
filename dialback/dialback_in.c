@@ -119,7 +119,7 @@ static dbic dialback_in_dbic_new(db d, mio m, const char *we_domain, const char 
     c->xmpp_version = xmpp_version;
     pool_cleanup(m->p,dialback_in_dbic_cleanup, (void *)c); /* remove us automatically if our memory pool is freed */
     xhash_put(d->in_id, c->id, (void *)c); /* insert ourself in the hash of not yet verified connections */
-    log_debug2(ZONE, LOGT_IO, "created incoming connection %s from %s",c->id,m->ip);
+    log_debug2(ZONE, LOGT_IO, "created incoming connection %s from %s",c->id, mio_ip(m));
     return c;
 }
 
@@ -178,7 +178,7 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
     /* incoming starttls */
     if (j_strcmp(xmlnode_get_name(x), "starttls") == 0 && j_strcmp(xmlnode_get_attrib(x, "xmlns"), NS_XMPP_TLS) == 0) {
 	/* starting TLS possible? */
-#ifdef HAVE_SSL
+#ifdef SUPPORT_TLS
 	if (mio_ssl_starttls_possible(m, c->we_domain) && j_strcmp(dialback_get_domain_setting(c->d->hosts_tls, c->other_domain), "no")!=0) {
 	    /* ACK the start */
 	    xmlnode proceed = xmlnode_new_tag("proceed");
@@ -203,7 +203,7 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
 	    mio_close(m);
 	    xmlnode_free(x);
 	    return;
-#ifdef HAVE_SSL
+#ifdef SUPPORT_TLS
 	}
 #endif
     }
@@ -394,7 +394,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     dbns = xmlnode_get_attrib(x, "xmlns:db");
     we_domain = xmlnode_get_attrib(x, "to");
     other_domain = m->authed_other_side ? m->authed_other_side : xmlnode_get_attrib(x, "from");
-#ifdef HAVE_SSL
+#ifdef SUPPORT_TLS
     can_offer_starttls = m->authed_other_side==NULL && mio_ssl_starttls_possible(m, we_domain) ? 1 : 0;
     can_do_sasl_external = m->authed_other_side==NULL && (mio_is_encrypted(m) > 0 && mio_ssl_verify(m, other_domain)) ? 1 : 0;
 #endif
@@ -481,7 +481,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     /* write stream features */
     if (c->xmpp_version >= 1) {
 	xmlnode features = xmlnode_new_tag("stream:features");
-#ifdef HAVE_SSL
+#ifdef SUPPORT_TLS
 	if (can_offer_starttls) {
 	    xmlnode starttls = NULL;
 

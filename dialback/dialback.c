@@ -285,9 +285,9 @@ void _dialback_miod_hash_cleanup(void *arg)
     /* cool place for logging, eh? interesting way of detecting things too, *g* */
     if(mdc->ht == mdc->md->d->out_ok_db){
         unregister_instance(mdc->md->d->i, mdc->key->server); /* dynamic host resolution thingie */
-        log_record(mdc->key->server, "out", "dialback", "%d %s %s", mdc->md->count, mdc->md->m->ip, mdc->key->resource);
+        log_record(mdc->key->server, "out", "dialback", "%d %s %s", mdc->md->count, mio_ip(mdc->md->m), mdc->key->resource);
     }else if(mdc->ht == mdc->md->d->in_ok_db){
-        log_record(mdc->key->server, "in", "dialback", "%d %s %s", mdc->md->count, mdc->md->m->ip, mdc->key->resource);
+        log_record(mdc->key->server, "in", "dialback", "%d %s %s", mdc->md->count, mio_ip(mdc->md->m), mdc->key->resource);
     }
 }
 
@@ -312,7 +312,7 @@ void dialback_miod_hash(miod md, xht ht, jid key)
     /* dns saver, only when registering on outgoing hosts dynamically */
     if(ht == md->d->out_ok_db)
     {
-        dialback_ip_set(md->d, key, md->m->ip); /* save the ip since it won't be going through the dnsrv anymore */
+        dialback_ip_set(md->d, key, mio_ip(md->m)); /* save the ip since it won't be going through the dnsrv anymore */
         register_instance(md->d->i, key->server);
     }
 }
@@ -422,7 +422,7 @@ void _dialback_beat_idle(xht h, const char *key, void *data, void *arg)
 {
     miod md = (miod)data;
     if(((int)*(time_t*)arg - md->last) >= md->d->timeout_idle) {
-        log_debug2(ZONE, LOGT_IO, "Idle Timeout on socket %d to %s",md->m->fd, md->m->ip);
+        log_debug2(ZONE, LOGT_IO, "Idle Timeout on socket %d to %s",md->m->fd, mio_ip(md->m));
 	mio_write(md->m, NULL, "<stream:error><connection-timeout xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Closing an idle connection.</text></stream:error></stream:stream>", -1);
         mio_close(md->m);
     }

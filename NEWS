@@ -20,6 +20,7 @@ Changes in administration of the server
       to some or all other hosts to be encrypted.
     * Jabberd14 now supports SASL EXTERNAL authentication using TLS
       certificates on s2s links.
+    * Jabberd14 now supports using GNU TLS as an alternative to OpenSSL.
 
 Changes in features visible to the user
     * Support for Flexible Offline Message Retrieval (JEP-0013)

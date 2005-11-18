@@ -393,6 +393,8 @@ static result _karma_heartbeat(void*arg) {
  * @param m socket that should be unlinked from mio__data->master__list
  */
 static void _mio_unlink(mio m) {
+    log_debug2(ZONE, LOGT_EXECFLOW, "Unlinking %X from master__list", m);
+
     if (mio__data == NULL) 
         return;
 
@@ -456,7 +458,7 @@ int _mio_write_dump(mio m) {
         }
         if (len < 0) { 
             /* if we have an error, that isn't a blocking issue */ 
-            if (errno != EWOULDBLOCK && errno != EINTR && errno != EAGAIN && !m->flags.recall_write_when_readable && !m->flags.recall_write_when_writeable) { 
+            if (!m->flags.recall_write_when_readable && !m->flags.recall_write_when_writeable) { 
                 /* bounce the queue */
                 if(m->cb != NULL)
                     (*(mio_std_cb)m->cb)(m, MIO_ERROR, m->cb_arg);
@@ -530,6 +532,20 @@ static void _mio_close(mio m) {
 /** 
  * accept an incoming connection from a listen sock
  *
+ * @note accepting a connection has changed after jabberd 1.4.4! Until 1.4.4 we
+ * had an accept handler for a socket. The accept handler to a non-encrypted
+ * connection just accepted the connection. The handler for the OpenSSL encrypted
+ * connection (typically on port 5223) accepted the connection and started the
+ * SSL/TLS layer afterwards. As in any case we have to first accept the connection,
+ * accepting is not done in a handler anymore, but in _mio_accept() itself.
+ * After a new connection has been accepted, the accepted handler is called.
+ * In case of a plain connection, this handler has to do nothing. In case of a
+ * port 5223 connection, this handler can start the SSL/TLS layer. This also
+ * cleans up the code of _mio_accept() where we had to copy values the _mio_ssl_accept
+ * handler wrote to the ::mio passed to it, which was the mio of the listening socket
+ * and not the structure for the new connection, which is created after the
+ * accept handler had been called.
+ *
  * @param m the socket on which we want to accept a connection
  * @return the new mio handle for the new connection
  */
@@ -548,10 +564,12 @@ static mio _mio_accept(mio m) {
     log_debug2(ZONE, LOGT_IO, "_mio_accept calling accept on fd #%d", m->fd);
 
     /* pull a socket off the accept queue */
-    fd = (*m->mh->accept)(m, (struct sockaddr*)&serv_addr, (socklen_t*)&addrlen);
+    fd = pth_accept(m->fd, (struct sockaddr*)&serv_addr, (socklen_t*)&addrlen);
     if (fd <= 0) {
         return NULL;
     }
+
+    log_debug2(ZONE, LOGT_IO, "_mio_accept accepted fd #%d", fd);
 
 #ifdef WITH_IPV6
     allow = _mio_allow_check(inet_ntop(AF_INET6, &serv_addr.sin6_addr, addr_str, sizeof(addr_str)));
@@ -592,19 +610,20 @@ static mio _mio_accept(mio m) {
     /* create a new sock object for this connection */
     new      = mio_new(fd, m->cb, m->cb_arg, mio_handlers_new(m->mh->read, m->mh->write, m->mh->parser));
 #ifdef WITH_IPV6
-    new->ip  = pstrdup(new->p, addr_str);
+    new->peer_ip = pstrdup(new->p, addr_str);
 #else
-    new->ip  = pstrdup(new->p, inet_ntoa(serv_addr.sin_addr));
+    new->peer_ip = pstrdup(new->p, inet_ntoa(serv_addr.sin_addr));
 #endif
-#ifdef HAVE_SSL
-    new->ssl = m->ssl;
-    
-    /* XXX temas:  This is so messy, but I can't see a better way since I can't
-     *             hook into the mio_cleanup routines.  MIO still needs some
-     *             work.
-     */
-    pool_cleanup(new->p, _mio_ssl_cleanup, (void *)new->ssl);
-#endif
+    new->our_ip = pstrdup(new->p, m->our_ip);
+
+    /* is there an accepted handler? E.g. starting TLS layer at connection time if using Jabber over TLS on port 5223 */
+    if (m->mh->accepted != NULL) {
+	int ret = 0;
+
+	ret = m->mh->accepted(new);
+
+	/* XXX handle errors! */
+    }
 
     mio_karma2(new, &m->k);
 
@@ -670,7 +689,7 @@ static void _mio_connect(void *arg) {
     new->p      = p;
     new->type   = type_NORMAL;
     new->state  = state_ACTIVE;
-    new->ip     = pstrdup(p,cd->ip);
+    new->peer_ip= pstrdup(p,cd->ip);
     new->cb     = (void*)cd->cb;
     new->cb_arg = cd->cb_arg;
     mio_set_handlers(new, cd->mh);
@@ -882,12 +901,13 @@ static int _mio_read_from_socket(mio m, fd_set *all_rfds, fd_set *all_wfds) {
 	    _mio_loop_close(m, all_rfds, all_wfds);
 	    return 1;
 	} else if (len < 0) {
-	    if (errno != EWOULDBLOCK && errno != EINTR && errno != EAGAIN && !m->flags.recall_read_when_readable && !m->flags.recall_read_when_writeable) {
+	    if (!m->flags.recall_read_when_readable && !m->flags.recall_read_when_writeable) {
 		/* kill this socket and move on */
 		mio_close(m);
 		_mio_loop_close(m, all_rfds, all_wfds);
 		return 1;
 	    }
+	    log_debug2(ZONE, LOGT_IO, "read returned negative, but not closing: errno=%i, m->flags.recall_read_when_readable=%i, ...writeable=%i", errno, m->flags.recall_read_when_readable, m->flags.recall_read_when_writeable);
 	} else {
 	    if (m->k.dec != 0) {
 		/* karma is enabled */
@@ -895,7 +915,7 @@ static int _mio_read_from_socket(mio m, fd_set *all_rfds, fd_set *all_wfds) {
 		/* Check if that socket ran out of karma */
 		if (m->k.val <= 0) {
 		    /* ran out of karma */
-		    log_notice("MIO_XML_READ", "socket from %s is out of karma: traffic exceeds karma limits defined in jabberd configuration", m->ip);
+		    log_notice("MIO_XML_READ", "socket from %s is out of karma: traffic exceeds karma limits defined in jabberd configuration", m->peer_ip);
 		    FD_CLR(m->fd, all_rfds); /* this fd is being punished */
 		}
 	    }
@@ -922,6 +942,8 @@ static int _mio_read_from_socket(mio m, fd_set *all_rfds, fd_set *all_wfds) {
  * @param select_retval the return value of the last pth_select() call
  */
 static void _mio_loop_process_a_socket(mio m, int *maxfd, fd_set *all_rfds, fd_set *all_wfds, fd_set *rfds, fd_set *wfds, int select_retval) {
+
+    log_debug2(ZONE, LOGT_IO, "processing mio %X (state %i)", m, m->state);
 
     /* actually close a socket, that has been marked to be closed */
     if (m->state == state_CLOSE) {
@@ -957,11 +979,39 @@ static void _mio_loop_process_a_socket(mio m, int *maxfd, fd_set *all_rfds, fd_s
 	return;
     }
 
+    /* handshake needs to be continued? */
+    if (m->type != type_LISTEN && m->mh->handshake && (m->flags.recall_handshake_when_readable || m->flags.recall_handshake_when_writeable)) {
+	log_debug2(ZONE, LOGT_IO, "continuing handshake on mio %X, state is %i, session is %X", m, m->state, m->ssl);
+	if ((FD_ISSET(m->fd, rfds) && m->flags.recall_handshake_when_readable) || (FD_ISSET(m->fd, wfds) && m->flags.recall_handshake_when_writeable)) {
+	    int handshake_ret = 0;
+	    
+	    handshake_ret = m->mh->handshake(m);
+	    log_debug2(ZONE, LOGT_IO, "handshake result is %i, ...readable=%i, ...writeable=%i", handshake_ret, m->flags.recall_handshake_when_readable, m->flags.recall_handshake_when_writeable);
+	    if (handshake_ret < 0) {
+		mio_close(m);
+	    }
+	}
+
+	if (m->state == state_CLOSE) {
+	    _mio_loop_close(m, all_rfds, all_wfds);
+	    return;
+	}
+
+	/* do not otherwise read or write until the handshake finished! */
+	if (m->flags.recall_handshake_when_readable || m->flags.recall_handshake_when_writeable) {
+	    return;
+	}
+
+	log_debug2(ZONE, LOGT_IO, "... not returning in handshake case ...");
+    }
+
     /* if this socket needs to be read from */
     if (FD_ISSET(m->fd, rfds) || FD_ISSET(m->fd, wfds) && m->flags.recall_read_when_writeable) {
 	/* new connection */
 	if (m->type == type_LISTEN) {
 	    mio accepted_m = _mio_accept(m);
+
+	    log_debug2(ZONE, LOGT_IO, "Accepted socket on MIO object %X, fd %i", accepted_m, accepted_m != NULL ? accepted_m->fd : -1);
 
 	    if(accepted_m != NULL) {
 		FD_SET(accepted_m->fd, all_rfds);
@@ -972,6 +1022,7 @@ static void _mio_loop_process_a_socket(mio m, int *maxfd, fd_set *all_rfds, fd_s
 	}
 
 	/* current connection, read from it */
+	log_debug2(ZONE, LOGT_IO, "Calling read on MIO object %X, fd %i", m, m->fd);
 	if (_mio_read_from_socket(m, all_rfds, all_wfds)) {
 	    return;
 	}
@@ -1085,7 +1136,7 @@ static void _mio_main(void *arg) {
 	 * this might be a performance hit and could be improved
 	 */
         for (cur = mio__data->master__list; cur != NULL; cur = cur->next) {
-            if (cur->queue != NULL || cur->flags.recall_write_when_writeable || cur->flags.recall_read_when_writeable)
+            if (cur->queue != NULL || cur->flags.recall_write_when_writeable || cur->flags.recall_read_when_writeable || cur->flags.recall_handshake_when_writeable)
 		FD_SET(cur->fd, &all_wfds);
             else
 		FD_CLR(cur->fd, &all_wfds);
@@ -1107,7 +1158,7 @@ void mio_init(void) {
     xmlnode karma = xmlnode_get_tag(io, "karma");
     xmlnode tls = NULL;
 
-#ifdef HAVE_SSL
+#ifdef SUPPORT_TLS
     tls = xmlnode_get_tag(io, "tls");
     if (tls == NULL) {
 	tls = xmlnode_get_tag(io, "ssl");
@@ -1490,17 +1541,14 @@ void mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_
 /* 
  * call to start listening with select 
  */
-mio mio_listen(int port, char *listen_host, void *cb, void *arg, mio_accept_func f, mio_handlers mh) {
+mio mio_listen(int port, char *listen_host, void *cb, void *arg, mio_accepted_func f, mio_handlers mh) {
     mio        new;
     int        fd;
-
-    if (f == NULL)
-        f = MIO_RAW_ACCEPT;
 
     if (mh == NULL)
         mh = mio_handlers_new(NULL, NULL, NULL);
 
-    mh->accept = f;
+    mh->accepted = f;
 
     log_debug2(ZONE, LOGT_IO, "mio to listen on %d [%s]",port, listen_host);
 
@@ -1522,7 +1570,7 @@ mio mio_listen(int port, char *listen_host, void *cb, void *arg, mio_accept_func
     /* create the sock object, and assign the values */
     new       = mio_new(fd, cb, arg, mh);
     new->type = type_LISTEN;
-    new->ip   = pstrdup(new->p, listen_host);
+    new->our_ip = pstrdup(new->p, listen_host);
 
     log_debug2(ZONE, LOGT_IO, "mio starting to listen on %d [%s]", port, listen_host);
 
