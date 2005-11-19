@@ -1,3 +1,7 @@
+2005-11-19  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/mio.c: export STARTTLS functions even on no TLS support
+
 2005-11-18  Matthias Wimmer  <m@tthias.net>
 
     * jabber.xml.dist.in: advertize that we support offline storage
