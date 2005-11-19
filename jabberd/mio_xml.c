@@ -61,8 +61,7 @@ extern ios mio__data;
  * @param name the name of the element
  * @param attribs attributes of the start tag
  */
-void _mio_xstream_startElement(mio m, const char* name, const char** attribs)
-{
+void _mio_xstream_startElement(mio m, const char* name, const char** attribs) {
     /* If stacknode is NULL, we are starting a new packet and must
        setup for by pre-allocating some memory */
     if (m->stacknode == NULL) {
@@ -91,16 +90,12 @@ void _mio_xstream_startElement(mio m, const char* name, const char** attribs)
  * @param m the mio
  * @param name the name of the element
  */
-void _mio_xstream_endElement(mio m, const char* name)
-{
+void _mio_xstream_endElement(mio m, const char* name) {
     /* If the stacknode is already NULL, then this closing element
        must be the closing ROOT tag, so notify and exit */
-    if (m->stacknode == NULL)
-    {
+    if (m->stacknode == NULL) {
         mio_close(m);
-    }
-    else
-    {
+    } else {
 	xmlnode parent = xmlnode_get_parent(m->stacknode);
 	/* Fire the NODE event if this closing element has no parent */
 	if (parent == NULL) {
@@ -120,8 +115,7 @@ void _mio_xstream_endElement(mio m, const char* name)
  * @param cdata content of the CDATA node (not zero terminated!)
  * @param len length of the content
  */
-void _mio_xstream_CDATA(mio m, const char* cdata, int len)
-{
+void _mio_xstream_CDATA(mio m, const char* cdata, int len) {
     if (m->stacknode != NULL)
 	    xmlnode_insert_cdata(m->stacknode, cdata, len);
 }
@@ -131,8 +125,7 @@ void _mio_xstream_CDATA(mio m, const char* cdata, int len)
  *
  * @param arg the mio of the xstream, that should be closed
  */
-void _mio_xstream_cleanup(void* arg)
-{
+void _mio_xstream_cleanup(void* arg) {
     mio m = (void*)arg;
 
     xmlnode_free(m->stacknode);
@@ -149,23 +142,29 @@ void _mio_xstream_cleanup(void* arg)
  *
  * @param m which mio object should be prepared for usage as an XML stream
  */
-void _mio_xstream_init(mio m)
-{
-    if (m != NULL)
-    {
-	    /* Initialize the parser */
-	    m->parser = XML_ParserCreate(NULL);
-	    XML_SetUserData(m->parser, m);
-	    XML_SetElementHandler(m->parser, (void*)_mio_xstream_startElement, (void*)_mio_xstream_endElement);
-	    XML_SetCharacterDataHandler(m->parser, (void*)_mio_xstream_CDATA);
-	    /* Setup a cleanup routine to release the parser when everything is done */
-	    pool_cleanup(m->p, _mio_xstream_cleanup, (void*)m);
+void _mio_xstream_init(mio m) {
+    if (m != NULL) {
+	/* Initialize the parser */
+	m->parser = XML_ParserCreate(NULL);
+	XML_SetUserData(m->parser, m);
+	XML_SetElementHandler(m->parser, (void*)_mio_xstream_startElement, (void*)_mio_xstream_endElement);
+	XML_SetCharacterDataHandler(m->parser, (void*)_mio_xstream_CDATA);
+	/* Setup a cleanup routine to release the parser when everything is done */
+	pool_cleanup(m->p, _mio_xstream_cleanup, (void*)m);
     }
 }
 
-/* this function is called when a socket reads data */
-void _mio_xml_parser(mio m, const void *vbuf, size_t bufsz)
-{
+/**
+ * receiving an XML document on a network socket
+ *
+ * This parser implements an XML parser reading on a network socket. Stanzas (second level XML document elements)
+ * are passed to the application callback function, that registered with this mio object
+ *
+ * @param m the mio where data has been read
+ * @param vbuf the buffer containing the read data
+ * @param bufsz the number of bytes, that have been read
+ */
+void _mio_xml_parser(mio m, const void *vbuf, size_t bufsz) {
     char *nul, *buf = (char*)vbuf;
 
     /* check if the stream has to be resetted (after STARTTLS) */
@@ -176,8 +175,7 @@ void _mio_xml_parser(mio m, const void *vbuf, size_t bufsz)
     }
 
     /* init the parser if this is the first read call */
-    if(m->parser == NULL)
-    {
+    if (m->parser == NULL) {
         _mio_xstream_init(m);
         /* XXX pretty big hack here, if the initial read contained a nul, assume nul-packet-terminating format stream */
         if((nul = strchr(buf,'\0')) != NULL && (nul - buf) < bufsz)
@@ -200,8 +198,7 @@ void _mio_xml_parser(mio m, const void *vbuf, size_t bufsz)
     }
 
     /* XXX more http hack to catch the end of the headers */
-    if(m->type == type_HTTP)
-    {
+    if(m->type == type_HTTP) {
         if((nul = strstr(buf,"\r\n\r\n")) == NULL)
             return;
         nul += 4;
@@ -212,21 +209,20 @@ void _mio_xml_parser(mio m, const void *vbuf, size_t bufsz)
     }
 
     /* XXX more nul-term hack to ditch the nul's whenever */
-    if(m->type == type_NUL)
-        while((nul = strchr(buf,'\0')) != NULL && (nul - buf) < bufsz)
-        {
+    if (m->type == type_NUL)
+        while ((nul = strchr(buf,'\0')) != NULL && (nul - buf) < bufsz) {
             memmove(nul,nul+1,strlen(nul+1));
             bufsz--;
         }
 
-    if(XML_Parse(m->parser, buf, bufsz, 0) == 0)
-        if(m->cb != NULL)
-        {
-            log_debug2(ZONE, LOGT_XML, "[%s] XML Parsing Error: %s", ZONE, XML_ErrorString(XML_GetErrorCode(m->parser)));
+    if (XML_Parse(m->parser, buf, bufsz, 0) == 0) {
+	log_debug2(ZONE, LOGT_XML, "[%s] XML Parsing Error: %s", ZONE, XML_ErrorString(XML_GetErrorCode(m->parser)));
+        if (m->cb != NULL) {
             (*(mio_std_cb)m->cb)(m, MIO_ERROR, m->cb_arg);
             mio_write(m, NULL, "<stream:error><invalid-xml xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Invalid XML</text></stream:error>", -1);
             mio_close(m);
         }
+    }
 }
 
 /**
