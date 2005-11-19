@@ -48,12 +48,13 @@
 #include <openssl/err.h>
 #include <openssl/x509v3.h>
 
-xht ssl__ctxs = NULL;
+xht ssl__ctxs = NULL;		/**< hash containing OpenSSL contexts */
 
 #ifndef NO_RSA
-/* This function will generate a temporary key for us */
-RSA *_ssl_tmp_rsa_cb(SSL *ssl, int export, int keylength)
-{
+/**
+ * This function will generate a temporary key for us
+ */
+RSA *_ssl_tmp_rsa_cb(SSL *ssl, int export, int keylength) {
     RSA *rsa_tmp = NULL;
 
     rsa_tmp = RSA_generate_key(keylength, RSA_F4, NULL, NULL);
@@ -79,29 +80,15 @@ static int _mio_ssl_verify_accept_all(int pre_ok, X509_STORE_CTX *store_ctx) {
     return 1;
 }
 
-/***************************************************************************
- * This can return whatever we need, it is just designed to read a xmlnode
+/**
+ * Init the TLS implementation (in this case OpenSSL)
+ *
+ * This is just designed to read a xmlnode
  * and hash the SSL contexts it creates from the keys in the node
  *
- * Sample node:
- * <ssl>
- *   <key ip='192.168.1.100'>/path/to/the/key/file.pem</key>
- *   <key ip='192.168.1.1'>/path/to/the/key/file.pem</key>
- * </ssl>   
- **************************************************************************/
+ * @param x the configuration element &lt;tls/&gt; containing the TLS configuration
+ */
 void mio_ssl_init(xmlnode x) {
-/* PSEUDO CODE
-
-  for $key in children(xmlnode x)
-  {
-      - SSL init
-      - Load key into SSL ctx
-      - Hash ctx based on hostname
-  }
-
-  register a cleanup function to free our contexts
-*/
-
     SSL_CTX *ctx = NULL;
     xmlnode cur;
     char *host;
@@ -245,6 +232,19 @@ void _mio_ssl_cleanup(void *arg)
     SSL_free(ssl);
 }
 
+/**
+ * read data from a socket, that is TLS protected
+ *
+ * If this function returns with an error (return value -1) it might be, that the OpenSSL
+ * library just needs to read more data or needs to be able to write data first.
+ * This is indicated using the flags m->flags.recall_read_when_readable and m->flags.recall_read_when_writeable.
+ * These two flags are updated by this function.
+ *
+ * @param m the ::mio where data might be available
+ * @param buf where to write the written data to
+ * @param count how many bytes should be read at most
+ * @return 0 = end of file on socket, -1 = error reading, positive = number of bytes read on the socket
+ */
 ssize_t _mio_ssl_read(mio m, void *buf, size_t count) {
     SSL *ssl;
     ssize_t ret;
@@ -294,6 +294,19 @@ ssize_t _mio_ssl_read(mio m, void *buf, size_t count) {
     return ret;
 }
 
+/**
+ * write data to a socket, that is TLS protected
+ *
+ * If this function returns with an error (return value -1) it might be, that the OpenSSL
+ * library just needs to read more data or needs to be able to write data first.
+ * This is indicated using the flags m->flags.recall_write_when_readable and m->flags.recall_write_when_writeable.
+ * These two flags are updated by this function.
+ *
+ * @param m the ::mio where writing is possible
+ * @param buf data that should be written
+ * @param count how many bytes should be written at most
+ * @return 0 = end of file on socket, -1 = error writing, positive = number of bytes written on the socket
+ */
 ssize_t _mio_ssl_write(mio m, const void *buf, size_t count) {
     int ret;
     SSL *ssl;
