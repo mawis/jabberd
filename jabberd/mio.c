@@ -53,7 +53,6 @@
  * socket functions.
  */
 
-#define MIO
 #include <jabberd.h>
 
 #include <errno.h>
