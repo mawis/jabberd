@@ -414,14 +414,12 @@ static void _mio_close(mio m) {
         jlimit_free(m->rate);
 
     pool_free(m->mh->p);
-    m->mh->p = NULL;
 
     /* cleanup the write queue */
     while ((cur = mio_cleanup(m)) != NULL)
         xmlnode_free(cur);
 
     pool_free(m->p);
-    m->p = NULL;
 
     log_debug2(ZONE, LOGT_IO, "freed MIO socket");
 }
