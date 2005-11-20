@@ -550,7 +550,6 @@ static result _mio_connect_timeout(void *arg) {
 
     if(cd->connected) {
         pool_free(cd->p);
-	cd->p = NULL;
         return r_UNREG;
     }
 
@@ -1403,7 +1402,6 @@ xmlnode mio_cleanup(mio m) {
              */
             mio_wbq next = m->queue;
             pool_free(cur->p);
-	    cur->p = NULL;
             cur = next;
             continue;
         }
@@ -1553,7 +1551,6 @@ void mio_handlers_free(mio_handlers mh) {
         return;
 
     pool_free(mh->p);
-    mh->p = NULL;
 }
 
 /**
