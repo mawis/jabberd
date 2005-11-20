@@ -1,3 +1,13 @@
+2005-11-21  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/lib/jabberdlib.h: introducing xhash_get_by_domain()
+    * jabberd/lib/xhash.c: same
+    * dialback/dialback.h: same
+    * dialback/dialback.c: same
+    * dialback/dialback_in.c: same
+    * dialback/dialback_out.c: same
+    * jabberd/mio_tls.c: started GNU TLS certificate verification
+
 2005-11-20  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/mio.c: fixing bug introduced in revision 1146

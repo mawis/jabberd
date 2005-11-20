@@ -356,8 +356,106 @@ int mio_ssl_starttls(mio m, int originator, const char* identity) {
     return 1;
 }
 
+/**
+ * verify the SSL/TLS certificate of the peer for the given MIO connection
+ *
+ * @param m the connection for which the peer should be verified
+ * @param the JabberID, that the certificate should be checked for, if NULL it is only checked if the certificate is valid and trusted
+ * @return 0 the certificate is invalid, 1 the certificate is valid
+ */
 int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
-    return 0;
+    int ret = 0;
+    unsigned int status = 0;
+    gnutls_x509_crt_t cert = NULL;
+    const gnutls_datum_t *cert_list = NULL;
+    unsigned int cert_list_size = 0;
+    int verification_result = 1;
+    int crt_index = 0;
+
+    /* sanity checks */
+    if (m==NULL || m->ssl==NULL) {
+	return 0;
+    }
+
+    /* check if the certificate is valid */
+    ret = gnutls_certificate_verify_peers2(m->ssl, &status);
+    if (ret != 0) {
+	log_notice(id_on_xmppAddr, "TLS cert verification failed: %s", gnutls_strerror(ret));
+	return 0;
+    }
+    if (status != 0) {
+	log_notice(id_on_xmppAddr, "Certificate verification failed:%s%s%s",
+		status&GNUTLS_CERT_INVALID ? " not trusted," : "",
+		status&GNUTLS_CERT_SIGNER_NOT_FOUND ? " no known issuer," : "",
+		status&GNUTLS_CERT_REVOKED ? " revoked," : "");
+	return 0;
+    }
+
+    /* no id_on_xmppAddr given to test subject/subjectAltName against? */
+    if (id_on_xmppAddr == NULL) {
+	log_debug2(ZONE, LOGT_AUTH, "accepting certificate without testing against a subject");
+	return 1;
+    }
+
+    /* check if it is a X.509 certificate */
+    if (gnutls_certificate_type_get(m->ssl) != GNUTLS_CRT_X509) {
+	/* no ... we cannot handle other certificates here yet ... declare as invalid */
+	log_notice(id_on_xmppAddr, "Rejecting certificate as it is no X.509 certificate");
+	return 0;
+    }
+
+    /* get the certificates */
+    ret = gnutls_x509_crt_init(&cert);
+    if (ret < 0) {
+	log_warn(id_on_xmppAddr, "Problem initializing the certificate var. Therefore I cannot verify the certificate.");
+	return 0;
+    }
+    cert_list = gnutls_certificate_get_peers(m->ssl, &cert_list_size);
+    if (cert_list == NULL || cert_list_size <= 0) {
+	log_notice(id_on_xmppAddr, "Problem verifying certificate: No certificate was found!");
+	gnutls_x509_crt_deinit(cert);
+	return 0;
+    }
+
+    /* iterate on the certificates */
+    for (crt_index = 0; crt_index < cert_list_size; crt_index++) {
+
+	/* get this certificate */
+	ret = gnutls_x509_crt_import(cert, &cert_list[crt_index], GNUTLS_X509_FMT_DER);
+	if (ret < 0) {
+	    log_warn(id_on_xmppAddr, "Error in loading certificate %i: %s", crt_index, gnutls_strerror(ret));
+	    verification_result = 0;
+	    break;
+	}
+
+	/* for the first certificate we have special checks */
+	if (crt_index == 0) {
+	    /* XXX: check for subjectAltName/id-on-xmppAddr first */
+	    /* XXX: only verify subject for domain-only JIDs */
+
+	    /* verify the subject */
+	    if (!gnutls_x509_crt_check_hostname(cert, id_on_xmppAddr)) {
+		log_notice(id_on_xmppAddr, "Certificate subject does not match.");
+		verification_result = 0;
+		break;
+	    }
+	}
+
+	/* check expiration */
+	if (gnutls_x509_crt_get_expiration_time(cert) < time(NULL)) {
+	    log_notice(id_on_xmppAddr, "Certificate %i has expired", crt_index);
+	    verification_result = 0;
+	    break;
+	}
+	if (gnutls_x509_crt_get_activation_time(cert) > time(NULL)) {
+	    log_notice(id_on_xmppAddr, "Certificate %i not yet active", crt_index);
+	    verification_result = 0;
+	    break;
+	}
+    }
+    
+    gnutls_x509_crt_deinit(cert);
+    return verification_result;
 }
 
 #endif /* HAVE_GNUTLS */
