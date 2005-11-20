@@ -1,3 +1,7 @@
+2005-11-20  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/mio.c: fixing bug introduced in revision 1146
+
 2005-11-19  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/mio.c: export STARTTLS functions even on no TLS support
