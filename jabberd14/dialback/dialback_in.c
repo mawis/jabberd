@@ -179,7 +179,7 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
     if (j_strcmp(xmlnode_get_name(x), "starttls") == 0 && j_strcmp(xmlnode_get_attrib(x, "xmlns"), NS_XMPP_TLS) == 0) {
 	/* starting TLS possible? */
 #ifdef SUPPORT_TLS
-	if (mio_ssl_starttls_possible(m, c->we_domain) && j_strcmp(dialback_get_domain_setting(c->d->hosts_tls, c->other_domain), "no")!=0) {
+	if (mio_ssl_starttls_possible(m, c->we_domain) && j_strcmp(xhash_get_by_domain(c->d->hosts_tls, c->other_domain), "no")!=0) {
 	    /* ACK the start */
 	    xmlnode proceed = xmlnode_new_tag("proceed");
 	    xmlnode_put_attrib(proceed, "xmlns", NS_XMPP_TLS);
@@ -217,7 +217,7 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
 	log_debug2(ZONE, LOGT_IO, "incoming SASL: %s", xmlnode2str(x));
 
 	/* check that the peer is allowed to authenticate using SASL */
-	if (j_strcmp(dialback_get_domain_setting(c->d->hosts_auth, c->other_domain), "db") == 0) {
+	if (j_strcmp(xhash_get_by_domain(c->d->hosts_auth, c->other_domain), "db") == 0) {
 	    mio_write(m, NULL, "<failure xmlns='" NS_XMPP_SASL "'><invalid-mechanism/></failure><stream:error><policy-violation xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>This server is configured to not accept SASL auth from your host!</text></stream:error></stream:stream>", -1);
 	    mio_close(m);
 	    xmlnode_free(x);
@@ -399,13 +399,13 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
 #endif
 
     /* disable by configuration */
-    if (j_strcmp(dialback_get_domain_setting(d->hosts_tls, other_domain), "no") == 0)
+    if (j_strcmp(xhash_get_by_domain(d->hosts_tls, other_domain), "no") == 0)
 	can_offer_starttls = 0;
-    if (j_strcmp(dialback_get_domain_setting(d->hosts_auth, other_domain), "db") == 0)
+    if (j_strcmp(xhash_get_by_domain(d->hosts_auth, other_domain), "db") == 0)
 	can_do_sasl_external = 0;
-    if (j_strcmp(dialback_get_domain_setting(d->hosts_xmpp, other_domain), "no") == 0)
+    if (j_strcmp(xhash_get_by_domain(d->hosts_xmpp, other_domain), "no") == 0)
 	version = 0;
-    else if (j_strcmp(dialback_get_domain_setting(d->hosts_xmpp, other_domain), "force") == 0 && version == 0) {
+    else if (j_strcmp(xhash_get_by_domain(d->hosts_xmpp, other_domain), "force") == 0 && version == 0) {
 	jid key = NULL;
 
         key = jid_new(xmlnode_pool(x), we_domain);
@@ -472,7 +472,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
 
     /* write our header */
     x2 = xstream_header(NS_SERVER, c->other_domain, c->we_domain);
-    if (j_strcmp(dialback_get_domain_setting(c->d->hosts_auth, c->other_domain), "sasl") != 0)
+    if (j_strcmp(xhash_get_by_domain(c->d->hosts_auth, c->other_domain), "sasl") != 0)
 	xmlnode_put_attrib(x2, "xmlns:db", NS_DIALBACK); /* flag ourselves as dialback capable */
     if (c->xmpp_version >= 1) {
 	xmlnode_put_attrib(x2, "version", "1.0");	/* flag us as XMPP capable */
