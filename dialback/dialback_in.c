@@ -372,7 +372,6 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     db d = (db)arg;
     xmlnode x2;
     miod md;
-    jid key;
     char strid[10];
     dbic c;
     int version = 0;
@@ -407,6 +406,8 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     if (j_strcmp(dialback_get_domain_setting(d->hosts_xmpp, other_domain), "no") == 0)
 	version = 0;
     else if (j_strcmp(dialback_get_domain_setting(d->hosts_xmpp, other_domain), "force") == 0 && version == 0) {
+	jid key = NULL;
+
         key = jid_new(xmlnode_pool(x), we_domain);
         mio_write(m,NULL, xstream_header_char(xstream_header("jabber:server", other_domain, jid_full(key))), -1);
         mio_write(m, NULL, "<stream:error><unsupported-version xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>We are configured to not support preXMPP connections.</text></stream:error>", -1);
@@ -419,6 +420,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
 
     /* validate namespace */
     if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:server") != 0) {
+	jid key = NULL;
         key = jid_new(xmlnode_pool(x), we_domain);
         mio_write(m,NULL, xstream_header_char(xstream_header("jabber:server", other_domain, jid_full(key))), -1);
         mio_write(m, NULL, "<stream:error><bad-namespace-prefix xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Invalid Stream Header!</text></stream:error>", -1);
@@ -430,6 +432,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     /* deprecated non-dialback protocol, reject connection */
     if(version < 1 && dbns == NULL)
     {
+	jid key = NULL;
         key = jid_new(xmlnode_pool(x), we_domain);
         mio_write(m,NULL, xstream_header_char(xstream_header("jabber:server", other_domain, jid_full(key))), -1);
         mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Legacy Access Denied!</text></stream:error>", -1);
@@ -458,10 +461,14 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     c = dialback_in_dbic_new(d, m, we_domain, other_domain, version);
 
     /* restarted after SASL? authorize the connection */
-    key = jid_new(xmlnode_pool(x),c->we_domain);
-    jid_set(key,c->other_domain,JID_RESOURCE);
-    jid_set(key,c->id,JID_USER); /* special user of the id attrib makes this key unique */
-    dialback_miod_hash(dialback_miod_new(c->d, c->m), c->d->in_ok_db, key);
+    if (m->authed_other_side) {
+	jid key = NULL;
+
+	key = jid_new(xmlnode_pool(x),c->we_domain);
+	jid_set(key, m->authed_other_side, JID_RESOURCE);
+	jid_set(key, c->id, JID_USER); /* special user of the id attrib makes this key unique */
+	dialback_miod_hash(dialback_miod_new(c->d, c->m), c->d->in_ok_db, key);
+    }
 
     /* write our header */
     x2 = xstream_header(NS_SERVER, c->other_domain, c->we_domain);

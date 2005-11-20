@@ -1,6 +1,7 @@
 2005-11-20  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/mio.c: fixing bug introduced in revision 1146
+    * dialback/dialback_in.c: fixing wrong auth in SASL code
 
 2005-11-19  Matthias Wimmer  <m@tthias.net>
 
