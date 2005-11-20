@@ -580,9 +580,9 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 	    /* outgoing conneciton, write the header */
 	    cur = xstream_header("jabber:server", c->key->server, c->key->resource);
 	    xmlnode_hide_attrib(cur, "id");					/* no, we don't need the id on this stream */
-	    if (j_strcmp(dialback_get_domain_setting(c->d->hosts_auth, c->key->server), "sasl") != 0)
+	    if (j_strcmp(xhash_get_by_domain(c->d->hosts_auth, c->key->server), "sasl") != 0)
 		xmlnode_put_attrib(cur,"xmlns:db", NS_DIALBACK);	/* flag ourselves as dialback capable */
-	    if (j_strcmp(dialback_get_domain_setting(c->d->hosts_xmpp, c->key->server), "no") != 0) {
+	    if (j_strcmp(xhash_get_by_domain(c->d->hosts_xmpp, c->key->server), "no") != 0) {
 		/* we flag support for XMPP 1.0 */
 		xmlnode_put_attrib(cur, "version", "1.0");
 	    }
@@ -648,7 +648,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 		    break;
 		}
 
-		if (j_strcmp(dialback_get_domain_setting(c->d->hosts_auth, "sasl"), "sasl") == 0) {
+		if (j_strcmp(xhash_get_by_domain(c->d->hosts_auth, "sasl"), "sasl") == 0) {
 		    log_warn(c->d->i->id, "preXMPP peer %s cannot support SASL, but we are configured to require this.", c->key->server);
 		    mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Sorry, but we require SASL auth, but you seem to only support dialback.</text></stream:error>", -1);
 		    mio_close(m);
@@ -748,7 +748,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 		/* is starttls supported? */
 		if (xmlnode_get_tag(x, "starttls?xmlns=" NS_XMPP_TLS) != NULL) {
 		    /* don't start if forbidden by caller (configuration) */
-		    if (j_strcmp(dialback_get_domain_setting(c->d->hosts_tls, c->key->server), "no") == 0) {
+		    if (j_strcmp(xhash_get_by_domain(c->d->hosts_tls, c->key->server), "no") == 0) {
 			log_notice(c->d->i->id, "Server %s advertized starttls, but disabled by our configuration.", c->key->server);
 		    } else if (mio_ssl_starttls_possible(m, c->key->resource)) {
 			/* our side is prepared for starttls */

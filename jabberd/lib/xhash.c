@@ -190,6 +190,43 @@ void *xhash_get(xht h, const char *key) {
 }
 
 /**
+ * retrive a value from a xhash ... considering the key to be a domain
+ *
+ * In contrast to xhash_get() this function interprets the key as a
+ * domain and checks all higher level domains, if the key is not found
+ * in the hash. If now higher level domains are found either, the
+ * key '*' is tried.
+ *
+ * Example: For the domain 'a.example.com' the following lookups
+ * are done in this order until there is the first match: 'a.example.com',
+ * 'example.com', 'com', and '*'.
+ *
+ * @param h the xhash to get the value from
+ * @param domain the domain which should be used as the key
+ */
+void *xhash_get_by_domain(xht h, const char *domain) {
+    const char* next_token = domain;
+
+    while (next_token != NULL) {
+        /* is there a setting for this level of subdomains? */
+        void *result = xhash_get(h, next_token);
+
+        if (result != NULL) {
+            return result;
+        }
+
+        /* skip one level of subdomains */
+        next_token = strstr(next_token, ".");
+        if (next_token != NULL) {
+            next_token++;
+        }
+    }
+
+    /* nothing found: return the default, or NULL */
+    return xhash_get(h, "*");
+}
+
+/**
  * remove an entry from the xhash
  *
  * @param h the xhash where a value should be removed

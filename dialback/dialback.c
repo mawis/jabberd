@@ -66,39 +66,6 @@ A->B
 #include "dialback.h"
 
 /**
- * get a setting out of a hash for a given domain, checking subdomains in their domains as well
- *
- * e.g. for the host a.example.com the following domains are checked: a.example.com, example.com,
- * com, * and the first match is returned. If nothing matches NULL is returned
- *
- * @param xhash the hash containing the settings
- * @param host the host that should be checked
- */
-const char *dialback_get_domain_setting(xht h, const char* host) {
-    const char* next_token = host;
-
-    while (next_token != NULL) {
-	/* is there a setting for this level of subdomains? */
-	const char *result = xhash_get(h, next_token);
-
-	log_debug2(ZONE, LOGT_IO, "checking %s: %s", next_token, result);
-
-	if (result != NULL) {
-	    return result;
-	}
-
-	/* skip one level of subdomains */
-	next_token = strstr(next_token, ".");
-	if (next_token != NULL) {
-	    next_token++;
-	}
-    }
-
-    /* nothing found: return the default, or NULL */
-    return xhash_get(h, "*");
-}
-
-/**
  * check TLS and authentication settings for a s2s connection
  *
  * @param d the dialback instance
@@ -112,9 +79,9 @@ const char *dialback_get_domain_setting(xht h, const char* host) {
 int dialback_check_settings(db d, mio m, const char *server, int is_outgoing, int auth_type, int version) {
     int required_protection = 0;
     int protection_level = mio_is_encrypted(m);
-    const char *require_tls = dialback_get_domain_setting(d->hosts_tls, server);
+    const char *require_tls = xhash_get_by_domain(d->hosts_tls, server);
     const char *xmpp_version = version == -1 ? "unknown" : version == 0 ? "preXMPP" : "XMPP1.0";
-    const char *auth = dialback_get_domain_setting(d->hosts_auth, server);
+    const char *auth = xhash_get_by_domain(d->hosts_auth, server);
    
     /* check the requirement of a TLS layer */
     if (j_strncmp(require_tls, "require", 7) == 0) {
