@@ -372,7 +372,6 @@ int _mio_write_dump(mio m) {
                 m->tail = NULL;
 
             pool_free(cur->p);
-	    cur->p=NULL;
         }
     } 
     return 0;
