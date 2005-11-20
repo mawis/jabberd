@@ -238,6 +238,7 @@ typedef struct xht_struct
 xht xhash_new(int prime);
 void xhash_put(xht h, const char *key, void *val);
 void *xhash_get(xht h, const char *key);
+void *xhash_get_by_domain(xht h, const char *domain);
 void xhash_zap(xht h, const char *key);
 void xhash_free(xht h);
 typedef void (*xhash_walker)(xht h, const char *key, void *val, void *arg);
