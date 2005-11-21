@@ -1,3 +1,7 @@
+2005-11-22  Matthias Wimmer  <m@tthias.net>
+
+    * configure.in: make IDN a requirement, check for GNU SASL
+
 2005-11-01  Matthias Wimmer  <m@tthias.net>
 
     * mio/mio.c: changing typecast for accept() call to fix a compiler warning
