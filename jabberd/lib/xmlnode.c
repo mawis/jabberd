@@ -56,7 +56,7 @@
  * @param type type of the element to be created (NTYPE_CDATA, NTYPE_TAG, NTYPE_ATTRIB)
  * @return the new xmlnode, NULL on failure
  */
-xmlnode _xmlnode_new(pool p, const char* name, unsigned int type) {
+static xmlnode _xmlnode_new(pool p, const char* name, unsigned int type) {
     xmlnode result = NULL;
     if (type > NTYPE_LAST)
         return NULL;
@@ -155,19 +155,19 @@ static xmlnode _xmlnode_search(xmlnode firstsibling, const char* name, unsigned 
  *
  * @param data first xmlnode in a list of NTYPE_CDATA siblings
  */
-void _xmlnode_merge(xmlnode data) {
+static void _xmlnode_merge(xmlnode data) {
     xmlnode cur;
     char *merge, *scur;
     int imerge;
 
     /* get total size of all merged cdata */
     imerge = 0;
-    for(cur = data; cur != NULL && cur->type == NTYPE_CDATA; cur = cur->next)
+    for (cur = data; cur != NULL && cur->type == NTYPE_CDATA; cur = cur->next)
         imerge += cur->data_sz;
 
     /* copy in current data and then spin through all of them and merge */
     scur = merge = pmalloc(data->p,imerge + 1);
-    for(cur = data; cur != NULL && cur->type == NTYPE_CDATA; cur = cur->next) {
+    for (cur = data; cur != NULL && cur->type == NTYPE_CDATA; cur = cur->next) {
         memcpy(scur,cur->data,cur->data_sz);
         scur += cur->data_sz;
     }
@@ -175,7 +175,7 @@ void _xmlnode_merge(xmlnode data) {
 
     /* this effectively hides all of the merged-in chunks */
     data->next = cur;
-    if(cur == NULL)
+    if (cur == NULL)
         data->parent->lastchild = data;
     else
         cur->prev = data;
@@ -183,7 +183,6 @@ void _xmlnode_merge(xmlnode data) {
     /* reset data */
     data->data = merge;
     data->data_sz = imerge;
-    
 }
 
 /**
@@ -192,12 +191,12 @@ void _xmlnode_merge(xmlnode data) {
  * @param child the xmlnode to hide
  */
 static void _xmlnode_hide_sibling(xmlnode child) {
-    if(child == NULL)
+    if (child == NULL)
         return;
 
-    if(child->prev != NULL)
+    if (child->prev != NULL)
         child->prev->next = child->next;
-    if(child->next != NULL)
+    if (child->next != NULL)
         child->next->prev = child->prev;
 }
 
@@ -208,7 +207,7 @@ static void _xmlnode_hide_sibling(xmlnode child) {
  * @param node xmlnode for which a tag should be written
  * @param flag 0 = write a empty-element tag, 1 = write a start-tag, 2 = write a end-tag
  */
-void _xmlnode_tag2str(spool s, xmlnode node, int flag) {
+static void _xmlnode_tag2str(spool s, xmlnode node, int flag) {
     xmlnode tmp;
 
     if(flag==0 || flag==1) {
@@ -238,7 +237,7 @@ void _xmlnode_tag2str(spool s, xmlnode node, int flag) {
  * @param node the xmlnode to write
  * @return spool where the xmlnode has been printed to
  */
-spool _xmlnode2spool(xmlnode node) {
+static spool _xmlnode2spool(xmlnode node) {
     spool s;
     int level=0;
     int dir=0;	/* 0 = descending (writing start tags), ascending in the xmlnode tree */
@@ -297,87 +296,95 @@ spool _xmlnode2spool(xmlnode node) {
     return s;
 }
 
+/**
+ * check if an xmlnode has attributes
+ *
+ * @param node the xmlnode to check
+ * @return 1 if the node has attributes, 0 else
+ */
+static int _xmlnode_has_attribs(xmlnode node) {
+    if ((node != NULL) && (node->firstattrib != NULL))
+	return 1;
+    return 0;
+}
+
+/**
+ * get the size (string length) of text contained in the element node
+ *
+ * @param node the element to check the length of the contained text for
+ * @return length of the contained text
+ */
+static int _xmlnode_get_datasz(xmlnode node) {
+    if (xmlnode_get_type(node) != NTYPE_CDATA)
+	return 0;
+
+    /* check for a dirty node w/ unassembled cdata chunks */
+    if (xmlnode_get_type(node->next) == NTYPE_CDATA)
+	_xmlnode_merge(node);
+    return node->data_sz;
+}
+
+
 
 /* External routines */
 
 
-/*
- *  xmlnode_new_tag -- create a tag node
- *  Automatically creates a memory pool for the node.
+/**
+ * create a tag node
+ * 
+ * Automatically creates a memory pool for the node.
  *
- *  parameters
- *      name -- name of the tag
- *
- *  returns
- *      a pointer to the tag node
- *      or NULL if it was unsuccessfull
+ * @param name name of the tag
+ * @return a pointer to the new tag node, or NULL if it was unsuccessfull
  */
-xmlnode xmlnode_new_tag(const char* name)
-{
+xmlnode xmlnode_new_tag(const char* name) {
     return _xmlnode_new(NULL, name, NTYPE_TAG);
 }
 
 
-/*
- *  xmlnode_new_tag_pool -- create a tag node within given pool
+/**
+ * create a tag node within given pool
  *
- *  parameters
- *      p -- previously created memory pool
- *      name -- name of the tag
- *
- *  returns
- *      a pointer to the tag node
- *      or NULL if it was unsuccessfull
+ * @param p previously created memory pool
+ * @param name name of the tag
+ * @return a pointer to the tag node, or NULL if it was unsuccessfull
  */
-xmlnode xmlnode_new_tag_pool(pool p, const char* name)
-{
+xmlnode xmlnode_new_tag_pool(pool p, const char* name) {
     return _xmlnode_new(p, name, NTYPE_TAG);
 }
 
 
-/*
- *  xmlnode_insert_tag -- append a child tag to a tag
+/**
+ * append a child tag to a tag
  *
- *  parameters
- *      parent -- pointer to the parent tag
- *      name -- name of the child tag
- *
- *  returns
- *      a pointer to the child tag node
- *      or NULL if it was unsuccessfull
+ * @param parent the xmlnode where the new element should be inserted
+ * @param name name of the child tag
+ * @return pointer to the child tag node, or NULL if it was unsuccessfull
  */
-xmlnode xmlnode_insert_tag(xmlnode parent, const char* name)
-{
+xmlnode xmlnode_insert_tag(xmlnode parent, const char* name) {
     return _xmlnode_insert(parent, name, NTYPE_TAG);
 }
 
 
-/*
- *  xmlnode_insert_cdata -- append character data to a tag
+/**
+ * insert a text node as child to an existing xmlnode
  *
- *  parameters
- *      parent -- parent tag
- *      CDATA -- character data
- *      size -- size of CDATA
- *              or -1 for null-terminated CDATA strings
- *
- *  returns
- *      a pointer to the child CDATA node
- *      or NULL if it was unsuccessfull
+ * @param parent where to insert the new text node
+ * @param CDATA content of the text node to insert
+ * @param size size of the string in CDATA, or -1 for auto-detection on null-terminated strings
+ * @return a pointer to the new child node, or NULL if it was unsuccessfull
  */
-xmlnode xmlnode_insert_cdata(xmlnode parent, const char* CDATA, unsigned int size)
-{
+xmlnode xmlnode_insert_cdata(xmlnode parent, const char* CDATA, unsigned int size) {
     xmlnode result;
 
-    if(CDATA == NULL || parent == NULL)
+    if (CDATA == NULL || parent == NULL)
         return NULL;
 
-    if(size == -1)
+    if (size == -1)
         size = strlen(CDATA);
 
     result = _xmlnode_insert(parent, NULL, NTYPE_CDATA);
-    if (result != NULL)
-    {
+    if (result != NULL) {
         result->data = (char*)pmalloc(result->p, size + 1);
         memcpy(result->data, CDATA, size);
         result->data[size] = '\0';
@@ -388,31 +395,22 @@ xmlnode xmlnode_insert_cdata(xmlnode parent, const char* CDATA, unsigned int siz
 }
 
 
-/*
- *  xmlnode_get_tag -- find given tag in an xmlnode tree
+/**
+ * find given tag in an xmlnode tree
  *
- *  parameters
- *      parent -- pointer to the parent tag
- *      name -- "name" for the child tag of that name
- *              "name/name" for a sub child (recurses)
- *              "?attrib" to match the first tag with that attrib defined
- *              "?attrib=value" to match the first tag with that attrib and value
- *              "=cdata" to match the cdata contents of the child
- *              or any combination: "name/name/?attrib", "name=cdata", etc
- *
- *  results
- *      a pointer to the tag matching search criteria
- *      or NULL if search was unsuccessfull
+ * @param parent pointer to the parent tag
+ * @param name "name" for the child tag of that name, "name/name" for a sub child (recurses), "?attrib" to match the first tag with that attrib defined, "?attrib=value" to match the first tag with that attrib and value, "=cdata" to match the text node contents of the child, or any combination: "name/name/?attrib", "name=cdata", etc
+ * @return a pointer to the tag matching search criteria, or NULL if search was unsuccessfull
  */
-xmlnode xmlnode_get_tag(xmlnode parent, const char* name)
-{
+xmlnode xmlnode_get_tag(xmlnode parent, const char* name) {
     char *str, *slash, *qmark, *equals;
     xmlnode step, ret;
 
 
-    if(parent == NULL || parent->firstchild == NULL || name == NULL || name == '\0') return NULL;
+    if (parent == NULL || parent->firstchild == NULL || name == NULL || name == '\0')
+	return NULL;
 
-    if(strstr(name, "/") == NULL && strstr(name,"?") == NULL && strstr(name, "=") == NULL)
+    if (strstr(name, "/") == NULL && strstr(name,"?") == NULL && strstr(name, "=") == NULL)
         return _xmlnode_search(parent->firstchild, name, NTYPE_TAG);
 
     str = strdup(name);
@@ -420,22 +418,21 @@ xmlnode xmlnode_get_tag(xmlnode parent, const char* name)
     qmark = strstr(str, "?");
     equals = strstr(str, "=");
 
-    if(equals != NULL && (slash == NULL || equals < slash) && (qmark == NULL || equals < qmark))
-    { /* of type =cdata */
+    if (equals != NULL && (slash == NULL || equals < slash) && (qmark == NULL || equals < qmark)) {
+	/* of type =cdata */
 
         *equals = '\0';
         equals++;
 
-        for(step = parent->firstchild; step != NULL; step = xmlnode_get_nextsibling(step))
-        {
-            if(xmlnode_get_type(step) != NTYPE_TAG)
+        for (step = parent->firstchild; step != NULL; step = xmlnode_get_nextsibling(step)) {
+            if (xmlnode_get_type(step) != NTYPE_TAG)
                 continue;
 
-            if(*str != '\0')
+            if (*str != '\0')
                 if(j_strcmp(xmlnode_get_name(step),str) != 0)
                     continue;
 
-            if(j_strcmp(xmlnode_get_data(step),equals) != 0)
+            if (j_strcmp(xmlnode_get_data(step),equals) != 0)
                 continue;
 
             break;
@@ -446,30 +443,28 @@ xmlnode xmlnode_get_tag(xmlnode parent, const char* name)
     }
 
 
-    if(qmark != NULL && (slash == NULL || qmark < slash))
-    { /* of type ?attrib */
+    if (qmark != NULL && (slash == NULL || qmark < slash)) {
+	/* of type ?attrib */
 
         *qmark = '\0';
         qmark++;
-        if(equals != NULL)
-        {
+        if (equals != NULL) {
             *equals = '\0';
             equals++;
         }
 
-        for(step = parent->firstchild; step != NULL; step = xmlnode_get_nextsibling(step))
-        {
-            if(xmlnode_get_type(step) != NTYPE_TAG)
+        for (step = parent->firstchild; step != NULL; step = xmlnode_get_nextsibling(step)) {
+            if (xmlnode_get_type(step) != NTYPE_TAG)
                 continue;
 
-            if(*str != '\0')
-                if(j_strcmp(xmlnode_get_name(step),str) != 0)
+            if (*str != '\0')
+                if (j_strcmp(xmlnode_get_name(step),str) != 0)
                     continue;
 
-            if(xmlnode_get_attrib(step,qmark) == NULL)
+            if (xmlnode_get_attrib(step,qmark) == NULL)
                 continue;
 
-            if(equals != NULL && j_strcmp(xmlnode_get_attrib(step,qmark),equals) != 0)
+            if (equals != NULL && j_strcmp(xmlnode_get_attrib(step,qmark),equals) != 0)
                 continue;
 
             break;
@@ -483,16 +478,15 @@ xmlnode xmlnode_get_tag(xmlnode parent, const char* name)
     *slash = '\0';
     ++slash;
 
-    for(step = parent->firstchild; step != NULL; step = xmlnode_get_nextsibling(step))
-    {
-        if(xmlnode_get_type(step) != NTYPE_TAG) continue;
+    for (step = parent->firstchild; step != NULL; step = xmlnode_get_nextsibling(step)) {
+        if (xmlnode_get_type(step) != NTYPE_TAG)
+	    continue;
 
-        if(j_strcmp(xmlnode_get_name(step),str) != 0)
+        if (j_strcmp(xmlnode_get_name(step),str) != 0)
             continue;
 
         ret = xmlnode_get_tag(step, slash);
-        if(ret != NULL)
-        {
+        if (ret != NULL) {
             free(str);
             return ret;
         }
@@ -502,38 +496,47 @@ xmlnode xmlnode_get_tag(xmlnode parent, const char* name)
     return NULL;
 }
 
-
-/* return the cdata from any tag */
-char *xmlnode_get_tag_data(xmlnode parent, const char *name)
-{
+/**
+ * return the text of the inside wrapped by the element found by the name parameter
+ *
+ * this equals xmlnode_get_data(xmlnode_get_tag(parent, name))
+ *
+ * @param parent the element where to search for the element defined by the name parameter
+ * @param name search query for the element whichs textual content should be returned
+ * @return textual content, or NULL if no textual content
+ */
+char *xmlnode_get_tag_data(xmlnode parent, const char *name) {
     xmlnode tag;
 
     tag = xmlnode_get_tag(parent, name);
-    if(tag == NULL) return NULL;
+    if (tag == NULL)
+	return NULL;
 
     return xmlnode_get_data(tag);
 }
 
-
-void xmlnode_put_attrib(xmlnode owner, const char* name, const char* value)
-{
+/**
+ * add an attribute to an xmlnode element
+ *
+ * @param owner element to add the attribute to
+ * @param name name of the attribute
+ * @param value value of the attribute
+ */
+void xmlnode_put_attrib(xmlnode owner, const char* name, const char* value) {
     xmlnode attrib;
 
-    if(owner == NULL || name == NULL || value == NULL) return;
+    if (owner == NULL || name == NULL || value == NULL)
+	return;
 
     /* If there are no existing attributs, allocate a new one to start
     the list */
-    if (owner->firstattrib == NULL)
-    {
+    if (owner->firstattrib == NULL) {
         attrib = _xmlnode_new(owner->p, name, NTYPE_ATTRIB);
         owner->firstattrib = attrib;
         owner->lastattrib  = attrib;
-    }
-    else
-    {
+    } else {
         attrib = _xmlnode_search(owner->firstattrib, name, NTYPE_ATTRIB);
-        if(attrib == NULL)
-        {
+        if (attrib == NULL) {
             attrib = _xmlnode_append_sibling(owner->lastattrib, name, NTYPE_ATTRIB);
             owner->lastattrib = attrib;
         }
@@ -541,15 +544,19 @@ void xmlnode_put_attrib(xmlnode owner, const char* name, const char* value)
     /* Update the value of the attribute */
     attrib->data_sz = strlen(value);
     attrib->data    = pstrdup(owner->p, value);
-
 }
 
-char* xmlnode_get_attrib(xmlnode owner, const char* name)
-{
+/**
+ * get an attribute value
+ *
+ * @param owner element where to look for the attribute
+ * @param name name of the attribute of which the value should be returned
+ * @return value of the attribute, or NULL if no such attribute
+ */
+char* xmlnode_get_attrib(xmlnode owner, const char* name) {
     xmlnode attrib;
 
-    if (owner != NULL && owner->firstattrib != NULL)
-    {
+    if (owner != NULL && owner->firstattrib != NULL) {
         attrib = _xmlnode_search(owner->firstattrib, name, NTYPE_ATTRIB);
         if (attrib != NULL)
             return (char*)attrib->data;
@@ -557,15 +564,21 @@ char* xmlnode_get_attrib(xmlnode owner, const char* name)
     return NULL;
 }
 
-void xmlnode_put_vattrib(xmlnode owner, const char* name, void *value)
-{
+/**
+ * very hacky: place a pointer to arbitrary data as the value of an attribute
+ *
+ * @deprecated Do not use it. It's just a big hack. Probably you could use a ::xhash for the same things.
+ *
+ * @param owner element where to place the attribute
+ * @param name name of the attribute
+ * @param value the pointer, that should be stored as the value of the attribute
+ */
+void xmlnode_put_vattrib(xmlnode owner, const char* name, void *value) {
     xmlnode attrib;
 
-    if (owner != NULL)
-    {
+    if (owner != NULL) {
         attrib = _xmlnode_search(owner->firstattrib, name, NTYPE_ATTRIB);
-        if (attrib == NULL)
-        {
+        if (attrib == NULL) {
             xmlnode_put_attrib(owner, name, "");
             attrib = _xmlnode_search(owner->firstattrib, name, NTYPE_ATTRIB);
         }
@@ -574,12 +587,19 @@ void xmlnode_put_vattrib(xmlnode owner, const char* name, void *value)
     }
 }
 
-void* xmlnode_get_vattrib(xmlnode owner, const char* name)
-{
+/**
+ * very hacky: retrieve the pointer to arbitrary data, that has been stored as an attribute using the xmlnode_put_vattrib() function
+ *
+ * @deprecated Do not use it. It's just a big hack. Probably you could use a ::xhash for the same things.
+ *
+ * @param element where to get the attribute for
+ * @param name name of the attribute
+ * @return pointer to the value
+ */
+void* xmlnode_get_vattrib(xmlnode owner, const char* name) {
     xmlnode attrib;
 
-    if (owner != NULL && owner->firstattrib != NULL)
-    {
+    if (owner != NULL && owner->firstattrib != NULL) {
         attrib = _xmlnode_search(owner->firstattrib, name, NTYPE_ATTRIB);
         if (attrib != NULL)
             return (void*)attrib->firstchild;
@@ -587,113 +607,163 @@ void* xmlnode_get_vattrib(xmlnode owner, const char* name)
     return NULL;
 }
 
-xmlnode xmlnode_get_firstattrib(xmlnode parent)
-{
+/**
+ * get the first attribute node of an element
+ *
+ * iteration on all attributes is possible by using xmlnode_get_nextsibling() using the result of this function as the start
+ *
+ * @param parent element for which the first attribute node should be returned
+ * @return attribute node
+ */
+xmlnode xmlnode_get_firstattrib(xmlnode parent) {
     if (parent != NULL)
         return parent->firstattrib;
     return NULL;
 }
 
-xmlnode xmlnode_get_firstchild(xmlnode parent)
-{
+/**
+ * get the first child node of a node
+ *
+ * iteration on all childs is possible using xmlnode_get_nextsibling() using the result of this function as the start
+ *
+ * @param parent element for which the first child should be returned
+ * @return child node
+ */
+xmlnode xmlnode_get_firstchild(xmlnode parent) {
     if (parent != NULL)
         return parent->firstchild;
     return NULL;
 }
 
-xmlnode xmlnode_get_lastchild(xmlnode parent)
-{
+/**
+ * get the last child node of a node
+ *
+ * (backwards) iteration on all childs is possible using xmlnode_get_prevsibling() using the result of this function as the start
+ *
+ * @param parent element for which the last child should be returned
+ * @return last child node
+ */
+xmlnode xmlnode_get_lastchild(xmlnode parent) {
     if (parent != NULL)
         return parent->lastchild;
     return NULL;
 }
 
-xmlnode xmlnode_get_nextsibling(xmlnode sibling)
-{
+/**
+ * return the next sibling
+ *
+ * this can be used together with xmlnode_get_firstchild() to iterate over the childrens of a node
+ *
+ * @param sibling the node to get the next sibling for
+ * @return next sibling
+ */
+xmlnode xmlnode_get_nextsibling(xmlnode sibling) {
     if (sibling != NULL)
         return sibling->next;
     return NULL;
 }
 
-xmlnode xmlnode_get_prevsibling(xmlnode sibling)
-{
+/**
+ * return the previous sibling
+ *
+ * this can be used together with xmlnode_get_lastchild() to iterate backwards over the childrens of a node
+ *
+ * @param sibling the node to get the previous sibling for
+ * @return previous sibling
+ */
+xmlnode xmlnode_get_prevsibling(xmlnode sibling) {
     if (sibling != NULL)
         return sibling->prev;
     return NULL;
 }
 
-xmlnode xmlnode_get_parent(xmlnode node)
-{
+/**
+ * get the parent node for a node
+ *
+ * @param node the node for which the parent node should be returned
+ * @return parent node
+ */
+xmlnode xmlnode_get_parent(xmlnode node) {
     if (node != NULL)
         return node->parent;
     return NULL;
 }
 
-char* xmlnode_get_name(xmlnode node)
-{
+/**
+ * get the name of a node
+ *
+ * @param node the node to get the name for
+ * @return name of the node
+ */
+char* xmlnode_get_name(xmlnode node) {
     if (node != NULL)
         return node->name;
     return NULL;
 }
 
-char* xmlnode_get_data(xmlnode node)
-{
-    if(xmlnode_get_type(node) == NTYPE_TAG) /* loop till we find a CDATA in the children */
-        for(node = xmlnode_get_firstchild(node); node != NULL; node = xmlnode_get_nextsibling(node))
-            if(xmlnode_get_type(node) == NTYPE_CDATA) break;
+char* xmlnode_get_data(xmlnode node) {
+    if (xmlnode_get_type(node) == NTYPE_TAG) /* loop till we find a CDATA in the children */
+        for (node = xmlnode_get_firstchild(node); node != NULL; node = xmlnode_get_nextsibling(node))
+            if (xmlnode_get_type(node) == NTYPE_CDATA)
+		break;
 
-    if(node == NULL) return NULL;
+    if (node == NULL)
+	return NULL;
 
     /* check for a dirty node w/ unassembled cdata chunks */
-    if(xmlnode_get_type(node->next) == NTYPE_CDATA)
+    if (xmlnode_get_type(node->next) == NTYPE_CDATA)
         _xmlnode_merge(node);
 
     return node->data;
 }
 
-int xmlnode_get_datasz(xmlnode node)
-{
-    if(xmlnode_get_type(node) != NTYPE_CDATA) return 0;
-
-    /* check for a dirty node w/ unassembled cdata chunks */
-    if(xmlnode_get_type(node->next) == NTYPE_CDATA)
-        _xmlnode_merge(node);
-    return node->data_sz;
-}
-
-int xmlnode_get_type(xmlnode node)
-{
+/**
+ * get the type of the node
+ *
+ * @param node the node to get the type for
+ * @return type of the node, one of ::NTYPE_TAG, ::NTYPE_ATTRIB, or ::NTYPE_CDATA
+ */
+int xmlnode_get_type(xmlnode node) {
     if (node != NULL)
         return node->type;
     return NTYPE_UNDEF;
 }
 
-int xmlnode_has_children(xmlnode node)
-{
+/**
+ * check if a node has child nodes
+ *
+ * @param node the node to check
+ * @return 1 if the node has childrens, 0 else
+ */
+int xmlnode_has_children(xmlnode node) {
     if ((node != NULL) && (node->firstchild != NULL))
         return 1;
     return 0;
 }
 
-int xmlnode_has_attribs(xmlnode node)
-{
-    if ((node != NULL) && (node->firstattrib != NULL))
-        return 1;
-    return 0;
-}
-
-pool xmlnode_pool(xmlnode node)
-{
+/**
+ * get the memory pool of an xmlnode
+ *
+ * @param node the node to get the memory pool from
+ * @return memory pool used by this node
+ */
+pool xmlnode_pool(xmlnode node) {
     if (node != NULL)
         return node->p;
     return (pool)NULL;
 }
 
-void xmlnode_hide(xmlnode child)
-{
+/**
+ * hide (remove) a node from a document
+ *
+ * @note the root element of a document cannot be hidden with this function
+ *
+ * @param child the xmlnode that should be hidden
+ */
+void xmlnode_hide(xmlnode child) {
     xmlnode parent;
 
-    if(child == NULL || child->parent == NULL)
+    if (child == NULL || child->parent == NULL)
         return;
 
     parent = child->parent;
@@ -702,123 +772,75 @@ void xmlnode_hide(xmlnode child)
     _xmlnode_hide_sibling(child);
 
     /* next fix up at the parent level */
-    if(parent->firstchild == child)
+    if (parent->firstchild == child)
         parent->firstchild = child->next;
-    if(parent->lastchild == child)
+    if (parent->lastchild == child)
         parent->lastchild = child->prev;
 }
 
-void xmlnode_hide_attrib(xmlnode parent, const char *name)
-{
+/**
+ * hide (remove) an attribute of an element
+ *
+ * @param parent the element for which an attribute should be hidden
+ * @param name name of the attribute, that should be hidden
+ */
+void xmlnode_hide_attrib(xmlnode parent, const char *name) {
     xmlnode attrib;
 
-    if(parent == NULL || parent->firstattrib == NULL || name == NULL)
+    if (parent == NULL || parent->firstattrib == NULL || name == NULL)
         return;
 
     attrib = _xmlnode_search(parent->firstattrib, name, NTYPE_ATTRIB);
-    if(attrib == NULL)
+    if (attrib == NULL)
         return;
 
     /* first fix up at the child level */
     _xmlnode_hide_sibling(attrib);
 
     /* next fix up at the parent level */
-    if(parent->firstattrib == attrib)
+    if (parent->firstattrib == attrib)
         parent->firstattrib = attrib->next;
-    if(parent->lastattrib == attrib)
+    if (parent->lastattrib == attrib)
         parent->lastattrib = attrib->prev;
 }
 
-
-
-/*
- *  xmlnode2str -- convert given xmlnode tree into a string
+/**
+ * convert given xmlnode tree into a string
  *
- *  parameters
- *      node -- pointer to the xmlnode structure
- *
- *  results
- *      a pointer to the created string
- *      or NULL if it was unsuccessfull
+ * @param node pointer to the xmlnode tree that should be printed to the string
+ * @return pointer to the created string (uses the same memory ::pool as the xmlnode), or NULL if it was unsuccessfull
  */
-char *xmlnode2str(xmlnode node)
-{
-     return spool_print(_xmlnode2spool(node));
+char *xmlnode2str(xmlnode node) {
+    return spool_print(_xmlnode2spool(node));
 }
 
-/*
- *  xmlnode2tstr -- convert given xmlnode tree into a newline terminated string
+/**
+ * convert given xmlnode tree into a newline terminated string
  *
- *  parameters
- *      node -- pointer to the xmlnode structure
+ * @note same as xmlnode2str() with the difference, that the result is terminated by a newline character (U+000D)
  *
- *  results
- *      a pointer to the created string
- *      or NULL if it was unsuccessfull
+ * @param node pointer to the xmlnode tree that should be printed to the string
+ * @return pointer to the created string (uses the same memory ::pool as the xmlnode), or NULL if it was unsuccessfull
  */
-char*    xmlnode2tstr(xmlnode node)
-{
-     spool s = _xmlnode2spool(node);
-     if (s != NULL)
-	  spool_add(s, "\n");
+char* xmlnode2tstr(xmlnode node) {
+    spool s = _xmlnode2spool(node);
+    if (s != NULL)
+	spool_add(s, "\n");
     return spool_print(s);
 }
 
-
-/* loop through both a and b comparing everything, attribs, cdata, children, etc */
-int xmlnode_cmp(xmlnode a, xmlnode b)
-{
-    int ret = 0;
-
-    while(1)
-    {
-        if(a == NULL && b == NULL)
-            return 0;
-
-        if(a == NULL || b == NULL)
-            return -1;
-
-        if(xmlnode_get_type(a) != xmlnode_get_type(b))
-            return -1;
-
-        switch(xmlnode_get_type(a))
-        {
-        case NTYPE_ATTRIB:
-            ret = j_strcmp(xmlnode_get_name(a), xmlnode_get_name(b));
-            if(ret != 0)
-                return -1;
-            ret = j_strcmp(xmlnode_get_data(a), xmlnode_get_data(b));
-            if(ret != 0)
-                return -1;
-            break;
-        case NTYPE_TAG:
-            ret = j_strcmp(xmlnode_get_name(a), xmlnode_get_name(b));
-            if(ret != 0)
-                return -1;
-            ret = xmlnode_cmp(xmlnode_get_firstattrib(a), xmlnode_get_firstattrib(b));
-            if(ret != 0)
-                return -1;
-            ret = xmlnode_cmp(xmlnode_get_firstchild(a), xmlnode_get_firstchild(b));
-            if(ret != 0)
-                return -1;
-            break;
-        case NTYPE_CDATA:
-            ret = j_strcmp(xmlnode_get_data(a), xmlnode_get_data(b));
-            if(ret != 0)
-                return -1;
-        }
-        a = xmlnode_get_nextsibling(a);
-        b = xmlnode_get_nextsibling(b);
-    }
-}
-
-
-xmlnode xmlnode_insert_tag_node(xmlnode parent, xmlnode node)
-{
+/**
+ * copy an element node as a child to an other node
+ *
+ * @param parent where to insert the xmlnode
+ * @param node node to insert
+ * @return pointer to the copied xmlnode
+ */
+xmlnode xmlnode_insert_tag_node(xmlnode parent, xmlnode node) {
     xmlnode child;
 
     child = xmlnode_insert_tag(parent, xmlnode_get_name(node));
-    if (xmlnode_has_attribs(node))
+    if (_xmlnode_has_attribs(node))
         xmlnode_insert_node(child, xmlnode_get_firstattrib(node));
     if (xmlnode_has_children(node))
         xmlnode_insert_node(child, xmlnode_get_firstchild(node));
@@ -826,41 +848,49 @@ xmlnode xmlnode_insert_tag_node(xmlnode parent, xmlnode node)
     return child;
 }
 
-/* places copy of node and node's siblings in parent */
-void xmlnode_insert_node(xmlnode parent, xmlnode node)
-{
-    if(node == NULL || parent == NULL)
+/**
+ * places copy of node and node's siblings in parent
+ *
+ * @param parent where to place the copy to
+ * @param node what to copy
+ */
+void xmlnode_insert_node(xmlnode parent, xmlnode node) {
+    if (node == NULL || parent == NULL)
         return;
 
-    while(node != NULL)
-    {
-        switch(xmlnode_get_type(node))
-        {
-        case NTYPE_ATTRIB:
-            xmlnode_put_attrib(parent, xmlnode_get_name(node), xmlnode_get_data(node));
-            break;
-        case NTYPE_TAG:
-            xmlnode_insert_tag_node(parent, node);
-            break;
-        case NTYPE_CDATA:
-            xmlnode_insert_cdata(parent, xmlnode_get_data(node), xmlnode_get_datasz(node));
+    while (node != NULL) {
+        switch (xmlnode_get_type(node)) {
+	    case NTYPE_ATTRIB:
+		xmlnode_put_attrib(parent, xmlnode_get_name(node), xmlnode_get_data(node));
+		break;
+	    case NTYPE_TAG:
+		xmlnode_insert_tag_node(parent, node);
+		break;
+	    case NTYPE_CDATA:
+		xmlnode_insert_cdata(parent, xmlnode_get_data(node), _xmlnode_get_datasz(node));
         }
         node = xmlnode_get_nextsibling(node);
     }
 }
 
 
-/* produce full duplicate of x with a new pool, x must be a tag! */
-xmlnode xmlnode_dup(xmlnode x)
-{
+/**
+ * produce full duplicate of x with a new pool
+ *
+ * @note x must be a tag!
+ *
+ * @param x xmlnode (tag) that should be duplicated using a new memory pool
+ * @return pointer to the duplicated tree, or NULL on error
+ */
+xmlnode xmlnode_dup(xmlnode x) {
     xmlnode x2;
 
-    if(x == NULL)
+    if (x == NULL)
         return NULL;
 
     x2 = xmlnode_new_tag(xmlnode_get_name(x));
 
-    if (xmlnode_has_attribs(x))
+    if (_xmlnode_has_attribs(x))
         xmlnode_insert_node(x2, xmlnode_get_firstattrib(x));
     if (xmlnode_has_children(x))
         xmlnode_insert_node(x2, xmlnode_get_firstchild(x));
@@ -868,8 +898,16 @@ xmlnode xmlnode_dup(xmlnode x)
     return x2;
 }
 
-xmlnode xmlnode_dup_pool(pool p, xmlnode x)
-{
+/**
+ * produce a full duplicate of a x using the specified memory pool
+ *
+ * @note this is nearly the same as xmlnode_dup(), with the difference, that you can specify which memory pool to use
+ *
+ * @param p memory pool to use
+ * @param x xmlnode (tag) that should be duplicated
+ * @return pointer to the duplicated tree, or NULL on error
+ */
+xmlnode xmlnode_dup_pool(pool p, xmlnode x) {
     xmlnode x2;
 
     if(x == NULL)
@@ -877,7 +915,7 @@ xmlnode xmlnode_dup_pool(pool p, xmlnode x)
 
     x2 = xmlnode_new_tag_pool(p, xmlnode_get_name(x));
 
-    if (xmlnode_has_attribs(x))
+    if (_xmlnode_has_attribs(x))
         xmlnode_insert_node(x2, xmlnode_get_firstattrib(x));
     if (xmlnode_has_children(x))
         xmlnode_insert_node(x2, xmlnode_get_firstchild(x));
@@ -885,8 +923,17 @@ xmlnode xmlnode_dup_pool(pool p, xmlnode x)
     return x2;
 }
 
-xmlnode xmlnode_wrap(xmlnode x,const char *wrapper)
-{
+/**
+ * wrap a xmlnode in a new element
+ *
+ * this function creates a new element with the name specified as the wrapper parameter,
+ * the xmlnode x becomes a child of this new element
+ *
+ * @param x the xmlnode that gets wrapped
+ * @param wrapper name of the wrapping element (that is to be created)
+ * @return the new element, that is wrapping x
+ */
+xmlnode xmlnode_wrap(xmlnode x,const char *wrapper) {
     xmlnode wrap;
     if(x==NULL||wrapper==NULL) return NULL;
     wrap=xmlnode_new_tag_pool(xmlnode_pool(x),wrapper);
@@ -897,8 +944,14 @@ xmlnode xmlnode_wrap(xmlnode x,const char *wrapper)
     return wrap;
 }
 
-void xmlnode_free(xmlnode node)
-{
+/**
+ * free the memory allocated by an xmlnode tree
+ *
+ * No nodes inside the xmlnode tree can be used afterwards, as they are all freed by this function
+ *
+ * @param node one of the elements inside a tree of xmlnodes that should be freed
+ */
+void xmlnode_free(xmlnode node) {
     if(node == NULL)
         return;
 
