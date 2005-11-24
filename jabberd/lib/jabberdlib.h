@@ -383,7 +383,6 @@ xmlnode  xmlnode_get_parent(xmlnode node);
 /* Node information routines */
 char*    xmlnode_get_name(xmlnode node);
 char*    xmlnode_get_data(xmlnode node);
-int      xmlnode_get_datasz(xmlnode node);
 int      xmlnode_get_type(xmlnode node);
 
 int      xmlnode_has_children(xmlnode node);
