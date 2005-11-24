@@ -307,32 +307,31 @@ char *spools(pool p, ...); /* wrap all the spooler stuff in one function, the ha
 /* xmlnodes - Document Object Model                          */
 /*                                                           */
 /* --------------------------------------------------------- */
-#define NTYPE_TAG    0
-#define NTYPE_ATTRIB 1
-#define NTYPE_CDATA  2
+#define NTYPE_TAG    0	/**< xmlnode is an element (tag) */
+#define NTYPE_ATTRIB 1	/**< xmlnode is an attribute node */
+#define NTYPE_CDATA  2	/**< xmlnode is a text node (!) */
 
-#define NTYPE_LAST   2
-#define NTYPE_UNDEF  -1
+#define NTYPE_LAST   2	/**< highest possible value of xmlnode types */
+#define NTYPE_UNDEF  -1	/**< xmlnode has no defined type */
 
 /* -------------------------------------------------------------------------- 
    Node structure. Do not use directly! Always use accessor macros 
    and methods!
    -------------------------------------------------------------------------- */
-typedef struct xmlnode_t
-{
-     char*               name;
-     unsigned short      type;
-     char*               data;
-     int                 data_sz;
-     int                 complete;
-     pool               p;
-     struct xmlnode_t*  parent;
-     struct xmlnode_t*  firstchild; 
-     struct xmlnode_t*  lastchild;
-     struct xmlnode_t*  prev; 
-     struct xmlnode_t*  next;
-     struct xmlnode_t*  firstattrib;
-     struct xmlnode_t*  lastattrib;
+typedef struct xmlnode_t {
+     char*               name;		/**< name of the xmlnode */
+     unsigned short      type;		/**< type of the xmlnode, one of ::NTYPE_TAG, ::NTYPE_ATTRIB, ::NTYPE_CDATA, or ::NTYPE_UNDEF */
+     char*               data;		/**< data of the xmlnode, for attributes this is the value, for text nodes this is the text */
+     int                 data_sz;	/**< length of the data in the xmlnode */
+/*     int                 complete; */
+     pool               p;		/**< memory pool used by this xmlnode (the same as for all other xmlnode in a tree) */
+     struct xmlnode_t*  parent;		/**< parent node for this node, or NULL for the root element */
+     struct xmlnode_t*  firstchild; 	/**< first child element of this node, or NULL for no child elements */
+     struct xmlnode_t*  lastchild;	/**< last child element of this node, or NULL for no child elements */
+     struct xmlnode_t*  prev; 		/**< previous sibling */
+     struct xmlnode_t*  next;		/**< next sibling */
+     struct xmlnode_t*  firstattrib;	/**< first attribute node of this node */
+     struct xmlnode_t*  lastattrib;	/**< last attribute node of this node */
 } _xmlnode, *xmlnode;
 
 /* Node creation routines */
