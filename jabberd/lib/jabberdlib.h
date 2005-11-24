@@ -351,7 +351,6 @@ xmlnode  xmlnode_dup_pool(pool p, xmlnode x);
 
 /* Node Memory Pool */
 pool xmlnode_pool(xmlnode node);
-xmlnode _xmlnode_new(pool p, const char *name, unsigned int type);
 
 /* Node editing */
 void xmlnode_hide(xmlnode child);
@@ -388,7 +387,6 @@ int      xmlnode_get_datasz(xmlnode node);
 int      xmlnode_get_type(xmlnode node);
 
 int      xmlnode_has_children(xmlnode node);
-int      xmlnode_has_attribs(xmlnode node);
 
 /* Node-to-string translation */
 char*    xmlnode2str(xmlnode node);
@@ -396,8 +394,6 @@ char*    xmlnode2str(xmlnode node);
 /* Node-to-terminated-string translation 
    -- useful for interfacing w/ scripting langs */
 char*    xmlnode2tstr(xmlnode node);
-
-int      xmlnode_cmp(xmlnode a, xmlnode b); /* compares a and b for equality */
 
 int      xmlnode2file(char *file, xmlnode node); /* writes node to file */
 int	 xmlnode2file_limited(char *file, xmlnode node, size_t sizelimit);
@@ -530,7 +526,7 @@ char*   jid_full(jid id);		       /* Builds a string type=user/resource@server f
 int     jid_cmp(jid a, jid b);		       /* Compares two jid's, returns 0 for perfect match */
 int     jid_cmpx(jid a, jid b, int parts);     /* Compares just the parts specified as JID_|JID_ */
 jid     jid_append(jid a, jid b);	       /* Appending b to a (list), no dups */
-xmlnode jid_xres(jid id);		       /* Returns xmlnode representation of the resource?query=string */
+/* xmlnode jid_xres(jid id); */		       /* Returns xmlnode representation of the resource?query=string */
 xmlnode jid_nodescan(jid id, xmlnode x);       /* Scans the children of the node for a matching jid attribute */
 jid     jid_user(jid a);                       /* returns the same jid but just of the user@host part */
 void	jid_init_cache();		       /**< initialize the stringprep caches */

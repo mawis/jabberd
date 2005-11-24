@@ -625,6 +625,7 @@ char *jid_full(jid id)
 }
 
 /* parses a /resource?name=value&foo=bar into an xmlnode representing <resource name="value" foo="bar"/> */
+/*
 xmlnode jid_xres(jid id)
 {
     char *cur, *qmark, *amp, *eq;
@@ -665,6 +666,7 @@ xmlnode jid_xres(jid id)
 
     return x;
 }
+*/
 
 /* local utils */
 int _jid_nullstrcmp(char *a, char *b)
