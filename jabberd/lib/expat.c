@@ -102,7 +102,9 @@ void expat_endElement(void* userdata, const char* name)
     xmlnode *x = userdata;
     xmlnode current = *x;
 
+    /*
     current->complete = 1;
+    */
     current = xmlnode_get_parent(current);
 
     /* if it's NULL we've hit the top folks, otherwise back up a level */
