@@ -1,3 +1,9 @@
+2005-11-23  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/lib/xmlnode.c: documentation, making some functions internal
+    * jabberd/lib/jabberdlib.h: same
+    * jabberd/lib/jid.c: removing unused function jid_xres
+
 2005-11-21  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/lib/jabberdlib.h: introducing xhash_get_by_domain()
