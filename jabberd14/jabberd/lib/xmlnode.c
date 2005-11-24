@@ -701,6 +701,12 @@ char* xmlnode_get_name(xmlnode node) {
     return NULL;
 }
 
+/**
+ * return the text inside the element given as node
+ *
+ * @param node the node to search for text nodes inside
+ * @return the text contained in the node
+ */
 char* xmlnode_get_data(xmlnode node) {
     if (xmlnode_get_type(node) == NTYPE_TAG) /* loop till we find a CDATA in the children */
         for (node = xmlnode_get_firstchild(node); node != NULL; node = xmlnode_get_nextsibling(node))
