@@ -150,76 +150,77 @@ mreturn mod_register_new(mapi m, void *arg)
  * @param arg unused/ignored
  * @return M_IGNORE if stanza is not of type iq, M_PASS if stanza has not been handled, M_HANDLED if stanza has been handled
  */
-mreturn mod_register_server(mapi m, void *arg)
-{
+mreturn mod_register_server(mapi m, void *arg) {
     xmlnode reg, cur, check;
 
     /* pre-requisites */
-    if(m->packet->type != JPACKET_IQ) return M_IGNORE;
-    if(!NSCHECK(m->packet->iq,NS_REGISTER)) return M_PASS;
-    if(m->user == NULL) return M_PASS;
-    if(js_config(m->si,"register") == NULL) return M_PASS;
+    if (m->packet->type != JPACKET_IQ)
+	return M_IGNORE;
+    if (!NSCHECK(m->packet->iq,NS_REGISTER))
+	return M_PASS;
+    if (m->user == NULL)
+	return M_PASS;
 
     log_debug2(ZONE, LOGT_AUTH, "updating server: %s, user %s", m->user->id->server, jid_full(m->user->id));
 
     /* check for their registration */
     reg =  xdb_get(m->si->xc, m->user->id, NS_REGISTER);
 
-    switch(jpacket_subtype(m->packet))
-    {
-    case JPACKET__GET:
-        /* create reply to the get */
-        xmlnode_put_attrib(m->packet->x,"type","result");
-        jutil_tofrom(m->packet->x);
+    switch (jpacket_subtype(m->packet)) {
+	case JPACKET__GET:
+	    /* create reply to the get */
+	    xmlnode_put_attrib(m->packet->x,"type","result");
+	    jutil_tofrom(m->packet->x);
 
-        /* copy in the registration fields from the config file */
-        xmlnode_insert_node(m->packet->iq,xmlnode_get_firstchild(js_config(m->si,"register")));
+	    /* copy in the registration fields from the config file */
+	    xmlnode_insert_node(m->packet->iq,xmlnode_get_firstchild(js_config(m->si,"register")));
 
 #ifdef INCLUDE_LEGACY
-        /* insert the key, we don't need to check it, but we'll send it :) */
-        xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"key"),jutil_regkey(NULL,"foobar"),-1);
+	    /* insert the key, we don't need to check it, but we'll send it :) */
+	    xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"key"),jutil_regkey(NULL,"foobar"),-1);
 #endif
 
-        /* replace fields with already-registered ones */
-        for(cur = xmlnode_get_firstchild(m->packet->iq); cur != NULL; cur = xmlnode_get_nextsibling(cur))
-        {
-            if(xmlnode_get_type(cur) != NTYPE_TAG) continue;
+	    /* replace fields with already-registered ones */
+	    for (cur = xmlnode_get_firstchild(m->packet->iq); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
+		if (xmlnode_get_type(cur) != NTYPE_TAG)
+		    continue;
 
-            check = xmlnode_get_tag(reg,xmlnode_get_name(cur));
-            if(check == NULL) continue;
+		check = xmlnode_get_tag(reg,xmlnode_get_name(cur));
+		if (check == NULL)
+		    continue;
 
-            xmlnode_insert_node(cur,xmlnode_get_firstchild(check));
-        }
+		xmlnode_insert_node(cur,xmlnode_get_firstchild(check));
+	    }
 
-        /* add the registered flag */
-        xmlnode_insert_tag(m->packet->iq,"registered");
+	    /* add the registered flag */
+	    xmlnode_insert_tag(m->packet->iq,"registered");
 
-        break;
+	    break;
 
-    case JPACKET__SET:
-        if(xmlnode_get_tag(m->packet->iq,"remove") != NULL) {
-	    xmlnode roster, cur;
+	case JPACKET__SET:
+	    if (xmlnode_get_tag(m->packet->iq,"remove") != NULL) {
+		xmlnode roster, cur;
 	    
-            log_notice(m->user->id->server,"User Unregistered: %s",m->user->user);
+		log_notice(m->user->id->server,"User Unregistered: %s",m->user->user);
 
-	    /* let the modules remove their data for this user */
-	    js_user_delete(m->si, m->user->id);
-        } else {
-            log_debug2(ZONE, LOGT_ROSTER, "updating registration for %s",jid_full(m->user->id));
+		/* let the modules remove their data for this user */
+		js_user_delete(m->si, m->user->id);
+	    } else {
+		log_debug2(ZONE, LOGT_ROSTER, "updating registration for %s",jid_full(m->user->id));
 
-            /* update the registration data */
-            xmlnode_hide(xmlnode_get_tag(m->packet->iq,"username")); /* hide the username/password from the reg db */
-            xmlnode_hide(xmlnode_get_tag(m->packet->iq,"password"));
-            jutil_delay(m->packet->iq,"updated");
-            xdb_set(m->si->xc, m->user->id, NS_REGISTER, m->packet->iq);
-        }
-        /* clean up and respond */
-        jutil_iqresult(m->packet->x);
-        break;
+		/* update the registration data */
+		xmlnode_hide(xmlnode_get_tag(m->packet->iq,"username")); /* hide the username/password from the reg db */
+		xmlnode_hide(xmlnode_get_tag(m->packet->iq,"password"));
+		jutil_delay(m->packet->iq,"updated");
+		xdb_set(m->si->xc, m->user->id, NS_REGISTER, m->packet->iq);
+	    }
+	    /* clean up and respond */
+	    jutil_iqresult(m->packet->x);
+	    break;
 
-    default:
-        xmlnode_free(reg);
-        return M_PASS;
+	default:
+	    xmlnode_free(reg);
+	    return M_PASS;
     }
 
     xmlnode_free(reg);

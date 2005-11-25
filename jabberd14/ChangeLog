@@ -1,6 +1,8 @@
 2005-11-25  Matthias Wimmer  <m@tthias.net>
 
     * xdb_sql/xdb_sql.c: allow to execute an SQL statement on db (re)connect
+    * jsm/modules/mod_register.c: allow changing password, and deleting
+	accounts even when registering accounts is disabled
 
 2005-11-23  Matthias Wimmer  <m@tthias.net>
 
