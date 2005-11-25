@@ -72,6 +72,7 @@
  */
 typedef struct xdbsql_struct {
     xht		namespace_defs;		/**< definitions of queries for the different namespaces */
+    char	*onconnect;		/**< SQL query that should be executed after we connected to the database server */
 #ifdef HAVE_MYSQL
     int		use_mysql;		/**< if we want to use the mysql driver */
     MYSQL	*mysql;			/**< our database handle */
@@ -111,6 +112,8 @@ void xdb_sql_mysql_connect(instance i, xdbsql xq) {
     /* connect to the database */
     if (mysql_real_connect(xq->mysql, xq->mysql_host, xq->mysql_user, xq->mysql_password, xq->mysql_database, xq->mysql_port, xq->mysql_socket, xq->mysql_flag) == NULL) {
 	log_error(i->id, "failed to connect to mysql server: %s", mysql_error(xq->mysql));
+    } else {
+	xdb_sql_execute(i, xq, xq->onconnect, NULL, NULL);
     }
 #else
     log_debug2(ZONE, LOGT_STRANGE, "xdb_sql_mysql_connect called, but not compiled in.");
@@ -371,6 +374,8 @@ int xdb_sql_execute_postgresql(instance i, xdbsql xq, char *query, xmlnode templ
 	if (PQstatus(xq->postgresql) != CONNECTION_OK) {
 	    log_error(i->id, "cannot reset connection: %s", PQerrorMessage(xq->postgresql));
 	    return 1;
+	} else {
+	    xdb_sql_execute(i, xq, xq->onconnect, NULL, NULL);
 	}
     }
 
@@ -675,6 +680,8 @@ void xdb_sql_postgresql_init(instance i, xdbsql xq, xmlnode config) {
     /* did we connect? */
     if (PQstatus(xq->postgresql) != CONNECTION_OK) {
 	log_error(i->id, "failed to connect to postgresql server: %s", PQerrorMessage(xq->postgresql));
+    } else {
+	xdb_sql_execute(i, xq, xq->onconnect, NULL, NULL);
     }
 #else
     log_debug2(ZONE, LOGT_STRANGE, "xdb_sql_postgresql_init called, but not compiled in.");
@@ -835,6 +842,9 @@ void xdb_sql(instance i, xmlnode x) {
     /* create our internal data */
     xq = pmalloco(i->p, sizeof(_xdbsql));
     xq->namespace_defs = xhash_new(j_atoi(xmlnode_get_tag_data(config, "maxns"), XDBSQL_MAXNS_PRIME));
+
+    /* check if we have to execute an XML query after we connected to the database server */
+    xq->onconnect = xmlnode_get_tag_data(config, "onconnect");
 
     /* use which driver? */
     driver = xmlnode_get_tag_data(config, "driver");

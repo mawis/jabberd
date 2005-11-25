@@ -21,6 +21,10 @@ Changes in administration of the server
     * Jabberd14 now supports SASL EXTERNAL authentication using TLS
       certificates on s2s links.
     * Jabberd14 now supports using GNU TLS as an alternative to OpenSSL.
+    * xdb_sql can be configured to execute an SQL query just after a
+      connection to the database server has been established or reestablished.
+      This is useful for example if you are using MySQL 4.1+ and want to
+      set your used charset ("SET NAMES utf8").
 
 Changes in features visible to the user
     * Support for Flexible Offline Message Retrieval (JEP-0013)

@@ -461,6 +461,10 @@
       <postgresql>
         <conninfo>user=jabber password=secret</conninfo>
       </postgresql>
+      <!-- You might want to use this with MySQL 4.1+ -->
+      <!--
+      <onconnect>SET NAMES utf8</onconnect>
+      -->
       <handler ns="jabber:iq:auth">
          <get>
 	   <query>SELECT password FROM users WHERE jid='{attribute::to}'</query>
