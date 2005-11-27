@@ -139,8 +139,7 @@ void base_connect_process_xml(mio m, int state, void* arg, xmlnode x)
             log_debug2(ZONE, LOGT_IO, "base_connecting: %X, %X, %s", ci, ci->inst, ci->inst->id); 
 
             cur = xstream_header(ci->inst->id, NULL);
-            mio_write(m, NULL, xstream_header_char(cur, 2), -1);
-            xmlnode_free(cur);
+	    mio_write_root(m, cur, 2);
 
             return;
 

@@ -1,3 +1,16 @@
+2005-11-27  Matthias Wimmer  <m@tthias.net>
+
+    * dialback/dialback.c: namespace handling updates
+    * dialback/dialback_in.c: same
+    * dialback/dialback_out.c: same
+    * jabberd/jabberd.h: same
+    * jabberd/mio.c: same
+    * jabberd/base/base_accept.c: same
+    * jabberd/base/base_connect.c: same
+    * jabberd/lib/xmlnode.c: same
+    * jabberd/lib/jabberdlib.h: same
+    * pthsock/client.c: same
+
 2005-11-26  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/base/base_dynamic.c: removed base_dynamic and base_exec handlers

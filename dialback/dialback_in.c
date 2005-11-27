@@ -326,7 +326,7 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
         xmlnode_put_attrib(xmlnode_insert_tag_node(c->results, x),"key",jid_full(key));
 
         /* send the verify back to them, on another outgoing trusted socket, via deliver (so it is real and goes through dnsrv and anything else) */
-        x2 = xmlnode_new_tag_pool(xmlnode_pool(x),"db:verify");
+        x2 = xmlnode_new_tag_pool_ns(xmlnode_pool(x),"verify", "db", NS_DIALBACK);
         xmlnode_put_attrib(x2,"to",xmlnode_get_attrib(x,"from"));
         xmlnode_put_attrib(x2,"ofrom",xmlnode_get_attrib(x,"to"));
         xmlnode_put_attrib(x2,"from",c->d->i->id); /* so bounces come back to us to get tracked */
@@ -409,7 +409,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
 	jid key = NULL;
 
         key = jid_new(xmlnode_pool(x), we_domain);
-        mio_write(m,NULL, xstream_header_char(xstream_header(other_domain, jid_full(key)),0), -1);
+	mio_write_root(m, xstream_header(other_domain, jid_full(key)), 0);
         mio_write(m, NULL, "<stream:error><unsupported-version xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>We are configured to not support preXMPP connections.</text></stream:error>", -1);
         mio_close(m);
         xmlnode_free(x);
@@ -422,7 +422,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:server") != 0) {
 	jid key = NULL;
         key = jid_new(xmlnode_pool(x), we_domain);
-        mio_write(m,NULL, xstream_header_char(xstream_header(other_domain, jid_full(key)), 0), -1);
+	mio_write_root(m, xstream_header(other_domain, jid_full(key)), 0);
         mio_write(m, NULL, "<stream:error><bad-namespace-prefix xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Invalid Stream Header!</text></stream:error>", -1);
         mio_close(m);
         xmlnode_free(x);
@@ -434,7 +434,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     {
 	jid key = NULL;
         key = jid_new(xmlnode_pool(x), we_domain);
-        mio_write(m,NULL, xstream_header_char(xstream_header(other_domain, jid_full(key)), 0), -1);
+	mio_write_root(m, xstream_header(other_domain, jid_full(key)), 0);
         mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Legacy Access Denied!</text></stream:error>", -1);
         mio_close(m);
         xmlnode_free(x);
@@ -443,6 +443,9 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
 
     /* no support for dialback and we won't be able to offer SASL to this host? */
     if (dbns == NULL && !can_do_sasl_external && m->authed_other_side==NULL) {
+	jid key = NULL;
+        key = jid_new(xmlnode_pool(x), we_domain);
+	mio_write_root(m, xstream_header(other_domain, jid_full(key)), 0);
 	mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>It seems you do not support dialback, and we cannot validate your TLS certificate. No authentication is possible. We are sorry.</text></stream:error>", -1);
 	mio_close(m);
 	xmlnode_free(x);
@@ -451,6 +454,9 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
 
     /* check namespaces */
     if (j_strcmp(dbns, NS_DIALBACK) != 0) {
+	jid key = NULL;
+        key = jid_new(xmlnode_pool(x), we_domain);
+	mio_write_root(m, xstream_header(other_domain, jid_full(key)), 0);
 	mio_write(m, NULL, "<stream:error><invalid-namespace xmlns='urn:ietf:params:xml:ns:xmpp-streams'><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Sorry, but don't you think, that xmlns:db should declare the namespace jabber:server:dialback?</text></stream:error>", -1);
 	mio_close(m);
 	xmlnode_free(x);
@@ -478,8 +484,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
 	xmlnode_put_attrib(x2, "version", "1.0");	/* flag us as XMPP capable */
     }
     xmlnode_put_attrib(x2,"id",c->id); /* send random id as a challenge */
-    mio_write(m,NULL, xstream_header_char(x2, 0), -1);
-    xmlnode_free(x2);
+    mio_write_root(m, x2, 0);
     xmlnode_free(x);
 
     /* reset to a dialback packet reader */
@@ -562,7 +567,7 @@ void dialback_in_verify(db d, xmlnode x)
     type = xmlnode_get_attrib(x, "type");
 
     /* rewrite the result */
-    x2 = xmlnode_new_tag_pool(xmlnode_pool(x),"db:result");
+    x2 = xmlnode_new_tag_pool_ns(xmlnode_pool(x),"result", "db", NS_DIALBACK);
     xmlnode_put_attrib(x2,"to",xmlnode_get_attrib(x,"from"));
     xmlnode_put_attrib(x2,"from",xmlnode_get_attrib(x,"to"));
     xmlnode_put_attrib(x2,"type", type != NULL ? type : "invalid");
