@@ -1244,17 +1244,17 @@ void mio_close(mio m) {
 }
 
 /** 
- * writes a str, or xmlnode to the client socket
+ * writes a str, or XML stanza to the client socket
  *
  * You can only write the xmlnode OR the buffer to the mio. If the buffer argument is not equal to NULL,
  * the buffer is used and the xmlnode is ignored.
  *
  * @param m the ::mio to write the data to
- * @param x ::xmlnode containing the data, that should be written (gets freed after the data has been written)
+ * @param x ::xmlnode containing the stanza, that should be written to a stream (gets freed after the data has been written)
  * @param buffer pointer to a buffer of characters, that should be written to the connection
  * @param len number of bytes contained in the buffer, that should be written (-1 to write a zero terminated string contained in the buffer)
  */
-void mio_write(mio m, xmlnode x, char *buffer, int len) {
+void mio_write(mio m, xmlnode stanza, char *buffer, int len) {
     mio_wbq new;
     pool p;
 
@@ -1262,14 +1262,14 @@ void mio_write(mio m, xmlnode x, char *buffer, int len) {
         return;
 
     /* if there is nothing to write */
-    if (x == NULL && buffer == NULL) {
+    if (stanza == NULL && buffer == NULL) {
         log_debug2("mio", LOGT_IO|LOGT_STRANGE, "[%s] mio_write called without x or buffer", ZONE);
         return;
     }
 
     /* create the pool for this wbq */
-    if (x != NULL)
-        p = xmlnode_pool(x);
+    if (stanza != NULL)
+        p = xmlnode_pool(stanza);
     else
         p = pool_new();
 
@@ -1295,8 +1295,12 @@ void mio_write(mio m, xmlnode x, char *buffer, int len) {
             memcpy(new->data,buffer,len);
         }
     } else {
+	ns_list_item first = NULL;
+	ns_list_item last = NULL;
+
         new->type = queue_XMLNODE;
-        if ((new->data = xmlnode2str(x)) == NULL) {
+	xmlnode_copy_decl_list(p, m->first_ns, &first, &last);
+        if ((new->data = xmlnode_serialize_string(stanza, first, last, 0)) == NULL) {
             pool_free(p);
             return;
         }
@@ -1309,7 +1313,7 @@ void mio_write(mio m, xmlnode x, char *buffer, int len) {
     }
 
     /* assign values */
-    new->x    = x;
+    new->x    = stanza;
     new->cur  = new->data;
 
     new->len = len;
@@ -1321,7 +1325,7 @@ void mio_write(mio m, xmlnode x, char *buffer, int len) {
         m->tail->next = new;
     m->tail = new;
 
-    log_debug2(ZONE, LOGT_IO, "mio_write called on x: %X buffer: %.*s", x, len, buffer);
+    log_debug2(ZONE, LOGT_IO, "mio_write called on stanza: %X buffer: %.*s", stanza, len, buffer);
     /* notify the select loop that a packet needs writing */
     if (mio__data != NULL) {
 	log_debug2(ZONE, LOGT_EXECFLOW, "sending zzz notify to the select loop in mio_write()");
@@ -1332,6 +1336,25 @@ void mio_write(mio m, xmlnode x, char *buffer, int len) {
 	    log_debug2(ZONE, LOGT_EXECFLOW, "notify sent");
 	}
     }
+}
+
+/**
+ * write the start tag for the root element to a stream
+ *
+ * @param m the mio of the stream where to write the start tag for the root element to
+ * @param root the root element (freed by this function)
+ * @param stream_type type of stream: 0 for 'jabber:server', 1 for 'jabber:client', 2 for 'jabber:component:accept'
+ */
+void mio_write_root(mio m, xmlnode root, int stream_type) {
+    char *serialized_root = NULL;
+
+    serialized_root = xstream_header_char(root, stream_type);
+    mio_write(m, NULL, serialized_root, -1);
+
+    /* remember namespaces */
+    xmlnode_get_decl_list(m->p, root, &(m->first_ns), &(m->last_ns));
+
+    xmlnode_free(root);
 }
 
 /**
@@ -1377,7 +1400,18 @@ void mio_rate(mio m, int rate_time, int max_points) {
 }
 
 /**
- * pops the last xmlnode from the queue 
+ * pops the last xmlnode from the queue
+ *
+ * This function removes the last xmlnode from a write queue. This is normally used to get unsent stanzas
+ * from the queue in case of an error happens and the stanzas cannot be delivered.
+ *
+ * The returned xmlnodes have to be freed by the caller.
+ *
+ * Elements in the write queue, that have no xmlnode attached, but are just character data are
+ * deleted by this function and the memory associated with these items is freed by mio_cleanup().
+ *
+ * @param m the mio stream to get the last xmlnode stanza in the write queue for.
+ * @return last stanza item in the write queue (has to be freed by the caller), or NULL if no further stanzas
  */
 xmlnode mio_cleanup(mio m) {
     mio_wbq     cur;

@@ -360,6 +360,9 @@ typedef struct mio_st {
     uint16_t our_port;			/**< port of us */
     char *connect_errmsg;		/**< error message on failed connects (don't free messages) */
     char *authed_other_side;		/**< if the other side of the stream is authenticated, the identity can be placed here */
+
+    ns_list_item first_ns;		/**< pointer to the first element in list of declared namespaces on the stream root element */
+    ns_list_item last_ns;		/**< pointer to the last element in list of declared namespaces on the stream root element */
 } *mio, _mio;
 
 /**
@@ -455,38 +458,41 @@ typedef void (*mio_xml_cb)(mio m, int state, void *arg, xmlnode x);
 typedef void (*mio_raw_cb)(mio m, int state, void *arg, char *buffer,int bufsz);
 typedef void (*mio_ssl_cb)(mio m, int state, void *arg, char *buffer,int bufsz);
 
-/** Initializes the MIO subsystem */
+/* Initializes the MIO subsystem */
 void mio_init(void);
 
-/** Stops the MIO system */
+/* Stops the MIO system */
 void mio_stop(void);
 
-/** Create a new mio object from a file descriptor */
+/* Create a new mio object from a file descriptor */
 mio mio_new(int fd, void *cb, void *cb_arg, mio_handlers mh);
 
-/** Reset the callback and argument for an mio object */
+/* Reset the callback and argument for an mio object */
 void mio_reset(mio m, void *cb, void *arg);
 
-/** Request the mio socket be closed */
+/* Request the mio socket be closed */
 void mio_close(mio m);
 
-/** Writes an xmlnode to the socket */
-void mio_write(mio m,xmlnode x, char *buffer, int len);
+/* Writes an xmlnode to the socket */
+void mio_write(mio m, xmlnode stanza, char *buffer, int len);
 
-/** Sets the karma values for a socket */
+/* write the root element to a mio stream */
+void mio_write_root(mio m, xmlnode root, int stream_type);
+
+/* Sets the karma values for a socket */
 void mio_karma(mio m, int val, int max, int inc, int dec, int penalty, int restore);
 void mio_karma2(mio m, struct karma *k);
 
-/** Sets connection based rate limits */
+/* Sets connection based rate limits */
 void mio_rate(mio m, int rate_time, int max_points);
 
-/** Pops the next xmlnode from the queue, or NULL if no more nodes */
+/* Pops the next xmlnode from the queue, or NULL if no more nodes */
 xmlnode mio_cleanup(mio m);
 
-/** Connects to an ip */
+/* Connects to an ip */
 void mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_handlers mh);
 
-/** Starts listening on a port/ip, returns NULL if failed to listen */
+/* Starts listening on a port/ip, returns NULL if failed to listen */
 mio mio_listen(int port, char *sourceip, void *cb, void *cb_arg, mio_handlers mh);
 
 /* some nice api utilities */
