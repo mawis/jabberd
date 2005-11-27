@@ -141,8 +141,7 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
             cur = xstream_header(NULL, ai->i->id);
             /* Save stream ID for auth'ing later */
             ai->id = pstrdup(ai->p, xmlnode_get_attrib(cur, "id"));
-            mio_write(m, NULL, xstream_header_char(cur, 2), -1);
-            xmlnode_free(cur);
+	    mio_write_root(m, cur, 2);
             break;
 
         case MIO_XML_NODE:

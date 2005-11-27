@@ -216,7 +216,7 @@ dboc dialback_out_connection(db d, jid key, char *ip, db_request db_state) {
 		c->db_state = want_request;
 	    } else if (c->db_state == could_request) {
 		/* send <db:result/> to request dialback */
-		xmlnode db_result = xmlnode_new_tag("db:result");
+		xmlnode db_result = xmlnode_new_tag_ns("result", "db", NS_DIALBACK);
 		xmlnode_put_attrib(db_result, "to", c->key->server);
 		xmlnode_put_attrib(db_result, "from", c->key->resource);
 		xmlnode_insert_cdata(db_result,  dialback_merlin(xmlnode_pool(db_result), c->d->secret, c->key->server, c->stream_id), -1);
@@ -586,8 +586,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 		/* we flag support for XMPP 1.0 */
 		xmlnode_put_attrib(cur, "version", "1.0");
 	    }
-	    mio_write(m, NULL, xstream_header_char(cur, 0), -1);
-	    xmlnode_free(cur);
+	    mio_write_root(m, cur, 0);
 	    return;
 
 	case MIO_XML_ROOT:
@@ -658,7 +657,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 		log_debug2(ZONE, LOGT_IO, "pre-XMPP stream could now send <db:result/>");
 		if (c->db_state == want_request) {
 		    /* send db request */
-		    cur = xmlnode_new_tag("db:result");
+		    cur = xmlnode_new_tag_ns("result", "db", NS_DIALBACK);
 		    xmlnode_put_attrib(cur, "to", c->key->server);
 		    xmlnode_put_attrib(cur, "from", c->key->resource);
 		    xmlnode_insert_cdata(cur,  dialback_merlin(xmlnode_pool(cur), c->d->secret, c->key->server, c->stream_id), -1);
@@ -817,7 +816,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 		log_debug2(ZONE, LOGT_IO, "XMPP-stream: we could now send <db:result/>s");
 		if (c->db_state == want_request) {
 		    /* send the dialback query */
-		    cur = xmlnode_new_tag("db:result");
+		    cur = xmlnode_new_tag_ns("result", "db", NS_DIALBACK);
 		    xmlnode_put_attrib(cur, "to", c->key->server);
 		    xmlnode_put_attrib(cur, "from", c->key->resource);
 		    xmlnode_insert_cdata(cur,  dialback_merlin(xmlnode_pool(cur), c->d->secret, c->key->server, c->stream_id), -1);
