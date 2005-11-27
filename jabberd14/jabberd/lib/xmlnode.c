@@ -1013,7 +1013,8 @@ xmlnode xmlnode_get_parent(xmlnode node) {
  * get the name of a node
  *
  * @deprecated This function mimics the jabberd 1.4.x xmlnode_get_name() where the name including the prefix is returned.
- * You probably do not want to use this in a namespace aware application.
+ * You probably do not want to use this in a namespace aware application. You might want to use xmlnode_get_localname(),
+ * and xmlnode_get_namespace() instead.
  *
  * @param node the node to get the name for
  * @return name of the node
@@ -1026,6 +1027,31 @@ char* xmlnode_get_name(xmlnode node) {
 	return node->name;
 
     return spools(node->p, node->prefix, ":", node->name, node->p);
+}
+
+/**
+ * get the local name of a node
+ *
+ * @param node the node to get the local name for
+ * @return the local name of the node
+ */
+const char* xmlnode_get_localname(xmlnode node) {
+    if (node == NULL)
+	return NULL;
+
+    return node->name;
+}
+
+/**
+ * get the namespace IRI of a node
+ *
+ * @param node the node to get the namespace IRI for
+ * @return namespace IRI of the node
+ */
+const char* xmlnode_get_namespace(xmlnode node) {
+    if (node == NULL)
+	return NULL;
+    return node->ns_iri;
 }
 
 /**
@@ -1425,4 +1451,58 @@ void xmlnode_update_decl_list(pool p, ns_list_item *first_item_ptr, ns_list_item
     *last_item_ptr = new_item;
 }
 
+/**
+ * copy a list of declared namespaces
+ *
+ * @param p Memory pool used to allocate memory for the copy of the list
+ * @param first where to start copying
+ * @param copy_first pointer to a ::ns_list_item variable, where the pointer to the first element of the copy will be stored
+ * @param copy_last pointer to a ::ns_list_item variable, where the pointer to the last element of the copy will be stored
+ */
+void	 xmlnode_copy_decl_list(pool p, ns_list_item first, ns_list_item *copy_first, ns_list_item *copy_last) {
+    ns_list_item iter = NULL;
 
+    /* at the beginning there was nothing */
+    *copy_first = NULL;
+    *copy_last = NULL;
+
+    /* copy the items */
+    for (iter = first; iter != NULL; iter = iter->next) {
+    	xmlnode_update_decl_list(p, copy_first, copy_last, iter->prefix, iter->ns_iri);
+    }
+}
+
+/**
+ * get the list of declared namespaces from an xmlnode
+ *
+ * @param p memory pool used to allocate memory for the list
+ * @param node xmlnode to get the declared namespaces from
+ * @param first_ns pointer to where a pointer to the first entry should be stored
+ * @param last_ns pointer to where a pointer to the last entry should be stored
+ */
+void xmlnode_get_decl_list(pool p, xmlnode node, ns_list_item *first_ns, ns_list_item *last_ns) {
+    xmlnode iter = NULL;
+
+    /* sanity checks */
+    if (p == NULL || node == NULL || first_ns == NULL || last_ns == NULL) {
+	return;
+    }
+
+    /* start with an empty list */
+    *first_ns = NULL;
+    *last_ns = NULL;
+
+    /* iterate on attributes to get namespaces */
+    for (iter = xmlnode_get_firstattrib(node); iter != NULL; iter = xmlnode_get_nextsibling(iter)) {
+	if (j_strcmp(xmlnode_get_namespace(iter), NS_XMLNS) != 0) {
+	    /* not a namespace declaration */
+	    continue;
+	}
+
+	/* declaring default namespace? */
+	if (iter->prefix == NULL)
+	    xmlnode_update_decl_list(p, first_ns, last_ns, NULL, pstrdup(p, xmlnode_get_data(iter)));
+	else
+	    xmlnode_update_decl_list(p, first_ns, last_ns, pstrdup(p, xmlnode_get_localname(iter)), pstrdup(p, xmlnode_get_data(iter)));
+    }
+}

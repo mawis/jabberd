@@ -405,6 +405,8 @@ xmlnode  xmlnode_get_parent(xmlnode node);
 char*    xmlnode_get_name(xmlnode node);
 char*    xmlnode_get_data(xmlnode node);
 int      xmlnode_get_type(xmlnode node);
+const char* xmlnode_get_localname(xmlnode node);
+const char* xmlnode_get_namespace(xmlnode node);
 
 int      xmlnode_has_children(xmlnode node);
 
@@ -415,6 +417,8 @@ char*	 xmlnode_serialize_string(xmlnode node, ns_list_item nslist_first, ns_list
 int      xmlnode2file(char *file, xmlnode node); /* writes node to file */
 int	 xmlnode2file_limited(char *file, xmlnode node, size_t sizelimit);
 void	 xmlnode_update_decl_list(pool p, ns_list_item *first_item_ptr, ns_list_item *last_item_ptr, const char *prefix, const char *ns_iri);
+void	 xmlnode_copy_decl_list(pool p, ns_list_item first, ns_list_item *copy_first, ns_list_item *copy_last);
+void	 xmlnode_get_decl_list(pool p, xmlnode node, ns_list_item *first_ns, ns_list_item *last_ns);
 
 /* Expat callbacks */
 void expat_startElement(void* userdata, const char* name, const char** atts);

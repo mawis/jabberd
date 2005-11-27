@@ -368,8 +368,7 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
 	if (version>=1) {
 	    xmlnode_put_attrib(h, "version", "1.0");
 	}
-        mio_write(m, NULL, xstream_header_char(h, 1), -1);
-        xmlnode_free(h);
+	mio_write_root(m, h, 1);
 
 	/* Check the default namespace of the stream, as xmlnode is mapping 'jabber:client' to 'jabber:server', we're checking for the later */
         if(j_strcmp(xmlnode_get_attrib(x, "xmlns"), NS_SERVER) != 0) {
