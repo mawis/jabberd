@@ -60,7 +60,7 @@
 
       <!-- The server vCard -->
 
-      <vCard>
+      <vCard xmlns='vcard-temp'>
         <FN>Jabber Server</FN>
         <DESC>A Jabber Server!</DESC>
         <URL>http://localhost/</URL>
@@ -73,7 +73,7 @@
       attribute is present.
       -->
 
-      <register notify="yes">
+      <register notify="yes" xmlns='jabber:iq:register'>
         <instructions>Choose a username and password to register with this server.</instructions>
         <name/>
         <email/>
@@ -87,7 +87,7 @@
       elements with xml:lang='languagecode'
       -->
 
-      <welcome xml:lang='en'>
+      <welcome xml:lang='en' xmlns='jabber:server'>
         <subject>Welcome!</subject>
         <body>Welcome to the Jabber server at localhost -- we hope you enjoy this service! For information about how to use Jabber, visit the Jabber User's Guide at http://jabbermanual.jabberstudio.org/</body>
       </welcome>
@@ -128,7 +128,7 @@
         <read>support@localhost</read>
         <write>admin@localhost</write>
 	<write-only>admin2@localhost</write-only>
-        <reply xml:lang='en'>
+        <reply xml:lang='en' xmlns='jabber:server'>
           <subject>Auto Reply</subject>
           <body>This is a special administrative address.  Your message was received and forwarded to server administrators.</body>
         </reply>
@@ -156,7 +156,7 @@
       for building the disco#items reply.
       -->
 
-      <browse>
+      <browse xmlns='jabber:iq:browse'>
 
         <!-- 
         This is the default agent for the master Jabber User 
@@ -198,7 +198,7 @@
       "Jabber Browsing" (JEP-0011).
       The <disco/> section is used for building the disco#info reply.
       -->
-      <disco>
+      <disco xmlns='http://jabber.org/protocol/disco#info'>
         <identity category='services' type='jabber' name='Jabber 1.4 Server'/>
         <feature var='jabber:iq:browse'/>
         <feature var='jabber:iq:agents'/>
@@ -436,6 +436,10 @@
 
   In README.sql you will also find how to create the tables that can
   be used together with these examples.
+
+  For MySQL 4.1+ you might want to set the charset on connection.
+  Add <onconnect>SET NAMES utf8</onconnect> to the configuration
+  anywhere as the child of the <xdb_sql/> element in the configuration.
   -->
   <!--
   <xdb id="xdbsql">
@@ -461,10 +465,6 @@
       <postgresql>
         <conninfo>user=jabber password=secret</conninfo>
       </postgresql>
-      <!-- You might want to use this with MySQL 4.1+ -->
-      <!--
-      <onconnect>SET NAMES utf8</onconnect>
-      -->
       <handler ns="jabber:iq:auth">
          <get>
 	   <query>SELECT password FROM users WHERE jid='{attribute::to}'</query>

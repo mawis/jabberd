@@ -132,8 +132,8 @@ void *base_stdoutin(void *arg)
     log_debug2(ZONE, LOGT_IO|LOGT_THREAD, "io thread starting");
 
     /* send the header to stdout */
-    x = xstream_header("jabber:component:exec",NULL,NULL);
-    block = xstream_header_char(x);
+    x = xstream_header(NULL,NULL);
+    block = xstream_header_char(x, 0);
     MIO_WRITE_FUNC(STDOUT_FILENO,block,strlen(block));
     xmlnode_free(x);
 
