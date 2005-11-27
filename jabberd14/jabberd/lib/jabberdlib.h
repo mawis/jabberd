@@ -314,15 +314,19 @@ char *spools(pool p, ...); /* wrap all the spooler stuff in one function, the ha
 #define NTYPE_LAST   2	/**< highest possible value of xmlnode types */
 #define NTYPE_UNDEF  -1	/**< xmlnode has no defined type */
 
+#define XMLNS_SEPARATOR ' '	/**< character used to separate NS IRI from local name in expat callbacks */
+
 /* -------------------------------------------------------------------------- 
    Node structure. Do not use directly! Always use accessor macros 
    and methods!
    -------------------------------------------------------------------------- */
 typedef struct xmlnode_t {
-     char*               name;		/**< name of the xmlnode */
-     unsigned short      type;		/**< type of the xmlnode, one of ::NTYPE_TAG, ::NTYPE_ATTRIB, ::NTYPE_CDATA, or ::NTYPE_UNDEF */
-     char*               data;		/**< data of the xmlnode, for attributes this is the value, for text nodes this is the text */
-     int                 data_sz;	/**< length of the data in the xmlnode */
+     char*              name;		/**< local name of the xmlnode */
+     char*		prefix;		/**< namespace prefix for this xmlnode */
+     char*		ns_iri;		/**< namespace IRI for this xmlnode */
+     unsigned short     type;		/**< type of the xmlnode, one of ::NTYPE_TAG, ::NTYPE_ATTRIB, ::NTYPE_CDATA, or ::NTYPE_UNDEF */
+     char*              data;		/**< data of the xmlnode, for attributes this is the value, for text nodes this is the text */
+     int                data_sz;	/**< length of the data in the xmlnode */
 /*     int                 complete; */
      pool               p;		/**< memory pool used by this xmlnode (the same as for all other xmlnode in a tree) */
      struct xmlnode_t*  parent;		/**< parent node for this node, or NULL for the root element */
@@ -334,11 +338,26 @@ typedef struct xmlnode_t {
      struct xmlnode_t*  lastattrib;	/**< last attribute node of this node */
 } _xmlnode, *xmlnode;
 
+/**
+ * a list of these elements is used for serializing ::xmlnode objects. It declares the namespaces, that do not need to be serialized,
+ * as they have been declared already by a parent element
+ */
+typedef struct ns_list_item_t {
+    struct ns_list_item_t*	prev;	/**< previous item in the list */
+    struct ns_list_item_t*	next;	/**< next item in the list */
+    const char*			prefix;	/**< declared namespace prefix */
+    const char*			ns_iri;	/**< the namespace IRI */
+} _ns_list_item, *ns_list_item;
+
 /* Node creation routines */
 xmlnode  xmlnode_wrap(xmlnode x,const char* wrapper);
+xmlnode  xmlnode_wrap_ns(xmlnode x,const char* name, const char *prefix, const char *ns_iri);
 xmlnode  xmlnode_new_tag(const char* name);
+xmlnode  xmlnode_new_tag_ns(const char* name, const char* prefix, const char *ns_iri);
 xmlnode  xmlnode_new_tag_pool(pool p, const char* name);
+xmlnode  xmlnode_new_tag_pool_ns(pool p, const char* name, const char* prefix, const char *ns_iri);
 xmlnode  xmlnode_insert_tag(xmlnode parent, const char* name); 
+xmlnode  xmlnode_insert_tag_ns(xmlnode parent, const char* name, const char *prefix, const char *ns_iri); 
 xmlnode  xmlnode_insert_cdata(xmlnode parent, const char* CDATA, unsigned int size);
 xmlnode  xmlnode_insert_tag_node(xmlnode parent, xmlnode node);
 void     xmlnode_insert_node(xmlnode parent, xmlnode node);
@@ -354,6 +373,7 @@ pool xmlnode_pool(xmlnode node);
 /* Node editing */
 void xmlnode_hide(xmlnode child);
 void xmlnode_hide_attrib(xmlnode parent, const char *name);
+void xmlnode_hide_attrib_ns(xmlnode parent, const char *name, const char *ns_iri);
 
 /* Node deletion routine, also frees the node pool! */
 void xmlnode_free(xmlnode node);
@@ -364,7 +384,9 @@ char* xmlnode_get_tag_data(xmlnode parent, const char* name);
 
 /* Attribute accessors */
 void     xmlnode_put_attrib(xmlnode owner, const char* name, const char* value);
+void     xmlnode_put_attrib_ns(xmlnode owner, const char* name, const char* prefix, const char *ns_iri, const char* value);
 char*    xmlnode_get_attrib(xmlnode owner, const char* name);
+char*    xmlnode_get_attrib_ns(xmlnode owner, const char* name, const char *ns_iri);
 void     xmlnode_put_expat_attribs(xmlnode owner, const char** atts);
 
 /* Bastard am I, but these are fun for internal use ;-) */
@@ -388,13 +410,11 @@ int      xmlnode_has_children(xmlnode node);
 
 /* Node-to-string translation */
 char*    xmlnode2str(xmlnode node);
-
-/* Node-to-terminated-string translation 
-   -- useful for interfacing w/ scripting langs */
-char*    xmlnode2tstr(xmlnode node);
+char*	 xmlnode_serialize_string(xmlnode node, ns_list_item nslist_first, ns_list_item nslist_last, int stream_type);
 
 int      xmlnode2file(char *file, xmlnode node); /* writes node to file */
 int	 xmlnode2file_limited(char *file, xmlnode node, size_t sizelimit);
+void	 xmlnode_update_decl_list(pool p, ns_list_item *first_item_ptr, ns_list_item *last_item_ptr, const char *prefix, const char *ns_iri);
 
 /* Expat callbacks */
 void expat_startElement(void* userdata, const char* name, const char** atts);
@@ -432,8 +452,8 @@ xstream xstream_new(pool p, xstream_onNode f, void *arg); /* create a new xstrea
 int xstream_eat(xstream xs, char *buff, int len); /* parse new data for this xstream, returns last XSTREAM_* status */
 
 /* convience functions */
-xmlnode xstream_header(const char *namespace, const char *to, const char *from);
-char *xstream_header_char(xmlnode x);
+xmlnode xstream_header(const char *to, const char *from);
+char *xstream_header_char(xmlnode x, int stream_type);
 
 /** error cause types for streams, see section 4.7.3 of RFC 3920 */
 typedef enum {
@@ -734,9 +754,11 @@ typedef struct xterror_struct
 /* --------------------------------------------------------- */
 #define NSCHECK(x,n) (j_strcmp(xmlnode_get_attrib(x,"xmlns"),n) == 0)
 
+#define NS_STREAM    "http://etherx.jabber.org/streams"
 #define NS_CLIENT    "jabber:client"
 #define NS_SERVER    "jabber:server"
 #define NS_DIALBACK  "jabber:server:dialback"
+#define NS_COMPONENT_ACCEPT "jabber:component:accept"
 #define NS_AUTH      "jabber:iq:auth"
 #define NS_AUTH_CRYPT "jabber:iq:auth:crypt"
 #define NS_REGISTER  "jabber:iq:register"
@@ -783,6 +805,9 @@ typedef struct xterror_struct
 #define NS_JABBERD_HISTORY "http://jabberd.org/ns/history"
 
 #define NS_SESSION "http://jabberd.jabberstudio.org/ns/session/1.0"
+
+#define NS_XMLNS "http://www.w3.org/2000/xmlns/"
+#define NS_XML "http://www.w3.org/XML/1998/namespace"
 
 
 /* --------------------------------------------------------- */

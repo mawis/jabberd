@@ -126,7 +126,7 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
     {
         case MIO_XML_ROOT:
             /* Ensure request namespace is correct... */
-            if (j_strcmp(xmlnode_get_attrib(x, "xmlns"), "jabber:component:accept") != 0)
+            if (j_strcmp(xmlnode_get_attrib(x, "xmlns"), NS_SERVER) != 0)
             {
                 /* Log that the connected component sent an invalid namespace */
                 log_warn(ai->i->id, "Recv'd invalid namespace. Closing connection.");
@@ -138,10 +138,10 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
             }
 
             /* Send header w/ proper namespace, using instance i */
-            cur = xstream_header("jabber:component:accept", NULL, ai->i->id);
+            cur = xstream_header(NULL, ai->i->id);
             /* Save stream ID for auth'ing later */
             ai->id = pstrdup(ai->p, xmlnode_get_attrib(cur, "id"));
-            mio_write(m, NULL, xstream_header_char(cur), -1);
+            mio_write(m, NULL, xstream_header_char(cur, 2), -1);
             xmlnode_free(cur);
             break;
 

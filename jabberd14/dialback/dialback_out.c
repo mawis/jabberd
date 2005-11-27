@@ -578,7 +578,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 	    }
 
 	    /* outgoing conneciton, write the header */
-	    cur = xstream_header("jabber:server", c->key->server, c->key->resource);
+	    cur = xstream_header(c->key->server, c->key->resource);
 	    xmlnode_hide_attrib(cur, "id");					/* no, we don't need the id on this stream */
 	    if (j_strcmp(xhash_get_by_domain(c->d->hosts_auth, c->key->server), "sasl") != 0)
 		xmlnode_put_attrib(cur,"xmlns:db", NS_DIALBACK);	/* flag ourselves as dialback capable */
@@ -586,7 +586,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x)
 		/* we flag support for XMPP 1.0 */
 		xmlnode_put_attrib(cur, "version", "1.0");
 	    }
-	    mio_write(m, NULL, xstream_header_char(cur), -1);
+	    mio_write(m, NULL, xstream_header_char(cur, 0), -1);
 	    xmlnode_free(cur);
 	    return;
 
