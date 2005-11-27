@@ -23,6 +23,24 @@ you have to configure jabberd14 to know which certification authorities
 you are trusting. This is done using the <cacertfile/> configuration
 element. An example is present in the default configuration file.
 
+The following base handlers have been removed from jabberd14: base_exec,
+and base_dynamic. These handlers have rarely been used, and this should not
+be a problem for you.
+
+Correct handling of namespaces has been introduced to jabberd14. This results
+in some modifications, that have to be made in the configuration file.
+Elements in there, that are copied to stanzas, that are sent to a stream,
+need to have the correct namespace in the configuration. This affects
+some of the elements in the session manager configuration. Up to version
+1.4.4 of jabberd14, these elements have incorrectly been declared in the
+'jabber:config:jsm' namespace. If you do not update these elements in the
+configuration file, they will be copied as elements in this namespace
+to the stream. While most clients at present would ignore these wrong
+namespaces, it still would be incorrect.
+Check for the following elements in the jabber.xml configuration file and
+update their namespace. For an example see the new jabber.xml.dist.
+<vCard/>, <register/>, <welcome/>, <reply/>, <browse/>, and <disco/>.
+
 Upgrading from 1.4.3(.1) to 1.4.4
 ---------------------------------
 

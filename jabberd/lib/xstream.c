@@ -224,12 +224,11 @@ int xstream_eat(xstream xs, char *buff, int len)
 
 /** give a standard template xmlnode to work from 
  *
- * @param namespace ("jabber:client", "jabber:server", ...)
  * @param to where the stream is sent to
  * @param from where we are (source of the stream)
  * @return the xmlnode that has been generated as the template
  */
-xmlnode xstream_header(const char *namespace, const char *to, const char *from) {
+xmlnode xstream_header(const char *to, const char *from) {
     xmlnode x;
     char id[41];
 
@@ -237,10 +236,9 @@ xmlnode xstream_header(const char *namespace, const char *to, const char *from) 
     shahash_r(id, id); /* don't let them see what our rand() returns */
 
     x = xmlnode_new_tag("stream:stream");
-    xmlnode_put_attrib(x, "xmlns:stream", "http://etherx.jabber.org/streams");
+    xmlnode_put_attrib(x, "xmlns:stream", NS_STREAM);
     xmlnode_put_attrib(x, "id", id);
-    if(namespace != NULL)
-        xmlnode_put_attrib(x, "xmlns", namespace);
+    xmlnode_put_attrib(x, "xmlns", NS_SERVER);
     if(to != NULL)
         xmlnode_put_attrib(x, "to", to);
     if(from != NULL)
@@ -255,9 +253,10 @@ xmlnode xstream_header(const char *namespace, const char *to, const char *from) 
  * @note NO CHILDREN ALLOWED
  *
  * @param x the xmlnode
+ * @param stream_type 0 for 'jabber:server', 1 for 'jabber:client', 2 for 'jabber:component:accept'
  * @return string representation of the start tag
  */
-char *xstream_header_char(xmlnode x) {
+char *xstream_header_char(xmlnode x, int stream_type) {
     spool s;
     char *fixr, *head;
 
@@ -267,7 +266,7 @@ char *xstream_header_char(xmlnode x) {
     }
 
     s = spool_new(xmlnode_pool(x));
-    spooler(s,"<?xml version='1.0'?>",xmlnode2str(x),s);
+    spooler(s,"<?xml version='1.0'?>",xmlnode_serialize_string(x, NULL, NULL, stream_type),s);
     head = spool_print(s);
     fixr = strstr(head,"/>");
     *fixr = '>';

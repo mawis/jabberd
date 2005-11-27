@@ -49,13 +49,11 @@
 void base_accept(pool p);
 void base_connect(pool p);
 void base_dir(pool p);
-void base_exec(pool p);
 void base_file(pool p);
 void base_format(pool p);
 void base_to(pool p);
 void base_stderr(pool p);
 void base_stdout(pool p);
-void base_dynamic(pool p);
 void base_syslog(pool p);
 void base_unsubscribe(pool p);
 
@@ -69,13 +67,11 @@ void static_init(pool p)
     base_accept(p);
     base_connect(p);
     base_dir(p);
-    base_exec(p);
     base_file(p);
     base_format(p);
     base_to(p);
     base_stderr(p);
     base_stdout(p);
-    base_dynamic(p);
     base_syslog(p);
     base_unsubscribe(p);
 }
