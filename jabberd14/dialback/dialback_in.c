@@ -409,7 +409,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
 	jid key = NULL;
 
         key = jid_new(xmlnode_pool(x), we_domain);
-        mio_write(m,NULL, xstream_header_char(xstream_header("jabber:server", other_domain, jid_full(key))), -1);
+        mio_write(m,NULL, xstream_header_char(xstream_header(other_domain, jid_full(key)),0), -1);
         mio_write(m, NULL, "<stream:error><unsupported-version xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>We are configured to not support preXMPP connections.</text></stream:error>", -1);
         mio_close(m);
         xmlnode_free(x);
@@ -422,7 +422,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:server") != 0) {
 	jid key = NULL;
         key = jid_new(xmlnode_pool(x), we_domain);
-        mio_write(m,NULL, xstream_header_char(xstream_header("jabber:server", other_domain, jid_full(key))), -1);
+        mio_write(m,NULL, xstream_header_char(xstream_header(other_domain, jid_full(key)), 0), -1);
         mio_write(m, NULL, "<stream:error><bad-namespace-prefix xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Invalid Stream Header!</text></stream:error>", -1);
         mio_close(m);
         xmlnode_free(x);
@@ -434,7 +434,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     {
 	jid key = NULL;
         key = jid_new(xmlnode_pool(x), we_domain);
-        mio_write(m,NULL, xstream_header_char(xstream_header("jabber:server", other_domain, jid_full(key))), -1);
+        mio_write(m,NULL, xstream_header_char(xstream_header(other_domain, jid_full(key)), 0), -1);
         mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Legacy Access Denied!</text></stream:error>", -1);
         mio_close(m);
         xmlnode_free(x);
@@ -471,14 +471,14 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     }
 
     /* write our header */
-    x2 = xstream_header(NS_SERVER, c->other_domain, c->we_domain);
+    x2 = xstream_header(c->other_domain, c->we_domain);
     if (j_strcmp(xhash_get_by_domain(c->d->hosts_auth, c->other_domain), "sasl") != 0)
 	xmlnode_put_attrib(x2, "xmlns:db", NS_DIALBACK); /* flag ourselves as dialback capable */
     if (c->xmpp_version >= 1) {
 	xmlnode_put_attrib(x2, "version", "1.0");	/* flag us as XMPP capable */
     }
     xmlnode_put_attrib(x2,"id",c->id); /* send random id as a challenge */
-    mio_write(m,NULL, xstream_header_char(x2), -1);
+    mio_write(m,NULL, xstream_header_char(x2, 0), -1);
     xmlnode_free(x2);
     xmlnode_free(x);
 

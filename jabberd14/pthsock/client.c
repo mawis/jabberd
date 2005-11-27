@@ -331,7 +331,7 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
 
         break;
     case MIO_XML_ROOT:
-        log_debug2(ZONE, LOGT_IO, "[%s] root received for %d", ZONE, m->fd);
+        log_debug2(ZONE, LOGT_IO, "[%s] root received for %d: %s", ZONE, m->fd, xmlnode2str(x));
         to = xmlnode_get_attrib(x, "to");
         cd->sending_id = jid_new(cd->m->p, to);
 
@@ -351,7 +351,7 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
         if(cd->aliased) log_debug2(ZONE, LOGT_SESSION, "[%s] using alias %s --> %s", ZONE, jid_full(cd->sending_id), jid_full(cd->session_id));
 
         /* write header */
-        h = xstream_header("jabber:client", NULL, jid_full(cd->session_id));
+        h = xstream_header(NULL, jid_full(cd->session_id));
         cd->sid = pstrdup(m->p, xmlnode_get_attrib(h, "id"));
         /* XXX hack in the style that jabber.com uses for flash mode support */
         if(j_strncasecmp(xmlnode_get_attrib(x, "xmlns:flash"), "http://www.jabber.com/streams/flash",35) == 0)
@@ -368,11 +368,12 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
 	if (version>=1) {
 	    xmlnode_put_attrib(h, "version", "1.0");
 	}
-        mio_write(m, NULL, xstream_header_char(h), -1);
+        mio_write(m, NULL, xstream_header_char(h, 1), -1);
         xmlnode_free(h);
 
-        if(j_strcmp(xmlnode_get_attrib(x, "xmlns"), "jabber:client") != 0)
-        { /* if they sent something other than jabber:client */
+	/* Check the default namespace of the stream, as xmlnode is mapping 'jabber:client' to 'jabber:server', we're checking for the later */
+        if(j_strcmp(xmlnode_get_attrib(x, "xmlns"), NS_SERVER) != 0) {
+	    /* if they sent something other than jabber:client */
 	    mio_write(m, NULL, "<stream:error><invalid-namespace xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Invalid Namespace</text></stream:error></stream:stream>", -1);
             mio_close(m);
         }

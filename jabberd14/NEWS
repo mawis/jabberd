@@ -31,6 +31,7 @@ Changes in features visible to the user
     * FIX: Handling of presences with negative priority had bugs, e.g.
       messages were not delivered when changing from negative to
       non-negative priority.
+    * jabberd14 now handles XML namespaces
 
 
 Version 1.4.4 - 2005-04-16
