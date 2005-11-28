@@ -801,6 +801,11 @@ void xmlnode_put_attrib(xmlnode owner, const char* name, const char* value) {
 	return xmlnode_put_attrib_ns(owner, name, NULL, NS_XMLNS, value);
     }
 
+    /* attribute in the 'xml:' namespace? */
+    if (j_strncmp(name, "xml:", 4) == 0) {
+	return xmlnode_put_attrib_ns(owner, name+4, "xml", NS_XML, value);
+    }
+
     local_name = strchr(name, ':');
     if (local_name == NULL)
 	local_name = name;
@@ -1505,4 +1510,29 @@ void xmlnode_get_decl_list(pool p, xmlnode node, ns_list_item *first_ns, ns_list
 	else
 	    xmlnode_update_decl_list(p, first_ns, last_ns, pstrdup(p, xmlnode_get_localname(iter)), pstrdup(p, xmlnode_get_data(iter)));
     }
+}
+
+/**
+ * get the declared language of a node
+ *
+ * @param node the node to get the language for
+ * @return the declared language of the node, or NULL for no declared language
+ */
+const char* xmlnode_get_lang(xmlnode node) {
+    char *localresult = NULL;
+    
+    /* end of recursion */
+    if (node == NULL)
+	return NULL;
+
+    /* only elements may have their own language */
+    if (node->type == NTYPE_TAG) {
+	/* is there an xml:lang attribute? */
+	localresult = xmlnode_get_attrib_ns(node, "lang", NS_XML);
+	if (localresult != NULL)
+	    return localresult;
+    }
+
+    /* it's the language of the parent, that we have as well */
+    return xmlnode_get_lang(node->parent);
 }
