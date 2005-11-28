@@ -421,6 +421,9 @@ int	 xmlnode2file_limited(char *file, xmlnode node, size_t sizelimit);
 void	 xmlnode_update_decl_list(pool p, ns_list_item *first_item_ptr, ns_list_item *last_item_ptr, const char *prefix, const char *ns_iri);
 void	 xmlnode_copy_decl_list(pool p, ns_list_item first, ns_list_item *copy_first, ns_list_item *copy_last);
 void	 xmlnode_get_decl_list(pool p, xmlnode node, ns_list_item *first_ns, ns_list_item *last_ns);
+void	 xmlnode_delete_last_decl(ns_list_item *first_ns, ns_list_item *last_ns, const char *prefix);
+const char *xmlnode_list_get_nsprefix(ns_list_item last_ns, const char *iri);
+const char *xmlnode_list_get_nsiri(ns_list_item last_ns, const char *prefix);
 
 /* Expat callbacks */
 void expat_startElement(void* userdata, const char* name, const char** atts);

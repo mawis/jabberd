@@ -1,4 +1,5 @@
-<jabber>
+<?xml version='1.0'?>
+<jabber xmlns:jabberd='http://jabberd.org/ns/configfile/replace' xmlns='http://jabberd.org/ns/configfile'>
 
   <!--
   This is the Jabber server configuration file. The file is

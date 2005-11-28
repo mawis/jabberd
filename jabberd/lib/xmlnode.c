@@ -602,7 +602,20 @@ xmlnode xmlnode_insert_tag(xmlnode parent, const char* name) {
  * @return pointer to the child tag node, or NULL if it was unsuccessfull
  */
 xmlnode xmlnode_insert_tag_ns(xmlnode parent, const char* name, const char* prefix, const char *ns_iri) {
-    return _xmlnode_insert(parent, name, prefix, ns_iri, NTYPE_TAG);
+    xmlnode new_node = NULL;
+    
+    new_node = _xmlnode_insert(parent, name, prefix, ns_iri, NTYPE_TAG);
+
+    /* for compatibility with xmlnode users not aware of our namespace handling */
+    if (parent != NULL && j_strcmp(parent->prefix, prefix) != 0) {
+	if (prefix == NULL) {
+	    xmlnode_put_attrib_ns(new_node, "xmlns", NULL, NS_XMLNS, ns_iri);
+	} else {
+	    xmlnode_put_attrib_ns(new_node, prefix, "xmlns", NS_XMLNS, ns_iri);
+	}
+    }
+
+    return new_node;
 }
 
 /**
@@ -1535,4 +1548,96 @@ const char* xmlnode_get_lang(xmlnode node) {
 
     /* it's the language of the parent, that we have as well */
     return xmlnode_get_lang(node->parent);
+}
+
+/**
+ * delete the last occurence for a prefix declaration in a list of namespace declarations
+ *
+ * @param first_ns pointer to the pointer of the first list element (might get updated)
+ * @param last_ns pointer to the pointer of the last list element (might get updated)
+ * @param prefix the prefix, that should be deleted
+ */
+void xmlnode_delete_last_decl(ns_list_item *first_ns, ns_list_item *last_ns, const char *prefix) {
+    ns_list_item iter = NULL;
+    
+    /* sanity check */
+    if (first_ns == NULL || last_ns == NULL) {
+	return;
+    }
+
+    /* nothing to do if there is no list */
+    if (*first_ns == NULL || *last_ns == NULL) {
+	return;
+    }
+
+    /* find last declaration */
+    for (iter = *last_ns; iter != NULL; iter = iter->prev) {
+	/* is it the prefix we are searching for? */
+	if (j_strcmp(iter->prefix, prefix) == 0)
+	    break;
+    }
+
+    /* prefix found? */
+    if (iter == NULL)
+	return; /* no */
+
+    /* delete the prefix */
+    if (iter->prev != NULL) {
+	/* if it isn't the first list item, we have to update the item before this one */
+	iter->prev->next = iter->next;
+    } else {
+	/* if it is the first item, we have up update the start of the list */
+	*first_ns = iter->next;
+    }
+    if (iter->next != NULL) {
+	/* if it isn't the last list item, we have to update the item after this one */
+	iter->next->prev = iter->prev;
+    } else {
+	/* if it is the last item, we have to update the end of the list */
+	*last_ns = iter->prev;
+    }
+}
+
+/**
+ * get a prefix for the namespace IRI in the list of declared namespaces
+ *
+ * @param last_ns pointer to the last list item
+ * @param iri namespace IRI to search for
+ * @return prefix found for this namespace, NULL if not found, "" if default prefix
+ */
+const char *xmlnode_list_get_nsprefix(ns_list_item last_ns, const char *iri) {
+    ns_list_item iter = NULL;
+
+    /* iterate the list backwards */
+    for (iter = last_ns; iter != NULL; iter = iter->prev) {
+	/* does this item declare the right namespace? */
+	if (j_strcmp(iter->ns_iri, iri) == 0) {
+	    return iter->prefix == NULL ? "" : iter->prefix;
+	}
+    }
+
+    /* nothing found */
+    return NULL;
+}
+
+/**
+ * get the namespace IRI for a prefix
+ *
+ * @param last_ns pointer to the last list item
+ * @param prefix the prefix to search the IRI for
+ * @return namespace IRI assigned to the prefix, NULL if no such prefix
+ */
+const char *xmlnode_list_get_nsiri(ns_list_item last_ns, const char *prefix) {
+    ns_list_item iter = NULL;
+
+    /* iterate the list backwards */
+    for (iter = last_ns; iter != NULL; iter = iter->prev) {
+	/* does this item define the right prefix? */
+	if ((prefix == NULL && iter->prefix == NULL) || j_strcmp(iter->prefix, prefix) == 0) {
+	    return iter->ns_iri;
+	}
+    }
+
+    /* nothing found */
+    return NULL;
 }
