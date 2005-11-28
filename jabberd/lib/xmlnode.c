@@ -406,7 +406,7 @@ static void _xmlnode_serialize(spool s, xmlnode x, ns_list_item nslist_first, ns
 		_xmlnode_serialize(s, cur, nslist_first, nslist_last, ns_replace);
 		break;
 	    case NTYPE_CDATA:
-		spool_add(s, xmlnode_get_data(cur));
+		spool_add(s, strescape(xmlnode_get_data(cur)));
 	}
     }
 
