@@ -184,7 +184,7 @@ void expat_charData(void* userdata, const char* s, int len) {
  * @param prefix prefix that gets declared
  * @param iri namespace IRI for this prefix
  */
-void expat_startNamespaceDecl(void *userdata, const XML_Char *prefix, const XML_Char *iri) {
+static void expat_startNamespaceDecl(void *userdata, const XML_Char *prefix, const XML_Char *iri) {
     /* get the data we are working on */
     expat_callback_data callback_data = (expat_callback_data)userdata;
 
@@ -200,7 +200,7 @@ void expat_startNamespaceDecl(void *userdata, const XML_Char *prefix, const XML_
  * @param userdata XXX
  * @param prefix prefix that gets undeclared
  */
-void expat_endNamespaceDecl(void *userdata, const XML_Char *prefix) {
+static void expat_endNamespaceDecl(void *userdata, const XML_Char *prefix) {
     /* get the data we are working on */
     expat_callback_data callback_data = (expat_callback_data)userdata;
 
