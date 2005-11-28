@@ -389,6 +389,8 @@ char*    xmlnode_get_attrib(xmlnode owner, const char* name);
 char*    xmlnode_get_attrib_ns(xmlnode owner, const char* name, const char *ns_iri);
 void     xmlnode_put_expat_attribs(xmlnode owner, const char** atts);
 
+const char* xmlnode_get_lang(xmlnode node);
+
 /* Bastard am I, but these are fun for internal use ;-) */
 void     xmlnode_put_vattrib(xmlnode owner, const char* name, void *value);
 void*    xmlnode_get_vattrib(xmlnode owner, const char* name);

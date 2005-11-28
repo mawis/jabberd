@@ -71,6 +71,7 @@ void _mio_xstream_startElement(mio m, const char* name, const char** attribs) {
 
 	/* If the root is 0, this must be the root node.. */
 	if (m->flags.root == 0) {
+	    m->root_lang = pstrdup(m->p, xmlnode_get_lang(m->stacknode));
 	    if(m->cb != NULL)
 		(*(mio_xml_cb)m->cb)(m, MIO_XML_ROOT, m->cb_arg, m->stacknode);
 	    else
@@ -99,6 +100,10 @@ void _mio_xstream_endElement(mio m, const char* name) {
 	xmlnode parent = xmlnode_get_parent(m->stacknode);
 	/* Fire the NODE event if this closing element has no parent */
 	if (parent == NULL) {
+	    /* do we have to copy the language of the root element to the stanza root element? */
+	    if (m->root_lang != NULL && xmlnode_get_lang(m->stacknode) == NULL)
+		xmlnode_put_attrib_ns(m->stacknode, "lang", "xml", NS_XML, m->root_lang);
+
 	    if(m->cb != NULL)
 		(*(mio_xml_cb)m->cb)(m, MIO_XML_NODE, m->cb_arg, m->stacknode);
 	    else

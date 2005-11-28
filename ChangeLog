@@ -1,3 +1,10 @@
+2005-11-28  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/lib/jabberdlib.h: xml:lang support in xmlnode
+    * jabberd/lib/xmlnode.c: same
+    * jabberd/jabberd.h: xml:lang support on streams
+    * jabberd/mio_xml.c: same
+
 2005-11-27  Matthias Wimmer  <m@tthias.net>
 
     * dialback/dialback.c: namespace handling updates
