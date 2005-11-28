@@ -361,8 +361,9 @@ typedef struct mio_st {
     char *connect_errmsg;		/**< error message on failed connects (don't free messages) */
     char *authed_other_side;		/**< if the other side of the stream is authenticated, the identity can be placed here */
 
-    ns_list_item first_ns;		/**< pointer to the first element in list of declared namespaces on the stream root element */
-    ns_list_item last_ns;		/**< pointer to the last element in list of declared namespaces on the stream root element */
+    ns_list_item first_ns;		/**< pointer to the first element in list of declared namespaces on the outgoing stream root element */
+    ns_list_item last_ns;		/**< pointer to the last element in list of declared namespaces on the outgoing stream root element */
+    const char *root_lang;		/**< declared language of the incoming stream root element */
 } *mio, _mio;
 
 /**
