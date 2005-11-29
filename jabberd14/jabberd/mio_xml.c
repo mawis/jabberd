@@ -130,13 +130,13 @@ void _mio_xstream_startElement(mio m, const char* name, const char** attribs) {
 
 	    /* for the root element: check if NS_SERVER, NS_CLIENT, NS_COMPONENT_ACCEPT, or NS_DIALBACK has been declared => add explicitly */
 	    if (prefix = xmlnode_list_get_nsprefix(m->in_last_ns_root, NS_SERVER))
-		xmlnode_put_attrib_ns(m->stacknode, prefix && prefix[0] ? prefix : "xmlns", prefix && prefix[0] ? "xmlns" : NULL, NS_XMLNS, NS_SERVER);
+		xmlnode_put_attrib_ns(m->stacknode, prefix[0] ? prefix : "xmlns", prefix[0] ? "xmlns" : NULL, NS_XMLNS, NS_SERVER);
 	    if (prefix = xmlnode_list_get_nsprefix(m->in_last_ns_root, NS_CLIENT))
-		xmlnode_put_attrib_ns(m->stacknode, prefix && prefix[0] ? prefix : "xmlns", prefix && prefix[0] ? "xmlns" : NULL, NS_XMLNS, NS_CLIENT);
+		xmlnode_put_attrib_ns(m->stacknode, prefix[0] ? prefix : "xmlns", prefix[0] ? "xmlns" : NULL, NS_XMLNS, NS_CLIENT);
 	    if (prefix = xmlnode_list_get_nsprefix(m->in_last_ns_root, NS_COMPONENT_ACCEPT))
-		xmlnode_put_attrib_ns(m->stacknode, prefix && prefix[0] ? prefix : "xmlns", prefix && prefix[0] ? "xmlns" : NULL, NS_XMLNS, NS_COMPONENT_ACCEPT);
+		xmlnode_put_attrib_ns(m->stacknode, prefix[0] ? prefix : "xmlns", prefix[0] ? "xmlns" : NULL, NS_XMLNS, NS_COMPONENT_ACCEPT);
 	    if (prefix = xmlnode_list_get_nsprefix(m->in_last_ns_root, NS_DIALBACK))
-		xmlnode_put_attrib_ns(m->stacknode, prefix && prefix[0] ? prefix : "xmlns", prefix && prefix[0] ? "xmlns" : NULL, NS_XMLNS, NS_DIALBACK);
+		xmlnode_put_attrib_ns(m->stacknode, prefix[0] ? prefix : "xmlns", prefix[0] ? "xmlns" : NULL, NS_XMLNS, NS_DIALBACK);
 
 	    if(m->cb != NULL)
 		(*(mio_xml_cb)m->cb)(m, MIO_XML_ROOT, m->cb_arg, m->stacknode);
@@ -161,6 +161,17 @@ void _mio_xstream_endElement(mio m, const char* name) {
     /* If the stacknode is already NULL, then this closing element
        must be the closing ROOT tag, so notify and exit */
     if (m->stacknode == NULL) {
+	/* XXX the following line should not be needed, but we get crashing jabberd14 else, there must be a bug somewhere :( 
+	 *
+	 * _mio_xstream_endNamespaceDecl() else gets called while processing the <stream:stream/> element, with both arguments
+	 * (arg and prefix) set to a pointer to the string "db". I have no clue yet, why the arg (which should be a pointer to
+	 * mio) is replaced by a pointer to the prefix in that case.
+	 *
+	 * Not calling _mio_xstream_endNamespaceDecl() helps in that case - as we do not need to delete the
+	 * namespace from the list anyway, as the mio_st is freed after all that either. (But the call to _mio_xstream_endNamespaceDecl()
+	 * should happen before mio_st is cleaned.
+	 */
+	XML_SetNamespaceDeclHandler(m->parser, NULL, NULL);
         mio_close(m);
     } else {
 	xmlnode parent = xmlnode_get_parent(m->stacknode);

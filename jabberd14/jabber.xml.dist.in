@@ -200,7 +200,7 @@
       The <disco/> section is used for building the disco#info reply.
       -->
       <disco xmlns='http://jabber.org/protocol/disco#info'>
-        <identity category='services' type='jabber' name='Jabber 1.4 Server'/>
+        <identity category='services' type='jabber' name='jabberd14 server'/>
         <feature var='jabber:iq:browse'/>
         <feature var='jabber:iq:agents'/>
         <feature var='jabber:iq:register'/>
