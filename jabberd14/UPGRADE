@@ -39,7 +39,8 @@ to the stream. While most clients at present would ignore these wrong
 namespaces, it still would be incorrect.
 Check for the following elements in the jabber.xml configuration file and
 update their namespace. For an example see the new jabber.xml.dist.
-<vCard/>, <register/>, <welcome/>, <reply/>, <browse/>, and <disco/>.
+<jabber/>, <vCard/>, <register/>, <welcome/>, <reply/>, <browse/>, and
+<disco/>.
 
 Upgrading from 1.4.3(.1) to 1.4.4
 ---------------------------------

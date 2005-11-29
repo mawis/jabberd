@@ -55,26 +55,91 @@
  * internal expat callback for read start tags of an element
  */
 void _xstream_startElement(xstream xs, const char* name, const char** atts) {
-    pool p;
+    pool p = NULL;
+    char *prefix = NULL;
+    char *ns_iri = NULL;
+    char *local_name = NULL;
+
+    /* create a new memory pool if necessary, and copy what namespaces we already have on the root element */
+    if (xs->ns_pool == NULL) {
+        xs->ns_pool = pool_new();
+        xmlnode_copy_decl_list(xs->ns_pool, xs->first_ns_root, &(xs->first_ns_stanza), &(xs->last_ns_stanza));
+    }
+
+    /* get prefix, iri, and local name of the element */
+    if (strchr(name, XMLNS_SEPARATOR) != NULL) {
+        /* expat found the namespace IRI for us */
+        ns_iri = pstrdup(xs->ns_pool, name);
+        local_name = strchr(ns_iri, XMLNS_SEPARATOR);
+        local_name[0] = 0;
+        local_name++;
+        prefix = pstrdup(xs->ns_pool, xmlnode_list_get_nsprefix(xs->last_ns_stanza, ns_iri));
+    } else if (strchr(name, ':') != NULL) {
+        /* expat could not expand the prefix, it's not declared */
+
+        /* ... be liberal in what you accept ... */
+
+        /* start with a guess */
+        prefix = pstrdup(xs->ns_pool, name);
+        local_name = strchr(prefix, ':');
+        local_name[0] = 0;
+        local_name++;
+        ns_iri = "http://jabberd.org/no/clue";
+
+        /* some well known prefixes (but they would have to been declared!) */
+        if (j_strcmp(prefix, "stream") == 0) {
+            ns_iri = NS_STREAM;
+        } else if (j_strcmp(prefix, "db") == 0) {
+            ns_iri = NS_DIALBACK;
+        }
+    } else {
+        /* default namespace, but not declared */
+
+        /* ... be liberal in what you accept ... (guessing it's 'jabber:server') */
+        prefix = NULL;
+        ns_iri = "jabber:server";
+        local_name = pstrdup(xs->ns_pool, name);
+    }
+
+    if (prefix != NULL && prefix[0] == '\0')
+        prefix = NULL;
+
 
     /* if xstream is bad, get outa here */
     if(xs->status > XSTREAM_NODE) return;
 
-    if(xs->node == NULL)
-    {
+    if(xs->node == NULL) {
         p = pool_heap(5*1024); /* 5k, typically 1-2k each plus copy of self and workspace */
-        xs->node = xmlnode_new_tag_pool(p,name);
-        xmlnode_put_expat_attribs(xs->node, atts);
+        xs->node = xmlnode_new_tag_pool_ns(p, local_name, prefix, ns_iri);
+        xmlnode_put_expat_attribs(xs->node, atts, xs->last_ns_stanza);
 
-        if(xs->status == XSTREAM_ROOT)
-        {
+        if(xs->status == XSTREAM_ROOT) {
+	    const char *prefix = NULL;
+
+            xs->root_lang = pstrdup(xs->p, xmlnode_get_lang(xs->node));
+
+            /* move the namespace list to where we look for the root namespace list */
+            xmlnode_copy_decl_list(xs->p, xs->first_ns_stanza, &(xs->first_ns_root), &(xs->last_ns_root));
+            pool_free(xs->ns_pool);
+            xs->ns_pool = NULL;
+
+            /* for the root element: check if NS_SERVER, NS_CLIENT, NS_COMPONENT_ACCEPT, or NS_DIALBACK has been declared => add explicitly */
+            if (prefix = xmlnode_list_get_nsprefix(xs->last_ns_root, NS_SERVER))
+                xmlnode_put_attrib_ns(xs->node, prefix && prefix[0] ? prefix : "xmlns", prefix && prefix[0] ? "xmlns" : NULL, NS_XMLNS, NS_SERVER);
+            if (prefix = xmlnode_list_get_nsprefix(xs->last_ns_root, NS_CLIENT))
+                xmlnode_put_attrib_ns(xs->node, prefix && prefix[0] ? prefix : "xmlns", prefix && prefix[0] ? "xmlns" : NULL, NS_XMLNS, NS_CLIENT);
+            if (prefix = xmlnode_list_get_nsprefix(xs->last_ns_root, NS_COMPONENT_ACCEPT))
+                xmlnode_put_attrib_ns(xs->node, prefix && prefix[0] ? prefix : "xmlns", prefix && prefix[0] ? "xmlns" : NULL, NS_XMLNS, NS_COMPONENT_ACCEPT);
+            if (prefix = xmlnode_list_get_nsprefix(xs->last_ns_root, NS_DIALBACK))
+                xmlnode_put_attrib_ns(xs->node, prefix && prefix[0] ? prefix : "xmlns", prefix && prefix[0] ? "xmlns" : NULL, NS_XMLNS, NS_DIALBACK);
+
             xs->status = XSTREAM_NODE; /* flag status that we're processing nodes now */
             (xs->f)(XSTREAM_ROOT, xs->node, xs->arg); /* send the root, f must free all nodes */
             xs->node = NULL;
         }
     }else{
         xs->node = xmlnode_insert_tag(xs->node, name);
-        xmlnode_put_expat_attribs(xs->node, atts);
+        xmlnode_put_expat_attribs(xs->node, atts, xs->last_ns_stanza);
     }
 
     /* depth check */
@@ -101,8 +166,15 @@ void _xstream_endElement(xstream xs, const char* name) {
         parent = xmlnode_get_parent(xs->node);
 
         /* we are the top-most node, feed to the app who is responsible to delete it */
-        if(parent == NULL)
+        if(parent == NULL) {
+	    /* we do not need the list of namespaces for the stanza anymore */
+	    pool_free(xs->ns_pool);
+	    xs->ns_pool = NULL;
+	    xs->first_ns_stanza = NULL;
+	    xs->last_ns_stanza = NULL;
+	    
             (xs->f)(XSTREAM_NODE, xs->node, xs->arg);
+	}
 
         xs->node = parent;
     }
@@ -126,6 +198,43 @@ void _xstream_charData(xstream xs, const char *str, int len) {
 }
 
 /**
+ * callback function for the beginning of a namespace declaration
+ *
+ * This function will insert a new namespace prefix in the list of declared namespaces
+ *
+ * @param arg xs the callback is related to
+ * @param prefix prefix that gets declared
+ * @param iri namespace IRI for this prefix
+ */
+static void _xstream_startNamespaceDecl(void *arg, const XML_Char *prefix, const XML_Char *iri) {
+    xstream xs = (xstream)arg;
+
+    /* create a new memory pool if necessary, and copy what namespaces we already have on the root element */
+    if (xs->ns_pool == NULL) {
+        xs->ns_pool = pool_new();
+        xmlnode_copy_decl_list(xs->ns_pool, xs->first_ns_root, &(xs->first_ns_stanza), &(xs->last_ns_stanza));
+    }
+
+    /* store the new prefix in the list */
+    xmlnode_update_decl_list(xs->ns_pool, &(xs->first_ns_stanza), &(xs->last_ns_stanza), prefix, iri);
+}
+
+/**
+ * callback function for the end of the scope of a declared namespace prefix
+ *
+ * This function will insert the last occurance of the prefix from the list of declared namespaces
+ *
+ * @param arg xs the callback is related to
+ * @param prefix prefix that gets undeclared
+ */
+static void _xstream_endNamespaceDecl(void *arg, const XML_Char *prefix) {
+    xstream xs = (xstream)arg;
+
+    /* remove the prefix from the list */
+    xmlnode_delete_last_decl(&(xs->first_ns_stanza), &(xs->last_ns_stanza), prefix);
+}
+
+/**
  * internal function to be registered as pool cleaner, frees a stream if the associated memory pool is freed
  *
  * @param pointer to the xstream to free
@@ -135,6 +244,15 @@ void _xstream_cleanup(void *arg) {
 
     xmlnode_free(xs->node); /* cleanup anything left over */
     XML_ParserFree(xs->parser);
+
+    if (xs->ns_pool != NULL) {
+	pool_free(xs->ns_pool);
+    }
+    xs->ns_pool = NULL;
+    xs->first_ns_stanza = NULL;
+    xs->last_ns_stanza = NULL;
+    xs->first_ns_root = NULL;
+    xs->last_ns_root = NULL;
 }
 
 
@@ -161,10 +279,11 @@ xstream xstream_new(pool p, xstream_onNode f, void *arg) {
     newx->arg = arg;
 
     /* create expat parser and ensure cleanup */
-    newx->parser = XML_ParserCreate(NULL);
+    newx->parser = XML_ParserCreateNS(NULL, XMLNS_SEPARATOR);
     XML_SetUserData(newx->parser, (void *)newx);
     XML_SetElementHandler(newx->parser, (void *)_xstream_startElement, (void *)_xstream_endElement);
     XML_SetCharacterDataHandler(newx->parser, (void *)_xstream_charData);
+    XML_SetNamespaceDeclHandler(newx->parser, _xstream_startNamespaceDecl, _xstream_endNamespaceDecl);
     pool_cleanup(p, _xstream_cleanup, (void *)newx);
 
     return newx;

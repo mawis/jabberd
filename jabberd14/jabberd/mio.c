@@ -1299,7 +1299,7 @@ void mio_write(mio m, xmlnode stanza, char *buffer, int len) {
 	ns_list_item last = NULL;
 
         new->type = queue_XMLNODE;
-	xmlnode_copy_decl_list(p, m->first_ns, &first, &last);
+	xmlnode_copy_decl_list(p, m->out_first_ns, &first, &last);
         if ((new->data = xmlnode_serialize_string(stanza, first, last, 0)) == NULL) {
             pool_free(p);
             return;
@@ -1352,7 +1352,7 @@ void mio_write_root(mio m, xmlnode root, int stream_type) {
     mio_write(m, NULL, serialized_root, -1);
 
     /* remember namespaces */
-    xmlnode_get_decl_list(m->p, root, &(m->first_ns), &(m->last_ns));
+    xmlnode_get_decl_list(m->p, root, &(m->out_first_ns), &(m->out_last_ns));
 
     xmlnode_free(root);
 }
