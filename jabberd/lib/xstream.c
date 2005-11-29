@@ -45,6 +45,9 @@
  *
  * xstream is a way to have a consistent method of handling incoming XML stream based events ...
  * if doesn't handle the generation of an XML stream, but provides some facilities to help doing that
+ *
+ * Currently this is only used by base_stdout.c and the stream used by dnsrv to communicate with the
+ * co-process. Other XML streams (c2s, s2s, components, ...) use XML streaming implemented in mio_xml.c.
  */
 
 #include <jabberdlib.h>
