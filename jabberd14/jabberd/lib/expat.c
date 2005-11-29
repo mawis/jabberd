@@ -130,7 +130,7 @@ void expat_startElement(void* userdata, const char* name, const char** atts) {
 	/* insert as child node */
 	callback_data->x = xmlnode_insert_tag_ns(callback_data->x, local_name, prefix, ns_iri);
     }
-    xmlnode_put_expat_attribs(callback_data->x, atts);
+    xmlnode_put_expat_attribs(callback_data->x, atts, callback_data->last_ns);
 }
 
 /**
@@ -189,7 +189,7 @@ static void expat_startNamespaceDecl(void *userdata, const XML_Char *prefix, con
     expat_callback_data callback_data = (expat_callback_data)userdata;
 
     /* store the new prefix in the list */
-    xmlnode_update_decl_list(callback_data->parse_pool, &(callback_data->first_ns), &(callback_data->last_ns), pstrdup(callback_data->parse_pool, prefix), pstrdup(callback_data->parse_pool, iri));
+    xmlnode_update_decl_list(callback_data->parse_pool, &(callback_data->first_ns), &(callback_data->last_ns), prefix, iri);
 }
 
 /**
@@ -386,13 +386,53 @@ int xmlnode2file_limited(char *file, xmlnode node, size_t sizelimit)
  * @param owner where to add the attributes
  * @param atts the attributes in expat format (even indexes are the attribute names, odd indexes the values)
  */
-void xmlnode_put_expat_attribs(xmlnode owner, const char** atts)
-{
+void xmlnode_put_expat_attribs(xmlnode owner, const char** atts, ns_list_item last_ns) {
     int i = 0;
-    if (atts == NULL) return;
-    while (atts[i] != '\0')
-    {
-        xmlnode_put_attrib(owner, atts[i], atts[i+1]);
+    
+    if (atts == NULL)
+	return;
+
+    while (atts[i] != '\0') {
+	char *prefix = NULL;
+	char *ns_iri = NULL;
+	char *local_name = NULL;
+
+	/* get prefix, iri, and local name of the element */
+	if (strchr(atts[i], XMLNS_SEPARATOR) != NULL) {
+	    /* expat found the namespace IRI for us */
+	    ns_iri = pstrdup(xmlnode_pool(owner), atts[i]);
+	    local_name = strchr(ns_iri, XMLNS_SEPARATOR);
+	    local_name[0] = 0;
+	    local_name++;
+	    prefix = pstrdup(xmlnode_pool(owner), xmlnode_list_get_nsprefix(last_ns, ns_iri));
+	} else if (strchr(atts[i], ':') != NULL) {
+	    /* expat could not expand the prefix, it's not declared */
+
+	    /* ... be liberal in what you accept ... */
+
+	    /* start with a guess */
+	    prefix = pstrdup(xmlnode_pool(owner), atts[i]);
+	    local_name = strchr(prefix, ':');
+	    local_name[0] = 0;
+	    local_name++;
+	    ns_iri = "http://jabberd.org/no/clue";
+
+	    /* some well known prefixes (but they would have to been declared!) */
+	    if (j_strcmp(prefix, "stream") == 0) {
+		ns_iri = NS_STREAM;
+	    } else if (j_strcmp(prefix, "db") == 0) {
+		ns_iri = NS_DIALBACK;
+	    }
+	} else {
+	    /* default namespace, but not declared */
+
+	    /* ... be liberal in what you accept ... (guessing it's 'jabber:server') */
+	    prefix = NULL;
+	    ns_iri = NULL;
+	    local_name = pstrdup(xmlnode_pool(owner), atts[i]);
+	}
+
+        xmlnode_put_attrib_ns(owner, local_name, prefix, ns_iri, atts[i+1]);
         i += 2;
     }
 }

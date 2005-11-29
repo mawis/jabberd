@@ -62,16 +62,82 @@ extern ios mio__data;
  * @param attribs attributes of the start tag
  */
 void _mio_xstream_startElement(mio m, const char* name, const char** attribs) {
+    char *prefix = NULL;
+    char *ns_iri = NULL;
+    char *local_name = NULL;
+
+    /* create a new memory pool if necessary, and copy what namespaces we already have on the root element */
+    if (m->in_ns_pool == NULL) {
+	m->in_ns_pool = pool_new();
+	xmlnode_copy_decl_list(m->in_ns_pool, m->in_first_ns_root, &(m->in_first_ns_stanza), &(m->in_last_ns_stanza));
+    }
+
+    /* get prefix, iri, and local name of the element */
+    if (strchr(name, XMLNS_SEPARATOR) != NULL) {
+        /* expat found the namespace IRI for us */
+        ns_iri = pstrdup(m->in_ns_pool, name);
+        local_name = strchr(ns_iri, XMLNS_SEPARATOR);
+        local_name[0] = 0;
+        local_name++;
+        prefix = pstrdup(m->in_ns_pool, xmlnode_list_get_nsprefix(m->in_last_ns_stanza, ns_iri));
+    } else if (strchr(name, ':') != NULL) {
+        /* expat could not expand the prefix, it's not declared */
+
+        /* ... be liberal in what you accept ... */
+
+        /* start with a guess */
+        prefix = pstrdup(m->in_ns_pool, name);
+        local_name = strchr(prefix, ':');
+        local_name[0] = 0;
+        local_name++;
+        ns_iri = "http://jabberd.org/no/clue";
+
+        /* some well known prefixes (but they would have to been declared!) */
+        if (j_strcmp(prefix, "stream") == 0) {
+            ns_iri = NS_STREAM;
+        } else if (j_strcmp(prefix, "db") == 0) {
+            ns_iri = NS_DIALBACK;
+        }
+    } else {
+        /* default namespace, but not declared */
+
+        /* ... be liberal in what you accept ... (guessing it's 'jabber:server') */
+        prefix = NULL;
+        ns_iri = "jabber:server";
+        local_name = pstrdup(m->in_ns_pool, name);
+    }
+
+    if (prefix != NULL && prefix[0] == '\0')
+        prefix = NULL;
+
     /* If stacknode is NULL, we are starting a new packet and must
        setup for by pre-allocating some memory */
     if (m->stacknode == NULL) {
 	pool p = pool_heap(5 * 1024); /* 5k, typically 1-2k each, plus copy of self and workspace */
-	m->stacknode = xmlnode_new_tag_pool(p, name);
-	xmlnode_put_expat_attribs(m->stacknode, attribs);
+	m->stacknode = xmlnode_new_tag_pool_ns(p, local_name, prefix, ns_iri);
+	xmlnode_put_expat_attribs(m->stacknode, attribs, m->in_last_ns_stanza);
 
 	/* If the root is 0, this must be the root node.. */
 	if (m->flags.root == 0) {
+	    const char *prefix = NULL;
+
 	    m->root_lang = pstrdup(m->p, xmlnode_get_lang(m->stacknode));
+
+	    /* move the namespace list to where we look for the root namespace list */
+	    xmlnode_copy_decl_list(m->p, m->in_first_ns_stanza, &(m->in_first_ns_root), &(m->in_last_ns_root));
+	    pool_free(m->in_ns_pool);
+	    m->in_ns_pool = NULL;
+
+	    /* for the root element: check if NS_SERVER, NS_CLIENT, NS_COMPONENT_ACCEPT, or NS_DIALBACK has been declared => add explicitly */
+	    if (prefix = xmlnode_list_get_nsprefix(m->in_last_ns_root, NS_SERVER))
+		xmlnode_put_attrib_ns(m->stacknode, prefix && prefix[0] ? prefix : "xmlns", prefix && prefix[0] ? "xmlns" : NULL, NS_XMLNS, NS_SERVER);
+	    if (prefix = xmlnode_list_get_nsprefix(m->in_last_ns_root, NS_CLIENT))
+		xmlnode_put_attrib_ns(m->stacknode, prefix && prefix[0] ? prefix : "xmlns", prefix && prefix[0] ? "xmlns" : NULL, NS_XMLNS, NS_CLIENT);
+	    if (prefix = xmlnode_list_get_nsprefix(m->in_last_ns_root, NS_COMPONENT_ACCEPT))
+		xmlnode_put_attrib_ns(m->stacknode, prefix && prefix[0] ? prefix : "xmlns", prefix && prefix[0] ? "xmlns" : NULL, NS_XMLNS, NS_COMPONENT_ACCEPT);
+	    if (prefix = xmlnode_list_get_nsprefix(m->in_last_ns_root, NS_DIALBACK))
+		xmlnode_put_attrib_ns(m->stacknode, prefix && prefix[0] ? prefix : "xmlns", prefix && prefix[0] ? "xmlns" : NULL, NS_XMLNS, NS_DIALBACK);
+
 	    if(m->cb != NULL)
 		(*(mio_xml_cb)m->cb)(m, MIO_XML_ROOT, m->cb_arg, m->stacknode);
 	    else
@@ -80,8 +146,8 @@ void _mio_xstream_startElement(mio m, const char* name, const char** attribs) {
 	    m->flags.root = 1;
 	}
     } else {
-	m->stacknode = xmlnode_insert_tag(m->stacknode, name);
-	xmlnode_put_expat_attribs(m->stacknode, attribs);
+	m->stacknode = xmlnode_insert_tag_ns(m->stacknode, local_name, prefix, ns_iri);
+	xmlnode_put_expat_attribs(m->stacknode, attribs, m->in_last_ns_stanza);
     }
 }
 
@@ -100,6 +166,12 @@ void _mio_xstream_endElement(mio m, const char* name) {
 	xmlnode parent = xmlnode_get_parent(m->stacknode);
 	/* Fire the NODE event if this closing element has no parent */
 	if (parent == NULL) {
+	    /* we do not need the list of namespaces for the current stanza anymore */
+	    pool_free(m->in_ns_pool);
+	    m->in_ns_pool = NULL;
+	    m->in_first_ns_stanza = NULL;
+	    m->in_last_ns_stanza = NULL;
+
 	    /* do we have to copy the language of the root element to the stanza root element? */
 	    if (m->root_lang != NULL && xmlnode_get_lang(m->stacknode) == NULL)
 		xmlnode_put_attrib_ns(m->stacknode, "lang", "xml", NS_XML, m->root_lang);
@@ -126,6 +198,43 @@ void _mio_xstream_CDATA(mio m, const char* cdata, int len) {
 }
 
 /**
+ * callback function for the beginning of a namespace declaration
+ *
+ * This function will insert a new namespace prefix in the list of declared namespaces
+ *
+ * @param arg mio the callback is related to
+ * @param prefix prefix that gets declared
+ * @param iri namespace IRI for this prefix
+ */
+static void _mio_xstream_startNamespaceDecl(void *arg, const XML_Char *prefix, const XML_Char *iri) {
+    mio m = (mio)arg;
+
+    /* create a new memory pool if necessary, and copy what namespaces we already have on the root element */
+    if (m->in_ns_pool == NULL) {
+	m->in_ns_pool = pool_new();
+	xmlnode_copy_decl_list(m->in_ns_pool, m->in_first_ns_root, &(m->in_first_ns_stanza), &(m->in_last_ns_stanza));
+    }
+
+    /* store the new prefix in the list */
+    xmlnode_update_decl_list(m->in_ns_pool, &(m->in_first_ns_stanza), &(m->in_last_ns_stanza), prefix, iri);
+}
+
+/**
+ * callback function for the end of the scope of a declared namespace prefix
+ *
+ * This function will insert the last occurance of the prefix from the list of declared namespaces
+ *
+ * @param arg mio the callback is related to
+ * @param prefix prefix that gets undeclared
+ */
+static void _mio_xstream_endNamespaceDecl(void *arg, const XML_Char *prefix) {
+    mio m = (mio)arg;
+
+    /* remove the prefix from the list */
+    xmlnode_delete_last_decl(&(m->in_first_ns_stanza), &(m->in_last_ns_stanza), prefix);
+}
+
+/**
  * destructor for a mio xstream, frees allocated memory
  *
  * @param arg the mio of the xstream, that should be closed
@@ -135,9 +244,19 @@ void _mio_xstream_cleanup(void* arg) {
 
     xmlnode_free(m->stacknode);
     m->stacknode = NULL;
+
     if (m->parser)
 	XML_ParserFree(m->parser);
     m->parser = NULL;
+
+    if (m->in_ns_pool != NULL)
+	pool_free(m->in_ns_pool);
+    m->in_ns_pool = NULL;
+    m->in_first_ns_stanza = NULL;
+    m->in_last_ns_stanza = NULL;
+
+    m->in_first_ns_root = NULL;
+    m->in_last_ns_root = NULL;
 }
 
 /**
@@ -150,10 +269,11 @@ void _mio_xstream_cleanup(void* arg) {
 void _mio_xstream_init(mio m) {
     if (m != NULL) {
 	/* Initialize the parser */
-	m->parser = XML_ParserCreate(NULL);
+	m->parser = XML_ParserCreateNS(NULL, XMLNS_SEPARATOR);
 	XML_SetUserData(m->parser, m);
 	XML_SetElementHandler(m->parser, (void*)_mio_xstream_startElement, (void*)_mio_xstream_endElement);
 	XML_SetCharacterDataHandler(m->parser, (void*)_mio_xstream_CDATA);
+	XML_SetNamespaceDeclHandler(m->parser, _mio_xstream_startNamespaceDecl, _mio_xstream_endNamespaceDecl);
 	/* Setup a cleanup routine to release the parser when everything is done */
 	pool_cleanup(m->p, _mio_xstream_cleanup, (void*)m);
     }
