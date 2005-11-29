@@ -1,3 +1,8 @@
+2005-11-30  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/mio_xml.c: temporarily workaround until I find the bug in
+	processing ending scopes of namespace prefixes
+
 2005-11-29  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/jabberd.h: namespace aware parsing of XMPP streams
