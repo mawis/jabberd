@@ -387,7 +387,7 @@ void     xmlnode_put_attrib(xmlnode owner, const char* name, const char* value);
 void     xmlnode_put_attrib_ns(xmlnode owner, const char* name, const char* prefix, const char *ns_iri, const char* value);
 char*    xmlnode_get_attrib(xmlnode owner, const char* name);
 char*    xmlnode_get_attrib_ns(xmlnode owner, const char* name, const char *ns_iri);
-void     xmlnode_put_expat_attribs(xmlnode owner, const char** atts);
+void     xmlnode_put_expat_attribs(xmlnode owner, const char** atts, ns_list_item last_ns);
 
 const char* xmlnode_get_lang(xmlnode node);
 
@@ -455,6 +455,14 @@ typedef struct xstream_struct
     void *arg;
     int status;
     int depth;
+
+    const char *root_lang;		/**< declared language on the root element */
+
+    ns_list_item first_ns_root;		/**< first item in list of declared namespaces for the root element */
+    ns_list_item last_ns_root;		/**< last item in list of declared namespaces for the root element */
+    ns_list_item first_ns_stanza;	/**< first item in list of declared namespaces for the current stanza */
+    ns_list_item last_ns_stanza;	/**< last item in list of declared namespaces for the current stanza */
+    pool ns_pool;			/**< memory pool for the namespaces for the current stanza */
 } *xstream, _xstream;
 
 xstream xstream_new(pool p, xstream_onNode f, void *arg); /* create a new xstream */

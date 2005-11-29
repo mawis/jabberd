@@ -1,3 +1,13 @@
+2005-11-29  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/jabberd.h: namespace aware parsing of XMPP streams
+    * jabberd/mio_xml.c: same
+    * jabberd/mio.c: same
+    * jabberd/lib/xmlnode.c: same
+    * jabberd/lib/xstream.c: same
+    * jabberd/lib/jabberdlib.h: same
+    * jabberd/lib/expat.c: ns aware attrib handling for parsing strings/files
+
 2005-11-28  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/lib/jabberdlib.h: xml:lang support in xmlnode

@@ -357,7 +357,7 @@ static void _xmlnode_serialize(spool s, xmlnode x, ns_list_item nslist_first, ns
 	    /* normal attribute, not a namespace declaration */
 	    continue;
 	}
-
+	
 	/* already declared here or at higher level? */
 	if (xhash_get(this_level_prefixes, cur->prefix ? cur->name : "") != NULL || _xmlnode_check_prefix(nslist_last, cur->prefix ? cur->name : NULL, xmlnode_get_data(cur)) == 1) {
 	    /* yes, no need to print */
@@ -494,12 +494,6 @@ xmlnode xmlnode_new_tag_ns(const char* name, const char* prefix, const char* ns_
     if (name == NULL)
 	return NULL;
 
-    /* 'jabber:client' and 'jabber:component:accept' are represented as 'jabber:server' internally */
-    if (j_strcmp(ns_iri, NS_CLIENT) == 0)
-	ns_iri = NS_SERVER;
-    else if (j_strcmp(ns_iri, NS_COMPONENT_ACCEPT) == 0)
-	ns_iri = NS_SERVER;
-
     return xmlnode_new_tag_pool_ns(pool_heap(1*1024), name, prefix, ns_iri);
 }
 
@@ -548,6 +542,12 @@ xmlnode xmlnode_new_tag_pool(pool p, const char* name) {
  */
 xmlnode xmlnode_new_tag_pool_ns(pool p, const char* name, const char* prefix, const char* ns_iri) {
     xmlnode result = NULL;
+
+    /* 'jabber:client' and 'jabber:component:accept' are represented as 'jabber:server' internally */
+    if (j_strcmp(ns_iri, NS_CLIENT) == 0)
+	ns_iri = NS_SERVER;
+    else if (j_strcmp(ns_iri, NS_COMPONENT_ACCEPT) == 0)
+	ns_iri = NS_SERVER;
 
     result = _xmlnode_new(p, name, prefix, ns_iri, NTYPE_TAG);
 
@@ -1453,8 +1453,8 @@ void xmlnode_update_decl_list(pool p, ns_list_item *first_item_ptr, ns_list_item
 
     /* create the new item */
     new_item = pmalloco(p, sizeof(_ns_list_item));
-    new_item->prefix = prefix;
-    new_item->ns_iri = ns_iri;
+    new_item->prefix = pstrdup(p, prefix);
+    new_item->ns_iri = pstrdup(p, ns_iri);
 
     /* first item in list? */
     if (*first_item_ptr == NULL || *last_item_ptr == NULL) {
@@ -1477,7 +1477,7 @@ void xmlnode_update_decl_list(pool p, ns_list_item *first_item_ptr, ns_list_item
  * @param copy_first pointer to a ::ns_list_item variable, where the pointer to the first element of the copy will be stored
  * @param copy_last pointer to a ::ns_list_item variable, where the pointer to the last element of the copy will be stored
  */
-void	 xmlnode_copy_decl_list(pool p, ns_list_item first, ns_list_item *copy_first, ns_list_item *copy_last) {
+void xmlnode_copy_decl_list(pool p, ns_list_item first, ns_list_item *copy_first, ns_list_item *copy_last) {
     ns_list_item iter = NULL;
 
     /* at the beginning there was nothing */
@@ -1519,9 +1519,9 @@ void xmlnode_get_decl_list(pool p, xmlnode node, ns_list_item *first_ns, ns_list
 
 	/* declaring default namespace? */
 	if (iter->prefix == NULL)
-	    xmlnode_update_decl_list(p, first_ns, last_ns, NULL, pstrdup(p, xmlnode_get_data(iter)));
+	    xmlnode_update_decl_list(p, first_ns, last_ns, NULL, xmlnode_get_data(iter));
 	else
-	    xmlnode_update_decl_list(p, first_ns, last_ns, pstrdup(p, xmlnode_get_localname(iter)), pstrdup(p, xmlnode_get_data(iter)));
+	    xmlnode_update_decl_list(p, first_ns, last_ns, xmlnode_get_localname(iter), xmlnode_get_data(iter));
     }
 }
 
@@ -1607,6 +1607,11 @@ void xmlnode_delete_last_decl(ns_list_item *first_ns, ns_list_item *last_ns, con
  */
 const char *xmlnode_list_get_nsprefix(ns_list_item last_ns, const char *iri) {
     ns_list_item iter = NULL;
+
+    /* this prefix is aways defined */
+    if (j_strcmp(iri, NS_XML) == 0) {
+	return "xml";
+    }
 
     /* iterate the list backwards */
     for (iter = last_ns; iter != NULL; iter = iter->prev) {
