@@ -604,6 +604,12 @@ xmlnode xmlnode_insert_tag(xmlnode parent, const char* name) {
 xmlnode xmlnode_insert_tag_ns(xmlnode parent, const char* name, const char* prefix, const char *ns_iri) {
     xmlnode new_node = NULL;
     
+    /* 'jabber:client' and 'jabber:component:accept' are represented as 'jabber:server' internally */
+    if (j_strcmp(ns_iri, NS_CLIENT) == 0)
+	ns_iri = NS_SERVER;
+    else if (j_strcmp(ns_iri, NS_COMPONENT_ACCEPT) == 0)
+	ns_iri = NS_SERVER;
+   
     new_node = _xmlnode_insert(parent, name, prefix, ns_iri, NTYPE_TAG);
 
     /* for compatibility with xmlnode users not aware of our namespace handling */
