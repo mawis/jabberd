@@ -409,6 +409,7 @@ char*    xmlnode_get_data(xmlnode node);
 int      xmlnode_get_type(xmlnode node);
 const char* xmlnode_get_localname(xmlnode node);
 const char* xmlnode_get_namespace(xmlnode node);
+void	 xmlnode_change_namespace(xmlnode node, const char *ns_iri);
 
 int      xmlnode_has_children(xmlnode node);
 
@@ -810,7 +811,7 @@ typedef struct xterror_struct
 #define NS_IQ_AUTH    "http://jabber.org/features/iq-auth"
 #define NS_REGISTER_FEATURE "http://jabber.org/features/iq-register"
 
-#define NS_XDBGINSERT "jabber:xdb:ginsert"
+/* #define NS_XDBGINSERT "jabber:xdb:ginsert" XXX: I guess this it not used ANYWHERE and can be deleted */
 #define NS_XDBNSLIST  "jabber:xdb:nslist"
 
 #define NS_XMPP_STANZAS "urn:ietf:params:xml:ns:xmpp-stanzas"
@@ -820,11 +821,12 @@ typedef struct xterror_struct
 
 #define NS_JABBERD_STOREDPRESENCE "http://jabberd.org/ns/storedpresence"
 #define NS_JABBERD_HISTORY "http://jabberd.org/ns/history"
+#define NS_JABBERD_XDB "http://jabberd.org/ns/xdb"			/**< namespace for the root element used by xdb_file to store data in files */
 
-#define NS_SESSION "http://jabberd.jabberstudio.org/ns/session/1.0"
+#define NS_SESSION "http://jabberd.jabberstudio.org/ns/session/1.0"	/**< namespace of the jabberd2 session control protocol (http://jabberd.jabberstudio.org/dev/docs/session.shtml) */
 
-#define NS_XMLNS "http://www.w3.org/2000/xmlns/"
-#define NS_XML "http://www.w3.org/XML/1998/namespace"
+#define NS_XMLNS "http://www.w3.org/2000/xmlns/"	/**< namespace of xml namespace declarations, defined by 'Namespaces in XML' (W3C) */
+#define NS_XML "http://www.w3.org/XML/1998/namespace"	/**< namespace declared by the xml prefix, defined by 'Namespaces in XML' (W3C) */
 
 
 /* --------------------------------------------------------- */

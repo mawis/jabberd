@@ -43,6 +43,8 @@
  * @file xdb_file.c
  * @brief implements storage in XML files
  *
+ * @todo the xdbns attribute in the spool files should be contained in its own namespace
+ *
  * The xdb_file module can be used to store XML in files - one per user. It is the traditional storage module of the jabberd14 server.
  */
  
@@ -146,8 +148,16 @@ xmlnode xdb_file_load(char *host, char *fname, xht cache) {
     }
 
     /* if there's nothing on disk, create an empty root node */
-    if (data == NULL)
-        data = xmlnode_new_tag("xdb");
+    if (data == NULL) {
+        data = xmlnode_new_tag_ns("xdb", NULL, NS_JABBERD_XDB);
+    } else {
+	/* did we load an old spool file? update the namespace then */
+	const char *root_element_namespace = xmlnode_get_namespace(data);
+
+	if (root_element_namespace == NULL || j_strcmp(root_element_namespace, NS_SERVER) == 0) {
+	    xmlnode_change_namespace(data, NS_JABBERD_XDB);
+	}
+    }
 
     log_debug2(ZONE, LOGT_STORAGE, "caching %s",fname);
     c = pmalloco(xmlnode_pool(data),sizeof(_cacher));
@@ -287,14 +297,14 @@ result xdb_file_phandler(instance i, dpacket p, void *arg) {
     xmlnode file, top, data;
     int ret = 0, flag_set = 0;
 
-    log_debug2(ZONE, LOGT_STORAGE|LOGT_DELIVER, "handling xdb request %s",xmlnode2str(p->x));
+    log_debug2(ZONE, LOGT_STORAGE|LOGT_DELIVER, "handling xdb request %s", xmlnode_serialize_string(p->x, NULL, NULL, 0));
 
     /* the request needs to have a defined namespace, that it is querying */
-    if ((ns = xmlnode_get_attrib(p->x,"ns")) == NULL)
+    if ((ns = xmlnode_get_attrib_ns(p->x, "ns", NULL)) == NULL)
         return r_ERR;
 
     /* is it a get or a set request? */
-    if (j_strcmp(xmlnode_get_attrib(p->x,"type"), "set") == 0)
+    if (j_strcmp(xmlnode_get_attrib_ns(p->x, "type", NULL), "set") == 0)
         flag_set = 1;
 
     /* create the filename of the responsible file */
@@ -312,11 +322,11 @@ result xdb_file_phandler(instance i, dpacket p, void *arg) {
     /* load the data from disk/cache */
     top = file = xdb_file_load(p->host, full, xf->cache);
 
-    /* if we're dealing w/ a resource, just get that element */
+    /* if we're dealing w/ a resource, just get that element <res id='resource'/> inside <xdb/> */
     if (p->id->resource != NULL) {
         if ((top = xmlnode_get_tag(top,spools(p->p,"res?id=",p->id->resource,p->p))) == NULL) {
-            top = xmlnode_insert_tag(file,"res");
-            xmlnode_put_attrib(top,"id",p->id->resource);
+            top = xmlnode_insert_tag_ns(file, "res", NULL, NS_JABBERD_XDB);
+            xmlnode_put_attrib_ns(top, "id", NULL, NULL, p->id->resource);
         }
     }
 
@@ -324,24 +334,23 @@ result xdb_file_phandler(instance i, dpacket p, void *arg) {
     data = xmlnode_get_tag(top,spools(p->p,"?xdbns=",ns,p->p));
 
     if (flag_set) {
-	act = xmlnode_get_attrib(p->x,"action");
-	match = xmlnode_get_attrib(p->x,"match");
+	act = xmlnode_get_attrib_ns(p->x, "action", NULL);
+	match = xmlnode_get_attrib_ns(p->x, "match", NULL);
         if (act != NULL) {
             switch (*act) {
 		case 'i': /* insert action */
 		    if (data == NULL) {
 			/* we're inserting into something that doesn't exist?!?!? */
-			data = xmlnode_insert_tag(top,"foo");
-			xmlnode_put_attrib(data,"xdbns",ns);
-			xmlnode_put_attrib(data,"xmlns",ns); /* should have a top-level xmlns attrib */
+			data = xmlnode_insert_tag_ns(top, "foo", NULL, ns);
+			xmlnode_put_attrib_ns(data, "xdbns", NULL, NULL, ns);
 		    }
-		    xmlnode_hide(xmlnode_get_tag(data,match)); /* any match is a goner */
+		    xmlnode_hide(xmlnode_get_tag(data, match)); /* any match is a goner */
 		    /* insert the new chunk into the existing data */
 		    xmlnode_insert_tag_node(data, xmlnode_get_firstchild(p->x));
 		    break;
 		case 'c': /* check action */
 		    if(match != NULL)
-			data = xmlnode_get_tag(data,match);
+			data = xmlnode_get_tag(data, match);
 		    if(j_strcmp(xmlnode_get_data(data),xmlnode_get_data(xmlnode_get_firstchild(p->x))) != 0) {
 			log_debug2(ZONE, LOGT_STORAGE|LOGT_DELIVER, "xdb check action returning error to signify unsuccessful check");
 			return r_ERR;
@@ -382,7 +391,7 @@ result xdb_file_phandler(instance i, dpacket p, void *arg) {
 		     */
 		    break;
 		default:
-		    log_warn("xdb_file","unable to handle unknown xdb action '%s'",act);
+		    log_warn(p->host, "unable to handle unknown xdb action '%s'", act);
 		    return r_ERR;
             }
         } else {
@@ -391,7 +400,7 @@ result xdb_file_phandler(instance i, dpacket p, void *arg) {
 
             /* copy the new data into file */
             data = xmlnode_insert_tag_node(top, xmlnode_get_firstchild(p->x));
-            xmlnode_put_attrib(data,"xdbns",ns);
+            xmlnode_put_attrib_ns(data, "xdbns", NULL, NULL, ns);
         }
 
         /* save the file if we still want to */
@@ -410,14 +419,14 @@ result xdb_file_phandler(instance i, dpacket p, void *arg) {
 
         if (data != NULL) {
 	    /* cool, send em back a copy of the data */
-            xmlnode_hide_attrib(xmlnode_insert_tag_node(p->x, data),"xdbns");
+            xmlnode_hide_attrib_ns(xmlnode_insert_tag_node(p->x, data), "xdbns", NULL);
         }
     }
 
     if (ret) {
-        xmlnode_put_attrib(p->x,"type","result");
-        xmlnode_put_attrib(p->x,"to",xmlnode_get_attrib(p->x,"from"));
-        xmlnode_put_attrib(p->x,"from",jid_full(p->id));
+        xmlnode_put_attrib_ns(p->x, "type", NULL, NULL, "result");
+        xmlnode_put_attrib_ns(p->x, "to", NULL, NULL, xmlnode_get_attrib(p->x,"from"));
+        xmlnode_put_attrib_ns(p->x, "from", NULL, NULL, jid_full(p->id));
         deliver(dpacket_new(p->x), NULL); /* dpacket_new() shouldn't ever return NULL */
 
         /* remove the cache'd item if it was a set or we're not configured to cache */
@@ -459,12 +468,12 @@ void _xdb_convert_hostspool(pool p, const char *spoolroot, char *host) {
     /* get the dir location */
     hostspool = spools(p, spoolroot, "/", host, p);
 
-    log_notice(ZONE, "trying to convert spool %s (this may take some time)", hostspool);
+    log_notice(host, "trying to convert spool %s (this may take some time)", hostspool);
 
     /* we have to convert the spool */
     sdir = opendir(hostspool);
     if (sdir == NULL) {
-	log_error("xdb_file", "failed to open directory %s for conversion: %s", hostspool, strerror(errno));
+	log_error(host, "failed to open directory %s for conversion: %s", hostspool, strerror(errno));
 	return;
     }
 
@@ -486,9 +495,9 @@ void _xdb_convert_hostspool(pool p, const char *spoolroot, char *host) {
 	    newname = spools(p, hostspool, "/", digit01, "/", digit23, "/", dent->d_name, p);
 
 	    if (!_xdb_gen_dirs(spool_new(p), spoolroot, host, digit01, digit23, 1))
-		log_error("xdb_file", "failed to create necessary directory for conversion");
+		log_error(host, "failed to create necessary directory for conversion");
 	    else if (rename(oldname, newname) < 0)
-		log_error("xdb_file", "failed to move %s to %s while converting spool: %s", oldname, newname, strerror(errno));
+		log_error(host, "failed to move %s to %s while converting spool: %s", oldname, newname, strerror(errno));
 	}
     }
 
@@ -582,7 +591,7 @@ void xdb_file(instance i, xmlnode x) {
     /* where to store all the files (base directory) */
     spl = xmlnode_get_tag_data(config,"spool");
     if (spl == NULL) {
-        log_error(NULL,"xdb_file: No filesystem spool location configured");
+        log_error(i->id,"xdb_file: No filesystem spool location configured");
         return;
     }
 
@@ -630,4 +639,3 @@ void xdb_file(instance i, xmlnode x) {
     /* register xdb_file_cleanup() to get called on shutdown */
     pool_cleanup(i->p, xdb_file_cleanup, (void*)xf);
 }
-
