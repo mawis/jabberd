@@ -343,40 +343,64 @@ int xmlnode2file(char *file, xmlnode node)
  * @param sizelimit the maximum length of the file to be written
  * @return 1 on success, 0 if failed due to size limit, -1 on failure
  */
-int xmlnode2file_limited(char *file, xmlnode node, size_t sizelimit)
-{
+int xmlnode2file_limited(char *file, xmlnode node, size_t sizelimit) {
     char *doc, *ftmp;
     int fd, i;
     size_t doclen;
 
+    /* sanity checks */
     if(file == NULL || node == NULL)
         return -1;
 
-    ftmp = spools(xmlnode_pool(node),file,".t.m.p",xmlnode_pool(node));
-    fd = open(ftmp, O_CREAT | O_WRONLY | O_TRUNC, 0600);
-    if(fd < 0)
-        return -1;
+    /* serialize the document ... we need to know the size of it */
+    doc = xmlnode_serialize_string(node, NULL, NULL, 0);
+    doclen = j_strlen(doc);
 
-    doc = xmlnode2str(node);
-    doclen = strlen(doc);
-
-    if (sizelimit > 0 && doclen > sizelimit)
-    {
+    /* is it to big? (23 is the size of the XML declaration and the trailing newline in the file) */
+    if (sizelimit > 0 && (doclen + 23) > sizelimit) {
 	close(fd);
 	return 0;
     }
 
-    i = write(fd,doc,doclen);
-    if(i < 0)
+    ftmp = spools(xmlnode_pool(node),file,".t.m.p",xmlnode_pool(node));
+    fd = open(ftmp, O_CREAT | O_WRONLY | O_TRUNC, 0600);
+    if (fd < 0)
         return -1;
 
+    /* write XML declaration, remove temp file on failure */
+    i = write(fd, "<?xml version='1.0'?>\n", 22);
+    if (i < 0) {
+	close(fd);
+	unlink(ftmp);
+	return -1;
+    }
+
+    /* write XML content, remove temp file on failure */
+    i = write(fd, doc, doclen);
+    if (i < 0) {
+	close(fd);
+	unlink(ftmp);
+        return -1;
+    }
+
+    /* write a closing newline */
+    i = write(fd, "\n", 1);
+    if (i < 0) {
+	close(fd);
+	unlink(ftmp);
+        return -1;
+    }
+
+    /* close the file */
     close(fd);
 
-    if(rename(ftmp,file) < 0)
-    {
+    /* replace the old file with the new one */
+    if(rename(ftmp,file) < 0) {
         unlink(ftmp);
         return -1;
     }
+
+    /* return successful */
     return 1;
 }
 

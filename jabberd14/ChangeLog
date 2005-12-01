@@ -1,3 +1,10 @@
+2005-12-01  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/lib/expat.c: remove temp files when writing to them failed,
+    	write xml declaration on writing xml files
+    * jabberd/lib/xmlnode.c: new function xmlnode_change_namespace
+    * xdb_file/xdb_file.c: using the namespace API of xmlnode
+
 2005-11-30  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/mio_xml.c: temporarily workaround until I find the bug in

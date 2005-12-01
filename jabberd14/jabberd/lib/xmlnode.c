@@ -777,6 +777,30 @@ char *xmlnode_get_tag_data(xmlnode parent, const char *name) {
 }
 
 /**
+ * change the namespace of a node
+ *
+ * @param node the node to change the namespace for
+ * @param ns_iri the new namespace of the node
+ */
+void xmlnode_change_namespace(xmlnode node, const char *ns_iri) {
+    /* santiy check */
+    if (node == NULL)
+	return;
+
+    /* update the namespace */
+    node->ns_iri = ns_iri ? pstrdup(xmlnode_pool(node), ns_iri) : NULL;
+
+    /* is there an attribute declaring this namespace? */
+    if (node->prefix == NULL) {
+	if (xmlnode_get_attrib_ns(node, "xmlns", NS_XMLNS) != NULL)
+	    xmlnode_put_attrib_ns(node, "xmlns", NULL, NS_XMLNS, ns_iri);
+    } else {
+	if (xmlnode_get_attrib_ns(node, node->prefix, NS_XMLNS) != NULL)
+	    xmlnode_put_attrib_ns(node, node->prefix, "xmlns", NS_XMLNS, ns_iri);
+    }
+    
+}
+/**
  * add an attribute to an xmlnode element
  *
  * @deprecated This function is not aware of namespaces, use xmlnode_put_attrib_ns() instead
