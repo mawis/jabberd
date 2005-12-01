@@ -1,0 +1,52 @@
+jadc2s - jabberd14 client-to-server connection manager
+----------------------------------------------------
+
+http://jadc2s.jabberd.org/
+
+
+This is a simple daemon that manages incoming connections from clients.
+It can be used as a fast c2s connection manager for jabberd14 1.4.x and
+other Jabber server implementations.
+It handles parsing the appropriate parts of the stream to process
+authentication requests and which connections have been authorized as a
+valid session.
+
+The internals right now are stripped from the jabberd14 1.4.x release,
+consisting of a simple main select loop that processes the socket events,
+and callbacks in expat to track incoming packets to handle them as auth or
+deliver them to a session manager.
+
+For testing with jabberd14 1.4.x create the following service in your
+jabberd14 configuration file (jabber.xml) instructing jabberd14 to listen
+for an incoming connection from jadc2s. (Remember using a better password!)
+
+<service id="jadc2s">
+  <accept>
+    <ip/>
+    <port>5111</port>
+    <secret>secret</secret>
+  </accept>
+</service>
+
+Remove the existing client connection manager from your jabberd14
+configuration, or at least bind it to other ports than 5222, or 5223. It is
+not possible to have two processes to listen on the same ip/port.
+jadc2s won't be able to start, if jabberd14 is already listening on the
+client ports.
+(By default the existing client connection manager of jabberd14 is contained
+in a service with the ID "c2s".)
+
+And start jabberd14 1.4.x as you are used to start it.
+
+Now, edit jadc2s.xml to your liking, then start jadc2s:
+  jadc2s
+
+jadc2s will then connect to your Jabber server on port 5111 and listen for
+normal Jabber c2s connections on port 5222 (and if you configured SSL/TLS
+it will also listen on port 5223).
+
+If you need jadc2s to handle many c2s connections don't forget to raise
+its file handle limit (typically done with "ulimit -n 8192").
+(This is not needed on a linux 2.6.x kernel.)
+
+If you have questions visit jadc2s' web site.
