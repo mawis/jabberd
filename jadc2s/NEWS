@@ -1,4 +1,4 @@
-    * Support for jabberd 1.4.x style alias handling [mawis]
+    * Support for jabberd14 1.4.x style alias handling [mawis]
     * IPv6 support [mawis]
     * Sending and logging connection information [mawis]
     * Optional logging of client IP addresses [mawis]
