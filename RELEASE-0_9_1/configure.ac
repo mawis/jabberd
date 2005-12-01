@@ -220,28 +220,6 @@ fi
 
 AC_SUBST(USE_SSL)
 
-dnl check for libgsasl
-PKG_CHECK_MODULES(GSASL, libgsasl >= 0.2.0, haslibgsasl=yes, haslibgsasl=no)
-if test $haslibgsasl = "no" ; then
-    AC_MSG_RESULT($GSASL_PKG_ERRORS)
-fi
-AC_MSG_CHECKING(if SASL is requested)
-AC_ARG_ENABLE(sasl, AC_HELP_STRING([--enable-sasl], [Enable SASL authentication using GNU SASL]), sasl=yes)
-if test x-$sasl = "x-yes" ; then
-    AC_MSG_RESULT(yes)
-    if test $haslibgsasl = "yes" ; then
-	AC_DEFINE(WITH_SASL,,[GNU SASL requested])
-	CFLAGS="$CFLAGS $GSASL_CFLAGS"
-	LDFLAGS="$LDFLAGS $GSASL_LIBS"
-    else
-	AC_MSG_ERROR([SASL is requested but usable GNU SASL installation has not been found.])
-    fi
-else
-    AC_MSG_RESULT(no)
-fi
-
-AC_SUBST(WITH_SASL)
-
 dnl check if flash hack is requested
 AC_MSG_CHECKING(if flash hack wanted)
 AC_ARG_ENABLE(flash, AC_HELP_STRING([--enable-flash],
