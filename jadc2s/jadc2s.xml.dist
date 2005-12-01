@@ -24,7 +24,7 @@
 
 	<!--  define aliases for local hosts                               -->
 	<!--  needs support by the client and is not present in newer      -->
-	<!--  protocol documents, but available in jabberd 1.4.x           -->
+	<!--  protocol documents, but available in jabberd14 1.4.x         -->
 	<!--
 	<alias to='jabber.example.com'>example</alias> -->
 

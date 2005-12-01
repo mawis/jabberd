@@ -21,7 +21,7 @@
  *
  * @section jer_comments First notes by jer on 2002-03-17
  *
- * This is jadc2s, the jabberd client-to-server socket manager.
+ * This is jadc2s, the jabberd14 client-to-server socket manager.
  *
  * Ultimately we only have one task here, to multiplex incoming connections
  * from clients and relay their packets to a session manager (sm).  Due to

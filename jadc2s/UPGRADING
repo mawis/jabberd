@@ -1,0 +1,22 @@
+Upgrading from 0.9.0 to 0.9.1
+-----------------------------
+
+Upgrading to 0.9.1 should be an easy task. No modifications to your existing
+configuration file should be needed. But it is suggested, that you have a
+look at the new default configuration file (jabber.xml.dist), as the
+configuration now contains some more options (especially related to SSL/TLS).
+
+There is a change in how to compile your jadc2s. Standard procedures are now
+used. What you probably want to do is:
+
+./configure --prefix=/where/to/install/jadc2s --enable-ssl
+make
+make install
+
+If you need flash support, add the "--enable-flash" option to the configure
+call. If you want to send log messages to your syslogd, add the
+"--enable-syslog" option.
+
+To build jadc2s, you will now need some libraries to be installed, that were
+not needed with jadc2s 0.9.0. The configure script will tell you, if one
+of these libraries (or the development package for it) is missing.
