@@ -74,6 +74,7 @@ typedef struct xdbf_struct {
     xht cache;
     int sizelimit;
     int use_hashspool;
+    xht std_ns_prefixes;
 } *xdbf, _xdbf;
 
 /**
@@ -324,14 +325,15 @@ result xdb_file_phandler(instance i, dpacket p, void *arg) {
 
     /* if we're dealing w/ a resource, just get that element <res id='resource'/> inside <xdb/> */
     if (p->id->resource != NULL) {
-        if ((top = xmlnode_get_tag(top,spools(p->p,"res?id=",p->id->resource,p->p))) == NULL) {
+	top = xmlnode_get_list_item(xmlnode_get_tags(top, spools(p->p, "res[@id='", p->id->resource, "']", p->p), xf->std_ns_prefixes), 0);
+	if (top == NULL) {
             top = xmlnode_insert_tag_ns(file, "res", NULL, NS_JABBERD_XDB);
             xmlnode_put_attrib_ns(top, "id", NULL, NULL, p->id->resource);
         }
     }
 
     /* just query the relevant namespace */
-    data = xmlnode_get_tag(top,spools(p->p,"?xdbns=",ns,p->p));
+    data = xmlnode_get_list_item(xmlnode_get_tags(top, spools(p->p, "*[@xdbns='", ns, "']", p->p), xf->std_ns_prefixes), 0);
 
     if (flag_set) {
 	act = xmlnode_get_attrib_ns(p->x, "action", NULL);
@@ -575,10 +577,11 @@ void xdb_convert_spool(const char *spoolroot) {
  * @param x ::xmlnode containing the loading information
  */
 void xdb_file(instance i, xmlnode x) {
-    char *spl, *temp;
-    xmlnode config;
-    xdbcache xc;
-    xdbf xf;
+    char *spl = NULL;
+    xmlnode config = NULL;
+    xmlnode node_ptr = NULL;
+    xdbcache xc = NULL;
+    xdbf xf = NULL;
     int timeout = 3600; /* defaults to timeout in 3600 seconds */
     int sizelimit = 500000; /* defaults to 500000 bytes */
 
@@ -588,39 +591,40 @@ void xdb_file(instance i, xmlnode x) {
     xc = xdb_cache(i);
     config = xdb_get(xc, jid_new(xmlnode_pool(x),"config@-internal"),"jabber:config:xdb_file");
 
+    /* define standard namespace prefixes */
+    xf = pmalloco(i->p,sizeof(_xdbf));
+    xf->std_ns_prefixes = xhash_new(7);
+    xhash_put(xf->std_ns_prefixes, "", NS_JABBERD_XDB);
+    xhash_put(xf->std_ns_prefixes, "conf", NS_JABBERD_CONFIG_XDBFILE);
+
     /* where to store all the files (base directory) */
-    spl = xmlnode_get_tag_data(config,"spool");
+    spl = xmlnode_get_list_item_data(xmlnode_get_tags(config, "conf:spool", xf->std_ns_prefixes), 0);
     if (spl == NULL) {
-        log_error(i->id,"xdb_file: No filesystem spool location configured");
+        log_error(i->id,"xdb_file: No filesystem spool location configured: %s", xmlnode_serialize_string(config, NULL, NULL, 0));
         return;
     }
 
     /* maximum size of a user file */
-    if (xmlnode_get_tag(config, "sizelimit")) {
-        temp = xmlnode_get_tag_data(config,"sizelimit");
-        if (temp != NULL)
-            sizelimit = atoi(temp);
-        else /* no value: disable file size limit */
-            sizelimit = 0;
+    node_ptr = xmlnode_get_list_item(xmlnode_get_tags(config, "conf:sizelimit", xf->std_ns_prefixes), 0);
+    if (node_ptr != NULL) {
+	/* default (0): disable file size limit */
+	sizelimit = j_atoi(xmlnode_get_data(node_ptr), 0);
     }
 
     /* is there a caching timeout? */
-    if (xmlnode_get_tag(config, "timeout")) {
-        temp = xmlnode_get_tag_data(config,"timeout");
-        if (temp != NULL)
-            timeout = atoi(temp);
-        else /* no value: disable timeout */
-            timeout = -1;
+    node_ptr = xmlnode_get_list_item(xmlnode_get_tags(config, "conf:timeout", xf->std_ns_prefixes), 0);
+    if (node_ptr != NULL) {
+	/* default (-1): disable timeout */
+	timeout = j_atoi(xmlnode_get_data(node_ptr), -1);
     }
 
     /* keep our configuration in an instance of _xdbf, allocate memory for it */
-    xf = pmalloco(i->p,sizeof(_xdbf));
     xf->spool = pstrdup(i->p,spl);
     xf->timeout = timeout;
     xf->sizelimit = sizelimit;
     xf->i = i;
-    xf->cache = xhash_new(j_atoi(xmlnode_get_tag_data(config,"maxfiles"),FILES_PRIME));
-    xf->use_hashspool = xmlnode_get_tag(config, "use_hierarchical_spool") ? 1 : 0;
+    xf->cache = xhash_new(j_atoi(xmlnode_get_list_item_data(xmlnode_get_tags(config, "conf:maxfiles", xf->std_ns_prefixes), 0), FILES_PRIME));
+    xf->use_hashspool = xmlnode_get_list_item(xmlnode_get_tags(config, "conf:use_hierarchical_spool", xf->std_ns_prefixes), 0) ? 1 : 0;
 
     /* if we are using the hashed directory layout, we might have to convert an existing spool */
     if (xf->use_hashspool)
