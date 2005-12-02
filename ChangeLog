@@ -3,6 +3,7 @@
     * jabberd/lib/jabberdlib.h: new functions xmlnode_get_tags(),
     	and xmlnode_get_list_item(). Implementing a small subset of xpath.
     * jabberd/lib/xmlnode.c: same
+    * xdb_file/xdb_file.c: using xmlnode_get_tags()
 
 2005-12-01  Matthias Wimmer  <m@tthias.net>
 
