@@ -792,7 +792,7 @@ xmlnode xmlnode_insert_cdata(xmlnode parent, const char* CDATA, unsigned int siz
 /**
  * find given tag in an xmlnode tree
  *
- * @todo implement a function that does the same but honors namespaces
+ * @deprecated This function is not aware of namespaces, use xmlnode_get_tags(), and xmlnode_get_list_item() instead
  *
  * @param parent pointer to the parent tag
  * @param name "name" for the child tag of that name, "name/name" for a sub child (recurses), "?attrib" to match the first tag with that attrib defined, "?attrib=value" to match the first tag with that attrib and value, "=cdata" to match the text node contents of the child, or any combination: "name/name/?attrib", "name=cdata", etc
@@ -906,6 +906,7 @@ xmlnode xmlnode_get_tag(xmlnode parent, const char* name) {
  * - foo/bar[@baz='true']/text()
  * - foobar
  * - foobar[@attribute]
+ * - *[@attribute='value']
  *
  * @param parent the xmlnode where to start the path
  * @param path the path (xpath like syntax, but only a small subset)
@@ -932,7 +933,7 @@ xmlnode_list_item xmlnode_get_tags(xmlnode parent, const char *path, xht namespa
     start_predicate = strchr(path, '[');
     next_step = strchr(path, '/');
     if (start_predicate == NULL && next_step == NULL) {
-	this_step = (char*)path;
+	this_step = pstrdup(xmlnode_pool(parent), path);
     } else if (start_predicate == NULL || start_predicate > next_step && next_step != NULL) {
 	this_step = pmalloco(xmlnode_pool(parent), next_step - path + 1);
 	snprintf(this_step, next_step - path + 1, "%s", path);
@@ -964,13 +965,26 @@ xmlnode_list_item xmlnode_get_tags(xmlnode parent, const char *path, xht namespa
 	ns_iri = xhash_get(namespaces, "");
     } else {
 	/* prefixed name */
-	end_prefix[0] = 0;
+	*end_prefix = 0;
 	ns_iri = xhash_get(namespaces, this_step);
 	this_step = end_prefix+1;
     }
 
     /* iterate over all child nodes, checking if this step matches them */
     for (iter = xmlnode_get_firstchild(parent); iter != NULL; iter = xmlnode_get_nextsibling(iter)) {
+	if (this_step != NULL && this_step[0] == '*' && this_step[1] == 0) {
+	    /* matching all nodes */
+
+	    /* merging if it is a text node */
+	    if (iter->type == NTYPE_CDATA)
+		_xmlnode_merge(iter);
+
+	    /* append to the result */
+	    _xmlnode_append_if_predicate(&result_first, &result_last, iter, predicate, next_step, namespaces);
+
+	    continue;
+	}
+
 	if (iter->type == NTYPE_CDATA && j_strcmp(this_step, "text()") == 0) {
 	    /* matching text node */
 
@@ -997,11 +1011,11 @@ xmlnode_list_item xmlnode_get_tags(xmlnode parent, const char *path, xht namespa
 }
 
 /**
- * return the text of the inside wrapped by the element found by the name parameter
+ * return the text wrapped inside the element found by the name parameter
  *
  * this equals xmlnode_get_data(xmlnode_get_tag(parent, name))
  *
- * @todo implement a function that does the same but honors namespaces
+ * @deprecated This function is not aware of namespaces, use xmlnode_get_tags(), and xmlnode_get_list_item_data() instead
  *
  * @param parent the element where to search for the element defined by the name parameter
  * @param name search query for the element whichs textual content should be returned
@@ -1011,6 +1025,23 @@ char *xmlnode_get_tag_data(xmlnode parent, const char *name) {
     xmlnode tag;
 
     tag = xmlnode_get_tag(parent, name);
+    if (tag == NULL)
+	return NULL;
+
+    return xmlnode_get_data(tag);
+}
+
+/**
+ * get that text wrapped by the (i+1)-th element in a list of xmlnodes
+ *
+ * @param first pointer to the first list item
+ * @param i which item to use
+ * @return textual content, or NULL if no textual content, or item not found
+ */
+char* xmlnode_get_list_item_data(xmlnode_list_item first, unsigned int i) {
+    xmlnode tag;
+
+    tag = xmlnode_get_list_item(first, i);
     if (tag == NULL)
 	return NULL;
 

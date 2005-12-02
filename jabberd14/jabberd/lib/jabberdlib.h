@@ -391,6 +391,7 @@ xmlnode  xmlnode_get_tag(xmlnode parent, const char* name);
 char* xmlnode_get_tag_data(xmlnode parent, const char* name);
 xmlnode_list_item xmlnode_get_tags(xmlnode parent, const char *path, xht namespaces);
 xmlnode xmlnode_get_list_item(xmlnode_list_item first, unsigned int i);
+char* xmlnode_get_list_item_data(xmlnode_list_item first, unsigned int i);
 
 /* Attribute accessors */
 void     xmlnode_put_attrib(xmlnode owner, const char* name, const char* value);
@@ -838,6 +839,7 @@ typedef struct xterror_struct
 #define NS_XMLNS "http://www.w3.org/2000/xmlns/"	/**< namespace of xml namespace declarations, defined by 'Namespaces in XML' (W3C) */
 #define NS_XML "http://www.w3.org/XML/1998/namespace"	/**< namespace declared by the xml prefix, defined by 'Namespaces in XML' (W3C) */
 
+#define NS_JABBERD_CONFIG_XDBFILE "jabber:config:xdb_file" /**< namespace of xdb_file component configuration */
 
 /* --------------------------------------------------------- */
 /*                                                           */
