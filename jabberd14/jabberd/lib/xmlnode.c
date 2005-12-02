@@ -649,22 +649,30 @@ xmlnode xmlnode_new_tag_ns(const char* name, const char* prefix, const char* ns_
 xmlnode xmlnode_new_tag_pool(pool p, const char* name) {
     const char *local_name = NULL;
     xmlnode result = NULL;
+    char *prefix = NULL;
+    const char *ns_iri = NS_SERVER;
 
     if (name == NULL)
-	return NULL;
+        return NULL;
 
     local_name = strchr(name, ':');
     if (local_name == NULL)
-	local_name = name;
+        local_name = name;
     else
-	local_name++;
+        local_name++;
 
-    result = _xmlnode_new(p, local_name, NULL, NS_SERVER, NTYPE_TAG);
-    if (result != NULL && local_name > name) {
-	result->prefix = pmalloco(xmlnode_pool(result), local_name-name);
-	snprintf(result->prefix, local_name-name, "%s", name);
+    if (local_name > name) {
+        prefix = pmalloco(p, local_name-name);
+        snprintf(prefix, local_name-name, "%s", name);
+
+        if (j_strcmp(prefix, "db") == 0)
+            ns_iri = NS_DIALBACK;
+        else if (j_strcmp(prefix, "stream") == 0)
+            ns_iri = NS_STREAM;
     }
-    
+
+    result = _xmlnode_new(p, local_name, prefix, ns_iri, NTYPE_TAG);
+
     return result;
 }
 
