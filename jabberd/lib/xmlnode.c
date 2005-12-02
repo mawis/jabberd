@@ -457,7 +457,144 @@ static int _xmlnode_get_datasz(xmlnode node) {
     return node->data_sz;
 }
 
+/**
+ * helper function for xmlnode_get_tags()
+ *
+ * Appends xmlnode node, if the predicate matches. If there is a next_step, not the xmlnode is added itself,
+ * but the result of an xmlnode_get_tags() recursion is added
+ *
+ * @param result_first pointer to the pointer to the first list element of the result (gets modified)
+ * @param result_last pointer to the pointer to the first list element of the result (gets modified)
+ * @param node the node, that should be appended if there is no next_step, or which should be the parent node for the next_step
+ * @param predicate the predicate for this step
+ * @param next_step the next step for recursion
+ */
+static void _xmlnode_append_if_predicate(xmlnode_list_item *result_first, xmlnode_list_item *result_last, xmlnode node, char *predicate, const char *next_step, xht namespaces) {
+    xmlnode_list_item sub_result = NULL;
 
+    /* sanity checks */
+    if (result_first == NULL || result_last == NULL || node == NULL || namespaces == NULL)
+	return;
+    
+    /* check the predicate */
+    if (predicate != NULL) {
+	char *attrib_ns_iri = NULL;
+	char *attrib_name = NULL;
+	char *attrib_value = NULL;
+	xmlnode iter = NULL;
+	int predicate_matched = 0;
+
+	/* we only support checking for attribute existence or attribute values for now */
+	if (predicate[0] != '@') {
+	    /* do not add, we do not support the predicate :-( */
+	    return;
+	}
+
+	/* skip the '@' */
+	predicate++;
+
+	/* make a copy of the predicate, so we can modify it */
+	predicate = pstrdup(xmlnode_pool(node), predicate);
+
+	/* is there a value we have to match? */
+	attrib_value = strchr(predicate, '=');
+	if (attrib_value != NULL) {
+	    attrib_value[0] = 0;
+	    attrib_value++;
+
+	    /* remove quotes */
+	    if (attrib_value[0] != 0) {
+		attrib_value++;
+		if (attrib_value[0] != 0) {
+		    attrib_value[j_strlen(attrib_value)-1] = 0;
+		}
+	    }
+	}
+
+	/* get the namespace of the attribute */
+	attrib_name = strchr(predicate, ':');
+	if (attrib_name == NULL) {
+	    attrib_name = predicate;
+	    attrib_ns_iri = NULL;
+	} else {
+	    attrib_name[0] = 0;
+	    attrib_name++;
+	    attrib_ns_iri = xhash_get(namespaces, predicate);
+	}
+
+	/* iterate over the namespace attributes */
+	for (iter = xmlnode_get_firstattrib(node); iter != NULL; iter = xmlnode_get_nextsibling(iter)) {
+
+	    /* attribute differs in name? */
+	    if (j_strcmp(attrib_name, iter->name) != 0) {
+		continue;
+	    }
+
+	    /* attribute differs in namespace IRI? */
+	    if (j_strcmp(attrib_ns_iri, iter->ns_iri) != 0 && !(attrib_ns_iri == NULL && iter->ns_iri == NULL)) {
+		continue;
+	    }
+
+	    /* we have to check the value and it differs */
+	    if (attrib_value != NULL && j_strcmp(attrib_value, xmlnode_get_data(iter)) != 0) {
+		continue;
+	    }
+
+	    /* predicate matches! */
+	    predicate_matched = 1;
+	    break;
+	    
+	}
+
+	/* return without adding anything if the predicate did not match */
+	if (!predicate_matched)
+	    return;
+    }
+
+    /* when we are here: no predicate, or predicate matched */
+
+    /* if no next_step, than add the node to the list and return */
+    if (next_step == NULL) {
+	xmlnode_list_item result_item = pmalloco(xmlnode_pool(node), sizeof(_xmlnode_list_item));
+	result_item->node = node;
+
+	/* first item in list? */
+	if (*result_first == NULL)
+	    *result_first = result_item;
+
+	/* is there already a last item */
+	if (*result_last != NULL)
+	    (*result_last)->next = result_item;
+
+	/* this is now the last item */
+	*result_last = result_item;
+
+	return;
+    }
+
+    /* there is a next_step, we have to recurse */
+    sub_result = xmlnode_get_tags(node, next_step, namespaces);
+
+    /* did we get a result we have to add? */
+    while (sub_result != NULL) {
+	xmlnode_list_item result_item = pmalloco(xmlnode_pool(node), sizeof(_xmlnode_list_item));
+	result_item->node = sub_result->node;
+
+	/* first item in list? */
+	if (*result_first == NULL)
+	    *result_first = result_item;
+
+	/* is there already a last item */
+	if (*result_last != NULL)
+	    (*result_last)->next = result_item;
+
+	/* this is now the last item */
+	*result_last = result_item;
+
+	/* iterate */
+	sub_result = sub_result->next;
+    }
+}
 
 /* External routines */
 
@@ -753,6 +890,110 @@ xmlnode xmlnode_get_tag(xmlnode parent, const char* name) {
 
     free(str);
     return NULL;
+}
+
+/**
+ * at all xmlnodes that match a path
+ *
+ * The valid paths are a very small subset of xpath.
+ *
+ * The only predicates we support is for existence of attributes, or for attribute values,
+ * we only support steps in the axis child and the axis must be ommited,
+ * we support text() as a step.
+ *
+ * Examples:
+ * - foo/bar/text()
+ * - foo/bar[@baz='true']/text()
+ * - foobar
+ * - foobar[@attribute]
+ *
+ * @param parent the xmlnode where to start the path
+ * @param path the path (xpath like syntax, but only a small subset)
+ * @param xht hashtable mapping namespace prefixes to namespace IRIs
+ * @return first item in the list of xmlnodes, or NULL if no xmlnode matched the path
+ */
+xmlnode_list_item xmlnode_get_tags(xmlnode parent, const char *path, xht namespaces) {
+    char *this_step = NULL;
+    const char *ns_iri = NULL;
+    char *next_step = NULL;
+    char *start_predicate = NULL;
+    char *end_predicate = NULL;
+    char *predicate = NULL;
+    char *end_prefix = NULL;
+    xmlnode_list_item result_first = NULL;
+    xmlnode_list_item result_last = NULL;
+    xmlnode iter = NULL;
+
+    /* sanity check */
+    if (parent == NULL || path == NULL || namespaces == NULL)
+	return NULL;
+
+    /* separate this step from the next one, and check for a predicate in this step */
+    start_predicate = strchr(path, '[');
+    next_step = strchr(path, '/');
+    if (start_predicate == NULL && next_step == NULL) {
+	this_step = (char*)path;
+    } else if (start_predicate == NULL || start_predicate > next_step && next_step != NULL) {
+	this_step = pmalloco(xmlnode_pool(parent), next_step - path + 1);
+	snprintf(this_step, next_step - path + 1, "%s", path);
+	next_step++;
+    } else {
+
+	end_predicate = strchr(start_predicate, ']');
+	if (end_predicate == NULL) {
+	    /* error in predicate syntax */
+	    return NULL;
+	}
+
+	if (next_step != NULL) {
+	    if (next_step < end_predicate)
+		next_step = strchr(end_predicate, '/');
+	    next_step++;
+	}
+	
+	predicate = pmalloco(xmlnode_pool(parent), end_predicate - start_predicate);
+	snprintf(predicate, end_predicate - start_predicate, "%s", start_predicate+1);
+	this_step = pmalloco(xmlnode_pool(parent), start_predicate - path + 1);
+	snprintf(this_step, start_predicate - path + 1, "%s", path);
+    }
+
+    /* check for the namespace IRI we have to match the node */
+    end_prefix = strchr(this_step, ':');
+    if (end_prefix == NULL) {
+	/* default prefix */
+	ns_iri = xhash_get(namespaces, "");
+    } else {
+	/* prefixed name */
+	end_prefix[0] = 0;
+	ns_iri = xhash_get(namespaces, this_step);
+	this_step = end_prefix+1;
+    }
+
+    /* iterate over all child nodes, checking if this step matches them */
+    for (iter = xmlnode_get_firstchild(parent); iter != NULL; iter = xmlnode_get_nextsibling(iter)) {
+	if (iter->type == NTYPE_CDATA && j_strcmp(this_step, "text()") == 0) {
+	    /* matching text node */
+
+	    /* merge all text nodes, that are direct siblings with this one */
+	    _xmlnode_merge(iter);
+
+	    /* append to the result */
+	    _xmlnode_append_if_predicate(&result_first, &result_last, iter, predicate, next_step, namespaces);
+
+	    continue;
+	}
+
+	if (iter->type == NTYPE_TAG && (ns_iri == NULL && iter->ns_iri == NULL || j_strcmp(ns_iri, iter->ns_iri) == 0) && j_strcmp(this_step, iter->name) == 0) {
+	    /* matching element */
+
+	    /* append to the result */
+	    _xmlnode_append_if_predicate(&result_first, &result_last, iter, predicate, next_step, namespaces);
+
+	    continue;
+	}
+    }
+
+    return result_first;
 }
 
 /**
@@ -1281,6 +1522,10 @@ char *xmlnode2str(xmlnode node) {
  * @return serialized XML tree
  */
 char *xmlnode_serialize_string(xmlnode node, ns_list_item nslist_first, ns_list_item nslist_last, int stream_type) {
+    /* sanity check */
+    if (node == NULL)
+	return NULL;
+
     spool s = spool_new(xmlnode_pool(node));
     _xmlnode_serialize(s, node, nslist_first, nslist_last, stream_type);
     return spool_print(s);
@@ -1674,5 +1919,27 @@ const char *xmlnode_list_get_nsiri(ns_list_item last_ns, const char *prefix) {
     }
 
     /* nothing found */
+    return NULL;
+}
+
+/**
+ * get the (i+1)-th element in a list of xmlnodes
+ *
+ * @param first first list item
+ * @param i which item to get (we start counting at zero)
+ * @return the node of the list item, NULL if no such item
+ */
+xmlnode xmlnode_get_list_item(xmlnode_list_item first, unsigned int i) {
+    /* find the item */
+    while (first != NULL && i > 0) {
+	first = first->next;
+	i--;
+    }
+
+    /* found? */
+    if (first != NULL)
+	return first->node;
+
+    /* not found */
     return NULL;
 }

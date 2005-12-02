@@ -339,6 +339,14 @@ typedef struct xmlnode_t {
 } _xmlnode, *xmlnode;
 
 /**
+ * item in a list of xmlnodes
+ */
+typedef struct xmlnode_list_item_t {
+    xmlnode			node;	/**< the node contained in this list item */
+    struct xmlnode_list_item_t *next;	/**< next item in the list */
+} _xmlnode_list_item, *xmlnode_list_item;
+
+/**
  * a list of these elements is used for serializing ::xmlnode objects. It declares the namespaces, that do not need to be serialized,
  * as they have been declared already by a parent element
  */
@@ -381,6 +389,8 @@ void xmlnode_free(xmlnode node);
 /* Locates a child tag by name and returns it */
 xmlnode  xmlnode_get_tag(xmlnode parent, const char* name);
 char* xmlnode_get_tag_data(xmlnode parent, const char* name);
+xmlnode_list_item xmlnode_get_tags(xmlnode parent, const char *path, xht namespaces);
+xmlnode xmlnode_get_list_item(xmlnode_list_item first, unsigned int i);
 
 /* Attribute accessors */
 void     xmlnode_put_attrib(xmlnode owner, const char* name, const char* value);
