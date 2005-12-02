@@ -833,6 +833,7 @@ typedef struct xterror_struct
 #define NS_JABBERD_STOREDPRESENCE "http://jabberd.org/ns/storedpresence"
 #define NS_JABBERD_HISTORY "http://jabberd.org/ns/history"
 #define NS_JABBERD_XDB "http://jabberd.org/ns/xdb"			/**< namespace for the root element used by xdb_file to store data in files */
+#define NS_JABBERD_WRAPPER "http://jabberd.org/ns/wrapper"		/**< namespace used to wrap various internal data */
 
 #define NS_SESSION "http://jabberd.jabberstudio.org/ns/session/1.0"	/**< namespace of the jabberd2 session control protocol (http://jabberd.jabberstudio.org/dev/docs/session.shtml) */
 
@@ -840,6 +841,7 @@ typedef struct xterror_struct
 #define NS_XML "http://www.w3.org/XML/1998/namespace"	/**< namespace declared by the xml prefix, defined by 'Namespaces in XML' (W3C) */
 
 #define NS_JABBERD_CONFIG_XDBFILE "jabber:config:xdb_file" /**< namespace of xdb_file component configuration */
+#define NS_JABBERD_CONFIG_DIALBACK "jabber:config:dialback" /**< namespace of dialback component configuration */
 
 /* --------------------------------------------------------- */
 /*                                                           */
