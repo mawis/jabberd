@@ -1,3 +1,9 @@
+2005-12-02  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/lib/jabberdlib.h: new functions xmlnode_get_tags(),
+    	and xmlnode_get_list_item(). Implementing a small subset of xpath.
+    * jabberd/lib/xmlnode.c: same
+
 2005-12-01  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/lib/expat.c: remove temp files when writing to them failed,
