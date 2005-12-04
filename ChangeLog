@@ -1,3 +1,11 @@
+2005-12-03  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/lib/xmlnode.c: bugfix in xmlnode_get_tags()
+    * dialback/dialback.h: using ns aware api of xmlnode
+    * dialback/dialback.c: same
+    * dialback/dialback_in.c: same
+    * dialback/dialback_out.c: same
+
 2005-12-02  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/lib/jabberdlib.h: new functions xmlnode_get_tags(),

@@ -189,7 +189,7 @@ void dialback_miod_read(miod md, xmlnode x)
     /* only accept valid jpackets! */
     if(jp == NULL)
     {
-        log_warn(md->d->i->id, "dropping invalid packet from server: %s",xmlnode2str(x));
+        log_warn(md->d->i->id, "dropping invalid packet from server: %s",xmlnode_serialize_string(x, NULL, NULL, 0));
         xmlnode_free(x);
         return;
     }
@@ -301,7 +301,7 @@ char *dialback_ip_get(db d, jid host, char *ip)
     if(ip != NULL)
         return ip;
 
-    ret =  pstrdup(host->p,xmlnode_get_attrib((xmlnode)xhash_get(d->nscache,host->server),"i"));
+    ret =  pstrdup(host->p,xmlnode_get_attrib_ns((xmlnode)xhash_get(d->nscache,host->server),"i", NULL));
     log_debug2(ZONE, LOGT_IO, "returning cached ip %s for %s",ret,host->server);
     return ret;
 }
@@ -324,10 +324,10 @@ void dialback_ip_set(db d, jid host, char *ip)
     old = (xmlnode)xhash_get(d->nscache,host->server);
 
     /* new cache */
-    cache = xmlnode_new_tag("d");
-    xmlnode_put_attrib(cache,"h",host->server);
-    xmlnode_put_attrib(cache,"i",ip);
-    xhash_put(d->nscache,xmlnode_get_attrib(cache,"h"),(void*)cache);
+    cache = xmlnode_new_tag_ns("d", NULL, NS_JABBERD_WRAPPER);
+    xmlnode_put_attrib_ns(cache, "h", NULL, NULL, host->server);
+    xmlnode_put_attrib_ns(cache, "i", NULL, NULL, ip);
+    xhash_put(d->nscache, xmlnode_get_attrib_ns(cache, "h", NULL), (void*)cache);
     log_debug2(ZONE, LOGT_IO, "cached ip %s for %s",ip,host->server);
 
     /* free any old entry that's been replaced */
@@ -351,20 +351,18 @@ result dialback_packets(instance i, dpacket dp, void *arg)
     char *ip = NULL;
 
     /* routes are from dnsrv w/ the needed ip */
-    if(dp->type == p_ROUTE)
-    {
+    if(dp->type == p_ROUTE) {
         x = xmlnode_get_firstchild(x);
-        ip = xmlnode_get_attrib(dp->x,"ip");
+        ip = xmlnode_get_attrib_ns(dp->x,"ip", NULL);
     }
 
     /* all packets going to our "id" go to the incoming handler, 
      * it uses that id to send out db:verifies to other servers, 
      * and end up here when they bounce */
-    if(j_strcmp(xmlnode_get_attrib(x,"to"),d->i->id) == 0)
-    {
-        xmlnode_put_attrib(x,"to",xmlnode_get_attrib(x,"ofrom"));
-        xmlnode_hide_attrib(x,"ofrom"); /* repair the addresses */
-	xmlnode_hide_attrib(x,"dnsqueryby"); /* not needed anymore */
+    if(j_strcmp(xmlnode_get_attrib_ns(x, "to", NULL),d->i->id) == 0) {
+        xmlnode_put_attrib_ns(x, "to", NULL, NULL, xmlnode_get_attrib_ns(x, "ofrom", NULL));
+        xmlnode_hide_attrib_ns(x,"ofrom", NULL); /* repair the addresses */
+	xmlnode_hide_attrib_ns(x,"dnsqueryby", NULL); /* not needed anymore */
         dialback_in_verify(d, x);
         return r_DONE;
     }
@@ -425,6 +423,7 @@ void dialback(instance i, xmlnode x)
 {
     db d;
     xmlnode cfg, cur;
+    xmlnode_list_item cur_item;
     struct karma k;
     int max;
     int rate_time, rate_points;
@@ -434,10 +433,19 @@ void dialback(instance i, xmlnode x)
     srand(time(NULL));
 
     /* get the config */
-    cfg = xdb_get(xdb_cache(i),jid_new(xmlnode_pool(x),"config@-internal"),"jabber:config:dialback");
+    cfg = xdb_get(xdb_cache(i), jid_new(xmlnode_pool(x), "config@-internal"), NS_JABBERD_CONFIG_DIALBACK);
 
-    max = j_atoi(xmlnode_get_tag_data(cfg,"maxhosts"),997);
     d = pmalloco(i->p,sizeof(_db));
+    d->std_ns_prefixes = xhash_new(17);
+    xhash_put(d->std_ns_prefixes, "", NS_SERVER);
+    xhash_put(d->std_ns_prefixes, "stream", NS_STREAM);
+    xhash_put(d->std_ns_prefixes, "db", NS_DIALBACK);
+    xhash_put(d->std_ns_prefixes, "wrap", NS_JABBERD_WRAPPER);
+    xhash_put(d->std_ns_prefixes, "tls", NS_XMPP_TLS);
+    xhash_put(d->std_ns_prefixes, "sasl", NS_XMPP_SASL);
+    xhash_put(d->std_ns_prefixes, "conf", NS_JABBERD_CONFIG_DIALBACK);
+
+    max = j_atoi(xmlnode_get_list_item_data(xmlnode_get_tags(cfg, "conf:maxhosts", d->std_ns_prefixes), 0), 997);
     d->nscache = xhash_new(max);
     pool_cleanup(i->p, (pool_cleaner)xhash_free, d->nscache);
     d->out_connecting = xhash_new(67);
@@ -451,38 +459,38 @@ void dialback(instance i, xmlnode x)
     d->hosts_xmpp = xhash_new(max);
     d->hosts_tls = xhash_new(max);
     d->i = i;
-    d->timeout_idle = j_atoi(xmlnode_get_tag_data(cfg,"idletimeout"),900);
-    d->timeout_packets = j_atoi(xmlnode_get_tag_data(cfg,"queuetimeout"),30);
-    d->secret = pstrdup(i->p,xmlnode_get_tag_data(cfg,"secret"));
-    if(d->secret == NULL) /* if there's no configured secret, make one on the fly */
+    d->timeout_idle = j_atoi(xmlnode_get_list_item_data(xmlnode_get_tags(cfg, "conf:idletimeout", d->std_ns_prefixes), 0), 900);
+    d->timeout_packets = j_atoi(xmlnode_get_list_item_data(xmlnode_get_tags(cfg, "conf:queuetimeout", d->std_ns_prefixes), 0), 30);
+    d->secret = pstrdup(i->p, xmlnode_get_list_item_data(xmlnode_get_tags(cfg, "conf:secret", d->std_ns_prefixes), 0));
+    if (d->secret == NULL) /* if there's no configured secret, make one on the fly */
         d->secret = pstrdup(i->p,dialback_randstr());
 
     /* Get rate info if it exists */
-    if((cur = xmlnode_get_tag(cfg, "rate")) != NULL)
-    {
-        rate_time   = j_atoi(xmlnode_get_attrib(cur, "time"), 0);
-        rate_points = j_atoi(xmlnode_get_attrib(cur, "points"), 0);
+    cur = xmlnode_get_list_item(xmlnode_get_tags(cfg, "conf:rate", d->std_ns_prefixes), 0);
+    if (cur != NULL) {
+        rate_time   = j_atoi(xmlnode_get_attrib_ns(cur, "time", NULL), 0);
+        rate_points = j_atoi(xmlnode_get_attrib_ns(cur, "points", NULL), 0);
         set_rate = 1; /* set to true */
     }
 
     /* Get karma info if it exists */
-    if((cur = xmlnode_get_tag(cfg, "karma")) != NULL)
-    {
-         k.val         = j_atoi(xmlnode_get_tag_data(cur, "init"), KARMA_INIT);
-         k.max         = j_atoi(xmlnode_get_tag_data(cur, "max"), KARMA_MAX);
-         k.inc         = j_atoi(xmlnode_get_tag_data(cur, "inc"), KARMA_INC);
-         k.dec         = j_atoi(xmlnode_get_tag_data(cur, "dec"), KARMA_DEC);
-         k.restore     = j_atoi(xmlnode_get_tag_data(cur, "restore"), KARMA_RESTORE);
-         k.penalty     = j_atoi(xmlnode_get_tag_data(cur, "penalty"), KARMA_PENALTY);
-         k.reset_meter = j_atoi(xmlnode_get_tag_data(cur, "resetmeter"), KARMA_RESETMETER);
+    cur = xmlnode_get_list_item(xmlnode_get_tags(cfg, "conf:karma", d->std_ns_prefixes), 0);
+    if (cur != NULL) {
+         k.val         = j_atoi(xmlnode_get_list_item_data(xmlnode_get_tags(cur, "conf:init", d->std_ns_prefixes), 0), KARMA_INIT);
+         k.max         = j_atoi(xmlnode_get_list_item_data(xmlnode_get_tags(cur, "conf:max", d->std_ns_prefixes), 0), KARMA_MAX);
+         k.inc         = j_atoi(xmlnode_get_list_item_data(xmlnode_get_tags(cur, "conf:inc", d->std_ns_prefixes), 0), KARMA_INC);
+         k.dec         = j_atoi(xmlnode_get_list_item_data(xmlnode_get_tags(cur, "conf:dec", d->std_ns_prefixes), 0), KARMA_DEC);
+         k.restore     = j_atoi(xmlnode_get_list_item_data(xmlnode_get_tags(cur, "conf:restore", d->std_ns_prefixes), 0), KARMA_RESTORE);
+         k.penalty     = j_atoi(xmlnode_get_list_item_data(xmlnode_get_tags(cur, "conf:penalty", d->std_ns_prefixes), 0), KARMA_PENALTY);
+         k.reset_meter = j_atoi(xmlnode_get_list_item_data(xmlnode_get_tags(cur, "conf:resetmeter", d->std_ns_prefixes), 0), KARMA_RESETMETER);
          set_karma = 1; /* set to true */
     }
 
-    if((cur = xmlnode_get_tag(cfg,"ip")) != NULL) {
-        for(;cur != NULL; xmlnode_hide(cur), cur = xmlnode_get_tag(cfg,"ip"))
-        {
+    cur_item = xmlnode_get_tags(cfg, "conf:ip", d->std_ns_prefixes);
+    if (cur_item != NULL) {
+        for (; cur_item != NULL; cur_item = cur_item->next) {
             mio m;
-            m = mio_listen(j_atoi(xmlnode_get_attrib(cur,"port"),5269),xmlnode_get_data(cur),dialback_in_read,(void*)d, MIO_LISTEN_XML);
+            m = mio_listen(j_atoi(xmlnode_get_attrib_ns(cur_item->node, "port", NULL), 5269), xmlnode_get_data(cur_item->node), dialback_in_read, (void*)d, MIO_LISTEN_XML);
             if(m == NULL)
                 return;
             /* Set New rate and points */
@@ -502,19 +510,19 @@ void dialback(instance i, xmlnode x)
     }
 
     /* check for hosts where we don't want to use XMPP streams or STARTTLS */
-    for (cur = xmlnode_get_tag(cfg, "host"); cur != NULL; cur = xmlnode_get_tag(cfg, "host")) {
+    for (cur_item = xmlnode_get_tags(cfg, "conf:host", d->std_ns_prefixes); cur_item != NULL; cur_item = cur_item->next) {
 	char *xmpp = NULL;
 	char *tls = NULL;
 	char *auth = NULL;
-	char *hostname = pstrdup(i->p, xmlnode_get_attrib(cur, "name"));
+	char *hostname = pstrdup(i->p, xmlnode_get_attrib_ns(cur_item->node, "name", NULL));
 
 	/* the default setting is stored as a setting for '*' */
 	if (hostname == NULL)
 	    hostname = "*";
 
-	xmpp = pstrdup(i->p, xmlnode_get_attrib(cur, "xmpp"));
-	tls = pstrdup(i->p, xmlnode_get_attrib(cur, "tls"));
-	auth = pstrdup(i->p, xmlnode_get_attrib(cur, "auth"));
+	xmpp = pstrdup(i->p, xmlnode_get_attrib_ns(cur_item->node, "xmpp", NULL));
+	tls = pstrdup(i->p, xmlnode_get_attrib_ns(cur_item->node, "tls", NULL));
+	auth = pstrdup(i->p, xmlnode_get_attrib_ns(cur_item->node, "auth", NULL));
 
 	if (xmpp != NULL) {
 	    xhash_put(d->hosts_xmpp, hostname, xmpp);
@@ -525,8 +533,6 @@ void dialback(instance i, xmlnode x)
 	if (auth != NULL) {
 	    xhash_put(d->hosts_auth, hostname, auth);
 	}
-
-	xmlnode_hide(cur);
     }
 
     register_phandler(i,o_DELIVER,dialback_packets,(void*)d);
