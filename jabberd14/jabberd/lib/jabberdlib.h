@@ -842,6 +842,7 @@ typedef struct xterror_struct
 
 #define NS_JABBERD_CONFIG_XDBFILE "jabber:config:xdb_file" /**< namespace of xdb_file component configuration */
 #define NS_JABBERD_CONFIG_DIALBACK "jabber:config:dialback" /**< namespace of dialback component configuration */
+#define NS_JABBERD_CONFIG_DNSRV "jabber:config:dnsrv" /**< namespace of the dnsrv component configuration */
 
 /* --------------------------------------------------------- */
 /*                                                           */
