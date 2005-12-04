@@ -1,3 +1,8 @@
+2005-12-04  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/lib/jabberdlib.h: define NS_JABBERD_CONFIG_DNSRV
+    * dnsrv/dnsrv.c
+
 2005-12-03  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/lib/xmlnode.c: bugfix in xmlnode_get_tags()
