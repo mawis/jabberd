@@ -69,6 +69,7 @@ typedef struct db_struct
     char *secret;	/**< our dialback secret */
     int timeout_packets;/**< configuration option <queuetimeout/> */
     int timeout_idle;	/**< configuration option <idletimeout/> */
+    xht std_ns_prefixes;/**< standard prefixes used inside the dialback component for xpath expressions */
 } *db, _db;
 
 /** wrap an mio and track the idle time of it */
