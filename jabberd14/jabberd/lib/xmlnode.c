@@ -945,7 +945,8 @@ xmlnode_list_item xmlnode_get_tags(xmlnode parent, const char *path, xht namespa
     } else if (start_predicate == NULL || start_predicate > next_step && next_step != NULL) {
 	this_step = pmalloco(xmlnode_pool(parent), next_step - path + 1);
 	snprintf(this_step, next_step - path + 1, "%s", path);
-	next_step++;
+	if (next_step != NULL)
+	    next_step++;
     } else {
 
 	end_predicate = strchr(start_predicate, ']');
@@ -957,7 +958,8 @@ xmlnode_list_item xmlnode_get_tags(xmlnode parent, const char *path, xht namespa
 	if (next_step != NULL) {
 	    if (next_step < end_predicate)
 		next_step = strchr(end_predicate, '/');
-	    next_step++;
+	    if (next_step != NULL)
+		next_step++;
 	}
 	
 	predicate = pmalloco(xmlnode_pool(parent), end_predicate - start_predicate);

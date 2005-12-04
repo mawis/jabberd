@@ -112,7 +112,7 @@ static dbic dialback_in_dbic_new(db d, mio m, const char *we_domain, const char 
     c = pmalloco(m->p, sizeof(_dbic));
     c->m = m;
     c->id = pstrdup(m->p,dialback_randstr()); /* generate a random id for this incoming stream */
-    c->results = xmlnode_new_tag_pool(m->p,"r"); /* wrapper element, we add the db:result elements inside this one */
+    c->results = xmlnode_new_tag_pool_ns(m->p, "r", NULL, NS_JABBERD_WRAPPER); /* wrapper element, we add the db:result elements inside this one */
     c->d = d;
     c->we_domain = pstrdup(m->p, we_domain);
     c->other_domain = pstrdup(m->p, other_domain);
@@ -137,8 +137,7 @@ static dbic dialback_in_dbic_new(db d, mio m, const char *we_domain, const char 
  * @param arg the dbic instance of the stream on which the stanza has been read
  * @param x the stanza that has been read
  */
-void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
-{
+void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x) {
     dbic c = (dbic)arg;
     miod md;
     jid key, from;
@@ -146,10 +145,10 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
 
     if(flags != MIO_XML_NODE) return;
 
-    log_debug2(ZONE, LOGT_IO, "dbin read dialback: fd %d packet %s",m->fd, xmlnode2str(x));
+    log_debug2(ZONE, LOGT_IO, "dbin read dialback: fd %d packet %s",m->fd, xmlnode_serialize_string(x, NULL, NULL, 0));
 
     /* incoming stream error? */
-    if (j_strcmp(xmlnode_get_name(x), "stream:error") == 0) {
+    if (j_strcmp(xmlnode_get_localname(x), "error") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_STREAM) == 0) {
         spool s = spool_new(x->p);
         streamerr errstruct = pmalloco(x->p, sizeof(_streamerr));
         char *errmsg = NULL;
@@ -176,13 +175,12 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
     }
 
     /* incoming starttls */
-    if (j_strcmp(xmlnode_get_name(x), "starttls") == 0 && j_strcmp(xmlnode_get_attrib(x, "xmlns"), NS_XMPP_TLS) == 0) {
+    if (j_strcmp(xmlnode_get_localname(x), "starttls") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_XMPP_TLS) == 0) {
 	/* starting TLS possible? */
 #ifdef SUPPORT_TLS
 	if (mio_ssl_starttls_possible(m, c->we_domain) && j_strcmp(xhash_get_by_domain(c->d->hosts_tls, c->other_domain), "no")!=0) {
 	    /* ACK the start */
-	    xmlnode proceed = xmlnode_new_tag("proceed");
-	    xmlnode_put_attrib(proceed, "xmlns", NS_XMPP_TLS);
+	    xmlnode proceed = xmlnode_new_tag_ns("proceed", NULL, NS_XMPP_TLS);
 	    mio_write(m, proceed, NULL, 0);
 
 	    /* start TLS on this connection */
@@ -209,12 +207,12 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
     }
     
     /* incoming SASL */
-    if (j_strcmp(xmlnode_get_name(x), "auth") == 0 && j_strcmp(xmlnode_get_attrib(x, "xmlns"), NS_XMPP_SASL) == 0) {
+    if (j_strcmp(xmlnode_get_localname(x), "auth") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_XMPP_SASL) == 0) {
 	const char *initial_exchange = xmlnode_get_data(x);
 	char *decoded_initial_exchange = NULL;
 	jid other_side_jid = NULL;
 
-	log_debug2(ZONE, LOGT_IO, "incoming SASL: %s", xmlnode2str(x));
+	log_debug2(ZONE, LOGT_IO, "incoming SASL: %s", xmlnode_serialize_string(x, NULL, NULL, 0));
 
 	/* check that the peer is allowed to authenticate using SASL */
 	if (j_strcmp(xhash_get_by_domain(c->d->hosts_auth, c->other_domain), "db") == 0) {
@@ -225,7 +223,7 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
 	}
 
 	/* check that the other end is requesting the EXTERNAL mechanism */
-	if (j_strcasecmp(xmlnode_get_attrib(x, "mechanism"), "EXTERNAL") != 0) {
+	if (j_strcasecmp(xmlnode_get_attrib_ns(x, "mechanism", NULL), "EXTERNAL") != 0) {
 	    /* unsupported mechanism */
 	    mio_write(m, NULL, "<failure xmlns='" NS_XMPP_SASL "'><invalid-mechanism/></failure></stream:stream>", -1);
 	    mio_close(m);
@@ -286,16 +284,15 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
     }
 
     /* incoming verification request, check and respond */
-    if(j_strcmp(xmlnode_get_name(x),"db:verify") == 0)
-    {
+    if(j_strcmp(xmlnode_get_localname(x),"verify") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_DIALBACK) == 0) {
 	char *is = xmlnode_get_data(x);		/* what the peer tries to verify */
-	char *should = dialback_merlin(xmlnode_pool(x), c->d->secret, xmlnode_get_attrib(x,"from"), xmlnode_get_attrib(x,"id"));
+	char *should = dialback_merlin(xmlnode_pool(x), c->d->secret, xmlnode_get_attrib_ns(x, "from", NULL), xmlnode_get_attrib_ns(x, "id", NULL));
 
         if(j_strcmp(is, should) == 0) {
-            xmlnode_put_attrib(x,"type","valid");
+            xmlnode_put_attrib_ns(x, "type", NULL, NULL, "valid");
 	} else {
-            xmlnode_put_attrib(x,"type","invalid");
-	    log_notice(c->d->i->id, "Is somebody faking us? %s tried to verify the invalid dialback key %s (should be %s)", xmlnode_get_attrib(x, "from"), is, should);
+            xmlnode_put_attrib_ns(x, "type", NULL, NULL, "invalid");
+	    log_notice(c->d->i->id, "Is somebody faking us? %s tried to verify the invalid dialback key %s (should be %s)", xmlnode_get_attrib_ns(x, "from", NULL), is, should);
 	}
 
         /* reformat the packet reply */
@@ -307,8 +304,7 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
     }
 
     /* valid sender/recipient jids */
-    if((from = jid_new(xmlnode_pool(x),xmlnode_get_attrib(x,"from"))) == NULL || (key = jid_new(xmlnode_pool(x),xmlnode_get_attrib(x,"to"))) == NULL)
-    {
+    if ((from = jid_new(xmlnode_pool(x), xmlnode_get_attrib_ns(x, "from", NULL))) == NULL || (key = jid_new(xmlnode_pool(x), xmlnode_get_attrib_ns(x, "to", NULL))) == NULL) {
         mio_write(m, NULL, "<stream:error><improper-addressing xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Invalid Packets Recieved!</text></stream:error>", -1);
         mio_close(m);
         xmlnode_free(x);
@@ -320,20 +316,19 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
     jid_set(key,c->id,JID_USER); /* special user of the id attrib makes this key unique */
 
     /* incoming result, track it and forward on */
-    if(j_strcmp(xmlnode_get_name(x),"db:result") == 0)
-    {
+    if(j_strcmp(xmlnode_get_localname(x),"result") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_DIALBACK) == 0) {
         /* store the result in the connection, for later validation */
-        xmlnode_put_attrib(xmlnode_insert_tag_node(c->results, x),"key",jid_full(key));
+        xmlnode_put_attrib_ns(xmlnode_insert_tag_node(c->results, x), "key", NULL, NULL, jid_full(key));
 
         /* send the verify back to them, on another outgoing trusted socket, via deliver (so it is real and goes through dnsrv and anything else) */
-        x2 = xmlnode_new_tag_pool_ns(xmlnode_pool(x),"verify", "db", NS_DIALBACK);
-        xmlnode_put_attrib(x2,"to",xmlnode_get_attrib(x,"from"));
-        xmlnode_put_attrib(x2,"ofrom",xmlnode_get_attrib(x,"to"));
-        xmlnode_put_attrib(x2,"from",c->d->i->id); /* so bounces come back to us to get tracked */
-	xmlnode_put_attrib(x2,"dnsqueryby",c->d->i->id); /* so this instance gets the DNS result back */
-        xmlnode_put_attrib(x2,"id",c->id);
-        xmlnode_insert_node(x2,xmlnode_get_firstchild(x)); /* copy in any children */
-        deliver(dpacket_new(x2),c->d->i);
+        x2 = xmlnode_new_tag_pool_ns(xmlnode_pool(x), "verify", "db", NS_DIALBACK);
+        xmlnode_put_attrib_ns(x2, "to", NULL, NULL, xmlnode_get_attrib_ns(x, "from", NULL));
+        xmlnode_put_attrib_ns(x2, "ofrom", NULL, NULL, xmlnode_get_attrib_ns(x, "to", NULL));
+        xmlnode_put_attrib_ns(x2, "from", NULL, NULL, c->d->i->id); /* so bounces come back to us to get tracked */
+	xmlnode_put_attrib_ns(x2, "dnsqueryby", NULL, NULL, c->d->i->id); /* so this instance gets the DNS result back */
+        xmlnode_put_attrib_ns(x2, "id", NULL, NULL, c->id);
+        xmlnode_insert_node(x2, xmlnode_get_firstchild(x)); /* copy in any children */
+        deliver(dpacket_new(x2), c->d->i);
 
         return;
     }
@@ -342,7 +337,7 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x)
     md = xhash_get(c->d->in_ok_db, jid_full(key));
     if(md == NULL || md->m != m)
     { /* dude, what's your problem!  *click* */
-	log_notice(c->d->i->id, "Received unauthorized stanza for/from %s: %s", jid_full(key), xmlnode2str(x));
+	log_notice(c->d->i->id, "Received unauthorized stanza for/from %s: %s", jid_full(key), xmlnode_serialize_string(x, NULL, NULL, 0));
 
         mio_write(m, NULL, "<stream:error><invalid-from xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Invalid Packets Recieved!</text></stream:error>", -1);
         mio_close(m);
@@ -375,13 +370,13 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     char strid[10];
     dbic c;
     int version = 0;
-    const char *dbns = NULL;
+    int dbns_defined = 0;
     int can_offer_starttls = 0;
     int can_do_sasl_external = 0;
     const char *we_domain = NULL;
     const char *other_domain = NULL;
 
-    log_debug2(ZONE, LOGT_IO, "dbin read: fd %d flag %d",m->fd, flags);
+    log_debug2(ZONE, LOGT_IO, "dbin read: fd %d flag %d", m->fd, flags);
 
     if(flags != MIO_XML_ROOT)
         return;
@@ -389,10 +384,10 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     snprintf(strid, sizeof(strid), "%X", m); /* for hashes for later */
 
     /* check stream version and possible features */
-    version = j_atoi(xmlnode_get_attrib(x, "version"), 0);
-    dbns = xmlnode_get_attrib(x, "xmlns:db");
-    we_domain = xmlnode_get_attrib(x, "to");
-    other_domain = m->authed_other_side ? m->authed_other_side : xmlnode_get_attrib(x, "from");
+    version = j_atoi(xmlnode_get_attrib_ns(x, "version", NULL), 0);
+    dbns_defined = xmlnode_list_get_nsprefix(m->in_last_ns_root, NS_DIALBACK) ? 1 : 0;
+    we_domain = xmlnode_get_attrib_ns(x, "to", NULL);
+    other_domain = m->authed_other_side ? m->authed_other_side : xmlnode_get_attrib_ns(x, "from", NULL);
 #ifdef SUPPORT_TLS
     can_offer_starttls = m->authed_other_side==NULL && mio_ssl_starttls_possible(m, we_domain) ? 1 : 0;
     can_do_sasl_external = m->authed_other_side==NULL && (mio_is_encrypted(m) > 0 && mio_ssl_verify(m, other_domain)) ? 1 : 0;
@@ -419,19 +414,19 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     log_debug2(ZONE, LOGT_IO, "outgoing conn: can_offer_starttls=%i, can_do_sasl_external=%i", can_offer_starttls, can_do_sasl_external);
 
     /* validate namespace */
-    if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),"jabber:server") != 0) {
+    if (xmlnode_list_get_nsprefix(m->in_last_ns_root, NS_SERVER) == NULL) {
 	jid key = NULL;
         key = jid_new(xmlnode_pool(x), we_domain);
 	mio_write_root(m, xstream_header(other_domain, jid_full(key)), 0);
-        mio_write(m, NULL, "<stream:error><bad-namespace-prefix xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Invalid Stream Header!</text></stream:error>", -1);
+	/* XXX now that we have namespace handling - shouldn't we generate another error? do we need to check this at all? */
+        mio_write(m, NULL, "<stream:error><bad-namespace-prefix xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Sorry, but the namespace '" NS_SERVER "' has to be defined on the stream root.</text></stream:error>", -1);
         mio_close(m);
         xmlnode_free(x);
         return;
     }
 
     /* deprecated non-dialback protocol, reject connection */
-    if(version < 1 && dbns == NULL)
-    {
+    if(version < 1 && dbns_defined) {
 	jid key = NULL;
         key = jid_new(xmlnode_pool(x), we_domain);
 	mio_write_root(m, xstream_header(other_domain, jid_full(key)), 0);
@@ -442,22 +437,11 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     }
 
     /* no support for dialback and we won't be able to offer SASL to this host? */
-    if (dbns == NULL && !can_do_sasl_external && m->authed_other_side==NULL) {
+    if (!dbns_defined && !can_do_sasl_external && m->authed_other_side==NULL) {
 	jid key = NULL;
         key = jid_new(xmlnode_pool(x), we_domain);
 	mio_write_root(m, xstream_header(other_domain, jid_full(key)), 0);
 	mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>It seems you do not support dialback, and we cannot validate your TLS certificate. No authentication is possible. We are sorry.</text></stream:error>", -1);
-	mio_close(m);
-	xmlnode_free(x);
-	return;
-    }
-
-    /* check namespaces */
-    if (j_strcmp(dbns, NS_DIALBACK) != 0) {
-	jid key = NULL;
-        key = jid_new(xmlnode_pool(x), we_domain);
-	mio_write_root(m, xstream_header(other_domain, jid_full(key)), 0);
-	mio_write(m, NULL, "<stream:error><invalid-namespace xmlns='urn:ietf:params:xml:ns:xmpp-streams'><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Sorry, but don't you think, that xmlns:db should declare the namespace jabber:server:dialback?</text></stream:error>", -1);
 	mio_close(m);
 	xmlnode_free(x);
 	return;
@@ -479,11 +463,11 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     /* write our header */
     x2 = xstream_header(c->other_domain, c->we_domain);
     if (j_strcmp(xhash_get_by_domain(c->d->hosts_auth, c->other_domain), "sasl") != 0)
-	xmlnode_put_attrib(x2, "xmlns:db", NS_DIALBACK); /* flag ourselves as dialback capable */
+	xmlnode_put_attrib_ns(x2, "db", "xmlns", NS_XMLNS, NS_DIALBACK); /* flag ourselves as dialback capable */
     if (c->xmpp_version >= 1) {
-	xmlnode_put_attrib(x2, "version", "1.0");	/* flag us as XMPP capable */
+	xmlnode_put_attrib_ns(x2, "version", NULL, NULL, "1.0");	/* flag us as XMPP capable */
     }
-    xmlnode_put_attrib(x2,"id",c->id); /* send random id as a challenge */
+    xmlnode_put_attrib_ns(x2, "id", NULL, NULL, c->id); /* send random id as a challenge */
     mio_write_root(m, x2, 0);
     xmlnode_free(x);
 
@@ -492,25 +476,23 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
 
     /* write stream features */
     if (c->xmpp_version >= 1) {
-	xmlnode features = xmlnode_new_tag("stream:features");
+	xmlnode features = xmlnode_new_tag_ns("features", "stream", NS_STREAM);
 #ifdef SUPPORT_TLS
 	if (can_offer_starttls) {
 	    xmlnode starttls = NULL;
 
-	    starttls = xmlnode_insert_tag(features, "starttls");
-	    xmlnode_put_attrib(starttls, "xmlns", NS_XMPP_TLS);
+	    starttls = xmlnode_insert_tag_ns(features, "starttls", NULL, NS_XMPP_TLS);
 	}
 	if (can_do_sasl_external) {
 	    xmlnode mechanisms = NULL;
 	    xmlnode mechanism = NULL;
 
-	    mechanisms = xmlnode_insert_tag(features, "mechanisms");
-	    xmlnode_put_attrib(mechanisms, "xmlns", NS_XMPP_SASL);
-	    mechanism = xmlnode_insert_tag(mechanisms, "mechanism");
+	    mechanisms = xmlnode_insert_tag_ns(features, "mechanisms", NULL, NS_XMPP_SASL);
+	    mechanism = xmlnode_insert_tag_ns(mechanisms, "mechanism", NULL, NS_XMPP_SASL);
 	    xmlnode_insert_cdata(mechanism, "EXTERNAL", -1);
 	}
 #endif
-	log_debug2(ZONE, LOGT_IO, "sending stream features: %s", xmlnode2str(features));
+	log_debug2(ZONE, LOGT_IO, "sending stream features: %s", xmlnode_serialize_string(features, NULL, NULL, 0));
 	mio_write(m, features, NULL, 0);
     }
 }
@@ -531,31 +513,29 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
  * @param d the db instance
  * @param x the db:verify answer packet
  */
-void dialback_in_verify(db d, xmlnode x)
-{
+void dialback_in_verify(db d, xmlnode x) {
     dbic c;
     xmlnode x2;
     jid key;
     const char *type = NULL;
 
-    log_debug2(ZONE, LOGT_AUTH, "dbin validate: %s",xmlnode2str(x));
+    log_debug2(ZONE, LOGT_AUTH, "dbin validate: %s",xmlnode_serialize_string(x, NULL, NULL, 0));
 
     /* check for the stored incoming connection first */
-    if((c = xhash_get(d->in_id, xmlnode_get_attrib(x,"id"))) == NULL)
-    {
-	log_warn(d->i->id, "Dropping a db:verify answer, we don't have a waiting incoming connection (anymore?) for this id: %s", xmlnode2str(x));
+    if ((c = xhash_get(d->in_id, xmlnode_get_attrib_ns(x, "id", NULL))) == NULL) {
+	log_warn(d->i->id, "Dropping a db:verify answer, we don't have a waiting incoming connection (anymore?) for this id: %s", xmlnode_serialize_string(x, NULL, NULL, 0));
         xmlnode_free(x);
         return;
     }
 
     /* make a key of the sender/recipient addresses on the packet */
-    key = jid_new(xmlnode_pool(x),xmlnode_get_attrib(x,"to"));
-    jid_set(key,xmlnode_get_attrib(x,"from"),JID_RESOURCE);
-    jid_set(key,c->id,JID_USER); /* special user of the id attrib makes this key unique */
+    key = jid_new(xmlnode_pool(x),xmlnode_get_attrib_ns(x, "to", NULL));
+    jid_set(key, xmlnode_get_attrib_ns(x, "from", NULL),JID_RESOURCE);
+    jid_set(key, c->id, JID_USER); /* special user of the id attrib makes this key unique */
 
-    if((x2 = xmlnode_get_tag(c->results, spools(xmlnode_pool(x),"?key=",jid_full(key),xmlnode_pool(x)))) == NULL)
-    {
-	log_warn(d->i->id, "Dropping a db:verify answer, we don't have a waiting incoming <db:result/> query (anymore?) for this to/from pair: %s", xmlnode2str(x));
+    x2 = xmlnode_get_list_item(xmlnode_get_tags(c->results, spools(xmlnode_pool(x), "*[@key='", jid_full(key), "']", xmlnode_pool(x)), d->std_ns_prefixes), 0);
+    if (x2 == NULL) {
+	log_warn(d->i->id, "Dropping a db:verify answer, we don't have a waiting incoming <db:result/> query (anymore?) for this to/from pair: %s", xmlnode_serialize_string(x, NULL, NULL, 0));
         xmlnode_free(x);
         return;
     }
@@ -564,26 +544,26 @@ void dialback_in_verify(db d, xmlnode x)
     xmlnode_hide(x2);
 
     /* get type of db:verify result */
-    type = xmlnode_get_attrib(x, "type");
+    type = xmlnode_get_attrib_ns(x, "type", NULL);
 
     /* rewrite the result */
     x2 = xmlnode_new_tag_pool_ns(xmlnode_pool(x),"result", "db", NS_DIALBACK);
-    xmlnode_put_attrib(x2,"to",xmlnode_get_attrib(x,"from"));
-    xmlnode_put_attrib(x2,"from",xmlnode_get_attrib(x,"to"));
-    xmlnode_put_attrib(x2,"type", type != NULL ? type : "invalid");
+    xmlnode_put_attrib_ns(x2, "to", NULL, NULL, xmlnode_get_attrib_ns(x, "from", NULL));
+    xmlnode_put_attrib_ns(x2, "from", NULL, NULL, xmlnode_get_attrib_ns(x, "to", NULL));
+    xmlnode_put_attrib_ns(x2, "type", NULL, NULL, type != NULL ? type : "invalid");
 
     /* valid requests get the honour of being miod */
-    type = xmlnode_get_attrib(x, "type");
-    if(j_strcmp(type,"valid") == 0) {
+    type = xmlnode_get_attrib_ns(x, "type", NULL);
+    if (j_strcmp(type, "valid") == 0) {
 	/* check the security settings for this connection */
-	if (!dialback_check_settings(c->d, c->m, xmlnode_get_attrib(x, "from"), 0, 0, c->xmpp_version)) {
+	if (!dialback_check_settings(c->d, c->m, xmlnode_get_attrib_ns(x, "from", NULL), 0, 0, c->xmpp_version)) {
 	    return;
 	}
 
 	/* accept incoming stanzas on this connection */
         dialback_miod_hash(dialback_miod_new(c->d, c->m), c->d->in_ok_db, key);
     } else
-	log_warn(d->i->id, "Denying peer to use the domain %s. Dialback failed (%s): %s", key->resource, type ? type : "timeout", xmlnode2str(x2));
+	log_warn(d->i->id, "Denying peer to use the domain %s. Dialback failed (%s): %s", key->resource, type ? type : "timeout", xmlnode_serialize_string(x2, NULL, NULL, 0));
 
     /* rewrite and send on to the socket */
     mio_write(c->m, x2, NULL, -1);
