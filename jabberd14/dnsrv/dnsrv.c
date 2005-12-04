@@ -166,13 +166,13 @@ void dnsrv_child_process_xstream_io(int type, xmlnode x, void* args) {
 			 }
 
 			 log_debug2(ZONE, LOGT_IO, "Resolved %s(%s): %s\tresend to:%s", hostname, iternode->service, str, iterhost->host);
-			 xmlnode_put_attrib(x, "ip", str);
-			 xmlnode_put_attrib(x, "to", iterhost->host);
+			 xmlnode_put_attrib_ns(x, "ip", NULL, NULL, str);
+			 xmlnode_put_attrib_ns(x, "to", NULL, NULL, iterhost->host);
 			 break;
 		    }
 		    iternode = iternode->next;
 	       }
-               str = xmlnode2str(x);
+               str = xmlnode_serialize_string(x, NULL, NULL, 0);
 	       write(di->out, str, strlen(str));
 #ifdef LIBIDN
 	       if (ascii_hostname != NULL)
@@ -270,18 +270,18 @@ void dnsrv_resend(xmlnode pkt, char *ip, char *to)
 	 /* maybe the packet as a query by a component, that wants to get the result back to itself */
 	 /* this is needed for handling db:verify by the s2s component: if the component is clustered,
 	  * the result for the db:verify packet has to be the s2s component that verifies the db */
-	 char *dnsresultto = xmlnode_get_attrib(pkt, "dnsqueryby");
+	 char *dnsresultto = xmlnode_get_attrib_ns(pkt, "dnsqueryby", NULL);
 	 if (dnsresultto == NULL)
 	     dnsresultto = to;
 
 	 log_debug2(ZONE, LOGT_IO, "delivering DNS result to: %s", dnsresultto);
 
-         pkt = xmlnode_wrap(pkt,"route");
-	 xmlnode_put_attrib(pkt, "to", dnsresultto);
-	 xmlnode_put_attrib(pkt, "ip", ip);
+         pkt = xmlnode_wrap_ns(pkt, "route", NULL, NULL);
+	 xmlnode_put_attrib_ns(pkt, "to", NULL, NULL, dnsresultto);
+	 xmlnode_put_attrib_ns(pkt, "ip", NULL, NULL, ip);
     }else{
 	 jutil_error_xmpp(pkt, (xterror){502, "Unable to resolve hostname.","wait","service-unavailable"});
-	 xmlnode_put_attrib(pkt, "iperror", "");
+	 xmlnode_put_attrib_ns(pkt, "iperror", NULL, NULL, "");
     }
     deliver(dpacket_new(pkt),NULL);
 }
@@ -324,10 +324,10 @@ void dnsrv_lookup(dns_io d, dpacket p)
     l->packet = p;
     l->stamp  = time(NULL);
     xhash_put(d->packet_table, p->host, l);
-    req = xmlnode_new_tag_pool(p->p,"host");
+    req = xmlnode_new_tag_pool_ns(p->p, "host", NULL, NS_SERVER);
     xmlnode_insert_cdata(req,p->host,-1);
 
-    reqs = xmlnode2str(req);
+    reqs = xmlnode_serialize_string(req, NULL, NULL, 0);
     log_debug2(ZONE, LOGT_IO, "dnsrv: Transmitting lookup request: %s", reqs);
     pth_write(d->out, reqs, strlen(reqs));
 }
@@ -344,7 +344,7 @@ result dnsrv_deliver(instance i, dpacket p, void* args)
      /* if we get a route packet, it has to be to *us* and have the child as the real packet */
      if(p->type == p_ROUTE)
      {
-        if(j_strcmp(p->host,i->id) != 0 || (to = jid_new(p->p,xmlnode_get_attrib(xmlnode_get_firstchild(p->x),"to"))) == NULL)
+        if(j_strcmp(p->host,i->id) != 0 || (to = jid_new(p->p,xmlnode_get_attrib_ns(xmlnode_get_firstchild(p->x), "to", NULL))) == NULL)
             return r_ERR;
         p->x=xmlnode_get_firstchild(p->x);
         p->id = to;
@@ -352,9 +352,9 @@ result dnsrv_deliver(instance i, dpacket p, void* args)
      }
 
      /* Ensure this packet doesn't already have an IP */
-     if(xmlnode_get_attrib(p->x, "ip") || xmlnode_get_attrib(p->x, "iperror"))
+     if(xmlnode_get_attrib_ns(p->x, "ip", NULL) || xmlnode_get_attrib_ns(p->x, "iperror", NULL))
      {
-        log_notice(p->host, "dropping looping dns lookup request: %s", xmlnode2str(p->x));
+        log_notice(p->host, "dropping looping dns lookup request: %s", xmlnode_serialize_string(p->x, NULL, NULL, 0));
         xmlnode_free(p->x);
         return r_DONE;
      }
@@ -363,7 +363,7 @@ result dnsrv_deliver(instance i, dpacket p, void* args)
      if((c = xhash_get(di->cache_table, p->host)) != NULL)
      {
          /* if there's no IP, cached failed lookup, time those out 10 times faster! (weird, I know, *shrug*) */
-         if((ip = xmlnode_get_attrib(c,"ip")) == NULL)
+         if((ip = xmlnode_get_attrib_ns(c, "ip", NULL)) == NULL)
             timeout = timeout / 10;
          if((time(NULL) - *(time_t*)xmlnode_get_vattrib(c,"t")) > timeout)
          { /* timed out of the cache, lookup again */
@@ -393,7 +393,7 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg)
      /* Node Format: <host ip="201.83.28.2">foo.org</host> */
      if (type == XSTREAM_NODE)
      {	  
-          log_debug2(ZONE, LOGT_IO, "incoming resolution: %s",xmlnode2str(x));
+          log_debug2(ZONE, LOGT_IO, "incoming resolution: %s",xmlnode_serialize_string(x, NULL, NULL, 0));
 	  hostname = xmlnode_get_data(x);
 
           /* whatever the response was, let's cache it */
@@ -408,8 +408,8 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg)
 	  /* Process the packet list */
 	  if (head != NULL)
 	  {
-	       ipaddr = xmlnode_get_attrib(x, "ip");
-	       resendhost = xmlnode_get_attrib(x, "to");
+	       ipaddr = xmlnode_get_attrib_ns(x, "ip", NULL);
+	       resendhost = xmlnode_get_attrib_ns(x, "to", NULL);
 
 	       /* Remove the list from the hashtable */
 	       xhash_zap(di->packet_table, hostname);
@@ -426,7 +426,7 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg)
 	  }
 	  /* Host name was not found, something is _TERRIBLY_ wrong! */
 	  else
-	       log_debug2(ZONE, LOGT_IO, "Resolved unknown host/ip request: %s\n", xmlnode2str(x));
+	       log_debug2(ZONE, LOGT_IO, "Resolved unknown host/ip request: %s\n", xmlnode_serialize_string(x, NULL, NULL, 0));
 
           return; /* we cached x above, so we don't free it below :) */
      }
@@ -556,13 +556,13 @@ void dnsrv(instance i, xmlnode x)
 
      /* Load config from xdb */
      xc = xdb_cache(i);
-     config = xdb_get(xc, jid_new(xmlnode_pool(x), "config@-internal"), "jabber:config:dnsrv");
+     config = xdb_get(xc, jid_new(xmlnode_pool(x), "config@-internal"), NS_JABBERD_CONFIG_DNSRV);
 
      /* Build a list of services/resend hosts */
      iternode = xmlnode_get_lastchild(config);
      while (iternode != NULL)
      {
-	  if (j_strcmp("resend", xmlnode_get_name(iternode)) != 0)
+	  if (j_strcmp("resend", xmlnode_get_localname(iternode)) != 0 || j_strcmp(xmlnode_get_namespace(iternode), NS_JABBERD_CONFIG_DNSRV) != 0)
 	  {
 	       iternode = xmlnode_get_prevsibling(iternode);
 	       continue;
@@ -570,14 +570,14 @@ void dnsrv(instance i, xmlnode x)
 
 	  /* Allocate a new list node */
 	  tmplist = pmalloco(di->mempool, sizeof(_dns_resend_list));
-	  tmplist->service = pstrdup(di->mempool, xmlnode_get_attrib(iternode, "service"));
+	  tmplist->service = pstrdup(di->mempool, xmlnode_get_attrib_ns(iternode, "service", NULL));
 	  tmplist->weight_sum = 0;
 
 	  /* check for <partial/> childs */
 	  inneriter = xmlnode_get_lastchild(iternode);
 	  if (inneriter != NULL) {
 	      while (inneriter != NULL) {
-		  if (j_strcmp("partial", xmlnode_get_name(inneriter)) != 0) {
+		  if (j_strcmp("partial", xmlnode_get_localname(inneriter)) != 0 || j_strcmp(xmlnode_get_namespace(inneriter), NS_JABBERD_CONFIG_DNSRV) != 0) {
 		      inneriter = xmlnode_get_prevsibling(inneriter);
 		      continue;
 		  }
@@ -585,7 +585,7 @@ void dnsrv(instance i, xmlnode x)
 		  /* build the list entry for this host */
 		  tmphost = pmalloco(di->mempool, sizeof(_dns_resend_list_host_list));
 		  tmphost->host = pstrdup(di->mempool, xmlnode_get_data(inneriter));
-		  tmphost->weight = j_atoi(xmlnode_get_attrib(inneriter, "weight"), 1);
+		  tmphost->weight = j_atoi(xmlnode_get_attrib_ns(inneriter, "weight", NULL), 1);
 
 		  /* insert this host into the list for this service */
 		  tmphost->next = tmplist->hosts;
@@ -614,19 +614,19 @@ void dnsrv(instance i, xmlnode x)
 	  /* Move to next child */
 	  iternode = xmlnode_get_prevsibling(iternode);
      }
-     log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "dnsrv debug: %s\n", xmlnode2str(config));
+     log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "dnsrv debug: %s\n", xmlnode_serialize_string(config, NULL, NULL, 0));
 
      /* Setup the hash of dns_packet_list */
-     di->packet_table = xhash_new(j_atoi(xmlnode_get_attrib(config,"queuemax"),101));
+     di->packet_table = xhash_new(j_atoi(xmlnode_get_attrib_ns(config,"queuemax", NULL),101));
      pool_cleanup(i->p, (pool_cleaner)xhash_free, di->packet_table);
-     di->packet_timeout = j_atoi(xmlnode_get_attrib(config,"queuetimeout"),60);
+     di->packet_timeout = j_atoi(xmlnode_get_attrib_ns(config,"queuetimeout", NULL),60);
      register_beat(di->packet_timeout, dnsrv_beat_packets, (void *)di);
 
 
      /* Setup the internal hostname cache */
-     di->cache_table = xhash_new(j_atoi(xmlnode_get_attrib(config,"cachemax"),1999));
+     di->cache_table = xhash_new(j_atoi(xmlnode_get_attrib_ns(config,"cachemax", NULL),1999));
      pool_cleanup(i->p, (pool_cleaner)xhash_free, di->cache_table);
-     di->cache_timeout = j_atoi(xmlnode_get_attrib(config,"cachetimeout"),3600); /* 1 hour dns cache? XXX would be nice to get the right value from dns! */
+     di->cache_timeout = j_atoi(xmlnode_get_attrib_ns(config,"cachetimeout", NULL),3600); /* 1 hour dns cache? XXX would be nice to get the right value from dns! */
 
      xmlnode_free(config);
 
