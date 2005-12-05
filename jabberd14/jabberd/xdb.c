@@ -46,18 +46,19 @@
 
 #include "jabberd.h"
 
-result xdb_results(instance id, dpacket p, void *arg)
-{
+result xdb_results(instance id, dpacket p, void *arg) {
     xdbcache xc = (xdbcache)arg;
     xdbcache curx;
     int idnum;
     char *idstr;
 
-    if(p->type != p_NORM || *(xmlnode_get_name(p->x)) != 'x') return r_PASS; /* yes, we are matching ANY <x*> element */
+    if(p->type != p_NORM || *(xmlnode_get_localname(p->x)) != 'x' || j_strcmp(xmlnode_get_namespace(p->x), NS_SERVER) != 0)
+	return r_PASS; /* yes, we are matching ANY <x*> element */
 
-    log_debug2(ZONE, LOGT_STORAGE, "xdb_results checking xdb packet %s",xmlnode2str(p->x));
+    log_debug2(ZONE, LOGT_STORAGE, "xdb_results checking xdb packet %s",xmlnode_serialize_string(p->x, NULL, NULL, 0));
 
-    if((idstr = xmlnode_get_attrib(p->x,"id")) == NULL) return r_ERR;
+    if((idstr = xmlnode_get_attrib_ns(p->x, "id", NULL)) == NULL)
+	return r_ERR;
 
     idnum = atoi(idstr);
 
@@ -73,7 +74,7 @@ result xdb_results(instance id, dpacket p, void *arg)
     }
 
     /* associte only a non-error packet w/ waiting cache */
-    if(j_strcmp(xmlnode_get_attrib(p->x,"type"),"error") == 0)
+    if(j_strcmp(xmlnode_get_attrib_ns(p->x, "type", NULL),"error") == 0)
         curx->data = NULL;
     else
         curx->data = p->x;
@@ -95,32 +96,29 @@ result xdb_results(instance id, dpacket p, void *arg)
 
 /* actually deliver the xdb request */
 /* Should be called while holding the xc mutex */
-void xdb_deliver(instance i, xdbcache xc)
-{
+void xdb_deliver(instance i, xdbcache xc) {
     xmlnode x;
     char ids[9];
 
-    x = xmlnode_new_tag("xdb");
-    xmlnode_put_attrib(x,"type","get");
-    if(xc->set)
-    {
-        xmlnode_put_attrib(x,"type","set");
+    x = xmlnode_new_tag_ns("xdb", NULL, NS_SERVER);
+    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "get");
+    if (xc->set) {
+        xmlnode_put_attrib_ns(x, "type", NULL, NULL, "set");
         xmlnode_insert_tag_node(x,xc->data); /* copy in the data */
         if(xc->act != NULL)
-            xmlnode_put_attrib(x,"action",xc->act);
+            xmlnode_put_attrib_ns(x, "action", NULL, NULL, xc->act);
         if(xc->match != NULL)
-            xmlnode_put_attrib(x,"match",xc->match);
+            xmlnode_put_attrib_ns(x, "match", NULL, NULL, xc->match);
     }
-    xmlnode_put_attrib(x,"to",jid_full(xc->owner));
-    xmlnode_put_attrib(x,"from",i->id);
-    xmlnode_put_attrib(x,"ns",xc->ns);
+    xmlnode_put_attrib_ns(x, "to", NULL, NULL, jid_full(xc->owner));
+    xmlnode_put_attrib_ns(x, "from", NULL, NULL, i->id);
+    xmlnode_put_attrib_ns(x, "ns", NULL, NULL, xc->ns);
     snprintf(ids, sizeof(ids), "%d", xc->id);
-    xmlnode_put_attrib(x,"id",ids); /* to track response */
+    xmlnode_put_attrib_ns(x, "id", NULL, NULL, ids); /* to track response */
     deliver(dpacket_new(x), i);
 }
 
-result xdb_thump(void *arg)
-{
+result xdb_thump(void *arg) {
     xdbcache xc = (xdbcache)arg;
     xdbcache cur, next;
     int now = time(NULL);
@@ -128,13 +126,11 @@ result xdb_thump(void *arg)
     pth_mutex_acquire(&(xc->mutex), FALSE, NULL);
     /* spin through the cache looking for stale requests */
     cur = xc->next;
-    while(cur != xc)
-    {
+    while (cur != xc) {
         next = cur->next;
 
         /* really old ones get wacked */
-        if((now - cur->sent) > 30)
-        {
+        if ((now - cur->sent) > 30) {
             /* remove from ring */
             cur->prev->next = cur->next;
             cur->next->prev = cur->prev;
@@ -143,8 +139,7 @@ result xdb_thump(void *arg)
             cur->data = NULL;
 
             /* free the thread! */
-            if (cur->preblock)
-            {
+            if (cur->preblock) {
                 cur->preblock = 0;
                 pth_cond_notify(&(cur->cond), FALSE);
             }
@@ -154,7 +149,7 @@ result xdb_thump(void *arg)
         }
 
         /* resend the waiting ones every so often */
-        if((now - cur->sent) > 10)
+        if ((now - cur->sent) > 10)
             xdb_deliver(xc->i, cur);
 
         /* cur could have been free'd already on it's thread */
@@ -169,8 +164,7 @@ xdbcache xdb_cache(instance id)
 {
     xdbcache newx;
 
-    if(id == NULL)
-    {
+    if (id == NULL) {
         fprintf(stderr, "Programming Error: xdb_cache() called with NULL\n");
         return NULL;
     }
@@ -190,15 +184,13 @@ xdbcache xdb_cache(instance id)
 }
 
 /* blocks until namespace is retrieved, host must map back to this service! */
-xmlnode xdb_get(xdbcache xc, jid owner, char *ns)
-{
+xmlnode xdb_get(xdbcache xc, jid owner, char *ns) {
     _xdbcache newx;
     xmlnode x;
     //pth_cond_t cond = PTH_COND_INIT;
 
-    if(xc == NULL || owner == NULL || ns == NULL)
-    {
-        fprintf(stderr,"Programming Error: xdb_get() called with NULL\n");
+    if (xc == NULL || owner == NULL || ns == NULL) {
+        fprintf(stderr, "Programming Error: xdb_get() called with NULL\n");
         return NULL;
     }
 
@@ -250,8 +242,7 @@ int xdb_act(xdbcache xc, jid owner, char *ns, char *act, char *match, xmlnode da
 {
     _xdbcache newx;
 
-    if(xc == NULL || owner == NULL || ns == NULL)
-    {
+    if (xc == NULL || owner == NULL || ns == NULL) {
         fprintf(stderr,"Programming Error: xdb_set() called with NULL\n");
         return 1;
     }
@@ -299,7 +290,6 @@ int xdb_act(xdbcache xc, jid owner, char *ns, char *act, char *match, xmlnode da
 }
 
 /* sends new xml to replace old, data is NOT freed, app responsible for freeing it */
-int xdb_set(xdbcache xc, jid owner, char *ns, xmlnode data)
-{
+int xdb_set(xdbcache xc, jid owner, char *ns, xmlnode data) {
     return xdb_act(xc, owner, ns, NULL, NULL, data);
 }

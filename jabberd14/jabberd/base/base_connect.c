@@ -128,8 +128,7 @@ void base_connect_process_xml(mio m, int state, void* arg, xmlnode x)
 
     log_debug2(ZONE, LOGT_XML, "process XML: m:%X state:%d, arg:%X, x:%X", m, state, arg, x);
 
-    switch (state)
-    {
+    switch (state) {
         case MIO_NEW:
 
             ci->state = conn_OPEN;
@@ -145,23 +144,20 @@ void base_connect_process_xml(mio m, int state, void* arg, xmlnode x)
 
         case MIO_XML_ROOT:
             /* Extract stream ID and generate a key to hash */
-            shahash_r(spools(x->p, xmlnode_get_attrib(x, "id"), ci->secret, x->p), hashbuf);
+            shahash_r(spools(x->p, xmlnode_get_attrib_ns(x, "id", NULL), ci->secret, x->p), hashbuf);
 
             /* Build a handshake packet */
-            cur = xmlnode_new_tag("handshake");
+            cur = xmlnode_new_tag_ns("handshake", NULL, NS_SERVER);
             xmlnode_insert_cdata(cur, hashbuf, -1);
 
             /* Transmit handshake */
-            mio_write(m, NULL, xmlnode2str(cur), -1);
-
-            xmlnode_free(cur);
+	    mio_write(m, cur, NULL, 0);
             xmlnode_free(x);
             return;
 
         case MIO_XML_NODE:
             /* Only deliver packets after the connection is auth'd */
-            if (ci->state == conn_AUTHD)
-            {
+            if (ci->state == conn_AUTHD) {
                 ci->dplast = dpacket_new(x); /* store the addr of the dpacket we're sending to detect circular delevieries */
                 deliver(ci->dplast, ci->inst);
                 ci->dplast = NULL;
@@ -169,8 +165,7 @@ void base_connect_process_xml(mio m, int state, void* arg, xmlnode x)
             }
 
             /* If a handshake packet is recv'd from the server, we have successfully auth'd -- go ahead and update the connection state */
-            if (j_strcmp(xmlnode_get_name(x), "handshake") == 0)
-            {
+            if (j_strcmp(xmlnode_get_localname(x), "handshake") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_SERVER) == 0) {
                 /* Flush all packets queued up for delivery */
                 conn_write_buf b;
                 while ((b = (conn_write_buf) pth_msgport_get(ci->write_queue)) != NULL)
@@ -191,8 +186,7 @@ void base_connect_process_xml(mio m, int state, void* arg, xmlnode x)
             if(ci->tries_left != -1) 
                 ci->tries_left--;
 
-            if(ci->tries_left == 0)
-            {
+            if(ci->tries_left == 0) {
                 fprintf(stderr, "Base Connect Failed: service %s was unable to connect to %s:%d, unrecoverable error, exiting", ci->inst->id, ci->hostip, ci->hostport);
                 exit(1);
             }
@@ -205,46 +199,49 @@ void base_connect_process_xml(mio m, int state, void* arg, xmlnode x)
     }
 }
 
-void base_connect_kill(void *arg)
-{
+void base_connect_kill(void *arg) {
     conn_info ci = (conn_info)arg;
     ci->state = conn_DIE;
 }
 
-result base_connect_config(instance id, xmlnode x, void *arg)
-{
-    char*     secret = NULL;
-    int       timeout;
-    int       tries;
-    int port;
-    conn_info ci = NULL;
+result base_connect_config(instance id, xmlnode x, void *arg) {
+    char*	secret = NULL;
+    int		timeout = 5;
+    int		tries = -1;
+    char*	ip = NULL;
+    int		port = 0;
+    conn_info	ci = NULL;
+    xht		namespaces = NULL;
 
     /* Extract info */
-    port    = j_atoi(xmlnode_get_tag_data(x, "port"),0);
-    secret  = xmlnode_get_tag_data(x, "secret");
-    timeout = j_atoi(xmlnode_get_tag_data(x, "timeout"), 5);
-    tries   = j_atoi(xmlnode_get_tag_data(x, "tries"), -1); 
+    namespaces = xhash_new(3);
+    xhash_put(namespaces, "", NS_JABBERD_CONFIGFILE);
+    ip = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "ip", namespaces), 0));
+    port = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "port", namespaces), 0)), 0);
+    secret = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "secret", namespaces), 0));
+    timeout = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "timeout", namespaces), 0)), 5);
+    tries = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "tries", namespaces), 0)), -1);
+    xhash_free(namespaces);
 
-    if(id == NULL)
-    {
+    if(id == NULL) {
         log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_accept_config validating configuration\n");
-        if(port == 0 || (secret == NULL))
-        {
-            xmlnode_put_attrib(x, "error", "<connect> requires the following subtags: <port>, and <secret>");
+        if(port == 0 || (secret == NULL)) {
+            xmlnode_put_attrib_ns(x, "error", NULL, NULL, "<connect> requires the following subtags: <port>, and <secret>");
             return r_ERR;
         }
         return r_PASS;
     }
 
-    log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "Activating configuration: %s\n", xmlnode2str(x));
+    log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "Activating configuration: %s\n", xmlnode_serialize_string(x, NULL, NULL, 0));
 
     /* Allocate a conn structures, using this instances' mempool */
     ci              = pmalloco(id->p, sizeof(_conn_info));
     ci->mempool     = id->p;
     ci->state       = conn_CLOSED;
     ci->inst        = id;
-    ci->hostip      = pstrdup(ci->mempool, xmlnode_get_tag_data(x,"ip"));
-    if(ci->hostip == NULL) ci->hostip = pstrdup(ci->mempool, "127.0.0.1");
+    ci->hostip      = pstrdup(ci->mempool, ip);
+    if (ci->hostip == NULL)
+	ci->hostip = pstrdup(ci->mempool, "127.0.0.1");
     ci->hostport    = port;
     ci->secret      = pstrdup(ci->mempool, secret);
     ci->write_queue = pth_msgport_create(ci->hostip);

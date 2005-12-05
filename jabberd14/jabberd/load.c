@@ -76,6 +76,7 @@ static void *load_loader(char *file) {
         return NULL;
     }
 
+    /* XXX do not use xmlnode_put_vattrib(), it's deprecated */
     xmlnode_put_vattrib(load__cache, file, so_h); /* fun hack! yes, it's just a nice name-based void* array :) */
     return so_h;
 }
@@ -87,7 +88,7 @@ static void *load_loader(char *file) {
  * @param file the dynamic library file to load
  * @return pointer to the loaded function
  */
-void *load_symbol(char *func, char *file) {
+static void *load_symbol(const char *func, char *file) {
     void (*func_h)(instance i, void *arg);
     void *so_h;
     const char *dlerr;
@@ -97,6 +98,7 @@ void *load_symbol(char *func, char *file) {
     if(func == NULL || file == NULL)
         return NULL;
 
+    /* XXX do not use xmlnode_get_vattrib(), it's deprecated */
     if((so_h = xmlnode_get_vattrib(load__cache, file)) == NULL && (so_h = load_loader(file)) == NULL)
         return NULL;
 
@@ -105,8 +107,7 @@ void *load_symbol(char *func, char *file) {
 
     /* check for error */
     dlerr = dlerror();
-    if(dlerr != NULL)
-    {
+    if (dlerr != NULL) {
         /* pregenerate the error, since our stuff below may overwrite dlerr */
         snprintf(message, sizeof(message), "Executing %s() in %s failed: '%s'\n",func,file,dlerr);
 
@@ -119,8 +120,7 @@ void *load_symbol(char *func, char *file) {
         func_h = dlsym(so_h, func2);
         free(func2);
 
-        if(dlerror() != NULL)
-        {
+        if (dlerror() != NULL) {
             fprintf(stderr, "%s\n", message);
             return NULL;
         }
@@ -153,18 +153,18 @@ static void load_shutdown(void *arg) {
  */
 static result load_config(instance id, xmlnode x, void *arg) {
     xmlnode so;
-    char *init = xmlnode_get_attrib(x,"main");
+    char *init = xmlnode_get_attrib_ns(x, "main", NULL);
     void *f;
     int flag = 0;
 
-    if(load__cache == NULL)
-        load__cache = xmlnode_new_tag("so_cache");
+    if (load__cache == NULL)
+        load__cache = xmlnode_new_tag_ns("so_cache", NULL, NS_JABBERD_WRAPPER);
 
-    if(id != NULL)
-    { /* execution phase */
+    if (id != NULL) {
+	/* execution phase */
         load_ref__count++;
         pool_cleanup(id->p, load_shutdown, NULL);
-        f = xmlnode_get_vattrib(x, init);
+        f = xmlnode_get_vattrib(x, init);		/* XXX xmlnode_get_vattrib() is deprecated! */
         ((load_init)f)(id, x); /* fire up the main function for this extension */
         return r_PASS;
     }
@@ -172,22 +172,22 @@ static result load_config(instance id, xmlnode x, void *arg) {
     
     log_debug2(ZONE, LOGT_CONFIG|LOGT_DYNAMIC, "dynamic loader processing configuration %s\n", xmlnode2str(x));
 
-    for(so = xmlnode_get_firstchild(x); so != NULL; so = xmlnode_get_nextsibling(so))
-    {
+    for (so = xmlnode_get_firstchild(x); so != NULL; so = xmlnode_get_nextsibling(so)) {
         if(xmlnode_get_type(so) != NTYPE_TAG) continue;
 
         if(init == NULL && flag)
             return r_ERR; /* you can't have two elements in a load w/o a main attrib */
 
-        f = load_symbol(xmlnode_get_name(so), xmlnode_get_data(so));
-        if(f == NULL)
+        f = load_symbol(xmlnode_get_localname(so), xmlnode_get_data(so));
+        if (f == NULL)
             return r_ERR;
-        xmlnode_put_vattrib(x, xmlnode_get_name(so), f); /* hide the function pointer in the <load> element for later use */
+	/* XXX do not use xmlnode_put_vattrib(), it's deprecated */
+        xmlnode_put_vattrib(x, xmlnode_get_localname(so), f); /* hide the function pointer in the <load> element for later use */
         flag = 1;
 
         /* if there's only one .so loaded, it's the default, unless overridden */
         if(init == NULL)
-            xmlnode_put_attrib(x,"main",xmlnode_get_name(so));
+            xmlnode_put_attrib_ns(x, "main", NULL, NULL, xmlnode_get_localname(so));
     }
 
     if(!flag) return r_ERR; /* we didn't DO anything, duh */
@@ -206,4 +206,3 @@ void dynamic_init(pool p) {
     log_debug2(ZONE, LOGT_DYNAMIC, "dynamic component loader initializing...\n");
     register_config(p, "load", load_config, NULL);
 }
-

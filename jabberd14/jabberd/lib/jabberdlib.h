@@ -840,6 +840,8 @@ typedef struct xterror_struct
 #define NS_XMLNS "http://www.w3.org/2000/xmlns/"	/**< namespace of xml namespace declarations, defined by 'Namespaces in XML' (W3C) */
 #define NS_XML "http://www.w3.org/XML/1998/namespace"	/**< namespace declared by the xml prefix, defined by 'Namespaces in XML' (W3C) */
 
+#define NS_JABBERD_CONFIGFILE "http://jabberd.org/ns/configfile" /**< namespace of the root element in the config file */
+#define NS_JABBERD_CONFIGFILE_REPLACE "http://jabberd.org/ns/configfile/replace" /**< namespace of replace and include commands */
 #define NS_JABBERD_CONFIG_XDBFILE "jabber:config:xdb_file" /**< namespace of xdb_file component configuration */
 #define NS_JABBERD_CONFIG_DIALBACK "jabber:config:dialback" /**< namespace of dialback component configuration */
 #define NS_JABBERD_CONFIG_DNSRV "jabber:config:dnsrv" /**< namespace of the dnsrv component configuration */
@@ -853,7 +855,9 @@ xmlnode jutil_presnew(int type, char *to, char *status); /* Create a skeleton pr
 xmlnode jutil_iqnew(int type, char *ns);		 /* Create a skeleton iq packet */
 xmlnode jutil_msgnew(char *type, char *to, char *subj, char *body);
 							 /* Create a skeleton message packet */
+#ifdef INCLUDE_LEGACY
 xmlnode jutil_header(char* xmlns, char* server);	 /* Create a skeleton stream packet */
+#endif
 int     jutil_priority(xmlnode x);			 /* Determine priority of this packet */
 void    jutil_tofrom(xmlnode x);			 /* Swaps to/from fields on a packet */
 xmlnode jutil_iqresult(xmlnode x);			 /* Generate a skeleton iq/result, given a iq/query */

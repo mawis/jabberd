@@ -90,10 +90,11 @@ static int _mio_ssl_verify_accept_all(int pre_ok, X509_STORE_CTX *store_ctx) {
  */
 void mio_ssl_init(xmlnode x) {
     SSL_CTX *ctx = NULL;
-    xmlnode cur;
     char *host;
     char *keypath;
     char *cafile = NULL;
+    xht namespaces = NULL;
+    xmlnode_list_item key_element = NULL;
 
     log_debug2(ZONE, LOGT_INIT, "MIO TLS init (OpenSSL)");
 
@@ -103,7 +104,10 @@ void mio_ssl_init(xmlnode x) {
         return;
     }
 
-    log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "Handling configuration using: %s", xmlnode2str(x));
+    namespaces = xhash_new(3);
+    xhash_put(namespaces, "", NS_JABBERD_CONFIGFILE);
+
+    log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "Handling configuration using: %s", xmlnode_serialize_string(x, NULL, NULL, 0));
     /* Generic TLS Inits */
     OpenSSL_add_all_algorithms();    
     SSL_load_error_strings();
@@ -113,27 +117,21 @@ void mio_ssl_init(xmlnode x) {
     ssl__ctxs = xhash_new(19);
 
     /* which CAs to use? */
-    cafile = xmlnode_get_tag_data(x, "cacertfile");
+    cafile = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "cacertfile", namespaces), 0));
 
     /* Walk our node and add the created contexts */
-    for(cur = xmlnode_get_tag(x, "key"); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
-	/* we only care for the <key/> elements */
-	if (cur->type != NTYPE_TAG)
-	    continue;
-	if (j_strcmp(xmlnode_get_name(cur), "key") != 0)
-	    continue;
-
+    for (key_element = xmlnode_get_tags(x, "key", namespaces); key_element != NULL; key_element = key_element->next) {
 	/* ip is the fallback for jabberd 1.4.3 compatibility */
-	host = xmlnode_get_attrib(cur, "id");
+	host = xmlnode_get_attrib_ns(key_element->node, "id", NULL);
 	if (host == NULL)
-	    host = xmlnode_get_attrib(cur, "ip");
+	    host = xmlnode_get_attrib_ns(key_element->node, "ip", NULL);
 
-        keypath = xmlnode_get_data(cur);
+        keypath = xmlnode_get_data(key_element->node);
 
         if (!host || !keypath)
             continue;
 
-        log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "Handling: %s", xmlnode2str(cur));
+        log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "Handling: %s", xmlnode_serialize_string(key_element->node, NULL, NULL, 0));
 
         ctx=SSL_CTX_new(SSLv23_method());
         if (ctx == NULL) {
@@ -172,20 +170,20 @@ void mio_ssl_init(xmlnode x) {
         }
 
 	/* setup options */
-	if (xmlnode_get_attrib(cur, "no-ssl-v2") != NULL) {
+	if (xmlnode_get_attrib_ns(key_element->node, "no-ssl-v2", NULL) != NULL) {
 	    SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2);
 	}
-	if (xmlnode_get_attrib(cur, "no-ssl-v3") != NULL) {
+	if (xmlnode_get_attrib_ns(key_element->node, "no-ssl-v3", NULL) != NULL) {
 	    SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv3);
 	}
-	if (xmlnode_get_attrib(cur, "no-tls-v1") != NULL) {
+	if (xmlnode_get_attrib_ns(key_element->node, "no-tls-v1", NULL) != NULL) {
 	    SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1);
 	}
-	if (xmlnode_get_attrib(cur, "enable-workarounds") != NULL) {
+	if (xmlnode_get_attrib_ns(key_element->node, "enable-workarounds", NULL) != NULL) {
 	    SSL_CTX_set_options(ctx, SSL_OP_ALL);
 	}
-	if (xmlnode_get_attrib(cur, "ciphers") != NULL) {
-	    if (!SSL_CTX_set_cipher_list(ctx, xmlnode_get_attrib(cur, "ciphers"))) {
+	if (xmlnode_get_attrib_ns(key_element->node, "ciphers", NULL) != NULL) {
+	    if (!SSL_CTX_set_cipher_list(ctx, xmlnode_get_attrib_ns(key_element->node, "ciphers", NULL))) {
 		log_warn(NULL, "TLS error selecting ciphers");
 		SSL_CTX_free(ctx);
 		continue;
@@ -221,11 +219,12 @@ void mio_ssl_init(xmlnode x) {
         xhash_put(ssl__ctxs, host, ctx);
         log_debug2(ZONE, LOGT_INIT|LOGT_IO, "Added context %x for %s", ctx, host);
     }
+
+    xhash_free(namespaces);
         
 }
 
-void _mio_ssl_cleanup(void *arg)
-{
+void _mio_ssl_cleanup(void *arg) {
     SSL *ssl = (SSL *)arg;
 
     log_debug2(ZONE, LOGT_CLEANUP, "TLS cleanup for %x", ssl);

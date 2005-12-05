@@ -58,7 +58,7 @@ result base_syslog_deliver(instance id, dpacket p, void* arg)
        return r_ERR;
     }
 
-    type_s = xmlnode_get_attrib(p->x, "type");
+    type_s = xmlnode_get_attrib_ns(p->x, "type", NULL);
     if (type_s == NULL) {
 	log_debug2(ZONE, LOGT_STRANGE, "base_syslog_deliver error: no type attribute.");
 	return r_ERR;
@@ -87,7 +87,7 @@ result base_syslog_config(instance id, xmlnode x, void *arg)
         if (xmlnode_get_data(x) == NULL)
         {
             log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_syslog_config error: no facility provided");
-            xmlnode_put_attrib(x,"error","'syslog' tag must contain a facility (use daemon, local0, ... local7)");
+            xmlnode_put_attrib_ns(x,"error", NULL, NULL, "'syslog' tag must contain a facility (use daemon, local0, ... local7)");
             return r_ERR;
         }
         return r_PASS;
@@ -118,7 +118,7 @@ result base_syslog_config(instance id, xmlnode x, void *arg)
 #else
 result base_syslog_config(instance id, xmlnode x, void *arg) {
     log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_syslog_config error: jabberd compiled without syslog support.");
-    xmlnode_put_attrib(x, "error", PACKAGE " compiled without syslog support");
+    xmlnode_put_attrib_ns(x, "error", NULL, NULL, PACKAGE " compiled without syslog support");
     return r_ERR;
 }
 #endif
