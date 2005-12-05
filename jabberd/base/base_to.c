@@ -50,14 +50,14 @@ result base_to_deliver(instance id,dpacket p,void* arg)
     if(log_data == NULL)
         return r_ERR;
 
-    message = xmlnode_new_tag("message");
+    message = xmlnode_new_tag_ns("message", NULL, NS_SERVER);
     
-    xmlnode_insert_cdata(xmlnode_insert_tag(message,"body"), log_data, -1);
-    subject=spools(xmlnode_pool(message), "Log Packet from ", xmlnode_get_attrib(p->x, "from"), xmlnode_pool(message));
-    xmlnode_insert_cdata(xmlnode_insert_tag(message, "thread"), shahash(subject), -1);
-    xmlnode_insert_cdata(xmlnode_insert_tag(message, "subject"), subject, -1);
-    xmlnode_put_attrib(message, "from", xmlnode_get_attrib(p->x, "from"));
-    xmlnode_put_attrib(message, "to", (char*)arg);
+    xmlnode_insert_cdata(xmlnode_insert_tag_ns(message, "body", NULL, NS_SERVER), log_data, -1);
+    subject=spools(xmlnode_pool(message), "Log Packet from ", xmlnode_get_attrib_ns(p->x, "from", NULL), xmlnode_pool(message));
+    xmlnode_insert_cdata(xmlnode_insert_tag_ns(message, "thread", NULL, NS_SERVER), shahash(subject), -1);
+    xmlnode_insert_cdata(xmlnode_insert_tag_ns(message, "subject", NULL, NS_SERVER), subject, -1);
+    xmlnode_put_attrib_ns(message, "from", NULL, NULL, xmlnode_get_attrib_ns(p->x, "from", NULL));
+    xmlnode_put_attrib_ns(message, "to", NULL, NULL, (char*)arg);
 
     deliver(dpacket_new(message), id);
     pool_free(p->p);
@@ -74,7 +74,7 @@ result base_to_config(instance id, xmlnode x, void *arg)
         log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_to_config validating configuration\n");
         if(j == NULL)
         {
-            xmlnode_put_attrib(x, "error", "'to' tag must contain a jid to send log data to");
+            xmlnode_put_attrib_ns(x, "error", NULL, NULL, "'to' tag must contain a jid to send log data to");
             log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "Invalid Configuration for base_to");
             return r_ERR;
         }

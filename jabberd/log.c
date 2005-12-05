@@ -216,21 +216,20 @@ void debug_log2(char *zone, const int type, const char *msgfmt, ...) {
 void logger(char *type, const char *host, char *message) {
     xmlnode log;
 
-    if(type == NULL || message == NULL)
-    {
+    if (type == NULL || message == NULL) {
         fprintf(stderr, "Unrecoverable: logger function called with illegal arguments!\n");
         return;
     }
 
-    log = xmlnode_new_tag("log");
-    xmlnode_put_attrib(log,"type",type);
-    if(host != NULL)
-        xmlnode_put_attrib(log,"from",host);
+    log = xmlnode_new_tag_ns("log", NULL, NS_SERVER);
+    xmlnode_put_attrib_ns(log, "type", NULL, NULL, type);
+    if (host != NULL)
+        xmlnode_put_attrib_ns(log, "from", NULL, NULL, host);
     else
-        xmlnode_put_attrib(log,"from","-internal");
-    xmlnode_insert_cdata(log,message,strlen(message));
+        xmlnode_put_attrib_ns(log, "from", NULL, NULL, "-internal");
+    xmlnode_insert_cdata(log, message, j_strlen(message));
 
-    log_debug2(ZONE, LOGT_DELIVER, "%s", xmlnode2str(log));
+    log_debug2(ZONE, LOGT_DELIVER, "%s", xmlnode_serialize_string(log, NULL, NULL, 0));
     deliver(dpacket_new(log), NULL);
 }
 
@@ -307,27 +306,27 @@ void log_generic(char *logtype, char *id, char *type, char *action, const char *
     va_start(ap, msgfmt);
     vsnprintf(logmsg, sizeof(logmsg), msgfmt, ap);
 
-    log = xmlnode_new_tag("log");
-    xmlnode_put_attrib(log,"type", logtype);
+    log = xmlnode_new_tag_ns("log", NULL, NS_SERVER);
+    xmlnode_put_attrib_ns(log, "type", NULL, NULL, logtype);
     if(id != NULL)
-        xmlnode_put_attrib(log,"from",id);
+        xmlnode_put_attrib_ns(log, "from", NULL, NULL, id);
     else
-        xmlnode_put_attrib(log,"from","-internal");
+        xmlnode_put_attrib_ns(log, "from", NULL, NULL, "-internal");
 
     /* make log record like "type action rest-of-data" */
     if(type != NULL)
-        xmlnode_insert_cdata(log,type,strlen(type));
+        xmlnode_insert_cdata(log, type, j_strlen(type));
     else
-        xmlnode_insert_cdata(log,"unknown",7);
-    xmlnode_insert_cdata(log," ",1);
+        xmlnode_insert_cdata(log, "unknown", 7);
+    xmlnode_insert_cdata(log, " ", 1);
     if(action != NULL)
-        xmlnode_insert_cdata(log,action,strlen(action));
+        xmlnode_insert_cdata(log, action, j_strlen(action));
     else
-        xmlnode_insert_cdata(log,"unknown",7);
-    xmlnode_insert_cdata(log," ",1);
-    xmlnode_insert_cdata(log,logmsg,strlen(logmsg));
+        xmlnode_insert_cdata(log, "unknown", 7);
+    xmlnode_insert_cdata(log, " ", 1);
+    xmlnode_insert_cdata(log, logmsg, j_strlen(logmsg));
 
-    log_debug2(ZONE, LOGT_DELIVER, "%s", xmlnode2str(log));
+    log_debug2(ZONE, LOGT_DELIVER, "%s", xmlnode_serialize_string(log, NULL, NULL, 0));
     deliver(dpacket_new(log), NULL);
 }
 

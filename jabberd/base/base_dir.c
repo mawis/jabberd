@@ -105,7 +105,7 @@ result base_dir_read(void *arg) {
 	/* process the stanza file */
 	x = xmlnode_file(filename);
 	jp = jpacket_new(x);
-	if (jp != NULL && (jp->type != JPACKET_UNKNOWN || j_strcmp(xmlnode_get_name(x), "route")==0)) {
+	if (jp != NULL && (jp->type != JPACKET_UNKNOWN || j_strcmp(xmlnode_get_localname(x), "route") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_SERVER) == 0)) {
 	    deliver(dpacket_new(x), conf_data->id);
 	} else {
 	    log_warn(conf_data->id->id, "deleted invalid stanza %s", filename);
@@ -160,6 +160,7 @@ result base_dir_deliver(instance id, dpacket p, void *arg) {
  */
 result base_dir_config(instance id, xmlnode x, void *arg) {
     base_dir_st conf_data = NULL;
+    xht namespaces = NULL;
     
     /* nothing has to be done for configuration validation */
     if(id == NULL) {
@@ -169,11 +170,15 @@ result base_dir_config(instance id, xmlnode x, void *arg) {
     log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_dir configuring instance %s", id->id);
 
     /* process configuration */
+    namespaces = xhash_new(3);
+    xhash_put(namespaces, "", NS_JABBERD_CONFIGFILE);
     conf_data = pmalloc(id->p, sizeof(_base_dir_st));
-    conf_data->in_dir = pstrdup(id->p, xmlnode_get_tag_data(x, "in"));
-    conf_data->out_dir = pstrdup(id->p, xmlnode_get_tag_data(x, "out"));
+    conf_data->in_dir = pstrdup(id->p, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "in", namespaces), 0)));
+    conf_data->out_dir = pstrdup(id->p, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "out", namespaces), 0)));
     conf_data->id = id;
     conf_data->serial = 0;
+    xhash_free(namespaces);
+    namespaces = NULL;
 
     /* read legacy configuration: no subelement of the dir element */
     if (conf_data->in_dir == NULL && conf_data->out_dir == NULL) {

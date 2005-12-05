@@ -80,10 +80,10 @@ result base_format_modify(instance id, dpacket p, void *arg)
         switch(nxt[0])
         {
         case 'h':
-            spooler(log_result, xmlnode_get_attrib(p->x, "from"), log_result);
+            spooler(log_result, xmlnode_get_attrib_ns(p->x, "from", NULL), log_result);
             break;
         case 't':
-            spooler(log_result, xmlnode_get_attrib(p->x, "type"), log_result);
+            spooler(log_result, xmlnode_get_attrib_ns(p->x, "type", NULL), log_result);
             break;
         case 'd':
             spooler(log_result, jutil_timestamp(), log_result);
@@ -114,7 +114,7 @@ result base_format_config(instance id, xmlnode x, void *arg)
         if(xmlnode_get_data(x) == NULL)
         {
             log_debug2(ZONE, LOGT_CONFIG|LOGT_INIT|LOGT_STRANGE, "base_format invald format");
-            xmlnode_put_attrib(x, "error", "'format' tag must contain a format string:\nUse %h to insert Hostname\nUse %t to insert Type of Log (notice,warn,alert)\nUse %d to insert Timestamp\nUse %s to insert the body of the message\n\nExample: '[%t] - %h - %d: %s'");
+            xmlnode_put_attrib_ns(x, "error", NULL, NULL, "'format' tag must contain a format string:\nUse %h to insert Hostname\nUse %t to insert Type of Log (notice,warn,alert)\nUse %d to insert Timestamp\nUse %s to insert the body of the message\n\nExample: '[%t] - %h - %d: %s'");
             return r_ERR;
         }
         return r_PASS;
