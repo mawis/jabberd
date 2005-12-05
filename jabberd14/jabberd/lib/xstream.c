@@ -109,14 +109,15 @@ void _xstream_startElement(xstream xs, const char* name, const char** atts) {
 
 
     /* if xstream is bad, get outa here */
-    if(xs->status > XSTREAM_NODE) return;
+    if (xs->status > XSTREAM_NODE)
+	return;
 
-    if(xs->node == NULL) {
+    if (xs->node == NULL) {
         p = pool_heap(5*1024); /* 5k, typically 1-2k each plus copy of self and workspace */
         xs->node = xmlnode_new_tag_pool_ns(p, local_name, prefix, ns_iri);
         xmlnode_put_expat_attribs(xs->node, atts, xs->last_ns_stanza);
 
-        if(xs->status == XSTREAM_ROOT) {
+        if (xs->status == XSTREAM_ROOT) {
 	    const char *prefix = NULL;
 
             xs->root_lang = pstrdup(xs->p, xmlnode_get_lang(xs->node));
@@ -140,8 +141,8 @@ void _xstream_startElement(xstream xs, const char* name, const char** atts) {
             (xs->f)(XSTREAM_ROOT, xs->node, xs->arg); /* send the root, f must free all nodes */
             xs->node = NULL;
         }
-    }else{
-        xs->node = xmlnode_insert_tag(xs->node, name);
+    } else {
+        xs->node = xmlnode_insert_tag_ns(xs->node, name, prefix, ns_iri);
         xmlnode_put_expat_attribs(xs->node, atts, xs->last_ns_stanza);
     }
 
@@ -270,8 +271,7 @@ void _xstream_cleanup(void *arg) {
 xstream xstream_new(pool p, xstream_onNode f, void *arg) {
     xstream newx;
 
-    if(p == NULL || f == NULL)
-    {
+    if (p == NULL || f == NULL) {
         fprintf(stderr,"Fatal Programming Error: xstream_new() was improperly called with NULL.\n");
         return NULL;
     }
@@ -300,8 +300,7 @@ xstream xstream_new(pool p, xstream_onNode f, void *arg) {
  * @param len length of the data
  * @return last known xstream status
  */
-int xstream_eat(xstream xs, char *buff, int len)
-{
+int xstream_eat(xstream xs, char *buff, int len) {
     char *err;
     xmlnode xerr;
     static char maxerr[] = "maximum node size reached";
@@ -331,9 +330,8 @@ int xstream_eat(xstream xs, char *buff, int len)
     }
 
     /* fire parsing error event, make a node containing the error string */
-    if(xs->status == XSTREAM_ERR)
-    {
-        xerr = xmlnode_new_tag("error");
+    if(xs->status == XSTREAM_ERR) {
+        xerr = xmlnode_new_tag_ns("error", NULL, NS_SERVER);
         xmlnode_insert_cdata(xerr,err,-1);
         (xs->f)(XSTREAM_ERR, xerr, xs->arg);
     }
@@ -357,14 +355,13 @@ xmlnode xstream_header(const char *to, const char *from) {
     snprintf(id, sizeof(id), "%08X%08X%08X%08X%08X", rand(), rand(), rand(), rand(), rand());
     shahash_r(id, id); /* don't let them see what our rand() returns */
 
-    x = xmlnode_new_tag("stream:stream");
-    xmlnode_put_attrib(x, "xmlns:stream", NS_STREAM);
-    xmlnode_put_attrib(x, "id", id);
-    xmlnode_put_attrib(x, "xmlns", NS_SERVER);
+    x = xmlnode_new_tag_ns("stream", "stream", NS_STREAM);
+    xmlnode_put_attrib_ns(x, "id", NULL, NULL, id);
+    xmlnode_put_attrib_ns(x, "xmlns", NULL, NS_XMLNS, NS_SERVER);
     if(to != NULL)
-        xmlnode_put_attrib(x, "to", to);
+        xmlnode_put_attrib_ns(x, "to", NULL, NULL, to);
     if(from != NULL)
-        xmlnode_put_attrib(x, "from", from);
+        xmlnode_put_attrib_ns(x, "from", NULL, NULL, from);
 
     return x;
 }
@@ -528,7 +525,6 @@ streamerr_severity xstream_parse_error(pool p, xmlnode errnode, streamerr errstr
 
     /* iterate over the nodes in the stream error */
     for (cur = xmlnode_get_firstchild(errnode); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
-	char *ns = NULL;
 	char *name = NULL;
 
 	/* direct CDATA? Then it might be a preXMPP stream error */
@@ -545,18 +541,15 @@ streamerr_severity xstream_parse_error(pool p, xmlnode errnode, streamerr errstr
 	    continue;
 
 	/* only handle the relevant namespace */
-	ns = xmlnode_get_attrib(cur, "xmlns");
-	if (ns == NULL)
-	    continue;
-	if (j_strcmp(ns, NS_XMPP_STREAMS) != 0)
+	if (j_strcmp(xmlnode_get_namespace(cur), NS_XMPP_STREAMS) != 0)
 	    continue;
 
 	/* check which element it is */
-	name = xmlnode_get_name(cur);
+	name = pstrdup(xmlnode_pool(cur), xmlnode_get_localname(cur));
 	if (j_strcmp(name, "text") == 0) {
 	    if (errstruct->text == NULL) {
 		errstruct->text = pstrdup(p, xmlnode_get_data(cur));
-		errstruct->lang = pstrdup(p, xmlnode_get_attrib(cur, "xml:lang"));
+		errstruct->lang = pstrdup(p, xmlnode_get_lang(cur));
 	    }
 	} else if (j_strcmp(name, "bad-format") == 0) {
 	    errstruct->reason = bad_format;

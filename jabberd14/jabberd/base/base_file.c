@@ -82,7 +82,7 @@ result base_file_config(instance id, xmlnode x, void *arg)
         if (xmlnode_get_data(x) == NULL)
         {
             log_debug2(ZONE, LOGT_STRANGE|LOGT_CONFIG|LOGT_INIT, "base_file_config error: no filename provided.");
-            xmlnode_put_attrib(x,"error","'file' tag must contain a filename to write to");
+            xmlnode_put_attrib_ns(x, "error", NULL, NULL, "'file' tag must contain a filename to write to");
             return r_ERR;
         }
         return r_PASS;

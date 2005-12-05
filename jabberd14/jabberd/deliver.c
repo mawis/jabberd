@@ -312,23 +312,22 @@ static instance deliver_intersect(ilist a, ilist b) {
  */
 static void deliver_internal(dpacket p, instance i) {
     xmlnode x;
-    char *ns = xmlnode_get_attrib(p->x, "ns");
+    char *ns = xmlnode_get_attrib_ns(p->x, "ns", NULL);
 
-    log_debug2(ZONE, LOGT_DELIVER, "@-internal processing %s",xmlnode2str(p->x));
+    log_debug2(ZONE, LOGT_DELIVER, "@-internal processing %s", xmlnode_serialize_string(p->x, NULL, NULL, 0));
 
-    if(j_strcmp(p->id->user,"config") == 0)
-    { /* config@-internal means it's a special xdb request to get data from the config file */
-        for(x = xmlnode_get_firstchild(i->x); x != NULL; x = xmlnode_get_nextsibling(x))
-        {
-            if(j_strcmp(xmlnode_get_attrib(x,"xmlns"),ns) != 0)
-                continue;
+    if(j_strcmp(p->id->user,"config") == 0) {
+	/* config@-internal means it's a special xdb request to get data from the config file */
+        for(x = xmlnode_get_firstchild(i->x); x != NULL; x = xmlnode_get_nextsibling(x)) {
+	    if (j_strcmp(xmlnode_get_namespace(x), NS_JABBERD_CONFIGFILE) == 0)
+		continue;
 
             /* insert results */
             xmlnode_insert_tag_node(p->x, x);
         }
 
         /* reformat packet as a reply */
-        xmlnode_put_attrib(p->x,"type","result");
+        xmlnode_put_attrib_ns(p->x, "type", NULL, NULL, "result");
         jutil_tofrom(p->x);
         p->type = p_NORM;
 
@@ -337,14 +336,14 @@ static void deliver_internal(dpacket p, instance i) {
         return;
     }
 
-    if(j_strcmp(p->id->user,"host") == 0)
-    { /* dynamic register_instance crap */
+    if(j_strcmp(p->id->user,"host") == 0) {
+	/* dynamic register_instance crap */
         register_instance(i,p->id->resource);
         return;
     }
 
-    if(j_strcmp(p->id->user,"unhost") == 0)
-    { /* dynamic register_instance crap */
+    if(j_strcmp(p->id->user,"unhost") == 0) {
+	/* dynamic register_instance crap */
         unregister_instance(i,p->id->resource); 
         return;
     }
@@ -356,25 +355,27 @@ static void deliver_internal(dpacket p, instance i) {
  * @param i the instance to register
  * @param host the domain to register this instance for (or "*" to register as the default routing)
  */
-void register_instance(instance i, char *host)
-{
+void register_instance(instance i, char *host) {
     ilist l;
-    xht ht;
+    xht ht = NULL;
+    xht namespaces = NULL;
 
     log_debug2(ZONE, LOGT_REGISTER, "Registering %s with instance %s", host, i->id);
 
+    namespaces = xhash_new(3);
+    xhash_put(namespaces, "", NS_JABBERD_CONFIGFILE);
+
     /* fail, since ns is required on every XDB instance if it's used on any one */
-    if(i->type == p_XDB && deliver__ns != NULL && xmlnode_get_tag(i->x, "ns") == NULL)
-    {
+    if (i->type == p_XDB && deliver__ns != NULL && xmlnode_get_list_item(xmlnode_get_tags(i->x, "ns", namespaces), 0) == NULL) {
         fprintf(stderr, "Configuration Error!  If <ns> is used in any xdb section, it must be used in all sections for correct packet routing.");
         exit(1);
     }
     /* fail, since logtype is required on every LOG instance if it's used on any one */
-    if(i->type == p_LOG && deliver__logtype != NULL && xmlnode_get_tag(i->x, "logtype") == NULL)
-    {
+    if (i->type == p_LOG && deliver__logtype != NULL && xmlnode_get_list_item(xmlnode_get_tags(i->x, "logtype", namespaces), 0) == NULL) {
         fprintf(stderr, "Configuration Error!  If <logtype> is used in any log section, it must be used in all sections for correct packet routing.");
         exit(1);
     }
+    xhash_free(namespaces);
 
     ht = deliver_hashtable(i->type);
     l = xhash_get(ht, host);
@@ -388,8 +389,7 @@ void register_instance(instance i, char *host)
  * @param i the instance to unregister
  * @param host the domain to unregister (or "*" to unregister as the default routing)
  */
-void unregister_instance(instance i, char *host)
-{
+void unregister_instance(instance i, char *host) {
     ilist l;
     xht ht;
 
@@ -398,7 +398,7 @@ void unregister_instance(instance i, char *host)
     ht = deliver_hashtable(i->type);
     l = xhash_get(ht, host);
     l = ilist_rem(l, i);
-    if(l == NULL)
+    if (l == NULL)
         xhash_zap(ht, host);
     else
         xhash_put(ht, pstrdup(i->p,host), (void *)l);
@@ -416,22 +416,21 @@ static result deliver_config_host(instance i, xmlnode x, void *arg) {
     char *host;
     int c;
 
-    if(i == NULL)
+    if (i == NULL)
         return r_PASS;
 
     host = xmlnode_get_data(x);
-    if(host == NULL)
-    {
+    if (host == NULL) {
         register_instance(i, "*");
         return r_DONE;
     }
 
-    for(c = 0; host[c] != '\0'; c++)
-        if(isspace((int)host[c]))
-        {
-            xmlnode_put_attrib(x,"error","The host tag contains illegal whitespace.");
+    for (c = 0; host[c] != '\0'; c++) {
+        if (isspace((int)host[c])) {
+            xmlnode_put_attrib_ns(x, "error", NULL, NULL, "The host tag contains illegal whitespace.");
             return r_ERR;
         }
+    }
 
     register_instance(i, host);
 
@@ -450,19 +449,19 @@ static result deliver_config_ns(instance i, xmlnode x, void *arg) {
     ilist l;
     char *ns, star[] = "*";
 
-    if(i == NULL)
+    if (i == NULL)
         return r_PASS;
 
-    if(i->type != p_XDB)
+    if (i->type != p_XDB)
         return r_ERR;
 
     ns = xmlnode_get_data(x);
-    if(ns == NULL)
+    if (ns == NULL)
         ns = pstrdup(xmlnode_pool(x),star);
 
     log_debug2(ZONE, LOGT_INIT|LOGT_STORAGE|LOGT_REGISTER, "Registering namespace %s with instance %s",ns,i->id);
 
-    if(deliver__ns == NULL)
+    if (deliver__ns == NULL)
 	deliver__ns = xhash_new(401);
 
     l = xhash_get(deliver__ns, ns);
@@ -484,19 +483,19 @@ static result deliver_config_logtype(instance i, xmlnode x, void *arg) {
     ilist l;
     char *type, star[] = "*";
 
-    if(i == NULL)
+    if (i == NULL)
         return r_PASS;
 
-    if(i->type != p_LOG)
+    if (i->type != p_LOG)
         return r_ERR;
 
     type = xmlnode_get_data(x);
-    if(type == NULL)
+    if (type == NULL)
         type = pstrdup(xmlnode_pool(x),star);
 
     log_debug2(ZONE, LOGT_REGISTER, "Registering logtype %s with instance %s",type,i->id);
 
-    if(deliver__logtype == NULL)
+    if (deliver__logtype == NULL)
 	deliver__logtype = xhash_new(401);
 
     l = xhash_get(deliver__logtype, type);
@@ -515,10 +514,10 @@ static result deliver_config_logtype(instance i, xmlnode x, void *arg) {
  * @return r_DONE if the instance is registered, r_ERR on error, r_PASS if no instance provided by the caller
  */
 static result deliver_config_uplink(instance i, xmlnode x, void *arg) {
-    if(i == NULL)
+    if (i == NULL)
         return r_PASS;
 
-    if(deliver__uplink != NULL)
+    if (deliver__uplink != NULL)
         return r_ERR;
 
     deliver__uplink = i;
@@ -563,15 +562,13 @@ static result deliver_config_null(instance i, xmlnode x, void *arg) {
  * @param p the packet that should be delivered
  * @param i the instance of the sender (!) of the packet
  */
-void deliver(dpacket p, instance i)
-{
+void deliver(dpacket p, instance i) {
     ilist a, b;
 
-    if(deliver__flag == 1 && p == NULL && i == NULL)
-    { /* begin delivery of postponed messages */
+    if(deliver__flag == 1 && p == NULL && i == NULL) {
+	/* begin delivery of postponed messages */
         deliver_msg d;
-        while((d=(deliver_msg)pth_msgport_get(deliver__mp))!=NULL)
-        {
+        while ((d=(deliver_msg)pth_msgport_get(deliver__mp))!=NULL) {
             deliver(d->p,d->i);
         }
         pth_msgport_destroy(deliver__mp);
@@ -584,17 +581,16 @@ void deliver(dpacket p, instance i)
 	 return;
 
     /* catch the @-internal xdb crap */
-    if(p->type == p_XDB && *(p->host) == '-')
-    {
+    if (p->type == p_XDB && *(p->host) == '-') {
         deliver_internal(p, i);
         return;
     }
 
-    if(deliver__flag == 0)
-    { /* postpone delivery till later */
-        deliver_msg d = pmalloco(xmlnode_pool(p->x) ,sizeof(_deliver_msg));
+    if (deliver__flag == 0) {
+	/* postpone delivery till later */
+        deliver_msg d = pmalloco(xmlnode_pool(p->x), sizeof(_deliver_msg));
         
-        if(deliver__mp == NULL)
+        if (deliver__mp == NULL)
             deliver__mp = pth_msgport_create("deliver__");
         
         d->i = i;
@@ -604,14 +600,14 @@ void deliver(dpacket p, instance i)
         return;
     }
 
-    log_debug2(ZONE, LOGT_DELIVER, "DELIVER %d:%s %s", p->type, p->host, xmlnode2str(p->x));
+    log_debug2(ZONE, LOGT_DELIVER, "DELIVER %d:%s %s", p->type, p->host, xmlnode_serialize_string(p->x, NULL, NULL, 0));
 
     b = NULL;
     a = deliver_hashmatch(deliver_hashtable(p->type), p->host);
-    if(p->type == p_XDB)
-        b = deliver_hashmatch(deliver__ns, xmlnode_get_attrib(p->x,"ns"));
+    if (p->type == p_XDB)
+        b = deliver_hashmatch(deliver__ns, xmlnode_get_attrib_ns(p->x, "ns", NULL));
     else if(p->type == p_LOG)
-        b = deliver_hashmatch(deliver__logtype, xmlnode_get_attrib(p->x,"type"));
+        b = deliver_hashmatch(deliver__logtype, xmlnode_get_attrib_ns(p->x, "type", NULL));
     deliver_instance(deliver_intersect(a, b), p);
 }
 
@@ -622,12 +618,13 @@ void deliver(dpacket p, instance i)
  * @param host the hostname to get checked
  * @return the instance packets of this host get mapped to
  */
-instance deliver_hostcheck(char *host)
-{
+instance deliver_hostcheck(char *host) {
     ilist l;
 
-    if(host == NULL) return NULL;
-    if((l = deliver_hashmatch(deliver__hnorm,host)) == NULL || l->next != NULL) return NULL;
+    if (host == NULL)
+	return NULL;
+    if ((l = deliver_hashmatch(deliver__hnorm,host)) == NULL || l->next != NULL)
+	return NULL;
 
     return l->i;
 }
@@ -637,16 +634,15 @@ instance deliver_hostcheck(char *host)
  *
  * @param p memory pool that can be used to register config handlers (must be available for the livetime of jabberd)
  */
-void deliver_init(pool p)
-{
+void deliver_init(pool p) {
     deliver__hnorm = xhash_new(401);
     deliver__hlog = xhash_new(401);
     deliver__hxdb = xhash_new(401);
-    register_config(p, "host",deliver_config_host,NULL);
-    register_config(p, "ns",deliver_config_ns,NULL);
-    register_config(p, "logtype",deliver_config_logtype,NULL);
-    register_config(p, "uplink",deliver_config_uplink,NULL);
-    register_config(p, "null",deliver_config_null,NULL);
+    register_config(p, "host", deliver_config_host, NULL);
+    register_config(p, "ns", deliver_config_ns, NULL);
+    register_config(p, "logtype", deliver_config_logtype, NULL);
+    register_config(p, "uplink", deliver_config_uplink, NULL);
+    register_config(p, "null", deliver_config_null, NULL);
 }
 
 /**
@@ -669,8 +665,7 @@ void deliver_shutdown(void) {
 /**
  * register a function to handle delivery for this instance
  */
-void register_phandler(instance id, order o, phandler f, void *arg)
-{
+void register_phandler(instance id, order o, phandler f, void *arg) {
     handel newh, h1, last;
     pool p;
 
@@ -683,77 +678,70 @@ void register_phandler(instance id, order o, phandler f, void *arg)
     newh->o = o;
 
     /* if we're the only handler, easy */
-    if(id->hds == NULL)
-    {
+    if(id->hds == NULL) {
         id->hds = newh;
         return;
     }
 
     /* place according to handler preference */
-    switch(o)
-    {
-    case o_PRECOND:
-        /* always goes to front of list */
-        newh->next = id->hds;
-        id->hds = newh;
-        break;
-    case o_COND:
-        h1 = id->hds;
-        last = NULL;
-        while(h1->o < o_PREDELIVER)
-        {
-            last = h1;
-            h1 = h1->next;
-            if(h1 == NULL)
-                break; 
-        }
-        if(last == NULL)
-        { /* goes to front of list */
-            newh->next = h1;
-            id->hds = newh;
-        }
-        else if(h1 == NULL)
-        { /* goes at end of list */
-            last->next = newh;
-        }
-        else
-        { /* goes between last and h1 */
-            newh->next = h1;
-            last->next = newh;
-        }
-        break;
-    case o_PREDELIVER:
-        h1 = id->hds;
-        last = NULL;
-        while(h1->o < o_DELIVER)
-        {
-            last = h1;
-            h1 = h1->next;
-            if(h1 == NULL)
-                break; 
-        }
-        if(last == NULL)
-        { /* goes to front of list */
-            newh->next = h1;
-            id->hds = newh;
-        }
-        else if(h1 == NULL)
-        { /* goes at end of list */
-            last->next = newh;
-        }
-        else
-        { /* goes between last and h1 */
-            newh->next = h1;
-            last->next = newh;
-        }
-        break;
-    case o_DELIVER:
-        /* always add to the end */
-        for(h1 = id->hds; h1->next != NULL; h1 = h1->next);
-        h1->next = newh;
-        break;
-    default:
-        ;
+    switch(o) {
+	case o_PRECOND:
+	    /* always goes to front of list */
+	    newh->next = id->hds;
+	    id->hds = newh;
+	    break;
+	case o_COND:
+	    h1 = id->hds;
+	    last = NULL;
+	    while (h1->o < o_PREDELIVER) {
+		last = h1;
+		h1 = h1->next;
+		if (h1 == NULL)
+		    break; 
+	    }
+	    if (last == NULL) {
+		/* goes to front of list */
+		newh->next = h1;
+		id->hds = newh;
+	    } else if (h1 == NULL) {
+		/* goes at end of list */
+		last->next = newh;
+	    } else {
+		/* goes between last and h1 */
+		newh->next = h1;
+		last->next = newh;
+	    }
+	    break;
+	case o_PREDELIVER:
+	    h1 = id->hds;
+	    last = NULL;
+	    while (h1->o < o_DELIVER) {
+		last = h1;
+		h1 = h1->next;
+		if (h1 == NULL)
+		    break; 
+	    }
+	    if (last == NULL) {
+		/* goes to front of list */
+		newh->next = h1;
+		id->hds = newh;
+	    } else if (h1 == NULL) {
+		/* goes at end of list */
+		last->next = newh;
+	    } else {
+		/* goes between last and h1 */
+		newh->next = h1;
+		last->next = newh;
+	    }
+	    break;
+	case o_DELIVER:
+	    /* always add to the end */
+	    for (h1 = id->hds; h1->next != NULL; h1 = h1->next)
+		/* nothing */;
+	    h1->next = newh;
+	    break;
+	default:
+	    ;
     }
 }
 
@@ -761,81 +749,77 @@ void register_phandler(instance id, order o, phandler f, void *arg)
 /**
  * bounce on the delivery, use the result to better gague what went wrong
  */
-void deliver_fail(dpacket p, char *err)
-{
+void deliver_fail(dpacket p, char *err) {
     xterror xt;
     char message[MAX_LOG_SIZE];
 
     log_debug2(ZONE, LOGT_DELIVER, "delivery failed (%s)", err);
 
-    if(p==NULL) return;
+    if (p==NULL)
+	return;
 
-    switch(p->type)
-    {
-    case p_LOG:
-        /* stderr and drop */
-        snprintf(message, sizeof(message), "WARNING!  Logging Failed: %s\n", xmlnode2str(p->x));
-        fprintf(stderr, "%s\n", message);
-        pool_free(p->p);
-        break;
-    case p_XDB:
-        /* log_warning and drop */
-        log_warn(p->host,"dropping a %s xdb request to %s for %s",xmlnode_get_attrib(p->x,"type"),xmlnode_get_attrib(p->x,"to"),xmlnode_get_attrib(p->x,"ns"));
-        /* drop through and treat like a route failure */
-    case p_ROUTE:
-        /* route packet bounce */
-        if(j_strcmp(xmlnode_get_attrib(p->x,"type"),"error") == 0)
-        {   /* already bounced once, drop */
-            log_warn(p->host,"dropping a routed packet to %s from %s: %s",xmlnode_get_attrib(p->x,"to"),xmlnode_get_attrib(p->x,"from"),err);
-            pool_free(p->p);
-        }else{
-            log_notice(p->host,"bouncing a routed packet to %s from %s: %s",xmlnode_get_attrib(p->x,"to"),xmlnode_get_attrib(p->x,"from"),err);
+    switch (p->type) {
+	case p_LOG:
+	    /* stderr and drop */
+	    snprintf(message, sizeof(message), "WARNING!  Logging Failed: %s\n", xmlnode_serialize_string(p->x, NULL, NULL, 0));
+	    fprintf(stderr, "%s\n", message);
+	    pool_free(p->p);
+	    break;
+	case p_XDB:
+	    /* log_warning and drop */
+	    log_warn(p->host, "dropping a %s xdb request to %s for %s", xmlnode_get_attrib_ns(p->x,"type", NULL), xmlnode_get_attrib_ns(p->x, "to", NULL), xmlnode_get_attrib_ns(p->x, "ns", NULL));
+	    /* drop through and treat like a route failure */
+	case p_ROUTE:
+	    /* route packet bounce */
+	    if (j_strcmp(xmlnode_get_attrib_ns(p->x, "type", NULL),"error") == 0) {
+		/* already bounced once, drop */
+		log_warn(p->host, "dropping a routed packet to %s from %s: %s", xmlnode_get_attrib_ns(p->x, "to", NULL), xmlnode_get_attrib_ns(p->x, "from", NULL), err);
+		pool_free(p->p);
+	    } else {
+		log_notice(p->host, "bouncing a routed packet to %s from %s: %s", xmlnode_get_attrib_ns(p->x,"to", NULL),xmlnode_get_attrib_ns(p->x, "from", NULL),err);
 
-            /* turn into an error and bounce */
-            jutil_tofrom(p->x);
-            xmlnode_put_attrib(p->x,"type","error");
-            xmlnode_put_attrib(p->x,"error",err);
-            deliver(dpacket_new(p->x),NULL);
-        }
-        break;
-    case p_NORM:
-        /* normal packet bounce */
-        if(j_strcmp(xmlnode_get_attrib(p->x,"type"),"error") == 0)
-        { /* can't bounce an error */
-            log_warn(p->host,"dropping a packet to %s from %s: %s",xmlnode_get_attrib(p->x,"to"),xmlnode_get_attrib(p->x,"from"),err);
-            pool_free(p->p);
-        }else{
-            log_notice(p->host,"bouncing a packet to %s from %s: %s",xmlnode_get_attrib(p->x,"to"),xmlnode_get_attrib(p->x,"from"),err);
+		/* turn into an error and bounce */
+		jutil_tofrom(p->x);
+		xmlnode_put_attrib_ns(p->x, "type", NULL, NULL, "error");
+		xmlnode_put_attrib_ns(p->x, "error", NULL, NULL, err);
+		deliver(dpacket_new(p->x),NULL);
+	    }
+	    break;
+	case p_NORM:
+	    /* normal packet bounce */
+	    if (j_strcmp(xmlnode_get_attrib_ns(p->x, "type", NULL), "error") == 0) {
+		/* can't bounce an error */
+		log_warn(p->host,"dropping a packet to %s from %s: %s", xmlnode_get_attrib_ns(p->x, "to", NULL), xmlnode_get_attrib_ns(p->x, "from", NULL),err);
+		pool_free(p->p);
+	    } else {
+		log_notice(p->host,"bouncing a packet to %s from %s: %s",xmlnode_get_attrib_ns(p->x, "to", NULL), xmlnode_get_attrib_ns(p->x, "from", NULL),err);
 
-            /* turn into an error */
-            if(err == NULL)
-            {
-                jutil_error_xmpp(p->x,XTERROR_EXTERNAL);
-            }else{
-		xt = XTERROR_EXTERNAL;
-		strncpy(xt.msg, err, sizeof(xt.msg));
-		xt.msg[sizeof(xt.msg)-1] = 0;
-                jutil_error_xmpp(p->x,xt);
-            }
-            deliver(dpacket_new(p->x),NULL);
-        }
-        break;
-    default:
-        ;
+		/* turn into an error */
+		if (err == NULL) {
+		    jutil_error_xmpp(p->x,XTERROR_EXTERNAL);
+		} else {
+		    xt = XTERROR_EXTERNAL;
+		    strncpy(xt.msg, err, sizeof(xt.msg));
+		    xt.msg[sizeof(xt.msg)-1] = 0;
+		    jutil_error_xmpp(p->x,xt);
+		}
+		deliver(dpacket_new(p->x),NULL);
+	    }
+	    break;
+	default:
+	    ;
     }
 }
 
 /**
  * actually perform the delivery to an instance
  */
-void deliver_instance(instance i, dpacket p)
-{
+void deliver_instance(instance i, dpacket p) {
     handel h, hlast;
     result r;
     dpacket pig = p;
 
-    if(i == NULL)
-    {
+    if (i == NULL) {
         deliver_fail(p, "Unable to deliver, destination unknown");
         return;
     }
@@ -844,45 +828,42 @@ void deliver_instance(instance i, dpacket p)
 
     /* try all the handlers */
     hlast = h = i->hds;
-    while(h != NULL)
-    {
+    while (h != NULL) {
         /* there may be multiple delivery handlers, make a backup copy first if we have to */
-        if(h->o == o_DELIVER && h->next != NULL)
+        if (h->o == o_DELIVER && h->next != NULL)
             pig = dpacket_copy(p);
 
         /* call the handler */
-        if((r = (h->f)(i,p,h->arg)) == r_ERR)
-        {
+        if ((r = (h->f)(i,p,h->arg)) == r_ERR) {
             deliver_fail(p, "Internal Delivery Error");
             break;
         }
 
         /* if a non-delivery handler says it handled it, we have to be done */
-        if(h->o != o_DELIVER && r == r_DONE)
+        if (h->o != o_DELIVER && r == r_DONE)
             break;
 
         /* if a conditional handler wants to halt processing */
-        if(h->o == o_COND && r == r_LAST)
+        if (h->o == o_COND && r == r_LAST)
             break;
 
         /* deal with that backup copy we made */
-        if(h->o == o_DELIVER && h->next != NULL)
-        {
-            if(r == r_DONE) /* they ate it, use copy */
+        if (h->o == o_DELIVER && h->next != NULL) {
+            if (r == r_DONE) /* they ate it, use copy */
                 p = pig;
             else
                 pool_free(pig->p); /* they never used it, trash copy */
         }
 
         /* unregister this handler */
-        if(r == r_UNREG)
-        {
-            if(h == i->hds)
-            { /* removing the first in the list */
+        if (r == r_UNREG) {
+            if(h == i->hds) {
+		/* removing the first in the list */
                 i->hds = h->next;
                 pool_free(h->p);
                 hlast = h = i->hds;
-            }else{ /* removing from anywhere in the list */
+            } else {
+		/* removing from anywhere in the list */
                 hlast->next = h->next;
                 pool_free(h->p);
                 h = hlast->next;
@@ -899,11 +880,12 @@ void deliver_instance(instance i, dpacket p)
 /**
  * create a new deliverable packet out of an ::xmlnode
  *
+ * @todo shouldn't we check the full localnames and namespaces? (or is it already ensured by the packet type?)
+ *
  * @param x the xmlnode to generate the deliverable packet for
  * @return the deliverable packet that has been created
  */
-dpacket dpacket_new(xmlnode x)
-{
+dpacket dpacket_new(xmlnode x) {
     dpacket p;
     char *str;
 
@@ -917,56 +899,53 @@ dpacket dpacket_new(xmlnode x)
 
     /* determine it's type */
     p->type = p_NORM;
-    if(*(xmlnode_get_name(x)) == 'r')
+    if(*(xmlnode_get_localname(x)) == 'r')	/* XXX check for namespace (check complete name?) */
         p->type = p_ROUTE;
-    else if(*(xmlnode_get_name(x)) == 'x')
+    else if(*(xmlnode_get_localname(x)) == 'x')	/* XXX check for namespace (check complete name?) */
         p->type = p_XDB;
-    else if(*(xmlnode_get_name(x)) == 'l')
+    else if(*(xmlnode_get_localname(x)) == 'l') /* XXX check for namespace (check complete name?) */
         p->type = p_LOG;
 
     /* xdb results are shipped as normal packets */
-    if(p->type == p_XDB && (str = xmlnode_get_attrib(p->x,"type")) != NULL && (*str == 'r' || *str == 'e' ))
+    if(p->type == p_XDB && (str = xmlnode_get_attrib_ns(p->x, "type", NULL)) != NULL && (*str == 'r' || *str == 'e' )) /* check full name? */
         p->type = p_NORM;
 
     /* determine who to route it to, overriding the default to="" attrib only for logs where we use from */
     if(p->type == p_LOG)
-        p->id = jid_new(p->p, xmlnode_get_attrib(x, "from"));
+        p->id = jid_new(p->p, xmlnode_get_attrib_ns(x, "from", NULL));
     else
-        p->id = jid_new(p->p, xmlnode_get_attrib(x, "to"));
+        p->id = jid_new(p->p, xmlnode_get_attrib_ns(x, "to", NULL));
 
-    if(p->id == NULL)
-    {
-        log_warn(NULL,"Packet Delivery Failed, invalid packet, dropping %s",xmlnode2str(x));
+    if(p->id == NULL) {
+        log_warn(NULL,"Packet Delivery Failed, invalid packet, dropping %s",xmlnode_serialize_string(x, NULL, NULL, 0));
         xmlnode_free(x);
         return NULL;
     }
 
     /* make sure each packet has the basics, norm has a to/from, log has a type, xdb has a namespace */
-    switch(p->type)
-    {
-    case p_LOG:
-        if(xmlnode_get_attrib(x,"type")==NULL)
-            p=NULL;
-        break;
-    case p_XDB:
-        if(xmlnode_get_attrib(x,"ns") == NULL)
-            p=NULL;
-        /* fall through */
-    case p_NORM:
-        if(xmlnode_get_attrib(x,"to")==NULL||xmlnode_get_attrib(x,"from")==NULL)
-            p=NULL;
-        break;
-    case p_ROUTE:
-        if(xmlnode_get_attrib(x,"to")==NULL)
-            p=NULL;
-        break;
-    case p_NONE:
-        p=NULL;
-        break;
+    switch(p->type) {
+	case p_LOG:
+	    if (xmlnode_get_attrib_ns(x, "type", NULL) == NULL)
+		p=NULL;
+	    break;
+	case p_XDB:
+	    if (xmlnode_get_attrib_ns(x, "ns", NULL) == NULL)
+		p=NULL;
+	    /* fall through */
+	case p_NORM:
+	    if (xmlnode_get_attrib_ns(x, "to", NULL) == NULL || xmlnode_get_attrib_ns(x, "from", NULL)==NULL)
+		p=NULL;
+	    break;
+	case p_ROUTE:
+	    if (xmlnode_get_attrib_ns(x, "to", NULL) == NULL)
+		p=NULL;
+	    break;
+	case p_NONE:
+	    p=NULL;
+	    break;
     }
-    if(p==NULL)
-    {
-        log_warn(NULL,"Packet Delivery Failed, invalid packet, dropping %s",xmlnode2str(x));
+    if (p==NULL) {
+        log_warn(NULL, "Packet Delivery Failed, invalid packet, dropping %s",xmlnode_serialize_string(x, NULL, NULL, 0));
         xmlnode_free(x);
         return NULL;
     }
@@ -978,14 +957,9 @@ dpacket dpacket_new(xmlnode x)
 /**
  * create a clone of a deliverable packet
  */
-dpacket dpacket_copy(dpacket p)
-{
+dpacket dpacket_copy(dpacket p) {
     dpacket p2;
 
     p2 = dpacket_new(xmlnode_dup(p->x));
     return p2;
 }
-
-
-
-

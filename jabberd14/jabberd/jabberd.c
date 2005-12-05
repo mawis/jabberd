@@ -396,13 +396,16 @@ static void _jabberd_shutdown(void) {
  * _jabberd_shutdown is not called
  */
 static void _jabberd_atexit(void) {
-    xmlnode pidfile;
-    char *pidpath;
+    xmlnode pidfile = NULL;
+    char *pidpath = NULL;
+    xht namespaces = NULL;
 
     /* Get rid of our pid file */
-    pidfile = xmlnode_get_tag(greymatter__, "pidfile");
-    if(pidfile != NULL)
-    {
+    namespaces = xhash_new(3);
+    xhash_put(namespaces, "", NS_JABBERD_CONFIGFILE);
+    pidfile = xmlnode_get_list_item(xmlnode_get_tags(greymatter__, "pidfile", namespaces), 0);
+    xhash_free(namespaces);
+    if (pidfile != NULL) {
         pidpath = xmlnode_get_data(pidfile);
         if(pidpath != NULL)
             unlink(pidpath);

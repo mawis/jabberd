@@ -1,7 +1,30 @@
 2005-12-04  Matthias Wimmer  <m@tthias.net>
 
-    * jabberd/lib/jabberdlib.h: define NS_JABBERD_CONFIG_DNSRV
-    * dnsrv/dnsrv.c
+    * jabberd/lib/jabberdlib.h: define NS_JABBERD_CONFIG_DNSRV,
+	NS_JABBERD_CONFIGFILE, and NS_JABBERD_CONFIGFILE_REPLACE;
+	define jutil_header() to be legacy only
+    * dnsrv/dnsrv.c: using ns aware api of xmlnode
+    * jabberd/mio_ssl.c: same
+    * jabberd/config.c: same
+    * jabberd/mio_tls.c: same
+    * jabberd/xdb.c: same
+    * jabberd/load.c: same
+    * jabberd/mio.c: same
+    * jabberd/lib/jid.c: same
+    * jabberd/lib/jpacket.c: same
+    * jabberd/lib/xstream.c: same
+    * jabberd/lib/jutil.c: same
+    * jabberd/base/base_unsubscribe.c: same
+    * jabberd/base/base_format.c: same
+    * jabberd/base/base_connect.c: same
+    * jabberd/base/base_dir.c: same
+    * jabberd/base/base_file.c: same
+    * jabberd/base/base_accept.c: same
+    * jabberd/base/base_syslog.c: same
+    * jabberd/base/base_stdout.c: same
+    * jabberd/base/base_to.c: same
+    * jabberd/jabberd.c: same
+    * jabberd/deliver.c: same
 
 2005-12-03  Matthias Wimmer  <m@tthias.net>
 

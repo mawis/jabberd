@@ -177,7 +177,7 @@ void *base_stdoutin(void *arg)
             p = d->p;
 
             /* write packet phase */
-            block = xmlnode2str(p->x);
+            block = xmlnode_serialize_string(p->x, NULL, NULL, 0);
             if(MIO_WRITE_FUNC(STDOUT_FILENO, block, strlen(block)) <= 0)
                 break;
 

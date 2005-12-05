@@ -78,7 +78,7 @@ static void do_include(int nesting_level,xmlnode x) {
             cur=xmlnode_get_nextsibling(cur);
             continue;
         }
-        if(j_strcmp(xmlnode_get_name(cur),"jabberd:include")==0)
+        if(j_strcmp(xmlnode_get_localname(cur),"include") == 0 && j_strcmp(xmlnode_get_namespace(cur), NS_JABBERD_CONFIGFILE_REPLACE) == 0)
         {
             xmlnode include;
             char *include_file=xmlnode_get_data(cur);
@@ -95,7 +95,8 @@ static void do_include(int nesting_level,xmlnode x) {
              * if root tag matches parent tag of the <include/> -- firstchild
              * otherwise, insert the whole file
              */
-             if(j_strcmp(xmlnode_get_name(xmlnode_get_parent(cur)),xmlnode_get_name(include_x))==0)
+             if(j_strcmp(xmlnode_get_localname(xmlnode_get_parent(cur)),xmlnode_get_localname(include_x)) == 0
+		     && j_strcmp(xmlnode_get_namespace(xmlnode_get_parent(cur)), xmlnode_get_namespace(include_x)) == 0)
                 xmlnode_insert_node(x,xmlnode_get_firstchild(include_x));
              else
                 xmlnode_insert_node(x,include_x);
@@ -125,12 +126,12 @@ static void cmdline_replace(xmlnode x, xht cmd_line) {
     for(;cur!=NULL;cur=xmlnode_get_nextsibling(cur))
     {
         if(cur->type!=NTYPE_TAG)continue;
-        if(j_strcmp(xmlnode_get_name(cur),"jabberd:cmdline")!=0)
+        if(j_strcmp(xmlnode_get_localname(cur),"cmdline")!=0 || j_strcmp(xmlnode_get_namespace(cur), NS_JABBERD_CONFIGFILE_REPLACE) != 0)
         {
             cmdline_replace(cur, cmd_line);
             continue;
         }
-        flag=xmlnode_get_attrib(cur,"flag");
+        flag=xmlnode_get_attrib_ns(cur,"flag", NULL);
         replace_text=xhash_get(cmd_line,flag);
         if(replace_text==NULL) replace_text=xmlnode_get_data(cur);
 
