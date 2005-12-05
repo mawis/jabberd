@@ -62,13 +62,13 @@
  */
 void base_unsubscribe_bounce_presence(instance id, xmlnode replied_stanza, const char* type) {
     xmlnode reply = NULL;
-    const char *from = xmlnode_get_attrib(replied_stanza, "to");
-    const char *to = xmlnode_get_attrib(replied_stanza, "from");
+    const char *from = xmlnode_get_attrib_ns(replied_stanza, "to", NULL);
+    const char *to = xmlnode_get_attrib_ns(replied_stanza, "from", NULL);
 
-    reply = xmlnode_new_tag("presence");
-    xmlnode_put_attrib(reply, "from", from);
-    xmlnode_put_attrib(reply, "to", to);
-    xmlnode_put_attrib(reply, "type", type);
+    reply = xmlnode_new_tag_ns("presence", NULL, NS_SERVER);
+    xmlnode_put_attrib_ns(reply, "from", NULL, NULL, from);
+    xmlnode_put_attrib_ns(reply, "to", NULL, NULL, to);
+    xmlnode_put_attrib_ns(reply, "type", NULL, NULL, type);
     deliver(dpacket_new(reply), id);
     /* deliver() already freed the pool of the reply xmlnode ... */
 
@@ -115,7 +115,7 @@ result base_unsubscribe_deliver(instance id, dpacket p, void* arg) {
 	    break;
 	case JPACKET_S10N:
 	    /* deny subscription requests */
-	    if (j_strcmp(xmlnode_get_attrib(p->x, "type"), "subscribe") == 0) {
+	    if (j_strcmp(xmlnode_get_attrib_ns(p->x, "type", NULL), "subscribe") == 0) {
 		base_unsubscribe_bounce_presence(id, p->x, "unsubscribed");
 	    }
 	    break;

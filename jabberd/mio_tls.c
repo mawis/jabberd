@@ -60,8 +60,12 @@ void mio_ssl_init(xmlnode x) {
     xmlnode cur = NULL;
     int ret = 0;
     static gnutls_dh_params_t mio_tls_dh_params;
+    xht namespaces = NULL;
 
     log_debug2(ZONE, LOGT_IO, "MIO TLS init (GNU TLS)");
+
+    namespaces = xhash_new(3);
+    xhash_put(namespaces, "", NS_JABBERD_CONFIGFILE);
 
     /* initialize the GNU TLS library */
     ret = gnutls_global_init();
@@ -82,7 +86,7 @@ void mio_ssl_init(xmlnode x) {
 	    continue;
 	}
 	/* it's a key */
-	if (j_strcmp(xmlnode_get_name(cur), "key") == 0) {
+	if (j_strcmp(xmlnode_get_localname(cur), "key") == 0 && j_strcmp(xmlnode_get_namespace(cur), NS_JABBERD_CONFIGFILE) == 0) {
 	    char *file_to_use = xmlnode_get_data(cur);
 
 	    if (file_to_use == NULL) {
@@ -95,7 +99,7 @@ void mio_ssl_init(xmlnode x) {
 	    }
 	}
 	/* it's a ca cert */
-	if (j_strcmp(xmlnode_get_name(cur), "cacertfile") == 0) {
+	if (j_strcmp(xmlnode_get_localname(cur), "cacertfile") == 0 && j_strcmp(xmlnode_get_namespace(cur), NS_JABBERD_CONFIGFILE) == 0) {
 	    char *file_to_use = xmlnode_get_data(cur);
 
 	    if (file_to_use == NULL) {
@@ -108,6 +112,9 @@ void mio_ssl_init(xmlnode x) {
 	    }
 	}
     }
+
+    xhash_free(namespaces);
+    namespaces = NULL;
 
     /* init DH */
     ret = gnutls_dh_params_init(&mio_tls_dh_params);

@@ -731,6 +731,15 @@ jid jid_append(jid a, jid b)
     return a;
 }
 
+/**
+ * get the first child node, that has an attribute jid with a value of jid_full(id)
+ *
+ * @deprecated use xmlnode_get_tags(x, "*[@jid='user@host/resource']", ...) instead
+ *
+ * @param id the JID to search for
+ * @param x the node, that contains the searched child nodes
+ * @return the node, that has an jid attribute, NULL if no such node
+ */
 xmlnode jid_nodescan(jid id, xmlnode x)
 {
     xmlnode cur;
@@ -744,7 +753,7 @@ xmlnode jid_nodescan(jid id, xmlnode x)
     {
         if(xmlnode_get_type(cur) != NTYPE_TAG) continue;
 
-        tmp = jid_new(p,xmlnode_get_attrib(cur,"jid"));
+        tmp = jid_new(p,xmlnode_get_attrib_ns(cur,"jid", NULL));
         if(tmp == NULL) continue;
 
         if(jid_cmp(tmp,id) == 0) break;

@@ -54,39 +54,37 @@
  * @param status optional status (CDATA for the <status/> element, NULL for now <status/> element)
  * @return the xmlnode containing the created presence stanza
  */
-xmlnode jutil_presnew(int type, char *to, char *status)
-{
+xmlnode jutil_presnew(int type, char *to, char *status) {
     xmlnode pres;
 
-    pres = xmlnode_new_tag("presence");
-    switch(type)
-    {
-    case JPACKET__SUBSCRIBE:
-        xmlnode_put_attrib(pres,"type","subscribe");
-        break;
-    case JPACKET__UNSUBSCRIBE:
-        xmlnode_put_attrib(pres,"type","unsubscribe");
-        break;
-    case JPACKET__SUBSCRIBED:
-        xmlnode_put_attrib(pres,"type","subscribed");
-        break;
-    case JPACKET__UNSUBSCRIBED:
-        xmlnode_put_attrib(pres,"type","unsubscribed");
-        break;
-    case JPACKET__PROBE:
-        xmlnode_put_attrib(pres,"type","probe");
-        break;
-    case JPACKET__UNAVAILABLE:
-        xmlnode_put_attrib(pres,"type","unavailable");
-        break;
-    case JPACKET__INVISIBLE:
-        xmlnode_put_attrib(pres,"type","invisible");
-        break;
+    pres = xmlnode_new_tag_ns("presence", NULL, NS_SERVER);
+    switch(type) {
+	case JPACKET__SUBSCRIBE:
+	    xmlnode_put_attrib_ns(pres, "type", NULL, NULL, "subscribe");
+	    break;
+	case JPACKET__UNSUBSCRIBE:
+	    xmlnode_put_attrib_ns(pres, "type", NULL, NULL, "unsubscribe");
+	    break;
+	case JPACKET__SUBSCRIBED:
+	    xmlnode_put_attrib_ns(pres, "type", NULL, NULL, "subscribed");
+	    break;
+	case JPACKET__UNSUBSCRIBED:
+	    xmlnode_put_attrib_ns(pres, "type", NULL, NULL, "unsubscribed");
+	    break;
+	case JPACKET__PROBE:
+	    xmlnode_put_attrib_ns(pres, "type", NULL, NULL, "probe");
+	    break;
+	case JPACKET__UNAVAILABLE:
+	    xmlnode_put_attrib_ns(pres, "type", NULL, NULL, "unavailable");
+	    break;
+	case JPACKET__INVISIBLE:
+	    xmlnode_put_attrib_ns(pres, "type", NULL, NULL, "invisible");
+	    break;
     }
-    if(to != NULL)
-        xmlnode_put_attrib(pres,"to",to);
-    if(status != NULL)
-        xmlnode_insert_cdata(xmlnode_insert_tag(pres,"status"),status,strlen(status));
+    if (to != NULL)
+        xmlnode_put_attrib_ns(pres, "to", NULL, NULL, to);
+    if (status != NULL)
+        xmlnode_insert_cdata(xmlnode_insert_tag_ns(pres, "status", NULL, NS_SERVER), status, j_strlen(status));
 
     return pres;
 }
@@ -102,27 +100,26 @@ xmlnode jutil_presnew(int type, char *to, char *status)
  * @param ns the namespace of the <query/> element
  * @return the created xmlnode
  */
-xmlnode jutil_iqnew(int type, char *ns)
-{
+xmlnode jutil_iqnew(int type, char *ns) {
     xmlnode iq;
 
-    iq = xmlnode_new_tag("iq");
-    switch(type)
-    {
-    case JPACKET__GET:
-        xmlnode_put_attrib(iq,"type","get");
-        break;
-    case JPACKET__SET:
-        xmlnode_put_attrib(iq,"type","set");
-        break;
-    case JPACKET__RESULT:
-        xmlnode_put_attrib(iq,"type","result");
-        break;
-    case JPACKET__ERROR:
-        xmlnode_put_attrib(iq,"type","error");
-        break;
+    iq = xmlnode_new_tag_ns("iq", NULL, NS_SERVER);
+    switch(type) {
+	case JPACKET__GET:
+	    xmlnode_put_attrib_ns(iq, "type", NULL, NULL, "get");
+	    break;
+	case JPACKET__SET:
+	    xmlnode_put_attrib_ns(iq, "type", NULL, NULL, "set");
+	    break;
+	case JPACKET__RESULT:
+	    xmlnode_put_attrib_ns(iq, "type", NULL, NULL, "result");
+	    break;
+	case JPACKET__ERROR:
+	    xmlnode_put_attrib_ns(iq, "type", NULL, NULL, "error");
+	    break;
     }
-    xmlnode_put_attrib(xmlnode_insert_tag(iq,"query"),"xmlns",ns);
+    if (ns != NULL)
+	xmlnode_insert_tag_ns(iq, "query", NULL, ns);
 
     return iq;
 }
@@ -136,31 +133,31 @@ xmlnode jutil_iqnew(int type, char *ns)
  * @param body the body of the message
  * @return the xmlnode containing the new message stanza
  */
-xmlnode jutil_msgnew(char *type, char *to, char *subj, char *body)
-{
+xmlnode jutil_msgnew(char *type, char *to, char *subj, char *body) {
     xmlnode msg;
 
-    msg = xmlnode_new_tag("message");
+    msg = xmlnode_new_tag_ns("message", NULL, NS_SERVER);
 
     if (type != NULL) {
-	xmlnode_put_attrib (msg, "type", type);
+	xmlnode_put_attrib_ns(msg, "type", NULL, NULL, type);
     }
 
     if (to != NULL) {
-	xmlnode_put_attrib (msg, "to", to);
+	xmlnode_put_attrib_ns(msg, "to", NULL, NULL, to);
     }
 
     if (subj != NULL) {
-	xmlnode_insert_cdata(xmlnode_insert_tag(msg, "subject"), subj, strlen(subj));
+	xmlnode_insert_cdata(xmlnode_insert_tag_ns(msg, "subject", NULL, NS_SERVER), subj, j_strlen(subj));
     }
 
     if (body != NULL) {
-	xmlnode_insert_cdata(xmlnode_insert_tag(msg, "body"), body, strlen(body));
+	xmlnode_insert_cdata(xmlnode_insert_tag_ns(msg, "body", NULL, NS_SERVER), body, j_strlen(body));
     }
 
     return msg;
 }
 
+#ifdef INCLUDE_LEGACY
 /**
  * utility for making stream packets (containing the stream header element)
  *
@@ -168,18 +165,17 @@ xmlnode jutil_msgnew(char *type, char *to, char *subj, char *body)
  * @param server the domain of the server
  * @return the xmlnode containing the root element of the stream
  */
-xmlnode jutil_header(char* xmlns, char* server)
-{
+xmlnode jutil_header(char* xmlns, char* server) {
      xmlnode result;
      if ((xmlns == NULL)||(server == NULL))
 	  return NULL;
-     result = xmlnode_new_tag("stream:stream");
-     xmlnode_put_attrib(result, "xmlns:stream", "http://etherx.jabber.org/streams");
-     xmlnode_put_attrib(result, "xmlns", xmlns);
-     xmlnode_put_attrib(result, "to", server);
+     result = xmlnode_new_tag_ns("stream", "stream", NS_STREAM);
+     xmlnode_put_attrib_ns(result, "xmlns", NULL, NS_XMLNS, xmlns);
+     xmlnode_put_attrib_ns(result, "to", NULL, NULL, server);
 
      return result;
 }
+#endif /* INCLUDE_LEGACY */
 
 /**
  * returns the priority on an available presence packet
@@ -187,18 +183,21 @@ xmlnode jutil_header(char* xmlns, char* server)
  * @param xmlnode the xmlnode containing the presence packet
  * @return the presence priority, -129 for unavailable presences and errors
  */
-int jutil_priority(xmlnode x)
-{
+int jutil_priority(xmlnode x) {
     char *str;
     int p;
+    xht namespaces = NULL;
 
     if(x == NULL)
         return -129;
 
-    if(xmlnode_get_attrib(x,"type") != NULL)
+    if(xmlnode_get_attrib_ns(x,"type", NULL) != NULL)
         return -129;
 
-    x = xmlnode_get_tag(x,"priority");
+    namespaces = xhash_new(3);
+    xhash_put(namespaces, "", NS_SERVER);
+    x = xmlnode_get_list_item(xmlnode_get_tags(x, "priority", namespaces), 0);
+    xhash_free(namespaces);
     if(x == NULL)
         return 0;
 
@@ -216,14 +215,13 @@ int jutil_priority(xmlnode x)
  *
  * @param x the xmlnode where sender and receiver should be exchanged
  */
-void jutil_tofrom(xmlnode x)
-{
+void jutil_tofrom(xmlnode x) {
     char *to, *from;
 
-    to = xmlnode_get_attrib(x,"to");
-    from = xmlnode_get_attrib(x,"from");
-    xmlnode_put_attrib(x,"from",to);
-    xmlnode_put_attrib(x,"to",from);
+    to = xmlnode_get_attrib_ns(x, "to", NULL);
+    from = xmlnode_get_attrib_ns(x,"from", NULL);
+    xmlnode_put_attrib_ns(x, "from", NULL, NULL, to);
+    xmlnode_put_attrib_ns(x, "to", NULL, NULL, from);
 }
 
 /**
@@ -232,13 +230,12 @@ void jutil_tofrom(xmlnode x)
  * @param x the xmlnode that should become the result for itself
  * @return the result xmlnode (same as given as parameter x)
  */
-xmlnode jutil_iqresult(xmlnode x)
-{
+xmlnode jutil_iqresult(xmlnode x) {
     xmlnode cur;
 
     jutil_tofrom(x);
 
-    xmlnode_put_attrib(x,"type","result");
+    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "result");
 
     /* hide all children of the iq, they go back empty */
     for(cur = xmlnode_get_firstchild(x); cur != NULL; cur = xmlnode_get_nextsibling(cur))
@@ -254,8 +251,7 @@ xmlnode jutil_iqresult(xmlnode x)
  *
  * @return pointer to a static (!) buffer containing the timestamp (or NULL on failure)
  */
-char *jutil_timestamp(void)
-{
+char *jutil_timestamp(void) {
     time_t t;
     struct tm *new_time;
     static char timestamp[18];
@@ -309,16 +305,14 @@ char *jutil_timestamp_ms(char buffer[25]) {
  * @param old the terror struct that should be converted
  * @param mapped pointer to the xterror struct that should be filled with the converted error
  */
-void jutil_error_map(terror old, xterror *mapped)
-{
+void jutil_error_map(terror old, xterror *mapped) {
     mapped->code = old.code;
     if (old.msg == NULL)
 	mapped->msg[0] = 0;
     else
 	strncpy(mapped->msg, old.msg, sizeof(mapped->msg));
 
-    switch (old.code)
-    {
+    switch (old.code) {
 	case 302:
 	    strcpy(mapped->type, "modify");
 	    strcpy(mapped->condition, "redirect");
@@ -404,20 +398,18 @@ void jutil_error_xmpp(xmlnode x, xterror E)
     xmlnode err;
     char code[4];
 
-    xmlnode_put_attrib(x, "type", "error");
-    err = xmlnode_insert_tag(x, "error");
+    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "error");
+    err = xmlnode_insert_tag_ns(x, "error", NULL, NS_SERVER);
 
     snprintf(code, sizeof(code), "%d", E.code);
-    xmlnode_put_attrib(err, "code", code);
+    xmlnode_put_attrib_ns(err, "code", NULL, NULL, code);
     if (E.type != NULL)
-	xmlnode_put_attrib(err, "type", E.type);
+	xmlnode_put_attrib_ns(err, "type", NULL, NULL, E.type);
     if (E.condition != NULL)
-	xmlnode_put_attrib(xmlnode_insert_tag(err, E.condition), "xmlns", NS_XMPP_STANZAS);
-    if (E.msg != NULL)
-    {
+	xmlnode_insert_tag_ns(err, E.condition, NULL, NS_XMPP_STANZAS);
+    if (E.msg != NULL) {
 	xmlnode text;
-	text = xmlnode_insert_tag(err, "text");
-	xmlnode_put_attrib(text, "xmlns", NS_XMPP_STANZAS);
+	text = xmlnode_insert_tag_ns(err, "text", NULL, NS_XMPP_STANZAS);
 	xmlnode_insert_cdata(text, E.msg, strlen(E.msg));
     }
 
@@ -452,12 +444,11 @@ void jutil_delay(xmlnode msg, char *reason)
 {
     xmlnode delay;
 
-    delay = xmlnode_insert_tag(msg,"x");
-    xmlnode_put_attrib(delay,"xmlns",NS_DELAY);
-    xmlnode_put_attrib(delay,"from",xmlnode_get_attrib(msg,"to"));
-    xmlnode_put_attrib(delay,"stamp",jutil_timestamp());
+    delay = xmlnode_insert_tag_ns(msg, "x", NULL, NS_DELAY);
+    xmlnode_put_attrib_ns(delay, "from", NULL, NULL, xmlnode_get_attrib_ns(msg, "to", NULL));
+    xmlnode_put_attrib_ns(delay, "stamp", NULL, NULL, jutil_timestamp());
     if(reason != NULL)
-        xmlnode_insert_cdata(delay,reason,strlen(reason));
+        xmlnode_insert_cdata(delay, reason, j_strlen(reason));
 }
 
 #define KEYBUF 100
@@ -484,8 +475,7 @@ void jutil_delay(xmlnode msg, char *reason)
  * @param seed the seed for generating the key, must stay the same for the same user
  * @return the new key when created, the key if the key has been validated, NULL if the key is invalid
  */
-char *jutil_regkey(char *key, char *seed)
-{
+char *jutil_regkey(char *key, char *seed) {
     static char keydb[KEYBUF][41];
     static char seeddb[KEYBUF][41];
     static int last = -1;
@@ -493,8 +483,7 @@ char *jutil_regkey(char *key, char *seed)
     int i;
 
     /* blanket the keydb first time */
-    if(last == -1)
-    {
+    if (last == -1) {
         last = 0;
         memset(&keydb,0,KEYBUF*41);
         memset(&seeddb,0,KEYBUF*41);
@@ -502,8 +491,7 @@ char *jutil_regkey(char *key, char *seed)
     }
 
     /* creation phase */
-    if(key == NULL && seed != NULL)
-    {
+    if (key == NULL && seed != NULL) {
         /* create a random key hash and store it */
         snprintf(strint, sizeof(strint), "%d", rand());
         strcpy(keydb[last],shahash(strint));
@@ -514,19 +502,19 @@ char *jutil_regkey(char *key, char *seed)
         /* return it all */
         str = keydb[last];
         last++;
-        if(last == KEYBUF) last = 0;
+        if (last == KEYBUF)
+	    last = 0;
         return str;
     }
 
     /* validation phase */
     str = shahash(seed);
-    for(i=0;i<KEYBUF;i++)
-        if(j_strcmp(keydb[i],key) == 0 && j_strcmp(seeddb[i],str) == 0)
-        {
+    for (i=0;i<KEYBUF;i++) {
+        if (j_strcmp(keydb[i],key) == 0 && j_strcmp(seeddb[i],str) == 0) {
             seeddb[i][0] = '\0'; /* invalidate this key */
             return keydb[i];
         }
+    }
 
     return NULL;
 }
-
