@@ -389,7 +389,7 @@ void xmlnode_free(xmlnode node);
 /* Locates a child tag by name and returns it */
 xmlnode  xmlnode_get_tag(xmlnode parent, const char* name);
 char* xmlnode_get_tag_data(xmlnode parent, const char* name);
-xmlnode_list_item xmlnode_get_tags(xmlnode parent, const char *path, xht namespaces);
+xmlnode_list_item xmlnode_get_tags(xmlnode context_node, const char *path, xht namespaces);
 xmlnode xmlnode_get_list_item(xmlnode_list_item first, unsigned int i);
 char* xmlnode_get_list_item_data(xmlnode_list_item first, unsigned int i);
 
@@ -837,6 +837,7 @@ typedef struct xterror_struct
 #define NS_JABBERD_HISTORY "http://jabberd.org/ns/history"
 #define NS_JABBERD_XDB "http://jabberd.org/ns/xdb"			/**< namespace for the root element used by xdb_file to store data in files */
 #define NS_JABBERD_WRAPPER "http://jabberd.org/ns/wrapper"		/**< namespace used to wrap various internal data */
+#define NS_JABBERD_XDBSQL "http://jabberd.org/ns/xdbsql"		/**< namespace for substitution in xdb_sql configuration */
 
 #define NS_SESSION "http://jabberd.jabberstudio.org/ns/session/1.0"	/**< namespace of the jabberd2 session control protocol (http://jabberd.jabberstudio.org/dev/docs/session.shtml) */
 
@@ -850,6 +851,7 @@ typedef struct xterror_struct
 #define NS_JABBERD_CONFIG_DNSRV "jabber:config:dnsrv" /**< namespace of the dnsrv component configuration */
 #define NS_JABBERD_CONFIG_JSM "jabber:config:jsm" /**< namespace of the jsm component configuration */
 #define NS_JABBERD_CONFIG_PTHCSOCK "jabber:config:pth-csock" /**< namespace of the pthsock_client component configuration */
+#define NS_JABBERD_CONFIG_XDBSQL "jabber:config:xdb_sql" /**< namepace of the xdb_sql component configuration */
 
 /* --------------------------------------------------------- */
 /*                                                           */

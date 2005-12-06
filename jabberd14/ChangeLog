@@ -1,7 +1,9 @@
 2005-12-06  Matthias Wimmer  <m@tthias.net>
 
-    * jabberd/lib/jabberdlib.h: defining NS_JABBERD_CONFIG_PTHCSOCK
+    * jabberd/lib/jabberdlib.h: defined new namespaces
+    * jsm/modules/mod_presence.c: namespace fix
     * pthsock/client.c: using the ns aware api of xmlnode
+    * xdb_sql/xdb_sql.c: using ns aware api of xmlnode
 
 2005-12-05  Matthias Wimmer  <m@tthias.net>
 
