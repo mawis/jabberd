@@ -1,3 +1,8 @@
+2005-12-06  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/lib/jabberdlib.h: defining NS_JABBERD_CONFIG_PTHCSOCK
+    * pthsock/client.c: using the ns aware api of xmlnode
+
 2005-12-05  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/jabberd.h: passing xdb ns argument as const char*

@@ -785,6 +785,7 @@ typedef struct xterror_struct
 #define NSCHECK(x,n) (j_strcmp(xmlnode_get_namespace(x), n) == 0)
 
 #define NS_STREAM    "http://etherx.jabber.org/streams"
+#define NS_FLASHSTREAM "http://www.jabber.com/streams/flash"
 #define NS_CLIENT    "jabber:client"
 #define NS_SERVER    "jabber:server"
 #define NS_DIALBACK  "jabber:server:dialback"
@@ -848,6 +849,7 @@ typedef struct xterror_struct
 #define NS_JABBERD_CONFIG_DIALBACK "jabber:config:dialback" /**< namespace of dialback component configuration */
 #define NS_JABBERD_CONFIG_DNSRV "jabber:config:dnsrv" /**< namespace of the dnsrv component configuration */
 #define NS_JABBERD_CONFIG_JSM "jabber:config:jsm" /**< namespace of the jsm component configuration */
+#define NS_JABBERD_CONFIG_PTHCSOCK "jabber:config:pth-csock" /**< namespace of the pthsock_client component configuration */
 
 /* --------------------------------------------------------- */
 /*                                                           */
