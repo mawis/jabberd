@@ -775,13 +775,14 @@ typedef struct xterror_struct
 #define XTERROR_EXTERNAL	(xterror){502,"Remote Server Error","wait","service-unavailable"}
 #define XTERROR_EXTTIMEOUT	(xterror){504,"Remote Server Timeout","wait","remote-server-timeout"}
 #define XTERROR_DISCONNECTED	(xterror){510,"Disconnected","cancel","service-unavailable"}
+#define XTERROR_STORAGE_FAILED	(xterror){500, "Storage Failed", "wait", "internal-server-error"}
 
 /* --------------------------------------------------------- */
 /*                                                           */
 /* Namespace constants                                       */
 /*                                                           */
 /* --------------------------------------------------------- */
-#define NSCHECK(x,n) (j_strcmp(xmlnode_get_attrib(x,"xmlns"),n) == 0)
+#define NSCHECK(x,n) (j_strcmp(xmlnode_get_namespace(x), n) == 0)
 
 #define NS_STREAM    "http://etherx.jabber.org/streams"
 #define NS_CLIENT    "jabber:client"
@@ -821,6 +822,7 @@ typedef struct xterror_struct
 #define NS_FLEXIBLE_OFFLINE "http://jabber.org/protocol/offline"
 #define NS_IQ_AUTH    "http://jabber.org/features/iq-auth"
 #define NS_REGISTER_FEATURE "http://jabber.org/features/iq-register"
+#define NS_ADMIN_WHO "jabber:mod_admin:who"
 
 /* #define NS_XDBGINSERT "jabber:xdb:ginsert" XXX: I guess this it not used ANYWHERE and can be deleted */
 #define NS_XDBNSLIST  "jabber:xdb:nslist"
@@ -845,6 +847,7 @@ typedef struct xterror_struct
 #define NS_JABBERD_CONFIG_XDBFILE "jabber:config:xdb_file" /**< namespace of xdb_file component configuration */
 #define NS_JABBERD_CONFIG_DIALBACK "jabber:config:dialback" /**< namespace of dialback component configuration */
 #define NS_JABBERD_CONFIG_DNSRV "jabber:config:dnsrv" /**< namespace of the dnsrv component configuration */
+#define NS_JABBERD_CONFIG_JSM "jabber:config:jsm" /**< namespace of the jsm component configuration */
 
 /* --------------------------------------------------------- */
 /*                                                           */

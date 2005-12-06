@@ -64,25 +64,23 @@
  * @param arg unused / ignored
  * @return M_PASS if the next module should be called to handle the request, M_HANDLED if the request has been completely handled
  */
-mreturn mod_auth_plain_jane(mapi m, void *arg)
-{
+mreturn mod_auth_plain_jane(mapi m, void *arg) {
     char *pass;
 
     log_debug2(ZONE, LOGT_AUTH, "checking");
 
-    if(jpacket_subtype(m->packet) == JPACKET__GET)
-    { /* type=get means we flag that the server can do plain-text auth */
-        xmlnode_insert_tag(m->packet->iq,"password");
+    if (jpacket_subtype(m->packet) == JPACKET__GET) {
+	/* type=get means we flag that the server can do plain-text auth */
+        xmlnode_insert_tag_ns(m->packet->iq, "password", NULL, NS_AUTH);
         return M_PASS;
     }
 
-    if((pass = xmlnode_get_tag_data(m->packet->iq, "password")) == NULL)
+    if ((pass = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:password", m->si->std_namespace_prefixes), 0))) == NULL)
         return M_PASS;
 
     /* if there is a password avail, always handle */
-    if(m->user->pass != NULL)
-    {
-        if(strcmp(pass, m->user->pass) != 0)
+    if (m->user->pass != NULL) {
+        if (strcmp(pass, m->user->pass) != 0)
             jutil_error_xmpp(m->packet->x, XTERROR_AUTH);
         else
             jutil_iqresult(m->packet->x);
@@ -92,7 +90,7 @@ mreturn mod_auth_plain_jane(mapi m, void *arg)
     log_debug2(ZONE, LOGT_AUTH, "trying xdb act check");
     /* if the act "check" fails, PASS so that 0k could use the password to try and auth w/ it's data */
     /* XXX see the comment in xdb_file/xdb_file.c for the check action */
-    if(xdb_act(m->si->xc, m->user->id, NS_AUTH, "check", NULL, xmlnode_get_tag(m->packet->iq,"password")))
+    if (xdb_act(m->si->xc, m->user->id, NS_AUTH, "check", NULL, xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:password", m->si->std_namespace_prefixes), 0)))
         return M_PASS;
 
     jutil_iqresult(m->packet->x);
@@ -107,11 +105,9 @@ mreturn mod_auth_plain_jane(mapi m, void *arg)
  * @param pass the new password (wrapped in a password element of the right namespace)
  * @return 0 if setting the password succeded, it failed otherwise
  */
-int mod_auth_plain_reset(mapi m, jid id, xmlnode pass)
-{
+int mod_auth_plain_reset(mapi m, jid id, xmlnode pass) {
     log_debug2(ZONE, LOGT_AUTH, "resetting password");
 
-    xmlnode_put_attrib(pass,"xmlns",NS_AUTH);
     return xdb_set(m->si->xc, id, NS_AUTH, pass);
 }
 
@@ -128,27 +124,27 @@ int mod_auth_plain_reset(mapi m, jid id, xmlnode pass)
  * @param arg type of action (password change or register request) for logging
  * @return M_HANDLED if we handled the request (or rejected it), H_PASS else
  */
-mreturn mod_auth_plain_reg(mapi m, void *arg)
-{
+mreturn mod_auth_plain_reg(mapi m, void *arg) {
     jid id;
     xmlnode pass;
 
-    if(jpacket_subtype(m->packet) == JPACKET__GET)
-    { /* type=get means we flag that the server can do plain-text regs */
-        xmlnode_insert_tag(m->packet->iq,"password");
+    if (jpacket_subtype(m->packet) == JPACKET__GET) {
+	/* type=get means we tell what we need */
+        xmlnode_insert_tag_ns(m->packet->iq, "password", NULL, NS_REGISTER);
         return M_PASS;
     }
 
     /* only handle set requests (get requests already have been handled) */
-    if(jpacket_subtype(m->packet) != JPACKET__SET) return M_PASS;
+    if (jpacket_subtype(m->packet) != JPACKET__SET)
+	return M_PASS;
 
     /* do not handle/reject unregister requests */
-    if (xmlnode_get_tag(m->packet->iq, "remove") != NULL) {
+    if (xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:remove", m->si->std_namespace_prefixes), 0) != NULL) {
 	return M_PASS;
     }
 
     /* take care, that there is a new password) */
-    if((pass = xmlnode_get_tag(m->packet->iq,"password")) == NULL
+    if ((pass = xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:password", m->si->std_namespace_prefixes), 0)) == NULL
 	    || xmlnode_get_data(pass) == NULL) {
 	jutil_error_xmpp(m->packet->x, (xterror){400, "New password required", "modify", "bad-request"});
 	return M_HANDLED;
@@ -158,7 +154,7 @@ mreturn mod_auth_plain_reg(mapi m, void *arg)
      * if it is the request of an existing user */
     if (m->user != NULL) {
 	id = jid_new(m->packet->p, jid_full(m->user->id));
-	jid_set(id, xmlnode_get_tag_data(m->packet->iq, "username"), JID_USER);
+	jid_set(id, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:username", m->si->std_namespace_prefixes), 0)), JID_USER);
 	if (jid_cmpx(m->user->id, id, JID_USER) != 0) {
 	    jutil_error_xmpp(m->packet->x, (xterror){400, "Wrong or missing username", "modify", "bad-request"});
 	    return M_HANDLED;
@@ -166,14 +162,14 @@ mreturn mod_auth_plain_reg(mapi m, void *arg)
     }
 
     /* get the jid of the user, depending on how we were called */
-    if(m->user == NULL)
+    if (m->user == NULL)
         id = jid_user(m->packet->to);
     else
         id = m->user->id;
 
     /* tuck away for a rainy day */
-    if(mod_auth_plain_reset(m,id,pass)) {
-        jutil_error_xmpp(m->packet->x,(xterror){500,"Password Storage Failed","wait","internal-server-error"});
+    if (mod_auth_plain_reset(m, id, pass)) {
+        jutil_error_xmpp(m->packet->x, XTERROR_STORAGE_FAILED);
         return M_HANDLED;
     }
     log_notice(m->si->i->id, "user %s %s", jid_full(id), arg);
@@ -232,12 +228,12 @@ mreturn mod_auth_plain_delete(mapi m, void *arg) {
  *
  * @param si the session manager instance
  */
-void mod_auth_plain(jsmi si)
-{
+void mod_auth_plain(jsmi si) {
     log_debug2(ZONE, LOGT_INIT, "mod_auth_plain is initializing");
 
     js_mapi_register(si, e_AUTH, mod_auth_plain_jane, NULL);
     js_mapi_register(si, e_SERVER, mod_auth_plain_server, NULL);
-    if (js_config(si,"register") != NULL) js_mapi_register(si, e_REGISTER, mod_auth_plain_reg, "registered account");
+    if (js_config(si,"register:register") != NULL)
+	js_mapi_register(si, e_REGISTER, mod_auth_plain_reg, "registered account");
     js_mapi_register(si, e_DELETE, mod_auth_plain_delete, NULL);
 }

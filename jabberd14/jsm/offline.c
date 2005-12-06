@@ -51,8 +51,7 @@
  *
  * @param arg the jpq_struct for this packet (contains the session manager instance data and the packet)
  */
-void js_offline_main(void *arg)
-{
+void js_offline_main(void *arg) {
     jpq q = (jpq)arg;
     udata user;
 
@@ -60,7 +59,7 @@ void js_offline_main(void *arg)
     user = (udata)q->p->aux1;
 
     /* debug message */
-    log_debug2(ZONE, LOGT_DELIVER, "THREAD:OFFLINE received %s's packet: %s",jid_full(user->id),xmlnode2str(q->p->x));
+    log_debug2(ZONE, LOGT_DELIVER, "THREAD:OFFLINE received %s's packet: %s", jid_full(user->id), xmlnode_serialize_string(q->p->x, NULL, NULL, 0));
 
     /* let the modules handle the packet */
     if(!js_mapi_call(q->si, e_OFFLINE, q->p, user, NULL))

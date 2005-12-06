@@ -61,21 +61,19 @@ mreturn mod_vcard_jud(mapi m) {
     char *key;
 
     vcard = xdb_get(m->si->xc, m->user->id, NS_VCARD);
-    key = xmlnode_get_tag_data(m->packet->iq,"key");
 
-    if(vcard != NULL) {
-        log_debug2(ZONE, LOGT_DELIVER, "sending registration for %s",jid_full(m->packet->to));
-        reg = jutil_iqnew(JPACKET__SET,NS_REGISTER);
-        xmlnode_put_attrib(reg,"to",jid_full(m->packet->from));
-        xmlnode_put_attrib(reg,"from",jid_full(m->packet->to));
-        regq = xmlnode_get_tag(reg,"query");
-        xmlnode_insert_cdata(xmlnode_insert_tag(regq,"key"),key,-1);
+    if (vcard != NULL) {
+        log_debug2(ZONE, LOGT_DELIVER, "sending registration for %s", jid_full(m->packet->to));
+        reg = jutil_iqnew(JPACKET__SET, NS_REGISTER);
+        xmlnode_put_attrib_ns(reg, "to", NULL, NULL, jid_full(m->packet->from));
+        xmlnode_put_attrib_ns(reg, "from", NULL, NULL, jid_full(m->packet->to));
+        regq = xmlnode_get_list_item(xmlnode_get_tags(reg,"register:query", m->si->std_namespace_prefixes), 0);
 
-        xmlnode_insert_cdata(xmlnode_insert_tag(regq,"name"),xmlnode_get_tag_data(vcard,"FN"),-1);
-        xmlnode_insert_cdata(xmlnode_insert_tag(regq,"first"),xmlnode_get_tag_data(vcard,"N/GIVEN"),-1);
-        xmlnode_insert_cdata(xmlnode_insert_tag(regq,"last"),xmlnode_get_tag_data(vcard,"N/FAMILY"),-1);
-        xmlnode_insert_cdata(xmlnode_insert_tag(regq,"nick"),xmlnode_get_tag_data(vcard,"NICKNAME"),-1);
-        xmlnode_insert_cdata(xmlnode_insert_tag(regq,"email"),xmlnode_get_tag_data(vcard,"EMAIL"),-1);
+        xmlnode_insert_cdata(xmlnode_insert_tag_ns(regq, "name", NULL, NS_REGISTER), xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(vcard, "vcard:FN", m->si->std_namespace_prefixes), 0)),-1);
+        xmlnode_insert_cdata(xmlnode_insert_tag_ns(regq, "first", NULL, NS_REGISTER), xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(vcard, "vcard:N/vcard:GIVEN", m->si->std_namespace_prefixes) ,0)),-1);
+        xmlnode_insert_cdata(xmlnode_insert_tag_ns(regq, "last", NULL, NS_REGISTER), xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(vcard, "vcard:N/vcard:FAMILY", m->si->std_namespace_prefixes) ,0)),-1);
+        xmlnode_insert_cdata(xmlnode_insert_tag_ns(regq, "nick", NULL, NS_REGISTER), xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(vcard, "vcard:NICKNAME", m->si->std_namespace_prefixes) ,0)),-1);
+        xmlnode_insert_cdata(xmlnode_insert_tag_ns(regq, "email", NULL, NS_REGISTER), xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(vcard, "vcard:EMAIL", m->si->std_namespace_prefixes) ,0)),-1);
         js_deliver(m->si,jpacket_new(reg));
     }
 
@@ -106,7 +104,7 @@ mreturn mod_vcard_set(mapi m, void *arg) {
 	    vcard = xdb_get(m->si->xc, m->user->id, NS_VCARD);
 	   
 	    /* generate result */
-	    xmlnode_put_attrib(m->packet->x,"type","result");
+	    xmlnode_put_attrib_ns(m->packet->x, "type", NULL, NULL, "result");
 
 	    /* insert the vcard into the result */
 	    xmlnode_insert_node(m->packet->iq, xmlnode_get_firstchild(vcard));
@@ -120,10 +118,10 @@ mreturn mod_vcard_set(mapi m, void *arg) {
 
 	    break;
 	case JPACKET__SET:
-	    log_debug2(ZONE, LOGT_DELIVER, "handling set request %s",xmlnode2str(m->packet->iq));
+	    log_debug2(ZONE, LOGT_DELIVER, "handling set request %s",xmlnode_serialize_string(m->packet->iq, NULL, NULL, 0));
 
 	    /* save and send response to the user */
-	    if(xdb_set(m->si->xc, m->user->id, NS_VCARD, m->packet->iq)) {
+	    if (xdb_set(m->si->xc, m->user->id, NS_VCARD, m->packet->iq)) {
 		/* failed */
 		jutil_error_xmpp(m->packet->x,XTERROR_UNAVAIL);
 	    } else {
@@ -131,20 +129,20 @@ mreturn mod_vcard_set(mapi m, void *arg) {
 	    }
 
 	    /* don't need to send the whole thing back */
-	    xmlnode_hide(xmlnode_get_tag(m->packet->x,"vcard"));
+	    xmlnode_hide(xmlnode_get_list_item(xmlnode_get_tags(m->packet->x, "vcard:vcard", m->si->std_namespace_prefixes), 0));
 	    jpacket_reset(m->packet);
 	    js_session_to(m->s,m->packet);
 
-	    if(js_config(m->si,"vcard2jud") == NULL)
+	    if(js_config(m->si,"jsm:vcard2jud") == NULL)
 		break;
 
 	    /* handle putting the vcard to the configured jud: send a get request to the jud services */
-	    for(cur = xmlnode_get_firstchild(js_config(m->si,"browse")); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
-		if(j_strcmp(xmlnode_get_attrib(cur,"type"),"jud") != 0) continue;
+	    for(cur = xmlnode_get_firstchild(js_config(m->si, "browse:browse")); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
+		if(j_strcmp(xmlnode_get_attrib_ns(cur, "type", NULL),"jud") != 0) continue;
 
 		judreg = jutil_iqnew(JPACKET__GET,NS_REGISTER);
-		xmlnode_put_attrib(judreg,"to",xmlnode_get_attrib(cur,"jid"));
-		xmlnode_put_attrib(judreg,"id","mod_vcard_jud");
+		xmlnode_put_attrib_ns(judreg, "to", NULL, NULL, xmlnode_get_attrib_ns(cur, "jid", NULL));
+		xmlnode_put_attrib_ns(judreg, "id", NULL, NULL, "mod_vcard_jud");
 		js_session_from(m->s,jpacket_new(judreg));
 
 		/* added this in so it only does the first one */
@@ -171,25 +169,28 @@ mreturn mod_vcard_reply(mapi m, void *arg) {
     xmlnode vcard;
 
     /* we only handle iq stanzas */
-    if(m->packet->type != JPACKET_IQ) return M_IGNORE;
+    if (m->packet->type != JPACKET_IQ)
+	return M_IGNORE;
 
-    /* XXX: this seems to be hacky: we send M_HANDLED for everything with an ID of mod_vcard_jud! */
-    if(j_strcmp(xmlnode_get_attrib(m->packet->x,"id"),"mod_vcard_jud") == 0) return mod_vcard_jud(m);
+    /* register queries with an id of "mod_vcard_jud" */
+    if (NSCHECK(m->packet->iq, NS_REGISTER) && j_strcmp(xmlnode_get_attrib_ns(m->packet->x, "id", NULL), "mod_vcard_jud") == 0)
+	return mod_vcard_jud(m);
 
     /* we only care about iq stanzas in the vcard-temp namespace */
-    if(!NSCHECK(m->packet->iq,NS_VCARD)) return M_PASS;
+    if (!NSCHECK(m->packet->iq, NS_VCARD))
+	return M_PASS;
 
     /* first, is this a valid request? */
-    switch(jpacket_subtype(m->packet)) {
+    switch (jpacket_subtype(m->packet)) {
 	case JPACKET__RESULT:
 	case JPACKET__ERROR:
 	    return M_PASS;
 	case JPACKET__SET:
-	    js_bounce_xmpp(m->si,m->packet->x,XTERROR_NOTALLOWED);
+	    js_bounce_xmpp(m->si, m->packet->x, XTERROR_NOTALLOWED);
 	    return M_HANDLED;
     }
 
-    log_debug2(ZONE, LOGT_DELIVER, "handling query for user %s",m->user->user);
+    log_debug2(ZONE, LOGT_DELIVER, "handling query for user %s", m->user->user);
 
     /* get this guys vcard info */
     vcard = xdb_get(m->si->xc, m->user->id, NS_VCARD);
@@ -237,7 +238,7 @@ mreturn mod_vcard_server(mapi m, void *arg) {
     if(jpacket_subtype(m->packet) != JPACKET__GET || !NSCHECK(m->packet->iq,NS_VCARD) || m->packet->to->resource != NULL) return M_PASS;
 
     /* get data from the config file */
-    if((vcard = js_config(m->si,"vCard")) == NULL)
+    if((vcard = js_config(m->si,"vcard:vCard")) == NULL)
         return M_PASS;
 
     log_debug2(ZONE, LOGT_DELIVER, "handling server vcard query");
@@ -245,7 +246,6 @@ mreturn mod_vcard_server(mapi m, void *arg) {
     /* build the result IQ */
     jutil_iqresult(m->packet->x);
     query = xmlnode_insert_tag_node(m->packet->x,vcard);
-    xmlnode_put_attrib(query,"xmlns",NS_VCARD);
     jpacket_reset(m->packet);
     js_deliver(m->si,m->packet);
 

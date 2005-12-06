@@ -64,8 +64,7 @@
  * @param arg time_t timestamp when the server was started
  * @return M_IGNORE if the stanza was no iq, M_PASS if the stanza has not been processed, M_HANDLED if the stanza has been handled
  */
-mreturn mod_last_server(mapi m, void *arg)
-{
+mreturn mod_last_server(mapi m, void *arg) {
     time_t start = time(NULL) - *(time_t*)arg;
     char str[11];
     xmlnode last;
@@ -77,10 +76,9 @@ mreturn mod_last_server(mapi m, void *arg)
     jutil_iqresult(m->packet->x);
     jpacket_reset(m->packet);
 
-    last = xmlnode_insert_tag(m->packet->x,"query");
-    xmlnode_put_attrib(last,"xmlns",NS_LAST);
+    last = xmlnode_insert_tag_ns(m->packet->x, "query", NULL, NS_LAST);
     snprintf(str, sizeof(str), "%d", (int)start);
-    xmlnode_put_attrib(last,"seconds",str);
+    xmlnode_put_attrib_ns(last, "seconds", NULL, NULL, str);
 
     js_deliver(m->si,m->packet);
 
@@ -94,19 +92,17 @@ mreturn mod_last_server(mapi m, void *arg)
  * @param to which user should be updated
  * @param reason why the stored last information is updated
  */
-void mod_last_set(mapi m, jid to, char *reason)
-{
+void mod_last_set(mapi m, jid to, char *reason) {
     xmlnode last;
     char str[11];
 
     log_debug2(ZONE, LOGT_SESSION, "storing last for user %s",jid_full(to));
 
     /* make a generic last chunk and store it */
-    last = xmlnode_new_tag("query");
-    xmlnode_put_attrib(last,"xmlns",NS_LAST);
+    last = xmlnode_new_tag_ns("query", NULL, NS_LAST);
     snprintf(str, sizeof(str), "%d", (int)time(NULL));
-    xmlnode_put_attrib(last,"last",str);
-    xmlnode_insert_cdata(last,reason,-1);
+    xmlnode_put_attrib_ns(last, "last", NULL, NULL, str);
+    xmlnode_insert_cdata(last, reason, -1);
     xdb_set(m->si->xc, jid_user(to), NS_LAST, last);
     xmlnode_free(last);
 }
@@ -120,9 +116,9 @@ void mod_last_set(mapi m, jid to, char *reason)
  * @param arg unused/ignored
  * @return always M_PASS
  */
-mreturn mod_last_init(mapi m, void *arg)
-{
-    if(jpacket_subtype(m->packet) != JPACKET__SET) return M_PASS;
+mreturn mod_last_init(mapi m, void *arg) {
+    if (jpacket_subtype(m->packet) != JPACKET__SET)
+	return M_PASS;
 
     mod_last_set(m, m->packet->to, "Registered");
 
@@ -138,10 +134,9 @@ mreturn mod_last_init(mapi m, void *arg)
  * @param arg unused/ignored
  * @return always M_PASS
  */
-mreturn mod_last_sess_end(mapi m, void *arg)
-{
+mreturn mod_last_sess_end(mapi m, void *arg) {
     if(m->s->presence != NULL) /* presence is only set if there was presence sent, and we only track logins that were available */
-        mod_last_set(m, m->user->id, xmlnode_get_tag_data(m->s->presence,"status"));
+        mod_last_set(m, m->user->id, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(m->s->presence, "status", m->si->std_namespace_prefixes), 0)));
 
     return M_PASS;
 }
@@ -155,8 +150,7 @@ mreturn mod_last_sess_end(mapi m, void *arg)
  * @param arg unused/ignored
  * @return always M_PASS
  */
-mreturn mod_last_sess(mapi m, void *arg)
-{
+mreturn mod_last_sess(mapi m, void *arg) {
     js_mapi_session(es_END, m->s, mod_last_sess_end, NULL);
 
     return M_PASS;
@@ -174,29 +168,28 @@ mreturn mod_last_sess(mapi m, void *arg)
  * @param arg unused/ignored
  * @return M_IGNORE if it is no iq stanza, M_PASS if the stanza nas not been processed, M_HANDLED if the stanza has been handled
  */
-mreturn mod_last_reply(mapi m, void *arg)
-{
+mreturn mod_last_reply(mapi m, void *arg) {
     xmlnode last;
     int lastt;
     char str[11];
 
-    if(m->packet->type != JPACKET_IQ) return M_IGNORE;
-    if(!NSCHECK(m->packet->iq,NS_LAST)) return M_PASS;
+    if (m->packet->type != JPACKET_IQ)
+	return M_IGNORE;
+    if (!NSCHECK(m->packet->iq,NS_LAST))
+	return M_PASS;
 
     /* first, is this a valid request? */
-    switch(jpacket_subtype(m->packet))
-    {
-    case JPACKET__RESULT:
-    case JPACKET__ERROR:
-        return M_PASS;
-    case JPACKET__SET:
-        js_bounce_xmpp(m->si,m->packet->x,XTERROR_NOTALLOWED);
-        return M_HANDLED;
+    switch(jpacket_subtype(m->packet)) {
+	case JPACKET__RESULT:
+	case JPACKET__ERROR:
+	    return M_PASS;
+	case JPACKET__SET:
+	    js_bounce_xmpp(m->si,m->packet->x,XTERROR_NOTALLOWED);
+	    return M_HANDLED;
     }
 
     /* make sure they're in the roster */
-    if(!js_trust(m->user,m->packet->from))
-    {
+    if (!js_trust(m->user,m->packet->from)) {
         js_bounce_xmpp(m->si,m->packet->x,XTERROR_FORBIDDEN);
         return M_HANDLED;
     }
@@ -207,13 +200,12 @@ mreturn mod_last_reply(mapi m, void *arg)
 
     jutil_iqresult(m->packet->x);
     jpacket_reset(m->packet);
-    lastt = j_atoi(xmlnode_get_attrib(last,"last"),0);
-    if(lastt > 0)
-    {
-        xmlnode_hide_attrib(last,"last");
+    lastt = j_atoi(xmlnode_get_attrib_ns(last,"last", NULL),0);
+    if(lastt > 0) {
+        xmlnode_hide_attrib_ns(last, "last", NULL);
         lastt = time(NULL) - lastt;
         snprintf(str, sizeof(str), "%d", lastt);
-        xmlnode_put_attrib(last,"seconds",str);
+        xmlnode_put_attrib_ns(last, "seconds", NULL, NULL, str);
         xmlnode_insert_tag_node(m->packet->x,last);
     }
     js_deliver(m->si,m->packet);
@@ -247,12 +239,12 @@ mreturn mod_last_delete(mapi m, void *arg) {
  *
  * @param si the session manager instance
  */
-void mod_last(jsmi si)
-{
+void mod_last(jsmi si) {
     time_t *ttmp;
     log_debug2(ZONE, LOGT_INIT, "initing");
 
-    if (js_config(si,"register") != NULL) js_mapi_register(si, e_REGISTER, mod_last_init, NULL);
+    if (js_config(si,"register:register") != NULL)
+	js_mapi_register(si, e_REGISTER, mod_last_init, NULL);
     js_mapi_register(si, e_SESSION, mod_last_sess, NULL);
     js_mapi_register(si, e_OFFLINE, mod_last_reply, NULL);
 

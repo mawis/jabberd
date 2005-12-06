@@ -63,17 +63,17 @@ mreturn mod_auth_digest_yum(mapi m, void *arg) {
 
     log_debug2(ZONE, LOGT_AUTH, "checking");
 
-    if(jpacket_subtype(m->packet) == JPACKET__GET) {
+    if (jpacket_subtype(m->packet) == JPACKET__GET) {
 	/* type=get means we flag that the server can do digest auth */
-        if(m->user->pass != NULL)
-            xmlnode_insert_tag(m->packet->iq,"digest");
+        if (m->user->pass != NULL)
+            xmlnode_insert_tag_ns(m->packet->iq, "digest", NULL, NS_AUTH);
         return M_PASS;
     }
 
-    if((digest = xmlnode_get_tag_data(m->packet->iq,"digest")) == NULL)
+    if ((digest = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:digest", m->si->std_namespace_prefixes), 0))) == NULL)
         return M_PASS;
 
-    sid = xmlnode_get_attrib(xmlnode_get_tag(m->packet->iq,"digest"), "sid");
+    sid = xmlnode_get_attrib_ns(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:digest", m->si->std_namespace_prefixes), 0), "sid", NULL);
 
     /* Concat the stream id and password */
     /* SHA it up */
@@ -85,9 +85,9 @@ mreturn mod_auth_digest_yum(mapi m, void *arg) {
 
     log_debug2(ZONE, LOGT_AUTH, "comparing %s %s",digest,mydigest);
 
-    if(m->user->pass == NULL || sid == NULL || mydigest == NULL)
+    if (m->user->pass == NULL || sid == NULL || mydigest == NULL)
         jutil_error_xmpp(m->packet->x, XTERROR_NOTIMPL);
-    else if(j_strcasecmp(digest, mydigest) != 0)
+    else if (j_strcasecmp(digest, mydigest) != 0)
         jutil_error_xmpp(m->packet->x, XTERROR_AUTH);
     else
         jutil_iqresult(m->packet->x);
@@ -103,11 +103,9 @@ mreturn mod_auth_digest_yum(mapi m, void *arg) {
  * @param pass the new password
  * @return 0 on success, other value indicates failure
  */
-int mod_auth_digest_reset(mapi m, jid id, xmlnode pass)
-{
+int mod_auth_digest_reset(mapi m, jid id, xmlnode pass) {
     log_debug2(ZONE, LOGT_AUTH, "resetting password");
 
-    xmlnode_put_attrib(pass,"xmlns",NS_AUTH);
     return xdb_set(m->si->xc, id, NS_AUTH, pass);
 }
 
@@ -120,34 +118,32 @@ int mod_auth_digest_reset(mapi m, jid id, xmlnode pass)
  * @param arg ununsed/ignored
  * @return M_HANDLED if password storrage failed, M_PASS in all other cases (other modules might want to update their password as well)
  */
-mreturn mod_auth_digest_reg(mapi m, void *arg)
-{
+mreturn mod_auth_digest_reg(mapi m, void *arg) {
     jid id;
     xmlnode pass;
 
-    if(jpacket_subtype(m->packet) == JPACKET__GET)
-    { /* type=get means we flag that the server can do plain-text regs */
-        xmlnode_insert_tag(m->packet->iq,"password");
+    if(jpacket_subtype(m->packet) == JPACKET__GET) {
+	/* type=get means we flag that the server can do plain-text regs */
+        xmlnode_insert_tag_ns(m->packet->iq, "password", NULL, NS_AUTH);
         return M_PASS;
     }
 
     /* ignore all but set requests (gets have already been handled) and
      * take care, that there is a new password */
-    if(jpacket_subtype(m->packet) != JPACKET__SET
-	    || (pass = xmlnode_get_tag(m->packet->iq,"password")) == NULL
+    if (jpacket_subtype(m->packet) != JPACKET__SET
+	    || (pass = xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:password", m->si->std_namespace_prefixes) ,0)) == NULL
 	    || xmlnode_get_data(pass) == NULL)
 	return M_PASS;
 
     /* get the jid of the user, depending on how we were called */
-    if(m->user == NULL)
+    if (m->user == NULL)
         id = jid_user(m->packet->to);
     else
         id = m->user->id;
 
     /* tuck away for a rainy day */
-    if(mod_auth_digest_reset(m,id,pass))
-    {
-        jutil_error_xmpp(m->packet->x,(xterror){500,"Password Storage Failed","wait","internal-server-error"});
+    if (mod_auth_digest_reset(m,id,pass)) {
+        jutil_error_xmpp(m->packet->x, XTERROR_STORAGE_FAILED);
         return M_HANDLED;
     }
 
@@ -165,13 +161,16 @@ mreturn mod_auth_digest_server(mapi m, void *arg) {
     mreturn ret;
 
     /* pre-requisites */
-    if(m->packet->type != JPACKET_IQ) return M_IGNORE;
-    if(m->user == NULL) return M_PASS;
-    if(!NSCHECK(m->packet->iq,NS_REGISTER)) return M_PASS;
+    if (m->packet->type != JPACKET_IQ)
+	return M_IGNORE;
+    if (m->user == NULL)
+	return M_PASS;
+    if (!NSCHECK(m->packet->iq, NS_REGISTER))
+	return M_PASS;
 
     /* just do normal reg process, but deliver afterwards */
     ret = mod_auth_digest_reg(m,arg);
-    if(ret == M_HANDLED)
+    if (ret == M_HANDLED)
         js_deliver(m->si, jpacket_reset(m->packet));
 
     return ret;
@@ -190,5 +189,6 @@ void mod_auth_digest(jsmi si) {
     log_debug2(ZONE, LOGT_INIT, "init");
     js_mapi_register(si,e_AUTH, mod_auth_digest_yum, NULL);
     js_mapi_register(si,e_SERVER, mod_auth_digest_server, NULL);
-    if (js_config(si,"register") != NULL) js_mapi_register(si, e_REGISTER, mod_auth_digest_reg, NULL);
+    if (js_config(si,"register:register") != NULL)
+	js_mapi_register(si, e_REGISTER, mod_auth_digest_reg, NULL);
 }

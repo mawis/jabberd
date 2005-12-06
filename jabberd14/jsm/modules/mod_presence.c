@@ -94,8 +94,7 @@ typedef struct modpres_conf_struct {
  * a flag if a user is invisible, and a list of JIDs we have to send a blind carbon copy
  * of each presence
  */
-typedef struct modpres_struct
-{
+typedef struct modpres_struct {
     int invisible;	/**< flags that the user is invisible */
     jid A;		/**< who knows the user is available */
     jid I;		/**< who knows the user is invisible */
@@ -112,8 +111,7 @@ typedef struct modpres_struct
  * @param ids the list of JabberIDs
  * @return 1 if it is contained, 0 else
  */
-int _mod_presence_search(jid id, jid ids)
-{
+int _mod_presence_search(jid id, jid ids) {
     jid cur;
     for(cur = ids; cur != NULL; cur = cur->next)
         if(jid_cmp(cur,id) == 0)
@@ -128,17 +126,21 @@ int _mod_presence_search(jid id, jid ids)
  * @param ids the list of JabberIDs
  * @return the new list
  */
-jid _mod_presence_whack(jid id, jid ids)
-{
+jid _mod_presence_whack(jid id, jid ids) {
     jid curr;
 
-    if(id == NULL || ids == NULL) return NULL;
+    if (id == NULL || ids == NULL)
+	return NULL;
 
     /* check first */
-    if(jid_cmp(id,ids) == 0) return ids->next;
+    if (jid_cmp(id,ids) == 0)
+	return ids->next;
 
     /* check through the list, stopping at the previous list entry to a matching one */
-    for(curr = ids;curr != NULL && jid_cmp(curr->next,id) != 0;curr = curr->next);
+    for (curr = ids; curr != NULL; curr = curr->next) {
+	if (jid_cmp(curr->next, id) == 0)
+	    break;
+    }
 
     /* clip it out if found */
     if(curr != NULL)
@@ -159,17 +161,15 @@ jid _mod_presence_whack(jid id, jid ids)
  * @param x the presence that should be broadcasted
  * @param intersect if non-NULL only send presence to the intersection of notify and intersect
  */
-void _mod_presence_broadcast(session s, jid notify, xmlnode x, jid intersect)
-{
+void _mod_presence_broadcast(session s, jid notify, xmlnode x, jid intersect) {
     jid cur;
     xmlnode pres;
 
-    for(cur = notify; cur != NULL; cur = cur->next)
-    {
+    for (cur = notify; cur != NULL; cur = cur->next) {
         if(intersect != NULL && !_mod_presence_search(cur,intersect)) continue; /* perform insersection search, must be in both */
         s->c_out++;
         pres = xmlnode_dup(x);
-        xmlnode_put_attrib(pres, "to",jid_full(cur));
+        xmlnode_put_attrib_ns(pres, "to", NULL, NULL, jid_full(cur));
         js_deliver(s->si,jpacket_new(pres));
     }
 }
@@ -189,49 +189,50 @@ void _mod_presence_broadcast(session s, jid notify, xmlnode x, jid intersect)
  * @param arg the modpres structure containing the module data belonging to the user's session
  * @return M_IGNORE if stanza is no presence, M_HANDLED if a presence should not be delivered or has been completely handled, M_PASS else
  */
-mreturn mod_presence_in(mapi m, void *arg)
-{
+mreturn mod_presence_in(mapi m, void *arg) {
     modpres mp = (modpres)arg;
     xmlnode pres;
 
-    if(m->packet->type != JPACKET_PRESENCE) return M_IGNORE;
+    if (m->packet->type != JPACKET_PRESENCE)
+	return M_IGNORE;
 
-    log_debug2(ZONE, LOGT_DELIVER, "incoming filter for %s",jid_full(m->s->id));
+    log_debug2(ZONE, LOGT_DELIVER, "incoming filter for %s", jid_full(m->s->id));
 
-    if(jpacket_subtype(m->packet) == JPACKET__PROBE)
-    { /* reply with our presence */
-        if(m->s->presence == NULL)
-        {
+    if (jpacket_subtype(m->packet) == JPACKET__PROBE) {
+	/* reply with our presence */
+        if (m->s->presence == NULL) {
             log_debug2(ZONE, LOGT_DELIVER, "probe from %s and no presence to return",jid_full(m->packet->from));
-        }else if(!mp->invisible && js_trust(m->user,m->packet->from) && !_mod_presence_search(m->packet->from,mp->I)){ /* compliment of I in T */
+        } else if (!mp->invisible && js_trust(m->user,m->packet->from) && !_mod_presence_search(m->packet->from,mp->I)) {
+	    /* compliment of I in T */
             log_debug2(ZONE, LOGT_DELIVER, "got a probe, responding to %s",jid_full(m->packet->from));
             pres = xmlnode_dup(m->s->presence);
-            xmlnode_put_attrib(pres,"to",jid_full(m->packet->from));
+            xmlnode_put_attrib_ns(pres, "to", NULL, NULL, jid_full(m->packet->from));
             js_session_from(m->s, jpacket_new(pres));
-        }else if(mp->invisible && js_trust(m->user,m->packet->from) && _mod_presence_search(m->packet->from,mp->A)){ /* when invisible, intersection of A and T */
+        } else if (mp->invisible && js_trust(m->user,m->packet->from) && _mod_presence_search(m->packet->from,mp->A)) {
+	    /* when invisible, intersection of A and T */
             log_debug2(ZONE, LOGT_DELIVER, "got a probe when invisible, responding to %s",jid_full(m->packet->from));
             pres = jutil_presnew(JPACKET__AVAILABLE,jid_full(m->packet->from),NULL);
             js_session_from(m->s, jpacket_new(pres));
-        }else{
+        } else {
             log_debug2(ZONE, LOGT_DELIVER, "%s attempted to probe by someone not qualified",jid_full(m->packet->from));
         }
         xmlnode_free(m->packet->x);
         return M_HANDLED;
     }
 
-    if(m->packet->from == NULL || jid_cmp(m->packet->from,m->s->id) == 0)
-    { /* this is our presence, don't send to ourselves */
+    if(m->packet->from == NULL || jid_cmp(m->packet->from,m->s->id) == 0) {
+	/* this is our presence, don't send to ourselves */
         xmlnode_free(m->packet->x);
         return M_HANDLED;
     }
 
     /* if a presence packet bounced, remove from the A list */
-    if(jpacket_subtype(m->packet) == JPACKET__ERROR)
+    if (jpacket_subtype(m->packet) == JPACKET__ERROR)
         mp->A = _mod_presence_whack(m->packet->from, mp->A);
 
     /* doh! this is a user, they should see invisibles as unavailables */
-    if(jpacket_subtype(m->packet) == JPACKET__INVISIBLE)
-        xmlnode_put_attrib(m->packet->x,"type","unavailable");
+    if (jpacket_subtype(m->packet) == JPACKET__INVISIBLE)
+        xmlnode_put_attrib_ns(m->packet->x, "type", NULL, NULL, "unavailable");
 
     return M_PASS;
 }
@@ -251,42 +252,39 @@ mreturn mod_presence_in(mapi m, void *arg)
  * @param m the mapi structure
  * @param notify list where contacts that are subscribed to the users presences should be added, if this is NULL we don't add anything
  */
-void mod_presence_roster(mapi m, jid notify)
-{
+void mod_presence_roster(mapi m, jid notify) {
     xmlnode roster, cur, pnew;
     jid id;
     int to, from;
 
     /* do our roster setup stuff */
     roster = xdb_get(m->si->xc, m->user->id, NS_ROSTER);
-    for(cur = xmlnode_get_firstchild(roster); cur != NULL; cur = xmlnode_get_nextsibling(cur))
-    {
-        id = jid_new(m->packet->p,xmlnode_get_attrib(cur,"jid"));
-        if(id == NULL) continue;
+    for (cur = xmlnode_get_firstchild(roster); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
+        id = jid_new(m->packet->p,xmlnode_get_attrib_ns(cur, "jid", NULL));
+        if (id == NULL)
+	    continue;
 
-        log_debug2(ZONE, LOGT_DELIVER, "roster item %s s10n=%s",jid_full(id),xmlnode_get_attrib(cur,"subscription"));
+        log_debug2(ZONE, LOGT_DELIVER, "roster item %s s10n=%s", jid_full(id), xmlnode_get_attrib_ns(cur, "subscription", NULL));
 
         /* vars */
         to = from = 0;
-        if(j_strcmp(xmlnode_get_attrib(cur,"subscription"),"to") == 0)
+        if (j_strcmp(xmlnode_get_attrib_ns(cur, "subscription", NULL), "to") == 0)
             to = 1;
-        if(j_strcmp(xmlnode_get_attrib(cur,"subscription"),"from") == 0)
+        if (j_strcmp(xmlnode_get_attrib_ns(cur, "subscription", NULL), "from") == 0)
             from = 1;
-        if(j_strcmp(xmlnode_get_attrib(cur,"subscription"),"both") == 0)
+        if (j_strcmp(xmlnode_get_attrib_ns(cur, "subscription", NULL), "both") == 0)
             to = from = 1;
 
         /* curiosity phase */
-        if(to)
-        {
+        if (to) {
             log_debug2(ZONE, LOGT_DELIVER, "we're new here, probe them");
             pnew = jutil_presnew(JPACKET__PROBE,jid_full(id),NULL);
-            xmlnode_put_attrib(pnew,"from",jid_full(jid_user(m->s->id)));
+            xmlnode_put_attrib_ns(pnew, "from", NULL, NULL, jid_full(jid_user(m->s->id)));
             js_session_from(m->s, jpacket_new(pnew));
         }
 
         /* notify phase, only if it's global presence */
-        if(from && notify != NULL)
-        {
+        if (from && notify != NULL) {
             log_debug2(ZONE, LOGT_DELIVER, "we need to notify them");
             jid_append(notify, id);
         }
@@ -340,8 +338,7 @@ void mod_presence_store(mapi m) {
  * @param arg pointer to the modpres structure containing the module's data for this session
  * @return M_IGNORE if the stanza is no presence, M_PASS if the presence has a to attribute, is a probe, or is an error presence, M_HANDLED else
  */
-mreturn mod_presence_out(mapi m, void *arg)
-{
+mreturn mod_presence_out(mapi m, void *arg) {
     xmlnode pnew, delay;
     modpres mp = (modpres)arg;
     session cur = NULL;
@@ -352,13 +349,13 @@ mreturn mod_presence_out(mapi m, void *arg)
 
     if(m->packet->to != NULL || jpacket_subtype(m->packet) == JPACKET__PROBE || jpacket_subtype(m->packet) == JPACKET__ERROR) return M_PASS;
 
-    log_debug2(ZONE, LOGT_DELIVER, "new presence from %s of %s",jid_full(m->s->id),xmlnode2str(m->packet->x));
+    log_debug2(ZONE, LOGT_DELIVER, "new presence from %s of %s", jid_full(m->s->id), xmlnode_serialize_string(m->packet->x, NULL, NULL, 0));
 
     /* pre-existing conditions (no, we are not an insurance company) */
     oldpri = m->s->priority;
 
     /* check that the priority is in the valid range */
-    priority = xmlnode_get_tag_data(m->packet->x, "priority");
+    priority = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(m->packet->x, "priority", m->si->std_namespace_prefixes), 0));
     if (priority == NULL) {
 	newpri = 0;
     } else {
@@ -371,14 +368,12 @@ mreturn mod_presence_out(mapi m, void *arg)
     }
 
     /* invisible mode is special, don't you wish you were special too? */
-    if(jpacket_subtype(m->packet) == JPACKET__INVISIBLE)
-    {
+    if (jpacket_subtype(m->packet) == JPACKET__INVISIBLE) {
         log_debug2(ZONE, LOGT_DELIVER, "handling invisible mode request");
 
         /* if we get this and we're available, it means go unavail first then reprocess this packet, nifty trick :) */
-        if(oldpri >= -128)
-	{
-            js_session_from(m->s, jpacket_new(jutil_presnew(JPACKET__UNAVAILABLE,NULL,NULL)));
+        if (oldpri >= -128) {
+            js_session_from(m->s, jpacket_new(jutil_presnew(JPACKET__UNAVAILABLE, NULL, NULL)));
             js_session_from(m->s, m->packet);
             return M_HANDLED;
 	}
@@ -409,15 +404,14 @@ mreturn mod_presence_out(mapi m, void *arg)
 	mod_presence_store(m);
 
     /* stamp the sessions presence */
-    delay = xmlnode_insert_tag(m->s->presence,"x");
-    xmlnode_put_attrib(delay,"xmlns",NS_DELAY);
-    xmlnode_put_attrib(delay,"from",jid_full(m->s->id));
-    xmlnode_put_attrib(delay,"stamp",jutil_timestamp());
+    delay = xmlnode_insert_tag_ns(m->s->presence, "x", NULL, NS_DELAY);
+    xmlnode_put_attrib_ns(delay, "from", NULL, NULL, jid_full(m->s->id));
+    xmlnode_put_attrib_ns(delay, "stamp", NULL, NULL, jutil_timestamp());
 
     log_debug2(ZONE, LOGT_DELIVER, "presence oldp %d newp %d",oldpri,m->s->priority);
 
     /* if we're going offline now, let everyone know */
-    if(m->s->priority < -128) {
+    if (m->s->priority < -128) {
         /* jutil_priority returns -129 in case the "type" attribute is missing */
         if(!mp->invisible) /* bcc's don't get told if we were invisible */
             _mod_presence_broadcast(m->s,mp->conf->bcc,m->packet->x,NULL);
@@ -435,8 +429,7 @@ mreturn mod_presence_out(mapi m, void *arg)
     }
 
     /* available presence updates, intersection of A and T */
-    if(oldpri >= -128 && !mp->invisible)
-    {
+    if (oldpri >= -128 && !mp->invisible) {
         _mod_presence_broadcast(m->s,mp->A,m->packet->x,js_trustees(m->user));
         xmlnode_free(m->packet->x);
         return M_HANDLED;
@@ -444,15 +437,6 @@ mreturn mod_presence_out(mapi m, void *arg)
 
     /* at this point we're coming out of the closet */
     mp->invisible = 0;
-
-    /* make sure we get notified for any presence about ourselves */
-    /* XXX: the following is the original code: it caused existing presences
-     * to be stamped several times and the presence to be sent out twice.
-    pnew = jutil_presnew(JPACKET__PROBE,jid_full(jid_user(m->s->id)),NULL);
-    xmlnode_put_attrib(pnew,"from",jid_full(jid_user(m->s->id)));
-    js_session_from(m->s, jpacket_new(pnew));
-    */
-    /* XXX: I think this should be okay as well: */
 
     /* send us all presences of our other resources */
     for (cur = m->user->sessions; cur != NULL; cur=cur->next) {
@@ -468,7 +452,7 @@ mreturn mod_presence_out(mapi m, void *arg)
 	/* send the presence to us: we need a new pool as js_session_to() will free the packet's pool  */
 	pool_for_existing_presence = pool_new();
 	duplicated_presence = xmlnode_dup_pool(pool_for_existing_presence, cur->presence);
-	xmlnode_put_attrib(duplicated_presence, "to", jid_full(m->user->id));
+	xmlnode_put_attrib_ns(duplicated_presence, "to", NULL, NULL, jid_full(m->user->id));
 	packet = jpacket_new(duplicated_presence);
 	js_session_to(m->s, packet);
     }
@@ -498,20 +482,20 @@ mreturn mod_presence_out(mapi m, void *arg)
  * @param arg pointer to the modpres structure containing the modules session data (especially the lists A and I)
  * @return M_IGNORE if the stanza is no presence, else always M_PASS
  */
-mreturn mod_presence_avails(mapi m, void *arg)
-{
+mreturn mod_presence_avails(mapi m, void *arg) {
     modpres mp = (modpres)arg;
 
-    if(m->packet->type != JPACKET_PRESENCE) return M_IGNORE;
+    if (m->packet->type != JPACKET_PRESENCE)
+	return M_IGNORE;
 
-    if(m->packet->to == NULL) return M_PASS;
+    if (m->packet->to == NULL)
+	return M_PASS;
 
     log_debug2(ZONE, LOGT_DELIVER, "track presence sent to jids");
 
     /* handle invisibles: put in I and remove from A */
-    if(jpacket_subtype(m->packet) == JPACKET__INVISIBLE)
-    {
-        if(mp->I == NULL)
+    if (jpacket_subtype(m->packet) == JPACKET__INVISIBLE) {
+        if (mp->I == NULL)
             mp->I = jid_new(m->s->p,jid_full(m->packet->to));
         else
             jid_append(mp->I, m->packet->to);
@@ -523,11 +507,11 @@ mreturn mod_presence_avails(mapi m, void *arg)
     mp->I = _mod_presence_whack(m->packet->to,mp->I);
 
     /* avails to A */
-    if(jpacket_subtype(m->packet) == JPACKET__AVAILABLE)
+    if (jpacket_subtype(m->packet) == JPACKET__AVAILABLE)
         jid_append(mp->A, m->packet->to);
 
     /* unavails from A */
-    if(jpacket_subtype(m->packet) == JPACKET__UNAVAILABLE)
+    if (jpacket_subtype(m->packet) == JPACKET__UNAVAILABLE)
         mp->A = _mod_presence_whack(m->packet->to,mp->A);
 
     return M_PASS;
@@ -543,14 +527,13 @@ mreturn mod_presence_avails(mapi m, void *arg)
  * @param arg pointer to the modpres structure containing the lists for this session
  * @return always M_PASS
  */
-mreturn mod_presence_avails_end(mapi m, void *arg)
-{
+mreturn mod_presence_avails_end(mapi m, void *arg) {
     modpres mp = (modpres)arg;
 
     log_debug2(ZONE, LOGT_DELIVER, "avail tracker guarantee checker");
 
     /* send  the current presence (which the server set to unavail) */
-    xmlnode_put_attrib(m->s->presence, "from",jid_full(m->s->id));
+    xmlnode_put_attrib_ns(m->s->presence, "from", NULL, NULL, jid_full(m->s->id));
     _mod_presence_broadcast(m->s, mp->conf->bcc, m->s->presence, NULL);
     _mod_presence_broadcast(m->s, mp->A, m->s->presence, NULL);
     _mod_presence_broadcast(m->s, mp->I, m->s->presence, NULL);
@@ -572,8 +555,7 @@ mreturn mod_presence_avails_end(mapi m, void *arg)
  * @param arg the list of JabberIDs that get a bcc of all presences
  * @return always M_PASS
  */
-mreturn mod_presence_session(mapi m, void *arg)
-{
+mreturn mod_presence_session(mapi m, void *arg) {
     modpres_conf conf = (modpres_conf)arg;
     modpres mp;
 
@@ -602,28 +584,27 @@ mreturn mod_presence_session(mapi m, void *arg)
  * @param arg ignored/unused
  * @return M_IGNORED if not a presence stanza, M_PASS if the presence has not been handled, M_HANDLED if the presence has been handled
  */
-mreturn mod_presence_deliver(mapi m, void *arg)
-{
+mreturn mod_presence_deliver(mapi m, void *arg) {
     session cur;
 
-    if(m->packet->type != JPACKET_PRESENCE) return M_IGNORE;
+    if (m->packet->type != JPACKET_PRESENCE)
+	return M_IGNORE;
 
     log_debug2(ZONE, LOGT_DELIVER, "deliver phase");
 
     /* only if we HAVE a user, and it was sent to ONLY the user@server, and there is at least one session available */
-    if(m->user != NULL && m->packet->to->resource == NULL && js_session_primary(m->user) != NULL)
-    {
+    if (m->user != NULL && m->packet->to->resource == NULL && js_session_primary(m->user) != NULL) {
         log_debug2(ZONE, LOGT_DELIVER, "broadcasting to %s",m->user->user);
 
         /* broadcast */
-        for(cur = m->user->sessions; cur != NULL; cur = cur->next)
-        {
-            if(cur->priority < -128) continue;
+        for (cur = m->user->sessions; cur != NULL; cur = cur->next) {
+            if (cur->priority < -128)
+		continue;
             js_session_to(cur, jpacket_new(xmlnode_dup(m->packet->x)));
         }
 
-        if(jpacket_subtype(m->packet) != JPACKET__PROBE)
-        { /* probes get handled by the offline thread as well? */
+        if (jpacket_subtype(m->packet) != JPACKET__PROBE) {
+	    /* probes get handled by the offline thread as well? */
             xmlnode_free(m->packet->x);
             return M_HANDLED;
         }
@@ -656,20 +637,21 @@ mreturn mod_presence_delete(mapi m, void *arg) {
  *
  * @param si the session manager instance
  */
-void mod_presence(jsmi si)
-{
-    xmlnode cfg = js_config(si, "presence");
+void mod_presence(jsmi si) {
+    xmlnode cfg = js_config(si, "jsm:presence");
     modpres_conf conf = (modpres_conf)pmalloco(si->p, sizeof(_modpres_conf));
 
     log_debug2(ZONE, LOGT_INIT, "init");
 
-    for(cfg = xmlnode_get_firstchild(cfg); cfg != NULL; cfg = xmlnode_get_nextsibling(cfg))
-    {
-	char *element_name = NULL;
+    for (cfg = xmlnode_get_firstchild(cfg); cfg != NULL; cfg = xmlnode_get_nextsibling(cfg)) {
+	const char *element_name = NULL;
 
-        if(xmlnode_get_type(cfg) != NTYPE_TAG)
+        if (xmlnode_get_type(cfg) != NTYPE_TAG)
 	    continue;
-	element_name = xmlnode_get_name(cfg);
+	if (!NSCHECK(cfg, NS_JABBERD_CONFIGFILE))
+	    continue;
+	
+	element_name = xmlnode_get_localname(cfg);
 	if (j_strcmp(element_name, "bcc") == 0) {
 	    if(conf->bcc == NULL)
 		conf->bcc = jid_new(si->p,xmlnode_get_data(cfg));

@@ -184,7 +184,7 @@ xdbcache xdb_cache(instance id)
 }
 
 /* blocks until namespace is retrieved, host must map back to this service! */
-xmlnode xdb_get(xdbcache xc, jid owner, char *ns) {
+xmlnode xdb_get(xdbcache xc, jid owner, const char *ns) {
     _xdbcache newx;
     xmlnode x;
     //pth_cond_t cond = PTH_COND_INIT;
@@ -238,7 +238,7 @@ xmlnode xdb_get(xdbcache xc, jid owner, char *ns) {
 /* act must be NULL, "check", or "insert" for now, insert will either blindly insert data into the parent (creating one if needed) or use match */
 /* match will find a child in the parent, and either replace (if it's an insert) or remove (if data is NULL) */
 /* XXX for the check action, read the comment in xdb_file/xdb_file.c, it might be buggy and not needed anyway */
-int xdb_act(xdbcache xc, jid owner, char *ns, char *act, char *match, xmlnode data)
+int xdb_act(xdbcache xc, jid owner, const char *ns, char *act, char *match, xmlnode data)
 {
     _xdbcache newx;
 
@@ -290,6 +290,6 @@ int xdb_act(xdbcache xc, jid owner, char *ns, char *act, char *match, xmlnode da
 }
 
 /* sends new xml to replace old, data is NOT freed, app responsible for freeing it */
-int xdb_set(xdbcache xc, jid owner, char *ns, xmlnode data) {
+int xdb_set(xdbcache xc, jid owner, const char *ns, xmlnode data) {
     return xdb_act(xc, owner, ns, NULL, NULL, data);
 }

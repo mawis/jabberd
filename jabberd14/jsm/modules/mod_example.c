@@ -99,11 +99,11 @@ mreturn mod_example_server(mapi m, void *arg) {
     jutil_tofrom(m->packet->x);
 
     /* hide the old body */
-    xmlnode_hide(xmlnode_get_tag(m->packet->x,"body"));
+    xmlnode_hide(xmlnode_get_list_item(xmlnode_get_tags(m->packet->x, "body", m->si->std_namespace_prefixes), 0));
 
     /* insert our own and fill it up */
-    body = xmlnode_insert_tag(m->packet->x,"body");
-    xmlnode_insert_cdata(body,"this is the mod_example_server reply",-1);
+    body = xmlnode_insert_tag_ns(m->packet->x, "body", NULL, NS_SERVER);
+    xmlnode_insert_cdata(body, "this is the mod_example_server reply", -1);
 
     /* reset the packet and deliver it again */
     jpacket_reset(m->packet);
@@ -137,14 +137,16 @@ mreturn mod_example_server(mapi m, void *arg) {
  */
 mreturn mod_example_generic(mapi m, void *arg) {
     /* the first thing you can do is filter out just the packet types we care about, ignore the rest */
-    if(m->packet->type != JPACKET_MESSAGE) return M_IGNORE;
+    if (m->packet->type != JPACKET_MESSAGE)
+	return M_IGNORE;
 
     /* second, you usually validate that it is a valid request, or one relevant to what you want to do */
-    if( /* some condition */ 0) return M_PASS;
+    if (/* some condition */ 0)
+	return M_PASS;
 
     /* it's usually useful at this point to add some debugging output, the first argument ZONE includes the mod_example.c:127,
      * the second argument sepecifies a category of debugging areas, the rest is the same as a printf */
-    log_debug2(ZONE, LOGT_DELIVER, "handling example request from %s",jid_full(m->packet->from));
+    log_debug2(ZONE, LOGT_DELIVER, "handling example request from %s", jid_full(m->packet->from));
 
     /* here you can perform some logic on the packet, modifying it, and free'ing or delivering it elsewhere */
 
@@ -166,6 +168,6 @@ mreturn mod_example_generic(mapi m, void *arg) {
  * @param si jsmi_struct containing instance internal data of the jabber session manager
  */
 void mod_example(jsmi si) {
-    /* this event is when packets are sent to the server address, to="jabber.org", often used for administrative purposes or special server/resources */
-    js_mapi_register(si,e_SERVER,mod_example_server,NULL);
+    /* this event is when packets are sent to the server address, to="example.com", often used for administrative purposes or special server/resources */
+    js_mapi_register(si, e_SERVER, mod_example_server, NULL);
 }

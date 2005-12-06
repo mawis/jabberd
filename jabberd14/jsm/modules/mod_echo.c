@@ -65,17 +65,18 @@
  * @param arg unused/ignored
  * @return M_IGNORE if the stanza is no message, M_PASS if the message has not been processed, M_HANDLED if the message has been handled
  */
-mreturn mod_echo_reply(mapi m, void *arg)
-{
-    if(m->packet->type != JPACKET_MESSAGE) return M_IGNORE;
+mreturn mod_echo_reply(mapi m, void *arg) {
+    if (m->packet->type != JPACKET_MESSAGE)
+	return M_IGNORE;
 
     /* first, is this a valid request? */
-    if(m->packet->to->resource == NULL || strncasecmp(m->packet->to->resource,"echo",4) != 0) return M_PASS;
+    if (m->packet->to->resource == NULL || strncasecmp(m->packet->to->resource, "echo", 4) != 0)
+	return M_PASS;
 
-    log_debug2(ZONE, LOGT_DELIVER, "handling echo request from %s",jid_full(m->packet->from));
+    log_debug2(ZONE, LOGT_DELIVER, "handling echo request from %s", jid_full(m->packet->from));
 
-    xmlnode_put_attrib(m->packet->x,"from",jid_full(m->packet->to));
-    xmlnode_put_attrib(m->packet->x,"to",jid_full(m->packet->from));
+    xmlnode_put_attrib_ns(m->packet->x, "from", NULL, NULL, jid_full(m->packet->to));
+    xmlnode_put_attrib_ns(m->packet->x, "to", NULL, NULL, jid_full(m->packet->from));
     jpacket_reset(m->packet);
     js_deliver(m->si,m->packet);
 
@@ -89,7 +90,6 @@ mreturn mod_echo_reply(mapi m, void *arg)
  *
  * @param si the session manager instance
  */
-void mod_echo(jsmi si)
-{
-    js_mapi_register(si,e_SERVER,mod_echo_reply,NULL);
+void mod_echo(jsmi si) {
+    js_mapi_register(si, e_SERVER, mod_echo_reply, NULL);
 }
