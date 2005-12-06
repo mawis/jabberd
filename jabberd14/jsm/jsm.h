@@ -390,6 +390,7 @@ struct jsmi_struct {
     xmlnode config;		/**< jsm configuration */
     xht hosts;			/**< hash with hosts as keys and hashtables (key: user, value: udata_struct) as values */
     xht sc_sessions;		/**< hash containing pointers to the udata_struct for sessions initiated by the session control protocol */
+    xht std_namespace_prefixes;	/**< standard prefixes used for xmlnode_get_tags() */
     xdbcache xc;		/**< xdbcache used to query xdb */
     mlist events[e_LAST];	/**< list of registered modules for the existing event types */
     pool p;			/**< memory pool for the instance */

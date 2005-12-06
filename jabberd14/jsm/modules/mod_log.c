@@ -66,8 +66,7 @@
  * @param arg unused/ignored
  * @return always M_PASS
  */
-mreturn mod_log_session_end(mapi m, void *arg)
-{
+mreturn mod_log_session_end(mapi m, void *arg) {
     time_t t = time(NULL);
 
     log_debug2(ZONE, LOGT_SESSION, "creating session log entry");
@@ -86,8 +85,7 @@ mreturn mod_log_session_end(mapi m, void *arg)
  * @param arg list of destination JIDs
  * @return always M_PASS
  */
-mreturn mod_log_archiver(mapi m, void* arg)
-{
+mreturn mod_log_archiver(mapi m, void* arg) {
     jid svcs = (jid)arg;
     xmlnode x;
     
@@ -96,18 +94,17 @@ mreturn mod_log_archiver(mapi m, void* arg)
     log_debug2(ZONE, LOGT_DELIVER, "archiving message");
 
     /* get a copy wrapped w/ a route and stamp it w/ a type='archive' (why not?) */
-    x = xmlnode_wrap(xmlnode_dup(m->packet->x), "route");
-    xmlnode_put_attrib(x,"type","archive");
+    x = xmlnode_wrap_ns(xmlnode_dup(m->packet->x), "route", NULL, NS_SERVER);
+    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "archive");
 
     /* if there's more than one service, copy to the others */
-    for(;svcs->next != NULL; svcs = svcs->next)
-    {
-        xmlnode_put_attrib(x, "to", jid_full(svcs));
+    for (;svcs->next != NULL; svcs = svcs->next) {
+        xmlnode_put_attrib_ns(x, "to", NULL, NULL, jid_full(svcs));
         deliver(dpacket_new(xmlnode_dup(x)), NULL);
     }
 
     /* send off to the last (or only) one */
-    xmlnode_put_attrib(x, "to", jid_full(svcs));
+    xmlnode_put_attrib_ns(x, "to", NULL, NULL, jid_full(svcs));
     deliver(dpacket_new(x), NULL);
 
     return M_PASS;
@@ -124,12 +121,10 @@ mreturn mod_log_archiver(mapi m, void* arg)
  * @param arg NULL if message forwarding is disabled, pointer to a list of destination JIDs otherwise
  * @return always M_PASS
  */
-mreturn mod_log_session(mapi m, void *arg)
-{
+mreturn mod_log_session(mapi m, void *arg) {
     jid svcs = (jid)arg;
 
-    if(svcs != NULL)
-    {
+    if (svcs != NULL) {
         js_mapi_session(es_IN, m->s, mod_log_archiver, svcs);
         js_mapi_session(es_OUT, m->s, mod_log_archiver, svcs);
     }
@@ -151,18 +146,16 @@ mreturn mod_log_session(mapi m, void *arg)
  *
  * @param si the session manager instance
  */
-void mod_log(jsmi si)
-{
-    xmlnode cfg = js_config(si,"archive");
+void mod_log(jsmi si) {
+    xmlnode cfg = js_config(si, "jsm:archive");
     jid svcs = NULL;
 
     log_debug2(ZONE, LOGT_INIT, "mod_log init");
 
     /* look for archiving service too */
-    for(cfg = xmlnode_get_firstchild(cfg); cfg != NULL; cfg = xmlnode_get_nextsibling(cfg))
-    {
-        if(xmlnode_get_type(cfg) != NTYPE_TAG || j_strcmp(xmlnode_get_name(cfg),"service") != 0) continue;
-        if(svcs == NULL)
+    for (cfg = xmlnode_get_firstchild(cfg); cfg != NULL; cfg = xmlnode_get_nextsibling(cfg)) {
+        if (xmlnode_get_type(cfg) != NTYPE_TAG || j_strcmp(xmlnode_get_localname(cfg), "service") != 0) continue;
+        if (svcs == NULL)
             svcs = jid_new(si->p,xmlnode_get_data(cfg));
         else
             jid_append(svcs,jid_new(si->p,xmlnode_get_data(cfg)));

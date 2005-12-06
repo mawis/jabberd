@@ -58,42 +58,42 @@
  * @param arg unused/ignored
  * @return M_IGNORED if not a iq stanza, M_PASS if other namespace or sent to a resource of the server, M_HANDLED else
  */
-mreturn mod_time_reply(mapi m, void *arg)
-{
+mreturn mod_time_reply(mapi m, void *arg) {
     time_t t;
     char *tstr;
     struct tm *tmd;
 
-    if(m->packet->type != JPACKET_IQ) return M_IGNORE;
-    if(!NSCHECK(m->packet->iq,NS_TIME) || m->packet->to->resource != NULL) return M_PASS;
+    if (m->packet->type != JPACKET_IQ)
+	return M_IGNORE;
+    if (!NSCHECK(m->packet->iq,NS_TIME) || m->packet->to->resource != NULL)
+	return M_PASS;
 
     /* first, is this a valid request? */
-    if(jpacket_subtype(m->packet) != JPACKET__GET)
-    {
+    if (jpacket_subtype(m->packet) != JPACKET__GET) {
         js_bounce_xmpp(m->si,m->packet->x,XTERROR_NOTALLOWED);
         return M_HANDLED;
     }
 
-    log_debug2(ZONE, LOGT_DELIVER, "handling time query from %s",jid_full(m->packet->from));
+    log_debug2(ZONE, LOGT_DELIVER, "handling time query from %s", jid_full(m->packet->from));
 
     jutil_iqresult(m->packet->x);
-    xmlnode_put_attrib(xmlnode_insert_tag(m->packet->x,"query"),"xmlns",NS_TIME);
+    xmlnode_insert_tag_ns(m->packet->x, "query", NULL, NS_TIME);
     jpacket_reset(m->packet);
-    xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"utc"),jutil_timestamp(),-1);
+    xmlnode_insert_cdata(xmlnode_insert_tag_ns(m->packet->iq, "utc", NULL, NS_TIME),jutil_timestamp(),-1);
 
     /* create nice display time */
     t = time(NULL);
     tstr = ctime(&t);
     tstr[strlen(tstr) - 1] = '\0'; /* cut off newline */
-    xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"display"),tstr,-1);
+    xmlnode_insert_cdata(xmlnode_insert_tag_ns(m->packet->iq, "display", NULL, NS_TIME),tstr,-1);
     tzset();
     tmd = localtime(&t);
 
 #ifdef TMZONE
     /* some platforms don't have tzname I guess */
-    xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"tz"),tmd->tm_zone,-1);
+    xmlnode_insert_cdata(xmlnode_insert_tag_ns(m->packet->iq, "tz", NULL, NS_TIME), tmd->tm_zone, -1);
 #else
-    xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"tz"),tzname[0],-1);
+    xmlnode_insert_cdata(xmlnode_insert_tag_ns(m->packet->iq, "tz", NULL, NS_TIME), tzname[0], -1);
 #endif
 
     js_deliver(m->si,m->packet);
@@ -108,9 +108,6 @@ mreturn mod_time_reply(mapi m, void *arg)
  *
  * @param si the session manager instance
  */
-void mod_time(jsmi si)
-{
+void mod_time(jsmi si) {
     js_mapi_register(si,e_SERVER,mod_time_reply,NULL);
 }
-
-

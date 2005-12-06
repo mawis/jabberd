@@ -62,74 +62,71 @@
  * @param arg unused/ignored
  * @return M_PASS if registration is not allowed, or iq not of type set or get, M_HANDLED else
  */
-mreturn mod_register_new(mapi m, void *arg)
-{
+mreturn mod_register_new(mapi m, void *arg) {
     xmlnode reg, x;
 
-    if((reg = js_config(m->si, "register")) == NULL) return M_PASS;
+    if ((reg = js_config(m->si, "register:register")) == NULL)
+	return M_PASS;
 
     log_debug2(ZONE, LOGT_AUTH, "checking");
 
-    switch(jpacket_subtype(m->packet))
-    {
-    case JPACKET__GET:
+    switch(jpacket_subtype(m->packet)) {
+	case JPACKET__GET:
 
-        /* copy in the registration fields from the config file */
-        xmlnode_insert_node(m->packet->iq,xmlnode_get_firstchild(reg));
+	    /* copy in the registration fields from the config file */
+	    xmlnode_insert_node(m->packet->iq, xmlnode_get_firstchild(reg));
 
-        break;
+	    break;
 
-    case JPACKET__SET:
+	case JPACKET__SET:
 
-        log_debug2(ZONE, LOGT_AUTH, "processing valid registration for %s",jid_full(m->packet->to));
+	    log_debug2(ZONE, LOGT_AUTH, "processing valid registration for %s",jid_full(m->packet->to));
 
-        /* save the registration data */
-        jutil_delay(m->packet->iq,"registered");
-        /* don't store password in clear text in the NS_REGISTER namespace */
-        xmlnode_hide(xmlnode_get_tag(m->packet->iq,"password"));
-        xdb_set(m->si->xc, jid_user(m->packet->to), NS_REGISTER, m->packet->iq);
+	    /* save the registration data */
+	    jutil_delay(m->packet->iq,"registered");
+	    /* don't store password in clear text in the NS_REGISTER namespace */
+	    xmlnode_hide(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:password", m->si->std_namespace_prefixes), 0));
+	    xdb_set(m->si->xc, jid_user(m->packet->to), NS_REGISTER, m->packet->iq);
 
-        /* if configured to, send admins a notice */
-        if(xmlnode_get_attrib(reg,"notify") != NULL)
-        {
-	    char *email = xmlnode_get_tag_data(m->packet->iq, "email");
-	    spool msg_body = spool_new(m->packet->p);
+	    /* if configured to, send admins a notice */
+	    if (xmlnode_get_attrib_ns(reg, "notify", NULL) != NULL) {
+		char *email = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:email", m->si->std_namespace_prefixes), 0));
+		spool msg_body = spool_new(m->packet->p);
 
-	    spool_add(msg_body, "A new user has just been created!\n");
-	    spool_add(msg_body, "User: ");
-	    spool_add(msg_body, jid_full(m->packet->to));
-	    spool_add(msg_body, "\n");
-	    spool_add(msg_body, "E-Mail: ");
-	    spool_add(msg_body, email ? email : "no address provided");
+		spool_add(msg_body, "A new user has just been created!\n");
+		spool_add(msg_body, "User: ");
+		spool_add(msg_body, jid_full(m->packet->to));
+		spool_add(msg_body, "\n");
+		spool_add(msg_body, "E-Mail: ");
+		spool_add(msg_body, email ? email : "no address provided");
 
-            x = jutil_msgnew("chat", m->packet->to->server, "Registration Notice", spool_print(msg_body));
-            xmlnode_put_attrib(x, "from", m->packet->to->server);
-            js_deliver(m->si,jpacket_new(x));
-        }
-
-        /* if also configured, send the new user a welcome message */
-        if((reg = js_config(m->si, "welcome")) != NULL)
-        {
-	    char *lang = NULL;
-
-	    lang = xmlnode_get_attrib(reg, "xml:lang");
-
-            x = xmlnode_new_tag("message");
-            xmlnode_put_attrib(x, "from", m->packet->to->server);
-            xmlnode_put_attrib(x, "to", jid_full(m->packet->to));
-	    if (lang != NULL) {
-		xmlnode_put_attrib(x, "xml:lang", lang);
+		x = jutil_msgnew("chat", m->packet->to->server, "Registration Notice", spool_print(msg_body));
+		xmlnode_put_attrib_ns(x, "from", NULL, NULL, m->packet->to->server);
+		js_deliver(m->si,jpacket_new(x));
 	    }
-            xmlnode_insert_node(x, xmlnode_get_firstchild(reg));
-            js_deliver(m->si,jpacket_new(x));
-        }
 
-        /* clean up and respond */
-        jutil_iqresult(m->packet->x);
-        break;
+	    /* if also configured, send the new user a welcome message */
+	    if ((reg = js_config(m->si, "welcome")) != NULL) {
+		const char *lang = NULL;
 
-    default:
-        return M_PASS;
+		lang = xmlnode_get_lang(reg);
+
+		x = xmlnode_new_tag_ns("message", NULL, NS_SERVER);
+		xmlnode_put_attrib_ns(x, "from", NULL, NULL, m->packet->to->server);
+		xmlnode_put_attrib_ns(x, "to", NULL, NULL, jid_full(m->packet->to));
+		if (lang != NULL) {
+		    xmlnode_put_attrib_ns(x, "lang", "xml", NS_XML, lang);
+		}
+		xmlnode_insert_node(x, xmlnode_get_firstchild(reg));
+		js_deliver(m->si,jpacket_new(x));
+	    }
+
+	    /* clean up and respond */
+	    jutil_iqresult(m->packet->x);
+	    break;
+
+	default:
+	    return M_PASS;
     }
 
     return M_HANDLED;
@@ -169,36 +166,34 @@ mreturn mod_register_server(mapi m, void *arg) {
     switch (jpacket_subtype(m->packet)) {
 	case JPACKET__GET:
 	    /* create reply to the get */
-	    xmlnode_put_attrib(m->packet->x,"type","result");
+	    xmlnode_put_attrib_ns(m->packet->x, "type", NULL, NULL, "result");
 	    jutil_tofrom(m->packet->x);
 
 	    /* copy in the registration fields from the config file */
-	    xmlnode_insert_node(m->packet->iq,xmlnode_get_firstchild(js_config(m->si,"register")));
-
-#ifdef INCLUDE_LEGACY
-	    /* insert the key, we don't need to check it, but we'll send it :) */
-	    xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"key"),jutil_regkey(NULL,"foobar"),-1);
-#endif
+	    xmlnode_insert_node(m->packet->iq,xmlnode_get_firstchild(js_config(m->si,"register:register")));
 
 	    /* replace fields with already-registered ones */
 	    for (cur = xmlnode_get_firstchild(m->packet->iq); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
 		if (xmlnode_get_type(cur) != NTYPE_TAG)
 		    continue;
+		if (j_strcmp(xmlnode_get_namespace(cur), NS_REGISTER) != 0)
+		    continue;
 
-		check = xmlnode_get_tag(reg,xmlnode_get_name(cur));
+		check = xmlnode_get_list_item(xmlnode_get_tags(reg, spools(m->packet->p, "register:", xmlnode_get_localname(cur), m->packet->p), m->si->std_namespace_prefixes), 0);
 		if (check == NULL)
 		    continue;
 
+		/* copy the text() child */
 		xmlnode_insert_node(cur,xmlnode_get_firstchild(check));
 	    }
 
 	    /* add the registered flag */
-	    xmlnode_insert_tag(m->packet->iq,"registered");
+	    xmlnode_insert_tag_ns(m->packet->iq, "registered", NULL, NS_REGISTER);
 
 	    break;
 
 	case JPACKET__SET:
-	    if (xmlnode_get_tag(m->packet->iq,"remove") != NULL) {
+	    if (xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:remove", m->si->std_namespace_prefixes), 0) != NULL) {
 		xmlnode roster, cur;
 	    
 		log_notice(m->user->id->server,"User Unregistered: %s",m->user->user);
@@ -209,8 +204,8 @@ mreturn mod_register_server(mapi m, void *arg) {
 		log_debug2(ZONE, LOGT_ROSTER, "updating registration for %s",jid_full(m->user->id));
 
 		/* update the registration data */
-		xmlnode_hide(xmlnode_get_tag(m->packet->iq,"username")); /* hide the username/password from the reg db */
-		xmlnode_hide(xmlnode_get_tag(m->packet->iq,"password"));
+		xmlnode_hide(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:username", m->si->std_namespace_prefixes), 0)); /* hide the username/password from the reg db */
+		xmlnode_hide(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:password", m->si->std_namespace_prefixes), 0));
 		jutil_delay(m->packet->iq,"updated");
 		xdb_set(m->si->xc, m->user->id, NS_REGISTER, m->packet->iq);
 	    }

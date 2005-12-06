@@ -62,8 +62,7 @@
  * @param data the user's data structure
  * @param arg the iq result XML node
  */
-void _mod_admin_browse(xht h, const char *key, void *data, void *arg)
-{
+void _mod_admin_browse(xht h, const char *key, void *data, void *arg) {
     xmlnode browse = (xmlnode)arg;
     udata u = (udata)data;
     xmlnode x;
@@ -73,11 +72,10 @@ void _mod_admin_browse(xht h, const char *key, void *data, void *arg)
     char buff[10];
 
     /* make a user generic entry */
-    x = xmlnode_insert_tag(browse,"user");
-    xmlnode_put_attrib(x,"jid",jid_full(u->id));
-    if(s == NULL)
-    {
-        xmlnode_put_attrib(x,"name",u->user);
+    x = xmlnode_insert_tag_ns(browse, "user", NULL, NS_BROWSE);
+    xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(u->id));
+    if (s == NULL) {
+        xmlnode_put_attrib_ns(x, "name", NULL, NULL, u->user);
         return;
     }
     sp = spool_new(xmlnode_pool(browse));
@@ -91,7 +89,7 @@ void _mod_admin_browse(xht h, const char *key, void *data, void *arg)
     snprintf(buff, sizeof(buff), "%d", s->c_in);
     spooler(sp,buff,")",sp);
 
-    xmlnode_put_attrib(x,"name",spool_print(sp));
+    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spool_print(sp));
 }
 
 /**
@@ -102,8 +100,7 @@ void _mod_admin_browse(xht h, const char *key, void *data, void *arg)
  * @param si the session manager instance
  * @param p the packet containing the request
  */
-void mod_admin_browse(jsmi si, jpacket p)
-{
+void mod_admin_browse(jsmi si, jpacket p) {
     xmlnode browse;
 
     /* all requests we have to process are of type 'get' */
@@ -114,10 +111,9 @@ void mod_admin_browse(jsmi si, jpacket p)
 
     /* prepare the result */
     jutil_iqresult(p->x);
-    browse = xmlnode_insert_tag(p->x,"item");
-    xmlnode_put_attrib(browse,"jid",spools(xmlnode_pool(browse),p->to->server,"/admin",xmlnode_pool(browse)));
-    xmlnode_put_attrib(browse,"name","Online Users (seconds, sent, received)");
-    xmlnode_put_attrib(browse,"xmlns",NS_BROWSE);
+    browse = xmlnode_insert_tag_ns(p->x, "item", NULL, NS_BROWSE);
+    xmlnode_put_attrib_ns(browse, "jid", NULL, NULL, spools(xmlnode_pool(browse),p->to->server,"/admin",xmlnode_pool(browse)));
+    xmlnode_put_attrib_ns(browse, "name", NULL, NULL, "Online Users (seconds, sent, received)");
 
     log_debug2(ZONE, LOGT_DELIVER, "handling who GET");
 
@@ -140,8 +136,7 @@ void mod_admin_browse(jsmi si, jpacket p)
  * @param data the user's data structure
  * @param arg the XML element where the presences will be added as child elements
  */
-void _mod_admin_who(xht ht, const char *key, void *data, void *arg)
-{
+void _mod_admin_who(xht ht, const char *key, void *data, void *arg) {
     xmlnode who = (xmlnode)arg;
     udata u = (udata)data;
     session s;
@@ -152,20 +147,18 @@ void _mod_admin_who(xht ht, const char *key, void *data, void *arg)
     t = time(NULL);
 
     /* loop through all the sessions */
-    for(s = u->sessions; s != NULL; s = s->next)
-    {
+    for (s = u->sessions; s != NULL; s = s->next) {
         /* make a presence entry for each one with a custom extension */
         x = xmlnode_insert_tag_node(who,s->presence);
-        x = xmlnode_insert_tag(x,"x");
-        xmlnode_put_attrib(x,"xmlns","jabber:mod_admin:who");
+        x = xmlnode_insert_tag_ns(x, "x", NULL, NS_ADMIN_WHO);
 
         /* insert extended data */
         snprintf(buff, sizeof(buff), "%d", (int)(t - s->started));
-        xmlnode_put_attrib(x,"timer",buff);
+        xmlnode_put_attrib_ns(x, "timer", NULL, NULL, buff);
         snprintf(buff, sizeof(buff), "%d", s->c_in);
-        xmlnode_put_attrib(x,"from",buff);
+        xmlnode_put_attrib_ns(x, "from", NULL, NULL, buff);
         snprintf(buff, sizeof(buff), "%d", s->c_out);
-        xmlnode_put_attrib(x,"to",buff);
+        xmlnode_put_attrib_ns(x, "to", NULL, NULL, buff);
     }
 }
 
@@ -181,25 +174,24 @@ void _mod_admin_who(xht ht, const char *key, void *data, void *arg)
  * @param p the stanza packet containing the request
  * @return always M_HANDLED
  */
-mreturn mod_admin_who(jsmi si, jpacket p)
-{
+mreturn mod_admin_who(jsmi si, jpacket p) {
     xmlnode who;
 
     /* all valid requests will be of type 'get' */
-    if(jpacket_subtype(p) != JPACKET__GET) {
-	js_bounce_xmpp(si,p->x,XTERROR_BAD);
+    if (jpacket_subtype(p) != JPACKET__GET) {
+	js_bounce_xmpp(si, p->x, XTERROR_BAD);
 	return M_HANDLED;
     }
 
     log_debug2(ZONE, LOGT_DELIVER, "handling who GET");
 
     /* walk the users on this host */
-    who = xmlnode_get_tag(p->iq,"who");
+    who = xmlnode_get_list_item(xmlnode_get_tags(p->iq, "admin:who", si->std_namespace_prefixes), 0);
     xhash_walk(xhash_get(si->hosts, p->to->server),_mod_admin_who,(void *)who);
 
     /* sent the result */
     jutil_tofrom(p->x);
-    xmlnode_put_attrib(p->x,"type","result");
+    xmlnode_put_attrib_ns(p->x, "type", NULL, NULL, "result");
     jpacket_reset(p);
     js_deliver(si,p);
     return M_HANDLED;
@@ -217,21 +209,18 @@ mreturn mod_admin_who(jsmi si, jpacket p)
  * @param p the packet containing the request
  * @return always M_HANDLED
  */
-mreturn mod_admin_config(jsmi si, jpacket p)
-{
-    xmlnode config = xmlnode_get_tag(p->iq,"config");
+mreturn mod_admin_config(jsmi si, jpacket p) {
+    xmlnode config = xmlnode_get_list_item(xmlnode_get_tags(p->iq, "admin:config", si->std_namespace_prefixes), 0);
     xmlnode cur;
 
-    if(jpacket_subtype(p) == JPACKET__GET)
-    {
+    if(jpacket_subtype(p) == JPACKET__GET) {
         log_debug2(ZONE, LOGT_DELIVER|LOGT_CONFIG, "handling config GET");
 
         /* insert the loaded config file */
         xmlnode_insert_node(config,xmlnode_get_firstchild(si->config));
     }
 
-    if(jpacket_subtype(p) == JPACKET__SET)
-    {
+    if(jpacket_subtype(p) == JPACKET__SET) {
         log_debug2(ZONE, LOGT_DELIVER|LOGT_CONFIG, "handling config SET");
 
         /* XXX FIX ME, like do init stuff for the new config, etc */
@@ -244,7 +233,7 @@ mreturn mod_admin_config(jsmi si, jpacket p)
     }
 
     jutil_tofrom(p->x);
-    xmlnode_put_attrib(p->x,"type","result");
+    xmlnode_put_attrib_ns(p->x, "type", NULL, NULL, "result");
     jpacket_reset(p);
     js_deliver(si,p);
     return M_HANDLED;
@@ -263,37 +252,38 @@ mreturn mod_admin_config(jsmi si, jpacket p)
  * @param arg not used/ignored
  * @return M_IGNORE if there should be no calls for stanzas of the same type again, M_PASS if we did not process the packet, M_HANDLED if it has been processed
  */
-mreturn mod_admin_dispatch(mapi m, void *arg)
-{
-    if(m->packet->type != JPACKET_IQ) return M_IGNORE;
-    if(jpacket_subtype(m->packet) == JPACKET__ERROR) return M_PASS;
+mreturn mod_admin_dispatch(mapi m, void *arg) {
+    if (m->packet->type != JPACKET_IQ)
+	return M_IGNORE;
+    if (jpacket_subtype(m->packet) == JPACKET__ERROR)
+	return M_PASS;
 
     /* first check the /admin browse feature */
-    if(NSCHECK(m->packet->iq,NS_BROWSE) && j_strcmp(m->packet->to->resource,"admin") == 0)
-    {
-        if(js_admin(m->user,ADMIN_READ))
+    if (NSCHECK(m->packet->iq,NS_BROWSE) && j_strcmp(m->packet->to->resource,"admin") == 0) {
+        if(js_admin(m->user, ADMIN_READ))
             mod_admin_browse(m->si, m->packet);
         else
-            js_bounce_xmpp(m->si,m->packet->x,XTERROR_NOTALLOWED);
+            js_bounce_xmpp(m->si, m->packet->x, XTERROR_NOTALLOWED);
         return M_HANDLED;
     }
 
     /* now normal iq:admin stuff */
-    if(!NSCHECK(m->packet->iq,NS_ADMIN)) return M_PASS;
+    if (!NSCHECK(m->packet->iq,NS_ADMIN))
+	return M_PASS;
 
     log_debug2(ZONE, LOGT_AUTH|LOGT_DELIVER, "checking admin request from %s",jid_full(m->packet->from));
 
-    if(js_admin(m->user,ADMIN_READ))
-    {
-        if(xmlnode_get_tag(m->packet->iq,"who") != NULL) return mod_admin_who(m->si, m->packet);
+    if (js_admin(m->user, ADMIN_READ)) {
+	if (j_strcmp(xmlnode_get_localname(m->packet->iq), "who") == 0)
+	    return mod_admin_who(m->si, m->packet);
     }
 
-    if(js_admin(m->user,ADMIN_WRITE))
-    {
-        if(xmlnode_get_tag(m->packet->iq,"config") != NULL) return mod_admin_config(m->si, m->packet);
+    if (js_admin(m->user, ADMIN_WRITE)) {
+	if (j_strcmp(xmlnode_get_localname(m->packet->iq), "config") == 0)
+	    return mod_admin_config(m->si, m->packet);
     }
 
-    js_bounce_xmpp(m->si,m->packet->x,XTERROR_NOTALLOWED);
+    js_bounce_xmpp(m->si, m->packet->x, XTERROR_NOTALLOWED);
     return M_HANDLED;
 }
 
@@ -311,20 +301,21 @@ mreturn mod_admin_dispatch(mapi m, void *arg)
  * @param arg not used/ignored
  * @return M_IGNORE if not a message stanza (no further delivery of this stanza type), M_PASS if not handled, M_HANDLED else
  */
-mreturn mod_admin_message(mapi m, void *arg)
-{
+mreturn mod_admin_message(mapi m, void *arg) {
     jpacket p;
     xmlnode cur;
-    char *subject, *element_name;
+    char *subject;
+    const char *element_name;
     static char jidlist[1024] = "";
 
     /* check if we are interested in handling this packet */
-    if(m->packet->type != JPACKET_MESSAGE) return M_IGNORE; /* the session manager should not deliver this stanza type again */
-    if(m->packet->to->resource != NULL || js_config(m->si,"admin") == NULL || jpacket_subtype(m->packet) == JPACKET__ERROR) return M_PASS;
+    if (m->packet->type != JPACKET_MESSAGE)
+	return M_IGNORE; /* the session manager should not deliver this stanza type again */
+    if (m->packet->to->resource != NULL || js_config(m->si, "jsm:admin") == NULL || jpacket_subtype(m->packet) == JPACKET__ERROR)
+	return M_PASS;
 
     /* drop ones w/ a delay! (circular safety) */
-    if(xmlnode_get_tag(m->packet->x,"x?xmlns=" NS_DELAY) != NULL)
-    {
+    if (xmlnode_get_list_item(xmlnode_get_tags(m->packet->x,"delay:x", m->si->std_namespace_prefixes), 0) != NULL) {
         xmlnode_free(m->packet->x);
         return M_HANDLED;
     }
@@ -332,27 +323,26 @@ mreturn mod_admin_message(mapi m, void *arg)
     log_debug2(ZONE, LOGT_DELIVER, "delivering admin message from %s",jid_full(m->packet->from));
 
     /* update the message */
-    subject=spools(m->packet->p,"Admin: ",xmlnode_get_tag_data(m->packet->x,"subject")," (",m->packet->to->server,")",m->packet->p);
-    xmlnode_hide(xmlnode_get_tag(m->packet->x,"subject"));
-    xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->x,"subject"),subject,-1);
-    jutil_delay(m->packet->x,"admin");
+    subject=spools(m->packet->p, "Admin: ", xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(m->packet->x, "subject", m->si->std_namespace_prefixes) ,0)), " (", m->packet->to->server, ")", m->packet->p);
+    xmlnode_hide(xmlnode_get_list_item(xmlnode_get_tags(m->packet->x, "subject", m->si->std_namespace_prefixes), 0));
+    xmlnode_insert_cdata(xmlnode_insert_tag_ns(m->packet->x, "subject", NULL, NS_SERVER), subject, -1);
+    jutil_delay(m->packet->x, "admin");
 
     /* forward the message to every configured admin (either read-only- or read-/write-admins) */
-    for(cur = xmlnode_get_firstchild(js_config(m->si,"admin")); cur != NULL; cur = xmlnode_get_nextsibling(cur))
-    {
-	element_name = xmlnode_get_name(cur);
-        if(element_name == NULL || (j_strcmp(element_name, "read")!=0 && j_strcmp(element_name, "write")!=0) || xmlnode_get_data(cur) == NULL) continue;
+    for (cur = xmlnode_get_firstchild(js_config(m->si, "jsm:admin")); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
+	element_name = xmlnode_get_localname(cur);
+        if(element_name == NULL || (j_strcmp(element_name, "read")!=0 && j_strcmp(element_name, "write")!=0) || xmlnode_get_data(cur) == NULL || j_strcmp(xmlnode_get_namespace(cur), NS_JABBERD_CONFIG_JSM) != 0)
+	continue;
 
         p = jpacket_new(xmlnode_dup(m->packet->x));
         p->to = jid_new(p->p,xmlnode_get_data(cur));
-        xmlnode_put_attrib(p->x,"to",jid_full(p->to));
+        xmlnode_put_attrib_ns(p->x, "to", NULL, NULL, jid_full(p->to));
         js_deliver(m->si,p);
     }
 
     /* reply, but only if we haven't in the last few or so jids */
-    if((cur = js_config(m->si,"admin/reply")) != NULL && strstr(jidlist,jid_full(jid_user(m->packet->from))) == NULL)
-    {
-	char *lang = NULL;
+    if ((cur = js_config(m->si,"jsm:admin/reply")) != NULL && strstr(jidlist,jid_full(jid_user(m->packet->from))) == NULL) {
+	const char *lang = NULL;
 
         /* tack the jid onto the front of the list, depreciating old ones off the end */
         char njidlist[1024];
@@ -360,13 +350,13 @@ mreturn mod_admin_message(mapi m, void *arg)
         memcpy(jidlist,njidlist,1024);
 
 	/* hide original subject and body */
-	xmlnode_hide(xmlnode_get_tag(m->packet->x, "subject"));
-	xmlnode_hide(xmlnode_get_tag(m->packet->x, "body"));
+	xmlnode_hide(xmlnode_get_list_item(xmlnode_get_tags(m->packet->x, "subject", m->si->std_namespace_prefixes), 0));
+	xmlnode_hide(xmlnode_get_list_item(xmlnode_get_tags(m->packet->x, "body", m->si->std_namespace_prefixes), 0));
 
 	/* copy the xml:lang attribute to the message */
-	lang = xmlnode_get_attrib(cur, "xml:lang");
+	lang = xmlnode_get_lang(cur);
 	if (lang != NULL) {
-	    xmlnode_put_attrib(m->packet->x, "xml:lang", lang);
+	    xmlnode_put_attrib_ns(m->packet->x, "lang", "xml", NS_XML, lang);
 	}
 
 	/* copy subject and body to the message */
@@ -375,7 +365,7 @@ mreturn mod_admin_message(mapi m, void *arg)
         jutil_tofrom(m->packet->x);
         jpacket_reset(m->packet);
         js_deliver(m->si,m->packet);
-    }else{
+    } else {
         xmlnode_free(m->packet->x);
     }
     return M_HANDLED; /* no other module needs to process this message */
@@ -389,8 +379,7 @@ mreturn mod_admin_message(mapi m, void *arg)
  *
  * @param si the session manager instance
  */
-void mod_admin(jsmi si)
-{
+void mod_admin(jsmi si) {
     js_mapi_register(si,e_SERVER,mod_admin_dispatch,NULL);
     js_mapi_register(si,e_SERVER,mod_admin_message,NULL);
 }
