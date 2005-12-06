@@ -466,12 +466,19 @@
       <postgresql>
         <conninfo>user=jabber password=secret</conninfo>
       </postgresql>
+      <nsprefixes>
+	<namespace>jabber:server</namespace>
+	<namespace prefix='auth'>jabber:iq:auth</namespace>
+	<namespace prefix='last'>jabber:iq:last</namespace>
+	<namespace prefix='register'>jabber:iq:register</namespace>
+	<namespace prefix='roster'>jabber:iq:roster</namespace>
+      </nsprefixes>
       <handler ns="jabber:iq:auth">
          <get>
 	   <query>SELECT password FROM users WHERE jid='{attribute::to}'</query>
 	   <result><password xmlns='jabber:iq:auth'><value xmlns='http://jabberd.org/ns/xdbsql' value='1'/></password></result>
 	 </get>
-	 <set>INSERT INTO users (jid,password) VALUES ('{attribute::to}', '{password/text()}')</set>
+	 <set>INSERT INTO users (jid,password) VALUES ('{attribute::to}', '{auth:password/text()}')</set>
 	 <delete>DELETE FROM users WHERE jid='{attribute::to}'</delete>
       </handler>
       <handler ns="jabber:iq:last">
@@ -479,7 +486,7 @@
 	  <query>SELECT xml FROM last WHERE jid='{attribute::to}'</query>
 	  <result><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
 	</get>
-	<set>INSERT INTO last (jid,xml) VALUES ('{attribute::to}', '{query}')</set>
+	<set>INSERT INTO last (jid,xml) VALUES ('{attribute::to}', '{last:query}')</set>
 	<delete>DELETE FROM last WHERE jid='{attribute::to}'</delete>
       </handler>
       <handler ns="jabber:iq:register">
@@ -487,7 +494,7 @@
           <query>SELECT SUBSTRING(jid, 1, INSTR(jid, '@')-1) as user,mailaddress FROM mailaddresses WHERE jid='{attribute::to}'</query>
           <result><query xmlns='jabber:iq:roster'><name><value xmlns='http://jabberd.org/ns/xdbsql' value='1'/></name><email><value xmlns='http://jabberd.org/ns/xdbsql' value='2'/></email></query></result>
           </get>
-          <set>INSERT INTO mailaddresses (jid, mailaddress, lastmodified) VALUES ('{attribute::to}', IF('{query/email/text()}'='', NULL, '{query/email/text()}'), now())</set>
+          <set>INSERT INTO mailaddresses (jid, mailaddress, lastmodified) VALUES ('{attribute::to}', IF('{register:query/register:email/text()}'='', NULL, '{register:query/register:email/text()}'), now())</set>
           <delete>DELETE FROM mailaddresses WHERE jid='{attribute::to}'</delete>
       </handler>
       <handler ns="jabber:iq:roster">
@@ -495,13 +502,13 @@
           <query>SELECT xml FROM roster WHERE jid='{attribute::to}'</query>
           <result><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
         </get>
-        <set>INSERT INTO roster (jid,xml) VALUES ('{attribute::to}', '{query}')</set>
+        <set>INSERT INTO roster (jid,xml) VALUES ('{attribute::to}', '{roster:query}')</set>
         <delete>DELETE FROM roster WHERE jid='{attribute::to}'</delete>
       </handler>
       <handler ns="jabber:x:offline">
         <get>
           <query>SELECT xml FROM messages WHERE jid='{attribute::to}' AND type='offline' ORDER BY storetime</query>
-          <result group='foo'><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
+          <result group='foo' groupiri='jabber:x:offline'><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
         </get>
         <set>INSERT INTO messages (jid, node, correspondent, type, storetime, subject, body, xml) VALUES ('{attribute::to}', IF('{message/attribute::node}'='', NULL, '{message/attribute::node}'), '{message/attribute::from}', 'offline', now(), IF ('{message/subject}'='', NULL, '{message/subject/text()}'), '{message/body/text()}', '{message}')</set>
         <delete>DELETE FROM messages WHERE jid='{attribute::to}' AND type='offline' AND IF ('{attribute::match}'='', 1=1, node=SUBSTRING('{attribute::match}', 14) AND SUBSTRING('{attribute::match}', 1, 13)='message?node=')</delete>

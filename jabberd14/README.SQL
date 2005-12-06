@@ -48,7 +48,7 @@ CREATE TABLE messages (
     body TEXT NOT NULL,
     xml TEXT NOT NULL);
 
-CREATE UNIQUE INDEX jid ON messages (jid(16));
+CREATE INDEX jid ON messages (jid(16));
 
 CREATE TABLE mailaddresses (
     jid TEXT NOT NULL,

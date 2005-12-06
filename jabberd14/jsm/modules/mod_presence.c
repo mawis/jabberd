@@ -648,7 +648,7 @@ void mod_presence(jsmi si) {
 
         if (xmlnode_get_type(cfg) != NTYPE_TAG)
 	    continue;
-	if (!NSCHECK(cfg, NS_JABBERD_CONFIGFILE))
+	if (!NSCHECK(cfg, NS_JABBERD_CONFIG_JSM))
 	    continue;
 	
 	element_name = xmlnode_get_localname(cfg);
