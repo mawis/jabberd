@@ -63,8 +63,7 @@ xmlnode mod_roster_get(udata u) {
     if (ret == NULL) {
 	/* there isn't one, sucky, create a container node and let xdb manage it */
         log_debug2(ZONE, LOGT_ROSTER, "creating");
-        ret = xmlnode_new_tag("query");
-        xmlnode_put_attrib(ret, "xmlns", NS_ROSTER);
+        ret = xmlnode_new_tag_ns("query", NULL, NS_ROSTER);
     }
 
     return ret;
@@ -88,9 +87,9 @@ xmlnode mod_roster_get_item(xmlnode roster, jid id, int *newflag) {
     if (ret == NULL) {
 	/* there isn't one, brew one up */
         log_debug2(ZONE, LOGT_ROSTER, "creating");
-        ret = xmlnode_insert_tag(roster, "item");
-        xmlnode_put_attrib(ret, "jid", jid_full(id));
-        xmlnode_put_attrib(ret, "subscription", "none");
+        ret = xmlnode_insert_tag_ns(roster, "item", NULL, NS_ROSTER);
+        xmlnode_put_attrib_ns(ret, "jid", NULL, NULL, jid_full(id));
+        xmlnode_put_attrib_ns(ret, "subscription", NULL, NULL, "none");
         *newflag = 1;
     }
 
@@ -107,17 +106,17 @@ void mod_roster_push(udata user, xmlnode item) {
     session cur;
     xmlnode packet, query;
 
-    log_debug2(ZONE, LOGT_ROSTER, "pushing %s", xmlnode2str(item));
+    log_debug2(ZONE, LOGT_ROSTER, "pushing %s", xmlnode_serialize_string(item, NULL, NULL, 0));
 
-    if (xmlnode_get_attrib(item, "hidden") != NULL) return;
+    if (xmlnode_get_attrib_ns(item, "hidden", NULL) != NULL)
+	return;
 
     /* create a jpacket roster item push */
-    packet = xmlnode_new_tag("iq");
-    xmlnode_put_attrib(packet, "type", "set");
-    query = xmlnode_insert_tag(packet, "query");
-    xmlnode_put_attrib(query, "xmlns", NS_ROSTER);
+    packet = xmlnode_new_tag_ns("iq", NULL, NS_SERVER);
+    xmlnode_put_attrib_ns(packet, "type", NULL, NULL, "set");
+    query = xmlnode_insert_tag_ns(packet, "query", NULL, NS_ROSTER);
     xmlnode_insert_tag_node(query, item);
-    xmlnode_hide_attrib(xmlnode_get_firstchild(query), "subscribe"); /* hide the server tirds */
+    xmlnode_hide_attrib_ns(xmlnode_get_firstchild(query), "subscribe", NULL); /* hide the server tirds */
 
     /* send a copy to all session that have a roster */
     for(cur = user->sessions; cur != NULL; cur = cur->next)
@@ -135,7 +134,7 @@ void mod_roster_push(udata user, xmlnode item) {
  * @param item the roster item in which the subscription state should be changed
  */
 void mod_roster_set_s10n(int from, int to, xmlnode item) {
-    xmlnode_put_attrib(item, "subscription", from ? (to ? "both" : "from") : (to ? "to" : "none"));
+    xmlnode_put_attrib_ns(item, "subscription", NULL, NULL, from ? (to ? "both" : "from") : (to ? "to" : "none"));
 }
 
 /**
@@ -145,20 +144,19 @@ void mod_roster_set_s10n(int from, int to, xmlnode item) {
  * @param to to which contact the presence should be sent
  * @param uflag 1 for forcing offline presence, 0 else
  */
-void mod_roster_pforce(udata u, jid to, int uflag)
-{
+void mod_roster_pforce(udata u, jid to, int uflag) {
     session s;
     xmlnode x;
 
     log_debug2(ZONE, LOGT_ROSTER, "brute forcing presence updates");
 
     /* loop through all the sessions */
-    for(s = u->sessions; s != NULL; s = s->next) {
+    for (s = u->sessions; s != NULL; s = s->next) {
         if (uflag)
             x = jutil_presnew(JPACKET__UNAVAILABLE,NULL,NULL);
         else
             x = xmlnode_dup(s->presence);
-        xmlnode_put_attrib(x,"to",jid_full(to));
+        xmlnode_put_attrib_ns(x, "to", NULL, NULL, jid_full(to));
         js_session_from(s,jpacket_new(x));
     }
 }
@@ -189,21 +187,21 @@ mreturn mod_roster_out_s10n(mapi m) {
     item = mod_roster_get_item(roster, m->packet->to, &newflag);
 
     /* vars containing the old subscription state */
-    if (j_strcmp(xmlnode_get_attrib(item, "subscription"),"to") == 0)
+    if (j_strcmp(xmlnode_get_attrib_ns(item, "subscription", NULL), "to") == 0)
         to = 1;
-    if (j_strcmp(xmlnode_get_attrib(item, "subscription"),"from") == 0)
+    if (j_strcmp(xmlnode_get_attrib_ns(item, "subscription", NULL), "from") == 0)
         from = 1;
-    if (j_strcmp(xmlnode_get_attrib(item, "subscription"),"both") == 0)
+    if (j_strcmp(xmlnode_get_attrib_ns(item, "subscription", NULL), "both") == 0)
         to = from = 1;
-    if (j_strcmp(xmlnode_get_attrib(item, "ask"), "subscribe") == 0)
+    if (j_strcmp(xmlnode_get_attrib_ns(item, "ask", NULL), "subscribe") == 0)
 	p_out = 1;
-    if (xmlnode_get_attrib(item, "subscribe") != NULL)
+    if (xmlnode_get_attrib_ns(item, "subscribe", NULL) != NULL)
 	p_in = 1;
 
     /* ask='unsubscribe' can be in xdb from old data written by jabberd up to version 1.4.3 */
-    if (j_strcmp(xmlnode_get_attrib(item, "ask"), "unsubscribe") == 0) {
+    if (j_strcmp(xmlnode_get_attrib_ns(item, "ask", NULL), "unsubscribe") == 0) {
 	to = 0;
-	xmlnode_put_attrib(item, "subscription", from ? "from" : "none");
+	xmlnode_put_attrib_ns(item, "subscription", NULL, NULL, from ? "from" : "none");
     }
 
     /* if the packet is flagged with PACKET_FORCE_SENT_MAGIC we have to sent
@@ -218,7 +216,7 @@ mreturn mod_roster_out_s10n(mapi m) {
 	    /* is the user already subscribed to this contact? */
 	    if (!to) {
 		/* no */
-		xmlnode_put_attrib(item,"ask","subscribe");
+		xmlnode_put_attrib_ns(item, "ask", NULL, NULL, "subscribe");
 		mod_roster_push(m->user, item);
 	    }
 	    /* always route the packet, the user might have rerequested auth
@@ -231,8 +229,8 @@ mreturn mod_roster_out_s10n(mapi m) {
 		route = 1;
 		mod_roster_set_s10n(1, to, item); /* update subscription */
 		jid_append(js_trustees(m->user), m->packet->to); /* make them trusted now */
-		xmlnode_hide_attrib(item, "subscribe"); /* reset "Pending In" */
-		xmlnode_hide_attrib(item, "hidden"); /* make it visible on the user's roster */
+		xmlnode_hide_attrib_ns(item, "subscribe", NULL); /* reset "Pending In" */
+		xmlnode_hide_attrib_ns(item, "hidden", NULL); /* make it visible on the user's roster */
 		mod_roster_pforce(m->user, m->packet->to, 0); /* they are now subscribed to us, send them our presence */
 		mod_roster_push(m->user, item); /* new roster to the user's other sessions */
 	    } else {
@@ -248,7 +246,7 @@ mreturn mod_roster_out_s10n(mapi m) {
 		 * configirmation from the contact's server
 		 */
 		mod_roster_set_s10n(from, 0, item);
-		xmlnode_hide_attrib(item, "ask"); /* reset Pending Out */
+		xmlnode_hide_attrib_ns(item, "ask", NULL); /* reset Pending Out */
 		mod_roster_push(m->user, item);
 	    } else if (newflag) {
 		/* the contact was not on the roster and should not become a roster item */
@@ -268,7 +266,7 @@ mreturn mod_roster_out_s10n(mapi m) {
 		route = 1;
 
 		if (p_in) {
-		    xmlnode_hide_attrib(item, "subscribe"); /* reset "Pending In" */
+		    xmlnode_hide_attrib_ns(item, "subscribe", NULL); /* reset "Pending In" */
 		}
 		if (from) {
 		    mod_roster_set_s10n(0, to, item); /* update subscription */
@@ -279,7 +277,7 @@ mreturn mod_roster_out_s10n(mapi m) {
 		}
 	    }
 
-	    if ((!route || !from && !p_in && force_sent) && newflag || xmlnode_get_attrib(item, "hidden")) {
+	    if ((!route || !from && !p_in && force_sent) && newflag || xmlnode_get_attrib_ns(item, "hidden", NULL)) {
 		/* the contact was not on the roster and should not become a roster item */
 		xmlnode_hide(item);
 	    }
@@ -291,7 +289,7 @@ mreturn mod_roster_out_s10n(mapi m) {
     xdb_set(m->si->xc, m->user->id, NS_ROSTER, roster);
 
     /* make sure it's sent from the *user*, not the resource */
-    xmlnode_put_attrib(m->packet->x,"from",jid_full(jid_user(m->s->id)));
+    xmlnode_put_attrib_ns(m->packet->x, "from", NULL, NULL, jid_full(jid_user(m->s->id)));
     jpacket_reset(m->packet);
 
     /* we don't need the roster anymore */
@@ -319,7 +317,7 @@ mreturn mod_roster_out_iq(mapi m) {
     switch(jpacket_subtype(m->packet)) {
 	case JPACKET__GET:
 	    log_debug2(ZONE, LOGT_ROSTER, "handling get request");
-	    xmlnode_put_attrib(m->packet->x,"type","result");
+	    xmlnode_put_attrib_ns(m->packet->x, "type", NULL, NULL, "result");
 	    m->s->roster = 1;
 
 	    /* insert the roster into the result */
@@ -329,9 +327,9 @@ mreturn mod_roster_out_iq(mapi m) {
 
 	    /* filter out pending subscribes */
 	    for(cur = xmlnode_get_firstchild(m->packet->iq); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
-		if (xmlnode_get_attrib(cur,"subscribe") != NULL)
-		    xmlnode_hide_attrib(cur,"subscribe");
-		if (xmlnode_get_attrib(cur,"hidden") != NULL)
+		if (xmlnode_get_attrib_ns(cur,"subscribe", NULL) != NULL)
+		    xmlnode_hide_attrib_ns(cur,"subscribe", NULL);
+		if (xmlnode_get_attrib_ns(cur, "hidden", NULL) != NULL)
 		    xmlnode_hide(cur);
 	    }
 
@@ -339,43 +337,51 @@ mreturn mod_roster_out_iq(mapi m) {
 	    js_session_to(m->s,m->packet);
 
 	    /* redeliver those subscribes */
-	    for(cur = xmlnode_get_firstchild(roster); cur != NULL; cur = xmlnode_get_nextsibling(cur))
-		if (xmlnode_get_attrib(cur,"subscribe") != NULL) {
-		    pres = xmlnode_new_tag("presence");
-		    xmlnode_put_attrib(pres,"type","subscribe");
-		    xmlnode_put_attrib(pres,"from",xmlnode_get_attrib(cur,"jid"));
-		    if (strlen(xmlnode_get_attrib(cur,"subscribe")) > 0)
-			xmlnode_insert_cdata(xmlnode_insert_tag(pres,"status"),xmlnode_get_attrib(cur,"subscribe"),-1);
+	    for (cur = xmlnode_get_firstchild(roster); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
+		if (xmlnode_get_type(cur) != NTYPE_TAG)
+		    continue;
+
+		if (xmlnode_get_attrib_ns(cur,"subscribe", NULL) != NULL) {
+		    pres = xmlnode_new_tag_ns("presence", NULL, NS_SERVER);
+		    xmlnode_put_attrib_ns(pres, "type", NULL, NULL, "subscribe");
+		    xmlnode_put_attrib_ns(pres, "from", NULL, NULL, xmlnode_get_attrib_ns(cur, "jid", NULL));
+		    if (j_strlen(xmlnode_get_attrib_ns(cur, "subscribe", NULL)) > 0)
+			xmlnode_insert_cdata(xmlnode_insert_tag_ns(pres, "status", NULL, NS_SERVER), xmlnode_get_attrib_ns(cur, "subscribe", NULL),-1);
 		    js_session_to(m->s,jpacket_new(pres));
 		}
+	    }
 	    break;
 	case JPACKET__SET:
 	    log_debug2(ZONE, LOGT_ROSTER, "handling set request");
 
 	    /* loop through the incoming items updating or creating */
 	    for(cur = xmlnode_get_firstchild(m->packet->iq); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
-		if (xmlnode_get_type(cur) != NTYPE_TAG || xmlnode_get_attrib(cur,"jid") == NULL)
+		if (xmlnode_get_type(cur) != NTYPE_TAG || xmlnode_get_attrib_ns(cur, "jid", NULL) == NULL)
 		    continue;
 
-		id = jid_new(m->packet->p,xmlnode_get_attrib(cur,"jid"));
-		if (id == NULL || jid_cmpx(jid_user(m->s->id),id,JID_USER|JID_SERVER) == 0) continue;
+		id = jid_new(m->packet->p, xmlnode_get_attrib_ns(cur, "jid", NULL));
+		if (id == NULL || jid_cmpx(jid_user(m->s->id), id, JID_USER|JID_SERVER) == 0)
+		    continue;
 
 		/* zoom to find the existing item in the current roster, and hide it */
 		item = mod_roster_get_item(roster, id, &newflag);
 		xmlnode_hide(item);
 
 		/* drop you sukkah */
-		if (j_strcmp(xmlnode_get_attrib(cur,"subscription"),"remove") == 0) {
+		if (j_strcmp(xmlnode_get_attrib_ns(cur, "subscription", NULL),"remove") == 0) {
 		    /* cancel our subscription to them */
-		    if (j_strcmp(xmlnode_get_attrib(item,"subscription"),"both") == 0 || j_strcmp(xmlnode_get_attrib(item,"subscription"),"to") == 0 || j_strcmp(xmlnode_get_attrib(item,"ask"),"subscribe") == 0) {
-			jpacket jp = jpacket_new(jutil_presnew(JPACKET__UNSUBSCRIBE,xmlnode_get_attrib(cur,"jid"),NULL));
+		    if (j_strcmp(xmlnode_get_attrib_ns(item, "subscription", NULL),"both") == 0
+			    || j_strcmp(xmlnode_get_attrib_ns(item, "subscription", NULL),"to") == 0
+			    || j_strcmp(xmlnode_get_attrib_ns(item, "ask", NULL),"subscribe") == 0) {
+			jpacket jp = jpacket_new(jutil_presnew(JPACKET__UNSUBSCRIBE,xmlnode_get_attrib_ns(cur, "jid", NULL), NULL));
 			jp->flag = PACKET_FORCE_SENT_MAGIC; /* force to sent it, as we already remove the subscription state */
 			js_session_from(m->s, jp);
 		    }
 
 		    /* tell them their subscription to us is toast */
-		    if (j_strcmp(xmlnode_get_attrib(item,"subscription"),"both") == 0 || j_strcmp(xmlnode_get_attrib(item,"subscription"),"from") == 0) {
-			jpacket jp = jpacket_new(jutil_presnew(JPACKET__UNSUBSCRIBED,xmlnode_get_attrib(cur,"jid"),NULL));
+		    if (j_strcmp(xmlnode_get_attrib_ns(item, "subscription", NULL),"both") == 0
+			    || j_strcmp(xmlnode_get_attrib_ns(item, "subscription", NULL),"from") == 0) {
+			jpacket jp = jpacket_new(jutil_presnew(JPACKET__UNSUBSCRIBED,xmlnode_get_attrib_ns(cur, "jid", NULL), NULL));
 			jp->flag = PACKET_FORCE_SENT_MAGIC; /* force to sent it, as we already remove the subscription state */
 			js_session_from(m->s, jp);
 		    }
@@ -386,9 +392,9 @@ mreturn mod_roster_out_iq(mapi m) {
 		}
 
 		/* copy the old stuff into the new one and insert it into the roster */
-		xmlnode_put_attrib(cur,"subscription",xmlnode_get_attrib(item,"subscription"));
-		xmlnode_put_attrib(cur,"ask",xmlnode_get_attrib(item,"ask")); /* prolly not here, but just in case */
-		xmlnode_put_attrib(cur,"subscribe", xmlnode_get_attrib(item, "subscribe"));
+		xmlnode_put_attrib_ns(cur, "subscription", NULL, NULL, xmlnode_get_attrib_ns(item, "subscription", NULL));
+		xmlnode_put_attrib_ns(cur, "ask", NULL, NULL, xmlnode_get_attrib_ns(item, "ask", NULL)); /* prolly not here, but just in case */
+		xmlnode_put_attrib_ns(cur, "subscribe", NULL, NULL, xmlnode_get_attrib_ns(item, "subscribe", NULL));
 		xmlnode_insert_tag_node(roster,cur);
 
 		/* push the new item */
@@ -401,7 +407,7 @@ mreturn mod_roster_out_iq(mapi m) {
 	    js_session_to(m->s,m->packet);
 
 	    /* save the changes */
-	    log_debug2(ZONE, LOGT_ROSTER, "SROSTER: %s",xmlnode2str(roster));
+	    log_debug2(ZONE, LOGT_ROSTER, "SROSTER: %s",xmlnode_serialize_string(roster, NULL, NULL, 0));
 	    /* XXX what do we do if the set fails?  hrmf... */
 	    xdb_set(m->si->xc, m->user->id, NS_ROSTER, roster);
 
@@ -422,10 +428,11 @@ mreturn mod_roster_out_iq(mapi m) {
  * @param arg not used/ignored
  * @return M_IGNORE if the packet is not an iq or subscription packet, else M_PASS if packet not handled or M_HANDLED if packet handled
  */
-mreturn mod_roster_out(mapi m, void *arg)
-{
-    if (m->packet->type == JPACKET_IQ) return mod_roster_out_iq(m);
-    if (m->packet->type == JPACKET_S10N) return mod_roster_out_s10n(m);
+mreturn mod_roster_out(mapi m, void *arg) {
+    if (m->packet->type == JPACKET_IQ)
+	return mod_roster_out_iq(m);
+    if (m->packet->type == JPACKET_S10N)
+	return mod_roster_out_s10n(m);
 
     return M_IGNORE;
 }
@@ -437,8 +444,7 @@ mreturn mod_roster_out(mapi m, void *arg)
  * @param arg unused/ignored
  * @return always M_PASS
  */
-mreturn mod_roster_session(mapi m, void *arg)
-{
+mreturn mod_roster_session(mapi m, void *arg) {
     js_mapi_session(es_OUT,m->s,mod_roster_out,NULL);
     return M_PASS;
 }
@@ -473,24 +479,24 @@ mreturn mod_roster_s10n(mapi m, void *arg) {
     reply2 = reply = NULL;
     jid_set(m->packet->to, NULL, JID_RESOURCE); /* make sure we're only dealing w/ the user id */
 
-    log_debug2(ZONE, LOGT_ROSTER, "s10n %s request from %s with existing item %s", xmlnode_get_attrib(m->packet->x, "type"), jid_full(m->packet->from), xmlnode2str(item));
+    log_debug2(ZONE, LOGT_ROSTER, "s10n %s request from %s with existing item %s", xmlnode_get_attrib_ns(m->packet->x, "type", NULL), jid_full(m->packet->from), xmlnode_serialize_string(item, NULL, NULL, 0));
 
     /* vars containing the old state of the subscritpion */
-    if (j_strcmp(xmlnode_get_attrib(item,"subscription"),"to") == 0)
+    if (j_strcmp(xmlnode_get_attrib_ns(item, "subscription", NULL), "to") == 0)
         to = 1;
-    if (j_strcmp(xmlnode_get_attrib(item,"subscription"),"from") == 0)
+    if (j_strcmp(xmlnode_get_attrib_ns(item, "subscription", NULL), "from") == 0)
         from = 1;
-    if (j_strcmp(xmlnode_get_attrib(item,"subscription"),"both") == 0)
+    if (j_strcmp(xmlnode_get_attrib_ns(item, "subscription", NULL), "both") == 0)
         to = from = 1;
-    if (j_strcmp(xmlnode_get_attrib(item, "ask"), "subscribe") == 0)
+    if (j_strcmp(xmlnode_get_attrib_ns(item, "ask", NULL), "subscribe") == 0)
 	p_out = 1;
-    if (xmlnode_get_attrib(item, "subscribe") != NULL)
+    if (xmlnode_get_attrib_ns(item, "subscribe", NULL) != NULL)
 	p_in = 1;
 
     /* ask='unsubscribe' can be in xdb from old data written by jabberd up to version 1.4.3 */
-    if (j_strcmp(xmlnode_get_attrib(item, "ask"), "unsubscribe") == 0) {
+    if (j_strcmp(xmlnode_get_attrib_ns(item, "ask", NULL), "unsubscribe") == 0) {
 	to = 0;
-	xmlnode_put_attrib(item, "subscription", from ? "from" : "none");
+	xmlnode_put_attrib_ns(item, "subscription", NULL, NULL, from ? "from" : "none");
     }
 
     switch(jpacket_subtype(m->packet)) {
@@ -499,12 +505,12 @@ mreturn mod_roster_s10n(mapi m, void *arg) {
 		/* already subscribed, respond automatically */
 		reply = jutil_presnew(JPACKET__SUBSCRIBED, jid_full(m->packet->from), "Already Subscribed");
 		jid_set(m->packet->to, NULL, JID_RESOURCE);
-		xmlnode_put_attrib(reply, "from", jid_full(m->packet->to));
+		xmlnode_put_attrib_ns(reply, "from", NULL, NULL, jid_full(m->packet->to));
 		drop = 1;
 
 		/* the other person obviously is re-adding them to their roster, and should be told of the current presence */
 		reply2 = jutil_presnew(JPACKET__PROBE,jid_full(m->packet->to),NULL);
-		xmlnode_put_attrib(reply2,"from",jid_full(m->packet->from));
+		xmlnode_put_attrib_ns(reply2, "from", NULL, NULL, jid_full(m->packet->from));
 	    } else if (p_in) {
 		/* we already know that this contact asked for subscription */
 		drop = 1;
@@ -512,13 +518,13 @@ mreturn mod_roster_s10n(mapi m, void *arg) {
 	    } else {
 		/* tuck request in the roster */
 		drop = 0;
-		status = xmlnode_get_tag_data(m->packet->x,"status");
+		status = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(m->packet->x, "status", m->si->std_namespace_prefixes), 0));
 		if (status == NULL)
-		    xmlnode_put_attrib(item,"subscribe","");
+		    xmlnode_put_attrib_ns(item, "subscribe", NULL, NULL, "");
 		else
-		    xmlnode_put_attrib(item,"subscribe",status);
+		    xmlnode_put_attrib_ns(item, "subscribe", NULL, NULL, status);
 		if (newflag) /* SPECIAL CASE: special flag so that we can hide these incoming subscribe requests */
-		    xmlnode_put_attrib(item,"hidden","");
+		    xmlnode_put_attrib_ns(item, "hidden", NULL, NULL, "");
 	    }
 	    break;
 	case JPACKET__SUBSCRIBED:
@@ -527,7 +533,7 @@ mreturn mod_roster_s10n(mapi m, void *arg) {
 		drop = 1;
 	    } else {
 		/* cancel any ask, s10n=to */
-		xmlnode_hide_attrib(item,"ask");
+		xmlnode_hide_attrib_ns(item, "ask", NULL);
 		mod_roster_set_s10n(from, 1, item);
 		push = 1;
 	    }
@@ -537,12 +543,12 @@ mreturn mod_roster_s10n(mapi m, void *arg) {
 		/* respond automatically */
 		reply = jutil_presnew(JPACKET__UNSUBSCRIBED,jid_full(m->packet->from),"Autoreply");
 		jid_set(m->packet->to,NULL,JID_RESOURCE);
-		xmlnode_put_attrib(reply,"from",jid_full(m->packet->to));
+		xmlnode_put_attrib_ns(reply, "from", NULL, NULL, jid_full(m->packet->to));
 
 		/* update state */
-		xmlnode_hide_attrib(item,"subscribe");
+		xmlnode_hide_attrib_ns(item, "subscribe", NULL);
 		mod_roster_set_s10n(0, to, item);
-		if (xmlnode_get_attrib(item,"hidden") != NULL)
+		if (xmlnode_get_attrib_ns(item, "hidden", NULL) != NULL)
 		    xmlnode_hide(item);
 		else
 		    push = 1;
@@ -555,7 +561,7 @@ mreturn mod_roster_s10n(mapi m, void *arg) {
 	case JPACKET__UNSUBSCRIBED:
 	    if (to || p_out) {
 		/* cancel any ask, remove s10n=to */
-		xmlnode_hide_attrib(item,"ask");
+		xmlnode_hide_attrib_ns(item, "ask", NULL);
 		mod_roster_set_s10n(from, 0, item);
 		push = 1;
 	    } else {
@@ -610,8 +616,8 @@ mreturn mod_roster_delete(mapi m, void *arg) {
 	char *subscription;
 	jpacket jp = NULL;
 
-	peer = jid_new(p, xmlnode_get_attrib(cur, "jid"));
-	subscription = xmlnode_get_attrib(cur, "subscription");
+	peer = jid_new(p, xmlnode_get_attrib_ns(cur, "jid", NULL));
+	subscription = xmlnode_get_attrib_ns(cur, "subscription", NULL);
 
 	log_debug2(ZONE, LOGT_ROSTER, "removing subscription %s (%s)", subscription, jid_full(peer));
 
@@ -627,22 +633,22 @@ mreturn mod_roster_delete(mapi m, void *arg) {
 	    unsubscribe = unsubscribed = 1;
 
 	/* unsubscribe for requested subscriptions */
-	if (xmlnode_get_attrib(cur, "ask"))
+	if (xmlnode_get_attrib_ns(cur, "ask", NULL))
 	    unsubscribe = 1;
-	if (xmlnode_get_attrib(cur, "subscribe"))
+	if (xmlnode_get_attrib_ns(cur, "subscribe", NULL))
 	    unsubscribed = 1;
 
 	/* send the unsubscribe/unsubscribed requests */
 	if (unsubscribe) {
 	    xmlnode pp = jutil_presnew(JPACKET__UNSUBSCRIBE, jid_full(peer), NULL);
-	    xmlnode_put_attrib(pp, "from", jid_full(m->user->id));
+	    xmlnode_put_attrib_ns(pp, "from", NULL, NULL, jid_full(m->user->id));
 	    jp = jpacket_new(pp);
 	    jp->flag = PACKET_FORCE_SENT_MAGIC; /* we are removing the roster, sent anyway */
 	    js_deliver(m->si, jp);
 	}
 	if (unsubscribed) {
 	    xmlnode pp = jutil_presnew(JPACKET__UNSUBSCRIBED, jid_full(peer), NULL);
-	    xmlnode_put_attrib(pp, "from", jid_full(m->user->id));
+	    xmlnode_put_attrib_ns(pp, "from", NULL, NULL, jid_full(m->user->id));
 	    jp = jpacket_new(pp);
 	    jp->flag = PACKET_FORCE_SENT_MAGIC; /* we are removing the roster, sent anyway */
 	    js_deliver(m->si, jp);

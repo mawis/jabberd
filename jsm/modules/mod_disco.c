@@ -65,32 +65,31 @@
  * @param arg unused/ignored
  * @return M_PASS if the packet has not been processed, M_HANDLED if the packet has been handled
  */
-mreturn mod_disco_server_info(mapi m, void *arg)
-{
+mreturn mod_disco_server_info(mapi m, void *arg) {
     xmlnode query, identity, disco;
 
-    if((xmlnode_get_attrib(m->packet->x,"node")) != NULL) return M_PASS;
+    if ((xmlnode_get_attrib_ns(m->packet->x, "node", NULL)) != NULL)
+	return M_PASS;
         
     log_debug2(ZONE, LOGT_DELIVER, "handling disco#info query");
 
     /* config get */
-    disco = js_config(m->si,"disco");
+    disco = js_config(m->si,"disco-info:disco");
 
     /* build the result IQ */		
-    query = xmlnode_insert_tag(jutil_iqresult(m->packet->x),"query");
-    xmlnode_put_attrib(query,"xmlns",NS_DISCO_INFO);
+    query = xmlnode_insert_tag_ns(jutil_iqresult(m->packet->x), "query", NULL, NS_DISCO_INFO);
 
     /* if config */
     identity = NULL;
     if (disco != NULL) 
-	  identity = xmlnode_get_tag(disco,"identity");
+	  identity = xmlnode_get_list_item(xmlnode_get_tags(disco, "disco-info:identity", m->si->std_namespace_prefixes), 0);
     
     /* if bad config, put identity */
     if (disco == NULL || identity == NULL){
-	  identity = xmlnode_insert_tag(query,"identity");
-	  xmlnode_put_attrib(identity,"category","services");
-	  xmlnode_put_attrib(identity,"type","jabber");
-	  xmlnode_put_attrib(identity,"name", xmlnode_get_data(js_config(m->si,"vCard/FN"))); 
+	  identity = xmlnode_insert_tag_ns(query, "identity", NULL, NS_DISCO_INFO);
+	  xmlnode_put_attrib_ns(identity, "category", NULL, NULL, "services");
+	  xmlnode_put_attrib_ns(identity, "type", NULL, NULL, "jabber");
+	  xmlnode_put_attrib_ns(identity, "name", NULL, NULL, xmlnode_get_data(js_config(m->si,"vcard:vCard/vcard:FN"))); 
     }
     
     /* put disco info if exist */
@@ -114,36 +113,35 @@ mreturn mod_disco_server_info(mapi m, void *arg)
  * @param arg unused/ignored
  * @return M_PASS if the packet has not been processed, M_HANDLED if the packet has been handled
  */
-mreturn mod_disco_server_items(mapi m, void *arg)
-{
+mreturn mod_disco_server_items(mapi m, void *arg) {
   xmlnode browse, query, cur;
   
-  if((xmlnode_get_attrib(m->packet->x,"node")) != NULL) return M_PASS;
+  if ((xmlnode_get_attrib_ns(m->packet->x, "node", NULL)) != NULL)
+      return M_PASS;
 
   /* config get */        
-  if((browse = js_config(m->si,"browse")) == NULL)
+  if ((browse = js_config(m->si,"browse:browse")) == NULL)
 	return M_PASS;
   
   log_debug2(ZONE, LOGT_DELIVER, "handling disco#items query");
 
   /* build the result IQ */
-  query = xmlnode_insert_tag(jutil_iqresult(m->packet->x),"query");
-  xmlnode_put_attrib(query,"xmlns",NS_DISCO_ITEMS);
+  query = xmlnode_insert_tag_ns(jutil_iqresult(m->packet->x), "query", NULL, NS_DISCO_ITEMS);
 
   /* copy in the configured services */
-  for(cur = xmlnode_get_firstchild(browse);
-	  cur != NULL;
-	  cur = xmlnode_get_nextsibling(cur)){
+  for (cur = xmlnode_get_firstchild(browse); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
 	xmlnode item;
 	const char *jid,*name;
 
-	jid = xmlnode_get_attrib(cur,"jid");
-	if (!jid) continue;
+	jid = xmlnode_get_attrib_ns(cur, "jid", NULL);
+	if (!jid)
+	    continue;
 
-	item = xmlnode_insert_tag(query,"item");
-	xmlnode_put_attrib(item,"jid",jid);
-	name = xmlnode_get_attrib(cur,"name");
-	if (name) xmlnode_put_attrib(item,"name",name);
+	item = xmlnode_insert_tag_ns(query, "item", NULL, NS_DISCO_ITEMS);
+	xmlnode_put_attrib_ns(item, "jid", NULL, NULL, jid);
+	name = xmlnode_get_attrib_ns(cur, "name", NULL);
+	if (name)
+	    xmlnode_put_attrib_ns(item, "name", NULL, NULL, name);
   }
 
   jpacket_reset(m->packet);
@@ -164,13 +162,17 @@ mreturn mod_disco_server_items(mapi m, void *arg)
  * @param arg unused/ignored (but passed to mod_disco_server_items and mod_disco_server_info)
  * @return M_IGNORE if it is no iq stanza, M_PASS if the packet has not been processed, M_HANDLED if the packet has been processed
  */
-mreturn mod_disco_server(mapi m, void *arg)
-{
-    if (m->packet->type != JPACKET_IQ) return M_IGNORE;
-    if (jpacket_subtype(m->packet) != JPACKET__GET) return M_PASS;
-	if (m->packet->to->resource != NULL) return M_PASS;
-    if (NSCHECK(m->packet->iq,NS_DISCO_ITEMS)) return mod_disco_server_items(m,arg);
-    if (NSCHECK(m->packet->iq,NS_DISCO_INFO)) return mod_disco_server_info(m,arg);
+mreturn mod_disco_server(mapi m, void *arg) {
+    if (m->packet->type != JPACKET_IQ)
+	return M_IGNORE;
+    if (jpacket_subtype(m->packet) != JPACKET__GET)
+	return M_PASS;
+    if (m->packet->to->resource != NULL)
+	return M_PASS;
+    if (NSCHECK(m->packet->iq, NS_DISCO_ITEMS))
+	return mod_disco_server_items(m,arg);
+    if (NSCHECK(m->packet->iq, NS_DISCO_INFO))
+	return mod_disco_server_info(m,arg);
     return M_PASS;
 }
 
@@ -181,8 +183,6 @@ mreturn mod_disco_server(mapi m, void *arg)
  *
  * @param si the session manager instance
  */
-void mod_disco(jsmi si)
-{
-    js_mapi_register(si,e_SERVER,mod_disco_server,NULL);
+void mod_disco(jsmi si) {
+    js_mapi_register(si, e_SERVER, mod_disco_server, NULL);
 }
-

@@ -53,16 +53,15 @@
  *
  * @param arg jpq structure containing the session manager instance data and the packet
  */
-void js_server_main(void *arg)
-{
+void js_server_main(void *arg) {
     int incremented=0;
     jpq q = (jpq)arg;
     udata u = NULL;
 
-    log_debug2(ZONE, LOGT_DELIVER, "THREAD:SERVER received a packet: %s",xmlnode2str(q->p->x));
+    log_debug2(ZONE, LOGT_DELIVER, "THREAD:SERVER received a packet: %s", xmlnode_serialize_string(q->p->x, NULL, NULL, 0));
 
     /* get the user struct for convience if the sender was local */
-    if(js_islocal(q->si, q->p->from))
+    if (js_islocal(q->si, q->p->from))
         u = js_user(q->si, q->p->from, NULL);
 
     /* don't free the udata while the mapi call is processed */
