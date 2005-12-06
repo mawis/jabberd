@@ -475,7 +475,7 @@ static void _xmlnode_append_if_predicate(xmlnode_list_item *result_first, xmlnod
     /* sanity checks */
     if (result_first == NULL || result_last == NULL || node == NULL || namespaces == NULL)
 	return;
-    
+
     /* check the predicate */
     if (predicate != NULL) {
 	char *attrib_ns_iri = NULL;
@@ -921,7 +921,7 @@ xmlnode xmlnode_get_tag(xmlnode parent, const char* name) {
  * @param xht hashtable mapping namespace prefixes to namespace IRIs
  * @return first item in the list of xmlnodes, or NULL if no xmlnode matched the path
  */
-xmlnode_list_item xmlnode_get_tags(xmlnode parent, const char *path, xht namespaces) {
+xmlnode_list_item xmlnode_get_tags(xmlnode context_node, const char *path, xht namespaces) {
     char *this_step = NULL;
     const char *ns_iri = NULL;
     char *next_step = NULL;
@@ -929,21 +929,33 @@ xmlnode_list_item xmlnode_get_tags(xmlnode parent, const char *path, xht namespa
     char *end_predicate = NULL;
     char *predicate = NULL;
     char *end_prefix = NULL;
+    int axis = 0;	/* 0 = child, 1 = parent, 2 = attribute */
     xmlnode_list_item result_first = NULL;
     xmlnode_list_item result_last = NULL;
     xmlnode iter = NULL;
 
     /* sanity check */
-    if (parent == NULL || path == NULL || namespaces == NULL)
+    if (context_node == NULL || path == NULL || namespaces == NULL)
 	return NULL;
+
+    /* check if there is an axis */
+    if (j_strncmp(path, "child::", 7) == 0) {
+	path = path+7;
+    } else if (j_strncmp(path, "parent::", 8) == 0) {
+	axis = 1;
+	path = path+8;
+    } else if (j_strncmp(path, "attribute::", 11) == 0) {
+	axis = 2;
+	path = path+11;
+    }
 
     /* separate this step from the next one, and check for a predicate in this step */
     start_predicate = strchr(path, '[');
     next_step = strchr(path, '/');
     if (start_predicate == NULL && next_step == NULL) {
-	this_step = pstrdup(xmlnode_pool(parent), path);
+	this_step = pstrdup(xmlnode_pool(context_node), path);
     } else if (start_predicate == NULL || start_predicate > next_step && next_step != NULL) {
-	this_step = pmalloco(xmlnode_pool(parent), next_step - path + 1);
+	this_step = pmalloco(xmlnode_pool(context_node), next_step - path + 1);
 	snprintf(this_step, next_step - path + 1, "%s", path);
 	if (next_step != NULL)
 	    next_step++;
@@ -962,17 +974,17 @@ xmlnode_list_item xmlnode_get_tags(xmlnode parent, const char *path, xht namespa
 		next_step++;
 	}
 	
-	predicate = pmalloco(xmlnode_pool(parent), end_predicate - start_predicate);
+	predicate = pmalloco(xmlnode_pool(context_node), end_predicate - start_predicate);
 	snprintf(predicate, end_predicate - start_predicate, "%s", start_predicate+1);
-	this_step = pmalloco(xmlnode_pool(parent), start_predicate - path + 1);
+	this_step = pmalloco(xmlnode_pool(context_node), start_predicate - path + 1);
 	snprintf(this_step, start_predicate - path + 1, "%s", path);
     }
 
     /* check for the namespace IRI we have to match the node */
     end_prefix = strchr(this_step, ':');
     if (end_prefix == NULL) {
-	/* default prefix */
-	ns_iri = xhash_get(namespaces, "");
+	/* default prefix (or NULL if axis is attribute::) */
+	ns_iri = axis == 2 ? NULL : xhash_get(namespaces, "");
     } else {
 	/* prefixed name */
 	*end_prefix = 0;
@@ -981,7 +993,17 @@ xmlnode_list_item xmlnode_get_tags(xmlnode parent, const char *path, xht namespa
     }
 
     /* iterate over all child nodes, checking if this step matches them */
-    for (iter = xmlnode_get_firstchild(parent); iter != NULL; iter = xmlnode_get_nextsibling(iter)) {
+    for (
+	    iter = axis == 0 ? xmlnode_get_firstchild(context_node) :
+	    	axis == 1 ? xmlnode_get_parent(context_node) :
+		axis == 2 ? xmlnode_get_firstattrib(context_node) :
+		NULL;
+	    iter != NULL;
+	    iter = axis == 0 ? xmlnode_get_nextsibling(iter) :
+	    	axis == 1 ? NULL :
+		axis == 2 ? xmlnode_get_nextsibling(iter) :
+		NULL) {
+
 	if (this_step != NULL && this_step[0] == '*' && this_step[1] == 0) {
 	    /* matching all nodes */
 
@@ -1007,8 +1029,8 @@ xmlnode_list_item xmlnode_get_tags(xmlnode parent, const char *path, xht namespa
 	    continue;
 	}
 
-	if (iter->type == NTYPE_TAG && (ns_iri == NULL && iter->ns_iri == NULL || j_strcmp(ns_iri, iter->ns_iri) == 0) && j_strcmp(this_step, iter->name) == 0) {
-	    /* matching element */
+	if (iter->type != NTYPE_CDATA && (ns_iri == NULL && iter->ns_iri == NULL || j_strcmp(ns_iri, iter->ns_iri) == 0) && j_strcmp(this_step, iter->name) == 0) {
+	    /* matching element or attribute */
 
 	    /* append to the result */
 	    _xmlnode_append_if_predicate(&result_first, &result_last, iter, predicate, next_step, namespaces);
@@ -1176,6 +1198,7 @@ void xmlnode_put_attrib_ns(xmlnode owner, const char *name, const char *prefix, 
     /* Update the value of the attribute */
     attrib->data_sz = strlen(value);
     attrib->data    = pstrdup(owner->p, value);
+    attrib->parent  = owner;
 }
 
 /**
