@@ -73,6 +73,8 @@
 typedef struct xdbsql_struct {
     xht		namespace_defs;		/**< definitions of queries for the different namespaces */
     char	*onconnect;		/**< SQL query that should be executed after we connected to the database server */
+    xht		namespace_prefixes;	/**< prefixes for the namespaces (key = prefix, value = ns_iri) */
+    xht		std_namespace_prefixes;	/**< prefixes used by the component itself for the namespaces */
 #ifdef HAVE_MYSQL
     int		use_mysql;		/**< if we want to use the mysql driver */
     MYSQL	*mysql;			/**< our database handle */
@@ -112,7 +114,7 @@ void xdb_sql_mysql_connect(instance i, xdbsql xq) {
     /* connect to the database */
     if (mysql_real_connect(xq->mysql, xq->mysql_host, xq->mysql_user, xq->mysql_password, xq->mysql_database, xq->mysql_port, xq->mysql_socket, xq->mysql_flag) == NULL) {
 	log_error(i->id, "failed to connect to mysql server: %s", mysql_error(xq->mysql));
-    } else {
+    } else if (xq->onconnect) {
 	xdb_sql_execute(i, xq, xq->onconnect, NULL, NULL);
     }
 #else
@@ -167,9 +169,10 @@ void xdb_sql_spool_add_escaped(spool destination, char *new_string) {
  *
  * @param template the template to construct the SQL query
  * @param xdb_query the xdb query
+ * @param namespaces the mapping from namespace prefixes to namespace IRIs
  * @return SQL query
  */
-char *xdb_sql_construct_query(char **template, xmlnode xdb_query) {
+char *xdb_sql_construct_query(char **template, xmlnode xdb_query, xht namespaces) {
     int index = 0;		/* token counter */
     spool result_spool = spool_new(xdb_query->p); /* where to store the result */
 
@@ -179,7 +182,7 @@ char *xdb_sql_construct_query(char **template, xmlnode xdb_query) {
     }
 
     /* debugging */
-    log_debug2(ZONE, LOGT_STORAGE, "constructing query using xdb_query %s", xmlnode2str(xdb_query));
+    log_debug2(ZONE, LOGT_STORAGE, "constructing query using xdb_query %s", xmlnode_serialize_string(xdb_query, NULL, NULL, 0));
 
     /* construct the result */
     while (template[index] != NULL) {
@@ -189,38 +192,22 @@ char *xdb_sql_construct_query(char **template, xmlnode xdb_query) {
 	} else {
 	    /* substitute token */
 	    char *subst = NULL;
+	    xmlnode selected = NULL;
 
-	    /* XXX very hacky way to select attributes on the root element, xpath in xmlnode would be nice */
-	    if (j_strncmp(template[index], "attribute::", 11) == 0) {
-		subst = xmlnode_get_attrib(xdb_query, template[index]+11);
-	    } else {
-		char *ptr;
-		/* text node? */
-		ptr = strstr(template[index], "/text()");
-		if (ptr == NULL || ptr-template[index] != strlen(template[index])-7) {
-		    /* attribute value? */
-		    ptr = strstr(template[index], "/attribute::");
-		    if (ptr == NULL) {
-			/* get the element */
-			xmlnode subst_node = (xmlnode_get_tag(xdb_query, template[index]));
-			if (subst_node != NULL)
-			    subst = xmlnode2str(subst_node);
-		    } else {
-			/* attribute value */
-			xmlnode temp_node = NULL;
-			char *attribute = pstrdup(xdb_query->p, ptr+12);
-			ptr = pstrdup(xdb_query->p, template[index]);
-			strstr(ptr, "/attribute::")[0] = 0;
-			temp_node = xmlnode_get_tag(xdb_query, ptr);
-			subst = xmlnode_get_attrib(temp_node, attribute);
-		    }
-		} else {
-		    /* get the text content of the element */
-		    ptr = pstrdup(xdb_query->p, template[index]);
-		    strstr(ptr, "/text()")[0] = 0;
-		    subst = xmlnode_get_tag_data(xdb_query, ptr);
-		}
+	    /* XXX handle multiple results */
+	    selected = xmlnode_get_list_item(xmlnode_get_tags(xdb_query, template[index], namespaces), 0);
+	    switch (xmlnode_get_type(selected)) {
+		case NTYPE_TAG:
+		    subst = xmlnode_serialize_string(selected, NULL, NULL, 0);
+		    break;
+		case NTYPE_ATTRIB:
+		case NTYPE_CDATA:
+		    subst = xmlnode_get_data(selected);
+		    break;
 	    }
+
+	    log_debug2(ZONE, LOGT_STORAGE, "%s replaced by %s", template[index], subst);
+
 	    xdb_sql_spool_add_escaped(result_spool, pstrdup(result_spool->p, subst!=NULL ? subst : ""));
 	}
 
@@ -238,20 +225,21 @@ char *xdb_sql_construct_query(char **template, xmlnode xdb_query) {
  *
  * @param root the root of the tree we search in
  * @param name which element to search
+ * @param ns_iri the namespace IRI of the element to search for
  * @return the found element, or NULL if no such element
  */
-xmlnode xdb_sql_find_node_recursive(xmlnode root, const char *name) {
+xmlnode xdb_sql_find_node_recursive(xmlnode root, const char *name, const char *ns_iri) {
     xmlnode ptr = NULL;
 
     /* is it already this node? */
-    if (j_strcmp(xmlnode_get_name(root), name) == 0) {
+    if (j_strcmp(xmlnode_get_localname(root), name) == 0 && j_strcmp(xmlnode_get_namespace(root), ns_iri) == 0) {
 	/* we found it */
 	return root;
     }
 
     /* check the child nodes */
     for (ptr = xmlnode_get_firstchild(root); ptr != NULL; ptr = xmlnode_get_nextsibling(ptr)) {
-	xmlnode result = xdb_sql_find_node_recursive(ptr, name);
+	xmlnode result = xdb_sql_find_node_recursive(ptr, name, ns_iri);
 	if (result != NULL) {
 	    return result;
 	}
@@ -309,10 +297,10 @@ int xdb_sql_execute_mysql(instance i, xdbsql xq, char *query, xmlnode template, 
 	    new_instance = xmlnode_dup_pool(result->p, template);
 
 	    /* find variables in the template and replace them with values */
-	    while (variable = xdb_sql_find_node_recursive(new_instance, "value")) {
+	    while (variable = xdb_sql_find_node_recursive(new_instance, "value", NS_JABBERD_XDBSQL)) {
 		xmlnode parent = xmlnode_get_parent(variable);
-		int value = j_atoi(xmlnode_get_attrib(variable, "value"), 0);
-		int parsed = j_strcmp(xmlnode_get_attrib(variable, "parsed"), "parsed") == 0;
+		int value = j_atoi(xmlnode_get_attrib_ns(variable, "value", NULL), 0);
+		int parsed = j_strcmp(xmlnode_get_attrib_ns(variable, "parsed", NULL), "parsed") == 0;
 
 		/* hide the template variable */
 		xmlnode_hide(variable);
@@ -331,7 +319,7 @@ int xdb_sql_execute_mysql(instance i, xdbsql xq, char *query, xmlnode template, 
 	    }
 
 	    /* insert the result */
-	    log_debug2(ZONE, LOGT_STORAGE, "the row results in: %s", xmlnode2str(new_instance));
+	    log_debug2(ZONE, LOGT_STORAGE, "the row results in: %s", xmlnode_serialize_string(new_instance, NULL, NULL, 0));
 	    xmlnode_insert_node(result, xmlnode_get_firstchild(new_instance));
 	}
 
@@ -374,7 +362,7 @@ int xdb_sql_execute_postgresql(instance i, xdbsql xq, char *query, xmlnode templ
 	if (PQstatus(xq->postgresql) != CONNECTION_OK) {
 	    log_error(i->id, "cannot reset connection: %s", PQerrorMessage(xq->postgresql));
 	    return 1;
-	} else {
+	} else if (xq->onconnect) {
 	    xdb_sql_execute(i, xq, xq->onconnect, NULL, NULL);
 	}
     }
@@ -412,10 +400,10 @@ int xdb_sql_execute_postgresql(instance i, xdbsql xq, char *query, xmlnode templ
 	new_instance = xmlnode_dup_pool(result->p, template);
 
 	/* find variables in the template and replace them with values */
-	while (variable = xdb_sql_find_node_recursive(new_instance, "value")) {
+	while (variable = xdb_sql_find_node_recursive(new_instance, "value", NS_JABBERD_XDBSQL)) {
 	    xmlnode parent = xmlnode_get_parent(variable);
-	    int value = j_atoi(xmlnode_get_attrib(variable, "value"), 0);
-	    int parsed = j_strcmp(xmlnode_get_attrib(variable, "parsed"), "parsed") == 0;
+	    int value = j_atoi(xmlnode_get_attrib_ns(variable, "value", NULL), 0);
+	    int parsed = j_strcmp(xmlnode_get_attrib_ns(variable, "parsed", NULL), "parsed") == 0;
 
 	    /* hide the template variable */
 	    xmlnode_hide(variable);
@@ -434,7 +422,7 @@ int xdb_sql_execute_postgresql(instance i, xdbsql xq, char *query, xmlnode templ
 	}
 
 	/* insert the result */
-	log_debug2(ZONE, LOGT_STORAGE, "the row results in: %s", xmlnode2str(new_instance));
+	log_debug2(ZONE, LOGT_STORAGE, "the row results in: %s", xmlnode_serialize_string(new_instance, NULL, NULL, 0));
 	xmlnode_insert_node(result, xmlnode_get_firstchild(new_instance));
     }
 
@@ -478,9 +466,9 @@ int xdb_sql_execute(instance i, xdbsql xq, char *query, xmlnode template, xmlnod
  * @param p the packet that should be modified
  */
 void xdb_sql_makeresult(dpacket p) {
-    xmlnode_put_attrib(p->x, "type", "result");
-    xmlnode_put_attrib(p->x, "to", xmlnode_get_attrib(p->x, "from"));
-    xmlnode_put_attrib(p->x, "from", jid_full(p->id));
+    xmlnode_put_attrib_ns(p->x, "type", NULL, NULL, "result");
+    xmlnode_put_attrib_ns(p->x, "to", NULL, NULL, xmlnode_get_attrib_ns(p->x, "from", NULL));
+    xmlnode_put_attrib_ns(p->x, "from", NULL, NULL, jid_full(p->id));
 }
 
 /**
@@ -499,10 +487,10 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
     char *action = NULL;	/* xdb-set action */
     char *match = NULL;		/* xdb-set match */
 
-    log_debug2(ZONE, LOGT_STORAGE|LOGT_DELIVER, "handling xdb request %s", xmlnode2str(p->x));
+    log_debug2(ZONE, LOGT_STORAGE|LOGT_DELIVER, "handling xdb request %s", xmlnode_serialize_string(p->x, NULL, NULL, 0));
 
     /* get the namespace of the request */
-    ns = xmlnode_get_attrib(p->x, "ns");
+    ns = xmlnode_get_attrib_ns(p->x, "ns", NULL);
     if (ns == NULL) {
 	log_debug2(ZONE, LOGT_STORAGE|LOGT_STRANGE, "xdb_sql got a xdb request without namespace");
 	return r_ERR;
@@ -516,11 +504,11 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
     }
 
     /* check the type of xdb request */
-    is_set_request = (j_strcmp(xmlnode_get_attrib(p->x, "type"), "set") == 0);
+    is_set_request = (j_strcmp(xmlnode_get_attrib_ns(p->x, "type", NULL), "set") == 0);
     if (is_set_request) {
 	/* set request */
-	action = xmlnode_get_attrib(p->x, "action");
-	match = xmlnode_get_attrib(p->x, "match");
+	action = xmlnode_get_attrib_ns(p->x, "action", NULL);
+	match = xmlnode_get_attrib_ns(p->x, "match", NULL);
 
 	if (action == NULL) {
 	    char *query = NULL;
@@ -531,7 +519,7 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
 	    xdb_sql_execute(i, xq, "BEGIN", NULL, NULL);
 
 	    /* delete old values */
-	    query = xdb_sql_construct_query(ns_def->delete, p->x);
+	    query = xdb_sql_construct_query(ns_def->delete, p->x, xq->namespace_prefixes);
 	    log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for deletion: %s", query);
 	    if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
 		/* SQL query failed */
@@ -541,7 +529,7 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
 
 	    /* insert new values (if there are any) */
 	    if (xmlnode_get_firstchild(p->x) != NULL) {
-		query = xdb_sql_construct_query(ns_def->set, p->x);
+		query = xdb_sql_construct_query(ns_def->set, p->x, xq->namespace_prefixes);
 		log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for insertion: %s", query);
 		if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
 		    /* SQL query failed */
@@ -565,7 +553,7 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
 
 	    /* delete matches */
 	    if (match != NULL) {
-		query = xdb_sql_construct_query(ns_def->delete, p->x);
+		query = xdb_sql_construct_query(ns_def->delete, p->x, xq->namespace_prefixes);
 		log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for insert/match deletion: %s", query);
 		if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
 		    /* SQL query failed */
@@ -576,7 +564,7 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
 
 	    /* insert new values if there are any */
 	    if (xmlnode_get_firstchild(p->x) != NULL) {
-		query = xdb_sql_construct_query(ns_def->set, p->x);
+		query = xdb_sql_construct_query(ns_def->set, p->x, xq->namespace_prefixes);
 		log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for insertion: %s", query);
 		if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
 		    /* SQL query failed */
@@ -600,6 +588,8 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
     } else {
 	char *query = NULL;
 	char *group_element = NULL;
+	char *group_ns_iri = NULL;
+	char *group_prefix = NULL;
 	xmlnode result_element = p->x;
 
 	/* get request */
@@ -608,10 +598,12 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
 	xdb_sql_execute(i, xq, "BEGIN", NULL, NULL);
 
 	/* get the record(s) */
-	query = xdb_sql_construct_query(ns_def->get_query, p->x);
-	group_element = xmlnode_get_attrib(ns_def->get_result, "group");
+	query = xdb_sql_construct_query(ns_def->get_query, p->x, xq->namespace_prefixes);
+	group_element = xmlnode_get_attrib_ns(ns_def->get_result, "group", NULL);
+	group_ns_iri = xmlnode_get_attrib_ns(ns_def->get_result, "groupiri", NULL);
+	group_prefix = xmlnode_get_attrib_ns(ns_def->get_result, "groupprefix", NULL);
 	if (group_element != NULL) {
-	    result_element = xmlnode_insert_tag(result_element, group_element);
+	    result_element = xmlnode_insert_tag_ns(result_element, group_element, group_prefix, group_ns_iri);
 	    xmlnode_put_attrib(result_element, "ns", ns);
 	}
 
@@ -647,13 +639,13 @@ void xdb_sql_mysql_init(instance i, xdbsql xq, xmlnode config) {
     }
 
     /* process our own configuration */
-    xq->mysql_user = pstrdup(i->p, xmlnode_get_tag_data(config, "mysql/user"));
-    xq->mysql_password = pstrdup(i->p, xmlnode_get_tag_data(config, "mysql/password"));
-    xq->mysql_host = pstrdup(i->p, xmlnode_get_tag_data(config, "mysql/host"));
-    xq->mysql_database = pstrdup(i->p, xmlnode_get_tag_data(config, "mysql/database"));
-    xq->mysql_port = j_atoi(xmlnode_get_tag_data(config, "mysql/port"), 0);
-    xq->mysql_socket = pstrdup(i->p, xmlnode_get_tag_data(config, "mysql/socket"));
-    xq->mysql_flag = j_atoi(xmlnode_get_tag_data(config, "mysql/flag"), 0);
+    xq->mysql_user = pstrdup(i->p, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "xdbsql:mysql/xdbsql:user", xq->std_namespace_prefixes), 0)));
+    xq->mysql_password = pstrdup(i->p, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "xdbsql:mysql/xdbsql:password", xq->std_namespace_prefixes), 0)));
+    xq->mysql_host = pstrdup(i->p, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "xdbsql:mysql/xdbsql:host", xq->std_namespace_prefixes), 0)));
+    xq->mysql_database = pstrdup(i->p, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "xdbsql:mysql/xdbsql:database", xq->std_namespace_prefixes), 0)));
+    xq->mysql_port = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "xdbsql:mysql/xdbsql:port", xq->std_namespace_prefixes), 0)), 0);
+    xq->mysql_socket = pstrdup(i->p, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "xdbsql:mysql/xdbsql:socket", xq->std_namespace_prefixes), 0)));
+    xq->mysql_flag = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "xdbsql:mysql/xdbsql:flag", xq->std_namespace_prefixes), 0)), 0);
 
     /* connect to the database server */
     xdb_sql_mysql_connect(i, xq);
@@ -672,7 +664,7 @@ void xdb_sql_mysql_init(instance i, xdbsql xq, xmlnode config) {
 void xdb_sql_postgresql_init(instance i, xdbsql xq, xmlnode config) {
 #ifdef HAVE_POSTGRESQL
     /* process our own configuration */
-    xq->postgresql_conninfo = pstrdup(i->p, xmlnode_get_tag_data(config, "postgresql/conninfo"));
+    xq->postgresql_conninfo = pstrdup(i->p, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "xdbsql:postgresql/xdbsql:conninfo", xq->std_namespace_prefixes), 0)));
 
     /* connect to the database server */
     xq->postgresql = PQconnectdb(xq->postgresql_conninfo);
@@ -680,7 +672,7 @@ void xdb_sql_postgresql_init(instance i, xdbsql xq, xmlnode config) {
     /* did we connect? */
     if (PQstatus(xq->postgresql) != CONNECTION_OK) {
 	log_error(i->id, "failed to connect to postgresql server: %s", PQerrorMessage(xq->postgresql));
-    } else {
+    } else if (xq->onconnect) {
 	xdb_sql_execute(i, xq, xq->onconnect, NULL, NULL);
     }
 #else
@@ -768,18 +760,18 @@ void xdb_sql_handler_process(instance i, xdbsql xq, xmlnode handler) {
     int count = 0;
     char *temp = NULL;
     
-    log_debug2(ZONE, LOGT_INIT, "processing handler definition: %s", xmlnode2str(handler));
+    log_debug2(ZONE, LOGT_INIT, "processing handler definition: %s", xmlnode_serialize_string(handler, NULL, NULL, 0));
 
     nsdef = pmalloco(i->p, sizeof(_xdbsql_ns_def));
 
     /* query the relevant tags from this handler */
-    handled_ns = pstrdup(i->p, xmlnode_get_attrib(handler, "ns"));
-    temp = xmlnode_get_tag_data(handler, "get/query");
+    handled_ns = pstrdup(i->p, xmlnode_get_attrib_ns(handler, "ns", NULL));
+    temp = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(handler, "xdbsql:get/xdbsql:query", xq->std_namespace_prefixes), 0));
     nsdef->get_query = xdb_sql_query_preprocess(i, temp);
-    nsdef->get_result = xmlnode_dup_pool(i->p, xmlnode_get_tag(handler, "get/result"));
-    temp = xmlnode_get_tag_data(handler, "set");
+    nsdef->get_result = xmlnode_dup_pool(i->p, xmlnode_get_list_item(xmlnode_get_tags(handler, "xdbsql:get/xdbsql:result", xq->std_namespace_prefixes), 0));
+    temp = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(handler, "xdbsql:set", xq->std_namespace_prefixes), 0));
     nsdef->set = xdb_sql_query_preprocess(i, temp);
-    temp = xmlnode_get_tag_data(handler, "delete");
+    temp = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(handler, "xdbsql:delete", xq->std_namespace_prefixes), 0));
     nsdef->delete = xdb_sql_query_preprocess(i, temp);
 
     /* store the read definition */
@@ -804,8 +796,7 @@ void xdb_sql_handler_read(instance i, xdbsql xq, xmlnode config) {
 
     for (cur = xmlnode_get_firstchild(config); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
 	/* we only care for <handler/> elements */
-	char *element_name = xmlnode_get_name(cur);
-	if (j_strcmp(element_name, "handler") != 0) {
+	if (j_strcmp(xmlnode_get_localname(cur), "handler") != 0 || j_strcmp(xmlnode_get_namespace(cur), NS_JABBERD_CONFIG_XDBSQL) != 0) {
 	    continue;
 	}
 
@@ -825,6 +816,7 @@ void xdb_sql(instance i, xmlnode x) {
     xmlnode config = NULL;	/* our configuration */
     xdbsql xq = NULL;		/* pointer to instance internal data */
     char *driver = NULL;	/* database driver to use */
+    xmlnode_list_item ns_def = NULL; /* for reading namespace prefix defintions */
 
     /* output a first sign of life ... :) */
     log_debug2(ZONE, LOGT_INIT, "xdb_sql loading");
@@ -841,13 +833,28 @@ void xdb_sql(instance i, xmlnode x) {
 
     /* create our internal data */
     xq = pmalloco(i->p, sizeof(_xdbsql));
-    xq->namespace_defs = xhash_new(j_atoi(xmlnode_get_tag_data(config, "maxns"), XDBSQL_MAXNS_PRIME));
+    xq->std_namespace_prefixes = xhash_new(3);
+    xhash_put(xq->std_namespace_prefixes, "xdbsql", NS_JABBERD_CONFIG_XDBSQL);
+    xq->namespace_defs = xhash_new(j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "xdbsql:maxns", xq->std_namespace_prefixes), 0)), XDBSQL_MAXNS_PRIME));
+    xq->namespace_prefixes = xhash_new(101);
+
+    /* get the namespace prefixes used in query definitions */
+    for (ns_def = xmlnode_get_tags(config, "xdbsql:nsprefixes/xdbsql:namespace", xq->std_namespace_prefixes); ns_def != NULL; ns_def = ns_def->next) {
+	const char *ns_iri = xmlnode_get_data(ns_def->node);
+	const char *prefix = xmlnode_get_attrib_ns(ns_def->node, "prefix", NULL);
+
+	if (ns_iri == NULL)
+	    continue;
+
+	xhash_put(xq->namespace_prefixes, prefix ? pstrdup(xq->namespace_prefixes->p, prefix) : "", pstrdup(xq->namespace_prefixes->p, ns_iri));
+    }
 
     /* check if we have to execute an XML query after we connected to the database server */
-    xq->onconnect = xmlnode_get_tag_data(config, "onconnect");
+    xq->onconnect = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "xdbsql:onconnect", xq->std_namespace_prefixes), 0));
+    log_debug2(ZONE, LOGT_EXECFLOW, "using the following query on SQL connection establishment: %s", xq->onconnect);
 
     /* use which driver? */
-    driver = xmlnode_get_tag_data(config, "driver");
+    driver = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "xdbsql:driver", xq->std_namespace_prefixes), 0));
     if (driver == NULL) {
 	log_error(i->id, "you have to configure which driver xdb_sql should use");
 	xmlnode_free(config);
