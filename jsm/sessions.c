@@ -68,32 +68,30 @@ void js_session_route(session s, xmlnode in) {
 
     /* NULL means this is an error from the session ending */
     if (in == NULL) {
-	in = xmlnode_new_tag("route");
+	in = xmlnode_new_tag_ns("route", NULL, NS_SERVER);
 
 	if (s->sc_c2s == NULL) {
 	    /* <route type='error'/> old c2s-sm-protocol */
-	    xmlnode_put_attrib(in, "type", "error");
-	    xmlnode_put_attrib(in, "error", "Disconnected");
+	    xmlnode_put_attrib_ns(in, "type", NULL, NULL, "error");
+	    xmlnode_put_attrib_ns(in, "error", NULL, NULL, "Disconnected");
 	} else {
 	    /* using new session control protocol */
-	    wrapped_node = xmlnode_insert_tag(in, "sc:session");
-	    xmlnode_put_attrib(wrapped_node, "action", "ended");
+	    wrapped_node = xmlnode_insert_tag_ns(in, "session", "sc", NS_SESSION);
+	    xmlnode_put_attrib_ns(wrapped_node, "action", NULL, NULL, "ended");
 	}
     } else {
-        in = xmlnode_wrap(in,"route");
+        in = xmlnode_wrap_ns(in, "route", NULL, NS_SERVER);
     }
 
     /* if new session control protocol is used, we have to add more routing attributes */
-    if (s->sc_c2s != NULL || s->sc_sm != NULL)
-	xmlnode_put_attrib(wrapped_node, "xmlns:sc", NS_SESSION);
     if (s->sc_c2s != NULL)
-	xmlnode_put_attrib(wrapped_node, "sc:c2s", s->sc_c2s);
+	xmlnode_put_attrib_ns(wrapped_node, "c2s", "sc", NS_SESSION, s->sc_c2s);
     if (s->sc_sm != NULL)
-	xmlnode_put_attrib(wrapped_node, "sc:sm", s->sc_sm);
+	xmlnode_put_attrib_ns(wrapped_node, "sm", "sc", NS_SESSION, s->sc_sm);
 
     /* adding routing information needed by both c2s-sm-protocols */
-    xmlnode_put_attrib(in, "from", jid_full(s->route));
-    xmlnode_put_attrib(in, "to", jid_full(s->sid));
+    xmlnode_put_attrib_ns(in, "from", NULL, NULL, jid_full(s->route));
+    xmlnode_put_attrib_ns(in, "to", NULL, NULL, jid_full(s->sid));
 
     /* delivering to the c2s instance */
     deliver(dpacket_new(in), s->si->i);
@@ -117,10 +115,10 @@ session js_session_new(jsmi si, dpacket dp) {
     char routeres[10];
 
     /* screen out illegal calls */
-    if(dp == NULL || dp->id->user == NULL || dp->id->resource == NULL || xmlnode_get_attrib(dp->x,"from") == NULL || (u = js_user(si,dp->id,NULL)) == NULL)
+    if(dp == NULL || dp->id->user == NULL || dp->id->resource == NULL || xmlnode_get_attrib_ns(dp->x, "from", NULL) == NULL || (u = js_user(si, dp->id, NULL)) == NULL)
         return NULL;
 
-    log_debug2(ZONE, LOGT_SESSION, "session_create %s",jid_full(dp->id));
+    log_debug2(ZONE, LOGT_SESSION, "session_create %s", jid_full(dp->id));
 
     /* create session */
     p = pool_heap(2*1024);
@@ -129,7 +127,7 @@ session js_session_new(jsmi si, dpacket dp) {
     s->si = si;
 
     /* save authorative remote session id */
-    s->sid = jid_new(p, xmlnode_get_attrib(dp->x,"from"));
+    s->sid = jid_new(p, xmlnode_get_attrib_ns(dp->x, "from", NULL));
 
     /* session identity */
     s->id = jid_new(p, jid_full(dp->id));
@@ -144,15 +142,15 @@ session js_session_new(jsmi si, dpacket dp) {
     s->roster = 0;
     s->priority = -129;
     s->presence = jutil_presnew(JPACKET__UNAVAILABLE,NULL,NULL);
-    xmlnode_put_attrib(s->presence,"from",jid_full(s->id));
+    xmlnode_put_attrib_ns(s->presence, "from", NULL, NULL, jid_full(s->id));
     s->c_in = s->c_out = 0;
     s->q = mtq_new(s->p);
-    for(i = 0; i < es_LAST; i++)
+    for (i = 0; i < es_LAST; i++)
         s->events[i] = NULL;
 
     /* remove any other session w/ this resource */
-    for(cur = u->sessions; cur != NULL; cur = cur->next)
-        if(j_strcmp(dp->id->resource, cur->res) == 0)
+    for (cur = u->sessions; cur != NULL; cur = cur->next)
+        if (j_strcmp(dp->id->resource, cur->res) == 0)
             js_session_end(cur, "Replaced by new connection");
 
     /* make sure we're linked with the user */
@@ -192,11 +190,11 @@ session js_sc_session_new(jsmi si, dpacket dp, xmlnode sc_session) {
 	return NULL;
 
     /* we need to know where to send session packets to */
-    if (xmlnode_get_attrib(dp->x, "from") == NULL)
+    if (xmlnode_get_attrib_ns(dp->x, "from", NULL) == NULL)
 	return NULL;
 
     /* get the reference on the c2s */
-    c2s_id = xmlnode_get_attrib(sc_session, "sc:c2s");
+    c2s_id = xmlnode_get_attrib_ns(sc_session, "c2s", NS_SESSION);
     if (c2s_id == NULL)
 	return NULL;
 
@@ -204,12 +202,12 @@ session js_sc_session_new(jsmi si, dpacket dp, xmlnode sc_session) {
     p = pool_heap(2*1024);
 
     /* get the user id of the owner of new session */
-    user_id = jid_new(p, xmlnode_get_attrib(sc_session, "target"));
+    user_id = jid_new(p, xmlnode_get_attrib_ns(sc_session, "target", NULL));
     if (user_id == NULL) {
 	pool_free(p);
 	return NULL;
     }
-    log_debug2(ZONE, LOGT_SESSION, "js_sc_session_new for %s",jid_full(user_id));
+    log_debug2(ZONE, LOGT_SESSION, "js_sc_session_new for %s", jid_full(user_id));
 
     /* get the user */
     u = js_user(si, user_id, NULL);
@@ -229,7 +227,7 @@ session js_sc_session_new(jsmi si, dpacket dp, xmlnode sc_session) {
     s->roster = 0;
     s->priority = -129;
     s->presence = jutil_presnew(JPACKET__UNAVAILABLE,NULL,NULL);
-    xmlnode_put_attrib(s->presence,"from",jid_full(s->id));
+    xmlnode_put_attrib_ns(s->presence, "from", NULL, NULL, jid_full(s->id));
     s->c_in = s->c_out = 0;
     s->q = mtq_new(s->p);
     s->sc_c2s = pstrdup(p, c2s_id);
@@ -239,12 +237,12 @@ session js_sc_session_new(jsmi si, dpacket dp, xmlnode sc_session) {
         s->events[i] = NULL;
 
     /* store routing information */
-    s->sid = jid_new(p, xmlnode_get_attrib(dp->x,"from"));
+    s->sid = jid_new(p, xmlnode_get_attrib_ns(dp->x, "from", NULL));
     s->route = jid_new(p, jid_full(dp->id));
 
     /* remove any other session w/ this resource */
-    for(cur = u->sessions; cur != NULL; cur = cur->next)
-        if(j_strcmp(dp->id->resource, cur->res) == 0)
+    for (cur = u->sessions; cur != NULL; cur = cur->next)
+        if (j_strcmp(dp->id->resource, cur->res) == 0)
             js_session_end(cur, "Replaced by new connection");
 
     /* make sure we're linked with the user */
@@ -290,11 +288,11 @@ void js_session_end(session s, char *reason) {
     s->priority = -129;
 
     /* if the last known presence was available, update it */
-    if (s->presence != NULL && j_strcmp(xmlnode_get_attrib(s->presence, "type"), "unavailable") != 0) {
+    if (s->presence != NULL && j_strcmp(xmlnode_get_attrib_ns(s->presence, "type", NULL), "unavailable") != 0) {
 
         /* create a new presence packet with the reason the user is unavailable */
         x = jutil_presnew(JPACKET__UNAVAILABLE, NULL, reason);
-        xmlnode_put_attrib(x, "from", jid_full(s->id));
+        xmlnode_put_attrib_ns(x, "from", NULL, NULL, jid_full(s->id));
 
         /* free the old presence packet */
         xmlnode_free(s->presence);
@@ -337,8 +335,7 @@ void js_session_end(session s, char *reason) {
  *
  * @param arg the newly created session
  */
-void _js_session_start(void *arg)
-{
+void _js_session_start(void *arg) {
     session s = (session)arg;
 
     /* let the modules go to it */
@@ -388,7 +385,7 @@ void _js_session_from(void *arg) {
     /* make sure we have our from set correctly for outgoing packets */
     if (jid_cmpx(p->from, s->id, JID_USER|JID_SERVER) != 0) {
         /* nope, fix it */
-        xmlnode_put_attrib(p->x, "from", jid_full(s->id));
+        xmlnode_put_attrib_ns(p->x, "from", NULL, NULL, jid_full(s->id));
         p->from = jid_new(p->p, jid_full(s->id));
     }
 
@@ -414,18 +411,18 @@ void _js_session_from(void *arg) {
 	}
     }
     /* don't store events */
-    if (store_history && xmlnode_get_tag(p->x, "?xmlns=" NS_EVENT) != NULL)
-	if (xmlnode_get_tag(p->x, "body") == NULL)
+    if (store_history && xmlnode_get_list_item(xmlnode_get_tags(p->x, "*[@xmlns='" NS_EVENT "']", s->si->std_namespace_prefixes), 0) != NULL)
+	if (xmlnode_get_list_item(xmlnode_get_tags(p->x, "body", s->si->std_namespace_prefixes), 0) == NULL)
 	    store_history = 0;
 
     if (store_history) {
-	char *temp = xmlnode_get_attrib(p->x, "direction");
-	xmlnode_put_attrib(p->x, "direction", "sent");
+	char *temp = xmlnode_get_attrib_ns(p->x, "direction", NULL);
+	xmlnode_put_attrib_ns(p->x, "direction", NULL, NULL, "sent");
 	xdb_act(s->si->xc, s->u->id, NS_JABBERD_HISTORY, "insert", NULL, p->x);
 	if (temp == NULL) {
-	    xmlnode_hide_attrib(p->x, "direction");
+	    xmlnode_hide_attrib_ns(p->x, "direction", NULL);
 	} else {
-	    xmlnode_put_attrib(p->x, "direction", temp);
+	    xmlnode_put_attrib_ns(p->x, "direction", NULL, NULL, temp);
 	}
     }
 
@@ -438,7 +435,7 @@ void _js_session_from(void *arg) {
     /* no module handled it, so restore the to attrib to us */
     if(p->to == NULL)
     {
-        xmlnode_put_attrib(p->x,"to",jid_full(uid));
+        xmlnode_put_attrib_ns(p->x, "to", NULL, NULL, jid_full(uid));
         p->to = jid_new(p->p,jid_full(uid));
     }
 
@@ -515,18 +512,18 @@ void _js_session_to(void *arg)
 	}
     }
     /* don't store events */
-    if (store_history && xmlnode_get_tag(p->x, "?xmlns=" NS_EVENT) != NULL)
-	if (xmlnode_get_tag(p->x, "body") == NULL)
+    if (store_history && xmlnode_get_list_item(xmlnode_get_tags(p->x, "*[@xmlns='" NS_EVENT "']", s->si->std_namespace_prefixes), 0) != NULL)
+	if (xmlnode_get_list_item(xmlnode_get_tags(p->x, "body", s->si->std_namespace_prefixes), 0) == NULL)
 	    store_history = 0;
 
     if (store_history) {
-	char *temp = xmlnode_get_attrib(p->x, "direction");
-	xmlnode_put_attrib(p->x, "direction", "recv");
+	char *temp = xmlnode_get_attrib_ns(p->x, "direction", NULL);
+	xmlnode_put_attrib_ns(p->x, "direction", NULL, NULL, "recv");
 	xdb_act(s->si->xc, s->u->id, NS_JABBERD_HISTORY, "insert", NULL, p->x);
 	if (temp == NULL) {
-	    xmlnode_hide_attrib(p->x, "direction");
+	    xmlnode_hide_attrib_ns(p->x, "direction", NULL);
 	} else {
-	    xmlnode_put_attrib(p->x, "direction", temp);
+	    xmlnode_put_attrib_ns(p->x, "direction", NULL, NULL, temp);
 	}
     }
 
@@ -552,7 +549,7 @@ void _js_session_end(void *arg) {
     s->u->scount--;
 
     /* make sure the service knows the session is gone */
-    if(s->sid != NULL)
+    if (s->sid != NULL)
         js_session_route(s, NULL);
 
     /* let the modules have their heyday */

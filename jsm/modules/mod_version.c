@@ -61,8 +61,7 @@
  * the administrator of the server is able to overwrite all fields in the session
  * manager configuration file.
  */
-typedef struct
-{
+typedef struct {
     pool p;		/**< memory pool used to build the strings in this structure */
     char *name;		/**< the natural-language name of the software */
     char *version;	/**< the specific version of the software */
@@ -79,28 +78,28 @@ typedef struct
  * @param arg pointer to the _mod_version_t structure of this module instance
  * @return M_IGNORED if not a iq stanza, M_PASS if stanza not handled, M_HANDLED if stanza has been handled
  */
-mreturn mod_version_reply(mapi m, void *arg)
-{
+mreturn mod_version_reply(mapi m, void *arg) {
     mod_version_i mi = (mod_version_i)arg;
 
-    if(m->packet->type != JPACKET_IQ) return M_IGNORE;
-    if(!NSCHECK(m->packet->iq,NS_VERSION) || m->packet->to->resource != NULL) return M_PASS;
+    if (m->packet->type != JPACKET_IQ)
+	return M_IGNORE;
+    if (!NSCHECK(m->packet->iq, NS_VERSION) || m->packet->to->resource != NULL)
+	return M_PASS;
 
     /* first, is this a valid request? */
-    if(jpacket_subtype(m->packet) != JPACKET__GET)
-    {
-        js_bounce_xmpp(m->si,m->packet->x,XTERROR_NOTALLOWED);
+    if (jpacket_subtype(m->packet) != JPACKET__GET) {
+        js_bounce_xmpp(m->si, m->packet->x, XTERROR_NOTALLOWED);
         return M_HANDLED;
     }
 
-    log_debug2(ZONE, LOGT_DELIVER, "handling query from",jid_full(m->packet->from));
+    log_debug2(ZONE, LOGT_DELIVER, "handling query from", jid_full(m->packet->from));
 
     jutil_iqresult(m->packet->x);
-    xmlnode_put_attrib(xmlnode_insert_tag(m->packet->x,"query"),"xmlns",NS_VERSION);
+    xmlnode_insert_tag_ns(m->packet->x, "query", NULL, NS_VERSION);
     jpacket_reset(m->packet);
-    xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"name"),mi->name,j_strlen(mi->name));
-    xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"version"),mi->version,j_strlen(mi->version));
-    xmlnode_insert_cdata(xmlnode_insert_tag(m->packet->iq,"os"),mi->os,j_strlen(mi->os));
+    xmlnode_insert_cdata(xmlnode_insert_tag_ns(m->packet->iq, "name", NULL, NS_VERSION), mi->name, j_strlen(mi->name));
+    xmlnode_insert_cdata(xmlnode_insert_tag_ns(m->packet->iq, "version", NULL, NS_VERSION), mi->version, j_strlen(mi->version));
+    xmlnode_insert_cdata(xmlnode_insert_tag_ns(m->packet->iq, "os", NULL, NS_VERSION), mi->os, j_strlen(mi->os));
     
     js_deliver(m->si,m->packet);
 
@@ -114,8 +113,7 @@ mreturn mod_version_reply(mapi m, void *arg)
  * @param arg pointer to the _mod_version_t structure holding the data of this module instance
  * @return always M_PASS
  */
-mreturn mod_version_shutdown(mapi m, void *arg)
-{
+mreturn mod_version_shutdown(mapi m, void *arg) {
     mod_version_i mi = (mod_version_i)arg;
     pool_free(mi->p);
     
@@ -127,8 +125,7 @@ mreturn mod_version_shutdown(mapi m, void *arg)
  *
  * @param si the session manager instance
  */
-void mod_version(jsmi si)
-{
+void mod_version(jsmi si) {
     char *from;
     xmlnode x, config, name, version, os;
     pool p;
@@ -136,30 +133,24 @@ void mod_version(jsmi si)
     struct utsname un;
 
     p = pool_new();
-    mi = pmalloco(p,sizeof(_mod_version_i));
+    mi = pmalloco(p, sizeof(_mod_version_i));
     mi->p = p;
 
     /* get the values that should be reported by mod_version */
     uname(&un);
-    config = js_config(si,"mod_version");
-    name = xmlnode_get_tag(config, "name");
-    version = xmlnode_get_tag(config, "version");
-    os = xmlnode_get_tag(config, "os");
+    config = js_config(si,"jsm:mod_version");
+    name = xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:name", si->std_namespace_prefixes), 0);
+    version = xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:version", si->std_namespace_prefixes), 0);
+    os = xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:os", si->std_namespace_prefixes), 0);
 
     mi->name = pstrdup(p, name ? xmlnode_get_data(name) : PACKAGE);
     if (version)
 	mi->version = pstrdup(p, xmlnode_get_data(version));
     else
-	/* knowing if the server has been compiled with IPv6 is very helpful
-	 * for debugging dialback problems */
-#ifdef WITH_IPV6
-	mi->version = spools(p, VERSION, "-ipv6", p);
-#else
     	mi->version = pstrdup(p, VERSION);
-#endif
     if (os)
 	mi->os = pstrdup(p, xmlnode_get_data(os));
-    else if (xmlnode_get_tag(config, "no_os_version"))
+    else if (xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:no_os_version", si->std_namespace_prefixes), 0))
 	mi->os = pstrdup(p, un.sysname);
     else
 	mi->os = spools(p, un.sysname, " ", un.release, p);
@@ -167,15 +158,4 @@ void mod_version(jsmi si)
 
     js_mapi_register(si,e_SERVER,mod_version_reply,(void *)mi);
     js_mapi_register(si,e_SHUTDOWN,mod_version_shutdown,(void *)mi);
-
-    /* check for updates */
-    /* update.jabber.org is gone for a long time ...
-    from = xmlnode_get_data(js_config(si,"update"));
-    if(from == NULL) return;
-
-    x = xmlnode_new_tag("presence");
-    xmlnode_put_attrib(x,"from",from);
-    xmlnode_put_attrib(x,"to","jsm@update.jabber.org/" VERSION);
-    deliver(dpacket_new(x), si->i);
-    */
 }

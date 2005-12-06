@@ -236,11 +236,10 @@ void log_record(char *id, char *type, char *action, const char *msgfmt, ...); /*
 /*** xdb utilities ***/
 
 /** Ring for handling cached structures */
-typedef struct xdbcache_struct
-{
+typedef struct xdbcache_struct {
     instance i;
     int id;
-    char *ns;
+    const char *ns;
     int set; /**< flag that this is a set */
     char *act; /**< for set */
     char *match; /**< for set */
@@ -255,9 +254,9 @@ typedef struct xdbcache_struct
 } *xdbcache, _xdbcache;
 
 xdbcache xdb_cache(instance i); /**< create a new xdb cache for this instance */
-xmlnode xdb_get(xdbcache xc,  jid owner, char *ns); /**< blocks until namespace is retrieved, returns xmlnode or NULL if failed */
-int xdb_act(xdbcache xc, jid owner, char *ns, char *act, char *match, xmlnode data); /**< sends new xml action, returns non-zero if failure */
-int xdb_set(xdbcache xc, jid owner, char *ns, xmlnode data); /**< sends new xml to replace old, returns non-zero if failure */
+xmlnode xdb_get(xdbcache xc,  jid owner, const char *ns); /**< blocks until namespace is retrieved, returns xmlnode or NULL if failed */
+int xdb_act(xdbcache xc, jid owner, const char *ns, char *act, char *match, xmlnode data); /**< sends new xml action, returns non-zero if failure */
+int xdb_set(xdbcache xc, jid owner, const char *ns, xmlnode data); /**< sends new xml to replace old, returns non-zero if failure */
 
 /* Error messages */
 #define SERROR_NAMESPACE "<stream:error><invalid-namespace xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Invalid namespace specified.</text></stream:error>"

@@ -111,16 +111,16 @@ mreturn mod_auth_crypt_jane(mapi m, void *arg) {
 
     if(jpacket_subtype(m->packet) == JPACKET__GET) {
 	/* type=get means we flag that the server can do plain-text auth */
-        xmlnode_insert_tag(m->packet->iq,"password");
+        xmlnode_insert_tag_ns(m->packet->iq, "password", NULL, NS_AUTH);
         return M_PASS;
     }
 
-    if((passA = xmlnode_get_tag_data(m->packet->iq, "password")) == NULL)
+    if((passA = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:password", m->si->std_namespace_prefixes), 0))) == NULL)
         return M_PASS;
 
     /* make sure we can get the auth packet and that it contains a password */
     xdb = xdb_get(m->si->xc, m->user->id, NS_AUTH_CRYPT);
-    if(xdb == NULL || (passB = xmlnode_get_data(xdb)) == NULL) {
+    if (xdb == NULL || (passB = xmlnode_get_data(xdb)) == NULL) {
         xmlnode_free(xdb);
         return M_PASS;
     }
@@ -158,15 +158,18 @@ mreturn mod_auth_crypt_jane(mapi m, void *arg) {
  */
 static char* mod_auth_crypt_get_salt() {
     static char result[3] = { '\0', '\0', '\0'};
-    int i;
-    if (!result[0]) srand(time(NULL));
-    i = 0;
-    for (i = 0; i < 2; i++)
-    {
+    int i = 0;
+    
+    if (!result[0])
+	srand(time(NULL));
+    
+    for (i = 0; i < 2; i++) {
         result[i] = (char)(rand() % 64) + '.';
-        if (result[i] <= '9') continue;
+        if (result[i] <= '9')
+	    continue;
         result[i] += 'A' - '9' - 1;
-        if (result[i] <= 'Z') continue;
+        if (result[i] <= 'Z')
+	    continue;
         result[i] += 'a' - 'Z' - 1;
     }
     return result;
@@ -189,7 +192,7 @@ int mod_auth_crypt_reset(mapi m, jid id, xmlnode pass) {
 
     log_debug2(ZONE, LOGT_AUTH, "resetting password");
 
-    hashalgo = xmlnode_get_tag_data(js_config(m->si, "mod_auth_crypt"), "hash");
+    hashalgo = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(js_config(m->si, "jsm:mod_auth_crypt"), "jsm:hash", m->si->std_namespace_prefixes), 0));
     if (j_strcasecmp(hashalgo, "SHA1") == 0) {
 	usedhashalgo = HASH_SHA1;
     } else {
@@ -197,8 +200,9 @@ int mod_auth_crypt_reset(mapi m, jid id, xmlnode pass) {
     }
 
     password = xmlnode_get_data(pass);
-    if(password == NULL) return 1;
-    newpass = xmlnode_new_tag("crypt");
+    if (password == NULL)
+	return 1;
+    newpass = xmlnode_new_tag_ns("crypt", NULL, NS_AUTH_CRYPT);
 
     switch (usedhashalgo) {
 	case HASH_SHA1:
@@ -212,7 +216,6 @@ int mod_auth_crypt_reset(mapi m, jid id, xmlnode pass) {
 		return -1;
     }
     
-    xmlnode_put_attrib(newpass,"xmlns",NS_AUTH_CRYPT);
     return xdb_set(m->si->xc, jid_user(id), NS_AUTH_CRYPT, newpass);
 }
 
@@ -226,10 +229,11 @@ int mod_auth_crypt_reset(mapi m, jid id, xmlnode pass) {
  * @return M_HANDLED if update failed, M_PASS else
  */
 mreturn mod_auth_crypt_reg(mapi m, void *arg) {
-    if(jpacket_subtype(m->packet) != JPACKET__SET) return M_PASS;
+    if (jpacket_subtype(m->packet) != JPACKET__SET)
+	return M_PASS;
 
-    if(mod_auth_crypt_reset(m,m->packet->to,xmlnode_get_tag(m->packet->iq,"password"))) {
-        jutil_error_xmpp(m->packet->x,(xterror){500,"Password Storage Failed","wait","internal-server-error"});
+    if (mod_auth_crypt_reset(m, m->packet->to, xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:password", m->si->std_namespace_prefixes), 0))) {
+        jutil_error_xmpp(m->packet->x, XTERROR_STORAGE_FAILED);
         return M_HANDLED;
     }
 
@@ -249,13 +253,17 @@ mreturn mod_auth_crypt_server(mapi m, void *arg) {
     xmlnode pass;
 
     /* pre-requisites */
-    if(m->packet->type != JPACKET_IQ) return M_IGNORE;
-    if(jpacket_subtype(m->packet) != JPACKET__SET || !NSCHECK(m->packet->iq,NS_REGISTER)) return M_PASS;
-    if(m->user == NULL) return M_PASS;
-    if((pass = xmlnode_get_tag(m->packet->iq,"password")) == NULL) return M_PASS;
+    if (m->packet->type != JPACKET_IQ)
+	return M_IGNORE;
+    if (jpacket_subtype(m->packet) != JPACKET__SET || !NSCHECK(m->packet->iq, NS_REGISTER))
+	return M_PASS;
+    if (m->user == NULL)
+	return M_PASS;
+    if ((pass = xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:password", m->si->std_namespace_prefixes), 0)) == NULL)
+	return M_PASS;
 
-    if(mod_auth_crypt_reset(m,m->user->id,pass)) {
-        js_bounce_xmpp(m->si,m->packet->x,(xterror){500,"Password Storage Failed","wait","internal-server-error"});
+    if (mod_auth_crypt_reset(m, m->user->id, pass)) {
+        js_bounce_xmpp(m->si, m->packet->x, XTERROR_STORAGE_FAILED);
         return M_HANDLED;
     }
     return M_PASS;
@@ -284,6 +292,7 @@ void mod_auth_crypt(jsmi si) {
 
     js_mapi_register(si, e_AUTH, mod_auth_crypt_jane, NULL);
     js_mapi_register(si, e_SERVER, mod_auth_crypt_server, NULL);
-    if (js_config(si,"register") != NULL) js_mapi_register(si, e_REGISTER, mod_auth_crypt_reg, NULL);
+    if (js_config(si,"register:register") != NULL)
+	js_mapi_register(si, e_REGISTER, mod_auth_crypt_reg, NULL);
     js_mapi_register(si, e_DELETE, mod_auth_crypt_delete, NULL);
 }

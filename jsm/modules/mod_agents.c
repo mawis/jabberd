@@ -61,12 +61,11 @@
  * @param m the mapi structure (contains the request)
  * @return M_HANDLED if a reply could be generated, M_PASS if no information was available
  */
-mreturn mod_agents_agents(mapi m)
-{
+mreturn mod_agents_agents(mapi m) {
     xmlnode ret, retq, agents, cur, a, cur2;
 
     /* get data from the config file */
-    agents = js_config(m->si,"browse");
+    agents = js_config(m->si, "browse:browse");
 
     /* if we don't have anything to say, bounce */
     if(agents == NULL)
@@ -76,40 +75,38 @@ mreturn mod_agents_agents(mapi m)
 
     /* build the result IQ */
     ret = jutil_iqresult(m->packet->x);
-    retq = xmlnode_insert_tag(ret,"query");
-    xmlnode_put_attrib(retq,"xmlns",NS_AGENTS);
+    retq = xmlnode_insert_tag_ns(ret, "query", NULL, NS_AGENTS);
 
     /* parse the new browse data into old agents format */
-    for(cur = xmlnode_get_firstchild(agents); cur != NULL; cur = xmlnode_get_nextsibling(cur))
-    {
+    for (cur = xmlnode_get_firstchild(agents); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
         if(xmlnode_get_type(cur) != NTYPE_TAG) continue;
 
         /* generic <agent> part */
-        a = xmlnode_insert_tag(retq,"agent");
-        xmlnode_put_attrib(a, "jid", xmlnode_get_attrib(cur,"jid"));
-        xmlnode_insert_cdata(xmlnode_insert_tag(a,"name"), xmlnode_get_attrib(cur,"name"), -1);
-        xmlnode_insert_cdata(xmlnode_insert_tag(a,"service"), xmlnode_get_attrib(cur,"type"), -1);
+        a = xmlnode_insert_tag_ns(retq, "agent", NULL, NS_AGENTS);
+        xmlnode_put_attrib_ns(a, "jid", NULL, NULL, xmlnode_get_attrib_ns(cur, "jid", NULL));
+        xmlnode_insert_cdata(xmlnode_insert_tag_ns(a, "name", NULL, NS_AGENTS), xmlnode_get_attrib_ns(cur, "name", NULL), -1);
+        xmlnode_insert_cdata(xmlnode_insert_tag_ns(a, "service", NULL, NS_AGENTS), xmlnode_get_attrib_ns(cur, "type", NULL), -1);
 
-        if(j_strcmp(xmlnode_get_name(cur),"conference") == 0)
-            xmlnode_insert_tag(a,"groupchat");
+        if (j_strcmp(xmlnode_get_localname(cur), "conference") == 0)
+            xmlnode_insert_tag_ns(a, "groupchat", NULL, NS_AGENTS);
 
         /* map the included <ns>'s in browse to the old agent flags */
-        for(cur2 = xmlnode_get_firstchild(cur); cur2 != NULL; cur2 = xmlnode_get_nextsibling(cur2))
-        {
-            if(j_strcmp(xmlnode_get_name(cur2),"ns") != 0) continue;
-            if(j_strcmp(xmlnode_get_data(cur2),"jabber:iq:register") == 0)
-                xmlnode_insert_tag(a,"register");
-            if(j_strcmp(xmlnode_get_data(cur2),"jabber:iq:search") == 0)
-                xmlnode_insert_tag(a,"search");
-            if(j_strcmp(xmlnode_get_data(cur2),"jabber:iq:gateway") == 0)
-                xmlnode_insert_cdata(xmlnode_insert_tag(a,"transport"),"Enter ID", -1);
+        for (cur2 = xmlnode_get_firstchild(cur); cur2 != NULL; cur2 = xmlnode_get_nextsibling(cur2)) {
+            if (j_strcmp(xmlnode_get_localname(cur2),"ns") != 0 || j_strcmp(xmlnode_get_namespace(cur2), NS_AGENTS) != 0)
+		continue;
+            if (j_strcmp(xmlnode_get_data(cur2),"jabber:iq:register") == 0)
+                xmlnode_insert_tag_ns(a, "register", NULL, NS_AGENTS);
+            if (j_strcmp(xmlnode_get_data(cur2),"jabber:iq:search") == 0)
+                xmlnode_insert_tag_ns(a, "search", NULL, NS_AGENTS);
+            if (j_strcmp(xmlnode_get_data(cur2),"jabber:iq:gateway") == 0)
+                xmlnode_insert_cdata(xmlnode_insert_tag_ns(a, "transport", NULL, NS_AGENTS),"Enter ID", -1);
         }
     }
 
     jpacket_reset(m->packet);
-    if(m->s != NULL) /* XXX null session hack! */
-    {
-        xmlnode_put_attrib(m->packet->x,"from",m->packet->from->server);
+    if(m->s != NULL) {
+	/* XXX null session hack! */
+        xmlnode_put_attrib_ns(m->packet->x, "from", NULL, NULL, m->packet->from->server);
         js_session_to(m->s,m->packet);
     }else{
         js_deliver(m->si,m->packet);
@@ -128,14 +125,13 @@ mreturn mod_agents_agents(mapi m)
  * @param m the mapi structure (contains the request packet)
  * @return M_HANDLED if the request could be answered, M_PASS if no information could be found in the configuration file.
  */
-mreturn mod_agents_agent(mapi m)
-{
+mreturn mod_agents_agent(mapi m) {
     xmlnode ret, retq, info, agents, reg;
 
     /* get data from the config file */
-    info = js_config(m->si,"vCard");
-    agents = js_config(m->si,"agents");
-    reg = js_config(m->si,"register");
+    info = js_config(m->si,"vcard:vCard");
+    agents = js_config(m->si,"jsm:agents");
+    reg = js_config(m->si,"register:register");
 
     /* if we don't have anything to say, bounce */
     if(info == NULL && agents == NULL && reg == NULL)
@@ -145,26 +141,25 @@ mreturn mod_agents_agent(mapi m)
 
     /* build the result IQ */
     ret = jutil_iqresult(m->packet->x);
-    retq = xmlnode_insert_tag(ret,"query");
-    xmlnode_put_attrib(retq,"xmlns",NS_AGENT);
+    retq = xmlnode_insert_tag_ns(ret, "query", NULL, NS_AGENT);
 
     /* copy in the vCard info */
-    xmlnode_insert_cdata(xmlnode_insert_tag(retq,"name"),xmlnode_get_tag_data(info,"FN"),-1);
-    xmlnode_insert_cdata(xmlnode_insert_tag(retq,"url"),xmlnode_get_tag_data(info,"URL"),-1);
-    xmlnode_insert_cdata(xmlnode_insert_tag(retq,"service"),"jabber",6);
+    xmlnode_insert_cdata(xmlnode_insert_tag_ns(retq, "name", NULL, NS_AGENT), xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(info, "vcard:FN", m->si->std_namespace_prefixes), 0)),-1);
+    xmlnode_insert_cdata(xmlnode_insert_tag_ns(retq, "url", NULL, NS_AGENT), xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(info, "vcard:URL", m->si->std_namespace_prefixes), 0)),-1);
+    xmlnode_insert_cdata(xmlnode_insert_tag_ns(retq, "service", NULL, NS_AGENT), "jabber", 6);
 
     /* set the flags */
-    if(agents != NULL)
-        xmlnode_insert_tag(retq,"agents");
-    if(reg != NULL)
-        xmlnode_insert_tag(retq,"register");
+    if (agents != NULL)
+        xmlnode_insert_tag_ns(retq,"agents", NULL, NS_AGENTS);
+    if (reg != NULL)
+        xmlnode_insert_tag_ns(retq,"register", NULL, NS_AGENTS);
 
     jpacket_reset(m->packet);
-    if(m->s != NULL) /* XXX null session hack! */
-    {
-        xmlnode_put_attrib(m->packet->x,"from",m->packet->from->server);
+    if (m->s != NULL) {
+	/* XXX null session hack! */
+        xmlnode_put_attrib_ns(m->packet->x, "from", NULL, NULL, m->packet->from->server);
         js_session_to(m->s,m->packet);
-    }else{
+    } else {
         js_deliver(m->si,m->packet);
     }
 
@@ -180,15 +175,19 @@ mreturn mod_agents_agent(mapi m)
  * @param arg not used/ignored
  * @return M_IGNORE if the packet is no iq stanza, M_PASS if the packet has not been handled, M_HANDLED if the packet is processed
  */
-mreturn mod_agents_handler(mapi m, void *arg)
-{
-    if(m->packet->type != JPACKET_IQ) return M_IGNORE; /* only handle IQ stanzas */
+mreturn mod_agents_handler(mapi m, void *arg) {
+    if (m->packet->type != JPACKET_IQ)
+	return M_IGNORE; /* only handle IQ stanzas */
 
-    if(jpacket_subtype(m->packet) != JPACKET__GET) return M_PASS; /* only care for IQ stanzas of type 'get' */
-    if(m->s != NULL && (m->packet->to != NULL && j_strcmp(jid_full(m->packet->to),m->packet->from->server) != 0)) return M_PASS; /* for session calls, only answer to=NULL or to=server */
+    if (jpacket_subtype(m->packet) != JPACKET__GET)
+	return M_PASS; /* only care for IQ stanzas of type 'get' */
+    if (m->s != NULL && (m->packet->to != NULL && j_strcmp(jid_full(m->packet->to),m->packet->from->server) != 0))
+	return M_PASS; /* for session calls, only answer to=NULL or to=server */
 
-    if(NSCHECK(m->packet->iq,NS_AGENT)) return mod_agents_agent(m);
-    if(NSCHECK(m->packet->iq,NS_AGENTS)) return mod_agents_agents(m);
+    if (NSCHECK(m->packet->iq, NS_AGENT))
+	return mod_agents_agent(m);
+    if (NSCHECK(m->packet->iq,NS_AGENTS))
+	return mod_agents_agents(m);
 
     return M_PASS;
 }
@@ -210,8 +209,7 @@ mreturn mod_agents_handler(mapi m, void *arg)
  * @param arg not used/ignored
  * @return always M_PASS
  */
-mreturn mod_agents_shack(mapi m, void *arg)
-{
+mreturn mod_agents_shack(mapi m, void *arg) {
     js_mapi_session(es_OUT,m->s,mod_agents_handler,NULL);
     return M_PASS;
 }
@@ -225,8 +223,7 @@ mreturn mod_agents_shack(mapi m, void *arg)
  *
  * @param si the session manager instance
  */
-void mod_agents(jsmi si)
-{
+void mod_agents(jsmi si) {
     log_debug2(ZONE, LOGT_INIT, "init");
     js_mapi_register(si,e_SERVER, mod_agents_handler, NULL);
     js_mapi_register(si,e_SESSION, mod_agents_shack, NULL);

@@ -71,11 +71,11 @@ void _js_authreg_auth(jpacket p) {
 	/* lock the udata structure, so it does not get freed in the mapi call */
 	user->ref++;
 
-	if(!js_mapi_call(si, e_AUTH, p, user, NULL)) {
-	    if(jpacket_subtype(p) == JPACKET__GET) {
+	if (!js_mapi_call(si, e_AUTH, p, user, NULL)) {
+	    if (jpacket_subtype(p) == JPACKET__GET) {
 		/* if it's a type="get" for auth, everybody mods it and we result and return it */
-		xmlnode_insert_tag(p->iq,"resource"); /* of course, resource is required :) */
-		xmlnode_put_attrib(p->x,"type","result");
+		xmlnode_insert_tag_ns(p->iq, "resource", NULL, NS_AUTH); /* of course, resource is required :) */
+		xmlnode_put_attrib_ns(p->x, "type", NULL, NULL, "result");
 		jutil_tofrom(p->x);
 	    } else {
 		/* type="set" that didn't get handled used to be a problem, but now auth_plain passes on failed checks so it might be normal */
@@ -99,30 +99,35 @@ void _js_authreg_auth(jpacket p) {
  */
 void _js_authreg_register(jpacket p) {
     jsmi si = (jsmi)(p->aux1);
+    static xht namespaces = NULL;
+
+    if (namespaces == NULL) {
+	namespaces = xhash_new(3);
+	xhash_put(namespaces, "register", NS_REGISTER);
+    }
 
     if (jpacket_subtype(p) == JPACKET__GET) {
 	/* request for information on requested data */
 	
 	log_debug2(ZONE, LOGT_AUTH, "registration get request");
 	/* let modules try to handle it */
-	if(!js_mapi_call(si, e_REGISTER, p, NULL, NULL))
-	{
+	if (!js_mapi_call(si, e_REGISTER, p, NULL, NULL)) {
 	    jutil_error_xmpp(p->x, XTERROR_NOTIMPL);
-	}else{ /* make a reply and the username requirement is built-in :) */
-	    xmlnode_put_attrib(p->x,"type","result");
+	} else { /* make a reply and the username requirement is built-in :) */
+	    xmlnode_put_attrib_ns(p->x, "type", NULL, NULL, "result");
 	    jutil_tofrom(p->x);
-	    xmlnode_insert_tag(p->iq,"username");
+	    xmlnode_insert_tag_ns(p->iq, "username", NULL, NS_AUTH);
 	}
     } else {
 	/* actual registration request */
 
 	log_debug2(ZONE, LOGT_AUTH, "registration set request");
-	if(p->to->user == NULL || xmlnode_get_tag_data(p->iq,"password") == NULL)
-	{
+	if (p->to->user == NULL || xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(p->iq, "register:password", namespaces), 0)) == NULL) {
+	    log_debug2(ZONE, LOGT_AUTH, "registration set request without a password ...");
 	    jutil_error_xmpp(p->x, XTERROR_NOTACCEPTABLE);
-	}else if(js_user(si,p->to,NULL) != NULL){
-	    jutil_error_xmpp(p->x, (xterror){409,"Username Not Available","cancel","conflict"});
-	}else if(!js_mapi_call(si, e_REGISTER, p, NULL, NULL)){
+	} else if (js_user(si, p->to, NULL) != NULL) {
+	    jutil_error_xmpp(p->x, (xterror){409, "Username Not Available", "cancel", "conflict"});
+	} else if (!js_mapi_call(si, e_REGISTER, p, NULL, NULL)) {
 	    jutil_error_xmpp(p->x, XTERROR_NOTIMPL);
 	}
     }
@@ -136,8 +141,7 @@ void _js_authreg_register(jpacket p) {
  *
  * @param arg the packet containing the authentication or registration request
  */
-void js_authreg(void *arg)
-{
+void js_authreg(void *arg) {
     jpacket p = (jpacket)arg;
     udata user;
     char *ul;
@@ -145,7 +149,7 @@ void js_authreg(void *arg)
     xmlnode x;
 
     /* enforce the username to lowercase */
-    if(p->to->user != NULL)
+    if (p->to->user != NULL)
         for(ul = p->to->user;*ul != '\0'; ul++)
             *ul = tolower(*ul);
 
@@ -161,15 +165,14 @@ void js_authreg(void *arg)
     }
 
     /* restore the route packet */
-    x = xmlnode_wrap(p->x,"route");
-    xmlnode_put_attrib(x,"from",xmlnode_get_attrib(p->x,"from"));
-    xmlnode_put_attrib(x,"to",xmlnode_get_attrib(p->x,"to"));
-    xmlnode_put_attrib(x,"type",xmlnode_get_attrib(p->x,"route"));
+    x = xmlnode_wrap_ns(p->x, "route", NULL, NS_SERVER);
+    xmlnode_put_attrib_ns(x,"from", NULL, NULL, xmlnode_get_attrib_ns(p->x, "from", NULL));
+    xmlnode_put_attrib_ns(x,"to", NULL, NULL, xmlnode_get_attrib_ns(p->x, "to", NULL));
+    xmlnode_put_attrib_ns(x,"type", NULL, NULL, xmlnode_get_attrib_ns(p->x, "route", NULL));
     /* hide our uglies */
-    xmlnode_hide_attrib(p->x,"from");
-    xmlnode_hide_attrib(p->x,"to");
-    xmlnode_hide_attrib(p->x,"route");
+    xmlnode_hide_attrib_ns(p->x, "from", NULL);
+    xmlnode_hide_attrib_ns(p->x, "to", NULL);
+    xmlnode_hide_attrib_ns(p->x, "route", NULL);
     /* reply */
     deliver(dpacket_new(x), si->i);
 }
-

@@ -66,7 +66,7 @@ mreturn mod_useridpolicy_new(mapi m, void *arg) {
     char *ptr = NULL;		/* for iterating */
 
     /* disable the module if not configured */
-    if ((config = js_config(m->si, "mod_useridpolicy")) == NULL)
+    if ((config = js_config(m->si, "jsm:mod_useridpolicy")) == NULL)
 	return M_IGNORE;
     
     log_debug2(ZONE, LOGT_AUTH, "checking registration policy");
@@ -76,7 +76,7 @@ mreturn mod_useridpolicy_new(mapi m, void *arg) {
 	return M_PASS;
 
     /* get the desired username */
-    username = xmlnode_get_tag_data(m->packet->iq, "username");
+    username = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:username", m->si->std_namespace_prefixes), 0));
 
     /* if there is no username, we don't care, mod_register will probably reject it */
     if (username == NULL)
@@ -93,8 +93,11 @@ mreturn mod_useridpolicy_new(mapi m, void *arg) {
 	if (xmlnode_get_type(x) != NTYPE_TAG)
 	    continue;
 
+	if (!NSCHECK(x, NS_JABBERD_CONFIGFILE))
+	    continue;
+
 	/* we only care for "forbidden" elements at this point */
-	if (j_strcmp(xmlnode_get_name(x), "forbidden") != 0)
+	if (j_strcmp(xmlnode_get_localname(x), "forbidden") != 0)
 	    continue;
 
 	/* check for a match and possibly reject */
@@ -106,6 +109,7 @@ mreturn mod_useridpolicy_new(mapi m, void *arg) {
     }
 
     /* check the length of the username in characters */
+    /* XXX normalize username using nodeprep before */
     for (ptr = username; ptr != NULL && *ptr != '\0'; ptr++) {
 	/* no new unicode character, continued UTF-8 character */
 	if ((*ptr & 0xC0) == 0x80) {
@@ -118,14 +122,14 @@ mreturn mod_useridpolicy_new(mapi m, void *arg) {
     log_debug2(ZONE, LOGT_REGISTER, "length of username is %i", username_len);
 
     /* check for minimum length */
-    if (j_atoi(xmlnode_get_tag_data(config, "minlen"), 1) > username_len) {
+    if (j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:minlen", m->si->std_namespace_prefixes), 0)), 1) > username_len) {
 	log_notice(m->packet->to->server, "blocked account '%s' from being registered: username to short", username);
 	jutil_error_xmpp(m->packet->x, XTERROR_NOTACCEPTABLE);
 	return M_HANDLED;
     }
     
     /* check for maximum length */
-    if (j_atoi(xmlnode_get_tag_data(config, "maxlen"), 1023) < username_len) {
+    if (j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:maxlen", m->si->std_namespace_prefixes), 0)), 1023) < username_len) {
 	log_notice(m->packet->to->server, "blocked account '%s' from being registered: username to long", username);
 	jutil_error_xmpp(m->packet->x, XTERROR_NOTACCEPTABLE);
 	return M_HANDLED;

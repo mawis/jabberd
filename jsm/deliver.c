@@ -141,11 +141,11 @@ result _js_routed_session_packet(instance i, dpacket p, jsmi si) {
     if ((s = js_session_new(si, p)) == NULL) {
 	/* session start failed */
 	log_warn(p->host,"Unable to create session %s",jid_full(p->id));
-	xmlnode_put_attrib(p->x,"type","error");
-	xmlnode_put_attrib(p->x,"error","Session Failed");
+	xmlnode_put_attrib_ns(p->x, "type", NULL, NULL, "error");
+	xmlnode_put_attrib_ns(p->x, "error", NULL, NULL, "Session Failed");
     } else {
 	/* reset to the routed id for this session for the reply below */
-	xmlnode_put_attrib(p->x,"to",jid_full(s->route));
+	xmlnode_put_attrib_ns(p->x, "to", NULL, NULL, jid_full(s->route));
     }
 
     /* reply */
@@ -174,18 +174,17 @@ result _js_routed_auth_packet(instance i, dpacket p, jsmi si, jpacket jp) {
     char *authto = NULL;
 
     /* check and see if we're configured to forward auth packets for processing elsewhere */
-    if((authto = xmlnode_get_data(js_config(si,"auth"))) != NULL)
-    {
-	xmlnode_put_attrib(p->x,"oto",xmlnode_get_attrib(p->x,"to")); /* preserve original to */
-	xmlnode_put_attrib(p->x,"to",authto);
+    if ((authto = xmlnode_get_data(js_config(si, "jsm:auth"))) != NULL) {
+	xmlnode_put_attrib_ns(p->x, "oto", NULL, NULL, xmlnode_get_attrib_ns(p->x, "to", NULL)); /* preserve original to */
+	xmlnode_put_attrib_ns(p->x, "to", NULL, NULL, authto);
 	deliver(dpacket_new(p->x), i);
 	return r_DONE;
     }
 
     /* internally, hide the route to/from addresses on the authreg request */
-    xmlnode_put_attrib(jp->x,"to",xmlnode_get_attrib(p->x,"to"));
-    xmlnode_put_attrib(jp->x,"from",xmlnode_get_attrib(p->x,"from"));
-    xmlnode_put_attrib(jp->x,"route",xmlnode_get_attrib(p->x,"type"));
+    xmlnode_put_attrib_ns(jp->x, "to", NULL, NULL, xmlnode_get_attrib_ns(p->x, "to", NULL));
+    xmlnode_put_attrib_ns(jp->x, "from", NULL, NULL, xmlnode_get_attrib_ns(p->x, "from", NULL));
+    xmlnode_put_attrib_ns(jp->x, "route", NULL, NULL, xmlnode_get_attrib_ns(p->x, "type", NULL));
     jpacket_reset(jp);
     jp->aux1 = (void *)si;
     mtq_send(NULL,jp->p,js_authreg,(void *)jp);
@@ -247,7 +246,7 @@ result _js_routed_error_packet(instance i, dpacket p, jsmi si, xht ht, jpacket j
  * @return always r_DONE
  */
 result _js_routed_session_control_packet(instance i, dpacket p, xmlnode sc_session, jsmi si) {
-    char *action = xmlnode_get_attrib(sc_session, "action");
+    char *action = xmlnode_get_attrib_ns(sc_session, "action", NULL);
 
     if (j_strcmp(action, "start") == 0) {
 	session s = js_sc_session_new(si, p, sc_session);
@@ -255,17 +254,17 @@ result _js_routed_session_control_packet(instance i, dpacket p, xmlnode sc_sessi
 	if (s == NULL) {
 	    /* session start failed */
 	    log_warn(p->host,"Unable to create session %s",jid_full(p->id));
-	    xmlnode_put_attrib(sc_session, "failed", "Session Failed");
+	    xmlnode_put_attrib_ns(sc_session, "failed", NULL, NULL, "Session Failed");
 	} else {
 	    /* confirm the session */
-	    xmlnode_put_attrib(sc_session, "action", "started");
-	    xmlnode_put_attrib(sc_session, "sc:sm", s->sc_sm);
+	    xmlnode_put_attrib_ns(sc_session, "action", NULL, NULL, "started");
+	    xmlnode_put_attrib_ns(sc_session, "sm", "sc", NS_SESSION, s->sc_sm);
 	}
     } else if (j_strcmp(action, "end") == 0) {
 	session s = NULL;
 
 	/* close existing session */
-	char *sc_sm = xmlnode_get_attrib(sc_session, "sc:sm");
+	char *sc_sm = xmlnode_get_attrib_ns(sc_session, "sm", NS_SESSION);
 	udata u = (udata)xhash_get(si->sc_sessions, sc_sm);
 	if (sc_sm != NULL && u != NULL) {
 	    for (s = u->sessions; s != NULL; s = s->next) {
@@ -278,33 +277,33 @@ result _js_routed_session_control_packet(instance i, dpacket p, xmlnode sc_sessi
 	}
 
 	/* confirm closed session */
-	xmlnode_put_attrib(sc_session, "action", "ended");
+	xmlnode_put_attrib_ns(sc_session, "action", NULL, NULL, "ended");
     } else if (j_strcmp(action, "create") == 0) {
 	/* notify modules */
-	jid user_id = jid_new(p->p, xmlnode_get_attrib(sc_session, "target"));
+	jid user_id = jid_new(p->p, xmlnode_get_attrib_ns(sc_session, "target", NULL));
 	if (user_id != NULL) {
 	    js_user_create(si, user_id);
     
 	    /* confirm creation */
-	    xmlnode_put_attrib(sc_session, "action", "created");
+	    xmlnode_put_attrib_ns(sc_session, "action", NULL, NULL, "created");
 	} else {
-	    xmlnode_put_attrib(sc_session, "failed", "no valid target");
+	    xmlnode_put_attrib_ns(sc_session, "failed", NULL, NULL, "no valid target");
 	}
     } else if (j_strcmp(action, "delete") == 0) {
 	/* notify modules */
-	jid user_id = jid_new(p->p, xmlnode_get_attrib(sc_session, "target"));
+	jid user_id = jid_new(p->p, xmlnode_get_attrib_ns(sc_session, "target", NULL));
 	if (user_id != NULL) {
 	    js_user_delete(si, user_id);
 	    
 	    /* confirm deletion */
-	    xmlnode_put_attrib(sc_session, "action", "deleted");
+	    xmlnode_put_attrib_ns(sc_session, "action", NULL, NULL, "deleted");
 	} else {
-	    xmlnode_put_attrib(sc_session, "failed", "no valid target");
+	    xmlnode_put_attrib_ns(sc_session, "failed", NULL, NULL, "no valid target");
 	}
     } else {
 	/* unknown action */
 	log_warn(p->host, "Session control packet with unknown action: %s", action);
-	xmlnode_put_attrib(sc_session, "failed", "Unknown session control action");
+	xmlnode_put_attrib_ns(sc_session, "failed", NULL, NULL, "Unknown session control action");
     }
 
     /* reply */
@@ -361,7 +360,7 @@ result _js_routed_packet(instance i, dpacket p, jsmi si, xht ht) {
     udata u = NULL;		/* the user's data */
     char *sc_sm = NULL;		/* sc:sm attribute value for new session control protocol */
 
-    type = xmlnode_get_attrib(p->x,"type");
+    type = xmlnode_get_attrib_ns(p->x, "type", NULL);
 
     /* new session requests */
     if(j_strcmp(type,"session") == 0)
@@ -376,7 +375,7 @@ result _js_routed_packet(instance i, dpacket p, jsmi si, xht ht) {
     }
     
     /* packets for the new session control protocol */
-    if (child != NULL && j_strcmp(xmlnode_get_name(child), "sc:session") == 0)
+    if (child != NULL && j_strcmp(xmlnode_get_localname(child), "session") == 0 && j_strcmp(xmlnode_get_namespace(child), NS_SESSION) == 0)
 	return _js_routed_session_control_packet(i, p, child, si);
 
     /* As long as we found one process */
@@ -390,13 +389,13 @@ result _js_routed_packet(instance i, dpacket p, jsmi si, xht ht) {
     /* this is a packet to be processed as outgoing for a session */
 
     /* find session using old or new c2s-sm-protocol? */
-    sc_sm = xmlnode_get_attrib(child, "sc:sm");
+    sc_sm = xmlnode_get_attrib_ns(child, "sm", NS_SESSION);
 
     /* get user data */
     u = sc_sm == NULL ? js_user(si, p->id, ht) : (udata)xhash_get(si->sc_sessions, sc_sm);
     if (u == NULL) {
 	/* no user!?!?! */
-	log_notice(p->host,"Bouncing packet intended for nonexistant user: %s",xmlnode2str(p->x));
+	log_notice(p->host,"Bouncing packet intended for nonexistant user: %s",xmlnode_serialize_string(p->x, NULL, NULL, 0));
 	deliver_fail(dpacket_new(p->x), "Invalid User");
 	return r_DONE;
     }
@@ -409,9 +408,9 @@ result _js_routed_packet(instance i, dpacket p, jsmi si, xht ht) {
 		break;
 
 	/* hide routing attributes */
-	xmlnode_hide_attrib(child, "xmlns:sc");
-	xmlnode_hide_attrib(child, "sc:sm");
-	xmlnode_hide_attrib(child, "sc:c2s");
+	xmlnode_hide_attrib_ns(child, "sc", NS_XMLNS);
+	xmlnode_hide_attrib_ns(child, "sm", NS_SESSION);
+	xmlnode_hide_attrib_ns(child, "c2s", NS_SESSION);
     } else {
 	/* new session control protocol */
 	for (s = u->sessions; s != NULL; s = s->next)
@@ -425,7 +424,7 @@ result _js_routed_packet(instance i, dpacket p, jsmi si, xht ht) {
 
     if(jp == NULL) {
 	/* uhh, empty packet, *shrug* */
-	log_notice(p->host,"Dropping an invalid or empty route packet: %s",xmlnode2str(p->x),jid_full(p->id));
+	log_notice(p->host,"Dropping an invalid or empty route packet: %s",xmlnode_serialize_string(p->x, NULL, NULL, 0),jid_full(p->id));
 	xmlnode_free(p->x);
 	return r_DONE;
     }
@@ -435,7 +434,7 @@ result _js_routed_packet(instance i, dpacket p, jsmi si, xht ht) {
 	js_session_from(s, jp);
     } else {
 	/* bounce back as an error */
-	log_notice(p->host,"Bouncing %s packet intended for session %s",xmlnode_get_name(jp->x),jid_full(p->id));
+	log_notice(p->host, "Bouncing %s packet intended for session %s", xmlnode_get_localname(jp->x), jid_full(p->id));
 	deliver_fail(dpacket_new(p->x), "Invalid Session");
     }
 
@@ -463,35 +462,31 @@ result _js_routed_packet(instance i, dpacket p, jsmi si, xht ht) {
  * @param arg our jsm instance internal data
  * @return always r_DONE
  */
-result js_packet(instance i, dpacket p, void *arg)
-{
+result js_packet(instance i, dpacket p, void *arg) {
     jsmi si = (jsmi)arg;
     jpacket jp = NULL;
     xht ht = NULL;
 
-    log_debug2(ZONE, LOGT_DELIVER, "(%X)incoming packet %s",si,xmlnode2str(p->x));
+    log_debug2(ZONE, LOGT_DELIVER, "(%X)incoming packet %s",si,xmlnode_serialize_string(p->x, NULL, NULL, 0));
 
     /* make sure this hostname is in the master table */
-    if((ht = (xht)xhash_get(si->hosts,p->host)) == NULL)
-    {
-        ht = xhash_new(j_atoi(xmlnode_get_data(js_config(si,"maxusers")),USERS_PRIME));
-        log_debug2(ZONE, LOGT_DELIVER, "creating user hash %X for %s",ht,p->host);
+    if ((ht = (xht)xhash_get(si->hosts,p->host)) == NULL) {
+        ht = xhash_new(j_atoi(xmlnode_get_data(js_config(si,"jsm:maxusers")), USERS_PRIME));
+        log_debug2(ZONE, LOGT_DELIVER, "creating user hash %X for %s", ht,p->host);
         xhash_put(si->hosts,pstrdup(si->p,p->host), (void *)ht);
-        log_debug2(ZONE, LOGT_DELIVER, "checking %X",xhash_get(si->hosts,p->host));
+        log_debug2(ZONE, LOGT_DELIVER, "checking %X", xhash_get(si->hosts, p->host));
     }
 
     /* if this is a routed packet */
-    if(p->type == p_ROUTE)
-    {
+    if (p->type == p_ROUTE) {
 	return _js_routed_packet(i, p, si, ht);
     }
 
     /* normal server-server packet, should we make sure it's not spoofing us?  if so, if xhash_get(p->to->server) then bounce w/ security error */
 
     jp = jpacket_new(p->x);
-    if(jp == NULL)
-    {
-        log_warn(p->host,"Dropping invalid incoming packet: %s",xmlnode2str(p->x));
+    if (jp == NULL) {
+        log_warn(p->host, "Dropping invalid incoming packet: %s", xmlnode_serialize_string(p->x, NULL, NULL, 0));
         xmlnode_free(p->x);
         return r_DONE;
     }
@@ -518,19 +513,19 @@ void js_deliver(jsmi si, jpacket p) {
 
     /* does it have a destination address? */
     if (p->to == NULL) {
-        log_warn(NULL,"jsm: Invalid Recipient, returning data %s",xmlnode2str(p->x));
+        log_warn(NULL, "jsm: Invalid Recipient, returning data %s", xmlnode_serialize_string(p->x, NULL, NULL, 0));
         js_bounce_xmpp(si,p->x,XTERROR_BAD);
         return;
     }
 
     /* does it have a sender address? */
     if (p->from == NULL) {
-        log_warn(NULL,"jsm: Invalid Sender, discarding data %s",xmlnode2str(p->x));
+        log_warn(NULL, "jsm: Invalid Sender, discarding data %s", xmlnode_serialize_string(p->x, NULL, NULL, 0));
         xmlnode_free(p->x);
         return;
     }
 
-    log_debug2(ZONE, LOGT_DELIVER, "deliver(to[%s],from[%s],type[%d],packet[%s])",jid_full(p->to),jid_full(p->from),p->type,xmlnode2str(p->x));
+    log_debug2(ZONE, LOGT_DELIVER, "deliver(to[%s],from[%s],type[%d],packet[%s])", jid_full(p->to), jid_full(p->from), p->type, xmlnode_serialize_string(p->x, NULL, NULL, 0));
 
     /* external or local delivery? */
     if ((ht = (xht)xhash_get(si->hosts,p->to->server)) != NULL) {
@@ -547,8 +542,7 @@ void js_deliver(jsmi si, jpacket p) {
  * @param p the packet to send
  * @param f the function to send the packet to
  */
-void js_psend(jsmi si, jpacket p, mtq_callback f)
-{
+void js_psend(jsmi si, jpacket p, mtq_callback f) {
     jpq q;
 
     if(p == NULL || si == NULL)
