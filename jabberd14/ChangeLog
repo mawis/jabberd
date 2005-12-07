@@ -4,6 +4,7 @@
     * jsm/modules/mod_presence.c: namespace fix
     * pthsock/client.c: using the ns aware api of xmlnode
     * xdb_sql/xdb_sql.c: using ns aware api of xmlnode
+    * dialback/dialback_in.c: bugfix for pre-XMPP streams handling
 
 2005-12-05  Matthias Wimmer  <m@tthias.net>
 

@@ -426,7 +426,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     }
 
     /* deprecated non-dialback protocol, reject connection */
-    if(version < 1 && dbns_defined) {
+    if(version < 1 && !dbns_defined) {
 	jid key = NULL;
         key = jid_new(xmlnode_pool(x), we_domain);
 	mio_write_root(m, xstream_header(other_domain, jid_full(key)), 0);
