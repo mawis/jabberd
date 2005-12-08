@@ -125,7 +125,7 @@ int main (int argc, const char** argv) {
 	{ "config", 'c', POPT_ARG_STRING, &(jabberd.cfgfile), 0, "configuration file to use", "path and filename"},
 	{ NULL, 'd', POPT_ARG_INT, &do_debug, 0, "enable debugging (by type)", "debugging mask"},
 	{ "debug", 'D', POPT_ARG_VAL, &do_debug, -1, "enable debugging (all types)", NULL},
-	{ "zones", 'Z', POPT_ARG_STRING, &zones, 0, "debugging zones (file names without extension)", "files (comma separated list)"},
+	{ "zones", 'Z', POPT_ARG_STRING, &zones, 0, "debugging zones (file names without extension)", "comma separated list"},
 	{ "user", 'U', POPT_ARG_STRING, &run_as_user, 0, "run " PACKAGE " as another user", "user to run as"},
 	{ "home", 'H', POPT_ARG_STRING, &home, 0, "what to use as home directory", "directory path"},
 	{ "background", 'B', POPT_ARG_VAL, &do_background, 1, "background the server process", NULL},
@@ -143,9 +143,45 @@ int main (int argc, const char** argv) {
 	/* nothing yet */
     }
 
+    /* error? */
+    if (pReturn < -1) {
+	fprintf(stderr, "%s: %s\n", poptBadOption(pCtx, POPT_BADOPTION_NOALIAS), poptStrerror(pReturn));
+	return 1;
+    }
+
+    /* anything left? */
+    if (poptPeekArg(pCtx) != NULL) {
+	fprintf(stderr, "invalid argument: %s\n", poptGetArg(pCtx));
+	return 1;
+    }
+
     /* printing version information desired? */
     if (do_version != 0) {
 	printf("%s version %s\n", PACKAGE, VERSION);
+	printf("\nThe following optional features have been enabled:\n");
+#ifdef WITH_IPV6
+	printf("- support for IPv6.\n");
+#endif
+#ifdef SUPPORT_TLS
+	printf("- support for TLS");
+#ifdef HAVE_GNUTLS
+	printf(" using GNU TLS");
+#endif
+#ifdef HAVE_SSL
+	printf(" using OpenSSL");
+#endif
+	printf("\n");
+#endif
+#ifdef HAVE_MYSQL
+	printf("- support for MySQL\n");
+#endif
+#ifdef HAVE_POSTGRESQL
+	printf("- support for PostgreSQL\n");
+#endif
+#ifdef HAVE_SYSLOG
+	printf("- logging to syslog\n");
+#endif
+	printf("\nFor more information please visit http://jabberd.org/\n");
 	return 0;
     }
 
