@@ -1,3 +1,7 @@
+2005-12-08  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/config.c: Generate warning: diff namespaces when include
+
 2005-12-06  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/lib/jabberdlib.h: defined new namespaces
