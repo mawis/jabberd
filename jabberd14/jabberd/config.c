@@ -95,11 +95,33 @@ static void do_include(int nesting_level,xmlnode x) {
              * if root tag matches parent tag of the <include/> -- firstchild
              * otherwise, insert the whole file
              */
-             if(j_strcmp(xmlnode_get_localname(xmlnode_get_parent(cur)),xmlnode_get_localname(include_x)) == 0
-		     && j_strcmp(xmlnode_get_namespace(xmlnode_get_parent(cur)), xmlnode_get_namespace(include_x)) == 0)
+             if (j_strcmp(xmlnode_get_localname(xmlnode_get_parent(cur)),xmlnode_get_localname(include_x)) == 0
+		     && j_strcmp(xmlnode_get_namespace(xmlnode_get_parent(cur)), xmlnode_get_namespace(include_x)) == 0) {
                 xmlnode_insert_node(x,xmlnode_get_firstchild(include_x));
-             else
+	     } else {
+		 if (j_strcmp(xmlnode_get_localname(xmlnode_get_parent(cur)), xmlnode_get_localname(include_x)) == 0) {
+		     xmlnode example_root_element = xmlnode_dup(xmlnode_get_parent(cur));
+
+		     while (xmlnode_get_firstchild(example_root_element) != NULL)
+			 xmlnode_hide(xmlnode_get_firstchild(example_root_element));
+
+		     fprintf(stderr, "WARNING (while including file '%s'):\n", include_file);
+		     fprintf(stderr, "Local name (%s) of the included file's root element matches the\n", xmlnode_get_localname(include_x));
+		     fprintf(stderr, "parent element, but namespaces are different. This means the two elements\n");
+		     fprintf(stderr, "are different and are handled as different elements. You might want this,\n");
+		     fprintf(stderr, "and in that case you can just ignore this warning. But in most cases this\n");
+		     fprintf(stderr, "is a configuration bug, and not what the writer of the configuration file\n");
+		     fprintf(stderr, "intends. In that case you might want to update the root element of the\n");
+		     fprintf(stderr, "included file to declare the right namespace.\n\n");
+		     fprintf(stderr, "Currently the namespace of the parent element is '%s',\n", xmlnode_get_namespace(xmlnode_get_parent(cur)));
+		     fprintf(stderr, "and the namespace of the included root element is '%s'.\n\n", xmlnode_get_namespace(include_x));
+		     fprintf(stderr, "What you probably want is the following root element in the included file:\n");
+		     fprintf(stderr, "%s\n\n", xmlnode_serialize_string(example_root_element, NULL, NULL, 0));
+
+		     xmlnode_free(example_root_element);
+		 }
                 xmlnode_insert_node(x,include_x);
+	     }
              do_include(nesting_level+1,include_x);
              cur=xmlnode_get_nextsibling(cur);
              continue;
