@@ -103,7 +103,6 @@ jabberd_struct jabberd = { NULL, NULL, 0, NULL };		/**< global data for the jabb
  * @return 0 on successfull shutdown, 1 else
  */
 int main (int argc, const char** argv) {
-    int help, i;           /* temporary variables */
     char *c = NULL;
     char *cmd = NULL;
     char *home = NULL;
@@ -124,23 +123,43 @@ int main (int argc, const char** argv) {
     struct poptOption options[] = {
 	{ "config", 'c', POPT_ARG_STRING, &(jabberd.cfgfile), 0, "configuration file to use", "path and filename"},
 	{ NULL, 'd', POPT_ARG_INT, &do_debug, 0, "enable debugging (by type)", "debugging mask"},
-	{ "debug", 'D', POPT_ARG_VAL, &do_debug, -1, "enable debugging (all types)", NULL},
+	{ "debug", 'D', POPT_ARG_NONE, NULL, 1, "enable debugging (all types)", NULL},
 	{ "zones", 'Z', POPT_ARG_STRING, &zones, 0, "debugging zones (file names without extension)", "comma separated list"},
 	{ "user", 'U', POPT_ARG_STRING, &run_as_user, 0, "run " PACKAGE " as another user", "user to run as"},
 	{ "home", 'H', POPT_ARG_STRING, &home, 0, "what to use as home directory", "directory path"},
-	{ "background", 'B', POPT_ARG_VAL, &do_background, 1, "background the server process", NULL},
+	{ "define", 'x', POPT_ARG_STRING, NULL, 2, "define a replacement string for configuration", "key:value"},
+	{ "background", 'B', POPT_ARG_NONE, &do_background, 0, "background the server process", NULL},
 	{ "host", 'h', POPT_ARG_STRING, &host, 0, "hostname that should be served by " PACKAGE, "domain (FQDN)"},
 	{ "spooldir", 's', POPT_ARG_STRING, &spool, 0, "directory where to place the file spool of xdb_file", "directory path"},
-	{ "version", 'V', POPT_ARG_VAL, &do_version, 1, "print server version", NULL},
-	{ NULL, 'v', POPT_ARG_VAL, &do_version, 1, "print server version", NULL},
+	{ "version", 'V', POPT_ARG_NONE, &do_version, 0, "print server version", NULL},
+	{ NULL, 'v', POPT_ARG_NONE|POPT_ARGFLAG_DOC_HIDDEN, &do_version, 0, "print server version", NULL},
 	POPT_AUTOHELP
 	POPT_TABLEEND
     };
 
+    /* create hash for command line options */
+    jabberd.cmd_line = xhash_new(11);
+    
     /* parse command line options */
     pCtx = poptGetContext(NULL, argc, argv, options, 0);
-    while (pReturn = poptGetNextOpt(pCtx) >= 0) {
-	/* nothing yet */
+    while ((pReturn = poptGetNextOpt(pCtx)) >= 0) {
+	switch (pReturn) {
+	    case 1:
+		do_debug = -1;
+		break;
+	    case 2:
+		cmd = pstrdup(jabberd.cmd_line->p, poptGetOptArg(pCtx));
+		c = strchr(cmd, ':');
+		if (c == NULL) {
+		    fprintf(stderr, "Invalid definition for config file replacement: %s\nNeeds to be of key:value\n", cmd);
+		    return 1;
+		}
+		c[0] = 0;
+		c++;
+		xhash_put(jabberd.cmd_line, cmd, c);
+		cmd = c = NULL;
+		break;
+	}
     }
 
     /* error? */
@@ -191,9 +210,7 @@ int main (int argc, const char** argv) {
     /* register this handler to remove our pidfile at exit */
     atexit(_jabberd_atexit);
 
-    /* start by assuming the parameters were entered correctly */
-    help = 0;
-    jabberd.cmd_line = xhash_new(11);
+    /* putting h and s to the cmd_line hash */
     if (host != NULL) {
 	xhash_put(jabberd.cmd_line, "h", host);
     }
