@@ -137,6 +137,15 @@ else
     AC_MSG_RESULT(no)
 fi
 
+dnl check for libpopt
+AC_MSG_CHECKING(for libpopt)
+AC_TRY_COMPILE([#include <popt.h>], [poptStrerror(0)], has_popt=yes, has_popt=no)
+if test "$has_popt" = yes; then
+    AC_MSG_RESULT(yes)
+else
+    AC_MSG_ERROR(no)
+fi
+
 dnl check for needed functions to enable IPv6
 
 AC_MSG_CHECKING(for inet_pton)
