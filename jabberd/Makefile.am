@@ -6,12 +6,13 @@ bin_PROGRAMS = jabberd
 jabberd_SOURCES = jabberd.c static.c
 
 jabberd_LDADD = $(top_builddir)/jabberd/base/libjabberdbase.la \
-		$(top_builddir)/jabberd/libjabberd.la
+		$(top_builddir)/jabberd/libjabberd.la \
+		-lpopt
 jabberd_LDFLAGS = @LDFLAGS@ -export-dynamic
 
 include_HEADERS = jabberd.h
 
-INCLUDES = -DHOME=\".\" -Ilib
+INCLUDES = -Ilib
 
 EXTRA_DIST = README README.CONFIG README.SM
 
