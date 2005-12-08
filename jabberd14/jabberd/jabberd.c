@@ -60,6 +60,8 @@
 #include <syslog.h>
 #endif
 
+#include <popt.h>
+
 xht debug__zones = NULL;		/**< the debugging zones, that are enabled (key = zone string, value = zone string) */
 extern int deliver__flag;
 extern xmlnode greymatter__;
@@ -100,15 +102,52 @@ jabberd_struct jabberd = { NULL, NULL, 0, NULL };		/**< global data for the jabb
  * @param argv array of the arguments
  * @return 0 on successfull shutdown, 1 else
  */
-int main (int argc, char** argv) {
+int main (int argc, const char** argv) {
     int help, i;           /* temporary variables */
-    char *c, *cmd, *home = NULL;   /* strings used to load the server config */
-    pool cfg_pool=pool_new();
+    char *c = NULL;
+    char *cmd = NULL;
+    char *home = NULL;
+    char *zones = NULL;		/* debugging zones */
+    char *host = NULL;		/* domain/hostname to run as */
+    char *spool = NULL;		/* spool directory for xdb_file */
     float avload;
     int do_debug = 0;           /* Debug output option, default no */
     int do_background = 0;      /* Daemonize option, default no */
+    int do_version = 0;		/* print version information */
+    char *run_as_user = NULL;	/* user to run jabberd as */
+    poptContext pCtx = NULL;
+    int pReturn = 0;		/* return code of popt */
 
-    register_shutdown((shutdown_func)pool_free, cfg_pool);
+    /*
+     * command line options for jabberd14
+     */
+    struct poptOption options[] = {
+	{ "config", 'c', POPT_ARG_STRING, &(jabberd.cfgfile), 0, "configuration file to use", "path and filename"},
+	{ NULL, 'd', POPT_ARG_INT, &do_debug, 0, "enable debugging (by type)", "debugging mask"},
+	{ "debug", 'D', POPT_ARG_VAL, &do_debug, -1, "enable debugging (all types)", NULL},
+	{ "zones", 'Z', POPT_ARG_STRING, &zones, 0, "debugging zones (file names without extension)", "files (comma separated list)"},
+	{ "user", 'U', POPT_ARG_STRING, &run_as_user, 0, "run " PACKAGE " as another user", "user to run as"},
+	{ "home", 'H', POPT_ARG_STRING, &home, 0, "what to use as home directory", "directory path"},
+	{ "background", 'B', POPT_ARG_VAL, &do_background, 1, "background the server process", NULL},
+	{ "host", 'h', POPT_ARG_STRING, &host, 0, "hostname that should be served by " PACKAGE, "domain (FQDN)"},
+	{ "spooldir", 's', POPT_ARG_STRING, &spool, 0, "directory where to place the file spool of xdb_file", "directory path"},
+	{ "version", 'V', POPT_ARG_VAL, &do_version, 1, "print server version", NULL},
+	{ NULL, 'v', POPT_ARG_VAL, &do_version, 1, "print server version", NULL},
+	POPT_AUTOHELP
+	POPT_TABLEEND
+    };
+
+    /* parse command line options */
+    pCtx = poptGetContext(NULL, argc, argv, options, 0);
+    while (pReturn = poptGetNextOpt(pCtx) >= 0) {
+	/* nothing yet */
+    }
+
+    /* printing version information desired? */
+    if (do_version != 0) {
+	printf("%s version %s\n", PACKAGE, VERSION);
+	return 0;
+    }
 
     /* generate a memory pool that is available for the whole livetime of jabberd */
     jabberd.runtime_pool = pool_new();
@@ -119,86 +158,33 @@ int main (int argc, char** argv) {
     /* start by assuming the parameters were entered correctly */
     help = 0;
     jabberd.cmd_line = xhash_new(11);
-
-    /* process the parameterss one at a time */
-    for(i = 1; i < argc; i++)
-    {
-        if(argv[i][0]!='-')
-        { /* make sure it's a valid command */
-            help=1;
-            break;
-        }
-        for(c=argv[i]+1;c[0]!='\0';c++)
-        {
-            /* loop through the characters, like -Dc */
-            if(*c == 'V' || *c == 'v')
-            {
-                printf("%s version %s\n", PACKAGE, VERSION);
-                exit(0);
-            }
-            else if(*c == 'B')
-            {
-		do_background = 1;
-                continue;
-            }
-	    else if(*c == 'D')
-	    {
-		do_debug = -1;
-		continue;
-	    }
-
-            cmd = pmalloco(cfg_pool,2);
-            cmd[0]=*c;
-            if(i+1<argc)
-            {
-               xhash_put(jabberd.cmd_line,cmd,argv[++i]);
-            }else{
-                help=1;
-                break;
-            }
-        }
+    if (host != NULL) {
+	xhash_put(jabberd.cmd_line, "h", host);
+    }
+    if (spool != NULL) {
+	xhash_put(jabberd.cmd_line, "s", spool);
     }
 
     /* the special -Z flag provides a list of zones to filter debug output for, flagged w/ a simple hash */
-    if((cmd = xhash_get(jabberd.cmd_line,"Z")) != NULL)
-    {
-        set_cmdline_debug_flag(-1);
+    if (zones != NULL) {
 	debug__zones = xhash_new(11);
-        while(cmd != NULL)
-        {
-            c = strchr(cmd,',');
-            if(c != NULL)
-            {
+	cmd = pstrdup(debug__zones->p, zones);
+        while(cmd != NULL) {
+            c = strchr(cmd, ',');
+            if (c != NULL) {
                 *c = '\0';
                 c++;
             }
-            xhash_put(debug__zones,cmd,cmd);
+            xhash_put(debug__zones, cmd, cmd);
             cmd = c;
         }
-    }else{
+    } else {
         debug__zones = NULL;
-    }
-
-    /* the -D flag provides a bitmask of debug types the user want to be logged */
-    if((cmd = xhash_get(jabberd.cmd_line,"d")) != NULL) {
-	do_debug = atoi(cmd);
-
-	if (!do_debug) {
-	    printf("Invalid parameter for the -D flag, specify a bitmask.\n-D ignored\n");
-	}
-	
     }
 
     if (do_debug && do_background) {
 	printf(PACKAGE " will not background with debugging enabled.\n");
 	do_background=0;
-    }
-
-    /* were there any bad parameters? */
-    if(help)
-    {
-        fprintf(stderr,"Usage:\n%s [params]\n Optional Parameters:\n -c <file>\tconfiguration file\n -d <typemask>\tenable debug output (disables background)\n -U user\t Run as user\n -D\t\tenable debug (all types)\n -H\t\tlocation of home folder\n -B\t\tbackground the server process\n -Z <zones>\tdebug zones (comma separated list)\n -v\t\tserver version\n -V\t\tserver version\n", argv[0]);
-        exit(0);
     }
 
 #ifdef HAVE_SYSLOG
@@ -208,27 +194,21 @@ int main (int argc, char** argv) {
     /* set to debug mode if we have it */
     set_cmdline_debug_flag(do_debug);
 
-    if((home = xhash_get(jabberd.cmd_line,"H")) == NULL)
-        home = pstrdup(jabberd.runtime_pool,HOME);
     /* Switch to the specified user */
-    if ((cmd = xhash_get(jabberd.cmd_line, "U")) != NULL)
-    {
+    if (run_as_user != NULL) {
         struct passwd* user = NULL;
 
-        user = getpwnam(cmd);
-        if (user == NULL)
-        {
+        user = getpwnam(run_as_user);
+        if (user == NULL) {
             fprintf(stderr, "Unable to lookup user %s.\n", cmd);
             exit(1);
         }
         
-        if (setgid(user->pw_gid) < 0)
-        {
+        if (setgid(user->pw_gid) < 0) {
             fprintf(stderr, "Unable to set group permissions.\n");
             exit(1);
         }
-        if (setuid(user->pw_uid) < 0)
-        {
+        if (setuid(user->pw_uid) < 0) {
             fprintf(stderr, "Unable to set user permissions.\n");
             exit(1);
         }
@@ -236,19 +216,16 @@ int main (int argc, char** argv) {
 
     /* change the current working directory so everything is "local" */
     if(home != NULL && chdir(home))
-        fprintf(stderr,"Unable to access home folder %s: %s\n",home,strerror(errno));
+        fprintf(stderr, "Unable to access home folder %s: %s\n", home, strerror(errno));
 
     /* background ourselves if we have been flagged to do so */
-    if(do_background != 0)
-    {
-        if (fork() != 0)
-        {
+    if (do_background != 0) {
+        if (fork() != 0) {
             exit(0);
         }
     }
 
     /* load the config passing the file if it was manually set */
-    jabberd.cfgfile=xhash_get(jabberd.cmd_line,"c");
     if(configurate(jabberd.cfgfile, jabberd.cmd_line, 0))
         exit(1);
 
@@ -283,10 +260,10 @@ int main (int argc, char** argv) {
 
     /* everything should be registered for the config pass, validate */
     deliver__flag = 0; /* pause deliver() while starting up */
-    if(configo(0))
+    if (configo(0))
         exit(1);
 
-    log_notice(NULL,"initializing server");
+    log_notice(NULL, "initializing server");
 
     /* karma granted, rock on */
     if(configo(1))
@@ -296,8 +273,7 @@ int main (int argc, char** argv) {
     deliver__flag=1;
     deliver(NULL,NULL);
 
-    while(1)
-    {
+    while (1) {
         pth_ctrl(PTH_CTRL_GETAVLOAD, &avload);
         log_debug2(ZONE, LOGT_STATUS, "main load check of %.2f with %ld total threads", avload, pth_ctrl(PTH_CTRL_GETTHREADS));
 #ifdef POOL_DEBUG
