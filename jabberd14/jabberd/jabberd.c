@@ -109,6 +109,7 @@ int main (int argc, const char** argv) {
     char *zones = NULL;		/* debugging zones */
     char *host = NULL;		/* domain/hostname to run as */
     char *spool = NULL;		/* spool directory for xdb_file */
+    char *do_include = NULL;	/* include files in configuration */
     float avload;
     int do_debug = 0;           /* Debug output option, default no */
     int do_background = 0;      /* Daemonize option, default no */
@@ -122,6 +123,7 @@ int main (int argc, const char** argv) {
      */
     struct poptOption options[] = {
 	{ "config", 'c', POPT_ARG_STRING, &(jabberd.cfgfile), 0, "configuration file to use", "path and filename"},
+	{ "include", 'i', POPT_ARG_STRING, &do_include, 0, "include configuration files", "comma separated list"},
 	{ NULL, 'd', POPT_ARG_INT, &do_debug, 0, "enable debugging (by type)", "debugging mask"},
 	{ "debug", 'D', POPT_ARG_NONE, NULL, 1, "enable debugging (all types)", NULL},
 	{ "zones", 'Z', POPT_ARG_STRING, &zones, 0, "debugging zones (file names without extension)", "comma separated list"},
@@ -200,6 +202,7 @@ int main (int argc, const char** argv) {
 #ifdef HAVE_SYSLOG
 	printf("- logging to syslog\n");
 #endif
+	printf("\nDefault config file is: %s\n", CONFIG_DIR "/jabber.xml");
 	printf("\nFor more information please visit http://jabberd.org/\n");
 	return 0;
     }
@@ -216,6 +219,9 @@ int main (int argc, const char** argv) {
     }
     if (spool != NULL) {
 	xhash_put(jabberd.cmd_line, "s", spool);
+    }
+    if (do_include != NULL) {
+	xhash_put(jabberd.cmd_line, "i", do_include);
     }
 
     /* the special -Z flag provides a list of zones to filter debug output for, flagged w/ a simple hash */
