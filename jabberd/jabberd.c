@@ -124,7 +124,7 @@ int main (int argc, const char** argv) {
     struct poptOption options[] = {
 	{ "config", 'c', POPT_ARG_STRING, &(jabberd.cfgfile), 0, "configuration file to use", "path and filename"},
 	{ "include", 'i', POPT_ARG_STRING, &do_include, 0, "include configuration files", "comma separated list"},
-	{ NULL, 'd', POPT_ARG_INT, &do_debug, 0, "enable debugging (by type)", "debugging mask"},
+	{ "debugmask", 'd', POPT_ARG_INT, &do_debug, 0, "enable debugging (by type)", "debugging mask"},
 	{ "debug", 'D', POPT_ARG_NONE, NULL, 1, "enable debugging (all types)", NULL},
 	{ "zones", 'Z', POPT_ARG_STRING, &zones, 0, "debugging zones (file names without extension)", "comma separated list"},
 	{ "user", 'U', POPT_ARG_STRING, &run_as_user, 0, "run " PACKAGE " as another user", "user to run as"},
