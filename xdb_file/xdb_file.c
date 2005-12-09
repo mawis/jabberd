@@ -253,7 +253,7 @@ int _xdb_gen_dirs(spool sp, const char *spoolroot, char *host, const char *hash1
  * @param use_subdirs true if file should be located in subdirectories
  * @return concatenated string of the form spl+"/"+somehashes+"/"+file+"."+ext
  */
-char *xdb_file_full(int create, pool p, char *spl, char *host, char *file, char *ext, int use_subdirs) {
+char *xdb_file_full(int create, pool p, const char *spl, char *host, const char *file, char *ext, int use_subdirs) {
     spool sp = spool_new(p);
     char digit01[3], digit23[3];
     char *ret;
