@@ -41,6 +41,7 @@
 
 #include <jabberd.h>
 #include <dlfcn.h>
+#include <popt.h>
 
 /**
  * @file xdbfilepath.c
@@ -59,14 +60,62 @@ xht debug__zones;
 void *so_h = NULL;
 
 /* functions in libjabberdxdbfile.so used */
-char* (*xdb_file_full)(int create, pool p, char *spl, char *host, char *file, char *ext, int use_subdirs);
+char* (*xdb_file_full)(int create, pool p, const char *spl, char *host, const char *file, char *ext, int use_subdirs);
 void (*xdb_convert_spool)(const char *spoolroot);
 xmlnode (*xdb_file_load)(char *host, char *fname, xht cache);
 
-int main(int argc, char **argv) {
+int main(int argc, const char **argv) {
     pool p;
     char *host = NULL;
     char *error = NULL;
+    char *cfgfile = CONFIG_DIR "/jabber.xml";
+    char *basedir = NULL;
+    int show_version = 0;
+    poptContext pCtx = NULL;
+    int pReturn = 0;
+    xht std_namespace_prefixes = NULL;
+    int convert = 0;
+    char *getpath = NULL;
+    int hashspool = 0;
+
+    struct poptOption options[] = {
+	{ "convert", 0, POPT_ARG_NONE, &convert, 0, "convert from plain spool to hashspool", NULL},
+	{ "getpath", 0, POPT_ARG_STRING, &getpath, 0, "get the path to a file of a user", "JabberID"},
+	{ "basedir", 'b', POPT_ARG_STRING, &basedir, 0, "base dir of the spool", "path"},
+	{ "hashspool", 'h', POPT_ARG_NONE, &hashspool, 0, "use hashed spool directory", NULL},
+        { "config", 'c', POPT_ARG_STRING, &cfgfile, 0, "configuration file to use", "path and filename"},
+        { "version", 'V', POPT_ARG_NONE, &show_version, 0, "print server version", NULL},
+        { NULL, 'v', POPT_ARG_NONE|POPT_ARGFLAG_DOC_HIDDEN, &show_version, 0, "print server version", NULL},
+        POPT_AUTOHELP
+        POPT_TABLEEND
+    };
+
+    /* parse command line options */
+    pCtx = poptGetContext(NULL, argc, argv, options, 0);
+    while ((pReturn = poptGetNextOpt(pCtx)) >= 0) {
+	/* nothing at present */
+    }
+
+    /* error? */
+    if (pReturn < -1) {
+	fprintf(stderr, "%s: %s\n", poptBadOption(pCtx, POPT_BADOPTION_NOALIAS), poptStrerror(pReturn));
+	return 1;
+    }
+
+    /* show version information? */
+    if (show_version != 0) {
+	fprintf(stdout, "xdbfiletool out of " PACKAGE " version " VERSION "\n");
+	fprintf(stdout, "Default config file is: %s\n", CONFIG_DIR "/jabber.xml");
+	fprintf(stdout, "For more information please visit http://jabberd.org/\n");
+	return 0;
+    }
+
+    std_namespace_prefixes = xhash_new(13);
+    xhash_put(std_namespace_prefixes, "conf", NS_JABBERD_CONFIGFILE);
+    xhash_put(std_namespace_prefixes, "xdbfile", NS_JABBERD_CONFIG_XDBFILE);
+
+    pth_init();
+    jid_init_cache();
 
     /* open module */
     /* XXX well using dlopen is not very portable, but jabberd does itself at present
@@ -87,35 +136,90 @@ int main(int argc, char **argv) {
     }
     *(void **) (&xdb_convert_spool) = dlsym(so_h, "xdb_convert_spool");
     if ((error = dlerror()) != NULL) {
-	fprintf(stderr, "Whilte loading xdb_convert_spool: %s\n", dlerror());
+	fprintf(stderr, "While loading xdb_convert_spool: %s\n", dlerror());
 	return 3;
     }
     *(void **) (&xdb_file_load) = dlsym(so_h, "xdb_file_load");
     if ((error = dlerror()) != NULL) {
-	fprintf(stderr, "Whilte loading xdb_file_load: %s\n", dlerror());
+	fprintf(stderr, "While loading xdb_file_load: %s\n", dlerror());
 	return 3;
     }
 
-    if (argc == 3 && strcmp(argv[1], "convert")==0) {
-	printf("Converting xdb_file's spool directories in %s ... this may take some time!\n", argv[2]);
-	(*xdb_convert_spool)(argv[2]);
+    /* get the base directory */
+    if (basedir == NULL) {
+	xmlnode_list_item basedir_node = NULL, hashspool_node = NULL;
+	xmlnode configfile = xmlnode_file(cfgfile);
+
+	/* load configuration file */
+	if (configfile == NULL) {
+	    fprintf(stderr, "You have not specified a basedir, and config file ('%s') could not be loaded:\n%s\n", cfgfile, xmlnode_file_borked(cfgfile));
+	    return 1;
+	}
+
+	hashspool_node = xmlnode_get_tags(configfile, "conf:xdb/xdbfile:xdb_file/xdbfile:use_hierarchical_spool", std_namespace_prefixes);
+	if (hashspool_node != NULL)
+	    hashspool = 1;
+
+	basedir_node = xmlnode_get_tags(configfile, "conf:xdb/xdbfile:xdb_file/xdbfile:spool/*", std_namespace_prefixes);
+
+	if (basedir_node == NULL) {
+	    fprintf(stderr, "Basedir could not be found in the config file ('%s'). Please use --basedir to specify base directory.\n", cfgfile);
+	    return 1;
+	}
+	if (basedir_node->node->type == NTYPE_TAG
+		&& j_strcmp(xmlnode_get_localname(basedir_node->node), "cmdline") == 0
+		&& j_strcmp(xmlnode_get_namespace(basedir_node->node), NS_JABBERD_CONFIGFILE_REPLACE) == 0) {
+	    basedir_node->node = xmlnode_get_firstchild(basedir_node->node);
+	}
+	if (basedir_node->node == NULL || basedir_node->node->type != NTYPE_CDATA) {
+	    fprintf(stderr, "Could not determine base directory for spool using config file ('%s'). Please use --basedir to specify base directory.\n", cfgfile);
+	    return 1;
+	}
+	basedir = xmlnode_get_data(basedir_node->node);
+	if (basedir_node->next != NULL) {
+	    fprintf(stderr, "Could not determine base directory, found different possibilities. Please use --basedir to specify base directory.\n");
+	    return 1;
+	}
+	if (basedir == NULL) {
+	    fprintf(stderr, "Could not automatically determine base directory, please use --basedir to specify base directory.\n");
+	    return 1;
+	}
+    }
+
+    if (convert) {
+	printf("Converting xdb_file's spool directories in %s ... this may take some time!\n", basedir);
+	(*xdb_convert_spool)(basedir);
 	printf("Done.\n");
 	return 0;
     }
 
-    if ((argc == 7 && strcmp(argv[1], "set") == 0) || (argc == 6 && (strcmp(argv[1], "get")==0 || strcmp(argv[1], "del") == 0))) {
+    if (getpath != NULL) {
+	pool p = pool_new();
+	jid user = jid_new(p, getpath);
+	
+	if (user == NULL) {
+	    fprintf(stderr, "Problem processing specified JabberID: %s\n", getpath);
+	    return 1;
+	}
+	printf("%s\n", (*xdb_file_full)(0, p, basedir, user->server, user->user, "xml", hashspool));
+	pool_free(p);
+
+	return 0;
+    }
+
+    if ((argc == 5 && strcmp(argv[1], "set") == 0) || (argc == 4 && (strcmp(argv[1], "get")==0 || strcmp(argv[1], "del") == 0))) {
 	char *spoolfile = NULL;
 	xmlnode file = NULL;
 
-	host = strchr(argv[5], '@');
+	host = strchr(argv[3], '@');
 	if (host == NULL) {
-	    printf("%s is no valid JID\n", argv[5]);
+	    printf("%s is no valid JID\n", argv[3]);
 	    return 2;
 	}
 	*(host++) = 0;
 	p = pool_new();
 
-	spoolfile = (*xdb_file_full)(0, p, argv[4], host, argv[5], "xml", j_strcmp(argv[3], "flat")==0 ? 0 : 1);
+	spoolfile = (*xdb_file_full)(0, p, basedir, host, argv[3], "xml", hashspool);
 
 	/* load the spool file */
 	file = (*xdb_file_load)(NULL, spoolfile, NULL);
@@ -158,7 +262,7 @@ int main(int argc, char **argv) {
 			xmlnode_hide(iter_element);
 		    }
 		}
-		xmlnode_insert_cdata(element, argv[6], strlen(argv[6]));
+		xmlnode_insert_cdata(element, argv[4], strlen(argv[4]));
 	    }
 
 	    /* write the file back */
@@ -170,25 +274,9 @@ int main(int argc, char **argv) {
 	return 0;
     }
 
-    if (argc != 2) {
-	printf("%s <user>\n", argv[0]);
-	printf("%s convert <basedir>\n", argv[0]);
-	printf("%s get ?xdbns=jabber:iq:auth hash|flat <basedir> <user>\n", argv[0]);
-	printf("%s set ?xdbns=jabber:iq:auth hash|flat <basedir> <user> <newvalue>\n", argv[0]);
-	printf("%s del ?xdbns=jabber:iq:auth hash|flat <basedir> <user>\n", argv[0]);
-	return 1;
-    }
-
-    host = strchr(argv[1], '@');
-    if (host == NULL) {
-	printf("%s is no valid JID\n", argv[1]);
-	return 2;
-    }
-    *(host++) = 0;
-
-    p=pool_new();
-    printf("%s\n", (*xdb_file_full)(0, p, "", host, argv[1], "xml", 1)+1);
-    pool_free(p);
-
-    return 0;
+    printf("%s --help\n", argv[0]);
+    printf("%s get ?xdbns=jabber:iq:auth <user>\n", argv[0]);
+    printf("%s set ?xdbns=jabber:iq:auth <user> <newvalue>\n", argv[0]);
+    printf("%s del ?xdbns=jabber:iq:auth <user>\n", argv[0]);
+    return 1;
 }
