@@ -369,7 +369,7 @@ xmlnode  xmlnode_insert_tag_ns(xmlnode parent, const char* name, const char *pre
 xmlnode  xmlnode_insert_cdata(xmlnode parent, const char* CDATA, unsigned int size);
 xmlnode  xmlnode_insert_tag_node(xmlnode parent, xmlnode node);
 void     xmlnode_insert_node(xmlnode parent, xmlnode node);
-xmlnode  xmlnode_str(char *str, int len);
+xmlnode  xmlnode_str(const char *str, int len);
 xmlnode  xmlnode_file(char *file);
 char*    xmlnode_file_borked(char *file); /* same as _file but returns the parsing error */
 xmlnode  xmlnode_dup(xmlnode x); /* duplicate x */
@@ -420,6 +420,7 @@ char*    xmlnode_get_data(xmlnode node);
 int      xmlnode_get_type(xmlnode node);
 const char* xmlnode_get_localname(xmlnode node);
 const char* xmlnode_get_namespace(xmlnode node);
+const char* xmlnode_get_nsprefix(xmlnode node);
 void	 xmlnode_change_namespace(xmlnode node, const char *ns_iri);
 
 int      xmlnode_has_children(xmlnode node);

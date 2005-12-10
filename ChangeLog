@@ -1,3 +1,10 @@
+2005-12-10  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/lib/xmlnode.c: fixed hiding attribute nodes, getting node prefix
+    * jabberd/lib/expat.c: xmlnode_str takes a const string
+    * jabberd/lib/jabberdlib.h: same, and getting node prefix
+    * xdb_file/xdbfiletool.c: implementing set/del operation again
+
 2005-12-09  Matthias Wimmer  <m@tthias.net>
 
     * xdb_file/xdbfiletool.c: more options handled by libpopt

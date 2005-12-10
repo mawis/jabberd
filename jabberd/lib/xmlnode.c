@@ -1193,7 +1193,8 @@ void xmlnode_put_attrib_ns(xmlnode owner, const char *name, const char *prefix, 
         if (attrib == NULL) {
             attrib = _xmlnode_append_sibling(owner->lastattrib, name, prefix, ns_iri, NTYPE_ATTRIB);
             owner->lastattrib = attrib;
-        }
+        } else {
+	}
     }
     /* Update the value of the attribute */
     attrib->data_sz = strlen(value);
@@ -1408,6 +1409,21 @@ const char* xmlnode_get_namespace(xmlnode node) {
 }
 
 /**
+ * get the namespace prefix of a node
+ *
+ * @note normally you will not need this. To compare two nodes, just compare the
+ * namespace (xmlnode_get_namespace()) and the localname (xmlnode_get_localname())
+ *
+ * @param node the node to get the namespace prefix for
+ * @return namespace prefix of the node, NULL for the default prefix
+ */
+const char* xmlnode_get_nsprefix(xmlnode node) {
+    if (node == NULL)
+	return NULL;
+    return node->prefix;
+}
+
+/**
  * return the text inside the element given as node
  *
  * @param node the node to search for text nodes inside
@@ -1484,10 +1500,17 @@ void xmlnode_hide(xmlnode child) {
     _xmlnode_hide_sibling(child);
 
     /* next fix up at the parent level */
-    if (parent->firstchild == child)
-        parent->firstchild = child->next;
-    if (parent->lastchild == child)
-        parent->lastchild = child->prev;
+    if (child->type == NTYPE_ATTRIB) {
+	if (parent->firstattrib == child)
+	    parent->firstattrib = child->next;
+	if (parent->lastattrib == child)
+	    parent->lastattrib = child->prev;
+    } else {
+	if (parent->firstchild == child)
+	    parent->firstchild = child->next;
+	if (parent->lastchild == child)
+	    parent->lastchild = child->prev;
+    }
 }
 
 /**
