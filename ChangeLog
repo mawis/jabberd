@@ -1,3 +1,7 @@
+2005-12-09  Matthias Wimmer  <m@tthias.net>
+
+    * xdb_file/xdbfiletool.c: more options handled by libpopt
+
 2005-12-08  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/config.c: Generate warning: diff namespaces when include
