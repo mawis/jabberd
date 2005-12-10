@@ -105,17 +105,6 @@ IPv4 or IPv6 address where to connect to, a <port/> element, that defines
 the destination port, and a <secret/> element, that defines a shared secret
 to authenticate to the other peer.
 .TP
-.B <dynamic/>
-This element defines a directory where components reside. Incoming packets are
-routed to the components based on the node or resource part of the JabberID.
-The files in this directory can be shared objects or executables. This is
-rarely used and badly tested.
-.TP
-.B <exec/>
-This element is used to start an external component. Instead of using a TCP
-socket to communicate with it, the jabberd process will execute the component
-and communicate with it using pipes on stdin and stdout.
-.TP
 .B <file/>
 This element can only be used inside a <log/> section. It is used to specify
 that log messages should be appended to a text file.
