@@ -65,24 +65,35 @@ void (*xdb_convert_spool)(const char *spoolroot);
 xmlnode (*xdb_file_load)(char *host, char *fname, xht cache);
 
 int main(int argc, const char **argv) {
-    pool p;
     char *host = NULL;
     char *error = NULL;
     char *cfgfile = CONFIG_DIR "/jabber.xml";
     char *basedir = NULL;
+    char *do_get = NULL;
+    char *do_set = NULL;
+    char *do_del = NULL;
+    char *jid = NULL;
     int show_version = 0;
     poptContext pCtx = NULL;
     int pReturn = 0;
+    xht namespace_prefixes = NULL;
     xht std_namespace_prefixes = NULL;
     int convert = 0;
     char *getpath = NULL;
     int hashspool = 0;
+    pool p = NULL;
+    struct jid_struct *parsed_jid = NULL;
 
     struct poptOption options[] = {
 	{ "convert", 0, POPT_ARG_NONE, &convert, 0, "convert from plain spool to hashspool", NULL},
 	{ "getpath", 0, POPT_ARG_STRING, &getpath, 0, "get the path to a file of a user", "JabberID"},
+	{ "get", 'g', POPT_ARG_STRING, &do_get, 0, "get a node in the spool file", "path"},
+	{ "set", 's', POPT_ARG_STRING, &do_set, 0, "set a node in the spool file", "path value"},
+	{ "del", 'd', POPT_ARG_STRING, &do_del, 0, "delete a node in the spool file", "path"},
+	{ "jid", 'j', POPT_ARG_STRING, &jid, 0, "JabberID for get/set/del operation", "JID"},
 	{ "basedir", 'b', POPT_ARG_STRING, &basedir, 0, "base dir of the spool", "path"},
 	{ "hashspool", 'h', POPT_ARG_NONE, &hashspool, 0, "use hashed spool directory", NULL},
+	{ "namespace", 'n', POPT_ARG_STRING, NULL, 1, "define a namespace prefix", "prefix:IRI"},
         { "config", 'c', POPT_ARG_STRING, &cfgfile, 0, "configuration file to use", "path and filename"},
         { "version", 'V', POPT_ARG_NONE, &show_version, 0, "print server version", NULL},
         { NULL, 'v', POPT_ARG_NONE|POPT_ARGFLAG_DOC_HIDDEN, &show_version, 0, "print server version", NULL},
@@ -90,10 +101,36 @@ int main(int argc, const char **argv) {
         POPT_TABLEEND
     };
 
+    /* init the libraries */
+    pth_init();
+    jid_init_cache();
+
+    p = pool_new();
+    namespace_prefixes = xhash_new(101);
+
     /* parse command line options */
     pCtx = poptGetContext(NULL, argc, argv, options, 0);
     while ((pReturn = poptGetNextOpt(pCtx)) >= 0) {
-	/* nothing at present */
+	char *prefix = NULL;
+	char *ns_iri = NULL;
+
+	switch (pReturn) {
+	    case 1:
+		prefix = pstrdup(namespace_prefixes->p, poptGetOptArg(pCtx));
+		if (prefix == NULL) {
+		    fprintf(stderr, "Problem processing namespace prefix declaration ...\n");
+		    return 1;
+		}
+		ns_iri = strchr(prefix, ':');
+		if (ns_iri == NULL) {
+		    fprintf(stderr, "Invalid namespace prefix declaration ('%s'). Required format is prefix:IRI ...\n", prefix);
+		    return 1;
+		}
+		ns_iri[0] = 0;
+		ns_iri++;
+		xhash_put(namespace_prefixes, prefix, ns_iri);
+		break;
+	}
     }
 
     /* error? */
@@ -113,9 +150,6 @@ int main(int argc, const char **argv) {
     std_namespace_prefixes = xhash_new(13);
     xhash_put(std_namespace_prefixes, "conf", NS_JABBERD_CONFIGFILE);
     xhash_put(std_namespace_prefixes, "xdbfile", NS_JABBERD_CONFIG_XDBFILE);
-
-    pth_init();
-    jid_init_cache();
 
     /* open module */
     /* XXX well using dlopen is not very portable, but jabberd does itself at present
@@ -194,8 +228,7 @@ int main(int argc, const char **argv) {
     }
 
     if (getpath != NULL) {
-	pool p = pool_new();
-	jid user = jid_new(p, getpath);
+	struct jid_struct *user = jid_new(p, getpath);
 	
 	if (user == NULL) {
 	    fprintf(stderr, "Problem processing specified JabberID: %s\n", getpath);
@@ -207,76 +240,51 @@ int main(int argc, const char **argv) {
 	return 0;
     }
 
-    if ((argc == 5 && strcmp(argv[1], "set") == 0) || (argc == 4 && (strcmp(argv[1], "get")==0 || strcmp(argv[1], "del") == 0))) {
-	char *spoolfile = NULL;
-	xmlnode file = NULL;
+    if (jid == NULL && (do_get != NULL || do_set != NULL || do_del != NULL)) {
+	fprintf(stderr, "When doing a get/set/del operation, you have to specify the JabberID of the user using --jid\n");
+	return 1;
+    }
 
-	host = strchr(argv[3], '@');
-	if (host == NULL) {
-	    printf("%s is no valid JID\n", argv[3]);
-	    return 2;
+    if (jid != NULL) {
+	parsed_jid = jid_new(p, jid);
+
+	if (parsed_jid == NULL) {
+	    fprintf(stderr, "Could not parse the JID %s\n", jid);
+	    return 1;
 	}
-	*(host++) = 0;
-	p = pool_new();
+    }
 
-	spoolfile = (*xdb_file_full)(0, p, basedir, host, argv[3], "xml", hashspool);
+    if (do_get != NULL || do_set != NULL || do_del != NULL) {
+	char *spoolfile = NULL;
+	xmlnode_list_item result_item = NULL;
+	xmlnode file = NULL;
+	const char *path = do_get ? do_get : do_set ? do_set : do_del;
 
-	/* load the spool file */
+	spoolfile = (*xdb_file_full)(0, p, basedir, parsed_jid->server, parsed_jid->user, "xml", hashspool);
 	file = (*xdb_file_load)(NULL, spoolfile, NULL);
 
 	if (file == NULL) {
-	    fprintf(stderr, "No such user.\n");
-	    return 4;
+	    fprintf(stderr, "Could not load the spool file (%s). No such user?\n", spoolfile);
+	    return 1;
 	}
 
-	if (strcmp(argv[1], "get") == 0) {
-	    char *tagdata = NULL;
-
-	    tagdata = xmlnode_get_tag_data(file, argv[2]);
-
-	    if (tagdata == NULL) {
-		fprintf(stderr, "No such data for this user.\n");
-		return 4;
-	    }
-
-	    printf("%s\n", tagdata);
-	} else {
-	    xmlnode element = NULL;
-
-	    element = xmlnode_get_tag(file, argv[2]);
-
-	    if (element == NULL) {
-		fprintf(stderr, "No such element!\n");
-		return 5;
-	    }
-
-	    if (strcmp(argv[1], "del") == 0) {
-		/* for deletion we just hide */
-		xmlnode_hide(element);
-	    } else {
-		/* for update we hide only CDATA children and set new CDATA */
-		xmlnode iter_element = NULL;
-
-		for (iter_element = xmlnode_get_firstchild(element); iter_element!=NULL; iter_element = xmlnode_get_nextsibling(iter_element)) {
-		    if (xmlnode_get_type(iter_element) == NTYPE_CDATA) {
-			xmlnode_hide(iter_element);
-		    }
+	for (result_item = xmlnode_get_tags(file, path, namespace_prefixes); result_item != NULL; result_item = result_item -> next) {
+	    if (do_get) {
+		switch (result_item->node->type) {
+		    case NTYPE_TAG:
+			fprintf(stdout, "%s\n", xmlnode_serialize_string(result_item->node, NULL, NULL, 0));
+			break;
+		    case NTYPE_CDATA:
+		    case NTYPE_ATTRIB:
+			fprintf(stdout, "%s\n", xmlnode_get_data(result_item->node));
+			break;
 		}
-		xmlnode_insert_cdata(element, argv[4], strlen(argv[4]));
-	    }
-
-	    /* write the file back */
-	    if (xmlnode2file_limited(spoolfile, file, 0) <= 0) {
-		fprintf(stderr, "Failed to write spoolfile\n");
+	    } else {
+		fprintf(stderr, "set/del not yet reimplemented ...\n");
+		return 1;
 	    }
 	}
-	
+
 	return 0;
     }
-
-    printf("%s --help\n", argv[0]);
-    printf("%s get ?xdbns=jabber:iq:auth <user>\n", argv[0]);
-    printf("%s set ?xdbns=jabber:iq:auth <user> <newvalue>\n", argv[0]);
-    printf("%s del ?xdbns=jabber:iq:auth <user>\n", argv[0]);
-    return 1;
 }
