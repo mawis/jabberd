@@ -217,7 +217,7 @@ static void expat_endNamespaceDecl(void *userdata, const XML_Char *prefix) {
  * @param len the length of the string (without the zero byte, if present)
  * @return the graph of xmlnodes that represent the parsed document, NULL on failure
  */
-xmlnode xmlnode_str(char *str, int len) {
+xmlnode xmlnode_str(const char *str, int len) {
     XML_Parser p;
     _expat_callback_data callback_data = { NULL, NULL, NULL, NULL };
 

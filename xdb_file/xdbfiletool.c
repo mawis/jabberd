@@ -259,6 +259,13 @@ int main(int argc, const char **argv) {
 	xmlnode_list_item result_item = NULL;
 	xmlnode file = NULL;
 	const char *path = do_get ? do_get : do_set ? do_set : do_del;
+	const char *replacement = do_set ? poptGetArg(pCtx) : NULL;
+	int is_updated = 0;
+
+	if (do_set != NULL && replacement == NULL) {
+	    fprintf(stderr, "You have to specify a replacement for the --set operation.\n");
+	    return 1;
+	}
 
 	spoolfile = (*xdb_file_full)(0, p, basedir, parsed_jid->server, parsed_jid->user, "xml", hashspool);
 	file = (*xdb_file_load)(NULL, spoolfile, NULL);
@@ -280,9 +287,36 @@ int main(int argc, const char **argv) {
 			break;
 		}
 	    } else {
-		fprintf(stderr, "set/del not yet reimplemented ...\n");
-		return 1;
+		/* del, or set: hide the old content */
+		xmlnode_hide(result_item->node);
+		is_updated=1;
+
+		/* if it's a set, place the new content */
+		if (do_set) {
+		    xmlnode parent = xmlnode_get_parent(result_item->node);
+		    xmlnode x = NULL;
+
+		    switch (result_item->node->type) {
+			case NTYPE_CDATA:
+			    xmlnode_insert_cdata(parent, replacement, -1);
+			    break;
+			case NTYPE_ATTRIB:
+			    xmlnode_put_attrib_ns(parent, xmlnode_get_localname(result_item->node), xmlnode_get_nsprefix(result_item->node), xmlnode_get_namespace(result_item->node), replacement);
+			    break;
+			case NTYPE_TAG:
+			    x = xmlnode_str(replacement, -1);
+			    xmlnode_insert_node(parent, x);
+			    xmlnode_free(x);
+			    x = NULL;
+			    break;
+		    }
+		}
 	    }
+	}
+
+	/* write an updated file back to disk */
+	if (is_updated) {
+	    xmlnode2file(spoolfile, file);
 	}
 
 	return 0;
