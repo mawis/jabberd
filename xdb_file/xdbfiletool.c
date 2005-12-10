@@ -304,7 +304,11 @@ int main(int argc, const char **argv) {
 			    xmlnode_put_attrib_ns(parent, xmlnode_get_localname(result_item->node), xmlnode_get_nsprefix(result_item->node), xmlnode_get_namespace(result_item->node), replacement);
 			    break;
 			case NTYPE_TAG:
-			    x = xmlnode_str(replacement, -1);
+			    x = xmlnode_str(replacement, j_strlen(replacement));
+			    if (x == NULL) {
+				fprintf(stderr, "%s cannot be parsed.\n", replacement);
+				return 1;
+			    }
 			    xmlnode_insert_node(parent, x);
 			    xmlnode_free(x);
 			    x = NULL;
