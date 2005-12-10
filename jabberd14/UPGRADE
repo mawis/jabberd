@@ -47,6 +47,9 @@ as well using prefixes. Which namespace these prefixes define, has to
 be configured using the new <nsprefixes/> element in the configuration.
 See jabber.xml.dist for an updated example.
 
+If you are using xdbfiletool to access or manipulate spool files, note
+that the command line syntax of this utility has changed completely.
+
 
 Upgrading from 1.4.3(.1) to 1.4.4
 ---------------------------------
