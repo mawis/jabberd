@@ -69,7 +69,7 @@ typedef struct base_dir_struct {
  * @param arg pointer to base_dir_struct
  * @return r_DONE on success, r_UNREG if we want to unregister the beat
  */
-result base_dir_read(void *arg) {
+static result base_dir_read(void *arg) {
     base_dir_st conf_data = (base_dir_st)arg;
     struct dirent *dir_ent = NULL;
     DIR *dir = NULL;
@@ -129,7 +129,7 @@ result base_dir_read(void *arg) {
  *
  * write stanzas to files
  */
-result base_dir_deliver(instance id, dpacket p, void *arg) {
+static result base_dir_deliver(instance id, dpacket p, void *arg) {
     base_dir_st conf_data = (base_dir_st)arg;
     char serial[9];
     char timestamp[25];
@@ -158,7 +158,7 @@ result base_dir_deliver(instance id, dpacket p, void *arg) {
  * @param arg unused/ignored
  * @return r_ERR on error, r_PASS on success
  */
-result base_dir_config(instance id, xmlnode x, void *arg) {
+static result base_dir_config(instance id, xmlnode x, void *arg) {
     base_dir_st conf_data = NULL;
     xht namespaces = NULL;
     

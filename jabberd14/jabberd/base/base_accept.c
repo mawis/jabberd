@@ -72,7 +72,7 @@ typedef struct accept_instance_st {
     /* dpacket dplast; */
 } *accept_instance, _accept_instance;
 
-void base_accept_queue(accept_instance ai, xmlnode x) {
+static void base_accept_queue(accept_instance ai, xmlnode x) {
     queue q;
     if(ai == NULL || x == NULL) return;
 
@@ -84,7 +84,7 @@ void base_accept_queue(accept_instance ai, xmlnode x) {
 }
 
 /* Write packets to a xmlio object */
-result base_accept_deliver(instance i, dpacket p, void* arg) {
+static result base_accept_deliver(instance i, dpacket p, void* arg) {
     accept_instance ai = (accept_instance)arg;
 
     /* Insert the message into the write_queue if we don't have a MIO socket yet.. */
@@ -107,8 +107,7 @@ result base_accept_deliver(instance i, dpacket p, void* arg) {
 
 
 /* Handle incoming packets from the xstream associated with an MIO object */
-void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
-{
+static void base_accept_process_xml(mio m, int state, void* arg, xmlnode x) {
     accept_instance ai = (accept_instance)arg;
     xmlnode cur, off;
     queue q, q2;
@@ -117,8 +116,7 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
 
     log_debug2(ZONE, LOGT_XML, "process XML: m:%X state:%d, arg:%X, x:%X", m, state, arg, x);
 
-    switch(state)
-    {
+    switch (state) {
         case MIO_XML_ROOT:
             /* Ensure request namespace is correct... */
 	    if (xmlnode_list_get_nsprefix(m->in_last_ns_root, NS_SERVER) == NULL) {
@@ -246,7 +244,7 @@ void base_accept_process_xml(mio m, int state, void* arg, xmlnode x)
 }
 
 /* bounce messages/pres-s10n differently if in offline mode */
-void base_accept_offline(accept_instance ai, xmlnode x) {
+static void base_accept_offline(accept_instance ai, xmlnode x) {
     jpacket p;
     char errmsg[256] = "";
 
@@ -278,7 +276,7 @@ void base_accept_offline(accept_instance ai, xmlnode x) {
 }
 
 /* check the packet queue for stale packets */
-result base_accept_beat(void *arg) {
+static result base_accept_beat(void *arg) {
     accept_instance ai = (accept_instance)arg;
     queue bouncer, lastgood, cur, next;
     int now = time(NULL);
@@ -315,8 +313,7 @@ result base_accept_beat(void *arg) {
     return r_DONE;
 }
 
-result base_accept_config(instance id, xmlnode x, void *arg)
-{
+static result base_accept_config(instance id, xmlnode x, void *arg) {
     char *secret = NULL;
     accept_instance inst;
     int port = 0;

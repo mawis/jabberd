@@ -41,8 +41,7 @@
 
 #include "jabberd.h"
 
-result base_format_modify(instance id, dpacket p, void *arg)
-{
+static result base_format_modify(instance id, dpacket p, void *arg) {
     char  *cur, *nxt, *f;
     pool  sp;
     spool log_result;
@@ -65,11 +64,10 @@ result base_format_modify(instance id, dpacket p, void *arg)
     cur = f;
     nxt = strchr(f, '%');
     
-    if(nxt == NULL)
+    if (nxt == NULL)
         spooler(log_result, f, log_result);
     
-    while(nxt != NULL)
-    {
+    while (nxt != NULL) {
         nxt[0] = '\0'; 
         
         if(cur != nxt)
@@ -77,22 +75,21 @@ result base_format_modify(instance id, dpacket p, void *arg)
         
         nxt++;
         
-        switch(nxt[0])
-        {
-        case 'h':
-            spooler(log_result, xmlnode_get_attrib_ns(p->x, "from", NULL), log_result);
-            break;
-        case 't':
-            spooler(log_result, xmlnode_get_attrib_ns(p->x, "type", NULL), log_result);
-            break;
-        case 'd':
-            spooler(log_result, jutil_timestamp(), log_result);
-            break;
-        case 's':
-            spooler(log_result, xmlnode_get_data(p->x), log_result);
-            break;
-        default:
-            log_debug2(ZONE, LOGT_CONFIG|LOGT_STRANGE, "Invalid argument: %s", nxt[0]);
+        switch(nxt[0]) {
+	    case 'h':
+		spooler(log_result, xmlnode_get_attrib_ns(p->x, "from", NULL), log_result);
+		break;
+	    case 't':
+		spooler(log_result, xmlnode_get_attrib_ns(p->x, "type", NULL), log_result);
+		break;
+	    case 'd':
+		spooler(log_result, jutil_timestamp(), log_result);
+		break;
+	    case 's':
+		spooler(log_result, xmlnode_get_data(p->x), log_result);
+		break;
+	    default:
+		log_debug2(ZONE, LOGT_CONFIG|LOGT_STRANGE, "Invalid argument: %s", nxt[0]);
         }
         
         cur = ++nxt;
@@ -106,13 +103,10 @@ result base_format_modify(instance id, dpacket p, void *arg)
     return r_PASS;
 }
 
-result base_format_config(instance id, xmlnode x, void *arg)
-{
-    if(id == NULL)
-    {
+static result base_format_config(instance id, xmlnode x, void *arg) {
+    if (id == NULL) {
         log_debug2(ZONE, LOGT_CONFIG|LOGT_INIT, "base_format_config validating configuration");
-        if(xmlnode_get_data(x) == NULL)
-        {
+        if (xmlnode_get_data(x) == NULL) {
             log_debug2(ZONE, LOGT_CONFIG|LOGT_INIT|LOGT_STRANGE, "base_format invald format");
             xmlnode_put_attrib_ns(x, "error", NULL, NULL, "'format' tag must contain a format string:\nUse %h to insert Hostname\nUse %t to insert Type of Log (notice,warn,alert)\nUse %d to insert Timestamp\nUse %s to insert the body of the message\n\nExample: '[%t] - %h - %d: %s'");
             return r_ERR;
@@ -122,8 +116,7 @@ result base_format_config(instance id, xmlnode x, void *arg)
     
     log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_format configuring instance %s ", id->id);
 
-    if(id->type != p_LOG)
-    {
+    if (id->type != p_LOG) {
         log_alert(NULL, "ERROR in instance %s: <format>..</format> element only allowed in log sections", id->id);
         return r_ERR;
     }
