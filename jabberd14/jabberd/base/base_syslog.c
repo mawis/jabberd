@@ -45,8 +45,7 @@
 
 #include <syslog.h>
 
-result base_syslog_deliver(instance id, dpacket p, void* arg)
-{
+static result base_syslog_deliver(instance id, dpacket p, void* arg) {
     int facility = (int)arg;
     char* message = NULL;
     char* type_s = NULL;
@@ -75,17 +74,14 @@ result base_syslog_deliver(instance id, dpacket p, void* arg)
     return r_DONE;    
 }
 
-result base_syslog_config(instance id, xmlnode x, void *arg)
-{
+static result base_syslog_config(instance id, xmlnode x, void *arg) {
     int facility = 0;
     char *facility_str = NULL;
 
-    if(id == NULL)
-    {
+    if (id == NULL) {
         log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_syslog_config validating configuration");
 
-        if (xmlnode_get_data(x) == NULL)
-        {
+        if (xmlnode_get_data(x) == NULL) {
             log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_syslog_config error: no facility provided");
             xmlnode_put_attrib_ns(x,"error", NULL, NULL, "'syslog' tag must contain a facility (use daemon, local0, ... local7)");
             return r_ERR;
@@ -95,8 +91,7 @@ result base_syslog_config(instance id, xmlnode x, void *arg)
 
     log_debug2(ZONE, LOGT_CONFIG|LOGT_INIT, "base_syslog configuring instance %s",id->id);
 
-    if(id->type != p_LOG)
-    {
+    if (id->type != p_LOG) {
         log_alert(NULL,"ERROR in instance %s: <syslog>..</syslog> element only allowed in log sections", id->id);
         return r_ERR;
     }

@@ -41,20 +41,17 @@
 
 #include "jabberd.h"
 
-result base_file_deliver(instance id, dpacket p, void* arg)
-{
+static result base_file_deliver(instance id, dpacket p, void* arg) {
     FILE* f = (FILE*)arg;
     char* message = NULL;
 
     message = xmlnode_get_data(p->x);
-    if (message == NULL)
-    {
+    if (message == NULL) {
        log_debug2(ZONE, LOGT_STRANGE, "base_file_deliver error: no message available to print.\n");
        return r_ERR;
     }
 
-    if (fprintf(f,"%s\n", message) == EOF)
-    {
+    if (fprintf(f,"%s\n", message) == EOF) {
         log_debug2(ZONE, LOGT_IO, "base_file_deliver error: error writing to file(%d).\n", errno);
         return r_ERR;
     }
@@ -65,22 +62,18 @@ result base_file_deliver(instance id, dpacket p, void* arg)
     return r_DONE;    
 }
 
-void _base_file_shutdown(void *arg)
-{
+static void _base_file_shutdown(void *arg) {
     FILE *filehandle=(FILE*)arg;
     fclose(filehandle);
 }
 
-result base_file_config(instance id, xmlnode x, void *arg)
-{
+static result base_file_config(instance id, xmlnode x, void *arg) {
     FILE* filehandle = NULL;
         
-    if(id == NULL)
-    {
+    if (id == NULL) {
         log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_file_config validating configuration");
 
-        if (xmlnode_get_data(x) == NULL)
-        {
+        if (xmlnode_get_data(x) == NULL) {
             log_debug2(ZONE, LOGT_STRANGE|LOGT_CONFIG|LOGT_INIT, "base_file_config error: no filename provided.");
             xmlnode_put_attrib_ns(x, "error", NULL, NULL, "'file' tag must contain a filename to write to");
             return r_ERR;
@@ -90,17 +83,15 @@ result base_file_config(instance id, xmlnode x, void *arg)
 
     log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_file configuring instance %s",id->id);
 
-    if(id->type != p_LOG)
-    {
-        log_alert(NULL,"ERROR in instance %s: <file>..</file> element only allowed in log sections", id->id);
+    if (id->type != p_LOG) {
+        log_alert(NULL, "ERROR in instance %s: <file>..</file> element only allowed in log sections", id->id);
         return r_ERR;
     }
 
     /* Attempt to open/create the file */
     filehandle = fopen(xmlnode_get_data(x), "a");
-    if (filehandle == NULL)
-    {
-        log_alert(NULL,"base_file_config error: error opening file (%d): %s", errno, strerror(errno));
+    if (filehandle == NULL) {
+        log_alert(NULL, "base_file_config error: error opening file (%d): %s", errno, strerror(errno));
         return r_ERR;
     }
 

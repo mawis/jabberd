@@ -63,8 +63,7 @@
 typedef enum { conn_DIE, conn_CLOSED, conn_OPEN, conn_AUTHD } conn_state;
 
 /* conn_info - stores thread data for a connection */
-typedef struct
-{
+typedef struct {
     mio           io;
     conn_state    state;	/* Connection status (closed, opened, auth'd) */
     char*         hostip;	/* Server IP */
@@ -79,49 +78,41 @@ typedef struct
 } *conn_info, _conn_info;
 
 /* conn_write_buf - stores a dpacket that needs to be written to the socket */
-typedef struct
-{
+typedef struct {
     pth_message_t head;
     dpacket     packet;
 } *conn_write_buf, _conn_write_buf;
 
-void base_connect_process_xml(mio m, int state, void* arg, xmlnode x);
+static void base_connect_process_xml(mio m, int state, void* arg, xmlnode x);
 
 /* Deliver packets to the socket io thread */
-result base_connect_deliver(instance i, dpacket p, void* arg)
-{
+static result base_connect_deliver(instance i, dpacket p, void* arg) {
     conn_info ci = (conn_info)arg;
 
     /* Insert the message into the write_queue if we don't have an MIO socket yet.. */
-    if (ci->state != conn_AUTHD)
-    {
+    if (ci->state != conn_AUTHD) {
         conn_write_buf entry = pmalloco(p->p, sizeof(_conn_write_buf));
         entry->packet = p;
         pth_msgport_put(ci->write_queue, (pth_message_t*)entry);
-    }
-    /* Otherwise, write directly to the MIO socket */
-    else
-    {
-        if(ci->dplast == p) /* don't handle packets that we generated! doh! */
+    } else {
+	/* Otherwise, write directly to the MIO socket */
+        if (ci->dplast == p) /* don't handle packets that we generated! doh! */
             deliver_fail(p,"Circular Reference Detected");
         else
             mio_write(ci->io, p->x, NULL, 0);
     }
 
     return r_DONE;
-
 }
 
 /* this runs from another thread under mtq */
-void base_connect_connect(void *arg)
-{
+static void base_connect_connect(void *arg) {
     conn_info ci = (conn_info)arg;
     pth_sleep(2); /* take a break */
     mio_connect(ci->hostip, ci->hostport, base_connect_process_xml, (void*)ci, ci->timeout, mio_handlers_new(NULL, NULL, MIO_XML_PARSER));
 }
 
-void base_connect_process_xml(mio m, int state, void* arg, xmlnode x)
-{
+static void base_connect_process_xml(mio m, int state, void* arg, xmlnode x) {
     conn_info ci = (conn_info)arg;
     xmlnode cur;
     char  hashbuf[41];
@@ -199,12 +190,12 @@ void base_connect_process_xml(mio m, int state, void* arg, xmlnode x)
     }
 }
 
-void base_connect_kill(void *arg) {
+static void base_connect_kill(void *arg) {
     conn_info ci = (conn_info)arg;
     ci->state = conn_DIE;
 }
 
-result base_connect_config(instance id, xmlnode x, void *arg) {
+static result base_connect_config(instance id, xmlnode x, void *arg) {
     char*	secret = NULL;
     int		timeout = 5;
     int		tries = -1;
