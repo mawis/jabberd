@@ -443,6 +443,10 @@ void expat_startElement(void* userdata, const char* name, const char** atts);
 void expat_endElement(void* userdata, const char* name);
 void expat_charData(void* userdata, const char* s, int len);
 
+/* conversion between xhash to xml */
+xmlnode xhash_to_xml(xht h);
+xht xhash_from_xml(xmlnode hash);
+
 /***********************
  * XSTREAM Section
  ***********************/
@@ -821,6 +825,7 @@ typedef struct xterror_struct
 #define NS_XHTML     "http://www.w3.org/1999/xhtml"
 #define NS_DISCO_INFO "http://jabber.org/protocol/disco#info"
 #define NS_DISCO_ITEMS "http://jabber.org/protocol/disco#items"
+#define NS_DATA	     "jabber:x:data"
 #define NS_FLEXIBLE_OFFLINE "http://jabber.org/protocol/offline"
 #define NS_IQ_AUTH    "http://jabber.org/features/iq-auth"
 #define NS_REGISTER_FEATURE "http://jabber.org/features/iq-register"
@@ -836,6 +841,7 @@ typedef struct xterror_struct
 
 #define NS_JABBERD_STOREDPRESENCE "http://jabberd.org/ns/storedpresence"
 #define NS_JABBERD_HISTORY "http://jabberd.org/ns/history"
+#define NS_JABBERD_HASH "http://jabberd.org/ns/hash"			/**< namespace for storing xhash data */
 #define NS_JABBERD_XDB "http://jabberd.org/ns/xdb"			/**< namespace for the root element used by xdb_file to store data in files */
 #define NS_JABBERD_WRAPPER "http://jabberd.org/ns/wrapper"		/**< namespace used to wrap various internal data */
 #define NS_JABBERD_XDBSQL "http://jabberd.org/ns/xdbsql"		/**< namespace for substitution in xdb_sql configuration */

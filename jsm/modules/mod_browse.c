@@ -124,7 +124,7 @@ mreturn mod_browse_set(mapi m, void *arg) {
         xmlnode_hide_attrib_ns(browse, "xmlns", NS_XMLNS); /* don't need a ns as a child */
         for (cur = xmlnode_get_firstchild(browse); cur != NULL; cur = xmlnode_get_nextsibling(cur))
             xmlnode_hide(cur); /* erase all children */
-        xdb_act(m->si->xc, m->user->id, NS_BROWSE, "insert", spools(m->packet->p,"?jid=",jid_full(to),m->packet->p), browse); /* insert and match replace */
+        xdb_act_path(m->si->xc, m->user->id, NS_BROWSE, "insert", spools(m->packet->p,"*[@jid='", jid_full(to), "']", m->packet->p), m->si->std_namespace_prefixes, browse); /* insert and match replace */
         xmlnode_free(browse);
     }
 
@@ -136,7 +136,7 @@ mreturn mod_browse_set(mapi m, void *arg) {
 
     /* insert the new item into the resource it was sent to */
     xmlnode_hide_attrib_ns(cur, "xmlns", NS_XMLNS); /* just in case, to make sure it inserts */
-    if (xdb_act(m->si->xc, to, NS_BROWSE, "insert", spools(m->packet->p,"?jid=",jid_full(id),m->packet->p), cur)) {
+    if (xdb_act_path(m->si->xc, to, NS_BROWSE, "insert", spools(m->packet->p, "*[@jid='", jid_full(id), "']", m->packet->p), m->si->std_namespace_prefixes, cur)) {
         js_bounce_xmpp(m->si, m->packet->x, XTERROR_UNAVAIL);
         return M_HANDLED;
     }
