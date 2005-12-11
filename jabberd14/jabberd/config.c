@@ -226,16 +226,58 @@ static void show_pid(xmlnode x) {
         return;
     }
 
+    /* try to create pidfile */
     fd = open(path, O_CREAT | O_EXCL | O_WRONLY, 0600);
-    if(fd < 0)
-    {
-        if(errno == EEXIST)
-        {
-            fprintf(stderr, "A pidfile already exists at the specified location.  Check to ensure another copy of the server is not running, or remove the existing file.\n");
-            _exit(1);	/* no not remove the pid file */
-        }
-        close(fd);
-        unlink(path);
+    if (fd < 0) {
+        if (errno == EEXIST) {
+	    /* the file already exists */
+	    char oldpid[32] = "";
+	    ssize_t bytesread = 0;
+
+	    /* check if the process is still running */
+	    fd = open(path, O_RDONLY);
+	    if (fd < 0) {
+		fprintf(stderr, "The pidfile %s already exists, and it cannot be opened for reading (%s). Exiting ...\n", path, strerror(errno));
+		_exit(1);
+	    }
+
+	    bytesread = read(fd, oldpid, sizeof(oldpid)-1);
+	    if (bytesread < 0) {
+		fprintf(stderr, "The pidfile %s already exists, but there is a problem reading its content (%s). Exiting ...\n", path, strerror(errno));
+		_exit(1);
+	    } else if (bytesread == 0) {
+		fprintf(stderr, "The pidfile %s already exists, but it has no content. Deleting it ...\n", path);
+	    } else {
+		pid_t filepid = 0;
+		int killres = 0;
+
+		oldpid[bytesread] = 0;
+		filepid = j_atoi(oldpid, 0);
+
+		if (filepid == 0) {
+		    fprintf(stderr, "The pidfile %s already exists, but does not contain a PID (%s). Exiting ...\n", path, oldpid);
+		    _exit(1);
+		}
+
+		killres = kill(filepid, 0);
+		if (killres == -1 && errno == ESRCH) {
+		    fprintf(stderr, "Stale pidfile %s found. No process with PID %i is running. Deleting pidfile ...\n", path, filepid);
+		} else {
+		    fprintf(stderr, "A pidfile already exists at %s, containing the PID (%i) of a running process. Exiting ...\n", path, filepid);
+		    _exit(1);
+		}
+	    }
+
+	    unlink(path);
+	    fd = open(path, O_CREAT | O_EXCL | O_WRONLY, 0600);
+	    if (fd < 0) {
+		fprintf(stderr, "Still having problems accessing pidfile %s: %s\n", path, strerror(errno));
+		_exit(1);
+	    }
+        } else {
+	    fprintf(stderr, "Not writing pidfile %s: %s\n", path, strerror(errno));
+	    return;
+	}
     }
     pid = getpid();
     snprintf(pidstr, sizeof(pidstr), "%d", pid);
