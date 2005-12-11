@@ -65,17 +65,16 @@ mtqmaster mtq__master = NULL;
 /**
  * cleanup a queue when it get's free'd
  */
-void mtq_cleanup(void *arg) {
+static void mtq_cleanup(void *arg) {
     mtq q = (mtq)arg;
     mtqcall c;
 
     /* if there's a thread using us, make sure we disassociate ourselves with them */
-    if(q->t != NULL)
+    if (q->t != NULL)
         q->t->q = NULL;
 
     /* What?  not empty?!?!?! probably a programming/sequencing error! */
-    while((c = (mtqcall)pth_msgport_get(q->mp)) != NULL)
-    {
+    while ((c = (mtqcall)pth_msgport_get(q->mp)) != NULL) {
         log_debug2(ZONE, LOGT_THREAD|LOGT_STRANGE, "%X last call %X",q->mp,c->arg);
         (*(c->f))(c->arg);
     }
@@ -88,7 +87,8 @@ void mtq_cleanup(void *arg) {
 mtq mtq_new(pool p) {
     mtq q;
 
-    if(p == NULL) return NULL;
+    if (p == NULL)
+	return NULL;
 
     log_debug2(ZONE, LOGT_THREAD, "MTQ(new)");
 
@@ -107,7 +107,7 @@ mtq mtq_new(pool p) {
 /**
  * main slave thread
  */
-void *mtq_main(void *arg) {
+static void *mtq_main(void *arg) {
     mth t = (mth)arg;
     pth_event_t mpevt;
     mtqcall c;

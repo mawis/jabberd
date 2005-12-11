@@ -292,7 +292,7 @@ typedef struct mth_struct
 
 mtq mtq_new(pool p); /**< Creates a new queue, is automatically cleaned up when p frees */
 
-void _mtq_send(mtq q, pool p, mtq_callback f, void *arg); /**< appends the arg to the queue to be run on a thread */
+void mtq_send(mtq q, pool p, mtq_callback f, void *arg); /**< appends the arg to the queue to be run on a thread */
 
 /* MIO - Managed I/O - TCP functions */
 
