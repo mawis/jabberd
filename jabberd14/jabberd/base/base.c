@@ -56,14 +56,14 @@ void base_stderr(pool p);
 void base_stdout(pool p);
 void base_syslog(pool p);
 void base_unsubscribe(pool p);
+void base_load(pool p);
 
 /**
  * load all base modules
  *
  * @param p memory pool, that can be used to register the configuration handlers, must be available for the livetime of jabberd
  */
-void static_init(pool p)
-{
+void base_init(pool p) {
     base_accept(p);
     base_connect(p);
     base_dir(p);
@@ -74,4 +74,5 @@ void static_init(pool p)
     base_stdout(p);
     base_syslog(p);
     base_unsubscribe(p);
+    base_load(p);
 }

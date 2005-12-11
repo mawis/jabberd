@@ -12,6 +12,9 @@
     * jsm/modules/mod_offline.c: same + updated JEP-0013 support to version 1.2
     * xdb_sql/xdb_sql.c: supporting xdb_act_path()
     * xdb_file/xdb_file.c: same
+    * jabberd/base/base_load.c: moved from jabberd/load.c
+    * jabberd/base/base.c: moved from jabberd/static.c
+    * jabberd/jabberd.c: merged static_init() and dynamic_init() to base_init()
 
 2005-12-10  Matthias Wimmer  <m@tthias.net>
 
