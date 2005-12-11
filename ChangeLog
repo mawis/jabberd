@@ -14,6 +14,7 @@
     * xdb_file/xdb_file.c: same
     * jabberd/base/base_load.c: moved from jabberd/load.c
     * jabberd/base/base.c: moved from jabberd/static.c
+    * jabberd/base/base_null.c: moved from within deliver.c
     * jabberd/jabberd.c: merged static_init() and dynamic_init() to base_init()
 
 2005-12-10  Matthias Wimmer  <m@tthias.net>

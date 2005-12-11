@@ -41,13 +41,12 @@
 
 #include "jabberd.h"
 
-result base_to_deliver(instance id,dpacket p,void* arg)
-{
+static result base_to_deliver(instance id,dpacket p,void* arg) {
     char* log_data = xmlnode_get_data(p->x);
     char* subject;
     xmlnode message;
 
-    if(log_data == NULL)
+    if (log_data == NULL)
         return r_ERR;
 
     message = xmlnode_new_tag_ns("message", NULL, NS_SERVER);
@@ -65,15 +64,12 @@ result base_to_deliver(instance id,dpacket p,void* arg)
     return r_DONE;
 }
 
-result base_to_config(instance id, xmlnode x, void *arg)
-{
-    if(id == NULL)
-    {
+static result base_to_config(instance id, xmlnode x, void *arg) {
+    if (id == NULL) {
         jid j = jid_new(xmlnode_pool(x), xmlnode_get_data(x));
 
         log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_to_config validating configuration\n");
-        if(j == NULL)
-        {
+        if (j == NULL) {
             xmlnode_put_attrib_ns(x, "error", NULL, NULL, "'to' tag must contain a jid to send log data to");
             log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "Invalid Configuration for base_to");
             return r_ERR;
@@ -83,8 +79,7 @@ result base_to_config(instance id, xmlnode x, void *arg)
 
     log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_to configuring instance %s", id->id);
 
-    if(id->type != p_LOG)
-    {
+    if (id->type != p_LOG) {
         log_alert(NULL, "ERROR in instance %s: <to>..</to> element only allowed in log sections", id->id);
         return r_ERR;
     }

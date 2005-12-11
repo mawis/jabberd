@@ -40,51 +40,48 @@
  * --------------------------------------------------------------------------*/
 
 /**
- * @file base.c
- * @brief load all base handlers, register their configuration handlers
- */
-
-/**
- * @dir base
- * @brief Contains the base handlers of jabberd14
- *
- * Jabberd14 is an XML router, that routes XML stanzas between the different base handlers. Some of these
- * base handlers (like the unsubscribe handler implemented in base_unsubscribe.c) handle packets themselves.
- * Other handlers (accept, connect, load, ...) implement interfaces, that can be used by components
- * to use the XML routing functionality.
+ * @file base_null.c
+ * @brief implements a base handler (xml routing target), that drops all messages
  */
 
 #include "jabberd.h"
 
-void base_accept(pool p);
-void base_connect(pool p);
-void base_dir(pool p);
-void base_file(pool p);
-void base_format(pool p);
-void base_to(pool p);
-void base_stderr(pool p);
-void base_stdout(pool p);
-void base_syslog(pool p);
-void base_unsubscribe(pool p);
-void base_load(pool p);
-void base_null(pool p);
+/**
+ * handler for the &lt;null/&gt; delivery target
+ *
+ * It just deletes packets
+ *
+ * @param i unused/ignored
+ * @param p the packet to delete
+ * @param arg unused/ignored
+ * @return always r_DONE
+ */
+static result base_null_deliver(instance i, dpacket p, void* arg) {
+    pool_free(p->p);
+    return r_DONE;
+}
 
 /**
- * load all base modules
+ * handler for the &lt;null/&gt; configuration element
  *
- * @param p memory pool, that can be used to register the configuration handlers, must be available for the livetime of jabberd
+ * @param i the instance the element is in
+ * @param x the configuration element
+ * @param arg unused/ignored
+ * @return r_DONE on success, r_PASS if no instance is given
  */
-void base_init(pool p) {
-    base_accept(p);
-    base_connect(p);
-    base_dir(p);
-    base_file(p);
-    base_format(p);
-    base_load(p);
-    base_null(p);
-    base_stderr(p);
-    base_stdout(p);
-    base_syslog(p);
-    base_to(p);
-    base_unsubscribe(p);
+static result base_null_config(instance i, xmlnode x, void *arg) {
+    if(i == NULL)
+        return r_PASS;
+
+    register_phandler(i, o_DELIVER, base_null_deliver, NULL);
+    return r_DONE;
+}
+
+/**
+ * initialize the XML delivery system
+ *
+ * @param p memory pool that can be used to register config handlers (must be available for the livetime of jabberd)
+ */
+void base_null(pool p) {
+    register_config(p, "null", base_null_config, NULL);
 }

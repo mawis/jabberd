@@ -60,7 +60,7 @@
  * @param replied_stanza the stanza where sender and recipient address can be get from
  * @param type of reply to generate, either "unsubscribe" or "unsubscribed"
  */
-void base_unsubscribe_bounce_presence(instance id, xmlnode replied_stanza, const char* type) {
+static void base_unsubscribe_bounce_presence(instance id, xmlnode replied_stanza, const char* type) {
     xmlnode reply = NULL;
     const char *from = xmlnode_get_attrib_ns(replied_stanza, "to", NULL);
     const char *to = xmlnode_get_attrib_ns(replied_stanza, "from", NULL);
@@ -83,7 +83,7 @@ void base_unsubscribe_bounce_presence(instance id, xmlnode replied_stanza, const
  * @param arg bounce reason (char *)
  * @return r_ERR on error, r_DONE if the packet is handled
  */
-result base_unsubscribe_deliver(instance id, dpacket p, void* arg) {
+static result base_unsubscribe_deliver(instance id, dpacket p, void* arg) {
     jpacket packet_to_handle = NULL;
 
     /* check the params */
@@ -134,15 +134,15 @@ result base_unsubscribe_deliver(instance id, dpacket p, void* arg) {
  * @param arg unused/ignored
  * @return r_ERR on error, r_PASS on success
  */
-result base_unsubscribe_config(instance id, xmlnode x, void *arg) {
+static result base_unsubscribe_config(instance id, xmlnode x, void *arg) {
     /* nothing has to be done for configuration validation */
-    if(id == NULL) {
+    if (id == NULL) {
         return r_PASS;
     }
 
     log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_unsubscribe configuring instance %s", id->id);
 
-    if(id->type != p_NORM) {
+    if (id->type != p_NORM) {
         log_alert(NULL, "ERROR in instance %s: <unsubscribe>..</unsubscribe> element only allowed in service sections", id->id);
         return r_ERR;
     }
