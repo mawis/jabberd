@@ -500,6 +500,9 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
     /* check if we know how to handle this namespace */
     ns_def = xhash_get(xq->namespace_defs, ns);
     if (ns_def == NULL) {
+	ns_def = xhash_get(xq->namespace_defs, "*");
+    }
+    if (ns_def == NULL) {
 	log_error(i->id, "xdb_sql got a xdb request for an unconfigured namespace %s, use this handler only for selected namespaces.", ns);
 	return r_ERR;
     }
