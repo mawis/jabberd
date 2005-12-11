@@ -25,7 +25,8 @@ Changes in administration of the server
       connection to the database server has been established or reestablished.
       This is useful for example if you are using MySQL 4.1+ and want to
       set your used charset ("SET NAMES utf8").
-    * jabberd14 now uses libpopt for command line parsing
+    * jabberd14 now uses libpopt for command line parsing.
+    * jabberd14 now detects stale pidfiles, and ignores them.
 
 Changes in features visible to the user
     * Support for Flexible Offline Message Retrieval (JEP-0013)

@@ -418,7 +418,7 @@ void _js_session_from(void *arg) {
     if (store_history) {
 	char *temp = xmlnode_get_attrib_ns(p->x, "direction", NULL);
 	xmlnode_put_attrib_ns(p->x, "direction", NULL, NULL, "sent");
-	xdb_act(s->si->xc, s->u->id, NS_JABBERD_HISTORY, "insert", NULL, p->x);
+	xdb_act_path(s->si->xc, s->u->id, NS_JABBERD_HISTORY, "insert", NULL, NULL, p->x);
 	if (temp == NULL) {
 	    xmlnode_hide_attrib_ns(p->x, "direction", NULL);
 	} else {
