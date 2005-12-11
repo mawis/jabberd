@@ -1,3 +1,7 @@
+2005-12-11  Matthias Wimmer  <m@tthias.net>
+
+    * jabberd/config.c: detecting stale pidfiles
+
 2005-12-10  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/lib/xmlnode.c: fixed hiding attribute nodes, getting node prefix
