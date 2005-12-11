@@ -105,16 +105,24 @@ void xdb_deliver(instance i, xdbcache xc) {
     if (xc->set) {
         xmlnode_put_attrib_ns(x, "type", NULL, NULL, "set");
         xmlnode_insert_tag_node(x,xc->data); /* copy in the data */
-        if(xc->act != NULL)
+        if (xc->act != NULL)
             xmlnode_put_attrib_ns(x, "action", NULL, NULL, xc->act);
-        if(xc->match != NULL)
+        if (xc->match != NULL)
             xmlnode_put_attrib_ns(x, "match", NULL, NULL, xc->match);
+	if (xc->matchpath != NULL)
+	    xmlnode_put_attrib_ns(x, "matchpath", NULL, NULL, xc->matchpath);
+	if (xc->namespaces != NULL) {
+	    xmlnode namespaces = xhash_to_xml(xc->namespaces);
+	    xmlnode_put_attrib_ns(x, "matchns", NULL, NULL, xmlnode_serialize_string(namespaces, NULL, NULL, 0));
+	    xmlnode_free(namespaces);
+	}
     }
     xmlnode_put_attrib_ns(x, "to", NULL, NULL, jid_full(xc->owner));
     xmlnode_put_attrib_ns(x, "from", NULL, NULL, i->id);
     xmlnode_put_attrib_ns(x, "ns", NULL, NULL, xc->ns);
     snprintf(ids, sizeof(ids), "%d", xc->id);
     xmlnode_put_attrib_ns(x, "id", NULL, NULL, ids); /* to track response */
+    log_debug2(ZONE, LOGT_EXECFLOW, "delivering xdb request: %s", xmlnode_serialize_string(x, NULL, NULL, 0));
     deliver(dpacket_new(x), i);
 }
 
@@ -238,8 +246,7 @@ xmlnode xdb_get(xdbcache xc, jid owner, const char *ns) {
 /* act must be NULL, "check", or "insert" for now, insert will either blindly insert data into the parent (creating one if needed) or use match */
 /* match will find a child in the parent, and either replace (if it's an insert) or remove (if data is NULL) */
 /* XXX for the check action, read the comment in xdb_file/xdb_file.c, it might be buggy and not needed anyway */
-int xdb_act(xdbcache xc, jid owner, const char *ns, char *act, char *match, xmlnode data)
-{
+static int _xdb_act(xdbcache xc, jid owner, const char *ns, char *act, char *match, char *matchpath, xht namespaces, xmlnode data) {
     _xdbcache newx;
 
     if (xc == NULL || owner == NULL || ns == NULL) {
@@ -254,6 +261,8 @@ int xdb_act(xdbcache xc, jid owner, const char *ns, char *act, char *match, xmln
     newx.ns = ns;
     newx.act = act;
     newx.match = match;
+    newx.matchpath = matchpath;
+    newx.namespaces = namespaces;
     newx.owner = owner;
     newx.sent = time(NULL);
     newx.preblock = 1; /* flag */
@@ -289,7 +298,15 @@ int xdb_act(xdbcache xc, jid owner, const char *ns, char *act, char *match, xmln
     return 0;
 }
 
+int xdb_act(xdbcache xc, jid owner, const char *ns, char *act, char *match, xmlnode data) {
+    return _xdb_act(xc, owner, ns, act, match, NULL, NULL, data);
+}
+
+int xdb_act_path(xdbcache xc, jid owner, const char *ns, char *act, char *matchpath, xht namespaces, xmlnode data) {
+    return _xdb_act(xc, owner, ns, act, NULL, matchpath, namespaces, data);
+}
+
 /* sends new xml to replace old, data is NOT freed, app responsible for freeing it */
 int xdb_set(xdbcache xc, jid owner, const char *ns, xmlnode data) {
-    return xdb_act(xc, owner, ns, NULL, NULL, data);
+    return _xdb_act(xc, owner, ns, NULL, NULL, NULL, NULL, data);
 }

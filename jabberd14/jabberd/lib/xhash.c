@@ -277,3 +277,92 @@ void xhash_walk(xht h, xhash_walker w, void *arg) {
             if(n->key != NULL && n->val != NULL)
                 (*w)(h, n->key, n->val, arg);
 }
+
+/**
+ * xhash_walker() function used by xhash_to_xml to put entries in an ::xhash into an ::xmlnode
+ *
+ * @param h the hash containing the entires (ignored)
+ * @param key the key of the entry
+ * @param value the value of the entry
+ * @param arg ::xmlnode to insert the entry to
+ */
+static void _xhash_to_xml_walker(xht h, const char *key, void *value, void *arg) {
+    xmlnode rootnode = (xmlnode)arg;
+    xmlnode entry = NULL;
+    xmlnode keynode = NULL;
+    xmlnode valuenode = NULL;
+
+    entry = xmlnode_insert_tag_ns(rootnode, "entry", NULL, NS_JABBERD_HASH);
+
+    keynode = xmlnode_insert_tag_ns(entry, "key", NULL, NS_JABBERD_HASH);
+    xmlnode_insert_cdata(keynode, key, -1);
+
+    valuenode = xmlnode_insert_tag_ns(entry, "value", NULL, NS_JABBERD_HASH);
+    xmlnode_insert_cdata(valuenode, value, -1);
+}
+
+/**
+ * write the contents of an xhash to an xmlnode
+ *
+ * @note the result has to be freed by the caller using xmlnode_free()
+ *
+ * @param h the xhash to be converted
+ * @return xmlnode tree containing the content of the xhash
+ */
+xmlnode xhash_to_xml(xht h) {
+    xmlnode result = NULL;
+    char prime[32] = "";
+
+    /* sanity check */
+    if (h == NULL)
+	return NULL;
+
+    /* create root node */
+    result = xmlnode_new_tag_ns("hash", NULL, NS_JABBERD_HASH);
+    snprintf(prime, sizeof(prime), "%i", h->prime);
+    xmlnode_put_attrib_ns(result, "prime", NULL, NULL, prime);
+
+    /* insert entries */
+    xhash_walk(h, _xhash_to_xml_walker, result);
+
+    return result;
+}
+
+/**
+ * convert the xmlnode representation of an xhash back to an xhash
+ *
+ * @note the result has to be freed by the caller using xhash_free()
+ *
+ * @param hash the xhash in xml notation
+ * @return xhash that has been created
+ */
+xht xhash_from_xml(xmlnode hash) {
+    xht result = NULL;
+    xht namespace = NULL;
+    xmlnode_list_item entry = NULL;
+    int prime = j_atoi(xmlnode_get_attrib_ns(hash, "prime", NULL), 101);
+
+    if (hash == NULL)
+	return NULL;
+
+    result = xhash_new(prime);
+    namespace = xhash_new(2);
+    xhash_put(namespace, "", NS_JABBERD_HASH);
+
+    for (entry = xmlnode_get_tags(hash, "entry", namespace); entry != NULL; entry = entry->next) {
+	char *key = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(entry->node, "key", namespace), 0));
+	char *value = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(entry->node, "value", namespace), 0));
+
+	if (value == NULL)
+	    value = "";
+
+	if (key == NULL)
+	    key = "";
+
+	xhash_put(result, pstrdup(result->p, key), pstrdup(result->p, value));
+    }
+
+    xhash_free(namespace);
+
+    return result;
+}

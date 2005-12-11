@@ -511,7 +511,7 @@
           <result group='foo' groupiri='jabber:x:offline'><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
         </get>
         <set>INSERT INTO messages (jid, node, correspondent, type, storetime, subject, body, xml) VALUES ('{attribute::to}', IF('{message/attribute::node}'='', NULL, '{message/attribute::node}'), '{message/attribute::from}', 'offline', now(), IF ('{message/subject}'='', NULL, '{message/subject/text()}'), '{message/body/text()}', '{message}')</set>
-        <delete>DELETE FROM messages WHERE jid='{attribute::to}' AND type='offline' AND IF ('{attribute::match}'='', 1=1, node=SUBSTRING('{attribute::match}', 14) AND SUBSTRING('{attribute::match}', 1, 13)='message?node=')</delete>
+	<delete>DELETE FROM messages WHERE jid='{attribute::to}' AND type='offline' AND IF ('{attribute::matchpath}'='', 1=1, node=SUBSTRING(SUBSTRING('{attribute::matchpath}', 1, LENGTH('{attribute::matchpath}')-2), 16) AND SUBSTRING('{attribute::matchpath}', 1, 14)='message[@node=')</delete>
       </handler>
       <handler ns="http://jabberd.org/ns/history">
         <get>

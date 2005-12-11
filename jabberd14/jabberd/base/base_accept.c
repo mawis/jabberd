@@ -55,8 +55,7 @@ typedef struct queue_struct {
     struct queue_struct *next;
 } *queue, _queue;
 
-typedef struct accept_instance_st
-{
+typedef struct accept_instance_st {
     mio m;
     int state;
     char *id;
@@ -264,7 +263,7 @@ void base_accept_offline(accept_instance ai, xmlnode x) {
         case JPACKET_MESSAGE:
             /* XXX should probably handle offline events I guess, more lazy */
         case JPACKET_S10N:
-            if(xdb_act(ai->offline, ai->offjid, "base:accept:offline", "insert", NULL, x) == 0) {
+            if(xdb_act_path(ai->offline, ai->offjid, "base:accept:offline", "insert", NULL, NULL, x) == 0) {
                 xmlnode_free(x);
                 return;
             }
@@ -325,6 +324,7 @@ result base_accept_config(instance id, xmlnode x, void *arg)
     char *ip = NULL;
     int restrict_var = 0;
     int offline = 0;
+    int timeout = 0;
 
     namespaces = xhash_new(3);
     xhash_put(namespaces, "", NS_JABBERD_CONFIGFILE);
@@ -333,6 +333,7 @@ result base_accept_config(instance id, xmlnode x, void *arg)
     port = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "port", namespaces), 0)), 0);
     restrict_var = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "restrict", namespaces), 0)) != NULL ? 1 : 0;
     offline = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "offline", namespaces), 0)) != NULL ? 1 : 0;
+    timeout = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "timeout", namespaces), 0)), 10);
     xhash_free(namespaces);
 
     if(id == NULL) {
@@ -353,7 +354,7 @@ result base_accept_config(instance id, xmlnode x, void *arg)
     inst->secret      = secret;
     inst->ip          = ip;
     inst->port        = port;
-    inst->timeout     = j_atoi(xmlnode_get_tag_data(x, "timeout"),10);
+    inst->timeout     = timeout;
     if (restrict_var)
         inst->restrict_var = 1;
     if (offline) {

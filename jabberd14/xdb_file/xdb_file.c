@@ -294,6 +294,8 @@ char *xdb_file_full(int create, pool p, const char *spl, char *host, const char 
  */
 result xdb_file_phandler(instance i, dpacket p, void *arg) {
     char *full, *ns, *act, *match;
+    char *matchpath = NULL;
+    char *matchns = NULL;
     xdbf xf = (xdbf)arg;
     xmlnode file, top, data;
     int ret = 0, flag_set = 0;
@@ -338,7 +340,17 @@ result xdb_file_phandler(instance i, dpacket p, void *arg) {
     if (flag_set) {
 	act = xmlnode_get_attrib_ns(p->x, "action", NULL);
 	match = xmlnode_get_attrib_ns(p->x, "match", NULL);
+	matchpath = xmlnode_get_attrib_ns(p->x, "matchpath", NULL);
+	matchns = xmlnode_get_attrib_ns(p->x, "matchns", NULL);
         if (act != NULL) {
+	    xht namespaces = NULL;
+
+	    if (matchns != NULL) {
+		xmlnode namespacesxml = NULL;
+		namespacesxml = xmlnode_str(matchns, j_strlen(matchns));
+		namespaces = xhash_from_xml(namespacesxml);
+		xmlnode_free(namespacesxml);
+	    }
             switch (*act) {
 		case 'i': /* insert action */
 		    if (data == NULL) {
@@ -346,15 +358,28 @@ result xdb_file_phandler(instance i, dpacket p, void *arg) {
 			data = xmlnode_insert_tag_ns(top, "foo", NULL, ns);
 			xmlnode_put_attrib_ns(data, "xdbns", NULL, NULL, ns);
 		    }
-		    xmlnode_hide(xmlnode_get_tag(data, match)); /* any match is a goner */
+		    if (matchpath != NULL) {
+			xmlnode_list_item match_item = NULL;
+
+			for (match_item = xmlnode_get_tags(data, matchpath, namespaces); match_item != NULL; match_item = match_item->next) {
+			    xmlnode_hide(match_item->node);
+			}
+		    } else {
+			xmlnode_hide(xmlnode_get_tag(data, match)); /* any match is a goner */
+		    }
 		    /* insert the new chunk into the existing data */
 		    xmlnode_insert_tag_node(data, xmlnode_get_firstchild(p->x));
 		    break;
 		case 'c': /* check action */
-		    if(match != NULL)
+		    if (matchpath != NULL) {
+			data = xmlnode_get_list_item(xmlnode_get_tags(data, matchpath, namespaces), 0);
+		    } else if(match != NULL) {
 			data = xmlnode_get_tag(data, match);
+		    }
 		    if(j_strcmp(xmlnode_get_data(data),xmlnode_get_data(xmlnode_get_firstchild(p->x))) != 0) {
 			log_debug2(ZONE, LOGT_STORAGE|LOGT_DELIVER, "xdb check action returning error to signify unsuccessful check");
+			if (namespaces)
+			    xhash_free(namespaces);
 			return r_ERR;
 		    }
 		    flag_set = 0;
@@ -396,6 +421,8 @@ result xdb_file_phandler(instance i, dpacket p, void *arg) {
 		    log_warn(p->host, "unable to handle unknown xdb action '%s'", act);
 		    return r_ERR;
             }
+	    if (namespaces)
+		xhash_free(namespaces);
         } else {
             if (data != NULL)
                 xmlnode_hide(data);

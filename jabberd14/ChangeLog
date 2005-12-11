@@ -1,6 +1,17 @@
 2005-12-11  Matthias Wimmer  <m@tthias.net>
 
     * jabberd/config.c: detecting stale pidfiles
+    * jabberd/jabberd.h: adding namespace aware xdb_act_path()
+    * jabberd/xdb.c: same
+    * jabberd/lib/xhash.c: same
+    * jabberd/lib/jabberdlib.h: same
+    * jabberd/base/base_accept.c: using xdb_act_path() instead of xdb_act()
+    * jsm/sessions.c: same
+    * jsm/modules/mod_browse.c: same
+    * jsm/modules/mod_auth_plain.c: same
+    * jsm/modules/mod_offline.c: same + updated JEP-0013 support to version 1.2
+    * xdb_sql/xdb_sql.c: supporting xdb_act_path()
+    * xdb_file/xdb_file.c: same
 
 2005-12-10  Matthias Wimmer  <m@tthias.net>
 

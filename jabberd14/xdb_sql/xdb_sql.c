@@ -486,6 +486,7 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
     int is_set_request = 0;	/* if this is a set request */
     char *action = NULL;	/* xdb-set action */
     char *match = NULL;		/* xdb-set match */
+    char *matchpath = NULL;	/* xdb-set matchpath */
 
     log_debug2(ZONE, LOGT_STORAGE|LOGT_DELIVER, "handling xdb request %s", xmlnode_serialize_string(p->x, NULL, NULL, 0));
 
@@ -509,6 +510,7 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
 	/* set request */
 	action = xmlnode_get_attrib_ns(p->x, "action", NULL);
 	match = xmlnode_get_attrib_ns(p->x, "match", NULL);
+	matchpath = xmlnode_get_attrib_ns(p->x, "matchpath", NULL);
 
 	if (action == NULL) {
 	    char *query = NULL;
@@ -552,9 +554,9 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
 	    xdb_sql_execute(i, xq, "BEGIN", NULL, NULL);
 
 	    /* delete matches */
-	    if (match != NULL) {
+	    if (match != NULL || matchpath != NULL) {
 		query = xdb_sql_construct_query(ns_def->delete, p->x, xq->namespace_prefixes);
-		log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for insert/match deletion: %s", query);
+		log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for insert/match[path] deletion: %s", query);
 		if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
 		    /* SQL query failed */
 		    xdb_sql_execute(i, xq, "ROLLBACK", NULL, NULL);

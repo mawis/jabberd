@@ -90,7 +90,7 @@ mreturn mod_auth_plain_jane(mapi m, void *arg) {
     log_debug2(ZONE, LOGT_AUTH, "trying xdb act check");
     /* if the act "check" fails, PASS so that 0k could use the password to try and auth w/ it's data */
     /* XXX see the comment in xdb_file/xdb_file.c for the check action */
-    if (xdb_act(m->si->xc, m->user->id, NS_AUTH, "check", NULL, xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:password", m->si->std_namespace_prefixes), 0)))
+    if (xdb_act_path(m->si->xc, m->user->id, NS_AUTH, "check", NULL, NULL, xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:password", m->si->std_namespace_prefixes), 0)))
         return M_PASS;
 
     jutil_iqresult(m->packet->x);
