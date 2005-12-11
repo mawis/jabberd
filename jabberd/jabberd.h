@@ -243,6 +243,8 @@ typedef struct xdbcache_struct {
     int set; /**< flag that this is a set */
     char *act; /**< for set */
     char *match; /**< for set */
+    char *matchpath; /**< for set, namespace aware version of match */
+    xht namespaces; /**< for set, namespace prefix declarations for matchpath */
     xmlnode data; /**< for set */
     jid owner;
     int sent;
@@ -256,6 +258,7 @@ typedef struct xdbcache_struct {
 xdbcache xdb_cache(instance i); /**< create a new xdb cache for this instance */
 xmlnode xdb_get(xdbcache xc,  jid owner, const char *ns); /**< blocks until namespace is retrieved, returns xmlnode or NULL if failed */
 int xdb_act(xdbcache xc, jid owner, const char *ns, char *act, char *match, xmlnode data); /**< sends new xml action, returns non-zero if failure */
+int xdb_act_path(xdbcache xc, jid owner, const char *ns, char *act, char *matchpath, xht namespaces, xmlnode data); /**< sends new xml action, returns non-zero if failure */
 int xdb_set(xdbcache xc, jid owner, const char *ns, xmlnode data); /**< sends new xml to replace old, returns non-zero if failure */
 
 /* Error messages */

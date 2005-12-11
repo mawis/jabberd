@@ -169,7 +169,7 @@ mreturn mod_offline_message(mapi m, modoffline_conf conf) {
     /* add node id for flexible offline message retrieval */
     xmlnode_put_attrib_ns(m->packet->x, "node", NULL, NULL, jutil_timestamp_ms(timestamp));
 
-    if (xdb_act(m->si->xc, m->user->id, NS_OFFLINE, "insert", NULL, m->packet->x)) /* feed the message itself, and do an xdb insert */
+    if (xdb_act_path(m->si->xc, m->user->id, NS_OFFLINE, "insert", NULL, NULL, m->packet->x)) /* feed the message itself, and do an xdb insert */
         return M_PASS;
 
     if (cur != NULL) {
@@ -234,13 +234,14 @@ void mod_offline_remove_message(mapi m, const char *filter) {
 
     /* generate the node path for the message to delete */
     s = spool_new(m->packet->p);
-    spool_add(s, "message?node=");
+    spool_add(s, "message[@node='");
     spool_add(s, filter);
+    spool_add(s, "']");
 
     log_debug2(ZONE, LOGT_STORAGE, "removing message by matched xdb: %s", spool_print(s));
 
     /* replace this message with nothing */
-    xdb_act(m->si->xc, m->user->id, NS_OFFLINE, "insert", spool_print(s), NULL);
+    xdb_act_path(m->si->xc, m->user->id, NS_OFFLINE, "insert", spool_print(s), m->si->std_namespace_prefixes, NULL);
 }
 
 /**
@@ -432,6 +433,78 @@ void mod_offline_out_get_message_list(mapi m) {
 }
 
 /**
+ * handle requests for the list of offline messages
+ *
+ * @param m the mapi structure
+ */
+static void mod_offline_out_get_message_count(mapi m) {
+    xmlnode offline_messages = NULL;
+    xmlnode cur = NULL;
+    xmlnode x = NULL;
+    xmlnode query = NULL;
+    int count = 0;
+    char msgcount[32] = "";
+
+    /* get messages from xdb storage */
+    offline_messages = xdb_get(m->si->xc, m->user->id, NS_OFFLINE);
+
+    log_debug2(ZONE, LOGT_STORAGE, "got offline messages from xdb: %s", xmlnode_serialize_string(offline_messages, NULL, NULL, 0));
+
+    jutil_iqresult(m->packet->x);
+    query = xmlnode_insert_tag_ns(m->packet->x, "query", NULL, NS_DISCO_INFO);
+    xmlnode_put_attrib_ns(query, "node", NULL, NULL, NS_FLEXIBLE_OFFLINE);
+
+    /* iterate over the messages to count them */
+    for (cur = xmlnode_get_firstchild(offline_messages); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
+	/* ignore CDATA between <message/> elements */
+	if (xmlnode_get_type(cur) != NTYPE_TAG)
+	    continue;
+
+	log_debug2(ZONE, LOGT_STORAGE, "processing message %s", xmlnode_serialize_string(cur, NULL, NULL, 0));
+
+	/* check if the message expired */
+	if (mod_offline_check_expired(m, cur)) {
+	    xmlnode_hide(cur);
+	    continue;
+	}
+
+	/* one more message */
+	count++;
+    }
+
+    /* convert count to a string */
+    snprintf(msgcount, sizeof(msgcount), "%i", count);
+
+    /* create the <identity/> element */
+    cur = xmlnode_insert_tag_ns(query, "identity", NULL, NS_DISCO_INFO);
+    xmlnode_put_attrib_ns(cur, "category", NULL, NULL, "automation");
+    xmlnode_put_attrib_ns(cur, "type", NULL, NULL, "message-list");
+
+    /* create the <feature/> element */
+    cur = xmlnode_insert_tag_ns(query, "feature", NULL, NS_DISCO_INFO);
+    xmlnode_put_attrib_ns(cur, "var", NULL, NULL, NS_FLEXIBLE_OFFLINE);
+
+    /* create the <x/> element */
+    x = xmlnode_insert_tag_ns(query, "x", NULL, NS_DATA);
+    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "result");
+    cur = xmlnode_insert_tag_ns(x, "field", NULL, NS_DATA);
+    xmlnode_put_attrib_ns(cur, "var", NULL, NULL, "FORM_TYPE");
+    xmlnode_put_attrib_ns(cur, "type", NULL, NULL, "hidden");
+    xmlnode_insert_cdata(xmlnode_insert_tag_ns(cur, "value", NULL, NS_DATA), NS_FLEXIBLE_OFFLINE, -1);
+    cur = xmlnode_insert_tag_ns(x, "field", NULL, NS_DATA);
+    xmlnode_put_attrib_ns(cur, "var", NULL, NULL, "number_of_messages");
+    xmlnode_insert_cdata(xmlnode_insert_tag_ns(cur, "value", NULL, NS_DATA), msgcount, -1);
+    
+    jpacket_reset(m->packet);
+    js_deliver(m->si,m->packet);
+
+    if (offline_messages != NULL) {
+	xmlnode_free(offline_messages);
+    }
+
+}
+
+/**
  * process iqs that contain an offline element
  * (retrieving and deleting offline messages)
  *
@@ -486,13 +559,28 @@ mreturn mod_offline_out_iq(mapi m, modoffline_session session_conf) {
     if (m->packet->to != NULL)
 	return M_PASS;
 
+    /* handle requests for number of offline messages */
+    if (NSCHECK(m->packet->iq, NS_DISCO_INFO)) {
+	if (j_strcmp(xmlnode_get_attrib_ns(m->packet->iq, "node", NULL), NS_FLEXIBLE_OFFLINE) == 0) {
+	    /* don't flood messages on available presence */
+	    session_conf->jep0013 = 1;
+
+	    if (jpacket_subtype(m->packet) == JPACKET__GET) {
+		mod_offline_out_get_message_count(m);
+	    } else {
+		js_bounce_xmpp(m->si, m->packet->x, XTERROR_FORBIDDEN);
+	    }
+	    return M_HANDLED;
+	}
+    }
+
     /* handle requests for message list */
     if (NSCHECK(m->packet->iq, NS_DISCO_ITEMS)) {
 	if (j_strcmp(xmlnode_get_attrib_ns(m->packet->iq, "node", NULL), NS_FLEXIBLE_OFFLINE) == 0) {
-	    if (jpacket_subtype(m->packet) == JPACKET__GET) {
-		/* don't flood messages on available presence */
-		session_conf->jep0013 = 1;
+	    /* don't flood messages on available presence */
+	    session_conf->jep0013 = 1;
 
+	    if (jpacket_subtype(m->packet) == JPACKET__GET) {
 		mod_offline_out_get_message_list(m);
 	    } else {
 		js_bounce_xmpp(m->si, m->packet->x, XTERROR_FORBIDDEN);
