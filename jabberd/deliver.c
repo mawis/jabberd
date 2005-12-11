@@ -524,38 +524,6 @@ static result deliver_config_uplink(instance i, xmlnode x, void *arg) {
     return r_DONE;
 }
 
-/* NULL that sukkah! */
-/**
- * handler for the &lt;null/&gt; delivery target
- *
- * It just deletes packets
- *
- * @param i unused/ignored
- * @param p the packet to delete
- * @param arg unused/ignored
- * @return always r_DONE
- */
-static result deliver_null(instance i, dpacket p, void* arg) {
-    pool_free(p->p);
-    return r_DONE;
-}
-
-/**
- * handler for the &lt;null/&gt; configuration element
- *
- * @param i the instance the element is in
- * @param x the configuration element
- * @param arg unused/ignored
- * @return r_DONE on success, r_PASS if no instance is given
- */
-static result deliver_config_null(instance i, xmlnode x, void *arg) {
-    if(i == NULL)
-        return r_PASS;
-
-    register_phandler(i, o_DELIVER, deliver_null, NULL);
-    return r_DONE;
-}
-
 /**
  * deliver a ::dpacket to an ::instance using the configured XML routings
  *
@@ -642,7 +610,6 @@ void deliver_init(pool p) {
     register_config(p, "ns", deliver_config_ns, NULL);
     register_config(p, "logtype", deliver_config_logtype, NULL);
     register_config(p, "uplink", deliver_config_uplink, NULL);
-    register_config(p, "null", deliver_config_null, NULL);
 }
 
 /**

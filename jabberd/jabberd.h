@@ -83,9 +83,9 @@
  * @brief Containing the base executable (the jabberd binary) implementing an XML router and helpers
  *
  * In this directory you find the implementation of the jabberd executable, which is just something, that is able to
- * route XML fragments between the base handlers (most of them are implemented in files inthe directory
+ * route XML fragments between the base handlers (they are implemented in files in the directory
  * @link jabberd/base jabberd/base@endlink.)
- * The base handlers (which are a part of the jabberd binary) are than able to connect targets and sources to this
+ * The base handlers (which are a part of the jabberd binary) are then able to connect targets and sources to this
  * XML routing. The most known base handler might be the handler for the &lt;load/&gt; target in the configuration
  * file. This handler loads a shared object file containing a component and connects this component to the
  * XML routing.

@@ -51,20 +51,18 @@
 pth_t main__thread = NULL;
 
 /* simple wrapper around the pth messages to pass packets */
-typedef struct
-{
+typedef struct {
     pth_message_t head; /* the standard pth message header */
     dpacket p;
 } *drop, _drop;
 
-result base_stdout_heartbeat(void *arg)
-{
+static result base_stdout_heartbeat(void *arg) {
     static int parent = 0;
 
-    if(parent == 0) parent = getppid();
+    if (parent == 0)
+	parent = getppid();
 
-    if(parent != getppid())
-    {
+    if (parent != getppid()) {
         /* parent pid has changed, bail */
         log_alert("stdout","Parent PID has changed, Server Exiting");
         exit(1);
@@ -74,8 +72,7 @@ result base_stdout_heartbeat(void *arg)
 }
 
 /* write packets to sink */
-result base_stdout_phandler(instance i, dpacket p, void *arg)
-{
+static result base_stdout_phandler(instance i, dpacket p, void *arg) {
     pth_msgport_t mp = (pth_msgport_t)arg;
     drop d;
 
@@ -89,28 +86,24 @@ result base_stdout_phandler(instance i, dpacket p, void *arg)
     return r_DONE;
 }
 
-void base_stdin_packets(int type, xmlnode x, void *arg)
-{
-    switch(type)
-    {
-    case XSTREAM_ROOT:
-        log_debug2(ZONE, LOGT_IO, "stdin opened stream");
-        xmlnode_free(x);
-        break;
-    case XSTREAM_NODE:
-        /* deliver the packets coming on stdin... they aren't associated with an instance really */
-        log_debug2(ZONE, LOGT_IO, "stdin incoming packet");
-        deliver(dpacket_new(x), NULL); 
-        break;
-    default:
-        xmlnode_free(x);
+static void base_stdin_packets(int type, xmlnode x, void *arg) {
+    switch(type) {
+	case XSTREAM_ROOT:
+	    log_debug2(ZONE, LOGT_IO, "stdin opened stream");
+	    xmlnode_free(x);
+	    break;
+	case XSTREAM_NODE:
+	    /* deliver the packets coming on stdin... they aren't associated with an instance really */
+	    log_debug2(ZONE, LOGT_IO, "stdin incoming packet");
+	    deliver(dpacket_new(x), NULL); 
+	    break;
+	default:
+	    xmlnode_free(x);
     }
-
 }
 
 /* thread to handle io from socket */
-void *base_stdoutin(void *arg)
-{
+static void *base_stdoutin(void *arg) {
     pth_msgport_t mp = (pth_msgport_t)arg;
     xstream xs;
     int len;
@@ -148,28 +141,26 @@ void *base_stdoutin(void *arg)
     ering = pth_event_concat(esig,eread, emp, NULL);
 
     /* spin waiting on the mp(stdout) or read(stdin) events */
-    while(pth_wait(ering) > 0)
-    {
+    while (pth_wait(ering) > 0) {
 
         /* we were notified to shutdown */
-        if(pth_event_occurred(esig))
-        {
+        if (pth_event_occurred(esig)) {
             break;
         }
 
         /* handle reading the incoming stream */
-        if(pth_event_occurred(eread))
-        {
+        if (pth_event_occurred(eread)) {
             log_debug2(ZONE, LOGT_IO, "stdin read event");
             len = MIO_READ_FUNC(STDIN_FILENO, buff, 1024);
-            if(len <= 0) break;
+            if (len <= 0)
+		break;
 
-            if(xstream_eat(xs, buff, len) > XSTREAM_NODE) break;
+            if (xstream_eat(xs, buff, len) > XSTREAM_NODE)
+		break;
         }
 
         /* handle the packets to be sent to the socket */
-        if(pth_event_occurred(emp))
-        {
+        if (pth_event_occurred(emp)) {
             log_debug2(ZONE, LOGT_IO, "io incoming message event for stdout");
 
             /* get packet */
@@ -178,7 +169,7 @@ void *base_stdoutin(void *arg)
 
             /* write packet phase */
             block = xmlnode_serialize_string(p->x, NULL, NULL, 0);
-            if(MIO_WRITE_FUNC(STDOUT_FILENO, block, strlen(block)) <= 0)
+            if (MIO_WRITE_FUNC(STDOUT_FILENO, block, strlen(block)) <= 0)
                 break;
 
             /* all sent, yay */
@@ -198,23 +189,20 @@ void *base_stdoutin(void *arg)
     return NULL;
 }
 
-void base_stdout_shutdown(void *arg)
-{
+static void base_stdout_shutdown(void *arg) {
     drop d;
     pth_msgport_t mp=(pth_msgport_t)arg;
-    while((d = (drop)pth_msgport_get(mp)) != NULL)
-    {
+    while ((d = (drop)pth_msgport_get(mp)) != NULL) {
         pool_free(d->p->p);
     }
-    if(main__thread!=NULL) pth_raise(main__thread,SIGUSR2);
+    if (main__thread!=NULL)
+	pth_raise(main__thread,SIGUSR2);
 }
 
-result base_stdout_config(instance id, xmlnode x, void *arg)
-{
+static result base_stdout_config(instance id, xmlnode x, void *arg) {
     static pth_msgport_t mp = NULL;
 
-    if(id == NULL) 
-    {
+    if (id == NULL) {
         register_beat(2,base_stdout_heartbeat,NULL);
         return r_PASS;
     }
@@ -222,8 +210,7 @@ result base_stdout_config(instance id, xmlnode x, void *arg)
     log_debug2(ZONE, LOGT_INIT|LOGT_THREAD, "base_stdout_config performing configuration");
 
     /* create the mp and start the io thread only once */
-    if(mp == NULL)
-    {
+    if (mp == NULL) {
         mp = pth_msgport_create("base_stdout");
         main__thread = pth_spawn(PTH_ATTR_DEFAULT, base_stdoutin, (void *)mp);
         pool_cleanup(id->p, base_stdout_shutdown, (void*)mp);

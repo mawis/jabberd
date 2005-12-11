@@ -41,15 +41,13 @@
 
 #include "jabberd.h"
 
-result base_stderr_display(instance i, dpacket p, void* args)
-{   
+static result base_stderr_display(instance i, dpacket p, void* args) {   
     char* message = NULL;
     
     /* Get the raw data from the packet */
     message = xmlnode_get_data(p->x);
 
-    if(message == NULL)
-    {
+    if (message == NULL) {
         log_debug2(ZONE, LOGT_STRANGE, "base_stderr_deliver: no message available to print.");
         return r_ERR;
     }
@@ -61,13 +59,11 @@ result base_stderr_display(instance i, dpacket p, void* args)
     return r_DONE;
 }
 
-result base_stderr_config(instance id, xmlnode x, void *arg)
-{
-    if(id == NULL)
+static result base_stderr_config(instance id, xmlnode x, void *arg) {
+    if (id == NULL)
         return r_PASS;
 
-    if(id->type != p_LOG)
-    {
+    if (id->type != p_LOG) {
         log_alert(NULL, "ERROR in instance %s: <stderr/> element only allowed in log sections", id->id);
         return r_ERR;
     }
