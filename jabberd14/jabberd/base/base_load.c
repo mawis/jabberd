@@ -40,16 +40,16 @@
  * --------------------------------------------------------------------------*/
 
 /**
- * @file load.c
+ * @file base_load.c
  * @brief module loader: handles the loading of components, that are installed as loadable modules - the &lt;load/&gt; configuration element
  */
 
 #include "jabberd.h"
 /* IN-PROCESS component loader */
 
-typedef void (*load_init)(instance id, xmlnode x);	/**< prototype for the initialization function of a component */
-xmlnode load__cache = NULL;				/**< hacky: xml document containing loaded shared objects as attributes */
-int load_ref__count = 0;				/**< counts loaded components. triggers shutdown if all components are unloaded */
+typedef void (*base_load_init)(instance id, xmlnode x);	/**< prototype for the initialization function of a component */
+xmlnode base_load__cache = NULL;				/**< hacky: xml document containing loaded shared objects as attributes */
+int base_load_ref__count = 0;				/**< counts loaded components. triggers shutdown if all components are unloaded */
 
 /* use dynamic dlopen/dlsym stuff here! */
 #include <dlfcn.h>
@@ -60,7 +60,7 @@ int load_ref__count = 0;				/**< counts loaded components. triggers shutdown if 
  *
  * @param file the dynamic library file to load
  */
-static void *load_loader(char *file) {
+static void *base_load_loader(char *file) {
     void *so_h;
     const char *dlerr;
     char message[MAX_LOG_SIZE];
@@ -69,7 +69,7 @@ static void *load_loader(char *file) {
     so_h = dlopen(file,RTLD_LAZY);
 
     /* check for a load error */
-    if(!so_h) {
+    if (!so_h) {
         dlerr = dlerror();
         snprintf(message, sizeof(message), "Loading %s failed: '%s'\n",file,dlerr);
         fprintf(stderr, "%s\n", message);
@@ -77,7 +77,7 @@ static void *load_loader(char *file) {
     }
 
     /* XXX do not use xmlnode_put_vattrib(), it's deprecated */
-    xmlnode_put_vattrib(load__cache, file, so_h); /* fun hack! yes, it's just a nice name-based void* array :) */
+    xmlnode_put_vattrib(base_load__cache, file, so_h); /* fun hack! yes, it's just a nice name-based void* array :) */
     return so_h;
 }
 
@@ -88,18 +88,18 @@ static void *load_loader(char *file) {
  * @param file the dynamic library file to load
  * @return pointer to the loaded function
  */
-static void *load_symbol(const char *func, char *file) {
+static void *base_load_symbol(const char *func, char *file) {
     void (*func_h)(instance i, void *arg);
     void *so_h;
     const char *dlerr;
     char *func2;
     char message[MAX_LOG_SIZE];
 
-    if(func == NULL || file == NULL)
+    if (func == NULL || file == NULL)
         return NULL;
 
     /* XXX do not use xmlnode_get_vattrib(), it's deprecated */
-    if((so_h = xmlnode_get_vattrib(load__cache, file)) == NULL && (so_h = load_loader(file)) == NULL)
+    if ((so_h = xmlnode_get_vattrib(base_load__cache, file)) == NULL && (so_h = base_load_loader(file)) == NULL)
         return NULL;
 
     /* resolve a reference to the dso's init function */
@@ -134,13 +134,13 @@ static void *load_symbol(const char *func, char *file) {
  *
  * @param arg unused/ignored
  */
-static void load_shutdown(void *arg) {
-    load_ref__count--;
-    if(load_ref__count != 0)
+static void base_load_shutdown(void *arg) {
+    base_load_ref__count--;
+    if (base_load_ref__count != 0)
         return;
 
-    xmlnode_free(load__cache);
-    load__cache = NULL;
+    xmlnode_free(base_load__cache);
+    base_load__cache = NULL;
 }
 
 /**
@@ -151,21 +151,21 @@ static void load_shutdown(void *arg) {
  * @param arg unused/ignored
  * @return r_ERR on error, r_PASS on success
  */
-static result load_config(instance id, xmlnode x, void *arg) {
+static result base_load_config(instance id, xmlnode x, void *arg) {
     xmlnode so;
     char *init = xmlnode_get_attrib_ns(x, "main", NULL);
     void *f;
     int flag = 0;
 
-    if (load__cache == NULL)
-        load__cache = xmlnode_new_tag_ns("so_cache", NULL, NS_JABBERD_WRAPPER);
+    if (base_load__cache == NULL)
+        base_load__cache = xmlnode_new_tag_ns("so_cache", NULL, NS_JABBERD_WRAPPER);
 
     if (id != NULL) {
 	/* execution phase */
-        load_ref__count++;
-        pool_cleanup(id->p, load_shutdown, NULL);
+        base_load_ref__count++;
+        pool_cleanup(id->p, base_load_shutdown, NULL);
         f = xmlnode_get_vattrib(x, init);		/* XXX xmlnode_get_vattrib() is deprecated! */
-        ((load_init)f)(id, x); /* fire up the main function for this extension */
+        ((base_load_init)f)(id, x); /* fire up the main function for this extension */
         return r_PASS;
     }
 
@@ -173,12 +173,12 @@ static result load_config(instance id, xmlnode x, void *arg) {
     log_debug2(ZONE, LOGT_CONFIG|LOGT_DYNAMIC, "dynamic loader processing configuration %s\n", xmlnode2str(x));
 
     for (so = xmlnode_get_firstchild(x); so != NULL; so = xmlnode_get_nextsibling(so)) {
-        if(xmlnode_get_type(so) != NTYPE_TAG) continue;
+        if (xmlnode_get_type(so) != NTYPE_TAG) continue;
 
-        if(init == NULL && flag)
+        if (init == NULL && flag)
             return r_ERR; /* you can't have two elements in a load w/o a main attrib */
 
-        f = load_symbol(xmlnode_get_localname(so), xmlnode_get_data(so));
+        f = base_load_symbol(xmlnode_get_localname(so), xmlnode_get_data(so));
         if (f == NULL)
             return r_ERR;
 	/* XXX do not use xmlnode_put_vattrib(), it's deprecated */
@@ -186,11 +186,12 @@ static result load_config(instance id, xmlnode x, void *arg) {
         flag = 1;
 
         /* if there's only one .so loaded, it's the default, unless overridden */
-        if(init == NULL)
+        if (init == NULL)
             xmlnode_put_attrib_ns(x, "main", NULL, NULL, xmlnode_get_localname(so));
     }
 
-    if(!flag) return r_ERR; /* we didn't DO anything, duh */
+    if (!flag)
+	return r_ERR; /* we didn't DO anything, duh */
 
     return r_PASS;
 }
@@ -202,7 +203,7 @@ static result load_config(instance id, xmlnode x, void *arg) {
  *
  * @param p memory pool used to register memory for the registration of handling the &lt;load/&gt; config element
  */
-void dynamic_init(pool p) {
+void base_load(pool p) {
     log_debug2(ZONE, LOGT_DYNAMIC, "dynamic component loader initializing...\n");
-    register_config(p, "load", load_config, NULL);
+    register_config(p, "load", base_load_config, NULL);
 }

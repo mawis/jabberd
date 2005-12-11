@@ -70,8 +70,7 @@ extern xht instance__ids;
 
 /*** internal functions ***/
 int configurate(char *file, xht cmd_line, int is_restart);
-void static_init(pool p);
-void dynamic_init(pool p);
+void base_init(pool p);
 void deliver_init(pool p);
 void deliver_shutdown(void);
 void heartbeat_birth(void);
@@ -313,8 +312,7 @@ int main (int argc, const char** argv) {
     /* init MIO */
     mio_init();
 
-    static_init(jabberd.runtime_pool);
-    dynamic_init(jabberd.runtime_pool);
+    base_init(jabberd.runtime_pool);
     deliver_init(jabberd.runtime_pool);
 
     /* everything should be registered for the config pass, validate */
