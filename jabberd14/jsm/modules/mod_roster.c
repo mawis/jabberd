@@ -687,6 +687,10 @@ mreturn mod_roster_delete(mapi m, void *arg) {
 
     /* remove roster */
     xdb_set(m->si->xc, m->user->id, NS_ROSTER, NULL);
+
+    /* remove stored subscription requests */
+    xdb_set(m->si->xc, m->user->id, NS_JABBERD_STOREDREQUEST, NULL);
+
     return M_PASS;
 }
 
