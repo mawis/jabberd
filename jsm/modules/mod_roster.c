@@ -233,6 +233,9 @@ mreturn mod_roster_out_s10n(mapi m) {
 		xmlnode_hide_attrib_ns(item, "hidden", NULL); /* make it visible on the user's roster */
 		mod_roster_pforce(m->user, m->packet->to, 0); /* they are now subscribed to us, send them our presence */
 		mod_roster_push(m->user, item); /* new roster to the user's other sessions */
+
+		/* delete stored subscription request from xdb */
+		xdb_act_path(m->si->xc, m->user->id, NS_JABBERD_STOREDREQUEST, "insert", spools(m->packet->p, "presence[@from='", jid_full(m->packet->to), "']", m->packet->p), m->si->std_namespace_prefixes, NULL);
 	    } else {
 		/* XMPP IM, sect. 9 other states */
 		route = 0;
@@ -342,12 +345,22 @@ mreturn mod_roster_out_iq(mapi m) {
 		    continue;
 
 		if (xmlnode_get_attrib_ns(cur,"subscribe", NULL) != NULL) {
-		    pres = xmlnode_new_tag_ns("presence", NULL, NS_SERVER);
-		    xmlnode_put_attrib_ns(pres, "type", NULL, NULL, "subscribe");
-		    xmlnode_put_attrib_ns(pres, "from", NULL, NULL, xmlnode_get_attrib_ns(cur, "jid", NULL));
-		    if (j_strlen(xmlnode_get_attrib_ns(cur, "subscribe", NULL)) > 0)
-			xmlnode_insert_cdata(xmlnode_insert_tag_ns(pres, "status", NULL, NS_SERVER), xmlnode_get_attrib_ns(cur, "subscribe", NULL),-1);
+		    /* is there a stored version of the subscription request in xdb? */
+		    xmlnode stored_subscribes = xdb_get(m->si->xc, m->user->id, NS_JABBERD_STOREDREQUEST);
+		    pres =  xmlnode_dup(xmlnode_get_list_item(xmlnode_get_tags(stored_subscribes, spools(xmlnode_pool(cur), "presence[@from='", xmlnode_get_attrib_ns(cur, "jid", NULL), "']", xmlnode_pool(cur)), m->si->std_namespace_prefixes), 0));
+
+		    /* if there is nothing in xdb, create a subscription request */
+		    if (pres == NULL) {
+			pres = xmlnode_new_tag_ns("presence", NULL, NS_SERVER);
+			xmlnode_put_attrib_ns(pres, "type", NULL, NULL, "subscribe");
+			xmlnode_put_attrib_ns(pres, "from", NULL, NULL, xmlnode_get_attrib_ns(cur, "jid", NULL));
+			if (j_strlen(xmlnode_get_attrib_ns(cur, "subscribe", NULL)) > 0)
+			    xmlnode_insert_cdata(xmlnode_insert_tag_ns(pres, "status", NULL, NS_SERVER), xmlnode_get_attrib_ns(cur, "subscribe", NULL),-1);
+		    }
 		    js_session_to(m->s,jpacket_new(pres));
+
+		    if (stored_subscribes != NULL)
+			xmlnode_free(stored_subscribes);
 		}
 	    }
 	    break;
@@ -461,6 +474,7 @@ mreturn mod_roster_s10n(mapi m, void *arg) {
     char *status;
     session top;
     int newflag, drop, to, from, push, p_in, p_out;
+    int store_request = 0;
 
     push = newflag = drop = to = from = p_in = p_out = 0;
 
@@ -515,6 +529,9 @@ mreturn mod_roster_s10n(mapi m, void *arg) {
 		/* we already know that this contact asked for subscription */
 		drop = 1;
 		/* no state change */
+
+		/* but we update the subscription request in xdb */
+		store_request = 1;
 	    } else {
 		/* tuck request in the roster */
 		drop = 0;
@@ -525,6 +542,9 @@ mreturn mod_roster_s10n(mapi m, void *arg) {
 		    xmlnode_put_attrib_ns(item, "subscribe", NULL, NULL, status);
 		if (newflag) /* SPECIAL CASE: special flag so that we can hide these incoming subscribe requests */
 		    xmlnode_put_attrib_ns(item, "hidden", NULL, NULL, "");
+
+		/* store the request stanza in xdb */
+		store_request = 1;
 	    }
 	    break;
 	case JPACKET__SUBSCRIBED:
@@ -573,6 +593,13 @@ mreturn mod_roster_s10n(mapi m, void *arg) {
 
     /* XXX what do we do if the set fails?  hrmf... */
     xdb_set(m->si->xc, m->user->id, NS_ROSTER, roster);
+
+    /* store the request in xdb */
+    if (store_request) {
+	xmlnode request = xmlnode_dup(m->packet->x);
+	jutil_delay(request, "Offline Storage");
+	xdb_act_path(m->si->xc, m->user->id, NS_JABBERD_STOREDREQUEST, "insert", spools(m->packet->p, "presence[@from='", jid_full(m->packet->from), "']", m->packet->p), m->si->std_namespace_prefixes, request);
+    }
 
     /* these are delayed until after we check the roster back in, avoid rancid race conditions */
     if (reply != NULL)
