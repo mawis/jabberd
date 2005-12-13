@@ -840,6 +840,7 @@ typedef struct xterror_struct
 #define NS_XMPP_SASL "urn:ietf:params:xml:ns:xmpp-sasl"
 
 #define NS_JABBERD_STOREDPRESENCE "http://jabberd.org/ns/storedpresence"
+#define NS_JABBERD_STOREDREQUEST "http://jabberd.org/ns/storedsubsciptionrequest"
 #define NS_JABBERD_HISTORY "http://jabberd.org/ns/history"
 #define NS_JABBERD_HASH "http://jabberd.org/ns/hash"			/**< namespace for storing xhash data */
 #define NS_JABBERD_XDB "http://jabberd.org/ns/xdb"			/**< namespace for the root element used by xdb_file to store data in files */
