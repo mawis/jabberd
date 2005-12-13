@@ -38,6 +38,10 @@ Changes in features visible to the user
       element, declaring the default language of the stream. If a stanza does
       not redeclare the language, this language is passed along with the
       stanza.
+    * The full stanza that requests subscription to a user is passed
+      to this user, even if it has been stored offline. In addition the
+      request is stamped if the time of the request, if it is delivered
+      from offline storage.
 
 
 Version 1.4.4 - 2005-04-16
