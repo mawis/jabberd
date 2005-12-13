@@ -1,3 +1,8 @@
+2005-12-13  Matthias Wimmer  <m@tthias.net>
+
+    * jsm/modules/mod_roster.c: remove pending subscription requests on
+    	account deletion
+
 2005-12-12  Matthias Wimmer  <m@tthias.net>
 
     * jsm/modules/mod_roster.c: passing original subscription request to user
