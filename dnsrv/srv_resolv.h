@@ -58,6 +58,14 @@
 #ifndef INCL_SRV_RESOLV_H
 #define INCL_SRV_RESOLV_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 char* srv_lookup(pool p, const char* service, const char* domain);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

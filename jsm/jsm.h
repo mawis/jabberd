@@ -40,6 +40,10 @@
  * --------------------------------------------------------------------------*/
 #include "jabberd.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * @dir jsm
  * @brief Contains the Jabber session manager, that is extended by modules contained in jsm/modules
@@ -498,3 +502,7 @@ jid js_trustees(udata u); /* returns list of trusted jids */
 int js_online(mapi m); /* logic to tell if this is a go-online call */
 
 void jsm_shutdown(void *arg);
+
+#ifdef __cplusplus
+}
+#endif
