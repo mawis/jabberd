@@ -54,6 +54,10 @@
 
 #include <jabberd.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /** s2s instance */
 typedef struct db_struct
 {
@@ -96,3 +100,7 @@ void dialback_miod_write(miod md, xmlnode x);
 void dialback_miod_read(miod md, xmlnode x);
 char *dialback_ip_get(db d, jid host, char *ip);
 void dialback_ip_set(db d, jid host, char *ip);
+
+#ifdef __cplusplus
+}
+#endif
