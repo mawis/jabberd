@@ -247,20 +247,6 @@
       </presence>
 
       <!--
-      Configuration of mod_offline. This defines which types of messages
-      should be stored offline, if a user has no active connection
-      and new messages are received.
-      The default if there is no mod_offline element is to store all
-      messages, if there is a mod_offline element, only the configured
-      types are stored. To disable offline storage place an empty
-      mod_offline element here.
-      -->
-      <!--
-      <mod_offline>
-      </mod_offline>
-      -->
-
-      <!--
       The history configuration element can be used to instruct the session
       manager to store a copy of all messages to xdb.
       The sent element will enable storage of sent messages, the recv
@@ -285,10 +271,13 @@
       -->
 
       <!--
-      Configuration of mod_offline: which types of messages should be
-      stored offline, if a user has no active session.
-      If there is no mod_offline element in the configuration,
-      mod_offline defaults to store all types of messages.
+      Configuration of mod_offline. This defines which types of messages
+      should be stored offline, if a user has no active connection
+      and new messages are received.
+      The default if there is no mod_offline element is to store all
+      messages, if there is a mod_offline element, only the configured
+      types are stored. To disable offline storage place an empty
+      mod_offline element here.
       -->
       <!--
       <mod_offline>
