@@ -3,6 +3,7 @@
     * jabber.xml.dist.in: changed category and type of the disco#info result
     	for the jabber server (closing bug 35)
     * jabber.xml.dist.in: removed duplicated mod_offline config (bug 27)
+    * jabber.xml.dist.in: adding missing @ character (bug 28)
 
 2005-12-13  Matthias Wimmer  <m@tthias.net>
 
