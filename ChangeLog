@@ -1,3 +1,8 @@
+2006-03-15  Matthias Wimmer  <m@tthias.net>
+
+    * jabber.xml.dist.in: changed category and type of the disco#info result
+    	for the jabber server (closing bug 35)
+
 2005-12-13  Matthias Wimmer  <m@tthias.net>
 
     * jsm/modules/mod_roster.c: remove pending subscription requests on
