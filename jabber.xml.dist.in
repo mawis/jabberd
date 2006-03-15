@@ -937,7 +937,7 @@
       <key id='localhost'>@sysconfdir@/localhost.pem</key>
       <key id='*'>@sysconfdir@/default-STARTTLS.pem</key>
 
-      <cacertfile>@sysconfdir/cacerts.pem</cacertfile>
+      <cacertfile>@sysconfdir@/cacerts.pem</cacertfile>
     </tls>
     -->
 
