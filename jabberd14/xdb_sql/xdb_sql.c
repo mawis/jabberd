@@ -269,10 +269,18 @@ int xdb_sql_execute_mysql(instance i, xdbsql xq, char *query, xmlnode template, 
     ret = mysql_query(xq->mysql, query);
 
     /* failed and we need to reconnect? */
-    if (ret == CR_SERVER_LOST || ret == CR_SERVER_GONE_ERROR) {
-	xdb_sql_mysql_connect(i, xq);
+    if (ret) {
+	unsigned int query_errno = mysql_errno(xq->mysql);
+	if (query_errno == CR_SERVER_LOST || query_errno == CR_SERVER_GONE_ERROR) {
+	    log_debug2(ZONE, LOGT_STORAGE, "connection lost, trying to reconnect to MySQL server");
+	    xdb_sql_mysql_connect(i, xq);
 
-	ret = mysql_query(xq->mysql, query);
+	    ret = mysql_query(xq->mysql, query);
+
+	    if (ret == 0) {
+		log_notice(i->id, "connection to MySQL server %s:%i had been lost, and has been reestablished", xq->mysql_host , xq->mysql_port);
+	    }
+	}
     }
 
     /* still an error? log and return */
