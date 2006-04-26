@@ -68,6 +68,14 @@
  */
 
 /**
+ * structure that is an element in a string list
+ */
+typedef struct xdbsql_sqldef_struct {
+    struct xdbsql_sqldef_struct	*next;	/**< pointer to the next list item */
+    char			**def;	/**< the definition for this list item */
+} *xdbsql_sqldef, _xdbsql_sqldef;
+
+/**
  * structure that holds the data used by xdb_sql internally
  */
 typedef struct xdbsql_struct {
@@ -97,10 +105,10 @@ typedef struct xdbsql_struct {
  * structure that holds the information how to handle a namespace
  */
 typedef struct xdbsql_ns_def_struct {
-    char	**get_query;		/**< SQL query to handle get requests */
-    xmlnode	get_result;		/**< template for results for get requests */
-    char	**set;			/**< SQL query to handle set requests */
-    char	**delete;		/**< SQL query to delete old values */
+    xdbsql_sqldef	get_query;	/**< SQL query to handle get requests */
+    xmlnode		get_result;	/**< template for results for get requests */
+    xdbsql_sqldef	set;		/**< SQL query to handle set requests */
+    xdbsql_sqldef	delete;		/**< SQL query to delete old values */
 } *xdbsql_ns_def, _xdbsql_ns_def;
 
 /**
@@ -495,6 +503,7 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
     char *action = NULL;	/* xdb-set action */
     char *match = NULL;		/* xdb-set match */
     char *matchpath = NULL;	/* xdb-set matchpath */
+    xdbsql_sqldef iter = NULL;	/* to iterate through the preprocessed SQL queries */
 
     log_debug2(ZONE, LOGT_STORAGE|LOGT_DELIVER, "handling xdb request %s", xmlnode_serialize_string(p->x, NULL, NULL, 0));
 
@@ -532,22 +541,26 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
 	    xdb_sql_execute(i, xq, "BEGIN", NULL, NULL);
 
 	    /* delete old values */
-	    query = xdb_sql_construct_query(ns_def->delete, p->x, xq->namespace_prefixes);
-	    log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for deletion: %s", query);
-	    if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
-		/* SQL query failed */
-		xdb_sql_execute(i, xq, "ROLLBACK", NULL, NULL);
-		return r_ERR;
-	    }
-
-	    /* insert new values (if there are any) */
-	    if (xmlnode_get_firstchild(p->x) != NULL) {
-		query = xdb_sql_construct_query(ns_def->set, p->x, xq->namespace_prefixes);
-		log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for insertion: %s", query);
+	    for (iter = ns_def->delete; iter != NULL; iter = iter->next) {
+		query = xdb_sql_construct_query(iter->def, p->x, xq->namespace_prefixes);
+		log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for deletion: %s", query);
 		if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
 		    /* SQL query failed */
 		    xdb_sql_execute(i, xq, "ROLLBACK", NULL, NULL);
 		    return r_ERR;
+		}
+	    }
+
+	    /* insert new values (if there are any) */
+	    if (xmlnode_get_firstchild(p->x) != NULL) {
+		for (iter = ns_def->set; iter!=NULL; iter=iter->next) {
+		    query = xdb_sql_construct_query(iter->def, p->x, xq->namespace_prefixes);
+		    log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for insertion: %s", query);
+		    if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
+			/* SQL query failed */
+			xdb_sql_execute(i, xq, "ROLLBACK", NULL, NULL);
+			return r_ERR;
+		    }
 		}
 	    }
 
@@ -566,23 +579,27 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
 
 	    /* delete matches */
 	    if (match != NULL || matchpath != NULL) {
-		query = xdb_sql_construct_query(ns_def->delete, p->x, xq->namespace_prefixes);
-		log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for insert/match[path] deletion: %s", query);
-		if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
-		    /* SQL query failed */
-		    xdb_sql_execute(i, xq, "ROLLBACK", NULL, NULL);
-		    return r_ERR;
+		for (iter = ns_def->delete; iter!=NULL; iter=iter->next) {
+		    query = xdb_sql_construct_query(iter->def, p->x, xq->namespace_prefixes);
+		    log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for insert/match[path] deletion: %s", query);
+		    if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
+			/* SQL query failed */
+			xdb_sql_execute(i, xq, "ROLLBACK", NULL, NULL);
+			return r_ERR;
+		    }
 		}
 	    }
 
 	    /* insert new values if there are any */
 	    if (xmlnode_get_firstchild(p->x) != NULL) {
-		query = xdb_sql_construct_query(ns_def->set, p->x, xq->namespace_prefixes);
-		log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for insertion: %s", query);
-		if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
-		    /* SQL query failed */
-		    xdb_sql_execute(i, xq, "ROLLBACK", NULL, NULL);
-		    return r_ERR;
+		for (iter = ns_def->set; iter != NULL; iter=iter->next) {
+		    query = xdb_sql_construct_query(iter->def, p->x, xq->namespace_prefixes);
+		    log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for insertion: %s", query);
+		    if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
+			/* SQL query failed */
+			xdb_sql_execute(i, xq, "ROLLBACK", NULL, NULL);
+			return r_ERR;
+		    }
 		}
 	    }
 
@@ -611,7 +628,6 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
 	xdb_sql_execute(i, xq, "BEGIN", NULL, NULL);
 
 	/* get the record(s) */
-	query = xdb_sql_construct_query(ns_def->get_query, p->x, xq->namespace_prefixes);
 	group_element = xmlnode_get_attrib_ns(ns_def->get_result, "group", NULL);
 	group_ns_iri = xmlnode_get_attrib_ns(ns_def->get_result, "groupiri", NULL);
 	group_prefix = xmlnode_get_attrib_ns(ns_def->get_result, "groupprefix", NULL);
@@ -620,11 +636,14 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
 	    xmlnode_put_attrib(result_element, "ns", ns);
 	}
 
-	log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for selection: %s", query);
-	if (xdb_sql_execute(i, xq, query, ns_def->get_result, result_element)) {
-	    /* SQL query failed */
-	    xdb_sql_execute(i, xq, "ROLLBACK", NULL, NULL);
-	    return r_ERR;
+	for (iter = ns_def->get_query; iter != NULL; iter = iter->next) {
+	    query = xdb_sql_construct_query(iter->def, p->x, xq->namespace_prefixes);
+	    log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for selection: %s", query);
+	    if (xdb_sql_execute(i, xq, query, ns_def->get_result, result_element)) {
+		/* SQL query failed */
+		xdb_sql_execute(i, xq, "ROLLBACK", NULL, NULL);
+		return r_ERR;
+	    }
 	}
 
 	/* commit the transaction */
@@ -761,6 +780,37 @@ char **xdb_sql_query_preprocess(instance i, char *query) {
 }
 
 /**
+ * get (potentially) multiple SQL queries for a single acction, prepare them and add them to the list of queries
+ *
+ * @param i the instance we are running as
+ * @param xq our instance internal data
+ * @param handler the handler definition
+ * @param dest where to store the result
+ * @param path which definition to handle
+ */
+static void _xdb_sql_create_preprocessed_sql_list(instance i, xdbsql xq, xmlnode handler, xdbsql_sqldef *dest, const char *path) {
+    xmlnode_list_item definition = NULL;
+    xdbsql_sqldef parsed_definition = NULL;
+
+    definition = xmlnode_get_tags(handler, path, xq->std_namespace_prefixes);
+    while (definition != NULL) {
+	/* add a new element to the list */
+	if (*dest == NULL) {
+	    parsed_definition = *dest = pmalloco(i->p, sizeof(_xdbsql_sqldef));
+	} else {
+	    parsed_definition = parsed_definition->next = pmalloco(i->p, sizeof(_xdbsql_sqldef));
+	}
+
+	/* preprocess and store definition */
+	parsed_definition->def = xdb_sql_query_preprocess(i, xmlnode_get_data(definition->node));
+
+	/* move to the next result */
+	definition = definition->next;
+    }
+
+}
+
+/**
  * process a handler definition
  *
  * @param i the instance we are running as
@@ -771,7 +821,7 @@ void xdb_sql_handler_process(instance i, xdbsql xq, xmlnode handler) {
     char *handled_ns = NULL;	/* which namespace this definition is for */
     xdbsql_ns_def nsdef = NULL;	/* where to store the processed information */
     int count = 0;
-    char *temp = NULL;
+    xdbsql_sqldef tempdef = NULL;
     
     log_debug2(ZONE, LOGT_INIT, "processing handler definition: %s", xmlnode_serialize_string(handler, NULL, NULL, 0));
 
@@ -779,13 +829,10 @@ void xdb_sql_handler_process(instance i, xdbsql xq, xmlnode handler) {
 
     /* query the relevant tags from this handler */
     handled_ns = pstrdup(i->p, xmlnode_get_attrib_ns(handler, "ns", NULL));
-    temp = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(handler, "xdbsql:get/xdbsql:query", xq->std_namespace_prefixes), 0));
-    nsdef->get_query = xdb_sql_query_preprocess(i, temp);
+    _xdb_sql_create_preprocessed_sql_list(i, xq, handler, &(nsdef->get_query), "xdbsql:get/xdbsql:query");
     nsdef->get_result = xmlnode_dup_pool(i->p, xmlnode_get_list_item(xmlnode_get_tags(handler, "xdbsql:get/xdbsql:result", xq->std_namespace_prefixes), 0));
-    temp = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(handler, "xdbsql:set", xq->std_namespace_prefixes), 0));
-    nsdef->set = xdb_sql_query_preprocess(i, temp);
-    temp = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(handler, "xdbsql:delete", xq->std_namespace_prefixes), 0));
-    nsdef->delete = xdb_sql_query_preprocess(i, temp);
+    _xdb_sql_create_preprocessed_sql_list(i, xq, handler, &(nsdef->set), "xdbsql:set");
+    _xdb_sql_create_preprocessed_sql_list(i, xq, handler, &(nsdef->delete), "xdbsql:delete");
 
     /* store the read definition */
     log_debug2(ZONE, LOGT_INIT|LOGT_STORAGE, "registering namespace handler for %s", handled_ns);
