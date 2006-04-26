@@ -1009,6 +1009,10 @@ int _client_io_read(mio_t m, int fd, conn_t c) {
 
 	    /* process what has been read */
 	    return conn_read(c, buf, len);
+
+	/* to make gcc happy */
+	default:
+	    return 0;
     }
 }
 
@@ -1116,6 +1120,9 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
 
 	case action_CLOSE:
 	    _client_io_close(fd, (conn_t)arg);
+	    return 0;
+
+	default:
 	    return 0;
     }
 }

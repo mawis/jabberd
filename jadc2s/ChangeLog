@@ -1,3 +1,7 @@
+2006-04-26  Matthias Wimmer  <m@tthias.eu>
+
+    * clients.c: fixing a compiler warning of gcc
+
 2005-11-22  Matthias Wimmer  <m@tthias.net>
 
     * configure.in: make IDN a requirement, check for GNU SASL
