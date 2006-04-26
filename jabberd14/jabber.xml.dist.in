@@ -162,14 +162,16 @@
         <!-- 
         This is the default agent for the master Jabber User 
         Directory, a.k.a. "JUD", which is located at jabber.org.
-        You can add separate <service/> sections for additional
-        directories, e.g., one for a company intranet.
+        You can add separate <item/> sections for additional
+	directories, e.g., one for a company intranet.
+
+	For possible values of category and item see JEP-0011
         -->
 
-        <service type="jud" jid="users.jabber.org" name="Jabber User Directory">
+        <item category="service" type="jud" jid="users.jabber.org" name="Jabber User Directory">
           <ns>jabber:iq:search</ns>
           <ns>jabber:iq:register</ns>
-        </service>
+        </item>
 
         <!--
         The following services are examples only, you will need to
@@ -180,17 +182,17 @@
 
         <!-- we're commenting these out, of course :)
 
-        <service type="aim" jid="aim.localhost" name="AIM Transport">
+        <item category="service" type="aim" jid="aim.localhost" name="AIM Transport">
           <ns>jabber:iq:gateway</ns>
           <ns>jabber:iq:register</ns>
-        </service>
+        </item>
 
-        <service type="yahoo" jid="yahoo.localhost" name="Yahoo! Transport">
+        <item category="service" type="yahoo" jid="yahoo.localhost" name="Yahoo! Transport">
           <ns>jabber:iq:gateway</ns>
           <ns>jabber:iq:register</ns>
-        </service>
+        </item>
 
-        end of <service/> examples -->
+        end of service examples -->
 
       </browse>
 
