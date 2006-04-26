@@ -36,6 +36,10 @@
         <!--  SSL-only installation                                        -->
         <port>5222</port>
 
+        <!--  forward incoming HTTP clients to a real HTTP server          -->
+	<!--
+        <httpforward>http://www.jabber.org/</httpforward> -->
+
         <!--  SSL configuration                                            -->
         <!--  Specify the port to listen on, and the key file to use for   -->
         <!--  the certificate.                                             -->
