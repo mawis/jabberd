@@ -1,5 +1,6 @@
 2006-04-26  Matthias Wimmer  <m@tthias.eu>
 
+    * jabber.xml.dist.in: updated default browse result
     * xdb_sql/xdb_sql.c: allowing to have multiple <query/>, <delete/>,
     	and <set/> elements in a sql handler definition
 
