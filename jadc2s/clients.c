@@ -582,7 +582,7 @@ int _client_process_stoneage_auth(conn_t c, chunk_t chunk) {
 	if(elem == -1)
 	{
 	    /* XXX send a stanza error */
-	    log_debug(ZONE, "auth packet with no username, dropping it");
+	    log_debug(ZONE, "registration packet with no username, dropping it");
 	    chunk_free(chunk);
 	    return 1;
 	}
@@ -849,10 +849,52 @@ void _client_detect_variant(int fd, conn_t c) {
     while((firstlen = _peek_actual(c,fd,first,1)) == -1) { }
     log_debug(ZONE,"char(%c)",first[0]);
     
+    /* If the first char is G then it's for HTTP (GET ....)
+       and if we configured http client forwarding to a real http server */
+    if (first[0] == 'G' && c->c2s->http_forward)
+    {
+	char* http =
+		"HTTP/1.0 301 Found\r\n"
+		"Location: %s\r\n"
+		"Server: jadc2s " VERSION "\r\n"
+		"Expires: Fri, 10 Oct 1997 10:10:10 GMT\r\n"
+		"Pragma: no-cache\r\n"
+		"Cache-control: private\r\n"
+		"Connection: close\r\n\r\n";
+	char *buf;
+	
+	buf = malloc((strlen(c->c2s->http_forward) + strlen(http)) * sizeof(char));
+	sprintf (buf, http, c->c2s->http_forward);
+	
+	log_debug(ZONE,"This is an incoming HTTP connection - forwarding to: %s", c->c2s->http_forward);
+	
+	/* read all incoming data */
+
+	/* XXX this could be used to remotly block jadc2s
+	 *     but it would be nice if we read the incoming data before closing the socket
+	while(_read_actual(c,fd,first,1) > 0) { }
+	 */
+
+	_write_actual(c,fd,buf,strlen(buf));
+	
+	/* close connection */
+        mio_close(c->c2s->mio, c->fd);
+	
+	free(buf);
+	
+	return;
+    }
+
     /* If the first char is P then it's for HTTP (PUT ....) */
     if (first[0] == 'P')
     {
-	char* http = "HTTP/1.0 200 Ok\r\nServer: jadc2s " VERSION "\r\nExpires: Fri, 10 Oct 1997 10:10:10 GMT\r\nPragma: no-cache\r\nCache-control: private\r\nConnection: close\r\n\r\n";
+	char* http =
+		"HTTP/1.0 200 Ok\r\n"
+		"Server: jadc2s " VERSION "\r\n"
+		"Expires: Fri, 10 Oct 1997 10:10:10 GMT\r\n"
+		"Pragma: no-cache\r\n"
+		"Cache-control: private\r\n"
+		"Connection: close\r\n\r\n";
 	char peek[5];
 	int search = 1;
 	

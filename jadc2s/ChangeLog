@@ -1,3 +1,10 @@
+2006-04-27  Matthias Wimmer  <m@tthias.eu>
+
+    * clients.c: support for HTTP forwards (patch by Tomasz Sterna)
+    * jadc2s.c: same
+    * jadc2s.h: same
+    * jadc2s.xml.dist: same
+
 2006-04-26  Matthias Wimmer  <m@tthias.eu>
 
     * clients.c: fixing a compiler warning of gcc

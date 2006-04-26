@@ -210,6 +210,7 @@ int main(int argc, char **argv)
     c2s->local_nolegacyauth = config_get(c2s->config,"local.nolegacyauth");
     c2s->local_ip = config_get_one(c2s->config, "local.ip", 0);
     c2s->local_port = j_atoi(config_get_one(c2s->config, "local.port", 0), 5222);
+    c2s->http_forward = config_get_one(c2s->config, "local.httpforward", 0);
 #ifdef USE_SSL
     c2s->local_sslport = j_atoi(config_get_one(c2s->config, "local.ssl.port", 0), 5223);
     c2s->pemfile = config_get_one(c2s->config, "local.ssl.pemfile", 0);
