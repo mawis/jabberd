@@ -5,6 +5,7 @@
     * jadc2s.h: same
     * jadc2s.xml.dist: same
     * mio/mio.c: epoll support (patch by Tomasz Sterna)
+    * util/log.c: possibility to select syslog facility at configure time
 
 2006-04-26  Matthias Wimmer  <m@tthias.eu>
 

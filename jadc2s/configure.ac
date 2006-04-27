@@ -189,13 +189,77 @@ fi
 AC_SUBST(POOL_DEBUG)
 
 dnl check where to log
+syslog="no"
 AC_MSG_CHECKING(if logging to syslog wanted)
-AC_ARG_ENABLE(syslog, AC_HELP_STRING([--enable-syslog], [Enable logging to syslog]), syslog=yes)
-if test x-$syslog = "x-yes" ; then
-    AC_MSG_RESULT(yes)
-    AC_DEFINE(USE_SYSLOG,,[logging to syslog enabled])
-else
+AC_ARG_ENABLE(syslog, AC_HELP_STRING([--enable-syslog=FACILITY], [Enable logging to syslog (default facility: LOG_LOCAL7]), syslog=$enableval)
+if test x-$syslog = "x-no" ; then
     AC_MSG_RESULT(no)
+else
+    case x-$syslog in
+	x-LOG_AUTH)
+	    AC_MSG_RESULT(LOG_AUTH)
+	    AC_DEFINE(USE_SYSLOG,LOG_AUTH,[logging to syslog enabled]);;
+	x-LOG_AUTHPRIV)
+	    AC_MSG_RESULT(LOG_AUTHPRIV)
+	    AC_DEFINE(USE_SYSLOG,LOG_AUTHPRIV,[logging to syslog enabled]);;
+	x-LOG_CRON)
+	    AC_MSG_RESULT(LOG_CRON)
+	    AC_DEFINE(USE_SYSLOG,LOG_CRON,[logging to syslog enabled]);;
+	x-LOG_DAEMON)
+	    AC_MSG_RESULT(LOG_DAEMON)
+	    AC_DEFINE(USE_SYSLOG,LOG_DAEMON,[logging to syslog enabled]);;
+	x-LOG_FTP)
+	    AC_MSG_RESULT(LOG_FTP)
+	    AC_DEFINE(USE_SYSLOG,LOG_FTP,[logging to syslog enabled]);;
+	x-LOG_KERN)
+	    AC_MSG_RESULT(LOG_KERN)
+	    AC_DEFINE(USE_SYSLOG,LOG_KERN,[logging to syslog enabled]);;
+	x-LOG_LOCAL0)
+	    AC_MSG_RESULT(LOG_LOCAL0)
+	    AC_DEFINE(USE_SYSLOG,LOG_LOCAL0,[logging to syslog enabled]);;
+	x-LOG_LOCAL1)
+	    AC_MSG_RESULT(LOG_LOCAL1)
+	    AC_DEFINE(USE_SYSLOG,LOG_LOCAL1,[logging to syslog enabled]);;
+	x-LOG_LOCAL2)
+	    AC_MSG_RESULT(LOG_LOCAL2)
+	    AC_DEFINE(USE_SYSLOG,LOG_LOCAL2,[logging to syslog enabled]);;
+	x-LOG_LOCAL3)
+	    AC_MSG_RESULT(LOG_LOCAL3)
+	    AC_DEFINE(USE_SYSLOG,LOG_LOCAL3,[logging to syslog enabled]);;
+	x-LOG_LOCAL4)
+	    AC_MSG_RESULT(LOG_LOCAL4)
+	    AC_DEFINE(USE_SYSLOG,LOG_LOCAL4,[logging to syslog enabled]);;
+	x-LOG_LOCAL5)
+	    AC_MSG_RESULT(LOG_LOCAL5)
+	    AC_DEFINE(USE_SYSLOG,LOG_LOCAL5,[logging to syslog enabled]);;
+	x-LOG_LOCAL6)
+	    AC_MSG_RESULT(LOG_LOCAL6)
+	    AC_DEFINE(USE_SYSLOG,LOG_LOCAL6,[logging to syslog enabled]);;
+	x-LOG_LOCAL7)
+	    AC_MSG_RESULT(LOG_LOCAL7)
+	    AC_DEFINE(USE_SYSLOG,LOG_LOCAL7,[logging to syslog enabled]);;
+	x-LOG_LPR)
+	    AC_MSG_RESULT(LOG_LPR)
+	    AC_DEFINE(USE_SYSLOG,LOG_LPR,[logging to syslog enabled]);;
+	x-LOG_MAIL)
+	    AC_MSG_RESULT(LOG_MAIL)
+	    AC_DEFINE(USE_SYSLOG,LOG_MAIL,[logging to syslog enabled]);;
+	x-LOG_NEWS)
+	    AC_MSG_RESULT(LOG_NEWS)
+	    AC_DEFINE(USE_SYSLOG,LOG_NEWS,[logging to syslog enabled]);;
+	x-LOG_SYSLOG)
+	    AC_MSG_RESULT(LOG_SYSLOG)
+	    AC_DEFINE(USE_SYSLOG,LOG_SYSLOG,[logging to syslog enabled]);;
+	x-LOG_USER)
+	    AC_MSG_RESULT(LOG_USER)
+	    AC_DEFINE(USE_SYSLOG,LOG_USER,[logging to syslog enabled]);;
+	x-LOG_UUCP)
+	    AC_MSG_RESULT(LOG_UUCP)
+	    AC_DEFINE(USE_SYSLOG,LOG_,[logging to syslog enabled]);;
+	*)
+	    AC_MSG_RESULT(default: LOG_LOCAL7)
+	    AC_DEFINE(USE_SYSLOG,LOG_LOCAL7,[logging to syslog enabled]);;
+    esac;
 fi
 
 AC_SUBST(USE_SYSLOG)
