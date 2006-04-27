@@ -154,6 +154,9 @@ case x-$mio_backend in
     x-select)
         AC_MSG_RESULT(select)
         AC_DEFINE(MIO_SELECT,,[MIO select backend]);;
+    x-epoll)
+        AC_MSG_RESULT(epoll)
+        AC_DEFINE(MIO_EPOLL,,[MIO epoll backend]);;
     *)
         AC_MSG_ERROR([Unknown MIO backend: $mio_backend]);;
 esac;
