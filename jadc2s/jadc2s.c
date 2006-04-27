@@ -210,6 +210,7 @@ int main(int argc, char **argv)
     c2s->local_nolegacyauth = config_get(c2s->config,"local.nolegacyauth");
     c2s->local_ip = config_get_one(c2s->config, "local.ip", 0);
     c2s->local_port = j_atoi(config_get_one(c2s->config, "local.port", 0), 5222);
+    c2s->local_statfile = config_get_one(c2s->config, "local.statfile", 0);
     c2s->http_forward = config_get_one(c2s->config, "local.httpforward", 0);
 #ifdef USE_SSL
     c2s->local_sslport = j_atoi(config_get_one(c2s->config, "local.ssl.port", 0), 5223);
@@ -370,6 +371,17 @@ int main(int argc, char **argv)
         if((time(NULL) - last_log) > 60)
         {
             log_write(c2s->log, LOG_NOTICE, "current number of clients: %d",c2s->num_clients);
+            if(c2s->local_statfile != NULL)
+            {
+		int statfile = open(c2s->local_statfile, O_WRONLY|O_CREAT|O_TRUNC);
+                if(statfile >= 0)
+		{
+		    char buffer[16] = "";
+		    snprintf(buffer, sizeof(buffer), "%d", c2s->num_clients);
+		    write(statfile, buffer, strlen(buffer));
+                }
+                close(statfile);
+            }
             last_log = time(NULL);
         }
 

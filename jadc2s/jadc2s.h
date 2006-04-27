@@ -256,6 +256,7 @@ struct c2s_st
     config_elem_t local_nolegacyauth;
     char *local_ip;
     int local_port;
+    char *local_statfile;
     char *http_forward;
 #ifdef USE_SSL
     int local_sslport;

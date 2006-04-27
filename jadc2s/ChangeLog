@@ -1,7 +1,7 @@
 2006-04-27  Matthias Wimmer  <m@tthias.eu>
 
     * clients.c: support for HTTP forwards (patch by Tomasz Sterna)
-    * jadc2s.c: same
+    * jadc2s.c: same and support for writing connection count to file
     * jadc2s.h: same
     * jadc2s.xml.dist: same
 

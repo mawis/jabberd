@@ -40,6 +40,10 @@
 	<!--
         <httpforward>http://www.jabber.org/</httpforward> -->
 
+        <!--  log current connections number                               -->
+        <!--
+        <statfile>c2s_conn</statfile> -->
+
         <!--  SSL configuration                                            -->
         <!--  Specify the port to listen on, and the key file to use for   -->
         <!--  the certificate.                                             -->
