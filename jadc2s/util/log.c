@@ -3,7 +3,7 @@
 #ifdef USE_SYSLOG
 log_t log_new(const char *ident)
 {
-    openlog(ident, LOG_PID, LOG_LOCAL7);
+    openlog(ident, LOG_PID, USE_SYSLOG);
 
     return NULL;
 }
