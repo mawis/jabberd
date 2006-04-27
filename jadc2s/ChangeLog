@@ -4,6 +4,7 @@
     * jadc2s.c: same and support for writing connection count to file
     * jadc2s.h: same
     * jadc2s.xml.dist: same
+    * mio/mio.c: epoll support (patch by Tomasz Sterna)
 
 2006-04-26  Matthias Wimmer  <m@tthias.eu>
 

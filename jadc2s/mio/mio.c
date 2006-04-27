@@ -49,12 +49,17 @@
 #ifdef MIO_POLL
 #include "mio_poll.h"
 #endif
+#ifdef MIO_EPOLL
+#include "mio_epoll.h"
+#endif
 #ifdef MIO_SELECT
 #include "mio_select.h"
 #endif
 
 #include <sys/socket.h>
 #include <netinet/tcp.h>
+
+#define IDLE_CHECK 180
 
 /**
  * type of a file descriptor
@@ -282,7 +287,7 @@ void mio_app(mio_t m, int fd, mio_handler_t app, void *arg)
 /* main select loop runner */
 void mio_run(mio_t m, int timeout)
 {
-    int retval, fd;
+    int retval, i, fd;
     time_t now;
 
     mio_debug(ZONE, "mio running for %d", timeout);
@@ -292,11 +297,7 @@ void mio_run(mio_t m, int timeout)
     now = time(NULL);
 
     /* nothing to do */
-    /* XXX Make 300 a config option? */
-    if(retval == 0 && (now - m->last_idle_check) < 300) return;
-    
-    /* reset the idle check counter */
-    m->last_idle_check = now;
+    if(retval == 0 && (now - m->last_idle_check) < (IDLE_CHECK/3)) return;
 
     /* an error */
     if(retval < 0)
@@ -309,57 +310,64 @@ void mio_run(mio_t m, int timeout)
     mio_debug(ZONE,"mio working: %d",retval);
 
     /* loop through the sockets, check for stuff to do */
-    for(fd = 0; fd <= m->highfd; fd++)
+    if(retval > 0)
+#ifdef MIO_EPOLL
+    for(i = 0; i < retval; i++)
     {
-        int isActive = 0;
-
+        fd = m->events[i].data.fd;
+#else
+    for(i = 0; i <= m->highfd; i++)
+    {
+        fd = i;
+#endif
         /* skip dead slots */
         if(FD(m,fd).type == type_CLOSED) continue;
 
         /* new conns on a listen socket */
-        if(FD(m,fd).type == type_LISTEN && MIO_CAN_READ(m, fd))
+        if(FD(m,fd).type == type_LISTEN && MIO_CAN_READ(m, i))
         {
             _mio_accept(m, fd);
             continue;
         }
 
         /* check for connecting sockets */
-        if(FD(m,fd).type & type_CONNECT && MIO_CAN_WRITE(m, fd))
+        if(FD(m,fd).type & type_CONNECT && MIO_CAN_WRITE(m, i))
         {
             _mio_connect(m, fd);
             continue;
         }
 
         /* read from ready sockets */
-        if(FD(m,fd).type == type_NORMAL && MIO_CAN_READ(m, fd))
+        if(FD(m,fd).type == type_NORMAL && MIO_CAN_READ(m, i))
         {
             /* if they don't want to read any more right now */
             if(ACT(m, fd, action_READ, NULL) == 0)
                 MIO_UNSET_READ(m, fd);
-            isActive = 1;
+            FD(m,fd).last_activity = time(NULL);
         }
 
         /* write to ready sockets */
-        if(FD(m,fd).type == type_NORMAL && MIO_CAN_WRITE(m, fd))
+        if(FD(m,fd).type == type_NORMAL && MIO_CAN_WRITE(m, i))
         {
             /* don't wait for writeability if nothing to write anymore */
             if(ACT(m, fd, action_WRITE, NULL) == 0)
                 MIO_UNSET_WRITE(m, fd);
-            isActive = 1;
+            FD(m,fd).last_activity = time(NULL);
         }
+    }
+
+    if((now - m->last_idle_check) >= (IDLE_CHECK/3))
+    {
+	/* reset the idle check counter */
+	m->last_idle_check = now;
 
         /* Idle tests */
-        if (FD(m,fd).type == type_NORMAL)
-        {
-            if (isActive)
-            {
-                /* Set the last time the fd had activity */
-                FD(m,fd).last_activity = time(NULL);
-            }
-            else
+        for(fd = 0; fd <= m->highfd; fd++)
+	{
+            if (FD(m,fd).type == type_NORMAL)
             {
                 /* If it's been too long, fire an idle check */
-                if ( (time(NULL) - FD(m,fd).last_activity) >= 300 )
+                if ( (time(NULL) - FD(m,fd).last_activity) >= IDLE_CHECK )
                 {
                     if(ACT(m, fd, action_IDLE, NULL))
                     {
