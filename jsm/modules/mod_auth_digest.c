@@ -46,6 +46,20 @@
  */
 
 /**
+ * get the password of a user from xdb
+ *
+ * @param m the mapi_struct containing the request that is handled
+ * @param id which user's password should be retrieved
+ * @return NULL on failure, password else
+ */
+const char *mod_auth_digest_get_pass(mapi m, jid id) {
+    if (m == NULL || id == NULL)
+	return NULL;
+    
+    return xmlnode_get_data(xdb_get(m->si->xc, id, NS_AUTH));
+}
+
+/**
  * handle authentication requests
  *
  * For get request we just flag support for digest authentication.
@@ -60,12 +74,13 @@ mreturn mod_auth_digest_yum(mapi m, void *arg) {
     char *sid;
     char *digest;
     char *mydigest;
+    const char *pass = NULL;
 
     log_debug2(ZONE, LOGT_AUTH, "checking");
 
     if (jpacket_subtype(m->packet) == JPACKET__GET) {
 	/* type=get means we flag that the server can do digest auth */
-        if (m->user->pass != NULL)
+        if (mod_auth_digest_get_pass(m, m->user->id) != NULL)
             xmlnode_insert_tag_ns(m->packet->iq, "digest", NULL, NS_AUTH);
         return M_PASS;
     }
@@ -75,17 +90,19 @@ mreturn mod_auth_digest_yum(mapi m, void *arg) {
 
     sid = xmlnode_get_attrib_ns(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:digest", m->si->std_namespace_prefixes), 0), "sid", NULL);
 
+    pass = mod_auth_digest_get_pass(m, m->user->id);
+
     /* Concat the stream id and password */
     /* SHA it up */
     log_debug2(ZONE, LOGT_AUTH, "Got SID: %s", sid);
     s = spool_new(m->packet->p);
-    spooler(s,sid,m->user->pass,s);
+    spooler(s,sid,pass,s);
 
     mydigest = shahash(spool_print(s));
 
     log_debug2(ZONE, LOGT_AUTH, "comparing %s %s",digest,mydigest);
 
-    if (m->user->pass == NULL || sid == NULL || mydigest == NULL)
+    if (pass == NULL || sid == NULL || mydigest == NULL)
         jutil_error_xmpp(m->packet->x, XTERROR_NOTIMPL);
     else if (j_strcasecmp(digest, mydigest) != 0)
         jutil_error_xmpp(m->packet->x, XTERROR_AUTH);
