@@ -216,7 +216,8 @@ result _js_routed_error_packet(instance i, dpacket p, jsmi si, xht ht, jpacket j
 	/* a way to boot an entire user off */
 	for(s = u->sessions; s != NULL; s = s->next)
 	    js_session_end(s,"Removed");
-	u->pass = NULL; /* so they can't log back in */
+	/* ... removing pass from udata, authentication should always fetch a new copy of the password from xdb
+	u->pass = NULL; */ /* so they can't log back in */
 	xmlnode_free(p->x);
 	return r_DONE;
     }
