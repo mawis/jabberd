@@ -1,3 +1,11 @@
+2006-04-30  Matthias Wimmer  <m@tthias.eu>
+
+    * jsm/jsm.h: do not cache password in session manager
+    * jsm/users.c: same
+    * jsm/modules/mod_auth_digest.c: same
+    * jsm/modules/mod_auth_plain.c: same
+    * jsm/deliver.c: same
+
 2006-04-26  Matthias Wimmer  <m@tthias.eu>
 
     * jabber.xml.dist.in: updated default browse result

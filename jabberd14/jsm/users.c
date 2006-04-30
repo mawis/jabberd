@@ -190,7 +190,9 @@ udata js_user(jsmi si, jid id, xht ht) {
     newu->p = p;
     newu->si = si;
     newu->user = pstrdup(p, uid->user);
+    /* removing pass from udata, auth should always update passwords from xdb
     newu->pass = x ? pstrdup(p, xmlnode_get_data(x)) : NULL;
+    */
     newu->id = jid_new(p,jid_full(uid));
     if (x)
 	xmlnode_free(x);

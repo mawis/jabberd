@@ -407,7 +407,8 @@ struct jsmi_struct {
 struct udata_struct
 {
     char *user;                /**< the user's name */
-    char *pass;                /**< the user's password */
+    /*
+    char *pass;  */              /**< the user's password */
     jid id;                    /**< the user's JID */
     jid utrust;                /**< list of JIDs the user trusts to send presence to (s10n==both or from). Do not access directly, use js_trustees() instead. */
     jsmi si;                   /**< the session manager instance the user is associated with */
