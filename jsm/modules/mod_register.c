@@ -196,7 +196,7 @@ mreturn mod_register_server(mapi m, void *arg) {
 	    if (xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:remove", m->si->std_namespace_prefixes), 0) != NULL) {
 		xmlnode roster, cur;
 	    
-		log_notice(m->user->id->server,"User Unregistered: %s",m->user->user);
+		log_notice(m->user->id->server,"User Unregistered: %s",m->user->id->user);
 
 		/* let the modules remove their data for this user */
 		js_user_delete(m->si, m->user->id);

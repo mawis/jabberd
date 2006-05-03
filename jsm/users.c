@@ -83,9 +83,9 @@ void _js_users_del(xht h, const char *key, void *data, void *arg)
     if(u->ref > 0 || (u->sessions != NULL && ++*(htc->count)))
         return;
 
-    log_debug2(ZONE, LOGT_SESSION, "freeing %s",u->user);
+    log_debug2(ZONE, LOGT_SESSION, "freeing %s", u->id->user);
 
-    xhash_zap(htc->ht,u->user);
+    xhash_zap(htc->ht, key);
     pool_free(u->p);
 }
 
@@ -189,7 +189,9 @@ udata js_user(jsmi si, jid id, xht ht) {
     newu = pmalloco(p, sizeof(_udata));
     newu->p = p;
     newu->si = si;
+    /* removing user from udata, id->user can be used instead
     newu->user = pstrdup(p, uid->user);
+    */
     /* removing pass from udata, auth should always update passwords from xdb
     newu->pass = x ? pstrdup(p, xmlnode_get_data(x)) : NULL;
     */
@@ -201,8 +203,8 @@ udata js_user(jsmi si, jid id, xht ht) {
 
 
     /* got the user, add it to the user list */
-    xhash_put(ht,newu->user,newu);
-    log_debug2(ZONE, LOGT_SESSION, "js_user debug %X %X",xhash_get(ht,newu->user),newu);
+    xhash_put(ht, newu->id->user, newu);
+    log_debug2(ZONE, LOGT_SESSION, "js_user debug %X %X", xhash_get(ht, newu->id->user), newu);
 
     return newu;
 }

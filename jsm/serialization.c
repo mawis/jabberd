@@ -69,7 +69,7 @@ static void _jsm_serialize_user(xht usershash, const char *user, void *value, vo
 	/* generate the wrapper element when first session is processed */
 	if (thisuser == NULL) {
 	    thisuser = xmlnode_insert_tag_ns(resulttree, "user", NULL, NS_JABBERD_STOREDSTATE);
-	    xmlnode_put_attrib_ns(thisuser, "jid", NULL, NULL, userdata->user);
+	    xmlnode_put_attrib_ns(thisuser, "name", NULL, NULL, userdata->id->user);
 	}
 
 	/* generate the wrapper element for the session */
@@ -94,7 +94,7 @@ static void _jsm_serialize_user(xht usershash, const char *user, void *value, vo
 
     /* debugging */
     if (thisuser == NULL) {
-	log_debug2(ZONE, LOGT_EXECFLOW, "user %s had no sessions", userdata->user);
+	log_debug2(ZONE, LOGT_EXECFLOW, "user %s had no sessions", userdata->id->user);
     }
 }
 
