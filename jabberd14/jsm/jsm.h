@@ -413,11 +413,14 @@ struct udata_struct
     jid utrust;                /**< list of JIDs the user trusts to send presence to (s10n==both or from). Do not access directly, use js_trustees() instead. */
     jsmi si;                   /**< the session manager instance the user is associated with */
     session sessions;          /**< the user's session */
-    int scount;                /**< the number of sessions associated to this user (w/ different JID ressource parts) */
+    /* this variable is only incremented and decremented, but never used => removed
+    int scount; */               /**< the number of sessions associated to this user (w/ different JID ressource parts) */
     int ref;                   /**< reference counter */
     int admin;                 /**< 1 if the user is configured to be an admin. Do not access directly, use js_admin() instead. */
     pool p;
+    /* this variable is not used at all => removed
     struct udata_struct *next;
+    */
 };
 
 xmlnode js_config(jsmi si, char *query);

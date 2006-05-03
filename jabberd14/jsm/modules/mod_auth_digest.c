@@ -46,20 +46,6 @@
  */
 
 /**
- * get the password of a user from xdb
- *
- * @param m the mapi_struct containing the request that is handled
- * @param id which user's password should be retrieved
- * @return NULL on failure, password else
- */
-const char *mod_auth_digest_get_pass(mapi m, jid id) {
-    if (m == NULL || id == NULL)
-	return NULL;
-    
-    return xmlnode_get_data(xdb_get(m->si->xc, id, NS_AUTH));
-}
-
-/**
  * handle authentication requests
  *
  * For get request we just flag support for digest authentication.
@@ -75,13 +61,18 @@ mreturn mod_auth_digest_yum(mapi m, void *arg) {
     char *digest;
     char *mydigest;
     const char *pass = NULL;
+    xmlnode xmlpass = NULL;
 
     log_debug2(ZONE, LOGT_AUTH, "checking");
 
     if (jpacket_subtype(m->packet) == JPACKET__GET) {
+	xmlpass = xdb_get(m->si->xc, m->user->id, NS_AUTH);
+
 	/* type=get means we flag that the server can do digest auth */
-        if (mod_auth_digest_get_pass(m, m->user->id) != NULL)
+	if (xmlnode_get_data(xmlpass) != NULL)
             xmlnode_insert_tag_ns(m->packet->iq, "digest", NULL, NS_AUTH);
+
+	xmlnode_free(xmlpass);
         return M_PASS;
     }
 
@@ -90,7 +81,8 @@ mreturn mod_auth_digest_yum(mapi m, void *arg) {
 
     sid = xmlnode_get_attrib_ns(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:digest", m->si->std_namespace_prefixes), 0), "sid", NULL);
 
-    pass = mod_auth_digest_get_pass(m, m->user->id);
+    xmlpass = xdb_get(m->si->xc, m->user->id, NS_AUTH);
+    pass = xmlnode_get_data(xmlpass);
 
     /* Concat the stream id and password */
     /* SHA it up */
@@ -109,6 +101,7 @@ mreturn mod_auth_digest_yum(mapi m, void *arg) {
     else
         jutil_iqresult(m->packet->x);
 
+    xmlnode_free(xmlpass);
     return M_HANDLED;
 }
 
