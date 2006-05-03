@@ -232,6 +232,7 @@ mreturn mod_announce_sess_avail(mapi m, void *arg) {
     /* check the last time we were on to see if we haven't gotten the announcement yet */
     last = xdb_get(m->si->xc, m->user->id, NS_LAST);
     lastt = j_atoi(xmlnode_get_attrib_ns(last, "last", NULL),0);
+    xmlnode_free(last);
     if (lastt > 0 && lastt > a->set) {
 	/* if there's a last and it's newer than the announcement, ignore us */
         return M_IGNORE;

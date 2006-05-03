@@ -191,11 +191,20 @@ xdbcache xdb_cache(instance id)
     return newx;
 }
 
-/* blocks until namespace is retrieved, host must map back to this service! */
+/**
+ * query data from the xdb
+ *
+ * blocks until namespace is retrieved, host must map back to this service!
+ *
+ * @param xc the xdbcache used for this query
+ * @param owner for which JID the query should be made
+ * @param ns which namespace to query
+ * @return NULL if nothing found, result else (has to be freed by the caller!)
+ */
 xmlnode xdb_get(xdbcache xc, jid owner, const char *ns) {
     _xdbcache newx;
     xmlnode x;
-    //pth_cond_t cond = PTH_COND_INIT;
+    /* pth_cond_t cond = PTH_COND_INIT; */
 
     if (xc == NULL || owner == NULL || ns == NULL) {
         fprintf(stderr, "Programming Error: xdb_get() called with NULL\n");

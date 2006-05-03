@@ -55,20 +55,6 @@
  */
 
 /**
- * get the password of a user from xdb
- *
- * @param m the mapi_struct containing the request that is handled
- * @param id which user's password should be retrieved
- * @return NULL on failure, password else
- */
-const char *mod_auth_plain_get_pass(mapi m, jid id) {
-    if (m == NULL || id == NULL)
-	return NULL;
-    
-    return xmlnode_get_data(xdb_get(m->si->xc, id, NS_AUTH));
-}
-
-/**
  * handle authentication requests
  *
  * get requests are used to check which authentication methods are available
@@ -80,6 +66,7 @@ const char *mod_auth_plain_get_pass(mapi m, jid id) {
  */
 mreturn mod_auth_plain_jane(mapi m, void *arg) {
     char *pass = NULL;
+    xmlnode xmlpass = NULL;
     const char *stored_pass = NULL;
 
     log_debug2(ZONE, LOGT_AUTH, "checking");
@@ -93,7 +80,8 @@ mreturn mod_auth_plain_jane(mapi m, void *arg) {
     if ((pass = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:password", m->si->std_namespace_prefixes), 0))) == NULL)
         return M_PASS;
 
-    stored_pass = mod_auth_plain_get_pass(m, m->user->id);
+    xmlpass = xdb_get(m->si->xc, m->user->id, NS_AUTH);
+    stored_pass = xmlnode_get_data(xmlpass);
 
     /* if there is a password avail, always handle */
     if (stored_pass != NULL) {
@@ -101,8 +89,10 @@ mreturn mod_auth_plain_jane(mapi m, void *arg) {
             jutil_error_xmpp(m->packet->x, XTERROR_AUTH);
         else
             jutil_iqresult(m->packet->x);
+	xmlnode_free(xmlpass);
         return M_HANDLED;
     }
+    xmlnode_free(xmlpass);
 
     log_debug2(ZONE, LOGT_AUTH, "trying xdb act check");
     /* if the act "check" fails, PASS so that 0k could use the password to try and auth w/ it's data */
