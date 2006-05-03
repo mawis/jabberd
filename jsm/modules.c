@@ -131,6 +131,25 @@ void js_mapi_session(event e, session s, mcall c, void *arg)
  * @return 1 if the call was handled by a module, 0 if it wasn't handled
  */
 int js_mapi_call(jsmi si, event e, jpacket packet, udata user, session s) {
+    return js_mapi_call2(si, e, packet, user, s, NULL);
+}
+
+/**
+ * call all the module callbacks for a phase
+ *
+ * Only needed for the events es_SERIALIZE and es_DESERIALIZE. Other events can use the shorter interface of js_mapi_call()
+ *
+ * Addes callbacks to the ignore mask for a given packet type if they return M_IGNORE.
+ *
+ * @param si the session manager instance data
+ * @param e call the modules for which event type
+ * @param packet the packet being processed, may be NULL
+ * @param user the user data for the current session (or the sender for e_SERVER if it is local), may be NULL
+ * @param s the session for which to call the event, may be NULL
+ * @param serialization_node the xmlnode to pass for es_SERIALIZE, and es_DESERIALIZE event
+ * @return 1 if the call was handled by a module, 0 if it wasn't handled
+ */
+int js_mapi_call2(jsmi si, event e, jpacket packet, udata user, session s, xmlnode serialization_node) {
     mlist l;
     _mapi m;		/* mapi structure to be passed to the call back */
 
@@ -150,6 +169,7 @@ int js_mapi_call(jsmi si, event e, jpacket packet, udata user, session s) {
     m.packet = packet;
     m.user = user;
     m.s = s;
+    m.serialization_node = serialization_node;
 
     /* traverse the list of call backs */
     for (;l != NULL; l = l->next) {

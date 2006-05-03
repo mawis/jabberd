@@ -119,6 +119,23 @@ void jsm_shutdown(void *arg) {
 }
 
 /**
+ * wrapper around jsm_serialize() to call this function as a beat function
+ *
+ * @param arg session manager instance as ::jsmi
+ * @return r_UNREG if arg==NULL, r_DONE else
+ */
+static result _jsm_serialize_beatwrapper(void *arg) {
+    jsmi si = (jsmi)arg;
+
+    if (arg == NULL)
+	return r_UNREG;
+
+    jsm_serialize(si);
+
+    return r_DONE;
+}
+
+/**
  * startup the jsm module, register the jsm modules in jsm
  *
  * @param i the instance we are in jabberd
@@ -154,6 +171,19 @@ void jsm(instance i, xmlnode x) {
     si->sc_sessions = xhash_new(j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(si->config, "jsm:maxusers", si->std_namespace_prefixes), 0)), USERS_PRIME));
     for (n=0; n<e_LAST; n++)
         si->events[n] = NULL;
+
+    /* enable serialization? */
+    cur = xmlnode_get_list_item(xmlnode_get_tags(si->config, "jsm:serialization", si->std_namespace_prefixes), 0);
+    if (cur != NULL) {
+	int interval = 0;
+
+	si->statefile = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(cur, "jsm:file", si->std_namespace_prefixes), 0));
+	interval = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(cur, "jsm:interval", si->std_namespace_prefixes), 0)), 0);
+
+	if (interval > 0) {
+	    register_beat(interval, _jsm_serialize_beatwrapper, (void*)si);
+	}
+    }
 
     /* enable history storage? */
     cur = xmlnode_get_list_item(xmlnode_get_tags(si->config, "jsm:history", si->std_namespace_prefixes), 0);

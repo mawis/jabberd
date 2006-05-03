@@ -311,6 +311,18 @@
 	<minlen>3</minlen>
 	<maxlen>16</maxlen>
       </mod_useridpolicy>
+
+      <!--
+      The session manager can serialize all state information that is necessary
+      to resume sessions after restart to an XML file.
+      Use this to configure state serialization.
+      -->
+      <!--
+      <serialization>
+	<file>@localstatedir@/cache/jabberd/jsm-state.xml</file>
+	<interval>60</interval>
+      </serialization>
+      -->
     </jsm>
 
     <!--
