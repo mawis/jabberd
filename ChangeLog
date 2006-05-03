@@ -1,3 +1,10 @@
+2006-05-03  Matthias Wimmer  <m@tthias.eu>
+
+    * jsm/jsm.h: remove unused variables
+    * jsm/sessions.c: same
+    * jsm/modules/mod_announce.c: fixing small memory leak
+    * jsm/modules/mod_xml.c: same
+
 2006-04-30  Matthias Wimmer  <m@tthias.eu>
 
     * jsm/jsm.h: do not cache password in session manager

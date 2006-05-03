@@ -115,7 +115,7 @@ typedef struct action_struct {
  * get the user's filter rules
  *
  * @param u the user
- * @return the filter rules
+ * @return the filter rules (must be freed by the caller)
  */
 xmlnode mod_filter_get(udata u) {
     xmlnode ret;

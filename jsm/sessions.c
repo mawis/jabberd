@@ -156,7 +156,9 @@ session js_session_new(jsmi si, dpacket dp) {
     /* make sure we're linked with the user */
     s->next = s->u->sessions;
     s->u->sessions = s;
+    /*
     s->u->scount++;
+    */
 
     /* start it */
     mtq_send(s->q, s->p, _js_session_start, (void *)s);
@@ -248,7 +250,9 @@ session js_sc_session_new(jsmi si, dpacket dp, xmlnode sc_session) {
     /* make sure we're linked with the user */
     s->next = s->u->sessions;
     s->u->sessions = s;
+    /*
     s->u->scount++;
+    */
 
     /* insert in the hash of sc session to find the right session in an action='end' request */
     xhash_put(s->si->sc_sessions, s->sc_sm, u);
@@ -546,7 +550,9 @@ void _js_session_end(void *arg) {
     log_debug2(ZONE, LOGT_SESSION, "THREAD:SESSION exiting");
 
     /* decrement the user's session count */
+    /*
     s->u->scount--;
+    */
 
     /* make sure the service knows the session is gone */
     if (s->sid != NULL)
