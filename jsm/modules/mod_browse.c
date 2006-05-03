@@ -56,7 +56,7 @@
  *
  * @param m the mapi structure
  * @param id the JID of the user for which the browse info should be build
- * @return the xml fragment containing the browse result
+ * @return the xml fragment containing the browse result (must be freed by the caller)
  */
 xmlnode mod_browse_get(mapi m, jid id) {
     xmlnode browse, x;

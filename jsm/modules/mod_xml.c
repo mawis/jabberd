@@ -218,6 +218,7 @@ mreturn mod_xml_get(mapi m, void *arg) {
     if (xmlnode_get_attrib_ns(xns, "j_private_flag", NULL) != NULL) {
 	/* uhoh, set from a private namespace */
         js_bounce_xmpp(m->si,m->packet->x,XTERROR_FORBIDDEN);
+	xmlnode_free(xns);
         return M_HANDLED;
     }
 
