@@ -75,11 +75,11 @@ void _mod_admin_browse(xht h, const char *key, void *data, void *arg) {
     x = xmlnode_insert_tag_ns(browse, "user", NULL, NS_BROWSE);
     xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(u->id));
     if (s == NULL) {
-        xmlnode_put_attrib_ns(x, "name", NULL, NULL, u->user);
+        xmlnode_put_attrib_ns(x, "name", NULL, NULL, u->id->user);
         return;
     }
     sp = spool_new(xmlnode_pool(browse));
-    spooler(sp,u->user," (",sp);
+    spooler(sp,u->id->user," (",sp);
 
     /* insert extended data for the primary session */
     snprintf(buff, sizeof(buff), "%d", (int)(t - s->started));

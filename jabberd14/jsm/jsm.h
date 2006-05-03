@@ -434,7 +434,7 @@ struct jsmi_struct {
 /** User data structure/list. See js_user(). */
 struct udata_struct
 {
-    char *user;                /**< the user's name */
+    /* char *user; */                /**< the user's name */
     /*
     char *pass;  */              /**< the user's password */
     jid id;                    /**< the user's JID */

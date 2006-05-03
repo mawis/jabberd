@@ -594,7 +594,7 @@ mreturn mod_presence_deliver(mapi m, void *arg) {
 
     /* only if we HAVE a user, and it was sent to ONLY the user@server, and there is at least one session available */
     if (m->user != NULL && m->packet->to->resource == NULL && js_session_primary(m->user) != NULL) {
-        log_debug2(ZONE, LOGT_DELIVER, "broadcasting to %s",m->user->user);
+        log_debug2(ZONE, LOGT_DELIVER, "broadcasting to %s",m->user->id->user);
 
         /* broadcast */
         for (cur = m->user->sessions; cur != NULL; cur = cur->next) {

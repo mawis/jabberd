@@ -56,7 +56,7 @@
 xmlnode mod_roster_get(udata u) {
     xmlnode ret;
 
-    log_debug2(ZONE, LOGT_ROSTER, "getting %s's roster", u->user);
+    log_debug2(ZONE, LOGT_ROSTER, "getting %s's roster", u->id->user);
 
     /* get the existing roster */
     ret = xdb_get(u->si->xc, u->id, NS_ROSTER);

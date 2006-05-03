@@ -202,7 +202,7 @@ mreturn mod_browse_reply(mapi m, void *arg) {
 	    return M_HANDLED;
     }
 
-    log_debug2(ZONE, LOGT_DELIVER, "handling query for user %s", m->user->user);
+    log_debug2(ZONE, LOGT_DELIVER, "handling query for user %s", m->user->id->user);
 
     /* get this dudes browse info */
     browse = mod_browse_get(m, m->packet->to);

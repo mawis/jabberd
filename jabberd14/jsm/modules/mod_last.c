@@ -194,7 +194,7 @@ mreturn mod_last_reply(mapi m, void *arg) {
         return M_HANDLED;
     }
 
-    log_debug2(ZONE, LOGT_SESSION, "handling query for user %s",m->user->user);
+    log_debug2(ZONE, LOGT_SESSION, "handling query for user %s", m->user->id->user);
 
     last = xdb_get(m->si->xc, m->user->id, NS_LAST);
 
