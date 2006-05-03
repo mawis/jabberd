@@ -4,6 +4,13 @@
     * jsm/sessions.c: same
     * jsm/modules/mod_announce.c: fixing small memory leak
     * jsm/modules/mod_xml.c: same
+    * jabber.xml.dist.in: started state serialization of jsm
+    * jabberd/lib/jabberdlib.h: same
+    * jsm/jsm.h: same
+    * jsm/Makefile.am: same
+    * jsm/modules.c: same
+    * jsm/jsm.c: same
+    * jsm/serialization.c: same
 
 2006-04-30  Matthias Wimmer  <m@tthias.eu>
 

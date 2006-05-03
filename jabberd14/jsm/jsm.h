@@ -317,7 +317,7 @@ typedef int event;
  * a user (forwarded by the client connection manager). (OUTgoing stanzas from
  * the user's view.)
  *
- * The handler is passed the ::udata_struct of the sending user, the
+ * The handler gets passed the ::udata_struct of the sending user, the
  * ::jpacket_struct containing the stanza, and the ::session_struct for the
  * session, that is sending this packet.
  *
@@ -329,7 +329,7 @@ typedef int event;
 /**
  * es_END is the mapi event, that is fired if a session ends.
  *
- * The handler is passed the ::udata_struct of the user, that is logged out; and
+ * The handler gets passed the ::udata_struct of the user, that is logged out; and
  * the ::session_struct for the session that is closed. No stanza is passed in
  * ::jpacket_struct.
  *
@@ -337,8 +337,34 @@ typedef int event;
  * the js_mapi_session() call.
  */
 #define es_END     2
+
+/**
+ * es_SERIALIZE is the mapi event, that is fired if the session manager wants
+ * the module to serialize its data about a session
+ *
+ * The handler gets passed the ::udata_struct of the session owning user, the
+ * ::session_struct for the session, that is serialized. No
+ * stanza is passed in ::jpacket_struct.
+ *
+ * As all es_ events, the es_SERIALIZE event has to be registered for a session using
+ * the js_mapi_session() call.
+ */
+#define es_SERIALIZE 3
+
+/**
+ * es_DESERIALIZE is the mapi event, that is fired if the session manager wants
+ * the module to deserialize its data about a session
+ *
+ * The handler gets passed the ::udata_struct of the session owning user, the
+ * ::session_struct for the session, that is deserialized. No
+ * stanza is passed in ::jpacket_struct.
+ *
+ * As all es_ events, the es_DESERIALIZE event has to be registered for a session using
+ * the js_mapi_session() call.
+ */
+#define es_DESERIALIZE 4
 /* always add new event types here, to maintain backwards binary compatibility */
-#define es_LAST    3  /**< flag for the highest session event type */
+#define es_LAST    5  /**< flag for the highest session event type */
 
 /* admin user account flags */
 #define ADMIN_UNKNOWN   0x00	/**< it has not yet checked if the user is an admin */
@@ -367,6 +393,7 @@ typedef struct mapi_struct {
     event e;		/**< the event that is processed */
     udata user;		/**< the user this event is related to (if any) */
     session s;		/**< the session this event is realted to (if any) */
+    xmlnode serialization_node; /**< xmlnode for a session for es_SERIALIZE and es_DESERIALIZE events */
 } *mapi, _mapi;
 
 /** prototype of a callback function to register with the MAPI */
@@ -401,6 +428,7 @@ struct jsmi_struct {
     jid gtrust;			/**< "global trusted jids": jids allowed to see all presences */
     struct history_storage_conf history_sent; /**< store history for messages sent by the user? */
     struct history_storage_conf history_recv; /**< store history for messages received by the user? */
+    char *statefile;		/**< to which file to store serialization data */
 };
 
 /** User data structure/list. See js_user(). */
@@ -494,6 +522,7 @@ void js_bounce_xmpp(jsmi si, xmlnode x, xterror xterr); /* logic to bounce packe
 void js_mapi_register(jsmi si, event e, mcall c, void *arg);
 void js_mapi_session(event e, session s, mcall c, void *arg);
 int js_mapi_call(jsmi si, event e, jpacket packet, udata user, session s);
+int js_mapi_call2(jsmi si, event e, jpacket packet, udata user, session s, xmlnode serialization_node);
 
 void js_authreg(void *arg);
 
@@ -506,6 +535,8 @@ jid js_trustees(udata u); /* returns list of trusted jids */
 int js_online(mapi m); /* logic to tell if this is a go-online call */
 
 void jsm_shutdown(void *arg);
+
+void jsm_serialize(jsmi si);
 
 #ifdef __cplusplus
 }
