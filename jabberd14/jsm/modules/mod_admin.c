@@ -50,7 +50,7 @@
  *   namespace (which is not documented)
  * - The admin can update the session managers configuration file using the DEPRICATED
  *   and undocumented jabber:iq:admin namespace
- * - Messages addresses to the session manager (without a resource) are forwarded to the
+ * - Messages addressed to the session manager (without a resource) are forwarded to the
  *   configured admin address(es)
  */
 
