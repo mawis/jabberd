@@ -1,3 +1,19 @@
+2006-05-04  Matthias Wimmer  <m@tthias.eu>
+
+    * jsm/jsm.h: removed redundant variable
+    * jsm/users.c: same
+    * jsm/modules/mod_vcard.c: same
+    * jsm/modules/mod_browse.c: same
+    * jsm/modules/mod_last.c: same
+    * jsm/modules/mod_presence.c: same
+    * jsm/modules/mod_roster.c: same
+    * jsm/modules/mod_offline.c: same
+    * jsm/modules/mod_register.c: same
+    * jsm/modules/mod_filter.c: same
+    * jsm/modules/mod_admin.c: same
+    * jsm/serialization.c: same
+
+
 2006-05-03  Matthias Wimmer  <m@tthias.eu>
 
     * jsm/jsm.h: remove unused variables
