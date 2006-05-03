@@ -150,7 +150,7 @@ void mod_filter_action_offline(mapi m, xmlnode rule) {
         }
     }
 
-    log_debug2(ZONE, LOGT_DELIVER|LOGT_STORAGE, "storing message for %s offline.",m->user->user);
+    log_debug2(ZONE, LOGT_DELIVER|LOGT_STORAGE, "storing message for %s offline.",m->user->id->user);
 
     jutil_delay(m->packet->x,"Offline Storage");
     if(xdb_act(m->si->xc, m->user->id, NS_OFFLINE, "insert", NULL, m->packet->x))
