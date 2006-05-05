@@ -87,9 +87,7 @@ static void _jsm_serialize_user(xht usershash, const char *user, void *value, vo
 	xmlnode_put_attrib_ns(c2s_routing, "sm", "sc", NS_SESSION, session_iter->sc_sm);
 
 	/* let the modules serialize their data */
-	/*
-	js_mapi_call2(userdata->si, es_SERIALIZE, NULL, userdata, session_iter, thissession);
-	*/
+	js_mapi_call2(NULL, es_SERIALIZE, NULL, userdata, session_iter, thissession);
     }
 
     /* debugging */
