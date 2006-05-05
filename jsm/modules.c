@@ -141,7 +141,7 @@ int js_mapi_call(jsmi si, event e, jpacket packet, udata user, session s) {
  *
  * Addes callbacks to the ignore mask for a given packet type if they return M_IGNORE.
  *
- * @param si the session manager instance data
+ * @param si the session manager instance data (MUST be NULL for a es_* event)
  * @param e call the modules for which event type
  * @param packet the packet being processed, may be NULL
  * @param user the user data for the current session (or the sender for e_SERVER if it is local), may be NULL
