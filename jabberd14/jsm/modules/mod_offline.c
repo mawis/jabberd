@@ -629,6 +629,27 @@ mreturn mod_offline_out(mapi m, void *arg) {
 }
 
 /**
+ * callback that handles the serialization of a session
+ *
+ * mod_offline has to store if a user is using JEP-0013
+ *
+ * @param m the mapi structure
+ * @param arg pointer to the mod_offline session configuration structure
+ * @return M_IGNORE on failure, M_PASS on success
+ */
+mreturn mod_offline_serialize(mapi m, void *arg) {
+    modoffline_session sessiondata = (modoffline_session)arg;
+
+    if (arg == NULL)
+	return M_IGNORE;
+
+    if (sessiondata->jep0013)
+	xmlnode_insert_tag_ns(m->serialization_node, "jep0013", NULL, NS_JABBERD_STOREDSTATE);
+
+    return M_PASS;
+}
+
+/**
  * set up the per-session listeners: we want to get outgoing messages because we need to get the user's presence to deliver stored messages
  *
  * @param m the mapi structure
@@ -645,6 +666,9 @@ mreturn mod_offline_session(mapi m, void *arg) {
 
     /* register handler for packets the user sends */
     js_mapi_session(es_OUT, m->s, mod_offline_out, session_data);
+
+    /* register serialization handler */
+    js_mapi_session(es_SERIALIZE, m->s, mod_offline_serialize, session_data);
 
     return M_PASS;
 }

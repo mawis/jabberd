@@ -1,3 +1,9 @@
+2006-05-05  Matthias Wimmer  <m@tthias.eu>
+
+    * jsm/modules/mod_offline.c: mod_offline serialization
+    * jsm/modules.c: same
+    * jsm/serialization.c: same
+
 2006-05-04  Matthias Wimmer  <m@tthias.eu>
 
     * jsm/jsm.h: removed redundant variable
@@ -12,7 +18,6 @@
     * jsm/modules/mod_filter.c: same
     * jsm/modules/mod_admin.c: same
     * jsm/serialization.c: same
-
 
 2006-05-03  Matthias Wimmer  <m@tthias.eu>
 
