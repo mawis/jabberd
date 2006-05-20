@@ -192,7 +192,7 @@ typedef struct xht_struct
     int prime;
     int dirty;
     int count;
-    struct xhn_struct *zen;
+    xhn *zen;
 } *xht, _xht;
 
 xht xhash_new(int prime);
