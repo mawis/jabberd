@@ -1,3 +1,8 @@
+2006-05-20  Matthias Wimmer  <m@tthias.eu>
+
+    * util/util.h: better memory performance for xhash
+    * util/xhash.c: same
+
 2006-04-27  Matthias Wimmer  <m@tthias.eu>
 
     * clients.c: support for HTTP forwards (patch by Tomasz Sterna)
