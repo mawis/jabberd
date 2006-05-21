@@ -232,7 +232,7 @@ typedef struct xht_struct
 {
     pool p;
     int prime;
-    struct xhn_struct *zen;
+    xhn *zen;
 } *xht, _xht;
 
 xht xhash_new(int prime);
