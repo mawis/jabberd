@@ -85,14 +85,15 @@ xhn _xhash_node_new(xht h, int index) {
     int i = index % h->prime;
 
     /* get existing empty one */
-    for(n = &h->zen[i]; n != NULL; n = n->next)
-        if(n->key == NULL)
+    for(n = h->zen[i]; n != NULL; n = n->next)
+        if(n->key == NULL)	/* should not happen anymore, we are now removing unused nodes */
             return n;
 
     /* overflowing, new one! */
-    n = pmalloco(h->p, sizeof(_xhn));
-    n->next = h->zen[i].next;
-    h->zen[i].next = n;
+    n = malloc(sizeof(_xhn));	/* XXX dangerous not to use a memory pool, but current pools don't allow to free memory! */
+    bzero(n, sizeof(_xhn));
+    n->next = h->zen[i];
+    h->zen[i] = n;
     return n;
 }
 
@@ -107,12 +108,43 @@ xhn _xhash_node_new(xht h, int index) {
 xhn _xhash_node_get(xht h, const char *key, int index) {
     xhn n;
     int i = index % h->prime;
-    for(n = &h->zen[i]; n != NULL; n = n->next)
+    for(n = h->zen[i]; n != NULL; n = n->next)
         if(j_strcmp(key, n->key) == 0)
             return n;
     return NULL;
 }
 
+/**
+ * removes a single entry in an xhash (xhash_walker function)
+ *
+ * @param hash the hash to remove the entry from
+ * @param key the key to remove
+ * @param value ignored
+ * @param arg ignored
+ */
+static void _xhash_cleaner_walk(xht hash, const char *key, void *value, void *arg) {
+    if (hash == NULL || key == NULL)
+      return;
+
+    xhash_zap(hash, key);
+}
+
+/**
+ * removes all entries in an xhash
+ *
+ * used as a pool_cleaner() function
+ *
+ * @param arg the xhash to clean
+ */
+static void _xhash_cleaner(void *arg) {
+    xht h = (xht)arg;
+
+    /* sanity check */
+    if (h == NULL)
+      return;
+
+    xhash_walk(h, _xhash_cleaner_walk, NULL);
+}
 
 /**
  * create a new xhash hash collection
@@ -130,7 +162,8 @@ xht xhash_new(int prime) {
     xnew = pmalloco(p, sizeof(_xht));
     xnew->prime = prime;
     xnew->p = p;
-    xnew->zen = pmalloco(p, sizeof(_xhn)*prime); /* array of xhn size of prime */
+    xnew->zen = pmalloco(p, sizeof(xhn)*prime); /* array of xhn size of prime */
+    pool_cleanup(p, _xhash_cleaner, (void*)xnew);
     return xnew;
 }
 
@@ -233,15 +266,35 @@ void *xhash_get_by_domain(xht h, const char *domain) {
  * @param key the key of the value, that should be removed
  */
 void xhash_zap(xht h, const char *key) {
-    xhn n;
+    xhn n = NULL;
+    xhn previous_node = NULL;
+    int klen = 0;
+    int index = 0;
 
-    if(h == NULL || key == NULL || (n = _xhash_node_get(h, key, _xhasher(key))) == NULL)
-        return;
+    if(h == NULL || key == NULL || (klen = strlen(key)) == 0)
+          return;
 
-/*    log_debug(ZONE,"zapping %s",key); */
+    index = _xhasher(key) % h->prime;
 
-    /* kill an entry by zeroing out the key */
-    n->key = NULL;
+    for (n = h->zen[index]; n != NULL; n = n->next) {
+        if (n->key != NULL && strcmp(key, n->key) == 0) {
+            /* found entry */
+
+            /* remove entry */
+            if (previous_node == NULL) {
+                /* first entry for this index */
+                h->zen[index] = n->next;
+            } else {
+                previous_node->next = n->next;
+            }
+            free(n);
+
+            /* entry removed, we can return */
+            return;
+        }
+
+        previous_node = n;
+    }
 }
 
 /**
@@ -266,16 +319,20 @@ void xhash_free(xht h) {
 void xhash_walk(xht h, xhash_walker w, void *arg) {
     int i;
     xhn n;
+    xhn next;
 
     if(h == NULL || w == NULL)
         return;
 
 /*    log_debug(ZONE,"walking %X",h); */
 
-    for(i = 0; i < h->prime; i++)
-        for(n = &h->zen[i]; n != NULL; n = n->next)
+    for(i = 0; i < h->prime; i++) {
+        for(n = h->zen[i]; n != NULL; n = next) {
+	    next = n->next; /* n might get freed in the xhash_walk ... */
             if(n->key != NULL && n->val != NULL)
                 (*w)(h, n->key, n->val, arg);
+	}
+    }
 }
 
 /**
