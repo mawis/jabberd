@@ -870,6 +870,7 @@ void mod_filter(jsmi si) {
 
     js_mapi_register(si, e_DELIVER, mod_filter_handler, mod_filter__default);
     js_mapi_register(si, e_SESSION, mod_filter_session, NULL);
+    js_mapi_register(si, e_DESERIALIZE, mod_filter_session, NULL);
     js_mapi_register(si, e_SHUTDOWN, mod_filter_shutdown, mod_filter__default);
     js_mapi_register(si, e_DELETE, mod_filter_delete, NULL);
 }

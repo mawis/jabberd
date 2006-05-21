@@ -4,6 +4,20 @@
     * jabberd/jabberd.h: notify the instance of their hosts
     * jabberd/deliver.c: same
     * jsm/jsm.c: same
+    * jsm/jsm.h: load serialized session manager state on startup
+    * jsm/serialization.c: same
+    * jsm/modules/mod_agents.c: same
+    * jsm/modules/mod_browse.c: same
+    * jsm/modules/mod_filter.c: same
+    * jsm/modules/mod_last.c: same
+    * jsm/modules/mod_log.c: same
+    * jsm/modules/mod_offline.c: same
+    * jsm/modules/mod_presence.c: same
+    * jsm/modules/mod_roster.c: same
+    * jsm/modules/mod_vcard.c: same
+    * jsm/modules/mod_xml.c: same
+    * jabberd/lib/jid.c: declaring 2nd param of jid_set as const char *
+    * jabberd/lib/jabberdlib.h: same
 
 2006-05-20  Matthias Wimmer  <m@tthias.eu>
 

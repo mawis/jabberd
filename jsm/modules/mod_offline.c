@@ -656,7 +656,7 @@ mreturn mod_offline_serialize(mapi m, void *arg) {
  * @param arg unused/ignored
  * @return always M_PASS
  */
-mreturn mod_offline_session(mapi m, void *arg) {
+static modoffline_session mod_offline_new_session(mapi m, void *arg) {
     modoffline_session session_data = NULL;
 
     log_debug2(ZONE, LOGT_SESSION, "session init");
@@ -670,7 +670,34 @@ mreturn mod_offline_session(mapi m, void *arg) {
     /* register serialization handler */
     js_mapi_session(es_SERIALIZE, m->s, mod_offline_serialize, session_data);
 
+    return session_data;
+}
+
+/**
+ * callback: new session started
+ *
+ * @param m the mapi structure
+ * @param arg unused/ignored
+ * @return always M_PASS
+ */
+static mreturn mod_offline_session(mapi m, void *arg) {
+    mod_offline_new_session(m, arg);
     return M_PASS;
+}
+
+/**
+ * callback: session is deserialized
+ *
+ * @param m the mapi structure
+ * @param arg unused/ignored
+ * @return always M_PASS
+ */
+static mreturn mod_offline_deserialize(mapi m, void *arg) {
+    modoffline_session session_data = mod_offline_new_session(m, arg);
+
+    if (xmlnode_get_list_item(xmlnode_get_tags(m->serialization_node, "state:jep0013", m->si->std_namespace_prefixes), 0) != NULL) {
+	session_data->jep0013 = 1;
+    }
 }
 
 /**
@@ -717,5 +744,6 @@ void mod_offline(jsmi si) {
     log_debug2(ZONE, LOGT_INIT, "init");
     js_mapi_register(si,e_OFFLINE, mod_offline_handler, (void*)conf);
     js_mapi_register(si,e_SESSION, mod_offline_session, NULL);
+    js_mapi_register(si,e_DESERIALIZE, mod_offline_deserialize, NULL);
     js_mapi_register(si, e_DELETE, mod_offline_delete, NULL);
 }

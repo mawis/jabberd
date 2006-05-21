@@ -270,6 +270,7 @@ mreturn mod_xml_delete(mapi m, void *arg) {
  */
 void mod_xml(jsmi si) {
     js_mapi_register(si, e_SESSION, mod_xml_session, NULL);
+    js_mapi_register(si, e_DESERIALIZE, mod_xml_session, NULL);
     js_mapi_register(si, e_OFFLINE, mod_xml_get, NULL);
     js_mapi_register(si, e_DELETE, mod_xml_delete, NULL);
 }
