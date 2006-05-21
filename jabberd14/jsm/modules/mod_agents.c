@@ -227,4 +227,5 @@ void mod_agents(jsmi si) {
     log_debug2(ZONE, LOGT_INIT, "init");
     js_mapi_register(si,e_SERVER, mod_agents_handler, NULL);
     js_mapi_register(si,e_SESSION, mod_agents_shack, NULL);
+    js_mapi_register(si,e_DESERIALIZE, mod_agents_shack, NULL);
 }

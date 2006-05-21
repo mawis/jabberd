@@ -66,6 +66,9 @@ static void _jsm_serialize_user(xht usershash, const char *user, void *value, vo
 	xmlnode thissession = NULL;
 	xmlnode c2s_routing = NULL;
 
+	if (session_iter->exit_flag)
+	    continue;
+
 	/* generate the wrapper element when first session is processed */
 	if (thisuser == NULL) {
 	    thisuser = xmlnode_insert_tag_ns(resulttree, "user", NULL, NS_JABBERD_STOREDSTATE);
@@ -85,6 +88,8 @@ static void _jsm_serialize_user(xht usershash, const char *user, void *value, vo
 	xmlnode_put_attrib_ns(c2s_routing, "c2s", NULL, NULL, jid_full(session_iter->sid));
 	xmlnode_put_attrib_ns(c2s_routing, "c2s", "sc", NS_SESSION, session_iter->sc_c2s);
 	xmlnode_put_attrib_ns(c2s_routing, "sm", "sc", NS_SESSION, session_iter->sc_sm);
+	if (!session_iter->roster)
+	    xmlnode_insert_tag_ns(thissession, "no-rosterfetch", NULL, NS_JABBERD_STOREDSTATE);
 
 	/* let the modules serialize their data */
 	js_mapi_call2(NULL, es_SERIALIZE, NULL, userdata, session_iter, thissession);
@@ -147,4 +152,170 @@ void jsm_serialize(jsmi si) {
     xhash_walk(si->hosts, _jsm_serialize_walker, (void*)storedstate);
     xmlnode2file(si->statefile, storedstate);
     xmlnode_free(storedstate);
+}
+
+/**
+ * deserialize a session
+ *
+ * @param si the session manager, that receives the deserialized data
+ * @param user_jid jid of the user, that gets deserialized
+ * @param resource the resource, that gets deserialized
+ * @param x the xmlnode containing the data for this session
+ */
+static void _jsm_deserialize_session(jsmi si, const jid user_jid, const char *resource, xmlnode x) {
+    xmlnode presence = NULL;
+    time_t started = 0;
+    xmlnode c2s_routing = NULL;
+    char *route = NULL;
+    char *sid = NULL;
+    char *sc_c2s = NULL;
+    char *sc_sm = NULL;
+    int roster = 0;
+    session s = NULL;		/**< the session being deserialized */
+    session cur = NULL;		/**< for iteration */
+    udata u = NULL;		/**< the user that owns the session */
+    pool p = NULL;		/**< memory pool for the new session */
+
+    /* sanity check */
+    if (si == NULL || user_jid == NULL || resource == NULL || x == NULL)
+	return;
+
+    log_debug2(ZONE, LOGT_EXECFLOW, "deserializing state for %s/%s", jid_full(user_jid), resource);
+
+    /* get all data */
+    presence = xmlnode_get_list_item(xmlnode_get_tags(x, "presence", si->std_namespace_prefixes), 0);
+    started = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "state:started", si->std_namespace_prefixes), 0)), 0);
+    c2s_routing = xmlnode_get_list_item(xmlnode_get_tags(x, "state:c2s-routing", si->std_namespace_prefixes), 0);
+    if (c2s_routing != NULL) {
+	route = xmlnode_get_attrib_ns(c2s_routing, "sm", NULL);
+	sid = xmlnode_get_attrib_ns(c2s_routing, "c2s", NULL);
+	sc_sm = xmlnode_get_attrib_ns(c2s_routing, "sm", NS_SESSION);
+	sc_c2s = xmlnode_get_attrib_ns(c2s_routing, "c2s", NS_SESSION);
+    }
+    if (xmlnode_get_list_item(xmlnode_get_tags(x, "state:no-rosterfetch", si->std_namespace_prefixes), 0) == 0) {
+	roster = 1;
+    }
+
+    /* check if we got all we need */
+    if (presence == NULL || started == 0 || c2s_routing == NULL || route == NULL || sid == NULL) {
+	log_warn(si->i->id, "incomplete data while deserializing session '%s/%s' (%x, %i, %x, %x, %x)", jid_full(user_jid), resource, presence, started, c2s_routing, route, sid);
+	return;
+    }
+
+    /* get user */
+    u = js_user(si, user_jid, NULL);
+    if (u == NULL) {
+	log_warn(si->i->id, "cannot deserialize session for user '%s'. User does not exist (anymore?)", jid_full(user_jid));
+	return;
+    }
+
+    /* create session */
+    p = pool_heap(2*1024);
+    s = pmalloco(p, sizeof(struct session_struct));
+    s->p = p;
+    s->si = si;
+    s->id = jid_new(p, jid_full(user_jid));
+    jid_set(s->id, resource, JID_RESOURCE);
+    s->res = s->id->resource;
+    s->u = u;
+    s->exit_flag = 0;
+    s->roster = roster;
+    s->priority = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(presence, "priority", si->std_namespace_prefixes), 0)), 0);
+    s->presence = xmlnode_dup(presence);
+    s->q = mtq_new(p);
+    if (sc_sm != NULL) {
+	s->sc_sm = pstrdup(p, sc_sm);
+    }
+    if (sc_c2s != NULL) {
+	s->sc_c2s = pstrdup(p, sc_c2s);
+    }
+    s->route = jid_new(p, route);
+    s->sid = jid_new(p, sid);
+
+    /* remove any other session w/ this resource */
+    for (cur = u->sessions; cur != NULL; cur = cur->next)
+        if (j_strcmp(resource, cur->res) == 0)
+            js_session_end(cur, "Replaced by new connection");
+
+    /* getting linked with the user */
+    s->next = s->u->sessions;
+    s->u->sessions = s;
+
+    /* for sc protocol: get inserted in the hash */
+    xhash_put(s->si->sc_sessions, s->sc_sm, u);
+
+    /* notify modules */
+    js_mapi_call2(si, e_DESERIALIZE, NULL, u, s, x);
+
+    log_debug2(ZONE, LOGT_EXECFLOW, "user '%s/%s' deserialized ...", jid_full(user_jid), resource);
+}
+
+/**
+ * deserialize session manager data from an XML fragment
+ *
+ * @param si the session manager, that receives the deserialized data
+ * @param host the host to deserialize
+ * @param x the XML fragment, that should be deserialized
+ */
+static void _jsm_deserialize_xml(jsmi si, const char *host, xmlnode x) {
+    xmlnode_list_item user_fragment = NULL;
+    xmlnode_list_item session_fragment = NULL;
+    jid user = NULL;
+
+    /* sanity check */
+    if (si == NULL || host == NULL || x == NULL)
+	return;
+
+    /* initialize the JID */
+    user = jid_new(xmlnode_pool(x), host);
+
+    /* iterate on the users */
+    for (user_fragment = xmlnode_get_tags(x, "state:user", si->std_namespace_prefixes); user_fragment != NULL; user_fragment = user_fragment->next) {
+	jid_set(user, xmlnode_get_attrib_ns(user_fragment->node, "name", NULL), JID_USER);
+
+	for (session_fragment = xmlnode_get_tags(user_fragment->node, "state:session", si->std_namespace_prefixes); session_fragment != NULL; session_fragment = session_fragment->next) {
+	    _jsm_deserialize_session(si, user, xmlnode_get_attrib_ns(session_fragment->node, "resource", NULL), session_fragment->node);
+	}
+    }
+}
+
+/**
+ * deserialize session manager data
+ *
+ * @param si the session manager, that receives the deserialized data
+ * @param host the host to deserialize
+ */
+void jsm_deserialize(jsmi si, const char *host) {
+    xmlnode file = NULL;
+    xmlnode_list_item jsm_host = NULL;
+    pool p = NULL;
+
+    /* sanity check */
+    if (si == NULL || si->statefile == NULL || host == NULL)
+	return;
+
+    /* load state file */
+    file = xmlnode_file(si->statefile);
+    if (file == NULL) {
+	log_notice(si->i->id, "there is been no state file, not deserializing previous jsm state for '%s'", host);
+	return;
+    }
+
+    /* get the right XML tree fragment */
+    p = xmlnode_pool(file);
+    jsm_host = xmlnode_get_tags(file, spools(p, "state:jsm[@host='", host, "']", p), si->std_namespace_prefixes);
+
+    if (jsm_host == NULL) {
+	log_notice(si->i->id, "There is no state for '%s' in %s: not deserializing previous jsm state", host, si->statefile);
+	xmlnode_free(file);
+	return;
+    }
+
+    /* deserialize the data for this host */
+    while (jsm_host != NULL) {
+	_jsm_deserialize_xml(si, host, jsm_host->node);
+	jsm_host = jsm_host->next;
+    }
+
+    xmlnode_free(file);
 }

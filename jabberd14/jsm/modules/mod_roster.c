@@ -707,6 +707,7 @@ void mod_roster(jsmi si)
 {
     /* we just register for new sessions */
     js_mapi_register(si,e_SESSION,mod_roster_session,NULL);
+    js_mapi_register(si,e_DESERIALIZE, mod_roster_session, NULL);
     js_mapi_register(si,e_DELIVER,mod_roster_s10n,NULL);
     js_mapi_register(si, e_DELETE, mod_roster_delete, NULL);
 }

@@ -144,10 +144,31 @@ static result _jsm_serialize_beatwrapper(void *arg) {
  * @param arg our jsmi
  */
 static void _jsm_routing_update(instance i, const char *destination, int is_register, void *arg) {
+    jsmi si = (jsmi)arg;
+    xht ht = NULL;
+
+    /* sanity check */
+    if (i == NULL || si == NULL || destination == NULL)
+	return;
+
+    /* log it ... */
     if (is_register) {
 	log_notice(i->id, "session manager instance '%s' is now responsible for domain '%s'", i->id, destination);
     } else {
 	log_notice(i->id, "session manager instance '%s' is not responsible for domain '%s' anymore", i->id, destination);
+    }
+
+    /* load stored state */
+    if (is_register && si->statefile != NULL) {
+
+	/* make sure this hostname is in the master table */
+	if ((ht = (xht)xhash_get(si->hosts, destination)) == NULL) {
+	    ht = xhash_new(j_atoi(xmlnode_get_data(js_config(si, "jsm:maxusers")), USERS_PRIME));
+	    log_debug2(ZONE, LOGT_DELIVER, "creating user hash %X for %s", ht, destination);
+	    xhash_put(si->hosts, pstrdup(si->p, destination), (void *)ht);
+	}
+
+	jsm_deserialize(si, destination);
     }
 }
 
@@ -181,6 +202,7 @@ void jsm(instance i, xmlnode x) {
     xhash_put(si->std_namespace_prefixes, "expire", NS_EXPIRE);
     xhash_put(si->std_namespace_prefixes, "register", NS_REGISTER);
     xhash_put(si->std_namespace_prefixes, "vcard", NS_VCARD);
+    xhash_put(si->std_namespace_prefixes, "state", NS_JABBERD_STOREDSTATE);
     si->xc = xdb_cache(i); /* getting xdb_* handle and fetching config */
     si->config = xdb_get(si->xc, jid_new(xmlnode_pool(x), "config@-internal"), NS_JABBERD_CONFIG_JSM);
     si->hosts = xhash_new(j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(si->config, "jsm:maxhosts", si->std_namespace_prefixes), 0)), HOSTS_PRIME));
