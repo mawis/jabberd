@@ -136,6 +136,22 @@ static result _jsm_serialize_beatwrapper(void *arg) {
 }
 
 /**
+ * callback, that gets called by the XML router, when a new host is routed to this instance, or a host is not routed anymore to this instance
+ *
+ * @param i our instance
+ * @param destination the host that has been registered/unregistered from routing to this instance
+ * @param is_register 0 = unregistered routing, 1 = registered routing
+ * @param arg our jsmi
+ */
+static void _jsm_routing_update(instance i, const char *destination, int is_register, void *arg) {
+    if (is_register) {
+	log_notice(i->id, "session manager instance '%s' is now responsible for domain '%s'", i->id, destination);
+    } else {
+	log_notice(i->id, "session manager instance '%s' is not responsible for domain '%s' anymore", i->id, destination);
+    }
+}
+
+/**
  * startup the jsm module, register the jsm modules in jsm
  *
  * @param i the instance we are in jabberd
@@ -253,6 +269,9 @@ void jsm(instance i, xmlnode x) {
      * care for it later
     pool_cleanup(i->p, jsm_shutdown, (void*)si);
      */
+
+    /* register js_routing_update() as a handler for routing updates */
+    register_routing_update_callback(i, _jsm_routing_update, (void *)si);
 
     /* register js_packet() as the handler for packets to this instance */
     register_phandler(i, o_DELIVER, js_packet, (void *)si);
