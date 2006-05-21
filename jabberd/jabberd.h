@@ -160,6 +160,16 @@ typedef struct handel_struct
     struct handel_struct *next;
 } *handel, _handel;
 
+/** Callback function that gets notified of registering/unregistering hosts for an instance */
+typedef void (*register_notify)(instance i, const char *destination, int is_register, void *arg);
+
+/** List of functions, that get notified of registering/unregistering hosts */
+typedef struct register_notifier_struct {
+    register_notify callback;	/**< function that gets called */
+    void *arg;			/**< argument that gets passed to the function */
+    struct register_notifier_struct *next;	/**< pointer to further functions, that want to get the notify */
+} *register_notifier, _register_notifier;
+
 /** Wrapper around top-level config file sections (xdb, log, service) */
 struct instance_struct
 {
@@ -168,6 +178,7 @@ struct instance_struct
     xmlnode x;  /**< the instance's configuration */
     ptype type; /**< the type of the instance (xdb/log/service) */
     handel hds; /**< delivery handler */
+    register_notifier routing_update_callbacks; /**< list of callback functions, that should be called on a routing update */
 };
 
 /** Config file handler function callback definition */
@@ -180,6 +191,7 @@ typedef result (*beathandler)(void *arg);
 void register_config(pool p, char *node, cfhandler f, void *arg); /* register a function to handle that node in the config file */
 void register_instance(instance i, char *host); /* associate an id with a hostname for that packet type */
 void unregister_instance(instance i, char *host); /* disassociate an id with a hostname for that packet type */
+void register_routing_update_callback(instance i, register_notify f, void *arg); /**< register a function that gets called on registering/unregistering a host for an instance */
 void register_phandler(instance id, order o, phandler f, void *arg); /* register a function to handle delivery for this instance */
 void register_beat(int freq, beathandler f, void *arg); /* register the function to be called from the heartbeat, freq is how often, <= 0 is ignored */
 typedef void(*shutdown_func)(void*arg);
