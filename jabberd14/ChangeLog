@@ -1,6 +1,9 @@
 2006-05-21  Matthias Wimmer  <m@tthias.eu>
 
     * jsm/sessions.c: generate more random session IDs
+    * jabberd/jabberd.h: notify the instance of their hosts
+    * jabberd/deliver.c: same
+    * jsm/jsm.c: same
 
 2006-05-20  Matthias Wimmer  <m@tthias.eu>
 

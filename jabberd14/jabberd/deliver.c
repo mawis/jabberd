@@ -359,6 +359,7 @@ void register_instance(instance i, char *host) {
     ilist l;
     xht ht = NULL;
     xht namespaces = NULL;
+    register_notifier notify_callback = NULL;
 
     log_debug2(ZONE, LOGT_REGISTER, "Registering %s with instance %s", host, i->id);
 
@@ -377,6 +378,11 @@ void register_instance(instance i, char *host) {
     }
     xhash_free(namespaces);
 
+    /* inform the instance about the newly routed domain */
+    for (notify_callback = i->routing_update_callbacks; notify_callback != NULL; notify_callback = notify_callback->next) {
+	(notify_callback->callback)(i, host, 1, notify_callback->arg);
+    }
+
     ht = deliver_hashtable(i->type);
     l = xhash_get(ht, host);
     l = ilist_add(l, i);
@@ -392,6 +398,7 @@ void register_instance(instance i, char *host) {
 void unregister_instance(instance i, char *host) {
     ilist l;
     xht ht;
+    register_notifier notify_callback = NULL;
 
     log_debug2(ZONE, LOGT_REGISTER, "Unregistering %s with instance %s",host,i->id);
 
@@ -402,6 +409,12 @@ void unregister_instance(instance i, char *host) {
         xhash_zap(ht, host);
     else
         xhash_put(ht, pstrdup(i->p,host), (void *)l);
+
+    /* inform the instance about the domain, that is not routed anymore */
+    for (notify_callback = i->routing_update_callbacks; notify_callback != NULL; notify_callback = notify_callback->next) {
+	(notify_callback->callback)(i, host, 0, notify_callback->arg);
+    }
+
 }
 
 /**
@@ -525,6 +538,39 @@ static result deliver_config_uplink(instance i, xmlnode x, void *arg) {
 }
 
 /**
+ * after deliver__flag switched to 1, we have to notify the instances about hosts already routed
+ *
+ * this is used as a xhash_walker that walks the routing hashes
+ *
+ * @param h unused
+ * @param key the host that is routed
+ * @param value ilist for this host
+ * @param arg unused
+ */
+static void _deliver_notify_walker(xht h, const char *key, void *value, void *arg) {
+    ilist instance_list = (ilist)value;
+
+    /* sanity check */
+    if (key == NULL)
+	return;
+
+    while (instance_list != NULL) {
+	register_notifier iter = NULL;
+
+	/* sanity check */
+	if (instance_list->i == NULL)
+	    continue;
+
+	/* fire all callbacks */
+	for (iter = instance_list->i->routing_update_callbacks; iter != NULL; iter = iter->next) {
+	    (iter->callback)(instance_list->i, key, 1, iter->arg);
+	}
+
+	instance_list = instance_list->next;
+    }
+}
+
+/**
  * deliver a ::dpacket to an ::instance using the configured XML routings
  *
  * @param p the packet that should be delivered
@@ -534,6 +580,11 @@ void deliver(dpacket p, instance i) {
     ilist a, b;
 
     if(deliver__flag == 1 && p == NULL && i == NULL) {
+	/* send notifies for already configured routings */
+	xhash_walk(deliver_hashtable(p_LOG), _deliver_notify_walker, NULL);
+	xhash_walk(deliver_hashtable(p_XDB), _deliver_notify_walker, NULL);
+	xhash_walk(deliver_hashtable(p_NORM), _deliver_notify_walker, NULL);
+
 	/* begin delivery of postponed messages */
         deliver_msg d;
         while ((d=(deliver_msg)pth_msgport_get(deliver__mp))!=NULL) {
@@ -929,4 +980,33 @@ dpacket dpacket_copy(dpacket p) {
 
     p2 = dpacket_new(xmlnode_dup(p->x));
     return p2;
+}
+
+/**
+ * register a function that gets called on registering/unregistering a host for an instance
+ */
+void register_routing_update_callback(instance i, register_notify f, void *arg) {
+    register_notifier last = NULL;
+    register_notifier new = NULL;
+
+    log_debug2(ZONE, LOGT_EXECFLOW, "register_routing_update_callback(%x, %x, %x)", i, f, arg);
+
+    /* sanity check */
+    if (i==NULL || f == NULL)
+	return;
+
+    /* search end of list of already registered callback */
+    for (last = i->routing_update_callbacks; last != NULL && last->next != NULL; last = last->next)
+	; /* nothing */
+
+    /* create new list element */
+    new = pmalloco(i->p, sizeof(_register_notifier));
+    new->callback = f;
+    new->arg = arg;
+
+    /* append to list */
+    if (last == NULL)
+	i->routing_update_callbacks = new;
+    else
+	last->next = new;
 }
