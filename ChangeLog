@@ -1,3 +1,7 @@
+2006-05-21  Matthias Wimmer  <m@tthias.eu>
+
+    * jsm/sessions.c: generate more random session IDs
+
 2006-05-20  Matthias Wimmer  <m@tthias.eu>
 
     * jabberd/lib/jabberdlib.h: better memory performance for xhash

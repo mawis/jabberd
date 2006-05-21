@@ -98,6 +98,41 @@ void js_session_route(session s, xmlnode in) {
 }
 
 /**
+ * generate a ID a session can be identified with
+ *
+ * @param resultbuffer where to store the generated ID
+ * @param existing_sessions hash containing the existing sessions (to check if the ID is not already used, may be NULL)
+ */
+static void _js_create_session_id(char resultbuffer[9], xht existing_sessions) {
+    static int seeded = 0;
+    static struct drand48_data rand_state;
+    long int rand_value;
+    int tries = 256;
+
+    /* seed the random number generator on the first call */
+    if (!seeded) {
+	struct timeval now;
+	unsigned short int seed_data[3];
+
+	gettimeofday(&now, NULL);
+	seed_data[0] = now.tv_sec%0x10000;
+	seed_data[1] = now.tv_sec/0x10000;
+	seed_data[2] = now.tv_usec%0x10000;
+	seed48_r(seed_data, &rand_state);
+	seeded = 1;
+    }
+
+    /* create an ID, that is not already used */
+    while (tries--) {
+	lrand48_r(&rand_state, &rand_value);
+	snprintf(resultbuffer, 9, "%lx", rand_value);
+
+	if (existing_sessions == NULL || xhash_get(existing_sessions, resultbuffer) == NULL)
+	    return;
+    }
+}
+
+/**
  * create a new session, register the resource for it (initiated by the old c2s-sm-protocol)
  *
  * Sets up all the data associated with a new session, then
@@ -112,7 +147,7 @@ session js_session_new(jsmi si, dpacket dp) {
     session s, cur;      /* the session being created */
     int i;
     udata u;
-    char routeres[10];
+    char session_id[9];
 
     /* screen out illegal calls */
     if(dp == NULL || dp->id->user == NULL || dp->id->resource == NULL || xmlnode_get_attrib_ns(dp->x, "from", NULL) == NULL || (u = js_user(si, dp->id, NULL)) == NULL)
@@ -132,8 +167,8 @@ session js_session_new(jsmi si, dpacket dp) {
     /* session identity */
     s->id = jid_new(p, jid_full(dp->id));
     s->route = jid_new(p, jid_full(dp->id));
-    snprintf(routeres, sizeof(routeres), "%X", s);
-    jid_set(s->route, routeres, JID_RESOURCE);
+    _js_create_session_id(session_id, NULL);
+    jid_set(s->route, session_id, JID_RESOURCE);
     s->res = pstrdup(p, dp->id->resource);
     s->u = u;
 
@@ -182,7 +217,7 @@ session js_sc_session_new(jsmi si, dpacket dp, xmlnode sc_session) {
     udata u = NULL;
     jid user_id = NULL;
     pool p = NULL;
-    char sm_id[10];
+    char sm_id[9];
     session s = NULL;      /* the session being created */
     session cur = NULL;	   /* for iteration */
     int i = 0;
@@ -233,7 +268,7 @@ session js_sc_session_new(jsmi si, dpacket dp, xmlnode sc_session) {
     s->c_in = s->c_out = 0;
     s->q = mtq_new(s->p);
     s->sc_c2s = pstrdup(p, c2s_id);
-    snprintf(sm_id, sizeof(sm_id), "%X", s);
+    _js_create_session_id(sm_id, s->si->sc_sessions);
     s->sc_sm = pstrdup(p, sm_id);
     for(i = 0; i < es_LAST; i++)
         s->events[i] = NULL;
