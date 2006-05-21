@@ -664,5 +664,6 @@ void mod_presence(jsmi si) {
 
     js_mapi_register(si,e_DELIVER, mod_presence_deliver, NULL);
     js_mapi_register(si,e_SESSION, mod_presence_session, (void*)conf);
+    js_mapi_register(si,e_DESERIALIZE, mod_presence_session, (void*)conf);
     js_mapi_register(si, e_DELETE, mod_presence_delete, NULL);
 }

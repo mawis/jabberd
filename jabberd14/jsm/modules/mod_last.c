@@ -246,6 +246,7 @@ void mod_last(jsmi si) {
     if (js_config(si,"register:register") != NULL)
 	js_mapi_register(si, e_REGISTER, mod_last_init, NULL);
     js_mapi_register(si, e_SESSION, mod_last_sess, NULL);
+    js_mapi_register(si, e_DESERIALIZE, mod_last_sess, NULL);
     js_mapi_register(si, e_OFFLINE, mod_last_reply, NULL);
 
     /* set up the server responce, giving the startup time :) */

@@ -559,7 +559,7 @@ jid jid_new(pool p, const char *idstr)
     return jid_safe(id);
 }
 
-void jid_set(jid id, char *str, int item)
+void jid_set(jid id, const char *str, int item)
 {
     char *old;
 
