@@ -307,6 +307,7 @@ mreturn mod_browse_delete(mapi m, void *arg) {
  */
 void mod_browse(jsmi si) {
     js_mapi_register(si, e_SESSION, mod_browse_session, NULL);
+    js_mapi_register(si, e_DESERIALIZE, mod_browse_session, NULL);
     js_mapi_register(si, e_OFFLINE, mod_browse_reply, NULL);
     js_mapi_register(si, e_SERVER, mod_browse_server, NULL);
     js_mapi_register(si, e_DELETE, mod_browse_delete, NULL);

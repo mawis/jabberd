@@ -293,8 +293,21 @@ typedef int event;
  */
 #define e_DELETE   8
 
+/**
+ * e_DESERIALIZE is the mapi event, that is fired if the session manager wants
+ * the module to deserialize its data about a session
+ *
+ * The handler gets passed the ::udata_struct of the session owning user, the
+ * ::session_struct for the session, that is deserialized. No
+ * stanza is passed in ::jpacket_struct.
+ *
+ * As all es_ events, the e_DESERIALIZE event has to be registered for a session using
+ * the js_mapi_session() call.
+ */
+#define e_DESERIALIZE 9
+
 /* always add new event types here, to maintain backwards binary compatibility */
-#define e_LAST     9  /**< flag for the highest event type*/
+#define e_LAST     10  /**< flag for the highest event type*/
 
 /* session event types */
 
@@ -351,20 +364,9 @@ typedef int event;
  */
 #define es_SERIALIZE 3
 
-/**
- * es_DESERIALIZE is the mapi event, that is fired if the session manager wants
- * the module to deserialize its data about a session
- *
- * The handler gets passed the ::udata_struct of the session owning user, the
- * ::session_struct for the session, that is deserialized. No
- * stanza is passed in ::jpacket_struct.
- *
- * As all es_ events, the es_DESERIALIZE event has to be registered for a session using
- * the js_mapi_session() call.
- */
-#define es_DESERIALIZE 4
+
 /* always add new event types here, to maintain backwards binary compatibility */
-#define es_LAST    5  /**< flag for the highest session event type */
+#define es_LAST    4  /**< flag for the highest session event type */
 
 /* admin user account flags */
 #define ADMIN_UNKNOWN   0x00	/**< it has not yet checked if the user is an admin */
@@ -537,6 +539,7 @@ int js_online(mapi m); /* logic to tell if this is a go-online call */
 void jsm_shutdown(void *arg);
 
 void jsm_serialize(jsmi si);
+void jsm_deserialize(jsmi si, const char *host);
 
 #ifdef __cplusplus
 }

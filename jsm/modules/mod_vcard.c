@@ -275,6 +275,7 @@ mreturn mod_vcard_delete(mapi m, void *arg) {
  */
 void mod_vcard(jsmi si) {
     js_mapi_register(si,e_SESSION,mod_vcard_session,NULL);
+    js_mapi_register(si,e_DESERIALIZE, mod_vcard_session, NULL);
     js_mapi_register(si,e_OFFLINE,mod_vcard_reply,NULL);
     js_mapi_register(si,e_SERVER,mod_vcard_server,NULL);
     js_mapi_register(si, e_DELETE, mod_vcard_delete, NULL);
