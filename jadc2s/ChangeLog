@@ -1,3 +1,7 @@
+2006-05-21  Matthias Wimmer  <m@tthias.eu>
+
+    * util/xhash.c: fixing xhash handling (key did match key123)
+
 2006-05-20  Matthias Wimmer  <m@tthias.eu>
 
     * util/util.h: better memory performance for xhash
