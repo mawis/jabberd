@@ -1,7 +1,7 @@
 AC_PREREQ(2.50)
 
 AC_INIT(util/util.h)
-AM_INIT_AUTOMAKE(jadc2s,0.9.2-alpha-2006-05-20)
+AM_INIT_AUTOMAKE(jadc2s,0.9.2-alpha-2006-05-21)
 AM_CONFIG_HEADER(config.h)
 
 dnl helper macros

@@ -87,12 +87,12 @@ xhn _xhash_node_new(xht h, int index)
 }
 
 
-xhn _xhash_node_get(xht h, const char *key, int len, int index)
+xhn _xhash_node_get(xht h, const char *key, int index)
 {
     xhn n;
     int i = index % h->prime;
     for(n = h->zen[i]; n != NULL; n = n->next)
-        if(n->key != NULL && strncmp(key, n->key, len) == 0)
+        if(n->key != NULL && strcmp(key, n->key) == 0)
             return n;
     return NULL;
 }
@@ -163,7 +163,7 @@ void xhash_put(xht h, const char *key, void *val)
     h->dirty++;
 
     /* if existing key, replace it */
-    if((n = _xhash_node_get(h, key, klen, index)) != NULL)
+    if((n = _xhash_node_get(h, key, index)) != NULL)
     {
 /*        log_debug(ZONE,"replacing %s with new val %X",key,val); */
 
@@ -185,7 +185,7 @@ void *xhash_getx(xht h, const char *key, int len)
 {
     xhn n;
 
-    if(h == NULL || key == NULL || len <= 0 || (n = _xhash_node_get(h, key, len, _xhasher(key,len))) == NULL)
+    if(h == NULL || key == NULL || len <= 0 || (n = _xhash_node_get(h, key, _xhasher(key,len))) == NULL)
     {
 /*        log_debug(ZONE,"failed lookup of %s",key); */
         return NULL;
