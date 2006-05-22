@@ -197,7 +197,7 @@ static void _jsm_deserialize_session(jsmi si, const jid user_jid, const char *re
     }
 
     /* check if we got all we need */
-    if (presence == NULL || started == 0 || c2s_routing == NULL || route == NULL || sid == NULL) {
+    if (presence == NULL || c2s_routing == NULL || route == NULL || sid == NULL) {
 	log_warn(si->i->id, "incomplete data while deserializing session '%s/%s' (%x, %i, %x, %x, %x)", jid_full(user_jid), resource, presence, started, c2s_routing, route, sid);
 	return;
     }
@@ -220,6 +220,7 @@ static void _jsm_deserialize_session(jsmi si, const jid user_jid, const char *re
     s->u = u;
     s->exit_flag = 0;
     s->roster = roster;
+    s->started = started;
     s->priority = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(presence, "priority", si->std_namespace_prefixes), 0)), 0);
     s->presence = xmlnode_dup(presence);
     s->q = mtq_new(p);
