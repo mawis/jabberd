@@ -1,3 +1,7 @@
+2006-05-22  Matthias Wimmer  <m@tthias.eu>
+
+    * jsm/serialization.c: correctly restoring session start time
+
 2006-05-21  Matthias Wimmer  <m@tthias.eu>
 
     * jsm/sessions.c: generate more random session IDs
