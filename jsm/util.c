@@ -218,6 +218,41 @@ jid js_trustees(udata u) {
 
 
 /**
+ * remove a user from the list of trustees
+ *
+ * @param u from which user's trustees list the user 'id' should be removed
+ * @param id which user should be removed
+ */
+void js_remove_trustee(udata u, jid id) {
+    jid iter = NULL;
+    jid previous = NULL;
+
+    /* sanity check */
+    if (u == NULL || id == NULL)
+	return;
+
+    /* no list of trustees yet. Nothing to do. The list will be created when necessary */
+    if (u->utrust == NULL)
+	return;
+
+    /* scan list and remove */
+    for (iter = u->utrust; iter != NULL; iter = iter->next) {
+	if (jid_cmpx(iter, id, JID_USER|JID_SERVER) == 0) {
+	    /* match ... remove this one */
+
+	    /* first entry in list? */
+	    if (previous == NULL) {
+		u->utrust = u->utrust->next;
+	    } else {
+		previous->next = iter->next;
+
+	    }
+	}
+	previous = iter;
+    }
+}
+
+/**
  * this tries to be a smarter jid matcher, where a "host" matches any "user@host" and "user@host" matches "user@host/resource"
  *
  * @param id the jid that should be checked
