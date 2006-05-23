@@ -241,10 +241,22 @@ mreturn mod_presence_in(mapi m, void *arg) {
     /* if a presence packet bounced, remove from the A list */
     if (jpacket_subtype(m->packet) == JPACKET__ERROR)
         mp->A = _mod_presence_whack(m->packet->from, mp->A);
-
     /* doh! this is a user, they should see invisibles as unavailables */
-    if (jpacket_subtype(m->packet) == JPACKET__INVISIBLE)
+    else if (jpacket_subtype(m->packet) == JPACKET__INVISIBLE)
         xmlnode_put_attrib_ns(m->packet->x, "type", NULL, NULL, "unavailable");
+    else if (jpacket_subtype(m->packet) != JPACKET__UNAVAILABLE && !js_seen(m->user, m->packet->from)) {
+	/* roster syncronization: send unsubscribe if we get a presence we are not interested in */
+	xmlnode presence_unsubscribe = NULL;
+	jpacket jp = NULL;
+
+	log_debug2(ZONE, LOGT_DELIVER, "'%s' sent a presence to '%s' the user is not interested in", jid_full(m->packet->from), jid_full(m->packet->to));
+
+	presence_unsubscribe = jutil_presnew(JPACKET__UNSUBSCRIBE, jid_full(jid_user(m->packet->from)), NULL);
+	xmlnode_put_attrib_ns(presence_unsubscribe, "from", NULL, NULL, jid_full(m->packet->to));
+	jp = jpacket_new(presence_unsubscribe);
+	jp->flag = PACKET_FORCE_SENT_MAGIC;
+	js_deliver(m->si, jp);
+    }
 
     return M_PASS;
 }
