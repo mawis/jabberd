@@ -441,6 +441,7 @@ struct udata_struct
     char *pass;  */              /**< the user's password */
     jid id;                    /**< the user's JID */
     jid utrust;                /**< list of JIDs the user trusts to send presence to (s10n==both or from). Do not access directly, use js_trustees() instead. */
+    jid useen;		/**< list of JIDs a user wants to accept presences from (s10n==both or to). Do not access directly, use js_seen_users() instead. */
     jsmi si;                   /**< the session manager instance the user is associated with */
     session sessions;          /**< the user's session */
     /* this variable is only incremented and decremented, but never used => removed
@@ -534,7 +535,10 @@ result js_packet(instance i, dpacket p, void *arg);
 int js_islocal(jsmi si, jid id);
 int js_trust(udata u, jid id); /* checks if id is trusted by user u */
 jid js_trustees(udata u); /* returns list of trusted jids */
+jid js_seen_jids(udata u); /* returns list of trusted jids */
 void js_remove_trustee(udata u, jid id); /* removes a user from the list of trustees */
+int js_seen(udata u, jid id); /* checks if a ID is seen by user u */
+void js_remove_seen(udata u, jid id); /* removes a user from the list of seen JIDs */
 int js_online(mapi m); /* logic to tell if this is a go-online call */
 
 void jsm_shutdown(void *arg);
