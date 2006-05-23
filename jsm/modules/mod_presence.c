@@ -201,13 +201,13 @@ mreturn mod_presence_in(mapi m, void *arg) {
     if (jpacket_subtype(m->packet) == JPACKET__PROBE) {
 	/* reply with our presence */
 	if (!js_trust(m->user, m->packet->from)) {
+	    /* not authorized */
 	    jpacket jp = NULL;
 	    xmlnode presence_unsubscribed = NULL;
 
-	    /* not authorized */
             log_debug2(ZONE, LOGT_DELIVER, "%s attempted to probe by someone not qualified",jid_full(m->packet->from));
 
-	    presence_unsubscribed = jutil_presnew(JPACKET__UNSUBSCRIBED, jid_full(m->packet->from), NULL);
+	    presence_unsubscribed = jutil_presnew(JPACKET__UNSUBSCRIBED, jid_full(jid_user(m->packet->from)), NULL);
 	    xmlnode_put_attrib_ns(presence_unsubscribed, "from", NULL, NULL, jid_full(m->packet->to));
 	    jp = jpacket_new(presence_unsubscribed);
 	    jp->flag = PACKET_FORCE_SENT_MAGIC;
