@@ -125,7 +125,7 @@ void js_deliver_local(jsmi si, jpacket p, xht ht) {
     if (p->type == JPACKET_PRESENCE && jpacket_subtype(p)==JPACKET__PROBE) {
 	jpacket jp = NULL;
 	xmlnode presence_unsubscribed = jutil_presnew(JPACKET__UNSUBSCRIBED, jid_full(p->from), NULL);
-	xmlnode_put_attrib_ns(presence_unsubscribed, "from", NULL, NULL, jid_full(p->to));
+	xmlnode_put_attrib_ns(presence_unsubscribed, "from", NULL, NULL, jid_full(jid_user(p->to)));
 	jp = jpacket_new(presence_unsubscribed);
 	jp->flag = PACKET_FORCE_SENT_MAGIC;
 	js_deliver(si, jp);
@@ -135,7 +135,7 @@ void js_deliver_local(jsmi si, jpacket p, xht ht) {
 	/* presence to an unexistant user ... send unsubscribe */
 	jpacket jp = NULL;
 	xmlnode presence_unsubscribe = jutil_presnew(JPACKET__UNSUBSCRIBE, jid_full(p->from), NULL);
-	xmlnode_put_attrib_ns(presence_unsubscribe, "from", NULL, NULL, jid_full(p->to));
+	xmlnode_put_attrib_ns(presence_unsubscribe, "from", NULL, NULL, jid_full(jid_user(p->to)));
 	jp = jpacket_new(presence_unsubscribe);
 	jp->flag = PACKET_FORCE_SENT_MAGIC;
 	js_deliver(si, jp);
