@@ -557,6 +557,7 @@ mreturn mod_roster_s10n(mapi m, void *arg) {
 		xmlnode_hide_attrib_ns(item, "ask", NULL);
 		mod_roster_set_s10n(from, 1, item);
 		push = 1;
+		jid_append(js_seen_jids(m->user), m->packet->from); /* make them seen now */
 	    }
 	    break;
 	case JPACKET__UNSUBSCRIBE:
