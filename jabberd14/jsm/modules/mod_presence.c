@@ -241,9 +241,6 @@ mreturn mod_presence_in(mapi m, void *arg) {
     /* if a presence packet bounced, remove from the A list */
     if (jpacket_subtype(m->packet) == JPACKET__ERROR)
         mp->A = _mod_presence_whack(m->packet->from, mp->A);
-    /* doh! this is a user, they should see invisibles as unavailables */
-    else if (jpacket_subtype(m->packet) == JPACKET__INVISIBLE)
-        xmlnode_put_attrib_ns(m->packet->x, "type", NULL, NULL, "unavailable");
     else if (jpacket_subtype(m->packet) != JPACKET__UNAVAILABLE && !js_seen(m->user, m->packet->from)) {
 	/* roster syncronization: send unsubscribe if we get a presence we are not interested in */
 	xmlnode presence_unsubscribe = NULL;
@@ -257,6 +254,10 @@ mreturn mod_presence_in(mapi m, void *arg) {
 	jp->flag = PACKET_FORCE_SENT_MAGIC;
 	js_deliver(m->si, jp);
     }
+
+    /* doh! this is a user, they should see invisibles as unavailables */
+    if (jpacket_subtype(m->packet) == JPACKET__INVISIBLE)
+        xmlnode_put_attrib_ns(m->packet->x, "type", NULL, NULL, "unavailable");
 
     return M_PASS;
 }
