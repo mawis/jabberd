@@ -121,6 +121,28 @@ void js_deliver_local(jsmi si, jpacket p, xht ht) {
 	user->ref--;
     }
 
+    /* presence probe for a non-existant user? send unsubscribed */
+    if (p->type == JPACKET_PRESENCE && jpacket_subtype(p)==JPACKET__PROBE) {
+	jpacket jp = NULL;
+	xmlnode presence_unsubscribed = jutil_presnew(JPACKET__UNSUBSCRIBED, jid_full(p->from), NULL);
+	xmlnode_put_attrib_ns(presence_unsubscribed, "from", NULL, NULL, jid_full(p->to));
+	jp = jpacket_new(presence_unsubscribed);
+	jp->flag = PACKET_FORCE_SENT_MAGIC;
+	js_deliver(si, jp);
+
+	log_notice(si->i->id, "got presence probe from '%s' for non-existant user '%s' => sent unsubscribed", jid_full(p->from), jid_full(p->to));
+    } else if (p->type == JPACKET_PRESENCE && jpacket_subtype(p) != JPACKET__ERROR) {
+	/* presence to an unexistant user ... send unsubscribe */
+	jpacket jp = NULL;
+	xmlnode presence_unsubscribe = jutil_presnew(JPACKET__UNSUBSCRIBE, jid_full(p->from), NULL);
+	xmlnode_put_attrib_ns(presence_unsubscribe, "from", NULL, NULL, jid_full(p->to));
+	jp = jpacket_new(presence_unsubscribe);
+	jp->flag = PACKET_FORCE_SENT_MAGIC;
+	js_deliver(si, jp);
+
+	log_notice(si->i->id, "got presence from '%s' for non-existant user '%s' => sent unsubscribe", jid_full(p->from), jid_full(p->to));
+    }
+
     /* no user, so bounce the packet */
     js_bounce_xmpp(si,p->x,XTERROR_NOTFOUND);
 }
