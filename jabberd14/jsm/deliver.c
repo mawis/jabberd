@@ -131,7 +131,7 @@ void js_deliver_local(jsmi si, jpacket p, xht ht) {
 	js_deliver(si, jp);
 
 	log_notice(si->i->id, "got presence probe from '%s' for non-existant user '%s' => sent unsubscribed", jid_full(p->from), jid_full(p->to));
-    } else if (p->type == JPACKET_PRESENCE && jpacket_subtype(p) != JPACKET__ERROR) {
+    } else if (p->type == JPACKET_PRESENCE && jpacket_subtype(p) != JPACKET__ERROR && jpacket_subtype(p) != JPACKET__UNAVAILABLE) {
 	/* presence to an unexistant user ... send unsubscribe */
 	jpacket jp = NULL;
 	xmlnode presence_unsubscribe = jutil_presnew(JPACKET__UNSUBSCRIBE, jid_full(p->from), NULL);
