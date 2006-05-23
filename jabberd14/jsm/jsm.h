@@ -534,6 +534,7 @@ result js_packet(instance i, dpacket p, void *arg);
 int js_islocal(jsmi si, jid id);
 int js_trust(udata u, jid id); /* checks if id is trusted by user u */
 jid js_trustees(udata u); /* returns list of trusted jids */
+void js_remove_trustee(udata u, jid id); /* removes a user from the list of trustees */
 int js_online(mapi m); /* logic to tell if this is a go-online call */
 
 void jsm_shutdown(void *arg);

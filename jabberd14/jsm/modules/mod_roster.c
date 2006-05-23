@@ -271,6 +271,7 @@ mreturn mod_roster_out_s10n(mapi m) {
 		if (p_in) {
 		    xmlnode_hide_attrib_ns(item, "subscribe", NULL); /* reset "Pending In" */
 		}
+		js_remove_trustee(m->user, m->packet->to);
 		if (from) {
 		    mod_roster_set_s10n(0, to, item); /* update subscription */
 		    mod_roster_pforce(m->user, m->packet->to, 1); /* make us offline */
@@ -566,6 +567,7 @@ mreturn mod_roster_s10n(mapi m, void *arg) {
 		xmlnode_put_attrib_ns(reply, "from", NULL, NULL, jid_full(m->packet->to));
 
 		/* update state */
+		js_remove_trustee(m->user, m->packet->from);
 		xmlnode_hide_attrib_ns(item, "subscribe", NULL);
 		mod_roster_set_s10n(0, to, item);
 		if (xmlnode_get_attrib_ns(item, "hidden", NULL) != NULL)
