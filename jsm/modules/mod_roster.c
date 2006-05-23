@@ -251,6 +251,7 @@ mreturn mod_roster_out_s10n(mapi m) {
 		mod_roster_set_s10n(from, 0, item);
 		xmlnode_hide_attrib_ns(item, "ask", NULL); /* reset Pending Out */
 		mod_roster_push(m->user, item);
+		js_remove_seen(m->user, m->packet->to);
 	    } else if (newflag) {
 		/* the contact was not on the roster and should not become a roster item */
 		xmlnode_hide(item);
