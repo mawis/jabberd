@@ -200,7 +200,21 @@ mreturn mod_presence_in(mapi m, void *arg) {
 
     if (jpacket_subtype(m->packet) == JPACKET__PROBE) {
 	/* reply with our presence */
-        if (m->s->presence == NULL) {
+	if (!js_trust(m->user, m->packet->from)) {
+	    jpacket jp = NULL;
+	    xmlnode presence_unsubscribed = NULL;
+
+	    /* not authorized */
+            log_debug2(ZONE, LOGT_DELIVER, "%s attempted to probe by someone not qualified",jid_full(m->packet->from));
+
+	    presence_unsubscribed = jutil_presnew(JPACKET__UNSUBSCRIBED, jid_full(m->packet->from), NULL);
+	    xmlnode_put_attrib_ns(presence_unsubscribed, "from", NULL, NULL, jid_full(m->packet->to));
+	    jp = jpacket_new(presence_unsubscribed);
+	    jp->flag = PACKET_FORCE_SENT_MAGIC;
+	    js_deliver(m->si, jp);
+
+	    /* XXX generate either <forbidden/> or <not-authorized/> error stanza (RFC 3921, 5.1.3) */
+	} else if (m->s->presence == NULL) {
             log_debug2(ZONE, LOGT_DELIVER, "probe from %s and no presence to return",jid_full(m->packet->from));
         } else if (!mp->invisible && js_trust(m->user,m->packet->from) && !_mod_presence_search(m->packet->from,mp->I)) {
 	    /* compliment of I in T */
@@ -213,8 +227,6 @@ mreturn mod_presence_in(mapi m, void *arg) {
             log_debug2(ZONE, LOGT_DELIVER, "got a probe when invisible, responding to %s",jid_full(m->packet->from));
             pres = jutil_presnew(JPACKET__AVAILABLE,jid_full(m->packet->from),NULL);
             js_session_from(m->s, jpacket_new(pres));
-        } else {
-            log_debug2(ZONE, LOGT_DELIVER, "%s attempted to probe by someone not qualified",jid_full(m->packet->from));
         }
         xmlnode_free(m->packet->x);
         return M_HANDLED;
