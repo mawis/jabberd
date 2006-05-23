@@ -186,36 +186,71 @@ int js_admin(udata u, int flag) {
 }
 
 /**
+ * get the list of jids, that are subscribed to a given user, and the jids a given user is subscribed to
+ *
+ * @param u for which user to get the lists
+ */
+static void _js_get_trustlists(udata u) {
+    xmlnode roster = NULL;
+    xmlnode cur = NULL;
+    const char *subscription = NULL;
+
+    log_debug2(ZONE, LOGT_SESSION, "generating trust lists for user %s", jid_full(u->id));
+
+    /* initialize with at least self */
+    u->utrust = jid_user(u->id);
+    u->useen = jid_user(u->id);
+
+    /* fill in rest from roster */
+    roster = xdb_get(u->si->xc, u->id, NS_ROSTER);
+    for (cur = xmlnode_get_firstchild(roster); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
+	subscription = xmlnode_get_attrib_ns(cur, "subscription", NULL);
+
+	if (j_strcmp(subscription, "from") == 0) {
+            jid_append(u->utrust, jid_new(u->p, xmlnode_get_attrib_ns(cur, "jid", NULL)));
+	} else if (j_strcmp(subscription, "both") == 0) {
+            jid_append(u->utrust, jid_new(u->p, xmlnode_get_attrib_ns(cur, "jid", NULL)));
+            jid_append(u->useen, jid_new(u->p, xmlnode_get_attrib_ns(cur, "jid", NULL)));
+	} else if (j_strcmp(subscription, "to") == 0) {
+            jid_append(u->useen, jid_new(u->p, xmlnode_get_attrib_ns(cur, "jid", NULL)));
+	}
+    }
+    xmlnode_free(roster);
+}
+
+/**
  * get the list of jids, that are subscribed to a given user
  *
  * @param u for which user to get the list
  * @return pointer to the first list entry
  */
 jid js_trustees(udata u) {
-    xmlnode roster, cur;
-
     if (u == NULL)
 	return NULL;
 
     if (u->utrust != NULL)
 	return u->utrust;
 
-    log_debug2(ZONE, LOGT_SESSION, "generating trustees list for user %s",jid_full(u->id));
-
-    /* initialize with at least self */
-    u->utrust = jid_user(u->id);
-
-    /* fill in rest from roster */
-    roster = xdb_get(u->si->xc, u->id, NS_ROSTER);
-    for (cur = xmlnode_get_firstchild(roster); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
-        if (j_strcmp(xmlnode_get_attrib_ns(cur, "subscription", NULL),"from") == 0 || j_strcmp(xmlnode_get_attrib_ns(cur, "subscription", NULL), "both") == 0)
-            jid_append(u->utrust, jid_new(u->p, xmlnode_get_attrib_ns(cur, "jid", NULL)));
-    }
-    xmlnode_free(roster);
-
+    _js_get_trustlists(u);
     return u->utrust;
 }
 
+/**
+ * get the list of jids, that are allowed to send presence to a given user
+ *
+ * @param u for which user to get the list
+ * @return pointer to the first list entry
+ */
+jid js_seen_jids(udata u) {
+    if (u == NULL)
+	return NULL;
+
+    if (u->useen != NULL)
+	return u->useen;
+
+    _js_get_trustlists(u);
+    return u->useen;
+}
 
 /**
  * remove a user from the list of trustees
@@ -231,10 +266,6 @@ void js_remove_trustee(udata u, jid id) {
     if (u == NULL || id == NULL)
 	return;
 
-    /* no list of trustees yet. Nothing to do. The list will be created when necessary */
-    if (u->utrust == NULL)
-	return;
-
     /* scan list and remove */
     for (iter = u->utrust; iter != NULL; iter = iter->next) {
 	if (jid_cmpx(iter, id, JID_USER|JID_SERVER) == 0) {
@@ -242,7 +273,38 @@ void js_remove_trustee(udata u, jid id) {
 
 	    /* first entry in list? */
 	    if (previous == NULL) {
-		u->utrust = u->utrust->next;
+		u->utrust = iter->next;
+	    } else {
+		previous->next = iter->next;
+
+	    }
+	}
+	previous = iter;
+    }
+}
+
+/**
+ * remove a user from the list of seen users
+ *
+ * @param u from which user's seen list the user 'id' should be removed
+ * @param id which user should be removed
+ */
+void js_remove_seen(udata u, jid id) {
+    jid iter = NULL;
+    jid previous = NULL;
+
+    /* sanity check */
+    if (u == NULL || id == NULL)
+	return;
+
+    /* scan list and remove */
+    for (iter = u->useen; iter != NULL; iter = iter->next) {
+	if (jid_cmpx(iter, id, JID_USER|JID_SERVER) == 0) {
+	    /* match ... remove this one */
+
+	    /* first entry in list? */
+	    if (previous == NULL) {
+		u->useen = iter->next;
 	    } else {
 		previous->next = iter->next;
 
@@ -293,6 +355,30 @@ int js_trust(udata u, jid id) {
 
     /* then check user trusted ids */
     if (_js_jidscanner(js_trustees(u), id))
+	return 1;
+
+    return 0;
+}
+
+/**
+ * check if a id is seen (allowed to send presence to a user)
+ *
+ * @param u the user for which the check should be made
+ * @param id the jid which should be checked if it is trusted
+ * @return 0 if it is not trusted, 1 if it is trusted
+ */
+int js_seen(udata u, jid id) {
+    if (u == NULL || id == NULL)
+	return 0;
+
+    /* first, check global seen ids */
+    /*
+    if (_js_jidscanner(u->si->gseen, id))
+	return 1;
+    */
+
+    /* then check user seen ids */
+    if (_js_jidscanner(js_seen_jids(u), id))
 	return 1;
 
     return 0;
