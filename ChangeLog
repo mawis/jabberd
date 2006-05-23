@@ -4,6 +4,9 @@
     * jsm/utils.c: do not send presences after unsubscription
     * jsm/jsm.h: same
     * jsm/modules/mod_roster.c: same
+    * jsm/jsm.h: keep a list of JIDs a user is interested in their presence
+    * jsm/util.c: same
+    * jsm/modules/mod_roster.c: same
 
 2006-05-22  Matthias Wimmer  <m@tthias.eu>
 
