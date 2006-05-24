@@ -571,6 +571,37 @@ mreturn mod_presence_avails_end(mapi m, void *arg) {
 }
 
 /**
+ * serializes the modpres data if a user session gets serialized
+ *
+ * @param m the mapi structure
+ * @param arg the modpres structure for the session
+ * @return M_IGNORE if the params in incorrect, else always M_PASS
+ */
+static mreturn mod_presence_serialize(mapi m, void *arg) {
+    modpres sessiondata = (modpres)arg;
+    xmlnode mod_pres_data = NULL;
+    jid iter = NULL;
+
+    /* sanity check */
+    if (sessiondata == NULL || m == NULL)
+	return M_IGNORE;
+
+    /* serialize our data */
+    mod_pres_data = xmlnode_insert_tag_ns(m->serialization_node, "modPresence", NULL, NS_JABBERD_STOREDSTATE);
+    if (sessiondata->invisible) {
+	xmlnode_insert_tag_ns(mod_pres_data, "invisible", NULL, NS_JABBERD_STOREDSTATE);
+    }
+    for (iter = sessiondata->A; iter != NULL; iter = iter->next) {
+	xmlnode_insert_cdata(xmlnode_insert_tag_ns(mod_pres_data, "visibleTo", NULL, NS_JABBERD_STOREDSTATE), jid_full(iter), -1);
+    }
+    for (iter = sessiondata->I; iter != NULL; iter = iter->next) {
+	xmlnode_insert_cdata(xmlnode_insert_tag_ns(mod_pres_data, "knownInvisibleTo", NULL, NS_JABBERD_STOREDSTATE), jid_full(iter), -1);
+    }
+
+    return M_PASS;
+}
+
+/**
  * callback, that gets called if a new session is establisched, registers all session oriented callbacks
  *
  * This callback is responsible for initializing a new instance of the _modpres structure, that holds
@@ -593,6 +624,60 @@ mreturn mod_presence_session(mapi m, void *arg) {
     js_mapi_session(es_OUT, m->s, mod_presence_avails, mp); /* must come first, it passes, _out handles */
     js_mapi_session(es_OUT, m->s, mod_presence_out, mp);
     js_mapi_session(es_END, m->s, mod_presence_avails_end, mp);
+    js_mapi_session(es_SERIALIZE, m->s, mod_presence_serialize, mp);
+
+    return M_PASS;
+}
+
+/**
+ * callback, that gets called if a new session is deserialized, registers all session oriented callbacks
+ *
+ * This callback is responsible for deserializing an instance of the _modpres structure, that holds
+ * the list of entites that know that a user is available.
+ *
+ * @param m the mapi structure
+ * @param arg the list of JabberIDs that get a bcc of all presences
+ * @return always M_PASS
+ */
+static mreturn mod_presence_deserialize(mapi m, void *arg) {
+    modpres_conf conf = (modpres_conf)arg;
+    modpres mp;
+    xmlnode_list_item mod_presence_x = NULL;
+    xmlnode_list_item jid_x = NULL;
+
+    /* track our session stuff */
+    mp = pmalloco(m->s->p, sizeof(_modpres));
+    mp->conf = conf; /* no no, it's ok, these live longer than us */
+
+    js_mapi_session(es_IN, m->s, mod_presence_in, mp);
+    js_mapi_session(es_OUT, m->s, mod_presence_avails, mp); /* must come first, it passes, _out handles */
+    js_mapi_session(es_OUT, m->s, mod_presence_out, mp);
+    js_mapi_session(es_END, m->s, mod_presence_avails_end, mp);
+    js_mapi_session(es_SERIALIZE, m->s, mod_presence_serialize, mp);
+
+    /* deserialize data */
+    for (mod_presence_x = xmlnode_get_tags(m->serialization_node, "state:modPresence", m->si->std_namespace_prefixes); mod_presence_x!=NULL; mod_presence_x = mod_presence_x->next) {
+	if (mod_presence_x->node == NULL)
+	    continue;
+
+	if (xmlnode_get_tags(mod_presence_x->node, "state:invisible", m->si->std_namespace_prefixes) != NULL)
+	    mp->invisible = 1;
+
+	for (jid_x = xmlnode_get_tags(mod_presence_x->node, "state:visibleTo", m->si->std_namespace_prefixes); jid_x != NULL; jid_x = jid_x->next) {
+	    jid item = NULL;
+	    if (mp->A == NULL)
+		mp->A = jid_new(m->s->p, xmlnode_get_data(jid_x->node));
+	    else
+		jid_append(mp->A, jid_new(xmlnode_pool(jid_x->node), xmlnode_get_data(jid_x->node)));
+	}
+	for (jid_x = xmlnode_get_tags(mod_presence_x->node, "state:knownInvisibleTo", m->si->std_namespace_prefixes); jid_x != NULL; jid_x = jid_x->next) {
+	    jid item = NULL;
+	    if (mp->I == NULL)
+		mp->I = jid_new(m->s->p, xmlnode_get_data(jid_x->node));
+	    else
+		jid_append(mp->I, jid_new(xmlnode_pool(jid_x->node), xmlnode_get_data(jid_x->node)));
+	}
+    }
 
     return M_PASS;
 }
@@ -689,6 +774,6 @@ void mod_presence(jsmi si) {
 
     js_mapi_register(si,e_DELIVER, mod_presence_deliver, NULL);
     js_mapi_register(si,e_SESSION, mod_presence_session, (void*)conf);
-    js_mapi_register(si,e_DESERIALIZE, mod_presence_session, (void*)conf);
+    js_mapi_register(si,e_DESERIALIZE, mod_presence_deserialize, (void*)conf);
     js_mapi_register(si, e_DELETE, mod_presence_delete, NULL);
 }
