@@ -1,3 +1,7 @@
+2006-05-24  Matthias Wimmer  <m@tthias.eu>
+
+    * jsm/modules/mod_presence.c: (de)serialize state of mod_presence
+
 2006-05-23  Matthias Wimmer  <m@tthias.eu>
 
     * jsm/deliver.c: do not auto-unsubscribe on unavailable presence
