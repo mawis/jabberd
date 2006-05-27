@@ -495,7 +495,7 @@
       <handler ns="jabber:iq:register">
         <get>
           <query>SELECT SUBSTRING(jid, 1, INSTR(jid, '@')-1) as user,mailaddress FROM mailaddresses WHERE jid='{attribute::to}'</query>
-          <result><query xmlns='jabber:iq:roster'><name><value xmlns='http://jabberd.org/ns/xdbsql' value='1'/></name><email><value xmlns='http://jabberd.org/ns/xdbsql' value='2'/></email></query></result>
+          <result><query xmlns='jabber:iq:register'><name><value xmlns='http://jabberd.org/ns/xdbsql' value='1'/></name><email><value xmlns='http://jabberd.org/ns/xdbsql' value='2'/></email></query></result>
           </get>
           <set>INSERT INTO mailaddresses (jid, mailaddress, lastmodified) VALUES ('{attribute::to}', IF('{register:query/register:email/text()}'='', NULL, '{register:query/register:email/text()}'), now())</set>
           <delete>DELETE FROM mailaddresses WHERE jid='{attribute::to}'</delete>
