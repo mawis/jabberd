@@ -1,3 +1,7 @@
+2006-05-27  Matthias Wimmer  <m@tthias.eu>
+
+    * jabber.xml.dist.in: fixing but in jabber:iq:register for xdb_sql
+
 2006-05-24  Matthias Wimmer  <m@tthias.eu>
 
     * jsm/modules/mod_presence.c: (de)serialize state of mod_presence
