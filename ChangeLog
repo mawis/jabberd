@@ -1,3 +1,7 @@
+2006-05-29  Matthias Wimmer  <m@tthias.eu>
+
+    * xdb_sql/xdb_sql.c: XML data check in xdb_sql results
+
 2006-05-27  Matthias Wimmer  <m@tthias.eu>
 
     * jabber.xml.dist.in: fixing but in jabber:iq:register for xdb_sql

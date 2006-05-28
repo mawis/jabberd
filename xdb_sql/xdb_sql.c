@@ -304,6 +304,7 @@ int xdb_sql_execute_mysql(instance i, xdbsql xq, char *query, xmlnode template, 
 
 	/* fetch rows of the result */
 	while (row = mysql_fetch_row(res)) {
+	    int row_okay = 1;
 	    xmlnode variable = NULL;
 	    xmlnode new_instance = NULL;
 
@@ -325,6 +326,11 @@ int xdb_sql_execute_mysql(instance i, xdbsql xq, char *query, xmlnode template, 
 		if (value > 0 && value <= num_fields) {
 		    if (parsed) {
 			xmlnode fieldvalue = xmlnode_str(row[value-1], j_strlen(row[value-1]));
+			if (fieldvalue == NULL) {
+			    log_warn(i->id, "could not parse: %s", row[value-1]);
+			    row_okay = 0;
+			    continue;
+			}
 			xmlnode fieldcopy = xmlnode_dup_pool(result->p, fieldvalue);
 			xmlnode_free(fieldvalue);
 			xmlnode_insert_tag_node(parent, fieldcopy);
@@ -335,8 +341,12 @@ int xdb_sql_execute_mysql(instance i, xdbsql xq, char *query, xmlnode template, 
 	    }
 
 	    /* insert the result */
-	    log_debug2(ZONE, LOGT_STORAGE, "the row results in: %s", xmlnode_serialize_string(new_instance, NULL, NULL, 0));
-	    xmlnode_insert_node(result, xmlnode_get_firstchild(new_instance));
+	    if (row_okay) {
+		log_debug2(ZONE, LOGT_STORAGE, "the row results in: %s", xmlnode_serialize_string(new_instance, NULL, NULL, 0));
+		xmlnode_insert_node(result, xmlnode_get_firstchild(new_instance));
+	    } else {
+		log_warn(i->id, "ignoring a row in a SQL result, due to problems with it");
+	    }
 	}
 
 	/* free the result again */
