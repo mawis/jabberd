@@ -311,9 +311,10 @@ mreturn mod_roster_out_s10n(mapi m) {
  * @return M_PASS if not in the jabber:iq:roster namespace, M_HANDLED otherwise
  */
 mreturn mod_roster_out_iq(mapi m) {
-    xmlnode roster, cur, pres, item;
+    xmlnode roster, pres, item;
     int newflag;
     jid id;
+    xmlnode_list_item iter = NULL;
 
     if (!NSCHECK(m->packet->iq,NS_ROSTER)) return M_PASS;
 
@@ -331,33 +332,30 @@ mreturn mod_roster_out_iq(mapi m) {
 	    jpacket_reset(m->packet);
 
 	    /* filter out pending subscribes */
-	    for(cur = xmlnode_get_firstchild(m->packet->iq); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
-		if (xmlnode_get_attrib_ns(cur,"subscribe", NULL) != NULL)
-		    xmlnode_hide_attrib_ns(cur,"subscribe", NULL);
-		if (xmlnode_get_attrib_ns(cur, "hidden", NULL) != NULL)
-		    xmlnode_hide(cur);
+	    for (iter = xmlnode_get_tags(m->packet->iq, "roster:item", m->si->std_namespace_prefixes); iter != NULL; iter = iter->next) {
+		if (xmlnode_get_attrib_ns(iter->node, "subscribe", NULL) != NULL)
+		    xmlnode_hide_attrib_ns(iter->node, "subscribe", NULL);
+		if (xmlnode_get_attrib_ns(iter->node, "hidden", NULL) != NULL)
+		    xmlnode_hide(iter->node);
 	    }
 
 	    /* send to the user */
 	    js_session_to(m->s,m->packet);
 
 	    /* redeliver those subscribes */
-	    for (cur = xmlnode_get_firstchild(roster); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
-		if (xmlnode_get_type(cur) != NTYPE_TAG)
-		    continue;
-
-		if (xmlnode_get_attrib_ns(cur,"subscribe", NULL) != NULL) {
+	    for (iter = xmlnode_get_tags(roster, "roster:item", m->si->std_namespace_prefixes); iter != NULL; iter = iter->next) {
+		if (xmlnode_get_attrib_ns(iter->node, "subscribe", NULL) != NULL) {
 		    /* is there a stored version of the subscription request in xdb? */
 		    xmlnode stored_subscribes = xdb_get(m->si->xc, m->user->id, NS_JABBERD_STOREDREQUEST);
-		    pres =  xmlnode_dup(xmlnode_get_list_item(xmlnode_get_tags(stored_subscribes, spools(xmlnode_pool(cur), "presence[@from='", xmlnode_get_attrib_ns(cur, "jid", NULL), "']", xmlnode_pool(cur)), m->si->std_namespace_prefixes), 0));
+		    pres =  xmlnode_dup(xmlnode_get_list_item(xmlnode_get_tags(stored_subscribes, spools(xmlnode_pool(iter->node), "presence[@from='", xmlnode_get_attrib_ns(iter->node, "jid", NULL), "']", xmlnode_pool(iter->node)), m->si->std_namespace_prefixes), 0));
 
 		    /* if there is nothing in xdb, create a subscription request */
 		    if (pres == NULL) {
 			pres = xmlnode_new_tag_ns("presence", NULL, NS_SERVER);
 			xmlnode_put_attrib_ns(pres, "type", NULL, NULL, "subscribe");
-			xmlnode_put_attrib_ns(pres, "from", NULL, NULL, xmlnode_get_attrib_ns(cur, "jid", NULL));
-			if (j_strlen(xmlnode_get_attrib_ns(cur, "subscribe", NULL)) > 0)
-			    xmlnode_insert_cdata(xmlnode_insert_tag_ns(pres, "status", NULL, NS_SERVER), xmlnode_get_attrib_ns(cur, "subscribe", NULL),-1);
+			xmlnode_put_attrib_ns(pres, "from", NULL, NULL, xmlnode_get_attrib_ns(iter->node, "jid", NULL));
+			if (j_strlen(xmlnode_get_attrib_ns(iter->node, "subscribe", NULL)) > 0)
+			    xmlnode_insert_cdata(xmlnode_insert_tag_ns(pres, "status", NULL, NS_SERVER), xmlnode_get_attrib_ns(iter->node, "subscribe", NULL),-1);
 		    }
 		    js_session_to(m->s,jpacket_new(pres));
 
@@ -370,11 +368,8 @@ mreturn mod_roster_out_iq(mapi m) {
 	    log_debug2(ZONE, LOGT_ROSTER, "handling set request");
 
 	    /* loop through the incoming items updating or creating */
-	    for(cur = xmlnode_get_firstchild(m->packet->iq); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
-		if (xmlnode_get_type(cur) != NTYPE_TAG || xmlnode_get_attrib_ns(cur, "jid", NULL) == NULL)
-		    continue;
-
-		id = jid_new(m->packet->p, xmlnode_get_attrib_ns(cur, "jid", NULL));
+	    for (iter = xmlnode_get_tags(m->packet->iq, "roster:item[@jid]", m->si->std_namespace_prefixes); iter != NULL; iter = iter->next) {
+		id = jid_new(m->packet->p, xmlnode_get_attrib_ns(iter->node, "jid", NULL));
 		if (id == NULL || jid_cmpx(jid_user(m->s->id), id, JID_USER|JID_SERVER) == 0)
 		    continue;
 
@@ -383,12 +378,12 @@ mreturn mod_roster_out_iq(mapi m) {
 		xmlnode_hide(item);
 
 		/* drop you sukkah */
-		if (j_strcmp(xmlnode_get_attrib_ns(cur, "subscription", NULL),"remove") == 0) {
+		if (j_strcmp(xmlnode_get_attrib_ns(iter->node, "subscription", NULL),"remove") == 0) {
 		    /* cancel our subscription to them */
 		    if (j_strcmp(xmlnode_get_attrib_ns(item, "subscription", NULL),"both") == 0
 			    || j_strcmp(xmlnode_get_attrib_ns(item, "subscription", NULL),"to") == 0
 			    || j_strcmp(xmlnode_get_attrib_ns(item, "ask", NULL),"subscribe") == 0) {
-			jpacket jp = jpacket_new(jutil_presnew(JPACKET__UNSUBSCRIBE,xmlnode_get_attrib_ns(cur, "jid", NULL), NULL));
+			jpacket jp = jpacket_new(jutil_presnew(JPACKET__UNSUBSCRIBE,xmlnode_get_attrib_ns(iter->node, "jid", NULL), NULL));
 			jp->flag = PACKET_FORCE_SENT_MAGIC; /* force to sent it, as we already remove the subscription state */
 			js_session_from(m->s, jp);
 		    }
@@ -396,24 +391,24 @@ mreturn mod_roster_out_iq(mapi m) {
 		    /* tell them their subscription to us is toast */
 		    if (j_strcmp(xmlnode_get_attrib_ns(item, "subscription", NULL),"both") == 0
 			    || j_strcmp(xmlnode_get_attrib_ns(item, "subscription", NULL),"from") == 0) {
-			jpacket jp = jpacket_new(jutil_presnew(JPACKET__UNSUBSCRIBED,xmlnode_get_attrib_ns(cur, "jid", NULL), NULL));
+			jpacket jp = jpacket_new(jutil_presnew(JPACKET__UNSUBSCRIBED,xmlnode_get_attrib_ns(iter->node, "jid", NULL), NULL));
 			jp->flag = PACKET_FORCE_SENT_MAGIC; /* force to sent it, as we already remove the subscription state */
 			js_session_from(m->s, jp);
 		    }
 
 		    /* push this remove out */
-		    mod_roster_push(m->user,cur);
+		    mod_roster_push(m->user,iter->node);
 		    continue;
 		}
 
 		/* copy the old stuff into the new one and insert it into the roster */
-		xmlnode_put_attrib_ns(cur, "subscription", NULL, NULL, xmlnode_get_attrib_ns(item, "subscription", NULL));
-		xmlnode_put_attrib_ns(cur, "ask", NULL, NULL, xmlnode_get_attrib_ns(item, "ask", NULL)); /* prolly not here, but just in case */
-		xmlnode_put_attrib_ns(cur, "subscribe", NULL, NULL, xmlnode_get_attrib_ns(item, "subscribe", NULL));
-		xmlnode_insert_tag_node(roster,cur);
+		xmlnode_put_attrib_ns(iter->node, "subscription", NULL, NULL, xmlnode_get_attrib_ns(item, "subscription", NULL));
+		xmlnode_put_attrib_ns(iter->node, "ask", NULL, NULL, xmlnode_get_attrib_ns(item, "ask", NULL)); /* prolly not here, but just in case */
+		xmlnode_put_attrib_ns(iter->node, "subscribe", NULL, NULL, xmlnode_get_attrib_ns(item, "subscribe", NULL));
+		xmlnode_insert_tag_node(roster,iter->node);
 
 		/* push the new item */
-		mod_roster_push(m->user,cur);
+		mod_roster_push(m->user,iter->node);
 	    }
 
 	    /* send to the user */
@@ -636,19 +631,19 @@ mreturn mod_roster_s10n(mapi m, void *arg) {
  */
 mreturn mod_roster_delete(mapi m, void *arg) {
     xmlnode roster = NULL;
-    xmlnode cur = NULL;
     pool p = pool_new();
+    xmlnode_list_item iter = NULL;
 
     /* remove subscriptions */
     roster = xdb_get(m->si->xc, m->user->id, NS_ROSTER);
-    for (cur = xmlnode_get_firstchild(roster); cur!=NULL; cur=xmlnode_get_nextsibling(cur)) {
+    for (iter = xmlnode_get_tags(roster, "roster:item[@subscription]", m->si->std_namespace_prefixes); iter != NULL; iter = iter->next) {
 	int unsubscribe = 0, unsubscribed = 0;
 	jid peer;
 	char *subscription;
 	jpacket jp = NULL;
 
-	peer = jid_new(p, xmlnode_get_attrib_ns(cur, "jid", NULL));
-	subscription = xmlnode_get_attrib_ns(cur, "subscription", NULL);
+	peer = jid_new(p, xmlnode_get_attrib_ns(iter->node, "jid", NULL));
+	subscription = xmlnode_get_attrib_ns(iter->node, "subscription", NULL);
 
 	log_debug2(ZONE, LOGT_ROSTER, "removing subscription %s (%s)", subscription, jid_full(peer));
 
@@ -664,9 +659,9 @@ mreturn mod_roster_delete(mapi m, void *arg) {
 	    unsubscribe = unsubscribed = 1;
 
 	/* unsubscribe for requested subscriptions */
-	if (xmlnode_get_attrib_ns(cur, "ask", NULL))
+	if (xmlnode_get_attrib_ns(iter->node, "ask", NULL))
 	    unsubscribe = 1;
-	if (xmlnode_get_attrib_ns(cur, "subscribe", NULL))
+	if (xmlnode_get_attrib_ns(iter->node, "subscribe", NULL))
 	    unsubscribed = 1;
 
 	/* send the unsubscribe/unsubscribed requests */
