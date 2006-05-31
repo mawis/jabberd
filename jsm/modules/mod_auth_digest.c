@@ -134,7 +134,8 @@ mreturn mod_auth_digest_reg(mapi m, void *arg) {
 
     if(jpacket_subtype(m->packet) == JPACKET__GET) {
 	/* type=get means we flag that the server can do plain-text regs */
-        xmlnode_insert_tag_ns(m->packet->iq, "password", NULL, NS_AUTH);
+	if (xmlnode_get_tags(m->packet->iq, "register:password", m->si->std_namespace_prefixes) == NULL)
+	    xmlnode_insert_tag_ns(m->packet->iq, "password", NULL, NS_REGISTER);
         return M_PASS;
     }
 
