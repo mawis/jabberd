@@ -97,17 +97,17 @@
  * @param new pointer to the destination (the structure must already exist)
  * @param old pointer to the values, that should be copied
  */
-void karma_copy(struct karma *new, struct karma *old) {
-    new->init        = old->init;
-    new->val         = old->val;
-    new->bytes       = old->bytes;
-    new->max         = old->max;
-    new->inc         = old->inc;
-    new->dec         = old->dec;
-    new->penalty     = old->penalty;
-    new->restore     = old->restore;
-    new->last_update = old->last_update;
-    new->reset_meter = old->reset_meter;
+void karma_copy(struct karma *new_instance, struct karma *old) {
+    new_instance->init        = old->init;
+    new_instance->val         = old->val;
+    new_instance->bytes       = old->bytes;
+    new_instance->max         = old->max;
+    new_instance->inc         = old->inc;
+    new_instance->dec         = old->dec;
+    new_instance->penalty     = old->penalty;
+    new_instance->restore     = old->restore;
+    new_instance->last_update = old->last_update;
+    new_instance->reset_meter = old->reset_meter;
 }
 
 /**

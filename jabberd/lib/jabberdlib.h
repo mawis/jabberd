@@ -702,7 +702,7 @@ struct karma {
 };
 
 struct karma *karma_new(pool p); /* creates a new karma object, with default values */
-void karma_copy(struct karma *new, struct karma *old); /* makes a copy of old in new */
+void karma_copy(struct karma *new_instance, struct karma *old); /* makes a copy of old in new */
 void karma_increment(struct karma *k);          /* inteligently increments karma */
 void karma_decrement(struct karma *k, long bytes_read); /* inteligently decrements karma */
 int karma_check(struct karma *k,long bytes_read); /* checks to see if we have good karma */
