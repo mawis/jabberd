@@ -122,7 +122,7 @@
 #   define SUPPORT_TLS
 #endif /* HAVE_SSL */
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -524,6 +524,6 @@ mio mio_listen(int port, char *sourceip, void *cb, void *cb_arg, mio_handlers mh
 #define mio_ip(m) (m ? m->peer_ip : NULL)
 #define mio_connect_errmsg(m) (m->connect_errmsg)
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 }
 #endif
