@@ -1,3 +1,9 @@
+2006-05-31  Matthias Wimmer  <m@tthias.eu>
+
+    * jsm/authreg.c: right namespaces for jabber:iq:register-get-response
+    * jsm/modules/mod_auth_digest.c: same
+    * jsm/modules/mod_auth_plain.c: same
+
 2006-05-29  Matthias Wimmer  <m@tthias.eu>
 
     * jsm/modules/mod_roster.c: changed iteration on roster items

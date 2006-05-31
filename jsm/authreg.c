@@ -116,7 +116,7 @@ void _js_authreg_register(jpacket p) {
 	} else { /* make a reply and the username requirement is built-in :) */
 	    xmlnode_put_attrib_ns(p->x, "type", NULL, NULL, "result");
 	    jutil_tofrom(p->x);
-	    xmlnode_insert_tag_ns(p->iq, "username", NULL, NS_AUTH);
+	    xmlnode_insert_tag_ns(p->iq, "username", NULL, NS_REGISTER);
 	}
     } else {
 	/* actual registration request */
