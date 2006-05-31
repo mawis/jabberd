@@ -298,7 +298,7 @@ void jsm_deserialize(jsmi si, const char *host) {
     /* load state file */
     file = xmlnode_file(si->statefile);
     if (file == NULL) {
-	log_notice(si->i->id, "there is been no state file, not deserializing previous jsm state for '%s'", host);
+	log_notice(si->i->id, "there has been no state file, not deserializing previous jsm state for '%s'", host);
 	return;
     }
 
