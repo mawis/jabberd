@@ -140,7 +140,8 @@ mreturn mod_auth_plain_reg(mapi m, void *arg) {
 
     if (jpacket_subtype(m->packet) == JPACKET__GET) {
 	/* type=get means we tell what we need */
-        xmlnode_insert_tag_ns(m->packet->iq, "password", NULL, NS_REGISTER);
+	if (xmlnode_get_tags(m->packet->iq, "register:password", m->si->std_namespace_prefixes) == NULL)
+	    xmlnode_insert_tag_ns(m->packet->iq, "password", NULL, NS_REGISTER);
         return M_PASS;
     }
 
