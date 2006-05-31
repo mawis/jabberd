@@ -1,5 +1,10 @@
 2006-05-29  Matthias Wimmer  <m@tthias.eu>
 
+    * jsm/modules/mod_roster.c: changed iteration on roster items
+    * jsm/jsm.h: same
+
+2006-05-29  Matthias Wimmer  <m@tthias.eu>
+
     * xdb_sql/xdb_sql.c: XML data check in xdb_sql results
 
 2006-05-27  Matthias Wimmer  <m@tthias.eu>
