@@ -201,6 +201,7 @@ void jsm(instance i, xmlnode x) {
     xhash_put(si->std_namespace_prefixes, "event", NS_EVENT);
     xhash_put(si->std_namespace_prefixes, "expire", NS_EXPIRE);
     xhash_put(si->std_namespace_prefixes, "register", NS_REGISTER);
+    xhash_put(si->std_namespace_prefixes, "roster", NS_ROSTER);
     xhash_put(si->std_namespace_prefixes, "vcard", NS_VCARD);
     xhash_put(si->std_namespace_prefixes, "state", NS_JABBERD_STOREDSTATE);
     si->xc = xdb_cache(i); /* getting xdb_* handle and fetching config */
