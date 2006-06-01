@@ -107,9 +107,12 @@ typedef struct xdbsql_struct {
 typedef struct xdbsql_ns_def_struct {
     xdbsql_sqldef	get_query;	/**< SQL query to handle get requests */
     xmlnode		get_result;	/**< template for results for get requests */
-    xdbsql_sqldef	set;		/**< SQL query to handle set requests */
-    xdbsql_sqldef	delete;		/**< SQL query to delete old values */
+    xdbsql_sqldef	set_query;	/**< SQL query to handle set requests */
+    xdbsql_sqldef	delete_query;	/**< SQL query to delete old values */
 } *xdbsql_ns_def, _xdbsql_ns_def;
+
+/* forward declaration */
+static int xdb_sql_execute(instance i, xdbsql xq, char *query, xmlnode xmltemplate, xmlnode result);
 
 /**
  * connect to the mysql server
@@ -117,7 +120,7 @@ typedef struct xdbsql_ns_def_struct {
  * @param i the instance we are running in
  * @param xq our internal instance data
  */
-void xdb_sql_mysql_connect(instance i, xdbsql xq) {
+static void xdb_sql_mysql_connect(instance i, xdbsql xq) {
 #ifdef HAVE_MYSQL
     /* connect to the database */
     if (mysql_real_connect(xq->mysql, xq->mysql_host, xq->mysql_user, xq->mysql_password, xq->mysql_database, xq->mysql_port, xq->mysql_socket, xq->mysql_flag) == NULL) {
@@ -136,10 +139,10 @@ void xdb_sql_mysql_connect(instance i, xdbsql xq) {
  * @param destination the result spool
  * @param new_string what should be added (this gets destroyed!!!)
  */
-void xdb_sql_spool_add_escaped(spool destination, char *new_string) {
+static void xdb_sql_spool_add_escaped(spool destination, char *new_string) {
     char *first_to_escape = NULL;
     char *ptr = NULL;
-    char character_to_escape[2] = "\0\0";
+    char character_to_escape[2] = "\0";
 
     /* check for ' */
     first_to_escape = strchr(new_string, '\'');
@@ -175,17 +178,17 @@ void xdb_sql_spool_add_escaped(spool destination, char *new_string) {
 /**
  * use the template for a query to construct a real query
  *
- * @param template the template to construct the SQL query
+ * @param sqltemplate the template to construct the SQL query
  * @param xdb_query the xdb query
  * @param namespaces the mapping from namespace prefixes to namespace IRIs
  * @return SQL query
  */
-char *xdb_sql_construct_query(char **template, xmlnode xdb_query, xht namespaces) {
+static char *xdb_sql_construct_query(char **sqltemplate, xmlnode xdb_query, xht namespaces) {
     int index = 0;		/* token counter */
     spool result_spool = spool_new(xdb_query->p); /* where to store the result */
 
     /* sanity check */
-    if (template == NULL || xdb_query == NULL) {
+    if (sqltemplate == NULL || xdb_query == NULL) {
 	return NULL;
     }
 
@@ -193,17 +196,17 @@ char *xdb_sql_construct_query(char **template, xmlnode xdb_query, xht namespaces
     log_debug2(ZONE, LOGT_STORAGE, "constructing query using xdb_query %s", xmlnode_serialize_string(xdb_query, NULL, NULL, 0));
 
     /* construct the result */
-    while (template[index] != NULL) {
+    while (sqltemplate[index] != NULL) {
 	if (index % 2 == 0) {
 	    /* copy token */
-	    spool_add(result_spool, template[index]);
+	    spool_add(result_spool, sqltemplate[index]);
 	} else {
 	    /* substitute token */
 	    char *subst = NULL;
 	    xmlnode selected = NULL;
 
 	    /* XXX handle multiple results */
-	    selected = xmlnode_get_list_item(xmlnode_get_tags(xdb_query, template[index], namespaces), 0);
+	    selected = xmlnode_get_list_item(xmlnode_get_tags(xdb_query, sqltemplate[index], namespaces), 0);
 	    switch (xmlnode_get_type(selected)) {
 		case NTYPE_TAG:
 		    subst = xmlnode_serialize_string(selected, NULL, NULL, 0);
@@ -214,7 +217,7 @@ char *xdb_sql_construct_query(char **template, xmlnode xdb_query, xht namespaces
 		    break;
 	    }
 
-	    log_debug2(ZONE, LOGT_STORAGE, "%s replaced by %s", template[index], subst);
+	    log_debug2(ZONE, LOGT_STORAGE, "%s replaced by %s", sqltemplate[index], subst);
 
 	    xdb_sql_spool_add_escaped(result_spool, pstrdup(result_spool->p, subst!=NULL ? subst : ""));
 	}
@@ -236,7 +239,7 @@ char *xdb_sql_construct_query(char **template, xmlnode xdb_query, xht namespaces
  * @param ns_iri the namespace IRI of the element to search for
  * @return the found element, or NULL if no such element
  */
-xmlnode xdb_sql_find_node_recursive(xmlnode root, const char *name, const char *ns_iri) {
+static xmlnode xdb_sql_find_node_recursive(xmlnode root, const char *name, const char *ns_iri) {
     xmlnode ptr = NULL;
 
     /* is it already this node? */
@@ -263,11 +266,11 @@ xmlnode xdb_sql_find_node_recursive(xmlnode root, const char *name, const char *
  * @param i the instance we are running in
  * @param xq instance internal data
  * @param query the SQL query to execute
- * @param template template to construct the result
+ * @param xmltemplate template to construct the result
  * @param result where to add the results
  * @return 0 on success, non zero on failure
  */
-int xdb_sql_execute_mysql(instance i, xdbsql xq, char *query, xmlnode template, xmlnode result) {
+static int xdb_sql_execute_mysql(instance i, xdbsql xq, char *query, xmlnode xmltemplate, xmlnode result) {
 #ifdef HAVE_MYSQL
     int ret = 0;
     MYSQL_RES *res = NULL;
@@ -311,7 +314,7 @@ int xdb_sql_execute_mysql(instance i, xdbsql xq, char *query, xmlnode template, 
 	    log_debug2(ZONE, LOGT_STORAGE, "we got a result row with %u fields", num_fields);
 	    
 	    /* instantiate a copy of the template */
-	    new_instance = xmlnode_dup_pool(result->p, template);
+	    new_instance = xmlnode_dup_pool(result->p, xmltemplate);
 
 	    /* find variables in the template and replace them with values */
 	    while (variable = xdb_sql_find_node_recursive(new_instance, "value", NS_JABBERD_XDBSQL)) {
@@ -335,7 +338,7 @@ int xdb_sql_execute_mysql(instance i, xdbsql xq, char *query, xmlnode template, 
 			xmlnode_free(fieldvalue);
 			xmlnode_insert_tag_node(parent, fieldcopy);
 		    } else {
-			xmlnode_insert_cdata(parent, row[value-1], -1);
+			xmlnode_insert_cdata(parent, row[value-1], (unsigned int)-1);
 		    }
 		}
 	    }
@@ -366,11 +369,11 @@ int xdb_sql_execute_mysql(instance i, xdbsql xq, char *query, xmlnode template, 
  * @param i the instance we are running in
  * @param xq instance internal data
  * @param query the SQL query to execute
- * @param template template to construct the result
+ * @param xmltemplate template to construct the result
  * @param result where to add the results
  * @return 0 on success, non zero on failure
  */
-int xdb_sql_execute_postgresql(instance i, xdbsql xq, char *query, xmlnode template, xmlnode result) {
+static int xdb_sql_execute_postgresql(instance i, xdbsql xq, char *query, xmlnode xmltemplate, xmlnode result) {
 #ifdef HAVE_POSTGRESQL
     PGresult *res = NULL;
     ExecStatusType status = 0;
@@ -423,7 +426,7 @@ int xdb_sql_execute_postgresql(instance i, xdbsql xq, char *query, xmlnode templ
 	xmlnode new_instance = NULL;
 
 	/* instantiate a copy of the template */
-	new_instance = xmlnode_dup_pool(result->p, template);
+	new_instance = xmlnode_dup_pool(result->p, xmltemplate);
 
 	/* find variables in the template and replace them with values */
 	while (variable = xdb_sql_find_node_recursive(new_instance, "value", NS_JABBERD_XDBSQL)) {
@@ -467,19 +470,19 @@ int xdb_sql_execute_postgresql(instance i, xdbsql xq, char *query, xmlnode templ
  * @param i the instance we are running in
  * @param xq instance internal data
  * @param query the SQL query to execute
- * @param template template to construct the result
+ * @param xmltemplate template to construct the result
  * @param result where to add the results
  * @return 0 on success, non zero on failure
  */
-int xdb_sql_execute(instance i, xdbsql xq, char *query, xmlnode template, xmlnode result) {
+static int xdb_sql_execute(instance i, xdbsql xq, char *query, xmlnode xmltemplate, xmlnode result) {
 #ifdef HAVE_MYSQL
     if (xq->use_mysql) {
-	return xdb_sql_execute_mysql(i, xq, query, template, result);
+	return xdb_sql_execute_mysql(i, xq, query, xmltemplate, result);
     }
 #endif
 #ifdef HAVE_POSTGRESQL
     if (xq->use_postgresql) {
-	return xdb_sql_execute_postgresql(i, xq, query, template, result);
+	return xdb_sql_execute_postgresql(i, xq, query, xmltemplate, result);
     }
 #endif
     log_error(i->id, "SQL query %s has not been handled by any sql driver", query);
@@ -491,7 +494,7 @@ int xdb_sql_execute(instance i, xdbsql xq, char *query, xmlnode template, xmlnod
  *
  * @param p the packet that should be modified
  */
-void xdb_sql_makeresult(dpacket p) {
+static void xdb_sql_makeresult(dpacket p) {
     xmlnode_put_attrib_ns(p->x, "type", NULL, NULL, "result");
     xmlnode_put_attrib_ns(p->x, "to", NULL, NULL, xmlnode_get_attrib_ns(p->x, "from", NULL));
     xmlnode_put_attrib_ns(p->x, "from", NULL, NULL, jid_full(p->id));
@@ -505,7 +508,7 @@ void xdb_sql_makeresult(dpacket p) {
  * @param arg pointer to our own internal data
  * @return r_DONE if we could handle the request, r_ERR otherwise
  */
-result xdb_sql_phandler(instance i, dpacket p, void *arg) {
+static result xdb_sql_phandler(instance i, dpacket p, void *arg) {
     xdbsql xq = (xdbsql)arg;	/* xdb_sql internal data */
     char *ns = NULL;		/* namespace of the query */
     xdbsql_ns_def ns_def = NULL; /* pointer to the namespace definitions */
@@ -551,7 +554,7 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
 	    xdb_sql_execute(i, xq, "BEGIN", NULL, NULL);
 
 	    /* delete old values */
-	    for (iter = ns_def->delete; iter != NULL; iter = iter->next) {
+	    for (iter = ns_def->delete_query; iter != NULL; iter = iter->next) {
 		query = xdb_sql_construct_query(iter->def, p->x, xq->namespace_prefixes);
 		log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for deletion: %s", query);
 		if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
@@ -563,7 +566,7 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
 
 	    /* insert new values (if there are any) */
 	    if (xmlnode_get_firstchild(p->x) != NULL) {
-		for (iter = ns_def->set; iter!=NULL; iter=iter->next) {
+		for (iter = ns_def->set_query; iter!=NULL; iter=iter->next) {
 		    query = xdb_sql_construct_query(iter->def, p->x, xq->namespace_prefixes);
 		    log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for insertion: %s", query);
 		    if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
@@ -589,7 +592,7 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
 
 	    /* delete matches */
 	    if (match != NULL || matchpath != NULL) {
-		for (iter = ns_def->delete; iter!=NULL; iter=iter->next) {
+		for (iter = ns_def->delete_query; iter!=NULL; iter=iter->next) {
 		    query = xdb_sql_construct_query(iter->def, p->x, xq->namespace_prefixes);
 		    log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for insert/match[path] deletion: %s", query);
 		    if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
@@ -602,7 +605,7 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
 
 	    /* insert new values if there are any */
 	    if (xmlnode_get_firstchild(p->x) != NULL) {
-		for (iter = ns_def->set; iter != NULL; iter=iter->next) {
+		for (iter = ns_def->set_query; iter != NULL; iter=iter->next) {
 		    query = xdb_sql_construct_query(iter->def, p->x, xq->namespace_prefixes);
 		    log_debug2(ZONE, LOGT_STORAGE, "using the following SQL statement for insertion: %s", query);
 		    if (xdb_sql_execute(i, xq, query, NULL, NULL)) {
@@ -673,7 +676,7 @@ result xdb_sql_phandler(instance i, dpacket p, void *arg) {
  * @param xq our internal instance data
  * @param config the configuration node of this instance
  */
-void xdb_sql_mysql_init(instance i, xdbsql xq, xmlnode config) {
+static void xdb_sql_mysql_init(instance i, xdbsql xq, xmlnode config) {
 #ifdef HAVE_MYSQL
     /* create a MYSQL handle */
     if (xq->mysql == NULL) {
@@ -703,7 +706,7 @@ void xdb_sql_mysql_init(instance i, xdbsql xq, xmlnode config) {
  * @param xq our internal instance data
  * @param config the configuration node of this instance
  */
-void xdb_sql_postgresql_init(instance i, xdbsql xq, xmlnode config) {
+static void xdb_sql_postgresql_init(instance i, xdbsql xq, xmlnode config) {
 #ifdef HAVE_POSTGRESQL
     /* process our own configuration */
     xq->postgresql_conninfo = pstrdup(i->p, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "xdbsql:postgresql/xdbsql:conninfo", xq->std_namespace_prefixes), 0)));
@@ -729,7 +732,7 @@ void xdb_sql_postgresql_init(instance i, xdbsql xq, xmlnode config) {
  * @param query the SQL query definition
  * @return array of preprocessed query, contains array of strings, odd entries are literals, even entries are variables
  */
-char **xdb_sql_query_preprocess(instance i, char *query) {
+static char **xdb_sql_query_preprocess(instance i, char *query) {
     int count = 0;
     char *pos = NULL;
     char *next = NULL;
@@ -802,8 +805,7 @@ static void _xdb_sql_create_preprocessed_sql_list(instance i, xdbsql xq, xmlnode
     xmlnode_list_item definition = NULL;
     xdbsql_sqldef parsed_definition = NULL;
 
-    definition = xmlnode_get_tags(handler, path, xq->std_namespace_prefixes);
-    while (definition != NULL) {
+    for (definition = xmlnode_get_tags(handler, path, xq->std_namespace_prefixes); definition != NULL; definition = definition->next) {
 	/* add a new element to the list */
 	if (*dest == NULL) {
 	    parsed_definition = *dest = pmalloco(i->p, sizeof(_xdbsql_sqldef));
@@ -813,9 +815,6 @@ static void _xdb_sql_create_preprocessed_sql_list(instance i, xdbsql xq, xmlnode
 
 	/* preprocess and store definition */
 	parsed_definition->def = xdb_sql_query_preprocess(i, xmlnode_get_data(definition->node));
-
-	/* move to the next result */
-	definition = definition->next;
     }
 
 }
@@ -827,11 +826,10 @@ static void _xdb_sql_create_preprocessed_sql_list(instance i, xdbsql xq, xmlnode
  * @param xq our instance internal data
  * @param handler the handler definition
  */
-void xdb_sql_handler_process(instance i, xdbsql xq, xmlnode handler) {
+static void xdb_sql_handler_process(instance i, xdbsql xq, xmlnode handler) {
     char *handled_ns = NULL;	/* which namespace this definition is for */
     xdbsql_ns_def nsdef = NULL;	/* where to store the processed information */
     int count = 0;
-    xdbsql_sqldef tempdef = NULL;
     
     log_debug2(ZONE, LOGT_INIT, "processing handler definition: %s", xmlnode_serialize_string(handler, NULL, NULL, 0));
 
@@ -841,8 +839,8 @@ void xdb_sql_handler_process(instance i, xdbsql xq, xmlnode handler) {
     handled_ns = pstrdup(i->p, xmlnode_get_attrib_ns(handler, "ns", NULL));
     _xdb_sql_create_preprocessed_sql_list(i, xq, handler, &(nsdef->get_query), "xdbsql:get/xdbsql:query");
     nsdef->get_result = xmlnode_dup_pool(i->p, xmlnode_get_list_item(xmlnode_get_tags(handler, "xdbsql:get/xdbsql:result", xq->std_namespace_prefixes), 0));
-    _xdb_sql_create_preprocessed_sql_list(i, xq, handler, &(nsdef->set), "xdbsql:set");
-    _xdb_sql_create_preprocessed_sql_list(i, xq, handler, &(nsdef->delete), "xdbsql:delete");
+    _xdb_sql_create_preprocessed_sql_list(i, xq, handler, &(nsdef->set_query), "xdbsql:set");
+    _xdb_sql_create_preprocessed_sql_list(i, xq, handler, &(nsdef->delete_query), "xdbsql:delete");
 
     /* store the read definition */
     log_debug2(ZONE, LOGT_INIT|LOGT_STORAGE, "registering namespace handler for %s", handled_ns);
@@ -856,7 +854,7 @@ void xdb_sql_handler_process(instance i, xdbsql xq, xmlnode handler) {
  * @param xq our instance internal data
  * @param config the configuration data for this xdb_sql instance
  */
-void xdb_sql_handler_read(instance i, xdbsql xq, xmlnode config) {
+static void xdb_sql_handler_read(instance i, xdbsql xq, xmlnode config) {
     xmlnode cur = NULL;		/* used to iterate through <handler/> elements */
     
     if (i == NULL || xq == NULL || config == NULL) {
