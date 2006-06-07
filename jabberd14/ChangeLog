@@ -1,3 +1,7 @@
+2006-06-07  Matthias Wimmer  <m@tthias.eu>
+
+    * jsm/modules/mod_presence.c: improvied auto-unsubscribes
+
 2006-06-01  Matthias Wimmer  <m@tthias.eu>
 
     * xdb_sql/xdb_sql.c: some minor cleanup esp. of names
