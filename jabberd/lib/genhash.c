@@ -148,7 +148,7 @@ int ghash_walk(HASHTABLE tbl, TABLEWALKFUNC func, void *user_data)
     xht h = (xht)tbl;
 
     for(i = 0; i < h->prime; i++)
-        for(n = &h->zen[i]; n != NULL; n = n->next)
+        for(n = h->zen[i]; n != NULL; n = n->next)
             if(n->key != NULL && n->val != NULL)
                 (*func)(user_data, n->key, n->val);
 
