@@ -763,16 +763,36 @@ xmlnode jid_nodescan(jid id, xmlnode x)
     return cur;
 }
 
-jid jid_user(jid a)
-{
+/**
+ * Returns the same jid but without the resource.
+ *
+ * Returns the jid, if it does not contain a resource, else a new jid is created.
+ *
+ * If memory needs to be allocated, the given memory pool is used.
+ *
+ * @param a the original jid
+ * @param p the memory pool to use
+ * @return the jid without the resource
+ */
+jid jid_user_pool(jid a, pool p) {
     jid ret;
 
+    /* sanity check */
+    if (p==NULL)
+	return NULL;
+
+    /* can we just return the original? */
     if(a == NULL || a->resource == NULL) return a;
 
-    ret = pmalloco(a->p,sizeof(struct jid_struct));
-    ret->p = a->p;
+    /* make a copy */
+    ret = pmalloco(p,sizeof(struct jid_struct));
+    ret->p = p;
     ret->user = a->user;
     ret->server = a->server;
 
     return ret;
+}
+
+jid jid_user(jid a) {
+    return jid_user_pool(a, a->p);
 }

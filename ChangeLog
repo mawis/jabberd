@@ -1,3 +1,9 @@
+2006-07-08  Matthias Wimmer  <m@tthias.eu>
+
+    * jabberd/lib/jid.c: introducing jid_user_pool() function
+    * jabberd/lib/jabberdlib.h: same
+    * jsm/sessions.c: freeing memory earlier (closes bug 55)
+
 2006-06-23  Matthias Wimmer  <m@tthias.eu>
 
     * jabberd/lib/genhash.c: fixing bug in unused code (see bugzilla #46)
