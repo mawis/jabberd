@@ -429,7 +429,7 @@ void _js_session_from(void *arg) {
     }
 
     /* if you use to="yourself@yourhost" it's the same as not having a to, the modules use the NULL as a self-flag */
-    uid = jid_user(s->id);
+    uid = jid_user_pool(s->id, p->p);
     if (jid_cmp(p->to,uid) == 0) {
         /* xmlnode_hide_attrib(p->x,"to"); */
         p->to = NULL;
