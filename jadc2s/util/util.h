@@ -303,8 +303,8 @@ typedef struct jid_struct
 void	jid_clean_cache(jid_environment_t environment); /* cleanup the stringprep caches */
 void	jid_free_environment(jid_environment_t environment); /* free a jid preparation environment */
 jid_environment_t jid_new_environment();       /* Create a jid preparation environment */
-jid     jid_new(pool p, jid_environment_t environment, char *idstr); /* Creates a jabber id from the idstr */
-jid     jid_newx(pool p, jid_environment_t environment, char *idstr, int len); /* same but with given len */
+jid     jid_new(pool p, jid_environment_t environment, const char *idstr); /* Creates a jabber id from the idstr */
+jid     jid_newx(pool p, jid_environment_t environment, const char *idstr, int len); /* same but with given len */
 void    jid_set(jid id, const char *str, int item); /* Individually sets jid components */
 char*   jid_full(jid id);		       /* Builds a string type=user/resource@server from the jid data */
 int     jid_cmp(jid a, jid b);		       /* Compares two jid's, returns 0 for perfect match */

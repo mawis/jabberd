@@ -1,3 +1,15 @@
+2006-07-15  Matthias Wimmer  <m@tthias.eu>
+
+    * clients.c: implemented SASL authentication using cyrus SASL
+    * mio/mio.c: same
+    * jadc2s.c: same
+    * jadc2s.h: same
+    * configure.ac: same
+    * connect.c: same
+    * util/util.h: same
+    * util/jid.c: same
+    * conn.c: same
+
 2006-05-21  Matthias Wimmer  <m@tthias.eu>
 
     * util/xhash.c: fixing xhash handling (key did match key123)

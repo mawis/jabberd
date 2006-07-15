@@ -163,11 +163,12 @@ static void _mio_accept(mio_t m, int fd)
 {
 #ifdef USE_IPV6
     struct sockaddr_storage serv_addr;
-    char ip[INET6_ADDRSTRLEN];
+    char ip[INET6_ADDRSTRLEN+6];
     int port = 0;
+    char port_string[7];
 #else
     struct sockaddr_in serv_addr;
-    char ip[16];
+    char ip[16+6];
 #endif
     size_t addrlen = sizeof(serv_addr);
     int newfd, dupfd;
@@ -181,20 +182,22 @@ static void _mio_accept(mio_t m, int fd)
 #ifdef USE_IPV6
     switch (serv_addr.ss_family) {
 	case AF_INET:
-	    inet_ntop(AF_INET, &(((struct sockaddr_in*)&serv_addr)->sin_addr), ip, sizeof(ip));
+	    inet_ntop(AF_INET, &(((struct sockaddr_in*)&serv_addr)->sin_addr), ip, sizeof(ip)-6);
 	    port = ntohs(((struct sockaddr_in*)&serv_addr)->sin_port);
 	    break;
 	case AF_INET6:
-	    inet_ntop(AF_INET6, &(((struct sockaddr_in6*)&serv_addr)->sin6_addr), ip, sizeof(ip));
+	    inet_ntop(AF_INET6, &(((struct sockaddr_in6*)&serv_addr)->sin6_addr), ip, sizeof(ip)-6);
 	    port = ntohs(((struct sockaddr_in6*)&serv_addr)->sin6_port);
 	    break;
 	default:
 	    strcpy(ip, "(unknown)");
     }
-    mio_debug(ZONE, "new socket accepted fd #%d, ip %s, port %d", newfd, ip, port);
+    snprintf(port_string, sizeof(port_string), ";%u", port); /* this needs to be a ';' for SASL */
+    strcat(ip, port_string);
+    mio_debug(ZONE, "new socket accepted fd #%d, ip %s", newfd, ip);
 #else
-    snprintf(ip,16,"%s",inet_ntoa(serv_addr.sin_addr));
-    mio_debug(ZONE, "new socket accepted fd #%d, %s:%d", newfd, ip, ntohs(serv_addr.sin_port));
+    snprintf(ip,sizeof(ip),"%s;%u",inet_ntoa(serv_addr.sin_addr), ntohs(serv_addr.sin_port)); /* this needs to be a ';' for SASL */
+    mio_debug(ZONE, "new socket accepted fd #%d, %s", newfd, ip);
 #endif
 
     /* set up the entry for this new socket */

@@ -11,6 +11,10 @@
 # include <openssl/err.h>
 #endif
 
+#ifdef WITH_SASL
+# include <sasl/sasl.h>
+#endif
+
 /**
  * @file jadc2s.h
  * @brief the main header file of jadc2s, mainly defining data structures
@@ -89,10 +93,21 @@ typedef struct chunk_st
 typedef enum {
     state_NONE,	/**< no connection on this socket yet, or waiting for client auth */
     state_NEGO, /**< we have to determine what sort of connection we accepted */
+    state_SASL, /**< currently in SASL handshake */
     state_AUTH, /**< we are waiting for the session manager to accept the authentication */
     state_SESS, /**< we are waiting for the session manager to start the session */
     state_OPEN	/**< the session has been started, normal operation */
 } conn_state_t;
+
+/**
+ * at which state in authenticating, resource binding and session starting the connection is
+ */
+typedef enum {
+    state_auth_NONE,		/**< SASL has not yet been finished */
+    state_auth_SASL_DONE,	/**< SASL has been finished */
+    state_auth_BOUND_RESOURCE,	/**< a resource has been bound to the session */
+    state_auth_SESSION_STARTED	/**< the session has been started */
+} auth_state_t;
 
 /**
  * protocol variant we are using on this socket
@@ -132,6 +147,7 @@ struct conn_st {
     /* vars for this conn */
     int fd;			/**< file descriptor of this connection */
     char *ip;			/**< other end's IP address for this conn */
+    int port;			/**< other end's port address for this conn */
     int read_bytes;		/**< bytes read within the present 'karma
 				     interval' */
     time_t last_read;		/**< last time something has been read
@@ -155,12 +171,16 @@ struct conn_st {
     /* tracking the id for the conn or chunk */
     pool idp;			/**< memory pool for JIDs in this structure */
     char *sid;			/**< session id (used for some auth schemes */
+    char *sc_sm;		/**< session manager id for this conn in new session protocol, NULL for old protocol */
+    char *id_session_start;	/**< id of the iq packet of the client, that requested session start, NULL else */
     jid myid;			/**< the source-JID used to send messages to
 				     the session manager */
     jid smid;			/**< the dest-JID used to send messages to the
 				     session manager */
-    jid userid;			/**< the JabberID of the user (only used for
+    jid userid;                 /**< the JabberID of the user (only used for
 				     generating connect/disconnect reports) */
+    jid authzid;		/**< the JabberID the user authorized as (in SASL mode) */
+
 
     /* chunks being written */
     chunk_t writeq;		/**< queue of chunks that have to be send to
@@ -188,6 +208,12 @@ struct conn_st {
 
     /* reset stream */
     int reset_stream;		/**< if set to 1 the stream will be reset (restarted) */
+
+    /* SASL */
+#ifdef WITH_SASL
+    sasl_conn_t *sasl_conn;	/**< connection object used by the sasl library */
+#endif
+    auth_state_t sasl_state;	/**< if SASL, resource binding, and session starting has been done */
 };
 
 /* conn happy/sad */
@@ -253,7 +279,7 @@ struct c2s_st
     config_elem_t local_id;
     config_elem_t local_alias;
     config_elem_t local_noregister;
-    config_elem_t local_nolegacyauth;
+    config_elem_t local_nolegacyauth;	/**< hosts for which legacy authentication is not advertized */
     char *local_ip;
     int local_port;
     char *local_statfile;
@@ -299,6 +325,18 @@ struct c2s_st
     /* logging */
     log_t log;
     int iplog;
+
+    /* SASL */
+    int sasl_enabled;		/**< 0 = only legacy auth by session manager, 1 = auth by jadc2s */
+    int sasl_jep0078;		/**< 0 = legacy authentication not supported, 1 = JEP-0078 supported */
+    char *sasl_appname;		/**< application name passed to SASL library (to generate SASL conf file name) */
+    char *sasl_service;		/**< registered service name, should always be 'xmpp' */
+    char *sasl_fqdn;		/**< FQDN passed to sasl library */
+    char *sasl_defaultrealm;	/**< default realm passed to sasl library */
+    unsigned sasl_min_ssf;	/**< minimum security strength factor for SASL */
+    unsigned sasl_max_ssf;	/**< maximum security strength factor for SASL */
+    int sasl_noseclayer;	/**< 0 = allow SASL security layer, 1 = do not allow SASL security layer */
+    unsigned sasl_sec_flags;	/**< SASL security flags to set */
 };
 
 /** the handler for client mio events */

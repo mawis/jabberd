@@ -99,4 +99,46 @@
 	<!-- <iplog/> -->
     </io>
 
+
+    <!-- authentication settings                                           -->
+
+    <!-- for now: by default authentication is done in the session         -->
+    <!-- manager and only JEP-0078 style authentication is supported.      -->
+    <!-- If you want SASL authentication to work, you have to enable       -->
+    <!-- the authentication routines inside jadc2s.                        -->
+    <!-- To enable authentication inside jadc2s, you also have to use      -->
+    <!-- at least a beta version of jabberd14 1.6.0. It might as well      -->
+    <!-- work with the jabberd2, but this is not tested.                   -->
+    <!--                                                                   -->
+    <!-- Available settings:                                               -->
+    <!--  appname:      Name of the application. Used to build the         -->
+    <!--                configuration file name of the cyrus sasl library. -->
+    <!--  service:      Registered name of the SASL service,               -->
+    <!--                this should always be "xmpp" which is the default. -->
+    <!--  fqdn:         Fully qualified domain name of the server,         -->
+    <!--                if not present gethostbyname() will be used.       -->
+    <!--  defaultrealm: Authentication realm to use, if no realm is        -->
+    <!--                specified by the client.                           -->
+    <!--                This is usually not necessary.                     -->
+    <!--  legacyauth:   If present, JEP-0078 authentication is still       -->
+    <!--                supported.                                         -->
+    <!--  minssf:	minimum acceptable final security strength factor  -->
+    <!--  maxssf:	maximum acceptable final security stringth factor  -->
+    <!--  noseclayer:   do not support SASL security layer                 -->
+    <!--                                                                   -->
+    <!-- To enable authentication inside jadc2s, uncomment the following   -->
+    <!-- configuration section, and configure your libsasl2 installation.  -->
+    <!--                                                                   -->
+    <!-- USING SASL IS NOT PLUG AND PLAY. YOU HAVE TO CONFIGURE YOUR CYRUS -->
+    <!-- SASL INSTALLATION TO KNOW THE USER'S PASSWORDS. ELSE              -->
+    <!-- AUTHENTICATION USING SASL WILL FAIL.                              -->
+
+    <!--
+    <authentication>
+    	<appname>jadc2s</appname>
+	<service>xmpp</service>
+	<legacyauth/>
+    </authentication>
+    -->
+
 </jadc2s>

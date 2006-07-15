@@ -60,6 +60,7 @@ conn_t conn_new(c2s_t c2s, int fd)
     c->root_element = root_element_NONE;
     c->local_id = NULL;
     c->state = state_NONE;
+    c->sasl_state = state_auth_NONE;
     c->type = type_NORMAL;
     c->start = time(NULL);
     c->expat = XML_ParserCreate(NULL);
@@ -90,8 +91,26 @@ conn_t conn_new(c2s_t c2s, int fd)
 /* free up memory (!caller must process anything in the writeq) */
 void conn_free(conn_t c)
 {
-    if (c->sid != NULL) free(c->sid);
+    /* free allocated strings */
+    if (c->sid != NULL) {
+	free(c->sid);
+	c->sid = NULL;
+    }
+    if (c->sc_sm != NULL) {
+	free(c->sc_sm);
+	c->sc_sm = NULL;
+    }
+    if (c->id_session_start != NULL) {
+	free(c->id_session_start);
+	c->id_session_start = NULL;
+    }
     XML_ParserFree(c->expat);
+#ifdef WITH_SASL
+    if (c->sasl_conn != NULL) {
+	sasl_dispose(&(c->sasl_conn));
+    }
+    c->sasl_conn = NULL;
+#endif
 #ifdef USE_SSL
     SSL_free(c->ssl);
 #endif
@@ -161,7 +180,7 @@ const char* _conn_root_element_name(root_element_t root_element) {
 /* write errors out and close streams */
 void conn_close(conn_t c, char *condition, char *err)
 {
-    if(c != NULL)
+    if(c != NULL && c->fd != -1)
     {
 	char *footer;
 	const char *root_element_name;
