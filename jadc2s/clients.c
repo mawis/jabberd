@@ -297,7 +297,7 @@ void _client_stream_send_root(conn_t c) {
 	if (c->sasl_state == state_auth_NONE && _client_check_in_hostlist(c->c2s->local_nolegacyauth, header_from) == -1 && (!c->c2s->sasl_enabled || c->c2s->sasl_jep0078))
 	    _write_actual(c, c->fd, "<auth xmlns='http://jabber.org/features/iq-auth'/>", 50);
 #ifdef USE_SSL
-	if (_client_check_tls_possible(c, header_from)) {
+	if (c->sasl_state == state_auth_NONE && _client_check_tls_possible(c, header_from)) {
 	    if (!c->c2s->tls_required)
 		_write_actual(c, c->fd, "<starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/>", 51);
 	    else
