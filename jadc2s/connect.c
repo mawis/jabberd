@@ -322,6 +322,19 @@ void _connect_process(conn_t c) {
     /* either bounce or send the chunk to the client */
     if(target->fd >= 0 && j_strcmp(jid_full(target->smid), str) == 0)
     {
+	int stanza_element = -1;
+
+	stanza_element = nad_find_elem(chunk->nad, 0, "message", 1);
+	if (stanza_element < 0)
+	    stanza_element = nad_find_elem(chunk->nad, 0, "iq", 1);
+	if (stanza_element < 0)
+	    stanza_element = nad_find_elem(chunk->nad, 0, "presence", 1);
+	if (stanza_element >= 0) {
+	    nad_set_attr(chunk->nad, stanza_element, "xmlns:sc", NULL);
+	    nad_set_attr(chunk->nad, stanza_element, "sc:c2s", NULL);
+	    nad_set_attr(chunk->nad, stanza_element, "sc:sm", NULL);
+	}
+
         chunk_write(target, chunk, NULL, NULL, NULL);
 	target->out_stanzas++;
     }

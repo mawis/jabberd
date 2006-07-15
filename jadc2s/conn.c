@@ -517,20 +517,52 @@ int _read_actual(conn_t c, int fd, char *buf, size_t count)
 	    log_write(c->c2s->log, LOG_NOTICE, "ssl/tls established on fd %i: %s %s", c->fd, SSL_get_version(c->ssl), SSL_get_cipher(c->ssl));
 	if (bytes_read <= 0)
 	    _log_ssl_io_error(c->c2s->log, c->ssl, bytes_read, c->fd);
+
+#ifdef WITH_SASL
+	if (bytes_read > 0 && c->sasl_conn != NULL && c->sasl_state != state_auth_NONE) {
+	    int sasl_result = 0;
+	    const char *decoded_data = NULL;
+	    size_t decoded_len = 0;
+
+	    sasl_result = sasl_decode(c->sasl_conn, buf, bytes_read, &decoded_data, &decoded_len);
+	    if (sasl_result != SASL_OK) {
+		errno = EIO;
+		return -1;
+	    }
+	    memcpy(buf, decoded_data, decoded_len < count ? decoded_len : count);
+	    return decoded_len < count ? decoded_len : count;
+	}
+#endif
         return bytes_read;
     }
 #endif
     bytes_read = read(fd, buf, count);
     if (bytes_read > 0)
 	c->in_bytes += bytes_read;
+#ifdef WITH_SASL
+    if (bytes_read > 0 && c->sasl_conn != NULL && c->sasl_state != state_auth_NONE) {
+	int sasl_result = 0;
+	const char *decoded_data = NULL;
+	size_t decoded_len = 0;
+
+	sasl_result = sasl_decode(c->sasl_conn, buf, bytes_read, &decoded_data, &decoded_len);
+	if (sasl_result != SASL_OK) {
+	    errno = EIO;
+	    return -1;
+	}
+	memcpy(buf, decoded_data, decoded_len < count ? decoded_len : count);
+	return decoded_len < count ? decoded_len : count;
+    }
+#endif
+ 
     return bytes_read;
 }
 
-
+/* XXX cannot be used after a SASL security layer has been established! */
 int _peek_actual(conn_t c, int fd, char *buf, size_t count)
 {
     int bytes_read;
-    
+   
 #ifdef USE_SSL
     if(c->ssl != NULL) {
 	bytes_read = SSL_peek(c->ssl, buf, count);
@@ -548,10 +580,31 @@ int _peek_actual(conn_t c, int fd, char *buf, size_t count)
 int _write_actual(conn_t c, int fd, const char *buf, size_t count)
 {
     int written;
+    const char *output_buffer = buf;
+    size_t output_len = count;
+
+    log_debug(ZONE, "writing: %.*s", count, buf);
+
+#ifdef WITH_SASL
+    if (c->sasl_conn && c->sasl_state != state_auth_NONE) {
+	int sasl_result = 0;
+
+	log_debug(ZONE, "c->sasl_conn = %X, buf = %.*s, count = %i", c->sasl_conn, count, buf, count);
+	output_buffer = NULL;
+	sasl_result = sasl_encode(c->sasl_conn, buf, count, &output_buffer, &output_len); /* XXX check that we can write that much, see sasl_getprop(..., SASL_MAXOUTBUF, ...) */
+	log_debug(ZONE, "SASL result: %i", sasl_result);
+	if (sasl_result != SASL_OK) {
+	    errno = EIO;
+	    return -1;
+	}
+    }
+#endif
+
+    log_debug(ZONE, "after SASL encoding (%i): %.*s", output_len, output_len, output_buffer);
     
 #ifdef USE_SSL
     if(c->ssl != NULL) {
-        written = SSL_write(c->ssl, buf, count);
+        written = SSL_write(c->ssl, output_buffer, output_len);
 	if (written > 0) {
 #ifdef FLASH_HACK
 	    if (c->type == type_FLASH) {
@@ -570,7 +623,7 @@ int _write_actual(conn_t c, int fd, const char *buf, size_t count)
     }
 #endif
         
-    written = write(fd, buf, count);
+    written = write(fd, output_buffer, output_len);
     if (written > 0)
     {
 #ifdef FLASH_HACK
