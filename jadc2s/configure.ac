@@ -287,28 +287,6 @@ fi
 
 AC_SUBST(USE_SSL)
 
-dnl check for libgsasl
-PKG_CHECK_MODULES(GSASL, libgsasl >= 0.2.0, haslibgsasl=yes, haslibgsasl=no)
-if test $haslibgsasl = "no" ; then
-    AC_MSG_RESULT($GSASL_PKG_ERRORS)
-fi
-AC_MSG_CHECKING(if SASL is requested)
-AC_ARG_ENABLE(sasl, AC_HELP_STRING([--enable-sasl], [Enable SASL authentication using GNU SASL]), sasl=yes)
-if test x-$sasl = "x-yes" ; then
-    AC_MSG_RESULT(yes)
-    if test $haslibgsasl = "yes" ; then
-	AC_DEFINE(WITH_SASL,,[GNU SASL requested])
-	CFLAGS="$CFLAGS $GSASL_CFLAGS"
-	LDFLAGS="$LDFLAGS $GSASL_LIBS"
-    else
-	AC_MSG_ERROR([SASL is requested but usable GNU SASL installation has not been found.])
-    fi
-else
-    AC_MSG_RESULT(no)
-fi
-
-AC_SUBST(WITH_SASL)
-
 dnl check if flash hack is requested
 AC_MSG_CHECKING(if flash hack wanted)
 AC_ARG_ENABLE(flash, AC_HELP_STRING([--enable-flash],
@@ -361,6 +339,29 @@ else
 fi
 AC_MSG_CHECKING([if Libidn should be used])
 AC_MSG_RESULT($libidn)
+
+
+dnl check for cyrus sasl
+AC_ARG_WITH(cyrussasl2, AC_HELP_STRING([--with-cyrussasl2=DIR],
+	    [Support SASL (needs Cyrus SASL 2)]),
+	    cyrussasl2=$withval, cyrussasl2=yes)
+if test "$cyrussasl2" != "no"; then
+    if test "$cyrussasl2" != "yes"; then
+	LDFLAGS="${LDFLAGS} -L$cyrussasl2/lib"
+	CPPFLAGS="${CPPFLAGS} -I$cyrussasl2/include"
+    fi
+    AC_CHECK_HEADER(sasl/sasl.h,
+		    AC_CHECK_LIB(sasl2, sasl_server_init,
+				 [cyrussasl2=yes LIBS="${LIBS} -lsasl2"], cyrussasl2=no),
+				 cyrussasl2=no)
+fi
+if test "$cyrussasl2" != "no"; then
+    AC_DEFINE(WITH_SASL, 1, [Define to 1 if you want SASL support.])
+else
+    AC_MSG_ERROR([Could not find required Cyrus SASL2 installation])
+fi
+AC_MSG_CHECKING([if Cyrus SASL2 should be used])
+AC_MSG_RESULT(yes)
 
 
 dnl define where the configuration file is located

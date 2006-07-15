@@ -453,7 +453,7 @@ jid jid_safe(jid id)
     return id;
 }
 
-jid jid_newx(pool p, jid_environment_t environment, char *idstr, int len) {
+jid jid_newx(pool p, jid_environment_t environment, const char *idstr, int len) {
     char *server, *resource, *type, *str;
     jid id;
 
@@ -501,7 +501,7 @@ jid jid_newx(pool p, jid_environment_t environment, char *idstr, int len) {
     return jid_safe(id);
 }
 
-jid jid_new(pool p, jid_environment_t environment, char *idstr) {
+jid jid_new(pool p, jid_environment_t environment, const char *idstr) {
     if(idstr == NULL) return NULL;
     return jid_newx(p, environment, idstr, strlen(idstr));
 }

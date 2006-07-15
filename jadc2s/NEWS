@@ -9,3 +9,5 @@
       connections to this port) [mawis]
     * Preparation of JabberIDs according to stringprep profiles [mawis]
     * XMPP style stream errors [mawis]
+    * Support for SASL authentication when used together with jabberd14
+      version 1.6.0+ [mawis]

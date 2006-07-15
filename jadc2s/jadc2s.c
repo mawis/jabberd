@@ -43,6 +43,11 @@
 /* check jadc2s.h for an overview of this codebase */
 static int process_conns = 1;
 
+/* SASL callbacks */
+static sasl_callback_t sasl_callbacks[] = {
+    { SASL_CB_LIST_END, NULL, NULL }
+};
+
 /* this checks for bad conns that have timed out */
 void _walk_pending(xht pending, const char *key, void *val, void *arg)
 {
@@ -50,7 +55,7 @@ void _walk_pending(xht pending, const char *key, void *val, void *arg)
     time_t now = (time_t)arg;
 
     /* send stream error and close connection */
-    if((now - c->start) > c->c2s->timeout)
+    if((now - c->start) > c->c2s->timeout && c->fd != -1)
 	conn_close(c, STREAM_ERR_TIMEOUT, "You have not authenticated in time");
 }
 
@@ -89,9 +94,12 @@ void check_karma(c2s_t c2s)
 static void usage(void)
 {
     fputs(
-	"This is version " VERSION " of jadc2s\n"
+	"This is version " VERSION " of jadc2s\n\n"
 #ifdef USE_SSL
 	"SSL/TLS is enabled in this build.\n"
+#endif
+#ifdef WITH_SASL
+	"SASL is enabled in this build.\n"
 #endif
 	"\n"
         "Usage: jadc2s <options>\n"
@@ -126,6 +134,7 @@ int main(int argc, char **argv)
     int i, fd;
     char *rand_dev = NULL;
     unsigned int rand_seed = 0;
+    int sasl_result = 0;
 
     signal(SIGINT, onSignal);
     signal(SIGPIPE, SIG_IGN);
@@ -252,6 +261,26 @@ int main(int argc, char **argv)
 	return 1;
     }
 
+    /* authentication configuration stuff */
+    c2s->sasl_enabled = config_get_one(c2s->config, "authentication", 0) == NULL ? 0 : 1;
+    if (c2s->sasl_enabled != 0) {
+	c2s->sasl_jep0078 = config_get_one(c2s->config, "authentication.legacyauth", 0) == NULL ? 0 : 1;
+	c2s->sasl_appname = config_get_one(c2s->config, "authentication.appname", 0);
+	if (c2s->sasl_appname == NULL) {
+	    c2s->sasl_appname = PACKAGE;
+	}
+	c2s->sasl_service = config_get_one(c2s->config, "authentication.service", 0);
+	if (c2s->sasl_service == NULL) {
+	    c2s->sasl_service = "xmpp";
+	}
+	c2s->sasl_fqdn = config_get_one(c2s->config, "authentication.fqdn", 0);
+	c2s->sasl_defaultrealm = config_get_one(c2s->config, "authentication.defaultrealm", 0);
+	c2s->sasl_min_ssf = j_atoi(config_get_one(c2s->config, "authentication.minssf", 0), 0);
+	c2s->sasl_max_ssf = (unsigned)j_atoi(config_get_one(c2s->config, "authentication.maxssf", 0), -1);
+	c2s->sasl_noseclayer = config_get_one(c2s->config, "authentication.noseclayer", 0) == NULL ? 0 : 1;
+	c2s->sasl_sec_flags = (unsigned)j_atoi(config_get_one(c2s->config, "authentication.secflags", 0), SASL_SEC_NOANONYMOUS);
+    }
+
     /* start logging */
     c2s->log = log_new(c2s->sm_id);
     log_write(c2s->log, LOG_NOTICE, "starting up");
@@ -360,6 +389,25 @@ int main(int argc, char **argv)
 	    SSL_CTX_set_options(c2s->ssl_ctx, SSL_OP_NO_TLSv1);
     }
 #endif
+
+#ifdef WITH_SASL
+    if (c2s->sasl_enabled != 0) {
+	sasl_result = sasl_server_init(sasl_callbacks, c2s->sasl_appname);
+	if (sasl_result != SASL_OK) {
+	    log_write(c2s->log, LOG_ERR, "initialization of SASL library failed: %i", sasl_result);
+	    exit(1);
+	}
+	log_write(c2s->log, LOG_NOTICE, "SASL authentication enabled");
+    } else {
+	log_write(c2s->log, LOG_NOTICE, "SASL authentication disabled");
+    }
+
+#else /* WITH(out)_SASL */
+    if (c2s->sasl_enabled != 0) {
+	log_write(c2s->log, LOG_ERR, "SASL requested in configuration file, but %s compiled without SASL support.", PACKAGE);
+	exit(1);
+    }
+#endif /* WITH(out)_SASL */
 
     /* just a matter of processing socket events now */
     last_jid_clean = last_pending = last_log = time(NULL);

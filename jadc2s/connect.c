@@ -123,6 +123,7 @@ void _connect_charData(void *arg, const char *str, int len)
 void _connect_process(conn_t c) {
     chunk_t chunk;
     int attr, id;
+    int element = -1;
     char *chr, str[3072], cid[3072]; /* see xmpp-core, 1023(node) + 1(@) + 1023(domain) + 1(/) + 1023(resource) + 1(\0) */
     conn_t target, pending;
 
@@ -225,6 +226,63 @@ void _connect_process(conn_t c) {
             target->smid = jid_new(target->idp, c->c2s->jid_environment, str);
             mio_read(c->c2s->mio, target->fd); /* start reading again now */
         }
+    }
+
+    /* look for packets of the new session manager protocol */
+    element = nad_find_elem(c->nad, 0, "sc:session", 1);
+    if (element >= 0) {
+	attr = nad_find_attr(c->nad, element, "xmlns:sc", "http://jabberd.jabberstudio.org/ns/session/1.0");
+	if (attr >= 0) {
+	    /* yes it is a session manager protocol packet: it needs to have a action attribute */
+	    attr = nad_find_attr(c->nad, element, "action", NULL);
+	    if (attr >= 0) {
+		if (NAD_AVAL_L(c->nad, attr) == 7 && j_strncmp(NAD_AVAL(c->nad, attr), "started", 7) == 0) {
+		    /* session using the new protocol has been started */
+
+		    /* get the session manager's id for the session */
+		    attr = nad_find_attr(c->nad, element, "sc:sm", NULL);
+
+		    /* did we wait for the confirmation? */
+		    if (attr >= 0 && target->sasl_state == state_auth_BOUND_RESOURCE) {
+			/* update state */
+			target->sasl_state = state_auth_SESSION_STARTED;
+			target->state = state_OPEN;
+			xhash_zap(c->c2s->pending, jid_full(target->myid));
+
+			/* keep session manager's id */
+			if (target->sc_sm != NULL) {
+			    free(target->sc_sm);
+			}
+			target->sc_sm = (char*)malloc(NAD_AVAL_L(c->nad, attr)+1);
+			snprintf(target->sc_sm, NAD_AVAL_L(c->nad, attr)+1, "%.*s", NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr));
+
+			/* confirm session start */
+			nad_free(c->nad);
+			c->nad = NULL;
+			c->nad = nad_new(c->c2s->nads);
+			chunk = chunk_new(c);
+
+			nad_append_elem(chunk->nad, "iq", 0);
+			nad_append_attr(chunk->nad, "from", target->authzid->server);
+			nad_append_attr(chunk->nad, "type", "result");
+			if (target->id_session_start != NULL)
+			    nad_append_attr(chunk->nad, "id", target->id_session_start);
+			nad_append_elem(chunk->nad, "session", 1);
+			nad_append_attr(chunk->nad, "xmlns", "urn:ietf:params:xml:ns:xmpp-session");
+
+			/* send response */
+			chunk_write(target, chunk, NULL, NULL, NULL);
+
+			/* cleanup */
+			if (target->id_session_start != NULL) {
+			    free(target->id_session_start);
+			    target->id_session_start = NULL;
+			}
+		    }
+		    return;
+		}
+	    }
+	}
     }
 
     /* the rest of them we just need a chunk to store until they get sent to the client */
