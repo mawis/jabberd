@@ -166,7 +166,7 @@ void _connect_process(conn_t c) {
     log_debug(ZONE, "processing route to %s with target %X", cid, target);
 
     attr = nad_find_attr(c->nad, 0, "type", NULL);
-    if(attr >= 0 && j_strncmp(NAD_AVAL(c->nad, attr), "error", 5) == 0)
+    if(attr >= 0 && j_strncmp(NAD_AVAL(c->nad, attr), "error", 5) == 0 && target->sasl_state == state_auth_NONE)
     {
         /* if our target is in state_SESS, then the sm is telling us about
          * the end of our old session which has the same cid, so just ignore it */

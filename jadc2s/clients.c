@@ -1081,6 +1081,7 @@ int _client_io_accept(mio_t m, int fd, const char *ip_port, c2s_t c2s) {
     char *port = NULL;
     int local_port = 0;
     int sasl_result = 0;
+    const char *remote_ip_port = ip_port;
 #ifdef USE_IPV6
     char ip[INET6_ADDRSTRLEN+6];
     char local_ip[INET6_ADDRSTRLEN];
@@ -1094,7 +1095,11 @@ int _client_io_accept(mio_t m, int fd, const char *ip_port, c2s_t c2s) {
 #endif
     socklen_t namelen = sizeof(sa);
 
-    snprintf(ip, sizeof(ip), "%s", ip_port);
+    if (j_strncmp(remote_ip_port, "::ffff:", 7) == 0) {
+	remote_ip_port = remote_ip_port+7;
+    }
+
+    snprintf(ip, sizeof(ip), "%s", remote_ip_port);
     port = strchr(ip, ';');
     if (port != NULL) {
 	*port = '\0';
@@ -1129,6 +1134,8 @@ int _client_io_accept(mio_t m, int fd, const char *ip_port, c2s_t c2s) {
 		log_debug(ZONE, "could not convert IPv6 address to string representation");
 		return 1;
 	    }
+	    if (j_strncmp(local_ip, "::ffff:", 7) == 0)
+		strcpy(local_ip, local_ip+7);
 	    local_port = ntohs(((struct sockaddr_in6*)&sa)->sin6_port);
 	    break;
 	default:
@@ -1140,7 +1147,7 @@ int _client_io_accept(mio_t m, int fd, const char *ip_port, c2s_t c2s) {
     snprintf(local_ip_port, sizeof(local_ip_port), "%s;%u", inet_ntoa(sa.sin_addr), local_port); /* this needs to be a ';' for SASL */
 #endif
 
-    log_write(c2s->log, LOG_NOTICE, "connection from %s to %s", ip_port, local_ip_port);
+    log_write(c2s->log, LOG_NOTICE, "connection from %s to %s", remote_ip_port, local_ip_port);
 
     /* set up the new client conn */
     c = conn_new(c2s, fd);
@@ -1162,7 +1169,7 @@ int _client_io_accept(mio_t m, int fd, const char *ip_port, c2s_t c2s) {
 	    sasl_dispose(&(c->sasl_conn));
 	    c->sasl_conn = NULL;
 	}
-	sasl_result = sasl_server_new(c2s->sasl_service, c2s->sasl_fqdn, c2s->sasl_defaultrealm, local_ip_port, ip_port, NULL, 0, &(c->sasl_conn));
+	sasl_result = sasl_server_new(c2s->sasl_service, c2s->sasl_fqdn, c2s->sasl_defaultrealm, local_ip_port, remote_ip_port, NULL, 0, &(c->sasl_conn));
 	if (sasl_result != SASL_OK) {
 	    log_write(c2s->log, LOG_ERR, "Error initializing SASL context: %i", sasl_result);
 	} else {
