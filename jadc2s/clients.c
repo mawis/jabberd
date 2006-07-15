@@ -449,7 +449,7 @@ void _client_stream_root(conn_t c, const char *name, const char **atts) {
 	int sasl_result = 0;
 
 	tls_ssf = SSL_get_cipher_bits(c->ssl, NULL);
-	sasl_result = sasl_setprop(c->sasl_conn, SASL_SSF_EXTERNAL, tls_ssf);
+	sasl_result = sasl_setprop(c->sasl_conn, SASL_SSF_EXTERNAL, &tls_ssf);
 	if (sasl_result != SASL_OK) {
 	    log_write(c->c2s->log, LOG_WARNING, "Could not pass TLS security strength factor (%u) to SASL layer: %i", tls_ssf, sasl_result);
 	}
@@ -1170,7 +1170,7 @@ int _client_io_accept(mio_t m, int fd, const char *ip_port, c2s_t c2s) {
 	    sasl_security_properties_t secprops;
 	    secprops.min_ssf = c2s->sasl_min_ssf;
 	    secprops.max_ssf = c2s->sasl_max_ssf;
-	    secprops.maxbufsize = 0;			/* XXX change to support security layer! */
+	    secprops.maxbufsize = c2s->sasl_noseclayer ? 0 : 1024;	/* XXX change to support security layer! */
 	    secprops.property_names = NULL;
 	    secprops.property_values = NULL;
 	    secprops.security_flags = c2s->sasl_sec_flags;
