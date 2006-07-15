@@ -666,7 +666,7 @@ void _client_do_sasl_step(conn_t c, chunk_t chunk) {
 
     /* is there response data? */
     if (NAD_CDATA_L(chunk->nad, 0) > 0) {
-	client_response_len = (NAD_CDATA_L(chunk->nad, 0)+3)/4*3;
+	client_response_len = (NAD_CDATA_L(chunk->nad, 0)+3)/4*3 + 1;
 
 	client_response = (char*)malloc(client_response_len);
 	sasl_result = sasl_decode64(NAD_CDATA(chunk->nad, 0), NAD_CDATA_L(chunk->nad, 0), client_response, client_response_len, &client_response_len);
@@ -842,7 +842,7 @@ void _client_process(conn_t c) {
 
 	/* is there initial data? */
 	if (NAD_CDATA_L(chunk->nad, 0) > 0) {
-	    initial_data_len = (NAD_CDATA_L(chunk->nad, 0)+3)/4*3;
+	    initial_data_len = (NAD_CDATA_L(chunk->nad, 0)+3)/4*3 + 1;
 
 	    initial_data = (char*)malloc(initial_data_len);
 	    sasl_result = sasl_decode64(NAD_CDATA(chunk->nad, 0), NAD_CDATA_L(chunk->nad, 0), initial_data, initial_data_len, &initial_data_len);
@@ -1040,7 +1040,6 @@ void _client_process(conn_t c) {
     switch(c->state) {
 	/* in SASL exchange */
 	case state_SASL:
-	    log_write(c->c2s->log, LOG_DEBUG, "calling _client_do_sasl_step()");
 	    _client_do_sasl_step(c, chunk);
 	    chunk_free(chunk);
 	    break;
