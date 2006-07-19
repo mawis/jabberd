@@ -40,102 +40,194 @@
  
 #include "jadc2s.h"
 
-/* handle new elements */
-void _connect_startElement(void *arg, const char* name, const char** atts)
-{
-    conn_t c = (conn_t)arg;
-    int i = 0;
-    char buf[128];
+/**
+ * get the child element of a route element, that represents the base element
+ * of the stanza
+ *
+ * @param nad the nad containing the route element
+ * @param root_element the handle for the route element (typically 0)
+ * @return -1 if no base element found, handle for the stanza base element else
+ */
+static int _connect_get_stanza_element(nad_t nad, int root_element) {
+    int stanza_element = -1;
 
-    /* track how far down we are in the xml */
-    c->depth++;
-
-    /* process stream header first */
-    if(c->depth == 1)
-    {
-        /* Extract stream ID and generate a key to hash */
-        snprintf(buf, 128, "%s", shahash(spools(c->idp, j_attr(atts, "id"), c->c2s->sm_secret, c->idp)));
-
-        /* create a new nad */
-        c->nad = nad_new(c->c2s->nads);
-        nad_append_elem(c->nad, "handshake", 1);
-        nad_append_cdata(c->nad, buf, strlen(buf), 2);
-
-        log_debug(ZONE,"handshaking with sm");
-
-        /* create a chunk and write it */
-        chunk_write(c, chunk_new(c), NULL, NULL, NULL);
-
-        return;
-    }
-
-    /* make a new nad if we don't already have one */
-    if(c->nad == NULL)
-        c->nad = nad_new(c->c2s->nads);
-
-    /* append new element data to nad */
-    nad_append_elem(c->nad, (char *) name, c->depth - 1);
-    i = 0;
-    while(atts[i] != '\0')
-    {
-        nad_append_attr(c->nad, (char *) atts[i], (char *) atts[i + 1]);
-        i += 2;
-    }
+    stanza_element = nad_find_elem(nad, root_element, "message", 1);
+    if (stanza_element >= 0)
+	return stanza_element;
+    stanza_element = nad_find_elem(nad, root_element, "iq", 1);
+    if (stanza_element >= 0)
+	return stanza_element;
+    return nad_find_elem(nad, root_element, "presence", 1);
 }
 
-/* prototype */
-void _connect_process(conn_t c);
+/**
+ * bounce back a packet to the session manager
+ */
+static void _connect_bounce_packet(conn_t c, chunk_t chunk) {
+    char from[3072];
+    char to[3072];
+    int attr = -1;
 
-void _connect_endElement(void *arg, const char* name)
-{
-    conn_t c = (conn_t)arg;
+    /* sanity check */
+    if (c == NULL || chunk == NULL)
+	return;
 
-    /* going up for air */
-    c->depth--;
+    /* get addresses */
+    attr = nad_find_attr(chunk->nad, 0, "from", NULL);
+    if (attr < 0)
+	return;
+    snprintf(from, sizeof(from), "%.*s", NAD_AVAL_L(chunk->nad, attr), NAD_AVAL(chunk->nad, attr));
 
-    if(c->depth == 1)
-    {
-        _connect_process(c);
-        if(c->nad != NULL)
-        {
-            nad_free(c->nad);
-            c->nad = NULL;
-        }
-    }
+    attr = nad_find_attr(chunk->nad, 0, "to", NULL);
+    if (attr < 0)
+	return;
+    snprintf(to, sizeof(to), "%.*s", NAD_AVAL_L(chunk->nad, attr), NAD_AVAL(chunk->nad, attr));
 
-    /* if we processed the closing stream root, flag to close l8r */
-    if(c->depth == 0)
-        c->depth = -1; /* we can't close here, expat gets free'd on close :) */
+    /* bounce back */
+    chunk_write(c, chunk, from, to, "error");
 }
 
+/**
+ * check if there has been a routing error for the packet
+ *
+ * Checks several things if thay match expected values
+ *
+ * @param sm_conn the connection to the jabber server, where the packet has been received
+ * @param client_conn the connection to the expected user, where the packet should be delivered to
+ * @param stanza_element the NAD id of the stanza base element in sm_conn->nad
+ * @return 0 = packet is sane and should be delivered, 1 = packet is routed to the wrong destination and should not further being processed
+ */
+static int _connect_packet_is_unsane_new_sc_proto(conn_t sm_conn, conn_t client_conn, int stanza_element) {
+    int sc_sm = -1;
 
-void _connect_charData(void *arg, const char *str, int len)
-{
-    conn_t c = (conn_t)arg;
+    /* first check for new protocol: expected to use the new protocol? */
+    if (client_conn->sc_sm == NULL) {
+	log_write(sm_conn->c2s->log, LOG_WARNING, "got packet from session manager using new sc protocol for target using old protocol: bouncing");
+	_connect_bounce_packet(sm_conn, chunk_new(sm_conn));
+	return 1;
+    }
 
-    /* no nad? no cdata */
-    if(c->nad == NULL) return;
+    /* second check for new protocol: is the session manager id matching? */
+    sc_sm = nad_find_attr(sm_conn->nad, stanza_element, "sc:sm", NULL);
+    if (sc_sm < 0) {
+	log_write(sm_conn->c2s->log, LOG_ERR, "got packet from session manager using new sc protocol, that has no sm id.");
+	return 1;
+    }
+    if (j_strlen(client_conn->sc_sm) != NAD_AVAL_L(sm_conn->nad, sc_sm) || j_strncmp(NAD_AVAL(sm_conn->nad, sc_sm), client_conn->sc_sm, NAD_AVAL_L(sm_conn->nad, sc_sm)) != 0) {
+	log_write(sm_conn->c2s->log, LOG_WARNING, "got packet from session manager using new sc protocol, that has unexpected sm id: bouncing");
+	_connect_bounce_packet(sm_conn, chunk_new(sm_conn));
+	return 1;
+    }
 
-    nad_append_cdata(c->nad, (char *) str, len, c->depth);
+    return 0;
+}
+	
+/**
+ * check if there has been a routing error for the packet
+ *
+ * Checks several things if thay match expected values
+ *
+ * @return 0 = packet is sane and should be delivered, 1 = packet is routed to the wrong destination and should not further being processed
+ */
+static int _connect_packet_is_unsane_old_sc_proto(conn_t sm_conn, conn_t client_conn) {
+    char from_jid[3072];
+    pool local_pool = NULL;
+    int from = -1;
+
+    /* first check for old protocol: expected to use the old protocol? */
+    if (client_conn->sc_sm != NULL) {
+	log_write(sm_conn->c2s->log, LOG_WARNING, "got packet from session manager using old sc protocol for target using new protocol: bouncing");
+	_connect_bounce_packet(sm_conn, chunk_new(sm_conn));
+	return 1;
+    }
+
+    /* second check for new protocol: is the session manager JID matching? */
+    from = nad_find_attr(sm_conn->nad, 0, "from", NULL);
+    if (from < 0) {
+	log_write(sm_conn->c2s->log, LOG_ERR, "no from attribute on route element from session manager! Dropping packet.");
+	return 1;
+    }
+    snprintf(from_jid, sizeof(from_jid), "%.*s", NAD_AVAL_L(sm_conn->nad, from), NAD_AVAL(sm_conn->nad, from));
+    local_pool = pool_new();
+    if (jid_cmpx(client_conn->smid, jid_new(local_pool, sm_conn->c2s->jid_environment, from_jid), JID_USER|JID_SERVER) != 0) {
+	pool_free(local_pool);
+
+	log_write(sm_conn->c2s->log, LOG_WARNING, "got packet from session manager using old sc protocol, that has unexpected route from attribute: bouncing (got from: %.*s, expected from: %s)", NAD_AVAL_L(sm_conn->nad, from), NAD_AVAL(sm_conn->nad, from), jid_full(client_conn->smid));
+	_connect_bounce_packet(sm_conn, chunk_new(sm_conn));
+	return 1;
+    }
+    pool_free(local_pool);
+
+    return 0;
+}
+
+/**
+ * handle a stanza received for a old sc protocol connection
+ */
+static void _connect_handle_error_packet(conn_t sm_conn, conn_t client_conn) {
+    char reason[1024];
+    int from_attr = -1;
+    int error_attr = -1;
+    char *smid = NULL;
+
+    /* if our target is in state_SESS, then the sm is telling us about
+     * the end of our old session which has the same cid, so just ignore it */
+    if (client_conn->state == state_SESS) {
+	log_debug(ZONE, "session end for dead session, dropping");
+	return;
+    }
+
+    /* if there is no such client connection => ignore */
+    if (client_conn->fd < 0) {
+	log_debug(ZONE, "Got session close for connection, that is already disconnected");
+	return;
+    }
+
+    /* disconnect if they come from a target with matching sender */
+    /* simple auth responses that don't have a client connected get dropped */
+    from_attr = nad_find_attr(sm_conn->nad, 0, "from", NULL);
+    smid = jid_full(client_conn->smid);
+    if (from_attr >= 0 && NAD_AVAL_L(sm_conn->nad, from_attr) == j_strlen(smid) && j_strncmp(smid, NAD_AVAL(sm_conn->nad, from_attr), NAD_AVAL_L(sm_conn->nad, from_attr)) == 0) {
+	/* not all errors have error attributes */
+	if ((error_attr = nad_find_attr(sm_conn->nad, 0, "error", NULL)) >= 0)
+	    snprintf(reason, sizeof(reason), "%.*s", NAD_AVAL_L(sm_conn->nad, error_attr), NAD_AVAL(sm_conn->nad, error_attr));
+	else
+	    snprintf(reason, sizeof(reason), "Server Error");
+
+	if (client_conn->state == state_OPEN) {
+	    if (j_strcasecmp(reason, "Disconnected") == 0)
+		conn_close(client_conn, STREAM_ERR_CONFLICT, reason);
+	    else
+		conn_close(client_conn, STREAM_ERR_INTERNAL_SERVER_ERROR, reason);
+	} else {
+	    if (j_strcasecmp(reason, "Internal Timeout") == 0)
+		conn_close(client_conn, STREAM_ERR_REMOTE_CONNECTION_FAILED, reason);
+	    else
+		conn_close(client_conn, STREAM_ERR_NOT_AUTHORIZED, reason);
+	}
+    }
 }
 
 /* process completed nads */
-void _connect_process(conn_t c) {
-    chunk_t chunk;
-    int attr, id;
+static void _connect_process(conn_t c) {
+    chunk_t chunk = NULL;
+    int attr = -1; /* used for searching various attributes in NAD */
+    int id = 0; /* id of the target session (index in c2s->conns) */
     int element = -1;
-    int stanza_element = -1;
-    int uses_new_sc_protocol = 0;
-    char *chr, str[3072], cid[3072]; /* see xmpp-core, 1023(node) + 1(@) + 1023(domain) + 1(/) + 1023(resource) + 1(\0) */
-    conn_t target, pending;
+    int stanza_element = -1; /* NAD handle of the message, iq, or presence element of the stanza */
+    int uses_new_sc_protocol = 0; /* sc proto version of processed stanza: 0 for old protocol, 1 for new protocol */
+    char *chr = NULL; /* pointer used to cut the target_str value at the @ sign */
+    char target_str[3072]; /* textual representation of the target connection (fd value) */
+    char cid[3072]; /* value of the 'to' attribute of the <route/> element */
+    char from_str[3072]; /* the from attribute value of the packet */
+    conn_t target = NULL; /* the connection where to forward the stanza to */
+    conn_t pending = NULL;
 
     log_debug(ZONE, "got packet from sm, processing");
 
     /* always check for the return handshake :) */
-    if(c->state != state_OPEN)
-    {
-        if(j_strncmp(NAD_ENAME(c->nad, 0), "handshake", 9) == 0)
-        {
+    if (c->state != state_OPEN) {
+        if (j_strncmp(NAD_ENAME(c->nad, 0), "handshake", 9) == 0) {
             c->state = state_OPEN;
             log_debug(ZONE,"handshake accepted, we're connected to the sm");
         }
@@ -143,39 +235,41 @@ void _connect_process(conn_t c) {
     }
 
     /* just ignore anything except route packets */
-    if(j_strncmp(NAD_ENAME(c->nad, 0), "route", 5) != 0) return;
+    if (j_strncmp(NAD_ENAME(c->nad, 0), "route", 5) != 0) {
+	log_debug(ZONE, "got non-route packet: %.*", NAD_ENAME_L(c->nad, 0), NAD_ENAME(c->nad, 0));
+	return;
+    }
 
     /* get the target connection of the packet */
 
     /* every route must have a target client id */
-    if((attr = nad_find_attr(c->nad, 0, "to", NULL)) == -1) return;
-
+    attr = nad_find_attr(c->nad, 0, "to", NULL);
+    if (attr == -1) {
+	log_write(c->c2s->log, LOG_ERR, "Got a <route/> stanza with no 'to' attribute. This should not happen, we cannot process this.");
+	return;
+    }
     snprintf(cid, sizeof(cid), "%.*s", NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr));
-    strcpy(str, cid);
-    chr = strchr(str, '@');
+    strcpy(target_str, cid);
+    chr = strchr(target_str, '@');
     if(chr == NULL)
     {
-        log_debug(ZONE, "weird and funky cid from sm: %s", cid);
+	log_write(c->c2s->log, LOG_ERR, "Got a <route/> stanz addressed to the bare client connection manager: %s", cid);
         return;
     }
     *chr = '\0';
 
     /* check if the packet uses the new session control protocol */
-    stanza_element = nad_find_elem(c->nad, 0, "message", 1);
-    if (stanza_element < 0)
-	stanza_element = nad_find_elem(c->nad, 0, "iq", 1);
-    if (stanza_element < 0)
-	stanza_element = nad_find_elem(c->nad, 0, "presence", 1);
+    stanza_element = _connect_get_stanza_element(c->nad, 0);
     if (stanza_element >= 0 && nad_find_attr(c->nad, stanza_element, "xmlns:sc", "http://jabberd.jabberstudio.org/ns/session/1.0") >= 0) {
 	attr = nad_find_attr(c->nad, stanza_element, "sc:c2s", NULL);
 	if (attr >= 0) {
 	    uses_new_sc_protocol = 1;
-	    snprintf(str, sizeof(str), "%.*s", NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr));
+	    snprintf(target_str, sizeof(target_str), "%.*s", NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr));
 	}
     }
 
     /* does not matter if old or new session control protocol: str now has the target fd number */
-    id = atoi(str);
+    id = atoi(target_str);
     if(id >= c->c2s->max_fds || ((target = &c->c2s->conns[id]) && (target->fd == -1 || target == c)))
     {
         log_debug(ZONE, "dropping packet for invalid conn %d (%s)", id, uses_new_sc_protocol ? "new sc" : "old sc");
@@ -183,116 +277,34 @@ void _connect_process(conn_t c) {
     }
 
     /* sanity check on the packet: is it the right recipient? */
-    if (uses_new_sc_protocol) {
-	/* first check for new protocol: expected to use the new protocol? */
-	if (target->sc_sm == NULL) {
-	    log_write(c->c2s->log, LOG_WARNING, "got packet from session manager using new sc protocol for target using old protocol (c2s id: %s)", str);
-	    /* XXX bounce */
-	    return;
-	}
-
-	/* second check for new protocol: is the session manager id matching? */
-	attr = nad_find_attr(c->nad, stanza_element, "sc:sm", NULL);
-	if (attr < 0) {
-	    log_write(c->c2s->log, LOG_ERR, "got packet from session manager using new sc protocol, that has no sm id. (c2s id: %s)", str);
-	    return;
-	}
-	if (j_strlen(target->sc_sm) != NAD_AVAL_L(c->nad, attr) || j_strncmp(NAD_AVAL(c->nad, attr), target->sc_sm, NAD_AVAL_L(c->nad, attr)) != 0) {
-	    log_write(c->c2s->log, LOG_WARNING, "got packet from session manager using new sc protocol, that has unexpected sm id. (c2s id: %s)", str);
-	    /* XXX bounce */
-	    return;
-	}
-    } else {
-	char from_jid[3072];
-	pool local_pool = NULL;
-
-	/* first check for old protocol: expected to use the old protocol? */
-	if (target->sc_sm != NULL) {
-	    log_write(c->c2s->log, LOG_WARNING, "got packet from session manager using old sc protocol for target using new protocol (cid: %s)", cid);
-	    /* XXX bounce */
-	    return;
-	}
-
-	/* second check for new protocol: is the session manager JID matching? */
-	attr = nad_find_attr(c->nad, 0, "from", NULL);
-	if (attr < 0) {
-	    log_write(c->c2s->log, LOG_ERR, "no from attribute on route element from session manager! Dropping packet.");
-	    return;
-	}
-	snprintf(from_jid, sizeof(from_jid), "%.*s", NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr));
-	local_pool = pool_new();
-	if (jid_cmpx(target->smid, jid_new(local_pool, c->c2s->jid_environment, from_jid), JID_USER|JID_SERVER) != 0) {
-	    pool_free(local_pool);
-
-	    log_write(c->c2s->log, LOG_WARNING, "got packet from session manager using old sc protocol, that has unexpected route from attribute. (cid: %s, got from: %.*s, expected from: %s)", cid, NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr), jid_full(target->smid));
-	    /* XXX bounce */
-	    return;
-	}
-	pool_free(local_pool);
-	local_pool = NULL;
+    if (uses_new_sc_protocol ? _connect_packet_is_unsane_new_sc_proto(c, target, stanza_element) : _connect_packet_is_unsane_old_sc_proto(c, target)) {
+	return;
     }
 
     log_debug(ZONE, "processing route to %s with target %X", cid, target);
 
-    attr = nad_find_attr(c->nad, 0, "type", NULL);
-    if(attr >= 0 && j_strncmp(NAD_AVAL(c->nad, attr), "error", 5) == 0 && target->sasl_state == state_auth_NONE)
-    {
-        /* if our target is in state_SESS, then the sm is telling us about
-         * the end of our old session which has the same cid, so just ignore it */
-        if(target->state == state_SESS)
-        {
-            log_debug(ZONE, "session end for dead session, dropping");
-
-            return;
-        }
-
-        /* disconnect if they come from a target with matching sender */
-        /* simple auth responses that don't have a client connected get dropped */
-        attr = nad_find_attr(c->nad, 0, "from", NULL);
-        if(target->fd >= 0 && attr >= 0 && j_strncmp(jid_full(target->smid), NAD_AVAL(c->nad, attr), NAD_AVAL_L(c->nad, attr)) == 0)
-        {
-            /* not all errors have error attributes */
-            if((attr = nad_find_attr(c->nad, 0, "error", NULL)) >= 0)
-                snprintf(str, sizeof(str), "%.*s", NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr));
-	    else
-		snprintf(str, sizeof(str), "Server Error");
-
-	    if (target->state == state_OPEN)
-	    {
-		if (j_strcasecmp(str, "Disconnected") == 0)
-		    conn_close(target, STREAM_ERR_CONFLICT, str);
-		else
-		    conn_close(target, STREAM_ERR_INTERNAL_SERVER_ERROR, str);
-	    } else {
-		if (j_strcasecmp(str, "Internal Timeout") == 0)
-		    conn_close(target, STREAM_ERR_REMOTE_CONNECTION_FAILED, str);
-		else
-		    conn_close(target, STREAM_ERR_NOT_AUTHORIZED, str);
-	    }
-
-        }
-        return;
+    /* handle type='error' packets for old sc protocol */
+    if (nad_find_attr(c->nad, 0, "type", "error") >= 0 && target->sasl_state == state_auth_NONE) {
+	_connect_handle_error_packet(c, target);
+	return;
     }
 
-    /* sanity check */
-    if((attr = nad_find_attr(c->nad, 0, "from", NULL)) < 0)
-    {
+    /* get packet source address */
+    if ((attr = nad_find_attr(c->nad, 0, "from", NULL)) < 0) {
         log_debug(ZONE, "missing sender on route?");
         return;
     }
-    snprintf(str, sizeof(str), "%.*s", NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr));
+    snprintf(from_str, sizeof(from_str), "%.*s", NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr));
 
     /* look for session creation responses and change client accordingly 
      * (note: if no target drop through w/ chunk since it'll error in endElement) */
-    if (target->fd >= 0)
-    {
-        attr = nad_find_attr(c->nad, 0, "type", NULL);
-        if(attr >= 0 && j_strncmp(NAD_AVAL(c->nad, attr), "session", 7) == 0)
-        {
-            log_debug(ZONE, "client %d now has a session %s", target->fd, str);
+    if (target->fd >= 0) {
+        attr = nad_find_attr(c->nad, 0, "type", "session");
+        if (attr >= 0) {
+            log_debug(ZONE, "client %d now has a session %s", target->fd, from_str);
             target->state = state_OPEN;
             xhash_zap(c->c2s->pending, jid_full(target->myid));
-            target->smid = jid_new(target->idp, c->c2s->jid_environment, str);
+            target->smid = jid_new(target->idp, c->c2s->jid_environment, from_str);
             mio_read(c->c2s->mio, target->fd); /* start reading again now */
         }
     }
@@ -389,8 +401,7 @@ void _connect_process(conn_t c) {
     log_debug(ZONE,"sm sent us a chunk for %s", cid);
 
     /* either bounce or send the chunk to the client */
-    if(target->fd >= 0 && j_strcmp(jid_full(target->smid), str) == 0)
-    {
+    if (target->fd >= 0) {
 	if (stanza_element >= 0) {
 	    nad_set_attr(chunk->nad, stanza_element, "xmlns:sc", NULL);
 	    nad_set_attr(chunk->nad, stanza_element, "sc:c2s", NULL);
@@ -401,11 +412,88 @@ void _connect_process(conn_t c) {
 	target->out_stanzas++;
     }
     else
-        chunk_write(c, chunk, str, cid, "error");
+	_connect_bounce_packet(c, chunk);
 }
 
+/* handle new elements */
+static void _connect_startElement(void *arg, const char* name, const char** atts)
+{
+    conn_t c = (conn_t)arg;
+    int i = 0;
+    char buf[128];
+
+    /* track how far down we are in the xml */
+    c->depth++;
+
+    /* process stream header first */
+    if(c->depth == 1)
+    {
+        /* Extract stream ID and generate a key to hash */
+        snprintf(buf, 128, "%s", shahash(spools(c->idp, j_attr(atts, "id"), c->c2s->sm_secret, c->idp)));
+
+        /* create a new nad */
+        c->nad = nad_new(c->c2s->nads);
+        nad_append_elem(c->nad, "handshake", 1);
+        nad_append_cdata(c->nad, buf, strlen(buf), 2);
+
+        log_debug(ZONE,"handshaking with sm");
+
+        /* create a chunk and write it */
+        chunk_write(c, chunk_new(c), NULL, NULL, NULL);
+
+        return;
+    }
+
+    /* make a new nad if we don't already have one */
+    if(c->nad == NULL)
+        c->nad = nad_new(c->c2s->nads);
+
+    /* append new element data to nad */
+    nad_append_elem(c->nad, (char *) name, c->depth - 1);
+    i = 0;
+    while(atts[i] != '\0')
+    {
+        nad_append_attr(c->nad, (char *) atts[i], (char *) atts[i + 1]);
+        i += 2;
+    }
+}
+
+static void _connect_endElement(void *arg, const char* name)
+{
+    conn_t c = (conn_t)arg;
+
+    /* going up for air */
+    c->depth--;
+
+    if(c->depth == 1)
+    {
+        _connect_process(c);
+        if(c->nad != NULL)
+        {
+            nad_free(c->nad);
+            c->nad = NULL;
+        }
+    }
+
+    /* if we processed the closing stream root, flag to close l8r */
+    if(c->depth == 0)
+        c->depth = -1; /* we can't close here, expat gets free'd on close :) */
+}
+
+
+static void _connect_charData(void *arg, const char *str, int len)
+{
+    conn_t c = (conn_t)arg;
+
+    /* no nad? no cdata */
+    if(c->nad == NULL) return;
+
+    nad_append_cdata(c->nad, (char *) str, len, c->depth);
+}
+
+
 /* internal handler to read incoming data from the sm and parse/process it */
-int _connect_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
+static int _connect_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
 {
     char buf[1024]; /* !!! make static when not threaded? move into conn_st? */
     int len, ret, x, retries;
