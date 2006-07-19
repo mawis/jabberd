@@ -1050,6 +1050,7 @@ void _client_process(conn_t c) {
 	    if (c->sc_sm) {
 		nad_set_attr(chunk->nad, 0, "xmlns:sc", "http://jabberd.jabberstudio.org/ns/session/1.0");
 		nad_set_attr(chunk->nad, 0, "sc:sm", c->sc_sm);
+		nad_set_attr(chunk->nad, 0, "sc:c2s", c->myid->user);
 	    }
             chunk_write(c->c2s->sm, chunk, jid_full(c->smid), jid_full(c->myid), NULL);
             break;

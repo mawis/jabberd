@@ -124,6 +124,8 @@ void _connect_process(conn_t c) {
     chunk_t chunk;
     int attr, id;
     int element = -1;
+    int stanza_element = -1;
+    int uses_new_sc_protocol = 0;
     char *chr, str[3072], cid[3072]; /* see xmpp-core, 1023(node) + 1(@) + 1023(domain) + 1(/) + 1023(resource) + 1(\0) */
     conn_t target, pending;
 
@@ -143,6 +145,8 @@ void _connect_process(conn_t c) {
     /* just ignore anything except route packets */
     if(j_strncmp(NAD_ENAME(c->nad, 0), "route", 5) != 0) return;
 
+    /* get the target connection of the packet */
+
     /* every route must have a target client id */
     if((attr = nad_find_attr(c->nad, 0, "to", NULL)) == -1) return;
 
@@ -156,11 +160,76 @@ void _connect_process(conn_t c) {
     }
     *chr = '\0';
 
+    /* check if the packet uses the new session control protocol */
+    stanza_element = nad_find_elem(c->nad, 0, "message", 1);
+    if (stanza_element < 0)
+	stanza_element = nad_find_elem(c->nad, 0, "iq", 1);
+    if (stanza_element < 0)
+	stanza_element = nad_find_elem(c->nad, 0, "presence", 1);
+    if (stanza_element >= 0 && nad_find_attr(c->nad, stanza_element, "xmlns:sc", "http://jabberd.jabberstudio.org/ns/session/1.0") >= 0) {
+	attr = nad_find_attr(c->nad, stanza_element, "sc:c2s", NULL);
+	if (attr >= 0) {
+	    uses_new_sc_protocol = 1;
+	    snprintf(str, sizeof(str), "%.*s", NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr));
+	}
+    }
+
+    /* does not matter if old or new session control protocol: str now has the target fd number */
     id = atoi(str);
     if(id >= c->c2s->max_fds || ((target = &c->c2s->conns[id]) && (target->fd == -1 || target == c)))
     {
-        log_debug(ZONE, "dropping packet for invalid conn %d", id);
+        log_debug(ZONE, "dropping packet for invalid conn %d (%s)", id, uses_new_sc_protocol ? "new sc" : "old sc");
         return;
+    }
+
+    /* sanity check on the packet: is it the right recipient? */
+    if (uses_new_sc_protocol) {
+	/* first check for new protocol: expected to use the new protocol? */
+	if (target->sc_sm == NULL) {
+	    log_write(c->c2s->log, LOG_WARNING, "got packet from session manager using new sc protocol for target using old protocol (c2s id: %s)", str);
+	    /* XXX bounce */
+	    return;
+	}
+
+	/* second check for new protocol: is the session manager id matching? */
+	attr = nad_find_attr(c->nad, stanza_element, "sc:sm", NULL);
+	if (attr < 0) {
+	    log_write(c->c2s->log, LOG_ERR, "got packet from session manager using new sc protocol, that has no sm id. (c2s id: %s)", str);
+	    return;
+	}
+	if (j_strlen(target->sc_sm) != NAD_AVAL_L(c->nad, attr) || j_strncmp(NAD_AVAL(c->nad, attr), target->sc_sm, NAD_AVAL_L(c->nad, attr)) != 0) {
+	    log_write(c->c2s->log, LOG_WARNING, "got packet from session manager using new sc protocol, that has unexpected sm id. (c2s id: %s)", str);
+	    /* XXX bounce */
+	    return;
+	}
+    } else {
+	char from_jid[3072];
+	pool local_pool = NULL;
+
+	/* first check for old protocol: expected to use the old protocol? */
+	if (target->sc_sm != NULL) {
+	    log_write(c->c2s->log, LOG_WARNING, "got packet from session manager using old sc protocol for target using new protocol (cid: %s)", cid);
+	    /* XXX bounce */
+	    return;
+	}
+
+	/* second check for new protocol: is the session manager JID matching? */
+	attr = nad_find_attr(c->nad, 0, "from", NULL);
+	if (attr < 0) {
+	    log_write(c->c2s->log, LOG_ERR, "no from attribute on route element from session manager! Dropping packet.");
+	    return;
+	}
+	snprintf(from_jid, sizeof(from_jid), "%.*s", NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr));
+	local_pool = pool_new();
+	if (jid_cmpx(target->smid, jid_new(local_pool, c->c2s->jid_environment, from_jid), JID_USER|JID_SERVER) != 0) {
+	    pool_free(local_pool);
+
+	    log_write(c->c2s->log, LOG_WARNING, "got packet from session manager using old sc protocol, that has unexpected route from attribute. (cid: %s, got from: %.*s, expected from: %s)", cid, NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr), jid_full(target->smid));
+	    /* XXX bounce */
+	    return;
+	}
+	pool_free(local_pool);
+	local_pool = NULL;
     }
 
     log_debug(ZONE, "processing route to %s with target %X", cid, target);
@@ -322,13 +391,6 @@ void _connect_process(conn_t c) {
     /* either bounce or send the chunk to the client */
     if(target->fd >= 0 && j_strcmp(jid_full(target->smid), str) == 0)
     {
-	int stanza_element = -1;
-
-	stanza_element = nad_find_elem(chunk->nad, 0, "message", 1);
-	if (stanza_element < 0)
-	    stanza_element = nad_find_elem(chunk->nad, 0, "iq", 1);
-	if (stanza_element < 0)
-	    stanza_element = nad_find_elem(chunk->nad, 0, "presence", 1);
 	if (stanza_element >= 0) {
 	    nad_set_attr(chunk->nad, stanza_element, "xmlns:sc", NULL);
 	    nad_set_attr(chunk->nad, stanza_element, "sc:c2s", NULL);
