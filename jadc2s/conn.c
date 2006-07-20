@@ -442,7 +442,7 @@ int conn_write(conn_t c)
         {
             if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN)
                 return 2; /* flag that we're blocking now */
-	    
+	   
             mio_close(c->c2s->mio, c->fd);
             return 0;
         }
