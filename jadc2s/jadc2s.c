@@ -43,13 +43,57 @@
 /* check jadc2s.h for an overview of this codebase */
 static int process_conns = 1;
 
+#ifdef WITH_SASL
+/* forward declaration */
+static int _canon_user(sasl_conn_t *conn, void *context, const char *in, unsigned inlen, unsigned flags, const char *user_realm, char *out, unsigned out_max, unsigned *out_len);
+
 /* SASL callbacks */
 static sasl_callback_t sasl_callbacks[] = {
+    { SASL_CB_CANON_USER, (int (*)())(&_canon_user), NULL }, /* must be the first callback, we manipulate the context in the code */
     { SASL_CB_LIST_END, NULL, NULL }
 };
 
+/**
+ * callback for cyrus sasl, that stringpres XMPP user ids
+ */
+static int _canon_user(sasl_conn_t *conn, void *context, const char *in, unsigned inlen, unsigned flags, const char *user_realm, char *out, unsigned out_max, unsigned *out_len) {
+    c2s_t c2s = (c2s_t)context;
+    jid user_jid = NULL;
+    pool local_pool = NULL;
+
+    /* sanity check */
+    if (c2s == NULL) {
+	log_debug(ZONE, "_canon_user called with NULL context");
+	return SASL_FAIL;
+    }
+
+    /* stringprep the ID */
+    local_pool = pool_new();
+    user_jid = jid_new(local_pool, c2s->jid_environment, user_realm);
+    jid_set(user_jid, in, JID_USER);
+    if (user_jid->user == NULL) {
+	pool_free(local_pool);
+	return SASL_BADPROT;
+    }
+
+    /* enough memory? */
+    if (j_strlen(user_jid->user) >= out_max) {
+	pool_free(local_pool);
+	return SASL_BUFOVER;
+    }
+
+    /* copy to the output buffer */
+    snprintf(out, out_max, "%s", user_jid->user);
+    *out_len = j_strlen(user_jid->user);
+    pool_free(local_pool);
+    user_jid = NULL;
+
+    return SASL_OK;
+}
+#endif
+
 /* this checks for bad conns that have timed out */
-void _walk_pending(xht pending, const char *key, void *val, void *arg)
+static void _walk_pending(xht pending, const char *key, void *val, void *arg)
 {
     conn_t c = (conn_t)val;
     time_t now = (time_t)arg;
@@ -63,8 +107,7 @@ void _walk_pending(xht pending, const char *key, void *val, void *arg)
 * Iterate over the bad conns list and reset people that are ok
 * @param c2s The c2s instance to process from
 */
-void check_karma(c2s_t c2s)
-{
+static void check_karma(c2s_t c2s) {
     bad_conn_t cur, next;
     time_t start;
 
@@ -91,8 +134,7 @@ void check_karma(c2s_t c2s)
     }
 }
 
-static void usage(void)
-{
+static void usage(void) {
     fputs(
 	"This is version " VERSION " of jadc2s\n\n"
 #ifdef USE_SSL
@@ -115,18 +157,65 @@ static void usage(void)
 /* 
  * Handle signals that would stop us nicely
  */
-void onSignal(int signal)
-{
+static void onSignal(int signal) {
     /* Just tell ourselves to stop process */
     process_conns = 0;
 }
+
+static int ignore_term_signals(void) {
+    /* !!! the list of signals to ignore -- needs to be reviewed */
+    int sig[] = {SIGHUP, SIGQUIT, SIGTSTP, SIGTTIN, SIGTTOU};
+
+    int num_sigs = (sizeof sig) / (sizeof sig[0]);
+    int i;
+    struct sigaction dae_action;
+    
+    dae_action.sa_handler = SIG_IGN;
+    sigemptyset(&(dae_action.sa_mask));
+    dae_action.sa_flags = 0;
+    
+    for (i = 0; i < num_sigs; ++i)
+    	if (sigaction(sig[i], &dae_action, NULL) == -1) return -1;
+    
+    return 0;
+}
+
+static int daemonize(void) {
+    pid_t pid;
+    int i;
+
+    fprintf(stderr, "preparing to run in daemon mode ...\n");
+    
+    if ((pid = fork()) != 0)
+       exit(0);
+
+    /* become session leader */
+    setsid();
+
+    /* ignore the signals we want */
+    ignore_term_signals();
+    
+    if ((pid = fork()) != 0)
+       exit(0);
+
+    /* !!! could change to our working directory */
+    // chdir("/"); 
+
+    umask(0);
+
+    /* close open descriptors */
+    for (i=0; i < MAXFD; ++i)
+       close(i);
+
+    return 0;
+}
+
 
 /* although this is our main and it's an all-in-one right now,
  * it's done in a way that would make it quite easy to thread, 
  * customize, or integrate with another codebase
  */
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     c2s_t c2s;
     time_t last_log, last_pending, last_jid_clean, now;
     char optchar;
@@ -392,6 +481,7 @@ int main(int argc, char **argv)
 
 #ifdef WITH_SASL
     if (c2s->sasl_enabled != 0) {
+	sasl_callbacks[0].context = (void*)c2s;
 	sasl_result = sasl_server_init(sasl_callbacks, c2s->sasl_appname);
 	if (sasl_result != SASL_OK) {
 	    log_write(c2s->log, LOG_ERR, "initialization of SASL library failed: %i", sasl_result);
@@ -484,8 +574,7 @@ int main(int argc, char **argv)
 }
 
 /* spit out debug output */
-void debug_log(char *file, int line, const char *msgfmt, ...)
-{
+void debug_log(char *file, int line, const char *msgfmt, ...) {
     va_list ap;
     char *pos, message[MAX_DEBUG];
     int sz;
@@ -509,55 +598,3 @@ void debug_log(char *file, int line, const char *msgfmt, ...)
     fprintf(stderr,"%s", message);
     fprintf(stderr, "\n");
 }
-
-
-int daemonize(void)
-{
-    pid_t pid;
-    int i;
-
-    fprintf(stderr, "preparing to run in daemon mode ...\n");
-    
-    if ((pid = fork()) != 0)
-       exit(0);
-
-    /* become session leader */
-    setsid();
-
-    /* ignore the signals we want */
-    ignore_term_signals();
-    
-    if ((pid = fork()) != 0)
-       exit(0);
-
-    /* !!! could change to our working directory */
-    // chdir("/"); 
-
-    umask(0);
-
-    /* close open descriptors */
-    for (i=0; i < MAXFD; ++i)
-       close(i);
-
-    return 0;
-}
-
-int ignore_term_signals(void)
-{
-    /* !!! the list of signals to ignore -- needs to be reviewed */
-    int sig[] = {SIGHUP, SIGQUIT, SIGTSTP, SIGTTIN, SIGTTOU};
-
-    int num_sigs = (sizeof sig) / (sizeof sig[0]);
-    int i;
-    struct sigaction dae_action;
-    
-    dae_action.sa_handler = SIG_IGN;
-    sigemptyset(&(dae_action.sa_mask));
-    dae_action.sa_flags = 0;
-    
-    for (i = 0; i < num_sigs; ++i)
-    	if (sigaction(sig[i], &dae_action, NULL) == -1) return -1;
-    
-    return 0;
-}
-

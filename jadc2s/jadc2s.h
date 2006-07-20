@@ -345,10 +345,6 @@ int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg);
 /** create a sm connection (block until it's connected) */
 int connect_new(c2s_t c2s);
 
-/** run in daemon mode */ 
-int daemonize(void);
-int ignore_term_signals(void);
-
 /* wrappers around read() and write(), with ssl support */
 int _read_actual(conn_t c, int fd, char *buf, size_t count);
 int _peek_actual(conn_t c, int fd, char *buf, size_t count);
