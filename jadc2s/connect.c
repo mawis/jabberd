@@ -87,6 +87,42 @@ static void _connect_bounce_packet(conn_t c, chunk_t chunk) {
     chunk_write(c, chunk, from, to, "error");
 }
 
+static void _connect_log_packet_info(c2s_t c2s, nad_t nad, conn_t client_conn, int stanza_element) {
+    int received_sc_c2s = -1;
+    int received_sc_sm = -1;
+    int received_to = -1;
+
+    /* sanity checks */
+    if (client_conn->fd < 0) {
+	log_write(c2s->log, LOG_NOTICE, "not logging expected/received data. Client connection not connected.");
+	return;
+    }
+    if (client_conn->myid == NULL) {
+	log_write(c2s->log, LOG_NOTICE, "not logging expected/received data. Client connection has no myid");
+	return;
+    }
+
+    /* prepare data */
+    received_sc_c2s = nad_find_attr(nad, stanza_element, "sc:c2s", NULL);
+    received_sc_sm = nad_find_attr(nad, stanza_element, "sc:sm", NULL);
+    received_to = nad_find_attr(nad, stanza_element, "to", NULL);
+
+    /* log data */
+    log_write(c2s->log, LOG_NOTICE, "expected data: sc_protocol=%s, sc:c2s=%i, sc:sm=%s, to=%s",
+	    client_conn->sc_sm == NULL ? "old" : "new",
+	    client_conn->myid->user,
+	    client_conn->sc_sm,
+	    jid_full(client_conn->userid)
+	    );
+    log_write(c2s->log, LOG_NOTICE, "received data: sc_protocol=%s, sc:c2s=%.*s, sc:sm=%.*s, to=%.*s",
+	    received_sc_c2s < 0 ? "old" : "new",
+	    received_sc_c2s < 0 ? 0 : NAD_AVAL_L(nad, received_sc_c2s), received_sc_c2s < 0 ? "" : NAD_AVAL(nad, received_sc_c2s),
+	    received_sc_sm < 0 ? 0 : NAD_AVAL_L(nad, received_sc_sm), received_sc_sm < 0 ? "" : NAD_AVAL(nad, received_sc_sm),
+	    received_to < 0 ? 0 : NAD_AVAL_L(nad, received_to), received_to < 0 ? "" : NAD_AVAL(nad, received_to)
+	    );
+
+}
+
 /**
  * check if there has been a routing error for the packet
  *
@@ -103,6 +139,7 @@ static int _connect_packet_is_unsane_new_sc_proto(conn_t sm_conn, conn_t client_
     /* first check for new protocol: expected to use the new protocol? */
     if (client_conn->sc_sm == NULL) {
 	log_write(sm_conn->c2s->log, LOG_WARNING, "got packet from session manager using new sc protocol for target using old protocol: bouncing");
+	_connect_log_packet_info(sm_conn->c2s, sm_conn->nad, client_conn, stanza_element);
 	_connect_bounce_packet(sm_conn, chunk_new(sm_conn));
 	return 1;
     }
@@ -110,11 +147,13 @@ static int _connect_packet_is_unsane_new_sc_proto(conn_t sm_conn, conn_t client_
     /* second check for new protocol: is the session manager id matching? */
     sc_sm = nad_find_attr(sm_conn->nad, stanza_element, "sc:sm", NULL);
     if (sc_sm < 0) {
-	log_write(sm_conn->c2s->log, LOG_ERR, "got packet from session manager using new sc protocol, that has no sm id.");
+	log_write(sm_conn->c2s->log, LOG_ERR, "got packet from session manager using new sc protocol, that has no sm id: dropping");
+	_connect_log_packet_info(sm_conn->c2s, sm_conn->nad, client_conn, stanza_element);
 	return 1;
     }
     if (j_strlen(client_conn->sc_sm) != NAD_AVAL_L(sm_conn->nad, sc_sm) || j_strncmp(NAD_AVAL(sm_conn->nad, sc_sm), client_conn->sc_sm, NAD_AVAL_L(sm_conn->nad, sc_sm)) != 0) {
 	log_write(sm_conn->c2s->log, LOG_WARNING, "got packet from session manager using new sc protocol, that has unexpected sm id: bouncing");
+	_connect_log_packet_info(sm_conn->c2s, sm_conn->nad, client_conn, stanza_element);
 	_connect_bounce_packet(sm_conn, chunk_new(sm_conn));
 	return 1;
     }
@@ -195,15 +234,17 @@ static void _connect_handle_error_packet(conn_t sm_conn, conn_t client_conn) {
 	    snprintf(reason, sizeof(reason), "Server Error");
 
 	if (client_conn->state == state_OPEN) {
-	    if (j_strcasecmp(reason, "Disconnected") == 0)
+	    if (j_strcasecmp(reason, "Disconnected") == 0) {
 		conn_close(client_conn, STREAM_ERR_CONFLICT, reason);
-	    else
+	    } else {
 		conn_close(client_conn, STREAM_ERR_INTERNAL_SERVER_ERROR, reason);
+	    }
 	} else {
-	    if (j_strcasecmp(reason, "Internal Timeout") == 0)
+	    if (j_strcasecmp(reason, "Internal Timeout") == 0) {
 		conn_close(client_conn, STREAM_ERR_REMOTE_CONNECTION_FAILED, reason);
-	    else
+	    } else {
 		conn_close(client_conn, STREAM_ERR_NOT_AUTHORIZED, reason);
+	    }
 	}
     }
 }

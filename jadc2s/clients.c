@@ -977,7 +977,10 @@ void _client_process(conn_t c) {
 
 	    /* still no resource? should not happen */
 	    if (c->authzid == NULL || c->authzid != NULL && c->authzid->resource == NULL) {
+		conn_error(c, STREAM_ERR_INTERNAL_SERVER_ERROR, "we could not generate a resource for your stream");
 		c->depth = -1;
+		chunk_free(chunk);
+		return;
 	    }
 
 	    /* send the client the confirmation */
