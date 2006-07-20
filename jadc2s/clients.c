@@ -734,6 +734,9 @@ void _client_do_sasl_step(conn_t c, chunk_t chunk) {
 			c->authzid = NULL;
 		    }
 
+		    /* remember authentication id for logging */
+		    c->userid = c->authzid;
+
 		    /* did we get a valid JabberID? */
 		    if (c->authzid == NULL) {
 			/* no -> close connection */
