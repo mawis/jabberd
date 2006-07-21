@@ -716,6 +716,12 @@ void _client_do_sasl_step(conn_t c, chunk_t chunk) {
 		const char *sasl_username = NULL;
 		int sasl_result2 = 0;
 
+		/* get the maximum block size we can sasl_encode now */
+		sasl_result2 = sasl_getprop(c->sasl_conn, SASL_MAXOUTBUF, (const void**)&c->sasl_outbuf_size);
+		if (sasl_result2 == SASL_OK) {
+		    log_debug(ZONE, "SASL requests us not to pass more than %i bytes of data to sasl_encode()", *c->sasl_outbuf_size);
+		}
+
 		/* get the name of the authenticated user */
 		sasl_result2 = sasl_getprop(c->sasl_conn, SASL_USERNAME, (const void**)&sasl_username);
 		/* XXX we should not check that here, if that fails, we should not return success and drop the connection */

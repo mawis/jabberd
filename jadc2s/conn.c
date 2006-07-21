@@ -582,6 +582,7 @@ int _write_actual(conn_t c, int fd, const char *buf, size_t count)
     int written;
     const char *output_buffer = buf;
     size_t output_len = count;
+    int truncated_write = 0;
 
     log_debug(ZONE, "writing: %.*s", count, buf);
 
@@ -591,7 +592,12 @@ int _write_actual(conn_t c, int fd, const char *buf, size_t count)
 
 	log_debug(ZONE, "c->sasl_conn = %X, buf = %.*s, count = %i", c->sasl_conn, count, buf, count);
 	output_buffer = NULL;
-	sasl_result = sasl_encode(c->sasl_conn, buf, count, &output_buffer, &output_len); /* XXX check that we can write that much, see sasl_getprop(..., SASL_MAXOUTBUF, ...) */
+	/* check that we do not try to encode to much data using sasl_encode() */
+	if (c->sasl_outbuf_size != NULL && *c->sasl_outbuf_size > 0 && *c->sasl_outbuf_size < count) {
+	    count = *c->sasl_outbuf_size;
+	    truncated_write = 1;
+	}
+	sasl_result = sasl_encode(c->sasl_conn, buf, count, &output_buffer, &output_len);
 	log_debug(ZONE, "SASL result: %i", sasl_result);
 	if (sasl_result != SASL_OK) {
 	    errno = EIO;
@@ -610,7 +616,7 @@ int _write_actual(conn_t c, int fd, const char *buf, size_t count)
 	    if (c->type == type_FLASH) {
 		SSL_write(c->ssl, "\0", 1);
 		c->out_bytes += written+1; /* XXX counting before encryption */
-		return written;
+		return truncated_write ? *c->sasl_outbuf_size : written; /* XXX we currently do not handle SASL blocks that are only accepted half */
 	    }
 #endif
 
@@ -619,7 +625,7 @@ int _write_actual(conn_t c, int fd, const char *buf, size_t count)
 	else
 	    _log_ssl_io_error(c->c2s->log, c->ssl, written, c->fd);
 
-        return written;
+        return truncated_write ? *c->sasl_outbuf_size : written; /* XXX we currently do not handle SASL blocks, that are only half written to the socket */
     }
 #endif
         
@@ -630,13 +636,13 @@ int _write_actual(conn_t c, int fd, const char *buf, size_t count)
 	if ((c->type == type_FLASH)) {
 	    write(fd, "\0", 1);
 	    c->out_bytes += written+1;
-	    return written;
+	    return truncated_write ? *c->sasl_outbuf_size : written; /* XXX we currently do not handle SASL blocks, that are only half written to the socket */
 	}
 #endif
 
 	c->out_bytes += written;
     }
-    return written;
+    return truncated_write ? *c->sasl_outbuf_size : written; /* XXX we currently do not handle SASL blocks, that are only half written to the socket */
 }
 
 void connectionstate_fillnad(nad_t nad, char *from, char *to, char *user, int is_login, char *ip, const char *ssl_version, const char *ssl_cipher, char *ssl_size_secret, char *ssl_size_algorithm)
