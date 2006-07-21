@@ -212,6 +212,7 @@ struct conn_st {
     /* SASL */
 #ifdef WITH_SASL
     sasl_conn_t *sasl_conn;	/**< connection object used by the sasl library */
+    unsigned	*sasl_outbuf_size; /**< maximum size of data we can pass to sasl_encode() */
 #endif
     auth_state_t sasl_state;	/**< if SASL, resource binding, and session starting has been done */
 };
