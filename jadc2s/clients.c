@@ -1641,7 +1641,7 @@ void _client_io_close(int fd, conn_t c) {
     c->c2s->num_clients--;
 
     /* report closed connection */
-    if (c->ip && c->userid) {
+    if (c->ip && c->userid && c->userid->user) {
 	/* if the user never authenticated, we still have to write its IP */
 	if (c->state != state_OPEN)
 	    log_write(c->c2s->log, LOG_NOTICE, c->c2s->iplog ? "user %s on fd %i, ip=%s never authenticated" : "user %s never authenticated", jid_full(c->userid), c->fd, c->ip);
