@@ -729,7 +729,7 @@ void _client_do_sasl_step(conn_t c, chunk_t chunk) {
 		sasl_result2 = sasl_getprop(c->sasl_conn, SASL_USERNAME, (const void**)&sasl_username);
 		/* XXX we should not check that here, if that fails, we should not return success and drop the connection */
 		if (sasl_result2 == SASL_OK) {
-		    log_write(c->c2s->log, LOG_NOTICE, "SASL authentication successfull for user %s", sasl_username);
+		    log_write(c->c2s->log, LOG_NOTICE, "SASL authentication successfull for user %s on fd %i", sasl_username, c->fd);
 		    c->reset_stream = 1;
 		    c->sasl_state = state_auth_SASL_DONE;
 
@@ -1006,7 +1006,7 @@ void _client_process(conn_t c) {
 
 	    c->sasl_state = state_auth_BOUND_RESOURCE;
 
-	    log_write(c->c2s->log, LOG_NOTICE, "bound resource: %s", jid_str);
+	    log_write(c->c2s->log, LOG_NOTICE, "bound resource on fd %i: %s", c->fd, jid_str);
 
 	    chunk_free(chunk);
 	    return;
@@ -1162,8 +1162,6 @@ int _client_io_accept(mio_t m, int fd, const char *ip_port, c2s_t c2s) {
     local_port = ntohs(sa.sin_port);
     snprintf(local_ip_port, sizeof(local_ip_port), "%s;%u", inet_ntoa(sa.sin_addr), local_port); /* this needs to be a ';' for SASL */
 #endif
-
-    log_write(c2s->log, LOG_NOTICE, "connection from %s to %s", remote_ip_port, local_ip_port);
 
     /* set up the new client conn */
     c = conn_new(c2s, fd);
