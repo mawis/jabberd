@@ -1,3 +1,12 @@
+2006-07-23  Matthias Wimmer  <m@tthias.eu>
+
+    * clients.c: introducing client_send_sc_command()
+    * jadc2s.h: makeing some function arguments const
+    * util/util.h: same
+    * util/nad.c: same
+    * connect.c: updates in handling of new sc proto, bugfixes
+    * conn.c: updates bounce handling
+
 2006-07-22  Matthias Wimmer  <m@tthias.eu>
 
     * clients.c: do not update userid on stream restart after authentication,

@@ -234,7 +234,7 @@ chunk_t chunk_new(conn_t c);
 void chunk_free(chunk_t chunk);
 
 /** write a chunk to a conn, optinally wrap with route */
-void chunk_write(conn_t c, chunk_t chunk, char *to, char *from, char *rtype);
+void chunk_write(conn_t c, chunk_t chunk, const char *to, const char *from, const char *rtype);
 
 /**
  * transfer rate limitting, returns the max number of elements that can be read
@@ -342,6 +342,7 @@ struct c2s_st
 
 /** the handler for client mio events */
 int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg);
+void client_send_sc_command(conn_t sm_conn, const char *to, const char *from, const char *action, const jid target, const char *id, const char *sc_sm, const char *sc_c2s);
 
 /** create a sm connection (block until it's connected) */
 int connect_new(c2s_t c2s);

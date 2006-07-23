@@ -420,10 +420,10 @@ void nad_free(nad_t nad);
 int nad_find_elem(nad_t nad, int elem, char *name, int depth);
 
 /* find the first matching attribute (and optionally value) */
-int nad_find_attr(nad_t nad, int elem, char *name, char *val);
+int nad_find_attr(nad_t nad, int elem, const char *name, const char *val);
 
 /* reset or store the given attribute */
-void nad_set_attr(nad_t nad, int elem, char *name, char *val);
+void nad_set_attr(nad_t nad, int elem, const char *name, const char *val);
 
 /* insert and return a new element as a child of this one */
 int nad_insert_elem(nad_t nad, int elem, char *name, char *cdata);
@@ -435,7 +435,7 @@ void nad_wrap_elem(nad_t nad, int elem, char *name);
 int nad_append_elem(nad_t nad, char *name, int depth);
 
 /* append attribs to the last element */
-int nad_append_attr(nad_t nad, char *name, char *val);
+int nad_append_attr(nad_t nad, const char *name, const char *val);
 
 /* append more cdata to the last element */
 void nad_append_cdata(nad_t nad, const char *cdata, int len, int depth);

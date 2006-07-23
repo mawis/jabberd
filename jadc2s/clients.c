@@ -1035,18 +1035,8 @@ void _client_process(conn_t c) {
 	    /* prepare id data */
 	    snprintf(id_serial_str, sizeof(id_serial_str), "%X", id_serial++);
 
-	    /* we do not care anymore about the original stanza */
-	    nad_free(chunk->nad);
-	    chunk->nad = nad_new(c->c2s->nads);
-	    nad_append_elem(chunk->nad, "sc:session", 0);
-	    nad_append_attr(chunk->nad, "xmlns:sc", "http://jabberd.jabberstudio.org/ns/session/1.0");
-	    nad_append_attr(chunk->nad, "action", "start");
-	    nad_append_attr(chunk->nad, "id", id_serial_str);
-	    nad_append_attr(chunk->nad, "sc:c2s", c->myid->user);
-	    nad_append_attr(chunk->nad, "target", jid_full(c->authzid));
-
-	    /* send to session manager */
-	    chunk_write(c->c2s->sm, chunk, c->smid->server, jid_full(c->myid), NULL);
+	    /* start the session on the session manager */
+	    client_send_sc_command(c->c2s->sm, c->smid->server, jid_full(c->myid), "start", c->authzid, id_serial_str, NULL, c->myid->user);
 	    return;
 	}
     }
@@ -1579,6 +1569,53 @@ int _client_io_idle(int fd, conn_t c) {
 }
 
 /**
+ * send a command using the new session control protocol to the session manager
+ *
+ * @param sm_conn the connection to send the command on
+ * @param to the address to send the command to
+ * @param from the address to send the command from
+ * @param action the action to send ("start", "end", "create", or "delete")
+ * @param target the target JabberID for the action (NULL for "end" action)
+ * @param id ID to use for the stanza
+ * @param sc_sm ID for the connection on the session manager (NULL if not "end" action)
+ * @param sc_c2s ID for the connection on the client manager (NULL for "create" and "delete" action)
+ */
+void client_send_sc_command(conn_t sm_conn, const char *to, const char *from, const char *action, const jid target, const char *id, const char *sc_sm, const char *sc_c2s) {
+    chunk_t chunk = NULL;
+
+    /* sanity check */
+    if (sm_conn == NULL || action == NULL) {
+	log_debug(ZONE, "sanity check in client_send_sc_command failed.");
+	return;
+    }
+
+    /* free previous nad if any */
+    if (sm_conn->nad != NULL) {
+	log_debug(ZONE, "freeing already present nad on connection");
+	nad_free(sm_conn->nad);
+	sm_conn->nad = NULL;
+    }
+
+    /* create new nad containing the command */
+    chunk = chunk_new(sm_conn);
+    chunk->nad = nad_new(sm_conn->c2s->nads);
+    nad_append_elem(chunk->nad, "sc:session", 0);
+    nad_append_attr(chunk->nad, "xmlns:sc", "http://jabberd.jabberstudio.org/ns/session/1.0");
+    nad_append_attr(chunk->nad, "action", action);
+    if (sc_c2s != NULL)
+	nad_append_attr(chunk->nad, "sc:c2s", sc_c2s);
+    if (sc_sm != NULL)
+	nad_append_attr(chunk->nad, "sc:sm", sc_sm);
+    if (target != NULL)
+	nad_append_attr(chunk->nad, "target", jid_full(target));
+    if (id != NULL)
+	nad_append_attr(chunk->nad, "id", id);
+
+    /* send */
+    chunk_write(sm_conn->c2s->sm, chunk, to, from, NULL);
+}
+
+/**
  * mio told us that a connection has gone
  *
  * @param fd the file descriptor of the connection
@@ -1619,15 +1656,7 @@ void _client_io_close(int fd, conn_t c) {
 	/* close session using the new protocol */
 	if (c->sc_sm != NULL) {
 	    log_debug(ZONE, "trying to close using new protocol");
-	    chunk = chunk_new(c);
-	    chunk->nad = nad_new(c->c2s->nads);
-	    nad_append_elem(chunk->nad, "sc:session", 0);
-	    nad_append_attr(chunk->nad, "xmlns:sc", "http://jabberd.jabberstudio.org/ns/session/1.0");
-            nad_append_attr(chunk->nad, "action", "end");
-            nad_append_attr(chunk->nad, "sc:c2s", c->myid->user);
-	    nad_append_attr(chunk->nad, "sc:sm", c->sc_sm);
-	    chunk_write(c->c2s->sm, chunk, c->authzid->server, jid_full(c->myid), NULL);
-	    chunk = NULL;
+	    client_send_sc_command(c, c->authzid->server, jid_full(c->myid), "end", NULL, NULL, c->sc_sm, c->myid->user);
 	}
     } else {
 	/* XXX free write queue */
