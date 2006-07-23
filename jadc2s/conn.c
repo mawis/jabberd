@@ -212,8 +212,11 @@ void conn_close(conn_t c, char *condition, char *err)
 }
 
 /* create a new chunk, using the nad from this conn */
-chunk_t chunk_new(conn_t c)
-{
+chunk_t chunk_new(conn_t c) {
+    return chunk_new_packet(c, 0);
+}
+
+chunk_t chunk_new_packet(conn_t c, int packet_elem) {
     chunk_t chunk = (chunk_t) malloc(sizeof(struct chunk_st));
     memset(chunk, 0, sizeof(struct chunk_st));
 
@@ -222,6 +225,9 @@ chunk_t chunk_new(conn_t c)
     /* nad gets tranferred from the conn to the chunk */
     chunk->nad = c->nad;
     c->nad = NULL;
+
+    /* remember the packet element */
+    chunk->packet_elem = packet_elem;
 
     return chunk;
 }
@@ -240,7 +246,7 @@ void chunk_write(conn_t c, chunk_t chunk, const char *to, const char *from, cons
     int elem;
 
     /* make an empty nad if there isn't one */
-    if(chunk->nad == NULL) {
+    if (chunk->nad == NULL) {
         chunk->nad = nad_new(c->c2s->nads);
 	chunk->packet_elem = 0;
     }
@@ -248,16 +254,12 @@ void chunk_write(conn_t c, chunk_t chunk, const char *to, const char *from, cons
     elem = chunk->packet_elem;
 
     /* prepend optional route data */
-    if(to != NULL)
-    {
-	/* wrap by a <route/> element if it is not yet a <route/> element */
-	if (!(NAD_ENAME_L(chunk->nad, elem) == 5 && j_strncmp(NAD_ENAME(chunk->nad, elem), "route", 5) == 0)) {
-	    if (chunk->nad->ecur <= chunk->packet_elem) {
-		elem = nad_append_elem(chunk->nad, "route", 1);
-	    } else {
-		nad_wrap_elem(chunk->nad, chunk->packet_elem, "route");
-		elem = chunk->packet_elem;
-	    }
+    if (to != NULL) {
+	if (chunk->nad->ecur <= chunk->packet_elem) {
+	    elem = nad_append_elem(chunk->nad, "route", 1);
+	} else {
+	    nad_wrap_elem(chunk->nad, chunk->packet_elem, "route");
+	    elem = chunk->packet_elem;
 	}
 
         nad_set_attr(chunk->nad, elem, "to", to);
@@ -271,10 +273,9 @@ void chunk_write(conn_t c, chunk_t chunk, const char *to, const char *from, cons
     nad_print(chunk->nad, elem, &chunk->wcur, &chunk->wlen);
 
     /* append to the outgoing write queue, if any */
-    if(c->qtail == NULL)
-    {
+    if (c->qtail == NULL) {
         c->qtail = c->writeq = chunk;
-    }else{
+    } else {
         c->qtail->next = chunk;
         c->qtail = chunk;
     }
