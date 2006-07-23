@@ -235,26 +235,30 @@ void chunk_free(chunk_t chunk)
 }
 
 /* write a chunk to a conn */
-void chunk_write(conn_t c, chunk_t chunk, char *to, char *from, char *type)
+void chunk_write(conn_t c, chunk_t chunk, const char *to, const char *from, const char *type)
 {
     int elem;
 
     /* make an empty nad if there isn't one */
-    if(chunk->nad == NULL)
+    if(chunk->nad == NULL) {
         chunk->nad = nad_new(c->c2s->nads);
+	chunk->packet_elem = 0;
+    }
 
     elem = chunk->packet_elem;
 
     /* prepend optional route data */
     if(to != NULL)
     {
-        if(chunk->nad->ecur <= chunk->packet_elem)
-            elem = nad_append_elem(chunk->nad, "route", 1);
-
-        else {
-            nad_wrap_elem(chunk->nad, chunk->packet_elem, "route");
-            elem = chunk->packet_elem;
-        }
+	/* wrap by a <route/> element if it is not yet a <route/> element */
+	if (!(NAD_ENAME_L(chunk->nad, elem) == 5 && j_strncmp(NAD_ENAME(chunk->nad, elem), "route", 5) == 0)) {
+	    if (chunk->nad->ecur <= chunk->packet_elem) {
+		elem = nad_append_elem(chunk->nad, "route", 1);
+	    } else {
+		nad_wrap_elem(chunk->nad, chunk->packet_elem, "route");
+		elem = chunk->packet_elem;
+	    }
+	}
 
         nad_set_attr(chunk->nad, elem, "to", to);
         nad_set_attr(chunk->nad, elem, "from", from);

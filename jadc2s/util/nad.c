@@ -71,8 +71,7 @@ int _nad_cdata(nad_t nad, const char *cdata, int len)
 }
 
 /* internal: create a new attr on any given elem */
-int _nad_attr(nad_t nad, int elem, char *name, char *val)
-{
+static int _nad_attr(nad_t nad, int elem, const char *name, const char *val) {
     int attr;
 
     /* make sure there's mem for us */
@@ -204,8 +203,7 @@ int nad_find_elem(nad_t nad, int elem, char *name, int depth)
 }
 
 /* get a matching attr on this elem, both name and optional val */
-int nad_find_attr(nad_t nad, int elem, char *name, char *val)
-{
+int nad_find_attr(nad_t nad, int elem, const char *name, const char *val) {
     int attr;
     int lname, lval;
 
@@ -231,7 +229,7 @@ int nad_find_attr(nad_t nad, int elem, char *name, char *val)
 }
 
 /* create, update, or zap any matching attr on this elem */
-void nad_set_attr(nad_t nad, int elem, char *name, char *val)
+void nad_set_attr(nad_t nad, int elem, const char *name, const char *val)
 {
     int attr;
 
@@ -339,7 +337,7 @@ int nad_append_elem(nad_t nad, char *name, int depth)
 }
 
 /* attach new attr to the last elem */
-int nad_append_attr(nad_t nad, char *name, char *val)
+int nad_append_attr(nad_t nad, const char *name, const char *val)
 {
     return _nad_attr(nad, nad->ecur - 1, name, val);
 }

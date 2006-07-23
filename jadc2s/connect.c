@@ -66,7 +66,15 @@ static int _connect_get_stanza_element(nad_t nad, int root_element) {
 static void _connect_bounce_packet(conn_t c, chunk_t chunk) {
     char from[3072];
     char to[3072];
+    char sc_sm[3072];
+    char sc_c2s[3072];
     int attr = -1;
+    int stanza_element = -1;
+    int is_sc_packet = 0;
+
+    /* inits */
+    sc_sm[0] = 0;
+    sc_c2s[0] = 0;
 
     /* sanity check */
     if (c == NULL || chunk == NULL)
@@ -83,44 +91,31 @@ static void _connect_bounce_packet(conn_t c, chunk_t chunk) {
 	return;
     snprintf(to, sizeof(to), "%.*s", NAD_AVAL_L(chunk->nad, attr), NAD_AVAL(chunk->nad, attr));
 
+    /* get sc protocol data */
+    stanza_element = _connect_get_stanza_element(chunk->nad, 0);
+    if (stanza_element < 0) {
+	stanza_element = nad_find_elem(chunk->nad, 0, "sc:session", 1);
+	if (stanza_element < 0)
+	    return;
+	is_sc_packet = 1;
+    }
+    attr = nad_find_attr(chunk->nad, stanza_element, "sc:sm", NULL);
+    if (attr >= 0) {
+	snprintf(sc_sm, sizeof(sc_sm), "%.*s", NAD_AVAL_L(chunk->nad, attr), NAD_AVAL(chunk->nad, attr));
+    }
+
+    attr = nad_find_attr(chunk->nad, stanza_element, "sc:c2s", NULL);
+    if (attr >= 0) {
+	snprintf(sc_c2s, sizeof(sc_c2s), "%.*s", NAD_AVAL_L(chunk->nad, attr), NAD_AVAL(chunk->nad, attr));
+    }
+
     /* bounce back */
-    chunk_write(c, chunk, from, to, "error");
-}
+    if (!is_sc_packet)
+	chunk_write(c, chunk, from, to, "error");
 
-static void _connect_log_packet_info(c2s_t c2s, nad_t nad, conn_t client_conn, int stanza_element) {
-    int received_sc_c2s = -1;
-    int received_sc_sm = -1;
-    int received_to = -1;
-
-    /* sanity checks */
-    if (client_conn->fd < 0) {
-	log_write(c2s->log, LOG_NOTICE, "not logging expected/received data. Client connection not connected.");
-	return;
-    }
-    if (client_conn->myid == NULL) {
-	log_write(c2s->log, LOG_NOTICE, "not logging expected/received data. Client connection has no myid");
-	return;
-    }
-
-    /* prepare data */
-    received_sc_c2s = nad_find_attr(nad, stanza_element, "sc:c2s", NULL);
-    received_sc_sm = nad_find_attr(nad, stanza_element, "sc:sm", NULL);
-    received_to = nad_find_attr(nad, stanza_element, "to", NULL);
-
-    /* log data */
-    log_write(c2s->log, LOG_NOTICE, "expected data: sc_protocol=%s, sc:c2s=%i, sc:sm=%s, to=%s",
-	    client_conn->sc_sm == NULL ? "old" : "new",
-	    client_conn->myid->user,
-	    client_conn->sc_sm,
-	    jid_full(client_conn->userid)
-	    );
-    log_write(c2s->log, LOG_NOTICE, "received data: sc_protocol=%s, sc:c2s=%.*s, sc:sm=%.*s, to=%.*s",
-	    received_sc_c2s < 0 ? "old" : "new",
-	    received_sc_c2s < 0 ? 0 : NAD_AVAL_L(nad, received_sc_c2s), received_sc_c2s < 0 ? "" : NAD_AVAL(nad, received_sc_c2s),
-	    received_sc_sm < 0 ? 0 : NAD_AVAL_L(nad, received_sc_sm), received_sc_sm < 0 ? "" : NAD_AVAL(nad, received_sc_sm),
-	    received_to < 0 ? 0 : NAD_AVAL_L(nad, received_to), received_to < 0 ? "" : NAD_AVAL(nad, received_to)
-	    );
-
+    /* end the session, the session manager expects to exist */
+    if (sc_sm[0] != 0 && sc_c2s[0] != 0)
+	client_send_sc_command(c, to, from, "end", NULL, NULL, sc_sm, sc_c2s);
 }
 
 /**
@@ -139,7 +134,6 @@ static int _connect_packet_is_unsane_new_sc_proto(conn_t sm_conn, conn_t client_
     /* first check for new protocol: expected to use the new protocol? */
     if (client_conn->sc_sm == NULL) {
 	log_write(sm_conn->c2s->log, LOG_WARNING, "got packet from session manager using new sc protocol for target using old protocol: bouncing");
-	_connect_log_packet_info(sm_conn->c2s, sm_conn->nad, client_conn, stanza_element);
 	_connect_bounce_packet(sm_conn, chunk_new(sm_conn));
 	return 1;
     }
@@ -148,12 +142,10 @@ static int _connect_packet_is_unsane_new_sc_proto(conn_t sm_conn, conn_t client_
     sc_sm = nad_find_attr(sm_conn->nad, stanza_element, "sc:sm", NULL);
     if (sc_sm < 0) {
 	log_write(sm_conn->c2s->log, LOG_ERR, "got packet from session manager using new sc protocol, that has no sm id: dropping");
-	_connect_log_packet_info(sm_conn->c2s, sm_conn->nad, client_conn, stanza_element);
 	return 1;
     }
     if (j_strlen(client_conn->sc_sm) != NAD_AVAL_L(sm_conn->nad, sc_sm) || j_strncmp(NAD_AVAL(sm_conn->nad, sc_sm), client_conn->sc_sm, NAD_AVAL_L(sm_conn->nad, sc_sm)) != 0) {
 	log_write(sm_conn->c2s->log, LOG_WARNING, "got packet from session manager using new sc protocol, that has unexpected sm id: bouncing");
-	_connect_log_packet_info(sm_conn->c2s, sm_conn->nad, client_conn, stanza_element);
 	_connect_bounce_packet(sm_conn, chunk_new(sm_conn));
 	return 1;
     }
@@ -249,6 +241,98 @@ static void _connect_handle_error_packet(conn_t sm_conn, conn_t client_conn) {
     }
 }
 
+static void _connect_handle_sc_packet_started(conn_t sm_conn, int sc_element, conn_t client_conn) {
+    int sc_sm = -1;
+
+    /* get the session manager's id for the session */
+    sc_sm = nad_find_attr(sm_conn->nad, sc_element, "sc:sm", NULL);
+    if (sc_sm < 0) {
+	log_write(sm_conn->c2s->log, LOG_WARNING, "Got sc packet for action 'started' without an sc:sm attribute. Cannot handle this ...");
+	return;
+    }
+
+    /* did we wait for the confirmation? */
+    if (client_conn->sasl_state == state_auth_BOUND_RESOURCE) {
+	chunk_t chunk = NULL;
+
+	/* update state */
+	client_conn->sasl_state = state_auth_SESSION_STARTED;
+	client_conn->state = state_OPEN;
+	xhash_zap(sm_conn->c2s->pending, jid_full(client_conn->myid));
+
+	/* keep session manager's id */
+	if (client_conn->sc_sm != NULL) {
+	    free(client_conn->sc_sm);
+	}
+	client_conn->sc_sm = (char*)malloc(NAD_AVAL_L(sm_conn->nad, sc_sm)+1);
+	snprintf(client_conn->sc_sm, NAD_AVAL_L(sm_conn->nad, sc_sm)+1, "%.*s", NAD_AVAL_L(sm_conn->nad, sc_sm), NAD_AVAL(sm_conn->nad, sc_sm));
+
+	/* confirm session start */
+	nad_free(sm_conn->nad);
+	sm_conn->nad = NULL;
+	sm_conn->nad = nad_new(sm_conn->c2s->nads);
+	chunk = chunk_new(sm_conn);
+
+	nad_append_elem(chunk->nad, "iq", 0);
+	nad_append_attr(chunk->nad, "from", client_conn->authzid->server);
+	nad_append_attr(chunk->nad, "type", "result");
+	if (client_conn->id_session_start != NULL)
+	    nad_append_attr(chunk->nad, "id", client_conn->id_session_start);
+	nad_append_elem(chunk->nad, "session", 1);
+	nad_append_attr(chunk->nad, "xmlns", "urn:ietf:params:xml:ns:xmpp-session");
+
+	/* send response */
+	chunk_write(client_conn, chunk, NULL, NULL, NULL);
+
+	/* cleanup */
+	if (client_conn->id_session_start != NULL) {
+	    free(client_conn->id_session_start);
+	    client_conn->id_session_start = NULL;
+	}
+    }
+}
+
+static void _connect_handle_sc_packet_ended(conn_t sm_conn, int sc_element, conn_t client_conn) {
+    int sc_c2s = -1;
+    int sc_sm = -1;
+
+    /* session using the new protocol has been ended */
+
+    /* get the required attribute values */
+    sc_c2s = nad_find_attr(sm_conn->nad, sc_element, "sc:sm", NULL);
+    sc_sm = nad_find_attr(sm_conn->nad, sc_element, "sc:c2s", NULL);
+
+    /* check if we have to close a connection */
+    if (NAD_AVAL_L(sm_conn->nad, sc_sm) == j_strlen(client_conn->sc_sm) && j_strncmp(NAD_AVAL(sm_conn->nad, sc_sm), client_conn->sc_sm, NAD_AVAL_L(sm_conn->nad, sc_sm)) == 0 && client_conn->fd >= 0) {
+	log_write(sm_conn->c2s->log, LOG_NOTICE, "session manager requested, that we close fd %i", client_conn->fd);
+	conn_close(client_conn, STREAM_ERR_TIMEOUT, "session manager requested to close connection");
+    } else {
+	log_write(sm_conn->c2s->log, LOG_NOTICE, "session manager confirmed ended session for fd %i", client_conn->fd);
+    }
+}
+
+static void _connect_handle_sc_packet(conn_t sm_conn, int sc_element, conn_t client_conn) {
+    int action = -1;
+    char action_str[16];
+
+    /* get the sc action of the packet */
+    action = nad_find_attr(sm_conn->nad, sc_element, "action", NULL);
+    if (action < 0) {
+	log_write(sm_conn->c2s->log, LOG_WARNING, "Got session control packet without an action");
+	return;
+    }
+    snprintf(action_str, sizeof(action_str), "%.*s", NAD_AVAL_L(sm_conn->nad, action), NAD_AVAL(sm_conn->nad, action));
+
+    /* switch depending on action */
+    if (j_strcmp(action_str, "started") == 0) {
+	_connect_handle_sc_packet_started(sm_conn, sc_element, client_conn);
+    } else if (j_strcmp(action_str, "ended") == 0) {
+	_connect_handle_sc_packet_ended(sm_conn, sc_element, client_conn);
+    } else {
+	log_write(sm_conn->c2s->log, LOG_NOTICE, "Got session control packet for action '%s', that we do not handle yet.", action_str);
+    }
+}
+
 /* process completed nads */
 static void _connect_process(conn_t c) {
     chunk_t chunk = NULL;
@@ -313,8 +397,18 @@ static void _connect_process(conn_t c) {
     id = atoi(target_str);
     if(id >= c->c2s->max_fds || ((target = &c->c2s->conns[id]) && (target->fd == -1 || target == c)))
     {
-        log_debug(ZONE, "dropping packet for invalid conn %d (%s)", id, uses_new_sc_protocol ? "new sc" : "old sc");
+        log_debug(ZONE, "dropping packet for invalid conn %d (%s)", id, uses_new_sc_protocol ? "new sc" : stanza_element >= 0 ? "old sc" : "sc:session");
         return;
+    }
+
+    /* look for packets of the new session manager protocol */
+    element = nad_find_elem(c->nad, 0, "sc:session", 1);
+    if (element >= 0) {
+	attr = nad_find_attr(c->nad, element, "xmlns:sc", "http://jabberd.jabberstudio.org/ns/session/1.0");
+	if (attr >= 0) {
+	    _connect_handle_sc_packet(c, element, target);
+	    return;
+	}
     }
 
     /* sanity check on the packet: is it the right recipient? */
@@ -348,63 +442,6 @@ static void _connect_process(conn_t c) {
             target->smid = jid_new(target->idp, c->c2s->jid_environment, from_str);
             mio_read(c->c2s->mio, target->fd); /* start reading again now */
         }
-    }
-
-    /* look for packets of the new session manager protocol */
-    element = nad_find_elem(c->nad, 0, "sc:session", 1);
-    if (element >= 0) {
-	attr = nad_find_attr(c->nad, element, "xmlns:sc", "http://jabberd.jabberstudio.org/ns/session/1.0");
-	if (attr >= 0) {
-	    /* yes it is a session manager protocol packet: it needs to have a action attribute */
-	    attr = nad_find_attr(c->nad, element, "action", NULL);
-	    if (attr >= 0) {
-		if (NAD_AVAL_L(c->nad, attr) == 7 && j_strncmp(NAD_AVAL(c->nad, attr), "started", 7) == 0) {
-		    /* session using the new protocol has been started */
-
-		    /* get the session manager's id for the session */
-		    attr = nad_find_attr(c->nad, element, "sc:sm", NULL);
-
-		    /* did we wait for the confirmation? */
-		    if (attr >= 0 && target->sasl_state == state_auth_BOUND_RESOURCE) {
-			/* update state */
-			target->sasl_state = state_auth_SESSION_STARTED;
-			target->state = state_OPEN;
-			xhash_zap(c->c2s->pending, jid_full(target->myid));
-
-			/* keep session manager's id */
-			if (target->sc_sm != NULL) {
-			    free(target->sc_sm);
-			}
-			target->sc_sm = (char*)malloc(NAD_AVAL_L(c->nad, attr)+1);
-			snprintf(target->sc_sm, NAD_AVAL_L(c->nad, attr)+1, "%.*s", NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr));
-
-			/* confirm session start */
-			nad_free(c->nad);
-			c->nad = NULL;
-			c->nad = nad_new(c->c2s->nads);
-			chunk = chunk_new(c);
-
-			nad_append_elem(chunk->nad, "iq", 0);
-			nad_append_attr(chunk->nad, "from", target->authzid->server);
-			nad_append_attr(chunk->nad, "type", "result");
-			if (target->id_session_start != NULL)
-			    nad_append_attr(chunk->nad, "id", target->id_session_start);
-			nad_append_elem(chunk->nad, "session", 1);
-			nad_append_attr(chunk->nad, "xmlns", "urn:ietf:params:xml:ns:xmpp-session");
-
-			/* send response */
-			chunk_write(target, chunk, NULL, NULL, NULL);
-
-			/* cleanup */
-			if (target->id_session_start != NULL) {
-			    free(target->id_session_start);
-			    target->id_session_start = NULL;
-			}
-		    }
-		    return;
-		}
-	    }
-	}
     }
 
     /* the rest of them we just need a chunk to store until they get sent to the client */
