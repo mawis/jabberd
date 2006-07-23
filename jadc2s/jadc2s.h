@@ -229,6 +229,7 @@ void conn_close(conn_t c, char *condition, char *err);
 
 /** create a new chunk */
 chunk_t chunk_new(conn_t c);
+chunk_t chunk_new_packet(conn_t c, int packet_elem);
 
 /** and free one */
 void chunk_free(chunk_t chunk);

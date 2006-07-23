@@ -134,7 +134,7 @@ static int _connect_packet_is_unsane_new_sc_proto(conn_t sm_conn, conn_t client_
     /* first check for new protocol: expected to use the new protocol? */
     if (client_conn->sc_sm == NULL) {
 	log_write(sm_conn->c2s->log, LOG_WARNING, "got packet from session manager using new sc protocol for target using old protocol: bouncing");
-	_connect_bounce_packet(sm_conn, chunk_new(sm_conn));
+	_connect_bounce_packet(sm_conn, chunk_new_packet(sm_conn, 1));
 	return 1;
     }
 
@@ -146,7 +146,7 @@ static int _connect_packet_is_unsane_new_sc_proto(conn_t sm_conn, conn_t client_
     }
     if (j_strlen(client_conn->sc_sm) != NAD_AVAL_L(sm_conn->nad, sc_sm) || j_strncmp(NAD_AVAL(sm_conn->nad, sc_sm), client_conn->sc_sm, NAD_AVAL_L(sm_conn->nad, sc_sm)) != 0) {
 	log_write(sm_conn->c2s->log, LOG_WARNING, "got packet from session manager using new sc protocol, that has unexpected sm id: bouncing");
-	_connect_bounce_packet(sm_conn, chunk_new(sm_conn));
+	_connect_bounce_packet(sm_conn, chunk_new_packet(sm_conn, 1));
 	return 1;
     }
 
@@ -168,7 +168,7 @@ static int _connect_packet_is_unsane_old_sc_proto(conn_t sm_conn, conn_t client_
     /* first check for old protocol: expected to use the old protocol? */
     if (client_conn->sc_sm != NULL) {
 	log_write(sm_conn->c2s->log, LOG_WARNING, "got packet from session manager using old sc protocol for target using new protocol: bouncing");
-	_connect_bounce_packet(sm_conn, chunk_new(sm_conn));
+	_connect_bounce_packet(sm_conn, chunk_new_packet(sm_conn, 1));
 	return 1;
     }
 
@@ -184,7 +184,7 @@ static int _connect_packet_is_unsane_old_sc_proto(conn_t sm_conn, conn_t client_
 	pool_free(local_pool);
 
 	log_write(sm_conn->c2s->log, LOG_WARNING, "got packet from session manager using old sc protocol, that has unexpected route from attribute: bouncing (got from: %.*s, expected from: %s)", NAD_AVAL_L(sm_conn->nad, from), NAD_AVAL(sm_conn->nad, from), jid_full(client_conn->smid));
-	_connect_bounce_packet(sm_conn, chunk_new(sm_conn));
+	_connect_bounce_packet(sm_conn, chunk_new_packet(sm_conn, 1));
 	return 1;
     }
     pool_free(local_pool);
@@ -376,8 +376,7 @@ static void _connect_process(conn_t c) {
     snprintf(cid, sizeof(cid), "%.*s", NAD_AVAL_L(c->nad, attr), NAD_AVAL(c->nad, attr));
     strcpy(target_str, cid);
     chr = strchr(target_str, '@');
-    if(chr == NULL)
-    {
+    if (chr == NULL) {
 	log_write(c->c2s->log, LOG_ERR, "Got a <route/> stanz addressed to the bare client connection manager: %s", cid);
         return;
     }
@@ -395,8 +394,7 @@ static void _connect_process(conn_t c) {
 
     /* does not matter if old or new session control protocol: str now has the target fd number */
     id = atoi(target_str);
-    if(id >= c->c2s->max_fds || ((target = &c->c2s->conns[id]) && (target->fd == -1 || target == c)))
-    {
+    if (id >= c->c2s->max_fds || ((target = &c->c2s->conns[id]) && (target->fd == -1 || target == c))) {
         log_debug(ZONE, "dropping packet for invalid conn %d (%s)", id, uses_new_sc_protocol ? "new sc" : stanza_element >= 0 ? "old sc" : "sc:session");
         return;
     }
@@ -445,10 +443,7 @@ static void _connect_process(conn_t c) {
     }
 
     /* the rest of them we just need a chunk to store until they get sent to the client */
-    chunk = chunk_new(c);
-
-    /* its a route, so the packet proper starts at element 1 */
-    chunk->packet_elem = 1;
+    chunk = chunk_new_packet(c, 1);
 
     /* look for iq results for auths */
     if((pending = xhash_get(c->c2s->pending, cid)) != NULL && target->state == state_AUTH)
