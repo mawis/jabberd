@@ -416,9 +416,14 @@ result _js_routed_packet(instance i, dpacket p, jsmi si, xht ht) {
 
     /* get user data */
     u = sc_sm == NULL ? js_user(si, p->id, ht) : (udata)xhash_get(si->sc_sessions, sc_sm);
+    /* is it a packet the c2s bounced back because there is no session anymore? Try to find the user anyway */
+    if (u == NULL && sc_sm != NULL) {
+	const char *to_jid = xmlnode_get_attrib_ns(child, "to", NULL);
+	u = js_user(si, jid_new(xmlnode_pool(child), to_jid), ht);
+    }
     if (u == NULL) {
 	/* no user!?!?! */
-	log_notice(p->host,"Bouncing packet intended for nonexistant user: %s",xmlnode_serialize_string(p->x, NULL, NULL, 0));
+	log_notice(p->host, "Bouncing packet intended for non-existant %s: %s", sc_sm == NULL ? "user" : "session",xmlnode_serialize_string(p->x, NULL, NULL, 0));
 	deliver_fail(dpacket_new(p->x), "Invalid User");
 	return r_DONE;
     }
@@ -429,16 +434,16 @@ result _js_routed_packet(instance i, dpacket p, jsmi si, xht ht) {
 	for (s = u->sessions; s != NULL; s = s->next)
 	    if(j_strcmp(p->id->resource, s->route->resource) == 0)
 		break;
-
-	/* hide routing attributes */
-	xmlnode_hide_attrib_ns(child, "sc", NS_XMLNS);
-	xmlnode_hide_attrib_ns(child, "sm", NS_SESSION);
-	xmlnode_hide_attrib_ns(child, "c2s", NS_SESSION);
     } else {
 	/* new session control protocol */
 	for (s = u->sessions; s != NULL; s = s->next)
 	    if (j_strcmp(sc_sm, s->sc_sm) == 0)
 		break;
+
+	/* hide routing attributes */
+	xmlnode_hide_attrib_ns(child, "sc", NS_XMLNS);
+	xmlnode_hide_attrib_ns(child, "sm", NS_SESSION);
+	xmlnode_hide_attrib_ns(child, "c2s", NS_SESSION);
     }
 
     /* if it's an error */
