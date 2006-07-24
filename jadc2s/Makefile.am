@@ -1,5 +1,5 @@
 sysconf_DATA = jadc2s.xml.dist
-EXTRA_DIST = PROTO jadc2s.xml.dist
+EXTRA_DIST = PROTO jadc2s.xml.dist README.SASL
 
 SUBDIRS = ac-helpers mio util
 DIST_SUBDIRS = ac-helpers mio util
