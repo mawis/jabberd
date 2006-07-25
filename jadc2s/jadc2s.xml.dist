@@ -125,13 +125,16 @@
     <!--  minssf:	minimum acceptable final security strength factor  -->
     <!--  maxssf:	maximum acceptable final security stringth factor  -->
     <!--  noseclayer:   do not support SASL security layer                 -->
+    <!--  admin:        define and admin account - if a user is            -->
+    <!--                authenticated using an admin account, he can       -->
+    <!--                be authorized to use any account on the server     -->
     <!--                                                                   -->
     <!-- To enable authentication inside jadc2s, uncomment the following   -->
     <!-- configuration section, and configure your libsasl2 installation.  -->
     <!--                                                                   -->
     <!-- USING SASL IS NOT PLUG AND PLAY. YOU HAVE TO CONFIGURE YOUR CYRUS -->
     <!-- SASL INSTALLATION TO KNOW THE USER'S PASSWORDS. ELSE              -->
-    <!-- AUTHENTICATION USING SASL WILL FAIL.                              -->
+    <!-- AUTHENTICATION USING SASL WILL FAIL. SEE README.SASL.             -->
 
     <!--
     <authentication>

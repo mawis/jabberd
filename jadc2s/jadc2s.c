@@ -44,26 +44,28 @@
 static int process_conns = 1;
 
 #ifdef WITH_SASL
-/* forward declaration */
-static int _canon_user(sasl_conn_t *conn, void *context, const char *in, unsigned inlen, unsigned flags, const char *user_realm, char *out, unsigned out_max, unsigned *out_len);
+/* forward declarations */
+static int _sasl_canon_user(sasl_conn_t *conn, void *context, const char *in, unsigned inlen, unsigned flags, const char *user_realm, char *out, unsigned out_max, unsigned *out_len);
+static int _sasl_proxy_auth_check(sasl_conn_t *conn, void *context, const char *requested_user, unsigned rlen, const char *auth_identity, unsigned alen, const char *def_realm, unsigned urlen, struct propctx *propctx);
 
 /* SASL callbacks */
 static sasl_callback_t sasl_callbacks[] = {
-    { SASL_CB_CANON_USER, (int (*)())(&_canon_user), NULL }, /* must be the first callback, we manipulate the context in the code */
+    { SASL_CB_CANON_USER, (int (*)())(&_sasl_canon_user), NULL },
+    { SASL_CB_PROXY_POLICY, _sasl_proxy_auth_check, NULL},
     { SASL_CB_LIST_END, NULL, NULL }
 };
 
 /**
  * callback for cyrus sasl, that stringpres XMPP user ids
  */
-static int _canon_user(sasl_conn_t *conn, void *context, const char *in, unsigned inlen, unsigned flags, const char *user_realm, char *out, unsigned out_max, unsigned *out_len) {
+static int _sasl_canon_user(sasl_conn_t *conn, void *context, const char *in, unsigned inlen, unsigned flags, const char *user_realm, char *out, unsigned out_max, unsigned *out_len) {
     c2s_t c2s = (c2s_t)context;
     jid user_jid = NULL;
     pool local_pool = NULL;
 
     /* sanity check */
     if (c2s == NULL) {
-	log_debug(ZONE, "_canon_user called with NULL context");
+	log_debug(ZONE, "_sasl_canon_user called with NULL context");
 	return SASL_FAIL;
     }
 
@@ -89,6 +91,138 @@ static int _canon_user(sasl_conn_t *conn, void *context, const char *in, unsigne
     user_jid = NULL;
 
     return SASL_OK;
+}
+
+/**
+ * callback for cyrus sasl, that checks if a user is allowed to authenticate as another id
+ */
+static int _sasl_proxy_auth_check(sasl_conn_t *conn, void *context, const char *requested_user, unsigned rlen, const char *auth_identity, unsigned alen, const char *def_realm, unsigned urlen, struct propctx *propctx) {
+    c2s_t c2s = (c2s_t)context;
+    pool local_pool = NULL;
+    jid auth_jid = NULL;
+    jid authz_jid = NULL;
+    int i = 0;
+    int has_admin_rights = 0;
+
+    /* sanity check */
+    if (c2s == NULL) {
+	log_debug(ZONE, "_sasl_proxy_auth_check called with NULL context");
+	return SASL_FAIL;
+    }
+
+    /* more sanity checks */
+    if (requested_user == NULL || auth_identity == NULL || def_realm == NULL) {
+	log_write(c2s->log, LOG_ERR, "Internal error: illegal NULL value passed to _sasl_proxy_auth_check as %s", requested_user == NULL ? "requested_user" : auth_identity == NULL ? "auth_identity" : "def_realm");
+	return SASL_FAIL;
+    }
+
+    /* prepare auth and authz jid */
+    local_pool = pool_new();
+    if (strchr(requested_user, '@') == NULL) {
+	authz_jid = jid_new(local_pool, c2s->jid_environment, def_realm);
+	if (authz_jid == NULL) {
+	    log_write(c2s->log, LOG_ERR, "Internal error: could not initialize authz_jid with default realm %s", def_realm);
+	    pool_free(local_pool);
+	    return SASL_FAIL;
+	}
+	jid_set(authz_jid, requested_user, JID_USER);
+
+	if (authz_jid->user == NULL || authz_jid->server == NULL || authz_jid->resource != NULL) {
+	    log_write(c2s->log, LOG_ERR, "Internal error: %s@%s initialized authz_jid to %s", requested_user, def_realm, jid_full(authz_jid));
+	    pool_free(local_pool);
+	    return SASL_FAIL;
+	}
+    } else {
+	authz_jid = jid_new(local_pool, c2s->jid_environment, requested_user);
+	if (authz_jid == NULL || authz_jid->user == NULL || authz_jid->server == NULL || authz_jid->resource != NULL) {
+	    log_write(c2s->log, LOG_ERR, "Internal error: %s initialized authz_jid to %s", requested_user, authz_jid == NULL ? "NULL" : jid_full(authz_jid));
+	    pool_free(local_pool);
+	    return SASL_FAIL;
+	}
+    }
+    if (strchr(auth_identity, '@') == NULL) {
+	auth_jid = jid_new(local_pool, c2s->jid_environment, def_realm);
+	if (auth_jid == NULL) {
+	    log_write(c2s->log, LOG_ERR, "Internal error: could not initialize auth_jid with default realm %s", def_realm);
+	    pool_free(local_pool);
+	    return SASL_FAIL;
+	}
+	jid_set (auth_jid, auth_identity, JID_USER);
+
+	if (auth_jid->user == NULL || auth_jid->server == NULL || auth_jid->resource != NULL) {
+	    log_write(c2s->log, LOG_ERR, "Internal error: %s@%s initialized auth_jid to %s", auth_identity, def_realm, jid_full(auth_jid));
+	    pool_free(local_pool);
+	    return SASL_FAIL;
+	}
+    } else {
+	auth_jid = jid_new(local_pool, c2s->jid_environment, auth_identity);
+	if (auth_jid == NULL || auth_jid->user == NULL || auth_jid->server == NULL || auth_jid->resource != NULL) {
+	    log_write(c2s->log, LOG_ERR, "Internal error: %s initialized auth_jid to %s", auth_identity, auth_jid == NULL ? "NULL" : jid_full(auth_jid));
+	    pool_free(local_pool);
+	    return SASL_FAIL;
+	}
+    }
+
+    /* a user is always allowed to authenticate as himself */
+    if (jid_cmp(authz_jid, auth_jid) == 0) {
+	log_debug(ZONE, "user %s authorized as himself", jid_full(auth_jid));
+	pool_free(local_pool);
+	return SASL_OK;
+    }
+
+    /* check if the auth_jid is allowed to authorize as authz_jid */
+    for (i=0; c2s->sasl_admin != NULL && i < c2s->sasl_admin->nvalues; i++) {
+	jid auth_as_jid = NULL;
+	jid config_jid = jid_new(local_pool, c2s->jid_environment, c2s->sasl_admin->values[i]);
+
+	/* as there a valid JID? */
+	if (config_jid == NULL) {
+	    log_write(c2s->log, LOG_WARNING, "invalid configuration option <authorization><admin>%s</admin></authorization>", c2s->sasl_admin->values[i]);
+	    continue;
+	}
+
+	/* is this configuration option for the authenticated user? */
+	if (jid_cmpx(config_jid, auth_jid, JID_USER|JID_SERVER) != 0) {
+	    continue; /* no, other user */
+	}
+
+	/* configured JIDs without resource have access to authorize as anybody */
+	if (config_jid->resource == NULL) {
+	    log_write(c2s->log, LOG_NOTICE, "User %s (super admin) has been authorized as user %s", jid_full(auth_jid), jid_full(authz_jid));
+	    pool_free(local_pool);
+	    return SASL_OK;
+	}
+
+	/* it might not be for the requested user, but the user at least has some rights to authenticate as someone else */
+	has_admin_rights = 1;
+
+	/* what authz_jid values are allowed using this config option? */
+	auth_as_jid = jid_new(local_pool, c2s->jid_environment, config_jid->resource);
+	if (auth_as_jid == NULL || auth_as_jid->resource != NULL) {
+	    log_write(c2s->log, LOG_WARNING, "invalid configuration option <authorization><admin>%s</admin></authorization> (resource invalid)", c2s->sasl_admin->values[i]);
+	    continue;
+	}
+
+	/* authorized for a full domain? */
+	if (auth_as_jid->user == NULL) {
+	    if (jid_cmpx(auth_as_jid, authz_jid, JID_SERVER) == 0) {
+		log_write(c2s->log, LOG_NOTICE, "User %s (domain admin) has been authorized as user %s", jid_full(auth_jid), jid_full(authz_jid));
+		pool_free(local_pool);
+		return SASL_OK;
+	    }
+	} else {
+	    if (jid_cmp(auth_as_jid, authz_jid) == 0) {
+		log_write(c2s->log, LOG_NOTICE, "User %s (user admin) has been authorized as user %s", jid_full(auth_jid), jid_full(authz_jid));
+		pool_free(local_pool);
+		return SASL_OK;
+	    }
+	}
+    }
+
+    log_write(c2s->log, LOG_WARNING, "Denied %s user %s to authorize as user %s", has_admin_rights ? "admin" : "non-admin", jid_full(auth_jid), jid_full(authz_jid));
+
+    pool_free(local_pool);
+    return SASL_NOAUTHZ;
 }
 #endif
 
@@ -369,6 +503,7 @@ int main(int argc, char **argv) {
 	c2s->sasl_max_ssf = (unsigned)j_atoi(config_get_one(c2s->config, "authentication.maxssf", 0), -1);
 	c2s->sasl_noseclayer = config_get_one(c2s->config, "authentication.noseclayer", 0) == NULL ? 0 : 1;
 	c2s->sasl_sec_flags = (unsigned)j_atoi(config_get_one(c2s->config, "authentication.secflags", 0), SASL_SEC_NOANONYMOUS);
+	c2s->sasl_admin = config_get(c2s->config, "authentication.admin");
     }
 
     /* start logging */
@@ -482,7 +617,11 @@ int main(int argc, char **argv) {
 
 #ifdef WITH_SASL
     if (c2s->sasl_enabled != 0) {
-	sasl_callbacks[0].context = (void*)c2s;
+	int i = 0;
+	for (i=0; sasl_callbacks[i].id!=SASL_CB_LIST_END; i++) {
+	    log_debug(ZONE, "callback init for %i", i);
+	    sasl_callbacks[i].context = (void*)c2s;
+	}
 	sasl_result = sasl_server_init(sasl_callbacks, c2s->sasl_appname);
 	if (sasl_result != SASL_OK) {
 	    log_write(c2s->log, LOG_ERR, "initialization of SASL library failed: %i", sasl_result);

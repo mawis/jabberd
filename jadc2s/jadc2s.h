@@ -339,6 +339,7 @@ struct c2s_st
     unsigned sasl_max_ssf;	/**< maximum security strength factor for SASL */
     int sasl_noseclayer;	/**< 0 = allow SASL security layer, 1 = do not allow SASL security layer */
     unsigned sasl_sec_flags;	/**< SASL security flags to set */
+    config_elem_t sasl_admin;	/**< accounts, that are allowed to authorize as other users */
 };
 
 /** the handler for client mio events */
