@@ -1,3 +1,8 @@
+2006-07-24  Matthias Wimmer  <m@tthias.eu>
+
+    * jadc2s.c: support for SASL proxy authentication
+    * jadc2s.h: same
+
 2006-07-23  Matthias Wimmer  <m@tthias.eu>
 
     * clients.c: introducing client_send_sc_command()
