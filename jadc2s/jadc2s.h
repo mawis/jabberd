@@ -314,6 +314,7 @@ struct c2s_st
     bad_conn_t bad_conns; /**< Karma controlled conns */
     bad_conn_t bad_conns_tail;
     int timeout; /**< how long to process mio */
+    int default_timeout; /**< configured default timeout */
 
     int max_fds;
 

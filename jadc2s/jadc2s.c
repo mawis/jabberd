@@ -265,7 +265,7 @@ static void check_karma(c2s_t c2s) {
     if (c2s->bad_conns == NULL)
     {
 	/* XXX Make this a config option? */
-	c2s->timeout = 15;
+	c2s->timeout = c2s->default_timeout;
     }
 }
 
@@ -412,7 +412,7 @@ int main(int argc, char **argv) {
     c2s->connection_rates = xhash_new(199);
     c2s->pending = xhash_new(199);
     c2s->bad_conns = NULL;
-    c2s->timeout = 15;
+    c2s->timeout = c2s->default_timeout;
 
     /* conn setup */
     c2s->max_fds = j_atoi(config_get_one(c2s->config, "io.max_fds", 0), 1023);
@@ -457,6 +457,7 @@ int main(int argc, char **argv) {
     c2s->ssl_enable_autodetect = (config_get_one(c2s->config, "local.ssl.enable_autodetect", 0) != NULL);
 #endif
     c2s->iplog = (config_get_one(c2s->config, "io.iplog", 0) != NULL);
+    c2s->default_timeout = j_atoi(config_get_one(c2s->config, "io.authtimeout", 0), 15);
 
     /* require some things */
     if(c2s->sm_host == NULL) {
