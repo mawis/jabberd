@@ -1,6 +1,7 @@
 2006-07-27  Matthias Wimmer  <m@tthias.eu>
 
     * clients.c: improved SASL error logging
+    * jadc2s.c: new configuration option io/authtimeout
 
 2006-07-24  Matthias Wimmer  <m@tthias.eu>
 
