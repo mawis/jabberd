@@ -126,7 +126,7 @@ int _client_root_attribute_to(conn_t c, const char *value) {
 
 	sasl_result = sasl_setprop(c->sasl_conn, SASL_DEFUSERREALM, c->local_id);
 	if (sasl_result != SASL_OK) {
-	    log_write(c->c2s->log, LOG_ERR, "could not set default SASL user realm to %s: %i", c->local_id, sasl_result);
+	    log_write(c->c2s->log, LOG_ERR, "could not set default SASL user realm to %s: %s", c->local_id, sasl_errdetail(c->sasl_conn));
 	}
     }
 #endif
@@ -313,7 +313,7 @@ void _client_stream_send_root(conn_t c) {
 
 	    sasl_result = sasl_listmech(c->sasl_conn, NULL, "<mechanisms xmlns='urn:ietf:params:xml:ns:xmpp-sasl'><mechanism>", "</mechanism><mechanism>", "</mechanism></mechanisms>", &sasl_mechs, &sasl_mechs_len, &sasl_mech_count);
 	    if (sasl_result != SASL_OK) {
-		log_write(c->c2s->log, LOG_WARNING, "Problem getting available SASL mechanisms: %i", sasl_result);
+		log_write(c->c2s->log, LOG_WARNING, "Problem getting available SASL mechanisms: %s", sasl_errdetail(c->sasl_conn));
 	    } else if (sasl_mech_count == 0) {
 		log_write(c->c2s->log, LOG_WARNING, "No SASL mechanisms available!");
 	    } else {
@@ -454,7 +454,7 @@ void _client_stream_root(conn_t c, const char *name, const char **atts) {
 	tls_ssf = SSL_get_cipher_bits(c->ssl, NULL);
 	sasl_result = sasl_setprop(c->sasl_conn, SASL_SSF_EXTERNAL, &tls_ssf);
 	if (sasl_result != SASL_OK) {
-	    log_write(c->c2s->log, LOG_WARNING, "Could not pass TLS security strength factor (%u) to SASL layer: %i", tls_ssf, sasl_result);
+	    log_write(c->c2s->log, LOG_WARNING, "Could not pass TLS security strength factor (%u) to SASL layer: %s", tls_ssf, sasl_errdetail(c->sasl_conn));
 	}
     }
 #endif
@@ -674,8 +674,8 @@ void _client_do_sasl_step(conn_t c, chunk_t chunk) {
 	client_response = (char*)malloc(client_response_len);
 	sasl_result = sasl_decode64(NAD_CDATA(chunk->nad, 0), NAD_CDATA_L(chunk->nad, 0), client_response, client_response_len, &client_response_len);
 	if (sasl_result != SASL_OK) {
+	    log_write(c->c2s->log, LOG_NOTICE, "Problem decoding BASE64 data: %s", sasl_errdetail(c->sasl_conn));
 	    _write_actual(c, c->fd, "<failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'><incorrect-encoding/></failure></stream:stream>", 97);
-	    log_write(c->c2s->log, LOG_NOTICE, "Problem decoding BASE64 data: %i", sasl_result);
 	    c->depth = -1;	/* flag to close the connection */
 	    if (client_response != NULL) {
 		free(client_response);
@@ -759,6 +759,7 @@ void _client_do_sasl_step(conn_t c, chunk_t chunk) {
 	    }
 	    break;
 	case SASL_NOMECH:
+	    log_write(c->c2s->log, LOG_NOTICE, "SASL authentication failure: %s", sasl_errdetail(c->sasl_conn));
 	    _write_actual(c, c->fd, "<failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'><invalid-mechanism/></failure></stream:stream>", 96);
 	    c->depth = -1;	/* flag to close the connection */
 	    break;
@@ -768,23 +769,24 @@ void _client_do_sasl_step(conn_t c, chunk_t chunk) {
 	case SASL_EXPIRED:
 	case SASL_BADVERS:
 	case SASL_NOVERIFY:
+	    log_write(c->c2s->log, LOG_NOTICE, "SASL authentication failure: %s", sasl_errdetail(c->sasl_conn));
 	    _write_actual(c, c->fd, "<failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'><temporary-auth-failure/></failure></stream:stream>", 101);
 	    c->depth = -1;	/* flag to close the connection */
 	    break;
 	case SASL_NOAUTHZ:
+	    log_write(c->c2s->log, LOG_NOTICE, "SASL authentication failure: %s", sasl_errdetail(c->sasl_conn));
 	    _write_actual(c, c->fd, "<failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'><invalid-authzid/></failure></stream:stream>", 94);
-	    log_write(c->c2s->log, LOG_NOTICE, "SASL authentication failure");
 	    c->depth = -1;	/* flag to close the connection */
 	    break;
 	case SASL_TOOWEAK:
 	case SASL_ENCRYPT:
+	    log_write(c->c2s->log, LOG_NOTICE, "SASL authentication failure: %s", sasl_errdetail(c->sasl_conn));
 	    _write_actual(c, c->fd, "<failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'><mechanism-too-weak/></failure></stream:stream>", 97);
-	    log_write(c->c2s->log, LOG_NOTICE, "SASL authentication failure");
 	    c->depth = -1;	/* flag to close the connection */
 	    break;
 	default:
+	    log_write(c->c2s->log, LOG_NOTICE, "SASL authentication failure: %s", sasl_errdetail(c->sasl_conn));
 	    _write_actual(c, c->fd, "<failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'><not-authorized/></failure></stream:stream>", 93);
-	    log_write(c->c2s->log, LOG_NOTICE, "SASL authentication failure");
 	    c->depth = -1;	/* flag to close the connection */
     }
 }
@@ -859,8 +861,8 @@ void _client_process(conn_t c) {
 	    initial_data = (char*)malloc(initial_data_len);
 	    sasl_result = sasl_decode64(NAD_CDATA(chunk->nad, 0), NAD_CDATA_L(chunk->nad, 0), initial_data, initial_data_len, &initial_data_len);
 	    if (sasl_result != SASL_OK) {
+		log_write(c->c2s->log, LOG_NOTICE, "Problem decoding BASE64 data: %s", sasl_errdetail(c->sasl_conn));
 		_write_actual(c, c->fd, "<failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'><incorrect-encoding/></failure></stream:stream>", 97);
-		log_write(c->c2s->log, LOG_NOTICE, "Problem decoding BASE64 data: %i", sasl_result);
 		c->depth = -1;	/* flag to close the connection */
 		chunk_free(chunk);
 		if (initial_data != NULL) {
@@ -917,6 +919,7 @@ void _client_process(conn_t c) {
 		}
 		break;
 	    case SASL_NOMECH:
+		log_write(c->c2s->log, LOG_NOTICE, "SASL authentication failure: %s", sasl_errdetail(c->sasl_conn));
 		_write_actual(c, c->fd, "<failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'><invalid-mechanism/></failure></stream:stream>", 96);
 		c->depth = -1;	/* flag to close the connection */
 		break;
@@ -926,23 +929,24 @@ void _client_process(conn_t c) {
 	    case SASL_EXPIRED:
 	    case SASL_BADVERS:
 	    case SASL_NOVERIFY:
+		log_write(c->c2s->log, LOG_NOTICE, "SASL authentication failure: %s", sasl_errdetail(c->sasl_conn));
 		_write_actual(c, c->fd, "<failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'><temporary-auth-failure/></failure></stream:stream>", 101);
 		c->depth = -1;	/* flag to close the connection */
 		break;
 	    case SASL_NOAUTHZ:
+		log_write(c->c2s->log, LOG_NOTICE, "SASL authentication failure: %s", sasl_errdetail(c->sasl_conn));
 		_write_actual(c, c->fd, "<failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'><invalid-authzid/></failure></stream:stream>", 94);
-		log_write(c->c2s->log, LOG_NOTICE, "SASL authentication failure");
 		c->depth = -1;	/* flag to close the connection */
 		break;
 	    case SASL_TOOWEAK:
 	    case SASL_ENCRYPT:
+		log_write(c->c2s->log, LOG_NOTICE, "SASL authentication failure: %s", sasl_errdetail(c->sasl_conn));
 		_write_actual(c, c->fd, "<failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'><mechanism-too-weak/></failure></stream:stream>", 97);
-		log_write(c->c2s->log, LOG_NOTICE, "SASL authentication failure");
 		c->depth = -1;	/* flag to close the connection */
 		break;
 	    default:
+		log_write(c->c2s->log, LOG_NOTICE, "SASL authentication failure: %s", sasl_errdetail(c->sasl_conn));
 		_write_actual(c, c->fd, "<failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'><not-authorized/></failure></stream:stream>", 93);
-		log_write(c->c2s->log, LOG_NOTICE, "SASL authentication failure");
 		c->depth = -1;	/* flag to close the connection */
 	}
 #else
@@ -1175,7 +1179,7 @@ int _client_io_accept(mio_t m, int fd, const char *ip_port, c2s_t c2s) {
 	}
 	sasl_result = sasl_server_new(c2s->sasl_service, c2s->sasl_fqdn, c2s->sasl_defaultrealm, local_ip_port, remote_ip_port, NULL, 0, &(c->sasl_conn));
 	if (sasl_result != SASL_OK) {
-	    log_write(c2s->log, LOG_ERR, "Error initializing SASL context: %i", sasl_result);
+	    log_write(c2s->log, LOG_ERR, "Error initializing SASL context: %s", sasl_errdetail(c->sasl_conn));
 	} else {
 	    sasl_security_properties_t secprops;
 	    secprops.min_ssf = c2s->sasl_min_ssf;
@@ -1186,7 +1190,7 @@ int _client_io_accept(mio_t m, int fd, const char *ip_port, c2s_t c2s) {
 	    secprops.security_flags = c2s->sasl_sec_flags;
 	    sasl_result = sasl_setprop(c->sasl_conn, SASL_SEC_PROPS, &secprops);
 	    if (sasl_result != SASL_OK) {
-		log_write(c2s->log, LOG_ERR, "Error setting SASL security properties: %i", sasl_result);
+		log_write(c2s->log, LOG_ERR, "Error setting SASL security properties: %s", sasl_errdetail(c->sasl_conn));
 	    }
 	}
 #else
