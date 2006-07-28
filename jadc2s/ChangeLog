@@ -1,3 +1,7 @@
+2006-07-28  Matthias Wimmer  <m@tthias.eu>
+
+    * clients.c: fixing bug handling session start iq without id attribute
+
 2006-07-27  Matthias Wimmer  <m@tthias.eu>
 
     * clients.c: improved SASL error logging
