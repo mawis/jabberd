@@ -1031,8 +1031,11 @@ void _client_process(conn_t c) {
 	    if (c->id_session_start != NULL) {
 		free(c->id_session_start);
 	    }
-	    c->id_session_start = (char*)malloc(NAD_AVAL_L(chunk->nad, id_attr)+1);
-	    snprintf(c->id_session_start, NAD_AVAL_L(chunk->nad, id_attr)+1, "%.*s", NAD_AVAL_L(chunk->nad, id_attr), NAD_AVAL(chunk->nad, id_attr));
+	    c->id_session_start = NULL;
+	    if (id_attr >= 0) {
+		c->id_session_start = (char*)malloc(NAD_AVAL_L(chunk->nad, id_attr)+1);
+		snprintf(c->id_session_start, NAD_AVAL_L(chunk->nad, id_attr)+1, "%.*s", NAD_AVAL_L(chunk->nad, id_attr), NAD_AVAL(chunk->nad, id_attr));
+	    }
 
 	    /* start the session by sending the sm a notification */
 
