@@ -162,7 +162,7 @@ void conn_error(conn_t c, char *condition, char *err)
 }
 
 #ifdef USE_SSL
-int _log_ssl_io_error(log_t l, SSL *ssl, int retcode, int fd);
+static int _log_ssl_io_error(log_t l, SSL *ssl, int retcode, int fd, const char *used_func);
 #endif
 
 /**
@@ -203,7 +203,7 @@ void conn_close(conn_t c, char *condition, char *err)
 	    log_write(c->c2s->log, LOG_DEBUG, "Closing SSL/TLS security layer on fd %i", c->fd);
 	    sslret = SSL_shutdown(c->ssl);
 	    if (sslret < 0)
-		_log_ssl_io_error(c->c2s->log, c->ssl, sslret, c->fd);
+		_log_ssl_io_error(c->c2s->log, c->ssl, sslret, c->fd, "SSL_shutdown");
 	}
 #endif
 
@@ -471,7 +471,7 @@ int conn_write(conn_t c)
 }
 
 #ifdef USE_SSL
-int _log_ssl_io_error(log_t l, SSL *ssl, int retcode, int fd) {
+static int _log_ssl_io_error(log_t l, SSL *ssl, int retcode, int fd, const char *used_func) {
     int ssl_error;
 
     ssl_error = SSL_get_error(ssl, retcode);
@@ -481,7 +481,7 @@ int _log_ssl_io_error(log_t l, SSL *ssl, int retcode, int fd) {
     	    (ssl_error == SSL_ERROR_SYSCALL && errno == 0))
 	return;
 
-    log_write(l, LOG_NOTICE, "SSL_read() on fd %i returned %i", fd, retcode);
+    log_write(l, LOG_NOTICE, "%s on fd %i returned %i", used_func, fd, retcode);
     switch (ssl_error) {
 	case SSL_ERROR_ZERO_RETURN:
 	    log_write(l, LOG_NOTICE, "TLS/SSL connection has been closed.");
@@ -521,7 +521,7 @@ int _read_actual(conn_t c, int fd, char *buf, size_t count)
 	if (!ssl_init_finished && SSL_is_init_finished(c->ssl))
 	    log_write(c->c2s->log, LOG_NOTICE, "ssl/tls established on fd %i: %s %s", c->fd, SSL_get_version(c->ssl), SSL_get_cipher(c->ssl));
 	if (bytes_read <= 0)
-	    _log_ssl_io_error(c->c2s->log, c->ssl, bytes_read, c->fd);
+	    _log_ssl_io_error(c->c2s->log, c->ssl, bytes_read, c->fd, "SSL_read");
 
 #ifdef WITH_SASL
 	if (bytes_read > 0 && c->sasl_conn != NULL && c->sasl_state != state_auth_NONE) {
@@ -572,7 +572,7 @@ int _peek_actual(conn_t c, int fd, char *buf, size_t count)
     if(c->ssl != NULL) {
 	bytes_read = SSL_peek(c->ssl, buf, count);
 	if (bytes_read <= 0)
-	    _log_ssl_io_error(c->c2s->log, c->ssl, bytes_read, c->fd);
+	    _log_ssl_io_error(c->c2s->log, c->ssl, bytes_read, c->fd, "SSL_peek");
 
         return bytes_read;
     }
@@ -628,7 +628,7 @@ int _write_actual(conn_t c, int fd, const char *buf, size_t count)
 	    c->out_bytes += written;
 	}
 	else
-	    _log_ssl_io_error(c->c2s->log, c->ssl, written, c->fd);
+	    _log_ssl_io_error(c->c2s->log, c->ssl, written, c->fd, "SSL_write");
 
         return truncated_write ? *c->sasl_outbuf_size : written; /* XXX we currently do not handle SASL blocks, that are only half written to the socket */
     }
