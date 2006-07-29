@@ -11,3 +11,6 @@
     * XMPP style stream errors [mawis]
     * Support for SASL authentication when used together with jabberd14
       version 1.6.0+ [mawis]
+    * epoll support for mio, which is now the default mio backend
+      if epoll is not supported by your OS, you have to select another
+      mio backend manually [Tomasz Sterna]

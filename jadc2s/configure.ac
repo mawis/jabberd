@@ -1,7 +1,7 @@
 AC_PREREQ(2.50)
 
 AC_INIT(util/util.h)
-AM_INIT_AUTOMAKE(jadc2s,0.9.2-alpha-2006-07-28)
+AM_INIT_AUTOMAKE(jadc2s,0.9.2-alpha-2006-07-29)
 AM_CONFIG_HEADER(config.h)
 
 dnl helper macros
@@ -142,9 +142,9 @@ else
 fi
 
 dnl MIO backend
-mio_backend="poll"
+mio_backend="epoll"
 AC_MSG_CHECKING(which mio backend to use)
-AC_ARG_ENABLE(mio, AC_HELP_STRING([--enable-mio=BACKEND], [Select the mio backend (default: poll)]), 
+AC_ARG_ENABLE(mio, AC_HELP_STRING([--enable-mio=BACKEND], [Select the mio backend (default: epoll)]), 
             mio_backend=$enableval)
 
 case x-$mio_backend in
