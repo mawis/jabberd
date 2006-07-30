@@ -140,6 +140,7 @@ MIO_FUNCS
 /* internal close function */
 void mio_close(mio_t m, int fd)
 {
+    /* sanity check */
     if (m == NULL || fd < 0)
 	return;
 
@@ -175,6 +176,10 @@ static void _mio_accept(mio_t m, int fd)
 #endif
     size_t addrlen = sizeof(serv_addr);
     int newfd, dupfd;
+
+    /* sanity check */
+    if (m == NULL || fd < 0)
+	return;
 
     mio_debug(ZONE, "accepting on fd #%d", fd);
 
@@ -241,6 +246,10 @@ static void _mio_connect(mio_t m, int fd)
 {
     mio_type_t type = FD(m,fd).type;
 
+    /* sanity check */
+    if (m == NULL || fd < 0)
+	return;
+
     mio_debug(ZONE, "connect processing for fd #%d", fd);
 
     /* reset type and clear the "write" event that flags connect() is done */
@@ -256,6 +265,10 @@ static void _mio_connect(mio_t m, int fd)
 int mio_fd(mio_t m, int fd, mio_handler_t app, void *arg)
 {
     int flags;
+
+    /* sanity check */
+    if (m == NULL || fd < 0)
+	return -1;
 
     mio_debug(ZONE, "adding fd #%d", fd);
 
@@ -286,6 +299,10 @@ int mio_fd(mio_t m, int fd, mio_handler_t app, void *arg)
 /* reset app stuff for this fd */
 void mio_app(mio_t m, int fd, mio_handler_t app, void *arg)
 {
+    /* sanity check */
+    if (m == NULL || fd < 0)
+	return;
+
     FD(m,fd).app = app;
     FD(m,fd).arg = arg;
 }
@@ -295,6 +312,10 @@ void mio_run(mio_t m, int timeout)
 {
     int retval, i, fd;
     time_t now;
+
+    /* sanity check */
+    if (m == NULL)
+	return;
 
     mio_debug(ZONE, "mio running for %d", timeout);
 
@@ -395,6 +416,10 @@ mio_t mio_new(int maxfd)
 {
     mio_t m;
 
+    /* sanity check */
+    if (maxfd <= 0)
+	return NULL;
+
     /* allocate and zero out main memory */
     if((m = malloc(sizeof(struct mio_st))) == NULL) return NULL;
     if((m->fds = malloc(sizeof(struct mio_fd_st) * maxfd)) == NULL)
@@ -418,6 +443,10 @@ mio_t mio_new(int maxfd)
 /* adam */
 void mio_free(mio_t m)
 {
+    /* sanity check */
+    if (m == NULL)
+	return;
+
     MIO_FREE_VARS(m);
 
     free(m->fds);

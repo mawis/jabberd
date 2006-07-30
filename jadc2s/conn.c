@@ -488,7 +488,7 @@ int conn_read(conn_t c, char *buf, int len)
      * reatmon@jabber.org
      */
     
-    while(cur_len < len)
+    while(cur_len < len && c->fd >= 0)
     {
         /* Look for a shorter buffer based on \0 */
         char* new_buf = &buf[cur_len];
@@ -510,6 +510,9 @@ int conn_read(conn_t c, char *buf, int len)
         {
             err = MAXDEPTH_ERR;
         }
+
+	if (c->fd < 0)
+	    return 0;
 
         /* oh darn */
 #ifdef FLASH_HACK
