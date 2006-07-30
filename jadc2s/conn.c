@@ -195,6 +195,10 @@ void conn_close(conn_t c, char *condition, char *err)
 	    chunk_write_typed(c, footer, NULL, NULL, NULL, chunk_CLOSE);
 	}
 
+	/* did the connection close in the meantime? */
+	if (c->fd < 0)
+	    return;
+
 #ifdef USE_SSL
 	/* For SSLv3 and TLS we have to send a close notify */
 	if (c->ssl != NULL) {
