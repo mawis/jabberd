@@ -3,7 +3,7 @@
     * jadc2s.h: robust encoding of SASL security layer on big blocks
     * clients.c: same
     * conn.c: same
-    * mio/mio.c: added sanity check for mio_close()
+    * mio/mio.c: added several sanity checks to mio functions
 
 2006-07-29  Matthias Wimmer  <m@tthias.eu>
 
