@@ -42,6 +42,9 @@
 
 /* this file contains some simple utils for the conn_t data type */
 
+/* forward declaration */
+static int _write_actual(conn_t c, int fd, const char *buf, size_t count);
+
 /* create a new blank conn (!caller must set expat callbacks and mio afterwards) */
 conn_t conn_new(c2s_t c2s, int fd)
 {
@@ -121,44 +124,43 @@ void conn_free(conn_t c)
 }
 
 /* write a stream error */
-void conn_error(conn_t c, char *condition, char *err)
-{
+void conn_error(conn_t c, char *condition, char *err) {
+    chunk_t error = NULL;
+
     if (c == NULL || (condition == NULL && err == NULL))
 	return;
 
     /* do we still have to open the stream? */
     if (c->root_element == root_element_NONE)
     {
-#ifdef FLASH_HACK
-	if (c->type == type_FLASH) {
-	    _write_actual(c, c->fd, "<flash:stream xmlns:stream='http://etherx.jabber.org/streams' version='1.0'>", 77);
-	    c->root_element = root_element_FLASH;
-	} else {
-#endif
-	    _write_actual(c, c->fd, "<stream:stream xmlns:stream='http://etherx.jabber.org/streams' version='1.0'>", 77);
-	    c->root_element = root_element_NORMAL;
-#ifdef FLASH_HACK
-	}
-#endif
+	chunk_t root_element = NULL;
+	root_element = chunk_new_free(c->c2s->nads);
+	nad_append_elem(root_element->nad, c->type == type_FLASH ? "flash:stream" : "stream:stream", 0);
+	nad_append_attr(root_element->nad, "xmlns:stream", "http://etherx.jabber.org/streams");
+	if (c->type == type_FLASH)
+	    nad_append_attr(root_element->nad, "xmlns:flash", "http://www.jabber.com/streams/flash");
+	nad_append_attr(root_element->nad, "from", c->c2s->local_id != NULL && c->c2s->local_id->nvalues > 0 ? c->c2s->local_id->values[0] : "invalid");
+	nad_append_attr(root_element->nad, "version", "1.0");
+	chunk_write_typed(c, root_element, NULL, NULL, NULL, c->type == type_FLASH ? chunk_NORMAL : chunk_OPEN);
     }
 
     log_debug(ZONE,"sending stream error: %s %s", condition, err);
-    _write_actual(c, c->fd, "<stream:error>",14);
+    error = chunk_new_free(c->c2s->nads);
+    nad_append_elem(error->nad, "stream:error", 0);
 
     /* send the condition (should be present!) */
-    if(condition != NULL)
-	_write_actual(c, c->fd, condition, strlen(condition));
-
-    if(err != NULL)
-    {
-	char *description;
-	description = (char*)malloc(strlen(err)+58);
-	sprintf(description,"<text xmlns='urn:ietf:params:xml:ns:xmpp-streams'>%s</text>", err);
-	_write_actual(c, c->fd, description, strlen(description));
-	free(description);
+    if(condition != NULL) {
+	nad_append_elem(error->nad, condition, 1);
+	nad_append_attr(error->nad, "xmlns", "urn:ietf:params:xml:ns:xmpp-streams");
     }
 
-    _write_actual(c, c->fd, "</stream:error>",15);
+    if(err != NULL) {
+	nad_append_elem(error->nad, "text", 1);
+	nad_append_attr(error->nad, "xmlns", "urn:ietf:params:xml:ns:xmpp-streams");
+	nad_append_cdata(error->nad, err, strlen(err), 2);
+    }
+
+    chunk_write(c, error, NULL, NULL, NULL);
 }
 
 #ifdef USE_SSL
@@ -182,18 +184,16 @@ void conn_close(conn_t c, char *condition, char *err)
 {
     if(c != NULL && c->fd != -1)
     {
-	char *footer;
-	const char *root_element_name;
+	chunk_t footer = NULL;
 
 	/* send the stream error */
 	conn_error(c, condition, err);
 
-	root_element_name = _conn_root_element_name(c->root_element);
-	footer = malloc(4 + strlen(root_element_name));
-	sprintf(footer, "</%s>", root_element_name);
-	
-	_write_actual(c, c->fd, footer, strlen(footer));
-	free(footer);
+	if (c && c->c2s && c->c2s->nads) {
+	    footer = chunk_new_free(c->c2s->nads);
+	    nad_append_elem(footer->nad, "stream:stream", 0);
+	    chunk_write_typed(c, footer, NULL, NULL, NULL, chunk_CLOSE);
+	}
 
 #ifdef USE_SSL
 	/* For SSLv3 and TLS we have to send a close notify */
@@ -216,6 +216,15 @@ chunk_t chunk_new(conn_t c) {
     return chunk_new_packet(c, 0);
 }
 
+chunk_t chunk_new_free(nad_cache_t nads) {
+    chunk_t chunk = chunk_new(NULL);
+    if (chunk == NULL)
+	return NULL;
+
+    chunk->nad = nad_new(nads);
+    return chunk;
+}
+
 chunk_t chunk_new_packet(conn_t c, int packet_elem) {
     chunk_t chunk = (chunk_t) malloc(sizeof(struct chunk_st));
     memset(chunk, 0, sizeof(struct chunk_st));
@@ -223,8 +232,10 @@ chunk_t chunk_new_packet(conn_t c, int packet_elem) {
     chunk->next = NULL;
 
     /* nad gets tranferred from the conn to the chunk */
-    chunk->nad = c->nad;
-    c->nad = NULL;
+    if (c != NULL) {
+	chunk->nad = c->nad;
+	c->nad = NULL;
+    }
 
     /* remember the packet element */
     chunk->packet_elem = packet_elem;
@@ -237,16 +248,22 @@ void chunk_free(chunk_t chunk)
 {
     nad_free(chunk->nad);
 
+    if (chunk->to_free != NULL)
+	free(chunk->to_free);
+
     free(chunk);
 }
 
 /* write a chunk to a conn */
-void chunk_write(conn_t c, chunk_t chunk, const char *to, const char *from, const char *type)
-{
+void chunk_write(conn_t c, chunk_t chunk, const char *to, const char *from, const char *type) {
+    chunk_write_typed(c, chunk, to, from, type, chunk_NORMAL);
+}
+
+void chunk_write_typed(conn_t c, chunk_t chunk, const char *to, const char *from, const char *type, chunk_type_enum chunk_type) {
     int elem;
 
     /* make an empty nad if there isn't one */
-    if (chunk->nad == NULL) {
+    if (chunk->nad == NULL && chunk->wlen == 0) {
         chunk->nad = nad_new(c->c2s->nads);
 	chunk->packet_elem = 0;
     }
@@ -254,7 +271,7 @@ void chunk_write(conn_t c, chunk_t chunk, const char *to, const char *from, cons
     elem = chunk->packet_elem;
 
     /* prepend optional route data */
-    if (to != NULL) {
+    if (to != NULL && chunk->nad != NULL) {
 	if (chunk->nad->ecur <= chunk->packet_elem) {
 	    elem = nad_append_elem(chunk->nad, "route", 1);
 	} else {
@@ -270,7 +287,95 @@ void chunk_write(conn_t c, chunk_t chunk, const char *to, const char *from, cons
     }
 
     /* turn the nad into xml */
-    nad_print(chunk->nad, elem, &chunk->wcur, &chunk->wlen);
+    if (chunk->nad != NULL) {
+	nad_print(chunk->nad, elem, &chunk->wcur, &chunk->wlen);
+
+	/* only write start or end tag? */
+	switch (chunk_type) {
+	    case chunk_NORMAL:
+		break;
+	    case chunk_OPEN:
+		if (chunk->wlen > 2) {
+		    chunk->wcur[chunk->wlen - 2] = '>';
+		    chunk->wlen--;
+		}
+		break;
+	    case chunk_CLOSE:
+		if (chunk->wlen > 2) {
+		    int i = 0;
+
+		    for (i = 1; i < chunk->wlen - 1; i++) {
+			if (chunk->wcur[i] == ' ' || chunk->wcur[i] == '\t' || chunk->wcur[i] == '/') {
+			    chunk->wcur[i+1] = '>';
+			    break;
+			}
+		    }
+		    chunk->wlen = i+2;
+		    for (; i>1; i--) {
+			chunk->wcur[i] = chunk->wcur[i-1];
+		    }
+		    chunk->wcur[1] = '/';
+		    log_write(c->c2s->log, LOG_NOTICE, "after memmove: %.*s", chunk->wlen, chunk->wcur);
+		}
+		break;
+	}
+    }
+
+    /* need to SASL encode? */
+#ifdef WITH_SASL
+    if (c->sasl_conn && c->sasl_state != state_auth_NONE && c->sasl_outbuf_size && *(c->sasl_outbuf_size) > 0) {
+	int sasl_result = 0;
+	char *encoded_data = NULL;
+	size_t encoded_len = 0;
+
+	log_debug(ZONE, "chunk_write_typed() is encoding data using sasl_encode()");
+
+	/* we may have to encode using multiple calls, there is a maximum size we can pass to sasl_encode */
+	while (chunk->wlen > 0) {
+	    unsigned encoding_now = chunk->wlen;
+	    const char *encoded_step_data = NULL;
+	    unsigned encoded_step_len = 0;
+
+	    if (encoding_now > *(c->sasl_outbuf_size))
+		encoding_now = *(c->sasl_outbuf_size);
+
+	    sasl_result = sasl_encode(c->sasl_conn, chunk->wcur, encoding_now, &encoded_step_data, &encoded_step_len);
+	    if (sasl_result != SASL_OK) {
+		log_write(c->c2s->log, LOG_ERR, "Could not encode data using sasl_encode() on fd %i", c->fd);
+		break;
+	    }
+	    chunk->wlen -= encoding_now;
+	    chunk->wcur += encoding_now;
+
+	    /* append or new data? */
+	    if (encoded_data == NULL) {
+		encoded_data = strdup(encoded_step_data);
+		encoded_len = encoded_step_len;
+	    } else {
+		char *old_encoded_data = encoded_data;
+
+		/* to append we need a bigger buffer and append the new data in the new buffer */
+		encoded_data = (char*)malloc(encoded_len + encoded_step_len);
+		memcpy(encoded_data, old_encoded_data, encoded_len);
+		memcpy(encoded_data+encoded_len, encoded_step_data, encoded_step_len);
+		encoded_len += encoded_step_len;
+
+		/* free the old buffer that got to small */
+		free(old_encoded_data);
+	    }
+	}
+
+	/* could all data be encoded or was there an error? */
+	if (chunk->wlen <= 0) {
+	    chunk->wcur = encoded_data;
+	    chunk->to_free = chunk->wcur;
+	    chunk->wlen = encoded_len;
+	} else {
+	    if (encoded_data != NULL)
+		free(encoded_data);
+	}
+    }
+#endif /* WITH_SASL */
 
     /* append to the outgoing write queue, if any */
     if (c->qtail == NULL) {
@@ -582,40 +687,21 @@ int _peek_actual(conn_t c, int fd, char *buf, size_t count)
 }
 
 
-int _write_actual(conn_t c, int fd, const char *buf, size_t count)
+static int _write_actual(conn_t c, int fd, const char *buf, size_t count)
 {
     int written;
-    const char *output_buffer = buf;
-    size_t output_len = count;
     int truncated_write = 0;
 
     log_debug(ZONE, "writing: %.*s", count, buf);
 
 #ifdef WITH_SASL
     if (c->sasl_conn && c->sasl_state != state_auth_NONE) {
-	int sasl_result = 0;
-
-	log_debug(ZONE, "c->sasl_conn = %X, buf = %.*s, count = %i", c->sasl_conn, count, buf, count);
-	output_buffer = NULL;
-	/* check that we do not try to encode to much data using sasl_encode() */
-	if (c->sasl_outbuf_size != NULL && *c->sasl_outbuf_size > 0 && *c->sasl_outbuf_size < count) {
-	    count = *c->sasl_outbuf_size;
-	    truncated_write = 1;
-	}
-	sasl_result = sasl_encode(c->sasl_conn, buf, count, &output_buffer, &output_len);
-	log_debug(ZONE, "SASL result: %i", sasl_result);
-	if (sasl_result != SASL_OK) {
-	    errno = EIO;
-	    return -1;
-	}
     }
 #endif
 
-    log_debug(ZONE, "after SASL encoding (%i): %.*s", output_len, output_len, output_buffer);
-    
 #ifdef USE_SSL
     if(c->ssl != NULL) {
-        written = SSL_write(c->ssl, output_buffer, output_len);
+        written = SSL_write(c->ssl, buf, count);
 	if (written > 0) {
 #ifdef FLASH_HACK
 	    if (c->type == type_FLASH) {
@@ -634,7 +720,7 @@ int _write_actual(conn_t c, int fd, const char *buf, size_t count)
     }
 #endif
         
-    written = write(fd, output_buffer, output_len);
+    written = write(fd, buf, count);
     if (written > 0)
     {
 #ifdef FLASH_HACK

@@ -1,3 +1,9 @@
+2006-07-30  Matthias Wimmer  <m@tthias.eu>
+
+    * jadc2s.h: robust encoding of SASL security layer on big blocks
+    * clients.c: same
+    * conn.c: same
+
 2006-07-29  Matthias Wimmer  <m@tthias.eu>
 
     * conn.c: reporting correct SSL function that caused an error
