@@ -53,16 +53,16 @@
  */
 
 /* stream error conditions */
-#define STREAM_ERR_BAD_FORMAT		 "<bad-format xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
-#define STREAM_ERR_CONFLICT		 "<conflict xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
-#define STREAM_ERR_HOST_UNKNOWN		 "<host-unknown xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
-#define STREAM_ERR_INTERNAL_SERVER_ERROR "<internal-server-error xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
-#define STREAM_ERR_INVALID_NAMESPACE	 "<invalid-namespace xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
-#define STREAM_ERR_INVALID_XML		 "<invalid-xml xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
-#define STREAM_ERR_NOT_AUTHORIZED	 "<not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
-#define STREAM_ERR_REMOTE_CONNECTION_FAILED "<remote-connection-failed xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
-#define STREAM_ERR_SYSTEM_SHUTDOWN	 "<system-shutdown xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
-#define STREAM_ERR_TIMEOUT		 "<connection-timeout xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
+#define STREAM_ERR_BAD_FORMAT		 "bad-format"
+#define STREAM_ERR_CONFLICT		 "conflict"
+#define STREAM_ERR_HOST_UNKNOWN		 "host-unknown"
+#define STREAM_ERR_INTERNAL_SERVER_ERROR "internal-server-error"
+#define STREAM_ERR_INVALID_NAMESPACE	 "invalid-namespace"
+#define STREAM_ERR_INVALID_XML		 "invalid-xml"
+#define STREAM_ERR_NOT_AUTHORIZED	 "not-authorized"
+#define STREAM_ERR_REMOTE_CONNECTION_FAILED "remote-connection-failed"
+#define STREAM_ERR_SYSTEM_SHUTDOWN	 "system-shutdown"
+#define STREAM_ERR_TIMEOUT		 "connection-timeout"
 
 /* forward decls */
 typedef struct conn_st *conn_t;
@@ -81,6 +81,8 @@ typedef struct chunk_st
     /* and the char representation, for writing */
     char *wcur;		/**< the char representation for writing */
     int wlen;		/**< length of the char representation */
+
+    void *to_free;	/**< pointer to memory, that should be freed on chunk_free() */
 
     struct chunk_st *next;	/**< for linking chunks together */
 } *chunk_t;
@@ -230,12 +232,19 @@ void conn_close(conn_t c, char *condition, char *err);
 /** create a new chunk */
 chunk_t chunk_new(conn_t c);
 chunk_t chunk_new_packet(conn_t c, int packet_elem);
+chunk_t chunk_new_free(nad_cache_t nads);
 
 /** and free one */
 void chunk_free(chunk_t chunk);
 
 /** write a chunk to a conn, optinally wrap with route */
+typedef enum {
+    chunk_NORMAL,		/**< write chunk as normal chunk */
+    chunk_OPEN,			/**< write only the open tag of the chunk */
+    chunk_CLOSE			/**< write only the close tag of the chunk */
+} chunk_type_enum;
 void chunk_write(conn_t c, chunk_t chunk, const char *to, const char *from, const char *rtype);
+void chunk_write_typed(conn_t c, chunk_t chunk, const char *to, const char *from, const char *rtype, chunk_type_enum chunk_type);
 
 /**
  * transfer rate limitting, returns the max number of elements that can be read
@@ -353,7 +362,6 @@ int connect_new(c2s_t c2s);
 /* wrappers around read() and write(), with ssl support */
 int _read_actual(conn_t c, int fd, char *buf, size_t count);
 int _peek_actual(conn_t c, int fd, char *buf, size_t count);
-int _write_actual(conn_t c, int fd, const char *buf, size_t count);
 
 /** debug logging */
 void debug_log(char *file, int line, const char *msgfmt, ...);
