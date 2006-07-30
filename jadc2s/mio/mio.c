@@ -140,6 +140,9 @@ MIO_FUNCS
 /* internal close function */
 void mio_close(mio_t m, int fd)
 {
+    if (m == NULL || fd < 0)
+	return;
+
     mio_debug(ZONE,"actually closing fd #%d",fd);
 
     /* take out of poll sets */
