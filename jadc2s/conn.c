@@ -315,7 +315,6 @@ void chunk_write_typed(conn_t c, chunk_t chunk, const char *to, const char *from
 			chunk->wcur[i] = chunk->wcur[i-1];
 		    }
 		    chunk->wcur[1] = '/';
-		    log_write(c->c2s->log, LOG_NOTICE, "after memmove: %.*s", chunk->wlen, chunk->wcur);
 		}
 		break;
 	}
