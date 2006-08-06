@@ -1,15 +1,36 @@
+/**
+ * @file log.c
+ * @brief handling of logging
+ *
+ * In this file the functions needed to log messages are contained.
+ * Logging is possible to either syslog or files, depending on how the source has been configured
+ */
+
 #include "util.h"
 
 #ifdef USE_SYSLOG
-log_t log_new(const char *ident)
-{
+/**
+ * create a new logging instance
+ *
+ * @note only one logging instance can be created when using syslog, so you should only open one instance
+ *
+ * @param ident the identity to log as
+ * @return the logging instance
+ */
+log_t log_new(const char *ident) {
     openlog(ident, LOG_PID, USE_SYSLOG);
 
     return NULL;
 }
 
-void log_write(log_t l, int level, const char *msgfmt, ...)
-{
+/**
+ * write a logging message
+ *
+ * @param l the logging instance to write to
+ * @param level the severity level for the message
+ * @param msgfmt printf like string what to write
+ */
+void log_write(log_t l, int level, const char *msgfmt, ...) {
     va_list ap;
 
     va_start(ap, msgfmt);
@@ -17,13 +38,14 @@ void log_write(log_t l, int level, const char *msgfmt, ...)
     va_end(ap);
 }
 
-void log_free(log_t l)
-{
+/**
+ * free a logging instance
+ */
+void log_free(log_t l) {
     closelog();
 }
 #else
-log_t log_new(const char *ident)
-{
+log_t log_new(const char *ident) {
     FILE *f;
     char *buf;
 
@@ -47,8 +69,7 @@ log_t log_new(const char *ident)
     return (void *) f;
 }
 
-static const char *log_level[] =
-{
+static const char *log_level[] = {
     "emergency",
     "alert",
     "critical",
@@ -59,8 +80,7 @@ static const char *log_level[] =
     "debug"
 };
 
-void log_write(log_t l, int level, const char *msgfmt, ...)
-{
+void log_write(log_t l, int level, const char *msgfmt, ...) {
     FILE *f = (FILE *) l;
     va_list ap;
     char *pos, message[MAX_LOG_LINE];
@@ -78,7 +98,8 @@ void log_write(log_t l, int level, const char *msgfmt, ...)
     snprintf(message, MAX_LOG_LINE, "%s[%s] ", pos, log_level[level]);
 
     /* find the end and attach the rest of the msg */
-    for (pos = message; *pos != '\0'; pos++); //empty statement
+    for (pos = message; *pos != '\0'; pos++)
+	/* nothing */;
     sz = pos - message;
     va_start(ap, msgfmt);
     vsnprintf(pos, MAX_LOG_LINE - sz, msgfmt, ap);
@@ -92,8 +113,7 @@ void log_write(log_t l, int level, const char *msgfmt, ...)
 #endif /*DEBUG*/
 }
 
-void log_free(log_t l)
-{
+void log_free(log_t l) {
     FILE *f = (FILE *) l;
 
     if(f != stdout)
@@ -102,8 +122,13 @@ void log_free(log_t l)
 #endif
 
 #ifdef USE_SSL
-void log_ssl_errors(log_t l, int level)
-{
+/**
+ * log all pending OpenSSL error message
+ *
+ * @param l the logging instance to log to
+ * @param level the error level to log the messages as
+ */
+void log_ssl_errors(log_t l, int level) {
     unsigned long sslerr;
 
     while ((sslerr = ERR_get_error()) != 0)

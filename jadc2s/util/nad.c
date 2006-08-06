@@ -38,11 +38,26 @@
  * 
  * --------------------------------------------------------------------------*/
 
+/**
+ * @file nad.c
+ * @brief Not A DOM - Simplistic handling for XML stanzas
+ *
+ * using nad:
+ * 
+ * nad is very simplistic, and requires all string handling to use a length.
+ * apps using this must be aware of the structure and access it directly for most information.
+ * nads can only be built by successively using the _append_ functions correctly.
+ * after built, they can be modified using other functions, or by direct access.
+ * to access cdata on an elem or attr, use nad->cdata + nad->xxx[index].ixxx for the start, and .lxxx for len.
+ */
+
 #include "util.h"
 
 #define BLOCKSIZE 1024
 
-/* internal: do and return the math and ensure it gets realloc'd */
+/**
+ * internal: do and return the math and ensure it gets realloc'd
+ */
 static int _nad_realloc(void **oblocks, int len) {
     void *nblocks;
     int nlen;
@@ -57,10 +72,14 @@ static int _nad_realloc(void **oblocks, int len) {
     return nlen;
 }
 
-/* this is the safety check used to make sure there's always enough mem */
+/**
+ * this is the safety check used to make sure there's always enough mem
+ */
 #define NAD_SAFE(blocks, size, len) if((size) > len) len = _nad_realloc((void**)&(blocks),(size));
 
-/* internal: append some cdata and return the index to it */
+/**
+ * internal: append some cdata and return the index to it
+ */
 static int _nad_cdata(nad_t nad, const char *cdata, int len) {
     NAD_SAFE(nad->cdata, nad->ccur + len, nad->clen);
 
@@ -69,7 +88,9 @@ static int _nad_cdata(nad_t nad, const char *cdata, int len) {
     return nad->ccur - len;
 }
 
-/* internal: create a new attr on any given elem */
+/**
+ * internal: create a new attr on any given elem
+ */
 static int _nad_attr(nad_t nad, int elem, const char *name, const char *val) {
     int attr;
 
@@ -88,7 +109,9 @@ static int _nad_attr(nad_t nad, int elem, const char *name, const char *val) {
     return attr;
 }
 
-/* create a new cache, simple pointer to a list of nads */
+/**
+ * create a new cache, simple pointer to a list of nads
+ */
 nad_cache_t nad_cache_new(void) {
     nad_cache_t cache;
     while ((cache = malloc(sizeof(nad_cache_t))) == NULL)
@@ -98,7 +121,9 @@ nad_cache_t nad_cache_new(void) {
 }
 
 
-/* free the cache and any nads in it */
+/**
+ * free the cache and any nads in it
+ */
 void nad_cache_free(nad_cache_t cache) {
     nad_t cur;
     while ((cur = *cache) != NULL) {
@@ -112,7 +137,9 @@ void nad_cache_free(nad_cache_t cache) {
     free(cache);
 }
 
-/* get the next nad from the cache, or create some */
+/**
+ * get the next nad from the cache, or create some
+ */
 nad_t nad_new(nad_cache_t cache) {
     nad_t nad;
 
@@ -134,7 +161,9 @@ nad_t nad_new(nad_cache_t cache) {
     return nad;
 }
 
-/* plug a nad back in the cache */
+/**
+ * plug a nad back in the cache
+ */
 void nad_free(nad_t nad) {
     /* sanity check */
     if(nad == NULL)
@@ -152,7 +181,9 @@ void nad_free(nad_t nad) {
 #endif
 }
 
-/* locate the next elem at a given depth with an optional matching name */
+/**
+ * locate the next elem at a given depth with an optional matching name
+ */
 int nad_find_elem(nad_t nad, int elem, char *name, int depth) {
     int lname = 0;
 
@@ -173,7 +204,9 @@ int nad_find_elem(nad_t nad, int elem, char *name, int depth) {
     return -1;
 }
 
-/* get a matching attr on this elem, both name and optional val */
+/**
+ * get a matching attr on this elem, both name and optional val
+ */
 int nad_find_attr(nad_t nad, int elem, const char *name, const char *val) {
     int attr;
     int lname, lval;
@@ -199,7 +232,9 @@ int nad_find_attr(nad_t nad, int elem, const char *name, const char *val) {
     return -1;
 }
 
-/* create, update, or zap any matching attr on this elem */
+/**
+ * create, update, or zap any matching attr on this elem
+ */
 void nad_set_attr(nad_t nad, int elem, const char *name, const char *val) {
     int attr;
 
@@ -254,7 +289,9 @@ int nad_insert_elem(nad_t nad, int parent, char *name, char *cdata) {
 }
 */
 
-/* wrap an element with another element */
+/**
+ * wrap an element with another element
+ */
 void nad_wrap_elem(nad_t nad, int elem, char *name) {
     int cur;
 
@@ -281,7 +318,9 @@ void nad_wrap_elem(nad_t nad, int elem, char *name) {
 	nad->elems[cur].depth++;
 }
 
-/* create a new elem on the list */
+/**
+ * create a new elem on the list
+ */
 int nad_append_elem(nad_t nad, char *name, int depth) {
     int elem;
 
@@ -304,12 +343,16 @@ int nad_append_elem(nad_t nad, char *name, int depth) {
     return elem;
 }
 
-/* attach new attr to the last elem */
+/**
+ * attach new attr to the last elem
+ */
 int nad_append_attr(nad_t nad, const char *name, const char *val) {
     return _nad_attr(nad, nad->ecur - 1, name, val);
 }
 
-/* append new cdata to the last elem */
+/**
+ * append new cdata to the last elem
+ */
 void nad_append_cdata(nad_t nad, const char *cdata, int len, int depth) {
     int elem = nad->ecur - 1;
 
@@ -420,7 +463,9 @@ static void _nad_escape(nad_t nad, int data, int len, int flag) {
     nad->ccur += len;
 }
 
-/* internal recursive printing function */
+/**
+ * internal recursive printing function
+ */
 static int _nad_lp0(nad_t nad, int elem) {
     int attr;
     int ndepth;

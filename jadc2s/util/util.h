@@ -90,7 +90,6 @@ struct pfree
 {
     pool_cleaner f;
     void *arg;
-    struct pheap *heap;
     struct pfree *next;
 };
 
@@ -98,10 +97,10 @@ struct pfree
    of pool entries (pfree) */
 typedef struct pool_struct
 {
-    int size;
     struct pfree *cleanup;
     struct pheap *heap;
 #ifdef POOL_DEBUG
+    int size;
     char name[8], zone[32];
     int lsize;
 } _pool, *pool;
@@ -122,7 +121,6 @@ void pool_stat(int full); /* print to stderr the changed pools and reset */
 char *pstrdupx(pool p, const char *src, int len); /* use given len */
 void pool_cleanup(pool p, pool_cleaner f, void *arg); /* calls f(arg) before the pool is freed during cleanup */
 void pool_free(pool p); /* calls the cleanup functions, frees all the data on the pool, and deletes the pool itself */
-int pool_size(pool p); /* returns total bytes allocated in this pool */
 
 
 
@@ -132,8 +130,6 @@ int pool_size(pool p); /* returns total bytes allocated in this pool */
 /* String management routines                                */
 /*                                                           */
 /* --------------------------------------------------------- */
-char *j_strdup(const char *str); /* provides NULL safe strdup wrapper */
-char *j_strcat(char *dest, char *txt); /* strcpy() clone */
 int j_strcmp(const char *a, const char *b); /* provides NULL safe strcmp wrapper */
 int j_strcasecmp(const char *a, const char *b); /* provides NULL safe strcasecmp wrapper */
 int j_strncmp(const char *a, const char *b, int i); /* provides NULL safe strncmp wrapper */
