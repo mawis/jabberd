@@ -38,11 +38,30 @@
  * 
  * --------------------------------------------------------------------------*/
 
+/**
+ * @file str.c
+ * @brief Handling of strings
+ *
+ * The j_*() functions are just helper functions, that are mostly NULL-safe versions
+ * of the same libc functions.
+ *
+ * The spool functions can be used to add several strings to this spool and get
+ * it as a single string afterwards.
+ */
+
 #include "util.h"
 
-static char *_j_strcat(char *dest, char *txt)
-{
-    if(!txt) return(dest);
+/**
+ * Copies the content of a zero-terminated string
+ *
+ * @note the return value is not compatible to strcpy()!
+ *
+ * @param dest What to copy
+ * @param txt where to copy to
+ * @return pointer to the end of the result (to the 0-byte at the end of a string)
+ */
+static char *_j_strcpy(char *dest, char *txt) {
+    if(!txt || !dest) return(dest);
 
     while(*txt)
         *dest++ = *txt++;
@@ -51,73 +70,103 @@ static char *_j_strcat(char *dest, char *txt)
     return(dest);
 }
 
-int j_strcmp(const char *a, const char *b)
-{
-    if(a == NULL || b == NULL)
+/**
+ * compare two strings
+ *
+ * @param a the one string
+ * @param b the other string
+ * @return 0 if both strings are the same, non-0 if both strings are different or at least one string is NULL
+ */
+int j_strcmp(const char *a, const char *b) {
+    if (a == NULL || b == NULL)
         return -1;
 
-    while(*a == *b && *a != '\0' && *b != '\0'){ a++; b++; }
+    while (*a == *b && *a != '\0' && *b != '\0') {
+	a++;
+	b++;
+    }
 
-    if(*a == *b) return 0;
+    if (*a == *b)
+	return 0;
 
     return -1;
 }
 
-int j_strcasecmp(const char *a, const char *b)
-{
-    if(a == NULL || b == NULL)
-        return -1;
-    else
-        return strcasecmp(a, b);
-}
-
-int j_strncmp(const char *a, const char *b, int i)
-{
-    if(a == NULL || b == NULL)
+/**
+ * compare a limited number of bytes
+ *
+ * compares at most i bytes, but stops before if the string ends
+ *
+ * @param a the one string
+ * @param b the other string
+ * @param i how much bytes to compare at most
+ * @return 0 if both strings are the same (in the first i bytes), non-0 else of if one of the strings is NULL)
+ */
+int j_strncmp(const char *a, const char *b, int i) {
+    if (a == NULL || b == NULL)
         return -1;
     else
         return strncmp(a, b, i);
 }
 
-int j_strncasecmp(const char *a, const char *b, int i)
-{
-    if(a == NULL || b == NULL)
-        return -1;
-    else
-        return strncasecmp(a, b, i);
-}
-
-int j_strlen(const char *a)
-{
-    if(a == NULL)
+/**
+ * get the length of a string
+ *
+ * @param a the string to get the length for
+ * @return the length of the string, or 0 if NULL
+ */
+int j_strlen(const char *a) {
+    if (a == NULL)
         return 0;
     else
         return strlen(a);
 }
 
-int j_atoi(const char *a, int def)
-{
-    if(a == NULL)
+/**
+ * convert a string to an integer with a default value for NULL
+ *
+ * @note The default value is NOT used, if there is a string, but it cannot be parsed.
+ *
+ * @param a the string containing the integer
+ * @param def the default value if NULL is passed as a
+ * @return the converted integer
+ */
+int j_atoi(const char *a, int def) {
+    if (a == NULL)
         return def;
     else
         return atoi(a);
 }
 
-char *j_attr(const char** atts, char *attr)
-{
+/**
+ * get a value from an array of strings containing keys at the even positions, and values at the odd positions (expat's way to pass attributes)
+ *
+ * @param atts the array for strings
+ * @param attr which value to get (the key)
+ * @return the value for the passed key
+ */
+char *j_attr(const char** atts, char *attr) {
     int i = 0;
 
-    while(atts[i] != '\0')
-    {
-        if(j_strcmp(atts[i],attr) == 0) return (char*)atts[i+1];
+    while (atts[i] != '\0') {
+        if (j_strcmp(atts[i],attr) == 0)
+	    return (char*)atts[i+1];
         i += 2;
     }
 
     return NULL;
 }
 
-spool spool_new(pool p)
-{
+/**
+ * Create a new spool
+ *
+ * Spools can be used to add multiple strings, which can afterwards get back as a single
+ * concatenated string
+ *
+ * @param p the memory pool to use
+ * @return the spool object
+ */
+spool spool_new(pool p) {
     spool s;
 
     s = pmalloc(p, sizeof(struct spool_struct));
@@ -128,8 +177,17 @@ spool spool_new(pool p)
     return s;
 }
 
-void _spool_add(spool s, char *goodstr)
-{
+/**
+ * Add a string to the spool
+ *
+ * Adds the content of a string to the end of a spool
+ *
+ * @note use spool_add() instead, which is a NULL-safe version of this.
+ *
+ * @param s the spool to add the string to
+ * @param goodstring the string to add (must not be freed before the spool is printed)
+ */
+static void _spool_add(spool s, char *goodstr) {
     struct spool_node *sn;
 
     sn = pmalloc(s->p, sizeof(struct spool_node));
@@ -137,58 +195,39 @@ void _spool_add(spool s, char *goodstr)
     sn->next = NULL;
 
     s->len += strlen(goodstr);
-    if(s->last != NULL)
+    if (s->last != NULL)
         s->last->next = sn;
     s->last = sn;
-    if(s->first == NULL)
+    if (s->first == NULL)
         s->first = sn;
 }
 
-void spool_add(spool s, char *str)
-{
-    if(str == NULL || strlen(str) == 0)
+/**
+ * Add a string to the spool
+ *
+ * Adds the content of a string to the end of a spool
+ *
+ * @param s the spool to add the string to
+ * @param goodstring the string to add (must not be freed before the spool is printed)
+ */
+void spool_add(spool s, char *str) {
+    if (str == NULL || strlen(str) == 0)
         return;
 
     _spool_add(s, pstrdup(s->p, str));
 }
 
-void spool_escape(spool s, char *raw, int len)
-{
-    if(raw == NULL || len <= 0)
-        return;
-
-    _spool_add(s, strescape(s->p, raw, len));
-}
-
-void spooler(spool s, ...)
-{
-    va_list ap;
-    char *arg = NULL;
-
-    if(s == NULL)
-        return;
-
-    va_start(ap, s);
-
-    /* loop till we hit our end flag, the first arg */
-    while(1)
-    {
-        arg = va_arg(ap,char *);
-        if((spool)arg == s)
-            break;
-        else
-            spool_add(s, arg);
-    }
-
-    va_end(ap);
-}
-
-char *spool_print(spool s)
-{
+/**
+ * Prints all strings that have been added to the spool to a new string
+ *
+ * @param s the spool that should be printed
+ * @return the new string
+ */
+char *spool_print(spool s) {
     char *ret,*tmp;
     struct spool_node *next;
 
-    if(s == NULL || s->len == 0 || s->first == NULL)
+    if (s == NULL || s->len == 0 || s->first == NULL)
         return NULL;
 
     ret = pmalloc(s->p, s->len + 1);
@@ -196,23 +235,28 @@ char *spool_print(spool s)
 
     next = s->first;
     tmp = ret;
-    while(next != NULL)
-    {
-        tmp = _j_strcat(tmp,next->c);
+    while (next != NULL) {
+        tmp = _j_strcpy(tmp,next->c);
         next = next->next;
     }
 
     return ret;
 }
 
-/* convenience :) */
-char *spools(pool p, ...)
-{
+/**
+ * convenience function, that does the spool creation, string adding, and printing all at once
+ *
+ * Add all strings, that should be printed to the parameter list, and terminate by passing p again
+ *
+ * @param p the memory pool to use
+ * @return the printed string
+ */
+char *spools(pool p, ...) {
     va_list ap;
     spool s;
     char *arg = NULL;
 
-    if(p == NULL)
+    if (p == NULL)
         return NULL;
 
     s = spool_new(p);
@@ -220,13 +264,8 @@ char *spools(pool p, ...)
     va_start(ap, p);
 
     /* loop till we hit our end flag, the first arg */
-    while(1)
-    {
-        arg = va_arg(ap,char *);
-        if((pool)arg == p)
-            break;
-        else
-            spool_add(s, arg);
+    for (arg = va_arg(ap, char *); (pool)arg != p; arg = va_arg(ap, char *)) {
+	spool_add(s, arg);
     }
 
     va_end(ap);
@@ -234,128 +273,14 @@ char *spools(pool p, ...)
     return spool_print(s);
 }
 
-
-char *strunescape(pool p, char *buf)
-{
-    int i,j=0;
-    char *temp;
-
-    if (buf == NULL) return(NULL);
-
-    if (strchr(buf,'&') == NULL) return(buf);
-
-    if(p != NULL)
-        temp = pmalloc(p,strlen(buf)+1);
-    else
-        temp = malloc(strlen(buf)+1);
-
-    if (temp == NULL) return(NULL);
-
-    for(i=0;i<strlen(buf);i++)
-    {
-        if (buf[i]=='&')
-        {
-            if (strncmp(&buf[i],"&amp;",5)==0)
-            {
-                temp[j] = '&';
-                i += 4;
-            } else if (strncmp(&buf[i],"&quot;",6)==0) {
-                temp[j] = '\"';
-                i += 5;
-            } else if (strncmp(&buf[i],"&apos;",6)==0) {
-                temp[j] = '\'';
-                i += 5;
-            } else if (strncmp(&buf[i],"&lt;",4)==0) {
-                temp[j] = '<';
-                i += 3;
-            } else if (strncmp(&buf[i],"&gt;",4)==0) {
-                temp[j] = '>';
-                i += 3;
-            }
-        } else {
-            temp[j]=buf[i];
-        }
-        j++;
-    }
-    temp[j]='\0';
-    return(temp);
-}
-
-
-char *strescape(pool p, char *buf, int len)
-{
-    int i,j,newlen = len;
-    char *temp;
-
-    if (buf == NULL || len < 0) return NULL;
-
-    for(i=0;i<len;i++)
-    {
-        switch(buf[i])
-        {
-        case '&':
-            newlen+=5;
-            break;
-        case '\'':
-            newlen+=6;
-            break;
-        case '\"':
-            newlen+=6;
-            break;
-        case '<':
-            newlen+=4;
-            break;
-        case '>':
-            newlen+=4;
-            break;
-        }
-    }
-
-    if(p != NULL)
-        temp = pmalloc(p,newlen+1);
-    else
-        temp = malloc(newlen+1);
-    if(newlen == len)
-    {
-        memcpy(temp,buf,len);
-        temp[len] = '\0';
-        return temp;
-    }
-
-    for(i=j=0;i<len;i++)
-    {
-        switch(buf[i])
-        {
-        case '&':
-            memcpy(&temp[j],"&amp;",5);
-            j += 5;
-            break;
-        case '\'':
-            memcpy(&temp[j],"&apos;",6);
-            j += 6;
-            break;
-        case '\"':
-            memcpy(&temp[j],"&quot;",6);
-            j += 6;
-            break;
-        case '<':
-            memcpy(&temp[j],"&lt;",4);
-            j += 4;
-            break;
-        case '>':
-            memcpy(&temp[j],"&gt;",4);
-            j += 4;
-            break;
-        default:
-            temp[j++] = buf[i];
-        }
-    }
-    temp[j] = '\0';
-    return temp;
-}
-
-char *zonestr(char *file, int line)
-{
+/**
+ * format a filename and a line number to a single string
+ *
+ * @param file the file name
+ * @param line the line number
+ * @return formated string (in a static buffer)
+ */
+char *zonestr(char *file, int line) {
     static char buff[64];
     int i;
 
@@ -363,61 +288,4 @@ char *zonestr(char *file, int line)
     buff[i] = '\0';
 
     return buff;
-}
-
-void str_b64decode(char* str)
-{
-    char *cur;
-    int d, dlast, phase;
-    unsigned char c;
-    static int table[256] = {
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,  /* 00-0F */
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,  /* 10-1F */
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,62,-1,-1,-1,63,  /* 20-2F */
-        52,53,54,55,56,57,58,59,60,61,-1,-1,-1,-1,-1,-1,  /* 30-3F */
-        -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,  /* 40-4F */
-        15,16,17,18,19,20,21,22,23,24,25,-1,-1,-1,-1,-1,  /* 50-5F */
-        -1,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,  /* 60-6F */
-        41,42,43,44,45,46,47,48,49,50,51,-1,-1,-1,-1,-1,  /* 70-7F */
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,  /* 80-8F */
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,  /* 90-9F */
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,  /* A0-AF */
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,  /* B0-BF */
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,  /* C0-CF */
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,  /* D0-DF */
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,  /* E0-EF */
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1   /* F0-FF */
-    };
-
-    d = dlast = phase = 0;
-    for (cur = str; *cur != '\0'; ++cur )
-    {
-        d = table[(int)*cur];
-        if(d != -1)
-        {
-            switch(phase)
-            {
-            case 0:
-                ++phase;
-                break;
-            case 1:
-                c = ((dlast << 2) | ((d & 0x30) >> 4));
-                *str++ = c;
-                ++phase;
-                break;
-            case 2:
-                c = (((dlast & 0xf) << 4) | ((d & 0x3c) >> 2));
-                *str++ = c;
-                ++phase;
-                break;
-            case 3:
-                c = (((dlast & 0x03 ) << 6) | d);
-                *str++ = c;
-                phase = 0;
-                break;
-            }
-            dlast = d;
-        }
-    }
-    *str = '\0';
 }

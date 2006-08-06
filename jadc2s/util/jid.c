@@ -47,8 +47,6 @@
 
 #include "util.h"
 
-#ifdef LIBIDN
-
 /**
  * walker for cleaning up stringprep caches
  *
@@ -364,85 +362,6 @@ static int _jid_safe_resource(jid id) {
 
 }
 
-#else /* no LIBIDN */
-
-/* empty implementation, we do not have caches if compiled without libidn */
-void	jid_clean_cache(jid_environment_t environment) {}
-
-/* empty implementation, we do not have caches if compiled without libidn */
-void	jid_free_environment(jid_environment_t environment) {}
-
-/* empty implementation, we do not have caches if compiled without libidn */
-jid_environment_t jid_new_environment() { return NULL; }
-
-/**
- * check if the domain identifier in a JID is valid
- *
- * @param jid data structure holding the JID
- * @return 0 if domain is valid, non zero otherwise
- */
-static int _jid_safe_domain(jid id) {
-    char *str;
-
-    /* there must be a domain identifier */
-    if (j_strlen(id->server) == 0)
-	return 1;
-
-    /* and it must not be longer than 1023 bytes */
-    if (strlen(id->server) > 1023)
-	return 1;
-
-    /* lowercase the hostname, make sure it's valid characters */
-    for (str = id->server; *str != '\0'; str++) {
-        *str = tolower(*str);
-        if (!(isalnum(*str) || *str == '.' || *str == '-' || *str == '_'))
-	    return 1;
-    }
-
-    /* otherwise it's okay as far as we can tell without LIBIDN */
-    return 0;
-}
-
-/**
- * check if the node identifier in a JID is valid
- *
- * @param jid data structure holding the JID
- * @return 0 if node is valid, non zero otherwise
- */
-static int _jid_safe_node(jid id) {
-    char *str;
-
-    /* node identifiers may not be longer than 1023 bytes */
-    if (j_strlen(id->user) > 1023)
-	return 1;
-
-    /* check for low and invalid ascii characters in the username */
-    if (id->user != NULL)
-        for (str = id->user; *str != '\0'; str++)
-            if (*str <= 32 || *str == ':' || *str == '@' || *str == '<' || *str == '>' || *str == '\'' || *str == '"' || *str == '&')
-		return 1;
-
-    /* otherwise it's okay as far as we can tell without LIBIDN */
-    return 0;
-}
-
-/**
- * check if the resource identifier in a JID is valid
- *
- * @param jid data structure holding the JID
- * @return 0 if resource is valid, non zero otherwise
- */
-static int _jid_safe_resource(jid id) {
-    /* resources may not be longer than 1023 bytes */
-    if (j_strlen(id->resource) > 1023)
-	return 1;
-
-    /* otherwise it's okay as far as we can tell without LIBIDN */
-    return 0;
-}
-
-#endif
-
 /**
  * nodeprep/nameprep/resourceprep the JID and check if it is valid
  *
@@ -596,13 +515,17 @@ char *jid_full(jid id) {
 
     s = spool_new(id->p);
 
-    if (id->user != NULL)
-        spooler(s, id->user,"@",s);
+    if (id->user != NULL) {
+	spool_add(s, id->user);
+	spool_add(s, "@");
+    }
 
     spool_add(s, id->server);
 
-    if (id->resource != NULL)
-        spooler(s, "/",id->resource,s);
+    if (id->resource != NULL) {
+	spool_add(s, "/");
+	spool_add(s, id->resource);
+    }
 
     id->full = spool_print(s);
     return id->full;
@@ -626,21 +549,6 @@ static int _jid_nullstrcmp(char *a, char *b) {
 }
 
 /**
- * NULL-safe version of strcasecmp()
- *
- * @param a one string
- * @param b other string
- * @param if both a and b are NULL 0, if one of a or b are NULL -1, else the same as strcasecmp(a,b)
- */
-static int _jid_nullstrcasecmp(char *a, char *b) {
-    if (a == NULL && b == NULL)
-	return 0;
-    if (a == NULL || b == NULL)
-	return -1;
-    return strcasecmp(a,b);
-}
-
-/**
  * compare two JabberIDs if they are the same
  *
  * @param a the one jid
@@ -653,7 +561,7 @@ int jid_cmp(jid a, jid b) {
 
     if (_jid_nullstrcmp(a->resource, b->resource) != 0)
 	return -1;
-    if (_jid_nullstrcasecmp(a->user, b->user) != 0)
+    if (_jid_nullstrcmp(a->user, b->user) != 0)
 	return -1;
     if (_jid_nullstrcmp(a->server, b->server) != 0)
 	return -1;
@@ -676,7 +584,7 @@ int jid_cmpx(jid a, jid b, int parts) {
 
     if (parts & JID_RESOURCE && _jid_nullstrcmp(a->resource, b->resource) != 0)
 	return -1;
-    if (parts & JID_USER && _jid_nullstrcasecmp(a->user, b->user) != 0)
+    if (parts & JID_USER && _jid_nullstrcmp(a->user, b->user) != 0)
 	return -1;
     if (parts & JID_SERVER && _jid_nullstrcmp(a->server, b->server) != 0)
 	return -1;

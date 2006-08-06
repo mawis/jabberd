@@ -131,12 +131,9 @@ void pool_free(pool p); /* calls the cleanup functions, frees all the data on th
 /*                                                           */
 /* --------------------------------------------------------- */
 int j_strcmp(const char *a, const char *b); /* provides NULL safe strcmp wrapper */
-int j_strcasecmp(const char *a, const char *b); /* provides NULL safe strcasecmp wrapper */
 int j_strncmp(const char *a, const char *b, int i); /* provides NULL safe strncmp wrapper */
-int j_strncasecmp(const char *a, const char *b, int i); /* provides NULL safe strncasecmp wrapper */
 int j_strlen(const char *a); /* provides NULL safe strlen wrapper */
 int j_atoi(const char *a, int def); /* checks for NULL and uses default instead, convienence */
-void str_b64decode(char *str); /* what it says */
 char *j_attr(const char** atts, char *attr); /* decode attr's (from expat) */
 
 /* --------------------------------------------------------- */
@@ -194,7 +191,6 @@ typedef struct xht_struct
 xht xhash_new(int prime);
 void xhash_put(xht h, const char *key, void *val);
 void *xhash_get(xht h, const char *key);
-void *xhash_getx(xht h, const char *key, int len);
 void xhash_zap(xht h, const char *key);
 void xhash_free(xht h);
 typedef void (*xhash_walker)(xht h, const char *key, void *val, void *arg);
@@ -202,15 +198,6 @@ void xhash_walk(xht h, xhash_walker w, void *arg);
 int xhash_dirty(xht h);
 int xhash_count(xht h);
 pool xhash_pool(xht h);
-
-/* --------------------------------------------------------- */
-/*                                                           */
-/* XML escaping utils                                        */
-/*                                                           */
-/* --------------------------------------------------------- */
-char *strescape(pool p, char *buf, int len); /* Escape <>&'" chars */
-char *strunescape(pool p, char *buf);
-
 
 /* --------------------------------------------------------- */
 /*                                                           */
@@ -232,10 +219,8 @@ typedef struct spool_struct
 } *spool;
 
 spool spool_new(pool p); /* create a string pool */
-void spooler(spool s, ...); /* append all the char * args to the pool, terminate args with s again */
 char *spool_print(spool s); /* return a big string */
 void spool_add(spool s, char *str); /* add a single string to the pool */
-void spool_escape(spool s, char *raw, int len); /* add and xml escape a single string to the pool */
 char *spools(pool p, ...); /* wrap all the spooler stuff in one function, the happy fun ball! */
 
 
@@ -247,8 +232,6 @@ char *spools(pool p, ...); /* wrap all the spooler stuff in one function, the ha
 #define JID_RESOURCE 1
 #define JID_USER     2
 #define JID_SERVER   4
-
-#ifdef LIBIDN
 
 #  include <stringprep.h>
 
@@ -270,7 +253,6 @@ typedef struct _jid_prep_cache_st {
     const Stringprep_profile *profile;
     				/**< the stringprep profile used for this cache */
 } *_jid_prep_cache_t;
-#endif
 
 /**
  * @brief environment for JID preparation
@@ -278,11 +260,9 @@ typedef struct _jid_prep_cache_st {
  * This data structure holds the three used caches for JID preparation
  */
 typedef struct _jid_environment {
-#ifdef LIBIDN
     _jid_prep_cache_t nodes;	/* prepared nodes */
     _jid_prep_cache_t domains;	/* prepared domains */
     _jid_prep_cache_t resources;/* prepared resources */
-#endif
 } *jid_environment_t;
 
 typedef struct jid_struct

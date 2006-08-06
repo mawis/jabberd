@@ -320,7 +320,7 @@ fi
 
 dnl check for libidn
 AC_ARG_WITH(libidn, AC_HELP_STRING([--with-libidn=DIR],
-	    [Support IDN (needs GNU Libidn)]),
+	    [Where to find GNU Libidn (required)]),
 	    libidn=$withval, libidn=yes)
 if test "$libidn" != "no"; then
     if test "$libidn" != "yes"; then
@@ -332,14 +332,9 @@ if test "$libidn" != "no"; then
 				 [libidn=yes LIBS="${LIBS} -lidn"], libidn=no),
 				 libidn=no)
 fi
-if test "$libidn" != "no"; then
-    AC_DEFINE(LIBIDN, 1, [Define to 1 if you want IDN support.])
-else
+if test "$libidn" = "no"; then
     AC_MSG_ERROR([Could not find required Libidn installation])
 fi
-AC_MSG_CHECKING([if Libidn should be used])
-AC_MSG_RESULT($libidn)
-
 
 dnl check for cyrus sasl
 AC_ARG_WITH(cyrussasl2, AC_HELP_STRING([--with-cyrussasl2=DIR],
