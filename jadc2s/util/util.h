@@ -409,9 +409,6 @@ void nad_cache_free(nad_cache_t cache);
 /* create a new nad */
 nad_t nad_new(nad_cache_t cache);
 
-/* copy a nad */
-nad_t nad_copy(nad_t nad);
-
 /* free that nad */
 void nad_free(nad_t nad);
 
@@ -426,7 +423,9 @@ int nad_find_attr(nad_t nad, int elem, const char *name, const char *val);
 void nad_set_attr(nad_t nad, int elem, const char *name, const char *val);
 
 /* insert and return a new element as a child of this one */
+/* currently not needed in jadc2s
 int nad_insert_elem(nad_t nad, int elem, char *name, char *cdata);
+*/
 
 /* wrap an element with another element */
 void nad_wrap_elem(nad_t nad, int elem, char *name);
@@ -442,10 +441,6 @@ void nad_append_cdata(nad_t nad, const char *cdata, int len, int depth);
 
 /* create a string representation of the given element (and children), point references to it */
 void nad_print(nad_t nad, int elem, char **xml, int *len);
-
-/* serialize and deserialize a nad */
-void nad_serialize(nad_t nad, char **buf, int *len);
-nad_t nad_deserialize(nad_cache_t cache, char *buf);
 
 /* these are some helpful macros */
 #define NAD_ENAME(N,E) (N->cdata + N->elems[E].iname)
