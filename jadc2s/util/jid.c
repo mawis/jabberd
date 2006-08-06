@@ -50,7 +50,7 @@
  * @param val the value of this item
  * @param arg delete entries older as this unix timestamp
  */
-void _jid_clean_walker(xht h, const char *key, void *val, void *arg) {
+static void _jid_clean_walker(xht h, const char *key, void *val, void *arg) {
     time_t *keep_newer_as = (time_t*)arg;
     _jid_prep_entry_t entry = (_jid_prep_entry_t)val;
 
@@ -79,7 +79,7 @@ void _jid_clean_walker(xht h, const char *key, void *val, void *arg) {
  * @param cache the cache to walk
  * @param keep_newer_as what to keep in the cache
  */
-void _jid_clean_single_cache(_jid_prep_cache_t cache, time_t keep_newer_as) {
+static void _jid_clean_single_cache(_jid_prep_cache_t cache, time_t keep_newer_as) {
     xhash_walk(cache->hashtable, _jid_clean_walker, (void*)&keep_newer_as);
 }
 
@@ -104,7 +104,7 @@ void jid_clean_cache(jid_environment_t environment) {
  * @param cache the used cache, defining also the used stringprep profile
  * @return the return code of the stringprep call
  */
-int _jid_cached_stringprep(char *in_out_buffer, int max_len, _jid_prep_cache_t cache) {
+static int _jid_cached_stringprep(char *in_out_buffer, int max_len, _jid_prep_cache_t cache) {
     _jid_prep_entry_t preped;
     int result = STRINGPREP_OK;
 
@@ -186,7 +186,7 @@ int _jid_cached_stringprep(char *in_out_buffer, int max_len, _jid_prep_cache_t c
  *
  * @param cache the cache that should be freed
  */
-void _jid_stop_single_cache(_jid_prep_cache_t *cache) {
+static void _jid_stop_single_cache(_jid_prep_cache_t *cache) {
     if (*cache == NULL)
 	return;
 
@@ -204,7 +204,7 @@ void _jid_stop_single_cache(_jid_prep_cache_t *cache) {
  * @param prime the time used to init the hashtable
  * @param profile profile used to prepare the strings
  */
-void _jid_init_single_cache(_jid_prep_cache_t *cache, int prime, const Stringprep_profile *profile) {
+static void _jid_init_single_cache(_jid_prep_cache_t *cache, int prime, const Stringprep_profile *profile) {
     /* do not init a cache twice */
     if (*cache == NULL) {
 	*cache = (_jid_prep_cache_t)malloc(sizeof(struct _jid_prep_cache_st));
@@ -254,7 +254,7 @@ jid_environment_t jid_new_environment() {
  * @param jid data structure holding the JID
  * @return 0 if JID is valid, non zero otherwise
  */
-int _jid_safe_domain(jid id) {
+static int _jid_safe_domain(jid id) {
     int result=0;
 
     /* there must be a domain identifier */
@@ -290,7 +290,7 @@ int _jid_safe_domain(jid id) {
  * @param jid data structure holding the JID
  * @return 0 if JID is valid, non zero otherwise
  */
-int _jid_safe_node(jid id) {
+static int _jid_safe_node(jid id) {
     int result=0;
 
     /* it is valid to have no node identifier in the JID */
@@ -326,7 +326,7 @@ int _jid_safe_node(jid id) {
  * @param jid data structure holding the JID
  * @return 0 if JID is valid, non zero otherwise
  */
-int _jid_safe_resource(jid id) {
+static int _jid_safe_resource(jid id) {
     int result=0;
 
     /* it is valid to have no resource identifier in the JID */
@@ -374,7 +374,7 @@ jid_environment_t jid_new_environment() { return NULL; }
  * @param jid data structure holding the JID
  * @return 0 if domain is valid, non zero otherwise
  */
-int _jid_safe_domain(jid id) {
+static int _jid_safe_domain(jid id) {
     char *str;
 
     /* there must be a domain identifier */
@@ -402,7 +402,7 @@ int _jid_safe_domain(jid id) {
  * @param jid data structure holding the JID
  * @return 0 if node is valid, non zero otherwise
  */
-int _jid_safe_node(jid id) {
+static int _jid_safe_node(jid id) {
     char *str;
 
     /* node identifiers may not be longer than 1023 bytes */
@@ -424,7 +424,7 @@ int _jid_safe_node(jid id) {
  * @param jid data structure holding the JID
  * @return 0 if resource is valid, non zero otherwise
  */
-int _jid_safe_resource(jid id) {
+static int _jid_safe_resource(jid id) {
     /* resources may not be longer than 1023 bytes */
     if (j_strlen(id->resource) > 1023)
 	return 1;
@@ -572,13 +572,13 @@ char *jid_full(jid id)
 }
 
 /* local utils */
-int _jid_nullstrcmp(char *a, char *b)
+static int _jid_nullstrcmp(char *a, char *b)
 {
     if(a == NULL && b == NULL) return 0;
     if(a == NULL || b == NULL) return -1;
     return strcmp(a,b);
 }
-int _jid_nullstrcasecmp(char *a, char *b)
+static int _jid_nullstrcasecmp(char *a, char *b)
 {
     if(a == NULL && b == NULL) return 0;
     if(a == NULL || b == NULL) return -1;

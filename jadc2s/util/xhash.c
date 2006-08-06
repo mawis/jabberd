@@ -45,7 +45,7 @@
  * This function uses the ELF hashing algorithm as reprinted in 
  * Andrew Binstock, "Hashing Rehashed," Dr. Dobb's Journal, April 1996.
  */
-int _xhasher(const char *s, int len)
+static int _xhasher(const char *s, int len)
 {
     /* ELF hash uses unsigned chars and unsigned arithmetic for portability */
     const unsigned char *name = (const unsigned char *)s;
@@ -65,7 +65,7 @@ int _xhasher(const char *s, int len)
 }
 
 
-xhn _xhash_node_new(xht h, int index)
+static xhn _xhash_node_new(xht h, int index)
 {
     xhn n;
     int i = index % h->prime;
@@ -87,7 +87,7 @@ xhn _xhash_node_new(xht h, int index)
 }
 
 
-xhn _xhash_node_get(xht h, const char *key, int index)
+static xhn _xhash_node_get(xht h, const char *key, int index)
 {
     xhn n;
     int i = index % h->prime;
