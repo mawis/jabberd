@@ -1,3 +1,8 @@
+2006-08-06  Matthias Wimmer  <m@tthias.eu>
+
+    * util/nad.c: removed unused functions
+    * util/util.h: same
+
 2006-07-30  Matthias Wimmer  <m@tthias.eu>
 
     * jadc2s.h: robust encoding of SASL security layer on big blocks
