@@ -188,7 +188,7 @@ int _client_root_attribute_version(conn_t c, const char *value) {
  */
 int _client_root_attribute_flash_ns(conn_t c, const char *value) {
     log_debug(ZONE, "checking xmlns:flash: %s", value);
-    if (j_strcasecmp(value, "http://www.jabber.com/streams/flash") != 0) {
+    if (j_strcmp(value, "http://www.jabber.com/streams/flash") != 0) {
 	/* send the stream error */
 	conn_error(c, STREAM_ERR_INVALID_NAMESPACE, "Invalid flash:stream namespace");
 	c->depth = -1;
@@ -208,7 +208,7 @@ int _client_root_attribute_flash_ns(conn_t c, const char *value) {
  */
 int _client_root_attribute_stream_ns(conn_t c, const char *value) {
     log_debug(ZONE, "checking xmlns:stream: %s", value);
-    if (j_strcasecmp(value, "http://etherx.jabber.org/streams") != 0) {
+    if (j_strcmp(value, "http://etherx.jabber.org/streams") != 0) {
 	/* send the stream error */
 	conn_error(c, STREAM_ERR_INVALID_NAMESPACE, "Invalid stream namespace");
 	c->depth = -1;

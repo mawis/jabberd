@@ -40,15 +40,7 @@
 
 #include "util.h"
 
-char *j_strdup(const char *str)
-{
-    if(str == NULL)
-        return NULL;
-    else
-        return strdup(str);
-}
-
-char *j_strcat(char *dest, char *txt)
+static char *_j_strcat(char *dest, char *txt)
 {
     if(!txt) return(dest);
 
@@ -206,7 +198,7 @@ char *spool_print(spool s)
     tmp = ret;
     while(next != NULL)
     {
-        tmp = j_strcat(tmp,next->c);
+        tmp = _j_strcat(tmp,next->c);
         next = next->next;
     }
 

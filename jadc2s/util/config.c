@@ -41,26 +41,32 @@
 #include "util.h"
 #include <expat.h>
 
-/* new config structure */
-config_t config_new(void)
-{
+/**
+ * @file config.c
+ * @brief handling of the configuration
+ *
+ * The configuration is read as an XML file and converted to a hash containing
+ * the configuration values
+ */
+
+/**
+ * new config structure
+ */
+config_t config_new(void) {
     return xhash_new(501);
 }
 
-struct build_data
-{
+struct build_data {
     nad_t               nad;
     int                 depth;
 };
 
-static void _config_startElement(void *arg, const char *name, const char **atts)
-{
+static void _config_startElement(void *arg, const char *name, const char **atts) {
     struct build_data *bd = (struct build_data *) arg;
     int i = 0;
     
     nad_append_elem(bd->nad, (char *) name, bd->depth);
-    while(atts[i] != NULL)
-    {
+    while (atts[i] != NULL) {
         nad_append_attr(bd->nad, (char *) atts[i], (char *) atts[i + 1]);
         i += 2;
     }
@@ -68,23 +74,22 @@ static void _config_startElement(void *arg, const char *name, const char **atts)
     bd->depth++;
 }
 
-static void _config_endElement(void *arg, const char *name)
-{
+static void _config_endElement(void *arg, const char *name) {
     struct build_data *bd = (struct build_data *) arg;
 
     bd->depth--;
 }
 
-static void _config_charData(void *arg, const char *str, int len)
-{
+static void _config_charData(void *arg, const char *str, int len) {
     struct build_data *bd = (struct build_data *) arg;
 
     nad_append_cdata(bd->nad, (char *) str, len, bd->depth);
 }
 
-/* turn an xml file into a config hash */
-int config_load(config_t c, const char *file)
-{
+/**
+ * turn an xml file into a config hash
+ */
+int config_load(config_t c, const char *file) {
     struct build_data bd;
     nad_cache_t cache = nad_cache_new();
     FILE *f;
@@ -96,16 +101,14 @@ int config_load(config_t c, const char *file)
 
     /* open the file */
     f = fopen(file, "r");
-    if(f == NULL)
-    {
+    if (f == NULL) {
         fprintf(stderr, "config_load: couldn't open %s for reading: %s\n", file, strerror(errno));
         return 1;
     }
 
     /* new parser */
     p = XML_ParserCreate(NULL);
-    if(p == NULL)
-    {
+    if (p == NULL) {
         fprintf(stderr, "config_load: couldn't allocate XML parser\n");
         fclose(f);
         return 1;
@@ -120,12 +123,10 @@ int config_load(config_t c, const char *file)
     XML_SetElementHandler(p, _config_startElement, _config_endElement);
     XML_SetCharacterDataHandler(p, _config_charData);
 
-    for(;;)
-    {
+    do {
         /* read that file */
         len = fread(buf, 1, 1024, f);
-        if(ferror(f))
-        {
+        if (ferror(f)) {
             fprintf(stderr, "config_load: read error: %s\n", strerror(errno));
             XML_ParserFree(p);
             fclose(f);
@@ -135,18 +136,14 @@ int config_load(config_t c, const char *file)
         done = feof(f);
 
         /* parse it */
-        if(!XML_Parse(p, buf, len, done))
-        {
+        if (!XML_Parse(p, buf, len, done)) {
             fprintf(stderr, "config_load: parse error at line %d: %s\n", XML_GetCurrentLineNumber(p), XML_ErrorString(XML_GetErrorCode(p)));
             XML_ParserFree(p);
             fclose(f);
             nad_cache_free(cache);
             return 1;
         }
-
-        if(done)
-            break;
-    }
+    } while (!done);
 
     /* done reading */
     XML_ParserFree(p);
@@ -156,11 +153,9 @@ int config_load(config_t c, const char *file)
     path = NULL;
     len = 0, end = 0;
     /* start at 1, so we skip the root element */
-    for(i = 1; i < bd.nad->ecur; i++)
-    {
+    for (i = 1; i < bd.nad->ecur; i++) {
         /* make sure we have enough room to add this element to our path */
-        if(end <= bd.nad->elems[i].depth)
-        {
+        if (end <= bd.nad->elems[i].depth) {
             end = bd.nad->elems[i].depth + 1;
             path = (struct nad_elem_st **) realloc((void *) path, sizeof(struct nad_elem_st *) * end);
         }
@@ -171,8 +166,7 @@ int config_load(config_t c, const char *file)
 
         /* construct the key from the current path */
         next = buf;
-        for(j = 1; j < len; j++)
-        {
+        for (j = 1; j < len; j++) {
             strncpy(next, bd.nad->cdata + path[j]->iname, path[j]->lname);
             next = next + path[j]->lname;
             *next = '.';
@@ -183,8 +177,7 @@ int config_load(config_t c, const char *file)
 
         /* find the config element for this key */
         elem = xhash_get(c, buf);
-        if(elem == NULL)
-        {
+        if (elem == NULL) {
             /* haven't seen it before, so create it */
             elem = pmalloco(xhash_pool(c), sizeof(struct config_elem_st));
             xhash_put(c, pstrdup(xhash_pool(c), buf), elem);
@@ -195,7 +188,7 @@ int config_load(config_t c, const char *file)
         elem->values = realloc((void *) elem->values, sizeof(char *) * (elem->nvalues + 1));
 
         /* and copy it in */
-        if(NAD_CDATA_L(bd.nad, i) > 0)
+        if (NAD_CDATA_L(bd.nad, i) > 0)
             elem->values[elem->nvalues] = pstrdupx(xhash_pool(c), NAD_CDATA(bd.nad, i), NAD_CDATA_L(bd.nad, i));
         else
             elem->values[elem->nvalues] = "1";
@@ -205,19 +198,18 @@ int config_load(config_t c, const char *file)
         elem->attrs[elem->nvalues] = NULL;
 
         /* count the attributes */
-        for(attr = bd.nad->elems[i].attr, j = 0; attr >= 0; attr = bd.nad->attrs[attr].next, j++);
+        for (attr = bd.nad->elems[i].attr, j = 0; attr >= 0; attr = bd.nad->attrs[attr].next, j++)
+	    /* nothing */;
 
         /* if we have some */
-        if(j > 0)
-        {
+        if (j > 0) {
             /* make space */
             elem->attrs[elem->nvalues] = pmalloc(xhash_pool(c), sizeof(char *) * (j * 2 + 2));
             
             /* copy them in */
             j = 0;
             attr = bd.nad->elems[i].attr;
-            while(attr >= 0)
-            {
+            while (attr >= 0) {
                 elem->attrs[elem->nvalues][j] = pstrdupx(xhash_pool(c), NAD_ANAME(bd.nad, attr), NAD_ANAME_L(bd.nad, attr));
                 elem->attrs[elem->nvalues][j + 1] = pstrdupx(xhash_pool(c), NAD_AVAL(bd.nad, attr), NAD_AVAL_L(bd.nad, attr));
 
@@ -233,7 +225,7 @@ int config_load(config_t c, const char *file)
         elem->nvalues++;
     }
 
-    if(path != NULL)
+    if (path != NULL)
         free(path);
 
     nad_cache_free(cache);
@@ -241,60 +233,66 @@ int config_load(config_t c, const char *file)
     return 0;
 }
 
-/* get the config element for this key */
-config_elem_t config_get(config_t c, char *key)
-{
+/**
+ * get the config element for this key
+ */
+config_elem_t config_get(config_t c, char *key) {
     return xhash_get(c, key);
 }
 
-/* get config value n for this key */
-char *config_get_one(config_t c, char *key, int num)
-{
+/**
+ * get config value n for this key
+ */
+char *config_get_one(config_t c, char *key, int num) {
     config_elem_t elem = xhash_get(c, key);
 
-    if(elem == NULL)
+    if (elem == NULL)
         return NULL;
 
-    if(num >= elem->nvalues)
+    if (num >= elem->nvalues)
         return NULL;
 
     return elem->values[num];
 }
 
-/* how many values for this key? */
-int config_count(config_t c, char *key)
-{
+/**
+ * how many values for this key?
+ */
+int config_count(config_t c, char *key) {
     config_elem_t elem = xhash_get(c, key);
 
-    if(elem == NULL)
+    if (elem == NULL)
         return 0;
 
     return elem->nvalues;
 }
 
-/* get an attr for this value */
-char *config_get_attr(config_t c, char *key, int num, char *attr)
-{
+/**
+ * get an attr for this value
+ */
+char *config_get_attr(config_t c, char *key, int num, char *attr) {
     config_elem_t elem = xhash_get(c, key);
 
-    if(elem->attrs == NULL)
+    if (elem->attrs == NULL)
         return NULL;
 
     return j_attr((const char **) elem->attrs[num], attr);
 }
 
-/* cleanup helper */
-static void _config_reaper(xht h, const char *key, void *val, void *arg)
-{
+/**
+ * cleanup helper
+ */
+static void _config_reaper(xht h, const char *key, void *val, void *arg) {
     config_elem_t elem = (config_elem_t) val;
 
     free(elem->values);
     free(elem->attrs);
 }
 
-/* cleanup */
-void config_free(config_t c)
-{
+/**
+ * cleanup
+ */
+void config_free(config_t c) {
     xhash_walk(c, _config_reaper, NULL);
 
     xhash_free(c);

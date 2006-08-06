@@ -38,6 +38,13 @@
  * 
  * --------------------------------------------------------------------------*/
 
+/**
+ * @file jid.c
+ * @brief Handling of JabberIDs
+ *
+ * This file contains functions to store, manipulate, and compare JabberIDs
+ */
+
 #include "util.h"
 
 #ifdef LIBIDN
@@ -386,10 +393,10 @@ static int _jid_safe_domain(jid id) {
 	return 1;
 
     /* lowercase the hostname, make sure it's valid characters */
-    for(str = id->server; *str != '\0'; str++)
-    {
+    for (str = id->server; *str != '\0'; str++) {
         *str = tolower(*str);
-        if(!(isalnum(*str) || *str == '.' || *str == '-' || *str == '_')) return 1;
+        if (!(isalnum(*str) || *str == '.' || *str == '-' || *str == '_'))
+	    return 1;
     }
 
     /* otherwise it's okay as far as we can tell without LIBIDN */
@@ -410,9 +417,10 @@ static int _jid_safe_node(jid id) {
 	return 1;
 
     /* check for low and invalid ascii characters in the username */
-    if(id->user != NULL)
-        for(str = id->user; *str != '\0'; str++)
-            if(*str <= 32 || *str == ':' || *str == '@' || *str == '<' || *str == '>' || *str == '\'' || *str == '"' || *str == '&') return 1;
+    if (id->user != NULL)
+        for (str = id->user; *str != '\0'; str++)
+            if (*str <= 32 || *str == ':' || *str == '@' || *str == '<' || *str == '>' || *str == '\'' || *str == '"' || *str == '&')
+		return 1;
 
     /* otherwise it's okay as far as we can tell without LIBIDN */
     return 0;
@@ -441,8 +449,7 @@ static int _jid_safe_resource(jid id) {
  * @param jid data structure holding the JID
  * @return NULL if the JID is invalid, pointer to the jid otherwise
  */
-jid jid_safe(jid id)
-{
+jid jid_safe(jid id) {
     if (_jid_safe_domain(id))
 	return NULL;
     if (_jid_safe_node(id))
@@ -453,11 +460,22 @@ jid jid_safe(jid id)
     return id;
 }
 
+/**
+ * create a new jid
+ *
+ * This creates a new jid from a string
+ *
+ * @param p memory pool to use for this jid
+ * @param environment the JID environment used to stringprep the JabberID
+ * @param idstr the string containing the textual representation of the jid
+ * @param len the length of the string (in characters)
+ * @return the new jid
+ */
 jid jid_newx(pool p, jid_environment_t environment, const char *idstr, int len) {
     char *server, *resource, *type, *str;
     jid id;
 
-    if(p == NULL || idstr == NULL || len <= 0)
+    if (p == NULL || idstr == NULL || len <= 0)
         return NULL;
 
     /* user@server/resource */
@@ -468,103 +486,122 @@ jid jid_newx(pool p, jid_environment_t environment, const char *idstr, int len) 
     id->environment = environment;
 
     resource = strstr(str,"/");
-    if(resource != NULL)
-    {
+    if (resource != NULL) {
         *resource = '\0';
         ++resource;
-        if(strlen(resource) > 0)
+        if (strlen(resource) > 0)
             id->resource = resource;
-    }else{
+    } else {
         resource = str + len; /* point to end */
     }
 
     type = strstr(str,":");
-    if(type != NULL && type < resource)
-    {
+    if (type != NULL && type < resource) {
         *type = '\0';
         ++type;
         str = type; /* ignore the type: prefix */
     }
 
     server = strstr(str,"@");
-    if(server == NULL || server > resource)
-    { /* if there's no @, it's just the server address */
+    if (server == NULL || server > resource) {
+	/* if there's no @, it's just the server address */
         id->server = str;
-    }else{
+    } else {
         *server = '\0';
         ++server;
         id->server = server;
-        if(len > 0)
+        if (len > 0)
             id->user = str;
     }
 
     return jid_safe(id);
 }
 
+/**
+ * create a new jid
+ *
+ * This creates a new jid from a zero-terminated string
+ *
+ * @param p memory pool to use for this jid
+ * @param environment the JID environment used to stringprep the JabberID
+ * @param idstr the zero-terminated string containing the textual representation of the jid
+ * @return the new jid
+ */
 jid jid_new(pool p, jid_environment_t environment, const char *idstr) {
-    if(idstr == NULL) return NULL;
+    if (idstr == NULL)
+	return NULL;
     return jid_newx(p, environment, idstr, strlen(idstr));
 }
 
-void jid_set(jid id, const char *str, int item)
-{
+/**
+ * set a specific component of a jid
+ *
+ * @param id the jid to modify
+ * @param str the new value of the component
+ * @param item the component to set (one of JID_USER, JID_SERVER, JID_RESOURCE)
+ */
+void jid_set(jid id, const char *str, int item) {
     char *old;
 
-    if(id == NULL)
+    if (id == NULL)
         return;
 
     /* invalidate the cached copy */
     id->full = NULL;
 
-    switch(item)
-    {
-    case JID_RESOURCE:
-	old = id->resource;
-        if(str != NULL && strlen(str) != 0)
-            id->resource = pstrdup(id->p, str);
-        else
-            id->resource = NULL;
-        if(_jid_safe_resource(id))
-            id->resource = old; /* revert if invalid */
-        break;
-    case JID_USER:
-        old = id->user;
-        if(str != NULL && strlen(str) != 0)
-            id->user = pstrdup(id->p, str);
-        else
-            id->user = NULL;
-        if(_jid_safe_node(id))
-            id->user = old; /* revert if invalid */
-        break;
-    case JID_SERVER:
-        old = id->server;
-        id->server = pstrdup(id->p, str);
-        if(_jid_safe_domain(id))
-            id->server = old; /* revert if invalid */
-        break;
+    switch (item) {
+	case JID_RESOURCE:
+	    old = id->resource;
+	    if (str != NULL && strlen(str) != 0)
+		id->resource = pstrdup(id->p, str);
+	    else
+		id->resource = NULL;
+	    if (_jid_safe_resource(id))
+		id->resource = old; /* revert if invalid */
+	    break;
+	case JID_USER:
+	    old = id->user;
+	    if (str != NULL && strlen(str) != 0)
+		id->user = pstrdup(id->p, str);
+	    else
+		id->user = NULL;
+	    if (_jid_safe_node(id))
+		id->user = old; /* revert if invalid */
+	    break;
+	case JID_SERVER:
+	    old = id->server;
+	    id->server = pstrdup(id->p, str);
+	    if (_jid_safe_domain(id))
+		id->server = old; /* revert if invalid */
+	    break;
     }
 
 }
 
-char *jid_full(jid id)
-{
+/**
+ * get the textual representation of a jid
+ *
+ * @param id the jid to get the textual representation for
+ * @return zero-terminated string
+ */
+char *jid_full(jid id) {
     spool s;
 
-    if(id == NULL)
+    if (id == NULL)
         return NULL;
 
     /* use cached copy */
-    if(id->full != NULL)
+    if (id->full != NULL)
         return id->full;
 
     s = spool_new(id->p);
 
-    if(id->user != NULL)
+    if (id->user != NULL)
         spooler(s, id->user,"@",s);
 
     spool_add(s, id->server);
 
-    if(id->resource != NULL)
+    if (id->resource != NULL)
         spooler(s, "/",id->resource,s);
 
     id->full = spool_print(s);
@@ -572,75 +609,127 @@ char *jid_full(jid id)
 }
 
 /* local utils */
-static int _jid_nullstrcmp(char *a, char *b)
-{
-    if(a == NULL && b == NULL) return 0;
-    if(a == NULL || b == NULL) return -1;
+
+/**
+ * NULL-safe version of strcmp()
+ *
+ * @param a one string
+ * @param b other string
+ * @param if both a and b are NULL 0, if one of a or b are NULL -1, else the same as strcmp(a,b)
+ */
+static int _jid_nullstrcmp(char *a, char *b) {
+    if (a == NULL && b == NULL)
+	return 0;
+    if (a == NULL || b == NULL)
+	return -1;
     return strcmp(a,b);
 }
-static int _jid_nullstrcasecmp(char *a, char *b)
-{
-    if(a == NULL && b == NULL) return 0;
-    if(a == NULL || b == NULL) return -1;
+
+/**
+ * NULL-safe version of strcasecmp()
+ *
+ * @param a one string
+ * @param b other string
+ * @param if both a and b are NULL 0, if one of a or b are NULL -1, else the same as strcasecmp(a,b)
+ */
+static int _jid_nullstrcasecmp(char *a, char *b) {
+    if (a == NULL && b == NULL)
+	return 0;
+    if (a == NULL || b == NULL)
+	return -1;
     return strcasecmp(a,b);
 }
 
-int jid_cmp(jid a, jid b)
-{
-    if(a == NULL || b == NULL)
+/**
+ * compare two JabberIDs if they are the same
+ *
+ * @param a the one jid
+ * @param b the other jid
+ * @return -1 if both JIDs are different, 0 if they are the same
+ */
+int jid_cmp(jid a, jid b) {
+    if (a == NULL || b == NULL)
         return -1;
 
-    if(_jid_nullstrcmp(a->resource, b->resource) != 0) return -1;
-    if(_jid_nullstrcasecmp(a->user, b->user) != 0) return -1;
-    if(_jid_nullstrcmp(a->server, b->server) != 0) return -1;
+    if (_jid_nullstrcmp(a->resource, b->resource) != 0)
+	return -1;
+    if (_jid_nullstrcasecmp(a->user, b->user) != 0)
+	return -1;
+    if (_jid_nullstrcmp(a->server, b->server) != 0)
+	return -1;
 
     return 0;
 }
 
 /* suggested by Anders Qvist <quest@valdez.netg.se> */
-int jid_cmpx(jid a, jid b, int parts)
-{
-    if(a == NULL || b == NULL)
+/**
+ * compare parts of two JabberIDs if they are the same
+ *
+ * @param a the one jid
+ * @param b the other jid
+ * @param parts which parts of the JID should be compared, ORed values of JID_USER, JID_SERVER, and JID_RESOURCE
+ * @return -1 if both JIDs are different in the selected parts, 0 if they are the same in the selected parts
+ */
+int jid_cmpx(jid a, jid b, int parts) {
+    if (a == NULL || b == NULL)
         return -1;
 
-    if(parts & JID_RESOURCE && _jid_nullstrcmp(a->resource, b->resource) != 0) return -1;
-    if(parts & JID_USER && _jid_nullstrcasecmp(a->user, b->user) != 0) return -1;
-    if(parts & JID_SERVER && _jid_nullstrcmp(a->server, b->server) != 0) return -1;
+    if (parts & JID_RESOURCE && _jid_nullstrcmp(a->resource, b->resource) != 0)
+	return -1;
+    if (parts & JID_USER && _jid_nullstrcasecmp(a->user, b->user) != 0)
+	return -1;
+    if (parts & JID_SERVER && _jid_nullstrcmp(a->server, b->server) != 0)
+	return -1;
 
     return 0;
 }
 
-/* makes a copy of b in a's pool, requires a valid a first! */
-jid jid_append(jid a, jid b)
-{
+/**
+ * append a copy of a JabberID to a list of JabberIDs
+ *
+ * This function appends a copy the JabberID b to a list of JabberIDs, that start with JabberID a.
+ * The function checks, that the JabberID is not already contained in the list.
+ *
+ * The copy of b is created in the memory pool of a.
+ * 
+ * @param a start of the list of JabberIDs where a copy of b should be appended
+ * @param b the JabberID that should be appended
+ * @return new start jid of the list
+ */
+jid jid_append(jid a, jid b) {
     jid next;
 
-    if(a == NULL)
+    if (a == NULL)
         return NULL;
 
-    if(b == NULL)
+    if (b == NULL)
         return a;
 
     next = a;
-    while(next != NULL)
-    {
+    while (next != NULL) {
         /* check for dups */
-        if(jid_cmp(next,b) == 0)
+        if (jid_cmp(next,b) == 0)
             break;
-        if(next->next == NULL)
+        if (next->next == NULL)
             next->next = jid_new(a->p, a->environment, jid_full(b));
         next = next->next;
     }
     return a;
 }
 
-jid jid_user(jid a)
-{
+/**
+ * get a copy of a jid with the resource removed from the jid
+ *
+ * @param a the jid that should be copied without the resource
+ * @return the copied JID with the resource removed
+ */
+jid jid_user(jid a) {
     jid ret;
 
-    if(a == NULL || a->resource == NULL) return a;
+    if (a == NULL || a->resource == NULL)
+	return a;
 
-    ret = pmalloco(a->p,sizeof(struct jid_struct));
+    ret = pmalloco(a->p, sizeof(struct jid_struct));
     ret->p = a->p;
     ret->user = a->user;
     ret->server = a->server;

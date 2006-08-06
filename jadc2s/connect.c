@@ -226,13 +226,13 @@ static void _connect_handle_error_packet(conn_t sm_conn, conn_t client_conn) {
 	    snprintf(reason, sizeof(reason), "Server Error");
 
 	if (client_conn->state == state_OPEN) {
-	    if (j_strcasecmp(reason, "Disconnected") == 0) {
+	    if (j_strcmp(reason, "Disconnected") == 0) {
 		conn_close(client_conn, STREAM_ERR_CONFLICT, reason);
 	    } else {
 		conn_close(client_conn, STREAM_ERR_INTERNAL_SERVER_ERROR, reason);
 	    }
 	} else {
-	    if (j_strcasecmp(reason, "Internal Timeout") == 0) {
+	    if (j_strcmp(reason, "Internal Timeout") == 0) {
 		conn_close(client_conn, STREAM_ERR_REMOTE_CONNECTION_FAILED, reason);
 	    } else {
 		conn_close(client_conn, STREAM_ERR_NOT_AUTHORIZED, reason);
