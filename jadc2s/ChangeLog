@@ -2,6 +2,8 @@
 
     * util/nad.c: removed unused functions
     * util/util.h: same
+    * util/jid.c: tagging some functions as static
+    * util/xhash.c: tagging some functions as static
 
 2006-07-30  Matthias Wimmer  <m@tthias.eu>
 
