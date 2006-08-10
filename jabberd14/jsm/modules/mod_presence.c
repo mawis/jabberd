@@ -248,13 +248,15 @@ mreturn mod_presence_in(mapi m, void *arg) {
 	xmlnode presence_unsubscribe = NULL;
 	jpacket jp = NULL;
 
-	log_debug2(ZONE, LOGT_DELIVER, "'%s' sent a presence to '%s' the user is not interested in", jid_full(m->packet->from), jid_full(m->packet->to));
+	if (!_mod_presence_search(m->packet->from, mp->A)) {
+	    log_debug2(ZONE, LOGT_DELIVER, "'%s' sent a presence to '%s' the user is not interested in", jid_full(m->packet->from), jid_full(m->packet->to));
 
-	presence_unsubscribe = jutil_presnew(JPACKET__UNSUBSCRIBE, jid_full(jid_user(m->packet->from)), NULL);
-	xmlnode_put_attrib_ns(presence_unsubscribe, "from", NULL, NULL, jid_full(m->packet->to));
-	jp = jpacket_new(presence_unsubscribe);
-	jp->flag = PACKET_FORCE_SENT_MAGIC;
-	js_deliver(m->si, jp);
+	    presence_unsubscribe = jutil_presnew(JPACKET__UNSUBSCRIBE, jid_full(jid_user(m->packet->from)), NULL);
+	    xmlnode_put_attrib_ns(presence_unsubscribe, "from", NULL, NULL, jid_full(m->packet->to));
+	    jp = jpacket_new(presence_unsubscribe);
+	    jp->flag = PACKET_FORCE_SENT_MAGIC;
+	    js_deliver(m->si, jp);
+	}
     }
 
     /* doh! this is a user, they should see invisibles as unavailables */
