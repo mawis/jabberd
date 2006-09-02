@@ -594,7 +594,7 @@ mio _mio_accept(mio m)
 
     /* do not accept a higher fd than FD_SET, or FD_CLR can handle */
     if (fd >= FD_SETSIZE) {
-	log_warn(NULL, "could not accept incomming connection, maximum number of connections reached (%i)", FD_SETSIZE);
+	log_warn(NULL, "could not accept incoming connection, maximum number of connections reached (%i)", FD_SETSIZE);
 	close(fd);
 	return NULL;
     }
