@@ -1,3 +1,7 @@
+2006-09-02  Matthias Wimmer  <m@thias.eu>
+
+    * jabberd/mio.c: backport of bugfix patch for bug #66
+
 2005-04-16  Matthias Wimmer  <m@tthias.net>
 
     * configure.in: version 1.4.4
