@@ -1,3 +1,7 @@
+2006-09-02  Matthias Wimmer  <m@tthias.eu>
+
+    * jabberd/mio.c: fixing fd_set vulnerability (closes bug 66)
+
 2006-07-24  Matthias Wimmer  <m@tthias.eu>
 
     * jsm/deliver.c: update in handling of new sc protocol

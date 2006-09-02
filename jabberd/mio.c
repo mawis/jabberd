@@ -469,6 +469,13 @@ static mio _mio_accept(mio m) {
         return NULL;
     }
 
+    /* do not accept a higher fd than FD_SET, or FD_CLR can handle */
+    if (fd >= FD_SETSIZE) {
+	log_warn(NULL, "could not accept incoming connection, maximum number of connections reached (%i)", FD_SETSIZE);
+	close(fd);
+	return NULL;
+    }
+
     log_debug2(ZONE, LOGT_IO, "_mio_accept(%X) accepted fd #%d", m, fd);
 
     /* access and rate checks */
