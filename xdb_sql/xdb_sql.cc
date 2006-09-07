@@ -39,6 +39,7 @@
  * --------------------------------------------------------------------------*/
 
 #include <jabberd.h>
+#include <sstream>
 
 /** the namespace of variables in templates in the configuration */
 #define NS_XDBSQL "http://jabberd.org/ns/xdbsql"
@@ -139,7 +140,7 @@ static void xdb_sql_mysql_connect(instance i, xdbsql xq) {
  * @param destination the result spool
  * @param new_string what should be added (this gets destroyed!!!)
  */
-static void xdb_sql_spool_add_escaped(spool destination, char *new_string) {
+static void xdb_sql_spool_add_escaped(std::ostream &destination, char *new_string) {
     char *first_to_escape = NULL;
     char *ptr = NULL;
     char character_to_escape[2] = "\0";
@@ -162,14 +163,14 @@ static void xdb_sql_spool_add_escaped(spool destination, char *new_string) {
     /* is there something to escape? */
     if (first_to_escape == NULL) {
 	/* no */
-	spool_add(destination, new_string);
+	destination << new_string;
 	return;
     }
 
     /* add up to the character that is escaped and this character with escapeing ... */
     character_to_escape[0] = first_to_escape[0];
     first_to_escape[0] = 0;
-    spooler(destination, new_string, "\\", character_to_escape, destination);
+    destination << new_string << "\\" << character_to_escape;
     
     /* and call recursive */
     xdb_sql_spool_add_escaped(destination, first_to_escape+1);
@@ -185,7 +186,7 @@ static void xdb_sql_spool_add_escaped(spool destination, char *new_string) {
  */
 static char *xdb_sql_construct_query(char **sqltemplate, xmlnode xdb_query, xht namespaces) {
     int index = 0;		/* token counter */
-    spool result_spool = spool_new(xdb_query->p); /* where to store the result */
+    std::ostringstream result_spool;
 
     /* sanity check */
     if (sqltemplate == NULL || xdb_query == NULL) {
@@ -199,7 +200,7 @@ static char *xdb_sql_construct_query(char **sqltemplate, xmlnode xdb_query, xht 
     while (sqltemplate[index] != NULL) {
 	if (index % 2 == 0) {
 	    /* copy token */
-	    spool_add(result_spool, sqltemplate[index]);
+	    result_spool << sqltemplate[index];
 	} else {
 	    /* substitute token */
 	    char *subst = NULL;
@@ -219,14 +220,14 @@ static char *xdb_sql_construct_query(char **sqltemplate, xmlnode xdb_query, xht 
 
 	    log_debug2(ZONE, LOGT_STORAGE, "%s replaced by %s", sqltemplate[index], subst);
 
-	    xdb_sql_spool_add_escaped(result_spool, pstrdup(result_spool->p, subst!=NULL ? subst : ""));
+	    xdb_sql_spool_add_escaped(result_spool, pstrdup(xdb_query->p, subst!=NULL ? subst : ""));
 	}
 
 	/* next token */
 	index++;
     }
 
-    return spool_print(result_spool);
+    return pstrdup(xdb_query->p, result_spool.str().c_str());
 }
 
 /**
@@ -376,7 +377,7 @@ static int xdb_sql_execute_mysql(instance i, xdbsql xq, char *query, xmlnode xml
 static int xdb_sql_execute_postgresql(instance i, xdbsql xq, char *query, xmlnode xmltemplate, xmlnode result) {
 #ifdef HAVE_POSTGRESQL
     PGresult *res = NULL;
-    ExecStatusType status = 0;
+    ExecStatusType status = static_cast<ExecStatusType>(0);
     int row = 0;
     int fields = 0;
 
@@ -528,9 +529,9 @@ static result xdb_sql_phandler(instance i, dpacket p, void *arg) {
     }
 
     /* check if we know how to handle this namespace */
-    ns_def = xhash_get(xq->namespace_defs, ns);
+    ns_def = static_cast<xdbsql_ns_def>(xhash_get(xq->namespace_defs, ns));
     if (ns_def == NULL) {
-	ns_def = xhash_get(xq->namespace_defs, "*");
+	ns_def = static_cast<xdbsql_ns_def>(xhash_get(xq->namespace_defs, "*"));
     }
     if (ns_def == NULL) {
 	log_error(i->id, "xdb_sql got a xdb request for an unconfigured namespace %s, use this handler only for selected namespaces.", ns);
@@ -759,7 +760,7 @@ static char **xdb_sql_query_preprocess(instance i, char *query) {
     }
 
     /* allocate memory for the array */
-    result = pmalloco(i->p, (count+1)*2*sizeof(char*));
+    result = static_cast<char**>(pmalloco(i->p, (count+1)*2*sizeof(char*)));
 
     /* tokenize the query */
     count = 0;
@@ -805,16 +806,20 @@ static void _xdb_sql_create_preprocessed_sql_list(instance i, xdbsql xq, xmlnode
     xmlnode_list_item definition = NULL;
     xdbsql_sqldef parsed_definition = NULL;
 
-    for (definition = xmlnode_get_tags(handler, path, xq->std_namespace_prefixes); definition != NULL; definition = definition->next) {
+    definition = xmlnode_get_tags(handler, path, xq->std_namespace_prefixes);
+    while (definition != NULL) {
 	/* add a new element to the list */
 	if (*dest == NULL) {
-	    parsed_definition = *dest = pmalloco(i->p, sizeof(_xdbsql_sqldef));
+	    parsed_definition = *dest = static_cast<xdbsql_sqldef>(pmalloco(i->p, sizeof(_xdbsql_sqldef)));
 	} else {
-	    parsed_definition = parsed_definition->next = pmalloco(i->p, sizeof(_xdbsql_sqldef));
+	    parsed_definition = parsed_definition->next = static_cast<xdbsql_sqldef>(pmalloco(i->p, sizeof(_xdbsql_sqldef)));
 	}
 
 	/* preprocess and store definition */
 	parsed_definition->def = xdb_sql_query_preprocess(i, xmlnode_get_data(definition->node));
+
+	/* move to the next result */
+	definition = definition->next;
     }
 
 }
@@ -830,10 +835,11 @@ static void xdb_sql_handler_process(instance i, xdbsql xq, xmlnode handler) {
     char *handled_ns = NULL;	/* which namespace this definition is for */
     xdbsql_ns_def nsdef = NULL;	/* where to store the processed information */
     int count = 0;
+    xdbsql_sqldef tempdef = NULL;
     
     log_debug2(ZONE, LOGT_INIT, "processing handler definition: %s", xmlnode_serialize_string(handler, NULL, NULL, 0));
 
-    nsdef = pmalloco(i->p, sizeof(_xdbsql_ns_def));
+    nsdef = static_cast<xdbsql_ns_def>(pmalloco(i->p, sizeof(_xdbsql_ns_def)));
 
     /* query the relevant tags from this handler */
     handled_ns = pstrdup(i->p, xmlnode_get_attrib_ns(handler, "ns", NULL));
@@ -879,7 +885,7 @@ static void xdb_sql_handler_read(instance i, xdbsql xq, xmlnode config) {
  * @param i jabberd's data about our instance
  * @param x the <load/> xmlnode that instructed the moduleloader to load us
  */
-void xdb_sql(instance i, xmlnode x) {
+extern "C" void xdb_sql(instance i, xmlnode x) {
     xdbcache xc;		/* to fetch our configuration */
     xmlnode config = NULL;	/* our configuration */
     xdbsql xq = NULL;		/* pointer to instance internal data */
@@ -900,9 +906,9 @@ void xdb_sql(instance i, xmlnode x) {
     }
 
     /* create our internal data */
-    xq = pmalloco(i->p, sizeof(_xdbsql));
+    xq = static_cast<xdbsql>(pmalloco(i->p, sizeof(_xdbsql)));
     xq->std_namespace_prefixes = xhash_new(3);
-    xhash_put(xq->std_namespace_prefixes, "xdbsql", NS_JABBERD_CONFIG_XDBSQL);
+    xhash_put(xq->std_namespace_prefixes, "xdbsql", pstrdup(i->p, NS_JABBERD_CONFIG_XDBSQL));
     xq->namespace_defs = xhash_new(j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "xdbsql:maxns", xq->std_namespace_prefixes), 0)), XDBSQL_MAXNS_PRIME));
     xq->namespace_prefixes = xhash_new(101);
 
