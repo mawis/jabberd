@@ -68,7 +68,7 @@
 mreturn mod_disco_server_info(mapi m, void *arg) {
     xmlnode query, identity, disco;
 
-    if ((xmlnode_get_attrib_ns(m->packet->x, "node", NULL)) != NULL)
+    if ((xmlnode_get_attrib_ns(m->packet->iq, "node", NULL)) != NULL)
 	return M_PASS;
         
     log_debug2(ZONE, LOGT_DELIVER, "handling disco#info query");
@@ -116,7 +116,7 @@ mreturn mod_disco_server_info(mapi m, void *arg) {
 mreturn mod_disco_server_items(mapi m, void *arg) {
   xmlnode browse, query, cur;
   
-  if ((xmlnode_get_attrib_ns(m->packet->x, "node", NULL)) != NULL)
+  if ((xmlnode_get_attrib_ns(m->packet->iq, "node", NULL)) != NULL)
       return M_PASS;
 
   /* config get */        
@@ -142,6 +142,15 @@ mreturn mod_disco_server_items(mapi m, void *arg) {
 	name = xmlnode_get_attrib_ns(cur, "name", NULL);
 	if (name)
 	    xmlnode_put_attrib_ns(item, "name", NULL, NULL, name);
+  }
+
+  /* list the admin stuff */
+  if (js_admin(m->user, ADMIN_READ)) {
+    xmlnode item = NULL;
+    item = xmlnode_insert_tag_ns(query, "item", NULL, NS_DISCO_ITEMS);
+    xmlnode_put_attrib_ns(item, "jid", NULL, NULL, jid_full(m->packet->to));
+    xmlnode_put_attrib_ns(item, "name", NULL, NULL, "Online Users");
+    xmlnode_put_attrib_ns(item, "node", NULL, NULL, "online users");
   }
 
   jpacket_reset(m->packet);

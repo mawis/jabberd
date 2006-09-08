@@ -55,188 +55,92 @@
  */
 
 /**
- * xhash_walker function used by mod_admin_browse to add all online users to the iq result
+ * xhash_walker function used by _mod_admin_disco_online_items to add all online users to the iq result
  *
  * @param h not used by this function
  * @param key not used by this function
  * @param data the user's data structure
  * @param arg the iq result XML node
  */
-void _mod_admin_browse(xht h, const char *key, void *data, void *arg) {
-    xmlnode browse = (xmlnode)arg;
+static void _mod_admin_disco_online_iter(xht h, const char *key, void *data, void *arg) {
+    xmlnode item = NULL;
+    xmlnode query = (xmlnode)arg;
     udata u = (udata)data;
-    xmlnode x;
-    session s = js_session_primary(u);
-    spool sp;
-    int t = time(NULL);
-    char buff[10];
+    session session_iter = NULL;
+    char buffer[32];
+    time_t t = time(NULL);
 
-    /* make a user generic entry */
-    x = xmlnode_insert_tag_ns(browse, "user", NULL, NS_BROWSE);
-    xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(u->id));
-    if (s == NULL) {
-        xmlnode_put_attrib_ns(x, "name", NULL, NULL, u->id->user);
-        return;
-    }
-    sp = spool_new(xmlnode_pool(browse));
-    spooler(sp,u->id->user," (",sp);
-
-    /* insert extended data for the primary session */
-    snprintf(buff, sizeof(buff), "%d", (int)(t - s->started));
-    spooler(sp,buff,", ",sp);
-    snprintf(buff, sizeof(buff), "%d", s->c_out);
-    spooler(sp,buff,", ",sp);
-    snprintf(buff, sizeof(buff), "%d", s->c_in);
-    spooler(sp,buff,")",sp);
-
-    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spool_print(sp));
-}
-
-/**
- * handle an iq request in the jabber:iq:browse namespace sent to the resource "admin"
- * get requests will return the list of online users
- * set requests will return an empty list
- *
- * @param si the session manager instance
- * @param p the packet containing the request
- */
-void mod_admin_browse(jsmi si, jpacket p) {
-    xmlnode browse;
-
-    /* all requests we have to process are of type 'get' */
-    if (jpacket_subtype(p) != JPACKET__GET) {
-	js_bounce_xmpp(si,p->x,XTERROR_BAD);
+    /* sanity check */
+    if (query == NULL || u == NULL)
 	return;
-    }
 
-    /* prepare the result */
-    jutil_iqresult(p->x);
-    browse = xmlnode_insert_tag_ns(p->x, "item", NULL, NS_BROWSE);
-    xmlnode_put_attrib_ns(browse, "jid", NULL, NULL, spools(xmlnode_pool(browse),p->to->server,"/admin",xmlnode_pool(browse)));
-    xmlnode_put_attrib_ns(browse, "name", NULL, NULL, "Online Users (seconds, sent, received)");
+    log_notice(NULL, "walk for %s", key);
 
-    log_debug2(ZONE, LOGT_DELIVER, "handling who GET");
+    /* for all sessions of this user */
+    for (session_iter = u->sessions; session_iter != NULL; session_iter = session_iter->next) {
+	xmlnode item = xmlnode_insert_tag_ns(query, "item", NULL, NS_DISCO_ITEMS);
+	spool sp = spool_new(xmlnode_pool(query));
 
-    /* walk the users on this host */
-    xhash_walk(xhash_get(si->hosts, p->to->server),_mod_admin_browse,(void *)browse);
+	/* generate text for this item */
+	spooler(sp, jid_full(u->id), " (dur: ", sp);
+	snprintf(buffer, sizeof(buffer), "%d", (int)(t - session_iter->started));
+	spooler(sp, buffer, " s, in: ", sp);
+	snprintf(buffer, sizeof(buffer), "%d", session_iter->c_out);
+	spooler(sp, buffer, " stnz, out: ", sp);
+	snprintf(buffer, sizeof(buffer), "%d", session_iter->c_in);
+	spooler(sp, buffer, " stnz)", sp);
 
-    /* deliver the result */
-    jpacket_reset(p);
-    js_deliver(si,p);
-}
-
-/**
- * xhash_walker to add the presences of the online users to the result of a
- * jabber:iq:admin/who query
- *
- * used by mod_admin_who
- *
- * @param ht not used
- * @param key not used
- * @param data the user's data structure
- * @param arg the XML element where the presences will be added as child elements
- */
-void _mod_admin_who(xht ht, const char *key, void *data, void *arg) {
-    xmlnode who = (xmlnode)arg;
-    udata u = (udata)data;
-    session s;
-    xmlnode x;
-    time_t t;
-    char buff[10];
-
-    t = time(NULL);
-
-    /* loop through all the sessions */
-    for (s = u->sessions; s != NULL; s = s->next) {
-        /* make a presence entry for each one with a custom extension */
-        x = xmlnode_insert_tag_node(who,s->presence);
-        x = xmlnode_insert_tag_ns(x, "x", NULL, NS_ADMIN_WHO);
-
-        /* insert extended data */
-        snprintf(buff, sizeof(buff), "%d", (int)(t - s->started));
-        xmlnode_put_attrib_ns(x, "timer", NULL, NULL, buff);
-        snprintf(buff, sizeof(buff), "%d", s->c_in);
-        xmlnode_put_attrib_ns(x, "from", NULL, NULL, buff);
-        snprintf(buff, sizeof(buff), "%d", s->c_out);
-        xmlnode_put_attrib_ns(x, "to", NULL, NULL, buff);
+	/* add attributes for this item */
+	xmlnode_put_attrib_ns(item, "jid", NULL, NULL, jid_full(u->id));
+	xmlnode_put_attrib_ns(item, "name", NULL, NULL, spool_print(sp));
     }
 }
 
 /**
- * handle iq stanzas sent to the server address with a query in the jabber:iq:admin namespace
- * containing a <who/> element.
+ * handle iq disco items request for the server's node 'online users'
  *
- * Reply to this query with an iq result containing a list of presences of all users currently
- * online on the session manager. The presences will contain an additional element in the
- * jabber:mod_admin:who namespace containing simple user statistics
- *
- * @param si the session manager instance structure
- * @param p the stanza packet containing the request
- * @return always M_HANDLED
- */
-mreturn mod_admin_who(jsmi si, jpacket p) {
-    xmlnode who;
-
-    /* all valid requests will be of type 'get' */
-    if (jpacket_subtype(p) != JPACKET__GET) {
-	js_bounce_xmpp(si, p->x, XTERROR_BAD);
-	return M_HANDLED;
-    }
-
-    log_debug2(ZONE, LOGT_DELIVER, "handling who GET");
-
-    /* walk the users on this host */
-    who = xmlnode_get_list_item(xmlnode_get_tags(p->iq, "admin:who", si->std_namespace_prefixes), 0);
-    xhash_walk(xhash_get(si->hosts, p->to->server),_mod_admin_who,(void *)who);
-
-    /* sent the result */
-    jutil_tofrom(p->x);
-    xmlnode_put_attrib_ns(p->x, "type", NULL, NULL, "result");
-    jpacket_reset(p);
-    js_deliver(si,p);
-    return M_HANDLED;
-}
-
-/**
- * handle iq stanzas sent to the server address of type 'get' and 'set' in the jabber:iq:admin namespace
- * containing an <config/> element.
- *
- * This can be used to get the session manager configuration and to update it while the server is
- * running. Updating the configuration is only with limited use as the session manager will not
- * run the initialization stuff using the new configuration.
+ * Send a reply to the disco#items request
  *
  * @param si the session manager instance
- * @param p the packet containing the request
- * @return always M_HANDLED
+ * @param p the packet, that contains the disco request
  */
-mreturn mod_admin_config(jsmi si, jpacket p) {
-    xmlnode config = xmlnode_get_list_item(xmlnode_get_tags(p->iq, "admin:config", si->std_namespace_prefixes), 0);
-    xmlnode cur;
+static void _mod_admin_disco_online_items(jsmi si, jpacket p) {
+    xmlnode query = NULL;
 
-    if(jpacket_subtype(p) == JPACKET__GET) {
-        log_debug2(ZONE, LOGT_DELIVER|LOGT_CONFIG, "handling config GET");
+    log_notice(NULL, "trying to handle online users items request");
 
-        /* insert the loaded config file */
-        xmlnode_insert_node(config,xmlnode_get_firstchild(si->config));
-    }
+    /* prepare the stanza */
+    jutil_iqresult(p->x);
+    query =xmlnode_insert_tag_ns(p->x, "query", NULL, NS_DISCO_INFO);
+    xmlnode_put_attrib_ns(query, "node", NULL, NULL, "online users");
 
-    if(jpacket_subtype(p) == JPACKET__SET) {
-        log_debug2(ZONE, LOGT_DELIVER|LOGT_CONFIG, "handling config SET");
+    /* add the online users */
+    xhash_walk(xhash_get(si->hosts, p->to->server), _mod_admin_disco_online_iter, (void *)query);
 
-        /* XXX FIX ME, like do init stuff for the new config, etc */
-        si->config = xmlnode_dup(config);
-
-
-        /* empty the iq result */
-        for(cur = xmlnode_get_firstchild(p->x); cur != NULL; cur = xmlnode_get_nextsibling(cur))
-            xmlnode_hide(cur);
-    }
-
-    jutil_tofrom(p->x);
-    xmlnode_put_attrib_ns(p->x, "type", NULL, NULL, "result");
+    /* send back */
     jpacket_reset(p);
-    js_deliver(si,p);
-    return M_HANDLED;
+    js_deliver(si, p);
+}
+
+/**
+ * handle iq disco info request for the server's node 'online users'
+ *
+ * Send a reply to the disco#info request
+ *
+ * @param m the session manager instance
+ * @param p the packet, that contains the disco request
+ */
+static void _mod_admin_disco_online_info(jsmi si, jpacket p) {
+    xmlnode query = NULL;
+
+    /* prepare the stanza */
+    jutil_iqresult(p->x);
+    query =xmlnode_insert_tag_ns(p->x, "query", NULL, NS_DISCO_INFO);
+    xmlnode_put_attrib_ns(query, "node", NULL, NULL, "online users");
+
+    /* send back */
+    jpacket_reset(p);
+    js_deliver(si, p);
 }
 
 /**
@@ -258,33 +162,24 @@ mreturn mod_admin_dispatch(mapi m, void *arg) {
     if (jpacket_subtype(m->packet) == JPACKET__ERROR)
 	return M_PASS;
 
-    /* first check the /admin browse feature */
-    if (NSCHECK(m->packet->iq,NS_BROWSE) && j_strcmp(m->packet->to->resource,"admin") == 0) {
-        if(js_admin(m->user, ADMIN_READ))
-            mod_admin_browse(m->si, m->packet);
-        else
-            js_bounce_xmpp(m->si, m->packet->x, XTERROR_NOTALLOWED);
-        return M_HANDLED;
+    /* check disco node 'online users' feature */
+    if (NSCHECK(m->packet->iq, NS_DISCO_INFO) && j_strcmp(xmlnode_get_attrib_ns(m->packet->iq, "node", NULL), "online users") == 0 && jpacket_subtype(m->packet) == JPACKET__GET) {
+	if (js_admin(m->user, ADMIN_READ))
+	    _mod_admin_disco_online_info(m->si, m->packet);
+	else
+	    js_bounce_xmpp(m->si, m->packet->x, XTERROR_NOTALLOWED);
+	return M_HANDLED;
+    }
+    if (NSCHECK(m->packet->iq, NS_DISCO_ITEMS) && j_strcmp(xmlnode_get_attrib_ns(m->packet->iq, "node", NULL), "online users") == 0 && jpacket_subtype(m->packet) == JPACKET__GET) {
+	log_notice(NULL, "we got a disco items online users request");
+	if (js_admin(m->user, ADMIN_READ))
+	    _mod_admin_disco_online_items(m->si, m->packet);
+	else
+	    js_bounce_xmpp(m->si, m->packet->x, XTERROR_NOTALLOWED);
+	return M_HANDLED;
     }
 
-    /* now normal iq:admin stuff */
-    if (!NSCHECK(m->packet->iq,NS_ADMIN))
-	return M_PASS;
-
-    log_debug2(ZONE, LOGT_AUTH|LOGT_DELIVER, "checking admin request from %s",jid_full(m->packet->from));
-
-    if (js_admin(m->user, ADMIN_READ)) {
-	if (j_strcmp(xmlnode_get_localname(m->packet->iq), "who") == 0)
-	    return mod_admin_who(m->si, m->packet);
-    }
-
-    if (js_admin(m->user, ADMIN_WRITE)) {
-	if (j_strcmp(xmlnode_get_localname(m->packet->iq), "config") == 0)
-	    return mod_admin_config(m->si, m->packet);
-    }
-
-    js_bounce_xmpp(m->si, m->packet->x, XTERROR_NOTALLOWED);
-    return M_HANDLED;
+    return M_PASS;
 }
 
 /**
