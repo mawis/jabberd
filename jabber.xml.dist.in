@@ -343,7 +343,6 @@
       <mod_last>@libdir@/libjabberdsm.so</mod_last>
       <mod_version>@libdir@/libjabberdsm.so</mod_version>
       <mod_announce>@libdir@/libjabberdsm.so</mod_announce>
-      <mod_agents>@libdir@/libjabberdsm.so</mod_agents>
       <mod_browse>@libdir@/libjabberdsm.so</mod_browse>
       <mod_disco>@libdir@/libjabberdsm.so</mod_disco>
       <mod_admin>@libdir@/libjabberdsm.so</mod_admin>
