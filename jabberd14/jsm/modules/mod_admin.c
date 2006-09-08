@@ -42,14 +42,11 @@
 
 /**
  * @file mod_admin.c
- * @brief Admin functionallity for the session manager (undocumented) - DEPRECATED
+ * @brief Admin functionallity for the session manager
  *
  * This implements the admin functionallity of the session manger:
- * - The admin can browse the list of online users (jabber:iq:browse to serverdomain/admin)
- * - The admin can request the list of online users using the DEPRICATED jabber:iq:admin
- *   namespace (which is not documented)
- * - The admin can update the session managers configuration file using the DEPRICATED
- *   and undocumented jabber:iq:admin namespace
+ * - The admin can discover the list of online users using service discovery on
+ *   server node 'online users'
  * - Messages addressed to the session manager (without a resource) are forwarded to the
  *   configured admin address(es)
  */
