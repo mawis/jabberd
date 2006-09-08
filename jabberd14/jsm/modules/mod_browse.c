@@ -47,8 +47,6 @@
  * This module implements the handling of jabber:iq:browse to query client information
  * in the session manager. jabber:iq:browse is documented in JEP-0011. Browsing
  * is DEPRICATED, clients should use service discovery instead.
- *
- * Part of the jabber:iq:browse functionallity is also implemented in mod_admin.c.
  */
 
 /**

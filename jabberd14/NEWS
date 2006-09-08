@@ -37,6 +37,9 @@ Changes in administration of the server
     * Removed support for the jabber:iq:admin namespace.
     * Disabled support for the jabber:iq:agent and jabber:iq:agents in the
       default configuration file.
+    * Removed support for the jabber:iq:filter namespace (which had already
+      been disabled in the default configuration of jabberd14 1.4.4).
+    * Removed the mod_groups module.
 
 Changes in features visible to the user
     * Support for Flexible Offline Message Retrieval (JEP-0013)
