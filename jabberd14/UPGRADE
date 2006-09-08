@@ -52,6 +52,9 @@ SQL for it has changed.
 If you are using xdbfiletool to access or manipulate spool files, note
 that the command line syntax of this utility has changed completely.
 
+If you used Jabber browsing to get a list of the users, that are online,
+you have to update this to using service discovery.
+
 
 Upgrading from 1.4.3(.1) to 1.4.4
 ---------------------------------
