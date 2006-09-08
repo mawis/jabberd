@@ -271,14 +271,6 @@ mreturn mod_browse_server(mapi m, void *arg) {
     /* copy in the configured services */
     xmlnode_insert_node(query,xmlnode_get_firstchild(browse));
 
-    /* list the admin stuff */
-    if (js_admin(m->user, ADMIN_READ)) {
-        x = xmlnode_insert_tag_ns(query, "item", NULL, NS_BROWSE);
-        xmlnode_put_attrib_ns(x, "jid", NULL, NULL, spools(xmlnode_pool(x),m->packet->to->server,"/admin",xmlnode_pool(x)));
-        xmlnode_put_attrib_ns(x, "name", NULL, NULL, "Online Users");
-        xmlnode_insert_cdata(xmlnode_insert_tag_ns(query, "ns", NULL, NULL), NS_ADMIN, -1);
-    }
-
     jpacket_reset(m->packet);
     js_deliver(m->si,m->packet);
 
