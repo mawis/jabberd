@@ -55,6 +55,10 @@ that the command line syntax of this utility has changed completely.
 If you used Jabber browsing to get a list of the users, that are online,
 you have to update this to using service discovery.
 
+The following functionality has been removed from jabberd14:
+mod_filter, and mod_groups. Please remove them from your session manager
+configuration.
+
 
 Upgrading from 1.4.3(.1) to 1.4.4
 ---------------------------------
