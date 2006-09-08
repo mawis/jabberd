@@ -75,15 +75,11 @@ typedef struct {
  * namespace are handled. Queries of type set are rejected, queries of type get are replied.
  *
  * @param m the mapi structure
- * @param arg pointer to the _mod_version_t structure of this module instance
+ * @param mi pointer to the _mod_version_t structure of this module instance
  * @return M_IGNORED if not a iq stanza, M_PASS if stanza not handled, M_HANDLED if stanza has been handled
  */
-mreturn mod_version_reply(mapi m, void *arg) {
-    mod_version_i mi = (mod_version_i)arg;
-
-    if (m->packet->type != JPACKET_IQ)
-	return M_IGNORE;
-    if (!NSCHECK(m->packet->iq, NS_VERSION) || m->packet->to->resource != NULL)
+static mreturn _mod_version_reply(mapi m, mod_version_i mi) {
+    if (m->packet->to->resource != NULL)
 	return M_PASS;
 
     /* first, is this a valid request? */
@@ -107,13 +103,66 @@ mreturn mod_version_reply(mapi m, void *arg) {
 }
 
 /**
+ * handle disco info query to the server address, add our feature
+ */
+static mreturn _mod_version_disco_info(mapi m) {
+    xmlnode feature = NULL;
+
+    /* only no node, only get */
+    if (jpacket_subtype(m->packet) != JPACKET__GET)
+	return M_PASS;
+    if (xmlnode_get_attrib_ns(m->packet->iq, "node", NULL) != NULL)
+	return M_PASS;
+
+    /* build the result IQ */
+    js_mapi_create_additional_iq_result(m, "query", NULL, NS_DISCO_INFO);
+    if (m->additional_result == NULL || m->additional_result->iq == NULL)
+	return M_PASS;
+
+    /* add features */
+    feature = xmlnode_insert_tag_ns(m->additional_result->iq, "feature", NULL, NS_DISCO_INFO);
+    xmlnode_put_attrib_ns(feature, "var", NULL, NULL, NS_VERSION);
+
+    return M_PASS;
+}
+
+/**
+ * handle iq packets to the server address
+ *
+ * @param m the mapi_struct containing the request
+ * @param arg containing the module configuration
+ * @return M_IGNORE if no iq request, M_HANDLED or M_PASS else
+ */
+static mreturn mod_version_iq_server(mapi m, void *arg) {
+    mod_version_i mi = (mod_version_i)arg;
+
+    /* sanity check */
+    if (m == NULL || mi == NULL)
+	return M_PASS;
+
+    /* only handle iq packets */
+    if (m->packet->type != JPACKET_IQ)
+	return M_IGNORE;
+
+    /* version request? */
+    if (NSCHECK(m->packet->iq, NS_VERSION))
+	return _mod_version_reply(m, mi);
+
+    /* disco#info query? */
+    if (NSCHECK(m->packet->iq, NS_DISCO_INFO))
+	return _mod_version_disco_info(m);
+
+    return M_PASS;
+}
+
+/**
  * free memory allocated by this module instance
  *
  * @param m the mapi structure
  * @param arg pointer to the _mod_version_t structure holding the data of this module instance
  * @return always M_PASS
  */
-mreturn mod_version_shutdown(mapi m, void *arg) {
+static mreturn mod_version_shutdown(mapi m, void *arg) {
     mod_version_i mi = (mod_version_i)arg;
     pool_free(mi->p);
     
@@ -156,6 +205,6 @@ void mod_version(jsmi si) {
 	mi->os = spools(p, un.sysname, " ", un.release, p);
 
 
-    js_mapi_register(si,e_SERVER,mod_version_reply,(void *)mi);
+    js_mapi_register(si,e_SERVER,mod_version_iq_server,(void *)mi);
     js_mapi_register(si,e_SHUTDOWN,mod_version_shutdown,(void *)mi);
 }

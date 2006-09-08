@@ -25,6 +25,10 @@
  * 
  * Special thanks to the Jabber Open Source Contributors for their
  * suggestions and support of Jabber.
+ :q
+
+
+
  * 
  * Alternatively, the contents of this file may be used under the terms of the
  * GNU General Public License Version 2 or later (the "GPL"), in which case
@@ -55,17 +59,14 @@
  * sends back replies to jabber:x:time queries.
  *
  * @param m the mapi structure
- * @param arg unused/ignored
  * @return M_IGNORED if not a iq stanza, M_PASS if other namespace or sent to a resource of the server, M_HANDLED else
  */
-mreturn mod_time_reply(mapi m, void *arg) {
+static mreturn _mod_time_reply(mapi m) {
     time_t t;
     char *tstr;
     struct tm *tmd;
 
-    if (m->packet->type != JPACKET_IQ)
-	return M_IGNORE;
-    if (!NSCHECK(m->packet->iq,NS_TIME) || m->packet->to->resource != NULL)
+    if (m->packet->to->resource != NULL)
 	return M_PASS;
 
     /* first, is this a valid request? */
@@ -102,6 +103,57 @@ mreturn mod_time_reply(mapi m, void *arg) {
 }
 
 /**
+ * handle disco info query to the server address, add our feature
+ */
+static mreturn _mod_time_disco_info(mapi m) {
+    xmlnode feature = NULL;
+
+    /* only no node, only get */
+    if (jpacket_subtype(m->packet) != JPACKET__GET)
+	return M_PASS;
+    if (xmlnode_get_attrib_ns(m->packet->iq, "node", NULL) != NULL)
+	return M_PASS;
+
+    /* build the result IQ */
+    js_mapi_create_additional_iq_result(m, "query", NULL, NS_DISCO_INFO);
+    if (m->additional_result == NULL || m->additional_result->iq == NULL)
+	return M_PASS;
+
+    /* add features */
+    feature = xmlnode_insert_tag_ns(m->additional_result->iq, "feature", NULL, NS_DISCO_INFO);
+    xmlnode_put_attrib_ns(feature, "var", NULL, NULL, NS_TIME);
+
+    return M_PASS;
+}
+
+/**
+ * handle iq packets to the server address
+ *
+ * @param m the mapi_struct containing the request
+ * @param arg unused/ignored
+ * @return M_IGNORE if no iq request, M_HANDLED or M_PASS else
+ */
+static mreturn mod_time_iq_server(mapi m, void *arg) {
+    /* sanity check */
+    if (m == NULL || m->packet == NULL)
+	return M_PASS;
+
+    /* only handle iq packets */
+    if (m->packet->type != JPACKET_IQ)
+	return M_IGNORE;
+
+    /* version request? */
+    if (NSCHECK(m->packet->iq, NS_TIME))
+	return _mod_time_reply(m);
+
+    /* disco#info query? */
+    if (NSCHECK(m->packet->iq, NS_DISCO_INFO))
+	return _mod_time_disco_info(m);
+
+    return M_PASS;
+}
+
+/**
  * init this module
  *
  * register mod_time_reply() as a callback for stanzas sent to the server's address
@@ -109,5 +161,5 @@ mreturn mod_time_reply(mapi m, void *arg) {
  * @param si the session manager instance
  */
 void mod_time(jsmi si) {
-    js_mapi_register(si,e_SERVER,mod_time_reply,NULL);
+    js_mapi_register(si,e_SERVER, mod_time_iq_server,NULL);
 }

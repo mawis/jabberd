@@ -11,6 +11,16 @@
 	to disco
     * jsm/modules/mod_browse.c: same
     * jsm/modules/mod_disco.c: same
+    * jabberd/lib/jabberdlib.h: automated disco#info result generation
+    * jsm/jsm.h: same
+    * jsm/modules/mod_disco.c: same
+    * jsm/modules/mod_browse.c: same
+    * jsm/modules/mod_last.c: same
+    * jsm/modules/mod_offline.c: same
+    * jsm/modules/mod_register.c: same
+    * jsm/modules/mod_version.c: same
+    * jsm/modules/mod_time.c: same
+    * jsm/modules.c: same
 
 2006-09-07  Matthias Wimmer  <m@tthias.eu>
 

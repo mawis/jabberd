@@ -56,7 +56,7 @@
  * @param id the JID of the user for which the browse info should be build
  * @return the xml fragment containing the browse result (must be freed by the caller)
  */
-xmlnode mod_browse_get(mapi m, jid id) {
+static xmlnode mod_browse_get(mapi m, jid id) {
     xmlnode browse, x;
 
     if (id == NULL) /* use the user id as a backup */
@@ -100,7 +100,7 @@ xmlnode mod_browse_get(mapi m, jid id) {
  * @param arg unused/ignored
  * @return M_IGNORE if it is no iq stanza, M_PASS if the packet has not been processed, M_HANDLED if the packet has been processed
  */
-mreturn mod_browse_set(mapi m, void *arg) {
+static mreturn mod_browse_set(mapi m, void *arg) {
     xmlnode browse, cur;
     jid id, to;
 
@@ -164,7 +164,7 @@ mreturn mod_browse_set(mapi m, void *arg) {
  * @param arg unused/ignored
  * @return always M_PASS
  */
-mreturn mod_browse_session(mapi m, void *arg) {
+static mreturn mod_browse_session(mapi m, void *arg) {
     js_mapi_session(es_OUT,m->s,mod_browse_set,NULL);
     return M_PASS;
 }
@@ -181,7 +181,7 @@ mreturn mod_browse_session(mapi m, void *arg) {
  * @param arg not used/ignored
  * @return M_IGNORE if the packet is no iq stanza, M_PASS if the stanza has not been processed, M_HANDLED if the request has been handled
  */
-mreturn mod_browse_reply(mapi m, void *arg) {
+static mreturn mod_browse_reply(mapi m, void *arg) {
     xmlnode browse, ns, cur;
     session s;
 
@@ -243,15 +243,14 @@ mreturn mod_browse_reply(mapi m, void *arg) {
  * are handled by mod_admin.c.)
  *
  * @param m the mapi structure containing the request
- * @param arg not used/ignored
  * @return M_IGNORE if the stanza is no iq, M_PASS if this module is not responsible, M_HANDLED if the stanza has been processed
  */
-mreturn mod_browse_server(mapi m, void *arg) {
+static mreturn _mod_browse_server(mapi m) {
     xmlnode browse, query, x;
 
     if (m->packet->type != JPACKET_IQ)
 	return M_IGNORE;
-    if (jpacket_subtype(m->packet) != JPACKET__GET || !NSCHECK(m->packet->iq,NS_BROWSE) || m->packet->to->resource != NULL)
+    if (jpacket_subtype(m->packet) != JPACKET__GET || m->packet->to->resource != NULL)
 	return M_PASS;
 
     /* get data from the config file */
@@ -282,8 +281,58 @@ mreturn mod_browse_server(mapi m, void *arg) {
  * @param arg unused/ignored
  * @return always M_PASS
  */
-mreturn mod_browse_delete(mapi m, void *arg) {
+static mreturn mod_browse_delete(mapi m, void *arg) {
     xdb_set(m->si->xc, m->user->id, NS_BROWSE, NULL);
+    return M_PASS;
+}
+
+/**
+ * handle disco info query to the server address, add our feature
+ */
+static mreturn _mod_browse_disco_info(mapi m) {
+    xmlnode feature = NULL;
+
+    /* only no node, only get */
+    if (jpacket_subtype(m->packet) != JPACKET__GET)
+	return M_PASS;
+    if (xmlnode_get_attrib_ns(m->packet->iq, "node", NULL) != NULL)
+	return M_PASS;
+
+    /* build the result IQ */
+    js_mapi_create_additional_iq_result(m, "query", NULL, NS_DISCO_INFO);
+    if (m->additional_result == NULL || m->additional_result->iq == NULL)
+	return M_PASS;
+
+    /* add features */
+    feature = xmlnode_insert_tag_ns(m->additional_result->iq, "feature", NULL, NS_DISCO_INFO);
+    xmlnode_put_attrib_ns(feature, "var", NULL, NULL, NS_BROWSE);
+
+    return M_PASS;
+}
+/**
+ * handle iq packets to the server address
+ *
+ * @param m the mapi_struct containing the request
+ * @param arg unused/ignored
+ * @return M_IGNORE if no iq request, M_HANDLED or M_PASS else
+ */
+static mreturn _mod_browse_iq_server(mapi m, void *arg) {
+    /* sanity check */
+    if (m == NULL || m->packet == NULL)
+	return M_PASS;
+
+    /* only handle iq packets */
+    if (m->packet->type != JPACKET_IQ)
+	return M_IGNORE;
+
+    /* version request? */
+    if (NSCHECK(m->packet->iq, NS_BROWSE))
+	return _mod_browse_server(m);
+
+    /* disco#info query? */
+    if (NSCHECK(m->packet->iq, NS_DISCO_INFO))
+	return _mod_browse_disco_info(m);
+
     return M_PASS;
 }
 
@@ -299,7 +348,7 @@ void mod_browse(jsmi si) {
     js_mapi_register(si, e_SESSION, mod_browse_session, NULL);
     js_mapi_register(si, e_DESERIALIZE, mod_browse_session, NULL);
     js_mapi_register(si, e_OFFLINE, mod_browse_reply, NULL);
-    js_mapi_register(si, e_SERVER, mod_browse_server, NULL);
+    js_mapi_register(si, e_SERVER, _mod_browse_iq_server, NULL);
     js_mapi_register(si, e_DELETE, mod_browse_delete, NULL);
 }
 
