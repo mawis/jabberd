@@ -204,7 +204,6 @@
       <disco xmlns='http://jabber.org/protocol/disco#info'>
         <identity category='server' type='im' name='jabberd14 server'/>
         <feature var='jabber:iq:browse'/>
-        <feature var='jabber:iq:agents'/>
         <feature var='jabber:iq:register'/>
         <feature var='jabber:iq:time'/>
         <feature var='jabber:iq:last'/>
