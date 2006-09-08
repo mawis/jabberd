@@ -64,25 +64,80 @@
  * @param arg time_t timestamp when the server was started
  * @return M_IGNORE if the stanza was no iq, M_PASS if the stanza has not been processed, M_HANDLED if the stanza has been handled
  */
-mreturn mod_last_server(mapi m, void *arg) {
-    time_t start = time(NULL) - *(time_t*)arg;
+static mreturn _mod_last_server_last(mapi m, time_t start) {
+    time_t passed = time(NULL) - start;
     char str[11];
     xmlnode last;
 
     /* pre-requisites */
-    if(m->packet->type != JPACKET_IQ) return M_IGNORE;
-    if(jpacket_subtype(m->packet) != JPACKET__GET || !NSCHECK(m->packet->iq,NS_LAST) || m->packet->to->resource != NULL) return M_PASS;
+    if (jpacket_subtype(m->packet) != JPACKET__GET || m->packet->to->resource != NULL)
+	return M_PASS;
 
     jutil_iqresult(m->packet->x);
     jpacket_reset(m->packet);
 
     last = xmlnode_insert_tag_ns(m->packet->x, "query", NULL, NS_LAST);
-    snprintf(str, sizeof(str), "%d", (int)start);
+    snprintf(str, sizeof(str), "%d", (int)passed);
     xmlnode_put_attrib_ns(last, "seconds", NULL, NULL, str);
 
     js_deliver(m->si,m->packet);
 
     return M_HANDLED;
+}
+
+/**
+ * handle disco info query to the server address, add our feature
+ */
+static mreturn _mod_last_server_disco_info(mapi m) {
+    xmlnode feature = NULL;
+
+    /* only no node, only get */
+    if (jpacket_subtype(m->packet) != JPACKET__GET)
+	return M_PASS;
+    if (xmlnode_get_attrib_ns(m->packet->iq, "node", NULL) != NULL)
+	return M_PASS;
+
+    /* build the result IQ */
+    js_mapi_create_additional_iq_result(m, "query", NULL, NS_DISCO_INFO);
+    if (m->additional_result == NULL || m->additional_result->iq == NULL)
+	return M_PASS;
+
+    /* add features */
+    feature = xmlnode_insert_tag_ns(m->additional_result->iq, "feature", NULL, NS_DISCO_INFO);
+    xmlnode_put_attrib_ns(feature, "var", NULL, NULL, NS_LAST);
+
+    return M_PASS;
+}
+/**
+ * handle iq queries addressed to the server
+ *
+ * all but iq stanzas are ignored, only relevant namespaces are handled
+ *
+ * redirects processing to the right handler for the namespace
+ *
+ * @param m the mapi structure
+ * @param arg time_t timestampe when the server was started
+ * @return M_IGNORE if the stanza is no iq, M_PASS or M_HANDLED else
+ */
+static mreturn mod_last_server(mapi m, void *arg) {
+    time_t start = 0;
+
+    /* sanity check */
+    if (m == NULL || m->packet == NULL || arg == NULL)
+	return M_PASS;
+
+    start = *(time_t*)arg;
+
+    /* only handle iqs */
+    if (m->packet->type != JPACKET_IQ)
+	return M_IGNORE;
+
+    if (NSCHECK(m->packet->iq, NS_LAST))
+	return _mod_last_server_last(m, start);
+    if (NSCHECK(m->packet->iq, NS_DISCO_INFO))
+	return _mod_last_server_disco_info(m);
+
+    return M_PASS;
 }
 
 /**
@@ -92,7 +147,7 @@ mreturn mod_last_server(mapi m, void *arg) {
  * @param to which user should be updated
  * @param reason why the stored last information is updated
  */
-void mod_last_set(mapi m, jid to, char *reason) {
+static void mod_last_set(mapi m, jid to, char *reason) {
     xmlnode last;
     char str[11];
 
@@ -116,7 +171,7 @@ void mod_last_set(mapi m, jid to, char *reason) {
  * @param arg unused/ignored
  * @return always M_PASS
  */
-mreturn mod_last_init(mapi m, void *arg) {
+static mreturn mod_last_init(mapi m, void *arg) {
     if (jpacket_subtype(m->packet) != JPACKET__SET)
 	return M_PASS;
 
@@ -134,7 +189,7 @@ mreturn mod_last_init(mapi m, void *arg) {
  * @param arg unused/ignored
  * @return always M_PASS
  */
-mreturn mod_last_sess_end(mapi m, void *arg) {
+static mreturn mod_last_sess_end(mapi m, void *arg) {
     if(m->s->presence != NULL) /* presence is only set if there was presence sent, and we only track logins that were available */
         mod_last_set(m, m->user->id, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(m->s->presence, "status", m->si->std_namespace_prefixes), 0)));
 
@@ -150,7 +205,7 @@ mreturn mod_last_sess_end(mapi m, void *arg) {
  * @param arg unused/ignored
  * @return always M_PASS
  */
-mreturn mod_last_sess(mapi m, void *arg) {
+static mreturn mod_last_sess(mapi m, void *arg) {
     js_mapi_session(es_END, m->s, mod_last_sess_end, NULL);
 
     return M_PASS;
@@ -168,7 +223,7 @@ mreturn mod_last_sess(mapi m, void *arg) {
  * @param arg unused/ignored
  * @return M_IGNORE if it is no iq stanza, M_PASS if the stanza nas not been processed, M_HANDLED if the stanza has been handled
  */
-mreturn mod_last_reply(mapi m, void *arg) {
+static mreturn mod_last_reply(mapi m, void *arg) {
     xmlnode last;
     int lastt;
     char str[11];
@@ -221,7 +276,7 @@ mreturn mod_last_reply(mapi m, void *arg) {
  * @param arg unused/ignored
  * @return always M_PASS
  */
-mreturn mod_last_delete(mapi m, void *arg) {
+static mreturn mod_last_delete(mapi m, void *arg) {
     xdb_set(m->si->xc, m->user->id, NS_LAST, NULL);
     return M_PASS;
 }

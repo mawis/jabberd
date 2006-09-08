@@ -714,6 +714,46 @@ mreturn mod_offline_delete(mapi m, void *arg) {
 }
 
 /**
+ * iq requests to the server address: if disco#info, we have to add our features
+ *
+ * @param m the mapi_struct
+ * @param arg unused/ignored
+ * @return M_PASS if iq passed, M_IGNORE else
+ */
+mreturn mod_offline_server(mapi m, void *arg) {
+    xmlnode feature = NULL;
+
+    /* sanity check */
+    if (m == NULL || m->packet == NULL)
+	return M_PASS;
+
+    /* we only handle iq packets */
+    if (m->packet->type != JPACKET_IQ)
+	return M_IGNORE;
+
+    /* only disco, only no node, only get */
+    if (jpacket_subtype(m->packet) != JPACKET__GET)
+	return M_PASS;
+    if (!NSCHECK(m->packet->iq, NS_DISCO_INFO))
+	return M_PASS;
+    if (xmlnode_get_attrib_ns(m->packet->iq, "node", NULL) != NULL)
+	return M_PASS;
+
+    /* build the result IQ */
+    js_mapi_create_additional_iq_result(m, "query", NULL, NS_DISCO_INFO);
+    if (m->additional_result == NULL || m->additional_result->iq == NULL)
+	return M_PASS;
+
+    /* add features */
+    feature = xmlnode_insert_tag_ns(m->additional_result->iq, "feature", NULL, NS_DISCO_INFO);
+    xmlnode_put_attrib_ns(feature, "var", NULL, NULL, NS_FLEXIBLE_OFFLINE);
+    feature = xmlnode_insert_tag_ns(m->additional_result->iq, "feature", NULL, NS_DISCO_INFO);
+    xmlnode_put_attrib_ns(feature, "var", NULL, NULL, NS_MSGOFFLINE);
+
+    return M_PASS;
+}
+
+/**
  * startup this module, register its callbacks
  *
  * two callbacks have to be registered: we have to receive the messages addressed to the user (mod_offline_handler)
@@ -746,4 +786,5 @@ void mod_offline(jsmi si) {
     js_mapi_register(si,e_SESSION, mod_offline_session, NULL);
     js_mapi_register(si,e_DESERIALIZE, mod_offline_deserialize, NULL);
     js_mapi_register(si, e_DELETE, mod_offline_delete, NULL);
+    js_mapi_register(si, e_SERVER, mod_offline_server, NULL);
 }

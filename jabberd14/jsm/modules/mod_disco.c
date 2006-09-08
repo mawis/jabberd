@@ -66,40 +66,34 @@
  * @return M_PASS if the packet has not been processed, M_HANDLED if the packet has been handled
  */
 mreturn mod_disco_server_info(mapi m, void *arg) {
-    xmlnode query, identity, disco;
+    xmlnode identity = NULL;
 
     if ((xmlnode_get_attrib_ns(m->packet->iq, "node", NULL)) != NULL)
 	return M_PASS;
         
     log_debug2(ZONE, LOGT_DELIVER, "handling disco#info query");
 
-    /* config get */
-    disco = js_config(m->si,"disco-info:disco");
+    /* build the result IQ */
+    js_mapi_create_additional_iq_result(m, "query", NULL, NS_DISCO_INFO);
 
-    /* build the result IQ */		
-    query = xmlnode_insert_tag_ns(jutil_iqresult(m->packet->x), "query", NULL, NS_DISCO_INFO);
+    /* sanity check */
+    if (m->additional_result == NULL)
+	return M_PASS;
 
-    /* if config */
-    identity = NULL;
-    if (disco != NULL) 
-	  identity = xmlnode_get_list_item(xmlnode_get_tags(disco, "disco-info:identity", m->si->std_namespace_prefixes), 0);
-    
-    /* if bad config, put identity */
-    if (disco == NULL || identity == NULL){
-	  identity = xmlnode_insert_tag_ns(query, "identity", NULL, NS_DISCO_INFO);
-	  xmlnode_put_attrib_ns(identity, "category", NULL, NULL, "services");
-	  xmlnode_put_attrib_ns(identity, "type", NULL, NULL, "jabber");
-	  xmlnode_put_attrib_ns(identity, "name", NULL, NULL, xmlnode_get_data(js_config(m->si,"vcard:vCard/vcard:FN"))); 
+    /* special identity in configuration? else generate from vCard */
+    identity = js_config(m->si, "disco-info:disco/disco-info:identity");
+
+    if (identity != NULL) {
+	xmlnode_insert_node(m->additional_result->iq, identity);
+    } else {
+	identity = xmlnode_insert_tag_ns(m->additional_result->iq, "identity", NULL, NS_DISCO_INFO);
+	xmlnode_put_attrib_ns(identity, "category", NULL, NULL, "server");
+	xmlnode_put_attrib_ns(identity, "type", NULL, NULL, "im");
+	xmlnode_put_attrib_ns(identity, "name", NULL, NULL, xmlnode_get_data(js_config(m->si, "vcard:vCard/vcard:FN")));
     }
-    
-    /* put disco info if exist */
-    if (disco != NULL) 
-	  xmlnode_insert_node(query, xmlnode_get_firstchild(disco));
 
-    jpacket_reset(m->packet);
-    js_deliver(m->si,m->packet);
-
-    return M_HANDLED;
+    /* other modules might add other information to the result */
+    return M_PASS;
 }
 
 /**
