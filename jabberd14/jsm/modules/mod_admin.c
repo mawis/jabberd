@@ -79,7 +79,7 @@ static void _mod_admin_disco_online_iter(xht h, const char *key, void *data, voi
 	spool sp = spool_new(xmlnode_pool(query));
 
 	/* generate text for this item */
-	spooler(sp, jid_full(u->id), " (dur: ", sp);
+	spooler(sp, jid_full(session_iter->id), " (dur: ", sp);
 	snprintf(buffer, sizeof(buffer), "%d", (int)(t - session_iter->started));
 	spooler(sp, buffer, " s, in: ", sp);
 	snprintf(buffer, sizeof(buffer), "%d", session_iter->c_out);
@@ -88,7 +88,7 @@ static void _mod_admin_disco_online_iter(xht h, const char *key, void *data, voi
 	spooler(sp, buffer, " stnz)", sp);
 
 	/* add attributes for this item */
-	xmlnode_put_attrib_ns(item, "jid", NULL, NULL, jid_full(u->id));
+	xmlnode_put_attrib_ns(item, "jid", NULL, NULL, jid_full(session_iter->id));
 	xmlnode_put_attrib_ns(item, "name", NULL, NULL, spool_print(sp));
     }
 }
