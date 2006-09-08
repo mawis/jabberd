@@ -282,27 +282,3 @@ struct in6_addr *make_addr_ipv6(char *host) {
     return NULL;
 }
 #endif
-
-#ifdef INCLUDE_LEGACY
-/**
- * Sets a file descriptor to close on exec.
- *
- * @param fd the file descriptor
- * @param flag 1 to close on exec, 0 to leave open across exec
- *
- * @deprecated this function is not used by jabberd14 and might be removed in future versions
- */
-int set_fd_close_on_exec(int fd, int flag) {
-    int oldflags = fcntl(fd,F_GETFL);
-    int newflags;
-
-    if(flag)
-        newflags = oldflags | FD_CLOEXEC;
-    else
-        newflags = oldflags & (~FD_CLOEXEC);
-
-    if(newflags==oldflags)
-        return 0;
-    return fcntl(fd,F_SETFL,(long)newflags);
-}
-#endif

@@ -157,26 +157,6 @@ xmlnode jutil_msgnew(char *type, char *to, char *subj, char *body) {
     return msg;
 }
 
-#ifdef INCLUDE_LEGACY
-/**
- * utility for making stream packets (containing the stream header element)
- *
- * @param xmlns the default namespace of the stream (e.g. jabber:client or jabber:server)
- * @param server the domain of the server
- * @return the xmlnode containing the root element of the stream
- */
-xmlnode jutil_header(char* xmlns, char* server) {
-     xmlnode result;
-     if ((xmlns == NULL)||(server == NULL))
-	  return NULL;
-     result = xmlnode_new_tag_ns("stream", "stream", NS_STREAM);
-     xmlnode_put_attrib_ns(result, "xmlns", NULL, NS_XMLNS, xmlns);
-     xmlnode_put_attrib_ns(result, "to", NULL, NULL, server);
-
-     return result;
-}
-#endif /* INCLUDE_LEGACY */
-
 /**
  * returns the priority on an available presence packet
  *
