@@ -517,9 +517,6 @@ typedef struct jpq_struct {
 
 void js_psend(jsmi si, jpacket p, mtq_callback f); /* sends p to a function */
 
-#ifdef INCLUDE_LEGACY
-void js_bounce(jsmi si, xmlnode x, terror terr); /* logic to bounce packets w/o looping, eats x and delivers error */
-#endif
 void js_bounce_xmpp(jsmi si, xmlnode x, xterror xterr); /* logic to bounce packets w/o looping, eats x and delivers error */
 
 void js_mapi_register(jsmi si, event e, mcall c, void *arg);

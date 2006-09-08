@@ -6,7 +6,7 @@ AC_PREREQ(2.50)
 
 
 AC_INIT(jabberd/jabberd.h)
-AM_INIT_AUTOMAKE(jabberd14,1.5.0-alpha-20060907)
+AM_INIT_AUTOMAKE(jabberd14,1.5.0-alpha-20060908)
 AM_CONFIG_HEADER(config.h)
 
 dnl version info for libraries
@@ -28,17 +28,6 @@ if test x-$developer = "x-yes" ; then
 else
     AC_MSG_RESULT(no)
 fi
-
-dnl check if code that is only present to suport legacy extensions should be included
-AC_MSG_CHECKING(if legacy extensions should be included)
-AC_ARG_ENABLE(legacy, AC_HELP_STRING([--enable-legacy], [Legacy extensions]), legacy=yes)
-if test x-$legacy = "x-yes" ; then
-    AC_MSG_RESULT(yes)
-    AC_DEFINE(INCLUDE_LEGACY, 1, [include code for legacy extensions])
-else
-    AC_MSG_RESULT(no)
-fi
-
 
 dnl Check for programs
 AC_PROG_CC
@@ -410,40 +399,5 @@ AC_OUTPUT(Makefile \
 	  pthsock/Makefile \
 	  xdb_file/Makefile \
 	  xdb_sql/Makefile)
-
-dnl
-dnl generate the platform-settings file, that is used by some legacy components
-dnl removed this part as soon as we do not need it anymore!
-dnl
-if test x-$legacy = "x-yes" ; then
-    printf "configure: creating ./platform-settings for legacy components\n"
-
-    case $host_os in
-	cygwin*)
-	    __CYGWIN__="1"
-	    ;;
-    esac
-
-    cat << EOF > platform-settings
-#! /bin/sh
-
-# This file is not used by jabberd itself at all
-# it is used by jabberd14 components that use the old build environment
-# known for this are: yahoo-transport, mu-conference, smtp-transport
-# we will stop to generate this file as soon as these components do not
-# need this file anymore.
-
-CC=$CC
-CFLAGS=$CFLAGS
-CCFLAGS=$CFLAGS
-LDFLAGS=$LDFLAGS
-LIBS=$LIBS
-__CYGWIN__=$__CYGWIN__
-
-# traditionally there have been other variables in this file too
-# it seems that they are not used by the above mentioned components
-EOF
-    chmod 0700 platform-settings
-fi
 
 printf "\nYou may now type 'make' to build your new Jabber system.\nType 'make install' to install then.\n"

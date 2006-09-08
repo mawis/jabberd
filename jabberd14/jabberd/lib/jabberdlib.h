@@ -156,9 +156,6 @@ int pool_size(pool p); /* returns total bytes allocated in this pool */
 #ifndef WIN32
 int make_netsocket(u_short port, char *host, int type);
 struct in_addr *make_addr(char *host);
-#ifdef INCLUDE_LEGACY
-int set_fd_close_on_exec(int fd, int flag);
-#endif
 #ifdef WITH_IPV6
 struct in6_addr *make_addr_ipv6(char *host);
 #endif
@@ -243,29 +240,6 @@ void xhash_zap(xht h, const char *key);
 void xhash_free(xht h);
 typedef void (*xhash_walker)(xht h, const char *key, void *val, void *arg);
 void xhash_walk(xht h, xhash_walker w, void *arg);
-
-/* --------------------------------------------------------- */
-/*                                                           */
-/* DEPRECIATED Hashtable functions                           */
-/*                                                           */
-/* --------------------------------------------------------- */
-#ifdef INCLUDE_LEGACY
-typedef int (*KEYHASHFUNC)(const void *key);
-typedef int (*KEYCOMPAREFUNC)(const void *key1, const void *key2);
-typedef int (*TABLEWALKFUNC)(void *user_data, const void *key, void *data);
-
-typedef void *HASHTABLE;
-
-HASHTABLE ghash_create(int buckets, KEYHASHFUNC hash, KEYCOMPAREFUNC cmp);
-HASHTABLE ghash_create_pool(pool p, int buckets, KEYHASHFUNC hash, KEYCOMPAREFUNC cmp);
-void ghash_destroy(HASHTABLE tbl);
-void *ghash_get(HASHTABLE tbl, const void *key);
-int ghash_put(HASHTABLE tbl, const void *key, void *value);
-int ghash_remove(HASHTABLE tbl, const void *key);
-int ghash_walk(HASHTABLE tbl, TABLEWALKFUNC func, void *user_data);
-int str_hash_code(const char *s);
-#endif
-
 
 /* --------------------------------------------------------- */
 /*                                                           */
@@ -637,30 +611,6 @@ int     jpacket_subtype(jpacket p); /* Returns the subtype value (looks at xmlno
 
 /* --------------------------------------------------------- */
 /*                                                           */
-/* Presence Proxy DB structures & constants                  */
-/*                                                           */
-/* --------------------------------------------------------- */
-#ifdef INCLUDE_LEGACY
-typedef struct ppdb_struct
-{			      
-    jid     id;		       /* entry data */
-    int     pri;
-    xmlnode x;
-    struct ppdb_struct* user;  /* linked list for user@server */
-    pool                p;     /* db-level data */
-    struct ppdb_struct* next;
-} _ppdb, *ppdb;
-
-ppdb    ppdb_insert(ppdb db, jid id, xmlnode x); /* Inserts presence into the proxy */
-xmlnode ppdb_primary(ppdb db, jid id);		 /* Fetches the matching primary presence for the id */
-void    ppdb_free(ppdb db);			 /* Frees the db and all entries */
-xmlnode ppdb_get(ppdb db, jid id);		 /* Called successively to return each presence xmlnode */
-						 /*   for the id and children, returns NULL at the end */
-#endif
-
-
-/* --------------------------------------------------------- */
-/*                                                           */
 /* Simple Jabber Rate limit functions                        */
 /*                                                           */
 /* --------------------------------------------------------- */
@@ -872,9 +822,6 @@ xmlnode jutil_presnew(int type, char *to, char *status); /* Create a skeleton pr
 xmlnode jutil_iqnew(int type, char *ns);		 /* Create a skeleton iq packet */
 xmlnode jutil_msgnew(char *type, char *to, char *subj, char *body);
 							 /* Create a skeleton message packet */
-#ifdef INCLUDE_LEGACY
-xmlnode jutil_header(char* xmlns, char* server);	 /* Create a skeleton stream packet */
-#endif
 int     jutil_priority(xmlnode x);			 /* Determine priority of this packet */
 void    jutil_tofrom(xmlnode x);			 /* Swaps to/from fields on a packet */
 xmlnode jutil_iqresult(xmlnode x);			 /* Generate a skeleton iq/result, given a iq/query */
