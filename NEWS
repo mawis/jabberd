@@ -32,6 +32,11 @@ Changes in administration of the server
     * The session manager of jabberd14 can no be restarted without users
       sessions being dropped. This allows reconfiguring of the session manager
       while it is serving users.
+    * The list of online users has to be fetched using service discovery
+      instead of browsing now.
+    * Removed support for the jabber:iq:admin namespace.
+    * Disabled support for the jabber:iq:agent and jabber:iq:agents in the
+      default configuration file.
 
 Changes in features visible to the user
     * Support for Flexible Offline Message Retrieval (JEP-0013)
