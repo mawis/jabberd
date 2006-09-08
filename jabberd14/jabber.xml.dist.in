@@ -62,7 +62,7 @@
       <!-- The server vCard -->
 
       <vCard xmlns='vcard-temp'>
-        <FN>Jabber Server</FN>
+        <FN>jabberd14 server</FN>
         <DESC>A Jabber Server!</DESC>
         <URL>http://localhost/</URL>
       </vCard>
@@ -199,18 +199,15 @@
       <!--
       "Service Discovery" (disco, JEP-0030) supersedes
       "Jabber Browsing" (JEP-0011).
-      The <disco/> section is used for building the disco#info reply.
+      The <identity/> element inside the <disco/> section can be used
+      to configure a special identity result for the server. If
+      not present, the name is fetched from the server's vCard.
       -->
+      <!--
       <disco xmlns='http://jabber.org/protocol/disco#info'>
-        <identity category='server' type='im' name='jabberd14 server'/>
-        <feature var='jabber:iq:browse'/>
-        <feature var='jabber:iq:register'/>
-        <feature var='jabber:iq:time'/>
-        <feature var='jabber:iq:last'/>
-        <feature var='jabber:iq:version'/>
-	<feature var='http://jabber.org/protocol/offline'/>
-	<feature var='msgoffline'/>
+	<identity category='server' type='im' name='jabberd14 server'/>
       </disco>
+      -->
 
       <!--
       Select the hashing algorithm that mod_auth_crypt uses

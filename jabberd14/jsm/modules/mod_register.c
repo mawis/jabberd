@@ -62,7 +62,7 @@
  * @param arg unused/ignored
  * @return M_PASS if registration is not allowed, or iq not of type set or get, M_HANDLED else
  */
-mreturn mod_register_new(mapi m, void *arg) {
+static mreturn mod_register_new(mapi m, void *arg) {
     xmlnode reg, x;
 
     if ((reg = js_config(m->si, "register:register")) == NULL)
@@ -144,17 +144,12 @@ mreturn mod_register_new(mapi m, void *arg) {
  * the account.
  *
  * @param m the mapi structure
- * @param arg unused/ignored
  * @return M_IGNORE if stanza is not of type iq, M_PASS if stanza has not been handled, M_HANDLED if stanza has been handled
  */
-mreturn mod_register_server(mapi m, void *arg) {
+static mreturn _mod_register_server_register(mapi m) {
     xmlnode reg, cur, check;
 
     /* pre-requisites */
-    if (m->packet->type != JPACKET_IQ)
-	return M_IGNORE;
-    if (!NSCHECK(m->packet->iq,NS_REGISTER))
-	return M_PASS;
     if (m->user == NULL)
 	return M_PASS;
 
@@ -230,11 +225,61 @@ mreturn mod_register_server(mapi m, void *arg) {
  * @param arg unused/ignored
  * @return always M_PASS
  */
-mreturn mod_register_delete(mapi m, void *arg) {
+static mreturn mod_register_delete(mapi m, void *arg) {
     xdb_set(m->si->xc, m->user->id, NS_REGISTER, NULL);
     return M_PASS;
 }
 
+/**
+ * handle disco info query to the server address, add our feature
+ */
+static mreturn _mod_register_disco_info(mapi m) {
+    xmlnode feature = NULL;
+
+    /* only no node, only get */
+    if (jpacket_subtype(m->packet) != JPACKET__GET)
+	return M_PASS;
+    if (xmlnode_get_attrib_ns(m->packet->iq, "node", NULL) != NULL)
+	return M_PASS;
+
+    /* build the result IQ */
+    js_mapi_create_additional_iq_result(m, "query", NULL, NS_DISCO_INFO);
+    if (m->additional_result == NULL || m->additional_result->iq == NULL)
+	return M_PASS;
+
+    /* add features */
+    feature = xmlnode_insert_tag_ns(m->additional_result->iq, "feature", NULL, NS_DISCO_INFO);
+    xmlnode_put_attrib_ns(feature, "var", NULL, NULL, NS_REGISTER);
+
+    return M_PASS;
+}
+
+/**
+ * handle iq packets to the server address
+ *
+ * @param m the mapi_struct containing the request
+ * @param arg unused/ignored
+ * @return M_IGNORE if no iq request, M_HANDLED or M_PASS else
+ */
+static mreturn _mod_register_iq_server(mapi m, void *arg) {
+    /* sanity check */
+    if (m == NULL || m->packet == NULL)
+	return M_PASS;
+
+    /* only handle iq packets */
+    if (m->packet->type != JPACKET_IQ)
+	return M_IGNORE;
+
+    /* version request? */
+    if (NSCHECK(m->packet->iq, NS_REGISTER))
+	return _mod_register_server_register(m);
+
+    /* disco#info query? */
+    if (NSCHECK(m->packet->iq, NS_DISCO_INFO))
+	return _mod_register_disco_info(m);
+
+    return M_PASS;
+}
 
 /**
  * init the module, register callbacks
@@ -247,6 +292,6 @@ mreturn mod_register_delete(mapi m, void *arg) {
 void mod_register(jsmi si) {
     log_debug2(ZONE, LOGT_INIT, "init");
     js_mapi_register(si, e_REGISTER, mod_register_new, NULL);
-    js_mapi_register(si, e_SERVER, mod_register_server, NULL);
+    js_mapi_register(si, e_SERVER, _mod_register_iq_server, NULL);
     js_mapi_register(si, e_DELETE, mod_register_delete, NULL);
 }

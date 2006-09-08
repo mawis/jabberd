@@ -396,6 +396,7 @@ typedef struct mapi_struct {
     udata user;		/**< the user this event is related to (if any) */
     session s;		/**< the session this event is realted to (if any) */
     xmlnode serialization_node; /**< xmlnode for a session for es_SERIALIZE and es_DESERIALIZE events */
+    jpacket additional_result; /**< modules can create a result, that will be returned after all modules are called. Useful for co-generating a result */
 } *mapi, _mapi;
 
 /** prototype of a callback function to register with the MAPI */
@@ -523,6 +524,7 @@ void js_mapi_register(jsmi si, event e, mcall c, void *arg);
 void js_mapi_session(event e, session s, mcall c, void *arg);
 int js_mapi_call(jsmi si, event e, jpacket packet, udata user, session s);
 int js_mapi_call2(jsmi si, event e, jpacket packet, udata user, session s, xmlnode serialization_node);
+void js_mapi_create_additional_iq_result(mapi m, const char* name, const char *prefix, const char *ns_iri);
 
 void js_authreg(void *arg);
 
