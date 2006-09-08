@@ -82,26 +82,6 @@ void js_bounce_xmpp(jsmi si, xmlnode x, xterror xterr) {
 
 }
 
-#ifdef INCLUDE_LEGACY
-/**
- * generate an error packet, that bounces a packet back to the server - using a legacy/pre-xmpp reason
- *
- * This function mapps the legacy/pre-xmpp reason to a xmpp-style reasond and calls js_bounce_xmpp() with that.
- *
- * @param si the session manager instance
- * @param x the xmlnode that generated the bounce
- * @param terr the error code describing the reason for the bounce
- */
-void js_bounce(jsmi si, xmlnode x, terror terr)
-{
-    xterror xterr;
-
-    jutil_error_map(terr, &xterr);
-    js_bounce_xmpp(si, x, xterr);
-}
-#endif
-
-
 /**
  * get a configuration node inside the session manager configuration
  *
