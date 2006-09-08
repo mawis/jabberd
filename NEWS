@@ -40,6 +40,9 @@ Changes in administration of the server
     * Removed support for the jabber:iq:filter namespace (which had already
       been disabled in the default configuration of jabberd14 1.4.4).
     * Removed the mod_groups module.
+    * jabberd14 automatically generates the list of supported features for
+      a reply to a service discovery request. There is no need anymore to
+      configure a disco result in the configuration file.
 
 Changes in features visible to the user
     * Support for Flexible Offline Message Retrieval (JEP-0013)

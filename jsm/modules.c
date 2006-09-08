@@ -119,6 +119,62 @@ void js_mapi_session(event e, session s, mcall c, void *arg)
 }
 
 /**
+ * create an additiona_result element in the mapi structure
+ *
+ * checks if there is already an additional result in the mapi structure, if not, it generates an iq result for the current query in the
+ * packet inside the mapi strucutre (needs to by an iq query of type get or set).
+ *
+ * If name, prefix, and ns_iri is not NULL, an element in inserted in the iq result having this data.
+ *
+ * @param m the mapi structure
+ * @param name the local name of the element contained in the iq result
+ * @param prefix the prefix of the element contained in the iq result
+ * @param ns_iri the namespace iri of the element contained in the iq result
+ */
+void js_mapi_create_additional_iq_result(mapi m, const char* name, const char *prefix, const char *ns_iri) {
+    /* do nothing, if the result already exists */
+    if (m->additional_result != NULL)
+	return;
+
+    /* only generate for iq requests */
+    if (m->packet->type != JPACKET_IQ || jpacket_subtype(m->packet) != JPACKET__GET && jpacket_subtype(m->packet) != JPACKET__SET)
+	return;
+
+    /* create the new packet */
+    m->additional_result = jpacket_new(jutil_iqresult(xmlnode_dup(m->packet->x)));
+
+    /* insert element in the result? */
+    if (name != NULL) {
+	m->additional_result->iq = xmlnode_insert_tag_ns(m->additional_result->x, name, prefix, ns_iri);
+    }
+}
+
+/**
+ * check if the modules generated an additional result
+ *
+ * To let several modules generate a common result, mapi has been enhanced with the additional_result
+ * element. Modules can create a result there, which jsm will return after having called all modules.
+ * This function checks if such a result has been created by the modules, and sends the result.
+ *
+ * @note Other than modules, that have to free the packet, that they processed, if the return, that
+ * they handle the packet (usually this is just done by sending the packet back as a result). This
+ * function will never free the packet inside the mapi structure!
+ *
+ * @param m the mapi structure, that has been used for the module calles
+ * @return 1 if a result has been sent, 0 else
+ */
+static int _js_mapi_process_additional_result(mapi m) {
+    /* is there an additional result to send back? */
+    if (m->additional_result == NULL)
+	return 0;
+
+    /* yes: create packet and send */
+    jpacket_reset(m->additional_result);
+    js_deliver(m->si, m->additional_result);
+    return 1;
+}
+
+/**
  * call all the module callbacks for a phase
  *
  * Addes callbacks to the ignore mask for a given packet type if they return M_IGNORE.
@@ -170,6 +226,7 @@ int js_mapi_call2(jsmi si, event e, jpacket packet, udata user, session s, xmlno
     m.user = user;
     m.s = s;
     m.serialization_node = serialization_node;
+    m.additional_result = NULL;
 
     /* traverse the list of call backs */
     for (;l != NULL; l = l->next) {
@@ -187,6 +244,7 @@ int js_mapi_call2(jsmi si, event e, jpacket packet, udata user, session s, xmlno
 		break;
 	    /* this module handled the packet */
 	    case M_HANDLED:
+		_js_mapi_process_additional_result(&m);
 		return 1;
 	    default:
 		;
@@ -194,6 +252,12 @@ int js_mapi_call2(jsmi si, event e, jpacket packet, udata user, session s, xmlno
     }
 
     log_debug2(ZONE, LOGT_EXECFLOW, "mapi_call returning unhandled");
+
+    /* did the modules generate a co-generated result? */
+    if (_js_mapi_process_additional_result(&m)) {
+	xmlnode_free(m.packet->x);
+	return 1;
+    }
 
     /* if we got here, no module handled the packet */
     return 0;
