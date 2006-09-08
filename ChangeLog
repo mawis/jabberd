@@ -1,3 +1,17 @@
+2006-09-08  Matthias Wimmer  <m@tthias.eu>
+
+    * jabberd/lib/pproxy.c: removing legacy code
+    * jabberd/lib/genhash.c: same
+    * jabberd/lib/jabberdlib.h: same
+    * jabberd/lib/jutil.c: same
+    * jabberd/lib/socket.c: same
+    * jsm/jsm.h: same
+    * jsm/util.c: same
+    * jsm/modules/mod_admin.c: moving admin functionality slowly from browse
+	to disco
+    * jsm/modules/mod_browse.c: same
+    * jsm/modules/mod_disco.c: same
+
 2006-09-07  Matthias Wimmer  <m@tthias.eu>
 
     * xdb_sql/xdb_sql.cc: converting xdb_sql.c to C++, using sstream
