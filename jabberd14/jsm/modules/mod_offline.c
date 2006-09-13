@@ -770,9 +770,9 @@ void mod_offline(jsmi si) {
 	/* default is to store all types */
 	conf->store_type_normal = 1;
 	conf->store_type_chat = 1;
-	conf->store_type_headline = 1;
-	conf->store_type_groupchat = 1;
-	conf->store_type_error = 1;
+	conf->store_type_headline = 0;
+	conf->store_type_groupchat = 0;
+	conf->store_type_error = 0;
     } else {
 	conf->store_type_normal = xmlnode_get_list_item(xmlnode_get_tags(cfg, "jsm:normal", si->std_namespace_prefixes), 0) == NULL ? 0 : 1;
 	conf->store_type_chat = xmlnode_get_list_item(xmlnode_get_tags(cfg, "jsm:chat", si->std_namespace_prefixes), 0) == NULL ? 0 : 1;

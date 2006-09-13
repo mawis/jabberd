@@ -1,3 +1,8 @@
+2006-09-09  Matthias Wimmer  <m@tthias.eu>
+
+    * jsm/modules/mod_offline.c: by default not storing headline and groupchat
+	messages offline.
+
 2006-09-08  Matthias Wimmer  <m@tthias.eu>
 
     * jabberd/lib/pproxy.c: removing legacy code
