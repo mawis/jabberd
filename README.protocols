@@ -30,6 +30,17 @@ JEP-0093	Agent Information			supported
 JEP-0114	Jabber Component Protocol		supported
 JEP-0124	HTTP Binding				-
 JEP-0133	Service Administration			-
+JEP-0136	Message Archiving			-
+JEP-0138	Stream Compression			-
+JEP-0142	Workgroups				-
+JEP-0150	Use of Entity Tags in XMPP Extensions	-
+JEP-0154	User Profile				-
+JEP-0157	Contact Addresses for XMPP Services	supported
+JEP-0160	Best Practices for Handling Offline
+		Messages				supported
+JEP-0170	Recommended Order of Stream Feature
+		Negotiation				supported
+JEP-0175	Best Practices of Use of SASL ANONYMOUS	-
 
 
 Additional features supported by jabberd 1.4.5-alpha (without plugins):
