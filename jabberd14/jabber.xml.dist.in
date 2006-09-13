@@ -272,10 +272,10 @@
       Configuration of mod_offline. This defines which types of messages
       should be stored offline, if a user has no active connection
       and new messages are received.
-      The default if there is no mod_offline element is to store all
-      messages, if there is a mod_offline element, only the configured
-      types are stored. To disable offline storage place an empty
-      mod_offline element here.
+      The default if there is no mod_offline element is to store
+      normal and chat messages offline. If there is a mod_offline element,
+      only the configured types are stored. To disable offline storage
+      place an empty mod_offline element here.
       -->
       <!--
       <mod_offline>
@@ -303,6 +303,7 @@
 	<forbidden>support</forbidden>
 	<forbidden>system</forbidden>
 	<forbidden>webmaster</forbidden>
+	<forbidden>xmpp</forbidden>
 	<!-- minimum and maximum length of usernames that can be registered -->
 	<minlen>3</minlen>
 	<maxlen>16</maxlen>
