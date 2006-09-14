@@ -444,6 +444,8 @@ static int instance_startup(xmlnode x, int exec) {
         return 0;
     if(j_strcmp(xmlnode_get_name(x), "debug") == 0)
 	return 0;
+    if (j_strcmp(xmlnode_get_name(x), "global") == 0)
+	return 0;
 
     if(j_strcmp(xmlnode_get_name(x), "log") == 0)
         type = p_LOG;

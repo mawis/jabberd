@@ -369,10 +369,9 @@ typedef int event;
 #define es_LAST    4  /**< flag for the highest session event type */
 
 /* admin user account flags */
-#define ADMIN_UNKNOWN   0x00	/**< it has not yet checked if the user is an admin */
-#define ADMIN_NONE      0x01	/**< the user has no admin rights */
-#define ADMIN_READ      0x02	/**< the user has read admin rights */
-#define ADMIN_WRITE     0x04	/**< the user has write admin rights */
+#define ADMIN_MOTD	"motd"		/**< admin right to set/update/delete the message of the day */
+#define ADMIN_LISTSESSIONS "listsessions"	/**< admin right to see online users */
+#define ADMIN_ADMINMSG	"adminmsg"	/**< admin right to receive messages to admin address */
 
 /** return codes for mapi callback calls */
 typedef enum {
@@ -448,7 +447,9 @@ struct udata_struct
     /* this variable is only incremented and decremented, but never used => removed
     int scount; */               /**< the number of sessions associated to this user (w/ different JID ressource parts) */
     int ref;                   /**< reference counter */
-    int admin;                 /**< 1 if the user is configured to be an admin. Do not access directly, use js_admin() instead. */
+    /* not used, we have acl.c now
+    int admin;
+    */
     pool p;
     /* this variable is not used at all => removed
     struct udata_struct *next;
@@ -528,7 +529,9 @@ void js_mapi_create_additional_iq_result(mapi m, const char* name, const char *p
 
 void js_authreg(void *arg);
 
+/* we have acl.c now
 int js_admin(udata u, int flag);
+*/
 
 result js_packet(instance i, dpacket p, void *arg);
 int js_islocal(jsmi si, jid id);
