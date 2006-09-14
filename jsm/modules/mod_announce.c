@@ -184,7 +184,7 @@ mreturn mod_announce_dispatch(mapi m, void *arg) {
     log_debug2(ZONE, LOGT_DELIVER, "handling announce message from %s",jid_full(m->packet->from));
 
     /* if he is, process the message */
-    if (js_admin(m->user, ADMIN_WRITE)) {
+    if (acl_check_access(m->si->xc, ADMIN_MOTD, m->packet->from)) {
         if (j_strncmp(m->packet->to->resource,"announce/online",15) == 0)
 	    return mod_announce_avail(m->si, m->packet);
         if (j_strncmp(m->packet->to->resource,"announce/motd",13) == 0)

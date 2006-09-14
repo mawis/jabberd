@@ -59,6 +59,11 @@ The following functionality has been removed from jabberd14:
 mod_filter, and mod_groups. Please remove them from your session manager
 configuration.
 
+Access control settings have been changed. They are no longer inside
+the <admin/> element of the session manager configuration, but inside
+the <global/> section of the configuration file. You have to update
+your configuration file, to keep having accounts with admin access.
+
 
 Upgrading from 1.4.3(.1) to 1.4.4
 ---------------------------------

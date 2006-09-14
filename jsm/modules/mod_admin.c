@@ -161,7 +161,7 @@ mreturn mod_admin_dispatch(mapi m, void *arg) {
 
     /* check disco node 'online users' feature */
     if (NSCHECK(m->packet->iq, NS_DISCO_INFO) && j_strcmp(xmlnode_get_attrib_ns(m->packet->iq, "node", NULL), "online users") == 0 && jpacket_subtype(m->packet) == JPACKET__GET) {
-	if (js_admin(m->user, ADMIN_READ))
+	if (acl_check_access(m->si->xc, ADMIN_LISTSESSIONS, m->packet->from))
 	    _mod_admin_disco_online_info(m->si, m->packet);
 	else
 	    js_bounce_xmpp(m->si, m->packet->x, XTERROR_NOTALLOWED);
@@ -169,7 +169,7 @@ mreturn mod_admin_dispatch(mapi m, void *arg) {
     }
     if (NSCHECK(m->packet->iq, NS_DISCO_ITEMS) && j_strcmp(xmlnode_get_attrib_ns(m->packet->iq, "node", NULL), "online users") == 0 && jpacket_subtype(m->packet) == JPACKET__GET) {
 	log_notice(NULL, "we got a disco items online users request");
-	if (js_admin(m->user, ADMIN_READ))
+	if (acl_check_access(m->si->xc, ADMIN_LISTSESSIONS, m->packet->from))
 	    _mod_admin_disco_online_items(m->si, m->packet);
 	else
 	    js_bounce_xmpp(m->si, m->packet->x, XTERROR_NOTALLOWED);
@@ -199,6 +199,8 @@ mreturn mod_admin_message(mapi m, void *arg) {
     char *subject;
     const char *element_name;
     static char jidlist[1024] = "";
+    jid admins = NULL;
+    jid admin_iter = NULL;
 
     /* check if we are interested in handling this packet */
     if (m->packet->type != JPACKET_MESSAGE)
@@ -220,16 +222,13 @@ mreturn mod_admin_message(mapi m, void *arg) {
     xmlnode_insert_cdata(xmlnode_insert_tag_ns(m->packet->x, "subject", NULL, NS_SERVER), subject, -1);
     jutil_delay(m->packet->x, "admin");
 
-    /* forward the message to every configured admin (either read-only- or read-/write-admins) */
-    for (cur = xmlnode_get_firstchild(js_config(m->si, "jsm:admin")); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
-	element_name = xmlnode_get_localname(cur);
-        if(element_name == NULL || (j_strcmp(element_name, "read")!=0 && j_strcmp(element_name, "write")!=0) || xmlnode_get_data(cur) == NULL || j_strcmp(xmlnode_get_namespace(cur), NS_JABBERD_CONFIG_JSM) != 0)
-	continue;
-
-        p = jpacket_new(xmlnode_dup(m->packet->x));
-        p->to = jid_new(p->p,xmlnode_get_data(cur));
-        xmlnode_put_attrib_ns(p->x, "to", NULL, NULL, jid_full(p->to));
-        js_deliver(m->si,p);
+    /* forward the message to every configured admin */
+    admins = acl_get_users(m->si->xc, ADMIN_ADMINMSG);
+    for (admin_iter = admins; admin_iter != NULL; admin_iter = admin_iter->next) {
+	p = jpacket_new(xmlnode_dup(m->packet->x));
+	p->to = jid_new(p->p, jid_full(admin_iter));
+	xmlnode_put_attrib_ns(p->x, "to", NULL, NULL, jid_full(p->to));
+	js_deliver(m->si, p);
     }
 
     /* reply, but only if we haven't in the last few or so jids */

@@ -116,13 +116,14 @@ int js_islocal(jsmi si, jid id) {
     return 1;
 }
 
-/**
+/* *
  * macro to validate a user as an admin
  *
  * @param u the udata structure of the user
  * @param flag for which right we want to check ADMIN_READ or ADMIN_WRITE
  * @return 1 if the user has the queried admin right, 0 if not
  */
+/*
 int js_admin(udata u, int flag) {
     static xht namespaces = NULL;
 
@@ -164,6 +165,7 @@ int js_admin(udata u, int flag) {
 
     return 0;
 }
+*/
 
 /**
  * get the list of jids, that are subscribed to a given user, and the jids a given user is subscribed to

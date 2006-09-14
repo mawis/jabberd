@@ -799,6 +799,7 @@ typedef struct xterror_struct
 #define NS_JABBERD_XDB "http://jabberd.org/ns/xdb"			/**< namespace for the root element used by xdb_file to store data in files */
 #define NS_JABBERD_WRAPPER "http://jabberd.org/ns/wrapper"		/**< namespace used to wrap various internal data */
 #define NS_JABBERD_XDBSQL "http://jabberd.org/ns/xdbsql"		/**< namespace for substitution in xdb_sql configuration */
+#define NS_JABBERD_ACL "http://jabberd.org/ns/acl"			/**< namespace for access control lists */
 
 #define NS_SESSION "http://jabberd.jabberstudio.org/ns/session/1.0"	/**< namespace of the jabberd2 session control protocol (http://jabberd.jabberstudio.org/dev/docs/session.shtml) */
 
