@@ -1,3 +1,15 @@
+2006-09-13  Matthias Wimmer  <m@tthias.eu>
+
+    * jsm/jsm.h: ACL support to configure admin access
+    * jsm/modules/mod_disco.c: same
+    * jsm/modules/mod_announce.c: same
+    * jsm/modules/mod_admin.c: same
+    * jsm/util.c: same
+    * jabberd/jabberd.h: same
+    * jabberd/acl.c: same
+    * jabberd/config.c: same
+    * jabberd/lib/jabberdlib.h: same
+
 2006-09-09  Matthias Wimmer  <m@tthias.eu>
 
     * jsm/modules/mod_offline.c: by default not storing headline and groupchat

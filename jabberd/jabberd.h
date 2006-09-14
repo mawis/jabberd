@@ -524,6 +524,13 @@ mio mio_listen(int port, char *sourceip, void *cb, void *cb_arg, mio_handlers mh
 #define mio_ip(m) (m ? m->peer_ip : NULL)
 #define mio_connect_errmsg(m) (m->connect_errmsg)
 
+/*-----------------
+ * Access controll 
+ *-----------------*/
+
+int acl_check_access(xdbcache xdb, const char *function, const jid user);
+jid acl_get_users(xdbcache xdb, const char *function);
+
 #ifdef __cplusplus
 }
 #endif

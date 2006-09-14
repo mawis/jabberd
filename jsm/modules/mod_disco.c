@@ -139,7 +139,7 @@ mreturn mod_disco_server_items(mapi m, void *arg) {
   }
 
   /* list the admin stuff */
-  if (js_admin(m->user, ADMIN_READ)) {
+  if (acl_check_access(m->si->xc, ADMIN_LISTSESSIONS, m->packet->from)) {
     xmlnode item = NULL;
     item = xmlnode_insert_tag_ns(query, "item", NULL, NS_DISCO_ITEMS);
     xmlnode_put_attrib_ns(item, "jid", NULL, NULL, jid_full(m->packet->to));

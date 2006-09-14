@@ -94,29 +94,6 @@
       </welcome>
 
       <!-- 
-      IDs with admin access - these people will receive admin 
-      messages (any message to="yourhostname" is an admin
-      message).  These addresses must be local ids, they cannot
-      be remote addresses.
-
-      Note that they can also send announcements to all
-      users of the server, or to all online users. To use
-      the announcement feature, you need to send raw xml and be
-      logged in as one of the admin users. Here is the syntax 
-      for sending an announcement to online users:
-
-        <message to="yourhostname/announce/online">
-          <body>announcement here</body>
-        </message>
-
-        <message to="yourhostname/announce/motd">
-          <body>message (of the day) that is sent only once to all users that are logged in and additionally to new ones as they log in</body>
-        </message>
-
-      Sending to /announce/motd/delete will remove any existing
-      motd, and to /announce/motd/update will only update the motd
-      without re-announcing to all logged in users.
-
       The <reply> will be the message that is automatically
       sent in response to any admin messages.
       You can add additional <body/>, and <subject/> elements containing
@@ -126,9 +103,6 @@
 
       <!--
       <admin>
-        <read>support@localhost</read>
-        <write>admin@localhost</write>
-	<write-only>admin2@localhost</write-only>
         <reply xml:lang='en' xmlns='jabber:server'>
           <subject>Auto Reply</subject>
           <body>This is a special administrative address.  Your message was received and forwarded to server administrators.</body>
@@ -969,6 +943,13 @@
     -->
 
     <!--
+    Bind to a specific IP address for outgoing connections.
+    -->
+    <!--
+    <bind>192.0.2.55</bind>
+    -->
+
+    <!--
     The following section is used to configure
     stream behaviour for individual streams
     -->
@@ -988,6 +969,61 @@
     <bounce>http://www.example.com/</bounce>
 
   </io>
+
+  <!--
+  Global configuration settings, affect a complete jabberd14 process
+  -->
+  <global>
+
+      <!-- Define access control lists. You can grant access to some -->
+      <!-- functionality of the server only to selected users.       -->
+      <!-- To give a user access to a feature, place is JID inside   -->
+      <!-- a jid element inside the relevant grant group.            -->
+      <!-- The feature, that is controlled by a grant group is       -->
+      <!-- selected using the feature attribute of the grant         -->
+      <!-- element. A grant element with no feature attribute gives  -->
+      <!-- the users inside access to all features.                  -->
+      <!--                                                           -->
+      <!-- Currently defined features are:                           -->
+      <!-- 'motd': Set and change the message of the day             -->
+      <!-- 'listsessions': Get the list of active sessions           -->
+      <!-- 'adminmsg': Receive messages, that are sent to the        -->
+      <!-- admin address of the server (i.e. just the domain name)   -->
+      <!--                                                           -->
+      <!-- Setting and changing the message of the day works like    -->
+      <!-- that: You need to send a message to one of the following  -->
+      <!-- addresses:                                                -->
+      <!-- <message to='yourhostname/announce/online'>               -->
+      <!--   <body>announcement here</body>                          -->
+      <!-- </message>                                                -->
+      <!-- <message to='yourhostname/announce/motd'>                 -->
+      <!--   <body>message (of the day) that is sent only once to    -->
+      <!--      all users that are logged in and additionally to new -->
+      <!--      ones as they log in</body>                           -->
+      <!-- </message>                                                -->
+      <!--                                                           -->
+      <!-- Sending to yourhostname/announce/motd/delete will remove  -->
+      <!-- any existing motd, and to                                 -->
+      <!-- yourhostname/announce/motd/update will only update the    -->
+      <!-- motd without re-announcing to all logged in users.        -->
+
+      <!--
+      <acl xmlns='http://jabberd.org/ns/acl'>
+	  <grant feature='motd'>
+	      <jid>xmpp@localhost</jid>
+	  </grant>
+	  <grant feature='listsessions'>
+	      <jid>administrator@localhost</jid>
+	  </grant>
+	  <grant feature='adminmsg'>
+	      <jid>xmpp@localhost</jid>
+	  </grant>
+	  <grant>
+	      <jid>admin@localhost</jid>
+	  </grant>
+      </acl>
+      -->
+  </global>
 
   <!--
   Debugging settings. You can change these settings while jabberd is running
