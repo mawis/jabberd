@@ -335,6 +335,82 @@ void dialback_ip_set(db d, jid host, char *ip)
 }
 
 /**
+ * handle an incoming disco info request
+ */
+void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query) {
+    const char *node = xmlnode_get_attrib_ns(query, "node", NULL);
+
+    /* we only reply get requests */
+    /* XXX deny set requests */
+    if (j_strcmp(xmlnode_get_attrib_ns(dp->x, "type", NULL), "get") != 0) {
+	xmlnode_free(dp->x);
+	return;
+    }
+
+    if (node == NULL) {
+	xmlnode result = NULL;
+	xmlnode x = NULL;
+
+	jutil_tofrom(dp->x);
+	xmlnode_put_attrib_ns(dp->x, "type", NULL, NULL, "result");
+	xmlnode_hide(query);
+	result = xmlnode_insert_tag_ns(dp->x, "query", NULL, NS_DISCO_INFO);
+
+	x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
+	xmlnode_put_attrib_ns(x, "category", NULL, NULL, "component");
+	xmlnode_put_attrib_ns(x, "type", NULL, NULL, "s2s");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "s2s component of " PACKAGE " " VERSION);
+
+	x = xmlnode_insert_tag_ns(result, "feature", NULL, NS_DISCO_INFO);
+	xmlnode_put_attrib_ns(x, "var", NULL, NULL, "xmllang");
+
+	x = xmlnode_insert_tag_ns(result, "feature", NULL, NS_DISCO_INFO);
+	xmlnode_put_attrib_ns(x, "var", NULL, NULL, "stringprep");
+
+#ifdef WITH_IPV6
+	x = xmlnode_insert_tag_ns(result, "feature", NULL, NS_DISCO_INFO);
+	xmlnode_put_attrib_ns(x, "var", NULL, NULL, "ipv6");
+#endif
+
+	/* send result */
+	deliver(dpacket_new(dp->x), d->i);
+	return;
+    }
+
+    xmlnode_free(dp->x);
+}
+
+/**
+ * handle an incoming disco items request
+ */
+void dialback_handle_discoitems(db d, dpacket dp, xmlnode query) {
+    const char *node = xmlnode_get_attrib_ns(query, "node", NULL);
+
+    /* we only reply get requests */
+    /* XXX deny set requests */
+    if (j_strcmp(xmlnode_get_attrib_ns(dp->x, "type", NULL), "get") != 0) {
+	xmlnode_free(dp->x);
+	return;
+    }
+
+    if (node == NULL) {
+	xmlnode result = NULL;
+	xmlnode x = NULL;
+
+	jutil_tofrom(dp->x);
+	xmlnode_put_attrib_ns(dp->x, "type", NULL, NULL, "result");
+	xmlnode_hide(query);
+	result = xmlnode_insert_tag_ns(dp->x, "query", NULL, NS_DISCO_ITEMS);
+
+	/* send result */
+	deliver(dpacket_new(dp->x), d->i);
+	return;
+    }
+
+    xmlnode_free(dp->x);
+}
+
+/**
  * phandler callback, send packets to another server
  *
  * This is where the dialback instance receives packets from the jabberd framework
@@ -344,14 +420,13 @@ void dialback_ip_set(db d, jid host, char *ip)
  * @param arg pointer to the db structure with the context of the dialback component instance
  * @return always r_DONE
  */
-result dialback_packets(instance i, dpacket dp, void *arg)
-{
+result dialback_packets(instance i, dpacket dp, void *arg) {
     db d = (db)arg;
     xmlnode x = dp->x;
     char *ip = NULL;
 
     /* routes are from dnsrv w/ the needed ip */
-    if(dp->type == p_ROUTE) {
+    if (dp->type == p_ROUTE) {
         x = xmlnode_get_firstchild(x);
         ip = xmlnode_get_attrib_ns(dp->x,"ip", NULL);
     }
@@ -359,12 +434,29 @@ result dialback_packets(instance i, dpacket dp, void *arg)
     /* all packets going to our "id" go to the incoming handler, 
      * it uses that id to send out db:verifies to other servers, 
      * and end up here when they bounce */
-    if(j_strcmp(xmlnode_get_attrib_ns(x, "to", NULL),d->i->id) == 0) {
+    if (j_strcmp(xmlnode_get_name(x), "verify") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_DIALBACK) == 0) {
         xmlnode_put_attrib_ns(x, "to", NULL, NULL, xmlnode_get_attrib_ns(x, "ofrom", NULL));
-        xmlnode_hide_attrib_ns(x,"ofrom", NULL); /* repair the addresses */
-	xmlnode_hide_attrib_ns(x,"dnsqueryby", NULL); /* not needed anymore */
+        xmlnode_hide_attrib_ns(x, "ofrom", NULL); /* repair the addresses */
+	xmlnode_hide_attrib_ns(x, "dnsqueryby", NULL); /* not needed anymore */
         dialback_in_verify(d, x);
         return r_DONE;
+    } else if (j_strcmp(xmlnode_get_attrib_ns(x, "to", NULL), d->i->id) == 0) {
+	xmlnode x2 = NULL;
+
+	/* some packets we do respond */
+	x2 = xmlnode_get_list_item(xmlnode_get_tags(x, "discoinfo:query", d->std_ns_prefixes), 0);
+	if (x2 != NULL) {
+	    dialback_handle_discoinfo(d, dp, x2);
+	    return r_DONE;
+	}
+	x2 = xmlnode_get_list_item(xmlnode_get_tags(x, "discoitems:query", d->std_ns_prefixes), 0);
+	if (x2 != NULL) {
+	    dialback_handle_discoitems(d, dp, x2);
+	    return r_DONE;
+	}
+
+	xmlnode_free(x);
+	return r_DONE;
     }
 
     dialback_out_packet(d, x, ip);
@@ -444,6 +536,8 @@ void dialback(instance i, xmlnode x)
     xhash_put(d->std_ns_prefixes, "tls", NS_XMPP_TLS);
     xhash_put(d->std_ns_prefixes, "sasl", NS_XMPP_SASL);
     xhash_put(d->std_ns_prefixes, "conf", NS_JABBERD_CONFIG_DIALBACK);
+    xhash_put(d->std_ns_prefixes, "discoinfo", NS_DISCO_INFO);
+    xhash_put(d->std_ns_prefixes, "discoitems", NS_DISCO_ITEMS);
 
     max = j_atoi(xmlnode_get_list_item_data(xmlnode_get_tags(cfg, "conf:maxhosts", d->std_ns_prefixes), 0), 997);
     d->nscache = xhash_new(max);
