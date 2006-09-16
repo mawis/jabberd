@@ -583,22 +583,26 @@ static void dialback_handle_discoitems(db d, dpacket dp, xmlnode query, jid to) 
 	_dialback_jid_with_xmlnode jx;
 	jx.x = result;
 	jx.id = jid_new(xmlnode_pool(result), d->i->id);
+	jid_set(jx.id, "out-established", JID_USER);
 	xhash_walk(d->out_ok_db, _dialback_walk_out_established, (void*)&jx);
     } else if (j_strcmp(to->user, "out-connecting") == 0 && to->resource == NULL) {
 	_dialback_jid_with_xmlnode jx;
 	jx.x = result;
 	jx.id = jid_new(xmlnode_pool(result), d->i->id);
-	xhash_walk(d->out_ok_db, _dialback_walk_out_connecting, (void*)&jx);
+	jid_set(jx.id, "out-connecting", JID_USER);
+	xhash_walk(d->out_connecting, _dialback_walk_out_connecting, (void*)&jx);
     } else if (j_strcmp(to->user, "in-established") == 0 && to->resource == NULL) {
 	_dialback_jid_with_xmlnode jx;
 	jx.x = result;
 	jx.id = jid_new(xmlnode_pool(result), d->i->id);
-	xhash_walk(d->out_ok_db, _dialback_walk_in_established, (void*)&jx);
+	jid_set(jx.id, "in-established", JID_USER);
+	xhash_walk(d->in_ok_db, _dialback_walk_in_established, (void*)&jx);
     } else if (j_strcmp(to->user, "in-connecting") == 0 && to->resource == NULL) {
 	_dialback_jid_with_xmlnode jx;
 	jx.x = result;
 	jx.id = jid_new(xmlnode_pool(result), d->i->id);
-	xhash_walk(d->out_ok_db, _dialback_walk_in_connecting, (void*)&jx);
+	jid_set(jx.id, "in-connecting", JID_USER);
+	xhash_walk(d->in_id, _dialback_walk_in_connecting, (void*)&jx);
     }
 
     /* send result */
