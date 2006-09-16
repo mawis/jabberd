@@ -1,3 +1,8 @@
+2006-09-16  Matthias Wimmer  <m@tthias.eu>
+
+    * dialback/dialback.c: show connections to administrators
+    * dialback/dialback.h: same
+
 2006-09-14  Matthias Wimmer  <m@tthias.eu>
 
     * dialback/dialback.c: initial service discovery support for dialback
