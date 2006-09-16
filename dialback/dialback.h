@@ -74,6 +74,7 @@ typedef struct db_struct
     int timeout_packets;/**< configuration option <queuetimeout/> */
     int timeout_idle;	/**< configuration option <idletimeout/> */
     xht std_ns_prefixes;/**< standard prefixes used inside the dialback component for xpath expressions */
+    xdbcache xc;	/**< pointer to the ::xdbcache_cache structure used to access the ACL and configuration */
 } *db, _db;
 
 /** wrap an mio and track the idle time of it */

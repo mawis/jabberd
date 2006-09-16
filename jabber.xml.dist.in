@@ -989,6 +989,7 @@
       <!-- 'listsessions': Get the list of active sessions           -->
       <!-- 'adminmsg': Receive messages, that are sent to the        -->
       <!-- admin address of the server (i.e. just the domain name)   -->
+      <!-- 's2s': read/change the status of the s2s component        -->
       <!--                                                           -->
       <!-- Setting and changing the message of the day works like    -->
       <!-- that: You need to send a message to one of the following  -->
