@@ -678,6 +678,38 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
 	xmlnode_put_attrib_ns(x, "name", NULL, NULL, to->resource);
+    } else if (s2s_right && j_strcmp(to->user, "in-connecting") == 0 && to->resource != NULL && node != NULL) {
+	dbic c = xhash_get(d->in_id, to->resource);
+
+	if (c == NULL) {
+	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
+	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
+	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, "-- connection gone or now established --");
+	} else if (j_strcmp(node, "ip") == 0) {
+	    char ip_str[128];
+
+	    if (c->m != NULL) {
+		snprintf(ip_str, sizeof(ip_str), "IP/port: local=%s;%d remote=%s;%d tls=%s", c->m->our_ip, c->m->our_port, c->m->peer_ip, c->m->peer_port, c->m->ssl == NULL ? "no" : "yes");
+	    } else {
+		snprintf(ip_str, sizeof(ip_str), "IP/port: no current connection");
+	    }
+
+	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
+	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
+	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, ip_str);
+	} else if (j_strcmp(node, "addresses") == 0) {
+	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
+	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
+	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), "Addresses: local=", c->we_domain, ", peer=", c->other_domain, xmlnode_pool(result)));
+	} else if (j_strcmp(node, "xmppversion") == 0) {
+	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
+	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
+	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, c->xmpp_version < 0 ? "XMPP version: unknown" : c->xmpp_version ? "XMPP version: 1.0" : "XMPP version: stone age");
+	}
     }
 
     /* send result */
