@@ -66,25 +66,6 @@ We verify w/ the dialback process, then we'll send back:
 */
 
 /**
- * incoming dialback streams
- */
-typedef struct dbic_struct {
-    mio m;		/**< the connection of the incoming stream */
-    char *id;		/**< random id we assigned to this stream */
-    xmlnode results;	/**< db:result elements that we received and
-			  that are not yet fully processed (just doing
-			  dialback on them). We add an additional
-			  attribute "key" to the element:
-			  "streamid@ourdomain/peersdomain" */
-    db d;		/**< the dialback instance */
-    char *we_domain;	/**< who the other end expects us to be
-			  (to attribute of stream head) for selecting
-			  a certificate at STARTTLS */
-    char *other_domain;	/**< who the other end told to be in its stream root from attribute (if present) */
-    int xmpp_version;	/**< version of the stream, -1 not yet known, 0 preXMPP */
-} *dbic, _dbic;
-
-/**
  * remove a incoming connection from the hashtable of all incoming connections
  * waiting to be checked
  *
