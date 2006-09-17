@@ -67,6 +67,7 @@
  */
 mreturn mod_disco_server_info(mapi m, void *arg) {
     xmlnode identity = NULL;
+    xmlnode feature = NULL;
 
     if ((xmlnode_get_attrib_ns(m->packet->iq, "node", NULL)) != NULL)
 	return M_PASS;
@@ -82,6 +83,18 @@ mreturn mod_disco_server_info(mapi m, void *arg) {
 
     /* special identity in configuration? else generate from vCard */
     identity = js_config(m->si, "disco-info:disco/disco-info:identity");
+
+    /* general features, not added by other modules */
+    feature = xmlnode_insert_tag_ns(m->additional_result->iq, "feature", NULL, NS_DISCO_INFO);
+    xmlnode_put_attrib_ns(feature, "var", NULL, NULL, "stringprep");
+    feature = xmlnode_insert_tag_ns(m->additional_result->iq, "feature", NULL, NS_DISCO_INFO);
+    xmlnode_put_attrib_ns(feature, "var", NULL, NULL, "fullunicode");
+    feature = xmlnode_insert_tag_ns(m->additional_result->iq, "feature", NULL, NS_DISCO_INFO);
+    xmlnode_put_attrib_ns(feature, "var", NULL, NULL, "xmllang");
+    feature = xmlnode_insert_tag_ns(m->additional_result->iq, "feature", NULL, NS_DISCO_INFO);
+    xmlnode_put_attrib_ns(feature, "var", NULL, NULL, NS_DISCO_INFO);
+    feature = xmlnode_insert_tag_ns(m->additional_result->iq, "feature", NULL, NS_DISCO_INFO);
+    xmlnode_put_attrib_ns(feature, "var", NULL, NULL, NS_DISCO_ITEMS);
 
     if (identity != NULL) {
 	xmlnode_insert_node(m->additional_result->iq, identity);
