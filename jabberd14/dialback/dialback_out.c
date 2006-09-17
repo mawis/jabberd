@@ -63,69 +63,6 @@
  */
 #include "dialback.h"
 
-/** simple queue for out_queue */
-typedef struct dboq_struct
-{
-    int stamp;
-    xmlnode x;
-    struct dboq_struct *next;
-} *dboq, _dboq;
-
-/**
- * enumeration of dialback request states an outgoing connection can have
- */
-typedef enum {
-    not_requested,	/**< there was no packet yet, for that we want to request doing dialback (just sending db:verifys), and we could not yet send them  */
-    could_request,	/**< there was no packet yet, that requested doing dialback, but we could send out dialback requests */
-    want_request,	/**< we want to send a dialback request */
-    sent_request	/**< we did sent a dialback request */
-} db_request;
-
-/**
- * enumeration of connection establishment states an outgoing connection can have
- *
- * used for more detailed logging of failed connections
- */
-typedef enum {
-    created,		/**< outgoing connection request created, but not yet started to connect */
-    connecting,		/**< we started to connect, but have no connection yet */
-    connected,		/**< we have connected to the other host */
-    got_streamroot,	/**< we got the stream root of the other server */
-    waiting_features,	/**< we are waiting for the stream features on a XMPP1.0 connection */
-    got_features,	/**< we got the stream features on a XMPP1.0 connection */
-    sent_db_request,	/**< we sent out a dialback request */
-    db_succeeded,	/**< we had success with our dialback request */
-    db_failed,		/**< dialback failed */
-    sasl_started,	/**< we started to authenticate using sasl */
-    sasl_fail,		/**< there was a failure in using sasl */
-    sasl_success	/**< we successfully used sasl */
-} db_connection_state;
-
-/* for connecting db sockets */
-/**
- * structure holding information about an outgoing connection
- */
-typedef struct {
-    char *ip;	/**< where to connect to (list of comma separated addresses of the format [ip]:port, [ip], ip:port, or ip) */
-    int stamp;	/**< when we started to connect to this peer */
-    db d;	/**< our dialback instance */
-    jid key;	/**< destination and source for this connection, format: dest/src */
-    xmlnode verifies; /**< waiting db:verify elements we have to send to the peer */
-    pool p;	/**< memory pool we are using for this connections data */
-    dboq q;	/**< pending stanzas, that need to be sent to the peer */
-    mio m;	/**< the mio connection this outgoing stream is using */
-    		/* original comment: for that short time when we're connected and open, but haven't auth'd ourselves yet */
-    int xmpp_version; /**< version the peer supports, -1 not yet known, 0 preXMPP */
-    int settings_failed; /**< 1 if the connection has been droped as configured settings where not fulfilled (e.g. TLS required), 0 else */
-    char *stream_id; /**< the stream id the connected entity assigned */
-    db_request db_state; /**< if we want to send a <db:result/> and if we already did */
-    db_connection_state connection_state; /**< how far did we proceed in connecting to the other host */
-    spool connect_results; /**< result messages for the connection attempts */
-    struct {
-	int db:1;	/**< if the peer supports dialback */
-    } flags;
-} *dboc, _dboc;
-
 /* forward declaration */
 void dialback_out_read(mio m, int flags, void *arg, xmlnode x);
 
