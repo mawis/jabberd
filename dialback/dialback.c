@@ -361,20 +361,13 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	return;
     }
 
-    /* we have no items with nodes */
-    /* XXX bounce with error */
-    if (node != NULL) {
-	xmlnode_free(dp->x);
-	return;
-    }
-
     /* generate basic result */
     jutil_tofrom(dp->x);
     xmlnode_put_attrib_ns(dp->x, "type", NULL, NULL, "result");
     xmlnode_hide(query);
     result = xmlnode_insert_tag_ns(dp->x, "query", NULL, NS_DISCO_INFO);
 
-    if (to->user == NULL && to->resource == NULL) {
+    if (to->user == NULL && to->resource == NULL && node == NULL) {
 	x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	xmlnode_put_attrib_ns(x, "category", NULL, NULL, "component");
 	xmlnode_put_attrib_ns(x, "type", NULL, NULL, "s2s");
@@ -396,42 +389,164 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	x = xmlnode_insert_tag_ns(result, "feature", NULL, NS_DISCO_INFO);
 	xmlnode_put_attrib_ns(x, "var", NULL, NULL, "ipv6");
 #endif
-    } else if (j_strcmp(to->user, "out-established") == 0 && to->resource == NULL) {
+    } else if (j_strcmp(to->user, "out-established") == 0 && to->resource == NULL && node == NULL) {
 	x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	xmlnode_put_attrib_ns(x, "type", NULL, NULL, "branch");
 	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "established outgoing connections");
-    } else if (j_strcmp(to->user, "out-connecting") == 0 && to->resource == NULL) {
+    } else if (j_strcmp(to->user, "out-connecting") == 0 && to->resource == NULL && node == NULL) {
 	x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	xmlnode_put_attrib_ns(x, "type", NULL, NULL, "branch");
 	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "connecting outgoing connections");
-    } else if (j_strcmp(to->user, "in-established") == 0 && to->resource == NULL) {
+    } else if (j_strcmp(to->user, "in-established") == 0 && to->resource == NULL && node == NULL) {
 	x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	xmlnode_put_attrib_ns(x, "type", NULL, NULL, "branch");
 	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "established incoming connections");
-    } else if (j_strcmp(to->user, "in-connecting") == 0 && to->resource == NULL) {
+    } else if (j_strcmp(to->user, "in-connecting") == 0 && to->resource == NULL && node == NULL) {
 	x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	xmlnode_put_attrib_ns(x, "type", NULL, NULL, "branch");
 	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "connecting incoming connections");
-    } else if (j_strcmp(to->user, "out-established") == 0 && to->resource != NULL) {
+    } else if (j_strcmp(to->user, "out-established") == 0 && to->resource != NULL && node == NULL) {
+	x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
+	xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
+	xmlnode_put_attrib_ns(x, "type", NULL, NULL, "branch");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, to->resource);
+    } else if (j_strcmp(to->user, "out-established") == 0 && to->resource != NULL && j_strcmp(node, "last") == 0) {
+	char last_time[32];
+	miod md = xhash_get(d->out_ok_db, to->resource);
+
+	if (md == NULL) {
+	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
+	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
+	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, "-- connection gone --");
+	} else {
+	    struct tm last_utc;
+	    time_t last = md->last;
+
+	    if (gmtime_r(&last, &last_utc)) {
+		char last_str[36];
+
+		snprintf(last_str, sizeof(last_str), "Last used: %d-%02d-%02d %02d:%02d:%02d UTC", 1900+last_utc.tm_year,
+			last_utc.tm_mon+1, last_utc.tm_mday, last_utc.tm_hour, last_utc.tm_min, last_utc.tm_sec);
+
+		x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
+		xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
+		xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
+		xmlnode_put_attrib_ns(x, "name", NULL, NULL, last_str);
+	    }
+	}
+    } else if (j_strcmp(to->user, "out-established") == 0 && to->resource != NULL && j_strcmp(node, "count") == 0) {
+	miod md = xhash_get(d->out_ok_db, to->resource);
+
+	if (md == NULL) {
+	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
+	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
+	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, "-- connection gone --");
+	} else {
+	    char name_str[36];
+
+	    snprintf(name_str, sizeof(name_str), "Stanza count: %d", md->count);
+
+	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
+	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
+	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, name_str);
+	}
+    } else if (j_strcmp(to->user, "out-established") == 0 && to->resource != NULL && j_strcmp(node, "ip") == 0) {
+	miod md = xhash_get(d->out_ok_db, to->resource);
+
+	if (md == NULL || md->m == NULL) {
+	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
+	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
+	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, "-- connection gone --");
+	} else {
+	    char ip_str[128];
+
+	    snprintf(ip_str, sizeof(ip_str), "IP/port: local=%s;%d remote=%s;%d tls=%s", md->m->our_ip, md->m->our_port, md->m->peer_ip, md->m->peer_port, md->m->ssl == NULL ? "no" : "yes");
+
+	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
+	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
+	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, ip_str);
+	}
+    } else if (j_strcmp(to->user, "out-connecting") == 0 && to->resource != NULL && node == NULL) {
 	x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
 	xmlnode_put_attrib_ns(x, "name", NULL, NULL, to->resource);
-    } else if (j_strcmp(to->user, "out-connecting") == 0 && to->resource != NULL) {
+    } else if (j_strcmp(to->user, "in-established") == 0 && to->resource != NULL && node == NULL) {
 	x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
 	xmlnode_put_attrib_ns(x, "name", NULL, NULL, to->resource);
-    } else if (j_strcmp(to->user, "in-established") == 0 && to->resource != NULL) {
-	x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
-	xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
-	xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, to->resource);
-    } else if (j_strcmp(to->user, "in-connecting") == 0 && to->resource != NULL) {
+    } else if (j_strcmp(to->user, "in-established") == 0 && to->resource != NULL && j_strcmp(node, "last") == 0) {
+	char last_time[32];
+	miod md = xhash_get(d->in_ok_db, to->resource);
+
+	if (md == NULL) {
+	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
+	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
+	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, "-- connection gone --");
+	} else {
+	    struct tm last_utc;
+	    time_t last = md->last;
+
+	    if (gmtime_r(&last, &last_utc)) {
+		char last_str[36];
+
+		snprintf(last_str, sizeof(last_str), "Last used: %d-%02d-%02d %02d:%02d:%02d UTC", 1900+last_utc.tm_year,
+			last_utc.tm_mon+1, last_utc.tm_mday, last_utc.tm_hour, last_utc.tm_min, last_utc.tm_sec);
+
+		x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
+		xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
+		xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
+		xmlnode_put_attrib_ns(x, "name", NULL, NULL, last_str);
+	    }
+	}
+    } else if (j_strcmp(to->user, "in-established") == 0 && to->resource != NULL && j_strcmp(node, "count") == 0) {
+	miod md = xhash_get(d->in_ok_db, to->resource);
+
+	if (md == NULL) {
+	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
+	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
+	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, "-- connection gone --");
+	} else {
+	    char name_str[36];
+
+	    snprintf(name_str, sizeof(name_str), "Stanza count: %d", md->count);
+
+	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
+	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
+	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, name_str);
+	}
+    } else if (j_strcmp(to->user, "in-established") == 0 && to->resource != NULL && j_strcmp(node, "ip") == 0) {
+	miod md = xhash_get(d->in_ok_db, to->resource);
+
+	if (md == NULL || md->m == NULL) {
+	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
+	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
+	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, "-- connection gone --");
+	} else {
+	    char ip_str[128];
+
+	    snprintf(ip_str, sizeof(ip_str), "IP/port: local=%s;%d remote=%s;%d tls=%s", md->m->our_ip, md->m->our_port, md->m->peer_ip, md->m->peer_port, md->m->ssl == NULL ? "no" : "yes");
+
+	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
+	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
+	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, ip_str);
+	}
+    } else if (j_strcmp(to->user, "in-connecting") == 0 && to->resource != NULL && node == NULL) {
 	x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
@@ -541,13 +656,6 @@ static void dialback_handle_discoitems(db d, dpacket dp, xmlnode query, jid to) 
 	return;
     }
 
-    /* we have no items with nodes */
-    /* XXX bounce with error */
-    if (node != NULL) {
-	xmlnode_free(dp->x);
-	return;
-    }
-
     /* generate basic result */
     jutil_tofrom(dp->x);
     xmlnode_put_attrib_ns(dp->x, "type", NULL, NULL, "result");
@@ -555,7 +663,7 @@ static void dialback_handle_discoitems(db d, dpacket dp, xmlnode query, jid to) 
     result = xmlnode_insert_tag_ns(dp->x, "query", NULL, NS_DISCO_ITEMS);
 
 
-    if (to->user == NULL && to->resource == NULL) {
+    if (to->user == NULL && to->resource == NULL && node == NULL) {
 	if (acl_check_access(d->xc, "s2s", jid_new(xmlnode_pool(dp->x), xmlnode_get_attrib_ns(dp->x, "to", NULL)))) {
 	    jid item_jid = jid_new(xmlnode_pool(dp->x), d->i->id);
 
@@ -579,25 +687,71 @@ static void dialback_handle_discoitems(db d, dpacket dp, xmlnode query, jid to) 
 	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, "connecting incoming connections");
 	    xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(item_jid));
 	}
-    } else if (j_strcmp(to->user, "out-established") == 0 && to->resource == NULL) {
+    } else if (j_strcmp(to->user, "out-established") == 0 && to->resource == NULL && node == NULL) {
 	_dialback_jid_with_xmlnode jx;
 	jx.x = result;
 	jx.id = jid_new(xmlnode_pool(result), d->i->id);
 	jid_set(jx.id, "out-established", JID_USER);
 	xhash_walk(d->out_ok_db, _dialback_walk_out_established, (void*)&jx);
-    } else if (j_strcmp(to->user, "out-connecting") == 0 && to->resource == NULL) {
+    } else if (j_strcmp(to->user, "out-established") == 0 && to->resource != NULL && node == NULL) {
+	jid other_server = jid_new(xmlnode_pool(result), to->resource);
+
+	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "Last used");
+	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
+	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "last");
+
+	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "Stanza count");
+	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
+	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "count");
+
+	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "IP/port");
+	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
+	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "ip");
+
+	if (other_server != NULL) {
+	    x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, other_server->server);
+	    xmlnode_put_attrib_ns(x, "jid", NULL, NULL, other_server->server);
+	}
+    } else if (j_strcmp(to->user, "out-connecting") == 0 && to->resource == NULL && node == NULL) {
 	_dialback_jid_with_xmlnode jx;
 	jx.x = result;
 	jx.id = jid_new(xmlnode_pool(result), d->i->id);
 	jid_set(jx.id, "out-connecting", JID_USER);
 	xhash_walk(d->out_connecting, _dialback_walk_out_connecting, (void*)&jx);
-    } else if (j_strcmp(to->user, "in-established") == 0 && to->resource == NULL) {
+    } else if (j_strcmp(to->user, "in-established") == 0 && to->resource == NULL && node == NULL) {
 	_dialback_jid_with_xmlnode jx;
 	jx.x = result;
 	jx.id = jid_new(xmlnode_pool(result), d->i->id);
 	jid_set(jx.id, "in-established", JID_USER);
 	xhash_walk(d->in_ok_db, _dialback_walk_in_established, (void*)&jx);
-    } else if (j_strcmp(to->user, "in-connecting") == 0 && to->resource == NULL) {
+    } else if (j_strcmp(to->user, "in-established") == 0 && to->resource != NULL && node == NULL) {
+	jid other_server = jid_new(xmlnode_pool(result), to->resource);
+
+	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "Last used");
+	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
+	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "last");
+
+	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "Stanza count");
+	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
+	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "count");
+
+	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "IP/port");
+	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
+	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "ip");
+
+	if (other_server != NULL) {
+	    x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, other_server->resource);
+	    xmlnode_put_attrib_ns(x, "jid", NULL, NULL, other_server->resource);
+	}
+    } else if (j_strcmp(to->user, "in-connecting") == 0 && to->resource == NULL && node == NULL) {
 	_dialback_jid_with_xmlnode jx;
 	jx.x = result;
 	jx.id = jid_new(xmlnode_pool(result), d->i->id);
