@@ -709,6 +709,21 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
 	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, c->xmpp_version < 0 ? "XMPP version: unknown" : c->xmpp_version ? "XMPP version: 1.0" : "XMPP version: stone age");
+	} else if (j_strcmp(node, "last") == 0) {
+	    struct tm last_utc;
+	    time_t last = c->stamp;
+
+	    if (gmtime_r(&last, &last_utc)) {
+		char last_str[64];
+
+		snprintf(last_str, sizeof(last_str), "Connection start: %d-%02d-%02d %02d:%02d:%02d UTC", 1900+last_utc.tm_year,
+			last_utc.tm_mon+1, last_utc.tm_mday, last_utc.tm_hour, last_utc.tm_min, last_utc.tm_sec);
+
+		x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
+		xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
+		xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
+		xmlnode_put_attrib_ns(x, "name", NULL, NULL, last_str);
+	    }
 	}
     }
 
@@ -995,6 +1010,11 @@ static void dialback_handle_discoitems(db d, dpacket dp, xmlnode query, jid to) 
 	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "XMPP version");
 	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
 	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "xmppversion");
+
+	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "Connection start");
+	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
+	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "last");
     }
 
     /* send result */
@@ -1074,8 +1094,42 @@ void _dialback_beat_idle(xht h, const char *key, void *data, void *arg)
     miod md = (miod)data;
     if(((int)*(time_t*)arg - md->last) >= md->d->timeout_idle) {
         log_debug2(ZONE, LOGT_IO, "Idle Timeout on socket %d to %s",md->m->fd, mio_ip(md->m));
-	mio_write(md->m, NULL, "<stream:error><connection-timeout xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Closing an idle connection.</text></stream:error></stream:stream>", -1);
+	mio_write(md->m, NULL, "</stream:stream>", -1);
         mio_close(md->m);
+    }
+}
+
+/**
+ * callback for walking incoming connections, that are not authorized yet, checking for timeotus
+ *
+ * @param h the hash table containing all connections
+ * @param key unused/ignored (the key of the value in the hash table)
+ * @param data the value in the hash table = the structure holding the connection
+ * @param arg unused/ignored
+ */
+void _dialback_beat_in_idle(xht h, const char *key, void *data, void *arg) {
+    dbic c = (dbic)data;
+    if(((int)*(time_t*)arg - c->stamp) >= c->d->timeout_auth) {
+        log_debug2(ZONE, LOGT_IO, "Idle Timeout on socket %d to %s", c->m->fd, mio_ip(c->m));
+	mio_write(c->m, NULL, "</stream:stream>", -1);
+        mio_close(c->m);
+    }
+}
+
+/**
+ * callback for walking outgoing connections, that are not authorized yet, checking for timeotus
+ *
+ * @param h the hash table containing all connections
+ * @param key unused/ignored (the key of the value in the hash table)
+ * @param data the value in the hash table = the structure holding the connection
+ * @param arg unused/ignored
+ */
+void _dialback_beat_out_idle(xht h, const char *key, void *data, void *arg) {
+    dboc c = (dboc)data;
+    if(((int)*(time_t*)arg - c->stamp) >= c->d->timeout_auth) {
+        log_debug2(ZONE, LOGT_IO, "Idle Timeout on socket %d to %s", c->m->fd, mio_ip(c->m));
+	mio_write(c->m, NULL, "</stream:stream>", -1);
+        mio_close(c->m);
     }
 }
 
@@ -1096,6 +1150,8 @@ result dialback_beat_idle(void *arg)
     time(&ttmp);
     xhash_walk(d->out_ok_db,_dialback_beat_idle,(void*)&ttmp);
     xhash_walk(d->in_ok_db,_dialback_beat_idle,(void*)&ttmp);
+    xhash_walk(d->in_id, _dialback_beat_in_idle, (void*)&ttmp);
+    xhash_walk(d->out_connecting, _dialback_beat_out_idle, (void*)&ttmp);
     return r_DONE;
 }
 
@@ -1152,6 +1208,7 @@ void dialback(instance i, xmlnode x)
     d->i = i;
     d->timeout_idle = j_atoi(xmlnode_get_list_item_data(xmlnode_get_tags(cfg, "conf:idletimeout", d->std_ns_prefixes), 0), 900);
     d->timeout_packets = j_atoi(xmlnode_get_list_item_data(xmlnode_get_tags(cfg, "conf:queuetimeout", d->std_ns_prefixes), 0), 30);
+    d->timeout_auth = j_atoi(xmlnode_get_list_item_data(xmlnode_get_tags(cfg, "conf:authtimeout", d->std_ns_prefixes), 0), d->timeout_idle);
     d->secret = pstrdup(i->p, xmlnode_get_list_item_data(xmlnode_get_tags(cfg, "conf:secret", d->std_ns_prefixes), 0));
     if (d->secret == NULL) /* if there's no configured secret, make one on the fly */
         d->secret = pstrdup(i->p,dialback_randstr());
@@ -1227,7 +1284,7 @@ void dialback(instance i, xmlnode x)
     }
 
     register_phandler(i,o_DELIVER,dialback_packets,(void*)d);
-    register_beat(d->timeout_idle, dialback_beat_idle, (void *)d);
+    register_beat(d->timeout_idle < 60 || d->timeout_auth < 60 ? (d->timeout_idle < d->timeout_auth ? d->timeout_idle : d->timeout_auth) : 60, dialback_beat_idle, (void *)d);
     register_beat(d->timeout_packets, dialback_out_beat_packets, (void *)d);
 
     xmlnode_free(cfg);
