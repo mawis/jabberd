@@ -71,8 +71,9 @@ typedef struct db_struct
     xht hosts_tls;	/**< hash containing the STARTTLS configuration for peers */
     xht hosts_auth;	/**< hash containing the authentiction configuration for peers */
     char *secret;	/**< our dialback secret */
-    int timeout_packets;/**< configuration option <queuetimeout/> */
-    int timeout_idle;	/**< configuration option <idletimeout/> */
+    int timeout_packets;/**< configuration option <queuetimeout/>: how long should stanzas wait for an established connection */
+    int timeout_idle;	/**< configuration option <idletimeout/>: after how many seconds an authorized connection should be timed out */
+    int timeout_auth;	/**< configuration option <authtimeout/>: after how many seconds a connection should be closed, if it is not authorized for any domain */
     xht std_ns_prefixes;/**< standard prefixes used inside the dialback component for xpath expressions */
     xdbcache xc;	/**< pointer to the ::xdbcache_cache structure used to access the ACL and configuration */
 } *db, _db;
@@ -182,6 +183,7 @@ typedef struct dbic_struct {
 			  a certificate at STARTTLS */
     char *other_domain;	/**< who the other end told to be in its stream root from attribute (if present) */
     int xmpp_version;	/**< version of the stream, -1 not yet known, 0 preXMPP */
+    time_t stamp;	/**< then the connection has been accepted */
 } *dbic, _dbic;
 
 #ifdef __cplusplus

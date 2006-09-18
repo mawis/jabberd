@@ -98,6 +98,7 @@ static dbic dialback_in_dbic_new(db d, mio m, const char *we_domain, const char 
     c->we_domain = pstrdup(m->p, we_domain);
     c->other_domain = pstrdup(m->p, other_domain);
     c->xmpp_version = xmpp_version;
+    time(&c->stamp);
     pool_cleanup(m->p,dialback_in_dbic_cleanup, (void *)c); /* remove us automatically if our memory pool is freed */
     xhash_put(d->in_id, c->id, (void *)c); /* insert ourself in the hash of not yet verified connections */
     log_debug2(ZONE, LOGT_IO, "created incoming connection %s from %s",c->id, mio_ip(m));
