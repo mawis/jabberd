@@ -1,3 +1,9 @@
+2006-09-18  Matthias Wimmer  <m@tthias.eu>
+
+    * dialback/dialback.h: expiring unauthorized idle connections as well
+    * dialback/dialback.c: same
+    * dialback/dialback_in.c: same
+
 2006-09-16  Matthias Wimmer  <m@tthias.eu>
 
     * dialback/dialback.c: show connections to administrators
