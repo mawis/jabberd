@@ -1288,12 +1288,12 @@ int _client_io_accept(mio_t m, int fd, const char *ip_port, c2s_t c2s) {
     }
 
     /* put us in the pre-auth hash */
-    xhash_put(c->c2s->pending,jid_full(c->myid), (void*)c);
+    (*c->c2s->pending)[jid_full(c->myid)] = c;
 
     /* set up expat callbacks */
     XML_SetUserData(c->expat, (void*)c);
-    XML_SetElementHandler(c->expat, (void*)_client_startElement, (void*)_client_endElement);
-    XML_SetCharacterDataHandler(c->expat, (void*)_client_charData);
+    XML_SetElementHandler(c->expat, _client_startElement, _client_endElement);
+    XML_SetCharacterDataHandler(c->expat, _client_charData);
 
     /* we are now waiting for the stream */
     c->state = state_NEGO;
@@ -1378,8 +1378,8 @@ void _client_replace_parser(conn_t c) {
 
     /* set up expat callbacks */
     XML_SetUserData(c->expat, (void*)c);
-    XML_SetElementHandler(c->expat, (void*)_client_startElement, (void*)_client_endElement);
-    XML_SetCharacterDataHandler(c->expat, (void*)_client_charData);
+    XML_SetElementHandler(c->expat, _client_startElement, _client_endElement);
+    XML_SetCharacterDataHandler(c->expat, _client_charData);
 }
 
 #ifdef FLASH_HACK
@@ -1449,7 +1449,7 @@ void _client_detect_variant(int fd, conn_t c) {
 		"Connection: close\r\n\r\n";
 	char *buf;
 	
-	buf = malloc((strlen(c->c2s->http_forward) + strlen(http)) * sizeof(char));
+	buf = static_cast<char*>(malloc((strlen(c->c2s->http_forward) + strlen(http)) * sizeof(char)));
 	sprintf (buf, http, c->c2s->http_forward);
 	
 	log_debug(ZONE,"This is an incoming HTTP connection - forwarding to: %s", c->c2s->http_forward);
@@ -1759,7 +1759,7 @@ void _client_io_close(int fd, conn_t c) {
     } else {
 	/* XXX free write queue */
 	/* remove from preauth hash */
-	xhash_zap(c->c2s->pending,jid_full(c->myid));
+	c->c2s->pending->erase(jid_full(c->myid));
     }
 
     /* count the number of open client connections */

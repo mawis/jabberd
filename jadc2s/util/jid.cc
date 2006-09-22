@@ -47,35 +47,7 @@
 
 #include "util.h"
 
-/**
- * walker for cleaning up stringprep caches
- *
- * @param h the hash we are walking through
- * @param key the key of this item
- * @param val the value of this item
- * @param arg delete entries older as this unix timestamp
- */
-static void _jid_clean_walker(xht h, const char *key, void *val, void *arg) {
-    time_t *keep_newer_as = (time_t*)arg;
-    _jid_prep_entry_t entry = (_jid_prep_entry_t)val;
-
-    /* safty check */
-    if (entry == NULL)
-	return;
-
-    if (entry->last_used <= *keep_newer_as) {
-	/* the entry expired, remove it */
-	xhash_zap(h, key);
-	if (entry->preped != NULL)
-	    free(entry->preped);
-	free(entry);
-
-	/* sorry, I have to cast the const away */
-	/* any idea how I could delete the key else? */
-	if (key != NULL)
-	    free((void*)key);
-    }
-}
+#include <sstream>
 
 /**
  * walk through a single stringprep cache and check which entries
@@ -85,7 +57,24 @@ static void _jid_clean_walker(xht h, const char *key, void *val, void *arg) {
  * @param keep_newer_as what to keep in the cache
  */
 static void _jid_clean_single_cache(_jid_prep_cache_t cache, time_t keep_newer_as) {
-    xhash_walk(cache->hashtable, _jid_clean_walker, (void*)&keep_newer_as);
+    std::map<std::string, _jid_prep_entry_t>::iterator p;
+    for (p = cache->hashtable->begin(); p != cache->hashtable->end(); ++p) {
+	/* sanity check */
+	if (p->second == NULL)
+	    continue;
+
+	if (p->second->last_used <= keep_newer_as) {
+	    /* the entry expired, remove it */
+
+	    /* free memory */
+	    if (p->second->preped != NULL)
+		free(p->second->preped);
+	    free(p->second);
+
+	    /* remove from map */
+	    cache->hashtable->erase(p->first);
+	}
+    }
 }
 
 /**
@@ -125,7 +114,8 @@ static int _jid_cached_stringprep(char *in_out_buffer, int max_len, _jid_prep_ca
     }
 
     /* check if the requested preparation has already been done */
-    preped = (_jid_prep_entry_t)xhash_get(cache->hashtable, in_out_buffer);
+
+    preped = (*cache->hashtable)[in_out_buffer];
     if (preped != NULL) {
 	/* we already prepared this argument */
 
@@ -147,6 +137,8 @@ static int _jid_cached_stringprep(char *in_out_buffer, int max_len, _jid_prep_ca
 	}
     } else {
 	char *original;
+
+	cache->hashtable->erase(in_out_buffer);
 
 	/* we have to keep the key */
 	original = strdup(in_out_buffer);
@@ -172,7 +164,8 @@ static int _jid_cached_stringprep(char *in_out_buffer, int max_len, _jid_prep_ca
 		preped->size = strlen(in_out_buffer)+1;
 
 		/* store the entry in the cache */
-		xhash_put(cache->hashtable, original, preped);
+		(*cache->hashtable)[original] = preped;
+		free(original);
 	    } else {
 		free(original);
 	    }
@@ -197,7 +190,7 @@ static void _jid_stop_single_cache(_jid_prep_cache_t *cache) {
 
     _jid_clean_single_cache(*cache, time(NULL));
 
-    xhash_free((*cache)->hashtable);
+    delete (*cache)->hashtable;
 
     *cache = NULL;
 }
@@ -213,7 +206,7 @@ static void _jid_init_single_cache(_jid_prep_cache_t *cache, int prime, const St
     /* do not init a cache twice */
     if (*cache == NULL) {
 	*cache = (_jid_prep_cache_t)malloc(sizeof(struct _jid_prep_cache_st));
-	(*cache)->hashtable = xhash_new(prime);
+	(*cache)->hashtable = new std::map<std::string, _jid_prep_entry_t>;
 	(*cache)->profile = profile;
     } else {
 	printf("Ooups!");
@@ -271,7 +264,7 @@ static int _jid_safe_domain(jid id) {
     if (result == STRINGPREP_TOO_SMALL_BUFFER) {
 	/* nameprep wants to expand the string, e.g. conversion from &szlig; to ss */
 	size_t biggerbuffersize = 1024;
-	char *biggerbuffer = pmalloc(id->p, biggerbuffersize);
+	char *biggerbuffer = static_cast<char*>(pmalloc(id->p, biggerbuffersize));
 	if (biggerbuffer == NULL)
 	    return 1;
 	strcpy(biggerbuffer, id->server);
@@ -307,7 +300,7 @@ static int _jid_safe_node(jid id) {
     if (result == STRINGPREP_TOO_SMALL_BUFFER) {
 	/* nodeprep wants to expand the string, e.g. conversion from &szlig; to ss */
 	size_t biggerbuffersize = 1024;
-	char *biggerbuffer = pmalloc(id->p, biggerbuffersize);
+	char *biggerbuffer = static_cast<char*>(pmalloc(id->p, biggerbuffersize));
 	if (biggerbuffer == NULL)
 	    return 1;
 	strcpy(biggerbuffer, id->user);
@@ -343,7 +336,7 @@ static int _jid_safe_resource(jid id) {
     if (result == STRINGPREP_TOO_SMALL_BUFFER) {
 	/* resourceprep wants to expand the string, e.g. conversion from &szlig; to ss */
 	size_t biggerbuffersize = 1024;
-	char *biggerbuffer = pmalloc(id->p, biggerbuffersize);
+	char *biggerbuffer = static_cast<char*>(pmalloc(id->p, biggerbuffersize));
 	if (biggerbuffer == NULL)
 	    return 1;
 	strcpy(biggerbuffer, id->resource);
@@ -400,7 +393,7 @@ jid jid_newx(pool p, jid_environment_t environment, const char *idstr, int len) 
     /* user@server/resource */
 
     str = pstrdupx(p, idstr, len);
-    id = pmalloco(p,sizeof(struct jid_struct));
+    id = static_cast<jid>(pmalloco(p,sizeof(struct jid_struct)));
     id->p = p;
     id->environment = environment;
 
@@ -504,7 +497,7 @@ void jid_set(jid id, const char *str, int item) {
  * @return zero-terminated string
  */
 char *jid_full(jid id) {
-    spool s;
+    std::ostringstream full_jid;
 
     if (id == NULL)
         return NULL;
@@ -513,21 +506,17 @@ char *jid_full(jid id) {
     if (id->full != NULL)
         return id->full;
 
-    s = spool_new(id->p);
-
     if (id->user != NULL) {
-	spool_add(s, id->user);
-	spool_add(s, "@");
+	full_jid << id->user << "@";
     }
 
-    spool_add(s, id->server);
+    full_jid << id->server;
 
     if (id->resource != NULL) {
-	spool_add(s, "/");
-	spool_add(s, id->resource);
+	full_jid << "/" << id->resource;
     }
 
-    id->full = spool_print(s);
+    id->full = pstrdup(id->p, full_jid.str().c_str());
     return id->full;
 }
 
@@ -637,7 +626,7 @@ jid jid_user(jid a) {
     if (a == NULL || a->resource == NULL)
 	return a;
 
-    ret = pmalloco(a->p, sizeof(struct jid_struct));
+    ret = static_cast<jid>(pmalloco(a->p, sizeof(struct jid_struct)));
     ret->p = a->p;
     ret->user = a->user;
     ret->server = a->server;

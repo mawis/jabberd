@@ -64,14 +64,13 @@
 /**
  * type of a file descriptor
  */
-typedef enum { 
-    type_CLOSED = 0x00,		/**< fd is closed */
-    type_NORMAL = 0x01,
-    type_LISTEN = 0x02,		/**< socket is listening for new conns */ 
-    type_CONNECT = 0x10, 
-    type_CONNECT_READ = 0x11,
-    type_CONNECT_WRITE = 0x12
-} mio_type_t;
+typedef int mio_type_t;
+#define type_CLOSED 0x00		/**< fd is closed */
+#define type_NORMAL 0x01
+#define type_LISTEN 0x02		/**< socket is listening for new conns */ 
+#define type_CONNECT 0x10 
+#define type_CONNECT_READ 0x11
+#define type_CONNECT_WRITE 0x12
 
 /**
  * our internal wrapper around a fd
@@ -421,8 +420,8 @@ mio_t mio_new(int maxfd)
 	return NULL;
 
     /* allocate and zero out main memory */
-    if((m = malloc(sizeof(struct mio_st))) == NULL) return NULL;
-    if((m->fds = malloc(sizeof(struct mio_fd_st) * maxfd)) == NULL)
+    if((m = static_cast<mio_t>(malloc(sizeof(struct mio_st)))) == NULL) return NULL;
+    if((m->fds = static_cast<mio_fd_st*>(malloc(sizeof(struct mio_fd_st) * maxfd))) == NULL)
     {
         mio_debug(ZONE,"internal error creating new mio");
         free(m);

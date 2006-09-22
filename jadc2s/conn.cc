@@ -164,7 +164,7 @@ void conn_error(conn_t c, char *condition, char *err) {
 }
 
 #ifdef USE_SSL
-static int _log_ssl_io_error(log_t l, SSL *ssl, int retcode, int fd, const char *used_func);
+static void _log_ssl_io_error(log_t l, SSL *ssl, int retcode, int fd, const char *used_func);
 #endif
 
 /**
@@ -430,7 +430,7 @@ int conn_max_read_len(conn_t c)
 	return bytes;
 
     /* Create a new bad conn */
-    bad_conn = malloc(sizeof(struct bad_conn_st));
+    bad_conn = static_cast<bad_conn_t>(malloc(sizeof(struct bad_conn_st)));
     bad_conn->c = c;
     bad_conn->last = now;
     bad_conn->next = NULL;
@@ -582,7 +582,7 @@ int conn_write(conn_t c)
 }
 
 #ifdef USE_SSL
-static int _log_ssl_io_error(log_t l, SSL *ssl, int retcode, int fd, const char *used_func) {
+static void _log_ssl_io_error(log_t l, SSL *ssl, int retcode, int fd, const char *used_func) {
     int ssl_error;
 
     ssl_error = SSL_get_error(ssl, retcode);
