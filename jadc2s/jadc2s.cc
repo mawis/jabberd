@@ -51,7 +51,7 @@ static int _sasl_proxy_auth_check(sasl_conn_t *conn, void *context, const char *
 /* SASL callbacks */
 static sasl_callback_t sasl_callbacks[] = {
     { SASL_CB_CANON_USER, (int (*)())(&_sasl_canon_user), NULL },
-    { SASL_CB_PROXY_POLICY, _sasl_proxy_auth_check, NULL},
+    { SASL_CB_PROXY_POLICY, (int (*)())_sasl_proxy_auth_check, NULL},
     { SASL_CB_LIST_END, NULL, NULL }
 };
 
@@ -226,18 +226,6 @@ static int _sasl_proxy_auth_check(sasl_conn_t *conn, void *context, const char *
 }
 #endif
 
-/* this checks for bad conns that have timed out */
-static void _walk_pending(xht pending, const char *key, void *val, void *arg)
-{
-    conn_t c = (conn_t)val;
-    time_t now = (time_t)arg;
-
-    /* send stream error and close connection */
-    if((now - c->start) > c->c2s->timeout && c->fd != -1) {
-	conn_close(c, STREAM_ERR_TIMEOUT, "You have not authenticated in time");
-    }
-}
-
 /***
 * Iterate over the bad conns list and reset people that are ok
 * @param c2s The c2s instance to process from
@@ -409,8 +397,8 @@ int main(int argc, char **argv) {
 
     /* inbuilt defaults and config file options */
     /* !!! config options for these? */
-    c2s->connection_rates = xhash_new(199);
-    c2s->pending = xhash_new(199);
+    c2s->connection_rates = new std::map<std::string, connection_rate_t>;
+    c2s->pending = new std::map<std::string, conn_t>;
     c2s->bad_conns = NULL;
     c2s->timeout = c2s->default_timeout;
 
@@ -666,9 +654,13 @@ int main(int argc, char **argv) {
 
         /* !!! XXX Should these be configurable cleanup times? */
         /* every so often check for timed out pending conns */
-        if((time(&now) - last_pending) > 15)
-        {
-            xhash_walk(c2s->pending, _walk_pending, (void*)now);
+        if((time(&now) - last_pending) > 15) {
+	    std::map<std::string, conn_t>::iterator p;
+	    for (p = c2s->pending->begin(); p != c2s->pending->end(); ++p) {
+		if (now - p->second->start > c2s->timeout && p->second->fd != -1) {
+		    conn_close(p->second, STREAM_ERR_TIMEOUT, "You have not authenticated in time");
+		}
+	    }
             last_pending = time(NULL);
         }
 
@@ -698,15 +690,15 @@ int main(int argc, char **argv) {
 
     /* exiting, clean up */
     mio_free(c2s->mio);
-    xhash_free(c2s->connection_rates);
-    xhash_free(c2s->pending);
+    delete c2s->connection_rates;
+    delete c2s->pending;
     free(c2s->conns);
     nad_cache_free(c2s->nads);
     log_free(c2s->log);
 #ifdef USE_SSL
     SSL_CTX_free(c2s->ssl_ctx);
 #endif
-    xhash_free(c2s->config);
+    delete c2s->config;
     free(c2s);
 
     pool_stat(1);

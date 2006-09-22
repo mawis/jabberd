@@ -44,9 +44,6 @@
  *
  * The j_*() functions are just helper functions, that are mostly NULL-safe versions
  * of the same libc functions.
- *
- * The spool functions can be used to add several strings to this spool and get
- * it as a single string afterwards.
  */
 
 #include "util.h"
@@ -155,122 +152,6 @@ char *j_attr(const char** atts, char *attr) {
     }
 
     return NULL;
-}
-
-/**
- * Create a new spool
- *
- * Spools can be used to add multiple strings, which can afterwards get back as a single
- * concatenated string
- *
- * @param p the memory pool to use
- * @return the spool object
- */
-spool spool_new(pool p) {
-    spool s;
-
-    s = pmalloc(p, sizeof(struct spool_struct));
-    s->p = p;
-    s->len = 0;
-    s->last = NULL;
-    s->first = NULL;
-    return s;
-}
-
-/**
- * Add a string to the spool
- *
- * Adds the content of a string to the end of a spool
- *
- * @note use spool_add() instead, which is a NULL-safe version of this.
- *
- * @param s the spool to add the string to
- * @param goodstring the string to add (must not be freed before the spool is printed)
- */
-static void _spool_add(spool s, char *goodstr) {
-    struct spool_node *sn;
-
-    sn = pmalloc(s->p, sizeof(struct spool_node));
-    sn->c = goodstr;
-    sn->next = NULL;
-
-    s->len += strlen(goodstr);
-    if (s->last != NULL)
-        s->last->next = sn;
-    s->last = sn;
-    if (s->first == NULL)
-        s->first = sn;
-}
-
-/**
- * Add a string to the spool
- *
- * Adds the content of a string to the end of a spool
- *
- * @param s the spool to add the string to
- * @param goodstring the string to add (must not be freed before the spool is printed)
- */
-void spool_add(spool s, char *str) {
-    if (str == NULL || strlen(str) == 0)
-        return;
-
-    _spool_add(s, pstrdup(s->p, str));
-}
-
-/**
- * Prints all strings that have been added to the spool to a new string
- *
- * @param s the spool that should be printed
- * @return the new string
- */
-char *spool_print(spool s) {
-    char *ret,*tmp;
-    struct spool_node *next;
-
-    if (s == NULL || s->len == 0 || s->first == NULL)
-        return NULL;
-
-    ret = pmalloc(s->p, s->len + 1);
-    *ret = '\0';
-
-    next = s->first;
-    tmp = ret;
-    while (next != NULL) {
-        tmp = _j_strcpy(tmp,next->c);
-        next = next->next;
-    }
-
-    return ret;
-}
-
-/**
- * convenience function, that does the spool creation, string adding, and printing all at once
- *
- * Add all strings, that should be printed to the parameter list, and terminate by passing p again
- *
- * @param p the memory pool to use
- * @return the printed string
- */
-char *spools(pool p, ...) {
-    va_list ap;
-    spool s;
-    char *arg = NULL;
-
-    if (p == NULL)
-        return NULL;
-
-    s = spool_new(p);
-
-    va_start(ap, p);
-
-    /* loop till we hit our end flag, the first arg */
-    for (arg = va_arg(ap, char *); (pool)arg != p; arg = va_arg(ap, char *)) {
-	spool_add(s, arg);
-    }
-
-    va_end(ap);
-
-    return spool_print(s);
 }
 
 /**

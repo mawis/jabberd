@@ -150,29 +150,7 @@ static void shaHashBlock(j_SHA_CTX *ctx) {
  * This code added by Thomas "temas" Muldowney for Jabber compatability
  *
  *---------------------------------------------------------------------------*/
-char *shahash(char *str)
-{
-    static char final[41];
-    char *pos;
-    unsigned char hashval[20];
-    int x;
-
-    if(!str || strlen(str) == 0)
-        return NULL;
-
-    shaBlock((unsigned char *)str, strlen(str), hashval);
-
-    pos = final;
-    for(x=0;x<20;x++)
-    {
-        snprintf(pos, 3, "%02x", hashval[x]);
-        pos += 2;
-    }
-    return (char *)final;
-}
-
-void shahash_r(const char* str, char hashbuf[41])
-{
+void shahash_r(const char* str, char hashbuf[41]) {
     int x;
     char *pos;
     unsigned char hashval[20];

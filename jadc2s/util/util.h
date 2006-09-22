@@ -2,6 +2,9 @@
 #   include <config.h>
 #endif
 
+#include <string>
+#include <map>
+
 #include <string.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -149,7 +152,6 @@ typedef unsigned short uint32;
 typedef unsigned int uint32;
 #endif /* HAVEUINT32 */
 
-char *shahash(char *str);	/* NOT THREAD SAFE */
 void shahash_r(const char* str, char hashbuf[40]); /* USE ME */
 
 int strprintsha(char *dest, int *hashval);
@@ -165,64 +167,6 @@ void shaInit(j_SHA_CTX *ctx);
 void shaUpdate(j_SHA_CTX *ctx, unsigned char *dataIn, int len);
 void shaFinal(j_SHA_CTX *ctx, unsigned char hashout[20]);
 void shaBlock(unsigned char *dataIn, int len, unsigned char hashout[20]);
-
-
-/* --------------------------------------------------------- */
-/*                                                           */
-/* Hashtable functions                                       */
-/*                                                           */
-/* --------------------------------------------------------- */
-typedef struct xhn_struct
-{
-    struct xhn_struct *next;
-    const char *key;
-    void *val;
-} *xhn, _xhn;
-
-typedef struct xht_struct
-{
-    pool p;
-    int prime;
-    int dirty;
-    int count;
-    xhn *zen;
-} *xht, _xht;
-
-xht xhash_new(int prime);
-void xhash_put(xht h, const char *key, void *val);
-void *xhash_get(xht h, const char *key);
-void xhash_zap(xht h, const char *key);
-void xhash_free(xht h);
-typedef void (*xhash_walker)(xht h, const char *key, void *val, void *arg);
-void xhash_walk(xht h, xhash_walker w, void *arg);
-int xhash_dirty(xht h);
-int xhash_count(xht h);
-pool xhash_pool(xht h);
-
-/* --------------------------------------------------------- */
-/*                                                           */
-/* String pools (spool) functions                            */
-/*                                                           */
-/* --------------------------------------------------------- */
-struct spool_node
-{
-    char *c;
-    struct spool_node *next;
-};
-
-typedef struct spool_struct
-{
-    pool p;
-    int len;
-    struct spool_node *last;
-    struct spool_node *first;
-} *spool;
-
-spool spool_new(pool p); /* create a string pool */
-char *spool_print(spool s); /* return a big string */
-void spool_add(spool s, char *str); /* add a single string to the pool */
-char *spools(pool p, ...); /* wrap all the spooler stuff in one function, the happy fun ball! */
-
 
 /* --------------------------------------------------------- */
 /*                                                           */
@@ -249,7 +193,7 @@ typedef struct _jid_prep_entry_st {
  * @brief string preparation cache
  */
 typedef struct _jid_prep_cache_st {
-    xht hashtable;		/**< the hash table containing the preped strings */
+    std::map<std::string, _jid_prep_entry_t> *hashtable;	/**< the hash table containing the preped strings */
     const Stringprep_profile *profile;
     				/**< the stringprep profile used for this cache */
 } *_jid_prep_cache_t;
@@ -323,8 +267,14 @@ struct config_elem_st
 };
 typedef struct config_elem_st *config_elem_t;
 
-/* pretend to be an actual type */
-typedef xht config_t;
+class config_st : public std::map<std::string, config_elem_t> {
+    public:
+	config_st(void);
+	~config_st(void);
+    public:
+	pool	mempool;
+};
+typedef config_st * config_t;
 
 extern config_t         config_new(void);
 extern int              config_load(config_t, const char *);
@@ -407,7 +357,7 @@ int nad_insert_elem(nad_t nad, int elem, char *name, char *cdata);
 void nad_wrap_elem(nad_t nad, int elem, char *name);
 
 /* append and return a new element */
-int nad_append_elem(nad_t nad, char *name, int depth);
+int nad_append_elem(nad_t nad, const char *name, int depth);
 
 /* append attribs to the last element */
 int nad_append_attr(nad_t nad, const char *name, const char *val);

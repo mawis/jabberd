@@ -30,8 +30,8 @@
         m->epfd = epoll_create(maxfd);                                  \
         if (m->epfd != -1) {                                            \
             mio_debug(ZONE, "epoll fd created: %d (size=%d)", m->epfd, maxfd); \
-            m->events = malloc(sizeof(struct epoll_event) * (maxfd + 1));      \
-            m->evflags = malloc(sizeof(__uint32_t) * (maxfd + 1));      \
+            m->events = static_cast<epoll_event*>(malloc(sizeof(struct epoll_event) * (maxfd + 1)));      \
+            m->evflags = static_cast<__uint32_t*>(malloc(sizeof(__uint32_t) * (maxfd + 1)));      \
         } else {                                                        \
             mio_debug(ZONE, "Can't epoll_create(%d).", maxfd);          \
             free(m->fds);                                               \

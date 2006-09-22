@@ -53,7 +53,7 @@
  * new config structure
  */
 config_t config_new(void) {
-    return xhash_new(501);
+    return new config_st;
 }
 
 struct build_data {
@@ -176,25 +176,25 @@ int config_load(config_t c, const char *file) {
         *next = '\0';
 
         /* find the config element for this key */
-        elem = xhash_get(c, buf);
+	elem = (*c)[buf];
         if (elem == NULL) {
             /* haven't seen it before, so create it */
-            elem = pmalloco(xhash_pool(c), sizeof(struct config_elem_st));
-            xhash_put(c, pstrdup(xhash_pool(c), buf), elem);
+            elem = static_cast<config_elem_t>(pmalloco(c->mempool, sizeof(struct config_elem_st)));
+	    (*c)[buf] = elem;
         }
 
         /* make room for this value .. can't easily realloc off a pool, so
          * we do it this way and let _config_reaper clean up */
-        elem->values = realloc((void *) elem->values, sizeof(char *) * (elem->nvalues + 1));
+        elem->values = static_cast<char**>(realloc((void *) elem->values, sizeof(char *) * (elem->nvalues + 1)));
 
         /* and copy it in */
         if (NAD_CDATA_L(bd.nad, i) > 0)
-            elem->values[elem->nvalues] = pstrdupx(xhash_pool(c), NAD_CDATA(bd.nad, i), NAD_CDATA_L(bd.nad, i));
+            elem->values[elem->nvalues] = pstrdupx( c->mempool, NAD_CDATA(bd.nad, i), NAD_CDATA_L(bd.nad, i));
         else
             elem->values[elem->nvalues] = "1";
 
         /* make room for the attribute lists */
-        elem->attrs = realloc((void *) elem->attrs, sizeof(char **) * (elem->nvalues + 1));
+        elem->attrs = static_cast<char***>(realloc((void *) elem->attrs, sizeof(char **) * (elem->nvalues + 1)));
         elem->attrs[elem->nvalues] = NULL;
 
         /* count the attributes */
@@ -204,14 +204,14 @@ int config_load(config_t c, const char *file) {
         /* if we have some */
         if (j > 0) {
             /* make space */
-            elem->attrs[elem->nvalues] = pmalloc(xhash_pool(c), sizeof(char *) * (j * 2 + 2));
+            elem->attrs[elem->nvalues] = static_cast<char**>(pmalloc(c->mempool, sizeof(char *) * (j * 2 + 2)));
             
             /* copy them in */
             j = 0;
             attr = bd.nad->elems[i].attr;
             while (attr >= 0) {
-                elem->attrs[elem->nvalues][j] = pstrdupx(xhash_pool(c), NAD_ANAME(bd.nad, attr), NAD_ANAME_L(bd.nad, attr));
-                elem->attrs[elem->nvalues][j + 1] = pstrdupx(xhash_pool(c), NAD_AVAL(bd.nad, attr), NAD_AVAL_L(bd.nad, attr));
+                elem->attrs[elem->nvalues][j] = pstrdupx(c->mempool, NAD_ANAME(bd.nad, attr), NAD_ANAME_L(bd.nad, attr));
+                elem->attrs[elem->nvalues][j + 1] = pstrdupx(c->mempool, NAD_AVAL(bd.nad, attr), NAD_AVAL_L(bd.nad, attr));
 
                 j += 2;
                 attr = bd.nad->attrs[attr].next;
@@ -237,14 +237,16 @@ int config_load(config_t c, const char *file) {
  * get the config element for this key
  */
 config_elem_t config_get(config_t c, char *key) {
-    return xhash_get(c, key);
+    if (c->find(key) == c->end())
+	return NULL;
+    return (*c)[key];
 }
 
 /**
  * get config value n for this key
  */
 char *config_get_one(config_t c, char *key, int num) {
-    config_elem_t elem = xhash_get(c, key);
+    config_elem_t elem = config_get(c, key);
 
     if (elem == NULL)
         return NULL;
@@ -259,7 +261,7 @@ char *config_get_one(config_t c, char *key, int num) {
  * how many values for this key?
  */
 int config_count(config_t c, char *key) {
-    config_elem_t elem = xhash_get(c, key);
+    config_elem_t elem = config_get(c, key);
 
     if (elem == NULL)
         return 0;
@@ -271,7 +273,7 @@ int config_count(config_t c, char *key) {
  * get an attr for this value
  */
 char *config_get_attr(config_t c, char *key, int num, char *attr) {
-    config_elem_t elem = xhash_get(c, key);
+    config_elem_t elem = config_get(c, key);
 
     if (elem->attrs == NULL)
         return NULL;
@@ -280,20 +282,25 @@ char *config_get_attr(config_t c, char *key, int num, char *attr) {
 }
 
 /**
- * cleanup helper
- */
-static void _config_reaper(xht h, const char *key, void *val, void *arg) {
-    config_elem_t elem = (config_elem_t) val;
-
-    free(elem->values);
-    free(elem->attrs);
-}
-
-/**
  * cleanup
  */
 void config_free(config_t c) {
-    xhash_walk(c, _config_reaper, NULL);
+    std::map<std::string, config_elem_t>::iterator p;
 
-    xhash_free(c);
+    for (p = c->begin(); p != c->end(); ++p) {
+	free(p->second->values);
+	free(p->second->attrs);
+    }
+
+    delete c;
+}
+
+/* NEW CODE */
+
+config_st::config_st() {
+    mempool = pool_new();
+}
+
+config_st::~config_st() {
+    pool_free(mempool);
 }

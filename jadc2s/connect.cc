@@ -40,6 +40,8 @@
  
 #include "jadc2s.h"
 
+#include <sstream>
+
 /**
  * get the child element of a route element, that represents the base element
  * of the stanza
@@ -258,7 +260,7 @@ static void _connect_handle_sc_packet_started(conn_t sm_conn, int sc_element, co
 	/* update state */
 	client_conn->sasl_state = state_auth_SESSION_STARTED;
 	client_conn->state = state_OPEN;
-	xhash_zap(sm_conn->c2s->pending, jid_full(client_conn->myid));
+	sm_conn->c2s->pending->erase(jid_full(client_conn->myid));
 
 	/* keep session manager's id */
 	if (client_conn->sc_sm != NULL) {
@@ -436,7 +438,7 @@ static void _connect_process(conn_t c) {
         if (attr >= 0) {
             log_debug(ZONE, "client %d now has a session %s", target->fd, from_str);
             target->state = state_OPEN;
-            xhash_zap(c->c2s->pending, jid_full(target->myid));
+	    c->c2s->pending->erase(jid_full(target->myid));
             target->smid = jid_new(target->idp, c->c2s->jid_environment, from_str);
             mio_read(c->c2s->mio, target->fd); /* start reading again now */
         }
@@ -446,8 +448,7 @@ static void _connect_process(conn_t c) {
     chunk = chunk_new_packet(c, 1);
 
     /* look for iq results for auths */
-    if((pending = xhash_get(c->c2s->pending, cid)) != NULL && target->state == state_AUTH)
-    {
+    if ((pending = (*c->c2s->pending)[cid]) != NULL && target->state == state_AUTH) {
         /* got a result, start a session */
         attr = nad_find_attr(chunk->nad, 1, "type", NULL);
         if(attr >= 0 && j_strncmp(NAD_AVAL(chunk->nad, attr), "result", 6) == 0)
@@ -493,21 +494,23 @@ static void _connect_startElement(void *arg, const char* name, const char** atts
 {
     conn_t c = (conn_t)arg;
     int i = 0;
-    char buf[128];
 
     /* track how far down we are in the xml */
     c->depth++;
 
     /* process stream header first */
-    if(c->depth == 1)
-    {
+    if(c->depth == 1) {
+	std::ostringstream id_secret;
+	char handshake[41];
+
         /* Extract stream ID and generate a key to hash */
-        snprintf(buf, 128, "%s", shahash(spools(c->idp, j_attr(atts, "id"), c->c2s->sm_secret, c->idp)));
+	id_secret << j_attr(atts, "id") << c->c2s->sm_secret;
+	shahash_r(id_secret.str().c_str(), handshake);
 
         /* create a new nad */
         c->nad = nad_new(c->c2s->nads);
         nad_append_elem(c->nad, "handshake", 1);
-        nad_append_cdata(c->nad, buf, strlen(buf), 2);
+        nad_append_cdata(c->nad, handshake, strlen(handshake), 2);
 
         log_debug(ZONE,"handshaking with sm");
 
@@ -754,8 +757,8 @@ int connect_new(c2s_t c2s)
 
     /* set up expat callbacks */
     XML_SetUserData(c->expat, (void*)c);
-    XML_SetElementHandler(c->expat, (void*)_connect_startElement, (void*)_connect_endElement);
-    XML_SetCharacterDataHandler(c->expat, (void*)_connect_charData);
+    XML_SetElementHandler(c->expat, _connect_startElement, _connect_endElement);
+    XML_SetCharacterDataHandler(c->expat, _connect_charData);
 
     /* send stream header */
     write(fd,dummy,strlen(dummy));

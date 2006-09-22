@@ -1,3 +1,24 @@
+2006-09-22  Matthias Wimmer  <m@tthias.eu>
+
+    * util/xhash.c: ported to C++, using std::map instead of xhash
+    * rate.c: ported to C++, renamed to rate.cc
+    * conn.c: ported to C++, renamed to conn.cc
+    * clients.c: ported to C++, renamed to clients.cc
+    * jadc2s.c: ported to C++, renamed to jadc2s.cc
+    * jadc2s.h: ported to C++
+    * connect.c: ported to C++, renamed to connect.cc
+    * mio/mio.c: ported to C++, renamed to mio.cc
+    * mio/mio_epoll.h: ported to C++
+    * util/nad.c: ported to C++, renamed to nad.cc
+    * util/config.c: ported to C++, renamed to config.cc
+    * util/snprintf.c: ported to C++, renamed to snprintf.cc
+    * util/jid.c: ported to C++, renamed to jid.cc
+    * util/str.c: ported to C++, renamed to str.cc
+    * util/pool.c: ported to C++, renamed to pool.cc
+    * util/sha.c: ported to C++, renamed to sha.cc
+    * util/log.c: ported to C++, renamed to log.cc
+    * util/util.h: ported to C++
+
 2006-08-06  Matthias Wimmer  <m@tthias.eu>
 
     * util/nad.c: removed unused functions

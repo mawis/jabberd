@@ -2,6 +2,9 @@
 #   include <config.h>
 #endif
 
+#include <string>
+#include <map>
+
 #include "mio/mio.h"
 #include <expat.h>
 #include "util/util.h"
@@ -13,6 +16,7 @@
 
 #ifdef WITH_SASL
 # include <sasl/sasl.h>
+# include <sasl/saslutil.h>
 #endif
 
 /**
@@ -278,6 +282,14 @@ struct bad_conn_st
     bad_conn_t next;
 };
 
+/* IP connection rate info */
+typedef struct connection_rate_st
+{
+    char* ip; /* need a copy of the ip */
+    int count; /* How many have connected */
+    time_t first_time; /* The time of the first conn */
+} *connection_rate_t;
+
 /** c2s master data type */
 struct c2s_st
 {
@@ -310,15 +322,15 @@ struct c2s_st
     int tls_required;
 #endif
 
-    xht config;			/**< our configuration */
+    config_t config;		/**< our configuration */
 
     nad_cache_t nads;		/**< nad cache */
 
     /* client conn stuff */
-    xht connection_rates; /**< our current rate limit checks */
+    std::map<std::string, connection_rate_t> *connection_rates; /**< our current rate limit checks */
     int connection_rate_times;
     int connection_rate_seconds;
-    xht pending; /**< waiting for auth/session */
+    std::map<std::string, conn_t> *pending; /**< waiting for auth/session */
     struct conn_st *conns; /**< all connected conns */
     bad_conn_t bad_conns; /**< Karma controlled conns */
     bad_conn_t bad_conns_tail;

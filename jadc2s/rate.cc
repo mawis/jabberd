@@ -40,60 +40,35 @@
 
 #include "jadc2s.h"
 
-/* IP connection rate info */
-typedef struct connection_rate_st
-{
-    char* ip; /* need a copy of the ip */
-    int count; /* How many have connected */
-    time_t first_time; /* The time of the first conn */
-} *connection_rate_t;
-
-/* arg for walker */
-struct connection_rate_arg_st
-{
-    c2s_t c2s;
-    time_t now;
-};
-
-static void _walk_rate_cleanup(xht rates, const char* key, void* val, void* arg)
-{
-    /* XXX Threading issues */
-    connection_rate_t rate = (connection_rate_t)val;
-    struct connection_rate_arg_st* info = (struct connection_rate_arg_st*)arg;
-    c2s_t c2s = (c2s_t)info->c2s;
-
-    log_debug(ZONE, "key(%s) val: %x", key, val);
-    if ((info->now - rate->first_time) > c2s->connection_rate_seconds)
-    {
-        log_debug(ZONE, "free and zap");
-        xhash_zap(rates, key);
-        free(rate->ip);
-        free(rate);
-    }
-}
-    
 /***
 * walk over the rate table and clear out the old entries
 * @param c2s the c2s context
 */
-void connection_rate_cleanup(c2s_t c2s)
-{
-    static time_t last;
-    struct connection_rate_arg_st arg;
+void connection_rate_cleanup(c2s_t c2s) {
+    static time_t last = 0;
     time_t now;
 
-    /* If there are no entries or it's not dirty, bail */
-    if ((xhash_count(c2s->connection_rates) <= 0) && 
-            (!xhash_dirty(c2s->connection_rates)))
-        return;
+    /* no entries? nothing to do! */
+    if (c2s->connection_rates->empty())
+	return;
 
-    if ((time(&now) - last) > c2s->connection_rate_seconds)
-    {
-        /* Setup the argument to the walker */
-        arg.c2s = c2s;
-        arg.now = now;
-        
-        xhash_walk(c2s->connection_rates, _walk_rate_cleanup, (void*)&arg);
+    /* time to do a connection rate check again? */
+    if ((time(&now) - last) > c2s->connection_rate_seconds) {
+
+	/* iterate all entries in the map */
+	std::map<std::string, connection_rate_t>::iterator p;
+	for (p=c2s->connection_rates->begin(); p != c2s->connection_rates->end(); ++p) {
+
+	    /* about to expire this entry? */
+	    if (now - p->second->first_time > c2s->connection_rate_seconds) {
+		log_debug(ZONE, "free and zap");
+		free(p->second->ip);
+		free(p->second);
+		c2s->connection_rates->erase(p->first);
+	    }
+	}
+
+	/* remember when we did this check last */
         time(&last);
     }
 }
@@ -105,8 +80,7 @@ void connection_rate_cleanup(c2s_t c2s)
 * @param ip the ip to check
 * @return 0 on valid 1 on invalid
 */
-int connection_rate_check(c2s_t c2s, const char* ip)
-{
+int connection_rate_check(c2s_t c2s, const char* ip) {
     connection_rate_t cr;
     time_t now;
     
@@ -114,17 +88,16 @@ int connection_rate_check(c2s_t c2s, const char* ip)
     if (c2s->connection_rate_times == 0 || c2s->connection_rate_seconds == 0)
         return 0;
 
-    /* XXX TODO This will need to be locked if it is threaded */
-    cr = (connection_rate_t)xhash_get(c2s->connection_rates, ip);
+    cr = (*c2s->connection_rates)[ip];
 
     /* If it is NULL they are the first of a possible series */
     if (cr == NULL)
     {
-        cr = malloc(sizeof(struct connection_rate_st));
+        cr = static_cast<connection_rate_t>(malloc(sizeof(struct connection_rate_st)));
         cr->ip = strdup(ip);
         cr->count = 1;
         time(&cr->first_time);
-        xhash_put(c2s->connection_rates, cr->ip, (void*)cr);
+	(*c2s->connection_rates)[ip] = cr;
         return 0;
     }
 

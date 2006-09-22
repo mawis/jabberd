@@ -114,7 +114,7 @@ static int _nad_attr(nad_t nad, int elem, const char *name, const char *val) {
  */
 nad_cache_t nad_cache_new(void) {
     nad_cache_t cache;
-    while ((cache = malloc(sizeof(nad_cache_t))) == NULL)
+    while ((cache = static_cast<nad_st**>(malloc(sizeof(nad_t)))) == NULL)
 	sleep(1);
     *cache = NULL;
     return cache;
@@ -154,7 +154,7 @@ nad_t nad_new(nad_cache_t cache) {
     }
 #endif
 
-    while ((nad = malloc(sizeof(struct nad_st))) == NULL)
+    while ((nad = static_cast<nad_t>(malloc(sizeof(struct nad_st)))) == NULL)
 	sleep(1);
     memset(nad, 0, sizeof(struct nad_st));
     nad->cache = cache;
@@ -321,7 +321,7 @@ void nad_wrap_elem(nad_t nad, int elem, char *name) {
 /**
  * create a new elem on the list
  */
-int nad_append_elem(nad_t nad, char *name, int depth) {
+int nad_append_elem(nad_t nad, const char *name, int depth) {
     int elem;
 
     /* make sure there's mem for us */
@@ -381,7 +381,7 @@ static void _nad_escape(nad_t nad, int data, int len, int flag) {
 	return;
 
     /* first, if told, find and escape ' */
-    while (flag >= 3 && (c = memchr(nad->cdata + data,'\'',len)) != NULL) {
+    while (flag >= 3 && (c = static_cast<char*>(memchr(nad->cdata + data,'\'',len))) != NULL) {
         /* get offset */
         ic = c - nad->cdata;
 
@@ -399,7 +399,7 @@ static void _nad_escape(nad_t nad, int data, int len, int flag) {
     }
 
     /* next look for < */
-    while (flag >= 2 && (c = memchr(nad->cdata + data,'<',len)) != NULL) {
+    while (flag >= 2 && (c = static_cast<char*>(memchr(nad->cdata + data,'<',len))) != NULL) {
         ic = c - nad->cdata;
         _nad_escape(nad, data, ic - data, 1);
 
@@ -414,7 +414,7 @@ static void _nad_escape(nad_t nad, int data, int len, int flag) {
     }
 
     /* check for ]]>, we need to escape the > */
-    while (flag >= 1 && (c = memchr(nad->cdata + data, '>', len)) != NULL) {
+    while (flag >= 1 && (c = static_cast<char*>(memchr(nad->cdata + data, '>', len))) != NULL) {
         ic = c - nad->cdata;
         _nad_escape(nad, data, ic - data, 0);
 
@@ -438,7 +438,7 @@ static void _nad_escape(nad_t nad, int data, int len, int flag) {
 
 
     /* if & is found, escape it */
-    while ((c = memchr(nad->cdata + data,'&',len)) != NULL) {
+    while ((c = static_cast<char*>(memchr(nad->cdata + data,'&',len))) != NULL) {
         ic = c - nad->cdata;
 
         /* ensure enough space */

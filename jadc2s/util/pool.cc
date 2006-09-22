@@ -83,7 +83,7 @@
 #ifdef POOL_DEBUG
 int pool__total = 0;
 int pool__ltotal = 0;
-xht pool__disturbed = NULL;
+std::map<std::string, pool> pool__disturbed;
 void *_pool__malloc(size_t size)
 {
     pool__total++;
@@ -111,7 +111,7 @@ void _pool__free(void *block)
  */
 pool _pool_new(char *zone, int line) {
     pool p;
-    while ((p = _pool__malloc(sizeof(_pool))) == NULL)
+    while ((p = static_cast<pool>(_pool__malloc(sizeof(_pool)))) == NULL)
 	sleep(1);
     memset(p, 0, sizeof(_pool));
     p->cleanup = NULL;
@@ -124,12 +124,7 @@ pool _pool_new(char *zone, int line) {
     snprintf(p->zone, sizeof(p->zone), "%s:%i", zone, line);
     snprintf(p->name, sizeof(p->name), "%X",p);
 
-    if (pool__disturbed == NULL) {
-        pool__disturbed = (xht)1; /* reentrancy flag! */
-        pool__disturbed = xhash_new(POOL_NUM);
-    }
-    if (pool__disturbed != (xht)1)
-        xhash_put(pool__disturbed,p->name,p);
+    pool__disturbed[p->name] = p;
 #endif
 
     return p;
@@ -189,7 +184,7 @@ static struct pfree *_pool_free(pool p, pool_cleaner f, void *arg) {
     struct pfree *ret;
 
     /* make the storage for the tracker */
-    while((ret = _pool__malloc(sizeof(struct pfree))) == NULL) sleep(1);
+    while((ret = static_cast<struct pfree*>(_pool__malloc(sizeof(struct pfree)))) == NULL) sleep(1);
     ret->f = f;
     ret->arg = arg;
     ret->next = NULL;
@@ -211,7 +206,7 @@ static struct pheap *_pool_heap(pool p, int size) {
     struct pfree *clean;
 
     /* make the return heap */
-    while ((ret = _pool__malloc(sizeof(struct pheap))) == NULL)
+    while ((ret = static_cast<struct pheap*>(_pool__malloc(sizeof(struct pheap)))) == NULL)
 	sleep(1);
     while ((ret->block = _pool__malloc(size)) == NULL)
 	sleep(1);
@@ -315,7 +310,7 @@ char *pstrdup(pool p, const char *src) {
     if (src == NULL)
         return NULL;
 
-    ret = pmalloc(p,strlen(src) + 1);
+    ret = static_cast<char*>(pmalloc(p,strlen(src) + 1));
     strcpy(ret,src);
 
     return ret;
@@ -335,7 +330,7 @@ char *pstrdupx(pool p, const char *src, int len) {
     if (src == NULL || len <= 0)
         return NULL;
 
-    ret = pmalloc(p,len + 1);
+    ret = static_cast<char*>(pmalloc(p,len + 1));
     memcpy(ret,src,len);
     ret[len] = '\0';
 
@@ -365,7 +360,7 @@ void pool_free(pool p) {
     }
 
 #ifdef POOL_DEBUG
-    xhash_zap(pool__disturbed,p->name);
+    pool__disturbed.erase(p->name);
 #endif
 
     _pool__free(p);
@@ -388,25 +383,20 @@ void pool_cleanup(pool p, pool_cleaner f, void *arg) {
 }
 
 #ifdef POOL_DEBUG
-static void _pool_stat(xht h, const char *key, void *data, void *arg) {
-    pool p = (pool)data;
-
-    /* XXX writing to stdout might not work, jadc2s may have closed all handles on startup */
-    if (p->lsize == -1)
-	printf("%s: %s is a new pool\n",p->zone,p->name);
-    else if (p->size > p->lsize)
-        printf("%s: %s grew %d\n",p->zone,p->name, p->size - p->lsize);
-    else if ((int)arg)
-        printf("%s: %s exists %d\n",p->zone,p->name, p->size);
-    p->lsize = p->size;
-}
-
 void pool_stat(int full) {
-    if (pool__disturbed == NULL || pool__disturbed == (xht)1)
-	return;
-    xhash_walk(pool__disturbed,_pool_stat,(void *)full);
+    std::map<std::string, pool>::iterator p;
+    for (p=pool__disturbed.begin(); p!=pool__disturbed.end(); ++p) {
+	if (p->second->lsize == -1)
+	    std::cout << p->second->zone << ": " << p->second->name << " is a new pool" << std::endl;
+	else if (p->second->size > p->second->lsize)
+	    std::cout << p->second->zone << ": " << p->second->name << " grew " << (p->second->size - p->second->lsize) << std::endl;
+	else if (full)
+	    std::cout << p->second->zone << ": " << p->second->name << " exists " << p->second->size << std::endl;
+	p->second->lsize = p->second->size;
+    }
+
     if (pool__total != pool__ltotal)
-        printf("%d\ttotal missed mallocs\n",pool__total);
+	std::cout << pool__total << "\ttotal missed mallocs" << std::endl;
     pool__ltotal = pool__total;
     return;
 }
