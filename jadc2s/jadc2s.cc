@@ -636,6 +636,11 @@ int main(int argc, char **argv) {
         if((time(&now) - last_pending) > 15) {
 	    std::map<std::string, conn_t>::iterator p;
 	    for (p = c2s->pending->begin(); p != c2s->pending->end(); ++p) {
+		/* XXX we should not need this, but currently we do ... why? */
+		if (p->second == NULL) {
+		    c2s->pending->erase(p->first);
+		    continue;
+		}
 		if (now - p->second->start > c2s->timeout && p->second->fd != -1) {
 		    conn_close(p->second, STREAM_ERR_TIMEOUT, "You have not authenticated in time");
 		}
