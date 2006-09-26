@@ -47,13 +47,13 @@ logmessage &logmessage::ssl_errors() {
     return *this;
 }
 
-logging::logging(std::string ident)
+logging::logging(std::string ident) : identity(ident)
 #ifndef USE_SYSLOG
-    : logfile((ident + ".log").c_str()) 
+    , logfile((ident + ".log").c_str()) 
 #endif
 {
 #ifdef USE_SYSLOG
-    openlog(ident.c_str(), LOG_PID, USE_SYSLOG);
+    openlog(identity.c_str(), LOG_PID, USE_SYSLOG);
 #endif
 }
 
