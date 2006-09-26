@@ -162,8 +162,6 @@ void shahash_r(const char* str, char hashbuf[41]) {
 	return;
     }
 
-    syslog(LOG_NOTICE, "hashing %s", str);
-    
     shaBlock((unsigned char *)str, strlen(str), hashval);
 
     result << std::hex;
@@ -172,8 +170,6 @@ void shahash_r(const char* str, char hashbuf[41]) {
 	result.fill('0');
 	result << static_cast<unsigned int>(hashval[x]);
     }
-
-    syslog(LOG_NOTICE, "result first is: %s", result.str().c_str());
 
     strncpy(hashbuf, result.str().c_str(), 41);
     hashbuf[40] = 0;
