@@ -40,6 +40,8 @@
 
 #include "jadc2s.h"
 
+#include <fstream>
+
 /* check jadc2s.h for an overview of this codebase */
 static int process_conns = 1;
 
@@ -85,7 +87,7 @@ static int _sasl_canon_user(sasl_conn_t *conn, void *context, const char *in, un
     }
 
     /* copy to the output buffer */
-    snprintf(out, out_max, "%s", user_jid->user);
+    strcpy(out, user_jid->user);
     *out_len = j_strlen(user_jid->user);
     pool_free(local_pool);
     user_jid = NULL;
@@ -112,7 +114,7 @@ static int _sasl_proxy_auth_check(sasl_conn_t *conn, void *context, const char *
 
     /* more sanity checks */
     if (requested_user == NULL || auth_identity == NULL || def_realm == NULL) {
-	log_write(c2s->log, LOG_ERR, "Internal error: illegal NULL value passed to _sasl_proxy_auth_check as %s", requested_user == NULL ? "requested_user" : auth_identity == NULL ? "auth_identity" : "def_realm");
+	c2s->log->level(LOG_ERR) << "Internal error: illegal NULL value passed to _sasl_proxy_auth_check as " << (requested_user == NULL ? "requested_user" : auth_identity == NULL ? "auth_identity" : "def_realm");
 	return SASL_FAIL;
     }
 
@@ -121,21 +123,21 @@ static int _sasl_proxy_auth_check(sasl_conn_t *conn, void *context, const char *
     if (strchr(requested_user, '@') == NULL) {
 	authz_jid = jid_new(local_pool, c2s->jid_environment, def_realm);
 	if (authz_jid == NULL) {
-	    log_write(c2s->log, LOG_ERR, "Internal error: could not initialize authz_jid with default realm %s", def_realm);
+	    c2s->log->level(LOG_ERR) << "Internal error: could not initialize authz_jid with default realm " << def_realm;
 	    pool_free(local_pool);
 	    return SASL_FAIL;
 	}
 	jid_set(authz_jid, requested_user, JID_USER);
 
 	if (authz_jid->user == NULL || authz_jid->server == NULL || authz_jid->resource != NULL) {
-	    log_write(c2s->log, LOG_ERR, "Internal error: %s@%s initialized authz_jid to %s", requested_user, def_realm, jid_full(authz_jid));
+	    c2s->log->level(LOG_ERR) << "Internal error: " << requested_user << "@" << def_realm << " initialized authz_jid to " << jid_full(authz_jid);
 	    pool_free(local_pool);
 	    return SASL_FAIL;
 	}
     } else {
 	authz_jid = jid_new(local_pool, c2s->jid_environment, requested_user);
 	if (authz_jid == NULL || authz_jid->user == NULL || authz_jid->server == NULL || authz_jid->resource != NULL) {
-	    log_write(c2s->log, LOG_ERR, "Internal error: %s initialized authz_jid to %s", requested_user, authz_jid == NULL ? "NULL" : jid_full(authz_jid));
+	    c2s->log->level(LOG_ERR) << "Internal error: " << requested_user << " initialized authz_jid to " << (authz_jid == NULL ? "NULL" : jid_full(authz_jid));
 	    pool_free(local_pool);
 	    return SASL_FAIL;
 	}
@@ -143,21 +145,21 @@ static int _sasl_proxy_auth_check(sasl_conn_t *conn, void *context, const char *
     if (strchr(auth_identity, '@') == NULL) {
 	auth_jid = jid_new(local_pool, c2s->jid_environment, def_realm);
 	if (auth_jid == NULL) {
-	    log_write(c2s->log, LOG_ERR, "Internal error: could not initialize auth_jid with default realm %s", def_realm);
+	    c2s->log->level(LOG_ERR) << "Internal error: could not initialize auth_jid with default realm " << def_realm;
 	    pool_free(local_pool);
 	    return SASL_FAIL;
 	}
 	jid_set (auth_jid, auth_identity, JID_USER);
 
 	if (auth_jid->user == NULL || auth_jid->server == NULL || auth_jid->resource != NULL) {
-	    log_write(c2s->log, LOG_ERR, "Internal error: %s@%s initialized auth_jid to %s", auth_identity, def_realm, jid_full(auth_jid));
+	    c2s->log->level(LOG_ERR) << "Internal error: " << auth_identity << "@" << def_realm << " initialized auth_jid to " << jid_full(auth_jid);
 	    pool_free(local_pool);
 	    return SASL_FAIL;
 	}
     } else {
 	auth_jid = jid_new(local_pool, c2s->jid_environment, auth_identity);
 	if (auth_jid == NULL || auth_jid->user == NULL || auth_jid->server == NULL || auth_jid->resource != NULL) {
-	    log_write(c2s->log, LOG_ERR, "Internal error: %s initialized auth_jid to %s", auth_identity, auth_jid == NULL ? "NULL" : jid_full(auth_jid));
+	    c2s->log->level(LOG_ERR) << "Internal error: " << auth_identity << " initialized auth_jid to " << (auth_jid == NULL ? "NULL" : jid_full(auth_jid));
 	    pool_free(local_pool);
 	    return SASL_FAIL;
 	}
@@ -177,7 +179,7 @@ static int _sasl_proxy_auth_check(sasl_conn_t *conn, void *context, const char *
 
 	/* as there a valid JID? */
 	if (config_jid == NULL) {
-	    log_write(c2s->log, LOG_WARNING, "invalid configuration option <authorization><admin>%s</admin></authorization>", c2s->sasl_admin->values[i]);
+	    c2s->log->level(LOG_WARNING) << "invalid configuration option <authorization><admin>" << c2s->sasl_admin->values[i] << "</admin></authorization>";
 	    continue;
 	}
 
@@ -188,7 +190,7 @@ static int _sasl_proxy_auth_check(sasl_conn_t *conn, void *context, const char *
 
 	/* configured JIDs without resource have access to authorize as anybody */
 	if (config_jid->resource == NULL) {
-	    log_write(c2s->log, LOG_NOTICE, "User %s (super admin) has been authorized as user %s", jid_full(auth_jid), jid_full(authz_jid));
+	    c2s->log->level(LOG_NOTICE) << "User " << jid_full(auth_jid) << " (super admin) has been authorized as user " << jid_full(authz_jid);
 	    pool_free(local_pool);
 	    return SASL_OK;
 	}
@@ -199,27 +201,27 @@ static int _sasl_proxy_auth_check(sasl_conn_t *conn, void *context, const char *
 	/* what authz_jid values are allowed using this config option? */
 	auth_as_jid = jid_new(local_pool, c2s->jid_environment, config_jid->resource);
 	if (auth_as_jid == NULL || auth_as_jid->resource != NULL) {
-	    log_write(c2s->log, LOG_WARNING, "invalid configuration option <authorization><admin>%s</admin></authorization> (resource invalid)", c2s->sasl_admin->values[i]);
+	    c2s->log->level(LOG_WARNING) << "invalid configuration option <authorization><admin>" << c2s->sasl_admin->values[i] << "</admin></authorization> (resource invalid)";
 	    continue;
 	}
 
 	/* authorized for a full domain? */
 	if (auth_as_jid->user == NULL) {
 	    if (jid_cmpx(auth_as_jid, authz_jid, JID_SERVER) == 0) {
-		log_write(c2s->log, LOG_NOTICE, "User %s (domain admin) has been authorized as user %s", jid_full(auth_jid), jid_full(authz_jid));
+		c2s->log->level(LOG_NOTICE) << "User " << jid_full(auth_jid) << " (domain admin) has been authorized as user " << jid_full(authz_jid);
 		pool_free(local_pool);
 		return SASL_OK;
 	    }
 	} else {
 	    if (jid_cmp(auth_as_jid, authz_jid) == 0) {
-		log_write(c2s->log, LOG_NOTICE, "User %s (user admin) has been authorized as user %s", jid_full(auth_jid), jid_full(authz_jid));
+		c2s->log->level(LOG_NOTICE) << "User " << jid_full(auth_jid) << " (user admin) has been authorized as user " << jid_full(authz_jid);
 		pool_free(local_pool);
 		return SASL_OK;
 	    }
 	}
     }
 
-    log_write(c2s->log, LOG_WARNING, "Denied %s user %s to authorize as user %s", has_admin_rights ? "admin" : "non-admin", jid_full(auth_jid), jid_full(authz_jid));
+    c2s->log->level(LOG_WARNING) << "Denied " << (has_admin_rights ? "admin" : "non-admin") << " user " << jid_full(auth_jid) << " to authorize as user " << jid_full(authz_jid);
 
     pool_free(local_pool);
     return SASL_NOAUTHZ;
@@ -496,97 +498,81 @@ int main(int argc, char **argv) {
     }
 
     /* start logging */
-    c2s->log = log_new(c2s->sm_id);
-    log_write(c2s->log, LOG_NOTICE, "starting up");
+    c2s->log = new logging(c2s->sm_id);
+    c2s->log->level(LOG_NOTICE) << "starting up as " << c2s->sm_id;
 
     /* seed the random number generator */
     fd = open(rand_dev, O_RDONLY|O_NOCTTY);
-    if (fd != -1)
-    {
+    if (fd != -1) {
 	read(fd, &rand_seed, sizeof(rand_seed));
 	close(fd);
     }
-    if (rand_seed == 0)
-    {
-	log_write(c2s->log, LOG_NOTICE, "could not seed random number generator from %s - using time", rand_dev);
+    if (rand_seed == 0) {
+	c2s->log->level(LOG_NOTICE) << "could not seed random number generator from " << rand_dev << " - using time";
 	rand_seed = time(NULL);
     }
     srand(rand_seed);
     free(rand_dev);
 
     /* first, make sure we can connect to our sm */
-    if (!connect_new(c2s))
-    {
-        log_write(c2s->log, LOG_ERR, "Unable to connect to sm!");
+    if (!connect_new(c2s)) {
+	c2s->log->level(LOG_ERR) << "Unable to connect to sm!";
         exit(1);
     }
 
     /* only bind the unencrypted port if we have a real port number for it */
-    if(c2s->local_port > 0)
-    {
+    if (c2s->local_port > 0) {
         /* then make sure we can listen */
-        if(mio_listen(c2s->mio, c2s->local_port, c2s->local_ip, client_io, (void*)c2s) < 0)
-        {
-            log_write(c2s->log, LOG_ERR, "failed to listen on port %d!", c2s->local_port);
+        if (mio_listen(c2s->mio, c2s->local_port, c2s->local_ip, client_io, (void*)c2s) < 0) {
+	    c2s->log->level(LOG_ERR) << "failed to listen on port " << c2s->local_port << "!";
             return 1;
         }
 
-        log_write(c2s->log, LOG_NOTICE, "listening for client connections on port %d", c2s->local_port);
+	c2s->log->level(LOG_NOTICE) << "listening for client connections on port " << c2s->local_port;
     }
 
 #ifdef USE_SSL
     /* get the SSL port all set up */
 // XXX    if(c2s->local_sslport == 0 || c2s->pemfile == NULL)
-    if(c2s->pemfile == NULL)
-        log_write(c2s->log, LOG_WARNING, "ssl/tls pem file not specified, ssl disabled");
-    else
-    {
+    if (c2s->pemfile == NULL)
+	c2s->log->level(LOG_WARNING) << "SSL/TLS pem file not specified, SSL/TLS disabled";
+    else {
         /* init the OpenSSL library */
         OpenSSL_add_ssl_algorithms();
         SSL_load_error_strings();
         c2s->ssl_ctx = SSL_CTX_new(SSLv23_server_method());
 
-	if (c2s->ssl_ctx == NULL)
-	{
-	    log_write(c2s->log, LOG_ERR, "failed to initialize SSL/TLS library");
-	    log_ssl_errors(c2s->log, LOG_ERR);
+	if (c2s->ssl_ctx == NULL) {
+	    c2s->log->level(LOG_ERR) << "failed to initialize SSL/TLS library";
+	    c2s->log->level(LOG_ERR).ssl_errors();
 	    return 1;
 	}
 
         /* if these fail, we keep the context hanging around, because we free it at shutdown */
-        if(SSL_CTX_use_certificate_file(c2s->ssl_ctx, c2s->pemfile, SSL_FILETYPE_PEM) != 1)
-	{
-            log_write(c2s->log, LOG_WARNING, "failed to load certificate from %s, ssl disabled", c2s->pemfile);
-	    log_ssl_errors(c2s->log, LOG_WARNING);
+        if (SSL_CTX_use_certificate_file(c2s->ssl_ctx, c2s->pemfile, SSL_FILETYPE_PEM) != 1) {
+	    c2s->log->level(LOG_WARNING) << "failed to load certificate from " << c2s->pemfile << ", SSL/TLS disabled";
+	    c2s->log->level(LOG_WARNING).ssl_errors();
 	    c2s->ssl_ctx = NULL;
-	}
-        else if(SSL_CTX_use_PrivateKey_file(c2s->ssl_ctx, c2s->pemfile, SSL_FILETYPE_PEM) != 1)
-	{
-            log_write(c2s->log, LOG_WARNING, "failed to load private key from %s, ssl disabled", c2s->pemfile);
-	    log_ssl_errors(c2s->log, LOG_WARNING);
+	} else if (SSL_CTX_use_PrivateKey_file(c2s->ssl_ctx, c2s->pemfile, SSL_FILETYPE_PEM) != 1) {
+	    c2s->log->level(LOG_WARNING) << "failed to load private key from " << c2s->pemfile << ", SSL/TLS disabled";
+	    c2s->log->level(LOG_WARNING).ssl_errors();
 	    c2s->ssl_ctx = NULL;
-	}
-        else
-        {
-            if(!SSL_CTX_check_private_key(c2s->ssl_ctx))
-	    {
-                log_write(c2s->log, LOG_WARNING, "private key does not match certificate public key, ssl disabled");
-		log_ssl_errors(c2s->log, LOG_WARNING);
+	} else {
+            if (!SSL_CTX_check_private_key(c2s->ssl_ctx)) {
+		c2s->log->level(LOG_WARNING) << "private key does not match certificate public key, SSL/TLS disabled";
+		c2s->log->level(LOG_WARNING).ssl_errors();
 		c2s->ssl_ctx = NULL;
-	    }
-	    else
-	    {
-		if (c2s->ciphers != NULL && !SSL_CTX_set_cipher_list(c2s->ssl_ctx, c2s->ciphers))
-		{
-		    log_write(c2s->log, LOG_ERR, "non of the configured ciphers could be enabled, ssl disabled");
-		    log_ssl_errors(c2s->log, LOG_ERR);
+	    } else {
+		if (c2s->ciphers != NULL && !SSL_CTX_set_cipher_list(c2s->ssl_ctx, c2s->ciphers)) {
+		    c2s->log->level(LOG_ERR) << "non of the configured ciphers could be enabled, SSL/TLS disabled";
+		    c2s->log->level(LOG_ERR).ssl_errors();
 		    c2s->ssl_ctx = NULL;
 		}
-		if(c2s->local_sslport != 0 ) {
-		    if(mio_listen(c2s->mio, c2s->local_sslport, c2s->local_ip, client_io, (void*)c2s) < 0)
-			log_write(c2s->log, LOG_ERR, "failed to listen on port %d!", c2s->local_sslport);
+		if (c2s->local_sslport != 0 ) {
+		    if (mio_listen(c2s->mio, c2s->local_sslport, c2s->local_ip, client_io, (void*)c2s) < 0)
+			c2s->log->level(LOG_ERR) << "failed to listen on port " << c2s->local_sslport << "!";
 		    else
-			log_write(c2s->log, LOG_NOTICE, "listening for ssl client connections on port %d", c2s->local_sslport);
+			c2s->log->level(LOG_NOTICE) << "listening for SSL/TLS client connections on port " << c2s->local_sslport;
 		}
 	    }
         }
@@ -613,17 +599,17 @@ int main(int argc, char **argv) {
 	}
 	sasl_result = sasl_server_init(sasl_callbacks, c2s->sasl_appname);
 	if (sasl_result != SASL_OK) {
-	    log_write(c2s->log, LOG_ERR, "initialization of SASL library failed: %i", sasl_result);
+	    c2s->log->level(LOG_ERR) << "initialization of SASL library failed: " << sasl_result;
 	    exit(1);
 	}
-	log_write(c2s->log, LOG_NOTICE, "SASL authentication enabled");
+	c2s->log->level(LOG_NOTICE) << "SASL authentication enabled";
     } else {
-	log_write(c2s->log, LOG_NOTICE, "SASL authentication disabled");
+	c2s->log->level(LOG_NOTICE) << "SASL authentication disabled";
     }
 
 #else /* WITH(out)_SASL */
     if (c2s->sasl_enabled != 0) {
-	log_write(c2s->log, LOG_ERR, "SASL requested in configuration file, but %s compiled without SASL support.", PACKAGE);
+	c2s->log->level(LOG_ERR) << "SASL requested in configuration file, but " PACKAGE " compiled without SASL support.";
 	exit(1);
     }
 #endif /* WITH(out)_SASL */
@@ -635,19 +621,12 @@ int main(int argc, char **argv) {
         mio_run(c2s->mio, c2s->timeout);
 
         /* log this no more than once per minute */
-        if((time(NULL) - last_log) > 60)
-        {
-            log_write(c2s->log, LOG_NOTICE, "current number of clients: %d",c2s->num_clients);
-            if(c2s->local_statfile != NULL)
-            {
-		int statfile = open(c2s->local_statfile, O_WRONLY|O_CREAT|O_TRUNC);
-                if(statfile >= 0)
-		{
-		    char buffer[16] = "";
-		    snprintf(buffer, sizeof(buffer), "%d", c2s->num_clients);
-		    write(statfile, buffer, strlen(buffer));
-                }
-                close(statfile);
+        if ((time(NULL) - last_log) > 60) {
+	    c2s->log->level(LOG_NOTICE) << "current number of clients: " << c2s->num_clients;
+            if(c2s->local_statfile != NULL) {
+		std::ofstream statfile(c2s->local_statfile);
+		if (statfile)
+		    statfile << c2s->num_clients;
             }
             last_log = time(NULL);
         }
@@ -677,7 +656,7 @@ int main(int argc, char **argv) {
     }
 
     /* TODO: Notify sessionmanager about shutdown */
-    log_write(c2s->log, LOG_NOTICE, "shutting down");
+    c2s->log->level(LOG_NOTICE) << "shutting down";
 
     /* close client connections */
     for(i = 0; i < c2s->max_fds; i++)
@@ -694,7 +673,9 @@ int main(int argc, char **argv) {
     delete c2s->pending;
     free(c2s->conns);
     nad_cache_free(c2s->nads);
-    log_free(c2s->log);
+    if (c2s->log != NULL)
+	delete c2s->log;
+    c2s->log = NULL;
 #ifdef USE_SSL
     SSL_CTX_free(c2s->ssl_ctx);
 #endif
@@ -708,26 +689,5 @@ int main(int argc, char **argv) {
 
 /* spit out debug output */
 void debug_log(char *file, int line, const char *msgfmt, ...) {
-    va_list ap;
-    char *pos, message[MAX_DEBUG];
-    int sz;
-    time_t t;
-
-    /* timestamp */
-    t = time(NULL);
-    pos = ctime(&t);
-    sz = strlen(pos);
-    /* chop off the \n */
-    pos[sz-1]=' ';
-
-    /* insert the header */
-    snprintf(message, MAX_DEBUG, "%s%s:%d ", pos, file, line);
-
-    /* find the end and attach the rest of the msg */
-    for (pos = message; *pos != '\0'; pos++); //empty statement
-    sz = pos - message;
-    va_start(ap, msgfmt);
-    vsnprintf(pos, MAX_DEBUG - sz, msgfmt, ap);
-    fprintf(stderr,"%s", message);
-    fprintf(stderr, "\n");
+    // debug logging still has to be moved to be stream based, just removing debug_log for now to get rid of snprintf/vsnprintf
 }

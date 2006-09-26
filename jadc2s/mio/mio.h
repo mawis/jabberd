@@ -25,10 +25,6 @@
 #ifndef INCL_MIO_H
 #define INCL_MIO_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
  * @file mio.h
  * @brief mio - manage i/o
@@ -73,7 +69,7 @@ typedef enum {
  * @param arg user provided argument at registering the callback
  * @return ?
  */
-typedef int (*mio_handler_t) (mio_t m, mio_action_t a, int fd, void* data, void *arg);
+typedef int (*mio_handler_t) (mio_t m, mio_action_t a, int fd, const void* data, void *arg);
 
 /**
  * create the mio subsystem
@@ -168,10 +164,6 @@ void mio_read(mio_t m, int fd);
  * @param timeout how many seconds mio should check its sockets, 0 is non-blocking
  */
 void mio_run(mio_t m, int timeout);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif  /* INCL_MIO_H */
 

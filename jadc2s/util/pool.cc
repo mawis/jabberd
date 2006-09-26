@@ -40,6 +40,9 @@
 
 #include "util.h"
 
+#include <sstream>
+#include <string>
+
 /**
  * @file pool.c
  * @brief Handling of memory pools
@@ -121,8 +124,19 @@ pool _pool_new(char *zone, int line) {
     p->size = 0;
     p->lsize = -1;
     p->zone[0] = '\0';
-    snprintf(p->zone, sizeof(p->zone), "%s:%i", zone, line);
-    snprintf(p->name, sizeof(p->name), "%X",p);
+    std::ostringstream zone_stream;
+    zone_stream << zone << ":" << line;
+    std::string zone_str = zone_stream.str();
+    if (zone_str.length() >= sizeof(p->zone) - 1)
+	zone_str.erase(sizeof(p->zone) - 1);
+    strcpy(p->zone, zone_str.c_str());
+
+    std::ostringstream name_stream;
+    name_stream << std::hex << static_cast<void*>(p);
+    std::string name_str = name_stream.str();
+    if (name_str.length() >= sizeof(p->name) -1)
+	name_str.erase(sizeof(p->name) - 1);
+    strcpy(p->name, name_str.c_str());
 
     pool__disturbed[p->name] = p;
 #endif

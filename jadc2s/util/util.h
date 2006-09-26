@@ -2,8 +2,7 @@
 #   include <config.h>
 #endif
 
-#include <string>
-#include <map>
+#include "util2.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -49,11 +48,6 @@
 
 #ifndef INCL_UTIL_H
 #define INCL_UTIL_H
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 
 #ifndef HAVE_SNPRINTF
 extern int ap_snprintf(char *, size_t, const char *, ...);
@@ -249,15 +243,6 @@ jid     jid_user(jid a);                       /* returns the same jid but just 
 # define MAX_LOG_LINE        (1024)
 #endif
 
-typedef void *log_t;
-
-extern log_t    log_new(const char *);
-extern void     log_write(log_t, int, const char *, ...);
-extern void     log_free(log_t);
-#ifdef USE_SSL
-void log_ssl_errors(log_t l, int level);
-#endif
-
 /* config files */
 struct config_elem_st
 {
@@ -378,10 +363,6 @@ void nad_print(nad_t nad, int elem, char **xml, int *len);
 #define NAD_AVAL(N,A) (N->cdata + N->attrs[A].ival)
 #define NAD_AVAL_L(N,A) (N->attrs[A].lval)
 
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif	/* INCL_UTIL_H */
 

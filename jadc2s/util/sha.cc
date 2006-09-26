@@ -21,6 +21,7 @@
  */
 
 #include "util.h"
+#include <sstream>
 
 static void shaHashBlock(j_SHA_CTX *ctx);
 
@@ -154,22 +155,23 @@ void shahash_r(const char* str, char hashbuf[41]) {
     int x;
     char *pos;
     unsigned char hashval[20];
-    
-    /* if no input, create random output */
-    if(!str || strlen(str) == 0)
-    {
-        snprintf(hashbuf,41,"%d",rand());
-        str = hashbuf;
-    }
+    std::ostringstream result;
 
+    if (!str) {
+	hashbuf[0] = 0;
+	return;
+    }
+    
     shaBlock((unsigned char *)str, strlen(str), hashval);
 
-    pos = hashbuf;
-    for(x=0;x<20;x++)
-    {
-        snprintf(pos, 3, "%02x", hashval[x]);
-        pos += 2;
+    result << std::hex;
+    for (x=0; x<20; x++) {
+	result.width(2);
+	result.fill('0');
+	result << static_cast<unsigned int>(hashval[x]);
     }
+
+    strncpy(hashbuf, result.str().c_str(), sizeof(hashbuf));
 
     return;
 }
