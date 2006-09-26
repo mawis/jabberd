@@ -228,10 +228,10 @@ conn_t conn_new(c2s_t c2s, int fd);
 void conn_free(conn_t c);
 
 /** send a stream error */
-void conn_error(conn_t c, char *condition, char *err);
+void conn_error(conn_t c, const char *condition, const char *err);
 
 /** close a conn with error (conn_t becomes invalid after this is called!) */
-void conn_close(conn_t c, char *condition, char *err);
+void conn_close(conn_t c, const char *condition, const char *err);
 
 /** create a new chunk */
 chunk_t chunk_new(conn_t c);
@@ -260,7 +260,7 @@ int conn_read(conn_t c, char *buf, int len);
 int conn_write(conn_t c);
 
 /* fill a nad with information about a user's connection */
-void connectionstate_fillnad(nad_t nad, char *from, char *to, char *user, int is_login, char *ip, const char *ssl_version, const char *ssl_cipher, char *ssl_size_secret, char *ssl_size_algorithm);
+void connectionstate_fillnad(nad_t nad, char *from, char *to, char *user, int is_login, char *ip, const char *ssl_version, const char *ssl_cipher, const char *ssl_size_secret, const char *ssl_size_algorithm);
 void connectionstate_send(config_t config, conn_t c, conn_t client, int is_login);
 
 /** maximum number of xml children in a chunk (checked by conn_read) */
@@ -347,7 +347,7 @@ struct c2s_st
     int sm_port;
 
     /* logging */
-    log_t log;
+    logging *log;		/**< logging instance to use */
     int iplog;
 
     /* SASL */
@@ -365,7 +365,7 @@ struct c2s_st
 };
 
 /** the handler for client mio events */
-int client_io(mio_t m, mio_action_t a, int fd, void *data, void *arg);
+int client_io(mio_t m, mio_action_t a, int fd, const void *data, void *arg);
 void client_send_sc_command(conn_t sm_conn, const char *to, const char *from, const char *action, const jid target, const char *id, const char *sc_sm, const char *sc_c2s);
 
 /** create a sm connection (block until it's connected) */

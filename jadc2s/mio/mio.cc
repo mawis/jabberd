@@ -59,6 +59,8 @@
 #include <sys/socket.h>
 #include <netinet/tcp.h>
 
+#include <sstream>
+
 #define IDLE_CHECK 180
 
 /**
@@ -162,16 +164,15 @@ void mio_close(mio_t m, int fd)
  * @param m the mio on which the connection is accepted
  * @param fd the fd of the incoming connection
  */
-static void _mio_accept(mio_t m, int fd)
-{
+static void _mio_accept(mio_t m, int fd) {
+    std::ostringstream ip;
 #ifdef USE_IPV6
     struct sockaddr_storage serv_addr;
-    char ip[INET6_ADDRSTRLEN+6];
+    char c_ip[INET6_ADDRSTRLEN];
     int port = 0;
     char port_string[7];
 #else
     struct sockaddr_in serv_addr;
-    char ip[16+6];
 #endif
     size_t addrlen = sizeof(serv_addr);
     int newfd, dupfd;
@@ -189,27 +190,25 @@ static void _mio_accept(mio_t m, int fd)
 #ifdef USE_IPV6
     switch (serv_addr.ss_family) {
 	case AF_INET:
-	    inet_ntop(AF_INET, &(((struct sockaddr_in*)&serv_addr)->sin_addr), ip, sizeof(ip)-6);
+	    inet_ntop(AF_INET, &(((struct sockaddr_in*)&serv_addr)->sin_addr), c_ip, sizeof(c_ip));
 	    port = ntohs(((struct sockaddr_in*)&serv_addr)->sin_port);
+	    ip << c_ip << ";" << port;
 	    break;
 	case AF_INET6:
-	    inet_ntop(AF_INET6, &(((struct sockaddr_in6*)&serv_addr)->sin6_addr), ip, sizeof(ip)-6);
+	    inet_ntop(AF_INET6, &(((struct sockaddr_in6*)&serv_addr)->sin6_addr), c_ip, sizeof(c_ip));
 	    port = ntohs(((struct sockaddr_in6*)&serv_addr)->sin6_port);
+	    ip << c_ip << ";" << port;
 	    break;
 	default:
-	    strcpy(ip, "(unknown)");
+	    ip << "(unknown)";
     }
-    snprintf(port_string, sizeof(port_string), ";%u", port); /* this needs to be a ';' for SASL */
-    strcat(ip, port_string);
-    mio_debug(ZONE, "new socket accepted fd #%d, ip %s", newfd, ip);
 #else
-    snprintf(ip,sizeof(ip),"%s;%u",inet_ntoa(serv_addr.sin_addr), ntohs(serv_addr.sin_port)); /* this needs to be a ';' for SASL */
-    mio_debug(ZONE, "new socket accepted fd #%d, %s", newfd, ip);
+    ip << inet_ntoa(serv_addr.sin_addr) << ntohs(serv_addr.sin_port);
 #endif
+    mio_debug(ZONE, "new socket accepted fd #%d, ip %s", newfd, ip.str().c_str());
 
     /* set up the entry for this new socket */
-    if(mio_fd(m, newfd, FD(m,fd).app, FD(m,fd).arg) < 0)
-    {
+    if (mio_fd(m, newfd, FD(m,fd).app, FD(m,fd).arg) < 0) {
         /* too high, try and get a lower fd */
         dupfd = dup(newfd);
         close(newfd);
@@ -225,9 +224,8 @@ static void _mio_accept(mio_t m, int fd)
     }
 
     /* tell the app about the new socket, if they reject it clean up */
-    if (ACT(m, newfd, action_ACCEPT, ip))
-    {
-        mio_debug(ZONE, "accept was rejected for %s:%d", ip, newfd);
+    if (ACT(m, newfd, action_ACCEPT, ip.str().c_str())) {
+        mio_debug(ZONE, "accept was rejected for %s:%d", ip.str().c_str(), newfd);
         MIO_REMOVE_FD(m, newfd);
 
         /* close the socket, and reset all memory */

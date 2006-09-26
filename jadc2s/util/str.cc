@@ -48,6 +48,8 @@
 
 #include "util.h"
 
+#include <sstream>
+
 /**
  * Copies the content of a zero-terminated string
  *
@@ -163,10 +165,15 @@ char *j_attr(const char** atts, char *attr) {
  */
 char *zonestr(char *file, int line) {
     static char buff[64];
-    int i;
 
-    i = snprintf(buff,63,"%s:%d",file,line);
-    buff[i] = '\0';
+    std::ostringstream buff_stream;
+    buff_stream << file << ":" << line;
+
+    std::string result = buff_stream.str();
+    if (result.length() > sizeof(buff)-1)
+	result.erase(sizeof(buff)-1);
+
+    strcpy(buff, result.c_str());
 
     return buff;
 }

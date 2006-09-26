@@ -1,3 +1,15 @@
+/*
+ * Licence
+ *
+ * You can use the content of this file using one of the following licences:
+ *
+ * - Version 1.0 of the Jabber Open Source Licence ("JOSL")
+ * - GNU GENERAL PUBLIC LICENSE, Version 2 or any newer version of this licence at your choice
+ * - Apache Licence, Version 2.0
+ * - GNU Lesser General Public License, Version 2.1 or any newer version of this licence at your choice
+ * - Mozilla Public License 1.1
+ */
+
 /**
  * @file log.c
  * @brief handling of logging
@@ -8,130 +20,71 @@
 
 #include "util.h"
 
-#ifdef USE_SYSLOG
-/**
- * create a new logging instance
- *
- * @note only one logging instance can be created when using syslog, so you should only open one instance
- *
- * @param ident the identity to log as
- * @return the logging instance
- */
-log_t log_new(const char *ident) {
-    openlog(ident, LOG_PID, USE_SYSLOG);
-
-    return NULL;
+logmessage::logmessage(logging &log_entity, int level) : log_entity(log_entity), level(level) {
 }
 
-/**
- * write a logging message
- *
- * @param l the logging instance to write to
- * @param level the severity level for the message
- * @param msgfmt printf like string what to write
- */
-void log_write(log_t l, int level, const char *msgfmt, ...) {
-    va_list ap;
-
-    va_start(ap, msgfmt);
-    vsyslog(level, msgfmt, ap);
-    va_end(ap);
+logmessage::logmessage(const logmessage &orig) : log_entity(orig.log_entity), level(orig.level) {
 }
 
-/**
- * free a logging instance
- */
-void log_free(log_t l) {
-    closelog();
-}
-#else
-log_t log_new(const char *ident) {
-    FILE *f;
-    char *buf;
+logmessage::~logmessage() {
+    const std::string &message = str();
 
-    if (ident == NULL) {
-	buf = strdup("logfile.log");
-    } else {
-	buf = (char *)malloc(strlen(ident)+5);
-	strcpy(buf,ident);
-	strcat(buf, ".log");
-    }
-
-    f = fopen(buf, "a+");
-    free(buf);
-    if(f == NULL) {
-        fprintf(stderr,
-            "couldn't open %s for append: %s\n"
-            "logging will go to stdout instead\n", buf, strerror(errno));
-        f = stdout;
-    }
-
-    return (void *) f;
+    /* only log if something has been written */
+    if (message != "")
+	log_entity.write(level, message);
 }
 
-static const char *log_level[] = {
-    "emergency",
-    "alert",
-    "critical",
-    "error",
-    "warning",
-    "notice",
-    "info",
-    "debug"
-};
-
-void log_write(log_t l, int level, const char *msgfmt, ...) {
-    FILE *f = (FILE *) l;
-    va_list ap;
-    char *pos, message[MAX_LOG_LINE];
-    int sz;
-    time_t t;
-
-    /* timestamp */
-    t = time(NULL);
-    pos = ctime(&t);
-    sz = strlen(pos);
-    /* chop off the \n */
-    pos[sz-1]=' ';
-
-    /* insert the header */
-    snprintf(message, MAX_LOG_LINE, "%s[%s] ", pos, log_level[level]);
-
-    /* find the end and attach the rest of the msg */
-    for (pos = message; *pos != '\0'; pos++)
-	/* nothing */;
-    sz = pos - message;
-    va_start(ap, msgfmt);
-    vsnprintf(pos, MAX_LOG_LINE - sz, msgfmt, ap);
-    fprintf(f,"%s", message);
-    fprintf(f, "\n");
-
-#ifdef DEBUG
-    /* If we are in debug mode we want everything copied to the stdout */
-    if (level != LOG_DEBUG)
-        fprintf(stdout, "%s\n", message);
-#endif /*DEBUG*/
-}
-
-void log_free(log_t l) {
-    FILE *f = (FILE *) l;
-
-    if(f != stdout)
-        fclose(f);
-}
-#endif
-
+logmessage &logmessage::ssl_errors() {
 #ifdef USE_SSL
-/**
- * log all pending OpenSSL error message
- *
- * @param l the logging instance to log to
- * @param level the error level to log the messages as
- */
-void log_ssl_errors(log_t l, int level) {
     unsigned long sslerr;
 
     while ((sslerr = ERR_get_error()) != 0)
-	log_write(l, level, "ssl: %s", ERR_error_string(sslerr, NULL));
-}
+	this->operator<<("SSL/TLS: ") << ERR_error_string(sslerr, NULL);
+#else
+    this->operator<<("logmessage::ssl_errors() called but compiled " PACKAGE " without SSL/TLS support");
 #endif
+
+    return *this;
+}
+
+logging::logging(std::string ident)
+#ifndef USE_SYSLOG
+    : logfile((ident + ".log").c_str()) 
+#endif
+{
+#ifdef USE_SYSLOG
+    openlog(ident.c_str(), LOG_PID, USE_SYSLOG);
+#endif
+}
+
+logging::~logging() {
+#ifdef USE_SYSLOG
+    closelog();
+#endif
+}
+
+logmessage logging::level(int level_to_use) {
+    return logmessage(*this, level_to_use);
+}
+
+void logging::write(int level_to_use, std::string log_message) {
+#ifdef USE_SYSLOG
+    syslog(level_to_use, "%s", log_message.c_str());
+#else
+    char timestamp[26];
+    time_t now;
+
+    time(&now);
+    ctime_r(&now, timestamp);
+
+    char *lf = strchr(timestamp, '\n');
+    if (lf != NULL)
+	*lf = 0;
+
+    logfile << timestamp << " [" << level_to_use << "] " << log_message << std::endl;
+#endif
+}
+
+std::ostream &logmessage::operator<<(const char *text) {
+    return static_cast<std::ostream&>(*this) << text;
+}

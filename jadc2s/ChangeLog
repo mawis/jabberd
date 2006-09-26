@@ -1,3 +1,20 @@
+2006-09-26  Matthias Wimmer  <m@thias.eu>
+
+    * util/util2.h: part of the header, that allows more licences
+    * util/log.cc: new classes for logging
+    * util/util.h: same
+    * util/str.cc: replacing snprintf() with ostringstream
+    * util/sha.cc: same
+    * util/pool.cc: same
+    * mio/mio.c: same
+    * mio/mio.h: declaring some arguments as const
+    * util/snprintf.cc: snprintf() not needed anymore
+    * conn.cc: using the new logging classes for logging
+    * clients.cc: same
+    * jadc2s.cc: same
+    * connect.cc: same
+    * jadc2s.h: same
+
 2006-09-22  Matthias Wimmer  <m@tthias.eu>
 
     * util/xhash.c: ported to C++, using std::map instead of xhash

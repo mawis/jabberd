@@ -40,6 +40,8 @@
 
 #include "jadc2s.h"
 
+#include <sstream>
+
 /* this file contains some simple utils for the conn_t data type */
 
 /* forward declaration */
@@ -49,7 +51,7 @@ static int _write_actual(conn_t c, int fd, const char *buf, size_t count);
 conn_t conn_new(c2s_t c2s, int fd)
 {
     conn_t c;
-    char buf[16];
+    std::ostringstream fd_stream;
 
     c = &c2s->conns[fd];
     memset(c, 0, sizeof(struct conn_st));
@@ -72,8 +74,8 @@ conn_t conn_new(c2s_t c2s, int fd)
     /* set up our id */
     c->idp = pool_heap(128);
     c->myid = jid_new(c->idp, c2s->jid_environment, c2s->sm_id);
-    snprintf(buf,16,"%d",fd);
-    jid_set(c->myid, buf, JID_USER);
+    fd_stream << fd;
+    jid_set(c->myid, fd_stream.str().c_str(), JID_USER);
    
 #ifdef FLASH_HACK
     c->flash_hack = 0;
@@ -124,7 +126,7 @@ void conn_free(conn_t c)
 }
 
 /* write a stream error */
-void conn_error(conn_t c, char *condition, char *err) {
+void conn_error(conn_t c, const char *condition, const char *err) {
     chunk_t error = NULL;
 
     if (c == NULL || (condition == NULL && err == NULL))
@@ -164,7 +166,7 @@ void conn_error(conn_t c, char *condition, char *err) {
 }
 
 #ifdef USE_SSL
-static void _log_ssl_io_error(log_t l, SSL *ssl, int retcode, int fd, const char *used_func);
+static void _log_ssl_io_error(logging *l, SSL *ssl, int retcode, int fd, const char *used_func);
 #endif
 
 /**
@@ -180,7 +182,7 @@ const char* _conn_root_element_name(root_element_t root_element) {
 }
 
 /* write errors out and close streams */
-void conn_close(conn_t c, char *condition, char *err)
+void conn_close(conn_t c, const char *condition, const char *err)
 {
     if(c != NULL && c->fd != -1)
     {
@@ -204,7 +206,7 @@ void conn_close(conn_t c, char *condition, char *err)
 	if (c->ssl != NULL) {
 	    int sslret = 0;
 
-	    log_write(c->c2s->log, LOG_DEBUG, "Closing SSL/TLS security layer on fd %i", c->fd);
+	    c->c2s->log->level(LOG_DEBUG) << "Closing SSL/TLS security layer on fd " << c->fd;
 	    sslret = SSL_shutdown(c->ssl);
 	    if (sslret < 0)
 		_log_ssl_io_error(c->c2s->log, c->ssl, sslret, c->fd, "SSL_shutdown");
@@ -344,7 +346,7 @@ void chunk_write_typed(conn_t c, chunk_t chunk, const char *to, const char *from
 
 	    sasl_result = sasl_encode(c->sasl_conn, chunk->wcur, encoding_now, &encoded_step_data, &encoded_step_len);
 	    if (sasl_result != SASL_OK) {
-		log_write(c->c2s->log, LOG_ERR, "Could not encode data using sasl_encode() on fd %i", c->fd);
+		c->c2s->log->level(LOG_ERR) << "Could not encode data using sasl_encode() on fd " << c->fd;
 		break;
 	    }
 	    chunk->wlen -= encoding_now;
@@ -582,7 +584,7 @@ int conn_write(conn_t c)
 }
 
 #ifdef USE_SSL
-static void _log_ssl_io_error(log_t l, SSL *ssl, int retcode, int fd, const char *used_func) {
+static void _log_ssl_io_error(logging *l, SSL *ssl, int retcode, int fd, const char *used_func) {
     int ssl_error;
 
     ssl_error = SSL_get_error(ssl, retcode);
@@ -592,28 +594,28 @@ static void _log_ssl_io_error(log_t l, SSL *ssl, int retcode, int fd, const char
     	    (ssl_error == SSL_ERROR_SYSCALL && errno == 0))
 	return;
 
-    log_write(l, LOG_NOTICE, "%s on fd %i returned %i", used_func, fd, retcode);
+    l->level(LOG_NOTICE) << used_func << " on fd " << fd << " returned " << retcode;
     switch (ssl_error) {
 	case SSL_ERROR_ZERO_RETURN:
-	    log_write(l, LOG_NOTICE, "TLS/SSL connection has been closed.");
+	    l->level(LOG_NOTICE) << "SSL/TLS connection has been closed";
 	    break;
 	case SSL_ERROR_WANT_CONNECT:
 	case SSL_ERROR_WANT_ACCEPT:
-	    log_write(l, LOG_DEBUG, "SSL/TLS needs more data from BIO to connect/accept");
+	    l->level(LOG_DEBUG) << "SSL/TLS needs more data from BIO to connect/accept";
 	    break;
 	case SSL_ERROR_WANT_X509_LOOKUP:
-	    log_write(l, LOG_DEBUG, "want X509 lookup (shout not happen");
+	    l->level(LOG_DEBUG) << "want X509 lookup (shout not happen)";
 	    break;
 	case SSL_ERROR_SYSCALL:
-	    log_write(l, LOG_NOTICE, "syscall error occurred");
+	    l->level(LOG_NOTICE) << "syscall error occurred";
 	    if (ERR_peek_error() == 0) {
-		log_write(l, LOG_NOTICE, "%s", strerror(errno));
+		l->level(LOG_NOTICE) << strerror(errno);
 	    } else {
-		log_ssl_errors(l, LOG_NOTICE);
+		l->level(LOG_NOTICE).ssl_errors();
 	    }
 	    break;
 	case SSL_ERROR_SSL:
-	    log_ssl_errors(l, LOG_NOTICE);
+	    l->level(LOG_NOTICE).ssl_errors();
     }
 }
 #endif
@@ -630,7 +632,7 @@ int _read_actual(conn_t c, int fd, char *buf, size_t count)
 	if (bytes_read > 0)
 	    c->in_bytes += bytes_read;	/* XXX counting decrypted bytes */
 	if (!ssl_init_finished && SSL_is_init_finished(c->ssl))
-	    log_write(c->c2s->log, LOG_NOTICE, "ssl/tls established on fd %i: %s %s", c->fd, SSL_get_version(c->ssl), SSL_get_cipher(c->ssl));
+	    c->c2s->log->level(LOG_NOTICE) << "SSL/TLS established on fd " << c->fd << ": " << SSL_get_version(c->ssl) << " " << SSL_get_cipher(c->ssl);
 	if (bytes_read <= 0)
 	    _log_ssl_io_error(c->c2s->log, c->ssl, bytes_read, c->fd, "SSL_read");
 
@@ -742,7 +744,7 @@ static int _write_actual(conn_t c, int fd, const char *buf, size_t count)
     return truncated_write ? *c->sasl_outbuf_size : written; /* XXX we currently do not handle SASL blocks, that are only half written to the socket */
 }
 
-void connectionstate_fillnad(nad_t nad, char *from, char *to, char *user, int is_login, char *ip, const char *ssl_version, const char *ssl_cipher, char *ssl_size_secret, char *ssl_size_algorithm)
+void connectionstate_fillnad(nad_t nad, char *from, char *to, char *user, int is_login, char *ip, const char *ssl_version, const char *ssl_cipher, const char *ssl_size_secret, const char *ssl_size_algorithm)
 {
     nad_append_elem(nad, "message", 0);
     nad_append_attr(nad, "from", from);
@@ -785,8 +787,8 @@ void connectionstate_send(config_t config, conn_t c, conn_t client, int is_login
     {
 	const char *ssl_version = NULL;
 	const char *ssl_cipher = NULL;
-	char ssl_size_secret[11] = "0";
-	char ssl_size_algorithm[11] = "0";
+	std::ostringstream ssl_size_secret;
+	std::ostringstream ssl_size_algorithm;
 
 #ifdef USE_SSL
 	if (client->ssl != NULL)
@@ -796,13 +798,13 @@ void connectionstate_send(config_t config, conn_t c, conn_t client, int is_login
 	    ssl_version = SSL_get_version(client->ssl);
 	    ssl_cipher = SSL_get_cipher(client->ssl);
 	    bits_secret = SSL_get_cipher_bits(client->ssl, &bits_algorithm);
-	    snprintf(ssl_size_secret, sizeof(ssl_size_secret), "%i", bits_secret);
-	    snprintf(ssl_size_algorithm, sizeof(ssl_size_algorithm), "%i", bits_algorithm);
+	    ssl_size_secret << bits_secret;
+	    ssl_size_algorithm << bits_algorithm;
 	}
 #endif
 
 	c->nad = nad_new(c->c2s->nads);
-	connectionstate_fillnad(c->nad, jid_full(client->myid), receiver, jid_full(client->userid), is_login, client->ip, ssl_version, ssl_cipher, ssl_size_secret, ssl_size_algorithm);
+	connectionstate_fillnad(c->nad, jid_full(client->myid), receiver, jid_full(client->userid), is_login, client->ip, ssl_version, ssl_cipher, ssl_size_secret.str().c_str(), ssl_size_algorithm.str().c_str());
 	chunk = chunk_new(c);
 	chunk_write(c, chunk, NULL, NULL, NULL);
     }
