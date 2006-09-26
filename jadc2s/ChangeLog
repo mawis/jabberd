@@ -1,4 +1,8 @@
-2006-09-26  Matthias Wimmer  <m@thias.eu>
+2006-09-27  Matthias Wimmer  <m@tthias.eu>
+
+    * util/sha.cc: important bugfix in shahash_r()
+
+2006-09-26  Matthias Wimmer  <m@tthias.eu>
 
     * util/util2.h: part of the header, that allows more licences
     * util/log.cc: new classes for logging
