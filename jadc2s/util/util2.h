@@ -118,6 +118,11 @@ class logging {
 	 */
 	std::ofstream logfile;
 #endif
+
+	/**
+	 * the identity that is used for logging
+	 */
+	std::string identity;
 };
 
 
