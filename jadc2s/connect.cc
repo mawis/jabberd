@@ -442,7 +442,7 @@ static void _connect_process(conn_t c) {
     chunk = chunk_new_packet(c, 1);
 
     /* look for iq results for auths */
-    if ((pending = (*c->c2s->pending)[cid.str()]) != NULL && target->state == state_AUTH) {
+    if (c->c2s->pending->find(cid.str()) != c->c2s->pending->end() && (pending = (*c->c2s->pending)[cid.str()]) != NULL && target->state == state_AUTH) {
         /* got a result, start a session */
         attr = nad_find_attr(chunk->nad, 1, "type", NULL);
         if(attr >= 0 && j_strncmp(NAD_AVAL(chunk->nad, attr), "result", 6) == 0)
