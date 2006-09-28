@@ -20,71 +20,75 @@
 
 #include "util.h"
 
-logmessage::logmessage(logging &log_entity, int level) : log_entity(log_entity), level(level) {
-}
+namespace xmppd {
 
-logmessage::logmessage(const logmessage &orig) : log_entity(orig.log_entity), level(orig.level) {
-}
+    logmessage::logmessage(logging &log_entity, int level) : log_entity(log_entity), level(level) {
+    }
 
-logmessage::~logmessage() {
-    const std::string &message = str();
+    logmessage::logmessage(const logmessage &orig) : log_entity(orig.log_entity), level(orig.level) {
+    }
 
-    /* only log if something has been written */
-    if (message != "")
-	log_entity.write(level, message);
-}
+    logmessage::~logmessage() {
+	const std::string &message = str();
 
-logmessage &logmessage::ssl_errors() {
+	/* only log if something has been written */
+	if (message != "")
+	    log_entity.write(level, message);
+    }
+
+    logmessage &logmessage::ssl_errors() {
 #ifdef USE_SSL
-    unsigned long sslerr;
+	unsigned long sslerr;
 
-    while ((sslerr = ERR_get_error()) != 0)
-	this->operator<<("SSL/TLS: ") << ERR_error_string(sslerr, NULL);
+	while ((sslerr = ERR_get_error()) != 0)
+	    this->operator<<("SSL/TLS: ") << ERR_error_string(sslerr, NULL);
 #else
-    this->operator<<("logmessage::ssl_errors() called but compiled " PACKAGE " without SSL/TLS support");
+	this->operator<<("logmessage::ssl_errors() called but compiled " PACKAGE " without SSL/TLS support");
 #endif
 
-    return *this;
-}
+	return *this;
+    }
 
-logging::logging(std::string ident) : identity(ident)
+    logging::logging(std::string ident) : identity(ident)
 #ifndef USE_SYSLOG
-    , logfile((ident + ".log").c_str()) 
+	, logfile((ident + ".log").c_str()) 
 #endif
-{
+    {
 #ifdef USE_SYSLOG
-    openlog(identity.c_str(), LOG_PID, USE_SYSLOG);
+	openlog(identity.c_str(), LOG_PID, USE_SYSLOG);
 #endif
-}
+    }
 
-logging::~logging() {
+    logging::~logging() {
 #ifdef USE_SYSLOG
-    closelog();
+	closelog();
 #endif
-}
+    }
 
-logmessage logging::level(int level_to_use) {
-    return logmessage(*this, level_to_use);
-}
+    logmessage logging::level(int level_to_use) {
+	return logmessage(*this, level_to_use);
+    }
 
-void logging::write(int level_to_use, std::string log_message) {
+    void logging::write(int level_to_use, std::string log_message) {
 #ifdef USE_SYSLOG
-    syslog(level_to_use, "%s", log_message.c_str());
+	syslog(level_to_use, "%s", log_message.c_str());
 #else
-    char timestamp[26];
-    time_t now;
+	char timestamp[26];
+	time_t now;
 
-    time(&now);
-    ctime_r(&now, timestamp);
+	time(&now);
+	ctime_r(&now, timestamp);
 
-    char *lf = strchr(timestamp, '\n');
-    if (lf != NULL)
-	*lf = 0;
+	char *lf = strchr(timestamp, '\n');
+	if (lf != NULL)
+	    *lf = 0;
 
-    logfile << timestamp << " [" << level_to_use << "] " << log_message << std::endl;
+	logfile << timestamp << " [" << level_to_use << "] " << log_message << std::endl;
 #endif
-}
+    }
 
-std::ostream &logmessage::operator<<(const char *text) {
-    return static_cast<std::ostream&>(*this) << text;
+    std::ostream &logmessage::operator<<(const char *text) {
+	return static_cast<std::ostream&>(*this) << text;
+    }
+
 }

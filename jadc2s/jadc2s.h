@@ -347,7 +347,7 @@ struct c2s_st
     int sm_port;
 
     /* logging */
-    logging *log;		/**< logging instance to use */
+    xmppd::logging *log;	/**< logging instance to use */
     int iplog;
 
     /* SASL */
