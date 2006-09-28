@@ -1,3 +1,12 @@
+2006-09-28  Matthias Wimmer  <m@tthias.eu>
+
+    * conn.cc: putting logging code in namespace xmppd
+    * jadc2s.cc: same
+    * jadc2s.h: same
+    * util/log.cc: same
+    * util/util2.h: introducing managed pointers
+    * util/pointer.tcc: same
+
 2006-09-27  Matthias Wimmer  <m@tthias.eu>
 
     * util/sha.cc: important bugfix in shahash_r()

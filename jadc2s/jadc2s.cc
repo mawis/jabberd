@@ -498,7 +498,7 @@ int main(int argc, char **argv) {
     }
 
     /* start logging */
-    c2s->log = new logging(c2s->sm_id);
+    c2s->log = new xmppd::logging(c2s->sm_id);
     c2s->log->level(LOG_NOTICE) << "starting up as " << c2s->sm_id;
 
     /* seed the random number generator */
@@ -633,11 +633,13 @@ int main(int argc, char **argv) {
 
         /* !!! XXX Should these be configurable cleanup times? */
         /* every so often check for timed out pending conns */
+	/*
         if((time(&now) - last_pending) > 15) {
 	    std::map<std::string, conn_t>::iterator p;
 	    for (p = c2s->pending->begin(); p != c2s->pending->end(); ++p) {
-		/* XXX we should not need this, but currently we do ... why? */
+		// XXX we should not need this, but currently we do ... why?
 		if (p->second == NULL) {
+		    c2s->log->level(LOG_NOTICE) << "we have to erase " << p->first << " out of c2s->pending.";
 		    c2s->pending->erase(p->first);
 		    continue;
 		}
@@ -647,6 +649,7 @@ int main(int argc, char **argv) {
 	    }
             last_pending = time(NULL);
         }
+	*/
 
 	/* cleanup the stringprep caches */
 	if ((time(NULL) - last_jid_clean) > 60) {

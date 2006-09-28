@@ -166,7 +166,7 @@ void conn_error(conn_t c, const char *condition, const char *err) {
 }
 
 #ifdef USE_SSL
-static void _log_ssl_io_error(logging *l, SSL *ssl, int retcode, int fd, const char *used_func);
+static void _log_ssl_io_error(xmppd::logging *l, SSL *ssl, int retcode, int fd, const char *used_func);
 #endif
 
 /**
@@ -584,7 +584,7 @@ int conn_write(conn_t c)
 }
 
 #ifdef USE_SSL
-static void _log_ssl_io_error(logging *l, SSL *ssl, int retcode, int fd, const char *used_func) {
+static void _log_ssl_io_error(xmppd::logging *l, SSL *ssl, int retcode, int fd, const char *used_func) {
     int ssl_error;
 
     ssl_error = SSL_get_error(ssl, retcode);
