@@ -1,6 +1,9 @@
 /*
  * Licence
  *
+ * Copyright (c) 2006 Matthias Wimmer,
+ *                    mailto:m@tthias.eu, xmpp:mawis@amessage.info
+ *
  * You can use the content of this file using one of the following licences:
  *
  * - Version 1.0 of the Jabber Open Source Licence ("JOSL")
