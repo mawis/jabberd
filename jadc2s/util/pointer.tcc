@@ -49,7 +49,7 @@ namespace xmppd {
 	// let all pointers pointing to this object point to nothing, the object will then get deleted by the last call to point_nothing()
 	typename std::set< pointer<pointed_type>* >::iterator p;
 	for (p=set_copy.begin(); p!=set_copy.end(); ++p) {
-	    p->point_nothing();
+	    (*p)->point_nothing();
 	}
     }
 
