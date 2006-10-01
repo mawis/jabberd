@@ -525,6 +525,10 @@ void shaUpdate(j_SHA_CTX *ctx, unsigned char *dataIn, int len);
 void shaFinal(j_SHA_CTX *ctx, unsigned char hashout[20]);
 void shaBlock(unsigned char *dataIn, int len, unsigned char hashout[20]);
 
+
+/* message authentication code */
+void hmac_sha1_ascii_r(char *secret, unsigned char *message, size_t len, char hmac[41]);
+
 /********** END OLD libxode.h BEGIN OLD jabber.h *************/
 
 /* --------------------------------------------------------- */

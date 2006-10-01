@@ -155,7 +155,7 @@ dboc dialback_out_connection(db d, jid key, char *ip, db_request db_state) {
 		xmlnode db_result = xmlnode_new_tag_ns("result", "db", NS_DIALBACK);
 		xmlnode_put_attrib_ns(db_result, "to", NULL, NULL, c->key->server);
 		xmlnode_put_attrib_ns(db_result, "from", NULL, NULL, c->key->resource);
-		xmlnode_insert_cdata(db_result,  dialback_merlin(xmlnode_pool(db_result), c->d->secret, c->key->server, c->stream_id), -1);
+		xmlnode_insert_cdata(db_result,  dialback_merlin(xmlnode_pool(db_result), c->d->secret, c->key->server, c->key->resource, c->stream_id), -1);
 		mio_write(c->m,db_result, NULL, 0);
 		c->db_state = sent_request;
 		log_debug2(ZONE, LOGT_IO, "packet for existing connection: state change could_request -> sent_request");
@@ -582,7 +582,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x) {
 		    cur = xmlnode_new_tag_ns("result", "db", NS_DIALBACK);
 		    xmlnode_put_attrib_ns(cur, "to", NULL, NULL, c->key->server);
 		    xmlnode_put_attrib_ns(cur, "from", NULL, NULL, c->key->resource);
-		    xmlnode_insert_cdata(cur,  dialback_merlin(xmlnode_pool(cur), c->d->secret, c->key->server, c->stream_id), -1);
+		    xmlnode_insert_cdata(cur,  dialback_merlin(xmlnode_pool(cur), c->d->secret, c->key->server, c->key->resource, c->stream_id), -1);
 		    mio_write(m,cur, NULL, 0);
 		    c->db_state = sent_request;
 		    c->connection_state = sent_db_request;
@@ -739,7 +739,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x) {
 		    cur = xmlnode_new_tag_ns("result", "db", NS_DIALBACK);
 		    xmlnode_put_attrib_ns(cur, "to", NULL, NULL, c->key->server);
 		    xmlnode_put_attrib_ns(cur, "from", NULL, NULL, c->key->resource);
-		    xmlnode_insert_cdata(cur,  dialback_merlin(xmlnode_pool(cur), c->d->secret, c->key->server, c->stream_id), -1);
+		    xmlnode_insert_cdata(cur,  dialback_merlin(xmlnode_pool(cur), c->d->secret, c->key->server, c->key->resource, c->stream_id), -1);
 		    mio_write(m,cur, NULL, 0);
 		    c->db_state = sent_request;
 		    c->connection_state = sent_db_request;
