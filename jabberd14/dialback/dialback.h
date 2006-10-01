@@ -103,6 +103,8 @@ void dialback_miod_read(miod md, xmlnode x);
 char *dialback_ip_get(db d, jid host, char *ip);
 void dialback_ip_set(db d, jid host, char *ip);
 
+const char* dialback_get_loopcheck_token(db d);
+
 /** simple queue for out_queue */
 typedef struct dboq_struct
 {
