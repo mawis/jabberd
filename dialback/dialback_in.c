@@ -268,7 +268,7 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x) {
     /* incoming verification request, check and respond */
     if(j_strcmp(xmlnode_get_localname(x),"verify") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_DIALBACK) == 0) {
 	char *is = xmlnode_get_data(x);		/* what the peer tries to verify */
-	char *should = dialback_merlin(xmlnode_pool(x), c->d->secret, xmlnode_get_attrib_ns(x, "from", NULL), xmlnode_get_attrib_ns(x, "id", NULL));
+	char *should = dialback_merlin(xmlnode_pool(x), c->d->secret, xmlnode_get_attrib_ns(x, "from", NULL), xmlnode_get_attrib_ns(x, "to", NULL), xmlnode_get_attrib_ns(x, "id", NULL));
 
         if(j_strcmp(is, should) == 0) {
             xmlnode_put_attrib_ns(x, "type", NULL, NULL, "valid");
