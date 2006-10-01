@@ -95,7 +95,7 @@ void dialback_in_verify(db d, xmlnode x);
 
 int dialback_check_settings(db d, mio m, const char *server, int is_outgoing, int auth_type, int version);
 char *dialback_randstr(void);
-char *dialback_merlin(pool p, char *secret, char *to, char *challenge);
+char *dialback_merlin(pool p, char *secret, char *to, char *from, char *challenge);
 void dialback_miod_hash(miod md, xht ht, jid key);
 miod dialback_miod_new(db d, mio m);
 void dialback_miod_write(miod md, xmlnode x);
