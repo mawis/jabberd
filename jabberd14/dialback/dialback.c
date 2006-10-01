@@ -1168,6 +1168,23 @@ result dialback_beat_idle(void *arg)
 }
 
 /**
+ * we pass a token in the stream root to identify a looping connection to ourself. This generated the token of the server.
+ *
+ * @param d the dialback instance
+ * @return the token to use
+ */
+const char* dialback_get_loopcheck_token(db d) {
+    static char hmac[41];
+    static int hmac_done = 0;
+
+    if (!hmac_done) {
+	hmac_sha1_ascii_r(d->secret, "loopcheck", 9, hmac);
+	hmac_done = 1;
+    }
+    return hmac;
+}
+
+/**
  * init and register the dialback component in the server
  *
  * @param i the jabber server's data about this instance

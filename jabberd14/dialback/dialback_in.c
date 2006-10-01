@@ -357,6 +357,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     int can_do_sasl_external = 0;
     const char *we_domain = NULL;
     const char *other_domain = NULL;
+    const char *loopcheck = NULL;
 
     log_debug2(ZONE, LOGT_IO, "dbin read: fd %d flag %d", m->fd, flags);
 
@@ -424,6 +425,18 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
         key = jid_new(xmlnode_pool(x), we_domain);
 	mio_write_root(m, xstream_header(other_domain, jid_full(key)), 0);
 	mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>It seems you do not support dialback, and we cannot validate your TLS certificate. No authentication is possible. We are sorry.</text></stream:error>", -1);
+	mio_close(m);
+	xmlnode_free(x);
+	return;
+    }
+
+    /* are we connecting to ourselves? */
+    loopcheck = xmlnode_get_attrib_ns(x, "check", NS_JABBERD_LOOPCHECK);
+    if (loopcheck != NULL && j_strcmp(loopcheck, dialback_get_loopcheck_token(c->d)) == 0) {
+	jid key = NULL;
+        key = jid_new(xmlnode_pool(x), we_domain);
+	mio_write_root(m, xstream_header(other_domain, jid_full(key)), 0);
+	mio_write(m, NULL, "<stream:error><remote-connection-failed xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Server connected to itself. Probably caused by a DNS misconfiguration, or a domain not used for Jabber/XMPP communications.</text></stream:error>", -1);
 	mio_close(m);
 	xmlnode_free(x);
 	return;

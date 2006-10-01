@@ -2,7 +2,8 @@
 
     * jabberd/lib/hmac.c: support for calculating HMAC-SHA1
     * jabberd/lib/jabberdlib.h: same
-    * dialback/dialback.c: RFC 3920 compliant dialback key generation
+    * dialback/dialback.c: RFC 3920 compliant dialback key generation +
+	detection of looping s2s connections
     * dialback/dialback_in.c: same
     * dialback/dialback_out.c: same
     * dialback/dialback.h: same
