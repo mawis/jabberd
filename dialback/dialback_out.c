@@ -511,6 +511,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x) {
 		/* we flag support for XMPP 1.0 */
 		xmlnode_put_attrib_ns(cur, "version", NULL, NULL, "1.0");
 	    }
+	    xmlnode_put_attrib_ns(cur, "check", "loop", NS_JABBERD_LOOPCHECK, dialback_get_loopcheck_token(c->d));
 	    mio_write_root(m, cur, 0);
 	    return;
 
