@@ -80,13 +80,13 @@ int _client_check_in_hostlist(config_elem_t config, const char* host)
 int _client_root_attribute_to(conn_t c, const char *value) {
     int id;
 
-    log_debug(ZONE, "checking to: %s", value);
+    DBG("checking to: " << value);
 
     /* check if the to attribute is a real host */
     id = _client_check_in_hostlist(c->c2s->local_id, value);
     if (id != -1) {
 	c->local_id = c->c2s->local_id->values[id];
-	log_debug(ZONE, "matched local id '%s''", c->local_id);
+	DBG("matched local id '" << c->local_id << "'");
     }
 
     /* if host not yet confirmed, check if there is an alias */
@@ -97,7 +97,7 @@ int _client_root_attribute_to(conn_t c, const char *value) {
 		c->c2s->log->level(LOG_ERR) << "missing to attribute in configuration for alias " << value;
 	    } else {
 		c->local_id = j_attr((const char **)c->c2s->local_alias->attrs[id], "to");
-		log_debug(ZONE, "aliased requested id '%s' to '%s'", value, c->local_id);
+		DBG("aliased requested id '" << value << "' to '" << c->local_id << "'");
 	    }
 	}
     }
@@ -132,7 +132,7 @@ int _client_root_attribute_to(conn_t c, const char *value) {
  * @return 1 if we don't have to further process this element, 0 else
  */
 int _client_root_attribute_xmlns(conn_t c, const char *value) {
-    log_debug(ZONE, "checking xmlns: %s", value);
+    DBG("checking xmlns: " << value);
 
     if (j_strcmp(value, "jabber:client") != 0)
     {
@@ -182,7 +182,7 @@ int _client_root_attribute_version(conn_t c, const char *value) {
  * @return 1 if we don't have to further process this element, 0 else
  */
 int _client_root_attribute_flash_ns(conn_t c, const char *value) {
-    log_debug(ZONE, "checking xmlns:flash: %s", value);
+    DBG("checking xmlns:flash: " << value);
     if (j_strcmp(value, "http://www.jabber.com/streams/flash") != 0) {
 	/* send the stream error */
 	conn_error(c, STREAM_ERR_INVALID_NAMESPACE, "Invalid flash:stream namespace");
@@ -202,7 +202,7 @@ int _client_root_attribute_flash_ns(conn_t c, const char *value) {
  * @return 1 if we don't have to further process this element, 0 else
  */
 int _client_root_attribute_stream_ns(conn_t c, const char *value) {
-    log_debug(ZONE, "checking xmlns:stream: %s", value);
+    DBG("checking xmlns:stream: " << value);
     if (j_strcmp(value, "http://etherx.jabber.org/streams") != 0) {
 	/* send the stream error */
 	conn_error(c, STREAM_ERR_INVALID_NAMESPACE, "Invalid stream namespace");
@@ -592,7 +592,7 @@ int _client_process_stoneage_auth(conn_t c, chunk_t chunk) {
 	/* sort out the username */
 	elem = nad_find_elem(chunk->nad, 0, "username", 2);
 	if(elem == -1) {
-	    log_debug(ZONE, "auth packet with no username, dropping it");
+	    DBG("auth packet with no username, dropping it");
 	    chunk_free(chunk);
 	    return 1;
 	}
@@ -605,7 +605,7 @@ int _client_process_stoneage_auth(conn_t c, chunk_t chunk) {
 	if(attr2 >= 0 && j_strncmp(NAD_AVAL(chunk->nad, attr2), "set", 3) == 0) {
 	    elem = nad_find_elem(chunk->nad, 0, "resource", 2);
 	    if(elem == -1) {
-		log_debug(ZONE, "auth packet with no resource, dropping it");
+		DBG("auth packet with no resource, dropping it");
 		chunk_free(chunk);
 		return 1;
 	    }
@@ -632,7 +632,7 @@ int _client_process_stoneage_auth(conn_t c, chunk_t chunk) {
 	if(elem == -1)
 	{
 	    /* XXX send a stanza error */
-	    log_debug(ZONE, "registration packet with no username, dropping it");
+	    DBG("registration packet with no username, dropping it");
 	    chunk_free(chunk);
 	    return 1;
 	}
@@ -725,7 +725,7 @@ void _client_do_sasl_step(conn_t c, chunk_t chunk) {
 		/* get the maximum block size we can sasl_encode now */
 		sasl_result2 = sasl_getprop(c->sasl_conn, SASL_MAXOUTBUF, (const void**)&c->sasl_outbuf_size);
 		if (sasl_result2 == SASL_OK) {
-		    log_debug(ZONE, "SASL requests us not to pass more than %i bytes of data to sasl_encode()", *c->sasl_outbuf_size);
+		    DBG("SASL requests us not to pass more than " << (*c->sasl_outbuf_size) << " bytes of data to sasl_encode()");
 		}
 
 		/* get the name of the authenticated user */
@@ -821,14 +821,14 @@ void _client_do_sasl_step(conn_t c, chunk_t chunk) {
 void _client_process(conn_t c) {
     chunk_t chunk;
 
-    log_debug(ZONE, "got packet from client, processing");
+    DBG("got packet from client, processing");
 
     chunk = chunk_new(c);
 
     if (chunk->nad == NULL)
         return;
     
-    log_debug(ZONE, "tag(%.*s)", NAD_ENAME_L(chunk->nad, 0), NAD_ENAME(chunk->nad, 0));
+    DBG("tag(" << std::string(NAD_ENAME(chunk->nad, 0), NAD_ENAME_L(chunk->nad, 0)) << ")");
 
     /* handle stoneage auth requests */
     if((c->state != state_OPEN) && (j_strncmp(NAD_ENAME(chunk->nad, 0), "iq", NAD_ENAME_L(chunk->nad, 0)) == 0)) {
@@ -1145,7 +1145,7 @@ void _client_process(conn_t c) {
             break;
 
         default:
-            log_debug(ZONE, "conn in unknown state (%d), dropping chunk", c->state);
+            DBG("conn in unknown state (" << c->state << "), dropping chunk");
             chunk_free(chunk);
             break;
     }
@@ -1160,7 +1160,7 @@ void _client_process(conn_t c) {
  * @param c2s the jadc2s instance we are running in
  * @return 1 if we want to drop this connection, 0 else
  */
-int _client_io_accept(mio_t m, int fd, const char *ip_port, c2s_t c2s) {
+int _client_io_accept(mio_t m, int fd, const char *ip_port, xmppd::pointer<c2s_st> c2s) {
     conn_t c = NULL;
     int local_port = 0;
     int sasl_result = 0;
@@ -1187,12 +1187,12 @@ int _client_io_accept(mio_t m, int fd, const char *ip_port, c2s_t c2s) {
 	remote_ip.erase(ip_port_sep);
     }
 
-    log_debug(ZONE, "new client conn %d from %s;%s", fd, remote_ip.c_str(), remote_port.c_str());
+    DBG("new client conn " << fd << " from " << remote_ip.c_str() << ';' << remote_port.c_str());
 
     /* the connection might originate on an address, that connected to often lately */
     if (connection_rate_check(c2s, remote_ip.c_str())) {
 	/* We had a bad rate, dump them (send an error?) */
-	log_debug(ZONE, "rate limit is bad for %s, closing", remote_ip.c_str());
+	DBG("rate limit is bad for " << remote_ip << " closing");
 	/* return 1 to get rid of this fd */
 	return 1;
     }
@@ -1204,14 +1204,14 @@ int _client_io_accept(mio_t m, int fd, const char *ip_port, c2s_t c2s) {
     switch (sa.ss_family) {
 	case AF_INET:
 	    if (inet_ntop(AF_INET, &(((struct sockaddr_in*)&sa)->sin_addr), local_ip, sizeof(local_ip)) == NULL) {
-		log_debug(ZONE, "could not convert IPv4 address to string representation");
+		DBG("could not convert IPv4 address to string representation");
 		return 1;
 	    }
 	    local_port = ntohs(((struct sockaddr_in*)&sa)->sin_port);
 	    break;
 	case AF_INET6:
 	    if (inet_ntop(AF_INET6, &(((struct sockaddr_in6*)&sa)->sin6_addr), local_ip, sizeof(local_ip)) == NULL) {
-		log_debug(ZONE, "could not convert IPv6 address to string representation");
+		DBG("could not convert IPv6 address to string representation");
 		return 1;
 	    }
 	    if (j_strncmp(local_ip, "::ffff:", 7) == 0)
@@ -1372,7 +1372,7 @@ void _client_replace_parser(conn_t c) {
  * @param c the connection for which we have to replace expat
  */
 void _client_replace_parser_flash(conn_t c) {
-    log_debug(ZONE,"Flash Hack... get rid of the old Parser, and make a new one... stupid Flash...");
+    DBG("Flash Hack... get rid of the old Parser, and make a new one... stupid Flash...");
     _client_replace_parser(c);
     XML_Parse(c->expat, "<stream:stream>", 15, 0);
 
@@ -1409,9 +1409,9 @@ void _client_detect_variant(int fd, conn_t c) {
 #endif
 
     /* check if there is an HTTP header */
-    log_debug(ZONE,"Check the first char");
+    DBG("Check the first char");
     while((firstlen = _peek_actual(c,fd,first,1)) == -1) { }
-    log_debug(ZONE,"char(%c)",first[0]);
+    DBG("char("<< first[0] << ")");
     
     /* If the first char is G then it's for HTTP (GET ....)
        and if we configured http client forwarding to a real http server */
@@ -1431,7 +1431,7 @@ void _client_detect_variant(int fd, conn_t c) {
 	buf = static_cast<char*>(malloc((strlen(c->c2s->http_forward) + strlen(http)) * sizeof(char)));
 	sprintf (buf, http, c->c2s->http_forward);
 	
-	log_debug(ZONE,"This is an incoming HTTP connection - forwarding to: %s", c->c2s->http_forward);
+	DBG("This is an incoming HTTP connection - forwarding to: " << c->c2s->http_forward);
 	
 	/* read all incoming data */
 
@@ -1468,14 +1468,14 @@ void _client_detect_variant(int fd, conn_t c) {
 	
 	peek[4] = '\0';
 	
-	log_debug(ZONE,"This is an incoming HTTP connection");
+	DBG("This is an incoming HTTP connection");
 
 	http_response = chunk_new(NULL);
 	http_response->wcur = http;
 	http_response->wlen = strlen(http);
 	chunk_write(c, http_response, NULL, NULL, NULL);
 	
-	log_debug(ZONE,"Look for the ending \\r\\n\\r\\n");
+	DBG("Look for the ending \\r\\n\\r\\n");
 	while( search && ((_peek_actual(c,fd,peek,4)) > 0))
 	{
 	    if (strcmp(peek,"\r\n\r\n") == 0)
@@ -1566,7 +1566,7 @@ int _client_io_read(mio_t m, int fd, conn_t c) {
 	c->depth = 0;
     }
     
-    log_debug(ZONE,"io action_READ with fd %d in state %d", fd, c->state);
+    DBG("io action_READ with fd " << fd << " in state " << c->state);
 
     /* we act differently when reading data from the client based on
      * it's auth state
@@ -1607,7 +1607,7 @@ int _client_io_read(mio_t m, int fd, conn_t c) {
 	    /* Naughty, naughty, ate their karma */
 	    if (read_len == 0)
 	    {
-		log_debug(ZONE, "User ate karma");
+		DBG("User ate karma");
 		return 0;
 	    }
 
@@ -1670,7 +1670,7 @@ void client_send_sc_command(conn_t sm_conn, const char *to, const char *from, co
 
     /* sanity check */
     if (sm_conn == NULL || action == NULL) {
-	log_debug(ZONE, "sanity check in client_send_sc_command failed.");
+	DBG("sanity check in client_send_sc_command failed.");
 	return;
     }
 
@@ -1701,13 +1701,13 @@ void client_send_sc_command(conn_t sm_conn, const char *to, const char *from, co
 void _client_io_close(int fd, conn_t c) {
     chunk_t chunk;
 
-    log_debug(ZONE, "_client_io_close(%i, %x)", fd, c);
+    DBG("_client_io_close(" << fd << "," << static_cast<void*>(c) << ")");
 
     /* Process on a valid conn */
     if(c->state == state_OPEN) {
 	chunk_t cur, next;
 
-	log_debug(ZONE, "... in state_OPEN, sc_sm=%s", c->sc_sm);
+	DBG("... in state_OPEN, sc_sm=" << c->sc_sm);
 
 	/* if there was a nad being created, ditch it */
 	if(c->nad != NULL) {
@@ -1732,7 +1732,7 @@ void _client_io_close(int fd, conn_t c) {
 
 	/* close session using the new protocol */
 	if (c->sc_sm != NULL) {
-	    log_debug(ZONE, "trying to close using new protocol");
+	    DBG("trying to close using new protocol");
 	    client_send_sc_command(c, c->authzid->server, jid_full(c->myid), "end", NULL, NULL, c->sc_sm, c->myid->user);
 	}
     } else {
@@ -1774,11 +1774,11 @@ void _client_io_close(int fd, conn_t c) {
  * @return if we want to get more events
  */
 int client_io(mio_t m, mio_action_t a, int fd, const void *data, void *arg) {
-    log_debug(ZONE,"io action %d with fd %d",a,fd);
+    DBG("io action " << a << " with fd " << fd);
 
     switch(a) {
 	case action_ACCEPT:
-	    return _client_io_accept(m, fd, (char*)data, (c2s_t)arg);
+	    return _client_io_accept(m, fd, (char*)data, *static_cast< xmppd::pointer<c2s_st>* >(arg));
 
 	case action_READ:
 	    return _client_io_read(m, fd, (conn_t)arg);

@@ -201,13 +201,13 @@ static void _connect_handle_error_packet(conn_t sm_conn, conn_t client_conn) {
     /* if our target is in state_SESS, then the sm is telling us about
      * the end of our old session which has the same cid, so just ignore it */
     if (client_conn->state == state_SESS) {
-	log_debug(ZONE, "session end for dead session, dropping");
+	DBG("session end for dead session, dropping");
 	return;
     }
 
     /* if there is no such client connection => ignore */
     if (client_conn->fd < 0) {
-	log_debug(ZONE, "Got session close for connection, that is already disconnected");
+	DBG("Got session close for connection, that is already disconnected");
 	return;
     }
 
@@ -345,20 +345,20 @@ static void _connect_process(conn_t c) {
     conn_t target = NULL; /* the connection where to forward the stanza to */
     conn_t pending = NULL;
 
-    log_debug(ZONE, "got packet from sm, processing");
+    DBG("got packet from sm, processing");
 
     /* always check for the return handshake :) */
     if (c->state != state_OPEN) {
         if (j_strncmp(NAD_ENAME(c->nad, 0), "handshake", 9) == 0) {
             c->state = state_OPEN;
-            log_debug(ZONE,"handshake accepted, we're connected to the sm");
+            DBG("handshake accepted, we're connected to the sm");
         }
         return;
     }
 
     /* just ignore anything except route packets */
     if (j_strncmp(NAD_ENAME(c->nad, 0), "route", 5) != 0) {
-	log_debug(ZONE, "got non-route packet: %.*", NAD_ENAME_L(c->nad, 0), NAD_ENAME(c->nad, 0));
+	DBG("got non-route packet: " << std::string(NAD_ENAME(c->nad, 0), NAD_ENAME_L(c->nad, 0)));
 	return;
     }
 
@@ -390,7 +390,7 @@ static void _connect_process(conn_t c) {
 
     /* does not matter if old or new session control protocol: id should now have the target fd */
     if (id >= c->c2s->max_fds || ((target = &c->c2s->conns[id]) && (target->fd == -1 || target == c))) {
-        log_debug(ZONE, "dropping packet for invalid conn %d (%s)", id, uses_new_sc_protocol ? "new sc" : stanza_element >= 0 ? "old sc" : "sc:session");
+        DBG("dropping packet for invalid conn " << id << " (" << (uses_new_sc_protocol ? "new sc" : stanza_element >= 0 ? "old sc" : "sc:session") << ")");
         return;
     }
 
@@ -409,7 +409,7 @@ static void _connect_process(conn_t c) {
 	return;
     }
 
-    log_debug(ZONE, "processing route to %s with target %X", cid.str().c_str(), target);
+    DBG("processing route to " << cid.str() << "with target " << target);
 
     /* handle type='error' packets for old sc protocol */
     if (nad_find_attr(c->nad, 0, "type", "error") >= 0 && target->sasl_state == state_auth_NONE) {
@@ -419,7 +419,7 @@ static void _connect_process(conn_t c) {
 
     /* get packet source address */
     if ((attr = nad_find_attr(c->nad, 0, "from", NULL)) < 0) {
-        log_debug(ZONE, "missing sender on route?");
+        DBG("missing sender on route?");
         return;
     }
     std::ostringstream from_str;
@@ -430,7 +430,7 @@ static void _connect_process(conn_t c) {
     if (target->fd >= 0) {
         attr = nad_find_attr(c->nad, 0, "type", "session");
         if (attr >= 0) {
-            log_debug(ZONE, "client %d now has a session %s", target->fd, from_str.str().c_str());
+            DBG("client " << target->fd << " now has a session " << from_str.str());
             target->state = state_OPEN;
 	    c->c2s->pending->erase(jid_full(target->myid));
             target->smid = jid_new(target->idp, c->c2s->jid_environment, from_str.str().c_str());
@@ -448,7 +448,7 @@ static void _connect_process(conn_t c) {
         if(attr >= 0 && j_strncmp(NAD_AVAL(chunk->nad, attr), "result", 6) == 0)
         {
             /* auth was ok, send session request */
-            log_debug(ZONE,"client %d authorized, requesting session",target->fd);
+            DBG("client " << target->fd << "authorized, requesting session");
             chunk_write(c, chunk, jid_full(target->smid), jid_full(pending->myid), "session");
             pending->state = state_SESS;
 
@@ -466,7 +466,7 @@ static void _connect_process(conn_t c) {
     }
 
     /* now we have to do something with our chunk */
-    log_debug(ZONE,"sm sent us a chunk for %s", cid.str().c_str());
+    DBG("sm sent us a chunk for " << cid.str());
 
     /* either bounce or send the chunk to the client */
     if (target->fd >= 0) {
@@ -506,7 +506,7 @@ static void _connect_startElement(void *arg, const char* name, const char** atts
         nad_append_elem(c->nad, "handshake", 1);
         nad_append_cdata(c->nad, handshake, strlen(handshake), 2);
 
-        log_debug(ZONE,"handshaking with sm");
+        DBG("handshaking with sm");
 
         /* create a chunk and write it */
         chunk_write(c, chunk_new(c), NULL, NULL, NULL);
@@ -568,9 +568,9 @@ static int _connect_io(mio_t m, mio_action_t a, int fd, const void *data, void *
     char buf[1024]; /* !!! make static when not threaded? move into conn_st? */
     int len, ret, x, retries;
     conn_t c = (conn_t)arg;
-    c2s_t c2s;
+    xmppd::pointer<c2s_st> c2s = NULL;
 
-    log_debug(ZONE,"io action %d with fd %d",a,fd);
+    DBG("io action " << a << " with fd " << fd);
 
     switch(a)
     {
@@ -598,10 +598,10 @@ static int _connect_io(mio_t m, mio_action_t a, int fd, const void *data, void *
             exit(1);
         }
 
-        log_debug(ZONE,"reconnecting to sm");
+        DBG("reconnecting to sm");
 
         /* try to connect again */
-        c2s = c->c2s;
+	c2s = c->c2s;
 	if (!c2s->shutting_down) {
 	    retries = j_atoi(config_get_one(c2s->config, "sm.retries", 0), 5);
 	    for (x = 0; x < retries; x++) {
@@ -636,7 +636,7 @@ static int _connect_io(mio_t m, mio_action_t a, int fd, const void *data, void *
 }
 
 
-int connect_new(c2s_t c2s)
+int connect_new(xmppd::pointer<c2s_st> c2s)
 {
     int fd;
 #ifdef USE_IPV6
@@ -700,7 +700,7 @@ int connect_new(c2s_t c2s)
         inet_ntop(AF_INET, h->h_addr_list[0], iphost, 16);
         ip = inet_addr(iphost);
 
-        log_debug(ZONE, "resolved: %s = %s", c2s->sm_host, iphost);
+        DBG("resolved: " <<  c2s->sm_host << " = " << iphost);
     }
 
     /* attempt to create a socket */

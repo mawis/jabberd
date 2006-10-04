@@ -49,16 +49,6 @@
 #ifndef INCL_UTIL_H
 #define INCL_UTIL_H
 
-#ifndef HAVE_SNPRINTF
-extern int ap_snprintf(char *, size_t, const char *, ...);
-#define snprintf ap_snprintf
-#endif
-
-#ifndef HAVE_VSNPRINTF
-extern int ap_vsnprintf(char *, size_t, const char *, va_list ap);
-#define vsnprintf ap_vsnprintf
-#endif
-
 /* --------------------------------------------------------- */
 /*                                                           */
 /* Pool-based memory management routines                     */
