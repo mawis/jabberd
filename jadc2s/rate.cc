@@ -44,7 +44,7 @@
 * walk over the rate table and clear out the old entries
 * @param c2s the c2s context
 */
-void connection_rate_cleanup(c2s_t c2s) {
+void connection_rate_cleanup(xmppd::pointer<c2s_st> c2s) {
     static time_t last = 0;
     time_t now;
 
@@ -61,7 +61,7 @@ void connection_rate_cleanup(c2s_t c2s) {
 
 	    /* about to expire this entry? */
 	    if (now - p->second->first_time > c2s->connection_rate_seconds) {
-		log_debug(ZONE, "free and zap");
+		DBG("free and zap");
 		free(p->second->ip);
 		free(p->second);
 		c2s->connection_rates->erase(p->first);
@@ -80,7 +80,7 @@ void connection_rate_cleanup(c2s_t c2s) {
 * @param ip the ip to check
 * @return 0 on valid 1 on invalid
 */
-int connection_rate_check(c2s_t c2s, const char* ip) {
+int connection_rate_check(xmppd::pointer<c2s_st> c2s, const char* ip) {
     connection_rate_t cr;
     time_t now;
     

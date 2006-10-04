@@ -4,6 +4,7 @@
 
 #include <string>
 #include <map>
+#include <iostream>
 
 #include "mio/mio.h"
 #include <expat.h>
@@ -70,7 +71,7 @@
 
 /* forward decls */
 typedef struct conn_st *conn_t;
-typedef struct c2s_st *c2s_t;
+struct c2s_st;
 
 /**
  * chunk definition
@@ -148,7 +149,7 @@ typedef enum {
  * The conn(ection) wraps the data we need for every client
  */
 struct conn_st {
-    c2s_t c2s;			/**< the jadc2s instance we are running in */
+    xmppd::pointer<c2s_st> c2s;	/**< the jadc2s instance we are running in */
 
     /* vars for this conn */
     int fd;			/**< file descriptor of this connection */
@@ -224,7 +225,7 @@ struct conn_st {
 };
 
 /* conn happy/sad */
-conn_t conn_new(c2s_t c2s, int fd);
+conn_t conn_new(xmppd::pointer<c2s_st> c2s, int fd);
 void conn_free(conn_t c);
 
 /** send a stream error */
@@ -271,8 +272,8 @@ void connectionstate_send(config_t config, conn_t c, conn_t client, int is_login
 #define MAXFD 255
 
 /** IP Connection Rate Limit Functions **/
-int connection_rate_check(c2s_t c2s, const char* ip);
-void connection_rate_cleanup(c2s_t c2s);
+int connection_rate_check(xmppd::pointer<c2s_st> c2s, const char* ip);
+void connection_rate_cleanup(xmppd::pointer<c2s_st> c2s);
 
 typedef struct bad_conn_st* bad_conn_t;
 struct bad_conn_st
@@ -291,77 +292,91 @@ typedef struct connection_rate_st
 } *connection_rate_t;
 
 /** c2s master data type */
-struct c2s_st
-{
-    /* globals */
-    mio_t mio;
-    int shutting_down;
-    jid_environment_t jid_environment;
+class c2s_st {
+    public:
+	/**
+	 * Constructor
+	 *
+	 * Creates a new instance
+	 */
+	c2s_st();
 
-    /* setup */
-    config_elem_t local_id;
-    config_elem_t local_alias;
-    config_elem_t local_noregister;
-    config_elem_t local_nolegacyauth;	/**< hosts for which legacy authentication is not advertized */
-    char *local_ip;
-    int local_port;
-    char *local_statfile;
-    char *http_forward;
+	/**
+	 * Destructor
+	 *
+	 * Destroys an instance
+	 */
+	~c2s_st();
+
+	/* globals */
+	mio_t mio;
+	int shutting_down;
+	jid_environment_t jid_environment;
+
+	/* setup */
+	config_elem_t local_id;
+	config_elem_t local_alias;
+	config_elem_t local_noregister;
+	config_elem_t local_nolegacyauth;	/**< hosts for which legacy authentication is not advertized */
+	char *local_ip;
+	int local_port;
+	char *local_statfile;
+	char *http_forward;
 #ifdef USE_SSL
-    int local_sslport;
-    char *pemfile;
-    char *ciphers;
-    int ssl_no_ssl_v2;
-    int ssl_no_ssl_v3;
-    int ssl_no_tls_v1;
-    int ssl_enable_workarounds;
-    int ssl_enable_autodetect;
+	int local_sslport;
+	char *pemfile;
+	char *ciphers;
+	int ssl_no_ssl_v2;
+	int ssl_no_ssl_v3;
+	int ssl_no_tls_v1;
+	int ssl_enable_workarounds;
+	int ssl_enable_autodetect;
 
-    SSL_CTX *ssl_ctx;
+	SSL_CTX *ssl_ctx;
 
-    int tls_required;
+	int tls_required;
 #endif
 
-    config_t config;		/**< our configuration */
+	config_t config;		/**< our configuration */
 
-    nad_cache_t nads;		/**< nad cache */
+	nad_cache_t nads;		/**< nad cache */
 
-    /* client conn stuff */
-    std::map<std::string, connection_rate_t> *connection_rates; /**< our current rate limit checks */
-    int connection_rate_times;
-    int connection_rate_seconds;
-    std::map<std::string, conn_t> *pending; /**< waiting for auth/session */
-    struct conn_st *conns; /**< all connected conns */
-    bad_conn_t bad_conns; /**< Karma controlled conns */
-    bad_conn_t bad_conns_tail;
-    int timeout; /**< how long to process mio */
-    int default_timeout; /**< configured default timeout */
+	/* client conn stuff */
+	std::map<std::string, connection_rate_t> *connection_rates; /**< our current rate limit checks */
+	int connection_rate_times;
+	int connection_rate_seconds;
+	std::map<std::string, conn_t> *pending; /**< waiting for auth/session */
+	struct conn_st *conns; /**< all connected conns */
+	bad_conn_t bad_conns; /**< Karma controlled conns */
+	bad_conn_t bad_conns_tail;
+	int timeout; /**< how long to process mio */
+	int default_timeout; /**< configured default timeout */
 
-    int max_fds;
+	int max_fds;
 
-    int num_clients;
+	int num_clients;
 
-    /* session manager stuff */
-    conn_t sm;
-    char *sm_host, *sm_id, *sm_secret;
-    int sm_port;
+	/* session manager stuff */
+	conn_t sm;
+	char *sm_host, *sm_id, *sm_secret;
+	int sm_port;
 
-    /* logging */
-    xmppd::logging *log;	/**< logging instance to use */
-    int iplog;
+	/* logging */
+	xmppd::logging *log;	/**< logging instance to use */
+	int iplog;
 
-    /* SASL */
-    int sasl_enabled;		/**< 0 = only legacy auth by session manager, 1 = auth by jadc2s */
-    int sasl_jep0078;		/**< 0 = legacy authentication not supported, 1 = JEP-0078 supported */
-    char *sasl_appname;		/**< application name passed to SASL library (to generate SASL conf file name) */
-    char *sasl_service;		/**< registered service name, should always be 'xmpp' */
-    char *sasl_fqdn;		/**< FQDN passed to sasl library */
-    char *sasl_defaultrealm;	/**< default realm passed to sasl library */
-    unsigned sasl_min_ssf;	/**< minimum security strength factor for SASL */
-    unsigned sasl_max_ssf;	/**< maximum security strength factor for SASL */
-    int sasl_noseclayer;	/**< 0 = allow SASL security layer, 1 = do not allow SASL security layer */
-    unsigned sasl_sec_flags;	/**< SASL security flags to set */
-    config_elem_t sasl_admin;	/**< accounts, that are allowed to authorize as other users */
+	/* SASL */
+	int sasl_enabled;		/**< 0 = only legacy auth by session manager, 1 = auth by jadc2s */
+	int sasl_jep0078;		/**< 0 = legacy authentication not supported, 1 = JEP-0078 supported */
+	char *sasl_appname;		/**< application name passed to SASL library (to generate SASL conf file name) */
+	char *sasl_service;		/**< registered service name, should always be 'xmpp' */
+	char *sasl_fqdn;		/**< FQDN passed to sasl library */
+	char *sasl_defaultrealm;	/**< default realm passed to sasl library */
+	unsigned sasl_min_ssf;	/**< minimum security strength factor for SASL */
+	unsigned sasl_max_ssf;	/**< maximum security strength factor for SASL */
+	int sasl_noseclayer;	/**< 0 = allow SASL security layer, 1 = do not allow SASL security layer */
+	unsigned sasl_sec_flags;	/**< SASL security flags to set */
+	config_elem_t sasl_admin;	/**< accounts, that are allowed to authorize as other users */
 };
 
 /** the handler for client mio events */
@@ -369,21 +384,16 @@ int client_io(mio_t m, mio_action_t a, int fd, const void *data, void *arg);
 void client_send_sc_command(conn_t sm_conn, const char *to, const char *from, const char *action, const jid target, const char *id, const char *sc_sm, const char *sc_c2s);
 
 /** create a sm connection (block until it's connected) */
-int connect_new(c2s_t c2s);
+int connect_new(xmppd::pointer<c2s_st> c2s);
 
 /* wrappers around read() and write(), with ssl support */
 int _read_actual(conn_t c, int fd, char *buf, size_t count);
 int _peek_actual(conn_t c, int fd, char *buf, size_t count);
 
-/** debug logging */
-void debug_log(char *file, int line, const char *msgfmt, ...);
-#define ZONE __FILE__,__LINE__
-#define MAX_DEBUG 1024
-
 /* if no debug, basically compile it out */
 #ifdef DEBUG
-#define log_debug debug_log
+#define DBG(a) do { std::clog << __FILE__ << ':' << __LINE__ << ":\t" << a << std::endl; } while (false);
 #else
-#define log_debug if(0) debug_log
+#define DBG(a) do {} while (false);
 #endif
 

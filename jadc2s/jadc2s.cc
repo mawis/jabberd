@@ -61,15 +61,15 @@ static sasl_callback_t sasl_callbacks[] = {
  * callback for cyrus sasl, that stringpres XMPP user ids
  */
 static int _sasl_canon_user(sasl_conn_t *conn, void *context, const char *in, unsigned inlen, unsigned flags, const char *user_realm, char *out, unsigned out_max, unsigned *out_len) {
-    c2s_t c2s = (c2s_t)context;
     jid user_jid = NULL;
     pool local_pool = NULL;
 
     /* sanity check */
-    if (c2s == NULL) {
-	log_debug(ZONE, "_sasl_canon_user called with NULL context");
+    if (context == NULL) {
+	DBG("_sasl_canon_user called with NULL context");
 	return SASL_FAIL;
     }
+    xmppd::pointer<c2s_st> c2s = *static_cast< xmppd::pointer<c2s_st>* >(context);
 
     /* stringprep the ID */
     local_pool = pool_new();
@@ -99,7 +99,6 @@ static int _sasl_canon_user(sasl_conn_t *conn, void *context, const char *in, un
  * callback for cyrus sasl, that checks if a user is allowed to authenticate as another id
  */
 static int _sasl_proxy_auth_check(sasl_conn_t *conn, void *context, const char *requested_user, unsigned rlen, const char *auth_identity, unsigned alen, const char *def_realm, unsigned urlen, struct propctx *propctx) {
-    c2s_t c2s = (c2s_t)context;
     pool local_pool = NULL;
     jid auth_jid = NULL;
     jid authz_jid = NULL;
@@ -107,10 +106,11 @@ static int _sasl_proxy_auth_check(sasl_conn_t *conn, void *context, const char *
     int has_admin_rights = 0;
 
     /* sanity check */
-    if (c2s == NULL) {
-	log_debug(ZONE, "_sasl_proxy_auth_check called with NULL context");
+    if (context == NULL) {
+	DBG("_sasl_proxy_auth_check called with NULL context");
 	return SASL_FAIL;
     }
+    xmppd::pointer<c2s_st> c2s = *static_cast< xmppd::pointer<c2s_st>* >(context);
 
     /* more sanity checks */
     if (requested_user == NULL || auth_identity == NULL || def_realm == NULL) {
@@ -167,7 +167,7 @@ static int _sasl_proxy_auth_check(sasl_conn_t *conn, void *context, const char *
 
     /* a user is always allowed to authenticate as himself */
     if (jid_cmp(authz_jid, auth_jid) == 0) {
-	log_debug(ZONE, "user %s authorized as himself", jid_full(auth_jid));
+	DBG("user " << jid_full(auth_jid) << "authorized as himself");
 	pool_free(local_pool);
 	return SASL_OK;
     }
@@ -232,7 +232,7 @@ static int _sasl_proxy_auth_check(sasl_conn_t *conn, void *context, const char *
 * Iterate over the bad conns list and reset people that are ok
 * @param c2s The c2s instance to process from
 */
-static void check_karma(c2s_t c2s) {
+static void check_karma(xmppd::pointer<c2s_st> c2s) {
     bad_conn_t cur, next;
     time_t start;
 
@@ -335,13 +335,32 @@ static int daemonize(void) {
     return 0;
 }
 
+c2s_st::c2s_st() : mio(NULL), shutting_down(0), jid_environment(NULL), local_id(NULL), local_alias(NULL),
+    local_noregister(NULL), local_nolegacyauth(NULL), local_ip(NULL), local_port(0), local_statfile(NULL),
+    http_forward(NULL),
+#ifdef USE_SSL
+    local_sslport(0), pemfile(NULL), ciphers(NULL), ssl_no_ssl_v2(0), ssl_no_ssl_v3(0), ssl_no_tls_v1(0),
+    ssl_enable_workarounds(0), ssl_enable_autodetect(0), ssl_ctx(NULL), tls_required(0),
+#endif
+    connection_rates(NULL), config(NULL), nads(NULL), connection_rate_times(0), connection_rate_seconds(0),
+    pending(NULL), conns(NULL), bad_conns(NULL), bad_conns_tail(NULL), timeout(0), default_timeout(0),
+    max_fds(0), num_clients(0), sm(NULL), sm_host(NULL), sm_id(NULL), sm_secret(NULL)
+{
+}
+
+c2s_st::~c2s_st() {
+    DBG("Destroying c2s_st instance");
+}
+
+
+
+
 
 /* although this is our main and it's an all-in-one right now,
  * it's done in a way that would make it quite easy to thread, 
  * customize, or integrate with another codebase
  */
 int main(int argc, char **argv) {
-    c2s_t c2s;
     time_t last_log, last_pending, last_jid_clean, now;
     char optchar;
     int config_loaded = 0;
@@ -354,8 +373,7 @@ int main(int argc, char **argv) {
     signal(SIGPIPE, SIG_IGN);
     
     /* set up our c2s global stuff */
-    c2s = (c2s_t)malloc(sizeof(struct c2s_st));
-    memset(c2s, 0, sizeof(struct c2s_st));
+    xmppd::pointer<c2s_st> c2s = new c2s_st;
 
     /* create environment for jid preparation */
     c2s->jid_environment = jid_new_environment();
@@ -523,7 +541,7 @@ int main(int argc, char **argv) {
     /* only bind the unencrypted port if we have a real port number for it */
     if (c2s->local_port > 0) {
         /* then make sure we can listen */
-        if (mio_listen(c2s->mio, c2s->local_port, c2s->local_ip, client_io, (void*)c2s) < 0) {
+        if (mio_listen(c2s->mio, c2s->local_port, c2s->local_ip, client_io, &c2s) < 0) {
 	    c2s->log->level(LOG_ERR) << "failed to listen on port " << c2s->local_port << "!";
             return 1;
         }
@@ -569,7 +587,7 @@ int main(int argc, char **argv) {
 		    c2s->ssl_ctx = NULL;
 		}
 		if (c2s->local_sslport != 0 ) {
-		    if (mio_listen(c2s->mio, c2s->local_sslport, c2s->local_ip, client_io, (void*)c2s) < 0)
+		    if (mio_listen(c2s->mio, c2s->local_sslport, c2s->local_ip, client_io, &c2s) < 0)
 			c2s->log->level(LOG_ERR) << "failed to listen on port " << c2s->local_sslport << "!";
 		    else
 			c2s->log->level(LOG_NOTICE) << "listening for SSL/TLS client connections on port " << c2s->local_sslport;
@@ -579,14 +597,16 @@ int main(int argc, char **argv) {
 
 	/* enable workarounds for different SSL client bugs or disable
 	 * some versions of SSL/TLS */
-	if (c2s->ssl_enable_workarounds)
-	    SSL_CTX_set_options(c2s->ssl_ctx, SSL_OP_ALL);
-	if (c2s->ssl_no_ssl_v2)
-	    SSL_CTX_set_options(c2s->ssl_ctx, SSL_OP_NO_SSLv2);
-	if (c2s->ssl_no_ssl_v3)
-	    SSL_CTX_set_options(c2s->ssl_ctx, SSL_OP_NO_SSLv3);
-	if (c2s->ssl_no_tls_v1)
-	    SSL_CTX_set_options(c2s->ssl_ctx, SSL_OP_NO_TLSv1);
+	if (c2s->ssl_ctx != NULL) {
+	    if (c2s->ssl_enable_workarounds)
+		SSL_CTX_set_options(c2s->ssl_ctx, SSL_OP_ALL);
+	    if (c2s->ssl_no_ssl_v2)
+		SSL_CTX_set_options(c2s->ssl_ctx, SSL_OP_NO_SSLv2);
+	    if (c2s->ssl_no_ssl_v3)
+		SSL_CTX_set_options(c2s->ssl_ctx, SSL_OP_NO_SSLv3);
+	    if (c2s->ssl_no_tls_v1)
+		SSL_CTX_set_options(c2s->ssl_ctx, SSL_OP_NO_TLSv1);
+	}
     }
 #endif
 
@@ -594,8 +614,8 @@ int main(int argc, char **argv) {
     if (c2s->sasl_enabled != 0) {
 	int i = 0;
 	for (i=0; sasl_callbacks[i].id!=SASL_CB_LIST_END; i++) {
-	    log_debug(ZONE, "callback init for %i", i);
-	    sasl_callbacks[i].context = (void*)c2s;
+	    DBG("callback init for" << i);
+	    sasl_callbacks[i].context = &c2s;
 	}
 	sasl_result = sasl_server_init(sasl_callbacks, c2s->sasl_appname);
 	if (sasl_result != SASL_OK) {
@@ -688,14 +708,8 @@ int main(int argc, char **argv) {
     SSL_CTX_free(c2s->ssl_ctx);
 #endif
     delete c2s->config;
-    free(c2s);
 
     pool_stat(1);
 
     return 0;
-}
-
-/* spit out debug output */
-void debug_log(char *file, int line, const char *msgfmt, ...) {
-    // debug logging still has to be moved to be stream based, just removing debug_log for now to get rid of snprintf/vsnprintf
 }

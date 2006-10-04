@@ -1,3 +1,21 @@
+2006-10-04  Matthias Wimmer  <m@tthias.eu>
+
+    * conn.cc: debug logging using std::clog and DBG() macro
+    * clients.cc: same
+    * connect.cc: same
+    * jadc2s.cc: same
+    * rate.cc: same
+    * jadc2s.cc: do not call OpenSSL if context generation failed
+
+2006-10-03  Matthias Wimmer  <m@tthias.eu>
+
+    * jadc2s.h: defining c2s_st as a class and using xmppd::pointer for access
+    * jadc2s.cc: same
+    * conn.cc: same
+    * clients.cc: same
+    * connect.cc: same
+    * rate.cc: same
+
 2006-09-28  Matthias Wimmer  <m@tthias.eu>
 
     * conn.cc: putting logging code in namespace xmppd

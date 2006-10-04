@@ -48,7 +48,7 @@
 static int _write_actual(conn_t c, int fd, const char *buf, size_t count);
 
 /* create a new blank conn (!caller must set expat callbacks and mio afterwards) */
-conn_t conn_new(c2s_t c2s, int fd)
+conn_t conn_new(xmppd::pointer<c2s_st> c2s, int fd)
 {
     conn_t c;
     std::ostringstream fd_stream;
@@ -146,7 +146,7 @@ void conn_error(conn_t c, const char *condition, const char *err) {
 	chunk_write_typed(c, root_element, NULL, NULL, NULL, c->type == type_FLASH ? chunk_NORMAL : chunk_OPEN);
     }
 
-    log_debug(ZONE,"sending stream error: %s %s", condition, err);
+    DBG("sending stream error: " << condition << " " << err);
     error = chunk_new_free(c->c2s->nads);
     nad_append_elem(error->nad, "stream:error", 0);
 
@@ -191,10 +191,13 @@ void conn_close(conn_t c, const char *condition, const char *err)
 	/* send the stream error */
 	conn_error(c, condition, err);
 
-	if (c && c->c2s && c->c2s->nads) {
-	    footer = chunk_new_free(c->c2s->nads);
-	    nad_append_elem(footer->nad, "stream:stream", 0);
-	    chunk_write_typed(c, footer, NULL, NULL, NULL, chunk_CLOSE);
+	try {
+	    if (c && c->c2s->nads) {
+		footer = chunk_new_free(c->c2s->nads);
+		nad_append_elem(footer->nad, "stream:stream", 0);
+		chunk_write_typed(c, footer, NULL, NULL, NULL, chunk_CLOSE);
+	    }
+	} catch (std::string msg) {
 	}
 
 	/* did the connection close in the meantime? */
@@ -333,7 +336,7 @@ void chunk_write_typed(conn_t c, chunk_t chunk, const char *to, const char *from
 	char *encoded_data = NULL;
 	size_t encoded_len = 0;
 
-	log_debug(ZONE, "chunk_write_typed() is encoding data using sasl_encode()");
+	DBG("chunk_write_typed() is encoding data using sasl_encode()");
 
 	/* we may have to encode using multiple calls, there is a maximum size we can pass to sasl_encode */
 	while (chunk->wlen > 0) {
@@ -405,7 +408,7 @@ void chunk_write_typed(conn_t c, chunk_t chunk, const char *to, const char *from
 */
 int conn_max_read_len(conn_t c)
 {
-    c2s_t c2s = c->c2s;
+    xmppd::pointer<c2s_st> c2s = c->c2s;
     int max_bits_per_sec = j_atoi(config_get_one(c2s->config, "io.max_bps", 0),
             1024);
     time_t now;
@@ -456,7 +459,7 @@ int conn_read(conn_t c, char *buf, int len)
     char *err = NULL;
     int cur_len = 0;
 
-    log_debug(ZONE,"conn_read: len(%d)",len);
+    DBG("conn_read: len(" << len << ")");
 
     /* client gone */
     if(len == 0)
@@ -468,7 +471,7 @@ int conn_read(conn_t c, char *buf, int len)
     /* deal with errors */
     if(len < 0)
     {
-        log_debug(ZONE,"conn_read: errno(%d : %s)",errno,strerror(errno));
+        DBG("conn_read: errno(" << errno << " : " << strerror(errno) << ")");
 
         if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN)
             return 2; /* flag that we're blocking now */
@@ -498,7 +501,7 @@ int conn_read(conn_t c, char *buf, int len)
         if ((len - cur_len) < max_len)
             max_len = (len - cur_len);
         
-        log_debug(ZONE,"processing read data from %d: %.*s", c->fd, max_len, new_buf);
+        DBG("processing read data from " << c->fd << ": " << std::string(new_buf, max_len));
 
         /* Update how much has been read */
         c->read_bytes += max_len;
@@ -550,7 +553,7 @@ int conn_write(conn_t c)
     /* try to write as much as we can */
     while((cur = c->writeq) != NULL)
     {
-        log_debug(ZONE, "writing data to %d: %.*s", c->fd, cur->wlen, (char*)cur->wcur);
+        DBG("writing data to " << c->fd << ": " << std::string(cur->wcur, cur->wlen));
 
         /* write a bit from the current buffer */
         len = _write_actual(c, c->fd, cur->wcur, cur->wlen);
@@ -700,7 +703,7 @@ static int _write_actual(conn_t c, int fd, const char *buf, size_t count)
     int written;
     int truncated_write = 0;
 
-    log_debug(ZONE, "writing: %.*s", count, buf);
+    DBG("writing: " << std::string(buf, count));
 
 #ifdef WITH_SASL
     if (c->sasl_conn && c->sasl_state != state_auth_NONE) {
