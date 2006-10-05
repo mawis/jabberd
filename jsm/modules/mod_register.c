@@ -42,14 +42,14 @@
 
 /**
  * @file mod_register.c
- * @brief handles in-band registrations (JEP-0077)
+ * @brief handles in-band registrations (XEP-0077)
  *
  * This module implements the functionality used to register and unregister accounts on the Jabber
  * server and to change passwords.
  *
  * It can be configured to send a welcome message to the user on successful registration.
  *
- * @todo allow the admin to change passwords of other users and delete their accounts (JEP-0133?)
+ * @todo allow the admin to change passwords of other users and delete their accounts (XEP-0133?)
  */
 
 /**

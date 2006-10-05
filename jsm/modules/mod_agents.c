@@ -42,14 +42,14 @@
 
 /**
  * @file mod_agents.c
- * @brief handling jabber:iq:agents (JEP-0094) and jabber:iq:agent (undocumented) iq requests - DEPRICATED
+ * @brief handling jabber:iq:agents (XEP-0094) and jabber:iq:agent (undocumented) iq requests - DEPRICATED
  *
  * This module implements the jabber:iq:agents functionallity in the session manager.
  * jabber:iq:agents is used by very old Jabber clients to get the list of transports
- * available on a Jabber server. Usage depricated - use service discovery (JEP-0030) instead.
+ * available on a Jabber server. Usage depricated - use service discovery (XEP-0030) instead.
  *
  * This module also implements the jabber:iq:agent functionallity to get information about
- * the session manager (the server) itself. Usage depricated - use service discovery (JEP-0030) instead.
+ * the session manager (the server) itself. Usage depricated - use service discovery (XEP-0030) instead.
  */
 
 /**

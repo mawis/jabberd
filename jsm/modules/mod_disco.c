@@ -45,7 +45,7 @@
 
 /**
  * @file mod_disco.c
- * @brief implement handling of service discovery (JEP-0030) in the session manager
+ * @brief implement handling of service discovery (XEP-0030) in the session manager
  *
  * This module implements service discovery to get the list of available services
  * on the jabber server installation. Only handling of requests addressed to the
