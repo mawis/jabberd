@@ -15,7 +15,7 @@ jabberd 1.4.5 or later
 - handling of xml:lang (XMPP)
 - allowing some actions only over secured connection (auth, register)
 - interface to call scripts on account deletion
-- admin interface especially to change user passwords (JEP-0133)
+- admin interface especially to change user passwords (XEP-0133)
 - http binding (maybe only in jadc2s)
 - other xdb modules (ldap, bdbxml)
 - remove global variables

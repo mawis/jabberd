@@ -85,12 +85,12 @@ that has to be used to initialize it.
 .TP
 .B <accept/>
 This element defines, that jabberd will wait for an incoming connection using
-the jabber:component:accept protocol defined in JEP-0114. With this it is
+the jabber:component:accept protocol defined in XEP-0114. With this it is
 possible to run components in their own process, even on different hosts
 and connect it to the main jabberd routing process. On the other end of the
 connection there can be an instance of jabberd again that uses a section
 with <connect/> to initiate the connection, but there are libraries in many
-programming languages available, that implement JEP-0114 as well.
+programming languages available, that implement XEP-0114 as well.
 Inside this element you have to provide an <ip/> element, that defines the
 IPv4 or IPv6 address to listen on, a <port/> element that defines on which
 port the server will listen for the connection, and a <secret/> element, that
@@ -99,7 +99,7 @@ defines a shared secret to authenticate the other peer.
 .B <connect/>
 This element is the opposite of the <accept/> element. Jabberd will try to
 connect to an implementation of the jabber:component:accept protocol defined
-in JEP-0114.
+in XEP-0114.
 Inside this element you have to provide an <ip/> element, that defines the
 IPv4 or IPv6 address where to connect to, a <port/> element, that defines
 the destination port, and a <secret/> element, that defines a shared secret

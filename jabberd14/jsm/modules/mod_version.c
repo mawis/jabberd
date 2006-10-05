@@ -43,7 +43,7 @@
 
 /**
  * @file mod_version.c
- * @brief implements handling of 'jabber:iq:version' (JEP-0092) in the session manager
+ * @brief implements handling of 'jabber:iq:version' (XEP-0092) in the session manager
  *
  * This session manager module implements the 'Software Version' protocol in the
  * session manager. It can be used to request which version of the Jabber server

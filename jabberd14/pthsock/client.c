@@ -386,7 +386,7 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
 		    register_element = xmlnode_insert_tag_ns(features, "register", NULL, NS_REGISTER_FEATURE);
 		}
 
-		/* Non-SASL Authentication JEP-0078 */
+		/* Non-SASL Authentication XEP-0078 */
 		xmlnode_insert_tag_ns(features, "auth", NULL, NS_IQ_AUTH);
 
 		/* send the stream:features */

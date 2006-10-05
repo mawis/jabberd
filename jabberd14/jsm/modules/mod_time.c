@@ -46,7 +46,7 @@
 
 /**
  * @file mod_time.c
- * @brief implement the Entity Time protocol (JEP-0090)
+ * @brief implement the Entity Time protocol (XEP-0090)
  *
  * The protocol implemented by this module can be used the query the current time on the server.
  */
