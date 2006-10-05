@@ -42,7 +42,7 @@
 
 /**
  * @file mod_auth_digest.c
- * @brief Handle authentication using hashed passwords on the wire (requires plain passwords in storage) and registration. See JEP-0077 and JEP-0078 for the protocol.
+ * @brief Handle authentication using hashed passwords on the wire (requires plain passwords in storage) and registration. See XEP-0077 and XEP-0078 for the protocol.
  */
 
 /**

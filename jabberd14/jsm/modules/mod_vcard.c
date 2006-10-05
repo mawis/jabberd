@@ -42,7 +42,7 @@
 
 /**
  * @file mod_vcard.c
- * @brief Implement handling of namespace 'vcard-temp' (JEP-0054)
+ * @brief Implement handling of namespace 'vcard-temp' (XEP-0054)
  *
  * This module allows publishing of vcard data, replies queries for the vcard data
  * of a user, responds to queries for the server vcard, and my forward published

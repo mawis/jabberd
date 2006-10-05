@@ -412,7 +412,7 @@ void jutil_error(xmlnode x, terror E)
 }
 
 /**
- * add a delayed delivery (JEP-0091) element to a message using the
+ * add a delayed delivery (XEP-0091) element to a message using the
  * present timestamp.
  * If a reason is given, this reason will be added as CDATA to the
  * inserted element

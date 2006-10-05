@@ -139,7 +139,7 @@
         You can add separate <item/> sections for additional
 	directories, e.g., one for a company intranet.
 
-	For possible values of category and item see JEP-0011
+	For possible values of category and item see XEP-0011
         -->
 
         <item category="service" type="jud" jid="users.jabber.org" name="Jabber User Directory">
@@ -171,8 +171,8 @@
       </browse>
 
       <!--
-      "Service Discovery" (disco, JEP-0030) supersedes
-      "Jabber Browsing" (JEP-0011).
+      "Service Discovery" (disco, XEP-0030) supersedes
+      "Jabber Browsing" (XEP-0011).
       The <identity/> element inside the <disco/> section can be used
       to configure a special identity result for the server. If
       not present, the name is fetched from the server's vCard.

@@ -42,10 +42,10 @@
 
 /**
  * @file mod_xml.c
- * @brief handling jabber:iq:private (JEP-0049) requests as well as public storage (undocumented)
+ * @brief handling jabber:iq:private (XEP-0049) requests as well as public storage (undocumented)
  *
  * This module implements the storage of private data by a client on the server using the
- * jabber:iq:private namespace documented in JEP-0049.
+ * jabber:iq:private namespace documented in XEP-0049.
  *
  * The module also implements the storage of data, that will be accessible by any entity on
  * the Jabber network and the handling of requests by other users to this data.
@@ -62,7 +62,7 @@
  * Store and retrieve public and private data by the user itself, but not data in the namespaces that start with 'jabber:' nor in
  * the 'vcard-temp' or 'http://jabberd.org/ns/storedpresence' namespaces.
  *
- * @todo Allow storage of 'jabber:' namespaces and the 'vcard-temp' namespace inside of private XML storage (JEP-0049 recommends this).
+ * @todo Allow storage of 'jabber:' namespaces and the 'vcard-temp' namespace inside of private XML storage (XEP-0049 recommends this).
  * Not possible at present because we do not store the query element in the jabber:iq:private around the data in xdb and the user
  * would overwrite other stored data in this namespace.
  *

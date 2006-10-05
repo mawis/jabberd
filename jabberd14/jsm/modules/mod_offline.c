@@ -42,19 +42,19 @@
 
 /**
  * @file mod_offline.c
- * @brief Handle offline messages to users (including message expiration (JEP-0023), that is DEPRICATED by JEP-0079, message events (JEP-0022), that might become DEPRICATED by JEP-0085 or a successor, and flexible offline message retrieval (JEP-0013))
+ * @brief Handle offline messages to users (including message expiration (XEP-0023), that is DEPRICATED by XEP-0079, message events (XEP-0022), that might become DEPRICATED by XEP-0085 or a successor, and flexible offline message retrieval (XEP-0013))
  * 
  * This module is responsible for checking if a message can be delivered to a user session
  * or if it has to be stored in xdb for later delivery.
  *
  * If a user comes online this module will check if there are stored messages for this user
  * (only if the user's presence has a non-negative priority) and deliver them, if the have
- * not yet expired (using JEP-0023 processing).
+ * not yet expired (using XEP-0023 processing).
  *
  * If a message is stored offline, this module will check if the sender wants to get an event and send it
- * if requested. (Message Events - JEP-0022)
+ * if requested. (Message Events - XEP-0022)
  *
- * This module supports flexible offline message retrieval (JEP-0013)
+ * This module supports flexible offline message retrieval (XEP-0013)
  *
  * mod_offline must go before mod_presence
  *
@@ -79,7 +79,7 @@ typedef struct modoffline_conf_struct {
  * data that is held for a single session of a user
  */
 typedef struct modoffline_session_struct {
-    int jep0013;			/**< 0 for message flood after available presence, 1 for jep0013 */
+    int xep0013;			/**< 0 for message flood after available presence, 1 for xep0013 */
 } *modoffline_session, _modoffline_session;
 
 /**
@@ -291,7 +291,7 @@ int mod_offline_check_expired(mapi m, xmlnode message) {
  *
  * @param m the mapi structure
  * @param filter NULL to send all messages, else send only message with that node id
- * @param offline_element 0 to not include the offline element, 1 to send offline element from JEP-0013
+ * @param offline_element 0 to not include the offline element, 1 to send offline element from XEP-0013
  * @return number of messages that were sent
  */
 int mod_offline_send_messages(mapi m, const char *filter, int offline_element) {
@@ -322,7 +322,7 @@ int mod_offline_send_messages(mapi m, const char *filter, int offline_element) {
 	    continue;
 	}
 
-	/* insert information for flexible offline message retrieval JEP-0013 */
+	/* insert information for flexible offline message retrieval XEP-0013 */
 	if (offline_element != 0) {
 	    xmlnode offline = NULL;
 	    xmlnode item = NULL;
@@ -364,8 +364,8 @@ int mod_offline_send_messages(mapi m, const char *filter, int offline_element) {
  * @param session_conf configuration data for the user's session
  */
 void mod_offline_out_available(mapi m, modoffline_session session_conf) {
-    if (session_conf->jep0013) {
-	log_debug2(ZONE, LOGT_DELIVER, "session used Flexible Offline Message Retrieval (JEP-0013) not flooding messages");
+    if (session_conf->xep0013) {
+	log_debug2(ZONE, LOGT_DELIVER, "session used Flexible Offline Message Retrieval (XEP-0013) not flooding messages");
 	return;
     }
 
@@ -548,7 +548,7 @@ void mod_offline_out_handle_query(mapi m) {
 }
 
 /**
- * handle iq stanzas send by the user to himself ... check for JEP-0013 queries
+ * handle iq stanzas send by the user to himself ... check for XEP-0013 queries
  *
  * @param m the mapi structure
  * @param session_conf configuration data for this users session
@@ -563,7 +563,7 @@ mreturn mod_offline_out_iq(mapi m, modoffline_session session_conf) {
     if (NSCHECK(m->packet->iq, NS_DISCO_INFO)) {
 	if (j_strcmp(xmlnode_get_attrib_ns(m->packet->iq, "node", NULL), NS_FLEXIBLE_OFFLINE) == 0) {
 	    /* don't flood messages on available presence */
-	    session_conf->jep0013 = 1;
+	    session_conf->xep0013 = 1;
 
 	    if (jpacket_subtype(m->packet) == JPACKET__GET) {
 		mod_offline_out_get_message_count(m);
@@ -578,7 +578,7 @@ mreturn mod_offline_out_iq(mapi m, modoffline_session session_conf) {
     if (NSCHECK(m->packet->iq, NS_DISCO_ITEMS)) {
 	if (j_strcmp(xmlnode_get_attrib_ns(m->packet->iq, "node", NULL), NS_FLEXIBLE_OFFLINE) == 0) {
 	    /* don't flood messages on available presence */
-	    session_conf->jep0013 = 1;
+	    session_conf->xep0013 = 1;
 
 	    if (jpacket_subtype(m->packet) == JPACKET__GET) {
 		mod_offline_out_get_message_list(m);
@@ -593,7 +593,7 @@ mreturn mod_offline_out_iq(mapi m, modoffline_session session_conf) {
     if (NSCHECK(m->packet->iq, NS_FLEXIBLE_OFFLINE)) {
 	if (j_strcmp(xmlnode_get_localname(m->packet->iq), "offline") == 0) {
 	    /* don't flood messages on available presence */
-	    session_conf->jep0013 = 1;
+	    session_conf->xep0013 = 1;
 
 	    mod_offline_out_handle_query(m);
 	    return M_HANDLED;
@@ -631,7 +631,7 @@ mreturn mod_offline_out(mapi m, void *arg) {
 /**
  * callback that handles the serialization of a session
  *
- * mod_offline has to store if a user is using JEP-0013
+ * mod_offline has to store if a user is using XEP-0013
  *
  * @param m the mapi structure
  * @param arg pointer to the mod_offline session configuration structure
@@ -643,8 +643,8 @@ mreturn mod_offline_serialize(mapi m, void *arg) {
     if (arg == NULL)
 	return M_IGNORE;
 
-    if (sessiondata->jep0013)
-	xmlnode_insert_tag_ns(m->serialization_node, "jep0013", NULL, NS_JABBERD_STOREDSTATE);
+    if (sessiondata->xep0013)
+	xmlnode_insert_tag_ns(m->serialization_node, "xep0013", NULL, NS_JABBERD_STOREDSTATE);
 
     return M_PASS;
 }
@@ -695,8 +695,8 @@ static mreturn mod_offline_session(mapi m, void *arg) {
 static mreturn mod_offline_deserialize(mapi m, void *arg) {
     modoffline_session session_data = mod_offline_new_session(m, arg);
 
-    if (xmlnode_get_list_item(xmlnode_get_tags(m->serialization_node, "state:jep0013", m->si->std_namespace_prefixes), 0) != NULL) {
-	session_data->jep0013 = 1;
+    if (xmlnode_get_list_item(xmlnode_get_tags(m->serialization_node, "state:xep0013", m->si->std_namespace_prefixes), 0) != NULL) {
+	session_data->xep0013 = 1;
     }
 }
 
