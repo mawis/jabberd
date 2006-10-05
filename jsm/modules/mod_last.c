@@ -42,7 +42,7 @@
 
 /**
  * @file mod_last.c
- * @brief Implement handling of jabber:iq:last (JEP-0012) in the session manager
+ * @brief Implement handling of jabber:iq:last (XEP-0012) in the session manager
  *
  * By sending a jabber:iq:last query of type get the server will either reply
  * with its own startup time (query sent to the session manager's address) or

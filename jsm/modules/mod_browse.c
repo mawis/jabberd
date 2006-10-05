@@ -42,10 +42,10 @@
 
 /**
  * @file mod_browse.c
- * @brief implement handling of the jabber:iq:browse namespace (JEP-0011) in the session manager - DEPRICATED
+ * @brief implement handling of the jabber:iq:browse namespace (XEP-0011) in the session manager - DEPRICATED
  *
  * This module implements the handling of jabber:iq:browse to query client information
- * in the session manager. jabber:iq:browse is documented in JEP-0011. Browsing
+ * in the session manager. jabber:iq:browse is documented in XEP-0011. Browsing
  * is DEPRICATED, clients should use service discovery instead.
  */
 
@@ -94,7 +94,7 @@ static xmlnode mod_browse_get(mapi m, jid id) {
  * sents itself. It is NOT called for stanzas arriving at the user's address. It only handles stanzas with NO
  * to attribute.
  *
- * Handling iq stanzas of type 'set' is not documented in JEP-0011. I guess, it is an undocumented extension in jabberd14.
+ * Handling iq stanzas of type 'set' is not documented in XEP-0011. I guess, it is an undocumented extension in jabberd14.
  *
  * @param m the mapi structure containing the request
  * @param arg unused/ignored

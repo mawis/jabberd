@@ -45,7 +45,7 @@ Changes in administration of the server
       configure a disco result in the configuration file.
 
 Changes in features visible to the user
-    * Support for Flexible Offline Message Retrieval (JEP-0013)
+    * Support for Flexible Offline Message Retrieval (XEP-0013)
     * FIX: Handling of presences with negative priority had bugs, e.g.
       messages were not delivered when changing from negative to
       non-negative priority.
