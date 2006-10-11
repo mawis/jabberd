@@ -1,306 +1,151 @@
-/* --------------------------------------------------------------------------
+/*
+ * Licence
  *
- * License
+ * Copyright (c) 2006 Matthias Wimmer,
+ *                    mailto:m@tthias.eu, xmpp:mawis@amessage.info
  *
- * The contents of this file are subject to the Jabber Open Source License
- * Version 1.0 (the "JOSL").  You may not copy or use this file, in either
- * source code or executable form, except in compliance with the JOSL. You
- * may obtain a copy of the JOSL at http://www.jabber.org/ or at
- * http://www.opensource.org/.  
+ * You can use the content of this file using one of the following licences:
  *
- * Software distributed under the JOSL is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied.  See the JOSL
- * for the specific language governing rights and limitations under the
- * JOSL.
+ * - Version 1.0 of the Jabber Open Source Licence ("JOSL")
+ * - GNU GENERAL PUBLIC LICENSE, Version 2 or any newer version of this licence at your choice
+ * - Apache Licence, Version 2.0
+ * - GNU Lesser General Public License, Version 2.1 or any newer version of this licence at your choice
+ * - Mozilla Public License 1.1
+ */
+
+/**
+ * @file config.cc
+ * @brief access to configuration values
  *
- * Copyrights
- * 
- * Portions created by or assigned to Jabber.com, Inc. are 
- * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
- * information for Jabber.com, Inc. is available at http://www.jabber.com/.
- *
- * Portions Copyright (c) 1998-1999 Jeremie Miller.
- * 
- * Acknowledgements
- * 
- * Special thanks to the Jabber Open Source Contributors for their
- * suggestions and support of Jabber.
- * 
- * Alternatively, the contents of this file may be used under the terms of the
- * GNU General Public License Version 2 or later (the "GPL"), in which case
- * the provisions of the GPL are applicable instead of those above.  If you
- * wish to allow use of your version of this file only under the terms of the
- * GPL and not to allow others to use your version of this file under the JOSL,
- * indicate your decision by deleting the provisions above and replace them
- * with the notice and other provisions required by the GPL.  If you do not
- * delete the provisions above, a recipient may use your version of this file
- * under either the JOSL or the GPL. 
- * 
- * --------------------------------------------------------------------------*/
+ * This file implements the access to configuration settings, currently implemented based on reading an XML file.
+ */
 
 #include "util.h"
-#include <expat.h>
+#include <xercesc/util/PlatformUtils.hpp>
+#include <xercesc/util/XMLString.hpp>
+#include <xercesc/sax2/XMLReaderFactory.hpp>
+#include <xercesc/util/TransService.hpp>
+// #include <xercesc/sax2/SAX2XMLReader.hpp>
+// #include <xercesc/sax2/DefaultHandler.hpp>
+#include <iostream>
 
-/**
- * @file config.c
- * @brief handling of the configuration
- *
- * The configuration is read as an XML file and converted to a hash containing
- * the configuration values
- */
+namespace xmppd {
 
-/**
- * new config structure
- */
-config_t config_new(void) {
-    return new config_st;
-}
+    configuration::configuration(const std::string& configfile) : transcoder(NULL) {
+	// Initialize Xerces to parse the file
+	try {
+	    XERCES_CPP_NAMESPACE_QUALIFIER XMLPlatformUtils::Initialize("");
+	} catch (const XERCES_CPP_NAMESPACE_QUALIFIER XMLException& xml_exception) {
+	    std::cerr << "Could not initialize Xerces-C\nError message is: ";
+	    char* message = XERCES_CPP_NAMESPACE_QUALIFIER XMLString::transcode(xml_exception.getMessage());
+	    std::cerr << message << std::endl;
+	    XERCES_CPP_NAMESPACE_QUALIFIER XMLString::release(&message);
+	    return;
+	}
 
-struct build_data {
-    nad_t               nad;
-    int                 depth;
-};
+	// get the transcoder
+	XERCES_CPP_NAMESPACE_QUALIFIER XMLTransService::Codes failReason;
+	transcoder = XERCES_CPP_NAMESPACE_QUALIFIER XMLPlatformUtils::fgTransService->makeNewTranscoderFor("UTF-8", failReason, 4*1024);
 
-static void _config_startElement(void *arg, const char *name, const char **atts) {
-    struct build_data *bd = (struct build_data *) arg;
-    int i = 0;
-    
-    nad_append_elem(bd->nad, (char *) name, bd->depth);
-    while (atts[i] != NULL) {
-        nad_append_attr(bd->nad, (char *) atts[i], (char *) atts[i + 1]);
-        i += 2;
+	// create a parser instance
+	xmppd::pointer<XERCES_CPP_NAMESPACE_QUALIFIER SAX2XMLReader> parser = XERCES_CPP_NAMESPACE_QUALIFIER XMLReaderFactory::createXMLReader();
+
+	// set handlers to this instance
+	parser->setContentHandler(this);
+	parser->setErrorHandler(this);
+
+	// parse the file
+	try {
+	    parser->parse(configfile.c_str());
+	} catch (const XERCES_CPP_NAMESPACE_QUALIFIER XMLException& to_catch) {
+	    char *message = XERCES_CPP_NAMESPACE_QUALIFIER XMLString::transcode(to_catch.getMessage());
+	    std::cerr << "XMLException in parsing file " << configfile << ":\n";
+	    std::cerr << message << std::endl;
+	    XERCES_CPP_NAMESPACE_QUALIFIER XMLString::release(&message);
+	} catch (const XERCES_CPP_NAMESPACE_QUALIFIER SAXParseException& to_catch) {
+	    char *message = XERCES_CPP_NAMESPACE_QUALIFIER XMLString::transcode(to_catch.getMessage());
+	    std::cerr << "SAXParseException in parsing file " << configfile << ":\n";
+	    std::cerr << message << std::endl;
+	    XERCES_CPP_NAMESPACE_QUALIFIER XMLString::release(&message);
+	}
     }
 
-    bd->depth++;
-}
-
-static void _config_endElement(void *arg, const char *name) {
-    struct build_data *bd = (struct build_data *) arg;
-
-    bd->depth--;
-}
-
-static void _config_charData(void *arg, const char *str, int len) {
-    struct build_data *bd = (struct build_data *) arg;
-
-    nad_append_cdata(bd->nad, (char *) str, len, bd->depth);
-}
-
-/**
- * turn an xml file into a config hash
- */
-int config_load(config_t c, const char *file) {
-    struct build_data bd;
-    nad_cache_t cache = nad_cache_new();
-    FILE *f;
-    XML_Parser p;
-    int done, len, end, i, j, attr;
-    char buf[1024], *next;
-    struct nad_elem_st **path;
-    config_elem_t elem;
-
-    /* open the file */
-    f = fopen(file, "r");
-    if (f == NULL) {
-        fprintf(stderr, "config_load: couldn't open %s for reading: %s\n", file, strerror(errno));
-        return 1;
+    configuration::~configuration() {
+	transcoder = NULL;
+	XERCES_CPP_NAMESPACE_QUALIFIER XMLPlatformUtils::Terminate();
     }
 
-    /* new parser */
-    p = XML_ParserCreate(NULL);
-    if (p == NULL) {
-        fprintf(stderr, "config_load: couldn't allocate XML parser\n");
-        fclose(f);
-        return 1;
+    void configuration::endElement(const XMLCh *const uri, const XMLCh *const localname, const XMLCh *const qname) {
+	configuration_entry new_entry;
+	new_entry.value = parse_buffer;
+	parse_buffer = "";
+
+	operator[](path_stack.top()).push_back(new_entry);
+
+	path_stack.pop();
     }
 
-    /* nice new nad to parse it into */
-    bd.nad = nad_new(cache);
-    bd.depth = 0;
+    void configuration::startElement(const XMLCh *const uri, const XMLCh *const localname, const XMLCh *const qname, const XERCES_CPP_NAMESPACE_QUALIFIER Attributes &attrs) {
+	// push new path to a possible value to the path_stack
+	std::string new_path;
+	if (!path_stack.empty()) {
+	    if (path_stack.top() == "") {
+		new_path = convert_xmlch_to_utf8(localname);
+	    } else {
+		new_path = path_stack.top() + "." + convert_xmlch_to_utf8(localname);
+	    }
+	}
 
-    /* setup the parser */
-    XML_SetUserData(p, (void *) &bd);
-    XML_SetElementHandler(p, _config_startElement, _config_endElement);
-    XML_SetCharacterDataHandler(p, _config_charData);
+	path_stack.push(new_path);
 
-    do {
-        /* read that file */
-        len = fread(buf, 1, 1024, f);
-        if (ferror(f)) {
-            fprintf(stderr, "config_load: read error: %s\n", strerror(errno));
-            XML_ParserFree(p);
-            fclose(f);
-            nad_cache_free(cache);
-            return 1;
-        }
-        done = feof(f);
-
-        /* parse it */
-        if (!XML_Parse(p, buf, len, done)) {
-            fprintf(stderr, "config_load: parse error at line %d: %s\n", XML_GetCurrentLineNumber(p), XML_ErrorString(XML_GetErrorCode(p)));
-            XML_ParserFree(p);
-            fclose(f);
-            nad_cache_free(cache);
-            return 1;
-        }
-    } while (!done);
-
-    /* done reading */
-    XML_ParserFree(p);
-    fclose(f);
-
-    /* now, turn the nad into a config hash */
-    path = NULL;
-    len = 0, end = 0;
-    /* start at 1, so we skip the root element */
-    for (i = 1; i < bd.nad->ecur; i++) {
-        /* make sure we have enough room to add this element to our path */
-        if (end <= bd.nad->elems[i].depth) {
-            end = bd.nad->elems[i].depth + 1;
-            path = (struct nad_elem_st **) realloc((void *) path, sizeof(struct nad_elem_st *) * end);
-        }
-
-        /* save this path element */
-        path[bd.nad->elems[i].depth] = &bd.nad->elems[i];
-        len = bd.nad->elems[i].depth + 1;
-
-        /* construct the key from the current path */
-        next = buf;
-        for (j = 1; j < len; j++) {
-            strncpy(next, bd.nad->cdata + path[j]->iname, path[j]->lname);
-            next = next + path[j]->lname;
-            *next = '.';
-            next++;
-        }
-        next--;
-        *next = '\0';
-
-        /* find the config element for this key */
-	elem = (*c)[buf];
-        if (elem == NULL) {
-            /* haven't seen it before, so create it */
-            elem = static_cast<config_elem_t>(pmalloco(c->mempool, sizeof(struct config_elem_st)));
-	    (*c)[buf] = elem;
-        }
-
-        /* make room for this value .. can't easily realloc off a pool, so
-         * we do it this way and let _config_reaper clean up */
-        elem->values = static_cast<char**>(realloc((void *) elem->values, sizeof(char *) * (elem->nvalues + 1)));
-
-        /* and copy it in */
-        if (NAD_CDATA_L(bd.nad, i) > 0)
-            elem->values[elem->nvalues] = pstrdupx( c->mempool, NAD_CDATA(bd.nad, i), NAD_CDATA_L(bd.nad, i));
-        else
-            elem->values[elem->nvalues] = "1";
-
-        /* make room for the attribute lists */
-        elem->attrs = static_cast<char***>(realloc((void *) elem->attrs, sizeof(char **) * (elem->nvalues + 1)));
-        elem->attrs[elem->nvalues] = NULL;
-
-        /* count the attributes */
-        for (attr = bd.nad->elems[i].attr, j = 0; attr >= 0; attr = bd.nad->attrs[attr].next, j++)
-	    /* nothing */;
-
-        /* if we have some */
-        if (j > 0) {
-            /* make space */
-            elem->attrs[elem->nvalues] = static_cast<char**>(pmalloc(c->mempool, sizeof(char *) * (j * 2 + 2)));
-            
-            /* copy them in */
-            j = 0;
-            attr = bd.nad->elems[i].attr;
-            while (attr >= 0) {
-                elem->attrs[elem->nvalues][j] = pstrdupx(c->mempool, NAD_ANAME(bd.nad, attr), NAD_ANAME_L(bd.nad, attr));
-                elem->attrs[elem->nvalues][j + 1] = pstrdupx(c->mempool, NAD_AVAL(bd.nad, attr), NAD_AVAL_L(bd.nad, attr));
-
-                j += 2;
-                attr = bd.nad->attrs[attr].next;
-            }
-
-            /* do this and we can use j_attr */
-            elem->attrs[elem->nvalues][j] = NULL;
-            elem->attrs[elem->nvalues][j + 1] = NULL;
-        }
-
-        elem->nvalues++;
+	parse_buffer = "";
     }
 
-    if (path != NULL)
-        free(path);
-
-    nad_cache_free(cache);
-
-    return 0;
-}
-
-/**
- * get the config element for this key
- */
-config_elem_t config_get(config_t c, char *key) {
-    if (c->find(key) == c->end())
-	return NULL;
-    return (*c)[key];
-}
-
-/**
- * get config value n for this key
- */
-char *config_get_one(config_t c, char *key, int num) {
-    config_elem_t elem = config_get(c, key);
-
-    if (elem == NULL)
-        return NULL;
-
-    if (num >= elem->nvalues)
-        return NULL;
-
-    return elem->values[num];
-}
-
-/**
- * how many values for this key?
- */
-int config_count(config_t c, char *key) {
-    config_elem_t elem = config_get(c, key);
-
-    if (elem == NULL)
-        return 0;
-
-    return elem->nvalues;
-}
-
-/**
- * get an attr for this value
- */
-char *config_get_attr(config_t c, char *key, int num, char *attr) {
-    config_elem_t elem = config_get(c, key);
-
-    if (elem->attrs == NULL)
-        return NULL;
-
-    return j_attr((const char **) elem->attrs[num], attr);
-}
-
-/**
- * cleanup
- */
-void config_free(config_t c) {
-    std::map<std::string, config_elem_t>::iterator p;
-
-    for (p = c->begin(); p != c->end(); ++p) {
-	free(p->second->values);
-	free(p->second->attrs);
+    void configuration::characters(const XMLCh *const chars, const unsigned int length) {
+	if (length > 0)
+	    parse_buffer += convert_xmlch_to_utf8(chars, length);
     }
 
-    delete c;
-}
+    std::string configuration::convert_xmlch_to_utf8(const XMLCh *const src, unsigned int length) {
+	const XMLCh* ptr = src;
+	if (length == 0)
+	    length = XERCES_CPP_NAMESPACE_QUALIFIER XMLString::stringLen(src);
+	std::string result;
 
-/* NEW CODE */
+	while (length > 0) {
+	    XMLByte buffer[4*1024];
+	    unsigned int eaten = 0;
 
-config_st::config_st() {
-    mempool = pool_new();
-}
+	    unsigned int bytes_written = transcoder->transcodeTo(ptr, length, buffer, 4*1024, eaten, XERCES_CPP_NAMESPACE_QUALIFIER XMLTranscoder::UnRep_Throw);
 
-config_st::~config_st() {
-    pool_free(mempool);
+	    if (eaten == 0) {
+		throw std::string("Cannot convert XML string to UTF-8");
+	    }
+	    ptr += eaten;
+	    length -= eaten;
+	    if (bytes_written < 1)
+		continue;
+
+	    result += std::string(reinterpret_cast<char*>(buffer), bytes_written);
+	}
+
+	return result;
+    }
+
+    const std::string& configuration::get_string(const std::string& what) {
+	if (find(what) == end())
+	    throw std::string("Request for unset configuration setting");
+
+	if (operator[](what).empty())
+	    throw std::string("Internal error: empty list in configuration instance.");
+
+	return operator[](what).front().value;
+    }
+
+    int configuration::get_integer(const std::string& what) {
+	std::istringstream result_stream(get_string(what));
+	int result = 0;
+	result_stream >> result;
+	return result;
+    }
 }

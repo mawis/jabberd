@@ -49,7 +49,7 @@ void connection_rate_cleanup(xmppd::pointer<c2s_st> c2s) {
     time_t now;
 
     /* no entries? nothing to do! */
-    if (c2s->connection_rates->empty())
+    if (c2s->connection_rates.empty())
 	return;
 
     /* time to do a connection rate check again? */
@@ -57,14 +57,13 @@ void connection_rate_cleanup(xmppd::pointer<c2s_st> c2s) {
 
 	/* iterate all entries in the map */
 	std::map<std::string, connection_rate_t>::iterator p;
-	for (p=c2s->connection_rates->begin(); p != c2s->connection_rates->end(); ++p) {
+	for (p=c2s->connection_rates.begin(); p != c2s->connection_rates.end(); ++p) {
 
 	    /* about to expire this entry? */
 	    if (now - p->second->first_time > c2s->connection_rate_seconds) {
 		DBG("free and zap");
-		free(p->second->ip);
-		free(p->second);
-		c2s->connection_rates->erase(p->first);
+		delete p->second;
+		c2s->connection_rates.erase(p->first);
 	    }
 	}
 
@@ -80,7 +79,7 @@ void connection_rate_cleanup(xmppd::pointer<c2s_st> c2s) {
 * @param ip the ip to check
 * @return 0 on valid 1 on invalid
 */
-int connection_rate_check(xmppd::pointer<c2s_st> c2s, const char* ip) {
+int connection_rate_check(xmppd::pointer<c2s_st> c2s, const std::string& ip) {
     connection_rate_t cr;
     time_t now;
     
@@ -88,16 +87,16 @@ int connection_rate_check(xmppd::pointer<c2s_st> c2s, const char* ip) {
     if (c2s->connection_rate_times == 0 || c2s->connection_rate_seconds == 0)
         return 0;
 
-    cr = (*c2s->connection_rates)[ip];
+    cr = (c2s->connection_rates)[ip];
 
     /* If it is NULL they are the first of a possible series */
     if (cr == NULL)
     {
         cr = static_cast<connection_rate_t>(malloc(sizeof(struct connection_rate_st)));
-        cr->ip = strdup(ip);
+        cr->ip = ip;
         cr->count = 1;
         time(&cr->first_time);
-	(*c2s->connection_rates)[ip] = cr;
+	(c2s->connection_rates)[ip] = cr;
         return 0;
     }
 

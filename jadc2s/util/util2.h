@@ -21,6 +21,19 @@
 #include <sstream>
 #include <fstream>
 #include <set>
+#include <list>
+#include <stack>
+
+#include <ctime>
+
+#include <stringprep.h>
+
+#include <xercesc/sax2/DefaultHandler.hpp>
+#include <xercesc/util/TransService.hpp>
+
+// #include <xercesc/util/PlatformUtils.hpp>
+// #include <xercesc/util/XMLString.hpp>
+// #include <xercesc/sax2/XMLReaderFactory.hpp>
 
 namespace xmppd {
 
@@ -61,6 +74,14 @@ namespace xmppd {
 	     * @return the stream on which the output has been done, can be used to output more data using the operator<<()
 	     */
 	    std::ostream& operator<<(const char* text);
+
+	    /**
+	     * to output std::string as the first text on a logging->level() rvalue
+	     *
+	     * @param text the string to output
+	     * @return the stream on which the output has been done, can be used to output more data using the operator<<()
+	     */
+	    std::ostream& operator<<(const std::string& text);
 	private:
 	    /**
 	     * copy constructor: needed by the logging class to return a logmessage instance for the level() member
@@ -211,7 +232,14 @@ namespace xmppd {
 	     *
 	     * @return the real pointer to the object
 	     */
-	    pointed_type* operator->();
+	    pointed_type* operator->() const;
+
+	    /**
+	     * check if this pointer points to nothing
+	     *
+	     * @return true if the pointer does not point to anything, else false
+	     */
+	    bool points_to_NULL() const;
 	private:
 	    /**
 	     * let the pointer point to nothing
@@ -234,6 +262,190 @@ namespace xmppd {
 	     * If true, std::free() will be used to delete object; else delete operator will be used
 	     */
 	    bool malloc_allocated;
+    };
+
+
+    /* ******************** JabberID management ******************** */
+
+    /**
+     * class caching stringprep results
+     */
+    class stringprep_cache {
+	public:
+	    /**
+	     * create a stringprep cache for the given stringprep profile
+	     *
+	     * @param profile the stringprep profile to use for this cache
+	     */
+	    stringprep_cache(const ::Stringprep_profile *profile);
+
+	    /**
+	     * clean old entries from the stringprep cache
+	     *
+	     * @param seconds remove all entries oder then this number of seconds
+	     */
+	    void clean_cache(std::time_t seconds = 900);
+
+	    /**
+	     * get a stringpreped string (and cache the result)
+	     *
+	     * @param in_out_string string that should be stringpreped (in place)
+	     * @return stringprep result
+	     */
+	    int stringprep(std::string &in_out_string);
+	private:
+
+	    /**
+	     * a single entry in a stringprep cache
+	     */
+	    struct stringprep_cache_entry {
+		public:
+		    /**
+		     * the result for the preparation
+		     *
+		     * empty if unchanged
+		     */
+		    std::string preped;
+
+		    /**
+		     * when this result has been used the last time
+		     */
+		    time_t last_used;
+
+		    /**
+		     * how often this result has been used
+		     */
+		    unsigned int used_count;
+	    };
+
+	    /**
+	     * the hash table containing the stringpreped strings
+	     */
+	    std::map<std::string, stringprep_cache_entry> hashtable;
+
+	    /**
+	     * the stringprep profile used for this cache
+	     */
+	    const ::Stringprep_profile *profile;
+    };
+
+    /**
+     * structure that holds the stringprep caches needed to stringprep a JID
+     */
+    struct jid_environment {
+	public:
+	    /**
+	     * create all necessary caches
+	     */
+	    jid_environment();
+
+	    /**
+	     * stringprep_cache for nodes
+	     */
+	    pointer<stringprep_cache> nodes;
+
+	    /**
+	     * stringprep_cache for domains
+	     */
+	    pointer<stringprep_cache> domains;
+
+	    /**
+	     * stringprep_cache for resources
+	     */
+	    pointer<stringprep_cache> resources;
+    };
+
+    /**
+     * class that holds a JabberID
+     */
+    class jid {
+	public:
+	    /**
+	     * create a new JID instance using a string containing a JabberID
+	     *
+	     * @param environment The jid_environment used for stringpreping the parts in the JID
+	     * @param address_string a string used to construct the initial jid content
+	     */
+	    jid(jid_environment environment, std::string address_string);
+
+	    bool operator==(const jid &other_jid);
+
+	    bool cmpx(const jid &other_jid, bool cmp_node = true, bool cmp_resource = false, bool cmp_domain = true);
+
+	    void set_node(std::string new_node);
+
+	    void set_domain(std::string new_domain);
+
+	    void set_resource(std::string new_resource);
+
+	    const std::string& get_node();
+	    bool has_node();
+	    const std::string& get_domain();
+	    bool has_domain();
+	    const std::string& get_resource();
+	    bool has_resource();
+
+	    const std::string &full() const;
+	private:
+	    std::string node;
+	    std::string domain;
+	    std::string resource;
+	    mutable std::string full_cache;
+	    jid_environment environment;
+    };
+
+    /**
+     * print out a jid
+     */
+    std::ostringstream &operator<<(std::ostringstream &stream, const jid address);
+
+    /* ******************** Configuration handling ******************** */
+
+    /**
+     * structure that holds a single configuration item, optionally tagged with
+     * attributes
+     */
+    struct configuration_entry {
+	public:
+	    std::string value;					/**< the configured value */
+	    std::map<std::string, std::string> attributes;	/**< attributes of the value */
+    };
+
+    class configuration : public std::map<std::string, std::list<configuration_entry> >, public XERCES_CPP_NAMESPACE_QUALIFIER DefaultHandler {
+	public:
+	    /**
+	     * constructor that read a configuration from an XML file
+	     *
+	     * @param configfile the configuration file to read
+	     */
+	    configuration(const std::string& configfile);
+
+	    /**
+	     * destructor for a configuration instance
+	     */
+	    ~configuration();
+
+	    /**
+	     * get a configuration value as a string
+	     */
+	    const std::string& get_string(const std::string& what);
+
+	    /**
+	     * get a configuration value as an integer
+	     */
+	    int get_integer(const std::string& what);
+	private:
+	    std::stack<std::string> path_stack;
+	    std::string parse_buffer;
+
+	    void endElement(const XMLCh *const uri, const XMLCh *const localname, const XMLCh *const qname);
+	    void startElement(const XMLCh *const uri, const XMLCh *const localname, const XMLCh *const qname, const XERCES_CPP_NAMESPACE_QUALIFIER Attributes &attrs);
+	    void characters(const XMLCh *const chars, const unsigned int length);
+
+	    xmppd::pointer<XERCES_CPP_NAMESPACE_QUALIFIER XMLTranscoder> transcoder;
+	    std::string convert_xmlch_to_utf8(const XMLCh *const src, unsigned int length = 0);
+
+	    std::map<std::string, std::string> default_settings;
     };
 }
 

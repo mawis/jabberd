@@ -49,68 +49,6 @@
 #ifndef INCL_UTIL_H
 #define INCL_UTIL_H
 
-/* --------------------------------------------------------- */
-/*                                                           */
-/* Pool-based memory management routines                     */
-/*                                                           */
-/* --------------------------------------------------------- */
-
-#ifdef POOL_DEBUG
-# define POOL_NUM 40009 
-#endif
-
-/* pheap - singular allocation of memory */
-struct pheap
-{
-    void *block;
-    int size, used;
-};
-
-/* pool_cleaner - callback type which is associated
-   with a pool entry; invoked when the pool entry is 
-   free'd */
-typedef void (*pool_cleaner)(void *arg);
-
-/* pfree - a linked list node which stores an
-   allocation chunk, plus a callback */
-struct pfree
-{
-    pool_cleaner f;
-    void *arg;
-    struct pfree *next;
-};
-
-/* pool - base node for a pool. Maintains a linked list
-   of pool entries (pfree) */
-typedef struct pool_struct
-{
-    struct pfree *cleanup;
-    struct pheap *heap;
-#ifdef POOL_DEBUG
-    int size;
-    char name[8], zone[32];
-    int lsize;
-} _pool, *pool;
-#define pool_new() _pool_new(__FILE__,__LINE__) 
-#define pool_heap(i) _pool_new_heap(i,__FILE__,__LINE__) 
-#else
-} _pool, *pool;
-#define pool_heap(i) _pool_new_heap(i,NULL,0)
-#define pool_new() _pool_new(NULL,0)
-#endif
-
-pool _pool_new(char *zone, int line); /* new pool :) */
-pool _pool_new_heap(int size, char *zone, int line); /* creates a new memory pool with an initial heap size */
-void *pmalloc(pool p, int size); /* wrapper around malloc, takes from the pool, cleaned up automatically */
-void *pmalloco(pool p, int size); /* YAPW for zeroing the block */
-char *pstrdup(pool p, const char *src); /* wrapper around strdup, gains mem from pool */
-void pool_stat(int full); /* print to stderr the changed pools and reset */
-char *pstrdupx(pool p, const char *src, int len); /* use given len */
-void pool_cleanup(pool p, pool_cleaner f, void *arg); /* calls f(arg) before the pool is freed during cleanup */
-void pool_free(pool p); /* calls the cleanup functions, frees all the data on the pool, and deletes the pool itself */
-
-
-
 
 /* --------------------------------------------------------- */
 /*                                                           */
@@ -121,7 +59,7 @@ int j_strcmp(const char *a, const char *b); /* provides NULL safe strcmp wrapper
 int j_strncmp(const char *a, const char *b, int i); /* provides NULL safe strncmp wrapper */
 int j_strlen(const char *a); /* provides NULL safe strlen wrapper */
 int j_atoi(const char *a, int def); /* checks for NULL and uses default instead, convienence */
-char *j_attr(const char** atts, char *attr); /* decode attr's (from expat) */
+char *j_attr(const char** atts, const char *attr); /* decode attr's (from expat) */
 
 /* --------------------------------------------------------- */
 /*                                                           */
@@ -152,70 +90,6 @@ void shaUpdate(j_SHA_CTX *ctx, unsigned char *dataIn, int len);
 void shaFinal(j_SHA_CTX *ctx, unsigned char hashout[20]);
 void shaBlock(unsigned char *dataIn, int len, unsigned char hashout[20]);
 
-/* --------------------------------------------------------- */
-/*                                                           */
-/* JID structures & constants                                */
-/*                                                           */
-/* --------------------------------------------------------- */
-#define JID_RESOURCE 1
-#define JID_USER     2
-#define JID_SERVER   4
-
-#  include <stringprep.h>
-
-/**
- * @brief datastructure to hold the stringprep caches
- */
-typedef struct _jid_prep_entry_st {
-    char *preped;		/**< the result of the preparation, NULL if unchanged */
-    time_t last_used;		/**< when this result has been used the last time */
-    unsigned int used_count;	/**< how often this result has been used */
-    int size;			/**< the min buffer size needed to hold the result (strlen+1) */
-} *_jid_prep_entry_t;
-
-/**
- * @brief string preparation cache
- */
-typedef struct _jid_prep_cache_st {
-    std::map<std::string, _jid_prep_entry_t> *hashtable;	/**< the hash table containing the preped strings */
-    const Stringprep_profile *profile;
-    				/**< the stringprep profile used for this cache */
-} *_jid_prep_cache_t;
-
-/**
- * @brief environment for JID preparation
- *
- * This data structure holds the three used caches for JID preparation
- */
-typedef struct _jid_environment {
-    _jid_prep_cache_t nodes;	/* prepared nodes */
-    _jid_prep_cache_t domains;	/* prepared domains */
-    _jid_prep_cache_t resources;/* prepared resources */
-} *jid_environment_t;
-
-typedef struct jid_struct
-{ 
-    pool               p;
-    char*              resource;
-    char*              user;
-    char*              server;
-    char*              full;
-    jid_environment_t  environment;	/**< used stringprep caches */
-    struct jid_struct *next; /* for lists of jids */
-} *jid;
-  
-void	jid_clean_cache(jid_environment_t environment); /* cleanup the stringprep caches */
-void	jid_free_environment(jid_environment_t environment); /* free a jid preparation environment */
-jid_environment_t jid_new_environment();       /* Create a jid preparation environment */
-jid     jid_new(pool p, jid_environment_t environment, const char *idstr); /* Creates a jabber id from the idstr */
-jid     jid_newx(pool p, jid_environment_t environment, const char *idstr, int len); /* same but with given len */
-void    jid_set(jid id, const char *str, int item); /* Individually sets jid components */
-char*   jid_full(jid id);		       /* Builds a string type=user/resource@server from the jid data */
-int     jid_cmp(jid a, jid b);		       /* Compares two jid's, returns 0 for perfect match */
-int     jid_cmpx(jid a, jid b, int parts);     /* Compares just the parts specified as JID_|JID_ */
-jid     jid_append(jid a, jid b);	       /* Appending b to a (list), no dups */
-jid     jid_user(jid a);                       /* returns the same jid but just of the user@host part */
-
 
 /* Logging */
 #ifdef USE_SYSLOG
@@ -229,36 +103,7 @@ jid     jid_user(jid a);                       /* returns the same jid but just 
 # define LOG_NOTICE  (5)
 # define LOG_INFO    (6)
 # define LOG_DEBUG   (7)
-
-# define MAX_LOG_LINE        (1024)
 #endif
-
-/* config files */
-struct config_elem_st
-{
-    char **values;
-    int nvalues;
-    char ***attrs;
-};
-typedef struct config_elem_st *config_elem_t;
-
-class config_st : public std::map<std::string, config_elem_t> {
-    public:
-	config_st(void);
-	~config_st(void);
-    public:
-	pool	mempool;
-};
-typedef config_st * config_t;
-
-extern config_t         config_new(void);
-extern int              config_load(config_t, const char *);
-extern config_elem_t    config_get(config_t, char *);
-extern char             *config_get_one(config_t, char *, int);
-extern int              config_count(config_t, char *);
-extern char             *config_get_attr(config_t, char *, int, char *);
-extern void             config_free(config_t);
-
 
 /* Not A DOM */
 

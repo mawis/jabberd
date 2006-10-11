@@ -39,35 +39,33 @@
  * --------------------------------------------------------------------------*/
 
 /**
- * @file clients.c
+ * @file clients.cc
  * @brief provides most of the functionality to handle client connections
  */
 
 #include "jadc2s.h"
 
 #include <sstream>
+#include <stdexcept>
 
 /**
  * check if the host is contained in a list of hosts
  *
  * @param config a configuration element containing valid hosts or valid aliases
  * @param host the host which should be checked
- * @return -1 if host invalid, if valid the index in the configuration is returned
+ * @return const_iterator pointing to the element, config.end() if host could not been found
  * */
-int _client_check_in_hostlist(config_elem_t config, const char* host)
-{
-    int id;
+std::list<xmppd::configuration_entry>::const_iterator _client_check_in_hostlist(const std::list<xmppd::configuration_entry>& config, const std::string& host) {
+    std::list<xmppd::configuration_entry>::const_iterator p;
 
-    if (config == NULL || host == NULL)
-	return -1;
+    // check if the host is in the list
+    for (p=config.begin(); p!=config.end(); ++p) {
+	if (p->value == host)
+	    return p;
+    }
 
-    /* iterate over the valid hosts and compare */
-    for (id = 0; id < config->nvalues; id++)
-	if (j_strcmp(host, config->values[id]) == 0)
-	    return id;
-
-    /* nothing found, it is invalid */
-    return -1;
+    // host not found in the list
+    return config.end();
 }
 
 /**
@@ -77,32 +75,31 @@ int _client_check_in_hostlist(config_elem_t config, const char* host)
  * @param value the value of the attribute
  * @return 1 if we don't have to further process this element, 0 else
  */
-int _client_root_attribute_to(conn_t c, const char *value) {
-    int id;
-
+int _client_root_attribute_to(conn_t c, const std::string& value) {
     DBG("checking to: " << value);
 
     /* check if the to attribute is a real host */
-    id = _client_check_in_hostlist(c->c2s->local_id, value);
-    if (id != -1) {
-	c->local_id = c->c2s->local_id->values[id];
+    std::list<xmppd::configuration_entry>::const_iterator p;
+    p = _client_check_in_hostlist(c->c2s->local_id, value);
+    if (p != c->c2s->local_id.end()) {
+	c->local_id = p->value;
 	DBG("matched local id '" << c->local_id << "'");
     }
 
     /* if host not yet confirmed, check if there is an alias */
-    if (c->local_id == NULL) {
-	id = _client_check_in_hostlist(c->c2s->local_alias, value);
-	if (id != -1) {
-	    if (c->c2s->local_alias->attrs == NULL) {
-		c->c2s->log->level(LOG_ERR) << "missing to attribute in configuration for alias " << value;
+    if (c->local_id.length() == 0) {
+	p = _client_check_in_hostlist(c->c2s->local_alias, value);
+	if (p != c->c2s->local_alias.end()) {
+	    if (p->attributes.find("to") == p->attributes.end()) {
+		c->c2s->log->level(LOG_ERR) << "missing 'to' attribute in configuration for alias '" << value << "'";
 	    } else {
-		c->local_id = j_attr((const char **)c->c2s->local_alias->attrs[id], "to");
-		DBG("aliased requested id '" << value << "' to '" << c->local_id << "'");
+		c->local_id = p->attributes.at("to");
+		DBG("requested id '" << value << "' which is aliased to '" << c->local_id << "'");
 	    }
 	}
     }
 
-    if (c->local_id == NULL) {
+    if (c->local_id.length() == 0) {
 	/* send the stream error */
 	conn_error(c, STREAM_ERR_HOST_UNKNOWN, "Invalid to address");
 	c->depth = -1;
@@ -114,7 +111,7 @@ int _client_root_attribute_to(conn_t c, const char *value) {
     if (c->sasl_conn != NULL) {
 	int sasl_result = 0;
 
-	sasl_result = sasl_setprop(c->sasl_conn, SASL_DEFUSERREALM, c->local_id);
+	sasl_result = sasl_setprop(c->sasl_conn, SASL_DEFUSERREALM, c->local_id.c_str());
 	if (sasl_result != SASL_OK) {
 	    c->c2s->log->level(LOG_ERR) << "could not set default SASL user realm to " << c->local_id << ": " << sasl_errdetail(c->sasl_conn);
 	}
@@ -131,11 +128,10 @@ int _client_root_attribute_to(conn_t c, const char *value) {
  * @param value the value of the attribute
  * @return 1 if we don't have to further process this element, 0 else
  */
-int _client_root_attribute_xmlns(conn_t c, const char *value) {
+int _client_root_attribute_xmlns(conn_t c, const std::string& value) {
     DBG("checking xmlns: " << value);
 
-    if (j_strcmp(value, "jabber:client") != 0)
-    {
+    if (value != "jabber:client") {
 	/* send the stream error */
 	conn_error(c, STREAM_ERR_INVALID_NAMESPACE, "Invalid namespace, should be using jabber:client");
 	c->depth = -1;
@@ -151,15 +147,16 @@ int _client_root_attribute_xmlns(conn_t c, const char *value) {
  * @param value the value of the attribute
  * @return 1 if we don't have to further process this element, 0 else
  */
-int _client_root_attribute_version(conn_t c, const char *value) {
+int _client_root_attribute_version(conn_t c, const std::string& value) {
     int version = 0;
 
     /* stone age Jabber protocol */
-    if (value == NULL) {
+    if (value.length() == 0) {
 	return 0;
     }
 
-    version = j_atoi(value, 0);
+    std::istringstream version_stream(value);
+    version_stream >> version;
     if (version >= 1) {
 	if (c->type == type_NORMAL) {
 	    c->type = type_XMPP;
@@ -181,7 +178,7 @@ int _client_root_attribute_version(conn_t c, const char *value) {
  * @param value the value of the attribute
  * @return 1 if we don't have to further process this element, 0 else
  */
-int _client_root_attribute_flash_ns(conn_t c, const char *value) {
+int _client_root_attribute_flash_ns(conn_t c, const std::string& value) {
     DBG("checking xmlns:flash: " << value);
     if (j_strcmp(value, "http://www.jabber.com/streams/flash") != 0) {
 	/* send the stream error */
@@ -201,9 +198,9 @@ int _client_root_attribute_flash_ns(conn_t c, const char *value) {
  * @param value the value of the attribute
  * @return 1 if we don't have to further process this element, 0 else
  */
-int _client_root_attribute_stream_ns(conn_t c, const char *value) {
+int _client_root_attribute_stream_ns(conn_t c, const std::string& value) {
     DBG("checking xmlns:stream: " << value);
-    if (j_strcmp(value, "http://etherx.jabber.org/streams") != 0) {
+    if (value != "http://etherx.jabber.org/streams") {
 	/* send the stream error */
 	conn_error(c, STREAM_ERR_INVALID_NAMESPACE, "Invalid stream namespace");
 	c->depth = -1;
@@ -220,7 +217,7 @@ int _client_root_attribute_stream_ns(conn_t c, const char *value) {
  * @param host the host for which it should be checked
  * @return 1 if it is possible to start a TLS layer, 0 if not
  */
-int _client_check_tls_possible(conn_t c, const char *host) {
+int _client_check_tls_possible(conn_t c, const std::string& host) {
 #ifdef USE_SSL
     /* SSL/TLS already active? */
     if (c->ssl != NULL)
@@ -261,7 +258,7 @@ void _client_stream_send_root(conn_t c) {
     nad_append_attr(header->nad, "xmlns:stream", "http://etherx.jabber.org/streams");
     if (c->type == type_FLASH)
 	nad_append_attr(header->nad, "xmlns:flash", "http://www.jabber.com/streams/flash");
-    nad_append_attr(header->nad, "from", c->local_id);
+    nad_append_attr(header->nad, "from", c->local_id.c_str());
     nad_append_attr(header->nad, "id", sid.str().c_str());
     if (c->type == type_XMPP)
 	nad_append_attr(header->nad, "version", "1.0");
@@ -269,7 +266,7 @@ void _client_stream_send_root(conn_t c) {
     c->root_element = c->type == type_FLASH ? root_element_FLASH : root_element_NORMAL;
 
     /* sent it to the client */
-    chunk_write_typed(c, header, NULL, NULL, NULL, c->type == type_FLASH ? chunk_NORMAL : chunk_OPEN);
+    chunk_write_typed(c, header, "", "", "", c->type == type_FLASH ? chunk_NORMAL : chunk_OPEN);
 
     /* send stream features */
     if (c->type == type_XMPP) {
@@ -277,11 +274,11 @@ void _client_stream_send_root(conn_t c) {
 
 	nad_append_elem(stream_features->nad, "stream:features", 0);
 
-	if (c->sasl_state == state_auth_NONE && _client_check_in_hostlist(c->c2s->local_noregister, c->local_id) == -1) {
+	if (c->sasl_state == state_auth_NONE && _client_check_in_hostlist(c->c2s->local_noregister, c->local_id) == c->c2s->local_noregister.end()) {
 	    nad_append_elem(stream_features->nad, "register", 1);
 	    nad_append_attr(stream_features->nad, "xmlns", "http://jabber.org/features/iq-register");
 	}
-	if (c->sasl_state == state_auth_NONE && _client_check_in_hostlist(c->c2s->local_nolegacyauth, c->local_id) == -1 && (!c->c2s->sasl_enabled || c->c2s->sasl_jep0078)) {
+	if (c->sasl_state == state_auth_NONE && _client_check_in_hostlist(c->c2s->local_nolegacyauth, c->local_id) == c->c2s->local_nolegacyauth.end() && (!c->c2s->sasl_enabled || c->c2s->sasl_xep0078)) {
 	    nad_append_elem(stream_features->nad, "auth", 1);
 	    nad_append_attr(stream_features->nad, "xmlns", "http://jabber.org/features/iq-auth");
 	}
@@ -329,12 +326,12 @@ void _client_stream_send_root(conn_t c) {
 	    nad_append_attr(stream_features->nad, "xmlns", "urn:ietf:params:xml:ns:xmpp-session");
 	}
 #endif
-	chunk_write(c, stream_features, NULL, NULL, NULL);
+	chunk_write(c, stream_features, "", "", "");
     }
 
     /* set up smid based on to="" host */
-    c->smid = jid_new(c->idp,c->c2s->jid_environment, c->local_id);
-    if (c->authzid == NULL) {
+    c->smid = new xmppd::jid(c->c2s->used_jid_environment, c->local_id);
+    if (c->authzid.points_to_NULL()) {
 	c->userid = c->smid; /* only update userid, if we did not authenticate yet */
     }
 }
@@ -506,9 +503,9 @@ void _client_startElement(void *arg, const char* name, const char** atts)
         c->nad = nad_new(c->c2s->nads);
 
     /* append new element data to nad */
-    nad_append_elem(c->nad, (char *) name, c->depth);
+    nad_append_elem(c->nad, name, c->depth);
     for (i=0; atts[i] != '\0'; i += 2)
-        nad_append_attr(c->nad, (char *) atts[i], (char *) atts[i+1]);
+        nad_append_attr(c->nad, atts[i], atts[i+1]);
 
     /* going deeper */
     c->depth++;
@@ -568,7 +565,7 @@ void _client_charData(void *arg, const char *str, int len)
     /* if we're in the root of the stream the CDATA is irrelevant */
     if(c->nad == NULL) return;
 
-    nad_append_cdata(c->nad, (char *) str, len, c->depth);
+    nad_append_cdata(c->nad, str, len, c->depth);
 }
 
 /**
@@ -581,7 +578,6 @@ void _client_charData(void *arg, const char *str, int len)
  */
 int _client_process_stoneage_auth(conn_t c, chunk_t chunk) {
     int elem, attr, attr2;
-    char str[3072]; /* see xmpp-core, 1023(node) + 1(@) + 1023(domain) + 1(/) + 1023(resource) + 1(\0) */
 
     /* get the handles of some attributes we need to check */
     attr = nad_find_attr(chunk->nad, 1, "xmlns", NULL);
@@ -597,9 +593,7 @@ int _client_process_stoneage_auth(conn_t c, chunk_t chunk) {
 	    return 1;
 	}
 
-	std::ostringstream username;
-	username.write(NAD_CDATA(chunk->nad, elem), NAD_CDATA_L(chunk->nad, elem));
-	jid_set(c->smid, username.str().c_str(), JID_USER);
+	c->smid->set_node(std::string(NAD_CDATA(chunk->nad, elem), NAD_CDATA_L(chunk->nad, elem)));
 
 	/* and the resource, for sets */
 	if(attr2 >= 0 && j_strncmp(NAD_AVAL(chunk->nad, attr2), "set", 3) == 0) {
@@ -610,14 +604,12 @@ int _client_process_stoneage_auth(conn_t c, chunk_t chunk) {
 		return 1;
 	    }
 	   
-	    std::ostringstream resource;
-	    resource.write(NAD_CDATA(chunk->nad, elem), NAD_CDATA_L(chunk->nad, elem));
-	    jid_set(c->smid, resource.str().c_str(), JID_RESOURCE);
+	    c->smid->set_resource(std::string(NAD_CDATA(chunk->nad, elem), NAD_CDATA_L(chunk->nad, elem)));
 
 	    /* add the stream id to digest packets */
 	    elem = nad_find_elem(chunk->nad, 0, "digest", 2);
-	    if(elem >= 0 && c->sid != NULL)
-		nad_set_attr(chunk->nad, elem, "sid", c->sid);
+	    if(elem >= 0 && c->sid.length() > 0)
+		nad_set_attr(chunk->nad, elem, "sid", c->sid.c_str());
 	    
 	    /* we're in the auth state */
 	    c->state = state_AUTH;
@@ -637,9 +629,7 @@ int _client_process_stoneage_auth(conn_t c, chunk_t chunk) {
 	    return 1;
 	}
 
-	std::ostringstream username;
-	username.write(NAD_CDATA(chunk->nad, elem), NAD_CDATA_L(chunk->nad, elem));
-	jid_set(c->smid, username.str().c_str(), JID_USER);
+	c->smid->set_node(std::string(NAD_CDATA(chunk->nad, elem), NAD_CDATA_L(chunk->nad, elem)));
     }
 
     /* if we have not returned yet, there is now a chunk that
@@ -672,7 +662,7 @@ void _client_do_sasl_step(conn_t c, chunk_t chunk) {
     if (NAD_CDATA_L(chunk->nad, 0) > 0) {
 	client_response_len = (NAD_CDATA_L(chunk->nad, 0)+3)/4*3 + 1;
 
-	client_response = (char*)malloc(client_response_len);
+	client_response = static_cast<char*>(malloc(client_response_len));
 	sasl_result = sasl_decode64(NAD_CDATA(chunk->nad, 0), NAD_CDATA_L(chunk->nad, 0), client_response, client_response_len, &client_response_len);
 	if (sasl_result != SASL_OK) {
 	    chunk_t failure = NULL;
@@ -708,7 +698,7 @@ void _client_do_sasl_step(conn_t c, chunk_t chunk) {
 		unsigned out_data_buffer_len = (server_out_len+2)/3*4 + 1;
 		int sasl_result2 = 0;
 
-		out_data_buffer = (char*)malloc(out_data_buffer_len);
+		out_data_buffer = static_cast<char*>(malloc(out_data_buffer_len));
 		sasl_result2 = sasl_encode64(server_out, server_out_len, out_data_buffer, out_data_buffer_len, &out_data_buffer_len);
 		if (sasl_result2 == SASL_OK) {
 		    nad_append_cdata(response->nad, out_data_buffer, out_data_buffer_len, 1);
@@ -738,10 +728,10 @@ void _client_do_sasl_step(conn_t c, chunk_t chunk) {
 
 		    /* only username or username and realm? */
 		    if (sasl_username != NULL && strchr(sasl_username, '@') != NULL) {
-			c->authzid = jid_new(c->idp, c->c2s->jid_environment, sasl_username);
-		    } else if (c->userid != NULL && c->userid->server != NULL) {
-			c->authzid = jid_new(c->idp, c->c2s->jid_environment, c->userid ? c->userid->server : "");
-			jid_set(c->authzid, sasl_username, JID_USER);
+			c->authzid = new xmppd::jid(c->c2s->used_jid_environment, sasl_username);
+		    } else if (!c->userid.points_to_NULL() && c->userid->has_domain()) {
+			c->authzid = new xmppd::jid(c->c2s->used_jid_environment, !c->userid.points_to_NULL() ? c->userid->get_domain() : "");
+			c->authzid->set_node(sasl_username);
 		    } else {
 			c->authzid = NULL;
 		    }
@@ -750,7 +740,7 @@ void _client_do_sasl_step(conn_t c, chunk_t chunk) {
 		    c->userid = c->authzid;
 
 		    /* did we get a valid JabberID? */
-		    if (c->authzid == NULL) {
+		    if (c->authzid.points_to_NULL()) {
 			/* no -> close connection */
 			c->depth = -1;
 		    }
@@ -758,7 +748,7 @@ void _client_do_sasl_step(conn_t c, chunk_t chunk) {
 		    c->depth = -1; /* internal error? flag to close the connection */
 		}
 	    }
-	    chunk_write(c, response, NULL, NULL, NULL);
+	    chunk_write(c, response, "", "", "");
 	    break;
 	case SASL_NOMECH:
 	    c->c2s->log->level(LOG_NOTICE) << "SASL authentication failure: " << sasl_errdetail(c->sasl_conn);
@@ -766,7 +756,7 @@ void _client_do_sasl_step(conn_t c, chunk_t chunk) {
 	    nad_append_elem(response->nad, "failure", 0);
 	    nad_append_attr(response->nad, "xmlns", "urn:ietf:params:xml:ns:xmpp-sasl");
 	    nad_append_elem(response->nad, "invalid-mechanism", 1);
-	    chunk_write(c, response, NULL, NULL, NULL);
+	    chunk_write(c, response, "", "", "");
 	    c->depth = -1;	/* flag to close the connection */
 	    break;
 	case SASL_TRYAGAIN:
@@ -780,7 +770,7 @@ void _client_do_sasl_step(conn_t c, chunk_t chunk) {
 	    nad_append_elem(response->nad, "failure", 0);
 	    nad_append_attr(response->nad, "xmlns", "urn:ietf:params:xml:ns:xmpp-sasl");
 	    nad_append_elem(response->nad, "temporary-auth-failure", 1);
-	    chunk_write(c, response, NULL, NULL, NULL);
+	    chunk_write(c, response, "", "", "");
 	    c->depth = -1;	/* flag to close the connection */
 	    break;
 	case SASL_NOAUTHZ:
@@ -789,7 +779,7 @@ void _client_do_sasl_step(conn_t c, chunk_t chunk) {
 	    nad_append_elem(response->nad, "failure", 0);
 	    nad_append_attr(response->nad, "xmlns", "urn:ietf:params:xml:ns:xmpp-sasl");
 	    nad_append_elem(response->nad, "invalid-authzid", 1);
-	    chunk_write(c, response, NULL, NULL, NULL);
+	    chunk_write(c, response, "", "", "");
 	    c->depth = -1;	/* flag to close the connection */
 	    break;
 	case SASL_TOOWEAK:
@@ -799,7 +789,7 @@ void _client_do_sasl_step(conn_t c, chunk_t chunk) {
 	    nad_append_elem(response->nad, "failure", 0);
 	    nad_append_attr(response->nad, "xmlns", "urn:ietf:params:xml:ns:xmpp-sasl");
 	    nad_append_elem(response->nad, "mechanism-too-weak", 1);
-	    chunk_write(c, response, NULL, NULL, NULL);
+	    chunk_write(c, response, "", "", "");
 	    c->depth = -1;	/* flag to close the connection */
 	    break;
 	default:
@@ -808,7 +798,7 @@ void _client_do_sasl_step(conn_t c, chunk_t chunk) {
 	    nad_append_elem(response->nad, "failure", 0);
 	    nad_append_attr(response->nad, "xmlns", "urn:ietf:params:xml:ns:xmpp-sasl");
 	    nad_append_elem(response->nad, "not-authorized", 1);
-	    chunk_write(c, response, NULL, NULL, NULL);
+	    chunk_write(c, response, "", "", "");
 	    c->depth = -1;	/* flag to close the connection */
     }
 }
@@ -844,7 +834,7 @@ void _client_process(conn_t c) {
 	    response = chunk_new_free(c->c2s->nads);
 	    nad_append_elem(response->nad, "failure", 0);
 	    nad_append_attr(response->nad, "xmlns", "urn:ietf:params:xml:ns:xmpp-tls");
-	    chunk_write(c, response, NULL, NULL, NULL);
+	    chunk_write(c, response, "", "", "");
 	    /* XXX send </stream:stream> */
 	    c->depth = -1;	/* flag to close the connection */
 	    return;
@@ -852,7 +842,7 @@ void _client_process(conn_t c) {
 	response = chunk_new_free(c->c2s->nads);
 	nad_append_elem(response->nad, "proceed", 0);
 	nad_append_attr(response->nad, "xmlns", "urn:ietf:params:xml:ns:xmpp-tls");
-	chunk_write(c, response, NULL, NULL, NULL);
+	chunk_write(c, response, "", "", "");
 	/* XXX ensure queue is written */
 	c->ssl = SSL_new(c->c2s->ssl_ctx);
 	SSL_set_fd(c->ssl, c->fd);
@@ -862,7 +852,7 @@ void _client_process(conn_t c) {
 	response = chunk_new_free(c->c2s->nads);
 	nad_append_elem(response->nad, "failure", 0);
 	nad_append_attr(response->nad, "xmlns", "urn:ietf:params:xml:ns:xmpp-tls");
-	chunk_write(c, response, NULL, NULL, NULL);
+	chunk_write(c, response, "", "", "");
 	/* XXX send </stream:stream> */
 	c->depth = -1;	/* flag to close the connection */
 #endif
@@ -889,7 +879,7 @@ void _client_process(conn_t c) {
 	    nad_append_elem(failure->nad, "failure", 0);
 	    nad_append_attr(failure->nad, "xmlns", "urn:ietf:params:xml:ns:xmpp-sasl");
 	    nad_append_elem(failure->nad, "invalid-mechanism", 1);
-	    chunk_write(c, failure, NULL, NULL, NULL);
+	    chunk_write(c, failure, "", "", "");
 	    /* XXX send </stream:stream> */
 	    c->depth = -1; /* flag to close the connection */
 	    chunk_free(chunk);
@@ -900,7 +890,7 @@ void _client_process(conn_t c) {
 	if (NAD_CDATA_L(chunk->nad, 0) > 0) {
 	    initial_data_len = (NAD_CDATA_L(chunk->nad, 0)+3)/4*3 + 1;
 
-	    initial_data = (char*)malloc(initial_data_len);
+	    initial_data = static_cast<char*>(malloc(initial_data_len));
 	    sasl_result = sasl_decode64(NAD_CDATA(chunk->nad, 0), NAD_CDATA_L(chunk->nad, 0), initial_data, initial_data_len, &initial_data_len);
 	    if (sasl_result != SASL_OK) {
 		chunk_t failure = NULL;
@@ -910,7 +900,7 @@ void _client_process(conn_t c) {
 		nad_append_elem(failure->nad, "failure", 0);
 		nad_append_attr(failure->nad, "xmlns", "urn:ietf:params:xml:ns:xmpp-sasl");
 		nad_append_elem(failure->nad, "incorrect-encoding", 1);
-		chunk_write(c, failure, NULL, NULL, NULL);
+		chunk_write(c, failure, "", "", "");
 		/* XXX send </stream:stream> */
 		c->depth = -1;	/* flag to close the connection */
 		chunk_free(chunk);
@@ -943,7 +933,7 @@ void _client_process(conn_t c) {
 		    unsigned out_data_buffer_len = (server_out_len+2)/3*4 + 1;
 		    int sasl_result2 = 0;
 
-		    out_data_buffer = (char*)malloc(out_data_buffer_len);
+		    out_data_buffer = static_cast<char*>(malloc(out_data_buffer_len));
 		    sasl_result2 = sasl_encode64(server_out, server_out_len, out_data_buffer, out_data_buffer_len, &out_data_buffer_len);
 		    if (sasl_result2 == SASL_OK) {
 			nad_append_cdata(response->nad, out_data_buffer, out_data_buffer_len, 1);
@@ -956,7 +946,7 @@ void _client_process(conn_t c) {
 		} else {
 		    c->reset_stream = 1;
 		}
-		chunk_write(c, response, NULL, NULL, NULL);
+		chunk_write(c, response, "", "", "");
 		break;
 	    case SASL_NOMECH:
 		c->c2s->log->level(LOG_NOTICE) << "SASL authentication failure: " << sasl_errdetail(c->sasl_conn);
@@ -964,7 +954,7 @@ void _client_process(conn_t c) {
 		nad_append_elem(response->nad, "failure", 0);
 		nad_append_attr(response->nad, "xmlns", "urn:ietf:params:xml:ns:xmpp-sasl");
 		nad_append_elem(response->nad, "invalid-mechanism", 1);
-		chunk_write(c, response, NULL, NULL, NULL);
+		chunk_write(c, response, "", "", "");
 		/* XXX send </stream:stream> */
 		c->depth = -1;	/* flag to close the connection */
 		break;
@@ -979,7 +969,7 @@ void _client_process(conn_t c) {
 		nad_append_elem(response->nad, "failure", 0);
 		nad_append_attr(response->nad, "xmlns", "urn:ietf:params:xml:ns:xmpp-sasl");
 		nad_append_elem(response->nad, "temporary-auth-failure", 1);
-		chunk_write(c, response, NULL, NULL, NULL);
+		chunk_write(c, response, "", "", "");
 		c->depth = -1;	/* flag to close the connection */
 		break;
 	    case SASL_NOAUTHZ:
@@ -988,7 +978,7 @@ void _client_process(conn_t c) {
 		nad_append_elem(response->nad, "failure", 0);
 		nad_append_attr(response->nad, "xmlns", "urn:ietf:params:xml:ns:xmpp-sasl");
 		nad_append_elem(response->nad, "invalid-authzid", 1);
-		chunk_write(c, response, NULL, NULL, NULL);
+		chunk_write(c, response, "", "", "");
 		c->depth = -1;	/* flag to close the connection */
 		break;
 	    case SASL_TOOWEAK:
@@ -998,7 +988,7 @@ void _client_process(conn_t c) {
 		nad_append_elem(response->nad, "failure", 0);
 		nad_append_attr(response->nad, "xmlns", "urn:ietf:params:xml:ns:xmpp-sasl");
 		nad_append_elem(response->nad, "mechanism-too-weak", 1);
-		chunk_write(c, response, NULL, NULL, NULL);
+		chunk_write(c, response, "", "", "");
 		c->depth = -1;	/* flag to close the connection */
 		break;
 	    default:
@@ -1007,7 +997,7 @@ void _client_process(conn_t c) {
 		nad_append_elem(response->nad, "failure", 0);
 		nad_append_attr(response->nad, "xmlns", "urn:ietf:params:xml:ns:xmpp-sasl");
 		nad_append_elem(response->nad, "not-authorized", 1);
-		chunk_write(c, response, NULL, NULL, NULL);
+		chunk_write(c, response, "", "", "");
 		c->depth = -1;	/* flag to close the connection */
 	}
 #else
@@ -1015,7 +1005,7 @@ void _client_process(conn_t c) {
 	nad_append_elem(response->nad, "failure", 0);
 	nad_append_attr(response->nad, "xmlns", "urn:ietf:params:xml:ns:xmpp-sasl");
 	nad_append_elem(response->nad, "temporary-auth-failure", 1);
-	chunk_write(c, response, NULL, NULL, NULL);
+	chunk_write(c, response, "", "", "");
 	c->depth = -1;	/* flag to close the connection */
 #endif
 	chunk_free(chunk);
@@ -1034,7 +1024,7 @@ void _client_process(conn_t c) {
 	if (bind_element >= 0 && type_attr >= 0) {
 	    int id_attr = -1;
 	    int resource_element = -1;
-	    const char *jid_str = NULL;
+	    std::string jid_str;
 	    chunk_t response = NULL;
 
 	    /* there might be an id attribute, which should be mirrored */
@@ -1043,19 +1033,18 @@ void _client_process(conn_t c) {
 	    /* optionally there might be a <resource/> element */
 	    resource_element = nad_find_elem(chunk->nad, bind_element, "resource", 1);
 	    if (resource_element >= 0) {
-		char *new_resource = pstrdupx(c->idp, NAD_CDATA(chunk->nad, resource_element), NAD_CDATA_L(chunk->nad, resource_element));
-		jid_set(c->authzid, new_resource, JID_RESOURCE);
+		c->authzid->set_resource(std::string(NAD_CDATA(chunk->nad, resource_element), NAD_CDATA_L(chunk->nad, resource_element)));
 	    }
 
 	    /* no resource yet? create one ... */
-	    if (c->authzid != NULL && c->authzid->resource == NULL) {
+	    if (!c->authzid.points_to_NULL() && !c->authzid->has_resource()) {
 		std::ostringstream new_resource;
 		new_resource << std::hex << time(NULL);
-		jid_set(c->authzid, new_resource.str().c_str(), JID_RESOURCE);
+		c->authzid->set_resource(new_resource.str());
 	    }
 
 	    /* still no resource? should not happen */
-	    if (c->authzid == NULL || c->authzid != NULL && c->authzid->resource == NULL) {
+	    if (c->authzid.points_to_NULL() || !c->authzid.points_to_NULL() && !c->authzid->has_resource()) {
 		conn_error(c, STREAM_ERR_INTERNAL_SERVER_ERROR, "we could not generate a resource for your stream");
 		c->depth = -1;
 		chunk_free(chunk);
@@ -1074,9 +1063,9 @@ void _client_process(conn_t c) {
 	    nad_append_elem(response->nad, "bind", 1);
 	    nad_append_attr(response->nad, "xmlns", "urn:ietf:params:xml:ns:xmpp-bind");
 	    nad_append_elem(response->nad, "jid", 2);
-	    jid_str = jid_full(c->authzid);
-	    nad_append_cdata(response->nad, jid_str, j_strlen(jid_str), 3);
-	    chunk_write(c, response, NULL, NULL, NULL);
+	    jid_str = c->authzid->full();
+	    nad_append_cdata(response->nad, jid_str.c_str(), jid_str.length(), 3);
+	    chunk_write(c, response, "", "", "");
 
 	    c->sasl_state = state_auth_BOUND_RESOURCE;
 
@@ -1098,10 +1087,6 @@ void _client_process(conn_t c) {
 
 	    /* keep id of the client request */
 	    id_attr = nad_find_attr(chunk->nad, 0, "id", NULL);
-	    if (c->id_session_start != NULL) {
-		free(c->id_session_start);
-	    }
-	    c->id_session_start = NULL;
 	    if (id_attr >= 0) {
 		std::ostringstream id_session_start;
 		id_session_start.write(NAD_AVAL(chunk->nad, id_attr), NAD_AVAL_L(chunk->nad, id_attr));
@@ -1114,7 +1099,7 @@ void _client_process(conn_t c) {
 	    id_serial_str << std::hex << id_serial++;
 
 	    /* start the session on the session manager */
-	    client_send_sc_command(c->c2s->sm, c->smid->server, jid_full(c->myid), "start", c->authzid, id_serial_str.str().c_str(), NULL, c->myid->user);
+	    client_send_sc_command(c->c2s->sm, c->smid->get_domain().c_str(), c->myid->full().c_str(), "start", c->authzid, id_serial_str.str().c_str(), NULL, c->myid->get_node());
 	    return;
 	}
     }
@@ -1130,18 +1115,18 @@ void _client_process(conn_t c) {
         /* normal packets */
         case state_OPEN:
 	    c->in_stanzas++;
-	    if (c->sc_sm) {
+	    if (c->sc_sm.length() > 0) {
 		nad_set_attr(chunk->nad, 0, "xmlns:sc", "http://jabberd.jabberstudio.org/ns/session/1.0");
-		nad_set_attr(chunk->nad, 0, "sc:sm", c->sc_sm);
-		nad_set_attr(chunk->nad, 0, "sc:c2s", c->myid->user);
+		nad_set_attr(chunk->nad, 0, "sc:sm", c->sc_sm.c_str());
+		nad_set_attr(chunk->nad, 0, "sc:c2s", c->myid->get_node().c_str());
 	    }
-            chunk_write(c->c2s->sm, chunk, jid_full(c->smid), jid_full(c->myid), NULL);
+            chunk_write(c->c2s->sm, chunk, c->smid->full().c_str(), c->myid->full().c_str(), "");
             break;
 
         /* anything that goes out before authentication gets flagged type='auth' */
         case state_NONE:
         case state_AUTH:
-            chunk_write(c->c2s->sm, chunk, jid_full(c->smid), jid_full(c->myid), "auth");
+            chunk_write(c->c2s->sm, chunk, c->smid->full().c_str(), c->myid->full().c_str(), "auth");
             break;
 
         default:
@@ -1160,11 +1145,11 @@ void _client_process(conn_t c) {
  * @param c2s the jadc2s instance we are running in
  * @return 1 if we want to drop this connection, 0 else
  */
-int _client_io_accept(mio_t m, int fd, const char *ip_port, xmppd::pointer<c2s_st> c2s) {
+static int _client_io_accept(mio_t m, int fd, const std::string& ip_port, xmppd::pointer<c2s_st> c2s) {
     conn_t c = NULL;
     int local_port = 0;
     int sasl_result = 0;
-    const char *remote_ip_port = ip_port;
+    std::string remote_ip_port = ip_port;
     std::ostringstream local_ip_port;
 #ifdef USE_IPV6
     char local_ip[INET6_ADDRSTRLEN];
@@ -1175,9 +1160,8 @@ int _client_io_accept(mio_t m, int fd, const char *ip_port, xmppd::pointer<c2s_s
 #endif
     socklen_t namelen = sizeof(sa);
 
-    if (j_strncmp(remote_ip_port, "::ffff:", 7) == 0) {
-	remote_ip_port = remote_ip_port+7;
-    }
+    if (remote_ip_port.substr(0, 7) == "::ffff:")
+	remote_ip_port.erase(0, 7);
 
     std::string remote_ip(remote_ip_port);
     std::string::size_type ip_port_sep = remote_ip.find(';');
@@ -1247,7 +1231,7 @@ int _client_io_accept(mio_t m, int fd, const char *ip_port, xmppd::pointer<c2s_s
 	    sasl_dispose(&(c->sasl_conn));
 	    c->sasl_conn = NULL;
 	}
-	sasl_result = sasl_server_new(c2s->sasl_service, c2s->sasl_fqdn, c2s->sasl_defaultrealm, local_ip_port.str().c_str(), remote_ip_port, NULL, 0, &(c->sasl_conn));
+	sasl_result = sasl_server_new(c2s->sasl_service.c_str(), c2s->sasl_fqdn.c_str(), c2s->sasl_defaultrealm.c_str(), local_ip_port.str().c_str(), remote_ip_port.c_str(), NULL, 0, &(c->sasl_conn));
 	if (sasl_result != SASL_OK) {
 	    c2s->log->level(LOG_ERR) << "Error initializing SASL context: " << sasl_errdetail(c->sasl_conn);
 	} else {
@@ -1269,7 +1253,7 @@ int _client_io_accept(mio_t m, int fd, const char *ip_port, xmppd::pointer<c2s_s
     }
 
     /* put us in the pre-auth hash */
-    (*c->c2s->pending)[jid_full(c->myid)] = c;
+    (c->c2s->pending)[c->myid->full()] = c;
 
     /* set up expat callbacks */
     XML_SetUserData(c->expat, (void*)c);
@@ -1286,7 +1270,7 @@ int _client_io_accept(mio_t m, int fd, const char *ip_port, xmppd::pointer<c2s_s
     mio_read(m, fd);
 
     /* keep the IP address of the user */
-    c->ip = pstrdup(c->idp, remote_ip.c_str());
+    c->ip = remote_ip;
     if (remote_port != "") {
 	std::istringstream port_stream(remote_port);
 	port_stream >> c->port;
@@ -1415,7 +1399,7 @@ void _client_detect_variant(int fd, conn_t c) {
     
     /* If the first char is G then it's for HTTP (GET ....)
        and if we configured http client forwarding to a real http server */
-    if (first[0] == 'G' && c->c2s->http_forward)
+    if (first[0] == 'G' && c->c2s->http_forward.length() > 0)
     {
 	chunk_t http_response = NULL;
 	char* http =
@@ -1428,8 +1412,8 @@ void _client_detect_variant(int fd, conn_t c) {
 		"Connection: close\r\n\r\n";
 	char *buf;
 	
-	buf = static_cast<char*>(malloc((strlen(c->c2s->http_forward) + strlen(http)) * sizeof(char)));
-	sprintf (buf, http, c->c2s->http_forward);
+	buf = static_cast<char*>(malloc((c->c2s->http_forward.length() + strlen(http)) * sizeof(char)));
+	sprintf (buf, http, c->c2s->http_forward.c_str());
 	
 	DBG("This is an incoming HTTP connection - forwarding to: " << c->c2s->http_forward);
 	
@@ -1444,7 +1428,7 @@ void _client_detect_variant(int fd, conn_t c) {
 	http_response->wcur = buf;
 	http_response->to_free = buf; /* let chunk_free() do the free(buf) */
 	http_response->wlen = strlen(buf);
-	chunk_write(c, http_response, NULL, NULL, NULL);
+	chunk_write(c, http_response, "", "", "");
 	
 	/* close connection */
         mio_close(c->c2s->mio, c->fd);
@@ -1473,7 +1457,7 @@ void _client_detect_variant(int fd, conn_t c) {
 	http_response = chunk_new(NULL);
 	http_response->wcur = http;
 	http_response->wlen = strlen(http);
-	chunk_write(c, http_response, NULL, NULL, NULL);
+	chunk_write(c, http_response, "", "", "");
 	
 	DBG("Look for the ending \\r\\n\\r\\n");
 	while( search && ((_peek_actual(c,fd,peek,4)) > 0))
@@ -1537,6 +1521,8 @@ int _client_io_read(mio_t m, int fd, conn_t c) {
     char buf[1024]; /* !!! make static when not threaded? move into conn_st? */
     int read_len, len, ret;
 
+    DBG("_client_io_read");
+
 #ifdef USE_SSL
     /* check if we have to autodetect SSL/TLS */
     if (c->autodetect_tls == autodetect_READY)
@@ -1554,14 +1540,13 @@ int _client_io_read(mio_t m, int fd, conn_t c) {
 #endif
 
     if (c->reset_stream > 0) {
+	DBG("resetting stream");
 	c->reset_stream = 0;
 	c->state = state_NONE;
 	c->type = type_NORMAL;
 	c->root_element = root_element_NONE;
-	c->local_id = NULL;
-	if (c->sid != NULL)
-	    free(c->sid);
-	c->sid = NULL;
+	c->local_id = "";
+	c->sid = "";
 	_client_replace_parser(c);
 	c->depth = 0;
     }
@@ -1649,7 +1634,7 @@ int _client_io_idle(int fd, conn_t c) {
     idle_chunk = chunk_new(NULL);
     idle_chunk->wcur = idle_character;
     idle_chunk->wlen = 1;
-    chunk_write(c, idle_chunk, NULL, NULL, NULL);
+    chunk_write(c, idle_chunk, "", "", "");
     return 0;
 }
 
@@ -1665,11 +1650,11 @@ int _client_io_idle(int fd, conn_t c) {
  * @param sc_sm ID for the connection on the session manager (NULL if not "end" action)
  * @param sc_c2s ID for the connection on the client manager (NULL for "create" and "delete" action)
  */
-void client_send_sc_command(conn_t sm_conn, const char *to, const char *from, const char *action, const jid target, const char *id, const char *sc_sm, const char *sc_c2s) {
+void client_send_sc_command(conn_t sm_conn, const std::string& to, const std::string& from, const std::string& action, const xmppd::pointer<xmppd::jid> target, const std::string& id, const std::string& sc_sm, const std::string& sc_c2s) {
     chunk_t chunk = NULL;
 
     /* sanity check */
-    if (sm_conn == NULL || action == NULL) {
+    if (sm_conn == NULL) {
 	DBG("sanity check in client_send_sc_command failed.");
 	return;
     }
@@ -1678,18 +1663,18 @@ void client_send_sc_command(conn_t sm_conn, const char *to, const char *from, co
     chunk = chunk_new_free(sm_conn->c2s->nads);
     nad_append_elem(chunk->nad, "sc:session", 0);
     nad_append_attr(chunk->nad, "xmlns:sc", "http://jabberd.jabberstudio.org/ns/session/1.0");
-    nad_append_attr(chunk->nad, "action", action);
-    if (sc_c2s != NULL)
-	nad_append_attr(chunk->nad, "sc:c2s", sc_c2s);
-    if (sc_sm != NULL)
-	nad_append_attr(chunk->nad, "sc:sm", sc_sm);
-    if (target != NULL)
-	nad_append_attr(chunk->nad, "target", jid_full(target));
-    if (id != NULL)
-	nad_append_attr(chunk->nad, "id", id);
+    nad_append_attr(chunk->nad, "action", action.c_str());
+    if (sc_c2s.length() > 0)
+	nad_append_attr(chunk->nad, "sc:c2s", sc_c2s.c_str());
+    if (sc_sm.length() > 0)
+	nad_append_attr(chunk->nad, "sc:sm", sc_sm.c_str());
+    if (!target.points_to_NULL())
+	nad_append_attr(chunk->nad, "target", target->full().c_str());
+    if (id.length() > 0)
+	nad_append_attr(chunk->nad, "id", id.c_str());
 
     /* send */
-    chunk_write(sm_conn->c2s->sm, chunk, to, from, NULL);
+    chunk_write(sm_conn->c2s->sm, chunk, to, from, "");
 }
 
 /**
@@ -1719,39 +1704,39 @@ void _client_io_close(int fd, conn_t c) {
 	if(c->writeq != NULL) {
 	    for(cur = c->writeq; cur != NULL; cur = next) {
 		next = cur->next;
-		chunk_write(c->c2s->sm, cur, jid_full(c->smid), jid_full(c->myid), "error");
+		chunk_write(c->c2s->sm, cur, c->smid->full().c_str(), c->myid->full().c_str(), "error");
 	    }
 	} else {
 	    /* always send some sort of error */
-	    if (c->sc_sm == NULL) {
+	    if (c->sc_sm.length() > 0) {
 		chunk = chunk_new(c);
-		chunk_write(c->c2s->sm, chunk, jid_full(c->smid), jid_full(c->myid), "error");
+		chunk_write(c->c2s->sm, chunk, c->smid->full().c_str(), c->myid->full().c_str(), "error");
 		chunk = NULL;
 	    }
 	}
 
 	/* close session using the new protocol */
-	if (c->sc_sm != NULL) {
+	if (c->sc_sm.length() > 0) {
 	    DBG("trying to close using new protocol");
-	    client_send_sc_command(c, c->authzid->server, jid_full(c->myid), "end", NULL, NULL, c->sc_sm, c->myid->user);
+	    client_send_sc_command(c, c->authzid->get_domain().c_str(), c->myid->full().c_str(), "end", NULL, NULL, c->sc_sm, c->myid->get_node().c_str());
 	}
     } else {
 	/* XXX free write queue */
 	/* remove from preauth hash */
-	c->c2s->pending->erase(jid_full(c->myid));
+	c->c2s->pending.erase(c->myid->full().c_str());
     }
 
     /* count the number of open client connections */
     c->c2s->num_clients--;
 
     /* report closed connection */
-    if (c->ip && c->userid && c->userid->user) {
+    if (c->ip != "" && !c->userid.points_to_NULL() && c->userid->has_node()) {
 	/* if the user never authenticated, we still have to write its IP */
 	if (c->state != state_OPEN)
-	    c->c2s->log->level(LOG_NOTICE) << "user " << jid_full(c->userid) << " on fd " << c->fd << (c->c2s->iplog ? ", ip=" : "") << (c->c2s->iplog ? c->ip : "") << " never authenticated";
+	    c->c2s->log->level(LOG_NOTICE) << "user " << c->userid->full() << " on fd " << c->fd << (c->c2s->iplog ? ", ip=" : "") << (c->c2s->iplog ? c->ip : "") << " never authenticated";
 
 	/* write it to the logfile */
-	c->c2s->log->level(LOG_NOTICE) << "user " << jid_full(c->userid) << " on fd " << c->fd << " disconnected, in=" << c->in_bytes << " B, out= " << c->out_bytes << " B, stanzas_in=" << c->in_stanzas << ", stanzas_out=" << c->out_stanzas;
+	c->c2s->log->level(LOG_NOTICE) << "user " << c->userid->full() << " on fd " << c->fd << " disconnected, in=" << c->in_bytes << " B, out= " << c->out_bytes << " B, stanzas_in=" << c->in_stanzas << ", stanzas_out=" << c->out_stanzas;
 
 	/* send a notification message if requested */
 	connectionstate_send(c->c2s->config, c->c2s->sm, c, 0);
@@ -1774,26 +1759,36 @@ void _client_io_close(int fd, conn_t c) {
  * @return if we want to get more events
  */
 int client_io(mio_t m, mio_action_t a, int fd, const void *data, void *arg) {
+    int result = 0;
+
     DBG("io action " << a << " with fd " << fd);
 
-    switch(a) {
-	case action_ACCEPT:
-	    return _client_io_accept(m, fd, (char*)data, *static_cast< xmppd::pointer<c2s_st>* >(arg));
+    try {
 
-	case action_READ:
-	    return _client_io_read(m, fd, (conn_t)arg);
-	    
-	case action_WRITE:
-	    return conn_write((conn_t)arg);
+	switch(a) {
+	    case action_ACCEPT:
+		return _client_io_accept(m, fd, static_cast<const char*>(data), *static_cast< xmppd::pointer<c2s_st>* >(arg));
 
-	case action_IDLE:
-	    return _client_io_idle(fd, (conn_t)arg);
+	    case action_READ:
+		return _client_io_read(m, fd, (conn_t)arg);
+		
+	    case action_WRITE:
+		DBG("Calling conn_write()");
+		result = conn_write(static_cast<conn_t>(arg));
+		DBG("Returned from conn_write()");
+		return result;
 
-	case action_CLOSE:
-	    _client_io_close(fd, (conn_t)arg);
-	    return 0;
+	    case action_IDLE:
+		return _client_io_idle(fd, (conn_t)arg);
 
-	default:
-	    return 0;
+	    case action_CLOSE:
+		_client_io_close(fd, (conn_t)arg);
+		return 0;
+
+	    default:
+		return 0;
+	}
+    } catch (std::logic_error exception) {
+	std::cerr << "Caught logic exception: " << exception.what() << std::endl;
     }
 }

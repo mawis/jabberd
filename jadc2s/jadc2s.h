@@ -4,6 +4,7 @@
 
 #include <string>
 #include <map>
+#include <vector>
 #include <iostream>
 
 #include "mio/mio.h"
@@ -70,7 +71,7 @@
 #define STREAM_ERR_TIMEOUT		 "connection-timeout"
 
 /* forward decls */
-typedef struct conn_st *conn_t;
+typedef class conn_st *conn_t;
 struct c2s_st;
 
 /**
@@ -148,80 +149,82 @@ typedef enum {
 /**
  * The conn(ection) wraps the data we need for every client
  */
-struct conn_st {
-    xmppd::pointer<c2s_st> c2s;	/**< the jadc2s instance we are running in */
+class conn_st {
+    public:
+	conn_st(xmppd::pointer<c2s_st> c2s);
+	void reset();
 
-    /* vars for this conn */
-    int fd;			/**< file descriptor of this connection */
-    char *ip;			/**< other end's IP address for this conn */
-    int port;			/**< other end's port address for this conn */
-    int read_bytes;		/**< bytes read within the present 'karma
-				     interval' */
-    time_t last_read;		/**< last time something has been read
-				     (for karma calculations) */
-    conn_state_t state;		/**< which of several states have been reached
-				     on the way to establish a session */
-    conn_type_t type;		/**< type of this connection
-				     (normal conn , flash-hack conn, ...) */ 
-    time_t start;		/**< when the client started to establish
-				     a session */
-    root_element_t root_element;/**< root element used on the connection */
-    char *local_id;		/**< domain of the session manager the
-				     client connected to */
+	xmppd::pointer<c2s_st> c2s;	/**< the jadc2s instance we are running in */
+
+	/* vars for this conn */
+	int fd;			/**< file descriptor of this connection */
+	std::string ip;			/**< other end's IP address for this connection */
+	int port;			/**< other end's port address for this conn */
+	int read_bytes;		/**< bytes read within the present 'karma
+					 interval' */
+	time_t last_read;		/**< last time something has been read
+					 (for karma calculations) */
+	conn_state_t state;		/**< which of several states have been reached
+					 on the way to establish a session */
+	conn_type_t type;		/**< type of this connection
+					 (normal conn , flash-hack conn, ...) */ 
+	time_t start;		/**< when the client started to establish
+					 a session */
+	root_element_t root_element;/**< root element used on the connection */
+	std::string local_id;	/**< domain of the session manager ths client connected to */
 
 #ifdef USE_SSL    
-    SSL *ssl;			/**< openssl's data for this connection */
-    autodetect_state_t autodetect_tls;
-    				/**< SSL/TLS autodetection state */
+	SSL *ssl;			/**< openssl's data for this connection */
+	autodetect_state_t autodetect_tls;
+				    /**< SSL/TLS autodetection state */
 #endif
 
-    /* tracking the id for the conn or chunk */
-    pool idp;			/**< memory pool for JIDs in this structure */
-    char *sid;			/**< session id (used for some auth schemes */
-    char *sc_sm;		/**< session manager id for this conn in new session protocol, NULL for old protocol */
-    char *id_session_start;	/**< id of the iq packet of the client, that requested session start, NULL else */
-    jid myid;			/**< the source-JID used to send messages to
-				     the session manager */
-    jid smid;			/**< the dest-JID used to send messages to the
-				     session manager */
-    jid userid;                 /**< the JabberID of the user (only used for
-				     generating connect/disconnect reports) */
-    jid authzid;		/**< the JabberID the user authorized as (in SASL mode) */
+	/* tracking the id for the conn or chunk */
+	std::string sid;			/**< session id (used for some auth schemes */
+	std::string sc_sm;		/**< session manager id for this conn in new session protocol, NULL for old protocol */
+	std::string id_session_start;	/**< id of the iq packet of the client, that requested session start, NULL else */
+	xmppd::pointer<xmppd::jid> myid;			/**< the source-JID used to send messages to
+					 the session manager */
+	xmppd::pointer<xmppd::jid> smid;	/**< the dest-JID used to send messages to the
+					 session manager */
+	xmppd::pointer<xmppd::jid> userid;                 /**< the JabberID of the user (only used for
+					 generating connect/disconnect reports) */
+	xmppd::pointer<xmppd::jid> authzid;		/**< the JabberID the user authorized as (in SASL mode) */
 
 
-    /* chunks being written */
-    chunk_t writeq;		/**< queue of chunks that have to be send to
-				     the client */
-    chunk_t qtail;		/**< end of the writeq queue (to speed up
-				     adding elements to the end of it) */
+	/* chunks being written */
+	chunk_t writeq;		/**< queue of chunks that have to be send to
+					 the client */
+	chunk_t qtail;		/**< end of the writeq queue (to speed up
+					 adding elements to the end of it) */
 
-    /* parser stuff */
-    XML_Parser expat;		/**< parser used for parsing XML on this conn */
-    int depth;			/**< the element nesting level on this conn */
-    nad_t nad;			/**< the nad currently being build */
+	/* parser stuff */
+	XML_Parser expat;		/**< parser used for parsing XML on this conn */
+	int depth;			/**< the element nesting level on this conn */
+	nad_t nad;			/**< the nad currently being build */
 
 #ifdef FLASH_HACK
-    /* Flash Hack */
-    int flash_hack;		/**< true if we are _currently_ replacing expat,
-				     see type to see if it is a flash
-				     connection! */
+	/* Flash Hack */
+	int flash_hack;		/**< true if we are _currently_ replacing expat,
+					 see type to see if it is a flash
+					 connection! */
 #endif
 
-    /* Traffic counting */
-    unsigned long int in_bytes;	/**< how many bytes have been read */
-    unsigned long int out_bytes;/**< how many bytes have been written */
-    unsigned int in_stanzas;	/**< how many stanzas have been read */
-    unsigned int out_stanzas;	/**< how many stanzas have been written */
+	/* Traffic counting */
+	unsigned long int in_bytes;	/**< how many bytes have been read */
+	unsigned long int out_bytes;/**< how many bytes have been written */
+	unsigned int in_stanzas;	/**< how many stanzas have been read */
+	unsigned int out_stanzas;	/**< how many stanzas have been written */
 
-    /* reset stream */
-    int reset_stream;		/**< if set to 1 the stream will be reset (restarted) */
+	/* reset stream */
+	int reset_stream;		/**< if set to 1 the stream will be reset (restarted) */
 
-    /* SASL */
+	/* SASL */
 #ifdef WITH_SASL
-    sasl_conn_t *sasl_conn;	/**< connection object used by the sasl library */
-    unsigned	*sasl_outbuf_size; /**< maximum size of data we can pass to sasl_encode() */
+	sasl_conn_t *sasl_conn;	/**< connection object used by the sasl library */
+	unsigned	*sasl_outbuf_size; /**< maximum size of data we can pass to sasl_encode() */
 #endif
-    auth_state_t sasl_state;	/**< if SASL, resource binding, and session starting has been done */
+	auth_state_t sasl_state;	/**< if SASL, resource binding, and session starting has been done */
 };
 
 /* conn happy/sad */
@@ -229,10 +232,10 @@ conn_t conn_new(xmppd::pointer<c2s_st> c2s, int fd);
 void conn_free(conn_t c);
 
 /** send a stream error */
-void conn_error(conn_t c, const char *condition, const char *err);
+void conn_error(conn_t c, const std::string &condition, const std::string &err);
 
 /** close a conn with error (conn_t becomes invalid after this is called!) */
-void conn_close(conn_t c, const char *condition, const char *err);
+void conn_close(conn_t c, const std::string &condition, const std::string &err);
 
 /** create a new chunk */
 chunk_t chunk_new(conn_t c);
@@ -248,8 +251,8 @@ typedef enum {
     chunk_OPEN,			/**< write only the open tag of the chunk */
     chunk_CLOSE			/**< write only the close tag of the chunk */
 } chunk_type_enum;
-void chunk_write(conn_t c, chunk_t chunk, const char *to, const char *from, const char *rtype);
-void chunk_write_typed(conn_t c, chunk_t chunk, const char *to, const char *from, const char *rtype, chunk_type_enum chunk_type);
+void chunk_write(conn_t c, chunk_t chunk, const std::string &to, const std::string &from, const std::string &rtype);
+void chunk_write_typed(conn_t c, chunk_t chunk, const std::string &to, const std::string &from, const std::string &rtype, chunk_type_enum chunk_type);
 
 /**
  * transfer rate limitting, returns the max number of elements that can be read
@@ -261,8 +264,8 @@ int conn_read(conn_t c, char *buf, int len);
 int conn_write(conn_t c);
 
 /* fill a nad with information about a user's connection */
-void connectionstate_fillnad(nad_t nad, char *from, char *to, char *user, int is_login, char *ip, const char *ssl_version, const char *ssl_cipher, const char *ssl_size_secret, const char *ssl_size_algorithm);
-void connectionstate_send(config_t config, conn_t c, conn_t client, int is_login);
+void connectionstate_fillnad(nad_t nad, const std::string& from, const std::string& to, const std::string& user, int is_login, const std::string& ip, const std::string& ssl_version, const std::string& ssl_cipher, const std::string& ssl_size_secret, const std::string& ssl_size_algorithm);
+void connectionstate_send(xmppd::pointer<xmppd::configuration> config, conn_t c, conn_t client, int is_login);
 
 /** maximum number of xml children in a chunk (checked by conn_read) */
 #define MAXDEPTH 10000
@@ -272,7 +275,7 @@ void connectionstate_send(config_t config, conn_t c, conn_t client, int is_login
 #define MAXFD 255
 
 /** IP Connection Rate Limit Functions **/
-int connection_rate_check(xmppd::pointer<c2s_st> c2s, const char* ip);
+int connection_rate_check(xmppd::pointer<c2s_st> c2s, const std::string& ip);
 void connection_rate_cleanup(xmppd::pointer<c2s_st> c2s);
 
 typedef struct bad_conn_st* bad_conn_t;
@@ -286,7 +289,7 @@ struct bad_conn_st
 /* IP connection rate info */
 typedef struct connection_rate_st
 {
-    char* ip; /* need a copy of the ip */
+    std::string ip; /* need a copy of the ip */
     int count; /* How many have connected */
     time_t first_time; /* The time of the first conn */
 } *connection_rate_t;
@@ -299,7 +302,7 @@ class c2s_st {
 	 *
 	 * Creates a new instance
 	 */
-	c2s_st();
+	c2s_st(int argc, char* const* argv);
 
 	/**
 	 * Destructor
@@ -311,21 +314,21 @@ class c2s_st {
 	/* globals */
 	mio_t mio;
 	int shutting_down;
-	jid_environment_t jid_environment;
+	xmppd::jid_environment used_jid_environment;
 
 	/* setup */
-	config_elem_t local_id;
-	config_elem_t local_alias;
-	config_elem_t local_noregister;
-	config_elem_t local_nolegacyauth;	/**< hosts for which legacy authentication is not advertized */
-	char *local_ip;
+	std::list<xmppd::configuration_entry> local_id;
+	std::list<xmppd::configuration_entry> local_alias;
+	std::list<xmppd::configuration_entry> local_noregister;
+	std::list<xmppd::configuration_entry> local_nolegacyauth; /**< hosts for which legacy authentication is not advertized */
+	std::string local_ip;
 	int local_port;
-	char *local_statfile;
-	char *http_forward;
+	std::string local_statfile;
+	std::string http_forward;
 #ifdef USE_SSL
 	int local_sslport;
-	char *pemfile;
-	char *ciphers;
+	std::string pemfile;
+	std::string ciphers;
 	int ssl_no_ssl_v2;
 	int ssl_no_ssl_v3;
 	int ssl_no_tls_v1;
@@ -337,16 +340,16 @@ class c2s_st {
 	int tls_required;
 #endif
 
-	config_t config;		/**< our configuration */
+	xmppd::pointer<xmppd::configuration> config;
 
 	nad_cache_t nads;		/**< nad cache */
 
 	/* client conn stuff */
-	std::map<std::string, connection_rate_t> *connection_rates; /**< our current rate limit checks */
+	std::map<std::string, connection_rate_t> connection_rates; /**< our current rate limit checks */
 	int connection_rate_times;
 	int connection_rate_seconds;
-	std::map<std::string, conn_t> *pending; /**< waiting for auth/session */
-	struct conn_st *conns; /**< all connected conns */
+	std::map<std::string, conn_t> pending; /**< waiting for auth/session */
+	std::vector<struct conn_st*> conns; /**< all connected conns */
 	bad_conn_t bad_conns; /**< Karma controlled conns */
 	bad_conn_t bad_conns_tail;
 	int timeout; /**< how long to process mio */
@@ -358,7 +361,9 @@ class c2s_st {
 
 	/* session manager stuff */
 	conn_t sm;
-	char *sm_host, *sm_id, *sm_secret;
+	std::string sm_host;
+	std::string sm_id;
+	std::string sm_secret;
 	int sm_port;
 
 	/* logging */
@@ -367,21 +372,29 @@ class c2s_st {
 
 	/* SASL */
 	int sasl_enabled;		/**< 0 = only legacy auth by session manager, 1 = auth by jadc2s */
-	int sasl_jep0078;		/**< 0 = legacy authentication not supported, 1 = JEP-0078 supported */
-	char *sasl_appname;		/**< application name passed to SASL library (to generate SASL conf file name) */
-	char *sasl_service;		/**< registered service name, should always be 'xmpp' */
-	char *sasl_fqdn;		/**< FQDN passed to sasl library */
-	char *sasl_defaultrealm;	/**< default realm passed to sasl library */
+	int sasl_xep0078;		/**< 0 = legacy authentication not supported, 1 = XEP-0078 supported */
+	std::string sasl_appname;		/**< application name passed to SASL library (to generate SASL conf file name) */
+	std::string sasl_service;		/**< registered service name, should always be 'xmpp' */
+	std::string sasl_fqdn;		/**< FQDN passed to sasl library */
+	std::string sasl_defaultrealm;	/**< default realm passed to sasl library */
 	unsigned sasl_min_ssf;	/**< minimum security strength factor for SASL */
 	unsigned sasl_max_ssf;	/**< maximum security strength factor for SASL */
 	int sasl_noseclayer;	/**< 0 = allow SASL security layer, 1 = do not allow SASL security layer */
 	unsigned sasl_sec_flags;	/**< SASL security flags to set */
-	config_elem_t sasl_admin;	/**< accounts, that are allowed to authorize as other users */
+	std::list<xmppd::configuration_entry> sasl_admin; /**< accounts, that are allowed to authorize as other users */
+
+	void seed_random();	/**< seed the random number generator */
+	void configurate(xmppd::pointer<c2s_st> xptr_to_self); /**< process teh configuration settings */
+	void start_logging();	/**< start logging */
+    private:
+	std::string rand_dev;	/**< device used for reading random data */
+	bool config_loaded;	/**< if the configuration file has been loaded */
+	void parse_commandline(int argc, char* const* argv); /**< parse the commandline */
 };
 
 /** the handler for client mio events */
 int client_io(mio_t m, mio_action_t a, int fd, const void *data, void *arg);
-void client_send_sc_command(conn_t sm_conn, const char *to, const char *from, const char *action, const jid target, const char *id, const char *sc_sm, const char *sc_c2s);
+void client_send_sc_command(conn_t sm_conn, const std::string& to, const std::string& from, const std::string& action, const xmppd::pointer<xmppd::jid> target, const std::string& id, const std::string& sc_sm, const std::string& sc_c2s);
 
 /** create a sm connection (block until it's connected) */
 int connect_new(xmppd::pointer<c2s_st> c2s);

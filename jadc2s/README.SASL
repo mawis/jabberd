@@ -16,7 +16,7 @@ the responsibility of the session manager, but handled by jadc2s internally
 using the Cyrus SASL library. To enable Cyrus SASL to verify passwords, you
 have to configure the SASL library.
 
-If you support legacy authentication (defined in JEP-0078) as well as SASL
+If you support legacy authentication (defined in XEP-0078) as well as SASL
 authentication, your users will expect to have the same passwords for both
 ways to authenticate. Therefore you should configure Cyrus SASL to access
 the same passwords as your jabberd14 installation does. The easiest way

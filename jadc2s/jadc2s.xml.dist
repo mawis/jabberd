@@ -103,7 +103,7 @@
     <!-- authentication settings                                           -->
 
     <!-- for now: by default authentication is done in the session         -->
-    <!-- manager and only JEP-0078 style authentication is supported.      -->
+    <!-- manager and only XEP-0078 style authentication is supported.      -->
     <!-- If you want SASL authentication to work, you have to enable       -->
     <!-- the authentication routines inside jadc2s.                        -->
     <!-- To enable authentication inside jadc2s, you also have to use      -->
@@ -120,7 +120,7 @@
     <!--  defaultrealm: Authentication realm to use, if no realm is        -->
     <!--                specified by the client.                           -->
     <!--                This is usually not necessary.                     -->
-    <!--  legacyauth:   If present, JEP-0078 authentication is still       -->
+    <!--  legacyauth:   If present, XEP-0078 authentication is still       -->
     <!--                supported.                                         -->
     <!--  minssf:	minimum acceptable final security strength factor  -->
     <!--  maxssf:	maximum acceptable final security stringth factor  -->

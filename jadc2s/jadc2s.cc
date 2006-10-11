@@ -41,6 +41,7 @@
 #include "jadc2s.h"
 
 #include <fstream>
+#include <stdexcept>
 
 /* check jadc2s.h for an overview of this codebase */
 static int process_conns = 1;
@@ -61,9 +62,6 @@ static sasl_callback_t sasl_callbacks[] = {
  * callback for cyrus sasl, that stringpres XMPP user ids
  */
 static int _sasl_canon_user(sasl_conn_t *conn, void *context, const char *in, unsigned inlen, unsigned flags, const char *user_realm, char *out, unsigned out_max, unsigned *out_len) {
-    jid user_jid = NULL;
-    pool local_pool = NULL;
-
     /* sanity check */
     if (context == NULL) {
 	DBG("_sasl_canon_user called with NULL context");
@@ -72,25 +70,21 @@ static int _sasl_canon_user(sasl_conn_t *conn, void *context, const char *in, un
     xmppd::pointer<c2s_st> c2s = *static_cast< xmppd::pointer<c2s_st>* >(context);
 
     /* stringprep the ID */
-    local_pool = pool_new();
-    user_jid = jid_new(local_pool, c2s->jid_environment, user_realm);
-    jid_set(user_jid, in, JID_USER);
-    if (user_jid->user == NULL) {
-	pool_free(local_pool);
+    xmppd::pointer<xmppd::jid> user_jid = new xmppd::jid(c2s->used_jid_environment, user_realm);
+    user_jid->set_node(in);
+    if (!user_jid->has_node()) {
 	return SASL_BADPROT;
     }
 
     /* enough memory? */
-    if (j_strlen(user_jid->user) >= out_max) {
-	pool_free(local_pool);
+    std::string preped_user = user_jid->get_node();
+    if (preped_user.length() >= out_max) {
 	return SASL_BUFOVER;
     }
 
     /* copy to the output buffer */
-    strcpy(out, user_jid->user);
-    *out_len = j_strlen(user_jid->user);
-    pool_free(local_pool);
-    user_jid = NULL;
+    strcpy(out, preped_user.c_str());
+    *out_len = preped_user.length();
 
     return SASL_OK;
 }
@@ -99,9 +93,8 @@ static int _sasl_canon_user(sasl_conn_t *conn, void *context, const char *in, un
  * callback for cyrus sasl, that checks if a user is allowed to authenticate as another id
  */
 static int _sasl_proxy_auth_check(sasl_conn_t *conn, void *context, const char *requested_user, unsigned rlen, const char *auth_identity, unsigned alen, const char *def_realm, unsigned urlen, struct propctx *propctx) {
-    pool local_pool = NULL;
-    jid auth_jid = NULL;
-    jid authz_jid = NULL;
+    xmppd::pointer<xmppd::jid> auth_jid = NULL;
+    xmppd::pointer<xmppd::jid> authz_jid = NULL;
     int i = 0;
     int has_admin_rights = 0;
 
@@ -119,79 +112,84 @@ static int _sasl_proxy_auth_check(sasl_conn_t *conn, void *context, const char *
     }
 
     /* prepare auth and authz jid */
-    local_pool = pool_new();
     if (strchr(requested_user, '@') == NULL) {
-	authz_jid = jid_new(local_pool, c2s->jid_environment, def_realm);
-	if (authz_jid == NULL) {
-	    c2s->log->level(LOG_ERR) << "Internal error: could not initialize authz_jid with default realm " << def_realm;
-	    pool_free(local_pool);
+	try {
+	    authz_jid = new xmppd::jid(c2s->used_jid_environment, def_realm);
+	} catch (std::string msg) {
+	    c2s->log->level(LOG_ERR) << "Internal error: could not initialize authz_jid with default realm " << def_realm << ": " << msg;
 	    return SASL_FAIL;
 	}
-	jid_set(authz_jid, requested_user, JID_USER);
+	authz_jid->set_node(requested_user);
 
-	if (authz_jid->user == NULL || authz_jid->server == NULL || authz_jid->resource != NULL) {
-	    c2s->log->level(LOG_ERR) << "Internal error: " << requested_user << "@" << def_realm << " initialized authz_jid to " << jid_full(authz_jid);
-	    pool_free(local_pool);
+	if (!authz_jid->has_node() || !authz_jid->has_domain() || authz_jid->has_resource()) {
+	    c2s->log->level(LOG_ERR) << "Internal error: " << requested_user << "@" << def_realm << " initialized authz_jid to " << authz_jid->full();
 	    return SASL_FAIL;
 	}
     } else {
-	authz_jid = jid_new(local_pool, c2s->jid_environment, requested_user);
-	if (authz_jid == NULL || authz_jid->user == NULL || authz_jid->server == NULL || authz_jid->resource != NULL) {
-	    c2s->log->level(LOG_ERR) << "Internal error: " << requested_user << " initialized authz_jid to " << (authz_jid == NULL ? "NULL" : jid_full(authz_jid));
-	    pool_free(local_pool);
+	try {
+	    authz_jid = new xmppd::jid(c2s->used_jid_environment, requested_user);
+	} catch (std::string msg) {
+	    c2s->log->level(LOG_ERR) << "Internal error: " << requested_user << " initialized authz_jid to NULL: " << msg;
+	    return SASL_FAIL;
+	}
+	if (!authz_jid->has_node() || !authz_jid->has_domain() || authz_jid->has_resource()) {
+	    c2s->log->level(LOG_ERR) << "Internal error: " << requested_user << " initialized authz_jid to " << authz_jid->full();
 	    return SASL_FAIL;
 	}
     }
     if (strchr(auth_identity, '@') == NULL) {
-	auth_jid = jid_new(local_pool, c2s->jid_environment, def_realm);
-	if (auth_jid == NULL) {
-	    c2s->log->level(LOG_ERR) << "Internal error: could not initialize auth_jid with default realm " << def_realm;
-	    pool_free(local_pool);
+	try {
+	    auth_jid = new xmppd::jid(c2s->used_jid_environment, def_realm);
+	} catch (std::string msg) {
+	    c2s->log->level(LOG_ERR) << "Internal error: could not initialize auth_jid with default realm " << def_realm << ": " << msg;
 	    return SASL_FAIL;
 	}
-	jid_set (auth_jid, auth_identity, JID_USER);
+	auth_jid->set_node(auth_identity);
 
-	if (auth_jid->user == NULL || auth_jid->server == NULL || auth_jid->resource != NULL) {
-	    c2s->log->level(LOG_ERR) << "Internal error: " << auth_identity << "@" << def_realm << " initialized auth_jid to " << jid_full(auth_jid);
-	    pool_free(local_pool);
+	if (!auth_jid->has_node() || !auth_jid->has_domain() || auth_jid->has_resource()) {
+	    c2s->log->level(LOG_ERR) << "Internal error: " << auth_identity << "@" << def_realm << " initialized auth_jid to " << auth_jid->full();
 	    return SASL_FAIL;
 	}
     } else {
-	auth_jid = jid_new(local_pool, c2s->jid_environment, auth_identity);
-	if (auth_jid == NULL || auth_jid->user == NULL || auth_jid->server == NULL || auth_jid->resource != NULL) {
-	    c2s->log->level(LOG_ERR) << "Internal error: " << auth_identity << " initialized auth_jid to " << (auth_jid == NULL ? "NULL" : jid_full(auth_jid));
-	    pool_free(local_pool);
+	try {
+	    auth_jid = new xmppd::jid(c2s->used_jid_environment, auth_identity);
+	} catch (std::string msg) {
+	    c2s->log->level(LOG_ERR) << "Internal error: " << auth_identity << " initialized auth_jid to NULL: " << msg;
+	    return SASL_FAIL;
+	}
+	if (!auth_jid->has_node() || !auth_jid->has_domain() || auth_jid->has_resource()) {
+	    c2s->log->level(LOG_ERR) << "Internal error: " << auth_identity << " initialized auth_jid to " << auth_jid->full();
 	    return SASL_FAIL;
 	}
     }
 
     /* a user is always allowed to authenticate as himself */
-    if (jid_cmp(authz_jid, auth_jid) == 0) {
-	DBG("user " << jid_full(auth_jid) << "authorized as himself");
-	pool_free(local_pool);
+    if (*authz_jid == *auth_jid) {
+	DBG("user " << auth_jid->full() << "authorized as himself");
 	return SASL_OK;
     }
 
     /* check if the auth_jid is allowed to authorize as authz_jid */
-    for (i=0; c2s->sasl_admin != NULL && i < c2s->sasl_admin->nvalues; i++) {
-	jid auth_as_jid = NULL;
-	jid config_jid = jid_new(local_pool, c2s->jid_environment, c2s->sasl_admin->values[i]);
-
-	/* as there a valid JID? */
-	if (config_jid == NULL) {
-	    c2s->log->level(LOG_WARNING) << "invalid configuration option <authorization><admin>" << c2s->sasl_admin->values[i] << "</admin></authorization>";
+    std::list<xmppd::configuration_entry>::iterator p;
+    for (p = c2s->sasl_admin.begin(); p!=c2s->sasl_admin.end(); ++p) {
+	xmppd::pointer<xmppd::jid> auth_as_jid = NULL;
+	xmppd::pointer<xmppd::jid> config_jid = NULL;
+	try {
+	    config_jid = new xmppd::jid(c2s->used_jid_environment, p->value);
+	} catch (std::string msg) {
+	    /* as there a valid JID? */
+	    c2s->log->level(LOG_WARNING) << "invalid configuration option <authorization><admin>" << p->value << "</admin></authorization>";
 	    continue;
 	}
 
 	/* is this configuration option for the authenticated user? */
-	if (jid_cmpx(config_jid, auth_jid, JID_USER|JID_SERVER) != 0) {
+	if (!config_jid->cmpx(*auth_jid)) {
 	    continue; /* no, other user */
 	}
 
 	/* configured JIDs without resource have access to authorize as anybody */
-	if (config_jid->resource == NULL) {
-	    c2s->log->level(LOG_NOTICE) << "User " << jid_full(auth_jid) << " (super admin) has been authorized as user " << jid_full(authz_jid);
-	    pool_free(local_pool);
+	if (!config_jid->has_resource()) {
+	    c2s->log->level(LOG_NOTICE) << "User " << auth_jid->full() << " (super admin) has been authorized as user " << authz_jid->full();
 	    return SASL_OK;
 	}
 
@@ -199,31 +197,33 @@ static int _sasl_proxy_auth_check(sasl_conn_t *conn, void *context, const char *
 	has_admin_rights = 1;
 
 	/* what authz_jid values are allowed using this config option? */
-	auth_as_jid = jid_new(local_pool, c2s->jid_environment, config_jid->resource);
-	if (auth_as_jid == NULL || auth_as_jid->resource != NULL) {
-	    c2s->log->level(LOG_WARNING) << "invalid configuration option <authorization><admin>" << c2s->sasl_admin->values[i] << "</admin></authorization> (resource invalid)";
+	try {
+	    auth_as_jid = new xmppd::jid(c2s->used_jid_environment, config_jid->get_resource());
+	} catch (std::string msg) {
+	    c2s->log->level(LOG_WARNING) << "invalid configuration option <authorization><admin>" << p->value << "</admin></authorization> (resource invalid)";
+	    continue;
+	}
+	if (auth_as_jid->has_resource()) {
+	    c2s->log->level(LOG_WARNING) << "invalid configuration option <authorization><admin>" << p->value << "</admin></authorization> (resource invalid)";
 	    continue;
 	}
 
 	/* authorized for a full domain? */
-	if (auth_as_jid->user == NULL) {
-	    if (jid_cmpx(auth_as_jid, authz_jid, JID_SERVER) == 0) {
-		c2s->log->level(LOG_NOTICE) << "User " << jid_full(auth_jid) << " (domain admin) has been authorized as user " << jid_full(authz_jid);
-		pool_free(local_pool);
+	if (!auth_as_jid->has_node()) {
+	    if (auth_as_jid->cmpx(*authz_jid)) {
+		c2s->log->level(LOG_NOTICE) << "User " << auth_jid->full() << " (domain admin) has been authorized as user " << authz_jid->full();
 		return SASL_OK;
 	    }
 	} else {
-	    if (jid_cmp(auth_as_jid, authz_jid) == 0) {
-		c2s->log->level(LOG_NOTICE) << "User " << jid_full(auth_jid) << " (user admin) has been authorized as user " << jid_full(authz_jid);
-		pool_free(local_pool);
+	    if (auth_as_jid->cmpx(*authz_jid)) {
+		c2s->log->level(LOG_NOTICE) << "User " << auth_jid->full() << " (user admin) has been authorized as user " << authz_jid->full();
 		return SASL_OK;
 	    }
 	}
     }
 
-    c2s->log->level(LOG_WARNING) << "Denied " << (has_admin_rights ? "admin" : "non-admin") << " user " << jid_full(auth_jid) << " to authorize as user " << jid_full(authz_jid);
+    c2s->log->level(LOG_WARNING) << "Denied " << (has_admin_rights ? "admin" : "non-admin") << " user " << auth_jid->full() << " to authorize as user " << authz_jid->full();
 
-    pool_free(local_pool);
     return SASL_NOAUTHZ;
 }
 #endif
@@ -245,7 +245,7 @@ static void check_karma(xmppd::pointer<c2s_st> c2s) {
         /* Let them read again */
         mio_read(c2s->mio, cur->c->fd);
         /* cleanup and move on in the list */
-        free(cur);
+	delete cur;
 
         cur = next;
     }
@@ -260,7 +260,7 @@ static void check_karma(xmppd::pointer<c2s_st> c2s) {
 }
 
 static void usage(void) {
-    fputs(
+    std::cout <<
 	"This is version " VERSION " of jadc2s\n\n"
 #ifdef USE_SSL
 	"SSL/TLS is enabled in this build.\n"
@@ -276,7 +276,7 @@ static void usage(void) {
 	"                   [default: " CONFIG_DIR "/jadc2s.xml]\n"
 	"   -r <randdev>    device to read randomization seed from\n"
         "   -o key=value    override config file property\n"
-        "   -b              run in background\n", stdout);
+        "   -b              run in background" << std::endl;
 }
 
 /* 
@@ -335,71 +335,241 @@ static int daemonize(void) {
     return 0;
 }
 
-c2s_st::c2s_st() : mio(NULL), shutting_down(0), jid_environment(NULL), local_id(NULL), local_alias(NULL),
-    local_noregister(NULL), local_nolegacyauth(NULL), local_ip(NULL), local_port(0), local_statfile(NULL),
-    http_forward(NULL),
+c2s_st::c2s_st(int argc, char* const* argv) : mio(NULL), shutting_down(0), local_port(0),
 #ifdef USE_SSL
-    local_sslport(0), pemfile(NULL), ciphers(NULL), ssl_no_ssl_v2(0), ssl_no_ssl_v3(0), ssl_no_tls_v1(0),
+    local_sslport(0), ssl_no_ssl_v2(0), ssl_no_ssl_v3(0), ssl_no_tls_v1(0),
     ssl_enable_workarounds(0), ssl_enable_autodetect(0), ssl_ctx(NULL), tls_required(0),
 #endif
-    connection_rates(NULL), config(NULL), nads(NULL), connection_rate_times(0), connection_rate_seconds(0),
-    pending(NULL), conns(NULL), bad_conns(NULL), bad_conns_tail(NULL), timeout(0), default_timeout(0),
-    max_fds(0), num_clients(0), sm(NULL), sm_host(NULL), sm_id(NULL), sm_secret(NULL)
+    config(NULL), nads(NULL), connection_rate_times(0), connection_rate_seconds(0),
+    bad_conns(NULL), bad_conns_tail(NULL), timeout(0), default_timeout(0),
+    max_fds(0), num_clients(0), sm(NULL), rand_dev("/dev/urandom"), config_loaded(false)
 {
+    DBG("creating c2s_st instance");
+
+    // parse commandline options
+    parse_commandline(argc, argv);
+
+    // configuration may have been loaded while parsing the commandline, if not: load now
+    // START OLDCODE
+    if (!config_loaded) {
+    // END OLDCODE
+        config = new xmppd::configuration(CONFIG_DIR "/jadc2s.xml");
+    }
+
+}
+
+/**
+ * process the configuration settings
+ *
+ * @param xptr_to_self this is ugly - here a managed pointer to the c2s instance is passed - needed to pass it on
+ */
+void c2s_st::configurate(xmppd::pointer<c2s_st> xptr_to_self) {
+    try {
+	max_fds = j_atoi(config->get_string("io.max_fds").c_str(), 1023);
+    } catch (std::string) {
+	max_fds = 1023;
+    }
+    // START OLDCODE
+    /* conn setup */
+    mio = mio_new(max_fds);
+    // END OLDCODE
+
+    // create a connection instance for each possible connection
+    conns.resize(max_fds);
+    for (int i=0; i < max_fds; i++) {
+	conns[i] = new conn_st(xptr_to_self);
+    }
+    DBG("connections created");
+
+    // START OLDCODE
+    /* nad cache */
+    nads = nad_cache_new();
+    DBG("nad_cache created");
+    // END OLDCODE
+
+    /* session manager */
+    try {
+	sm_host = config->get_string("sm.host");
+    } catch (std::string) {
+	throw std::invalid_argument("sm.host not set correctly in configuration");
+    }
+    try {
+	sm_port = config->get_integer("sm.port");
+    } catch (std::string) {
+	throw std::invalid_argument("sm.port not set correctly in configuration");
+    }
+    try {
+	sm_id = config->get_string("sm.id");
+    } catch (std::string) {
+	throw std::invalid_argument("sm.id not set correctly in configuration");
+    }
+    try {
+	sm_secret = config->get_string("sm.secret");
+    } catch (std::string) {
+	throw std::invalid_argument("sm.secret not set correctly in configuration");
+    }
+    DBG("read connect settings to the Jabber server");
+
+    connection_rate_times = config->get_integer("io.connection_limits.connects");
+    connection_rate_seconds = config->get_integer("io.connection_limits.seconds");
+
+    if (config->find("local.id") != config->end())
+	local_id = (*config)["local.id"];
+    if (config->find("local.alias") != config->end())
+	local_alias = (*config)["local.alias"];
+    if (config->find("local.noregister") != config->end())
+	local_noregister = (*config)["local.noregister"];
+    if (config->find("local.nolegacyauth") != config->end())
+	local_nolegacyauth = (*config)["local.nolegacyauth"];
+
+    try {
+	local_ip = config->get_string("local.ip");
+    } catch (std::string) {
+	DBG("No local.ip");
+    }
+    try {
+	local_port = j_atoi(config->get_string("local.port").c_str(), 5222);
+    } catch (std::string) {
+	local_port = 5222;
+    }
+    try {
+	local_statfile = config->get_string("local.statfile");
+    } catch (std::string) {
+	DBG("No local.statfile");
+    }
+    try {
+	http_forward = config->get_string("local.httpforward");
+    } catch (std::string) {
+	DBG("No local.httpforward");
+    }
+   
+#ifdef USE_SSL
+    // get SSL settings
+    try {
+	local_sslport = j_atoi(config->get_string("local.ssl.port").c_str(), 5223);
+    } catch (std::string) {
+	DBG("No local.ssl.port");
+    }
+    try {
+	pemfile = config->get_string("local.ssl.pemfile");
+    } catch (std::string) {
+	DBG("No local.ssl.pemfile");
+    }
+    try {
+	ciphers = config->get_string("local.ssl.ciphers");
+    } catch (std::string) {
+	DBG("No local.ssl.ciphers");
+    }
+  
+    ssl_enable_workarounds = config->find("local.ssl.enable_workarounds") != config->end();
+    ssl_no_ssl_v2 = config->find("local.ssl.no_ssl_v2") != config->end();
+    ssl_no_ssl_v3 = config->find("local.ssl.no_ssl_v3") != config->end();
+    ssl_no_tls_v1 = config->find("local.ssl.no_tls_v1") != config->end();
+    ssl_enable_autodetect = config->find("local.ssl.enable_autodetect") != config->end();
+#endif
+
+    iplog = config->find("io.iplog") != config->end();
+    try {
+	timeout = default_timeout = j_atoi(config->get_string("io.authtimeout").c_str(), 15);
+    } catch (std::string) {
+	timeout = default_timeout = 15;
+    }
+
+    /* require some things */
+    if (sm_host.length() == 0) {
+	throw std::string("Need the hostname where to find the router in the configuration");
+    }
+    if (sm_port == 0) {
+	throw std::string("Need the port number of the router in the configuration");
+    }
+    if (sm_id.length() == 0) {
+	throw std::string("Need our ID on the router in the configuration");
+    }
+    if (sm_secret.length() == 0) {
+	throw std::string("Need the secret for the router in the configuration");
+    }
+    if (local_id.empty()) {
+	throw std::string("Need our domain(s) for which connections should be accepted in the config");
+    }
+
+    /* authentication configuration stuff */
+    sasl_enabled = config->find("authentication") != config->end();
+    if (sasl_enabled != 0) {
+	sasl_xep0078 = config->find("authentication.legacyauth") != config->end();
+	try {
+	    sasl_appname = config->get_string("authentication.appname");
+	} catch (std::string) {
+	    DBG("Set no authentication.appname");
+	}
+	if (sasl_appname.length() == 0) {
+	    sasl_appname = PACKAGE;
+	}
+	try {
+	} catch (std::string) {
+	    DBG("Set no authentication.service");
+	}
+	if (sasl_service.length() == 0) {
+	    sasl_service = "xmpp";
+	}
+	try {
+	    sasl_fqdn = config->get_string("authentication.fqdn");
+	} catch (std::string) {
+	    DBG("Set no authentication.fqdn");
+	}
+	try {
+	    sasl_defaultrealm = config->get_string("authentication.defaultrealm");
+	} catch (std::string) {
+	    DBG("Set no authentication.defaultrealm");
+	}
+	try {
+	    sasl_min_ssf = config->get_integer("authentication.minssf");
+	} catch (std::string) {
+	    sasl_min_ssf = 0;
+	}
+	try {
+	    sasl_max_ssf = j_atoi(config->get_string("authentication.maxssf").c_str(), -1);
+	} catch (std::string) {
+	    sasl_max_ssf = -1;
+	}
+	sasl_noseclayer = config->find("authentication.noseclayer") != config->end();
+	try {
+	    sasl_sec_flags = j_atoi(config->get_string("authentication.secflags").c_str(), SASL_SEC_NOANONYMOUS);
+	} catch (std::string) {
+	    sasl_sec_flags = SASL_SEC_NOANONYMOUS;
+	}
+	if (config->find("authentication.admin") != config->end()) {
+	    sasl_admin = (*config)["authentication.admin"];
+	}
+    }
 }
 
 c2s_st::~c2s_st() {
     DBG("Destroying c2s_st instance");
 }
 
+void c2s_st::parse_commandline(int argc, char * const*argv) {
+    char optchar = 0;
 
-
-
-
-/* although this is our main and it's an all-in-one right now,
- * it's done in a way that would make it quite easy to thread, 
- * customize, or integrate with another codebase
- */
-int main(int argc, char **argv) {
-    time_t last_log, last_pending, last_jid_clean, now;
-    char optchar;
-    int config_loaded = 0;
-    int i, fd;
-    char *rand_dev = NULL;
-    unsigned int rand_seed = 0;
-    int sasl_result = 0;
-
-    signal(SIGINT, onSignal);
-    signal(SIGPIPE, SIG_IGN);
-    
-    /* set up our c2s global stuff */
-    xmppd::pointer<c2s_st> c2s = new c2s_st;
-
-    /* create environment for jid preparation */
-    c2s->jid_environment = jid_new_environment();
-
-    /* set default for rand_dev */
-    rand_dev = strdup("/dev/urandom");
-
-    /* load our config */
-    c2s->config = config_new();
-
-    /* cmdline parsing */
-    while((optchar = getopt(argc, argv, "c:r:bh?")) >= 0)
-    {
-        switch(optchar)
-        {
-            case 'h': case '?':
+    // START OLDCODE
+    while ((optchar = getopt(argc, argv, "c:r:bh?")) >= 0) {
+        switch(optchar) {
+            case 'h':
+	    case '?':
                 usage();
-                return 1;
+		throw std::string("");
 	    case 'r':
-		free(rand_dev);
-		rand_dev = strdup(optarg);
+		rand_dev = optarg;
 		break;
+		// END OLDCODE
             case 'c':
-                if(!config_load(c2s->config, optarg))
-                    config_loaded++;
+		try {
+		    config = new xmppd::configuration(optarg);
+		    config_loaded = true;
+		} catch (...) {
+		    std::cerr << "Could not load configuration " << optarg << std::endl;
+		}
                 break;
+		// START OLDCODE
     	    case 'b':
                 /* !!! needs testing */
                 /* !!! should this be a cmdline option, or in the config? */
@@ -407,130 +577,70 @@ int main(int argc, char **argv) {
                 break;	       
         }
     }
+    // END OLDCODE
+}
 
-    if(!config_loaded && config_load(c2s->config, CONFIG_DIR "/jadc2s.xml"))
-    {
-        fprintf(stderr, "no config loaded, aborting\n");
-        usage();
-        return 1;
-    }
+void c2s_st::seed_random() {
+    unsigned int rand_seed = 0;
+    int fd = 0;
 
-    /* inbuilt defaults and config file options */
-    /* !!! config options for these? */
-    c2s->connection_rates = new std::map<std::string, connection_rate_t>;
-    c2s->pending = new std::map<std::string, conn_t>;
-    c2s->bad_conns = NULL;
-    c2s->timeout = c2s->default_timeout;
-
-    /* conn setup */
-    c2s->max_fds = j_atoi(config_get_one(c2s->config, "io.max_fds", 0), 1023);
-    c2s->mio = mio_new(c2s->max_fds);
-    c2s->conns = (struct conn_st *) malloc(sizeof(struct conn_st) * c2s->max_fds);
-    memset(c2s->conns, 0, sizeof(struct conn_st) * c2s->max_fds);
-    for(i = 0; i < c2s->max_fds; i++)
-        c2s->conns[i].fd = -1;      /* -1 == unused */
-
-    /* nad cache */
-    c2s->nads = nad_cache_new();
-
-    /* session manager */
-    c2s->sm_host = config_get_one(c2s->config, "sm.host", 0);
-    c2s->sm_port = j_atoi(config_get_one(c2s->config, "sm.port", 0), 0);
-    c2s->sm_id = config_get_one(c2s->config, "sm.id", 0);
-    c2s->sm_secret = config_get_one(c2s->config, "sm.secret", 0);
-
-    c2s->connection_rate_times =
-        j_atoi(config_get_one(c2s->config, "io.connection_limits.connects", 0), 0);
-    c2s->connection_rate_seconds =
-        j_atoi(config_get_one(c2s->config, "io.connection_limits.seconds", 0), 0);
-    
-    /* XXX Change before release */
-    c2s->local_id = config_get(c2s->config,"local.id");
-    c2s->local_alias = config_get(c2s->config,"local.alias");
-    c2s->local_noregister = config_get(c2s->config,"local.noregister");
-    c2s->local_nolegacyauth = config_get(c2s->config,"local.nolegacyauth");
-    c2s->local_ip = config_get_one(c2s->config, "local.ip", 0);
-    c2s->local_port = j_atoi(config_get_one(c2s->config, "local.port", 0), 5222);
-    c2s->local_statfile = config_get_one(c2s->config, "local.statfile", 0);
-    c2s->http_forward = config_get_one(c2s->config, "local.httpforward", 0);
-#ifdef USE_SSL
-    c2s->local_sslport = j_atoi(config_get_one(c2s->config, "local.ssl.port", 0), 5223);
-    c2s->pemfile = config_get_one(c2s->config, "local.ssl.pemfile", 0);
-    c2s->ciphers = config_get_one(c2s->config, "local.ssl.ciphers", 0);
-    
-    c2s->ssl_enable_workarounds = (config_get_one(c2s->config, "local.ssl.enable_workarounds", 0) != NULL);
-    c2s->ssl_no_ssl_v2 = (config_get_one(c2s->config, "local.ssl.no_ssl_v2", 0) != NULL);
-    c2s->ssl_no_ssl_v3 = (config_get_one(c2s->config, "local.ssl.no_ssl_v3", 0) != NULL);
-    c2s->ssl_no_tls_v1 = (config_get_one(c2s->config, "local.ssl.no_tls_v1", 0) != NULL);
-    c2s->ssl_enable_autodetect = (config_get_one(c2s->config, "local.ssl.enable_autodetect", 0) != NULL);
-#endif
-    c2s->iplog = (config_get_one(c2s->config, "io.iplog", 0) != NULL);
-    c2s->default_timeout = j_atoi(config_get_one(c2s->config, "io.authtimeout", 0), 15);
-
-    /* require some things */
-    if(c2s->sm_host == NULL) {
-	fprintf(stderr, "Need the hostname where to find the router in the configuration\n");
-	usage();		/* XXX usage isn't really helpful for this */
-	return 1;
-    }
-    if(c2s->sm_port == 0) {
-	fprintf(stderr, "Need the port number of the router in the configuration\n");
-	usage();		/* XXX usage isn't really helpful for this */
-	return 1;
-    }
-    if(c2s->sm_id == NULL) {
-	fprintf(stderr, "Need our ID on the router in the configuration\n");
-	usage();		/* XXX usage isn't really helpful for this */
-	return 1;
-    }
-    if(c2s->sm_secret == NULL) {
-	fprintf(stderr, "Need the secret for the router in the configuration\n");
-	usage();		/* XXX usage isn't really helpful for this */
-	return 1;
-    }
-    if(c2s->local_id == NULL) {
-	fprintf(stderr, "Need our domain(s) for which connections should be accepted in the config\n");
-	usage();		/* XXX usage isn't really helpful for this */
-	return 1;
-    }
-
-    /* authentication configuration stuff */
-    c2s->sasl_enabled = config_get_one(c2s->config, "authentication", 0) == NULL ? 0 : 1;
-    if (c2s->sasl_enabled != 0) {
-	c2s->sasl_jep0078 = config_get_one(c2s->config, "authentication.legacyauth", 0) == NULL ? 0 : 1;
-	c2s->sasl_appname = config_get_one(c2s->config, "authentication.appname", 0);
-	if (c2s->sasl_appname == NULL) {
-	    c2s->sasl_appname = PACKAGE;
-	}
-	c2s->sasl_service = config_get_one(c2s->config, "authentication.service", 0);
-	if (c2s->sasl_service == NULL) {
-	    c2s->sasl_service = "xmpp";
-	}
-	c2s->sasl_fqdn = config_get_one(c2s->config, "authentication.fqdn", 0);
-	c2s->sasl_defaultrealm = config_get_one(c2s->config, "authentication.defaultrealm", 0);
-	c2s->sasl_min_ssf = j_atoi(config_get_one(c2s->config, "authentication.minssf", 0), 0);
-	c2s->sasl_max_ssf = (unsigned)j_atoi(config_get_one(c2s->config, "authentication.maxssf", 0), -1);
-	c2s->sasl_noseclayer = config_get_one(c2s->config, "authentication.noseclayer", 0) == NULL ? 0 : 1;
-	c2s->sasl_sec_flags = (unsigned)j_atoi(config_get_one(c2s->config, "authentication.secflags", 0), SASL_SEC_NOANONYMOUS);
-	c2s->sasl_admin = config_get(c2s->config, "authentication.admin");
-    }
-
-    /* start logging */
-    c2s->log = new xmppd::logging(c2s->sm_id);
-    c2s->log->level(LOG_NOTICE) << "starting up as " << c2s->sm_id;
-
-    /* seed the random number generator */
-    fd = open(rand_dev, O_RDONLY|O_NOCTTY);
+    // we prefere using the urandom device to seed our random number generator.
+    fd = open(rand_dev.c_str(), O_RDONLY|O_NOCTTY);
     if (fd != -1) {
 	read(fd, &rand_seed, sizeof(rand_seed));
 	close(fd);
     }
+
+    // if this is not possible, we use the current time
     if (rand_seed == 0) {
-	c2s->log->level(LOG_NOTICE) << "could not seed random number generator from " << rand_dev << " - using time";
+	log->level(LOG_NOTICE) << "could not seed random number generator from " << rand_dev << " - using time";
 	rand_seed = time(NULL);
     }
+
+    // now seed the random number generator
     srand(rand_seed);
-    free(rand_dev);
+}
+
+void c2s_st::start_logging() {
+    log = new xmppd::logging(sm_id);
+    log->level(LOG_NOTICE) << "starting up as " << sm_id;
+}
+
+/* although this is our main and it's an all-in-one right now,
+ * it's done in a way that would make it quite easy to thread, 
+ * customize, or integrate with another codebase
+ */
+int main(int argc, char* const* argv) {
+    time_t last_log, last_pending, last_jid_clean, now;
+    int i, fd;
+    int sasl_result = 0;
+
+    signal(SIGINT, onSignal);
+    signal(SIGPIPE, SIG_IGN);
+    
+    // create the instance of jadc2s
+    xmppd::pointer<c2s_st> c2s = NULL;
+    try {
+	c2s = new c2s_st(argc, argv);
+    } catch (std::logic_error err) {
+	std::cerr << "cought logic error on creating c2s_st instance:\n" << err.what() << std::endl;
+	return 1;
+    } catch (std::string message) {
+	std::cerr << message << std::endl;
+	usage();
+	return 1;
+    }
+
+    DBG("c2s_st instance created");
+
+    // process configuration data
+    c2s->configurate(c2s);
+
+    // start logging
+    c2s->start_logging();
+
+    /* seed the random number generator */
+    c2s->seed_random();
 
     /* first, make sure we can connect to our sm */
     if (!connect_new(c2s)) {
@@ -541,7 +651,7 @@ int main(int argc, char **argv) {
     /* only bind the unencrypted port if we have a real port number for it */
     if (c2s->local_port > 0) {
         /* then make sure we can listen */
-        if (mio_listen(c2s->mio, c2s->local_port, c2s->local_ip, client_io, &c2s) < 0) {
+        if (mio_listen(c2s->mio, c2s->local_port, c2s->local_ip.c_str(), client_io, &c2s) < 0) {
 	    c2s->log->level(LOG_ERR) << "failed to listen on port " << c2s->local_port << "!";
             return 1;
         }
@@ -552,7 +662,7 @@ int main(int argc, char **argv) {
 #ifdef USE_SSL
     /* get the SSL port all set up */
 // XXX    if(c2s->local_sslport == 0 || c2s->pemfile == NULL)
-    if (c2s->pemfile == NULL)
+    if (c2s->pemfile.length() == 0)
 	c2s->log->level(LOG_WARNING) << "SSL/TLS pem file not specified, SSL/TLS disabled";
     else {
         /* init the OpenSSL library */
@@ -567,11 +677,11 @@ int main(int argc, char **argv) {
 	}
 
         /* if these fail, we keep the context hanging around, because we free it at shutdown */
-        if (SSL_CTX_use_certificate_file(c2s->ssl_ctx, c2s->pemfile, SSL_FILETYPE_PEM) != 1) {
+        if (SSL_CTX_use_certificate_file(c2s->ssl_ctx, c2s->pemfile.c_str(), SSL_FILETYPE_PEM) != 1) {
 	    c2s->log->level(LOG_WARNING) << "failed to load certificate from " << c2s->pemfile << ", SSL/TLS disabled";
 	    c2s->log->level(LOG_WARNING).ssl_errors();
 	    c2s->ssl_ctx = NULL;
-	} else if (SSL_CTX_use_PrivateKey_file(c2s->ssl_ctx, c2s->pemfile, SSL_FILETYPE_PEM) != 1) {
+	} else if (SSL_CTX_use_PrivateKey_file(c2s->ssl_ctx, c2s->pemfile.c_str(), SSL_FILETYPE_PEM) != 1) {
 	    c2s->log->level(LOG_WARNING) << "failed to load private key from " << c2s->pemfile << ", SSL/TLS disabled";
 	    c2s->log->level(LOG_WARNING).ssl_errors();
 	    c2s->ssl_ctx = NULL;
@@ -581,13 +691,13 @@ int main(int argc, char **argv) {
 		c2s->log->level(LOG_WARNING).ssl_errors();
 		c2s->ssl_ctx = NULL;
 	    } else {
-		if (c2s->ciphers != NULL && !SSL_CTX_set_cipher_list(c2s->ssl_ctx, c2s->ciphers)) {
+		if (c2s->ciphers.length() > 0 && !SSL_CTX_set_cipher_list(c2s->ssl_ctx, c2s->ciphers.c_str())) {
 		    c2s->log->level(LOG_ERR) << "non of the configured ciphers could be enabled, SSL/TLS disabled";
 		    c2s->log->level(LOG_ERR).ssl_errors();
 		    c2s->ssl_ctx = NULL;
 		}
 		if (c2s->local_sslport != 0 ) {
-		    if (mio_listen(c2s->mio, c2s->local_sslport, c2s->local_ip, client_io, &c2s) < 0)
+		    if (mio_listen(c2s->mio, c2s->local_sslport, c2s->local_ip.c_str(), client_io, &c2s) < 0)
 			c2s->log->level(LOG_ERR) << "failed to listen on port " << c2s->local_sslport << "!";
 		    else
 			c2s->log->level(LOG_NOTICE) << "listening for SSL/TLS client connections on port " << c2s->local_sslport;
@@ -617,7 +727,7 @@ int main(int argc, char **argv) {
 	    DBG("callback init for" << i);
 	    sasl_callbacks[i].context = &c2s;
 	}
-	sasl_result = sasl_server_init(sasl_callbacks, c2s->sasl_appname);
+	sasl_result = sasl_server_init(sasl_callbacks, c2s->sasl_appname.c_str());
 	if (sasl_result != SASL_OK) {
 	    c2s->log->level(LOG_ERR) << "initialization of SASL library failed: " << sasl_result;
 	    exit(1);
@@ -643,8 +753,8 @@ int main(int argc, char **argv) {
         /* log this no more than once per minute */
         if ((time(NULL) - last_log) > 60) {
 	    c2s->log->level(LOG_NOTICE) << "current number of clients: " << c2s->num_clients;
-            if(c2s->local_statfile != NULL) {
-		std::ofstream statfile(c2s->local_statfile);
+            if(c2s->local_statfile.length() > 0) {
+		std::ofstream statfile(c2s->local_statfile.c_str());
 		if (statfile)
 		    statfile << c2s->num_clients;
             }
@@ -656,11 +766,11 @@ int main(int argc, char **argv) {
 	/*
         if((time(&now) - last_pending) > 15) {
 	    std::map<std::string, conn_t>::iterator p;
-	    for (p = c2s->pending->begin(); p != c2s->pending->end(); ++p) {
+	    for (p = c2s->pending.begin(); p != c2s->pending.end(); ++p) {
 		// XXX we should not need this, but currently we do ... why?
 		if (p->second == NULL) {
 		    c2s->log->level(LOG_NOTICE) << "we have to erase " << p->first << " out of c2s->pending.";
-		    c2s->pending->erase(p->first);
+		    c2s->pending.erase(p->first);
 		    continue;
 		}
 		if (now - p->second->start > c2s->timeout && p->second->fd != -1) {
@@ -673,7 +783,9 @@ int main(int argc, char **argv) {
 
 	/* cleanup the stringprep caches */
 	if ((time(NULL) - last_jid_clean) > 60) {
-	    jid_clean_cache(c2s->jid_environment);
+	    c2s->used_jid_environment.nodes->clean_cache();
+	    c2s->used_jid_environment.domains->clean_cache();
+	    c2s->used_jid_environment.resources->clean_cache();
 	}
 
         /* !!! XXX Move this in here for optimization? */
@@ -687,19 +799,25 @@ int main(int argc, char **argv) {
     c2s->log->level(LOG_NOTICE) << "shutting down";
 
     /* close client connections */
-    for(i = 0; i < c2s->max_fds; i++)
-	if (c2s->conns[i].fd != -1 && c2s->conns[i].fd != c2s->sm->fd) 
-	    conn_close(&c2s->conns[i], STREAM_ERR_SYSTEM_SHUTDOWN, "shutting down jadc2s");
+    std::vector<conn_st*>::iterator p;
+    for (p=c2s->conns.begin(); p!=c2s->conns.end(); ++p) {
+	if ((*p)->fd != -1 && (*p)->fd != c2s->sm->fd)
+	    conn_close(*p, STREAM_ERR_SYSTEM_SHUTDOWN, "shutting down " PACKAGE);
+    }
+
+    DBG("Closed open client connections");
 
     /* close session manager connection */
     c2s->shutting_down = 1;
-    conn_close(c2s->sm, NULL, NULL);
+    conn_close(c2s->sm, "", "");
 
     /* exiting, clean up */
     mio_free(c2s->mio);
-    delete c2s->connection_rates;
-    delete c2s->pending;
-    free(c2s->conns);
+
+    for (p=c2s->conns.begin(); p!=c2s->conns.end(); ++p) {
+	delete *p;
+    }
+
     nad_cache_free(c2s->nads);
     if (c2s->log != NULL)
 	delete c2s->log;
@@ -707,9 +825,6 @@ int main(int argc, char **argv) {
 #ifdef USE_SSL
     SSL_CTX_free(c2s->ssl_ctx);
 #endif
-    delete c2s->config;
-
-    pool_stat(1);
 
     return 0;
 }

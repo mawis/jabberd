@@ -39,7 +39,7 @@
  * --------------------------------------------------------------------------*/
 
 /**
- * @file str.c
+ * @file str.cc
  * @brief Handling of strings
  *
  * The j_*() functions are just helper functions, that are mostly NULL-safe versions
@@ -49,25 +49,6 @@
 #include "util.h"
 
 #include <sstream>
-
-/**
- * Copies the content of a zero-terminated string
- *
- * @note the return value is not compatible to strcpy()!
- *
- * @param dest What to copy
- * @param txt where to copy to
- * @return pointer to the end of the result (to the 0-byte at the end of a string)
- */
-static char *_j_strcpy(char *dest, char *txt) {
-    if(!txt || !dest) return(dest);
-
-    while(*txt)
-        *dest++ = *txt++;
-    *dest = '\0';
-
-    return(dest);
-}
 
 /**
  * compare two strings
@@ -144,7 +125,7 @@ int j_atoi(const char *a, int def) {
  * @param attr which value to get (the key)
  * @return the value for the passed key
  */
-char *j_attr(const char** atts, char *attr) {
+char *j_attr(const char** atts, const char *attr) {
     int i = 0;
 
     while (atts[i] != '\0') {
@@ -154,26 +135,4 @@ char *j_attr(const char** atts, char *attr) {
     }
 
     return NULL;
-}
-
-/**
- * format a filename and a line number to a single string
- *
- * @param file the file name
- * @param line the line number
- * @return formated string (in a static buffer)
- */
-char *zonestr(char *file, int line) {
-    static char buff[64];
-
-    std::ostringstream buff_stream;
-    buff_stream << file << ":" << line;
-
-    std::string result = buff_stream.str();
-    if (result.length() > sizeof(buff)-1)
-	result.erase(sizeof(buff)-1);
-
-    strcpy(buff, result.c_str());
-
-    return buff;
 }

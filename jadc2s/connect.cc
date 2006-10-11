@@ -130,7 +130,7 @@ static int _connect_packet_is_unsane_new_sc_proto(conn_t sm_conn, conn_t client_
     int sc_sm = -1;
 
     /* first check for new protocol: expected to use the new protocol? */
-    if (client_conn->sc_sm == NULL) {
+    if (client_conn->sc_sm.length() == 0) {
 	sm_conn->c2s->log->level(LOG_WARNING) << "got packet from session manager using new sc protocol for target using old protocol: bouncing";
 	_connect_bounce_packet(sm_conn, chunk_new_packet(sm_conn, 1));
 	return 1;
@@ -142,7 +142,7 @@ static int _connect_packet_is_unsane_new_sc_proto(conn_t sm_conn, conn_t client_
 	sm_conn->c2s->log->level(LOG_ERR) << "got packet from session manager using new sc protocol, that has no sm id: dropping";
 	return 1;
     }
-    if (j_strlen(client_conn->sc_sm) != NAD_AVAL_L(sm_conn->nad, sc_sm) || j_strncmp(NAD_AVAL(sm_conn->nad, sc_sm), client_conn->sc_sm, NAD_AVAL_L(sm_conn->nad, sc_sm)) != 0) {
+    if (client_conn->sc_sm != std::string(NAD_AVAL(sm_conn->nad, sc_sm), NAD_AVAL_L(sm_conn->nad, sc_sm))) {
 	sm_conn->c2s->log->level(LOG_WARNING) << "got packet from session manager using new sc protocol, that has unexpected sm id: bouncing";
 	_connect_bounce_packet(sm_conn, chunk_new_packet(sm_conn, 1));
 	return 1;
@@ -159,12 +159,10 @@ static int _connect_packet_is_unsane_new_sc_proto(conn_t sm_conn, conn_t client_
  * @return 0 = packet is sane and should be delivered, 1 = packet is routed to the wrong destination and should not further being processed
  */
 static int _connect_packet_is_unsane_old_sc_proto(conn_t sm_conn, conn_t client_conn) {
-    std::ostringstream from_jid;
-    pool local_pool = NULL;
     int from = -1;
 
     /* first check for old protocol: expected to use the old protocol? */
-    if (client_conn->sc_sm != NULL) {
+    if (client_conn->sc_sm.length() > 0) {
 	sm_conn->c2s->log->level(LOG_WARNING) << "got packet from session manager using old sc protocol for target using new protocol: bouncing";
 	_connect_bounce_packet(sm_conn, chunk_new_packet(sm_conn, 1));
 	return 1;
@@ -176,16 +174,14 @@ static int _connect_packet_is_unsane_old_sc_proto(conn_t sm_conn, conn_t client_
 	sm_conn->c2s->log->level(LOG_ERR) << "no from attribute on route element from session manager! Dropping packet.";
 	return 1;
     }
-    from_jid.write(NAD_AVAL(sm_conn->nad, from), NAD_AVAL_L(sm_conn->nad, from));
-    local_pool = pool_new();
-    if (jid_cmpx(client_conn->smid, jid_new(local_pool, sm_conn->c2s->jid_environment, from_jid.str().c_str()), JID_USER|JID_SERVER) != 0) {
-	pool_free(local_pool);
 
-	(sm_conn->c2s->log->level(LOG_WARNING) << "got packet from session manager using old sc protocol, that has unexpected route from attribute: bouncing (got from: ").write(NAD_AVAL(sm_conn->nad, from), NAD_AVAL_L(sm_conn->nad, from)) << ", expected from: " << jid_full(client_conn->smid);
+    xmppd::pointer<xmppd::jid> from_jid = new xmppd::jid(sm_conn->c2s->used_jid_environment, std::string(NAD_AVAL(sm_conn->nad, from), NAD_AVAL_L(sm_conn->nad, from)));
+    if (!client_conn->smid->cmpx(*from_jid)) {
+
+	sm_conn->c2s->log->level(LOG_WARNING) << "got packet from session manager using old sc protocol, that has unexpected route from attribute: bouncing (got from: " << from_jid->full() << ", expected from: " << client_conn->smid->full();
 	_connect_bounce_packet(sm_conn, chunk_new_packet(sm_conn, 1));
 	return 1;
     }
-    pool_free(local_pool);
 
     return 0;
 }
@@ -196,7 +192,6 @@ static int _connect_packet_is_unsane_old_sc_proto(conn_t sm_conn, conn_t client_
 static void _connect_handle_error_packet(conn_t sm_conn, conn_t client_conn) {
     int from_attr = -1;
     int error_attr = -1;
-    char *smid = NULL;
 
     /* if our target is in state_SESS, then the sm is telling us about
      * the end of our old session which has the same cid, so just ignore it */
@@ -214,8 +209,8 @@ static void _connect_handle_error_packet(conn_t sm_conn, conn_t client_conn) {
     /* disconnect if they come from a target with matching sender */
     /* simple auth responses that don't have a client connected get dropped */
     from_attr = nad_find_attr(sm_conn->nad, 0, "from", NULL);
-    smid = jid_full(client_conn->smid);
-    if (from_attr >= 0 && NAD_AVAL_L(sm_conn->nad, from_attr) == j_strlen(smid) && j_strncmp(smid, NAD_AVAL(sm_conn->nad, from_attr), NAD_AVAL_L(sm_conn->nad, from_attr)) == 0) {
+    std::string smid = client_conn->smid->full();
+    if (from_attr >= 0 && NAD_AVAL_L(sm_conn->nad, from_attr) == smid.length() && smid == std::string(NAD_AVAL(sm_conn->nad, from_attr), NAD_AVAL_L(sm_conn->nad, from_attr))) {
 	std::ostringstream reason;
 
 	/* not all errors have error attributes */
@@ -257,15 +252,10 @@ static void _connect_handle_sc_packet_started(conn_t sm_conn, int sc_element, co
 	/* update state */
 	client_conn->sasl_state = state_auth_SESSION_STARTED;
 	client_conn->state = state_OPEN;
-	sm_conn->c2s->pending->erase(jid_full(client_conn->myid));
+	sm_conn->c2s->pending.erase(client_conn->myid->full());
 
 	/* keep session manager's id */
-	if (client_conn->sc_sm != NULL) {
-	    free(client_conn->sc_sm);
-	}
-	std::ostringstream sc_sm_stream;
-	sc_sm_stream.write(NAD_AVAL(sm_conn->nad, sc_sm), NAD_AVAL_L(sm_conn->nad, sc_sm));
-	client_conn->sc_sm = strdup(sc_sm_stream.str().c_str());
+	client_conn->sc_sm = std::string(NAD_AVAL(sm_conn->nad, sc_sm), NAD_AVAL_L(sm_conn->nad, sc_sm));
 
 	/* confirm session start */
 	nad_free(sm_conn->nad);
@@ -274,21 +264,18 @@ static void _connect_handle_sc_packet_started(conn_t sm_conn, int sc_element, co
 	chunk = chunk_new(sm_conn);
 
 	nad_append_elem(chunk->nad, "iq", 0);
-	nad_append_attr(chunk->nad, "from", client_conn->authzid->server);
+	nad_append_attr(chunk->nad, "from", client_conn->authzid->get_domain().c_str());
 	nad_append_attr(chunk->nad, "type", "result");
-	if (client_conn->id_session_start != NULL)
-	    nad_append_attr(chunk->nad, "id", client_conn->id_session_start);
+	if (client_conn->id_session_start.length() > 0)
+	    nad_append_attr(chunk->nad, "id", client_conn->id_session_start.c_str());
 	nad_append_elem(chunk->nad, "session", 1);
 	nad_append_attr(chunk->nad, "xmlns", "urn:ietf:params:xml:ns:xmpp-session");
 
 	/* send response */
-	chunk_write(client_conn, chunk, NULL, NULL, NULL);
+	chunk_write(client_conn, chunk, "", "", "");
 
 	/* cleanup */
-	if (client_conn->id_session_start != NULL) {
-	    free(client_conn->id_session_start);
-	    client_conn->id_session_start = NULL;
-	}
+	client_conn->id_session_start = "";
     }
 }
 
@@ -303,7 +290,7 @@ static void _connect_handle_sc_packet_ended(conn_t sm_conn, int sc_element, conn
     sc_sm = nad_find_attr(sm_conn->nad, sc_element, "sc:c2s", NULL);
 
     /* check if we have to close a connection */
-    if (NAD_AVAL_L(sm_conn->nad, sc_sm) == j_strlen(client_conn->sc_sm) && j_strncmp(NAD_AVAL(sm_conn->nad, sc_sm), client_conn->sc_sm, NAD_AVAL_L(sm_conn->nad, sc_sm)) == 0 && client_conn->fd >= 0) {
+    if (client_conn->sc_sm == std::string(NAD_AVAL(sm_conn->nad, sc_sm), NAD_AVAL_L(sm_conn->nad, sc_sm)) && client_conn->fd >= 0) {
 	sm_conn->c2s->log->level(LOG_NOTICE) << "session manager requested, that we close fd " << client_conn->fd;
 	conn_close(client_conn, STREAM_ERR_TIMEOUT, "session manager requested to close connection");
     } else {
@@ -389,7 +376,7 @@ static void _connect_process(conn_t c) {
     }
 
     /* does not matter if old or new session control protocol: id should now have the target fd */
-    if (id >= c->c2s->max_fds || ((target = &c->c2s->conns[id]) && (target->fd == -1 || target == c))) {
+    if (id >= c->c2s->max_fds || ((target = c->c2s->conns[id]) && (target->fd == -1 || target == c))) {
         DBG("dropping packet for invalid conn " << id << " (" << (uses_new_sc_protocol ? "new sc" : stanza_element >= 0 ? "old sc" : "sc:session") << ")");
         return;
     }
@@ -422,18 +409,17 @@ static void _connect_process(conn_t c) {
         DBG("missing sender on route?");
         return;
     }
-    std::ostringstream from_str;
-    from_str.write(NAD_AVAL(c->nad, attr), NAD_AVAL_L(c->nad, attr));
+    std::string from_str(NAD_AVAL(c->nad, attr), NAD_AVAL_L(c->nad, attr));
 
     /* look for session creation responses and change client accordingly 
      * (note: if no target drop through w/ chunk since it'll error in endElement) */
     if (target->fd >= 0) {
         attr = nad_find_attr(c->nad, 0, "type", "session");
         if (attr >= 0) {
-            DBG("client " << target->fd << " now has a session " << from_str.str());
+            DBG("client " << target->fd << " now has a session " << from_str);
             target->state = state_OPEN;
-	    c->c2s->pending->erase(jid_full(target->myid));
-            target->smid = jid_new(target->idp, c->c2s->jid_environment, from_str.str().c_str());
+	    c->c2s->pending.erase(target->myid->full());
+	    target->smid = new xmppd::jid(c->c2s->used_jid_environment, from_str);
             mio_read(c->c2s->mio, target->fd); /* start reading again now */
         }
     }
@@ -442,18 +428,18 @@ static void _connect_process(conn_t c) {
     chunk = chunk_new_packet(c, 1);
 
     /* look for iq results for auths */
-    if (c->c2s->pending->find(cid.str()) != c->c2s->pending->end() && (pending = (*c->c2s->pending)[cid.str()]) != NULL && target->state == state_AUTH) {
+    if (c->c2s->pending.find(cid.str()) != c->c2s->pending.end() && (pending = (c->c2s->pending)[cid.str()]) != NULL && target->state == state_AUTH) {
         /* got a result, start a session */
         attr = nad_find_attr(chunk->nad, 1, "type", NULL);
         if(attr >= 0 && j_strncmp(NAD_AVAL(chunk->nad, attr), "result", 6) == 0)
         {
             /* auth was ok, send session request */
             DBG("client " << target->fd << "authorized, requesting session");
-            chunk_write(c, chunk, jid_full(target->smid), jid_full(pending->myid), "session");
+            chunk_write(c, chunk, target->smid->full().c_str(), pending->myid->full().c_str(), "session");
             pending->state = state_SESS;
 
 	    /* log the successfull login */
-	    c->c2s->log->level(LOG_NOTICE) << "user " << jid_full(target->userid) << " connected on fd " << target->fd << (target->c2s->iplog ? " from " : "") << (target->c2s->iplog ? target->ip : "");
+	    c->c2s->log->level(LOG_NOTICE) << "user " << target->userid->full() << " connected on fd " << target->fd << (target->c2s->iplog ? " from " : "") << (target->c2s->iplog ? target->ip : "");
 	   
 	    /* send a notification message if requested */
 	    connectionstate_send(c->c2s->config, c, target, 1);
@@ -476,7 +462,7 @@ static void _connect_process(conn_t c) {
 	    nad_set_attr(chunk->nad, stanza_element, "sc:sm", NULL);
 	}
 
-        chunk_write(target, chunk, NULL, NULL, NULL);
+        chunk_write(target, chunk, "", "", "");
 	target->out_stanzas++;
     }
     else
@@ -509,7 +495,7 @@ static void _connect_startElement(void *arg, const char* name, const char** atts
         DBG("handshaking with sm");
 
         /* create a chunk and write it */
-        chunk_write(c, chunk_new(c), NULL, NULL, NULL);
+        chunk_write(c, chunk_new(c), "", "", "");
 
         return;
     }
@@ -603,7 +589,11 @@ static int _connect_io(mio_t m, mio_action_t a, int fd, const void *data, void *
         /* try to connect again */
 	c2s = c->c2s;
 	if (!c2s->shutting_down) {
-	    retries = j_atoi(config_get_one(c2s->config, "sm.retries", 0), 5);
+	    try {
+		retries = j_atoi(c2s->config->get_string("sm.retries").c_str(), 5);
+	    } catch (std::string) {
+		retries = 5;
+	    }
 	    for (x = 0; x < retries; x++) {
 		if (connect_new(c2s))
 		    break;
@@ -662,7 +652,7 @@ int connect_new(xmppd::pointer<c2s_st> c2s)
     hints.ai_protocol = IPPROTO_TCP;
 
     /* resolve all addresses */
-    if (getaddrinfo(c2s->sm_host, port.str().c_str(), &hints, &addr_res)) {
+    if (getaddrinfo(c2s->sm_host.c_str(), port.str().c_str(), &hints, &addr_res)) {
 	c2s->log->level(LOG_ERR) << "DNS lookup for " << c2s->sm_host << " failed";
 	exit(1);
     }
@@ -745,7 +735,7 @@ int connect_new(xmppd::pointer<c2s_st> c2s)
 
     /* send stream header */
     write(fd,dummy,strlen(dummy));
-    write(fd,c2s->sm_id,strlen(c2s->sm_id));
+    write(fd, c2s->sm_id.c_str(), c2s->sm_id.length());
     write(fd,"'>",2);
 
     /* keep the name of the root element */

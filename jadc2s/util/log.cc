@@ -14,7 +14,7 @@
  */
 
 /**
- * @file log.c
+ * @file log.cc
  * @brief handling of logging
  *
  * In this file the functions needed to log messages are contained.
@@ -94,4 +94,7 @@ namespace xmppd {
 	return static_cast<std::ostream&>(*this) << text;
     }
 
+    std::ostream& logmessage::operator<<(const std::string& text) {
+	return static_cast<std::ostream&>(*this) << text;
+    }
 }

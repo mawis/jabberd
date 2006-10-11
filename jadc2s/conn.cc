@@ -53,17 +53,21 @@ conn_t conn_new(xmppd::pointer<c2s_st> c2s, int fd)
     conn_t c;
     std::ostringstream fd_stream;
 
-    c = &c2s->conns[fd];
-    memset(c, 0, sizeof(struct conn_st));
+    DBG("conn_new() called");
+
+    c = c2s->conns[fd];
+    c->reset();
+
+    DBG("reset the connection");
 
     /* set up some basic defaults */
     c->c2s = c2s;
     c->fd = fd;
     c->last_read = 0;
     c->read_bytes = 0;
-    c->sid = NULL;
+    c->sid = "";
     c->root_element = root_element_NONE;
-    c->local_id = NULL;
+    c->local_id = "";
     c->state = state_NONE;
     c->sasl_state = state_auth_NONE;
     c->type = type_NORMAL;
@@ -72,10 +76,9 @@ conn_t conn_new(xmppd::pointer<c2s_st> c2s, int fd)
     c->qtail = c->writeq = NULL;
 
     /* set up our id */
-    c->idp = pool_heap(128);
-    c->myid = jid_new(c->idp, c2s->jid_environment, c2s->sm_id);
+    c->myid = new xmppd::jid(c2s->used_jid_environment, c2s->sm_id);
     fd_stream << fd;
-    jid_set(c->myid, fd_stream.str().c_str(), JID_USER);
+    c->myid->set_node(fd_stream.str());
    
 #ifdef FLASH_HACK
     c->flash_hack = 0;
@@ -90,6 +93,8 @@ conn_t conn_new(xmppd::pointer<c2s_st> c2s, int fd)
     c->autodetect_tls = autodetect_NONE;
 #endif
 
+    DBG("set the defaults");
+
     return c;
 }
 
@@ -97,18 +102,9 @@ conn_t conn_new(xmppd::pointer<c2s_st> c2s, int fd)
 void conn_free(conn_t c)
 {
     /* free allocated strings */
-    if (c->sid != NULL) {
-	free(c->sid);
-	c->sid = NULL;
-    }
-    if (c->sc_sm != NULL) {
-	free(c->sc_sm);
-	c->sc_sm = NULL;
-    }
-    if (c->id_session_start != NULL) {
-	free(c->id_session_start);
-	c->id_session_start = NULL;
-    }
+    c->sid = "";
+    c->sc_sm = "";
+    c->id_session_start = "";
     XML_ParserFree(c->expat);
 #ifdef WITH_SASL
     if (c->sasl_conn != NULL) {
@@ -119,17 +115,16 @@ void conn_free(conn_t c)
 #ifdef USE_SSL
     SSL_free(c->ssl);
 #endif
-    pool_free(c->idp);
 
     /* flag it as unused */
     c->fd = -1;
 }
 
 /* write a stream error */
-void conn_error(conn_t c, const char *condition, const char *err) {
+void conn_error(conn_t c, const std::string& condition, const std::string& err) {
     chunk_t error = NULL;
 
-    if (c == NULL || (condition == NULL && err == NULL))
+    if (c == NULL)
 	return;
 
     /* do we still have to open the stream? */
@@ -141,9 +136,9 @@ void conn_error(conn_t c, const char *condition, const char *err) {
 	nad_append_attr(root_element->nad, "xmlns:stream", "http://etherx.jabber.org/streams");
 	if (c->type == type_FLASH)
 	    nad_append_attr(root_element->nad, "xmlns:flash", "http://www.jabber.com/streams/flash");
-	nad_append_attr(root_element->nad, "from", c->c2s->local_id != NULL && c->c2s->local_id->nvalues > 0 ? c->c2s->local_id->values[0] : "invalid");
+	nad_append_attr(root_element->nad, "from", c->c2s->local_id.empty() ? "invalid" : c->c2s->local_id.begin()->value.c_str());
 	nad_append_attr(root_element->nad, "version", "1.0");
-	chunk_write_typed(c, root_element, NULL, NULL, NULL, c->type == type_FLASH ? chunk_NORMAL : chunk_OPEN);
+	chunk_write_typed(c, root_element, "", "", "", c->type == type_FLASH ? chunk_NORMAL : chunk_OPEN);
     }
 
     DBG("sending stream error: " << condition << " " << err);
@@ -151,22 +146,23 @@ void conn_error(conn_t c, const char *condition, const char *err) {
     nad_append_elem(error->nad, "stream:error", 0);
 
     /* send the condition (should be present!) */
-    if(condition != NULL) {
-	nad_append_elem(error->nad, condition, 1);
+    if(condition.length() > 0) {
+	nad_append_elem(error->nad, condition.c_str(), 1);
 	nad_append_attr(error->nad, "xmlns", "urn:ietf:params:xml:ns:xmpp-streams");
     }
 
-    if(err != NULL) {
+    if(err.length() > 0) {
 	nad_append_elem(error->nad, "text", 1);
 	nad_append_attr(error->nad, "xmlns", "urn:ietf:params:xml:ns:xmpp-streams");
-	nad_append_cdata(error->nad, err, strlen(err), 2);
+	nad_append_cdata(error->nad, err.c_str(), err.length(), 2);
     }
 
-    chunk_write(c, error, NULL, NULL, NULL);
+    chunk_write(c, error, "", "", "");
+    DBG("stream error sent");
 }
 
 #ifdef USE_SSL
-static void _log_ssl_io_error(xmppd::logging *l, SSL *ssl, int retcode, int fd, const char *used_func);
+static void _log_ssl_io_error(xmppd::logging *l, SSL *ssl, int retcode, int fd, const std::string& used_func);
 #endif
 
 /**
@@ -182,8 +178,7 @@ const char* _conn_root_element_name(root_element_t root_element) {
 }
 
 /* write errors out and close streams */
-void conn_close(conn_t c, const char *condition, const char *err)
-{
+void conn_close(conn_t c, const std::string& condition, const std::string& err) {
     if(c != NULL && c->fd != -1)
     {
 	chunk_t footer = NULL;
@@ -195,7 +190,7 @@ void conn_close(conn_t c, const char *condition, const char *err)
 	    if (c && c->c2s->nads) {
 		footer = chunk_new_free(c->c2s->nads);
 		nad_append_elem(footer->nad, "stream:stream", 0);
-		chunk_write_typed(c, footer, NULL, NULL, NULL, chunk_CLOSE);
+		chunk_write_typed(c, footer, "", "", "", chunk_CLOSE);
 	    }
 	} catch (std::string msg) {
 	}
@@ -235,8 +230,7 @@ chunk_t chunk_new_free(nad_cache_t nads) {
 }
 
 chunk_t chunk_new_packet(conn_t c, int packet_elem) {
-    chunk_t chunk = (chunk_t) malloc(sizeof(struct chunk_st));
-    memset(chunk, 0, sizeof(struct chunk_st));
+    chunk_t chunk = new chunk_st();
 
     chunk->next = NULL;
 
@@ -260,15 +254,15 @@ void chunk_free(chunk_t chunk)
     if (chunk->to_free != NULL)
 	free(chunk->to_free);
 
-    free(chunk);
+    delete chunk;
 }
 
 /* write a chunk to a conn */
-void chunk_write(conn_t c, chunk_t chunk, const char *to, const char *from, const char *type) {
+void chunk_write(conn_t c, chunk_t chunk, const std::string& to, const std::string& from, const std::string& type) {
     chunk_write_typed(c, chunk, to, from, type, chunk_NORMAL);
 }
 
-void chunk_write_typed(conn_t c, chunk_t chunk, const char *to, const char *from, const char *type, chunk_type_enum chunk_type) {
+void chunk_write_typed(conn_t c, chunk_t chunk, const std::string& to, const std::string& from, const std::string& type, chunk_type_enum chunk_type) {
     int elem;
 
     /* make an empty nad if there isn't one */
@@ -280,7 +274,7 @@ void chunk_write_typed(conn_t c, chunk_t chunk, const char *to, const char *from
     elem = chunk->packet_elem;
 
     /* prepend optional route data */
-    if (to != NULL && chunk->nad != NULL) {
+    if (to.length() > 0 && chunk->nad != NULL) {
 	if (chunk->nad->ecur <= chunk->packet_elem) {
 	    elem = nad_append_elem(chunk->nad, "route", 1);
 	} else {
@@ -288,11 +282,11 @@ void chunk_write_typed(conn_t c, chunk_t chunk, const char *to, const char *from
 	    elem = chunk->packet_elem;
 	}
 
-        nad_set_attr(chunk->nad, elem, "to", to);
-        nad_set_attr(chunk->nad, elem, "from", from);
+        nad_set_attr(chunk->nad, elem, "to", to.c_str());
+        nad_set_attr(chunk->nad, elem, "from", from.c_str());
 
-        if(type != NULL)
-            nad_set_attr(chunk->nad, elem, "type", type);
+        if(type.length() > 0)
+            nad_set_attr(chunk->nad, elem, "type", type.c_str());
     }
 
     /* turn the nad into xml */
@@ -363,7 +357,7 @@ void chunk_write_typed(conn_t c, chunk_t chunk, const char *to, const char *from
 		char *old_encoded_data = encoded_data;
 
 		/* to append we need a bigger buffer and append the new data in the new buffer */
-		encoded_data = (char*)malloc(encoded_len + encoded_step_len);
+		encoded_data = static_cast<char*>(malloc(encoded_len + encoded_step_len));
 		memcpy(encoded_data, old_encoded_data, encoded_len);
 		memcpy(encoded_data+encoded_len, encoded_step_data, encoded_step_len);
 		encoded_len += encoded_step_len;
@@ -409,8 +403,13 @@ void chunk_write_typed(conn_t c, chunk_t chunk, const char *to, const char *from
 int conn_max_read_len(conn_t c)
 {
     xmppd::pointer<c2s_st> c2s = c->c2s;
-    int max_bits_per_sec = j_atoi(config_get_one(c2s->config, "io.max_bps", 0),
-            1024);
+    int max_bits_per_sec = 1024;
+    try {
+	max_bits_per_sec = j_atoi(c2s->config->get_string("io.max_bps").c_str(), 1024);
+    } catch (std::string) {
+	DBG("No explicit definition of io.max_bps in configuration");
+    }
+    // START OLDCODE
     time_t now;
     int bytes;
     bad_conn_t bad_conn;
@@ -435,7 +434,7 @@ int conn_max_read_len(conn_t c)
 	return bytes;
 
     /* Create a new bad conn */
-    bad_conn = static_cast<bad_conn_t>(malloc(sizeof(struct bad_conn_st)));
+    bad_conn = new bad_conn_st;
     bad_conn->c = c;
     bad_conn->last = now;
     bad_conn->next = NULL;
@@ -532,7 +531,7 @@ int conn_read(conn_t c, char *buf, int len)
         
         /* if we got </stream:stream>, this is set */
         if(c->depth < 0) {
-	    conn_close(c, NULL, NULL);
+	    conn_close(c, "", "");
             return 0;
         }
 
@@ -550,6 +549,8 @@ int conn_write(conn_t c)
     int len;
     chunk_t cur;
 
+    DBG("conn_write()");
+
     /* try to write as much as we can */
     while((cur = c->writeq) != NULL)
     {
@@ -557,6 +558,8 @@ int conn_write(conn_t c)
 
         /* write a bit from the current buffer */
         len = _write_actual(c, c->fd, cur->wcur, cur->wlen);
+
+	DBG("written to socket, wlen=" << cur->wlen << ", len=" << len << ", errno=" << errno);
 
         /* we had an error on the write */
         if(len < 0)
@@ -583,11 +586,13 @@ int conn_write(conn_t c)
             chunk_free(cur);
         }
     } 
+
+    DBG("end of conn_write()");
     return 0;
 }
 
 #ifdef USE_SSL
-static void _log_ssl_io_error(xmppd::logging *l, SSL *ssl, int retcode, int fd, const char *used_func) {
+static void _log_ssl_io_error(xmppd::logging *l, SSL *ssl, int retcode, int fd, const std::string& used_func) {
     int ssl_error;
 
     ssl_error = SSL_get_error(ssl, retcode);
@@ -727,6 +732,7 @@ static int _write_actual(conn_t c, int fd, const char *buf, size_t count)
 	else
 	    _log_ssl_io_error(c->c2s->log, c->ssl, written, c->fd, "SSL_write");
 
+	DBG("written using OpenSSL");
         return truncated_write ? *c->sasl_outbuf_size : written; /* XXX we currently do not handle SASL blocks, that are only half written to the socket */
     }
 #endif
@@ -744,24 +750,25 @@ static int _write_actual(conn_t c, int fd, const char *buf, size_t count)
 
 	c->out_bytes += written;
     }
+    DBG("written - unencrypted");
     return truncated_write ? *c->sasl_outbuf_size : written; /* XXX we currently do not handle SASL blocks, that are only half written to the socket */
 }
 
-void connectionstate_fillnad(nad_t nad, char *from, char *to, char *user, int is_login, char *ip, const char *ssl_version, const char *ssl_cipher, const char *ssl_size_secret, const char *ssl_size_algorithm)
+void connectionstate_fillnad(nad_t nad, std::string from, std::string to, std::string user, int is_login, const std::string &ip, const char *ssl_version, const char *ssl_cipher, const char *ssl_size_secret, const char *ssl_size_algorithm)
 {
     nad_append_elem(nad, "message", 0);
-    nad_append_attr(nad, "from", from);
-    nad_append_attr(nad, "to", to);
+    nad_append_attr(nad, "from", from.c_str());
+    nad_append_attr(nad, "to", to.c_str());
     nad_append_elem(nad, "update", 1);
     nad_append_attr(nad, "xmlns", "http://amessage.info/protocol/connectionstate");
     nad_append_elem(nad, "jid", 2);
-    nad_append_cdata(nad, user, j_strlen(user), 3);
+    nad_append_cdata(nad, user.c_str(), user.length(), 3);
     if (is_login)
 	nad_append_elem(nad, "login", 2);
     else
 	nad_append_elem(nad, "logout", 2);
     nad_append_elem(nad, "ip", 2);
-    nad_append_cdata(nad, ip, j_strlen(ip), 3);
+    nad_append_cdata(nad, ip.c_str(), ip.length(), 3);
     if (ssl_version != NULL && ssl_cipher != NULL)
     {
 	char *tls_version = strdup(ssl_version);
@@ -779,15 +786,17 @@ void connectionstate_fillnad(nad_t nad, char *from, char *to, char *user, int is
     }
 }
 
-void connectionstate_send(config_t config, conn_t c, conn_t client, int is_login)
-{
-    char *receiver;
+void connectionstate_send(xmppd::pointer<xmppd::configuration> config, conn_t c, conn_t client, int is_login) {
     chunk_t chunk;
     int i;
 
+    // anyone that gets a notification?
+    if (config->find("io.notifies") == config->end())
+	return;
+
     /* send the connection state update to each configured destination */
-    for (i=0; (receiver=config_get_one(config, "io.notifies", i)); i++)
-    {
+    std::list<xmppd::configuration_entry>::const_iterator p;
+    for (p=(*config)["io.notifies"].begin(); p!=(*config)["io.notifies"].end(); ++p) {
 	const char *ssl_version = NULL;
 	const char *ssl_cipher = NULL;
 	std::ostringstream ssl_size_secret;
@@ -807,8 +816,61 @@ void connectionstate_send(config_t config, conn_t c, conn_t client, int is_login
 #endif
 
 	c->nad = nad_new(c->c2s->nads);
-	connectionstate_fillnad(c->nad, jid_full(client->myid), receiver, jid_full(client->userid), is_login, client->ip, ssl_version, ssl_cipher, ssl_size_secret.str().c_str(), ssl_size_algorithm.str().c_str());
+	connectionstate_fillnad(c->nad, client->myid->full(), p->value, client->userid->full(), is_login, client->ip, ssl_version, ssl_cipher, ssl_size_secret.str().c_str(), ssl_size_algorithm.str().c_str());
 	chunk = chunk_new(c);
-	chunk_write(c, chunk, NULL, NULL, NULL);
+	chunk_write(c, chunk, "", "", "");
     }
+}
+
+conn_st::conn_st(xmppd::pointer<c2s_st> c2s) : c2s(c2s), fd(-1), port(0),
+    read_bytes(0), last_read(0), state(state_NONE), type(type_NORMAL), start(0),
+    root_element(root_element_NONE), writeq(NULL), qtail(NULL), expat(NULL), depth(0), nad(NULL),
+    myid(NULL), smid(NULL), userid(NULL), authzid(NULL)
+#ifdef USE_SSL
+    , ssl(NULL), autodetect_tls(autodetect_NONE)
+#endif
+{
+}
+
+void conn_st::reset() {
+    c2s = NULL;
+    fd = -1;
+    ip = "";
+    port = 0;
+    read_bytes = 0;
+    last_read = 0;
+    state = state_NONE;
+    type = type_NORMAL;
+    start = 0;
+    root_element = root_element_NONE;
+    local_id = "";
+#ifdef USE_SSL
+    ssl = NULL;
+    autodetect_tls = autodetect_NONE;
+#endif
+    sid = "";
+    sc_sm = "";
+    id_session_start = "";
+    myid = NULL;
+    smid = NULL;
+    userid = NULL;
+    authzid = NULL;
+    writeq = NULL;
+    qtail = NULL;
+    expat = NULL;
+    depth = 0;
+    nad = NULL;
+#ifdef FLASH_HACK
+    flash_hack = 0;
+#endif
+    in_bytes = 0;
+    out_bytes = 0;
+    in_stanzas = 0;
+    out_stanzas = 0;
+    reset_stream = 0;
+#ifdef WITH_SASL
+    sasl_conn = NULL;
+    sasl_outbuf_size = NULL;
+#endif
+    sasl_state = state_auth_NONE;
 }

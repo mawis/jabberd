@@ -1,8 +1,9 @@
 AC_PREREQ(2.50)
 
 AC_INIT(util/util.h)
-AM_INIT_AUTOMAKE(jadc2s,0.9.2-alpha-2006-10-03)
+AM_INIT_AUTOMAKE(jadc2s,0.9.2-alpha-2006-10-11)
 AM_CONFIG_HEADER(config.h)
+AC_LANG(C++)
 
 dnl helper macros
 sinclude(ac-helpers/ac_define_dir.m4)
@@ -317,6 +318,24 @@ fi
 if test "$libexpat" != "yes"; then
     AC_MSG_ERROR([Couldn't find required libexpat installation]);
 fi
+
+dnl check for xerces-c
+AC_ARG_WITH(libxerces, AC_HELP_STRING([--with-xerces-c=DIR],
+	    [Where to find Xerces-C (required)]),
+	    libxerces=$withval, libxerces=yes)
+AC_MSG_CHECKING(for recent Xerces-C)
+if test "$libxerces" != "no"; then
+    if test "$libxerces" != "yes"; then
+	LDFLAGS="${LDFLAGS} -L$libxerces/lib"
+	CPPFLAGS="${CPPFLAGS} -I$libxerces/include"
+    fi
+    AC_TRY_COMPILE([#include <xercesc/util/PlatformUtils.hpp>], [XERCES_CPP_NAMESPACE_QUALIFIER XMLPlatformUtils::Initialize()], libxerces=yes, libxerces=no)
+fi
+if test "$libxerces" != "yes"; then
+    AC_MSG_ERROR([Couldn't find required Xerces-C installation]);
+fi
+LIBS="${LIBS} -lxerces-c"
+AC_MSG_RESULT(yes)
 
 dnl check for libidn
 AC_ARG_WITH(libidn, AC_HELP_STRING([--with-libidn=DIR],
