@@ -134,7 +134,7 @@ namespace xmppd {
 
     const std::string& configuration::get_string(const std::string& what) {
 	if (find(what) == end())
-	    throw std::string("Request for unset configuration setting");
+	    throw std::string("Request for unset configuration setting: ")+what;
 
 	if (operator[](what).empty())
 	    throw std::string("Internal error: empty list in configuration instance.");

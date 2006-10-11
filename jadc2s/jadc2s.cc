@@ -410,8 +410,16 @@ void c2s_st::configurate(xmppd::pointer<c2s_st> xptr_to_self) {
     }
     DBG("read connect settings to the Jabber server");
 
-    connection_rate_times = config->get_integer("io.connection_limits.connects");
-    connection_rate_seconds = config->get_integer("io.connection_limits.seconds");
+    try {
+	connection_rate_times = config->get_integer("io.connection_limits.connects");
+    } catch (std::string) {
+	connection_rate_times = 0;
+    }
+    try {
+	connection_rate_seconds = config->get_integer("io.connection_limits.seconds");
+    } catch (std::string) {
+	connection_rate_seconds = 0;
+    }
 
     if (config->find("local.id") != config->end())
 	local_id = (*config)["local.id"];
@@ -634,7 +642,12 @@ int main(int argc, char* const* argv) {
     DBG("c2s_st instance created");
 
     // process configuration data
-    c2s->configurate(c2s);
+    try {
+	c2s->configurate(c2s);
+    } catch (std::string message) {
+	std::cerr << message << std::endl;
+	return 1;
+    }
 
     // start logging
     c2s->start_logging();
