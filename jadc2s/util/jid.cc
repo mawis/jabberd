@@ -1,45 +1,20 @@
-/* --------------------------------------------------------------------------
+/*
+ * Licence
  *
- * License
+ * Copyright (c) 2006 Matthias Wimmer,
+ *                    mailto:m@tthias.eu, xmpp:mawis@amessage.info
  *
- * The contents of this file are subject to the Jabber Open Source License
- * Version 1.0 (the "JOSL").  You may not copy or use this file, in either
- * source code or executable form, except in compliance with the JOSL. You
- * may obtain a copy of the JOSL at http://www.jabber.org/ or at
- * http://www.opensource.org/.  
+ * You can use the content of this file using one of the following licences:
  *
- * Software distributed under the JOSL is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied.  See the JOSL
- * for the specific language governing rights and limitations under the
- * JOSL.
- *
- * Copyrights
- * 
- * Portions created by or assigned to Jabber.com, Inc. are 
- * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
- * information for Jabber.com, Inc. is available at http://www.jabber.com/.
- *
- * Portions Copyright (c) 1998-1999 Jeremie Miller.
- * 
- * Acknowledgements
- * 
- * Special thanks to the Jabber Open Source Contributors for their
- * suggestions and support of Jabber.
- * 
- * Alternatively, the contents of this file may be used under the terms of the
- * GNU General Public License Version 2 or later (the "GPL"), in which case
- * the provisions of the GPL are applicable instead of those above.  If you
- * wish to allow use of your version of this file only under the terms of the
- * GPL and not to allow others to use your version of this file under the JOSL,
- * indicate your decision by deleting the provisions above and replace them
- * with the notice and other provisions required by the GPL.  If you do not
- * delete the provisions above, a recipient may use your version of this file
- * under either the JOSL or the GPL. 
- * 
- * --------------------------------------------------------------------------*/
+ * - Version 1.0 of the Jabber Open Source Licence ("JOSL")
+ * - GNU GENERAL PUBLIC LICENSE, Version 2 or any newer version of this licence at your choice
+ * - Apache Licence, Version 2.0
+ * - GNU Lesser General Public License, Version 2.1 or any newer version of this licence at your choice
+ * - Mozilla Public License 1.1
+ */
 
 /**
- * @file jid.c
+ * @file jid.cc
  * @brief Handling of JabberIDs
  *
  * This file contains functions to store, manipulate, and compare JabberIDs
@@ -48,588 +23,180 @@
 #include "util.h"
 
 #include <sstream>
+#include <cstring>
 
-/**
- * walk through a single stringprep cache and check which entries
- * have expired
- *
- * @param cache the cache to walk
- * @param keep_newer_as what to keep in the cache
- */
-static void _jid_clean_single_cache(_jid_prep_cache_t cache, time_t keep_newer_as) {
-    std::map<std::string, _jid_prep_entry_t>::iterator p;
-    for (p = cache->hashtable->begin(); p != cache->hashtable->end(); ++p) {
-	/* sanity check */
-	if (p->second == NULL)
-	    continue;
+namespace xmppd {
+    stringprep_cache::stringprep_cache(const ::Stringprep_profile *profile) : profile(profile) {
+	if (profile == NULL)
+	    throw std::string("No profile specified when creating an xmppd::stringprep_cache");
+    }
 
-	if (p->second->last_used <= keep_newer_as) {
-	    /* the entry expired, remove it */
+    void stringprep_cache::clean_cache(std::time_t seconds) {
+	// calculate the timestamp an entry has to have at least to be kept
+	std::time_t keep_newer_as = std::time(NULL) - seconds;
 
-	    /* free memory */
-	    if (p->second->preped != NULL)
-		free(p->second->preped);
-	    free(p->second);
-
-	    /* remove from map */
-	    cache->hashtable->erase(p->first);
+	// check all entries and keep old ones
+	std::map<std::string, stringprep_cache_entry>::iterator p;
+	for (p=hashtable.begin(); p!=hashtable.end(); ++p) {
+	    if (p->second.last_used < keep_newer_as)
+		hashtable.erase(p);
 	}
     }
-}
 
-/**
- * walk through all stringprep caches and check which entries have expired
- *
- * @param environment the jid environment that holds the caches
- */
-void jid_clean_cache(jid_environment_t environment) {
-    time_t keep_newer_as = time(NULL) - 900;
+    int stringprep_cache::stringprep(std::string &in_out_string) {
+	// is there something we have to stringprep?
+	if (in_out_string == "")
+	    return STRINGPREP_OK;
 
-    _jid_clean_single_cache(environment->nodes, keep_newer_as);
-    _jid_clean_single_cache(environment->domains, keep_newer_as);
-    _jid_clean_single_cache(environment->resources, keep_newer_as);
-}
+	// check if the requested preparation has already been done
+	std::map<std::string, stringprep_cache_entry>::iterator p = hashtable.find(in_out_string);
+	if (p != hashtable.end()) {
+	    // found cached entry
 
-/**
- * caching wrapper around stringprep
- *
- * @param in_out_buffer buffer containing waht has to be stringpreped and that gets the result
- * @param max_len size of the buffer
- * @param cache the used cache, defining also the used stringprep profile
- * @return the return code of the stringprep call
- */
-static int _jid_cached_stringprep(char *in_out_buffer, int max_len, _jid_prep_cache_t cache) {
-    _jid_prep_entry_t preped;
-    int result = STRINGPREP_OK;
+	    // update the statistics
+	    p->second.used_count++;
+	    p->second.last_used = std::time(NULL);
 
-    /* check that the cache already exists
-     * we can not do anything as we don't know which profile has to be used */
-    if (cache == NULL) {
-	return STRINGPREP_UNKNOWN_PROFILE;
-    }
+	    // something needs to be changed?
+	    if (p->second.preped != "")
+		in_out_string = p->second.preped;
 
-    /* is there something that has to be stringpreped? */
-    if (in_out_buffer == NULL) {
-	return STRINGPREP_OK;
-    }
+	    // we have finished with this
+	    return STRINGPREP_OK;
+	}
 
-    /* check if the requested preparation has already been done */
+	// no cached entry, we have to stringprep
+	
+	// check the length of the string to prep
+	if (in_out_string.length()>1023)
+	    return STRINGPREP_TOO_SMALL_BUFFER;
 
-    preped = (*cache->hashtable)[in_out_buffer];
-    if (preped != NULL) {
-	/* we already prepared this argument */
+	// we need a C string to call stringprep
+	char in_out_buffer[1024];
+	std::strcpy(in_out_buffer, in_out_string.c_str());
 
-	if (preped->size <= max_len) {
-	    /* we can use the result */
+	// do the hard work
+	int result = ::stringprep(in_out_buffer, sizeof(in_out_buffer), STRINGPREP_NO_UNASSIGNED, profile);
 
-	    /* update the statistics */
-	    preped->used_count++;
-	    preped->last_used = time(NULL);
-
-	    /* do we need to copy the result? */
-	    if (preped->preped != NULL) {
-		/* copy the result */
-		strcpy(in_out_buffer, preped->preped);
+	// if we could stringprep, copy the result back to the C++ string, and cache the entry
+	if (result == STRINGPREP_OK) {
+	    // create cache entry
+	    struct stringprep_cache_entry cache_entry;
+	    cache_entry.last_used = std::time(NULL);
+	    cache_entry.used_count = 1;
+	    if (in_out_string != in_out_buffer) {
+		cache_entry.preped = in_out_buffer;
 	    }
-	} else {
-	    /* we need a bigger buffer */
-	    result = STRINGPREP_TOO_SMALL_BUFFER;
+	    hashtable[in_out_string] = cache_entry;
+
+	    // copy the result back
+	    in_out_string = in_out_buffer;
 	}
-    } else {
-	char *original;
 
-	cache->hashtable->erase(in_out_buffer);
+	// return the stringprep result code
+	return result;
+    }
 
-	/* we have to keep the key */
-	original = strdup(in_out_buffer);
+    jid_environment::jid_environment() :
+	nodes(new stringprep_cache(::stringprep_xmpp_nodeprep)),
+	domains(new stringprep_cache(::stringprep_nameprep)),
+	resources(new stringprep_cache(::stringprep_xmpp_resourceprep)) {
+    }
 
-	/* try to prepare the string */
-	result = stringprep(in_out_buffer, max_len, STRINGPREP_NO_UNASSIGNED, cache->profile);
+    jid::jid(jid_environment environment, std::string address_string) : environment(environment) {
+	// find resource
+	std::string::size_type slash_pos = address_string.find('/');
 
-	/* did we manage to prepare the string? */
-	if (result == STRINGPREP_OK && original != NULL) {
-	    /* generate an entry for the cache */
-	    preped = (_jid_prep_entry_t)malloc(sizeof(struct _jid_prep_entry_st));
-	    if (preped != NULL) {
-		/* has there been modified something? */
-		if (j_strcmp(in_out_buffer, original) == 0) {
-		    /* no, we don't need to store a copy of the original string */
-		    preped->preped = NULL;
-		} else {
-		    /* yes, store the stringpreped string */
-		    preped->preped = strdup(in_out_buffer);
-		}
-		preped->last_used = time(NULL);
-		preped->used_count = 1;
-		preped->size = strlen(in_out_buffer)+1;
+	if (slash_pos != std::string::npos) {
+	    set_resource(address_string.substr(slash_pos+1));
+	    address_string.erase(slash_pos);
+	}
 
-		/* store the entry in the cache */
-		(*cache->hashtable)[original] = preped;
-		free(original);
-	    } else {
-		free(original);
-	    }
-	} else {
-	    /* we don't need the copy of the original value */
-	    if (original != NULL)
-		free(original);
+	// find node
+	std::string::size_type at_pos = address_string.find('@');
+
+	if (at_pos != std::string::npos) {
+	    set_node(address_string.substr(0, at_pos));
+	    address_string.erase(0, at_pos+1);
+	}
+
+	// remainder is the domain
+	set_domain(address_string);
+    }
+
+    bool jid::operator==(const jid &other_jid) {
+	return (node == other_jid.node) && (domain == other_jid.domain) && (resource == other_jid.resource);
+    }
+
+    bool jid::cmpx(const jid &other_jid, bool cmp_node, bool cmp_resource, bool cmp_domain) {
+	return (!cmp_node || node == other_jid.node) && (!cmp_domain || domain == other_jid.domain) && (!cmp_resource || resource == other_jid.resource);
+    }
+
+    void jid::set_node(std::string new_node) {
+	if (environment.nodes->stringprep(new_node) == STRINGPREP_OK) {
+	    full_cache = "";
+	    node = new_node;
 	}
     }
 
-    return result;
-}
-
-/**
- * free a single stringprep cache
- *
- * @param cache the cache that should be freed
- */
-static void _jid_stop_single_cache(_jid_prep_cache_t *cache) {
-    if (*cache == NULL)
-	return;
-
-    _jid_clean_single_cache(*cache, time(NULL));
-
-    delete (*cache)->hashtable;
-
-    *cache = NULL;
-}
-
-/**
- * init a single stringprep cache
- *
- * @param cache the cache to init
- * @param prime the time used to init the hashtable
- * @param profile profile used to prepare the strings
- */
-static void _jid_init_single_cache(_jid_prep_cache_t *cache, int prime, const Stringprep_profile *profile) {
-    /* do not init a cache twice */
-    if (*cache == NULL) {
-	*cache = (_jid_prep_cache_t)malloc(sizeof(struct _jid_prep_cache_st));
-	(*cache)->hashtable = new std::map<std::string, _jid_prep_entry_t>;
-	(*cache)->profile = profile;
-    } else {
-	printf("Ooups!");
-	exit(1);
-    }
-}
-
-/**
- * free a jid preparing environment
- *
- * @param environment the environment to be freed
- */
-void jid_free_environment(jid_environment_t environment) {
-    if (environment == NULL)
-	return;
-
-    _jid_stop_single_cache(&(environment->nodes));
-    _jid_stop_single_cache(&(environment->domains));
-    _jid_stop_single_cache(&(environment->resources));
-
-    free(environment);
-}
-
-/**
- * create a new jid preparing environment
- *
- * @return the new environment
- */
-jid_environment_t jid_new_environment() {
-    jid_environment_t environment = (jid_environment_t)malloc(sizeof(struct _jid_environment));
-    bzero(environment, sizeof(struct _jid_environment));
-
-    _jid_init_single_cache(&(environment->nodes), 2003, stringprep_xmpp_nodeprep);
-    _jid_init_single_cache(&(environment->domains), 2003, stringprep_nameprep);
-    _jid_init_single_cache(&(environment->resources), 2003, stringprep_xmpp_resourceprep);
-
-    return environment;
-}
-
-/**
- * nameprep the domain identifier in a JID and check if it is valid
- *
- * @param jid data structure holding the JID
- * @return 0 if JID is valid, non zero otherwise
- */
-static int _jid_safe_domain(jid id) {
-    int result=0;
-
-    /* there must be a domain identifier */
-    if (j_strlen(id->server) == 0)
-	return 1;
-
-    /* nameprep the domain identifier */
-    result = _jid_cached_stringprep(id->server, strlen(id->server)+1, id->environment->domains);
-    if (result == STRINGPREP_TOO_SMALL_BUFFER) {
-	/* nameprep wants to expand the string, e.g. conversion from &szlig; to ss */
-	size_t biggerbuffersize = 1024;
-	char *biggerbuffer = static_cast<char*>(pmalloc(id->p, biggerbuffersize));
-	if (biggerbuffer == NULL)
-	    return 1;
-	strcpy(biggerbuffer, id->server);
-	result = _jid_cached_stringprep(biggerbuffer, biggerbuffersize, id->environment->domains);
-	id->server = biggerbuffer;
-    }
-    if (result != STRINGPREP_OK)
-	return 1;
-
-    /* the namepreped domain must not be longer than 1023 bytes */
-    if (j_strlen(id->server) > 1023)
-	return 1;
-
-    /* if nothing failed, the domain is valid */
-    return 0;
-}
-
-/**
- * nodeprep the node identifier in a JID and check if it is valid
- *
- * @param jid data structure holding the JID
- * @return 0 if JID is valid, non zero otherwise
- */
-static int _jid_safe_node(jid id) {
-    int result=0;
-
-    /* it is valid to have no node identifier in the JID */
-    if (id->user == NULL)
-	return 0;
-
-    /* nodeprep */
-    result = _jid_cached_stringprep(id->user, strlen(id->user)+1, id->environment->nodes);
-    if (result == STRINGPREP_TOO_SMALL_BUFFER) {
-	/* nodeprep wants to expand the string, e.g. conversion from &szlig; to ss */
-	size_t biggerbuffersize = 1024;
-	char *biggerbuffer = static_cast<char*>(pmalloc(id->p, biggerbuffersize));
-	if (biggerbuffer == NULL)
-	    return 1;
-	strcpy(biggerbuffer, id->user);
-	result = _jid_cached_stringprep(biggerbuffer, biggerbuffersize, id->environment->nodes);
-	id->user = biggerbuffer;
-    }
-    if (result != STRINGPREP_OK)
-	return 1;
-
-    /* the nodepreped node must not be longer than 1023 bytes */
-    if (j_strlen(id->user) > 1023)
-	return 1;
-
-    /* if nothing failed, the node is valid */
-    return 0;
-}
-
-/**
- * resourceprep the resource identifier in a JID and check if it is valid
- *
- * @param jid data structure holding the JID
- * @return 0 if JID is valid, non zero otherwise
- */
-static int _jid_safe_resource(jid id) {
-    int result=0;
-
-    /* it is valid to have no resource identifier in the JID */
-    if (id->resource == NULL)
-	return 0;
-
-    /* resource prep the resource identifier */
-    result = _jid_cached_stringprep(id->resource, strlen(id->resource)+1, id->environment->resources);
-    if (result == STRINGPREP_TOO_SMALL_BUFFER) {
-	/* resourceprep wants to expand the string, e.g. conversion from &szlig; to ss */
-	size_t biggerbuffersize = 1024;
-	char *biggerbuffer = static_cast<char*>(pmalloc(id->p, biggerbuffersize));
-	if (biggerbuffer == NULL)
-	    return 1;
-	strcpy(biggerbuffer, id->resource);
-	result = _jid_cached_stringprep(biggerbuffer, biggerbuffersize, id->environment->resources);
-	id->resource = biggerbuffer;
-    }
-    if (result != STRINGPREP_OK)
-	return 1;
-
-    /* the resourcepreped node must not be longer than 1023 bytes */
-    if (j_strlen(id->resource) > 1023)
-	return 1;
-
-    /* if nothing failed, the resource is valid */
-    return 0;
-
-}
-
-/**
- * nodeprep/nameprep/resourceprep the JID and check if it is valid
- *
- * @param jid data structure holding the JID
- * @return NULL if the JID is invalid, pointer to the jid otherwise
- */
-jid jid_safe(jid id) {
-    if (_jid_safe_domain(id))
-	return NULL;
-    if (_jid_safe_node(id))
-	return NULL;
-    if (_jid_safe_resource(id))
-	return NULL;
-
-    return id;
-}
-
-/**
- * create a new jid
- *
- * This creates a new jid from a string
- *
- * @param p memory pool to use for this jid
- * @param environment the JID environment used to stringprep the JabberID
- * @param idstr the string containing the textual representation of the jid
- * @param len the length of the string (in characters)
- * @return the new jid
- */
-jid jid_newx(pool p, jid_environment_t environment, const char *idstr, int len) {
-    char *server, *resource, *type, *str;
-    jid id;
-
-    if (p == NULL || idstr == NULL || len <= 0)
-        return NULL;
-
-    /* user@server/resource */
-
-    str = pstrdupx(p, idstr, len);
-    id = static_cast<jid>(pmalloco(p,sizeof(struct jid_struct)));
-    id->p = p;
-    id->environment = environment;
-
-    resource = strstr(str,"/");
-    if (resource != NULL) {
-        *resource = '\0';
-        ++resource;
-        if (strlen(resource) > 0)
-            id->resource = resource;
-    } else {
-        resource = str + len; /* point to end */
+    void jid::set_domain(std::string new_domain) {
+	if (environment.domains->stringprep(new_domain) == STRINGPREP_OK) {
+	    // XXX do punicode decode
+	    full_cache = "";
+	    domain = new_domain;
+	}
     }
 
-    type = strstr(str,":");
-    if (type != NULL && type < resource) {
-        *type = '\0';
-        ++type;
-        str = type; /* ignore the type: prefix */
+    void jid::set_resource(std::string new_resource) {
+	if (environment.resources->stringprep(new_resource) == STRINGPREP_OK) {
+	    full_cache = "";
+	    resource = new_resource;
+	}
     }
 
-    server = strstr(str,"@");
-    if (server == NULL || server > resource) {
-	/* if there's no @, it's just the server address */
-        id->server = str;
-    } else {
-        *server = '\0';
-        ++server;
-        id->server = server;
-        if (len > 0)
-            id->user = str;
+    const std::string& jid::full() const {
+	// (re)create result?
+	if (full_cache == "") {
+	    std::ostringstream result;
+
+	    if (node != "")
+		result << node << "@";
+	    result << domain;
+	    if (resource != "")
+		result << "/" << resource;
+
+	    full_cache = result.str();
+	}
+
+	return full_cache;
     }
 
-    return jid_safe(id);
-}
-
-/**
- * create a new jid
- *
- * This creates a new jid from a zero-terminated string
- *
- * @param p memory pool to use for this jid
- * @param environment the JID environment used to stringprep the JabberID
- * @param idstr the zero-terminated string containing the textual representation of the jid
- * @return the new jid
- */
-jid jid_new(pool p, jid_environment_t environment, const char *idstr) {
-    if (idstr == NULL)
-	return NULL;
-    return jid_newx(p, environment, idstr, strlen(idstr));
-}
-
-/**
- * set a specific component of a jid
- *
- * @param id the jid to modify
- * @param str the new value of the component
- * @param item the component to set (one of JID_USER, JID_SERVER, JID_RESOURCE)
- */
-void jid_set(jid id, const char *str, int item) {
-    char *old;
-
-    if (id == NULL)
-        return;
-
-    /* invalidate the cached copy */
-    id->full = NULL;
-
-    switch (item) {
-	case JID_RESOURCE:
-	    old = id->resource;
-	    if (str != NULL && strlen(str) != 0)
-		id->resource = pstrdup(id->p, str);
-	    else
-		id->resource = NULL;
-	    if (_jid_safe_resource(id))
-		id->resource = old; /* revert if invalid */
-	    break;
-	case JID_USER:
-	    old = id->user;
-	    if (str != NULL && strlen(str) != 0)
-		id->user = pstrdup(id->p, str);
-	    else
-		id->user = NULL;
-	    if (_jid_safe_node(id))
-		id->user = old; /* revert if invalid */
-	    break;
-	case JID_SERVER:
-	    old = id->server;
-	    id->server = pstrdup(id->p, str);
-	    if (_jid_safe_domain(id))
-		id->server = old; /* revert if invalid */
-	    break;
+    std::ostringstream &operator<<(std::ostringstream &stream, const jid address) {
+	stream << address.full();
+	return stream;
     }
 
-}
-
-/**
- * get the textual representation of a jid
- *
- * @param id the jid to get the textual representation for
- * @return zero-terminated string
- */
-char *jid_full(jid id) {
-    std::ostringstream full_jid;
-
-    if (id == NULL)
-        return NULL;
-
-    /* use cached copy */
-    if (id->full != NULL)
-        return id->full;
-
-    if (id->user != NULL) {
-	full_jid << id->user << "@";
+    const std::string& jid::get_node() {
+	return node;
     }
 
-    full_jid << id->server;
-
-    if (id->resource != NULL) {
-	full_jid << "/" << id->resource;
+    const std::string& jid::get_domain() {
+	return domain;
     }
 
-    id->full = pstrdup(id->p, full_jid.str().c_str());
-    return id->full;
-}
-
-/* local utils */
-
-/**
- * NULL-safe version of strcmp()
- *
- * @param a one string
- * @param b other string
- * @param if both a and b are NULL 0, if one of a or b are NULL -1, else the same as strcmp(a,b)
- */
-static int _jid_nullstrcmp(char *a, char *b) {
-    if (a == NULL && b == NULL)
-	return 0;
-    if (a == NULL || b == NULL)
-	return -1;
-    return strcmp(a,b);
-}
-
-/**
- * compare two JabberIDs if they are the same
- *
- * @param a the one jid
- * @param b the other jid
- * @return -1 if both JIDs are different, 0 if they are the same
- */
-int jid_cmp(jid a, jid b) {
-    if (a == NULL || b == NULL)
-        return -1;
-
-    if (_jid_nullstrcmp(a->resource, b->resource) != 0)
-	return -1;
-    if (_jid_nullstrcmp(a->user, b->user) != 0)
-	return -1;
-    if (_jid_nullstrcmp(a->server, b->server) != 0)
-	return -1;
-
-    return 0;
-}
-
-/* suggested by Anders Qvist <quest@valdez.netg.se> */
-/**
- * compare parts of two JabberIDs if they are the same
- *
- * @param a the one jid
- * @param b the other jid
- * @param parts which parts of the JID should be compared, ORed values of JID_USER, JID_SERVER, and JID_RESOURCE
- * @return -1 if both JIDs are different in the selected parts, 0 if they are the same in the selected parts
- */
-int jid_cmpx(jid a, jid b, int parts) {
-    if (a == NULL || b == NULL)
-        return -1;
-
-    if (parts & JID_RESOURCE && _jid_nullstrcmp(a->resource, b->resource) != 0)
-	return -1;
-    if (parts & JID_USER && _jid_nullstrcmp(a->user, b->user) != 0)
-	return -1;
-    if (parts & JID_SERVER && _jid_nullstrcmp(a->server, b->server) != 0)
-	return -1;
-
-    return 0;
-}
-
-/**
- * append a copy of a JabberID to a list of JabberIDs
- *
- * This function appends a copy the JabberID b to a list of JabberIDs, that start with JabberID a.
- * The function checks, that the JabberID is not already contained in the list.
- *
- * The copy of b is created in the memory pool of a.
- * 
- * @param a start of the list of JabberIDs where a copy of b should be appended
- * @param b the JabberID that should be appended
- * @return new start jid of the list
- */
-jid jid_append(jid a, jid b) {
-    jid next;
-
-    if (a == NULL)
-        return NULL;
-
-    if (b == NULL)
-        return a;
-
-    next = a;
-    while (next != NULL) {
-        /* check for dups */
-        if (jid_cmp(next,b) == 0)
-            break;
-        if (next->next == NULL)
-            next->next = jid_new(a->p, a->environment, jid_full(b));
-        next = next->next;
+    const std::string& jid::get_resource() {
+	return resource;
     }
-    return a;
-}
 
-/**
- * get a copy of a jid with the resource removed from the jid
- *
- * @param a the jid that should be copied without the resource
- * @return the copied JID with the resource removed
- */
-jid jid_user(jid a) {
-    jid ret;
+    bool jid::has_node() {
+	return node != "";
+    }
 
-    if (a == NULL || a->resource == NULL)
-	return a;
+    bool jid::has_domain() {
+	return domain != "";
+    }
 
-    ret = static_cast<jid>(pmalloco(a->p, sizeof(struct jid_struct)));
-    ret->p = a->p;
-    ret->user = a->user;
-    ret->server = a->server;
-
-    return ret;
+    bool jid::has_resource() {
+	return resource != "";
+    }
 }

@@ -39,7 +39,7 @@
  * --------------------------------------------------------------------------*/
 
 /**
- * @file nad.c
+ * @file nad.cc
  * @brief Not A DOM - Simplistic handling for XML stanzas
  *
  * using nad:

@@ -73,11 +73,15 @@ namespace xmppd {
 	}
     }
 
+    template<class pointed_type> bool pointer<pointed_type>::points_to_NULL() const {
+	return pointed_object == NULL;
+    }
+
     template<class pointed_type> pointed_type& pointer<pointed_type>::operator*() {
 	return *operator->();
     }
 
-    template<class pointed_type> pointed_type* pointer<pointed_type>::operator->() {
+    template<class pointed_type> pointed_type* pointer<pointed_type>::operator->() const {
 	// are we currently pointing to anything?
 	if (pointed_object == NULL) {
 	    assert(all_pointers_to_this_object == NULL);

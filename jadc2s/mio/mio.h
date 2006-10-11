@@ -96,7 +96,7 @@ void mio_free(mio_t m);
  * @param arg what to pass to the arg argument of the mio_handler_t() function
  * @return <0 on failure, new fd else
  */
-int mio_listen(mio_t m, int port, char *sourceip, mio_handler_t app, void *arg);
+int mio_listen(mio_t m, int port, const char *sourceip, mio_handler_t app, void *arg);
 
 /**
  * create a new socket connected to this ip:port

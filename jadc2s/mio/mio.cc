@@ -39,7 +39,7 @@
  * --------------------------------------------------------------------------*/
 
 /**
- * @file mio.c
+ * @file mio.cc
  * @brief MIO -- Managed Input/Output
  *
  * Implementation of mio.
@@ -131,7 +131,7 @@ static void _mio_debug(int line, const char *msgfmt, ...)
     pos[sz-1]=' ';
 
     va_start(ap,msgfmt);
-    fprintf(stderr,"%smio.c#%d: ",pos,line);
+    fprintf(stderr,"%smio.cc#%d: ",pos,line);
     vfprintf(stderr,msgfmt,ap);
     fprintf(stderr,"\n");
 }
@@ -484,7 +484,7 @@ void mio_write(mio_t m, int fd)
 }
 
 /* set up a listener in this mio w/ this default app/arg */
-int mio_listen(mio_t m, int port, char *sourceip, mio_handler_t app, void *arg)
+int mio_listen(mio_t m, int port, const char *sourceip, mio_handler_t app, void *arg)
 {
     int fd, flag = 1, af = AF_INET;
 #ifdef USE_IPV6

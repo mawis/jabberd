@@ -1,3 +1,22 @@
+2006-10-11  Matthias Wimmer  <m@tthias.eu>
+
+    * util/config.cc: new class to access configuration
+    * util/pointer.tcc: new method points_to_NULL() for pointer class
+    * util/jid.cc: new class to represent JabberIDs
+    * util/str.cc: removing functions _j_strcpy() and zonestr()
+    * util/pool.cc: removing this module completely
+    * util/log.cc: output operator for std::string
+    * util/util.h: reflecting the above changes
+    * util/util2.h: same
+    * mio/mio.cc: declaring sourceip argument of mio_listen as const
+    * mio/mio.h: same
+    * clients.cc: using new features from util/*.cc, using std::string
+    * connect.cc: same
+    * rate.cc: same
+    * jadc2s.cc: same
+    * conn.cc: same, and defining conn_st as a class
+    * jadc2s.h: same
+
 2006-10-04  Matthias Wimmer  <m@tthias.eu>
 
     * conn.cc: debug logging using std::clog and DBG() macro
