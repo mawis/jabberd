@@ -1,6 +1,8 @@
 2006-10-12  Matthias Wimmer  <m@tthias.eu>
 
     * jadc2s.cc: Logging the version number on startup
+    * util/config.cc: using libxml++ instead of xerces
+    * util/util2.h: same
 
 2006-10-11  Matthias Wimmer  <m@tthias.eu>
 

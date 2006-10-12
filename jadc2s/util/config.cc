@@ -21,61 +21,23 @@
  */
 
 #include "util.h"
-#include <xercesc/util/PlatformUtils.hpp>
-#include <xercesc/util/XMLString.hpp>
-#include <xercesc/sax2/XMLReaderFactory.hpp>
-#include <xercesc/util/TransService.hpp>
-// #include <xercesc/sax2/SAX2XMLReader.hpp>
-// #include <xercesc/sax2/DefaultHandler.hpp>
-#include <iostream>
 
 namespace xmppd {
 
-    configuration::configuration(const std::string& configfile) : transcoder(NULL) {
-	// Initialize Xerces to parse the file
+    configuration::configuration(const std::string& configfile) : xmlpp::SaxParser() {
+	// Parse the configuration file
 	try {
-	    XERCES_CPP_NAMESPACE_QUALIFIER XMLPlatformUtils::Initialize("");
-	} catch (const XERCES_CPP_NAMESPACE_QUALIFIER XMLException& xml_exception) {
-	    std::cerr << "Could not initialize Xerces-C\nError message is: ";
-	    char* message = XERCES_CPP_NAMESPACE_QUALIFIER XMLString::transcode(xml_exception.getMessage());
-	    std::cerr << message << std::endl;
-	    XERCES_CPP_NAMESPACE_QUALIFIER XMLString::release(&message);
-	    return;
-	}
-
-	// get the transcoder
-	XERCES_CPP_NAMESPACE_QUALIFIER XMLTransService::Codes failReason;
-	transcoder = XERCES_CPP_NAMESPACE_QUALIFIER XMLPlatformUtils::fgTransService->makeNewTranscoderFor("UTF-8", failReason, 4*1024);
-
-	// create a parser instance
-	xmppd::pointer<XERCES_CPP_NAMESPACE_QUALIFIER SAX2XMLReader> parser = XERCES_CPP_NAMESPACE_QUALIFIER XMLReaderFactory::createXMLReader();
-
-	// set handlers to this instance
-	parser->setContentHandler(this);
-	parser->setErrorHandler(this);
-
-	// parse the file
-	try {
-	    parser->parse(configfile.c_str());
-	} catch (const XERCES_CPP_NAMESPACE_QUALIFIER XMLException& to_catch) {
-	    char *message = XERCES_CPP_NAMESPACE_QUALIFIER XMLString::transcode(to_catch.getMessage());
-	    std::cerr << "XMLException in parsing file " << configfile << ":\n";
-	    std::cerr << message << std::endl;
-	    XERCES_CPP_NAMESPACE_QUALIFIER XMLString::release(&message);
-	} catch (const XERCES_CPP_NAMESPACE_QUALIFIER SAXParseException& to_catch) {
-	    char *message = XERCES_CPP_NAMESPACE_QUALIFIER XMLString::transcode(to_catch.getMessage());
-	    std::cerr << "SAXParseException in parsing file " << configfile << ":\n";
-	    std::cerr << message << std::endl;
-	    XERCES_CPP_NAMESPACE_QUALIFIER XMLString::release(&message);
+	    set_substitute_entities(true);
+	    parse_file(configfile);
+	} catch (const xmlpp::exception& ex) {
+	    throw std::string(ex.what());
 	}
     }
 
     configuration::~configuration() {
-	transcoder = NULL;
-	XERCES_CPP_NAMESPACE_QUALIFIER XMLPlatformUtils::Terminate();
     }
 
-    void configuration::endElement(const XMLCh *const uri, const XMLCh *const localname, const XMLCh *const qname) {
+    void configuration::on_end_element(const Glib::ustring& name) {
 	configuration_entry new_entry;
 	new_entry.value = parse_buffer;
 	parse_buffer = "";
@@ -85,14 +47,14 @@ namespace xmppd {
 	path_stack.pop();
     }
 
-    void configuration::startElement(const XMLCh *const uri, const XMLCh *const localname, const XMLCh *const qname, const XERCES_CPP_NAMESPACE_QUALIFIER Attributes &attrs) {
+    void configuration::on_start_element(const Glib::ustring& name, const AttributeList& attributes) {
 	// push new path to a possible value to the path_stack
 	std::string new_path;
 	if (!path_stack.empty()) {
 	    if (path_stack.top() == "") {
-		new_path = convert_xmlch_to_utf8(localname);
+		new_path = name;
 	    } else {
-		new_path = path_stack.top() + "." + convert_xmlch_to_utf8(localname);
+		new_path = path_stack.top() + "." + name;
 	    }
 	}
 
@@ -101,35 +63,8 @@ namespace xmppd {
 	parse_buffer = "";
     }
 
-    void configuration::characters(const XMLCh *const chars, const unsigned int length) {
-	if (length > 0)
-	    parse_buffer += convert_xmlch_to_utf8(chars, length);
-    }
-
-    std::string configuration::convert_xmlch_to_utf8(const XMLCh *const src, unsigned int length) {
-	const XMLCh* ptr = src;
-	if (length == 0)
-	    length = XERCES_CPP_NAMESPACE_QUALIFIER XMLString::stringLen(src);
-	std::string result;
-
-	while (length > 0) {
-	    XMLByte buffer[4*1024];
-	    unsigned int eaten = 0;
-
-	    unsigned int bytes_written = transcoder->transcodeTo(ptr, length, buffer, 4*1024, eaten, XERCES_CPP_NAMESPACE_QUALIFIER XMLTranscoder::UnRep_Throw);
-
-	    if (eaten == 0) {
-		throw std::string("Cannot convert XML string to UTF-8");
-	    }
-	    ptr += eaten;
-	    length -= eaten;
-	    if (bytes_written < 1)
-		continue;
-
-	    result += std::string(reinterpret_cast<char*>(buffer), bytes_written);
-	}
-
-	return result;
+    void configuration::on_characters(const Glib::ustring& text) {
+	parse_buffer += text;
     }
 
     const std::string& configuration::get_string(const std::string& what) {

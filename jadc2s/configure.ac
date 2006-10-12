@@ -319,23 +319,13 @@ if test "$libexpat" != "yes"; then
     AC_MSG_ERROR([Couldn't find required libexpat installation]);
 fi
 
-dnl check for xerces-c
-AC_ARG_WITH(libxerces, AC_HELP_STRING([--with-xerces-c=DIR],
-	    [Where to find Xerces-C (required)]),
-	    libxerces=$withval, libxerces=yes)
-AC_MSG_CHECKING(for recent Xerces-C)
-if test "$libxerces" != "no"; then
-    if test "$libxerces" != "yes"; then
-	LDFLAGS="${LDFLAGS} -L$libxerces/lib"
-	CPPFLAGS="${CPPFLAGS} -I$libxerces/include"
-    fi
-    AC_TRY_COMPILE([#include <xercesc/util/PlatformUtils.hpp>], [XERCES_CPP_NAMESPACE_QUALIFIER XMLPlatformUtils::Initialize()], libxerces=yes, libxerces=no)
+dnl check for libxml++
+PKG_CHECK_MODULES(LIBXMLPP, libxml++-2.6 >= 2.14.0, hasxmlpp=yes, hasxmlpp=no)
+if test $hasxmlpp = "no" ; then
+    AC_MSG_ERROR($LIBXMLPP_PKG_ERRORS)
 fi
-if test "$libxerces" != "yes"; then
-    AC_MSG_ERROR([Couldn't find required Xerces-C installation]);
-fi
-LIBS="${LIBS} -lxerces-c"
-AC_MSG_RESULT(yes)
+CPPFLAGS="$CPPFLAGS $LIBXMLPP_CFLAGS"
+LIBS="$LIBS $LIBXMLPP_LIBS"
 
 dnl check for libidn
 AC_ARG_WITH(libidn, AC_HELP_STRING([--with-libidn=DIR],
