@@ -28,12 +28,8 @@
 
 #include <stringprep.h>
 
-#include <xercesc/sax2/DefaultHandler.hpp>
-#include <xercesc/util/TransService.hpp>
+#include <libxml++/libxml++.h>
 
-// #include <xercesc/util/PlatformUtils.hpp>
-// #include <xercesc/util/XMLString.hpp>
-// #include <xercesc/sax2/XMLReaderFactory.hpp>
 
 namespace xmppd {
 
@@ -416,7 +412,7 @@ namespace xmppd {
 	    std::map<std::string, std::string> attributes;	/**< attributes of the value */
     };
 
-    class configuration : public std::map<std::string, std::list<configuration_entry> >, public XERCES_CPP_NAMESPACE_QUALIFIER DefaultHandler {
+    class configuration : public std::map<std::string, std::list<configuration_entry> >, protected xmlpp::SaxParser {
 	public:
 	    /**
 	     * constructor that read a configuration from an XML file
@@ -443,12 +439,9 @@ namespace xmppd {
 	    std::stack<std::string> path_stack;
 	    std::string parse_buffer;
 
-	    void endElement(const XMLCh *const uri, const XMLCh *const localname, const XMLCh *const qname);
-	    void startElement(const XMLCh *const uri, const XMLCh *const localname, const XMLCh *const qname, const XERCES_CPP_NAMESPACE_QUALIFIER Attributes &attrs);
-	    void characters(const XMLCh *const chars, const unsigned int length);
-
-	    xmppd::pointer<XERCES_CPP_NAMESPACE_QUALIFIER XMLTranscoder> transcoder;
-	    std::string convert_xmlch_to_utf8(const XMLCh *const src, unsigned int length = 0);
+	    void on_start_element(const Glib::ustring& name, const AttributeList& attributes);
+	    void on_end_element(const Glib::ustring& name);
+	    void on_characters(const Glib::ustring& text);
 
 	    std::map<std::string, std::string> default_settings;
     };
