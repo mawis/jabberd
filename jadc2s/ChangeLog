@@ -1,3 +1,7 @@
+2006-10-12  Matthias Wimmer  <m@tthias.eu>
+
+    * jadc2s.cc: Logging the version number on startup
+
 2006-10-11  Matthias Wimmer  <m@tthias.eu>
 
     * util/config.cc: new class to access configuration
