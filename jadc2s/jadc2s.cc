@@ -611,7 +611,7 @@ void c2s_st::seed_random() {
 
 void c2s_st::start_logging() {
     log = new xmppd::logging(sm_id);
-    log->level(LOG_NOTICE) << "starting up as " << sm_id;
+    log->level(LOG_NOTICE) << "starting up as " << sm_id << " (" << PACKAGE << " " << VERSION << ")";
 }
 
 /* although this is our main and it's an all-in-one right now,
