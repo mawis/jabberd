@@ -166,6 +166,11 @@ namespace xmppd {
     template<class pointed_type> class pointer {
 	public:
 	    /**
+	     * constructor to create a managed pointer pointing to nothing
+	     */
+	    pointer() { pointer(NULL); };
+
+	    /**
 	     * constructor to create a managed pointer for a real pointer
 	     *
 	     * After constructing a managed pointer, the freeing of the pointed_object is
