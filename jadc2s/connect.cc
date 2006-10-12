@@ -113,7 +113,7 @@ static void _connect_bounce_packet(conn_t c, chunk_t chunk) {
 
     /* end the session, the session manager expects to exist */
     if (sc_sm.str() != "" && sc_c2s.str() != "")
-	client_send_sc_command(c, to.str().c_str(), from.str().c_str(), "end", NULL, NULL, sc_sm.str().c_str(), sc_c2s.str().c_str());
+	client_send_sc_command(c, to.str().c_str(), from.str().c_str(), "end", NULL, "", sc_sm.str().c_str(), sc_c2s.str().c_str());
 }
 
 /**
@@ -176,9 +176,14 @@ static int _connect_packet_is_unsane_old_sc_proto(conn_t sm_conn, conn_t client_
     }
 
     xmppd::pointer<xmppd::jid> from_jid = new xmppd::jid(sm_conn->c2s->used_jid_environment, std::string(NAD_AVAL(sm_conn->nad, from), NAD_AVAL_L(sm_conn->nad, from)));
-    if (!client_conn->smid->cmpx(*from_jid)) {
+    try {
+	if (!client_conn->smid->cmpx(*from_jid)) {
 
-	sm_conn->c2s->log->level(LOG_WARNING) << "got packet from session manager using old sc protocol, that has unexpected route from attribute: bouncing (got from: " << from_jid->full() << ", expected from: " << client_conn->smid->full();
+	    sm_conn->c2s->log->level(LOG_WARNING) << "got packet from session manager using old sc protocol, that has unexpected route from attribute: bouncing (got from: " << from_jid->full() << ", expected from: " << client_conn->smid->full();
+	    _connect_bounce_packet(sm_conn, chunk_new_packet(sm_conn, 1));
+	    return 1;
+	}
+    } catch (std::string) {
 	_connect_bounce_packet(sm_conn, chunk_new_packet(sm_conn, 1));
 	return 1;
     }

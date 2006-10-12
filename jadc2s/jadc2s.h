@@ -292,7 +292,7 @@ typedef struct connection_rate_st
     std::string ip; /* need a copy of the ip */
     int count; /* How many have connected */
     time_t first_time; /* The time of the first conn */
-} *connection_rate_t;
+};
 
 /** c2s master data type */
 class c2s_st {
@@ -345,7 +345,7 @@ class c2s_st {
 	nad_cache_t nads;		/**< nad cache */
 
 	/* client conn stuff */
-	std::map<std::string, connection_rate_t> connection_rates; /**< our current rate limit checks */
+	std::map<std::string, xmppd::pointer<connection_rate_st> > connection_rates; /**< our current rate limit checks */
 	int connection_rate_times;
 	int connection_rate_seconds;
 	std::map<std::string, conn_t> pending; /**< waiting for auth/session */

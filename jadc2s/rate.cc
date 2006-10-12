@@ -56,14 +56,16 @@ void connection_rate_cleanup(xmppd::pointer<c2s_st> c2s) {
     if ((time(&now) - last) > c2s->connection_rate_seconds) {
 
 	/* iterate all entries in the map */
-	std::map<std::string, connection_rate_t>::iterator p;
+	std::map<std::string, xmppd::pointer<connection_rate_st> >::iterator p;
 	for (p=c2s->connection_rates.begin(); p != c2s->connection_rates.end(); ++p) {
-
-	    /* about to expire this entry? */
-	    if (now - p->second->first_time > c2s->connection_rate_seconds) {
-		DBG("free and zap");
-		delete p->second;
-		c2s->connection_rates.erase(p->first);
+	    try {
+		/* about to expire this entry? */
+		if (now - p->second->first_time > c2s->connection_rate_seconds) {
+		    DBG("free and zap");
+		    c2s->connection_rates.erase(p->first);
+		}
+	    } catch (std::string msg) {
+		DBG("Caught exception cleaning connection rates: " << msg);
 	    }
 	}
 
@@ -80,25 +82,26 @@ void connection_rate_cleanup(xmppd::pointer<c2s_st> c2s) {
 * @return 0 on valid 1 on invalid
 */
 int connection_rate_check(xmppd::pointer<c2s_st> c2s, const std::string& ip) {
-    connection_rate_t cr;
+    xmppd::pointer<connection_rate_st> cr = NULL;
     time_t now;
     
     /* See if this is disabled */
     if (c2s->connection_rate_times == 0 || c2s->connection_rate_seconds == 0)
         return 0;
 
-    cr = (c2s->connection_rates)[ip];
 
     /* If it is NULL they are the first of a possible series */
-    if (cr == NULL)
-    {
-        cr = static_cast<connection_rate_t>(malloc(sizeof(struct connection_rate_st)));
+    if (c2s->connection_rates.find(ip) == c2s->connection_rates.end()) {
+	cr = new connection_rate_st;
         cr->ip = ip;
         cr->count = 1;
         time(&cr->first_time);
 	(c2s->connection_rates)[ip] = cr;
         return 0;
     }
+
+    // existing connection rate
+    cr = (c2s->connection_rates)[ip];
 
     /* If they are outside the time limit just reset them */
     if ((time(&now) - cr->first_time) > c2s->connection_rate_seconds)
