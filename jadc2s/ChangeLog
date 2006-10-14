@@ -1,3 +1,7 @@
+2006-10-13  Matthias Wimmer  <m@tthias.eu>
+
+    * clients.cc: fixing problem in SASL authentication
+
 2006-10-12  Matthias Wimmer  <m@tthias.eu>
 
     * jadc2s.cc: Logging the version number on startup
