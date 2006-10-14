@@ -249,7 +249,7 @@ void _client_stream_send_root(conn_t c) {
     sid << rand();
 
     /* keep the generated session id ... we might need it for digest authentication */
-    c->sid = strdup(sid.str().c_str());
+    c->sid = sid.str();
 
     /* generate the header element */
     header = chunk_new_free(c->c2s->nads);
@@ -1088,9 +1088,7 @@ void _client_process(conn_t c) {
 	    /* keep id of the client request */
 	    id_attr = nad_find_attr(chunk->nad, 0, "id", NULL);
 	    if (id_attr >= 0) {
-		std::ostringstream id_session_start;
-		id_session_start.write(NAD_AVAL(chunk->nad, id_attr), NAD_AVAL_L(chunk->nad, id_attr));
-		c->id_session_start = strdup(id_session_start.str().c_str());
+		c->id_session_start = std::string(NAD_AVAL(chunk->nad, id_attr), NAD_AVAL_L(chunk->nad, id_attr));
 	    }
 
 	    /* start the session by sending the sm a notification */
@@ -1099,7 +1097,7 @@ void _client_process(conn_t c) {
 	    id_serial_str << std::hex << id_serial++;
 
 	    /* start the session on the session manager */
-	    client_send_sc_command(c->c2s->sm, c->smid->get_domain().c_str(), c->myid->full().c_str(), "start", c->authzid, id_serial_str.str().c_str(), NULL, c->myid->get_node());
+	    client_send_sc_command(c->c2s->sm, c->smid->get_domain(), c->myid->full(), "start", c->authzid, id_serial_str.str(), "", c->myid->get_node());
 	    return;
 	}
     }
@@ -1120,13 +1118,13 @@ void _client_process(conn_t c) {
 		nad_set_attr(chunk->nad, 0, "sc:sm", c->sc_sm.c_str());
 		nad_set_attr(chunk->nad, 0, "sc:c2s", c->myid->get_node().c_str());
 	    }
-            chunk_write(c->c2s->sm, chunk, c->smid->full().c_str(), c->myid->full().c_str(), "");
+            chunk_write(c->c2s->sm, chunk, c->smid->full(), c->myid->full(), "");
             break;
 
         /* anything that goes out before authentication gets flagged type='auth' */
         case state_NONE:
         case state_AUTH:
-            chunk_write(c->c2s->sm, chunk, c->smid->full().c_str(), c->myid->full().c_str(), "auth");
+            chunk_write(c->c2s->sm, chunk, c->smid->full(), c->myid->full(), "auth");
             break;
 
         default:
@@ -1171,10 +1169,10 @@ static int _client_io_accept(mio_t m, int fd, const std::string& ip_port, xmppd:
 	remote_ip.erase(ip_port_sep);
     }
 
-    DBG("new client conn " << fd << " from " << remote_ip.c_str() << ';' << remote_port.c_str());
+    DBG("new client conn " << fd << " from " << remote_ip << ';' << remote_port);
 
     /* the connection might originate on an address, that connected to often lately */
-    if (connection_rate_check(c2s, remote_ip.c_str())) {
+    if (connection_rate_check(c2s, remote_ip)) {
 	/* We had a bad rate, dump them (send an error?) */
 	DBG("rate limit is bad for " << remote_ip << " closing");
 	/* return 1 to get rid of this fd */
@@ -1704,13 +1702,13 @@ void _client_io_close(int fd, conn_t c) {
 	if(c->writeq != NULL) {
 	    for(cur = c->writeq; cur != NULL; cur = next) {
 		next = cur->next;
-		chunk_write(c->c2s->sm, cur, c->smid->full().c_str(), c->myid->full().c_str(), "error");
+		chunk_write(c->c2s->sm, cur, c->smid->full(), c->myid->full(), "error");
 	    }
 	} else {
 	    /* always send some sort of error */
 	    if (c->sc_sm.length() > 0) {
 		chunk = chunk_new(c);
-		chunk_write(c->c2s->sm, chunk, c->smid->full().c_str(), c->myid->full().c_str(), "error");
+		chunk_write(c->c2s->sm, chunk, c->smid->full(), c->myid->full(), "error");
 		chunk = NULL;
 	    }
 	}
@@ -1718,12 +1716,12 @@ void _client_io_close(int fd, conn_t c) {
 	/* close session using the new protocol */
 	if (c->sc_sm.length() > 0) {
 	    DBG("trying to close using new protocol");
-	    client_send_sc_command(c, c->authzid->get_domain().c_str(), c->myid->full().c_str(), "end", NULL, NULL, c->sc_sm, c->myid->get_node().c_str());
+	    client_send_sc_command(c, c->authzid->get_domain(), c->myid->full(), "end", NULL, NULL, c->sc_sm, c->myid->get_node());
 	}
     } else {
 	/* XXX free write queue */
 	/* remove from preauth hash */
-	c->c2s->pending.erase(c->myid->full().c_str());
+	c->c2s->pending.erase(c->myid->full());
     }
 
     /* count the number of open client connections */
