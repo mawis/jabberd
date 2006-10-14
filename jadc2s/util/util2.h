@@ -23,6 +23,7 @@
 #include <set>
 #include <list>
 #include <stack>
+#include <deque>
 
 #include <ctime>
 
@@ -399,6 +400,101 @@ namespace xmppd {
      * print out a jid
      */
     std::ostringstream &operator<<(std::ostringstream &stream, const jid address);
+
+    /* ******************** XML parsing ******************** */
+
+    class nsparser : public xmlpp::SaxParser {
+	public:
+	    static const Glib::ustring NS_XMLNS;
+	    static const Glib::ustring NS_EMPTY;
+	    static const Glib::ustring NS_XML;
+
+	    /**
+	     * Constructor
+	     *
+	     * Creates a namespace aware, SAX like parser instance
+	     */
+	    nsparser(bool use_get_entity=false);
+
+	    /**
+	     * xml namespace aware structure that holds attributes
+	     */
+	    struct AttributeNS {
+		/**
+		 * construct a structure instance
+		 *
+		 * @param localname the local name of the attribute
+		 * @param ns_prefix the namespace prefix of the attribute
+		 * @param ns_iri the namespace IRI of the attribute
+		 * @param value the value of the attribute
+		 */
+		AttributeNS(const Glib::ustring& localname, const Glib::ustring& ns_prefix, const Glib::ustring& ns_iri, const Glib::ustring& value) {
+		    this->localname = localname;
+		    this->ns_prefix = ns_prefix;
+		    this->ns_iri    = ns_iri;
+		    this->value     = value;
+		}
+
+		/**
+		 * the localname of the attribute
+		 */
+		Glib::ustring localname;
+
+		/**
+		 * the namespace prefix of the attribute
+		 */
+		Glib::ustring ns_prefix;
+
+		/**
+		 * the namespace IRI of the attribute
+		 */
+		Glib::ustring ns_iri;
+
+		/**
+		 * the value of the attribute
+		 */
+		Glib::ustring value;
+	    };
+
+	    typedef std::deque< AttributeNS > AttributeNSList;
+
+	    /**
+	     * event for a start element
+	     *
+	     * @param localname the local name of the element
+	     * @param ns_prefix the namespace prefix used by the element
+	     * @param ns_iri the namespace IRI the element is in
+	     * @param attributes the attributes on this start element
+	     */
+	    virtual void on_start_element_ns(const Glib::ustring& localname, const Glib::ustring& ns_prefix, const Glib::ustring& ns_iri, const AttributeNSList& attributes);
+
+	    /**
+	     * event for an end element
+	     *
+	     * @param localname the local name of the element
+	     * @param ns_prefix the namespace prefix used by the element
+	     * @param ns_iri the namespace IRI the element is in
+	     */
+	    virtual void on_end_element_ns(const Glib::ustring& localname, const Glib::ustring& ns_prefix, const Glib::ustring& ns_iri);
+	private:
+	    void on_start_element(const Glib::ustring& name, const AttributeList& attributes);
+	    void on_end_element(const Glib::ustring& name);
+
+	    /**
+	     * Stack defining the mappings from namespace prefixes to namespace IRIs
+	     *
+	     * Each map on the stack if for an anchestor level of XML nodes. Each map
+	     * in the stack contains a mapping from the prefix as the key to the IRI
+	     * as the value.
+	     */
+	    std::stack< std::map < Glib::ustring, Glib::ustring > > ns_mappings;
+
+	    /**
+	     * if attributes declaring namespaces should be passed as attributes to on_start_element_ns()
+	     */
+	    bool pass_ns_definitions;
+    };
+
 
     /* ******************** Configuration handling ******************** */
 
