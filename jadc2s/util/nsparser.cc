@@ -21,7 +21,7 @@
 #include "util.h"
 
 namespace xmppd {
-    nsparser::nsparser(bool use_get_entity) : xmlpp::SaxParser(use_get_entity), pass_ns_definitions(false) {
+    nsparser::nsparser(bool use_get_entity) : xmlpp::SaxParser(use_get_entity), pass_ns_definitions(false), open_elements(0) {
     }
 
     void nsparser::on_start_element_ns(const Glib::ustring& localname, const Glib::ustring& ns_prefix, const Glib::ustring& ns_iri, const AttributeNSList& attributes) {
@@ -33,15 +33,18 @@ namespace xmppd {
     void nsparser::on_start_element(const Glib::ustring& name, const AttributeList& attributes) {
 	AttributeNSList ns_attributes;
 
+	// one more open element
+	open_elements++;
+
 	// get the namespace mappings we had at the parent level
-	std::map< Glib::ustring, Glib::ustring > current_ns_mappings;
+	std::map< Glib::ustring, std::pair<Glib::ustring, int> > current_ns_mappings;
 	if (!ns_mappings.empty()) {
 	    current_ns_mappings = ns_mappings.top();
 	} else {
 	    // default namespace prefix mappings
-	    current_ns_mappings[""] = nsparser::NS_EMPTY;
-	    current_ns_mappings["xml"] = nsparser::NS_XML;
-	    current_ns_mappings["xmlns"] = nsparser::NS_XMLNS;
+	    current_ns_mappings[""] = std::pair<Glib::ustring, int>(nsparser::NS_EMPTY, 0);
+	    current_ns_mappings["xml"] = std::pair<Glib::ustring, int>(nsparser::NS_XML, 0);
+	    current_ns_mappings["xmlns"] = std::pair<Glib::ustring, int>(nsparser::NS_XMLNS, 0);
 	}
 
 	// update the mappings from what attributes of this start element define
@@ -60,14 +63,16 @@ namespace xmppd {
 	    if (current_attribute.localname == "xmlns" && current_attribute.ns_prefix == "") {
 		// new definition of the default namespace
 		current_attribute.ns_iri = nsparser::NS_XMLNS;
-		current_ns_mappings[""] = current_attribute.value;
+		current_ns_mappings[""].first = current_attribute.value;
+		current_ns_mappings[""].second = open_elements;
 		if (!pass_ns_definitions) {
 		    continue;
 		}
 	    } else if (current_attribute.ns_prefix == "xmlns") {
 		// new definition of a namespace prefix
 		current_attribute.ns_iri = nsparser::NS_XMLNS;
-		current_ns_mappings[current_attribute.localname] = current_attribute.value;
+		current_ns_mappings[current_attribute.localname].first = current_attribute.value;
+		current_ns_mappings[current_attribute.localname].second = open_elements;;
 		if (!pass_ns_definitions) {
 		    continue;
 		}
@@ -95,7 +100,7 @@ namespace xmppd {
 		throw std::string("Found attribute using undefined namespace prefix "+p2->ns_prefix);
 	    }
 	    // and set the ns_iri in the attribute definition
-	    p2->ns_iri = current_ns_mappings[p2->ns_prefix];
+	    p2->ns_iri = current_ns_mappings[p2->ns_prefix].first;
 	}
 
 	// split the name of the start element
@@ -112,7 +117,7 @@ namespace xmppd {
 	if (current_ns_mappings.find(ns_prefix) == current_ns_mappings.end()) {
 	    throw std::string("Found start element using undefined namespace prefix "+ns_prefix);
 	}
-	Glib::ustring ns_iri = current_ns_mappings[ns_prefix];
+	Glib::ustring ns_iri = current_ns_mappings[ns_prefix].first;
 
 	// call the namespace aware method
 	on_start_element_ns(localname, ns_prefix, ns_iri, ns_attributes);
@@ -129,13 +134,16 @@ namespace xmppd {
 	    localname = name.substr(colon_pos+1);
 	}
 
-	Glib::ustring ns_iri = (ns_mappings.top())[ns_prefix];
+	Glib::ustring ns_iri = (ns_mappings.top())[ns_prefix].first;
 
 	// call the namespace aware method
 	on_end_element_ns(localname, ns_prefix, ns_iri);
 
 	// pop a level of namespace mappings from the stack as we left the corresponding element
 	ns_mappings.pop();
+
+	// one open element less
+	open_elements--;
     }
 
     const Glib::ustring nsparser::NS_XMLNS = "http://www.w3.org/2000/xmlns/";
