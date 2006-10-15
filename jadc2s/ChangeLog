@@ -1,3 +1,9 @@
+2006-10-15  Matthias Wimmer  <m@tthias.eu>
+
+    * util/xmlistream.cc: parser to create stanza events
+    * util/util2.h: same
+    * util/nsparser.cc: changes to support xmlistream
+
 2006-10-14  Matthias Wimmer  <m@tthias.eu>
 
     * util/nsparser.cc: subclassing xmlpp::SaxParser to get a ns-aware parser

@@ -476,10 +476,8 @@ namespace xmppd {
 	     * @param ns_iri the namespace IRI the element is in
 	     */
 	    virtual void on_end_element_ns(const Glib::ustring& localname, const Glib::ustring& ns_prefix, const Glib::ustring& ns_iri);
-	private:
-	    void on_start_element(const Glib::ustring& name, const AttributeList& attributes);
-	    void on_end_element(const Glib::ustring& name);
 
+	protected:
 	    /**
 	     * Stack defining the mappings from namespace prefixes to namespace IRIs
 	     *
@@ -487,12 +485,70 @@ namespace xmppd {
 	     * in the stack contains a mapping from the prefix as the key to the IRI
 	     * as the value.
 	     */
-	    std::stack< std::map < Glib::ustring, Glib::ustring > > ns_mappings;
+	    std::stack< std::map < Glib::ustring, std::pair<Glib::ustring, int> > > ns_mappings;
+
+	    /**
+	     * The number of elements, that we read a start tag, but now end tag yet
+	     */
+	    unsigned int open_elements;
+	private:
+	    void on_start_element(const Glib::ustring& name, const AttributeList& attributes);
+	    void on_end_element(const Glib::ustring& name);
 
 	    /**
 	     * if attributes declaring namespaces should be passed as attributes to on_start_element_ns()
 	     */
 	    bool pass_ns_definitions;
+    };
+
+    /**
+     * The xmlistream class parses a continuous stream of XML data and fires events for the root node start tag
+     * as well as for each completely received second level element (=stanza)
+     */
+    class xmlistream : public nsparser {
+	public:
+	    /**
+	     * create a new instance of an xmlistream
+	     */
+	    xmlistream(bool use_get_entity=false);
+
+	    /**
+	     * event that notifies, that the root node start tag has been received
+	     *
+	     * @param root_element the root element that has just been read (the element is only garanteed to be valid until this method returns)
+	     */
+	    virtual void on_root_element(const xmlpp::Document& document, const xmlpp::Element& root_element);
+
+	    /**
+	     * event that a second level element has been received completely
+	     */
+	    virtual void on_stanza(const xmlpp::Document& document, const xmlpp::Element& stanza_root);
+
+	private:
+	    /**
+	     * handler for the sax element, that notifies us of a received start tag
+	     */
+	    void on_start_element_ns(const Glib::ustring& localname, const Glib::ustring& ns_prefix, const Glib::ustring& ns_iri, const AttributeNSList& attributes);
+
+	    void on_start_element_root(const Glib::ustring& localname, const Glib::ustring& ns_prefix, const Glib::ustring& ns_iri, const AttributeNSList& attributes);
+
+	    /**
+	     * handler for the sax element, that notifies us of a received end tag
+	     */
+	    void on_end_element_ns(const Glib::ustring& localname, const Glib::ustring& ns_prefix, const Glib::ustring& ns_iri);
+
+	    void on_characters(const Glib::ustring& characters);
+
+	    xmlpp::Document stream_document;
+
+	    std::stack<xmlpp::Element*> current_element;
+
+	    /**
+	     * adds the attributes of the attributes AttributeNSList to the top of current_elements
+	     *
+	     * @param attributes the attributes to add
+	     */
+	    void add_attributes_to_current_element(const AttributeNSList& attributes);
     };
 
 
