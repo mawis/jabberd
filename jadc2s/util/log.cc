@@ -32,7 +32,7 @@ namespace xmppd {
     }
 
     logmessage::~logmessage() {
-	const std::string &message = str();
+	const Glib::ustring &message = str();
 
 	/* only log if something has been written */
 	if (message != "")
@@ -52,13 +52,19 @@ namespace xmppd {
 	return *this;
     }
 
-    logging::logging(std::string ident) : identity(ident)
+    logging::logging(Glib::ustring ident) : identity(ident)
 #ifndef USE_SYSLOG
 	, logfile((ident + ".log").c_str()) 
 #endif
     {
 #ifdef USE_SYSLOG
-	openlog(identity.c_str(), LOG_PID, USE_SYSLOG);
+	std::string logging_ident;
+	try {
+	    logging_ident = Glib::locale_from_utf8(identity);
+	} catch (Glib::ConvertError) {
+	    logging_ident = PACKAGE;
+	}
+	openlog(logging_ident.c_str(), LOG_PID, USE_SYSLOG);
 #endif
     }
 
@@ -72,9 +78,16 @@ namespace xmppd {
 	return logmessage(*this, level_to_use);
     }
 
-    void logging::write(int level_to_use, std::string log_message) {
+    void logging::write(int level_to_use, Glib::ustring log_message) {
 #ifdef USE_SYSLOG
-	syslog(level_to_use, "%s", log_message.c_str());
+	std::string message;
+	try {
+	    message = Glib::locale_from_utf8(log_message);
+	} catch (Glib::ConvertError) {
+	    message = "<Conversion Error, logging as UTF-8> ";
+	    message += log_message;
+	}
+	syslog(level_to_use, "%s", message.c_str());
 #else
 	char timestamp[26];
 	time_t now;
@@ -86,7 +99,13 @@ namespace xmppd {
 	if (lf != NULL)
 	    *lf = 0;
 
-	logfile << timestamp << " [" << level_to_use << "] " << log_message << std::endl;
+	logfile << timestamp << " [" << level_to_use << "] ";
+	try {
+	    logfile << (Glib::locale_from_utf8(log_message));
+	} catch (Glib::ConvertError) {
+	    logfile << "<Conversion Error, logging as UTF-8> " << log_message;
+	}
+	logfile << std::endl;
 #endif
     }
 

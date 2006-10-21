@@ -77,7 +77,7 @@ static int _sasl_canon_user(sasl_conn_t *conn, void *context, const char *in, un
     }
 
     /* enough memory? */
-    std::string preped_user = user_jid->get_node();
+    std::string preped_user = user_jid->get_node(); // we have to count bytes, not characters here
     if (preped_user.length() >= out_max) {
 	return SASL_BUFOVER;
     }
@@ -115,7 +115,7 @@ static int _sasl_proxy_auth_check(sasl_conn_t *conn, void *context, const char *
     if (strchr(requested_user, '@') == NULL) {
 	try {
 	    authz_jid = new xmppd::jid(c2s->used_jid_environment, def_realm);
-	} catch (std::string msg) {
+	} catch (Glib::ustring msg) {
 	    c2s->log->level(LOG_ERR) << "Internal error: could not initialize authz_jid with default realm " << def_realm << ": " << msg;
 	    return SASL_FAIL;
 	}
@@ -128,7 +128,7 @@ static int _sasl_proxy_auth_check(sasl_conn_t *conn, void *context, const char *
     } else {
 	try {
 	    authz_jid = new xmppd::jid(c2s->used_jid_environment, requested_user);
-	} catch (std::string msg) {
+	} catch (Glib::ustring msg) {
 	    c2s->log->level(LOG_ERR) << "Internal error: " << requested_user << " initialized authz_jid to NULL: " << msg;
 	    return SASL_FAIL;
 	}
@@ -140,7 +140,7 @@ static int _sasl_proxy_auth_check(sasl_conn_t *conn, void *context, const char *
     if (strchr(auth_identity, '@') == NULL) {
 	try {
 	    auth_jid = new xmppd::jid(c2s->used_jid_environment, def_realm);
-	} catch (std::string msg) {
+	} catch (Glib::ustring msg) {
 	    c2s->log->level(LOG_ERR) << "Internal error: could not initialize auth_jid with default realm " << def_realm << ": " << msg;
 	    return SASL_FAIL;
 	}
@@ -153,7 +153,7 @@ static int _sasl_proxy_auth_check(sasl_conn_t *conn, void *context, const char *
     } else {
 	try {
 	    auth_jid = new xmppd::jid(c2s->used_jid_environment, auth_identity);
-	} catch (std::string msg) {
+	} catch (Glib::ustring msg) {
 	    c2s->log->level(LOG_ERR) << "Internal error: " << auth_identity << " initialized auth_jid to NULL: " << msg;
 	    return SASL_FAIL;
 	}
@@ -176,7 +176,7 @@ static int _sasl_proxy_auth_check(sasl_conn_t *conn, void *context, const char *
 	xmppd::pointer<xmppd::jid> config_jid = NULL;
 	try {
 	    config_jid = new xmppd::jid(c2s->used_jid_environment, p->value);
-	} catch (std::string msg) {
+	} catch (Glib::ustring msg) {
 	    /* as there a valid JID? */
 	    c2s->log->level(LOG_WARNING) << "invalid configuration option <authorization><admin>" << p->value << "</admin></authorization>";
 	    continue;
@@ -199,7 +199,7 @@ static int _sasl_proxy_auth_check(sasl_conn_t *conn, void *context, const char *
 	/* what authz_jid values are allowed using this config option? */
 	try {
 	    auth_as_jid = new xmppd::jid(c2s->used_jid_environment, config_jid->get_resource());
-	} catch (std::string msg) {
+	} catch (Glib::ustring msg) {
 	    c2s->log->level(LOG_WARNING) << "invalid configuration option <authorization><admin>" << p->value << "</admin></authorization> (resource invalid)";
 	    continue;
 	}
@@ -366,7 +366,7 @@ c2s_st::c2s_st(int argc, char* const* argv) : mio(NULL), shutting_down(0), local
 void c2s_st::configurate(xmppd::pointer<c2s_st> xptr_to_self) {
     try {
 	max_fds = j_atoi(config->get_string("io.max_fds").c_str(), 1023);
-    } catch (std::string) {
+    } catch (Glib::ustring) {
 	max_fds = 1023;
     }
     // START OLDCODE
@@ -390,34 +390,34 @@ void c2s_st::configurate(xmppd::pointer<c2s_st> xptr_to_self) {
     /* session manager */
     try {
 	sm_host = config->get_string("sm.host");
-    } catch (std::string) {
+    } catch (Glib::ustring) {
 	throw std::invalid_argument("sm.host not set correctly in configuration");
     }
     try {
 	sm_port = config->get_integer("sm.port");
-    } catch (std::string) {
+    } catch (Glib::ustring) {
 	throw std::invalid_argument("sm.port not set correctly in configuration");
     }
     try {
 	sm_id = config->get_string("sm.id");
-    } catch (std::string) {
+    } catch (Glib::ustring) {
 	throw std::invalid_argument("sm.id not set correctly in configuration");
     }
     try {
 	sm_secret = config->get_string("sm.secret");
-    } catch (std::string) {
+    } catch (Glib::ustring) {
 	throw std::invalid_argument("sm.secret not set correctly in configuration");
     }
     DBG("read connect settings to the Jabber server");
 
     try {
 	connection_rate_times = config->get_integer("io.connection_limits.connects");
-    } catch (std::string) {
+    } catch (Glib::ustring) {
 	connection_rate_times = 0;
     }
     try {
 	connection_rate_seconds = config->get_integer("io.connection_limits.seconds");
-    } catch (std::string) {
+    } catch (Glib::ustring) {
 	connection_rate_seconds = 0;
     }
 
@@ -432,22 +432,22 @@ void c2s_st::configurate(xmppd::pointer<c2s_st> xptr_to_self) {
 
     try {
 	local_ip = config->get_string("local.ip");
-    } catch (std::string) {
+    } catch (Glib::ustring) {
 	DBG("No local.ip");
     }
     try {
 	local_port = j_atoi(config->get_string("local.port").c_str(), 5222);
-    } catch (std::string) {
+    } catch (Glib::ustring) {
 	local_port = 5222;
     }
     try {
 	local_statfile = config->get_string("local.statfile");
-    } catch (std::string) {
+    } catch (Glib::ustring) {
 	DBG("No local.statfile");
     }
     try {
 	http_forward = config->get_string("local.httpforward");
-    } catch (std::string) {
+    } catch (Glib::ustring) {
 	DBG("No local.httpforward");
     }
    
@@ -455,17 +455,17 @@ void c2s_st::configurate(xmppd::pointer<c2s_st> xptr_to_self) {
     // get SSL settings
     try {
 	local_sslport = j_atoi(config->get_string("local.ssl.port").c_str(), 5223);
-    } catch (std::string) {
+    } catch (Glib::ustring) {
 	DBG("No local.ssl.port");
     }
     try {
 	pemfile = config->get_string("local.ssl.pemfile");
-    } catch (std::string) {
+    } catch (Glib::ustring) {
 	DBG("No local.ssl.pemfile");
     }
     try {
 	ciphers = config->get_string("local.ssl.ciphers");
-    } catch (std::string) {
+    } catch (Glib::ustring) {
 	DBG("No local.ssl.ciphers");
     }
   
@@ -479,25 +479,25 @@ void c2s_st::configurate(xmppd::pointer<c2s_st> xptr_to_self) {
     iplog = config->find("io.iplog") != config->end();
     try {
 	timeout = default_timeout = j_atoi(config->get_string("io.authtimeout").c_str(), 15);
-    } catch (std::string) {
+    } catch (Glib::ustring) {
 	timeout = default_timeout = 15;
     }
 
     /* require some things */
     if (sm_host.length() == 0) {
-	throw std::string("Need the hostname where to find the router in the configuration");
+	throw Glib::ustring("Need the hostname where to find the router in the configuration");
     }
     if (sm_port == 0) {
-	throw std::string("Need the port number of the router in the configuration");
+	throw Glib::ustring("Need the port number of the router in the configuration");
     }
     if (sm_id.length() == 0) {
-	throw std::string("Need our ID on the router in the configuration");
+	throw Glib::ustring("Need our ID on the router in the configuration");
     }
     if (sm_secret.length() == 0) {
-	throw std::string("Need the secret for the router in the configuration");
+	throw Glib::ustring("Need the secret for the router in the configuration");
     }
     if (local_id.empty()) {
-	throw std::string("Need our domain(s) for which connections should be accepted in the config");
+	throw Glib::ustring("Need our domain(s) for which connections should be accepted in the config");
     }
 
     /* authentication configuration stuff */
@@ -506,14 +506,14 @@ void c2s_st::configurate(xmppd::pointer<c2s_st> xptr_to_self) {
 	sasl_xep0078 = config->find("authentication.legacyauth") != config->end();
 	try {
 	    sasl_appname = config->get_string("authentication.appname");
-	} catch (std::string) {
+	} catch (Glib::ustring) {
 	    DBG("Set no authentication.appname");
 	}
 	if (sasl_appname.length() == 0) {
 	    sasl_appname = PACKAGE;
 	}
 	try {
-	} catch (std::string) {
+	} catch (Glib::ustring) {
 	    DBG("Set no authentication.service");
 	}
 	if (sasl_service.length() == 0) {
@@ -521,28 +521,28 @@ void c2s_st::configurate(xmppd::pointer<c2s_st> xptr_to_self) {
 	}
 	try {
 	    sasl_fqdn = config->get_string("authentication.fqdn");
-	} catch (std::string) {
+	} catch (Glib::ustring) {
 	    DBG("Set no authentication.fqdn");
 	}
 	try {
 	    sasl_defaultrealm = config->get_string("authentication.defaultrealm");
-	} catch (std::string) {
+	} catch (Glib::ustring) {
 	    DBG("Set no authentication.defaultrealm");
 	}
 	try {
 	    sasl_min_ssf = config->get_integer("authentication.minssf");
-	} catch (std::string) {
+	} catch (Glib::ustring) {
 	    sasl_min_ssf = 0;
 	}
 	try {
 	    sasl_max_ssf = j_atoi(config->get_string("authentication.maxssf").c_str(), -1);
-	} catch (std::string) {
+	} catch (Glib::ustring) {
 	    sasl_max_ssf = -1;
 	}
 	sasl_noseclayer = config->find("authentication.noseclayer") != config->end();
 	try {
 	    sasl_sec_flags = j_atoi(config->get_string("authentication.secflags").c_str(), SASL_SEC_NOANONYMOUS);
-	} catch (std::string) {
+	} catch (Glib::ustring) {
 	    sasl_sec_flags = SASL_SEC_NOANONYMOUS;
 	}
 	if (config->find("authentication.admin") != config->end()) {
@@ -564,7 +564,7 @@ void c2s_st::parse_commandline(int argc, char * const*argv) {
             case 'h':
 	    case '?':
                 usage();
-		throw std::string("");
+		throw Glib::ustring("");
 	    case 'r':
 		rand_dev = optarg;
 		break;
@@ -633,7 +633,7 @@ int main(int argc, char* const* argv) {
     } catch (std::logic_error err) {
 	std::cerr << "cought logic error on creating c2s_st instance:\n" << err.what() << std::endl;
 	return 1;
-    } catch (std::string message) {
+    } catch (Glib::ustring message) {
 	std::cerr << message << std::endl;
 	usage();
 	return 1;
@@ -644,7 +644,7 @@ int main(int argc, char* const* argv) {
     // process configuration data
     try {
 	c2s->configurate(c2s);
-    } catch (std::string message) {
+    } catch (Glib::ustring message) {
 	std::cerr << message << std::endl;
 	return 1;
     }
@@ -778,7 +778,7 @@ int main(int argc, char* const* argv) {
         /* every so often check for timed out pending conns */
 	/*
         if((time(&now) - last_pending) > 15) {
-	    std::map<std::string, conn_t>::iterator p;
+	    std::map<Glib::ustring, conn_t>::iterator p;
 	    for (p = c2s->pending.begin(); p != c2s->pending.end(); ++p) {
 		// XXX we should not need this, but currently we do ... why?
 		if (p->second == NULL) {

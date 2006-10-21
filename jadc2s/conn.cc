@@ -121,7 +121,7 @@ void conn_free(conn_t c)
 }
 
 /* write a stream error */
-void conn_error(conn_t c, const std::string& condition, const std::string& err) {
+void conn_error(conn_t c, const Glib::ustring& condition, const Glib::ustring& err) {
     chunk_t error = NULL;
 
     if (c == NULL)
@@ -162,7 +162,7 @@ void conn_error(conn_t c, const std::string& condition, const std::string& err) 
 }
 
 #ifdef USE_SSL
-static void _log_ssl_io_error(xmppd::logging *l, SSL *ssl, int retcode, int fd, const std::string& used_func);
+static void _log_ssl_io_error(xmppd::logging *l, SSL *ssl, int retcode, int fd, const Glib::ustring& used_func);
 #endif
 
 /**
@@ -178,7 +178,7 @@ const char* _conn_root_element_name(root_element_t root_element) {
 }
 
 /* write errors out and close streams */
-void conn_close(conn_t c, const std::string& condition, const std::string& err) {
+void conn_close(conn_t c, const Glib::ustring& condition, const Glib::ustring& err) {
     if(c != NULL && c->fd != -1)
     {
 	chunk_t footer = NULL;
@@ -192,7 +192,7 @@ void conn_close(conn_t c, const std::string& condition, const std::string& err) 
 		nad_append_elem(footer->nad, "stream:stream", 0);
 		chunk_write_typed(c, footer, "", "", "", chunk_CLOSE);
 	    }
-	} catch (std::string msg) {
+	} catch (Glib::ustring msg) {
 	}
 
 	/* did the connection close in the meantime? */
@@ -258,11 +258,11 @@ void chunk_free(chunk_t chunk)
 }
 
 /* write a chunk to a conn */
-void chunk_write(conn_t c, chunk_t chunk, const std::string& to, const std::string& from, const std::string& type) {
+void chunk_write(conn_t c, chunk_t chunk, const Glib::ustring& to, const Glib::ustring& from, const Glib::ustring& type) {
     chunk_write_typed(c, chunk, to, from, type, chunk_NORMAL);
 }
 
-void chunk_write_typed(conn_t c, chunk_t chunk, const std::string& to, const std::string& from, const std::string& type, chunk_type_enum chunk_type) {
+void chunk_write_typed(conn_t c, chunk_t chunk, const Glib::ustring& to, const Glib::ustring& from, const Glib::ustring& type, chunk_type_enum chunk_type) {
     int elem;
 
     /* make an empty nad if there isn't one */
@@ -406,7 +406,7 @@ int conn_max_read_len(conn_t c)
     int max_bits_per_sec = 1024;
     try {
 	max_bits_per_sec = j_atoi(c2s->config->get_string("io.max_bps").c_str(), 1024);
-    } catch (std::string) {
+    } catch (Glib::ustring) {
 	DBG("No explicit definition of io.max_bps in configuration");
     }
     // START OLDCODE
@@ -592,7 +592,7 @@ int conn_write(conn_t c)
 }
 
 #ifdef USE_SSL
-static void _log_ssl_io_error(xmppd::logging *l, SSL *ssl, int retcode, int fd, const std::string& used_func) {
+static void _log_ssl_io_error(xmppd::logging *l, SSL *ssl, int retcode, int fd, const Glib::ustring& used_func) {
     int ssl_error;
 
     ssl_error = SSL_get_error(ssl, retcode);
@@ -754,7 +754,7 @@ static int _write_actual(conn_t c, int fd, const char *buf, size_t count)
     return truncated_write ? *c->sasl_outbuf_size : written; /* XXX we currently do not handle SASL blocks, that are only half written to the socket */
 }
 
-void connectionstate_fillnad(nad_t nad, std::string from, std::string to, std::string user, int is_login, const std::string &ip, const char *ssl_version, const char *ssl_cipher, const char *ssl_size_secret, const char *ssl_size_algorithm)
+void connectionstate_fillnad(nad_t nad, Glib::ustring from, Glib::ustring to, Glib::ustring user, int is_login, const Glib::ustring &ip, const char *ssl_version, const char *ssl_cipher, const char *ssl_size_secret, const char *ssl_size_algorithm)
 {
     nad_append_elem(nad, "message", 0);
     nad_append_attr(nad, "from", from.c_str());

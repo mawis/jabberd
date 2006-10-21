@@ -97,7 +97,7 @@ namespace xmppd {
 
 	    // for all other attributes (not defining a namespace itself and having a ns prefix) check if that prefix is defined
 	    if (current_ns_mappings.find(p2->ns_prefix) == current_ns_mappings.end()) {
-		throw std::string("Found attribute using undefined namespace prefix "+p2->ns_prefix);
+		throw Glib::ustring("Found attribute using undefined namespace prefix "+p2->ns_prefix);
 	    }
 	    // and set the ns_iri in the attribute definition
 	    p2->ns_iri = current_ns_mappings[p2->ns_prefix].first;
@@ -115,7 +115,7 @@ namespace xmppd {
 
 	// get the namespace IRI for the element
 	if (current_ns_mappings.find(ns_prefix) == current_ns_mappings.end()) {
-	    throw std::string("Found start element using undefined namespace prefix "+ns_prefix);
+	    throw Glib::ustring("Found start element using undefined namespace prefix "+ns_prefix);
 	}
 	Glib::ustring ns_iri = current_ns_mappings[ns_prefix].first;
 

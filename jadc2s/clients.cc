@@ -55,7 +55,7 @@
  * @param host the host which should be checked
  * @return const_iterator pointing to the element, config.end() if host could not been found
  * */
-std::list<xmppd::configuration_entry>::const_iterator _client_check_in_hostlist(const std::list<xmppd::configuration_entry>& config, const std::string& host) {
+std::list<xmppd::configuration_entry>::const_iterator _client_check_in_hostlist(const std::list<xmppd::configuration_entry>& config, const Glib::ustring& host) {
     std::list<xmppd::configuration_entry>::const_iterator p;
 
     // check if the host is in the list
@@ -75,7 +75,7 @@ std::list<xmppd::configuration_entry>::const_iterator _client_check_in_hostlist(
  * @param value the value of the attribute
  * @return 1 if we don't have to further process this element, 0 else
  */
-int _client_root_attribute_to(conn_t c, const std::string& value) {
+int _client_root_attribute_to(conn_t c, const Glib::ustring& value) {
     DBG("checking to: " << value);
 
     /* check if the to attribute is a real host */
@@ -128,7 +128,7 @@ int _client_root_attribute_to(conn_t c, const std::string& value) {
  * @param value the value of the attribute
  * @return 1 if we don't have to further process this element, 0 else
  */
-int _client_root_attribute_xmlns(conn_t c, const std::string& value) {
+int _client_root_attribute_xmlns(conn_t c, const Glib::ustring& value) {
     DBG("checking xmlns: " << value);
 
     if (value != "jabber:client") {
@@ -147,7 +147,7 @@ int _client_root_attribute_xmlns(conn_t c, const std::string& value) {
  * @param value the value of the attribute
  * @return 1 if we don't have to further process this element, 0 else
  */
-int _client_root_attribute_version(conn_t c, const std::string& value) {
+int _client_root_attribute_version(conn_t c, const Glib::ustring& value) {
     int version = 0;
 
     /* stone age Jabber protocol */
@@ -178,7 +178,7 @@ int _client_root_attribute_version(conn_t c, const std::string& value) {
  * @param value the value of the attribute
  * @return 1 if we don't have to further process this element, 0 else
  */
-int _client_root_attribute_flash_ns(conn_t c, const std::string& value) {
+int _client_root_attribute_flash_ns(conn_t c, const Glib::ustring& value) {
     DBG("checking xmlns:flash: " << value);
     if (j_strcmp(value, "http://www.jabber.com/streams/flash") != 0) {
 	/* send the stream error */
@@ -198,7 +198,7 @@ int _client_root_attribute_flash_ns(conn_t c, const std::string& value) {
  * @param value the value of the attribute
  * @return 1 if we don't have to further process this element, 0 else
  */
-int _client_root_attribute_stream_ns(conn_t c, const std::string& value) {
+int _client_root_attribute_stream_ns(conn_t c, const Glib::ustring& value) {
     DBG("checking xmlns:stream: " << value);
     if (value != "http://etherx.jabber.org/streams") {
 	/* send the stream error */
@@ -217,7 +217,7 @@ int _client_root_attribute_stream_ns(conn_t c, const std::string& value) {
  * @param host the host for which it should be checked
  * @return 1 if it is possible to start a TLS layer, 0 if not
  */
-int _client_check_tls_possible(conn_t c, const std::string& host) {
+int _client_check_tls_possible(conn_t c, const Glib::ustring& host) {
 #ifdef USE_SSL
     /* SSL/TLS already active? */
     if (c->ssl != NULL)
@@ -1024,7 +1024,7 @@ void _client_process(conn_t c) {
 	if (bind_element >= 0 && type_attr >= 0) {
 	    int id_attr = -1;
 	    int resource_element = -1;
-	    std::string jid_str;
+	    Glib::ustring jid_str;
 	    chunk_t response = NULL;
 
 	    /* there might be an id attribute, which should be mirrored */
@@ -1143,11 +1143,11 @@ void _client_process(conn_t c) {
  * @param c2s the jadc2s instance we are running in
  * @return 1 if we want to drop this connection, 0 else
  */
-static int _client_io_accept(mio_t m, int fd, const std::string& ip_port, xmppd::pointer<c2s_st> c2s) {
+static int _client_io_accept(mio_t m, int fd, const Glib::ustring& ip_port, xmppd::pointer<c2s_st> c2s) {
     conn_t c = NULL;
     int local_port = 0;
     int sasl_result = 0;
-    std::string remote_ip_port = ip_port;
+    Glib::ustring remote_ip_port = ip_port;
     std::ostringstream local_ip_port;
 #ifdef USE_IPV6
     char local_ip[INET6_ADDRSTRLEN];
@@ -1161,10 +1161,10 @@ static int _client_io_accept(mio_t m, int fd, const std::string& ip_port, xmppd:
     if (remote_ip_port.substr(0, 7) == "::ffff:")
 	remote_ip_port.erase(0, 7);
 
-    std::string remote_ip(remote_ip_port);
-    std::string::size_type ip_port_sep = remote_ip.find(';');
-    std::string remote_port;
-    if (ip_port_sep != std::string::npos) {
+    Glib::ustring remote_ip(remote_ip_port);
+    Glib::ustring::size_type ip_port_sep = remote_ip.find(';');
+    Glib::ustring remote_port;
+    if (ip_port_sep != Glib::ustring::npos) {
 	remote_port = remote_ip.substr(ip_port_sep+1);
 	remote_ip.erase(ip_port_sep);
     }
@@ -1206,7 +1206,7 @@ static int _client_io_accept(mio_t m, int fd, const std::string& ip_port, xmppd:
     local_ip_port << local_ip << ";" << local_port;
 #else
     local_port = ntohs(sa.sin_port);
-    local_ip_port << inet_ntoa(sa.sin_addr) << ";" local_port;
+    local_ip_port << inet_ntoa(sa.sin_addr) << ";" << local_port;
 #endif
 
     /* set up the new client conn */
@@ -1648,7 +1648,7 @@ int _client_io_idle(int fd, conn_t c) {
  * @param sc_sm ID for the connection on the session manager (NULL if not "end" action)
  * @param sc_c2s ID for the connection on the client manager (NULL for "create" and "delete" action)
  */
-void client_send_sc_command(conn_t sm_conn, const std::string& to, const std::string& from, const std::string& action, const xmppd::pointer<xmppd::jid> target, const std::string& id, const std::string& sc_sm, const std::string& sc_c2s) {
+void client_send_sc_command(conn_t sm_conn, const Glib::ustring& to, const Glib::ustring& from, const Glib::ustring& action, const xmppd::pointer<xmppd::jid> target, const Glib::ustring& id, const Glib::ustring& sc_sm, const Glib::ustring& sc_c2s) {
     chunk_t chunk = NULL;
 
     /* sanity check */

@@ -183,7 +183,7 @@ static int _connect_packet_is_unsane_old_sc_proto(conn_t sm_conn, conn_t client_
 	    _connect_bounce_packet(sm_conn, chunk_new_packet(sm_conn, 1));
 	    return 1;
 	}
-    } catch (std::string) {
+    } catch (Glib::ustring) {
 	_connect_bounce_packet(sm_conn, chunk_new_packet(sm_conn, 1));
 	return 1;
     }
@@ -214,7 +214,7 @@ static void _connect_handle_error_packet(conn_t sm_conn, conn_t client_conn) {
     /* disconnect if they come from a target with matching sender */
     /* simple auth responses that don't have a client connected get dropped */
     from_attr = nad_find_attr(sm_conn->nad, 0, "from", NULL);
-    std::string smid = client_conn->smid->full();
+    Glib::ustring smid = client_conn->smid->full();
     if (from_attr >= 0 && NAD_AVAL_L(sm_conn->nad, from_attr) == smid.length() && smid == std::string(NAD_AVAL(sm_conn->nad, from_attr), NAD_AVAL_L(sm_conn->nad, from_attr))) {
 	std::ostringstream reason;
 
@@ -314,7 +314,7 @@ static void _connect_handle_sc_packet(conn_t sm_conn, int sc_element, conn_t cli
     }
     std::ostringstream action_stream;
     action_stream.write(NAD_AVAL(sm_conn->nad, action), NAD_AVAL_L(sm_conn->nad, action));
-    std::string action_str = action_stream.str();
+    Glib::ustring action_str = action_stream.str();
 
     /* switch depending on action */
     if (action_str == "started") {
@@ -596,7 +596,7 @@ static int _connect_io(mio_t m, mio_action_t a, int fd, const void *data, void *
 	if (!c2s->shutting_down) {
 	    try {
 		retries = j_atoi(c2s->config->get_string("sm.retries").c_str(), 5);
-	    } catch (std::string) {
+	    } catch (Glib::ustring) {
 		retries = 5;
 	    }
 	    for (x = 0; x < retries; x++) {
@@ -686,8 +686,8 @@ int connect_new(xmppd::pointer<c2s_st> c2s)
     }
 #else
     /* get the ip to connect to */
-    if (c2s->sm_host != NULL) {
-        h = gethostbyname(c2s->sm_host);
+    if (c2s->sm_host.length() > 0) {
+        h = gethostbyname(c2s->sm_host.c_str());
         if (h == NULL) {
 	    c2s->log->level(LOG_ERR) << "DNS lookup for " << c2s->sm_host << " failed: " << hstrerror(h_errno);
             exit(1);
