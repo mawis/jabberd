@@ -54,7 +54,7 @@ namespace xmppd {
 
 	// we shout have gotten a real root_element pointer
 	if (root_element == NULL)
-	    throw std::string("We could not create a root element ("+ns_prefix+":"+localname+"/"+ns_iri+")");
+	    throw Glib::ustring("We could not create a root element ("+ns_prefix+":"+localname+"/"+ns_iri+")");
 
 	// If our root element is not in the default namespace, we copy the default namespace if it has been declared
 	if (ns_prefix != "" && ns_mappings.top()[""].second == 2) {

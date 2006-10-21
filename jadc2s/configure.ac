@@ -319,6 +319,15 @@ if test "$libexpat" != "yes"; then
     AC_MSG_ERROR([Couldn't find required libexpat installation]);
 fi
 
+dnl check for glibmm-2.4
+PKG_CHECK_MODULES(GLIBMM, glibmm-2.4 >= 2.12.0, hasglibmm=yes, hasglibmm=no)
+if test $hasglibmm = "no" ; then
+    AC_MSG_ERROR($GLIBMM_PKG_ERRORS)
+fi
+CPPFLAGS="$CPPFLAGS $GLIBMM_CFLAGS"
+LIBS="$LIBS $GLIBMM_LIBS"
+
+
 dnl check for libxml++
 PKG_CHECK_MODULES(LIBXMLPP, libxml++-2.6 >= 2.14.0, hasxmlpp=yes, hasxmlpp=no)
 if test $hasxmlpp = "no" ; then

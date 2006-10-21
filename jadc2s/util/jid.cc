@@ -28,7 +28,7 @@
 namespace xmppd {
     stringprep_cache::stringprep_cache(const ::Stringprep_profile *profile) : profile(profile) {
 	if (profile == NULL)
-	    throw std::string("No profile specified when creating an xmppd::stringprep_cache");
+	    throw Glib::ustring("No profile specified when creating an xmppd::stringprep_cache");
     }
 
     void stringprep_cache::clean_cache(std::time_t seconds) {
@@ -36,20 +36,20 @@ namespace xmppd {
 	std::time_t keep_newer_as = std::time(NULL) - seconds;
 
 	// check all entries and keep old ones
-	std::map<std::string, stringprep_cache_entry>::iterator p;
+	std::map<Glib::ustring, stringprep_cache_entry>::iterator p;
 	for (p=hashtable.begin(); p!=hashtable.end(); ++p) {
 	    if (p->second.last_used < keep_newer_as)
 		hashtable.erase(p);
 	}
     }
 
-    int stringprep_cache::stringprep(std::string &in_out_string) {
+    int stringprep_cache::stringprep(Glib::ustring &in_out_string) {
 	// is there something we have to stringprep?
 	if (in_out_string == "")
 	    return STRINGPREP_OK;
 
 	// check if the requested preparation has already been done
-	std::map<std::string, stringprep_cache_entry>::iterator p = hashtable.find(in_out_string);
+	std::map<Glib::ustring, stringprep_cache_entry>::iterator p = hashtable.find(in_out_string);
 	if (p != hashtable.end()) {
 	    // found cached entry
 
@@ -67,8 +67,8 @@ namespace xmppd {
 
 	// no cached entry, we have to stringprep
 	
-	// check the length of the string to prep
-	if (in_out_string.length()>1023)
+	// check the length of the string to prep - using bytes instead of characters
+	if (std::string(in_out_string).length() > 1023)
 	    return STRINGPREP_TOO_SMALL_BUFFER;
 
 	// we need a C string to call stringprep
@@ -103,19 +103,19 @@ namespace xmppd {
 	resources(new stringprep_cache(::stringprep_xmpp_resourceprep)) {
     }
 
-    jid::jid(jid_environment environment, std::string address_string) : environment(environment) {
+    jid::jid(jid_environment environment, Glib::ustring address_string) : environment(environment) {
 	// find resource
-	std::string::size_type slash_pos = address_string.find('/');
+	Glib::ustring::size_type slash_pos = address_string.find('/');
 
-	if (slash_pos != std::string::npos) {
+	if (slash_pos != Glib::ustring::npos) {
 	    set_resource(address_string.substr(slash_pos+1));
 	    address_string.erase(slash_pos);
 	}
 
 	// find node
-	std::string::size_type at_pos = address_string.find('@');
+	Glib::ustring::size_type at_pos = address_string.find('@');
 
-	if (at_pos != std::string::npos) {
+	if (at_pos != Glib::ustring::npos) {
 	    set_node(address_string.substr(0, at_pos));
 	    address_string.erase(0, at_pos+1);
 	}
@@ -132,14 +132,14 @@ namespace xmppd {
 	return (!cmp_node || node == other_jid.node) && (!cmp_domain || domain == other_jid.domain) && (!cmp_resource || resource == other_jid.resource);
     }
 
-    void jid::set_node(std::string new_node) {
+    void jid::set_node(Glib::ustring new_node) {
 	if (environment.nodes->stringprep(new_node) == STRINGPREP_OK) {
 	    full_cache = "";
 	    node = new_node;
 	}
     }
 
-    void jid::set_domain(std::string new_domain) {
+    void jid::set_domain(Glib::ustring new_domain) {
 	if (environment.domains->stringprep(new_domain) == STRINGPREP_OK) {
 	    // XXX do punicode decode
 	    full_cache = "";
@@ -147,14 +147,14 @@ namespace xmppd {
 	}
     }
 
-    void jid::set_resource(std::string new_resource) {
+    void jid::set_resource(Glib::ustring new_resource) {
 	if (environment.resources->stringprep(new_resource) == STRINGPREP_OK) {
 	    full_cache = "";
 	    resource = new_resource;
 	}
     }
 
-    const std::string& jid::full() const {
+    const Glib::ustring& jid::full() const {
 	// (re)create result?
 	if (full_cache == "") {
 	    std::ostringstream result;
@@ -176,15 +176,15 @@ namespace xmppd {
 	return stream;
     }
 
-    const std::string& jid::get_node() {
+    const Glib::ustring& jid::get_node() {
 	return node;
     }
 
-    const std::string& jid::get_domain() {
+    const Glib::ustring& jid::get_domain() {
 	return domain;
     }
 
-    const std::string& jid::get_resource() {
+    const Glib::ustring& jid::get_resource() {
 	return resource;
     }
 

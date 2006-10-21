@@ -24,13 +24,13 @@
 
 namespace xmppd {
 
-    configuration::configuration(const std::string& configfile) : xmlpp::SaxParser() {
+    configuration::configuration(const Glib::ustring& configfile) : xmlpp::SaxParser() {
 	// Parse the configuration file
 	try {
 	    set_substitute_entities(true);
 	    parse_file(configfile);
 	} catch (const xmlpp::exception& ex) {
-	    throw std::string(ex.what());
+	    throw Glib::ustring(ex.what());
 	}
     }
 
@@ -49,7 +49,7 @@ namespace xmppd {
 
     void configuration::on_start_element(const Glib::ustring& name, const AttributeList& attributes) {
 	// push new path to a possible value to the path_stack
-	std::string new_path;
+	Glib::ustring new_path;
 	if (!path_stack.empty()) {
 	    if (path_stack.top() == "") {
 		new_path = name;
@@ -67,17 +67,17 @@ namespace xmppd {
 	parse_buffer += text;
     }
 
-    const std::string& configuration::get_string(const std::string& what) {
+    const Glib::ustring& configuration::get_string(const Glib::ustring& what) {
 	if (find(what) == end())
-	    throw std::string("Request for unset configuration setting: ")+what;
+	    throw Glib::ustring("Request for unset configuration setting: ")+what;
 
 	if (operator[](what).empty())
-	    throw std::string("Internal error: empty list in configuration instance.");
+	    throw Glib::ustring("Internal error: empty list in configuration instance.");
 
 	return operator[](what).front().value;
     }
 
-    int configuration::get_integer(const std::string& what) {
+    int configuration::get_integer(const Glib::ustring& what) {
 	std::istringstream result_stream(get_string(what));
 	int result = 0;
 	result_stream >> result;

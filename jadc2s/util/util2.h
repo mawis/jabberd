@@ -30,6 +30,7 @@
 #include <stringprep.h>
 
 #include <libxml++/libxml++.h>
+#include <glibmm-2.4/glibmm.h>
 
 
 namespace xmppd {
@@ -111,7 +112,7 @@ namespace xmppd {
 	     *
 	     * @param ident the identity to use for logging
 	     */
-	    logging(std::string ident);
+	    logging(Glib::ustring ident);
 
 	    /**
 	     * destruct the logging instance
@@ -131,7 +132,7 @@ namespace xmppd {
 	     * @param level_to_use log level to use for writing
 	     * @param log_message which message to log
 	     */
-	    void write(int level_to_use, std::string log_message);
+	    void write(int level_to_use, Glib::ustring log_message);
 
 	    /**
 	     * the logmessage class needs to call the write method
@@ -148,7 +149,7 @@ namespace xmppd {
 	    /**
 	     * the identity that is used for logging
 	     */
-	    std::string identity;
+	    Glib::ustring identity;
     };
 
     /* ******************** Managed pointers ******************** */
@@ -294,7 +295,7 @@ namespace xmppd {
 	     * @param in_out_string string that should be stringpreped (in place)
 	     * @return stringprep result
 	     */
-	    int stringprep(std::string &in_out_string);
+	    int stringprep(Glib::ustring &in_out_string);
 	private:
 
 	    /**
@@ -307,7 +308,7 @@ namespace xmppd {
 		     *
 		     * empty if unchanged
 		     */
-		    std::string preped;
+		    Glib::ustring preped;
 
 		    /**
 		     * when this result has been used the last time
@@ -323,7 +324,7 @@ namespace xmppd {
 	    /**
 	     * the hash table containing the stringpreped strings
 	     */
-	    std::map<std::string, stringprep_cache_entry> hashtable;
+	    std::map<Glib::ustring, stringprep_cache_entry> hashtable;
 
 	    /**
 	     * the stringprep profile used for this cache
@@ -368,31 +369,31 @@ namespace xmppd {
 	     * @param environment The jid_environment used for stringpreping the parts in the JID
 	     * @param address_string a string used to construct the initial jid content
 	     */
-	    jid(jid_environment environment, std::string address_string);
+	    jid(jid_environment environment, Glib::ustring address_string);
 
 	    bool operator==(const jid &other_jid);
 
 	    bool cmpx(const jid &other_jid, bool cmp_node = true, bool cmp_resource = false, bool cmp_domain = true);
 
-	    void set_node(std::string new_node);
+	    void set_node(Glib::ustring new_node);
 
-	    void set_domain(std::string new_domain);
+	    void set_domain(Glib::ustring new_domain);
 
-	    void set_resource(std::string new_resource);
+	    void set_resource(Glib::ustring new_resource);
 
-	    const std::string& get_node();
+	    const Glib::ustring& get_node();
 	    bool has_node();
-	    const std::string& get_domain();
+	    const Glib::ustring& get_domain();
 	    bool has_domain();
-	    const std::string& get_resource();
+	    const Glib::ustring& get_resource();
 	    bool has_resource();
 
-	    const std::string &full() const;
+	    const Glib::ustring &full() const;
 	private:
-	    std::string node;
-	    std::string domain;
-	    std::string resource;
-	    mutable std::string full_cache;
+	    Glib::ustring node;
+	    Glib::ustring domain;
+	    Glib::ustring resource;
+	    mutable Glib::ustring full_cache;
 	    jid_environment environment;
     };
 
@@ -560,18 +561,18 @@ namespace xmppd {
      */
     struct configuration_entry {
 	public:
-	    std::string value;					/**< the configured value */
-	    std::map<std::string, std::string> attributes;	/**< attributes of the value */
+	    Glib::ustring value;					/**< the configured value */
+	    std::map<Glib::ustring, Glib::ustring> attributes;	/**< attributes of the value */
     };
 
-    class configuration : public std::map<std::string, std::list<configuration_entry> >, protected xmlpp::SaxParser {
+    class configuration : public std::map<Glib::ustring, std::list<configuration_entry> >, protected xmlpp::SaxParser {
 	public:
 	    /**
 	     * constructor that read a configuration from an XML file
 	     *
 	     * @param configfile the configuration file to read
 	     */
-	    configuration(const std::string& configfile);
+	    configuration(const Glib::ustring& configfile);
 
 	    /**
 	     * destructor for a configuration instance
@@ -581,21 +582,21 @@ namespace xmppd {
 	    /**
 	     * get a configuration value as a string
 	     */
-	    const std::string& get_string(const std::string& what);
+	    const Glib::ustring& get_string(const Glib::ustring& what);
 
 	    /**
 	     * get a configuration value as an integer
 	     */
-	    int get_integer(const std::string& what);
+	    int get_integer(const Glib::ustring& what);
 	private:
-	    std::stack<std::string> path_stack;
-	    std::string parse_buffer;
+	    std::stack<Glib::ustring> path_stack;
+	    Glib::ustring parse_buffer;
 
 	    void on_start_element(const Glib::ustring& name, const AttributeList& attributes);
 	    void on_end_element(const Glib::ustring& name);
 	    void on_characters(const Glib::ustring& text);
 
-	    std::map<std::string, std::string> default_settings;
+	    std::map<Glib::ustring, Glib::ustring> default_settings;
     };
 }
 

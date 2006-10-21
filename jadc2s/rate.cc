@@ -56,7 +56,7 @@ void connection_rate_cleanup(xmppd::pointer<c2s_st> c2s) {
     if ((time(&now) - last) > c2s->connection_rate_seconds) {
 
 	/* iterate all entries in the map */
-	std::map<std::string, xmppd::pointer<connection_rate_st> >::iterator p;
+	std::map<Glib::ustring, xmppd::pointer<connection_rate_st> >::iterator p;
 	for (p=c2s->connection_rates.begin(); p != c2s->connection_rates.end(); ++p) {
 	    try {
 		/* about to expire this entry? */
@@ -64,7 +64,7 @@ void connection_rate_cleanup(xmppd::pointer<c2s_st> c2s) {
 		    DBG("free and zap");
 		    c2s->connection_rates.erase(p->first);
 		}
-	    } catch (std::string msg) {
+	    } catch (Glib::ustring msg) {
 		DBG("Caught exception cleaning connection rates: " << msg);
 	    }
 	}
@@ -81,7 +81,7 @@ void connection_rate_cleanup(xmppd::pointer<c2s_st> c2s) {
 * @param ip the ip to check
 * @return 0 on valid 1 on invalid
 */
-int connection_rate_check(xmppd::pointer<c2s_st> c2s, const std::string& ip) {
+int connection_rate_check(xmppd::pointer<c2s_st> c2s, const Glib::ustring& ip) {
     xmppd::pointer<connection_rate_st> cr = NULL;
     time_t now;
     

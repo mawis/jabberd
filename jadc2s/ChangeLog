@@ -1,3 +1,18 @@
+2006-10-20  Matthias Wimmer  <m@tthias.eu>
+
+    * clients.cc: using Glib::ustring for UTF-8 strings
+    * conn.cc: same
+    * connect.cc: same
+    * jadc2s.cc: same
+    * rate.cc: same
+    * jadc2s.h: same
+    * util/util2.h: same
+    * util/config.cc: same
+    * util/jid.cc: same
+    * util/log.cc: same
+    * util/nsparser.cc: same
+    * util/xmlistream.cc: same
+
 2006-10-15  Matthias Wimmer  <m@tthias.eu>
 
     * util/xmlistream.cc: parser to create stanza events
