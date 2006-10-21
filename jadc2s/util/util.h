@@ -174,7 +174,7 @@ int nad_append_attr(nad_t nad, const char *name, const char *val);
 void nad_append_cdata(nad_t nad, const char *cdata, int len, int depth);
 
 /* create a string representation of the given element (and children), point references to it */
-void nad_print(nad_t nad, int elem, char **xml, int *len);
+std::string nad_print(nad_t nad, int elem);
 
 /* these are some helpful macros */
 #define NAD_ENAME(N,E) (N->cdata + N->elems[E].iname)

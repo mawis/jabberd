@@ -751,7 +751,7 @@ int main(int argc, char* const* argv) {
     if (c2s->sasl_enabled != 0) {
 	int i = 0;
 	for (i=0; sasl_callbacks[i].id!=SASL_CB_LIST_END; i++) {
-	    DBG("callback init for" << i);
+	    DBG("callback init for " << i);
 	    sasl_callbacks[i].context = &c2s;
 	}
 	sasl_result = sasl_server_init(sasl_callbacks, c2s->sasl_appname.c_str());

@@ -9,6 +9,13 @@
     * util/util2.h: same
     * util/str.cc: not used anymore, removing
     * util/util.h: same
+    * jadc2s.h: mainly redefining the chunk_st type to keep data as a string
+    * conn.cc: same
+    * clients.cc: same
+    * jadc2s.cc: same
+    * connect.cc: same
+    * util/nad.cc: nad_print() now returns resultstring as a C++ string
+    * util/util.h: same
 
 2006-10-20  Matthias Wimmer  <m@tthias.eu>
 

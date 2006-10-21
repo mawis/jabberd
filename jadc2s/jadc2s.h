@@ -6,6 +6,7 @@
 #include <map>
 #include <vector>
 #include <iostream>
+#include <queue>
 
 #include "mio/mio.h"
 #include <expat.h>
@@ -85,12 +86,7 @@ typedef struct chunk_st
     int packet_elem;    /**< actual packet start element */
 
     /* and the char representation, for writing */
-    char *wcur;		/**< the char representation for writing */
-    int wlen;		/**< length of the char representation */
-
-    void *to_free;	/**< pointer to memory, that should be freed on chunk_free() */
-
-    struct chunk_st *next;	/**< for linking chunks together */
+    std::string bytes;	/**< the byte representation (character data) for writing the chunk */
 } *chunk_t;
 
 /* connection data */
@@ -193,10 +189,7 @@ class conn_st {
 
 
 	/* chunks being written */
-	chunk_t writeq;		/**< queue of chunks that have to be send to
-					 the client */
-	chunk_t qtail;		/**< end of the writeq queue (to speed up
-					 adding elements to the end of it) */
+	std::queue<chunk_t>	writeq;	/**< queue of chunks that have to be sent to this connection */
 
 	/* parser stuff */
 	XML_Parser expat;		/**< parser used for parsing XML on this conn */

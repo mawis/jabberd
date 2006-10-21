@@ -73,7 +73,8 @@ conn_t conn_new(xmppd::pointer<c2s_st> c2s, int fd)
     c->type = type_NORMAL;
     c->start = time(NULL);
     c->expat = XML_ParserCreate(NULL);
-    c->qtail = c->writeq = NULL;
+    while (!c->writeq.empty())
+	c->writeq.pop();
 
     /* set up our id */
     c->myid = new xmppd::jid(c2s->used_jid_environment, c2s->sm_id);
@@ -232,8 +233,6 @@ chunk_t chunk_new_free(nad_cache_t nads) {
 chunk_t chunk_new_packet(conn_t c, int packet_elem) {
     chunk_t chunk = new chunk_st();
 
-    chunk->next = NULL;
-
     /* nad gets tranferred from the conn to the chunk */
     if (c != NULL) {
 	chunk->nad = c->nad;
@@ -251,9 +250,6 @@ void chunk_free(chunk_t chunk)
 {
     nad_free(chunk->nad);
 
-    if (chunk->to_free != NULL)
-	free(chunk->to_free);
-
     delete chunk;
 }
 
@@ -266,7 +262,7 @@ void chunk_write_typed(conn_t c, chunk_t chunk, const Glib::ustring& to, const G
     int elem;
 
     /* make an empty nad if there isn't one */
-    if (chunk->nad == NULL && chunk->wlen == 0) {
+    if (chunk->nad == NULL && chunk->bytes.length() == 0) {
         chunk->nad = nad_new(c->c2s->nads);
 	chunk->packet_elem = 0;
     }
@@ -291,34 +287,28 @@ void chunk_write_typed(conn_t c, chunk_t chunk, const Glib::ustring& to, const G
 
     /* turn the nad into xml */
     if (chunk->nad != NULL) {
-	nad_print(chunk->nad, elem, &chunk->wcur, &chunk->wlen);
+	std::string::size_type findpos = std::string::npos;
+
+	chunk->bytes = nad_print(chunk->nad, elem);
 
 	/* only write start or end tag? */
 	switch (chunk_type) {
 	    case chunk_NORMAL:
 		break;
 	    case chunk_OPEN:
-		if (chunk->wlen > 2) {
-		    chunk->wcur[chunk->wlen - 2] = '>';
-		    chunk->wlen--;
+		findpos = chunk->bytes.rfind("/>");
+		if (findpos != std::string::npos) {
+		    chunk->bytes = chunk->bytes.substr(0, findpos);
+		    chunk->bytes += ">";
 		}
 		break;
 	    case chunk_CLOSE:
-		if (chunk->wlen > 2) {
-		    int i = 0;
-
-		    for (i = 1; i < chunk->wlen - 1; i++) {
-			if (chunk->wcur[i] == ' ' || chunk->wcur[i] == '\t' || chunk->wcur[i] == '/') {
-			    chunk->wcur[i+1] = '>';
-			    break;
-			}
-		    }
-		    chunk->wlen = i+2;
-		    for (; i>1; i--) {
-			chunk->wcur[i] = chunk->wcur[i-1];
-		    }
-		    chunk->wcur[1] = '/';
+		findpos = chunk->bytes.find_first_of(" \t/");
+		if (findpos != std::string::npos) {
+		    chunk->bytes = chunk->bytes.substr(0, findpos);
+		    chunk->bytes += ">";
 		}
+		chunk->bytes.insert(1, "/");
 		break;
 	}
     }
@@ -327,68 +317,39 @@ void chunk_write_typed(conn_t c, chunk_t chunk, const Glib::ustring& to, const G
 #ifdef WITH_SASL
     if (c->sasl_conn && c->sasl_state != state_auth_NONE && c->sasl_outbuf_size && *(c->sasl_outbuf_size) > 0) {
 	int sasl_result = 0;
-	char *encoded_data = NULL;
-	size_t encoded_len = 0;
+	std::string encoded_data;
 
 	DBG("chunk_write_typed() is encoding data using sasl_encode()");
 
 	/* we may have to encode using multiple calls, there is a maximum size we can pass to sasl_encode */
-	while (chunk->wlen > 0) {
-	    unsigned encoding_now = chunk->wlen;
+	while (chunk->bytes.length() > 0) {
+	    unsigned encoding_now = chunk->bytes.length();
 	    const char *encoded_step_data = NULL;
 	    unsigned encoded_step_len = 0;
 
 	    if (encoding_now > *(c->sasl_outbuf_size))
 		encoding_now = *(c->sasl_outbuf_size);
 
-	    sasl_result = sasl_encode(c->sasl_conn, chunk->wcur, encoding_now, &encoded_step_data, &encoded_step_len);
+	    sasl_result = sasl_encode(c->sasl_conn, chunk->bytes.c_str(), encoding_now, &encoded_step_data, &encoded_step_len);
 	    if (sasl_result != SASL_OK) {
 		c->c2s->log->level(LOG_ERR) << "Could not encode data using sasl_encode() on fd " << c->fd;
 		break;
 	    }
-	    chunk->wlen -= encoding_now;
-	    chunk->wcur += encoding_now;
+	    chunk->bytes.erase(0, encoding_now);
 
 	    /* append or new data? */
-	    if (encoded_data == NULL) {
-		encoded_data = strdup(encoded_step_data);
-		encoded_len = encoded_step_len;
-	    } else {
-		char *old_encoded_data = encoded_data;
-
-		/* to append we need a bigger buffer and append the new data in the new buffer */
-		encoded_data = static_cast<char*>(malloc(encoded_len + encoded_step_len));
-		memcpy(encoded_data, old_encoded_data, encoded_len);
-		memcpy(encoded_data+encoded_len, encoded_step_data, encoded_step_len);
-		encoded_len += encoded_step_len;
-
-		/* free the old buffer that got to small */
-		free(old_encoded_data);
-	    }
+	    encoded_data += std::string(encoded_step_data, encoded_step_len);
 	}
 
 	/* could all data be encoded or was there an error? */
-	if (chunk->wlen <= 0) {
-	    chunk->wcur = encoded_data;
-	    chunk->to_free = chunk->wcur;
-	    chunk->wlen = encoded_len;
-	} else {
-	    if (encoded_data != NULL)
-		free(encoded_data);
+	if (chunk->bytes.length() <= 0) {
+	    chunk->bytes = encoded_data;
 	}
     }
 #endif /* WITH_SASL */
 
-    /* append to the outgoing write queue, if any */
-    if (c->qtail == NULL) {
-        c->qtail = c->writeq = chunk;
-    } else {
-        c->qtail->next = chunk;
-        c->qtail = chunk;
-    }
-
-    /* ensure that this chunk is alone */
-    chunk->next = NULL;
+    /* append to the outgoing write queue */
+    c->writeq.push(chunk);
 
     /* tell mio to process write events on this fd */
     mio_write(c->c2s->mio, c->fd);
@@ -547,19 +508,17 @@ int conn_read(conn_t c, char *buf, int len)
 int conn_write(conn_t c)
 {
     int len;
-    chunk_t cur;
 
     DBG("conn_write()");
 
     /* try to write as much as we can */
-    while((cur = c->writeq) != NULL)
-    {
-        DBG("writing data to " << c->fd << ": " << std::string(cur->wcur, cur->wlen));
+    while (!c->writeq.empty()) {
+        DBG("writing data to " << c->fd << ": " << c->writeq.front()->bytes);
 
         /* write a bit from the current buffer */
-        len = _write_actual(c, c->fd, cur->wcur, cur->wlen);
+        len = _write_actual(c, c->fd, c->writeq.front()->bytes.c_str(), c->writeq.front()->bytes.length());
 
-	DBG("written to socket, wlen=" << cur->wlen << ", len=" << len << ", errno=" << errno);
+	DBG("written to socket, wlen=" << c->writeq.front()->bytes.length() << ", len=" << len << ", errno=" << errno);
 
         /* we had an error on the write */
         if(len < 0)
@@ -570,20 +529,15 @@ int conn_write(conn_t c)
             mio_close(c->c2s->mio, c->fd);
             return 0;
         }
-        else if(len < cur->wlen) /* we didnt' write it all, move the current buffer up */
+        else if(len < c->writeq.front()->bytes.length()) /* we didnt' write it all, move the current buffer up */
         { 
-            cur->wcur += len;
-            cur->wlen -= len;
+	    c->writeq.front()->bytes.erase(0, len);
             return 1;
         }
         else /* we wrote the entire node, kill it and move on */
-        {    
-            c->writeq = cur->next;
-
-            if(c->writeq == NULL)
-                c->qtail = NULL;
-
-            chunk_free(cur);
+        {
+	    chunk_free(c->writeq.front());
+	    c->writeq.pop();
         }
     } 
 
@@ -820,7 +774,7 @@ void connectionstate_send(xmppd::pointer<xmppd::configuration> config, conn_t c,
 
 conn_st::conn_st(xmppd::pointer<c2s_st> c2s) : c2s(c2s), fd(-1), port(0),
     read_bytes(0), last_read(0), state(state_NONE), type(type_NORMAL), start(0),
-    root_element(root_element_NONE), writeq(NULL), qtail(NULL), expat(NULL), depth(0), nad(NULL),
+    root_element(root_element_NONE), expat(NULL), depth(0), nad(NULL),
     myid(NULL), smid(NULL), userid(NULL), authzid(NULL)
 #ifdef USE_SSL
     , ssl(NULL), autodetect_tls(autodetect_NONE)
@@ -851,8 +805,8 @@ void conn_st::reset() {
     smid = NULL;
     userid = NULL;
     authzid = NULL;
-    writeq = NULL;
-    qtail = NULL;
+    while (!writeq.empty())
+	writeq.pop();
     expat = NULL;
     depth = 0;
     nad = NULL;
