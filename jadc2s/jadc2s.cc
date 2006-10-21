@@ -356,6 +356,24 @@ c2s_st::c2s_st(int argc, char* const* argv) : mio(NULL), shutting_down(0), local
         config = new xmppd::configuration(CONFIG_DIR "/jadc2s.xml");
     }
 
+    // set configuration default values
+    std::ostringstream sasl_sec_noanonymous;
+    sasl_sec_noanonymous << SASL_SEC_NOANONYMOUS;
+
+    config->set_default("authentication.appname", PACKAGE);
+    config->set_default("authentication.maxssf", "-1");
+    config->set_default("authentication.minssf", "0");
+    config->set_default("authentication.secflags", sasl_sec_noanonymous.str());
+    config->set_default("authentication.service", "xmpp");
+    config->set_default("io.authtimeout", "15");
+    config->set_default("io.connection_limits.connects", "0");
+    config->set_default("io.connection_limits.seconds", "0");
+    config->set_default("io.max_bps", "1024");
+    config->set_default("io.max_fds", "1023");
+    config->set_default("local.port", "5222");
+    config->set_default("local.ssl.port", "5223");
+    config->set_default("sm.retries", "5");
+
 }
 
 /**
@@ -364,11 +382,7 @@ c2s_st::c2s_st(int argc, char* const* argv) : mio(NULL), shutting_down(0), local
  * @param xptr_to_self this is ugly - here a managed pointer to the c2s instance is passed - needed to pass it on
  */
 void c2s_st::configurate(xmppd::pointer<c2s_st> xptr_to_self) {
-    try {
-	max_fds = j_atoi(config->get_string("io.max_fds").c_str(), 1023);
-    } catch (Glib::ustring) {
-	max_fds = 1023;
-    }
+    max_fds = config->get_integer("io.max_fds");
     // START OLDCODE
     /* conn setup */
     mio = mio_new(max_fds);
@@ -413,12 +427,12 @@ void c2s_st::configurate(xmppd::pointer<c2s_st> xptr_to_self) {
     try {
 	connection_rate_times = config->get_integer("io.connection_limits.connects");
     } catch (Glib::ustring) {
-	connection_rate_times = 0;
+	throw std::invalid_argument("Problem with the io.connection_limits.connects setting");
     }
     try {
 	connection_rate_seconds = config->get_integer("io.connection_limits.seconds");
     } catch (Glib::ustring) {
-	connection_rate_seconds = 0;
+	throw std::invalid_argument("Problem with the io.connection_limits.seconds setting");
     }
 
     if (config->find("local.id") != config->end())
@@ -436,9 +450,9 @@ void c2s_st::configurate(xmppd::pointer<c2s_st> xptr_to_self) {
 	DBG("No local.ip");
     }
     try {
-	local_port = j_atoi(config->get_string("local.port").c_str(), 5222);
+	local_port = config->get_integer("local.port");
     } catch (Glib::ustring) {
-	local_port = 5222;
+	throw std::invalid_argument("Problem with the local.port setting");
     }
     try {
 	local_statfile = config->get_string("local.statfile");
@@ -454,7 +468,7 @@ void c2s_st::configurate(xmppd::pointer<c2s_st> xptr_to_self) {
 #ifdef USE_SSL
     // get SSL settings
     try {
-	local_sslport = j_atoi(config->get_string("local.ssl.port").c_str(), 5223);
+	local_sslport = config->get_integer("local.ssl.port");
     } catch (Glib::ustring) {
 	DBG("No local.ssl.port");
     }
@@ -478,9 +492,9 @@ void c2s_st::configurate(xmppd::pointer<c2s_st> xptr_to_self) {
 
     iplog = config->find("io.iplog") != config->end();
     try {
-	timeout = default_timeout = j_atoi(config->get_string("io.authtimeout").c_str(), 15);
+	timeout = default_timeout = config->get_integer("io.authtimeout");
     } catch (Glib::ustring) {
-	timeout = default_timeout = 15;
+	throw std::invalid_argument("Problem with the io.authtimeout setting");
     }
 
     /* require some things */
@@ -535,15 +549,15 @@ void c2s_st::configurate(xmppd::pointer<c2s_st> xptr_to_self) {
 	    sasl_min_ssf = 0;
 	}
 	try {
-	    sasl_max_ssf = j_atoi(config->get_string("authentication.maxssf").c_str(), -1);
+	    sasl_max_ssf = config->get_integer("authentication.maxssf");
 	} catch (Glib::ustring) {
-	    sasl_max_ssf = -1;
+	    throw std::invalid_argument("Problem with the authentication.maxssf setting");
 	}
 	sasl_noseclayer = config->find("authentication.noseclayer") != config->end();
 	try {
-	    sasl_sec_flags = j_atoi(config->get_string("authentication.secflags").c_str(), SASL_SEC_NOANONYMOUS);
+	    sasl_sec_flags = config->get_integer("authentication.secflags");
 	} catch (Glib::ustring) {
-	    sasl_sec_flags = SASL_SEC_NOANONYMOUS;
+	    throw std::invalid_argument("Problem with the authentication.secflags setting");
 	}
 	if (config->find("authentication.admin") != config->end()) {
 	    sasl_admin = (*config)["authentication.admin"];

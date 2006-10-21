@@ -49,18 +49,6 @@
 #ifndef INCL_UTIL_H
 #define INCL_UTIL_H
 
-
-/* --------------------------------------------------------- */
-/*                                                           */
-/* String management routines                                */
-/*                                                           */
-/* --------------------------------------------------------- */
-int j_strcmp(const char *a, const char *b); /* provides NULL safe strcmp wrapper */
-int j_strncmp(const char *a, const char *b, int i); /* provides NULL safe strncmp wrapper */
-int j_strlen(const char *a); /* provides NULL safe strlen wrapper */
-int j_atoi(const char *a, int def); /* checks for NULL and uses default instead, convienence */
-char *j_attr(const char** atts, const char *attr); /* decode attr's (from expat) */
-
 /* --------------------------------------------------------- */
 /*                                                           */
 /* SHA calculations                                          */

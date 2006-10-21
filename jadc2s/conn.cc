@@ -405,9 +405,9 @@ int conn_max_read_len(conn_t c)
     xmppd::pointer<c2s_st> c2s = c->c2s;
     int max_bits_per_sec = 1024;
     try {
-	max_bits_per_sec = j_atoi(c2s->config->get_string("io.max_bps").c_str(), 1024);
+	max_bits_per_sec = c2s->config->get_integer("io.max_bps");
     } catch (Glib::ustring) {
-	DBG("No explicit definition of io.max_bps in configuration");
+	DBG("Problem configuring io.max_bps setting.");
     }
     // START OLDCODE
     time_t now;
@@ -754,7 +754,7 @@ static int _write_actual(conn_t c, int fd, const char *buf, size_t count)
     return truncated_write ? *c->sasl_outbuf_size : written; /* XXX we currently do not handle SASL blocks, that are only half written to the socket */
 }
 
-void connectionstate_fillnad(nad_t nad, Glib::ustring from, Glib::ustring to, Glib::ustring user, int is_login, const Glib::ustring &ip, const char *ssl_version, const char *ssl_cipher, const char *ssl_size_secret, const char *ssl_size_algorithm)
+static void connectionstate_fillnad(nad_t nad, Glib::ustring from, Glib::ustring to, Glib::ustring user, int is_login, const Glib::ustring &ip, const Glib::ustring& tls_version, const Glib::ustring& tls_cipher, const Glib::ustring& tls_size_secret, const Glib::ustring& tls_size_algorithm)
 {
     nad_append_elem(nad, "message", 0);
     nad_append_attr(nad, "from", from.c_str());
@@ -762,27 +762,23 @@ void connectionstate_fillnad(nad_t nad, Glib::ustring from, Glib::ustring to, Gl
     nad_append_elem(nad, "update", 1);
     nad_append_attr(nad, "xmlns", "http://amessage.info/protocol/connectionstate");
     nad_append_elem(nad, "jid", 2);
-    nad_append_cdata(nad, user.c_str(), user.length(), 3);
+    nad_append_cdata(nad, user.c_str(), std::string(user).length(), 3);
     if (is_login)
 	nad_append_elem(nad, "login", 2);
     else
 	nad_append_elem(nad, "logout", 2);
     nad_append_elem(nad, "ip", 2);
-    nad_append_cdata(nad, ip.c_str(), ip.length(), 3);
-    if (ssl_version != NULL && ssl_cipher != NULL)
+    nad_append_cdata(nad, ip.c_str(), std::string(ip).length(), 3);
+    if (tls_version.length() > 0 && tls_cipher.length() > 0)
     {
-	char *tls_version = strdup(ssl_version);
-	char *tls_cipher = strdup(ssl_cipher);
 	nad_append_elem(nad, "tls", 2);
 	nad_append_elem(nad, "version", 3);
-	nad_append_cdata(nad, tls_version, j_strlen(ssl_version), 4);
+	nad_append_cdata(nad, tls_version.c_str(), std::string(tls_version).length(), 4);
 	nad_append_elem(nad, "cipher", 3);
-	nad_append_cdata(nad, tls_cipher, j_strlen(ssl_cipher), 4);
+	nad_append_cdata(nad, tls_cipher.c_str(), std::string(tls_cipher).length(), 4);
 	nad_append_elem(nad, "bits", 3);
-	nad_append_attr(nad, "secret", ssl_size_secret);
-	nad_append_attr(nad, "algorithm", ssl_size_algorithm);
-	free(tls_version);
-	free(tls_cipher);
+	nad_append_attr(nad, "secret", tls_size_secret.c_str());
+	nad_append_attr(nad, "algorithm", tls_size_algorithm.c_str());
     }
 }
 
@@ -797,26 +793,26 @@ void connectionstate_send(xmppd::pointer<xmppd::configuration> config, conn_t c,
     /* send the connection state update to each configured destination */
     std::list<xmppd::configuration_entry>::const_iterator p;
     for (p=(*config)["io.notifies"].begin(); p!=(*config)["io.notifies"].end(); ++p) {
-	const char *ssl_version = NULL;
-	const char *ssl_cipher = NULL;
-	std::ostringstream ssl_size_secret;
-	std::ostringstream ssl_size_algorithm;
+	Glib::ustring tls_version;
+	Glib::ustring tls_cipher;
+	std::ostringstream tls_size_secret;
+	std::ostringstream tls_size_algorithm;
 
 #ifdef USE_SSL
 	if (client->ssl != NULL)
 	{
 	    int bits_secret, bits_algorithm;
 
-	    ssl_version = SSL_get_version(client->ssl);
-	    ssl_cipher = SSL_get_cipher(client->ssl);
+	    tls_version = SSL_get_version(client->ssl);
+	    tls_cipher = SSL_get_cipher(client->ssl);
 	    bits_secret = SSL_get_cipher_bits(client->ssl, &bits_algorithm);
-	    ssl_size_secret << bits_secret;
-	    ssl_size_algorithm << bits_algorithm;
+	    tls_size_secret << bits_secret;
+	    tls_size_algorithm << bits_algorithm;
 	}
 #endif
 
 	c->nad = nad_new(c->c2s->nads);
-	connectionstate_fillnad(c->nad, client->myid->full(), p->value, client->userid->full(), is_login, client->ip, ssl_version, ssl_cipher, ssl_size_secret.str().c_str(), ssl_size_algorithm.str().c_str());
+	connectionstate_fillnad(c->nad, client->myid->full(), p->value, client->userid->full(), is_login, client->ip, tls_version, tls_cipher, tls_size_secret.str(), tls_size_algorithm.str());
 	chunk = chunk_new(c);
 	chunk_write(c, chunk, "", "", "");
     }
