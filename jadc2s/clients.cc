@@ -1720,7 +1720,7 @@ void _client_io_close(int fd, conn_t c) {
 	/* close session using the new protocol */
 	if (c->sc_sm.length() > 0) {
 	    DBG("trying to close using new protocol");
-	    client_send_sc_command(c, c->authzid->get_domain(), c->myid->full(), "end", NULL, NULL, c->sc_sm, c->myid->get_node());
+	    client_send_sc_command(c, c->authzid->get_domain(), c->myid->full(), "end", NULL, "", c->sc_sm, c->myid->get_node());
 	}
     } else {
 	/* XXX free write queue */
