@@ -68,8 +68,11 @@ namespace xmppd {
     }
 
     const Glib::ustring& configuration::get_string(const Glib::ustring& what) {
-	if (find(what) == end())
-	    throw Glib::ustring("Request for unset configuration setting: ")+what;
+	if (find(what) == end()) {
+	    if (default_settings.find(what) == default_settings.end())
+		throw Glib::ustring("Request for unset configuration setting: ")+what;
+	    return default_settings[what];
+	}
 
 	if (operator[](what).empty())
 	    throw Glib::ustring("Internal error: empty list in configuration instance.");
@@ -82,5 +85,9 @@ namespace xmppd {
 	int result = 0;
 	result_stream >> result;
 	return result;
+    }
+
+    void configuration::set_default(const Glib::ustring& what, const Glib::ustring& value) {
+	default_settings[what] = value;
     }
 }

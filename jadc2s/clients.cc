@@ -180,7 +180,7 @@ int _client_root_attribute_version(conn_t c, const Glib::ustring& value) {
  */
 int _client_root_attribute_flash_ns(conn_t c, const Glib::ustring& value) {
     DBG("checking xmlns:flash: " << value);
-    if (j_strcmp(value, "http://www.jabber.com/streams/flash") != 0) {
+    if (value != "http://www.jabber.com/streams/flash") {
 	/* send the stream error */
 	conn_error(c, STREAM_ERR_INVALID_NAMESPACE, "Invalid flash:stream namespace");
 	c->depth = -1;
@@ -314,7 +314,7 @@ void _client_stream_send_root(conn_t c) {
 
 		    for (mechanism = strtok_r(mechanisms, ",", &lasts); mechanism != NULL; mechanism = strtok_r(NULL, ",", &lasts)) {
 			nad_append_elem(stream_features->nad, "mechanism", 2);
-			nad_append_cdata(stream_features->nad, mechanism, j_strlen(mechanism), 3);
+			nad_append_cdata(stream_features->nad, mechanism, strlen(mechanism), 3);
 		    }
 		    free(mechanisms);
 		}
@@ -343,14 +343,17 @@ void _client_stream_send_root(conn_t c) {
  * @param name the name of the stream root element
  * @param atts the attributes on this element
  */
-void _client_stream_root(conn_t c, const char *name, const char **atts) {
+static void _client_stream_root(conn_t c, const char *_name, const char **atts) {
     int i=0, got_to_attrib=0, got_stanza_namespace=0, got_stream_namespace=0;
+    Glib::ustring name;
+    if (_name != NULL)
+	name = _name;
 #ifdef FLASH_HACK
     int got_flash_namespace=0;
 
     /* check if it is a flash client, activate our flash hacks and
      * replace expat after <flash:stream/> has been processed */
-    if (j_strcmp(name, "flash:stream") == 0)
+    if (name == "flash:stream")
     {
 	/* enable our special handling of flash streams */
 	c->type = type_FLASH;
@@ -359,7 +362,7 @@ void _client_stream_root(conn_t c, const char *name, const char **atts) {
 	c->flash_hack = 1;
     } else
 #endif
-	if (j_strcmp(name, "stream:stream") != 0) {
+	if (name != "stream:stream") {
 
 	    conn_error(c, STREAM_ERR_BAD_FORMAT, "Wrong root element for this XMPP stream.");
 
@@ -372,25 +375,25 @@ void _client_stream_root(conn_t c, const char *name, const char **atts) {
      * error tracks the required attributes in the header */
     while (atts[i] != '\0') {
 	/* depending on the name of the attribute delegate to different functions */
-	if (j_strcmp(atts[i], "to") == 0) {
+	if (Glib::ustring(atts[i]) == "to") {
 	    if(_client_root_attribute_to(c, atts[i+1]))
 		return;
 	    got_to_attrib = 1;
-	} else if (j_strcmp(atts[i], "xmlns") == 0) {
+	} else if (Glib::ustring(atts[i]) == "xmlns") {
 	    if (_client_root_attribute_xmlns(c, atts[i+1]))
 		return;
 	    got_stanza_namespace = 1;
 #ifdef FLASH_HACK
-	} else if (j_strcmp(atts[i], "xmlns:flash") == 0) {
+	} else if (Glib::ustring(atts[i]) == "xmlns:flash") {
 	    if(_client_root_attribute_flash_ns(c, atts[i+1]))
 		return;
 	    got_flash_namespace = 1;
 #endif
-	} else if (j_strcmp(atts[i], "xmlns:stream") == 0) {
+	} else if (Glib::ustring(atts[i]) == "xmlns:stream") {
 	    if(_client_root_attribute_stream_ns(c, atts[i+1]))
 		return;
 	    got_stream_namespace = 1;
-	} else if (j_strcmp(atts[i], "version") == 0) {
+	} else if (Glib::ustring(atts[i]) == "version") {
 	    if(_client_root_attribute_version(c, atts[i+1]))
 		return;
 	}
@@ -584,7 +587,7 @@ int _client_process_stoneage_auth(conn_t c, chunk_t chunk) {
     attr2 = nad_find_attr(chunk->nad, 0, "type", NULL);
 
     /* authorization request? */
-    if (attr >= 0 && (j_strncmp(NAD_AVAL(chunk->nad, attr), "jabber:iq:auth", 14) == 0)) {
+    if (attr >= 0 && std::string(NAD_AVAL(chunk->nad, attr), NAD_AVAL_L(chunk->nad, attr)) == "jabber:iq:auth" ) {
 	/* sort out the username */
 	elem = nad_find_elem(chunk->nad, 0, "username", 2);
 	if(elem == -1) {
@@ -596,7 +599,7 @@ int _client_process_stoneage_auth(conn_t c, chunk_t chunk) {
 	c->smid->set_node(std::string(NAD_CDATA(chunk->nad, elem), NAD_CDATA_L(chunk->nad, elem)));
 
 	/* and the resource, for sets */
-	if(attr2 >= 0 && j_strncmp(NAD_AVAL(chunk->nad, attr2), "set", 3) == 0) {
+	if(attr2 >= 0 && std::string(NAD_AVAL(chunk->nad, attr2), NAD_AVAL_L(chunk->nad, attr2)) == "set") {
 	    elem = nad_find_elem(chunk->nad, 0, "resource", 2);
 	    if(elem == -1) {
 		DBG("auth packet with no resource, dropping it");
@@ -616,9 +619,10 @@ int _client_process_stoneage_auth(conn_t c, chunk_t chunk) {
 	}
     }
     /* registration request? */
-    else if (attr >= 0 && attr2 >= 0 &&
-	    ( (j_strncmp(NAD_AVAL(chunk->nad, attr), "jabber:iq:register", 18) == 0)
-	      && (j_strncmp(NAD_AVAL(chunk->nad, attr2), "set", 3) == 0))) {
+    else if (attr >= 0
+	    && attr2 >= 0
+	    && std::string(NAD_AVAL(chunk->nad, attr), NAD_AVAL_L(chunk->nad, attr)) == "jabber:iq:register"
+	    && std::string(NAD_AVAL(chunk->nad, attr2), NAD_AVAL_L(chunk->nad, attr2)) == "set") {
 	/* sort out the username */
 	elem = nad_find_elem(chunk->nad, 0, "username", 2);
 	if(elem == -1)
@@ -652,7 +656,7 @@ void _client_do_sasl_step(conn_t c, chunk_t chunk) {
     chunk_t response = NULL;
 
     /* received what we expected? */
-    if (j_strncmp(NAD_ENAME(chunk->nad, 0), "response", NAD_ENAME_L(chunk->nad, 0)) != 0) {
+    if (std::string(NAD_ENAME(chunk->nad, 0), NAD_ENAME_L(chunk->nad, 0)) != "response") {
 	conn_error(c, STREAM_ERR_NOT_AUTHORIZED, "expecting &lt;response xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/&gt;");
 	c->depth = -1; /* flag to close the connection */
 	return;
@@ -821,13 +825,13 @@ void _client_process(conn_t c) {
     DBG("tag(" << std::string(NAD_ENAME(chunk->nad, 0), NAD_ENAME_L(chunk->nad, 0)) << ")");
 
     /* handle stoneage auth requests */
-    if((c->state != state_OPEN) && (j_strncmp(NAD_ENAME(chunk->nad, 0), "iq", NAD_ENAME_L(chunk->nad, 0)) == 0)) {
+    if(c->state != state_OPEN && std::string(NAD_ENAME(chunk->nad, 0), NAD_ENAME_L(chunk->nad, 0)) == "iq" ) {
 	if (_client_process_stoneage_auth(c, chunk))
 	    return;
     }
 
     /* handle starttls */
-    if ((c->state == state_NONE) && (j_strncmp(NAD_ENAME(chunk->nad, 0), "starttls", NAD_ENAME_L(chunk->nad, 0)) == 0)) {
+    if (c->state == state_NONE && std::string(NAD_ENAME(chunk->nad, 0), NAD_ENAME_L(chunk->nad, 0)) == "starttls") {
 	chunk_t response = NULL;
 #ifdef USE_SSL
 	if (!_client_check_tls_possible(c, c->local_id)) {
@@ -861,7 +865,7 @@ void _client_process(conn_t c) {
     }
 
     /* handle SASL authentication */
-    if ((c->state == state_NONE) && (j_strncmp(NAD_ENAME(chunk->nad, 0), "auth", NAD_ENAME_L(chunk->nad, 0)) == 0)) {
+    if (c->state == state_NONE && std::string(NAD_ENAME(chunk->nad, 0), NAD_ENAME_L(chunk->nad, 0)) == "auth") {
 #ifdef WITH_SASL
 	int mech_attr = 0;
 	char *initial_data = NULL;
@@ -1013,7 +1017,7 @@ void _client_process(conn_t c) {
     }
 
     /* handle resource binding */
-    if ((c->sasl_state == state_auth_SASL_DONE) && (j_strncmp(NAD_ENAME(chunk->nad, 0), "iq", NAD_ENAME_L(chunk->nad, 0)) == 0)) {
+    if (c->sasl_state == state_auth_SASL_DONE && std::string(NAD_ENAME(chunk->nad, 0), NAD_ENAME_L(chunk->nad, 0)) == "iq") {
 	/* resource binding, check the request is valid */
 	int bind_element = -1;
 	int type_attr = -1;
@@ -1074,7 +1078,7 @@ void _client_process(conn_t c) {
 	    chunk_free(chunk);
 	    return;
 	}
-    } else if ((c->sasl_state == state_auth_BOUND_RESOURCE) && (j_strncmp(NAD_ENAME(chunk->nad, 0), "iq", NAD_ENAME_L(chunk->nad, 0)) == 0)) {
+    } else if (c->sasl_state == state_auth_BOUND_RESOURCE && std::string(NAD_ENAME(chunk->nad, 0), NAD_ENAME_L(chunk->nad, 0)) == "iq") {
 	int type_attr = -1;
 	int session_element = -1;
 
@@ -1196,7 +1200,7 @@ static int _client_io_accept(mio_t m, int fd, const Glib::ustring& ip_port, xmpp
 		DBG("could not convert IPv6 address to string representation");
 		return 1;
 	    }
-	    if (j_strncmp(local_ip, "::ffff:", 7) == 0)
+	    if (local_ip != NULL && strncmp(local_ip, "::ffff:", 7) == 0)
 		strcpy(local_ip, local_ip+7);
 	    local_port = ntohs(((struct sockaddr_in6*)&sa)->sin6_port);
 	    break;

@@ -1,3 +1,15 @@
+2006-10-21  Matthias Wimmer  <m@tthias.eu>
+
+    * clients.cc: even more C++: config defaults, strings
+    * conn.cc: same
+    * connect.cc: same
+    * jadc2s.cc: same
+    * jadc2s.h: same
+    * util/config.cc: same
+    * util/util2.h: same
+    * util/str.cc: not used anymore, removing
+    * util/util.h: same
+
 2006-10-20  Matthias Wimmer  <m@tthias.eu>
 
     * clients.cc: using Glib::ustring for UTF-8 strings

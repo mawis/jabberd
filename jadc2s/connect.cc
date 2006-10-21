@@ -43,6 +43,25 @@
 #include <sstream>
 
 /**
+ * get a value from an array of strings containing keys at the even positions, and values at the odd positions (expat's way to pass attributes)
+ *
+ * @param atts the array for strings
+ * @param attr which value to get (the key)
+ * @return the value for the passed key
+ */
+static char *j_attr(const char** atts, const char *attr) {
+    int i = 0;
+
+    while (atts[i] != '\0') {
+	if (Glib::ustring(atts[i]) == attr)
+	    return (char*)atts[i+1];
+        i += 2;
+    }
+
+    return NULL;
+}
+
+/**
  * get the child element of a route element, that represents the base element
  * of the stanza
  *
@@ -341,7 +360,7 @@ static void _connect_process(conn_t c) {
 
     /* always check for the return handshake :) */
     if (c->state != state_OPEN) {
-        if (j_strncmp(NAD_ENAME(c->nad, 0), "handshake", 9) == 0) {
+        if (std::string(NAD_ENAME(c->nad, 0), NAD_ENAME_L(c->nad, 0)) == "handshake") {
             c->state = state_OPEN;
             DBG("handshake accepted, we're connected to the sm");
         }
@@ -349,7 +368,7 @@ static void _connect_process(conn_t c) {
     }
 
     /* just ignore anything except route packets */
-    if (j_strncmp(NAD_ENAME(c->nad, 0), "route", 5) != 0) {
+    if (std::string(NAD_ENAME(c->nad, 0), NAD_ENAME_L(c->nad, 0)) != "route") {
 	DBG("got non-route packet: " << std::string(NAD_ENAME(c->nad, 0), NAD_ENAME_L(c->nad, 0)));
 	return;
     }
@@ -436,8 +455,7 @@ static void _connect_process(conn_t c) {
     if (c->c2s->pending.find(cid.str()) != c->c2s->pending.end() && (pending = (c->c2s->pending)[cid.str()]) != NULL && target->state == state_AUTH) {
         /* got a result, start a session */
         attr = nad_find_attr(chunk->nad, 1, "type", NULL);
-        if(attr >= 0 && j_strncmp(NAD_AVAL(chunk->nad, attr), "result", 6) == 0)
-        {
+        if (attr >= 0 && std::string(NAD_AVAL(chunk->nad, attr), NAD_AVAL_L(chunk->nad, attr)) == "result") {
             /* auth was ok, send session request */
             DBG("client " << target->fd << "authorized, requesting session");
             chunk_write(c, chunk, target->smid->full().c_str(), pending->myid->full().c_str(), "session");
@@ -594,11 +612,7 @@ static int _connect_io(mio_t m, mio_action_t a, int fd, const void *data, void *
         /* try to connect again */
 	c2s = c->c2s;
 	if (!c2s->shutting_down) {
-	    try {
-		retries = j_atoi(c2s->config->get_string("sm.retries").c_str(), 5);
-	    } catch (Glib::ustring) {
-		retries = 5;
-	    }
+	    retries = c2s->config->get_integer("sm.retries");
 	    for (x = 0; x < retries; x++) {
 		if (connect_new(c2s))
 		    break;

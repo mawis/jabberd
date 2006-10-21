@@ -264,7 +264,6 @@ int conn_read(conn_t c, char *buf, int len);
 int conn_write(conn_t c);
 
 /* fill a nad with information about a user's connection */
-void connectionstate_fillnad(nad_t nad, const Glib::ustring& from, const Glib::ustring& to, const Glib::ustring& user, int is_login, const Glib::ustring& ip, const Glib::ustring& ssl_version, const Glib::ustring& ssl_cipher, const Glib::ustring& ssl_size_secret, const Glib::ustring& ssl_size_algorithm);
 void connectionstate_send(xmppd::pointer<xmppd::configuration> config, conn_t c, conn_t client, int is_login);
 
 /** maximum number of xml children in a chunk (checked by conn_read) */

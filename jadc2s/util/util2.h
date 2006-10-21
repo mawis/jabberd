@@ -588,6 +588,11 @@ namespace xmppd {
 	     * get a configuration value as an integer
 	     */
 	    int get_integer(const Glib::ustring& what);
+
+	    /**
+	     * sets the default value, that is returned if a configuration key is not set
+	     */
+	    void set_default(const Glib::ustring& what, const Glib::ustring& value);
 	private:
 	    std::stack<Glib::ustring> path_stack;
 	    Glib::ustring parse_buffer;
