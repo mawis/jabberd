@@ -178,17 +178,6 @@ fi
 
 AC_SUBST(DEBUG)
 
-AC_MSG_CHECKING(if pool debugging wanted)
-AC_ARG_ENABLE(pool_debug, AC_HELP_STRING([--enable-pool-debug], [Enable pool debugging]), pool_debug=yes)
-if test x-$pool_debug = "x-yes" ; then
-    AC_MSG_RESULT(yes)
-    AC_DEFINE(POOL_DEBUG,,[pool debug enabled])
-else
-    AC_MSG_RESULT(no)
-fi
-
-AC_SUBST(POOL_DEBUG)
-
 dnl check where to log
 syslog="no"
 AC_MSG_CHECKING(if logging to syslog wanted)

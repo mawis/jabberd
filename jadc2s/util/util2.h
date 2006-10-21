@@ -30,7 +30,7 @@
 #include <stringprep.h>
 
 #include <libxml++/libxml++.h>
-#include <glibmm-2.4/glibmm.h>
+#include <glibmm.h>
 
 
 namespace xmppd {
