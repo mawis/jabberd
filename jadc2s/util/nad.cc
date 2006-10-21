@@ -577,10 +577,9 @@ static int _nad_lp0(nad_t nad, int elem) {
     return elem;
 }
 
-void nad_print(nad_t nad, int elem, char **xml, int *len) {
+std::string nad_print(nad_t nad, int elem) {
     int ixml = nad->ccur;
 
     _nad_lp0(nad,elem);
-    *len = nad->ccur - ixml;
-    *xml = nad->cdata + ixml;
+    return std::string(nad->cdata + ixml, nad->ccur - ixml);
 }

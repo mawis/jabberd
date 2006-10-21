@@ -627,9 +627,10 @@ static int _connect_io(mio_t m, mio_action_t a, int fd, const void *data, void *
 	    }
 
 	    /* copy over old write queue if any */
-	    if(c->writeq != NULL) {
-		c2s->sm->writeq = c->writeq;
-		c2s->sm->qtail = c->qtail;
+	    if (!c->writeq.empty()) {
+		while (!c->writeq.empty()) {
+		    c2s->sm->writeq = c->writeq;
+		}
 		mio_write(c2s->mio, c2s->sm->fd);
 	    }
 	}

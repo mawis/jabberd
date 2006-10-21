@@ -1404,32 +1404,20 @@ void _client_detect_variant(int fd, conn_t c) {
     if (first[0] == 'G' && c->c2s->http_forward.length() > 0)
     {
 	chunk_t http_response = NULL;
-	char* http =
-		"HTTP/1.0 301 Found\r\n"
-		"Location: %s\r\n"
-		"Server: jadc2s " VERSION "\r\n"
-		"Expires: Fri, 10 Oct 1997 10:10:10 GMT\r\n"
-		"Pragma: no-cache\r\n"
-		"Cache-control: private\r\n"
-		"Connection: close\r\n\r\n";
-	char *buf;
-	
-	buf = static_cast<char*>(malloc((c->c2s->http_forward.length() + strlen(http)) * sizeof(char)));
-	sprintf (buf, http, c->c2s->http_forward.c_str());
-	
+	std::ostringstream http_data;
+
+	http_data << "HTTP/1.0 301 Found\r\n"
+	    "Location: " << c->c2s->http_forward << "\r\n"
+	    "Server: " PACKAGE " " VERSION "\r\n"
+	    "Expires: Mon, 16 Jun 1980 00:00:00 GMT\r\n"
+	    "Pragma: no-cache\r\n"
+	    "Cache-control: private\r\n"
+	    "Connection: close\r\n\r\n";
+
 	DBG("This is an incoming HTTP connection - forwarding to: " << c->c2s->http_forward);
 	
-	/* read all incoming data */
-
-	/* XXX this could be used to remotly block jadc2s
-	 *     but it would be nice if we read the incoming data before closing the socket
-	while(_read_actual(c,fd,first,1) > 0) { }
-	 */
-
 	http_response = chunk_new(NULL);
-	http_response->wcur = buf;
-	http_response->to_free = buf; /* let chunk_free() do the free(buf) */
-	http_response->wlen = strlen(buf);
+	http_response->bytes = http_data.str();
 	chunk_write(c, http_response, "", "", "");
 	
 	/* close connection */
@@ -1442,13 +1430,15 @@ void _client_detect_variant(int fd, conn_t c) {
     if (first[0] == 'P')
     {
 	chunk_t http_response = NULL;
-	char* http =
-		"HTTP/1.0 200 Ok\r\n"
-		"Server: jadc2s " VERSION "\r\n"
-		"Expires: Fri, 10 Oct 1997 10:10:10 GMT\r\n"
-		"Pragma: no-cache\r\n"
-		"Cache-control: private\r\n"
-		"Connection: close\r\n\r\n";
+	std::ostringstream http_data;
+
+	http_data << "HTTP/1.0 200 Ok\r\n"
+	    "Server: " PACKAGE " " VERSION "\r\n"
+	    "Expires: Mon, 16 Jun 1980 00:00:00 GMT\r\n"
+	    "Pragma: no-cache\r\n"
+	    "Cache-control: private\r\n"
+	    "Connection: close\r\n\r\n";
+
 	char peek[5];
 	int search = 1;
 	
@@ -1457,8 +1447,7 @@ void _client_detect_variant(int fd, conn_t c) {
 	DBG("This is an incoming HTTP connection");
 
 	http_response = chunk_new(NULL);
-	http_response->wcur = http;
-	http_response->wlen = strlen(http);
+	http_response->bytes = http_data.str();
 	chunk_write(c, http_response, "", "", "");
 	
 	DBG("Look for the ending \\r\\n\\r\\n");
@@ -1627,15 +1616,13 @@ int _client_io_read(mio_t m, int fd, conn_t c) {
  */
 int _client_io_idle(int fd, conn_t c) {
     chunk_t idle_chunk = NULL;
-    char *idle_character = " ";
 
     /* do not send idle pings until the connection is open, else we may have problems establishing a TLS or SASL security layer */
     if (c->state != state_OPEN)
 	return 0;
 
     idle_chunk = chunk_new(NULL);
-    idle_chunk->wcur = idle_character;
-    idle_chunk->wlen = 1;
+    idle_chunk->bytes = " ";
     chunk_write(c, idle_chunk, "", "", "");
     return 0;
 }
@@ -1686,14 +1673,10 @@ void client_send_sc_command(conn_t sm_conn, const Glib::ustring& to, const Glib:
  * @param c the connection
  */
 void _client_io_close(int fd, conn_t c) {
-    chunk_t chunk;
-
     DBG("_client_io_close(" << fd << "," << static_cast<void*>(c) << ")");
 
     /* Process on a valid conn */
     if(c->state == state_OPEN) {
-	chunk_t cur, next;
-
 	DBG("... in state_OPEN, sc_sm=" << c->sc_sm);
 
 	/* if there was a nad being created, ditch it */
@@ -1702,19 +1685,15 @@ void _client_io_close(int fd, conn_t c) {
 	    c->nad = NULL;
 	}
 
+	/* if we will not bounce anything while using old sc protocol, we have to close the session explicitly */
+	if (c->writeq.empty() && c->sc_sm.length() > 0) {
+	    chunk_write(c->c2s->sm, chunk_new(c), c->smid->full(), c->myid->full(), "error");
+	}
+
 	/* bounce write queue back to sm and close session */
-	if(c->writeq != NULL) {
-	    for(cur = c->writeq; cur != NULL; cur = next) {
-		next = cur->next;
-		chunk_write(c->c2s->sm, cur, c->smid->full(), c->myid->full(), "error");
-	    }
-	} else {
-	    /* always send some sort of error */
-	    if (c->sc_sm.length() > 0) {
-		chunk = chunk_new(c);
-		chunk_write(c->c2s->sm, chunk, c->smid->full(), c->myid->full(), "error");
-		chunk = NULL;
-	    }
+	while (!c->writeq.empty()) {
+	    chunk_write(c->c2s->sm, c->writeq.front(), c->smid->full(), c->myid->full(), "error");
+	    c->writeq.pop();
 	}
 
 	/* close session using the new protocol */
