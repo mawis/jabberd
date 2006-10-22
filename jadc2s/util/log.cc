@@ -22,6 +22,9 @@
  */
 
 #include "util.h"
+#ifdef USE_SSL
+# include <openssl/err.h>
+#endif
 
 namespace xmppd {
 
