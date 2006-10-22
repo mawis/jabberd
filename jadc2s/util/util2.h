@@ -37,6 +37,19 @@ namespace xmppd {
 
     /* ******************** Logging ******************** */
 
+#ifdef USE_SYSLOG
+# include <syslog.h>
+#else
+# define LOG_EMERG   (0)
+# define LOG_ALERT   (1)
+# define LOG_CRIT    (2)
+# define LOG_ERR     (3)
+# define LOG_WARNING (4)
+# define LOG_NOTICE  (5)
+# define LOG_INFO    (6)
+# define LOG_DEBUG   (7)
+#endif
+
     /* forward declaration */
     class logging;
 
@@ -514,16 +527,49 @@ namespace xmppd {
 	    xmlistream(bool use_get_entity=false);
 
 	    /**
-	     * event that notifies, that the root node start tag has been received
+	     * Signal that is fired, if the root of the XML stream has been received
 	     *
-	     * @param root_element the root element that has just been read (the element is only garanteed to be valid until this method returns)
+	     * @note to not expect the passed document or element to exist after all
+	     * signal handlers have been processed. If you need to keep this data
+	     * make a copy of it.
+	     *
+	     * @note the passed element is the document root element.
+	     *
+	     * The passed Glib::ustring is the namespace IRI of the default namespace. This
+	     * will pass the original namespace IRI, even if that iri is mapped to another
+	     * namespace IRI.
 	     */
-	    virtual void on_root_element(const xmlpp::Document& document, const xmlpp::Element& root_element);
+	    sigc::signal<void, const xmlpp::Document&, const xmlpp::Element&, const Glib::ustring&> signal_on_root;
 
 	    /**
-	     * event that a second level element has been received completely
+	     * Signal that is fired, if a stanza has been received on the XML stream
+	     *
+	     * @note to not expect the passed document or element to exist after all
+	     * signal handlers have been processed. If you need to keep this data
+	     * make a copy of it.
+	     *
+	     * @note the passed element is the stanza root element.
 	     */
-	    virtual void on_stanza(const xmlpp::Document& document, const xmlpp::Element& stanza_root);
+	    sigc::signal<void, const xmlpp::Document&, const xmlpp::Element&> signal_on_stanza;
+
+	    /**
+	     * Signal that is fired, if a stream has ended
+	     *
+	     * The bool parameter signals if the stream has been closed by a closing root element or by an
+	     * error. (true = close because of an error)
+	     */
+	    sigc::signal<void, bool, const Glib::ustring&> signal_on_close;
+
+	    /**
+	     * sets a replacement for a namespace
+	     *
+	     * If a namespace is replaced, the one namespace is always replaced to the other
+	     * while reading the XML document.
+	     *
+	     * @param replaced the namespace that gets replaced
+	     * @param replacement the namespace that gets set instead
+	     */
+	    void set_namespace_replacement(const Glib::ustring& replaced, const Glib::ustring& replacement);
 
 	private:
 	    /**
@@ -540,9 +586,13 @@ namespace xmppd {
 
 	    void on_characters(const Glib::ustring& characters);
 
+	    void on_error(const Glib::ustring& text);
+
 	    xmlpp::Document stream_document;
 
 	    std::stack<xmlpp::Element*> current_element;
+
+	    std::map<Glib::ustring, Glib::ustring> namespace_replacements;
 
 	    /**
 	     * adds the attributes of the attributes AttributeNSList to the top of current_elements
@@ -550,6 +600,11 @@ namespace xmppd {
 	     * @param attributes the attributes to add
 	     */
 	    void add_attributes_to_current_element(const AttributeNSList& attributes);
+
+	    /**
+	     * maximum allowed depth of elements
+	     */
+	    unsigned int maxdepth;
     };
 
 
@@ -602,6 +657,32 @@ namespace xmppd {
 	    void on_characters(const Glib::ustring& text);
 
 	    std::map<Glib::ustring, Glib::ustring> default_settings;
+    };
+
+    /* ******************** Utility for using DOMs  ******************** */
+
+    class dom_util {
+	private:
+	    /* do not construct instances */
+	    dom_util() {};
+
+	public:
+	    /**
+	     * serialize a DOM node to its textual representation
+	     *
+	     * @param node the node to serialize
+	     * @param known_namespaces the namespaces that are already declared where the result will be used
+	     */
+	    static Glib::ustring serialize_node(const xmlpp::Node& node, const std::map<Glib::ustring, Glib::ustring>& ns_replacements, const std::map<Glib::ustring, Glib::ustring>& known_namespaces, std::map<Glib::ustring, Glib::ustring>& now_defined_namespaces_out);
+	    static Glib::ustring serialize_node(const xmlpp::Node& node, const std::map<Glib::ustring, Glib::ustring>& ns_replacements, const std::map<Glib::ustring, Glib::ustring>& known_namespaces);
+
+	    /**
+	     * escape characters, that should be escaped in XML
+	     *
+	     * @param str the string that should get escapings
+	     * @result the escaped string
+	     */
+	    static Glib::ustring xmlescape(Glib::ustring str);
     };
 }
 
