@@ -30,6 +30,7 @@
 #include <deque>
 #include <vector>
 #include <stdexcept>
+#include <queue>
 
 #include <ctime>
 
@@ -712,6 +713,92 @@ namespace xmppd {
 	     * maximum allowed depth of elements
 	     */
 	    unsigned int maxdepth;
+    };
+
+    /**
+     * the xmlostream class can be used to send an XML stream consisting of stanzas
+     */
+    class xmlostream {
+	public:
+	    /**
+	     * constructs an xmlostream instance
+	     *
+	     * After custructing the xmlostream, the caller has to connect the write_handler
+	     * and should call try_writing() to get the stream root start tag written.
+	     *
+	     * @param stream_root document containing the stream root element as the document's root element
+	     */
+	    xmlostream(const xmlpp::Document& stream_root, std::map<Glib::ustring, Glib::ustring> ns_replacements);
+
+	    /**
+	     * send a stanza on the XML stream
+	     *
+	     * @note the root element of the stanza_document document is effectifly ignored,
+	     * that stanza, that gets sent it the child element in the root element.
+	     *
+	     * @param stanza_document the document containing the stanza, that should be sent
+	     * @param want_back_on_error if the stanza should be fetchable again if the stream breaks
+	     */
+	    void send_stanza(const xmlpp::Document& stanza_document, bool want_back_on_error);
+
+	    /**
+	     * notify the xmlostream, that it should try writing data again
+	     */
+	    void try_writing();
+
+	    /**
+	     * signal that is used to write out data
+	     *
+	     * The signal handler gets passed the data, that should get written.
+	     * The signal handler has to remove the written data out of the std::string
+	     * it gets passed if data has been written sucessfully.
+	     */
+	    sigc::signal<void, std::string&> write_handler;
+
+	    /**
+	     * close the xmlostream by sending the end tag of the stream root element
+	     */
+	    void close();
+
+	private:
+
+	    /**
+	     * flag, that signals, that a stream is closed
+	     */
+	    bool stream_is_closed;
+
+	    /**
+	     * pre-formatted end tag to close the stream
+	     */
+	    Glib::ustring stream_close_tag;
+
+	    /**
+	     * the namespaces, that have been declared on the root element of the stream
+	     *
+	     * key is the prefix, value is the IRI
+	     */
+	    std::map<Glib::ustring, Glib::ustring> namespaces_on_root;
+
+	    /**
+	     * namespace IRIs that should get replaced by other namespace IRIs when writing this XML stream
+	     *
+	     * (e.g. used to map internal jabber:server namespace to the jabber:client namespace
+	     * on client connections)
+	     */
+	    std::map<Glib::ustring, Glib::ustring> ns_replacements;
+
+	    /**
+	     * structure used to store stanzas together with their serialized content
+	     */
+	    struct chunk {
+		pointer<xmlpp::Document> xml; /**< the stanza, if it should be sent back on error */
+		std::string bytes; /**< the serialized data, what actually should get written */
+	    };
+
+	    /**
+	     * queue of stanzas, that are waiting to be written
+	     */
+	    std::queue<pointer<chunk> > waiting_stanzas;
     };
 
 
