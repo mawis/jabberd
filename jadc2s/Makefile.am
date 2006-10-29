@@ -4,15 +4,16 @@ EXTRA_DIST = PROTO jadc2s.xml.dist README.SASL
 SUBDIRS = ac-helpers mio util
 DIST_SUBDIRS = ac-helpers mio util
 
-bin_PROGRAMS = jadc2s
+bin_PROGRAMS = xmppd-c2s
 
-jadc2s_SOURCES = clients.cc conn.cc connect.cc jadc2s.cc rate.cc
-jadc2s_LDADD = $(top_builddir)/mio/libmio.la \
+# xmppd-c2s_SOURCES = chunk.cc clients.cc conn.cc connect.cc jadc2s.cc rate.cc
+xmppd_c2s_SOURCES = test.cc
+xmppd_c2s_LDADD = $(top_builddir)/mio/libmio.la \
 		   $(top_builddir)/util/libutil.la
 noinst_HEADERS = jadc2s.h
 
 #jadc2s_LDADD = libjad.la
-jadc2s_LDFLAGS = @LDFLAGS@
+xmppd_c2s_LDFLAGS = @LDFLAGS@
 
 #lib_LTLIBRARIES = libjad.la
 #
