@@ -86,6 +86,7 @@ namespace xmppd {
 
 	// append the chunk to what needs to get written
 	waiting_stanzas.push(stanza);
+	stanza = NULL;
 
 	// try if the data can be written
 	try_writing();
@@ -121,6 +122,7 @@ namespace xmppd {
 
 	// append the chunk to what needs to get written
 	waiting_stanzas.push(stream_end_tag);
+	stream_end_tag = NULL;
 
 	// try if the data can be written
 	try_writing();
