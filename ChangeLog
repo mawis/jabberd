@@ -1,3 +1,11 @@
+2006-11-02  Matthias Wimmer  <m@tthias.eu>
+
+    * jsm/authreg.c: block accounts after they have been unregistered
+    * jsm/modules/mod_last.c: same
+    * jabberd/lib/jabberdlib.h: removed the NS_ADMIN namespace
+    * jsm/jsm.c: same
+    * jsm/modules/mod_admin.c: removed check for the cfg admin element
+
 2006-10-01  Matthias Wimmer  <m@tthias.eu>
 
     * jabberd/lib/hmac.c: support for calculating HMAC-SHA1
