@@ -1,4 +1,4 @@
-.TH jabber.xml 5 "15 Mar 2005" "@VERSION@" "jabberd14 project"
+.TH jabber.xml 5 " 1 Nov 2006" "@VERSION@" "jabberd14 project"
 .SH NAME
 jabber.xml \- jabberd daemon configuration file
 .SH SYNOPSIS
@@ -8,6 +8,15 @@ command line option can be used to specify an alternate configuration file.
 .SH "FILE FORMAT"
 The configuration file has to be a valid XML document preferably in the
 UTF-8 charset (ASCII is valid subset of UTF-8).
+
+Within the following xpath expressions, the following namespace prefixes
+are used:
+
+default namespace: "jabber:iq:server",
+browse: "jabber:iq:browse",
+cfg: "http://jabberd.org/ns/configfile",
+register: "jabber:iq:register",
+vcard: "vcard-temp",
 .TP
 .B <jabber/>
 This is the root element of the configuration file.
@@ -140,5 +149,63 @@ to bounce messages and iq queries and send unsubscribes to presences, that
 are received. It is intended to be used as a replacement for transports,
 that are removed from a server. It will remove the roster items of this
 transport from the users' rosters.
+.TP
+.B jsm setting: cfg:jabber/cfg:service/jsm:jsm/browse:browse
+List of services, that should be returned as the result of a browsing or
+a service discovery request. The format is as in a browse result stanza.
+.TP
+.B jsm setting: cfg:jabber/cfg:service/jsm:jsm/disco-info:disco/disco-info:identity
+Name of the Jabber server, that should be returned in a service discovery reply.
+If this is not configured, the FN field of the server's vCard
+(cfg:jabber/cfg:service/jsm:jsm/vcard:vCard/vcard:FN) is used.
+.TP
+.B jsm setting: cfg:jabber/cfg:service/jsm:jsm/jsm:admin/reply
+Message, that should be returned to someone, that has sent a message to the
+servers address. (These messages are forwarded to all users having the 'adminmsg'
+ACL right.)
+.TP
+.B jsm setting: cfg:jabber/cfg:service/jsm:jsm/jsm:agents
+.TP
+.B jsm setting: cfg:jabber/cfg:service/jsm:jsm/jsm:archive
+.TP
+.B jsm setting: cfg:jabber/cfg:service/jsm:jsm/jsm:auth
+Redirect authentication handling (non-SASL only) to a component. The
+address of the component has to be given as the textual content of this
+configuration element. No default setting.
+.TP
+.B jsm setting: cfg:jabber/cfg:service/jsm:jsm/jsm:maxusers
+The maximum number of users the server should expect per domain (more users
+will get handled, but it may have performance impacts). A prime number
+should be configured here. The default setting is 3001.
+.TP
+.B jsm setting: cfg:jabber/cfg:service/jsm:jsm/jsm:mod_auth_crypt/jsm:hash
+.TP
+.B jsm setting: cfg:jabber/cfg:service/jsm:jsm/jsm:mod_offline
+.TP
+.B jsm setting: cfg:jabber/cfg:service/jsm:jsm/jsm:mod_useridpolicy
+.TP
+.B jsm setting: cfg:jabber/cfg:service/jsm:jsm/jsm:mod_version
+.TP
+.B jsm setting: cfg:jabber/cfg:service/jsm:jsm/jsm:presence
+.TP
+.B jsm setting: cfg:jabber/cfg:service/jsm:jsm/jsm:vcard2jud
+If the vCard a users sets should be forwarded to the first Jabber users
+directory, that is configured in cfg:jabber/cfg:service/jsm:jsm/browse:browse.
+.TP
+.B jsm setting: cfg:jabber/cfg:service/jsm:jsm/register:register
+Reply stanza to a jabber:iq:register get request. This configures what
+a client gets asked, if a user tries an inband account registration.
+.TP
+.B jsm setting: cfg:jabber/cfg:service/jsm:jsm/vcard:vCard
+The vCard, that gets returned, if a Jabber entity requests a vCard
+for the server. No default value.
+.TP
+.B jsm setting: cfg:jabber/cfg:service/jsm:jsm/welcome
+A message stanza, that should be sent to a new user. The content of the
+welcome element is used as the content of the generated message stanza.
+Therefore you should have a body element inside this one, and a subject
+element might be good to have as well. It is possible to use xml:lang
+attributes for the content of this element. No default setting, if
+element is missing, no welcome message is generated.
 .SH AUTHOR
 Jabber Software Foundation

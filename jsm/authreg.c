@@ -42,6 +42,7 @@
  * --------------------------------------------------------------------------*/
  
 #include "jsm.h"
+#include <time.h>
 
 /**
  * @file authreg.c
@@ -112,7 +113,7 @@ void _js_authreg_register(jpacket p) {
 	log_debug2(ZONE, LOGT_AUTH, "registration get request");
 	/* let modules try to handle it */
 	if (!js_mapi_call(si, e_REGISTER, p, NULL, NULL)) {
-	    jutil_error_xmpp(p->x, XTERROR_NOTIMPL);
+	    jutil_error_xmpp(p->x, XTERROR_UNAVAIL);
 	} else { /* make a reply and the username requirement is built-in :) */
 	    xmlnode_put_attrib_ns(p->x, "type", NULL, NULL, "result");
 	    jutil_tofrom(p->x);
@@ -127,8 +128,32 @@ void _js_authreg_register(jpacket p) {
 	    jutil_error_xmpp(p->x, XTERROR_NOTACCEPTABLE);
 	} else if (js_user(si, p->to, NULL) != NULL) {
 	    jutil_error_xmpp(p->x, (xterror){409, "Username Not Available", "cancel", "conflict"});
-	} else if (!js_mapi_call(si, e_REGISTER, p, NULL, NULL)) {
-	    jutil_error_xmpp(p->x, XTERROR_NOTIMPL);
+	} else {
+	    /* check if this account is blocked for registration as this account already exited */
+	    int regtimeout = j_atoi(xmlnode_get_attrib_ns(js_config(si, "jsm:regtimeout"), "timeout", NULL), 365*86400/2);
+
+	    /* if regtimeout is configured as 0, accounts can be reregistered immediatelly */
+	    if (regtimeout != 0) {
+		xmlnode last = NULL;
+
+		last = xdb_get(si->xc, jid_user(p->to), NS_LAST);
+		/* if last is NULL, no previous account existed. Further tests only if there is last data */
+		if (last != NULL) {
+		    time_t now = time(NULL);
+		    int lasttime = j_atoi(xmlnode_get_attrib_ns(last, "last", NULL), 0);
+
+		    /* if regtimeout is set to -1, unregistered accounts are blocked forever ... */
+		    if (regtimeout == -1 || now < (lasttime + regtimeout)) {
+			jutil_error_xmpp(p->x, (xterror){409, "Username Not Available", "cancel", "conflict"});
+			return;
+		    }
+		}
+	    }
+
+	    /* if we arrived here, the account can be registered */
+	    if (!js_mapi_call(si, e_REGISTER, p, NULL, NULL)) {
+		jutil_error_xmpp(p->x, XTERROR_UNAVAIL);
+	    }
 	}
     }
 }

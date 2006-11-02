@@ -277,7 +277,7 @@ static mreturn mod_last_reply(mapi m, void *arg) {
  * @return always M_PASS
  */
 static mreturn mod_last_delete(mapi m, void *arg) {
-    xdb_set(m->si->xc, m->user->id, NS_LAST, NULL);
+    mod_last_set(m, m->user->id, "Unregistered");
     return M_PASS;
 }
 

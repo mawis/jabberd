@@ -193,7 +193,6 @@ void jsm(instance i, xmlnode x) {
     si->std_namespace_prefixes = xhash_new(17);
     xhash_put(si->std_namespace_prefixes, "", NS_SERVER);
     xhash_put(si->std_namespace_prefixes, "jsm", NS_JABBERD_CONFIG_JSM);
-    xhash_put(si->std_namespace_prefixes, "admin", NS_ADMIN);
     xhash_put(si->std_namespace_prefixes, "auth", NS_AUTH);
     xhash_put(si->std_namespace_prefixes, "browse", NS_BROWSE);
     xhash_put(si->std_namespace_prefixes, "delay", NS_DELAY);
