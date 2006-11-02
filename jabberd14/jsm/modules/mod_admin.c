@@ -205,7 +205,7 @@ mreturn mod_admin_message(mapi m, void *arg) {
     /* check if we are interested in handling this packet */
     if (m->packet->type != JPACKET_MESSAGE)
 	return M_IGNORE; /* the session manager should not deliver this stanza type again */
-    if (m->packet->to->resource != NULL || js_config(m->si, "jsm:admin") == NULL || jpacket_subtype(m->packet) == JPACKET__ERROR)
+    if (m->packet->to->resource != NULL || jpacket_subtype(m->packet) == JPACKET__ERROR)
 	return M_PASS;
 
     /* drop ones w/ a delay! (circular safety) */

@@ -765,7 +765,6 @@ typedef struct xterror_struct
 #define NS_SEARCH    "jabber:iq:search"
 #define NS_OOB       "jabber:iq:oob"
 #define NS_XOOB      "jabber:x:oob"
-#define NS_ADMIN     "jabber:iq:admin"
 #define NS_FILTER    "jabber:iq:filter"
 #define NS_AUTH_0K   "jabber:iq:auth:0k"
 #define NS_BROWSE    "jabber:iq:browse"
@@ -784,7 +783,6 @@ typedef struct xterror_struct
 #define NS_FLEXIBLE_OFFLINE "http://jabber.org/protocol/offline"
 #define NS_IQ_AUTH    "http://jabber.org/features/iq-auth"
 #define NS_REGISTER_FEATURE "http://jabber.org/features/iq-register"
-#define NS_ADMIN_WHO "jabber:mod_admin:who"
 #define NS_MSGOFFLINE "msgoffline"
 
 /* #define NS_XDBGINSERT "jabber:xdb:ginsert" XXX: I guess this it not used ANYWHERE and can be deleted */
