@@ -80,6 +80,18 @@
         <email/>
       </register>
 
+      <!--
+      Registration timeout. You cannot reuse a JabberID that was
+      deleted less then the configured number of seconds ago.
+
+      Set this to -1 to block unregistered accounts forever.
+      Use 0 to allow registration of accounts immediatelly after
+      they have been unregistered again.
+
+      Default is to block registration for 182.5 days.
+      -->
+      <regtimeout timeout="15768000"/>
+
       <!-- 
       A welcome note that is sent to every new user who registers 
       with your server. Comment it out to disable this function.
