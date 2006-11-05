@@ -26,18 +26,26 @@
 #include <cstdlib>
 
 namespace xmppd {
+    template<class pointed_type> pointer<pointed_type>::pointer() : pointed_object(NULL), all_pointers_to_this_object(NULL) {
+    }
 
     template<class pointed_type> pointer<pointed_type>::pointer(pointed_type* pointed_object, bool malloc_allocated) : pointed_object(pointed_object), all_pointers_to_this_object(NULL), malloc_allocated(malloc_allocated) {
 	if (pointed_object != NULL) {
 	    all_pointers_to_this_object = new std::set<pointer<pointed_type>*>;
+	    assert(this->pointed_object != NULL);
 	    all_pointers_to_this_object->insert(this);
 	}
+
+	assert((all_pointers_to_this_object == NULL) == (pointed_object == NULL));
     }
 
     template<class pointed_type> pointer<pointed_type>::pointer(const pointer<pointed_type>& src) : pointed_object(src.pointed_object), all_pointers_to_this_object(src.all_pointers_to_this_object), malloc_allocated(malloc_allocated) {
 	if (pointed_object != NULL && all_pointers_to_this_object != NULL) {
+	    assert(this->pointed_object != NULL);
 	    all_pointers_to_this_object->insert(this);
 	}
+
+	assert((all_pointers_to_this_object == NULL) == (pointed_object == NULL));
     }
 
     template<class pointed_type> pointer<pointed_type>::~pointer() {
@@ -59,6 +67,7 @@ namespace xmppd {
     }
 
     template<class pointed_type> pointer<pointed_type>& pointer<pointed_type>::operator=(const pointer<pointed_type>& src) {
+	assert((this->all_pointers_to_this_object == NULL) == (this->pointed_object == NULL));
 	// remove link to the object we pointed to until now
 	point_nothing();
 
@@ -69,8 +78,11 @@ namespace xmppd {
 
 	// add us to the set of pointers to this object
 	if (pointed_object != NULL && all_pointers_to_this_object != NULL) {
+	    assert(this->pointed_object != NULL);
 	    all_pointers_to_this_object->insert(this);
 	}
+
+	assert((all_pointers_to_this_object == NULL) == (pointed_object == NULL));
     }
 
     template<class pointed_type> bool pointer<pointed_type>::points_to_NULL() const {
@@ -103,6 +115,8 @@ namespace xmppd {
 	    return;
 	}
 
+	assert(pointed_object != NULL);
+
 	// we are pointing to something
 	
 	// remove us from the list of managed pointers to the object
@@ -111,8 +125,10 @@ namespace xmppd {
 	// are we the last pointer pointing to this object? then we have to delete (free) the object
 	if (all_pointers_to_this_object->empty()) {
 	    if (malloc_allocated) {
+		assert (pointed_object != NULL);
 		std::free(pointed_object);
 	    } else {
+		assert (pointed_object != NULL);
 		delete pointed_object;
 	    }
 
