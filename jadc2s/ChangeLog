@@ -1,3 +1,8 @@
+2006-10-29  Matthias Wimmer  <m@tthias.eu>
+
+    * util/util.h: new class xmlostream
+    * util/xmlostream.cc: same
+
 2006-10-21  Matthias Wimmer  <m@tthias.eu>
 
     * clients.cc: even more C++: config defaults, strings
