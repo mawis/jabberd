@@ -287,7 +287,7 @@ namespace xmppd {
 	    /**
 	     * constructor to create a managed pointer pointing to nothing
 	     */
-	    pointer() { pointer(NULL); };
+	    pointer();
 
 	    /**
 	     * constructor to create a managed pointer for a real pointer
