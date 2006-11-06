@@ -2,6 +2,7 @@
 
     * util/pointer.tcc: correct initializing of pointer in default constructor
     * util/util.h: same
+    * util/dom_util.cc: utility class for handling DOMs
 
 2006-10-29  Matthias Wimmer  <m@tthias.eu>
 
