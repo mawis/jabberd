@@ -56,6 +56,13 @@ namespace xmppd {
 	if (current_element.top()->get_namespace_uri() != mapped_ns_iri)
 	    new_element->set_namespace_declaration(mapped_ns_iri);
 
+	// set the namespace of the new element
+	// (XXX: libxml++ does not set any namespace (not even the default namespace)
+	// if add_element is called with the empty namespace prefix. IMHO this is a
+	// but in libxml++, and I want to write a patch for it. For now setting
+	// the namespace prefix to "" using set_namespace() is a workaround.)
+	new_element->set_namespace("");
+
 	// make the new element the current one
 	current_element.push(new_element);
 

@@ -33,12 +33,13 @@ int main() {
     xmlpp::Document* xml_document = new xmlpp::Document;
     xmlpp::Element* root_element = xml_document->create_root_node("stream", "http://etherx.jabber.org/streams", "stream");
     root_element->set_namespace_declaration("jabber:server");
+    root_element->set_namespace("stream");
     root_element->set_attribute("version", "1.0");
     root_element->set_attribute("to", "example.com");
 
     std::map<Glib::ustring, Glib::ustring> ns_replacements;
 
-    xmppd::xmlostream ostream(*xml_document, ns_replacements);
+    xmppd::xmlostream ostream(*xml_document, "jabber:server", ns_replacements);
     ostream.write_handler.connect(sigc::ptr_fun(writer));
 
     delete xml_document;
@@ -48,12 +49,13 @@ int main() {
     // send some stanzas
     for (int i = 0; i<10; i++) {
 	xml_document = new xmlpp::Document;
-	root_element = xml_document->create_root_node("stream", "http://etherx.jabber.org/streams", "stream");
+	xmlpp::Element* root_element = xml_document->create_root_node("stream", "http://etherx.jabber.org/streams", "stream");
 	root_element->set_namespace_declaration("jabber:server");
 	root_element->set_attribute("version", "1.0");
 	root_element->set_attribute("to", "example.com");
 
 	xmlpp::Element* message = root_element->add_child("message");
+	message->set_namespace("");
 	message->set_attribute("to", "foo@example.com");
 	message->set_attribute("from", "bar@example.com");
 	std::ostringstream id;
@@ -61,6 +63,7 @@ int main() {
 	message->set_attribute("id", id.str());
 	id.str("");
 	xmlpp::Element* body = message->add_child("body");
+	body->set_namespace("");
 	id << "Message number " << i;
 	body->set_child_text(id.str());
 
