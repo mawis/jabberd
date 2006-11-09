@@ -728,7 +728,7 @@ namespace xmppd {
 	     *
 	     * @param stream_root document containing the stream root element as the document's root element
 	     */
-	    xmlostream(const xmlpp::Document& stream_root, std::map<Glib::ustring, Glib::ustring> ns_replacements);
+	    xmlostream(const xmlpp::Document& stream_root, const Glib::ustring& default_ns_iri, std::map<Glib::ustring, Glib::ustring> ns_replacements);
 
 	    /**
 	     * send a stanza on the XML stream

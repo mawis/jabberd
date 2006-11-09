@@ -1,3 +1,7 @@
+2006-11-09  Matthias Wimmer <m@tthias.eu>
+
+    * util/xmlostream.cc: add the ability to set a default namespace
+
 2006-11-05  Matthias Wimmer <m@tthias.eu>
 
     * util/pointer.tcc: correct initializing of pointer in default constructor
