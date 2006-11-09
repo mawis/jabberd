@@ -21,7 +21,7 @@
 #include "util.h"
 
 namespace xmppd {
-    xmlostream::xmlostream(const xmlpp::Document& stream_root, std::map<Glib::ustring, Glib::ustring> ns_replacements) : stream_is_closed(false), ns_replacements(ns_replacements) {
+    xmlostream::xmlostream(const xmlpp::Document& stream_root, const Glib::ustring& default_ns_iri, std::map<Glib::ustring, Glib::ustring> ns_replacements) : stream_is_closed(false), ns_replacements(ns_replacements) {
 	// create a list of namespace prefixes, that are automatically bound to their IRIs
 	std::map<Glib::ustring, Glib::ustring> standard_ns_prefixes;
 	standard_ns_prefixes[""] = nsparser::NS_EMPTY;
@@ -41,6 +41,10 @@ namespace xmppd {
 	if (root_element[root_element.length()-1] == '/')
 	    root_element.erase(root_element.length()-1);
 	stream_close_tag = root_element;
+	if ((namespaces_on_root.find("") == namespaces_on_root.end() || namespaces_on_root[""] == "") && default_ns_iri != "") {
+	    namespaces_on_root[""] = default_ns_iri;
+	    root_element = root_element + " xmlns='" + dom_util::xmlescape(default_ns_iri) + "'";
+	}
 	root_element = "<?xml version='1.0'?>"+root_element+">";
 	Glib::ustring::size_type end_of_name_pos = stream_close_tag.find(" ");
 	if (end_of_name_pos != Glib::ustring::npos)
