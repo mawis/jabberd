@@ -93,7 +93,7 @@ mreturn mod_useridpolicy_new(mapi m, void *arg) {
 	if (xmlnode_get_type(x) != NTYPE_TAG)
 	    continue;
 
-	if (!NSCHECK(x, NS_JABBERD_CONFIGFILE))
+	if (!NSCHECK(x, NS_JABBERD_CONFIG_JSM))
 	    continue;
 
 	/* we only care for "forbidden" elements at this point */
@@ -149,5 +149,5 @@ mreturn mod_useridpolicy_new(mapi m, void *arg) {
  */
 void mod_useridpolicy(jsmi si) {
     log_debug2(ZONE, LOGT_INIT, "mod_useridpolicy starting up");
-    js_mapi_register(si, e_REGISTER, mod_useridpolicy_new, NULL);
+    js_mapi_register(si, e_PRE_REGISTER, mod_useridpolicy_new, NULL);
 }

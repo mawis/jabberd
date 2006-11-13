@@ -306,8 +306,19 @@ typedef int event;
  */
 #define e_DESERIALIZE 9
 
+/**
+ * e_PRE_REGISTER is called in the same situation as the e_REGISTER event, but
+ * called before. If the event gets handled by any module, no e_REGISTER event
+ * is generated. This can be used to cancel registration requests, i.e. to
+ * check a request and deny it if provided data is not acceptable.
+ *
+ * Only the stanza is passed as ::jpacket_struct. No session and no user is passed to
+ * a handler registered for this event.
+ */
+#define e_PRE_REGISTER 10
+
 /* always add new event types here, to maintain backwards binary compatibility */
-#define e_LAST     10  /**< flag for the highest event type*/
+#define e_LAST     11  /**< flag for the highest event type*/
 
 /* session event types */
 
