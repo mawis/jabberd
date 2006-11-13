@@ -201,6 +201,7 @@ mreturn mod_admin_message(mapi m, void *arg) {
     static char jidlist[1024] = "";
     jid admins = NULL;
     jid admin_iter = NULL;
+    xmlnode reply = NULL;
 
     /* check if we are interested in handling this packet */
     if (m->packet->type != JPACKET_MESSAGE)
@@ -232,7 +233,8 @@ mreturn mod_admin_message(mapi m, void *arg) {
     }
 
     /* reply, but only if we haven't in the last few or so jids */
-    if ((cur = js_config(m->si,"jsm:admin/reply")) != NULL && strstr(jidlist,jid_full(jid_user(m->packet->from))) == NULL) {
+    reply = js_config(m->si, "jsm:admin/reply");
+    if (reply != NULL && strstr(jidlist,jid_full(jid_user(m->packet->from))) == NULL) {
 	const char *lang = NULL;
 
         /* tack the jid onto the front of the list, depreciating old ones off the end */
@@ -245,13 +247,13 @@ mreturn mod_admin_message(mapi m, void *arg) {
 	xmlnode_hide(xmlnode_get_list_item(xmlnode_get_tags(m->packet->x, "body", m->si->std_namespace_prefixes), 0));
 
 	/* copy the xml:lang attribute to the message */
-	lang = xmlnode_get_lang(cur);
+	lang = xmlnode_get_lang(reply);
 	if (lang != NULL) {
 	    xmlnode_put_attrib_ns(m->packet->x, "lang", "xml", NS_XML, lang);
 	}
 
 	/* copy subject and body to the message */
-	xmlnode_insert_node(m->packet->x, xmlnode_get_firstchild(cur));
+	xmlnode_insert_node(m->packet->x, xmlnode_get_firstchild(reply));
 
         jutil_tofrom(m->packet->x);
         jpacket_reset(m->packet);
@@ -259,6 +261,7 @@ mreturn mod_admin_message(mapi m, void *arg) {
     } else {
         xmlnode_free(m->packet->x);
     }
+    xmlnode_free(reply);
     return M_HANDLED; /* no other module needs to process this message */
 }
 

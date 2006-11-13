@@ -189,15 +189,19 @@ int mod_auth_crypt_reset(mapi m, jid id, xmlnode pass) {
     xmlnode newpass;
     char* hashalgo;
     int usedhashalgo;
+    xmlnode mod_auth_crypt_config = js_config(m->si, "jsm:mod_auth_crypt");
 
     log_debug2(ZONE, LOGT_AUTH, "resetting password");
 
-    hashalgo = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(js_config(m->si, "jsm:mod_auth_crypt"), "jsm:hash", m->si->std_namespace_prefixes), 0));
+    hashalgo = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(mod_auth_crypt_config, "jsm:hash", m->si->std_namespace_prefixes), 0));
     if (j_strcasecmp(hashalgo, "SHA1") == 0) {
 	usedhashalgo = HASH_SHA1;
     } else {
 	usedhashalgo = HASH_CRYPT;
     }
+    xmlnode_free(mod_auth_crypt_config);
+    mod_auth_crypt_config = NULL;
+    hashalgo = NULL;
 
     password = xmlnode_get_data(pass);
     if (password == NULL)
@@ -289,10 +293,12 @@ mreturn mod_auth_crypt_delete(mapi m, void *arg) {
  */
 void mod_auth_crypt(jsmi si) {
     log_debug2(ZONE, LOGT_INIT, "init");
+    xmlnode register_config = js_config(si, "register:register");
 
     js_mapi_register(si, e_AUTH, mod_auth_crypt_jane, NULL);
     js_mapi_register(si, e_SERVER, mod_auth_crypt_server, NULL);
-    if (js_config(si,"register:register") != NULL)
+    if (register_config != NULL)
 	js_mapi_register(si, e_REGISTER, mod_auth_crypt_reg, NULL);
     js_mapi_register(si, e_DELETE, mod_auth_crypt_delete, NULL);
+    xmlnode_free(register_config);
 }

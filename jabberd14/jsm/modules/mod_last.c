@@ -296,9 +296,10 @@ static mreturn mod_last_delete(mapi m, void *arg) {
  */
 void mod_last(jsmi si) {
     time_t *ttmp;
+    xmlnode register_config = js_config(si, "register:register");
     log_debug2(ZONE, LOGT_INIT, "initing");
 
-    if (js_config(si,"register:register") != NULL)
+    if (register_config != NULL)
 	js_mapi_register(si, e_REGISTER, mod_last_init, NULL);
     js_mapi_register(si, e_SESSION, mod_last_sess, NULL);
     js_mapi_register(si, e_DESERIALIZE, mod_last_sess, NULL);
@@ -309,4 +310,5 @@ void mod_last(jsmi si) {
     time(ttmp);
     js_mapi_register(si, e_SERVER, mod_last_server, (void *)ttmp);
     js_mapi_register(si, e_DELETE, mod_last_delete, NULL);
+    xmlnode_free(register_config);
 }

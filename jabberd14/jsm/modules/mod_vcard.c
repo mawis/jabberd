@@ -92,6 +92,8 @@ mreturn mod_vcard_jud(mapi m) {
 mreturn mod_vcard_set(mapi m, void *arg) {
     xmlnode vcard = NULL;
     xmlnode cur, judreg;
+    xmlnode vcard2jud = NULL;
+    xmlnode browse = NULL;
 
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
     if(m->packet->to != NULL || !NSCHECK(m->packet->iq,NS_VCARD)) return M_PASS;
@@ -133,11 +135,15 @@ mreturn mod_vcard_set(mapi m, void *arg) {
 	    jpacket_reset(m->packet);
 	    js_session_to(m->s,m->packet);
 
-	    if(js_config(m->si,"jsm:vcard2jud") == NULL)
+	    vcard2jud = js_config(m->si, "jsm:vcard2jud");
+	    if (vcard2jud == NULL)
 		break;
+	    xmlnode_free(vcard2jud);
+	    vcard2jud=NULL;
 
 	    /* handle putting the vcard to the configured jud: send a get request to the jud services */
-	    for(cur = xmlnode_get_firstchild(js_config(m->si, "browse:browse")); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
+	    browse = js_config(m->si, "browse:browse");
+	    for(cur = xmlnode_get_firstchild(browse); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
 		if(j_strcmp(xmlnode_get_attrib_ns(cur, "type", NULL),"jud") != 0) continue;
 
 		judreg = jutil_iqnew(JPACKET__GET,NS_REGISTER);
@@ -148,6 +154,8 @@ mreturn mod_vcard_set(mapi m, void *arg) {
 		/* added this in so it only does the first one */
 		break;
 	    }
+	    xmlnode_free(browse);
+	    browse = NULL;
 	    break;
 	default:
 	    xmlnode_free(m->packet->x);
@@ -249,6 +257,7 @@ mreturn mod_vcard_server(mapi m, void *arg) {
     jpacket_reset(m->packet);
     js_deliver(m->si,m->packet);
 
+    xmlnode_fre(vcard);
     return M_HANDLED;
 }
 

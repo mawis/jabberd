@@ -207,4 +207,5 @@ void mod_version(jsmi si) {
 
     js_mapi_register(si,e_SERVER,mod_version_iq_server,(void *)mi);
     js_mapi_register(si,e_SHUTDOWN,mod_version_shutdown,(void *)mi);
+    xmlnode_free(config);
 }

@@ -196,9 +196,9 @@ result _js_routed_auth_packet(instance i, dpacket p, jsmi si, jpacket jp) {
     char *authto = NULL;
 
     /* check and see if we're configured to forward auth packets for processing elsewhere */
-    if ((authto = xmlnode_get_data(js_config(si, "jsm:auth"))) != NULL) {
+    if (si->auth != NULL) {
 	xmlnode_put_attrib_ns(p->x, "oto", NULL, NULL, xmlnode_get_attrib_ns(p->x, "to", NULL)); /* preserve original to */
-	xmlnode_put_attrib_ns(p->x, "to", NULL, NULL, authto);
+	xmlnode_put_attrib_ns(p->x, "to", NULL, NULL, si->auth);
 	deliver(dpacket_new(p->x), i);
 	return r_DONE;
     }
@@ -499,7 +499,10 @@ result js_packet(instance i, dpacket p, void *arg) {
 
     /* make sure this hostname is in the master table */
     if ((ht = (xht)xhash_get(si->hosts,p->host)) == NULL) {
-        ht = xhash_new(j_atoi(xmlnode_get_data(js_config(si,"jsm:maxusers")), USERS_PRIME));
+	xmlnode maxusers = js_config(si, "jsm:maxusers");
+        ht = xhash_new(j_atoi(xmlnode_get_data(maxusers), USERS_PRIME));
+	xmlnode_free(maxusers);
+	maxusers = NULL;
         log_debug2(ZONE, LOGT_DELIVER, "creating user hash %X for %s", ht,p->host);
         xhash_put(si->hosts,pstrdup(si->p,p->host), (void *)ht);
         log_debug2(ZONE, LOGT_DELIVER, "checking %X", xhash_get(si->hosts, p->host));

@@ -240,11 +240,14 @@ mreturn mod_auth_plain_delete(mapi m, void *arg) {
  * @param si the session manager instance
  */
 void mod_auth_plain(jsmi si) {
+    xmlnode register_config = js_config(si, "register:register");
+
     log_debug2(ZONE, LOGT_INIT, "mod_auth_plain is initializing");
 
     js_mapi_register(si, e_AUTH, mod_auth_plain_jane, NULL);
     js_mapi_register(si, e_SERVER, mod_auth_plain_server, NULL);
-    if (js_config(si,"register:register") != NULL)
+    if (register_config != NULL)
 	js_mapi_register(si, e_REGISTER, mod_auth_plain_reg, "registered account");
     js_mapi_register(si, e_DELETE, mod_auth_plain_delete, NULL);
+    xmlnode_free(register_config);
 }
