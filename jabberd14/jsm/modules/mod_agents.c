@@ -112,6 +112,8 @@ mreturn mod_agents_agents(mapi m) {
         js_deliver(m->si,m->packet);
     }
 
+    xmlnode_free(agents);
+
     return M_HANDLED;
 }
 
@@ -163,6 +165,9 @@ mreturn mod_agents_agent(mapi m) {
         js_deliver(m->si,m->packet);
     }
 
+    xmlnode_free(info);
+    xmlnode_free(agents);
+    xmlnode_free(reg);
     return M_HANDLED;
 }
 

@@ -115,7 +115,6 @@ void jsm_shutdown(void *arg) {
 
     xhash_walk(si->hosts,_jsm_shutdown,arg);
     xhash_free(si->hosts);
-    xmlnode_free(si->config);
 }
 
 /**
@@ -163,7 +162,10 @@ static void _jsm_routing_update(instance i, const char *destination, int is_regi
 
 	/* make sure this hostname is in the master table */
 	if ((ht = (xht)xhash_get(si->hosts, destination)) == NULL) {
-	    ht = xhash_new(j_atoi(xmlnode_get_data(js_config(si, "jsm:maxusers")), USERS_PRIME));
+	    xmlnode maxusers = js_config(si, "jsm:maxusers");
+	    ht = xhash_new(j_atoi(xmlnode_get_data(maxusers), USERS_PRIME));
+	    xmlnode_free(maxusers);
+	    maxusers = NULL;
 	    log_debug2(ZONE, LOGT_DELIVER, "creating user hash %X for %s", ht, destination);
 	    xhash_put(si->hosts, pstrdup(si->p, destination), (void *)ht);
 	}
@@ -183,6 +185,7 @@ void jsm(instance i, xmlnode x) {
     xmlnode cur;
     modcall module;
     int n;
+    xmlnode config=NULL;
 
     log_debug2(ZONE, LOGT_INIT, "jsm initializing for section '%s'",i->id);
 
@@ -204,18 +207,21 @@ void jsm(instance i, xmlnode x) {
     xhash_put(si->std_namespace_prefixes, "vcard", NS_VCARD);
     xhash_put(si->std_namespace_prefixes, "state", NS_JABBERD_STOREDSTATE);
     si->xc = xdb_cache(i); /* getting xdb_* handle and fetching config */
-    si->config = xdb_get(si->xc, jid_new(xmlnode_pool(x), "config@-internal"), NS_JABBERD_CONFIG_JSM);
-    si->hosts = xhash_new(j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(si->config, "jsm:maxhosts", si->std_namespace_prefixes), 0)), HOSTS_PRIME));
-    si->sc_sessions = xhash_new(j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(si->config, "jsm:maxusers", si->std_namespace_prefixes), 0)), USERS_PRIME));
+    config = js_config(si, NULL);
+    si->hosts = xhash_new(j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:maxhosts", si->std_namespace_prefixes), 0)), HOSTS_PRIME));
+    si->sc_sessions = xhash_new(j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:maxusers", si->std_namespace_prefixes), 0)), USERS_PRIME));
     for (n=0; n<e_LAST; n++)
         si->events[n] = NULL;
 
+    /* using an external authentication component? */
+    si->auth = pstrdup(si->p, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:auth", si->std_namespace_prefixes), 0)));
+
     /* enable serialization? */
-    cur = xmlnode_get_list_item(xmlnode_get_tags(si->config, "jsm:serialization", si->std_namespace_prefixes), 0);
+    cur = xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:serialization", si->std_namespace_prefixes), 0);
     if (cur != NULL) {
 	int interval = 0;
 
-	si->statefile = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(cur, "jsm:file", si->std_namespace_prefixes), 0));
+	si->statefile = pstrdup(si->p, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(cur, "jsm:file", si->std_namespace_prefixes), 0)));
 	interval = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(cur, "jsm:interval", si->std_namespace_prefixes), 0)), 0);
 
 	if (interval > 0) {
@@ -224,7 +230,7 @@ void jsm(instance i, xmlnode x) {
     }
 
     /* enable history storage? */
-    cur = xmlnode_get_list_item(xmlnode_get_tags(si->config, "jsm:history", si->std_namespace_prefixes), 0);
+    cur = xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:history", si->std_namespace_prefixes), 0);
     if (cur != NULL) {
 	xmlnode nodeptr = NULL;
 	nodeptr = xmlnode_get_list_item(xmlnode_get_tags(cur, "jsm:sent", si->std_namespace_prefixes), 0);
@@ -238,36 +244,6 @@ void jsm(instance i, xmlnode x) {
 	    si->history_recv.special = j_strcmp(xmlnode_get_attrib_ns(nodeptr, "special", NULL), "store") == 0 ? 1 : 0;
 	    si->history_recv.offline = j_strcmp(xmlnode_get_attrib_ns(nodeptr, "offline", NULL), "store") == 0 ? 1 : 0;
 	}
-    }
-
-    /* initialize globally trusted ids */
-    for (cur = xmlnode_get_list_item(xmlnode_get_tags(si->config, "jsm:admin/*", si->std_namespace_prefixes), 0); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
-	const char *tagname = NULL;
-	const char *namespace = NULL;
-	jid newjid = NULL;
-
-        if(xmlnode_get_type(cur) != NTYPE_TAG) continue;
-
-	namespace = xmlnode_get_namespace(cur);
-	if (j_strcmp(namespace, NS_JABBERD_CONFIG_JSM) != 0)
-	    continue;
-
-	tagname = xmlnode_get_localname(cur);
-
-	if (j_strcmp(tagname, "read") != 0 && j_strcmp(tagname, "write") != 0)
-	    continue;
-
-	newjid = jid_new(si->p, xmlnode_get_data(cur));
-
-	if (newjid == NULL)
-	    continue;
-
-        if(si->gtrust == NULL)
-            si->gtrust = jid_new(si->p,xmlnode_get_data(cur));
-        else
-            jid_append(si->gtrust,jid_new(si->p,xmlnode_get_data(cur)));
-
-	log_debug2(ZONE, LOGT_INIT, "XXX appended %s to list of global trust", jid_full(jid_new(si->p,xmlnode_get_data(cur))));
     }
 
     /* fire up the modules by scanning the attribs on the xml we received */
@@ -302,5 +278,8 @@ void jsm(instance i, xmlnode x) {
     /* register_beat(5,jsm_stat,NULL); */
    
     /* register js_users_gc() to be called frequently, once per minute by default */
-    register_beat(j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(si->config, "usergc", si->std_namespace_prefixes), 0)), 60), js_users_gc, (void *)si);
+    register_beat(j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "usergc", si->std_namespace_prefixes), 0)), 60), js_users_gc, (void *)si);
+
+    /* free the configuration xmlnode */
+    xmlnode_free(config);
 }
