@@ -85,13 +85,16 @@ static mreturn mod_register_new(mapi m, void *arg) {
 
 	    /* save the registration data */
 	    jutil_delay(m->packet->iq,"registered");
-	    /* don't store password in clear text in the NS_REGISTER namespace */
-	    xmlnode_hide(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:password", m->si->std_namespace_prefixes), 0));
+
+	    log_debug2(ZONE, LOGT_REGISTER, "handled packet is: %s", xmlnode_serialize_string(m->packet->iq, NULL, NULL, 0));
+
+	    /* don't store password in the NS_REGISTER namespace */
+	    xmlnode_hide(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:password", m->si->std_namespace_prefixes), 0));
 	    xdb_set(m->si->xc, jid_user(m->packet->to), NS_REGISTER, m->packet->iq);
 
 	    /* if configured to, send admins a notice */
 	    if (xmlnode_get_attrib_ns(reg, "notify", NULL) != NULL) {
-		char *email = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:email", m->si->std_namespace_prefixes), 0));
+		char *email = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:email", m->si->std_namespace_prefixes), 0));
 		spool msg_body = spool_new(m->packet->p);
 
 		spool_add(msg_body, "A new user has just been created!\n");
@@ -290,7 +293,95 @@ static mreturn _mod_register_iq_server(mapi m, void *arg) {
     return M_PASS;
 }
 
+/**
+ * check if a registration set request contains all necessary fields
+ *
+ * @param m the mapi_struct containing the request
+ * @param arg unused/ignored
+ * @return M_IGNORE if no iq request, M_HANDLED if the request in invalid and a bounce has been sent, M_PASS else
+ */
 static mreturn mod_register_check(mapi m, void *arg) {
+    xmlnode register_config = NULL;
+    xmlnode_list_item item = NULL;
+    xmlnode_list_item request_item = NULL;
+    int returned_elements = 0;
+    xht register_namespace = NULL;
+
+    /* sanity check */
+    if (m == NULL || m->packet == NULL) {
+	return M_PASS;
+    }
+
+    /* only handle iq packets */
+    if (m->packet->type != JPACKET_IQ) {
+	return M_IGNORE;
+    }
+
+    /* we only verify set queries */
+    if (jpacket_subtype(m->packet) != JPACKET__SET) {
+	return M_PASS;
+    }
+
+    /* get the fields that we requested */
+    register_config = js_config(m->si, "register:register");
+    if (register_config == NULL) {
+	/* there is nothing we have to verify */
+	return M_PASS;
+    }
+
+    /* we never require the client to send <instructions/> back */
+    register_namespace = xhash_new(1);
+    xhash_put(register_namespace, "", NS_REGISTER);
+    for (item = xmlnode_get_tags(register_config, "instructions", register_namespace); item != NULL; item = item->next) {
+	xmlnode_hide(item->node);
+    }
+
+    /* check which elements have been sent back */
+    for (request_item = xmlnode_get_tags(m->packet->iq, "register:*", m->si->std_namespace_prefixes); request_item != NULL; request_item = request_item->next) {
+	log_debug2(ZONE, LOGT_REGISTER, "we got a reply for: %s", xmlnode_get_localname(request_item->node));
+
+	for (item = xmlnode_get_tags(register_config, xmlnode_get_localname(request_item->node), register_namespace); item != NULL; item = item->next) {
+	    returned_elements++;
+	    xmlnode_hide(item->node);
+	}
+    }
+    xhash_free(register_namespace);
+    register_namespace = NULL;
+
+    /* check if all elements have been returned */
+    item = xmlnode_get_tags(register_config, "register:*", m->si->std_namespace_prefixes);
+    if (item != NULL) {
+	xterror err = {400, "", "modify", "bad-request"};
+	snprintf(err.msg, sizeof(err.msg), "Missing return data field: %s", xmlnode_get_localname(item->node));
+	log_debug2(ZONE, LOGT_REGISTER, "returned err msg: %s", err.msg);
+	jutil_error_xmpp(m->packet->x, err);
+	log_debug2(ZONE, LOGT_REGISTER, "missing fields: %s", xmlnode_serialize_string(register_config, NULL, NULL, 0));
+	xmlnode_free(register_config);
+	return M_HANDLED;
+    }
+
+    log_debug2(ZONE, LOGT_REGISTER, "%i elements have been replied", returned_elements);
+
+    /* have there been any element, that has been replied and that was requested?
+     * if no fields where requested, we don't allow account registration
+     */
+    if (returned_elements <= 0) {
+	item = xmlnode_get_tags(register_config, "xoob:x/xoob:url", m->si->std_namespace_prefixes);
+	xterror err = {400, "", "modify", "bad-request"};
+	if (item == NULL) {
+	    snprintf(err.msg, sizeof(err.msg), "Registration not allowed.");
+	} else {
+	    snprintf(err.msg, sizeof(err.msg), "Registration not allowed. See %s", xmlnode_get_data(item->node));
+	}
+	log_debug2(ZONE, LOGT_REGISTER, "returned err msg: %s", err.msg);
+	jutil_error_xmpp(m->packet->x, err);
+	xmlnode_free(register_config);
+	return M_HANDLED;
+    }
+
+    log_debug2(ZONE, LOGT_REGISTER, "registration set request passed all checks");
+
+    xmlnode_free(register_config);
     return M_PASS;
 }
 
