@@ -99,13 +99,16 @@ mreturn mod_disco_server_info(mapi m, void *arg) {
     if (identity != NULL) {
 	xmlnode_insert_node(m->additional_result->iq, identity);
     } else {
-	identity = xmlnode_insert_tag_ns(m->additional_result->iq, "identity", NULL, NS_DISCO_INFO);
-	xmlnode_put_attrib_ns(identity, "category", NULL, NULL, "server");
-	xmlnode_put_attrib_ns(identity, "type", NULL, NULL, "im");
-	xmlnode_put_attrib_ns(identity, "name", NULL, NULL, xmlnode_get_data(js_config(m->si, "vcard:vCard/vcard:FN")));
+	xmlnode generated_identity = xmlnode_insert_tag_ns(m->additional_result->iq, "identity", NULL, NS_DISCO_INFO);
+	xmlnode vcard_fn = js_config(m->si, "vcard:vCard/vcard:FN");
+	xmlnode_put_attrib_ns(generated_identity, "category", NULL, NULL, "server");
+	xmlnode_put_attrib_ns(generated_identity, "type", NULL, NULL, "im");
+	xmlnode_put_attrib_ns(generated_identity, "name", NULL, NULL, xmlnode_get_data(vcard_fn));
+	xmlnode_free(vcard_fn);
     }
 
     /* other modules might add other information to the result */
+    xmlnode_free(identity);
     return M_PASS;
 }
 
@@ -162,6 +165,8 @@ mreturn mod_disco_server_items(mapi m, void *arg) {
 
   jpacket_reset(m->packet);
   js_deliver(m->si,m->packet);
+
+  xmlnode_free(browse);
   
   return M_HANDLED;
 }

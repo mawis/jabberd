@@ -65,10 +65,6 @@ mreturn mod_useridpolicy_new(mapi m, void *arg) {
     size_t username_len = 0;	/* length of the username in characters (!) */
     char *ptr = NULL;		/* for iterating */
 
-    /* disable the module if not configured */
-    if ((config = js_config(m->si, "jsm:mod_useridpolicy")) == NULL)
-	return M_IGNORE;
-    
     log_debug2(ZONE, LOGT_AUTH, "checking registration policy");
 
     /* in get requests there is no username, so we cannot check it there */
@@ -87,6 +83,10 @@ mreturn mod_useridpolicy_new(mapi m, void *arg) {
     jid_set(user_jid, username, JID_USER);
     username = user_jid->user;
 
+    /* get configuration, disable the module if not configured */
+    if ((config = js_config(m->si, "jsm:mod_useridpolicy")) == NULL)
+	return M_IGNORE;
+    
     /* check for forbidden usernames */
     for (x=xmlnode_get_firstchild(config); x!=NULL; x=xmlnode_get_nextsibling(x)) {
 	/* ignore direct CDATA childs */
@@ -104,6 +104,7 @@ mreturn mod_useridpolicy_new(mapi m, void *arg) {
 	if (j_strcmp(xmlnode_get_data(x), username) == 0) {
 	    log_notice(m->packet->to->server, "blocked account '%s' from being registered: forbidden username", username);
 	    jutil_error_xmpp(m->packet->x, XTERROR_NOTACCEPTABLE);
+	    xmlnode_free(config);
 	    return M_HANDLED;
 	}
     }
@@ -125,6 +126,7 @@ mreturn mod_useridpolicy_new(mapi m, void *arg) {
     if (j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:minlen", m->si->std_namespace_prefixes), 0)), 1) > username_len) {
 	log_notice(m->packet->to->server, "blocked account '%s' from being registered: username to short", username);
 	jutil_error_xmpp(m->packet->x, XTERROR_NOTACCEPTABLE);
+	xmlnode_free(config);
 	return M_HANDLED;
     }
     
@@ -132,10 +134,12 @@ mreturn mod_useridpolicy_new(mapi m, void *arg) {
     if (j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:maxlen", m->si->std_namespace_prefixes), 0)), 1023) < username_len) {
 	log_notice(m->packet->to->server, "blocked account '%s' from being registered: username to long", username);
 	jutil_error_xmpp(m->packet->x, XTERROR_NOTACCEPTABLE);
+	xmlnode_free(config);
 	return M_HANDLED;
     }
 
     /* it passed the policy ... let the other modules do their job */
+    xmlnode_free(config);
     return M_PASS;
 }
 

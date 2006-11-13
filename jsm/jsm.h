@@ -383,6 +383,7 @@ typedef int event;
 #define ADMIN_MOTD	"motd"		/**< admin right to set/update/delete the message of the day */
 #define ADMIN_LISTSESSIONS "listsessions"	/**< admin right to see online users */
 #define ADMIN_ADMINMSG	"adminmsg"	/**< admin right to receive messages to admin address */
+#define ADMIN_SHOWPRES	"showpres"	/**< request presence and last info for any user */
 
 /** return codes for mapi callback calls */
 typedef enum {
@@ -431,17 +432,17 @@ struct history_storage_conf {
 /** Globals for this instance of jsm (Jabber Session Manager) */
 struct jsmi_struct {
     instance i;			/**< jabberd's instance data for the jsm component */
-    xmlnode config;		/**< jsm configuration */
+    /* xmlnode config; */
     xht hosts;			/**< hash with hosts as keys and hashtables (key: user, value: udata_struct) as values */
     xht sc_sessions;		/**< hash containing pointers to the udata_struct for sessions initiated by the session control protocol */
     xht std_namespace_prefixes;	/**< standard prefixes used for xmlnode_get_tags() */
     xdbcache xc;		/**< xdbcache used to query xdb */
     mlist events[e_LAST];	/**< list of registered modules for the existing event types */
     pool p;			/**< memory pool for the instance */
-    jid gtrust;			/**< "global trusted jids": jids allowed to see all presences */
     struct history_storage_conf history_sent; /**< store history for messages sent by the user? */
     struct history_storage_conf history_recv; /**< store history for messages received by the user? */
     char *statefile;		/**< to which file to store serialization data */
+    char *auth;			/**< forward authentication request to this component, if not NULL */
 };
 
 /** User data structure/list. See js_user(). */

@@ -247,6 +247,7 @@ static mreturn mod_browse_reply(mapi m, void *arg) {
  */
 static mreturn _mod_browse_server(mapi m) {
     xmlnode browse, query, x;
+    xmlnode vcard_fn = NULL;
 
     if (m->packet->type != JPACKET_IQ)
 	return M_IGNORE;
@@ -260,16 +261,20 @@ static mreturn _mod_browse_server(mapi m) {
     log_debug2(ZONE, LOGT_DELIVER, "handling browse query");
 
     /* build the result IQ */
+    vcard_fn = js_config(m->si, "vcard:vCard/vcard:FN");
     query = xmlnode_insert_tag_ns(jutil_iqresult(m->packet->x), "service", NULL, NS_BROWSE);
     xmlnode_put_attrib_ns(query, "type", NULL, NULL, "jabber");
     xmlnode_put_attrib_ns(query, "jid", NULL, NULL, m->packet->to->server);
-    xmlnode_put_attrib_ns(query, "name", NULL, NULL, xmlnode_get_data(js_config(m->si,"vcard:vCard/vcard:FN"))); /* pull name from the server vCard */
+    xmlnode_put_attrib_ns(query, "name", NULL, NULL, xmlnode_get_data(vcard_fn)); /* pull name from the server vCard */
 
     /* copy in the configured services */
     xmlnode_insert_node(query,xmlnode_get_firstchild(browse));
 
     jpacket_reset(m->packet);
     js_deliver(m->si,m->packet);
+
+    xmlnode_free(browse);
+    xmlnode_free(vcard_fn);
 
     return M_HANDLED;
 }
