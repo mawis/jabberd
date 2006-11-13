@@ -1,4 +1,4 @@
-.TH jabber.xml 5 " 1 Nov 2006" "@VERSION@" "jabberd14 project"
+.TH jabber.xml 5 "13 Nov 2006" "@VERSION@" "jabberd14 project"
 .SH NAME
 jabber.xml \- jabberd daemon configuration file
 .SH SYNOPSIS
@@ -12,7 +12,7 @@ UTF-8 charset (ASCII is valid subset of UTF-8).
 Within the following xpath expressions, the following namespace prefixes
 are used:
 
-default namespace: "jabber:iq:server",
+default namespace: "jabber:server",
 browse: "jabber:iq:browse",
 cfg: "http://jabberd.org/ns/configfile",
 register: "jabber:iq:register",
@@ -165,13 +165,28 @@ servers address. (These messages are forwarded to all users having the 'adminmsg
 ACL right.)
 .TP
 .B jsm setting: cfg:jabber/cfg:service/jsm:jsm/jsm:agents
+This configuration setting can contain a response of a iq get query
+in the jabber:iq:agents namespace. Using this is deprecated. You should
+not use this configuration setting. The jabber:iq:agents namespace is
+superseded by service discovery.
 .TP
 .B jsm setting: cfg:jabber/cfg:service/jsm:jsm/jsm:archive
+Configure the JabberIDs where mod_log should send messages about created
+sessions to. The JabberIDs should be enclosed in a <service/> element.
+Multiple <service/> elements can be placed inside the <archive/> element.
 .TP
 .B jsm setting: cfg:jabber/cfg:service/jsm:jsm/jsm:auth
 Redirect authentication handling (non-SASL only) to a component. The
 address of the component has to be given as the textual content of this
 configuration element. No default setting.
+.TP
+.B jsm setting: cfg:jabber/cfg:service/jsm:jsm/jsm:history
+With this element, the session manager can be configured to send copies
+of received and sent messages to xdb. This can be used for logging or
+to implement web-based access to the message history. The history element
+contains two child elements: sent and recv. The sent element configures
+how messages sent by a user are handled. The recv element configures how
+messages received by a user are handled.
 .TP
 .B jsm setting: cfg:jabber/cfg:service/jsm:jsm/jsm:maxusers
 The maximum number of users the server should expect per domain (more users
@@ -179,14 +194,67 @@ will get handled, but it may have performance impacts). A prime number
 should be configured here. The default setting is 3001.
 .TP
 .B jsm setting: cfg:jabber/cfg:service/jsm:jsm/jsm:mod_auth_crypt/jsm:hash
+The default password hashing algorithm used by mod_auth_crypt is crypt().
+With this setting you can select other algorithms by adding their name as
+the text inside this element. Currently the only other algorithm supported
+by mod_auth_crypt is "SHA1". It is not recommended to use mod_auth_crypt.
+With hashed passwords, you get problems when you want to migrate to
+SASL authentication.
 .TP
 .B jsm setting: cfg:jabber/cfg:service/jsm:jsm/jsm:mod_offline
+With this it can be configured which messages are stored offline. The default
+is to only store normal and chat messages offline (bouncing headline and
+groupchat messages, dropping error messages). If the mod_offline element is
+present, only message types present in this element are stored offline.
+Use the following element names inside this element: <normal/>, <chat/>,
+<headline/>, <groupchat/>, and <error/>.
 .TP
 .B jsm setting: cfg:jabber/cfg:service/jsm:jsm/jsm:mod_useridpolicy
+Define a policy for usernames, that should be enforced on account
+registration (i.e. already registered usernames are not affected). It is
+possible to block accounts from being registered based on special names
+(put the username inside a <forbidden/> element, e.g.
+<forbidden>root</forbidden>) or enforce length constraints on the
+username by defining a minimum and/or maximum length of the username
+in unicode characters (put the setting inside <minlen/> and <maxlen/>
+elements, e.g. <minlen>3</minlen>).
 .TP
 .B jsm setting: cfg:jabber/cfg:service/jsm:jsm/jsm:mod_version
+Modify the result to a jabber:iq:version request. With the <name/> element
+inside this configuration option, you can replace the product name, that
+is returned by the server. With the <version/> element, you can replace
+the returned product version. With the <os/> element, you can replace
+the operating system identification returned by mod_version. With the
+<no_os_version/> element, you can configured mod_version to return the
+name of the operating system, but not its version number.
 .TP
 .B jsm setting: cfg:jabber/cfg:service/jsm:jsm/jsm:presence
+This configuration option can include two different elements: With the
+<presence2xdb/> element you configure jabberd14 to store all presences
+of the local users to xdb. Used together with xdb_sql this can be used
+to have the presence of your users in a SQL database, e.g. to use it
+to display web status indicators. (Please recognize the privacy issues
+with web indicators if you plan to implement this.) The other possible
+element inside this configuration option is <bcc/> which can be used
+multiple times. Inside the <bcc/> element you can place JabberIDs.
+All local presences are send to the configured JabberIDs as a copy.
+This can be used to forward presence to a component, that needs to know
+presence of all local users. (E.g. another way to implement a web presence
+indicator.)
+.TP
+.B jsm setting: cfg:jabber/cfg:service/jsm:jsm/jsm:regtimeout
+This configures the number of seconds an account gets blocked against
+reregistration after it has been unregistered. The value is specified
+as the timeout attribute of this element.
+.TP
+.B jsm setting: cfg:jabber/cfg:service/jsm:jsm/jsm:serialization
+With this setting the session manager can be configured to store all
+necessary state information to restart the session manager to a file.
+This can be used to restart the session manager after a crash (or after
+it has been killed by a signal) without the user's sessions to be
+dropped. This can be used to reconfigure the session manager while
+it is running. Please note, that on very big jabberd14 installations
+you might get problems if you serialize the state to often.
 .TP
 .B jsm setting: cfg:jabber/cfg:service/jsm:jsm/jsm:vcard2jud
 If the vCard a users sets should be forwarded to the first Jabber users

@@ -1,4 +1,4 @@
-Version ?.?.? - not released yet
+Version 1.6.0 - not released yet
 
 Changes in administration of the server
     * Jabberd14 now understands the protocol between c2s and session manager
@@ -20,7 +20,6 @@ Changes in administration of the server
       to some or all other hosts to be encrypted.
     * Jabberd14 now supports SASL EXTERNAL authentication using TLS
       certificates on s2s links.
-    * Jabberd14 now supports using GNU TLS as an alternative to OpenSSL.
     * xdb_sql can be configured to execute an SQL query just after a
       connection to the database server has been established or reestablished.
       This is useful for example if you are using MySQL 4.1+ and want to
@@ -60,6 +59,8 @@ Changes in features visible to the user
       to this user, even if it has been stored offline. In addition the
       request is stamped if the time of the request, if it is delivered
       from offline storage.
+    * SASL authentication is possible if jabberd14 is used together with
+      jadc2s.
 
 
 Version 1.4.4 - 2005-04-16
