@@ -285,7 +285,7 @@ dnl no GNU TLS? check for OpenSSL
 	fi
     fi
     AC_SUBST(HAVE_SSL)
-fi
+dnl fi
 
 dnl check for libidn
 AC_ARG_WITH(libidn, AC_HELP_STRING([--with-libidn=DIR],
