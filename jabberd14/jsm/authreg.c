@@ -109,8 +109,17 @@ void _js_authreg_register(jpacket p) {
 
     if (jpacket_subtype(p) == JPACKET__GET) {
 	/* request for information on requested data */
-	
+
 	log_debug2(ZONE, LOGT_AUTH, "registration get request");
+	/* let the e_PRE_REGISTER handlers check if the request is
+	 * valid.
+	 * If the request is handled, the request is invalid
+	 * and we do not continue to process it.
+	 */
+	if (js_mapi_call(si, e_PRE_REGISTER, p, NULL, NULL))
+	    return;
+	log_debug2(ZONE, LOGT_AUTH, "registration get request acceptable");
+	
 	/* let modules try to handle it */
 	if (!js_mapi_call(si, e_REGISTER, p, NULL, NULL)) {
 	    jutil_error_xmpp(p->x, XTERROR_UNAVAIL);
@@ -123,6 +132,15 @@ void _js_authreg_register(jpacket p) {
 	/* actual registration request */
 
 	log_debug2(ZONE, LOGT_AUTH, "registration set request");
+	/* let the e_PRE_REGISTER handlers check if the request is
+	 * valid.
+	 * If the request is handled, the request is invalid
+	 * and we do not continue to process it.
+	 */
+	if (js_mapi_call(si, e_PRE_REGISTER, p, NULL, NULL))
+	    return;
+	log_debug2(ZONE, LOGT_AUTH, "registration set request acceptable");
+
 	if (p->to->user == NULL || xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(p->iq, "register:password", namespaces), 0)) == NULL) {
 	    log_debug2(ZONE, LOGT_AUTH, "registration set request without a password ...");
 	    jutil_error_xmpp(p->x, XTERROR_NOTACCEPTABLE);
