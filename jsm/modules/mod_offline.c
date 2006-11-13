@@ -787,4 +787,6 @@ void mod_offline(jsmi si) {
     js_mapi_register(si,e_DESERIALIZE, mod_offline_deserialize, NULL);
     js_mapi_register(si, e_DELETE, mod_offline_delete, NULL);
     js_mapi_register(si, e_SERVER, mod_offline_server, NULL);
+
+    xmlnode_free(cfg);
 }

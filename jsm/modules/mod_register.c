@@ -64,6 +64,7 @@
  */
 static mreturn mod_register_new(mapi m, void *arg) {
     xmlnode reg, x;
+    xmlnode welcome = NULL;
 
     if ((reg = js_config(m->si, "register:register")) == NULL)
 	return M_PASS;
@@ -106,10 +107,10 @@ static mreturn mod_register_new(mapi m, void *arg) {
 	    }
 
 	    /* if also configured, send the new user a welcome message */
-	    if ((reg = js_config(m->si, "welcome")) != NULL) {
+	    if ((welcome = js_config(m->si, "welcome")) != NULL) {
 		const char *lang = NULL;
 
-		lang = xmlnode_get_lang(reg);
+		lang = xmlnode_get_lang(welcome);
 
 		x = xmlnode_new_tag_ns("message", NULL, NS_SERVER);
 		xmlnode_put_attrib_ns(x, "from", NULL, NULL, m->packet->to->server);
@@ -117,18 +118,22 @@ static mreturn mod_register_new(mapi m, void *arg) {
 		if (lang != NULL) {
 		    xmlnode_put_attrib_ns(x, "lang", "xml", NS_XML, lang);
 		}
-		xmlnode_insert_node(x, xmlnode_get_firstchild(reg));
+		xmlnode_insert_node(x, xmlnode_get_firstchild(welcome));
 		js_deliver(m->si,jpacket_new(x));
 	    }
+	    xmlnode_free(welcome);
+	    welcome = NULL;
 
 	    /* clean up and respond */
 	    jutil_iqresult(m->packet->x);
 	    break;
 
 	default:
+	    xmlnode_free(reg);
 	    return M_PASS;
     }
 
+    xmlnode_free(reg);
     return M_HANDLED;
 }
 
@@ -148,6 +153,7 @@ static mreturn mod_register_new(mapi m, void *arg) {
  */
 static mreturn _mod_register_server_register(mapi m) {
     xmlnode reg, cur, check;
+    xmlnode register_config = NULL;
 
     /* pre-requisites */
     if (m->user == NULL)
@@ -165,7 +171,10 @@ static mreturn _mod_register_server_register(mapi m) {
 	    jutil_tofrom(m->packet->x);
 
 	    /* copy in the registration fields from the config file */
-	    xmlnode_insert_node(m->packet->iq,xmlnode_get_firstchild(js_config(m->si,"register:register")));
+	    register_config = js_config(m->si, "register:register");
+	    xmlnode_insert_node(m->packet->iq, xmlnode_get_firstchild(register_config));
+	    xmlnode_free(register_config);
+	    register_config = NULL;
 
 	    /* replace fields with already-registered ones */
 	    for (cur = xmlnode_get_firstchild(m->packet->iq); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
@@ -281,6 +290,10 @@ static mreturn _mod_register_iq_server(mapi m, void *arg) {
     return M_PASS;
 }
 
+static mreturn mod_register_check(mapi m, void *arg) {
+    return M_PASS;
+}
+
 /**
  * init the module, register callbacks
  *
@@ -294,4 +307,5 @@ void mod_register(jsmi si) {
     js_mapi_register(si, e_REGISTER, mod_register_new, NULL);
     js_mapi_register(si, e_SERVER, _mod_register_iq_server, NULL);
     js_mapi_register(si, e_DELETE, mod_register_delete, NULL);
+    js_mapi_register(si, e_PRE_REGISTER, mod_register_check, NULL);
 }

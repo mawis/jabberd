@@ -163,4 +163,5 @@ void mod_log(jsmi si) {
 
     js_mapi_register(si,e_SESSION, mod_log_session, (void*)svcs);
     js_mapi_register(si,e_DESERIALIZE, mod_log_session, (void*)svcs);
+    xmlnode_free(cfg);
 }

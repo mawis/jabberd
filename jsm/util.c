@@ -89,16 +89,19 @@ void js_bounce_xmpp(jsmi si, xmlnode x, xterror xterr) {
  * @param query the path through the tag hierarchy of the desired tag, eg. for the conf file
  * 	<foo><bar>bar value</bar><baz/></foo> use "foo/bar" to retrieve the bar node, may be
  * 	NULL to get the root node of the jsm config
- * @return a pointer to the xmlnode, or NULL if no such node could be found
+ * @return a pointer to the xmlnode (has to be freed by the caller!), or NULL if no such node could be found
  */
 xmlnode js_config(jsmi si, char *query) {
 
     log_debug2(ZONE, LOGT_CONFIG, "config query %s",query);
 
-    if(query == NULL)
-        return si->config;
-    else
-        return xmlnode_get_list_item(xmlnode_get_tags(si->config, query, si->std_namespace_prefixes), 0);
+    if(query == NULL) {
+	pool temp_p = pool_new();
+	xmlnode config = xdb_get(si->xc, jid_new(temp_p, "config@-internal"), NS_JABBERD_CONFIG_JSM);
+	pool_free(temp_p);
+	return config;
+    } else
+        return xmlnode_get_list_item(xmlnode_get_tags(js_config(si, NULL), query, si->std_namespace_prefixes), 0);
 }
 
 /**
@@ -115,57 +118,6 @@ int js_islocal(jsmi si, jid id) {
 	return 0;
     return 1;
 }
-
-/* *
- * macro to validate a user as an admin
- *
- * @param u the udata structure of the user
- * @param flag for which right we want to check ADMIN_READ or ADMIN_WRITE
- * @return 1 if the user has the queried admin right, 0 if not
- */
-/*
-int js_admin(udata u, int flag) {
-    static xht namespaces = NULL;
-
-    if (namespaces == NULL) {
-	namespaces = xhash_new(3);
-    }
-
-    log_debug2(ZONE, LOGT_AUTH, "checking admin access for %s (type %s)", jid_full(u->id), flag == ADMIN_READ ? "read" : flag == ADMIN_WRITE ? "write" : "other");
-    if (u == NULL || u->admin == ADMIN_NONE)
-	return 0;
-
-    if (u->admin == ADMIN_UNKNOWN) {
-	pool check_pool = pool_new();
-	xmlnode admin = js_config(u->si, "jsm:admin");
-	xmlnode_list_item access_right = NULL;
-
-	for (access_right = xmlnode_get_tags(admin, "*", namespaces); access_right != NULL && u->admin == ADMIN_UNKNOWN; access_right = access_right->next) {
-	    jid access_for = jid_new(check_pool, xmlnode_get_data(access_right->node));
-
-	    if (jid_cmp(access_for, u->id) != 0)
-		continue;
-
-	    if (j_strcmp(xmlnode_get_localname(access_right->node), "write") == 0)
-		u->admin = ADMIN_READ | ADMIN_WRITE;
-	    if (j_strcmp(xmlnode_get_localname(access_right->node), "write-only") == 0)
-		u->admin = ADMIN_WRITE;
-	    if (j_strcmp(xmlnode_get_localname(access_right->node), "read") == 0)
-		u->admin = ADMIN_READ;
-	}
-	if (u->admin == ADMIN_UNKNOWN)
-	    u->admin = ADMIN_NONE;
-	pool_free(check_pool);
-    }
-
-    log_debug2(ZONE, LOGT_AUTH, "read access: %s / write access: %s", u->admin & ADMIN_READ ? "yes" : "no", u->admin & ADMIN_WRITE ? "yes" : "no");
-
-    if (u->admin & flag)
-        return 1;
-
-    return 0;
-}
-*/
 
 /**
  * get the list of jids, that are subscribed to a given user, and the jids a given user is subscribed to
@@ -331,13 +283,14 @@ int js_trust(udata u, jid id) {
     if (u == NULL || id == NULL)
 	return 0;
 
-    /* first, check global trusted ids */
-    if (_js_jidscanner(u->si->gtrust, id))
-	return 1;
-
-    /* then check user trusted ids */
+    /* first check user trusted ids */
     if (_js_jidscanner(js_trustees(u), id))
 	return 1;
+
+    /* then check global acl */
+    if(acl_check_access(u->si->xc, ADMIN_SHOWPRES, id)) {
+	return 1;
+    }
 
     return 0;
 }
