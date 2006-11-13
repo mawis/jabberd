@@ -72,13 +72,67 @@
       notify attribute will send the server administrator(s)
       a message after each valid registration if the notify
       attribute is present.
-      -->
 
+      jabberd14 now checks that all requested fields are returned
+      (as defined in XEP-0077). Some clients (i.e. Psi) have
+      problems with this, as they do not request the list of
+      required fields before sending them. To allow these
+      clients, that do not conform the XMPP-0077, to register
+      with your server, either implement registration of accounts
+      on your web-site, or configure your server to only request
+      a username (i.e. remove the <name/> and the <email/> element
+      in the configuration below.
+
+      If you want to allow inband-registration, you have to request
+      at least one element (at least the <username/> element). If
+      you remove all requested elements, jabberd14 will not allow
+      inband registration, but reply to a get request (e.g. to
+      direct a client to a web location).
+      -->
+      
+      <!--
+      The following register example requests the user to enter
+      his real name and an email address. The server checks, that
+      both fields are returned, but does not check their content
+      (i.e. even empty content is acceptable).
+      -->
       <register notify="yes" xmlns='jabber:iq:register'>
-        <instructions>Choose a username and password to register with this server.</instructions>
+	<instructions>Choose a username and password to register with this server.</instructions>
+	<username/>
         <name/>
         <email/>
       </register>
+
+      <!--
+      Other possible configurations:
+
+      Compatible with the Psi jabber client:
+
+      <register notify="yes" xmlns='jabber:iq:register'>
+	<instructions>Choose a username and password to register with this server.</instructions>
+	<username/>
+      </register>
+
+      Do not allow inband-registration, but return the location of a webpage,
+      that allows the user to register an account:
+
+      <register notify="yes" xmlns='jabber:iq:register'>
+	<instructions>Please use our web-site to register this service.</instructions>
+	<x xmlns='jabber:x:oob'><url>http://example.com/register/</url></x>
+      </register>
+
+      Allow inband-registration, but send a location where registration on the web is
+      possible as well:
+
+      <register notify="yes" xmlns='jabber:iq:register'>
+	<instructions>Choose a username and password to register with this server.</instructions>
+	<username/>
+        <name/>
+        <email/>
+	<x xmlns='jabber:x:oob'><url>http://example.com/register/</url></x>
+      </register>
+
+      -->
 
       <!--
       Registration timeout. You cannot reuse a JabberID that was
