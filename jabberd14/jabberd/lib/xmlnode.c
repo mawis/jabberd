@@ -1007,6 +1007,13 @@ xmlnode_list_item xmlnode_get_tags(xmlnode context_node, const char *path, xht n
 	if (this_step != NULL && this_step[0] == '*' && this_step[1] == 0) {
 	    /* matching all nodes */
 
+	    /* match ns_iri if prefix has been specified */
+	    if (end_prefix != NULL) {
+		if (iter->type == NTYPE_CDATA || j_strcmp(ns_iri, iter->ns_iri) != 0) {
+		    continue;
+		}
+	    }
+
 	    /* merging if it is a text node */
 	    if (iter->type == NTYPE_CDATA)
 		_xmlnode_merge(iter);

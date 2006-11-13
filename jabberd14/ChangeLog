@@ -23,6 +23,11 @@
     * jsm/modules/mod_useridpolicy.c: same
     * jsm/modules/mod_vcard.c: same
     * jsm/modules/mod_version.c: same
+    * jabberd/lib/xmlnode.c: more xpath support in xmlnode_get_tags()
+    * jsm/authreg.c: XEP-0077 support, check registration requests
+    * jsm/jsm.c: same
+    * jsm/modules/mod_auth_plain.c: same
+    * jsm/modules/mod_register.c: same
 
 2006-11-02  Matthias Wimmer  <m@tthias.eu>
 

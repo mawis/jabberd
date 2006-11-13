@@ -113,12 +113,19 @@ mreturn mod_auth_plain_jane(mapi m, void *arg) {
  * @return 0 if setting the password succeded, it failed otherwise
  */
 int mod_auth_plain_reset(mapi m, jid id, xmlnode pass) {
+    int result = 0;
+    xmlnode auth_pass = NULL;
+
     log_debug2(ZONE, LOGT_AUTH, "resetting password");
 
     /* we get the password element in the jabber:iq:register namespace! */
-    xmlnode_change_namespace(pass, NS_AUTH);
+    auth_pass = xmlnode_dup(pass);
+    xmlnode_change_namespace(auth_pass, NS_AUTH);
 
-    return xdb_set(m->si->xc, id, NS_AUTH, pass);
+    result = xdb_set(m->si->xc, id, NS_AUTH, auth_pass);
+    xmlnode_free(auth_pass);
+
+    return result;
 }
 
 /**
