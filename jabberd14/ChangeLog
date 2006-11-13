@@ -1,3 +1,9 @@
+2006-11-13  Matthias Wimmer  <m@tthias.eu>
+
+    * jsm/authreg.c: new event e_PRE_REGISTER
+    * jsm/jsm.h: same
+    * jsm/mod_useridpolicy.c: using new event e_PRE_REGISTER, and bugfix
+
 2006-11-02  Matthias Wimmer  <m@tthias.eu>
 
     * jsm/authreg.c: block accounts after they have been unregistered
