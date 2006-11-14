@@ -1,20 +1,13 @@
-jabberd 1.4.5
-=============
+after jabberd 1.6.0
+===================
 
-- privacy lists (XMPP)
-- SASL (XMPP)
-- xdb_sql improvements
-
-jabberd 1.4.5 or later
-======================
+- privacy lists successor (XEP-0016)
+- SASL c2s without jadc2s add-on (XMPP)
 
 - fix cygwin build
 - allow <jabberd:include/> in configuration to include directories
   (including all files in the directory)
-- correct namespace handling (XMPP)
-- handling of xml:lang (XMPP)
 - allowing some actions only over secured connection (auth, register)
-- interface to call scripts on account deletion
 - admin interface especially to change user passwords (XEP-0133)
 - http binding (maybe only in jadc2s)
 - other xdb modules (ldap, bdbxml)
