@@ -19,7 +19,7 @@ XEP-0054	vcard-temp				supported
 XEP-0055	Jabber Search				(by add-on)
 XEP-0060	Publish-Subscribe			(by add-on)
 XEP-0065	SOCKS5 Bytestreams			(by add-on)
-XEP-0077	In-Band Registration			mostly
+XEP-0077	In-Band Registration			supported
 XEP-0078	Non-SASL Authentication			supported
 XEP-0079	Advanced Message Processing		-
 XEP-0086	Error Condition Mappings		supported

@@ -1,4 +1,4 @@
-Upgrading from 1.4.4 to ?.?.?
+Upgrading from 1.4.4 to 1.6.0
 -----------------------------
 
 The example template for handling of jabber:x:offline namespace in
@@ -63,6 +63,13 @@ Access control settings have been changed. They are no longer inside
 the <admin/> element of the session manager configuration, but inside
 the <global/> section of the configuration file. You have to update
 your configuration file, to keep having accounts with admin access.
+
+jabberd14 now checks registration requests, that all data requested in
+the configuration file is submitted by the client. This causes problems
+with some non XEP-0077-conformant clients. If you want to keep
+compatibility with them, configure your server to only request the
+<username/>, or offer account registration on your web-site. For
+configuration examples see the included jabber.xml.dist file.
 
 
 Upgrading from 1.4.3(.1) to 1.4.4
