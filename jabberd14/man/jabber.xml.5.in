@@ -276,4 +276,4 @@ element might be good to have as well. It is possible to use xml:lang
 attributes for the content of this element. No default setting, if
 element is missing, no welcome message is generated.
 .SH AUTHOR
-Jabber Software Foundation
+jabberd14 project
