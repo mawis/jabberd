@@ -159,12 +159,45 @@
         <body>Welcome to the Jabber server at localhost -- we hope you enjoy this service! For information about how to use Jabber, visit the Jabber User's Guide at http://jabbermanual.jabberstudio.org/</body>
       </welcome>
 
+      <!--
+      With the <nounregister/> element you can configure mod_register
+      to not allow deleting server accounts. You might want to use this
+      if other data is bound to the registration data, or you want to
+      do account deletion on your web-site instead.
+      -->
+      <!--
+      <nounregister/>
+      -->
+
+      <!--
+      With the <noregistrationchange/> element you can configure mod_register
+      and the authentication modules not to process registration data/password
+      changes after a user has been sucessfully registered.
+      You might want to use this, if your users are not allowed to change
+      the data using their Jabber client, e.g. because you're doing it on
+      the web to ensure password policies, or because you want to verify
+      the e-mail addresses your users are providing.
+      -->
+      <!--
+      <noregistrationchange/>
+      -->
+
       <!-- 
       The <reply> will be the message that is automatically
       sent in response to any admin messages.
       You can add additional <body/>, and <subject/> elements containing
       the reply message in other languages. Mark these additional
       elements with xml:lang='languagecode'
+      -->
+
+      <!--
+      With the <nopasswordchange/> element a user is not allowed
+      to change his password.
+      You might want to use this, if your implement password management on
+      your web-site. E.g. if you want to enforce a password policy.
+      -->
+      <!--
+      <nopasswordchange/>
       -->
 
       <!--

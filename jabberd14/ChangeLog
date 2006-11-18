@@ -1,3 +1,15 @@
+2006-11-18  Matthias Wimmer  <m@tthias.eu>
+
+    * jabberd/jabberd.c: added note about future package name change
+    * dialback/dialback.c: fixing compiler warning
+    * jsm/modules/mod_register.c: new registration/XEP-0077 handling,
+	configuration options to disable password changes, registration
+	updates, or account deletion
+    * jsm/modules/mod_auth_digest.c: same
+    * jsm/modules/mod_auth_plain.c: same
+    * jsm/modules/mod_auth_crypt.c: same
+    * jsm/jsm.h: same
+
 2006-11-13  Matthias Wimmer  <m@tthias.eu>
 
     * jsm/authreg.c: new event e_PRE_REGISTER

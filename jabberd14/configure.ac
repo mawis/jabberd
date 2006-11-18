@@ -6,7 +6,7 @@ AC_PREREQ(2.50)
 
 
 AC_INIT(jabberd/jabberd.h)
-AM_INIT_AUTOMAKE(jabberd14,1.6.0-beta-20061113)
+AM_INIT_AUTOMAKE(jabberd14,1.6.0-beta1)
 AM_CONFIG_HEADER(config.h)
 
 dnl version info for libraries

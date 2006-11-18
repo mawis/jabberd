@@ -64,7 +64,7 @@
  * @param arg unused / ignored
  * @return M_PASS if the next module should be called to handle the request, M_HANDLED if the request has been completely handled
  */
-mreturn mod_auth_plain_jane(mapi m, void *arg) {
+static mreturn mod_auth_plain_jane(mapi m, void *arg) {
     char *pass = NULL;
     xmlnode xmlpass = NULL;
     const char *stored_pass = NULL;
@@ -112,20 +112,32 @@ mreturn mod_auth_plain_jane(mapi m, void *arg) {
  * @param pass the new password (wrapped in a password element of the right namespace)
  * @return 0 if setting the password succeded, it failed otherwise
  */
-int mod_auth_plain_reset(mapi m, jid id, xmlnode pass) {
+static int mod_auth_plain_reset(mapi m, jid id, xmlnode pass) {
     int result = 0;
     xmlnode auth_pass = NULL;
 
     log_debug2(ZONE, LOGT_AUTH, "resetting password");
+    return xdb_set(m->si->xc, id, NS_AUTH, pass);
+}
 
-    /* we get the password element in the jabber:iq:register namespace! */
-    auth_pass = xmlnode_dup(pass);
-    xmlnode_change_namespace(auth_pass, NS_AUTH);
-
-    result = xdb_set(m->si->xc, id, NS_AUTH, auth_pass);
-    xmlnode_free(auth_pass);
-
-    return result;
+/**
+ * handle request for required registration data
+ *
+ * used if the user just registers his account
+ *
+ * requests are used to check if authentication type is supported
+ *
+ * @param m the mapi instance containing the query
+ * @param arg type of action (password change or register request) for logging
+ * @return always M_PASS
+ */
+static mreturn mod_auth_plain_reg(mapi m, void *arg) {
+    if (jpacket_subtype(m->packet) == JPACKET__GET) {
+	/* type=get means we tell what we need */
+	if (xmlnode_get_tags(m->packet->iq, "register:password", m->si->std_namespace_prefixes) == NULL)
+	    xmlnode_insert_tag_ns(m->packet->iq, "password", NULL, NS_REGISTER);
+    }
+    return M_PASS;
 }
 
 /**
@@ -134,92 +146,27 @@ int mod_auth_plain_reset(mapi m, jid id, xmlnode pass) {
  * used if the user just registers his account or if the user changed
  * his password
  *
- * get requests are used to check if authentication type is supported
- * set requests are used to set the password
- *
  * @param m the mapi instance containing the query
- * @param arg type of action (password change or register request) for logging
- * @return M_HANDLED if we handled the request (or rejected it), H_PASS else
+ * @param arg unused/ignored
+ * @return M_HANDLED if we rejected the request, H_PASS else
  */
-mreturn mod_auth_plain_reg(mapi m, void *arg) {
+static mreturn mod_auth_plain_pwchange(mapi m, void *arg) {
     jid id;
     xmlnode pass;
 
-    if (jpacket_subtype(m->packet) == JPACKET__GET) {
-	/* type=get means we tell what we need */
-	if (xmlnode_get_tags(m->packet->iq, "register:password", m->si->std_namespace_prefixes) == NULL)
-	    xmlnode_insert_tag_ns(m->packet->iq, "password", NULL, NS_REGISTER);
-        return M_PASS;
-    }
+    /* get the jid of the user */
+    id = jid_user(m->packet->to);
 
-    /* only handle set requests (get requests already have been handled) */
-    if (jpacket_subtype(m->packet) != JPACKET__SET)
-	return M_PASS;
-
-    /* do not handle/reject unregister requests */
-    if (xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:remove", m->si->std_namespace_prefixes), 0) != NULL) {
-	return M_PASS;
-    }
-
-    /* take care, that there is a new password) */
-    if ((pass = xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:password", m->si->std_namespace_prefixes), 0)) == NULL
-	    || xmlnode_get_data(pass) == NULL) {
-	jutil_error_xmpp(m->packet->x, (xterror){400, "New password required", "modify", "bad-request"});
-	return M_HANDLED;
-    }
-
-    /* and take care that the <username/> element contains the right user
-     * if it is the request of an existing user */
-    if (m->user != NULL) {
-	id = jid_new(m->packet->p, jid_full(m->user->id));
-	jid_set(id, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:username", m->si->std_namespace_prefixes), 0)), JID_USER);
-	if (jid_cmpx(m->user->id, id, JID_USER) != 0) {
-	    jutil_error_xmpp(m->packet->x, (xterror){400, "Wrong or missing username", "modify", "bad-request"});
-	    return M_HANDLED;
-	}
-    }
-
-    /* get the jid of the user, depending on how we were called */
-    if (m->user == NULL)
-        id = jid_user(m->packet->to);
-    else
-        id = m->user->id;
+    /* get the new password */
+    pass = xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:password", m->si->std_namespace_prefixes), 0);
 
     /* tuck away for a rainy day */
     if (mod_auth_plain_reset(m, id, pass)) {
-        jutil_error_xmpp(m->packet->x, XTERROR_STORAGE_FAILED);
+        js_bounce_xmpp(m->si, m->packet->x, XTERROR_STORAGE_FAILED);
         return M_HANDLED;
     }
-    log_notice(m->si->i->id, "user %s %s", jid_full(id), arg);
 
     return M_PASS;
-}
-
-/**
- * handle password change requests from a session
- *
- * This function handles stanzas sent to the server address, this are
- * password change requests after the user already authenticated - it
- * does not handle normal user registration.
- *
- * @param m the mapi instance, containing the user's request
- * @param arg unused / ignored
- * @return M_IGNORE if it is no iq stanza, M_HANDLED if we handled the password change, M_PASS else
- */
-mreturn mod_auth_plain_server(mapi m, void *arg) {
-    mreturn ret;
-
-    /* pre-requisites */
-    if(m->packet->type != JPACKET_IQ) return M_IGNORE;
-    if(m->user == NULL) return M_PASS;
-    if(!NSCHECK(m->packet->iq,NS_REGISTER)) return M_PASS;
-
-    /* just do normal reg process, but deliver afterwards */
-    ret = mod_auth_plain_reg(m, "changed password");
-    if(ret == M_HANDLED)
-        js_deliver(m->si, jpacket_reset(m->packet));
-
-    return ret;
 }
 
 /**
@@ -241,8 +188,10 @@ mreturn mod_auth_plain_delete(mapi m, void *arg) {
  * will register the following callbacks in the session manager:
  * - mod_auth_plain_jane as authentication handler
  * - mod_auth_plain_server to process packets sent to the server address
- * - mod_auth_plain_reg to process data of registering users (only if there is
- *   a <register/> element in the session manager configuration)
+ * - mod_auth_plain_reg to process request for required files in a registration
+ *   request (only if there is a <register/> element in the session manager
+ *   configuration)
+ * - mod_auth_plain_pwchange to process changed passwords
  *
  * @param si the session manager instance
  */
@@ -252,9 +201,10 @@ void mod_auth_plain(jsmi si) {
     log_debug2(ZONE, LOGT_INIT, "mod_auth_plain is initializing");
 
     js_mapi_register(si, e_AUTH, mod_auth_plain_jane, NULL);
-    js_mapi_register(si, e_SERVER, mod_auth_plain_server, NULL);
-    if (register_config != NULL)
-	js_mapi_register(si, e_REGISTER, mod_auth_plain_reg, "registered account");
+    js_mapi_register(si, e_PASSWORDCHANGE, mod_auth_plain_pwchange, NULL);
+    if (register_config != NULL) {
+	js_mapi_register(si, e_REGISTER, mod_auth_plain_reg, NULL);
+    }
     js_mapi_register(si, e_DELETE, mod_auth_plain_delete, NULL);
     xmlnode_free(register_config);
 }

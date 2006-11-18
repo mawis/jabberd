@@ -44,12 +44,12 @@
  * @file mod_auth_crypt.c
  * @brief handle (non-SASL) authentication using plain text passwords on the wire but hashes in storage
  *
- * This is an alternative implementation for plain text password on the wire (the other is mod_auth_plain.c).
+ * This is an alternative implementation for plain text password on the wire (the other is mod_auth_crypt.c).
  * The advantage of this module is that there are no plaintext passwords in the xdb storage, the advantage
- * of mod_auth_plain.c and using plain text passwords in the storage is, that other authentication
+ * of mod_auth_crypt.c and using plain text passwords in the storage is, that other authentication
  * schemes using hashes on the wire can be used.
  *
- * In general using mod_auth_plain.c should be prefered. You will get into problems upgrading to harder
+ * In general using mod_auth_crypt.c should be prefered. You will get into problems upgrading to harder
  * authentication mechanisms if you use mod_auth_crypt.c.
  */
 
@@ -72,7 +72,7 @@
  * @param buflen length of the buffer (must be at least 35 bytes)
  * @return 1 on success, 0 otherwise
  */
-int mod_auth_crypt_sha1(char *password, char *buf, size_t buflen) {
+static int mod_auth_crypt_sha1(char *password, char *buf, size_t buflen) {
     unsigned char hash[20];
 
     /* our result is 34 characters long and we need a terminating '\0' */
@@ -101,7 +101,7 @@ int mod_auth_crypt_sha1(char *password, char *buf, size_t buflen) {
  * @param arg unused/ignored
  * @return M_HANDLED if the request has been completely handled, M_PASS else (other modules get the chance to handle it)
  */
-mreturn mod_auth_crypt_jane(mapi m, void *arg) {
+static mreturn mod_auth_crypt_jane(mapi m, void *arg) {
     char *passA, *passB;
     char salt[3];
     char shahash[35];
@@ -183,7 +183,7 @@ static char* mod_auth_crypt_get_salt() {
  * @param pass the new password for the user
  * @return 0 on success, 1 if updated failed
  */
-int mod_auth_crypt_reset(mapi m, jid id, xmlnode pass) {
+static int mod_auth_crypt_reset(mapi m, jid id, xmlnode pass) {
     char shahash[35];
     char* password;
     xmlnode newpass;
@@ -224,52 +224,51 @@ int mod_auth_crypt_reset(mapi m, jid id, xmlnode pass) {
 }
 
 /**
- * handle saving the password for registration
+ * handle request for required registration data
  *
- * used if the user just registered his account or is changing his password
+ * used if the user just registers his account
  *
- * @param m the mapi_struct containing the related request
- * @param arg unused/ignored
- * @return M_HANDLED if update failed, M_PASS else
+ * requests are used to check if authentication type is supported
+ *
+ * @param m the mapi instance containing the query
+ * @param arg type of action (password change or register request) for logging
+ * @return always M_PASS
  */
-mreturn mod_auth_crypt_reg(mapi m, void *arg) {
-    if (jpacket_subtype(m->packet) != JPACKET__SET)
-	return M_PASS;
-
-    if (mod_auth_crypt_reset(m, m->packet->to, xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:password", m->si->std_namespace_prefixes), 0))) {
-        jutil_error_xmpp(m->packet->x, XTERROR_STORAGE_FAILED);
-        return M_HANDLED;
+static mreturn mod_auth_crypt_reg(mapi m, void *arg) {
+    if (jpacket_subtype(m->packet) == JPACKET__GET) {
+	/* type=get means we tell what we need */
+	if (xmlnode_get_tags(m->packet->iq, "register:password", m->si->std_namespace_prefixes) == NULL)
+	    xmlnode_insert_tag_ns(m->packet->iq, "password", NULL, NS_REGISTER);
     }
-
     return M_PASS;
 }
 
 /**
- * handle password change requests from a session
+ * handle saving the password
  *
- * This function handles stanzas sent to the server address, this are password updated for existing accounts
+ * used if the user just registers his account or if the user changed
+ * his password
  *
- * @param m the mapi_struct containing the ralted request
+ * @param m the mapi instance containing the query
  * @param arg unused/ignored
- * @return M_HANDLED if update failed, M_PASS else
+ * @return M_HANDLED if we rejected the request, H_PASS else
  */
-mreturn mod_auth_crypt_server(mapi m, void *arg) {
+static mreturn mod_auth_crypt_pwchange(mapi m, void *arg) {
+    jid id;
     xmlnode pass;
 
-    /* pre-requisites */
-    if (m->packet->type != JPACKET_IQ)
-	return M_IGNORE;
-    if (jpacket_subtype(m->packet) != JPACKET__SET || !NSCHECK(m->packet->iq, NS_REGISTER))
-	return M_PASS;
-    if (m->user == NULL)
-	return M_PASS;
-    if ((pass = xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:password", m->si->std_namespace_prefixes), 0)) == NULL)
-	return M_PASS;
+    /* get the jid of the user */
+    id = jid_user(m->packet->to);
 
-    if (mod_auth_crypt_reset(m, m->user->id, pass)) {
+    /* get the new password */
+    pass = xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:password", m->si->std_namespace_prefixes), 0);
+
+    /* tuck away for a rainy day */
+    if (mod_auth_crypt_reset(m, id, pass)) {
         js_bounce_xmpp(m->si, m->packet->x, XTERROR_STORAGE_FAILED);
         return M_HANDLED;
     }
+
     return M_PASS;
 }
 
@@ -280,7 +279,7 @@ mreturn mod_auth_crypt_server(mapi m, void *arg) {
  * @param arg unused/ignored
  * @return always M_PASS
  */
-mreturn mod_auth_crypt_delete(mapi m, void *arg) {
+static mreturn mod_auth_crypt_delete(mapi m, void *arg) {
     xdb_set(m->si->xc, m->user->id, NS_AUTH, NULL); /* to be sure */
     xdb_set(m->si->xc, m->user->id, NS_AUTH_CRYPT, NULL);
     return M_PASS;
@@ -293,10 +292,11 @@ mreturn mod_auth_crypt_delete(mapi m, void *arg) {
  */
 void mod_auth_crypt(jsmi si) {
     log_debug2(ZONE, LOGT_INIT, "init");
+    log_warn(NULL, "You configured your server to use the mod_auth_crypt module. This module might cause problems if you want to upgrade to SASL authentication.");
     xmlnode register_config = js_config(si, "register:register");
 
     js_mapi_register(si, e_AUTH, mod_auth_crypt_jane, NULL);
-    js_mapi_register(si, e_SERVER, mod_auth_crypt_server, NULL);
+    js_mapi_register(si, e_PASSWORDCHANGE, mod_auth_crypt_pwchange, NULL);
     if (register_config != NULL)
 	js_mapi_register(si, e_REGISTER, mod_auth_crypt_reg, NULL);
     js_mapi_register(si, e_DELETE, mod_auth_crypt_delete, NULL);

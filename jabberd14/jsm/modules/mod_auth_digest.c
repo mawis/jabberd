@@ -55,7 +55,7 @@
  * @param arg unused/ignored
  * @return M_HANDLED if the request was handled using digest authentication, M_PASS else
  */
-mreturn mod_auth_digest_yum(mapi m, void *arg) {
+static mreturn mod_auth_digest_yum(mapi m, void *arg) {
     spool s;
     char *sid;
     char *digest;
@@ -106,85 +106,68 @@ mreturn mod_auth_digest_yum(mapi m, void *arg) {
 }
 
 /**
- * store a new password in xdb
+ * save the new password of a user in xdb
  *
- * @param m the mapi_struct containing the request used to update the password
- * @param id which user's password should be updated
- * @param pass the new password
- * @return 0 on success, other value indicates failure
+ * @param m the mapi instance
+ * @param id for which user to set the password
+ * @param pass the new password (wrapped in a password element of the right namespace)
+ * @return 0 if setting the password succeded, it failed otherwise
  */
-int mod_auth_digest_reset(mapi m, jid id, xmlnode pass) {
-    log_debug2(ZONE, LOGT_AUTH, "resetting password");
+static int mod_auth_digest_reset(mapi m, jid id, xmlnode pass) {
+    int result = 0;
+    xmlnode auth_pass = NULL;
 
+    log_debug2(ZONE, LOGT_AUTH, "resetting password");
     return xdb_set(m->si->xc, id, NS_AUTH, pass);
 }
 
 /**
- * handle saving the password for registration
+ * handle request for required registration data
  *
- * used as callback function as well as from inside mod_auth_digest_server()
+ * used if the user just registers his account
  *
- * @param m the mapi_struct containing the request
- * @param arg ununsed/ignored
- * @return M_HANDLED if password storrage failed, M_PASS in all other cases (other modules might want to update their password as well)
+ * requests are used to check if authentication type is supported
+ *
+ * @param m the mapi instance containing the query
+ * @param arg type of action (password change or register request) for logging
+ * @return always M_PASS
  */
-mreturn mod_auth_digest_reg(mapi m, void *arg) {
-    jid id;
-    xmlnode pass;
-
-    if(jpacket_subtype(m->packet) == JPACKET__GET) {
-	/* type=get means we flag that the server can do plain-text regs */
+static mreturn mod_auth_digest_reg(mapi m, void *arg) {
+    if (jpacket_subtype(m->packet) == JPACKET__GET) {
+	/* type=get means we tell what we need */
 	if (xmlnode_get_tags(m->packet->iq, "register:password", m->si->std_namespace_prefixes) == NULL)
 	    xmlnode_insert_tag_ns(m->packet->iq, "password", NULL, NS_REGISTER);
-        return M_PASS;
     }
-
-    /* ignore all but set requests (gets have already been handled) and
-     * take care, that there is a new password */
-    if (jpacket_subtype(m->packet) != JPACKET__SET
-	    || (pass = xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:password", m->si->std_namespace_prefixes) ,0)) == NULL
-	    || xmlnode_get_data(pass) == NULL)
-	return M_PASS;
-
-    /* get the jid of the user, depending on how we were called */
-    if (m->user == NULL)
-        id = jid_user(m->packet->to);
-    else
-        id = m->user->id;
-
-    /* tuck away for a rainy day */
-    if (mod_auth_digest_reset(m,id,pass)) {
-        jutil_error_xmpp(m->packet->x, XTERROR_STORAGE_FAILED);
-        return M_HANDLED;
-    }
-
     return M_PASS;
 }
 
 /**
- * handle password change requests from a user, that is online
+ * handle saving the password
  *
- * @param m the mapi_struct containing the request
+ * used if the user just registers his account or if the user changed
+ * his password
+ *
+ * @param m the mapi instance containing the query
  * @param arg unused/ignored
- * @return M_IGNORE if not an iq stanza, M_HANDLED if password storage failed, M_PASS else (other modules might want to update their passwords as well)
+ * @return M_HANDLED if we rejected the request, H_PASS else
  */
-mreturn mod_auth_digest_server(mapi m, void *arg) {
-    mreturn ret;
+static mreturn mod_auth_digest_pwchange(mapi m, void *arg) {
+    jid id;
+    xmlnode pass;
 
-    /* pre-requisites */
-    if (m->packet->type != JPACKET_IQ)
-	return M_IGNORE;
-    if (m->user == NULL)
-	return M_PASS;
-    if (!NSCHECK(m->packet->iq, NS_REGISTER))
-	return M_PASS;
+    /* get the jid of the user */
+    id = jid_user(m->packet->to);
 
-    /* just do normal reg process, but deliver afterwards */
-    ret = mod_auth_digest_reg(m,arg);
-    if (ret == M_HANDLED)
-        js_deliver(m->si, jpacket_reset(m->packet));
+    /* get the new password */
+    pass = xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:password", m->si->std_namespace_prefixes), 0);
 
-    return ret;
+    /* tuck away for a rainy day */
+    if (mod_auth_digest_reset(m, id, pass)) {
+        js_bounce_xmpp(m->si, m->packet->x, XTERROR_STORAGE_FAILED);
+        return M_HANDLED;
+    }
+
+    return M_PASS;
 }
 
 /**
@@ -201,7 +184,7 @@ void mod_auth_digest(jsmi si) {
 
     log_debug2(ZONE, LOGT_INIT, "init");
     js_mapi_register(si,e_AUTH, mod_auth_digest_yum, NULL);
-    js_mapi_register(si,e_SERVER, mod_auth_digest_server, NULL);
+    js_mapi_register(si,e_PASSWORDCHANGE, mod_auth_digest_pwchange, NULL);
     if (register_config != NULL)
 	js_mapi_register(si, e_REGISTER, mod_auth_digest_reg, NULL);
     xmlnode_free(register_config);
