@@ -53,6 +53,77 @@
  */
 
 /**
+ * this function calls the modules, that registered the e_PASSWORDCHANGE event
+ * (i.e. the modules that do authentication and therefore have to store the password
+ * as their credentials).
+ *
+ * @param m the mapi structure holding the original client request
+ * @return M_PASS if the modules accepted the new password, M_HANDLED if a module rejected the new password and already returned an error
+ */
+static mreturn mod_register_passwordchange(mapi m) {
+    xmlnode passwordchange = NULL;
+    xmlnode_list_item iter = NULL;
+    jpacket p;
+    int password_present = 0;
+
+    /* create a fictive request */
+
+    /* make a copy of the original request */
+    passwordchange = xmlnode_dup(m->packet->x);
+    p = jpacket_new(passwordchange);
+    xmlnode_change_namespace(p->iq, NS_AUTH);
+
+    /* remove all but the new password, and the username */
+    for (iter = xmlnode_get_tags(p->iq, "*", m->si->std_namespace_prefixes); iter != NULL; iter = iter->next) {
+	if (iter->node->type != NTYPE_TAG) {
+	    xmlnode_hide(iter->node);
+	    continue;
+	}
+
+	if (!NSCHECK(iter->node, NS_REGISTER)) {
+	    xmlnode_hide(iter->node);
+	    continue;
+	}
+
+	if (j_strcmp(xmlnode_get_localname(iter->node), "username") == 0) {
+	    jid_set(p->to, xmlnode_get_data(iter->node), JID_USER);
+	    xmlnode_put_attrib_ns(p->x, "to", NULL, NS_SERVER, jid_full(p->to));
+	    xmlnode_hide(iter->node);
+	    continue;
+	}
+
+	if (j_strcmp(xmlnode_get_localname(iter->node), "password") != 0) {
+	    xmlnode_hide(iter->node);
+	    continue;
+	}
+
+	xmlnode_change_namespace(iter->node, NS_AUTH);
+	password_present++;
+    }
+
+    /* check that there is only one password */
+    if (password_present > 1) {
+	xmlnode_free(passwordchange);
+	jutil_error_xmpp(m->packet->x, XTERROR_NOTACCEPTABLE);
+	log_notice(m->user->id->server, "Denied password change, password field has been provied %i times (user %s)", password_present, jid_full(m->packet->to));
+	return M_HANDLED;
+    }
+
+    /* if there is a password, call the modules */
+    if (password_present) {
+	if (js_mapi_call(m->si, e_PASSWORDCHANGE, p, NULL, NULL)) {
+	    /* it was replied by one of the modules */
+	    log_debug2(ZONE, LOGT_REGISTER, "one of the e_PASSWORDCHANGE modules did not like the password change");
+	    return M_HANDLED;
+	}
+    }
+
+
+    xmlnode_free(passwordchange);
+    return M_PASS;
+}
+
+/**
  * handle new user registration requests
  *
  * Handles new user registration requests and sends a welcome message to the new user,
@@ -83,7 +154,16 @@ static mreturn mod_register_new(mapi m, void *arg) {
 
 	    log_debug2(ZONE, LOGT_AUTH, "processing valid registration for %s",jid_full(m->packet->to));
 
-	    /* save the registration data */
+	    /* let the auth modules store the credentials */
+	    if (mod_register_passwordchange(m) == M_HANDLED) {
+		log_notice(m->user->id->server, "Could not store password when processing registration request: %s", jid_full(m->user->id));
+		xmlnode_free(reg);
+		return M_HANDLED;
+	    }
+
+	    log_notice(m->packet->to->server, "User %s registered", jid_full(m->packet->to));
+
+	    /* stamp the registration data */
 	    jutil_delay(m->packet->iq,"registered");
 
 	    log_debug2(ZONE, LOGT_REGISTER, "handled packet is: %s", xmlnode_serialize_string(m->packet->iq, NULL, NULL, 0));
@@ -141,6 +221,98 @@ static mreturn mod_register_new(mapi m, void *arg) {
 }
 
 /**
+ * check if a registration set request contains all necessary fields
+ *
+ * @param m the mapi_struct containing the request
+ * @param arg unused/ignored
+ * @return M_IGNORE if no iq request, M_HANDLED if the request in invalid and a bounce has been sent, M_PASS else
+ */
+static mreturn mod_register_check(mapi m, void *arg) {
+    xmlnode register_config = NULL;
+    xmlnode_list_item item = NULL;
+    xmlnode_list_item request_item = NULL;
+    int returned_elements = 0;
+    xht register_namespace = NULL;
+
+    /* sanity check */
+    if (m == NULL || m->packet == NULL) {
+	return M_PASS;
+    }
+
+    /* only handle iq packets */
+    if (m->packet->type != JPACKET_IQ) {
+	return M_IGNORE;
+    }
+
+    /* we only verify set queries */
+    if (jpacket_subtype(m->packet) != JPACKET__SET) {
+	return M_PASS;
+    }
+
+    /* get the fields that we requested */
+    register_config = js_config(m->si, "register:register");
+    if (register_config == NULL) {
+	/* there is nothing we have to verify */
+	return M_PASS;
+    }
+
+    /* we never require the client to send <instructions/> back */
+    register_namespace = xhash_new(1);
+    xhash_put(register_namespace, "", NS_REGISTER);
+    for (item = xmlnode_get_tags(register_config, "instructions", register_namespace); item != NULL; item = item->next) {
+	xmlnode_hide(item->node);
+    }
+
+    /* check which elements have been sent back */
+    for (request_item = xmlnode_get_tags(m->packet->iq, "register:*", m->si->std_namespace_prefixes); request_item != NULL; request_item = request_item->next) {
+	log_debug2(ZONE, LOGT_REGISTER, "we got a reply for: %s", xmlnode_get_localname(request_item->node));
+
+	for (item = xmlnode_get_tags(register_config, xmlnode_get_localname(request_item->node), register_namespace); item != NULL; item = item->next) {
+	    returned_elements++;
+	    xmlnode_hide(item->node);
+	}
+    }
+    xhash_free(register_namespace);
+    register_namespace = NULL;
+
+    /* check if all elements have been returned */
+    item = xmlnode_get_tags(register_config, "register:*", m->si->std_namespace_prefixes);
+    if (item != NULL) {
+	xterror err = {400, "", "modify", "bad-request"};
+	snprintf(err.msg, sizeof(err.msg), "Missing data field: %s", xmlnode_get_localname(item->node));
+	log_debug2(ZONE, LOGT_REGISTER, "returned err msg: %s", err.msg);
+	jutil_error_xmpp(m->packet->x, err);
+	log_debug2(ZONE, LOGT_REGISTER, "missing fields: %s", xmlnode_serialize_string(register_config, NULL, NULL, 0));
+	xmlnode_free(register_config);
+	return M_HANDLED;
+    }
+
+    log_debug2(ZONE, LOGT_REGISTER, "%i elements have been replied", returned_elements);
+
+    /* have there been any element, that has been replied and that was requested?
+     * if no fields where requested, we don't allow account registration
+     */
+    if (returned_elements <= 0) {
+	item = xmlnode_get_tags(register_config, "xoob:x/xoob:url", m->si->std_namespace_prefixes);
+	xterror err = {400, "", "modify", "bad-request"};
+	if (item == NULL) {
+	    snprintf(err.msg, sizeof(err.msg), "Registration not allowed.");
+	} else {
+	    snprintf(err.msg, sizeof(err.msg), "Registration not allowed. See %s", xmlnode_get_data(item->node));
+	}
+	log_debug2(ZONE, LOGT_REGISTER, "returned err msg: %s", err.msg);
+	jutil_error_xmpp(m->packet->x, err);
+	xmlnode_free(register_config);
+	return M_HANDLED;
+    }
+
+    log_debug2(ZONE, LOGT_REGISTER, "registration set request passed all checks");
+
+    xmlnode_free(register_config);
+    return M_PASS;
+}
+
+/**
  * handle jabber:iq:register queries from existing users (removing accounts and changing passwords)
  *
  * This function ignores all stanzas but iq stanzas.
@@ -156,7 +328,9 @@ static mreturn mod_register_new(mapi m, void *arg) {
  */
 static mreturn _mod_register_server_register(mapi m) {
     xmlnode reg, cur, check;
+    xht register_namespace = NULL;
     xmlnode register_config = NULL;
+    xmlnode_list_item iter = NULL;
 
     /* pre-requisites */
     if (m->user == NULL)
@@ -167,54 +341,180 @@ static mreturn _mod_register_server_register(mapi m) {
     /* check for their registration */
     reg =  xdb_get(m->si->xc, m->user->id, NS_REGISTER);
 
+    log_debug2(ZONE, LOGT_AUTH, "current registration data: %s", xmlnode_serialize_string(reg, NULL, NULL, 0));
+
     switch (jpacket_subtype(m->packet)) {
 	case JPACKET__GET:
 	    /* create reply to the get */
 	    xmlnode_put_attrib_ns(m->packet->x, "type", NULL, NULL, "result");
 	    jutil_tofrom(m->packet->x);
 
-	    /* copy in the registration fields from the config file */
-	    register_config = js_config(m->si, "register:register");
-	    xmlnode_insert_node(m->packet->iq, xmlnode_get_firstchild(register_config));
-	    xmlnode_free(register_config);
-	    register_config = NULL;
-
-	    /* replace fields with already-registered ones */
-	    for (cur = xmlnode_get_firstchild(m->packet->iq); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
-		if (xmlnode_get_type(cur) != NTYPE_TAG)
-		    continue;
-		if (j_strcmp(xmlnode_get_namespace(cur), NS_REGISTER) != 0)
-		    continue;
-
-		check = xmlnode_get_list_item(xmlnode_get_tags(reg, spools(m->packet->p, "register:", xmlnode_get_localname(cur), m->packet->p), m->si->std_namespace_prefixes), 0);
-		if (check == NULL)
-		    continue;
-
-		/* copy the text() child */
-		xmlnode_insert_node(cur,xmlnode_get_firstchild(check));
-	    }
+	    /* copy in the currently known data */
+	    xmlnode_insert_node(m->packet->iq, xmlnode_get_firstchild(reg));
 
 	    /* add the registered flag */
 	    xmlnode_insert_tag_ns(m->packet->iq, "registered", NULL, NS_REGISTER);
+
+	    /* copy additional required fields from configuration */
+	    register_config = js_config(m->si, "register:register");
+	    register_namespace = xhash_new(1);
+	    xhash_put(register_namespace, "", NS_REGISTER);
+	    for (iter = xmlnode_get_tags(register_config, "register:*", m->si->std_namespace_prefixes); iter != NULL; iter = iter->next) {
+		if (j_strcmp(xmlnode_get_localname(iter->node), "instructions") == 0)
+		    continue;
+
+		/* check if the field is already present */
+		if (xmlnode_get_tags(m->packet->iq, xmlnode_get_localname(iter->node), register_namespace) != NULL)
+		    continue;
+
+		/* insert the field */
+		xmlnode_insert_tag_ns(m->packet->iq, xmlnode_get_localname(iter->node), NULL, NS_REGISTER);
+	    }
+
+	    /* free temp data */
+	    xhash_free(register_namespace);
+	    register_namespace = NULL;
+	    xmlnode_free(register_config);
+	    register_config = NULL;
 
 	    break;
 
 	case JPACKET__SET:
 	    if (xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:remove", m->si->std_namespace_prefixes), 0) != NULL) {
 		xmlnode roster, cur;
+		xmlnode nounregister = NULL;
+
+		/* is deleting accounts forbidden by the configuration? */
+		nounregister = js_config(m->si, "jsm:nounregister");
+		if (nounregister != NULL) {
+		    xterror err = {405, "Not Allowed", "cancel", "not-allowed"};
+		    char* nounregister_data = xmlnode_get_data(nounregister);
+		    if (nounregister_data != NULL) {
+			snprintf(err.msg, sizeof(err.msg), "%s", nounregister_data);
+		    }
+		    js_bounce_xmpp(m->si, m->packet->x, err);
+		    xmlnode_free(nounregister);
+		    xmlnode_free(reg);
+		    log_notice(m->user->id->server, "Denied unregistration to user %s", jid_full(m->user->id));
+		    return M_HANDLED;
+		}
 	    
 		log_notice(m->user->id->server,"User Unregistered: %s",m->user->id->user);
 
 		/* let the modules remove their data for this user */
 		js_user_delete(m->si, m->user->id);
 	    } else {
-		log_debug2(ZONE, LOGT_ROSTER, "updating registration for %s",jid_full(m->user->id));
+		int only_passwordchange = 1;
+		int is_passwordchange = 0;
+		int has_username = 0;
+		xmlnode_list_item iter = NULL;
+		xmlnode noregistrationchange = NULL;
 
-		/* update the registration data */
-		xmlnode_hide(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:username", m->si->std_namespace_prefixes), 0)); /* hide the username/password from the reg db */
-		xmlnode_hide(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:password", m->si->std_namespace_prefixes), 0));
-		jutil_delay(m->packet->iq,"updated");
-		xdb_set(m->si->xc, m->user->id, NS_REGISTER, m->packet->iq);
+		/* is it a password change, or an update for the registration data? */
+		for (iter = xmlnode_get_tags(m->packet->iq, "register:*", m->si->std_namespace_prefixes); iter != NULL; iter = iter->next) {
+		    const char* localname = xmlnode_get_localname(iter->node);
+
+		    /* the username cannot be changed, if it is present, it has to stay the same */
+		    if (j_strcmp(localname, "username") == 0) {
+			has_username++;
+			jid username_jid = jid_new(m->packet->p, jid_full(m->user->id));
+			jid_set(username_jid, xmlnode_get_data(iter->node), JID_USER);
+			if (jid_cmp(m->user->id, username_jid) == 0) {
+			    xmlnode_hide(iter->node); /* we'll regenerate using preped version */
+			    continue; /* it's still the same username, everything is perfect */
+			}
+
+			/* user tries to change his username */
+			js_bounce_xmpp(m->si, m->packet->x, XTERROR_NOTACCEPTABLE);
+			xmlnode_free(reg);
+			log_notice(m->user->id->server, "Denied update of username for %s to %s", jid_full(m->user->id), xmlnode_get_data(iter->node));
+			return M_HANDLED;
+		    }
+
+		    /* does the request contain a new password? */
+		    if (j_strcmp(localname, "password") == 0) {
+			is_passwordchange = 1;
+			continue;
+		    }
+
+		    /* anything else is a change in the registration data */
+		    only_passwordchange = 0;
+		}
+
+		/* ensure, that there is exactly one username */
+		if (has_username > 1) {
+		    js_bounce_xmpp(m->si, m->packet->x, XTERROR_BAD);
+		    xmlnode_free(reg);
+		    log_notice(m->user->id->server, "User %s sent registration data set request containing multiple usernames", jid_full(m->user->id));
+		    return M_HANDLED;
+		}
+		xmlnode_insert_cdata(xmlnode_insert_tag_ns(m->packet->iq, "username", NULL, NS_REGISTER), m->user->id->user, -1);
+
+		/* did we find anything useful? */
+		if (!is_passwordchange && only_passwordchange) {
+		    js_bounce_xmpp(m->si, m->packet->x, XTERROR_BAD);
+		    xmlnode_free(reg);
+		    log_notice(m->user->id->server, "User %s sent incomplete registration data set request", jid_full(m->user->id));
+		    return M_HANDLED;
+		}
+
+		/* if it is a real regstration update (not only password-change), check that all required fields have been provided */
+		if (!only_passwordchange) {
+		    log_debug2(ZONE, LOGT_ROSTER, "updating registration for %s",jid_full(m->user->id));
+
+		    if (mod_register_check(m, NULL) == M_HANDLED) {
+			js_deliver(m->si, jpacket_reset(m->packet));
+			xmlnode_free(reg);
+			return M_HANDLED;
+		    }
+
+		    /* is updating registration data forbidden by the configuration? */
+		    noregistrationchange = js_config(m->si, "jsm:noregistrationchange");
+		    if (noregistrationchange != NULL) {
+			xterror err = {405, "Not Allowed", "cancel", "not-allowed"};
+			char* noregistrationchange_data = xmlnode_get_data(noregistrationchange);
+			if (noregistrationchange_data != NULL) {
+			    snprintf(err.msg, sizeof(err.msg), "%s", noregistrationchange_data);
+			}
+			js_bounce_xmpp(m->si, m->packet->x, err);
+			xmlnode_free(noregistrationchange);
+			xmlnode_free(reg);
+			log_notice(m->user->id->server, "Denied registration data change to user %s", jid_full(m->user->id));
+			return M_HANDLED;
+		    }
+		}
+
+		/* let the authentication modules update the stored password */
+		if (is_passwordchange) {
+		    xmlnode nopasswordchange = js_config(m->si, "jsm:nopasswordchange");
+		    if (nopasswordchange != NULL) {
+			xterror err = {405, "Not Allowed", "cancel", "not-allowed"};
+			char* nopasswordchange_data = xmlnode_get_data(nopasswordchange);
+			if (nopasswordchange_data != NULL) {
+			    snprintf(err.msg, sizeof(err.msg), "%s", nopasswordchange_data);
+			}
+			js_bounce_xmpp(m->si, m->packet->x, err);
+			xmlnode_free(nopasswordchange);
+			xmlnode_free(reg);
+			log_notice(m->user->id->server, "Denied password change to user %s", jid_full(m->user->id));
+			return M_HANDLED;
+		    }
+		    xmlnode_free(nopasswordchange);
+
+		    if (mod_register_passwordchange(m) == M_HANDLED) {
+			xmlnode_free(reg);
+			return M_HANDLED;
+		    }
+		    log_notice(m->user->id->server, "User %s changed password", jid_full(m->user->id));
+		}
+
+		if (!only_passwordchange) {
+		    /* update the registration data */
+		    xmlnode_hide(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:username", m->si->std_namespace_prefixes), 0)); /* hide the username/password from the reg db */
+		    xmlnode_hide(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:password", m->si->std_namespace_prefixes), 0));
+		    jutil_delay(m->packet->iq,"updated");
+		    xdb_set(m->si->xc, m->user->id, NS_REGISTER, m->packet->iq);
+		}
 	    }
 	    /* clean up and respond */
 	    jutil_iqresult(m->packet->x);
@@ -282,7 +582,7 @@ static mreturn _mod_register_iq_server(mapi m, void *arg) {
     if (m->packet->type != JPACKET_IQ)
 	return M_IGNORE;
 
-    /* version request? */
+    /* register request? */
     if (NSCHECK(m->packet->iq, NS_REGISTER))
 	return _mod_register_server_register(m);
 
@@ -290,98 +590,6 @@ static mreturn _mod_register_iq_server(mapi m, void *arg) {
     if (NSCHECK(m->packet->iq, NS_DISCO_INFO))
 	return _mod_register_disco_info(m);
 
-    return M_PASS;
-}
-
-/**
- * check if a registration set request contains all necessary fields
- *
- * @param m the mapi_struct containing the request
- * @param arg unused/ignored
- * @return M_IGNORE if no iq request, M_HANDLED if the request in invalid and a bounce has been sent, M_PASS else
- */
-static mreturn mod_register_check(mapi m, void *arg) {
-    xmlnode register_config = NULL;
-    xmlnode_list_item item = NULL;
-    xmlnode_list_item request_item = NULL;
-    int returned_elements = 0;
-    xht register_namespace = NULL;
-
-    /* sanity check */
-    if (m == NULL || m->packet == NULL) {
-	return M_PASS;
-    }
-
-    /* only handle iq packets */
-    if (m->packet->type != JPACKET_IQ) {
-	return M_IGNORE;
-    }
-
-    /* we only verify set queries */
-    if (jpacket_subtype(m->packet) != JPACKET__SET) {
-	return M_PASS;
-    }
-
-    /* get the fields that we requested */
-    register_config = js_config(m->si, "register:register");
-    if (register_config == NULL) {
-	/* there is nothing we have to verify */
-	return M_PASS;
-    }
-
-    /* we never require the client to send <instructions/> back */
-    register_namespace = xhash_new(1);
-    xhash_put(register_namespace, "", NS_REGISTER);
-    for (item = xmlnode_get_tags(register_config, "instructions", register_namespace); item != NULL; item = item->next) {
-	xmlnode_hide(item->node);
-    }
-
-    /* check which elements have been sent back */
-    for (request_item = xmlnode_get_tags(m->packet->iq, "register:*", m->si->std_namespace_prefixes); request_item != NULL; request_item = request_item->next) {
-	log_debug2(ZONE, LOGT_REGISTER, "we got a reply for: %s", xmlnode_get_localname(request_item->node));
-
-	for (item = xmlnode_get_tags(register_config, xmlnode_get_localname(request_item->node), register_namespace); item != NULL; item = item->next) {
-	    returned_elements++;
-	    xmlnode_hide(item->node);
-	}
-    }
-    xhash_free(register_namespace);
-    register_namespace = NULL;
-
-    /* check if all elements have been returned */
-    item = xmlnode_get_tags(register_config, "register:*", m->si->std_namespace_prefixes);
-    if (item != NULL) {
-	xterror err = {400, "", "modify", "bad-request"};
-	snprintf(err.msg, sizeof(err.msg), "Missing return data field: %s", xmlnode_get_localname(item->node));
-	log_debug2(ZONE, LOGT_REGISTER, "returned err msg: %s", err.msg);
-	jutil_error_xmpp(m->packet->x, err);
-	log_debug2(ZONE, LOGT_REGISTER, "missing fields: %s", xmlnode_serialize_string(register_config, NULL, NULL, 0));
-	xmlnode_free(register_config);
-	return M_HANDLED;
-    }
-
-    log_debug2(ZONE, LOGT_REGISTER, "%i elements have been replied", returned_elements);
-
-    /* have there been any element, that has been replied and that was requested?
-     * if no fields where requested, we don't allow account registration
-     */
-    if (returned_elements <= 0) {
-	item = xmlnode_get_tags(register_config, "xoob:x/xoob:url", m->si->std_namespace_prefixes);
-	xterror err = {400, "", "modify", "bad-request"};
-	if (item == NULL) {
-	    snprintf(err.msg, sizeof(err.msg), "Registration not allowed.");
-	} else {
-	    snprintf(err.msg, sizeof(err.msg), "Registration not allowed. See %s", xmlnode_get_data(item->node));
-	}
-	log_debug2(ZONE, LOGT_REGISTER, "returned err msg: %s", err.msg);
-	jutil_error_xmpp(m->packet->x, err);
-	xmlnode_free(register_config);
-	return M_HANDLED;
-    }
-
-    log_debug2(ZONE, LOGT_REGISTER, "registration set request passed all checks");
-
-    xmlnode_free(register_config);
     return M_PASS;
 }
 

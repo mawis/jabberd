@@ -254,6 +254,10 @@ typedef int event;
  *
  * The registered module is passed the ::jpacket_struct (stanza) as well as the
  * ::udata_struct (user data). No ::session_struct is passed to the module.
+ *
+ * After this event returns, the session manager will return the content of the
+ * packet. Therefore do not free the packet, and use jutil_error_xmpp() to
+ * generate error replies instead of the normal js_bounce_xmpp().
  */
 #define e_AUTH     5
 
@@ -264,6 +268,10 @@ typedef int event;
  *
  * Only the stanza is passed as ::jpacket_struct. No session and no user is passed to
  * a handler registered for this event.
+ *
+ * After this event returns, the session manager will return the content of the
+ * packet. Therefore do not free the packet, and use jutil_error_xmpp() to
+ * generate error replies instead of the normal js_bounce_xmpp().
  */
 #define e_REGISTER 6
 
@@ -314,11 +322,29 @@ typedef int event;
  *
  * Only the stanza is passed as ::jpacket_struct. No session and no user is passed to
  * a handler registered for this event.
+ *
+ * After this event returns, the session manager will return the content of the
+ * packet. Therefore do not free the packet, and use jutil_error_xmpp() to
+ * generate error replies instead of the normal js_bounce_xmpp().
  */
 #define e_PRE_REGISTER 10
 
+ /**
+  * e_PASSWORDCHANGE is called when a user changes his password, or the first password
+  * is set on registration of an account. Modules can register this event to change
+  * stored credentials.
+  *
+  * A fictive stanza is passed as ::jpacket_struct containing the following XML
+  * data:
+  *
+  * &lt;query xmlns='jabber:iq:auth' to='user@server'>
+  * &lt;password>newpass&lt;/password>
+  * &lt/query>
+  */
+#define e_PASSWORDCHANGE 11
+
 /* always add new event types here, to maintain backwards binary compatibility */
-#define e_LAST     11  /**< flag for the highest event type*/
+#define e_LAST     12  /**< flag for the highest event type*/
 
 /* session event types */
 

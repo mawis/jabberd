@@ -203,6 +203,8 @@ int main (int argc, const char** argv) {
 #endif
 	printf("\nDefault config file is: %s\n", CONFIG_DIR "/jabber.xml");
 	printf("\nFor more information please visit http://jabberd.org/\n");
+	printf("\nNOTICE: With the next release of this software, this package\n");
+	printf("        will get renamed to 'xmppd'. (http://xmppd.org/)\n");
 	return 0;
     }
 
