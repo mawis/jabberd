@@ -176,7 +176,7 @@ char *dialback_merlin(pool p, char *secret, char *to, char *from, char *challeng
     message = spools(p, to, " ", from, " ", challenge, p);
 
     /* sign the message */
-    hmac_sha1_ascii_r(secret, message, j_strlen(message), result);
+    hmac_sha1_ascii_r(secret, (unsigned char*)message, j_strlen(message), result);
 
     log_debug2(ZONE, LOGT_AUTH, "merlin casts his spell (%s - %s %s %s) %s", secret, to, from, challenge, result);
 
@@ -1178,7 +1178,7 @@ const char* dialback_get_loopcheck_token(db d) {
     static int hmac_done = 0;
 
     if (!hmac_done) {
-	hmac_sha1_ascii_r(d->secret, "loopcheck", 9, hmac);
+	hmac_sha1_ascii_r(d->secret, (unsigned char*)"loopcheck", 9, hmac);
 	hmac_done = 1;
     }
     return hmac;
