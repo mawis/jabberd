@@ -278,8 +278,13 @@ static mreturn mod_register_check(mapi m, void *arg) {
     /* check if all elements have been returned */
     item = xmlnode_get_tags(register_config, "register:*", m->si->std_namespace_prefixes);
     if (item != NULL) {
+	xmlnode_list_item xoob_url = xmlnode_get_tags(register_config, "xoob:x/xoob:url", m->si->std_namespace_prefixes);
 	xterror err = {400, "", "modify", "bad-request"};
-	snprintf(err.msg, sizeof(err.msg), "Missing data field: %s", xmlnode_get_localname(item->node));
+	if (xoob_url == NULL) {
+	    snprintf(err.msg, sizeof(err.msg), "Missing data field: %s", xmlnode_get_localname(item->node));
+	} else {
+	    snprintf(err.msg, sizeof(err.msg), "Missing data field: %s - you may register at %s", xmlnode_get_localname(item->node), xmlnode_get_data(xoob_url->node));
+	}
 	log_debug2(ZONE, LOGT_REGISTER, "returned err msg: %s", err.msg);
 	jutil_error_xmpp(m->packet->x, err);
 	log_debug2(ZONE, LOGT_REGISTER, "missing fields: %s", xmlnode_serialize_string(register_config, NULL, NULL, 0));
