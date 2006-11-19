@@ -1,9 +1,9 @@
-jabberd 1.4.5
-=============
+jabberd14 1.6.0
+===============
 
-http://jabberd.org/1.4/
+http://jabberd.org/
 
-Welcome to the world of Jabber 1.4!
+Welcome to the world of jabberd14!
 
 This README is very sparse. Visit jabberd's homepage for further
 documentation including an installation guide and configuration
@@ -14,6 +14,9 @@ from an older version of this software, please look at the
 UPGRADE file. In the NEWS file you get a list of what has changed
 in the server functionality. Both files might be of interest for
 users of prior versions of this software.
+
+If you need support for your jabberd14, please go to
+http://jabberd.org/gettingSupport
 
 -----------------------
 

@@ -1,7 +1,7 @@
 after jabberd 1.6.0
 ===================
 
-- privacy lists successor (XEP-0016)
+- privacy lists successor (XEP-0016?)
 - SASL c2s without jadc2s add-on (XMPP)
 
 - fix cygwin build
