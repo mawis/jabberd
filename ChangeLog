@@ -1,6 +1,7 @@
 2006-11-19  Matthias Wimmer  <m@tthias.eu>
 
     * jsm/modules/mod_register.c: improved error message
+    * xdb_sql/xdb_sql.cc: fixing a problem with xdb_sql handling big data
 
 2006-11-18  Matthias Wimmer  <m@tthias.eu>
 
