@@ -7,7 +7,7 @@ libjabberdxdbfile_la_LDFLAGS = @LDFLAGS@ @VERSION_INFO@ -module
 
 xdbfiletool_SOURCES = xdbfiletool.c
 xdbfiletool_LDADD = $(top_builddir)/jabberd/libjabberd.la \
-		    -lpopt
+		    -lpopt -lstdc++
 xdbfiletool_LDFLAGS = @LDFLAGS@
 
 INCLUDES = -I../jabberd -I../jabberd/lib

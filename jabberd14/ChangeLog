@@ -4,6 +4,9 @@
     	that my cause crashes of jabberd14
     * dialback/dialback.c: fixing the tls='force' and auth options for s2s
     * dialback/dialback_in.c: fixing bug #74
+    * jabberd/lib/messages.c: functions to translate messages
+    * jabberd/lib/jutil.c: using the message translation function
+    * jabberd/config.c: parsing configuration options to set-up locales
 
 2006-11-19  Matthias Wimmer  <m@tthias.eu>
 

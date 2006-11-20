@@ -1073,6 +1073,19 @@
   Global configuration settings, affect a complete jabberd14 process
   -->
   <global>
+      <!-- Define mappings from language strings (used in XML) to    -->
+      <!-- locales (used on the operating system).                   -->
+      <!-- These mappings are used to generate localized             -->
+      <!-- (translated) messages.                                    -->
+      <!-- Beside having the mapping defined, you need a language    -->
+      <!-- file containing the action translations.                  -->
+      <!-- Note that you have to use locales, that use the UTF-8     -->
+      <!-- charmap. (They typically end in '.UTF-8'.) Else your      -->
+      <!-- server will send invalid XML data to your users and       -->
+      <!-- peers.                                                    -->
+      <locales>
+	  <locale lang="de" locale="de_DE.UTF-8"/>
+      </locales>
 
       <!-- Define access control lists. You can grant access to some -->
       <!-- functionality of the server only to selected users.       -->
