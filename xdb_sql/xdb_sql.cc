@@ -85,6 +85,16 @@ typedef struct xdbsql_ns_def_struct {
  * structure that holds the data used by xdb_sql internally
  */
 typedef struct xdbsql_struct {
+    xdbsql_struct() :
+#ifdef HAVE_MYSQL
+	use_mysql(0), mysql(NULL), mysql_user(NULL), mysql_password(NULL), mysql_host(NULL),
+	mysql_database(NULL), mysql_port(0), mysql_socket(NULL), mysql_flag(0),
+#endif
+#ifdef HAVE_POSTGRESQL
+	use_postgresql(0), postgresql(NULL), postgresql_conninfo(NULL),
+#endif
+	onconnect(NULL), namespace_prefixes(NULL), std_namespace_prefixes(NULL) {};
+
     std::map<std::string, _xdbsql_ns_def > namespace_defs; /**< definitions of queries for the different namespaces */
     char	*onconnect;		/**< SQL query that should be executed after we connected to the database server */
     xht		namespace_prefixes;	/**< prefixes for the namespaces (key = prefix, value = ns_iri) */
