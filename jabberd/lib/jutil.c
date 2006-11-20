@@ -390,7 +390,7 @@ void jutil_error_xmpp(xmlnode x, xterror E)
     if (E.msg != NULL) {
 	xmlnode text;
 	text = xmlnode_insert_tag_ns(err, "text", NULL, NS_XMPP_STANZAS);
-	xmlnode_insert_cdata(text, E.msg, strlen(E.msg));
+	xmlnode_insert_cdata(text, messages_get(xmlnode_get_lang(x), E.msg), -1);
     }
 
     jutil_tofrom(x);

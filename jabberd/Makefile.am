@@ -7,7 +7,7 @@ jabberd_SOURCES = jabberd.c
 
 jabberd_LDADD = $(top_builddir)/jabberd/base/libjabberdbase.la \
 		$(top_builddir)/jabberd/libjabberd.la \
-		-lpopt
+		-lpopt -lstdc++
 jabberd_LDFLAGS = @LDFLAGS@ -export-dynamic
 
 include_HEADERS = jabberd.h

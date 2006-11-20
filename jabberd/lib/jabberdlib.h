@@ -838,6 +838,13 @@ void	jutil_error_map(terror old, xterror *mapped);	 /* map an old terror structu
 void    jutil_delay(xmlnode msg, char *reason);		 /* Append a delay packet to msg */
 char*   jutil_regkey(char *key, char *seed);		 /* pass a seed to generate a key, pass the key again to validate (returns it) */
 
+/* --------------------------------------------------------- */
+/*                                                           */
+/* Functions to access localized messages                    */
+/*                                                           */
+/* --------------------------------------------------------- */
+void messages_set_mapping(const char* lang, const char* locale_name);
+const char* messages_get(const char* lang, const char* message);
 
 #ifdef __cplusplus
 }
