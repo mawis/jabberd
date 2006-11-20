@@ -2,6 +2,8 @@
 
     * xdb_sql/xdb_sql.cc: fixing big bug introduced with the latest change
     	that my cause crashes of jabberd14
+    * dialback/dialback.c: fixing the tls='force' and auth options for s2s
+    * dialback/dialback_in.c: fixing bug #74
 
 2006-11-19  Matthias Wimmer  <m@tthias.eu>
 
