@@ -347,6 +347,22 @@ int configurate(char *file, xht cmd_line, int is_restart) {
 
     _set_configured_debug(greymatter__);
 
+    /* set locale mappings */
+    if (!is_restart) {
+	xht namespaces = NULL;
+	xmlnode_list_item locale = NULL;
+
+	namespaces = xhash_new(1);
+	xhash_put(namespaces, "", NS_JABBERD_CONFIGFILE);
+	locale = xmlnode_get_tags(greymatter__, "global/locales/locale", namespaces);
+	xhash_free(namespaces);
+	namespaces = NULL;
+
+	for (; locale != NULL; locale = locale->next) {
+	    messages_set_mapping(xmlnode_get_attrib_ns(locale->node, "lang", NULL), xmlnode_get_attrib_ns(locale->node, "locale", NULL));
+	}
+    }
+
     return 0;
 }
 
