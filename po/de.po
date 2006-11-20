@@ -1,0 +1,112 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: jabberd14\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2006-11-20 22:50+0100\n"
+"PO-Revision-Date: 2006-11-20 22:55+0100\n"
+"Last-Translator: Matthias Wimmer <m@tthias.eu>\n"
+"Language-Team: German <m@tthias.eu>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: jabberdlib.h:711 jabberdlib.h:718
+msgid "Bad Request"
+msgstr "Fehlerhafte Anfrage"
+
+#: jabberdlib.h:712
+msgid "Conflict"
+msgstr "Konflikt"
+
+#: jabberdlib.h:713
+msgid "Not Implemented"
+msgstr "Nicht implementiert"
+
+#: jabberdlib.h:714
+msgid "Forbidden"
+msgstr "Zugriff verweigert"
+
+#: jabberdlib.h:715
+msgid "Gone"
+msgstr "Nicht mehr verfügbar"
+
+#: jabberdlib.h:716
+msgid "Internal Server Error"
+msgstr "Serverfehler"
+
+#: jabberdlib.h:717
+msgid "Not Found"
+msgstr "Nicht gefunden"
+
+#: jabberdlib.h:719
+msgid "Not Acceptable"
+msgstr ""
+
+#: jabberdlib.h:720
+msgid "Not Allowed"
+msgstr ""
+
+#: jabberdlib.h:721
+msgid "Unauthorized"
+msgstr "Authentisierung fehlgeschlagen"
+
+#: jabberdlib.h:722
+msgid "Payment Required"
+msgstr "Zahlung erforderlich"
+
+#: jabberdlib.h:723
+msgid "Recipient Is Unavailable"
+msgstr "Empfänger nicht verfügbar"
+
+#: jabberdlib.h:724
+msgid "Redirect"
+msgstr "Umleitung"
+
+#: jabberdlib.h:725
+msgid "Registration Required"
+msgstr "Anmeldung erforderlich"
+
+#: jabberdlib.h:726
+msgid "Remote Server Not Found"
+msgstr "Entfernter Server nicht gefunden"
+
+#: jabberdlib.h:727 jabberdlib.h:740
+msgid "Remote Server Timeout"
+msgstr "Zeitüberschreitung des entfernten Servers"
+
+#: jabberdlib.h:728
+msgid "Resource Constraint"
+msgstr "Betriebsmitteleinschränkung"
+
+#: jabberdlib.h:729
+msgid "Service Unavailable"
+msgstr "Dienst nicht verfügbar"
+
+#: jabberdlib.h:730
+msgid "Subscription Required"
+msgstr "Abonnement erforderlich"
+
+#: jabberdlib.h:736
+msgid "Unexpected Request"
+msgstr "Unerwartete Anfrage"
+
+#: jabberdlib.h:738
+msgid "Request Timeout"
+msgstr "Zeitüberschreitung in der Anfrage"
+
+#: jabberdlib.h:739
+msgid "Remote Server Error"
+msgstr "Fehler auf entferntem Server"
+
+#: jabberdlib.h:741
+msgid "Disconnected"
+msgstr "Getrennt"
+
+#: jabberdlib.h:742
+msgid "Storage Failed"
+msgstr "Aufbewahrung fehlgeschlagen"
