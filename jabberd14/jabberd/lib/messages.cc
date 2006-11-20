@@ -49,7 +49,7 @@ class messages {
 	void set_mapping(const std::string& lang, const std::string& locale_name);
 	std::string get(const std::string& lang, const char* message);
     private:
-	std::map<std::string, const std::messages<char>*> messages_by_lang;
+	std::map<std::string, std::string> locale_by_lang;
 	std::map<std::string, std::messages<char>::catalog> catalog_by_lang;
 };
 
@@ -68,9 +68,9 @@ void messages::set_mapping(const std::string& lang, const std::string& locale_na
 	return;
     }
 
-    // put both (facet and catalog in their) map
-    messages_by_lang[lang] = &messages;
+    // put catalog and mapping in the map
     catalog_by_lang[lang] = catalog;
+    locale_by_lang[lang] = locale_name;
 }
 
 std::string messages::get(const std::string& lang, const char* message) {
@@ -82,12 +82,11 @@ std::string messages::get(const std::string& lang, const char* message) {
 	// do we have a catalog for this language?
 	if (catalog_by_lang.find(lang) == catalog_by_lang.end())
 	    return message;
-	
-	const std::messages<char>* messages = messages_by_lang[lang];
-	if (messages == NULL)
-	    return message;
 
-	return messages->get(catalog_by_lang[lang], 0, 0, message);
+	const std::locale locale(locale_by_lang[lang].c_str());
+	const std::messages<char>& messages = std::use_facet<std::messages<char> >(locale);
+
+	return messages.get(catalog_by_lang[lang], 0, 0, message);
     } catch (...) {
 	// if we cannot load a translation, we return the original string
 	return message;
