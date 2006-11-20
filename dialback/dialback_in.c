@@ -350,7 +350,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     xmlnode x2;
     miod md;
     char strid[10];
-    dbic c;
+    dbic c = NULL;
     int version = 0;
     int dbns_defined = 0;
     int can_offer_starttls = 0;
@@ -432,7 +432,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
 
     /* are we connecting to ourselves? */
     loopcheck = xmlnode_get_attrib_ns(x, "check", NS_JABBERD_LOOPCHECK);
-    if (loopcheck != NULL && j_strcmp(loopcheck, dialback_get_loopcheck_token(c->d)) == 0) {
+    if (loopcheck != NULL && j_strcmp(loopcheck, dialback_get_loopcheck_token(d)) == 0) {
 	jid key = NULL;
         key = jid_new(xmlnode_pool(x), we_domain);
 	mio_write_root(m, xstream_header(other_domain, jid_full(key)), 0);

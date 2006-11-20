@@ -92,7 +92,7 @@ int dialback_check_settings(db d, mio m, const char *server, int is_outgoing, in
     const char *auth = xhash_get_by_domain(d->hosts_auth, server);
    
     /* check the requirement of a TLS layer */
-    if (j_strncmp(require_tls, "require", 7) == 0) {
+    if (j_strncmp(require_tls, "force", 7) == 0) {
 	required_protection = 2;
     } else {
 	required_protection = j_atoi(require_tls, 0);
@@ -1233,7 +1233,11 @@ void dialback(instance i, xmlnode x)
     d->in_ok_db = xhash_new(max);
     pool_cleanup(i->p, (pool_cleaner)xhash_free, d->in_ok_db);
     d->hosts_xmpp = xhash_new(max);
+    pool_cleanup(i->p, (pool_cleaner)xhash_free, d->hosts_xmpp);
     d->hosts_tls = xhash_new(max);
+    pool_cleanup(i->p, (pool_cleaner)xhash_free, d->hosts_tls);
+    d->hosts_auth = xhash_new(max);
+    pool_cleanup(i->p, (pool_cleaner)xhash_free, d->hosts_auth);
     d->i = i;
     d->timeout_idle = j_atoi(xmlnode_get_list_item_data(xmlnode_get_tags(cfg, "conf:idletimeout", d->std_ns_prefixes), 0), 900);
     d->timeout_packets = j_atoi(xmlnode_get_list_item_data(xmlnode_get_tags(cfg, "conf:queuetimeout", d->std_ns_prefixes), 0), 30);
