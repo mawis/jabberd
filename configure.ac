@@ -8,6 +8,7 @@ AC_PREREQ(2.50)
 AC_INIT(jabberd/jabberd.h)
 AM_INIT_AUTOMAKE(jabberd14,1.6.0-beta1)
 AM_CONFIG_HEADER(config.h)
+AC_LANG(C++)
 
 dnl version info for libraries
 VERSION_INFO="-version-info 0:0:0"
@@ -39,6 +40,8 @@ AC_LIBTOOL_DLOPEN
 AC_DISABLE_STATIC
 AC_PROG_LIBTOOL
 AC_SUBST(LIBTOOL_DEPS)
+
+AC_SUBST([localedir], ['${datadir}/locale'])
 
 dnl use libtool to compile checks (particularly lib checks), mostly so we don't have to worry about how/if the os supports -R
 ac_link="${SHELL} ${srcdir}/libtool --mode=link $ac_link"
