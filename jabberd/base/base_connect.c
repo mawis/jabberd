@@ -97,7 +97,7 @@ static result base_connect_deliver(instance i, dpacket p, void* arg) {
     } else {
 	/* Otherwise, write directly to the MIO socket */
         if (ci->dplast == p) /* don't handle packets that we generated! doh! */
-            deliver_fail(p,"Circular Reference Detected");
+            deliver_fail(p, N_("Circular Reference Detected"));
         else
             mio_write(ci->io, p->x, NULL, 0);
     }

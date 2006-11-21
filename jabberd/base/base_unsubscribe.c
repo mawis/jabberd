@@ -98,7 +98,7 @@ static result base_unsubscribe_deliver(instance id, dpacket p, void* arg) {
     switch (packet_to_handle->type) {
 	case JPACKET_MESSAGE:
 	case JPACKET_IQ:
-	    deliver_fail(p, arg ? arg : "Destination blocked by server administrator");
+	    deliver_fail(p, arg ? arg : messages_get(xmlnode_get_lang(p->x), N_("Destination blocked by server administrator")));
 	    return r_DONE;
 	case JPACKET_PRESENCE:
 	    switch (packet_to_handle->subtype) {

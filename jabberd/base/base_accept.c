@@ -223,7 +223,7 @@ static void base_accept_process_xml(mio m, int state, void* arg, xmlnode x) {
 
             /* clean up any tirds */
             while ((cur = mio_cleanup(m)) != NULL)
-                deliver_fail(dpacket_new(cur), "External Server Error");
+                deliver_fail(dpacket_new(cur), N_("External Server Error"));
 
             return;
 
@@ -249,7 +249,7 @@ static void base_accept_offline(accept_instance ai, xmlnode x) {
     char errmsg[256] = "";
 
     if(ai->offline == NULL) {
-	snprintf(errmsg, sizeof(errmsg), "Component '%s' is not connected to server",
+	snprintf(errmsg, sizeof(errmsg), messages_get(xmlnode_get_lang(x), N_("Component '%s' is not connected to server")),
 		ai->i==NULL ? "(NULL)" :
 		ai->i->id!= NULL ? ai->i->id : "(null)");
         deliver_fail(dpacket_new(x), errmsg);
@@ -270,7 +270,7 @@ static void base_accept_offline(accept_instance ai, xmlnode x) {
             break;
     }
 
-    snprintf(errmsg, sizeof(errmsg), "delivery to '%s': Internal Timeout",
+    snprintf(errmsg, sizeof(errmsg), messages_get(xmlnode_get_lang(x), N_("delivery to '%s': Internal Timeout")),
 	    ai->i==NULL ? "(NULL)" : ai->i->id!= NULL ? ai->i->id : "(null)");
     deliver_fail(dpacket_new(x), errmsg);
 }

@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: jabberd14\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2006-11-21 03:29+0100\n"
-"PO-Revision-Date: 2006-11-21 03:40+0100\n"
+"POT-Creation-Date: 2006-11-21 05:14+0100\n"
+"PO-Revision-Date: 2006-11-21 05:20+0100\n"
 "Last-Translator: Matthias Wimmer <m@tthias.eu>\n"
 "Language-Team: German <m@tthias.eu>\n"
 "MIME-Version: 1.0\n"
@@ -124,6 +124,28 @@ msgstr "Ungültiger Nutzer"
 #: jsm/deliver.c:466
 msgid "Invalid Session"
 msgstr "Ungültige Sitzung"
+
+#: jabberd/base/base_unsubscribe.c:101
+msgid "Destination blocked by server administrator"
+msgstr "Ziel vom Server-Administrator gesperrt"
+
+#: jabberd/base/base_connect.c:100
+msgid "Circular Reference Detected"
+msgstr "Ringschluss festgestellt"
+
+#: jabberd/base/base_accept.c:226
+msgid "External Server Error"
+msgstr "Entfernter Serverfehler"
+
+#: jabberd/base/base_accept.c:252
+#, c-format
+msgid "Component '%s' is not connected to server"
+msgstr "Komponente '%s' ist nicht mit dem Server verbunden"
+
+#: jabberd/base/base_accept.c:273
+#, c-format
+msgid "delivery to '%s': Internal Timeout"
+msgstr "Zustellung an '%s': interne Zeitüberschreitung"
 
 #: jabberd/deliver.c:841
 msgid "Unable to deliver, destination unknown"

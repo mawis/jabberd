@@ -12,6 +12,9 @@
     * jsm/jsm.c: same
     * jsm/deliver.c: same
     * jsm/serialization.c: same
+    * jabberd/base/base_unsubscribe.c: same
+    * jabberd/base/base_connect.c: same
+    * jabberd/base/base_accept.c: same
     * jabberd/jabberd.h: same
     * jabberd/lib/jabberdlib.h: same
     * jabberd/lib/jutil.c: same
