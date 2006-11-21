@@ -23,6 +23,7 @@
     * dialback/dialback_out.c: same
     * dialback/dialback.c: same
     * pthsock/client.c: same
+    * dnsrv/dnsrv.c: same
 
 2006-11-20  Matthias Wimmer  <m@tthias.eu>
 
