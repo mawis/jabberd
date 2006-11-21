@@ -280,7 +280,7 @@ void dnsrv_resend(xmlnode pkt, char *ip, char *to)
 	 xmlnode_put_attrib_ns(pkt, "to", NULL, NULL, dnsresultto);
 	 xmlnode_put_attrib_ns(pkt, "ip", NULL, NULL, ip);
     }else{
-	 jutil_error_xmpp(pkt, (xterror){502, "Unable to resolve hostname.","wait","service-unavailable"});
+	 jutil_error_xmpp(pkt, (xterror){502, N_("Unable to resolve hostname."),"wait","service-unavailable"});
 	 xmlnode_put_attrib_ns(pkt, "iperror", NULL, NULL, "");
     }
     deliver(dpacket_new(pkt),NULL);
@@ -297,7 +297,7 @@ void dnsrv_lookup(dns_io d, dpacket p)
     /* make sure we have a child! */
     if(d->out <= 0)
     {
-        deliver_fail(p, "DNS Resolver Error");
+        deliver_fail(p, N_("DNS Resolver Error"));
         return;
     }
 
@@ -526,7 +526,7 @@ void _dnsrv_beat_packets(xht h, const char *key, void *data, void *arg)
     while(l != NULL)
     {
         n = l->next;
-        deliver_fail(l->packet,"Hostname Resolution Timeout");
+        deliver_fail(l->packet, N_("Hostname Resolution Timeout"));
         l = n;
     }
 }
