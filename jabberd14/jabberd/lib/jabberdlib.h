@@ -827,7 +827,7 @@ typedef struct xterror_struct
 /* JUtil functions                                           */
 /*                                                           */
 /* --------------------------------------------------------- */
-xmlnode jutil_presnew(int type, char *to, char *status); /* Create a skeleton presence packet */
+xmlnode jutil_presnew(int type, char *to, const char *status); /* Create a skeleton presence packet */
 xmlnode jutil_iqnew(int type, char *ns);		 /* Create a skeleton iq packet */
 xmlnode jutil_msgnew(char *type, char *to, char *subj, char *body);
 							 /* Create a skeleton message packet */

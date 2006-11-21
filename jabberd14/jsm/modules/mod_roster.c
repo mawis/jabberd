@@ -514,7 +514,7 @@ mreturn mod_roster_s10n(mapi m, void *arg) {
 	case JPACKET__SUBSCRIBE:
 	    if (from) {
 		/* already subscribed, respond automatically */
-		reply = jutil_presnew(JPACKET__SUBSCRIBED, jid_full(m->packet->from), "Already Subscribed");
+		reply = jutil_presnew(JPACKET__SUBSCRIBED, jid_full(m->packet->from), messages_get(xmlnode_get_lang(m->packet->x), N_("Already Subscribed")));
 		jid_set(m->packet->to, NULL, JID_RESOURCE);
 		xmlnode_put_attrib_ns(reply, "from", NULL, NULL, jid_full(m->packet->to));
 		drop = 1;
@@ -559,7 +559,7 @@ mreturn mod_roster_s10n(mapi m, void *arg) {
 	case JPACKET__UNSUBSCRIBE:
 	    if (from || p_in) {
 		/* respond automatically */
-		reply = jutil_presnew(JPACKET__UNSUBSCRIBED,jid_full(m->packet->from),"Autoreply");
+		reply = jutil_presnew(JPACKET__UNSUBSCRIBED,jid_full(m->packet->from), messages_get(xmlnode_get_lang(m->packet->x), N_("Autoreply")));
 		jid_set(m->packet->to,NULL,JID_RESOURCE);
 		xmlnode_put_attrib_ns(reply, "from", NULL, NULL, jid_full(m->packet->to));
 
@@ -596,7 +596,7 @@ mreturn mod_roster_s10n(mapi m, void *arg) {
     /* store the request in xdb */
     if (store_request) {
 	xmlnode request = xmlnode_dup(m->packet->x);
-	jutil_delay(request, "Offline Storage");
+	jutil_delay(request, N_("Offline Storage"));
 	xdb_act_path(m->si->xc, m->user->id, NS_JABBERD_STOREDREQUEST, "insert", spools(m->packet->p, "presence[@from='", jid_full(m->packet->from), "']", m->packet->p), m->si->std_namespace_prefixes, request);
     }
 

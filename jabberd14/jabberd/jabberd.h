@@ -200,7 +200,7 @@ void register_shutdown(shutdown_func f,void *arg); /* register to be notified wh
 dpacket dpacket_new(xmlnode x); /* create a new delivery packet from source xml */
 dpacket dpacket_copy(dpacket p); /* copy a packet (and it's flags) */
 void deliver(dpacket p, instance i); /* deliver packet from sending instance */
-void deliver_fail(dpacket p, char *err); /* bounce a packet intelligently */
+void deliver_fail(dpacket p, const char *err); /* bounce a packet intelligently */
 void deliver_instance(instance i, dpacket p); /* deliver packet TO the instance, if the result != r_DONE, you have to handle the packet! */
 instance deliver_hostcheck(char *host); /* util that returns the instance handling this hostname for normal packets */
 

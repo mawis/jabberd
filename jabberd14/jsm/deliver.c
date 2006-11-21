@@ -164,7 +164,7 @@ result _js_routed_session_packet(instance i, dpacket p, jsmi si) {
 	/* session start failed */
 	log_warn(p->host,"Unable to create session %s",jid_full(p->id));
 	xmlnode_put_attrib_ns(p->x, "type", NULL, NULL, "error");
-	xmlnode_put_attrib_ns(p->x, "error", NULL, NULL, "Session Failed");
+	xmlnode_put_attrib_ns(p->x, "error", NULL, NULL, messages_get(xmlnode_get_lang(p->x), N_("Session Failed")));
     } else {
 	/* reset to the routed id for this session for the reply below */
 	xmlnode_put_attrib_ns(p->x, "to", NULL, NULL, jid_full(s->route));
@@ -233,11 +233,11 @@ result _js_routed_error_packet(instance i, dpacket p, jsmi si, xht ht, jpacket j
     /* ooh, incoming routed errors in reference to this session, the session is kaput */
     if (s != NULL) {
 	s->sid = NULL; /* they generated the error, no use in sending there anymore! */
-	js_session_end(s, "Disconnected");
+	js_session_end(s, N_("Disconnected"));
     } else if (p->id->resource == NULL) {
 	/* a way to boot an entire user off */
 	for(s = u->sessions; s != NULL; s = s->next)
-	    js_session_end(s,"Removed");
+	    js_session_end(s, N_("Removed"));
 	/* ... removing pass from udata, authentication should always fetch a new copy of the password from xdb
 	u->pass = NULL; */ /* so they can't log back in */
 	xmlnode_free(p->x);
@@ -277,7 +277,7 @@ result _js_routed_session_control_packet(instance i, dpacket p, xmlnode sc_sessi
 	if (s == NULL) {
 	    /* session start failed */
 	    log_warn(p->host,"Unable to create session %s",jid_full(p->id));
-	    xmlnode_put_attrib_ns(sc_session, "failed", NULL, NULL, "Session Failed");
+	    xmlnode_put_attrib_ns(sc_session, "failed", NULL, NULL, messages_get(xmlnode_get_lang(sc_session), N_("Session Failed")));
 	} else {
 	    /* confirm the session */
 	    xmlnode_put_attrib_ns(sc_session, "action", NULL, NULL, "started");
@@ -296,7 +296,7 @@ result _js_routed_session_control_packet(instance i, dpacket p, xmlnode sc_sessi
 		}
 	    }
 	    if (s != NULL)
-		js_session_end(s, "Disconnected");
+		js_session_end(s, N_("Disconnected"));
 	}
 
 	/* confirm closed session */
@@ -310,7 +310,7 @@ result _js_routed_session_control_packet(instance i, dpacket p, xmlnode sc_sessi
 	    /* confirm creation */
 	    xmlnode_put_attrib_ns(sc_session, "action", NULL, NULL, "created");
 	} else {
-	    xmlnode_put_attrib_ns(sc_session, "failed", NULL, NULL, "no valid target");
+	    xmlnode_put_attrib_ns(sc_session, "failed", NULL, NULL, messages_get(xmlnode_get_lang(sc_session), N_("no valid target")));
 	}
     } else if (j_strcmp(action, "delete") == 0) {
 	/* notify modules */
@@ -321,12 +321,12 @@ result _js_routed_session_control_packet(instance i, dpacket p, xmlnode sc_sessi
 	    /* confirm deletion */
 	    xmlnode_put_attrib_ns(sc_session, "action", NULL, NULL, "deleted");
 	} else {
-	    xmlnode_put_attrib_ns(sc_session, "failed", NULL, NULL, "no valid target");
+	    xmlnode_put_attrib_ns(sc_session, "failed", NULL, NULL, messages_get(xmlnode_get_lang(sc_session), N_("no valid target")));
 	}
     } else {
 	/* unknown action */
 	log_warn(p->host, "Session control packet with unknown action: %s", action);
-	xmlnode_put_attrib_ns(sc_session, "failed", NULL, NULL, "Unknown session control action");
+	xmlnode_put_attrib_ns(sc_session, "failed", NULL, NULL, messages_get(xmlnode_get_lang(sc_session), N_("Unknown session control action")));
     }
 
     /* reply */
@@ -424,7 +424,7 @@ result _js_routed_packet(instance i, dpacket p, jsmi si, xht ht) {
     if (u == NULL) {
 	/* no user!?!?! */
 	log_notice(p->host, "Bouncing packet intended for non-existant %s: %s", sc_sm == NULL ? "user" : "session",xmlnode_serialize_string(p->x, NULL, NULL, 0));
-	deliver_fail(dpacket_new(p->x), "Invalid User");
+	deliver_fail(dpacket_new(p->x), N_("Invalid User"));
 	return r_DONE;
     }
 
@@ -463,7 +463,7 @@ result _js_routed_packet(instance i, dpacket p, jsmi si, xht ht) {
     } else {
 	/* bounce back as an error */
 	log_notice(p->host, "Bouncing %s packet intended for session %s", xmlnode_get_localname(jp->x), jid_full(p->id));
-	deliver_fail(dpacket_new(p->x), "Invalid Session");
+	deliver_fail(dpacket_new(p->x), N_("Invalid Session"));
     }
 
     return r_DONE;

@@ -66,10 +66,13 @@ static void _mod_admin_disco_online_iter(xht h, const char *key, void *data, voi
     session session_iter = NULL;
     char buffer[32];
     time_t t = time(NULL);
+    const char* lang = NULL;
 
     /* sanity check */
     if (query == NULL || u == NULL)
 	return;
+
+    lang = xmlnode_get_lang(query);
 
     log_notice(NULL, "walk for %s", key);
 
@@ -79,13 +82,13 @@ static void _mod_admin_disco_online_iter(xht h, const char *key, void *data, voi
 	spool sp = spool_new(xmlnode_pool(query));
 
 	/* generate text for this item */
-	spooler(sp, jid_full(session_iter->id), " (dur: ", sp);
+	spooler(sp, jid_full(session_iter->id), " (", messages_get(lang, N_("dur")), ": ", sp);
 	snprintf(buffer, sizeof(buffer), "%d", (int)(t - session_iter->started));
-	spooler(sp, buffer, " s, in: ", sp);
+	spooler(sp, buffer, " ", messages_get(lang, N_("s")), ", ", messages_get(lang, N_("in")), ": ", sp);
 	snprintf(buffer, sizeof(buffer), "%d", session_iter->c_out);
-	spooler(sp, buffer, " stnz, out: ", sp);
+	spooler(sp, buffer, " ", messages_get(lang, N_("stnz")), ", ", messages_get(lang, N_("out")), ": ", sp);
 	snprintf(buffer, sizeof(buffer), "%d", session_iter->c_in);
-	spooler(sp, buffer, " stnz)", sp);
+	spooler(sp, buffer, " ", messages_get(lang, N_("stnz")), ")", sp);
 
 	/* add attributes for this item */
 	xmlnode_put_attrib_ns(item, "jid", NULL, NULL, jid_full(session_iter->id));
@@ -218,7 +221,7 @@ mreturn mod_admin_message(mapi m, void *arg) {
     log_debug2(ZONE, LOGT_DELIVER, "delivering admin message from %s",jid_full(m->packet->from));
 
     /* update the message */
-    subject=spools(m->packet->p, "Admin: ", xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(m->packet->x, "subject", m->si->std_namespace_prefixes) ,0)), " (", m->packet->to->server, ")", m->packet->p);
+    subject=spools(m->packet->p, messages_get(xmlnode_get_lang(m->packet->x), N_("Admin: ")), xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(m->packet->x, "subject", m->si->std_namespace_prefixes) ,0)), " (", m->packet->to->server, ")", m->packet->p);
     xmlnode_hide(xmlnode_get_list_item(xmlnode_get_tags(m->packet->x, "subject", m->si->std_namespace_prefixes), 0));
     xmlnode_insert_cdata(xmlnode_insert_tag_ns(m->packet->x, "subject", NULL, NS_SERVER), subject, -1);
     jutil_delay(m->packet->x, "admin");
