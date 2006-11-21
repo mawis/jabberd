@@ -54,7 +54,7 @@
  * @param status optional status (CDATA for the <status/> element, NULL for now <status/> element)
  * @return the xmlnode containing the created presence stanza
  */
-xmlnode jutil_presnew(int type, char *to, char *status) {
+xmlnode jutil_presnew(int type, char *to, const char *status) {
     xmlnode pres;
 
     pres = xmlnode_new_tag_ns("presence", NULL, NS_SERVER);
@@ -428,7 +428,7 @@ void jutil_delay(xmlnode msg, char *reason)
     xmlnode_put_attrib_ns(delay, "from", NULL, NULL, xmlnode_get_attrib_ns(msg, "to", NULL));
     xmlnode_put_attrib_ns(delay, "stamp", NULL, NULL, jutil_timestamp());
     if(reason != NULL)
-        xmlnode_insert_cdata(delay, reason, j_strlen(reason));
+        xmlnode_insert_cdata(delay, messages_get(xmlnode_get_lang(msg), reason), -1);
 }
 
 #define KEYBUF 100

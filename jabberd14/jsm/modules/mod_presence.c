@@ -390,7 +390,7 @@ mreturn mod_presence_out(mapi m, void *arg) {
     } else {
 	newpri = j_atoi(priority, 0);
 	if (newpri < -128 || newpri > 127) {
-	    log_notice("mod_presence", "got presence with invalid priority value from %s", jid_full(m->s->id));
+	    log_notice(m->s->id->server, "got presence with invalid priority value from %s", jid_full(m->s->id));
 	    xmlnode_free(m->packet->x);
 	    return M_HANDLED;
 	}

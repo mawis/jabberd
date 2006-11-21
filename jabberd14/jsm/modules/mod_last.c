@@ -157,7 +157,7 @@ static void mod_last_set(mapi m, jid to, char *reason) {
     last = xmlnode_new_tag_ns("query", NULL, NS_LAST);
     snprintf(str, sizeof(str), "%d", (int)time(NULL));
     xmlnode_put_attrib_ns(last, "last", NULL, NULL, str);
-    xmlnode_insert_cdata(last, reason, -1);
+    xmlnode_insert_cdata(last, messages_get(xmlnode_get_lang(m->packet->x), reason), -1);
     xdb_set(m->si->xc, jid_user(to), NS_LAST, last);
     xmlnode_free(last);
 }
@@ -175,7 +175,7 @@ static mreturn mod_last_init(mapi m, void *arg) {
     if (jpacket_subtype(m->packet) != JPACKET__SET)
 	return M_PASS;
 
-    mod_last_set(m, m->packet->to, "Registered");
+    mod_last_set(m, m->packet->to, N_("Registered"));
 
     return M_PASS;
 }
@@ -277,7 +277,7 @@ static mreturn mod_last_reply(mapi m, void *arg) {
  * @return always M_PASS
  */
 static mreturn mod_last_delete(mapi m, void *arg) {
-    mod_last_set(m, m->user->id, "Unregistered");
+    mod_last_set(m, m->user->id, N_("Unregistered"));
     return M_PASS;
 }
 

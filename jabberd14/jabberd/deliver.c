@@ -767,7 +767,7 @@ void register_phandler(instance id, order o, phandler f, void *arg) {
 /**
  * bounce on the delivery, use the result to better gague what went wrong
  */
-void deliver_fail(dpacket p, char *err) {
+void deliver_fail(dpacket p, const char *err) {
     xterror xt;
     char message[MAX_LOG_SIZE];
 
@@ -799,7 +799,7 @@ void deliver_fail(dpacket p, char *err) {
 		/* turn into an error and bounce */
 		jutil_tofrom(p->x);
 		xmlnode_put_attrib_ns(p->x, "type", NULL, NULL, "error");
-		xmlnode_put_attrib_ns(p->x, "error", NULL, NULL, err);
+		xmlnode_put_attrib_ns(p->x, "error", NULL, NULL, messages_get(xmlnode_get_lang(p->x), err));
 		deliver(dpacket_new(p->x),NULL);
 	    }
 	    break;
@@ -838,7 +838,7 @@ void deliver_instance(instance i, dpacket p) {
     dpacket pig = p;
 
     if (i == NULL) {
-        deliver_fail(p, "Unable to deliver, destination unknown");
+        deliver_fail(p, N_("Unable to deliver, destination unknown"));
         return;
     }
 
@@ -853,7 +853,7 @@ void deliver_instance(instance i, dpacket p) {
 
         /* call the handler */
         if ((r = (h->f)(i,p,h->arg)) == r_ERR) {
-            deliver_fail(p, "Internal Delivery Error");
+            deliver_fail(p, N_("Internal Delivery Error"));
             break;
         }
 

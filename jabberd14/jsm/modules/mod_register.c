@@ -281,9 +281,9 @@ static mreturn mod_register_check(mapi m, void *arg) {
 	xmlnode_list_item xoob_url = xmlnode_get_tags(register_config, "xoob:x/xoob:url", m->si->std_namespace_prefixes);
 	xterror err = {400, "", "modify", "bad-request"};
 	if (xoob_url == NULL) {
-	    snprintf(err.msg, sizeof(err.msg), "Missing data field: %s", xmlnode_get_localname(item->node));
+	    snprintf(err.msg, sizeof(err.msg), "%s: %s", messages_get(xmlnode_get_lang(m->packet->x), N_("Missing data field")), xmlnode_get_localname(item->node));
 	} else {
-	    snprintf(err.msg, sizeof(err.msg), "Missing data field: %s - you may register at %s", xmlnode_get_localname(item->node), xmlnode_get_data(xoob_url->node));
+	    snprintf(err.msg, sizeof(err.msg), "%s: %s - %s %s", messages_get(xmlnode_get_lang(m->packet->x), N_("Missing data field")), xmlnode_get_localname(item->node), messages_get(xmlnode_get_lang(m->packet->x), N_("you may also register at")), xmlnode_get_data(xoob_url->node));
 	}
 	log_debug2(ZONE, LOGT_REGISTER, "returned err msg: %s", err.msg);
 	jutil_error_xmpp(m->packet->x, err);
@@ -301,9 +301,9 @@ static mreturn mod_register_check(mapi m, void *arg) {
 	item = xmlnode_get_tags(register_config, "xoob:x/xoob:url", m->si->std_namespace_prefixes);
 	xterror err = {400, "", "modify", "bad-request"};
 	if (item == NULL) {
-	    snprintf(err.msg, sizeof(err.msg), "Registration not allowed.");
+	    snprintf(err.msg, sizeof(err.msg), messages_get(xmlnode_get_lang(m->packet->x), N_("Registration not allowed.")));
 	} else {
-	    snprintf(err.msg, sizeof(err.msg), "Registration not allowed. See %s", xmlnode_get_data(item->node));
+	    snprintf(err.msg, sizeof(err.msg), "%s %s", messages_get(xmlnode_get_lang(m->packet->x), N_("Registration not allowed. See")), xmlnode_get_data(item->node));
 	}
 	log_debug2(ZONE, LOGT_REGISTER, "returned err msg: %s", err.msg);
 	jutil_error_xmpp(m->packet->x, err);
@@ -392,7 +392,7 @@ static mreturn _mod_register_server_register(mapi m) {
 		/* is deleting accounts forbidden by the configuration? */
 		nounregister = js_config(m->si, "jsm:nounregister");
 		if (nounregister != NULL) {
-		    xterror err = {405, "Not Allowed", "cancel", "not-allowed"};
+		    xterror err = {405, N_("Not Allowed"), "cancel", "not-allowed"};
 		    char* nounregister_data = xmlnode_get_data(nounregister);
 		    if (nounregister_data != NULL) {
 			snprintf(err.msg, sizeof(err.msg), "%s", nounregister_data);
@@ -476,7 +476,7 @@ static mreturn _mod_register_server_register(mapi m) {
 		    /* is updating registration data forbidden by the configuration? */
 		    noregistrationchange = js_config(m->si, "jsm:noregistrationchange");
 		    if (noregistrationchange != NULL) {
-			xterror err = {405, "Not Allowed", "cancel", "not-allowed"};
+			xterror err = {405, N_("Not Allowed"), "cancel", "not-allowed"};
 			char* noregistrationchange_data = xmlnode_get_data(noregistrationchange);
 			if (noregistrationchange_data != NULL) {
 			    snprintf(err.msg, sizeof(err.msg), "%s", noregistrationchange_data);
@@ -493,7 +493,7 @@ static mreturn _mod_register_server_register(mapi m) {
 		if (is_passwordchange) {
 		    xmlnode nopasswordchange = js_config(m->si, "jsm:nopasswordchange");
 		    if (nopasswordchange != NULL) {
-			xterror err = {405, "Not Allowed", "cancel", "not-allowed"};
+			xterror err = {405, N_("Not Allowed"), "cancel", "not-allowed"};
 			char* nopasswordchange_data = xmlnode_get_data(nopasswordchange);
 			if (nopasswordchange_data != NULL) {
 			    snprintf(err.msg, sizeof(err.msg), "%s", nopasswordchange_data);
