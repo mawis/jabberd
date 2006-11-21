@@ -388,7 +388,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
 
         key = jid_new(xmlnode_pool(x), we_domain);
 	mio_write_root(m, xstream_header(other_domain, jid_full(key)), 0);
-        mio_write(m, NULL, "<stream:error><unsupported-version xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>We are configured to not support preXMPP connections.</text></stream:error>", -1);
+        mio_write(m, NULL, "<stream:error><unsupported-version xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>We are configured to not support pre-XMPP 1.0 connections.</text></stream:error>", -1);
         mio_close(m);
         xmlnode_free(x);
         return;
@@ -397,16 +397,18 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     log_debug2(ZONE, LOGT_IO, "outgoing conn: can_offer_starttls=%i, can_do_sasl_external=%i", can_offer_starttls, can_do_sasl_external);
 
     /* validate namespace */
+    /*
     if (xmlnode_list_get_nsprefix(m->in_last_ns_root, NS_SERVER) == NULL) {
 	jid key = NULL;
         key = jid_new(xmlnode_pool(x), we_domain);
 	mio_write_root(m, xstream_header(other_domain, jid_full(key)), 0);
-	/* XXX now that we have namespace handling - shouldn't we generate another error? do we need to check this at all? */
+	/ * XXX now that we have namespace handling - shouldn't we generate another error? do we need to check this at all? * /
         mio_write(m, NULL, "<stream:error><bad-namespace-prefix xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Sorry, but the namespace '" NS_SERVER "' has to be defined on the stream root.</text></stream:error>", -1);
         mio_close(m);
         xmlnode_free(x);
         return;
     }
+    */
 
     /* deprecated non-dialback protocol, reject connection */
     if(version < 1 && !dbns_defined) {

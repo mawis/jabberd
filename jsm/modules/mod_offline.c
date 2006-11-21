@@ -164,7 +164,7 @@ mreturn mod_offline_message(mapi m, modoffline_conf conf) {
     }
 
     /* stamp the message to keep information when it has been received */
-    jutil_delay(m->packet->x,"Offline Storage");
+    jutil_delay(m->packet->x, N_("Offline Storage"));
 
     /* add node id for flexible offline message retrieval */
     xmlnode_put_attrib_ns(m->packet->x, "node", NULL, NULL, jutil_timestamp_ms(timestamp));

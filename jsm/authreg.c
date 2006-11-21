@@ -146,7 +146,7 @@ void _js_authreg_register(jpacket p) {
 	    log_debug2(ZONE, LOGT_AUTH, "registration set request without a password ...");
 	    jutil_error_xmpp(p->x, XTERROR_NOTACCEPTABLE);
 	} else if (js_user(si, p->to, NULL) != NULL) {
-	    jutil_error_xmpp(p->x, (xterror){409, "Username Not Available", "cancel", "conflict"});
+	    jutil_error_xmpp(p->x, (xterror){409, N_("Username Not Available"), "cancel", "conflict"});
 	} else {
 	    /* check if this account is blocked for registration as this account already exited */
 	    xmlnode regtimeout_config = js_config(si, "jsm:regtimeout");
@@ -166,7 +166,7 @@ void _js_authreg_register(jpacket p) {
 
 		    /* if regtimeout is set to -1, unregistered accounts are blocked forever ... */
 		    if (regtimeout == -1 || now < (lasttime + regtimeout)) {
-			jutil_error_xmpp(p->x, (xterror){409, "Username Not Available", "cancel", "conflict"});
+			jutil_error_xmpp(p->x, (xterror){409, N_("Username Not Available"), "cancel", "conflict"});
 			return;
 		    }
 		}

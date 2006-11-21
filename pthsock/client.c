@@ -136,7 +136,7 @@ result pthsock_client_packets(instance id, dpacket p, void *arg) {
     if (p->type != p_ROUTE || fd == 0) {
 	/* we only want <route/> packets or ones with a valid connection */
         log_warn(p->host, "pthsock_client bouncing invalid %s packet from %s", xmlnode_get_localname(p->x), xmlnode_get_attrib_ns(p->x, "from", NULL));
-        deliver_fail(p, "invalid client packet");
+        deliver_fail(p, N_("invalid client packet"));
         return r_DONE;
     }
 
@@ -310,7 +310,7 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
 	    break;
 	case MIO_ERROR:
 	    while ((h = mio_cleanup(m)) != NULL)
-		deliver_fail(dpacket_new(h), "Socket Error to Client");
+		deliver_fail(dpacket_new(h), N_("Socket Error to Client"));
 
 	    break;
 	case MIO_XML_ROOT:

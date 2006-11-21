@@ -236,7 +236,7 @@ static void _jsm_deserialize_session(jsmi si, const jid user_jid, const char *re
     /* remove any other session w/ this resource */
     for (cur = u->sessions; cur != NULL; cur = cur->next)
         if (j_strcmp(resource, cur->res) == 0)
-            js_session_end(cur, "Replaced by new connection");
+            js_session_end(cur, N_("Replaced by new connection"));
 
     /* getting linked with the user */
     s->next = s->u->sessions;

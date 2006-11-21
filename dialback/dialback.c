@@ -363,6 +363,7 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
     xmlnode x = NULL;
     jid requestor = NULL;
     int s2s_right = 0;
+    const char* lang = xmlnode_get_lang(query);
 
     /* sanity check */
     if (to == NULL)
@@ -411,22 +412,22 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	xmlnode_put_attrib_ns(x, "type", NULL, NULL, "branch");
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "established outgoing connections");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("established outgoing connections")));
     } else if (s2s_right && j_strcmp(to->user, "out-connecting") == 0 && to->resource == NULL && node == NULL) {
 	x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	xmlnode_put_attrib_ns(x, "type", NULL, NULL, "branch");
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "connecting outgoing connections");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("connecting outgoing connections")));
     } else if (s2s_right && j_strcmp(to->user, "in-established") == 0 && to->resource == NULL && node == NULL) {
 	x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	xmlnode_put_attrib_ns(x, "type", NULL, NULL, "branch");
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "established incoming connections");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("established incoming connections")));
     } else if (s2s_right && j_strcmp(to->user, "in-connecting") == 0 && to->resource == NULL && node == NULL) {
 	x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	xmlnode_put_attrib_ns(x, "type", NULL, NULL, "branch");
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "connecting incoming connections");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("connecting incoming connections")));
     } else if (s2s_right && j_strcmp(to->user, "out-established") == 0 && to->resource != NULL && node == NULL) {
 	x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
@@ -440,7 +441,7 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, "-- connection gone --");
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("-- connection gone --")));
 	} else {
 	    struct tm last_utc;
 	    time_t last = md->last;
@@ -448,8 +449,8 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	    if (gmtime_r(&last, &last_utc)) {
 		char last_str[36];
 
-		snprintf(last_str, sizeof(last_str), "Last used: %d-%02d-%02d %02d:%02d:%02d UTC", 1900+last_utc.tm_year,
-			last_utc.tm_mon+1, last_utc.tm_mday, last_utc.tm_hour, last_utc.tm_min, last_utc.tm_sec);
+		snprintf(last_str, sizeof(last_str), "$s %d-%02d-%02d %02d:%02d:%02d UTC", messages_get(lang, N_("Last used:")),
+			1900+last_utc.tm_year, last_utc.tm_mon+1, last_utc.tm_mday, last_utc.tm_hour, last_utc.tm_min, last_utc.tm_sec);
 
 		x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 		xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
@@ -464,11 +465,11 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, "-- connection gone --");
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("-- connection gone --")));
 	} else {
 	    char name_str[36];
 
-	    snprintf(name_str, sizeof(name_str), "Stanza count: %d", md->count);
+	    snprintf(name_str, sizeof(name_str), "%s %d", messages_get(lang, N_("Stanza count:")), md->count);
 
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
@@ -482,11 +483,20 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, "-- connection gone --");
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("-- connection gone --")));
 	} else {
 	    char ip_str[128];
 
-	    snprintf(ip_str, sizeof(ip_str), "IP/port: local=%s;%d remote=%s;%d tls=%s", md->m->our_ip, md->m->our_port, md->m->peer_ip, md->m->peer_port, md->m->ssl == NULL ? "no" : "yes");
+	    snprintf(ip_str, sizeof(ip_str), "%s %s=%s;%d remote=%s;%d tls=%s",
+		    messages_get(lang, N_("IP/port:")),
+		    messages_get(lang, N_("local")),
+		    md->m->our_ip,
+		    md->m->our_port,
+		    messages_get(lang, N_("remote")),
+		    md->m->peer_ip,
+		    md->m->peer_port,
+		    messages_get(lang, N_("tls")),
+		    md->m->ssl == NULL ? messages_get(lang, N_("no")) : messages_get(lang, N_("yes")));
 
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
@@ -505,14 +515,21 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, "-- connection gone or now established --");
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("-- connection gone or now established --")));
 	} else if (j_strcmp(node, "ip") == 0) {
 	    char ip_str[128];
 
 	    if (dc->m != NULL) {
-		snprintf(ip_str, sizeof(ip_str), "IP/port: local=%s;%d remote=%s;%d tls=%s", dc->m->our_ip, dc->m->our_port, dc->m->peer_ip, dc->m->peer_port, dc->m->ssl == NULL ? "no" : "yes");
+		snprintf(ip_str, sizeof(ip_str), "%s: %s=%s;%d %s=%s;%d %s=%s",
+			messages_get(lang, N_("IP/port:")),
+			messages_get(lang, N_("local")),
+			dc->m->our_ip, dc->m->our_port,
+			messages_get(lang, N_("remote")),
+			dc->m->peer_ip, dc->m->peer_port,
+			messages_get(lang, N_("tls")),
+			dc->m->ssl == NULL ? messages_get(lang, N_("no")) : messages_get(lang, N_("yes")));
 	    } else {
-		snprintf(ip_str, sizeof(ip_str), "IP/port: no current connection");
+		snprintf(ip_str, sizeof(ip_str), messages_get(lang, N_("IP/port: no current connection")));
 	    }
 
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
@@ -526,8 +543,8 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	    if (gmtime_r(&last, &last_utc)) {
 		char last_str[64];
 
-		snprintf(last_str, sizeof(last_str), "Connection start: %d-%02d-%02d %02d:%02d:%02d UTC", 1900+last_utc.tm_year,
-			last_utc.tm_mon+1, last_utc.tm_mday, last_utc.tm_hour, last_utc.tm_min, last_utc.tm_sec);
+		snprintf(last_str, sizeof(last_str), "%s %d-%02d-%02d %02d:%02d:%02d UTC", messages_get(lang, N_("Connection start:")),
+			1900+last_utc.tm_year, last_utc.tm_mon+1, last_utc.tm_mday, last_utc.tm_hour, last_utc.tm_min, last_utc.tm_sec);
 
 		x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 		xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
@@ -538,58 +555,58 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, dc->xmpp_version < 0 ? "XMPP version: unknown" : dc->xmpp_version ? "XMPP version: 1.0" : "XMPP version: stone age");
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, dc->xmpp_version < 0 ? messages_get(lang, N_("XMPP version: unknown")) : dc->xmpp_version ? messages_get(lang, N_("XMPP version: 1.0")) : messages_get(lang, N_("XMPP version: 0.9")));
 	} else if (j_strcmp(node, "pendingip") == 0) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), "Pending IPs: ", dc->ip ? dc->ip : "no more other IPs will be tried", xmlnode_pool(result)));
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), messages_get(lang, N_("Pending IPs: ")), dc->ip ? dc->ip : messages_get(lang, N_("no more other IPs will be tried")), xmlnode_pool(result)));
 	} else if (j_strcmp(node, "id") == 0) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), "Stream ID: ", dc->stream_id, xmlnode_pool(result)));
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), messages_get(lang, N_("Stream ID: ")), dc->stream_id, xmlnode_pool(result)));
 	} else if (j_strcmp(node, "dbstate") == 0) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), "Dialback state: ",
-			dc->db_state == not_requested ? "no dialback request, just sending verifies" :
-			dc->db_state == could_request ? "we could send dialback requests, if we want to" :
-			dc->db_state == want_request ? "we want to send dialback requests, but cannot do that yet" :
-			dc->db_state == sent_request ? "we have sent a dialback request" : "invalid", xmlnode_pool(result)));
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), messages_get(lang, N_("Dialback state: ")),
+			dc->db_state == not_requested ? messages_get(lang, N_("no dialback request, just sending verifies")) :
+			dc->db_state == could_request ? messages_get(lang, N_("we could send dialback requests, if we want to")) :
+			dc->db_state == want_request ? messages_get(lang, N_("we want to send dialback requests, but cannot do that yet")) :
+			dc->db_state == sent_request ? messages_get(lang, N_("we have sent a dialback request")) : messages_get(lang, N_("invalid")), xmlnode_pool(result)));
 	} else if (j_strcmp(node, "connstate") == 0) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), "Connection state: ",
-			dc->connection_state == created ? "created, not yet started to connect" :
-			dc->connection_state == connecting ? "we started to connect, no connection yet" :
-			dc->connection_state == connected ? "connected to the other host" :
-			dc->connection_state == got_streamroot ? "we got peer's stream root" :
-			dc->connection_state == waiting_features ? "we are waiting for stream features" :
-			dc->connection_state == got_features ? "we got the stream features" :
-			dc->connection_state == sent_db_request ? "we sent out a dialback request" :
-			dc->connection_state == db_succeeded ? "we had success with our dialback request" :
-			dc->connection_state == db_failed ? "dialback failed" :
-			dc->connection_state == sasl_started ? "we started to authenticate using sasl" :
-			dc->connection_state == sasl_fail ? "there was a SASL authentication failure" :
-			dc->connection_state == sasl_success ? "successfully authenticated using SASL" : "invalid", xmlnode_pool(result)));
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), messages_get(lang, N_("Connection state: ")),
+			dc->connection_state == created ? messages_get(lang, N_("created, not yet started to connect")) :
+			dc->connection_state == connecting ? messages_get(lang, N_("we started to connect, no connection yet")) :
+			dc->connection_state == connected ? messages_get(lang, N_("connected to the other host")) :
+			dc->connection_state == got_streamroot ? messages_get(lang, N_("we got peer's stream root")) :
+			dc->connection_state == waiting_features ? messages_get(lang, N_("we are waiting for stream features")) :
+			dc->connection_state == got_features ? messages_get(lang, N_("we got the stream features")) :
+			dc->connection_state == sent_db_request ? messages_get(lang, N_("we sent out a dialback request")) :
+			dc->connection_state == db_succeeded ? messages_get(lang, N_("we had success with our dialback request")) :
+			dc->connection_state == db_failed ? messages_get(lang, N_("dialback failed")) :
+			dc->connection_state == sasl_started ? messages_get(lang, N_("we started to authenticate using sasl")) :
+			dc->connection_state == sasl_fail ? messages_get(lang, N_("there was a SASL authentication failure")) :
+			dc->connection_state == sasl_success ? messages_get(lang, N_("successfully authenticated using SASL")) : messages_get(lang, N_("invalid")), xmlnode_pool(result)));
 	} else if (j_strcmp(node, "dialback") == 0) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), "Dialback: ", dc->flags.db ? "supported" : "unsupported", " by peer", xmlnode_pool(result)));
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), messages_get(lang, N_("Dialback: ")), dc->flags.db ? messages_get(lang, N_("supported")) : messages_get(lang, N_("unsupported")), messages_get(lang, N_(" by peer")), xmlnode_pool(result)));
 	} else if (j_strcmp(node, "connectresults") == 0) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), "Connection results: ", spool_print(dc->connect_results), xmlnode_pool(result)));
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), messages_get(lang, N_("Connection results: ")), spool_print(dc->connect_results), xmlnode_pool(result)));
 	} else if (j_strcmp(node, "failedsettings") == 0) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), "Dropped because of settings: ", dc->settings_failed ? "yes" : "no", xmlnode_pool(result)));
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), messages_get(lang, N_("Dropped because of settings: ")), dc->settings_failed ? messages_get(lang, N_("yes")) : messages_get(lang, N_("no")), xmlnode_pool(result)));
 	} else if (j_strcmp(node, "verifies") == 0) {
 	    int count = 0;
 	    xmlnode iter = NULL;
@@ -603,7 +620,7 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), "Pending verifies: ", count_str, xmlnode_pool(result)));
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), messages_get(lang, N_("Pending verifies: ")), count_str, xmlnode_pool(result)));
 	} else if (j_strcmp(node, "pendingstanzas") == 0) {
 	    int count = 0;
 	    dboq iter = NULL;
@@ -617,7 +634,7 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), "Pending stanzas: ", count_str, xmlnode_pool(result)));
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), messages_get(lang, N_("Pending stanzas: ")), count_str, xmlnode_pool(result)));
 	}
     } else if (s2s_right && j_strcmp(to->user, "in-established") == 0 && to->resource != NULL && node == NULL) {
 	x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
@@ -632,7 +649,7 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, "-- connection gone --");
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("-- connection gone --")));
 	} else {
 	    struct tm last_utc;
 	    time_t last = md->last;
@@ -640,8 +657,8 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	    if (gmtime_r(&last, &last_utc)) {
 		char last_str[36];
 
-		snprintf(last_str, sizeof(last_str), "Last used: %d-%02d-%02d %02d:%02d:%02d UTC", 1900+last_utc.tm_year,
-			last_utc.tm_mon+1, last_utc.tm_mday, last_utc.tm_hour, last_utc.tm_min, last_utc.tm_sec);
+		snprintf(last_str, sizeof(last_str), "%s: %d-%02d-%02d %02d:%02d:%02d UTC", messages_get(lang, N_("Last used:")),
+			1900+last_utc.tm_year, last_utc.tm_mon+1, last_utc.tm_mday, last_utc.tm_hour, last_utc.tm_min, last_utc.tm_sec);
 
 		x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 		xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
@@ -656,11 +673,11 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, "-- connection gone --");
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("-- connection gone --")));
 	} else {
 	    char name_str[36];
 
-	    snprintf(name_str, sizeof(name_str), "Stanza count: %d", md->count);
+	    snprintf(name_str, sizeof(name_str), "%s %d", messages_get(lang, N_("Stanza count:")), md->count);
 
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
@@ -674,11 +691,18 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, "-- connection gone --");
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("-- connection gone --")));
 	} else {
 	    char ip_str[128];
 
-	    snprintf(ip_str, sizeof(ip_str), "IP/port: local=%s;%d remote=%s;%d tls=%s", md->m->our_ip, md->m->our_port, md->m->peer_ip, md->m->peer_port, md->m->ssl == NULL ? "no" : "yes");
+	    snprintf(ip_str, sizeof(ip_str), "%s %s=%s;%d %s=%s;%d %s=%s",
+		    messages_get(lang, N_("IP/port:")),
+		    messages_get(lang, N_("local")),
+		    md->m->our_ip, md->m->our_port,
+		    messages_get(lang, N_("remote")),
+		    md->m->peer_ip, md->m->peer_port,
+		    messages_get(lang, N_("tls")),
+		    md->m->ssl == NULL ? messages_get(lang, N_("no")) : messages_get(lang, N_("yes")));
 
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
@@ -697,14 +721,21 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, "-- connection gone or now established --");
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("-- connection gone or now established --")));
 	} else if (j_strcmp(node, "ip") == 0) {
 	    char ip_str[128];
 
 	    if (c->m != NULL) {
-		snprintf(ip_str, sizeof(ip_str), "IP/port: local=%s;%d remote=%s;%d tls=%s", c->m->our_ip, c->m->our_port, c->m->peer_ip, c->m->peer_port, c->m->ssl == NULL ? "no" : "yes");
+		snprintf(ip_str, sizeof(ip_str), "%s %s=%s;%d %s=%s;%d %s=%s",
+			messages_get(lang, N_("IP/port:")),
+			messages_get(lang, N_("local")),
+			c->m->our_ip, c->m->our_port,
+			messages_get(lang, N_("remote")),
+			c->m->peer_ip, c->m->peer_port,
+			messages_get(lang, N_("tls")),
+			c->m->ssl == NULL ? messages_get(lang, N_("no")) : messages_get(lang, N_("yes")));
 	    } else {
-		snprintf(ip_str, sizeof(ip_str), "IP/port: no current connection");
+		snprintf(ip_str, sizeof(ip_str), messages_get(lang, N_("IP/port: no current connection")));
 	    }
 
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
@@ -715,12 +746,12 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), "Addresses: local=", c->we_domain, ", peer=", c->other_domain, xmlnode_pool(result)));
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), messages_get(lang, N_("Addresses:")), " ", messages_get(lang, N_("local")), "=", c->we_domain, ", ", messages_get(lang, N_("peer")), "=", c->other_domain, xmlnode_pool(result)));
 	} else if (j_strcmp(node, "xmppversion") == 0) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, c->xmpp_version < 0 ? "XMPP version: unknown" : c->xmpp_version ? "XMPP version: 1.0" : "XMPP version: stone age");
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, c->xmpp_version < 0 ? messages_get(lang, N_("XMPP version: unknown")) : c->xmpp_version ? messages_get(lang, N_("XMPP version: 1.0")) : messages_get(lang, N_("XMPP version: 0.9")));
 	} else if (j_strcmp(node, "last") == 0) {
 	    struct tm last_utc;
 	    time_t last = c->stamp;
@@ -728,8 +759,8 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	    if (gmtime_r(&last, &last_utc)) {
 		char last_str[64];
 
-		snprintf(last_str, sizeof(last_str), "Connection start: %d-%02d-%02d %02d:%02d:%02d UTC", 1900+last_utc.tm_year,
-			last_utc.tm_mon+1, last_utc.tm_mday, last_utc.tm_hour, last_utc.tm_min, last_utc.tm_sec);
+		snprintf(last_str, sizeof(last_str), "%s %d-%02d-%02d %02d:%02d:%02d UTC", messages_get(lang, N_("Connection start:")),
+			1900+last_utc.tm_year, last_utc.tm_mon+1, last_utc.tm_mday, last_utc.tm_hour, last_utc.tm_min, last_utc.tm_sec);
 
 		x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 		xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
@@ -832,6 +863,7 @@ static void dialback_handle_discoitems(db d, dpacket dp, xmlnode query, jid to) 
     xmlnode x = NULL;
     jid requestor = NULL;
     int s2s_right = 0;
+    const char* lang = NULL;
 
     /* sanity check */
     if (to == NULL)
@@ -853,29 +885,29 @@ static void dialback_handle_discoitems(db d, dpacket dp, xmlnode query, jid to) 
     xmlnode_put_attrib_ns(dp->x, "type", NULL, NULL, "result");
     xmlnode_hide(query);
     result = xmlnode_insert_tag_ns(dp->x, "query", NULL, NS_DISCO_ITEMS);
-
+    lang = xmlnode_get_lang(dp->x);
 
     if (to->user == NULL && to->resource == NULL && node == NULL && s2s_right) {
 	jid item_jid = jid_new(xmlnode_pool(dp->x), d->i->id);
 
 	jid_set(item_jid, "out-established", JID_USER);
 	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "established outgoing connections");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("established outgoing connections")));
 	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(item_jid));
 
 	jid_set(item_jid, "out-connecting", JID_USER);
 	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "connecting outgoing connections");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("connecting outgoing connections")));
 	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(item_jid));
 
 	jid_set(item_jid, "in-established", JID_USER);
 	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "established incoming connections");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("established incoming connections")));
 	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(item_jid));
 
 	jid_set(item_jid, "in-connecting", JID_USER);
 	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "connecting incoming connections");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("connecting incoming connections")));
 	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(item_jid));
     } else if (s2s_right && j_strcmp(to->user, "out-established") == 0 && to->resource == NULL && node == NULL) {
 	_dialback_jid_with_xmlnode jx;
@@ -887,17 +919,17 @@ static void dialback_handle_discoitems(db d, dpacket dp, xmlnode query, jid to) 
 	jid other_server = jid_new(xmlnode_pool(result), to->resource);
 
 	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "Last used");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("Last used")));
 	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
 	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "last");
 
 	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "Stanza count");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("Stanza count")));
 	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
 	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "count");
 
 	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "IP/port");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("IP/port")));
 	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
 	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "ip");
 
@@ -914,62 +946,62 @@ static void dialback_handle_discoitems(db d, dpacket dp, xmlnode query, jid to) 
 	xhash_walk(d->out_connecting, _dialback_walk_out_connecting, (void*)&jx);
     } else if (s2s_right && j_strcmp(to->user, "out-connecting") == 0 && to->resource != NULL && node == NULL) {
 	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "Connection start");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("Connection start")));
 	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
 	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "last");
 
 	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "IP/port");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("IP/port")));
 	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
 	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "ip");
 
 	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "XMPP version");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("XMPP version")));
 	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
 	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "xmppversion");
 
 	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "Pending IPs");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("Pending IPs")));
 	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
 	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "pendingip");
 
 	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "Dialback verifies");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("Dialback verifies")));
 	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
 	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "verifies");
 
 	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "Pending stanzas");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("Pending stanzas")));
 	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
 	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "pendingstanzas");
 
 	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "Dropped because of settings");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("Dropped because of settings")));
 	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
 	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "failedsettings");
 
 	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "Stream ID");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("Stream ID")));
 	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
 	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "id");
 
 	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "Dialback state");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("Dialback state")));
 	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
 	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "dbstate");
 
 	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "Connection state");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("Connection state")));
 	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
 	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "connstate");
 
 	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "Connect results");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("Connect results")));
 	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
 	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "connectresults");
 
 	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "Dialback");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("Dialback")));
 	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
 	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "dialback");
     } else if (s2s_right && j_strcmp(to->user, "in-established") == 0 && to->resource == NULL && node == NULL) {
@@ -982,17 +1014,17 @@ static void dialback_handle_discoitems(db d, dpacket dp, xmlnode query, jid to) 
 	jid other_server = jid_new(xmlnode_pool(result), to->resource);
 
 	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "Last used");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("Last used")));
 	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
 	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "last");
 
 	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "Stanza count");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("Stanza count")));
 	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
 	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "count");
 
 	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "IP/port");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("IP/port")));
 	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
 	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "ip");
 
@@ -1009,22 +1041,22 @@ static void dialback_handle_discoitems(db d, dpacket dp, xmlnode query, jid to) 
 	xhash_walk(d->in_id, _dialback_walk_in_connecting, (void*)&jx);
     } else if (s2s_right && j_strcmp(to->user, "in-connecting") == 0 && to->resource != NULL && node == NULL) {
 	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "IP/port");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("IP/port")));
 	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
 	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "ip");
 
 	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "Addresses");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("Addresses")));
 	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
 	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "addresses");
 
 	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "XMPP version");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("XMPP version")));
 	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
 	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "xmppversion");
 
 	x = xmlnode_insert_tag_ns(result, "item", NULL, NS_DISCO_ITEMS);
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, "Connection start");
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(lang, N_("Connection start")));
 	xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(to));
 	xmlnode_put_attrib_ns(x, "node", NULL, NULL, "last");
     }
