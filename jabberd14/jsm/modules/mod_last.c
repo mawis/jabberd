@@ -157,7 +157,7 @@ static void mod_last_set(mapi m, jid to, char *reason) {
     last = xmlnode_new_tag_ns("query", NULL, NS_LAST);
     snprintf(str, sizeof(str), "%d", (int)time(NULL));
     xmlnode_put_attrib_ns(last, "last", NULL, NULL, str);
-    xmlnode_insert_cdata(last, messages_get(xmlnode_get_lang(m->packet->x), reason), -1);
+    xmlnode_insert_cdata(last, messages_get(m->packet ? xmlnode_get_lang(m->packet->x) : NULL, reason), -1);
     xdb_set(m->si->xc, jid_user(to), NS_LAST, last);
     xmlnode_free(last);
 }
