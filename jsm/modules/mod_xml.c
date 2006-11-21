@@ -93,7 +93,7 @@ mreturn mod_xml_set(mapi m, void *arg) {
 		|| strcmp(ns, NS_JABBERD_STOREDPRESENCE) == 0
 		|| strcmp(ns, NS_JABBERD_HISTORY) == 0) {
 	    /* uhoh, can't use jabber: namespaces inside iq:private! */
-            jutil_error_xmpp(m->packet->x, (xterror){406, "Can't use jabber: namespaces inside iq:private", "modify", "not-acceptable"});
+            jutil_error_xmpp(m->packet->x, (xterror){406, N_("Can't use jabber: namespaces inside iq:private"), "modify", "not-acceptable"});
             js_session_to(m->s,m->packet);
             return M_HANDLED;
         }

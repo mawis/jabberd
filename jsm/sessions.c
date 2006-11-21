@@ -73,7 +73,7 @@ void js_session_route(session s, xmlnode in) {
 	if (s->sc_c2s == NULL) {
 	    /* <route type='error'/> old c2s-sm-protocol */
 	    xmlnode_put_attrib_ns(in, "type", NULL, NULL, "error");
-	    xmlnode_put_attrib_ns(in, "error", NULL, NULL, "Disconnected");
+	    xmlnode_put_attrib_ns(in, "error", NULL, NULL, messages_get(xmlnode_get_lang(s->presence), N_("Disconnected")));
 	} else {
 	    /* using new session control protocol */
 	    wrapped_node = xmlnode_insert_tag_ns(in, "session", "sc", NS_SESSION);
@@ -186,7 +186,7 @@ session js_session_new(jsmi si, dpacket dp) {
     /* remove any other session w/ this resource */
     for (cur = u->sessions; cur != NULL; cur = cur->next)
         if (j_strcmp(dp->id->resource, cur->res) == 0)
-            js_session_end(cur, "Replaced by new connection");
+            js_session_end(cur, N_("Replaced by new connection"));
 
     /* make sure we're linked with the user */
     s->next = s->u->sessions;
@@ -280,7 +280,7 @@ session js_sc_session_new(jsmi si, dpacket dp, xmlnode sc_session) {
     /* remove any other session w/ this resource */
     for (cur = u->sessions; cur != NULL; cur = cur->next)
         if (j_strcmp(dp->id->resource, cur->res) == 0)
-            js_session_end(cur, "Replaced by new connection");
+            js_session_end(cur, N_("Replaced by new connection"));
 
     /* make sure we're linked with the user */
     s->next = s->u->sessions;
@@ -330,7 +330,7 @@ void js_session_end(session s, char *reason) {
     if (s->presence != NULL && j_strcmp(xmlnode_get_attrib_ns(s->presence, "type", NULL), "unavailable") != 0) {
 
         /* create a new presence packet with the reason the user is unavailable */
-        x = jutil_presnew(JPACKET__UNAVAILABLE, NULL, reason);
+        x = jutil_presnew(JPACKET__UNAVAILABLE, NULL, messages_get(xmlnode_get_lang(s->presence), reason));
         xmlnode_put_attrib_ns(x, "from", NULL, NULL, jid_full(s->id));
 
         /* free the old presence packet */

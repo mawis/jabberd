@@ -1,3 +1,26 @@
+2006-11-21  Matthias Wimmer  <m@tthias.eu>
+
+    * jsm/authreg.c: making most strings sent to a user translateable
+    * jsm/sessions.c: same
+    * jsm/modules/mod_xml.c: same
+    * jsm/modules/mod_last.c: same
+    * jsm/modules/mod_presence.c: same
+    * jsm/modules/mod_roster.c: same
+    * jsm/modules/mod_offline.c: same
+    * jsm/modules/mod_register.c: same
+    * jsm/modules/mod_admin.c: same
+    * jsm/jsm.c: same
+    * jsm/deliver.c: same
+    * jsm/serialization.c: same
+    * jabberd/jabberd.h: same
+    * jabberd/lib/jabberdlib.h: same
+    * jabberd/lib/jutil.c: same
+    * jabberd/deliver.c: same
+    * dialback/dialback_in.c: same
+    * dialback/dialback_out.c: same
+    * dialback/dialback.c: same
+    * pthsock/client.c: same
+
 2006-11-20  Matthias Wimmer  <m@tthias.eu>
 
     * xdb_sql/xdb_sql.cc: fixing big bug introduced with the latest change

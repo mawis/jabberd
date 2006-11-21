@@ -78,7 +78,7 @@ void __jsm_shutdown(xht h, const char *key, void *data, void *arg) {
     session cur;
 
     for (cur = u->sessions; cur != NULL; cur = cur->next) {
-        js_session_end(cur, "JSM shutdown");
+        js_session_end(cur, N_("sessionmanager shutdown"));
     }
 }
 

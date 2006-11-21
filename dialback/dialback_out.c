@@ -196,34 +196,34 @@ dboc dialback_out_connection(db d, jid key, char *ip, db_request db_state) {
  * @param state the state
  * @return the textual representation
  */
-char *dialback_out_connection_state_string(db_connection_state state) {
+static char *dialback_out_connection_state_string(db_connection_state state) {
     switch (state) {
 	case created:
-	    return "connection object just created";
+	    return N_("connection object just created");
 	case connecting:
-	    return "connecting to other host";
+	    return N_("connecting to other host");
 	case connected:
-	    return "connected to other host";
+	    return N_("connected to other host");
 	case got_streamroot:
-	    return "got the stream root";
+	    return N_("got the stream root");
 	case waiting_features:
-	    return "waiting for stream features on XMPP stream";
+	    return N_("waiting for stream features on XMPP stream");
 	case got_features:
-	    return "got stream features on XMPP stream";
+	    return N_("got stream features on XMPP stream");
 	case sent_db_request:
-	    return "sent out dialback request";
+	    return N_("sent out dialback request");
 	case db_succeeded:
-	    return "dialback succeeded";
+	    return N_("dialback succeeded");
 	case db_failed:
-	    return "dialback failed";
+	    return N_("dialback failed");
 	case sasl_started:
-	    return "started using SASL";
+	    return N_("started using SASL");
 	case sasl_fail:
-	    return "failed to auth using SASL";
+	    return N_("failed to auth using SASL");
 	case sasl_success:
-	    return "SASL succeeded";
+	    return N_("SASL succeeded");
     }
-    return "unknown connection state";
+    return N_("unknown connection state");
 }
 
 /**
@@ -240,6 +240,7 @@ void dialback_out_connection_cleanup(dboc c)
     spool errmsg = NULL;
     char *connect_results = NULL;
     char *bounce_reason = NULL;
+    const char* lang = NULL;
 
     xhash_zap(c->d->out_connecting,jid_full(c->key));
 
@@ -256,13 +257,14 @@ void dialback_out_connection_cleanup(dboc c)
     /* if there's any packets in the queue, flush them! */
     cur = c->q;
     if (cur != NULL) {
+	lang = xmlnode_get_lang(cur->x);
 	/* generate bounce message, but only if there are queued messages */
 	errmsg = spool_new(c->p);
 	if (c->settings_failed) {
-	    spool_add(errmsg, "Failed to deliver stanz to other server because of configured stream parameters.");
+	    spool_add(errmsg, messages_get(lang, N_("Failed to deliver stanz to other server because of configured stream parameters.")));
 	} else {
-	    spool_add(errmsg, "Failed to deliver stanza to other server while ");
-	    spool_add(errmsg, dialback_out_connection_state_string(c->connection_state));
+	    spool_add(errmsg, messages_get(lang, N_("Failed to deliver stanza to other server while ")));
+	    spool_add(errmsg, messages_get(lang, N_(dialback_out_connection_state_string(c->connection_state))));
 	    spool_add(errmsg, ": ");
 	    spool_add(errmsg, connect_results);
 	}
@@ -270,8 +272,9 @@ void dialback_out_connection_cleanup(dboc c)
     }
     while(cur != NULL) {
         next = cur->next;
-        deliver_fail(dpacket_new(cur->x), bounce_reason ? bounce_reason : "Could not send stanza to other server");
+        deliver_fail(dpacket_new(cur->x), bounce_reason ? bounce_reason : messages_get(lang, N_("Could not send stanza to other server")));
         cur = next;
+	lang = cur == NULL ? NULL : xmlnode_get_lang(cur->x);
     }
 
     /* also kill any validations still waiting */
@@ -571,13 +574,13 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x) {
 		}
 
 		if (j_strcmp(xhash_get_by_domain(c->d->hosts_auth, "sasl"), "sasl") == 0) {
-		    log_warn(c->d->i->id, "preXMPP peer %s cannot support SASL, but we are configured to require this.", c->key->server);
+		    log_warn(c->d->i->id, "pre-XMPP 1.0 peer %s cannot support SASL, but we are configured to require this.", c->key->server);
 		    mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Sorry, but we require SASL auth, but you seem to only support dialback.</text></stream:error>", -1);
 		    mio_close(m);
 		    break;
 		}
 
-		log_debug2(ZONE, LOGT_IO, "pre-XMPP stream could now send <db:result/>");
+		log_debug2(ZONE, LOGT_IO, "pre-XMPP 1.0 stream could now send <db:result/>");
 		if (c->db_state == want_request) {
 		    /* send db request */
 		    cur = xmlnode_new_tag_ns("result", "db", NS_DIALBACK);
@@ -910,6 +913,8 @@ void _dialback_out_beat_packets(xht h, const char *key, void *data, void *arg) {
     /* time out individual queue'd packets */
     cur = c->q;
     while (cur != NULL) {
+	const char* lang = xmlnode_get_lang(cur->x);
+
         if ((now - cur->stamp) <= c->d->timeout_packets) {
             last = cur;
             cur = cur->next;
@@ -925,8 +930,8 @@ void _dialback_out_beat_packets(xht h, const char *key, void *data, void *arg) {
 
 	if (bounce_reason == NULL) {
 	    spool errmsg = spool_new(c->p);
-	    spool_add(errmsg, "Server connect timeout while ");
-	    spool_add(errmsg, dialback_out_connection_state_string(c->connection_state));
+	    spool_add(errmsg, messages_get(lang, N_("Server connect timeout while ")));
+	    spool_add(errmsg, messages_get(lang, dialback_out_connection_state_string(c->connection_state)));
 	    if (c->connect_results != NULL) {
 		spool_add(errmsg, ": ");
 		spool_add(errmsg, spool_print(c->connect_results));
@@ -934,7 +939,7 @@ void _dialback_out_beat_packets(xht h, const char *key, void *data, void *arg) {
 	    bounce_reason = spool_print(errmsg);
 	}
 
-        deliver_fail(dpacket_new(cur->x), bounce_reason ? bounce_reason : "Server Connect Timeout");
+        deliver_fail(dpacket_new(cur->x), bounce_reason ? bounce_reason : messages_get(lang, N_("Server Connect Timeout")));
         cur = next;
     }
 }
