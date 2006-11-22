@@ -90,6 +90,7 @@ mreturn mod_xml_set(mapi m, void *arg) {
         if (ns == NULL
 		|| strncmp(ns, "jabber:", 7) == 0
 		|| strcmp(ns,"vcard-temp") == 0
+		|| strcmp(ns, NS_XMPP_PING) == 0
 		|| strcmp(ns, NS_JABBERD_STOREDPRESENCE) == 0
 		|| strcmp(ns, NS_JABBERD_HISTORY) == 0) {
 	    /* uhoh, can't use jabber: namespaces inside iq:private! */
@@ -98,7 +99,8 @@ mreturn mod_xml_set(mapi m, void *arg) {
             return M_HANDLED;
         }
     } else if (j_strncmp(ns, "jabber:", 7) == 0
-	    || j_strcmp(ns, "vcard-temp") == 0) {
+	    || j_strcmp(ns, "vcard-temp") == 0
+	    || j_strcmp(ns, NS_XMPP_PING) == 0) {
 	/* can't set public xml jabber: namespaces either! */
 	return M_PASS;
     }
@@ -196,6 +198,7 @@ mreturn mod_xml_get(mapi m, void *arg) {
 	return M_IGNORE;
     if (j_strncmp(ns,"jabber:",7) == 0
 	    || j_strcmp(ns, "vcard-temp") == 0
+	    || j_strcmp(ns, NS_XMPP_PING) == 0
 	    || j_strcmp(ns, NS_JABBERD_STOREDPRESENCE) == 0
 	    || j_strcmp(ns, NS_JABBERD_HISTORY) == 0)
 	return M_PASS; /* only handle alternate namespaces */

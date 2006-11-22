@@ -1,6 +1,7 @@
 2006-11-22  Matthias Wimmer  <m@tthias.eu>
 
     * jsm/modules/mod_ping.c: support for XEP-0199
+    * jsm/modules/mod_xml.c: do not reply to XEP-0199 get requests
 
 2006-11-21  Matthias Wimmer  <m@tthias.eu>
 
