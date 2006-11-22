@@ -131,7 +131,13 @@ static mreturn mod_ping_out(mapi m, void *arg) {
     if (m->packet->type != JPACKET_IQ)
 	return M_IGNORE;
 
+    if (m->packet->to != NULL) {
+	return M_PASS;
+    }
     if (!NSCHECK(m->packet->iq, NS_XMPP_PING)) {
+	return M_PASS;
+    }
+    if (jpacket_subtype(m->packet) != JPACKET__SET) {
 	return M_PASS;
     }
 
@@ -143,6 +149,35 @@ static mreturn mod_ping_out(mapi m, void *arg) {
 }
 
 /**
+ * handle stream-level pings sent to a client JID
+ *
+ * @param m the mapi_struct containing the request
+ * @param arg unused/ignored
+ * @return M_IGNORE if no iq request, M_PASS if no ping, M_HANDLED if ping
+ */
+static mreturn mod_ping_in(mapi m, void *arg) {
+    if (m == NULL || m->packet == NULL)
+	return M_PASS;
+
+    if (m->packet->type != JPACKET_IQ)
+	return M_IGNORE;
+
+    if (!NSCHECK(m->packet->iq, NS_XMPP_PING)) {
+	return M_PASS;
+    }
+    if (jpacket_subtype(m->packet) != JPACKET__SET) {
+	return M_PASS;
+    }
+
+    jutil_iqresult(m->packet->x);
+    jpacket_reset(m->packet);
+    js_deliver(m->si, m->packet);
+
+    return M_HANDLED;
+}
+
+
+/**
  * new session started, register es_OUT handler
  *
  * @param m the mapi_struct containing the new session
@@ -151,6 +186,7 @@ static mreturn mod_ping_out(mapi m, void *arg) {
  */
 static mreturn mod_ping_session(mapi m, void *arg) {
     js_mapi_session(es_OUT, m->s, mod_ping_out, NULL);
+    js_mapi_session(es_IN, m->s, mod_ping_in, NULL);
     return M_PASS;
 }
 
