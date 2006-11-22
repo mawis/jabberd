@@ -149,13 +149,18 @@ static mreturn mod_ping_out(mapi m, void *arg) {
 }
 
 /**
- * handle stream-level pings sent to a client JID
+ * new session started, register es_OUT handler
  *
- * @param m the mapi_struct containing the request
+ * @param m the mapi_struct containing the new session
  * @param arg unused/ignored
- * @return M_IGNORE if no iq request, M_PASS if no ping, M_HANDLED if ping
+ * @return always M_PASS
  */
-static mreturn mod_ping_in(mapi m, void *arg) {
+static mreturn mod_ping_session(mapi m, void *arg) {
+    js_mapi_session(es_OUT, m->s, mod_ping_out, NULL);
+    return M_PASS;
+}
+
+static mreturn mod_ping_deliver(mapi m, void *arg) {
     if (m == NULL || m->packet == NULL)
 	return M_PASS;
 
@@ -176,27 +181,13 @@ static mreturn mod_ping_in(mapi m, void *arg) {
     return M_HANDLED;
 }
 
-
-/**
- * new session started, register es_OUT handler
- *
- * @param m the mapi_struct containing the new session
- * @param arg unused/ignored
- * @return always M_PASS
- */
-static mreturn mod_ping_session(mapi m, void *arg) {
-    js_mapi_session(es_OUT, m->s, mod_ping_out, NULL);
-    js_mapi_session(es_IN, m->s, mod_ping_in, NULL);
-    return M_PASS;
-}
-
 /**
  * init the module, register callbacks
  *
  * @param si the session manager instance
  */
 void mod_ping(jsmi si) {
-    log_debug2(ZONE, LOGT_INIT, "mod_ping starting up");
     js_mapi_register(si, e_SERVER, mod_ping_server, NULL);
     js_mapi_register(si, e_SESSION, mod_ping_session, NULL);
+    js_mapi_register(si, e_DELIVER, mod_ping_deliver, NULL);
 }
