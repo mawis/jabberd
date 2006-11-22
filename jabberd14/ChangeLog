@@ -1,3 +1,7 @@
+2006-11-22  Matthias Wimmer  <m@tthias.eu>
+
+    * jsm/modules/mod_ping.c: support for XEP-0199
+
 2006-11-21  Matthias Wimmer  <m@tthias.eu>
 
     * jsm/authreg.c: making most strings sent to a user translateable
