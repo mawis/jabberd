@@ -69,15 +69,16 @@ extern xmlnode greymatter__;
 extern xht instance__ids;
 
 /*** internal functions ***/
-int configurate(char *file, xht cmd_line, int is_restart);
-void base_init(pool p);
-void deliver_init(pool p);
-void deliver_shutdown(void);
-void heartbeat_birth(void);
-void heartbeat_death(void);
-int configo(int exec);
-void shutdown_callbacks(void);
-void instance_shutdown(instance i);
+extern "C" {
+    void base_init(pool p);
+    int configo(int exec);
+    int configurate(char *file, xht cmd_line, int is_restart);
+    void deliver_init(pool p);
+    void deliver_shutdown(void);
+    void heartbeat_birth(void);
+    void heartbeat_death(void);
+    void shutdown_callbacks(void);
+}
 static void _jabberd_signal(int sig);
 static void _jabberd_atexit(void);
 static result jabberd_signal_handler(void *arg);
@@ -438,7 +439,7 @@ static void _jabberd_atexit(void) {
 
     /* Get rid of our pid file */
     namespaces = xhash_new(3);
-    xhash_put(namespaces, "", NS_JABBERD_CONFIGFILE);
+    xhash_put(namespaces, "", const_cast<void*>(static_cast<const void*>(NS_JABBERD_CONFIGFILE)));
     pidfile = xmlnode_get_list_item(xmlnode_get_tags(greymatter__, "pidfile", namespaces), 0);
     xhash_free(namespaces);
     if (pidfile != NULL) {
