@@ -3,11 +3,11 @@ DIST_SUBDIRS = base lib
 
 bin_PROGRAMS = jabberd
 
-jabberd_SOURCES = jabberd.c
+jabberd_SOURCES = jabberd.cc
 
 jabberd_LDADD = $(top_builddir)/jabberd/base/libjabberdbase.la \
 		$(top_builddir)/jabberd/libjabberd.la \
-		-lpopt -lstdc++
+		-lpopt
 jabberd_LDFLAGS = @LDFLAGS@ -export-dynamic
 
 include_HEADERS = jabberd.h

@@ -148,8 +148,8 @@ int main(int argc, const char **argv) {
     }
 
     std_namespace_prefixes = xhash_new(13);
-    xhash_put(std_namespace_prefixes, "conf", NS_JABBERD_CONFIGFILE);
-    xhash_put(std_namespace_prefixes, "xdbfile", NS_JABBERD_CONFIG_XDBFILE);
+    xhash_put(std_namespace_prefixes, "conf", const_cast<void*>(static_cast<const void*>(NS_JABBERD_CONFIGFILE)));
+    xhash_put(std_namespace_prefixes, "xdbfile", const_cast<void*>(static_cast<const void*>(NS_JABBERD_CONFIG_XDBFILE)));
 
     /* open module */
     /* XXX well using dlopen is not very portable, but jabberd does itself at present
