@@ -77,7 +77,7 @@ static mreturn mod_ping_server_disco_info(mapi m) {
  */
 static mreturn mod_ping_server_ping(mapi m) {
     /* only get */
-    if (jpacket_subtype(m->packet) != JPACKET__SET)
+    if (jpacket_subtype(m->packet) != JPACKET__GET)
 	return M_PASS;
 
     /* build the result IQ */
@@ -137,7 +137,7 @@ static mreturn mod_ping_out(mapi m, void *arg) {
     if (!NSCHECK(m->packet->iq, NS_XMPP_PING)) {
 	return M_PASS;
     }
-    if (jpacket_subtype(m->packet) != JPACKET__SET) {
+    if (jpacket_subtype(m->packet) != JPACKET__GET) {
 	return M_PASS;
     }
 
@@ -170,7 +170,7 @@ static mreturn mod_ping_deliver(mapi m, void *arg) {
     if (!NSCHECK(m->packet->iq, NS_XMPP_PING)) {
 	return M_PASS;
     }
-    if (jpacket_subtype(m->packet) != JPACKET__SET) {
+    if (jpacket_subtype(m->packet) != JPACKET__GET) {
 	return M_PASS;
     }
 
