@@ -417,6 +417,7 @@
       <mod_disco>@libdir@/libjabberdsm.so</mod_disco>
       <mod_admin>@libdir@/libjabberdsm.so</mod_admin>
       <mod_offline>@libdir@/libjabberdsm.so</mod_offline>
+      <mod_ping>@libdir@/libjabberdsm.so</mod_ping>
       <mod_presence>@libdir@/libjabberdsm.so</mod_presence>
       <mod_useridpolicy>@libdir@/libjabberdsm.so</mod_useridpolicy>
 
