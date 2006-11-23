@@ -1,0 +1,78 @@
+How to use jadc2s with SASL support enabled
+===========================================
+
+This document describes how to enable SASL support in jadc2s, and how it
+is configured.
+
+Traditionally jadc2s only accepted incoming connections from clients, and
+did not care about the authentication of clients. In the world of jabberd14
+authentication is done by mod_auth_plain, and mod_auth_crypt,
+and mod_auth_digest modules inside the session manager (jsm). These modules
+used the jabberd14 internal storage to store the user's password (or a hash
+of the password).
+
+With SASL authentication is handled differently: authentication is no longer
+the responsibility of the session manager, but handled by jadc2s internally
+using the Cyrus SASL library. To enable Cyrus SASL to verify passwords, you
+have to configure the SASL library.
+
+If you support legacy authentication (defined in JEP-0078) as well as SASL
+authentication, your users will expect to have the same passwords for both
+ways to authenticate. Therefore you should configure Cyrus SASL to access
+the same passwords as your jabberd14 installation does. The easiest way
+is to have the passwords in a MySQL database, as both Cyrus SASL and
+jabberd14 support accessing MySQL natively.
+
+If you only support SASL authentication, jabberd14 must at least have access
+to a pseudo password for each user. This is because for now jabberd14 checks
+if there is a password, if it wants to check if an user account exists. (E.g.
+to check if an incoming message should be stored offline.)
+
+Cyrus SASL is configured using its own configuration file. This file is
+typically located at /usr/lib/sasl2/jadc2s.conf. The directory where this file
+can be found might have been changed at compile-time of the Cyrus SASL
+library. The filename is composed out of the application name jadc2s provides
+to the Cyrus SASL library, and the extension ".conf". jadc2s will pass the
+application name "jadc2s" to Cyrus SASL as long as you do not overwrite this
+inside the jadc2s.xml configuration file. (Which can be done using the
+<appname/> element inside the <authentication/> element.)
+
+To configure Cyrus SASL to access passwords using MySQL, put something like
+the following inside your /usr/lib/sasl2/jadc2s.conf file:
+
+sql_engine: mysql
+sql_hostnames: localhost
+sql_user: jabber
+sql_database: jabber
+sql_passwd: <your MySQL database password>
+sql_select: SELECT password FROM users WHERE '%p'='userPassword' AND jid='%u@%r'
+
+Cyrus SASL will connect to the MySQL server using the settings of
+sql_hostname, sql_user, sql_database, and sql_passwd. The query Cyrus SASL
+uses to fetch the password is defined by sql_select.
+Inside this SQL statement Cyrus will expand the following variables:
+
+%p	What Cyrus SASL currently tries to fetch. 'userPassword' is used if
+	Cyrus fetches a plaintext password. Therefore I use the
+	'%p'='userPassword' expression to make sure, that the password is
+	only returned by MySQL if Cyrus is really expecting a plaintext
+	password.
+%u	This is expanded to the user, Cyrus fetches the password for. The
+	user does not contain the domain.
+%r	This is expanded to the domain of the user. SASL calls this
+	authentication realm. (That's why it is an 'r'). To get the
+	JID of the user, the password is selected for use '%u@%r'.
+
+If you store the username and the domain of a user in two different fields
+of your MySQL table, just use something like the following as your SQL
+statement:
+SELECT password FROM users WHERE '%p'='userPassword' AND user='%u' AND realm='%r'
+
+If you have configured Cyrus SASL to know where to find the passwords, all
+that is left to enable SASL in jadc2s is to add the <authentication/> element
+inside the jadc2s.conf configuration file. An example for this is provided
+in the default configuration file.
+
+Note: For SASL support to work together with jabberd14, you will at least need
+either a development snapshot of jabberd14 from not before 20060724, or
+version 1.6.0+ of jabberd14.

@@ -1,0 +1,147 @@
+<!-- jadc2s config                                                         -->
+<jadc2s>
+
+    <!--  session manager configuration                                    -->
+    <sm>
+        <!--  host and port of the SM                                      -->
+        <host>localhost</host>
+        <port>5111</port>
+        <!--  shared secret, for authenticating us                         -->
+        <secret>secret</secret>
+
+        <!--  our ID, for authenticating us to the sm                      -->
+        <id>jadc2s</id>
+
+        <!--  how many times to try to connect to the sm (default: 5)      -->
+        <retries>5</retries>
+    </sm>
+
+    <!--  local network settings                                           -->
+    <local>
+        <!--  who we identify ourselves as. This should correspond to the  -->
+        <!--  ID (host) that the session manager thinks it is.             -->
+        <id>localhost</id>
+
+	<!--  define aliases for local hosts                               -->
+	<!--  needs support by the client and is not present in newer      -->
+	<!--  protocol documents, but available in jabberd14 1.4.x         -->
+	<!--
+	<alias to='jabber.example.com'>example</alias> -->
+
+        <!--  IP address to bind to (default: 0.0.0.0)                     -->
+        <!-- <ip>0.0.0.0</ip> -->
+        
+        <!--  port to bind to (default: 5222)                              -->
+        <!--  specify 0 to not bind to this port. this is useful for an    -->
+        <!--  SSL-only installation                                        -->
+        <port>5222</port>
+
+        <!--  forward incoming HTTP clients to a real HTTP server          -->
+	<!--
+        <httpforward>http://www.jabber.org/</httpforward> -->
+
+        <!--  log current connections number                               -->
+        <!--
+        <statfile>c2s_conn</statfile> -->
+
+        <!--  SSL configuration                                            -->
+        <!--  Specify the port to listen on, and the key file to use for   -->
+        <!--  the certificate.                                             -->
+	<!--  <port/>      (default: 5223)                                 -->
+	<!--  <pemfile/>   (default: ./server.pem)                         -->
+	<!--  <no_ssl_v2/> (disables SSL protocol version 2)		   -->
+	<!--  <no_ssl_v3/> (disables SSL protocol version 3)		   -->
+	<!--  <no_tls_v1/> (disables TLS protocol version 1, aka SSL 3.1)  -->
+	<!--  <ciphers/>   (set list of available ciphers, man 1 ciphers)  -->
+	<!--  <enable_workarounds/> (should not be needed)                 -->
+	<!--  <enable_autodetect/> (autodetect if SSL/TLS is used or not)  -->
+        <!--
+        <ssl>
+            <port>5223</port>
+	    <pemfile>./server.pem</pemfile>
+	    <no_ssl_v2/>
+	    <ciphers>ALL:!ADH:!LOW</ciphers>
+        </ssl>
+        -->
+    </local>
+
+
+    <!--  input/output settings                                            -->
+    <io>
+        <!--  maximum number of file descriptors. Should be a prime        -->
+        <!--  number. At least four will be used by jadc2s itself,         -->
+        <!--  usually around six or seven (default: 1023)                  -->
+        <!--  For a list of prime numbers:                                 -->
+        <!--    http://www.utm.edu/research/primes/lists/small/10000.txt   -->
+        <max_fds>1023</max_fds>
+
+        <!--  maximum bits per second allowed over a single connection,    -->
+        <!--  0 for no limit (default: 0)                                  -->
+        <max_bps>0</max_bps>
+
+        <!--  connection rate limiting. Maximum connects from a single IP  -->
+        <!--  address within a number of seconds. Set both to 0 for no     -->
+        <!--  limit.                                                       -->
+        <!--    <connects/> (defualt: 0)                                   -->
+        <!--    <seconds/>  (default: 0)                                   -->
+        <connection_limits>
+            <connects>0</connects>
+            <seconds>0</seconds>
+        </connection_limits>
+
+	<!--  send notifies about connecting and disconnecting users       -->
+	<!--  to a configured component (default: do not send anything)    -->
+	<!--
+	<notifies>connections@localhost</notifies>
+	-->
+
+	<!-- should we log the IP addresses of our users?		   -->
+	<!-- <iplog/> -->
+    </io>
+
+
+    <!-- authentication settings                                           -->
+
+    <!-- for now: by default authentication is done in the session         -->
+    <!-- manager and only JEP-0078 style authentication is supported.      -->
+    <!-- If you want SASL authentication to work, you have to enable       -->
+    <!-- the authentication routines inside jadc2s.                        -->
+    <!-- To enable authentication inside jadc2s, you also have to use      -->
+    <!-- at least a beta version of jabberd14 1.6.0. It might as well      -->
+    <!-- work with the jabberd2, but this is not tested.                   -->
+    <!--                                                                   -->
+    <!-- Available settings:                                               -->
+    <!--  appname:      Name of the application. Used to build the         -->
+    <!--                configuration file name of the cyrus sasl library. -->
+    <!--  service:      Registered name of the SASL service,               -->
+    <!--                this should always be "xmpp" which is the default. -->
+    <!--  fqdn:         Fully qualified domain name of the server,         -->
+    <!--                if not present gethostbyname() will be used.       -->
+    <!--  defaultrealm: Authentication realm to use, if no realm is        -->
+    <!--                specified by the client.                           -->
+    <!--                This is usually not necessary.                     -->
+    <!--  legacyauth:   If present, JEP-0078 authentication is still       -->
+    <!--                supported.                                         -->
+    <!--  minssf:	minimum acceptable final security strength factor  -->
+    <!--  maxssf:	maximum acceptable final security stringth factor  -->
+    <!--  noseclayer:   do not support SASL security layer                 -->
+    <!--  admin:        define and admin account - if a user is            -->
+    <!--                authenticated using an admin account, he can       -->
+    <!--                be authorized to use any account on the server     -->
+    <!--                                                                   -->
+    <!-- To enable authentication inside jadc2s, uncomment the following   -->
+    <!-- configuration section, and configure your libsasl2 installation.  -->
+    <!--                                                                   -->
+    <!-- USING SASL IS NOT PLUG AND PLAY. YOU HAVE TO CONFIGURE YOUR CYRUS -->
+    <!-- SASL INSTALLATION TO KNOW THE USER'S PASSWORDS. ELSE              -->
+    <!-- AUTHENTICATION USING SASL WILL FAIL. SEE README.SASL.             -->
+
+    <!--
+    <authentication>
+    	<appname>jadc2s</appname>
+	<service>xmpp</service>
+	<legacyauth/>
+    </authentication>
+    -->
+
+</jadc2s>

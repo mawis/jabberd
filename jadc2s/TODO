@@ -1,0 +1,14 @@
+Highest priority:
+
+  - Complete XMPP support: SASL authentication, xml:lang passing,
+    namespace handling
+
+Medium priority:
+
+  - Support for GNU TLS as an alternative for OpenSSL
+  - epoll support
+  - HTTP binding
+
+Low priority:
+
+  (nothing defined here at present)
