@@ -1,0 +1,295 @@
+2006-08-06  Matthias Wimmer  <m@tthias.eu>
+
+    * util/nad.c: removed unused functions
+    * util/util.h: same
+    * util/jid.c: tagging some functions as static
+    * util/xhash.c: tagging some functions as static
+
+2006-07-30  Matthias Wimmer  <m@tthias.eu>
+
+    * jadc2s.h: robust encoding of SASL security layer on big blocks
+    * clients.c: same
+    * conn.c: same
+    * mio/mio.c: added several sanity checks to mio functions
+
+2006-07-29  Matthias Wimmer  <m@tthias.eu>
+
+    * conn.c: reporting correct SSL function that caused an error
+
+2006-07-28  Matthias Wimmer  <m@tthias.eu>
+
+    * clients.c: fixing bug handling session start iq without id attribute
+
+2006-07-27  Matthias Wimmer  <m@tthias.eu>
+
+    * clients.c: improved SASL error logging
+    * jadc2s.c: new configuration option io/authtimeout
+
+2006-07-24  Matthias Wimmer  <m@tthias.eu>
+
+    * jadc2s.c: support for SASL proxy authentication
+    * jadc2s.h: same
+
+2006-07-23  Matthias Wimmer  <m@tthias.eu>
+
+    * clients.c: introducing client_send_sc_command()
+    * jadc2s.h: makeing some function arguments const
+    * util/util.h: same
+    * util/nad.c: same
+    * connect.c: updates in handling of new sc proto, bugfixes
+    * conn.c: updates bounce handling
+
+2006-07-22  Matthias Wimmer  <m@tthias.eu>
+
+    * clients.c: do not update userid on stream restart after authentication,
+    	do not report connections as not authenticated, if no username known
+
+2006-07-20  Matthias Wimmer  <m@tthias.eu>
+
+    * jadc2s.c: stringpreping user ids using the nodeprep profile
+
+2006-07-19  Matthias Wimmer  <m@tthias.eu>
+
+    * clients.c: adding sc:c2s attribute before forwarding stanzas to sm
+    * connect.c: sanity checks for right recipient
+
+2006-07-15  Matthias Wimmer  <m@tthias.eu>
+
+    * clients.c: implemented SASL authentication using cyrus SASL
+    * mio/mio.c: same
+    * jadc2s.c: same
+    * jadc2s.h: same
+    * configure.ac: same
+    * connect.c: same
+    * util/util.h: same
+    * util/jid.c: same
+    * conn.c: same
+
+2006-05-21  Matthias Wimmer  <m@tthias.eu>
+
+    * util/xhash.c: fixing xhash handling (key did match key123)
+
+2006-05-20  Matthias Wimmer  <m@tthias.eu>
+
+    * util/util.h: better memory performance for xhash
+    * util/xhash.c: same
+
+2006-04-27  Matthias Wimmer  <m@tthias.eu>
+
+    * clients.c: support for HTTP forwards (patch by Tomasz Sterna)
+    * jadc2s.c: same and support for writing connection count to file
+    * jadc2s.h: same
+    * jadc2s.xml.dist: same
+    * mio/mio.c: epoll support (patch by Tomasz Sterna)
+    * util/log.c: possibility to select syslog facility at configure time
+
+2006-04-26  Matthias Wimmer  <m@tthias.eu>
+
+    * clients.c: fixing a compiler warning of gcc
+
+2005-11-22  Matthias Wimmer  <m@tthias.net>
+
+    * configure.in: make IDN a requirement, check for GNU SASL
+
+2005-11-01  Matthias Wimmer  <m@tthias.net>
+
+    * mio/mio.c: changing typecast for accept() call to fix a compiler warning
+    * clients.c: fixing memory leak, fixing STARTTLS not to send an error back
+
+2005-04-07  Matthias Wimmer  <m@tthias.net>
+
+    * clients.c: implemented STARTTLS
+    * jadc2s.c: same
+    * jadc2s.h: same
+
+2004-10-09  Matthias Wimmer  <m@tthias.net>
+
+    * clients.c: Fixing problem reported by Pablo Herrero
+
+2004-09-07  Matthias Wimmer  <m@tthias.net>
+
+    * xmlparse/*: removed expat sources from jadc2s and link against libexpat
+    * configure.in: same
+    * jadc2s.h: same
+    * Makefile.am: same
+    * util/config.c: same
+    * util/util.h: make some function arguments constant
+
+2004-09-03  Matthias Wimmer  <m@tthias.net>
+
+    * util/util.c: jid_environment has do be defined even without libidn
+
+2004-09-01  Matthias Wimmer  <m@tthias.net>
+
+    * util/pool.c: Remove pmalloc_x, we don't use it
+    * util/util.c: same
+
+2004-07-15  Matthias Wimmer  <m@tthias.net>
+
+    * README.maintainer: Reminder not to generate broken distributions
+    * clients.c: Cache stringprep results
+    * conn.c: same
+    * connect.c: same
+    * jadc2s.c: same
+    * jadc2s.h: same
+    * util/jid.c: same
+    * util/util.h: same
+    * configure.in: Use pkg-config to check for openssl
+    * ac-helpers/Makefile.am: same
+
+2004-04-13  Matthias Wimmer  <m@tthias.net>
+
+    * clients.c: Make the flash hack optional, general cleanup
+    * configure.in: same
+    * conn.c: same
+    * connect.c: same
+    * jadc2s.h: same
+
+2004-04-04  Matthias Wimmer  <m@tthias.net>
+
+    * clients.c: Optional autodetection if SSL/TLS is used on port 5223
+    * conn.c: same
+    * jadc2s.c: same
+    * jadc2s.h: same
+    * jadc2s.xml.dist: same
+    * connect.c: Removed debugging messages
+
+2004-03-30  Matthias Wimmer  <m@tthias.net>
+
+    * util/jid.c: Minimize the number of necessary stringprep calls
+    * conn.c: Removing debugging information used to find a now fixed bug
+    * connect.c: same
+    * jadc2s.c: same
+    * jadc2s.h: same
+
+2004-03-29  Matthias Wimmer  <m@tthias.net>
+
+    * configure.in: Check for Libidn
+    * util/jid.c: Nameprep/nodeprep/resourceprep JIDs
+    * clients.c: fixed debugging message formating
+    * conn.c: Don't send a stream error on close to the router
+    * jadc2s.c: same
+    * clients.c: update possible JID length to xmpp-core
+    * connect.c: same
+    * util/util.h: let jit_set() and nad_append_cdata() take const strings
+    * util/nad.c: same
+    * clients.c: do not printf() debugging information, we closed stdin
+
+2004-03-26  Matthias Wimmer  <m@tthias.net>
+
+    * conn.c: Send close notify for SSL connections
+
+2004-03-17  Matthias Wimmer  <m@tthias.net>
+
+    * jadc2s.xml.dist: Configuration option if IP addresses should be logged
+    * jadc2s.c: same
+    * jadc2s.h: same
+    * connect.c: same
+    * clients.c: same
+    * conn.c: More debugging
+
+2004-03-16  Matthias Wimmer  <m@tthias.net>
+
+    * conn.c: Added more SSL error logging
+    * connect.c: Added fd to connect log entry
+
+2004-01-17  Matthias Wimmer  <m@tthias.net>
+
+    * clients.c: Logging the amout of traffic/stanzas a user generated
+    * conn.c: same
+    * connect.c: same
+    * jadc2s.h: same
+
+2004-01-15  Matthias Wimmer  <m@tthias.net>
+
+    * jadc2s.c: Connection to sm is closed last, slightly better conf errors
+    * mio/limits.c: This file is not used, remove it
+    * mio/rate.c: same
+
+2004-01-14  Matthias Wimmer  <m@tthias.net>
+
+    * log.c: Do not limit the length of a filename for the logfile
+    * util.h: same
+
+2004-01-10  Matthias Wimmer  <m@tthias.net>
+
+    * connect.c: Flag the root element as sent (for stream error handling)
+    * jadc2s.c: send stream error for authentication timeouts
+    * jadc2s.h: same
+
+2004-01-09  Ryan Eatmon      <reatmon@jabber.org>
+
+    * conn.c: Fixed big bug in \0 handling in the buffer.  Flash clients
+              were experiencing disconnects.
+
+2004-01-03  Matthias Wimmer  <m@tthias.net>
+
+    * jadc2s.h: added two more stream errors
+    * connect.c: same
+
+2003-12-28  Matthias Wimmer  <m@tthias.net>
+
+    * conn.c: copy the root_name, it gets free()d afterwards
+    * Makefile.am: add jadc2s.xml.dist to the distribution package
+    * util/config.c: config_get_attr(...) was broken and has been fixed
+    * clients.c: added support for aliases
+    * jadc2s.c: same
+    * jadc2s.h: same
+    * jadc2s.xml.dist: same
+
+2003-12-26  Matthias Wimmer  <m@tthias.net>
+
+    * clients.c: improvements for stream errors
+    * conn.c: same
+    * connect.c: same
+    * jadc2s.c: same
+    * jadc2s.h: same
+
+2003-12-21  Matthias Wimmer  <m@tthias.net>
+
+    * configure.in: added IPv6 checks
+    * connect.c: added IPv6 support
+    * mio/mio.c: same
+
+2003-12-17  Matthias Wimmer  <m@tthias.net>
+
+    * Makefile.am: do overwrite existing configuration file
+    * jadc2s.xml.dist: renamed file jadc2s.xml
+    * NEWS: send and log connection information
+    * PROTO: same
+    * TODO: same
+    * clients.c: same
+    * conn.c: same
+    * connect.c: same
+    * jadc2s.h: same
+
+2003-12-16  Matthias Wimmer  <m@tthias.net>
+
+    * jadc2s.c: the -c option to select a configuration file did not work
+
+2003-12-14  Matthias Wimmer  <m@tthias.net>
+
+    * ac-helpers/ac_define_dir.m4: Added new macro from the GNU archive
+    * Makefile.am: install the configuration file
+    * configure.in: place the jadc2s.xml configuration file in the sysconfdir
+    * jadc2s.c: same
+
+2003-12-13  Matthias Wimmer  <m@tthias.net>
+
+    * ChangeLog: Added ChangeLog file
+    * Makefile.am: template for automake
+    * NEWS: Added NEWS file
+    * ac-helpers/Makefile.am: template for automake
+    * ac-helpers/openssl.m4: macro to check for openssl
+    * bootstrap: script to run autoconf, automake and libtool
+    * config.rpath: Added this file
+    * configure.in: template for the configure script
+    * mio/Makefile.am: template for automake
+    * util/Makefile.am: same
+    * xmlparse/Makefile.am: same
+    * jadc2s.c: added version information to help output
+    * jadc2s.h: including config.h
+    * mio/mio.h: same
+    * util/util.h: including config.h, pool debugging
+    * util/pool.c: changing macro for pool debugging hash size
+    * mio/mio.c: adapt DEBUGing to the new build environment
