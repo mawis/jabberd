@@ -1,5 +1,5 @@
 <?xml version='1.0'?>
-<jabber xmlns:jabberd='http://jabberd.org/ns/configfile/replace' xmlns='http://jabberd.org/ns/configfile'>
+<jabber xmlns:jabberd='http://jabberd.org/ns/configfile/replace' xmlns='http://jabberd.org/ns/configfile' xmlns:acl='http://jabberd.org/ns/acl'>
 
   <!--
   This is the Jabber server configuration file. The file is
@@ -255,7 +255,7 @@
 
         <!-- we're commenting these out, of course :)
 
-        <item category="service" type="aim" jid="aim.localhost" name="AIM Transport">
+        <item category="service" type="aim" jid="aim.localhost" name="AIM Transport" acl:if='localusers'>
           <ns>jabber:iq:gateway</ns>
           <ns>jabber:iq:register</ns>
         </item>
@@ -1131,6 +1131,10 @@
 	  </grant>
 	  <grant feature='adminmsg'>
 	      <jid>xmpp@localhost</jid>
+	  </grant>
+	  <grant feature='localusers'>
+	      <domain>example.com</domain>
+	      <domain>example.net</domain>
 	  </grant>
 	  <grant>
 	      <jid>admin@localhost</jid>
