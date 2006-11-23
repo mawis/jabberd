@@ -50,6 +50,46 @@
 /* I really don't like having this as a global variable */
 extern xmlnode greymatter__;
 
+static int acl_check_access_domain(xdbcache xdb, const char* function, const jid user) {
+    static xht		namespaces = NULL;
+    xmlnode_list_item	acl = NULL;
+    xmlnode_list_item	feature = NULL;
+    pool		p = NULL;
+    jid			result = NULL;
+
+    /* sanity check */
+    if (xdb == NULL || function == NULL || user == NULL || user->server == NULL)
+	return 0;
+
+    /* define namespace prefixes */
+    if (namespaces == NULL) {
+	namespaces = xhash_new(3);
+	xhash_put(namespaces, "", NS_JABBERD_CONFIGFILE);
+	xhash_put(namespaces, "acl", NS_JABBERD_ACL);
+    }
+
+    /* get the acl */
+    acl = xmlnode_get_tags(greymatter__, "global/acl:acl/acl:grant", namespaces);
+
+    /* iterate the features */
+    for (feature = acl; feature != NULL; feature = feature->next) {
+	const char *f = xmlnode_get_attrib_ns(feature->node, "feature", NULL);
+
+	/* are we interested in this feature element? */
+	if (f == NULL || j_strcmp(f, function) == 0) {
+	    xmlnode_list_item domain = NULL;
+
+	    /* check for domain tags */
+	    for (domain = xmlnode_get_tags(feature->node, "acl:domain", namespaces); domain != NULL; domain = domain->next) {
+		if (j_strcmp(user->server, xmlnode_get_data(domain->node)) == 0)
+		    return 1;
+	    }
+	}
+    }
+
+    return 0;
+}
+
 /**
  * check if a user has access to a given functionality
  *
@@ -61,6 +101,10 @@ extern xmlnode greymatter__;
 int acl_check_access(xdbcache xdb, const char *function, const jid user) {
     jid allowed_users = NULL;
     jid iter = NULL;
+
+    /* first try if allowed by domain */
+    if (acl_check_access_domain(xdb, function, user))
+	return 1;
 
     /* get list of all allowed users */
     allowed_users = acl_get_users(xdb, function);

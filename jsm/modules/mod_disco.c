@@ -142,6 +142,18 @@ mreturn mod_disco_server_items(mapi m, void *arg) {
   for (cur = xmlnode_get_firstchild(browse); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
 	xmlnode item;
 	const char *jid,*name;
+	const char* acl=NULL;
+
+	if (cur->type != NTYPE_TAG)
+	    continue;
+
+	/* check if this element should be skipped because of ACLs */
+	acl = xmlnode_get_attrib_ns(cur, "if", NS_JABBERD_ACL);
+	if (acl != NULL && !acl_check_access(m->si->xc, acl, m->packet->from))
+	    continue;
+	acl = xmlnode_get_attrib_ns(cur, "ifnot", NS_JABBERD_ACL);
+	if (acl != NULL && acl_check_access(m->si->xc, acl, m->packet->from))
+	    continue;
 
 	jid = xmlnode_get_attrib_ns(cur, "jid", NULL);
 	if (!jid)
