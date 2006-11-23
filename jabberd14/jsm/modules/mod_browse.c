@@ -268,7 +268,24 @@ static mreturn _mod_browse_server(mapi m) {
     xmlnode_put_attrib_ns(query, "name", NULL, NULL, xmlnode_get_data(vcard_fn)); /* pull name from the server vCard */
 
     /* copy in the configured services */
-    xmlnode_insert_node(query,xmlnode_get_firstchild(browse));
+    for (x=xmlnode_get_firstchild(browse); x != NULL; x=xmlnode_get_nextsibling(x)) {
+	const char* acl = NULL;
+
+	/* only copy tags */
+	if (x->type != NTYPE_TAG)
+	    continue;
+
+	/* check if this element should be skipped because of ACLs */
+	acl = xmlnode_get_attrib_ns(x, "if", NS_JABBERD_ACL);
+	if (acl != NULL && !acl_check_access(m->si->xc, acl, m->packet->from))
+	    continue;
+	acl = xmlnode_get_attrib_ns(x, "ifnot", NS_JABBERD_ACL);
+	if (acl != NULL && acl_check_access(m->si->xc, acl, m->packet->from))
+	    continue;
+
+	/* copy the node */
+	xmlnode_insert_tag_node(query, x);
+    }
 
     jpacket_reset(m->packet);
     js_deliver(m->si,m->packet);
