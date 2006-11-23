@@ -1,3 +1,8 @@
+2006-11-23  Matthias Wimmer  <m@tthias.eu>
+    * jabberd/acl.c: support to add whole domains to a ACL
+    * jsm/modules/mod_disco.c: make discovery results ACL dependent
+    * jsm/modules/mod_browse.c: same
+
 2006-11-22  Matthias Wimmer  <m@tthias.eu>
 
     * jsm/modules/mod_ping.c: support for XEP-0199
