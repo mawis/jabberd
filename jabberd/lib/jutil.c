@@ -51,7 +51,7 @@
  *
  * @param type the type of the presence (one of the JPACKET__* contants)
  * @param to to whom the presence should be sent, NULL for a broadcast presence
- * @param status optional status (CDATA for the <status/> element, NULL for now <status/> element)
+ * @param status optional status (CDATA for the <status/> element, NULL for no <status/> element)
  * @return the xmlnode containing the created presence stanza
  */
 xmlnode jutil_presnew(int type, char *to, const char *status) {
