@@ -62,6 +62,8 @@ Changes in features visible to the user
     * SASL authentication is possible if jabberd14 is used together with
       jadc2s.
     * Support for XMPP Ping (XEP-0199)
+    * jabberd14 can localize the messages it sends to users to different
+      languages
 
 
 Version 1.4.4 - 2005-04-16
