@@ -1,4 +1,9 @@
-2006-11-26  Matthias Wimemr  <m@thias.eu>
+2006-11-27  Matthias Wimmer  <m@tthias.eu>
+
+    * jsm/modules/mod_xml.c: removed public storage, updated private storage
+    * jsm/jsm.c: same
+
+2006-11-26  Matthias Wimmer  <m@tthias.eu>
 
     * jabberd/lib/jabberdlib.h: fixing typo in namespace
 
