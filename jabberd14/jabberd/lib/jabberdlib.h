@@ -800,7 +800,7 @@ typedef struct xterror_struct
 #define NS_XMPP_PING "urn:xmpp:ping"
 
 #define NS_JABBERD_STOREDPRESENCE "http://jabberd.org/ns/storedpresence"
-#define NS_JABBERD_STOREDREQUEST "http://jabberd.org/ns/storedsubsciptionrequest"
+#define NS_JABBERD_STOREDREQUEST "http://jabberd.org/ns/storedsubscriptionrequest"
 #define NS_JABBERD_STOREDSTATE "http://jabberd.org/ns/storedstate"	/**< namespace to store internal state of jabberd */
 #define NS_JABBERD_HISTORY "http://jabberd.org/ns/history"
 #define NS_JABBERD_HASH "http://jabberd.org/ns/hash"			/**< namespace for storing xhash data */
