@@ -203,6 +203,7 @@ int main (int argc, const char** argv) {
 	printf("- logging to syslog\n");
 #endif
 	printf("\nDefault config file is: %s\n", CONFIG_DIR "/jabber.xml");
+	printf("Locales are in: %s\n", LOCALEDIR);
 	printf("\nFor more information please visit http://jabberd.org/\n");
 	printf("If you need support, check out http://jabberd.org/gettingSupport\n");
 	printf("\nNOTICE: With the next release of this software, this package\n");

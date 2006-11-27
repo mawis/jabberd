@@ -42,29 +42,18 @@
 
 /**
  * @file mod_xml.c
- * @brief handling jabber:iq:private (XEP-0049) requests as well as public storage (undocumented)
+ * @brief handling jabber:iq:private (XEP-0049) requests
  *
  * This module implements the storage of private data by a client on the server using the
  * jabber:iq:private namespace documented in XEP-0049.
  *
- * The module also implements the storage of data, that will be accessible by any entity on
- * the Jabber network and the handling of requests by other users to this data.
- *
- * Requests are only handled if the requests are neither in a namespace starting with "jabber:"
- * nor in the "vcard-temp" namespace (which have to be implemented by other modules.
- * 
- * @todo Can we really rely on the namespace prefix to see if we should handle a request? New protocols don't use jabber: namespaces
+ * The module also used to implement the storage of data, that had been accessible by any entity on
+ * the Jabber network and the handling of requests by other users to this data. But this has been
+ * dropped with jabberd14 1.6.0.
  */
 
 /**
  * callback that handles iq stanzas of the user itself (either set and get requests!)
- *
- * Store and retrieve public and private data by the user itself, but not data in the namespaces that start with 'jabber:' nor in
- * the 'vcard-temp' or 'http://jabberd.org/ns/storedpresence' namespaces.
- *
- * @todo Allow storage of 'jabber:' namespaces and the 'vcard-temp' namespace inside of private XML storage (XEP-0049 recommends this).
- * Not possible at present because we do not store the query element in the jabber:iq:private around the data in xdb and the user
- * would overwrite other stored data in this namespace.
  *
  * @param m the mapi structure
  * @param arg unused/ignored
@@ -73,63 +62,63 @@
 mreturn mod_xml_set(mapi m, void *arg) {
     xmlnode storedx, inx = m->packet->iq;
     const char *ns = xmlnode_get_namespace(m->packet->iq);
-    jid to = m->packet->to;
     int private = 0;
+    int got_result = 0;
     jpacket jp;
+    xmlnode_list_item result_item = NULL;
 
     if (m->packet->type != JPACKET_IQ)
 	return M_IGNORE;
 
-    /* check for a private request */
-    if (NSCHECK(m->packet->iq, NS_PRIVATE)) {
-        private = 1;
-	inx = xmlnode_get_firstchild(m->packet->iq);
-	while (inx != NULL && xmlnode_get_type(inx) != NTYPE_TAG)
-	    inx = xmlnode_get_nextsibling(inx);
-        ns = xmlnode_get_namespace(inx);
-        if (ns == NULL
-		|| strncmp(ns, "jabber:", 7) == 0
-		|| strcmp(ns,"vcard-temp") == 0
-		|| strcmp(ns, NS_XMPP_PING) == 0
-		|| strcmp(ns, NS_JABBERD_STOREDPRESENCE) == 0
-		|| strcmp(ns, NS_JABBERD_HISTORY) == 0) {
-	    /* uhoh, can't use jabber: namespaces inside iq:private! */
-            jutil_error_xmpp(m->packet->x, (xterror){406, N_("Can't use jabber: namespaces inside iq:private"), "modify", "not-acceptable"});
-            js_session_to(m->s,m->packet);
-            return M_HANDLED;
-        }
-    } else if (j_strncmp(ns, "jabber:", 7) == 0
-	    || j_strcmp(ns, "vcard-temp") == 0
-	    || j_strcmp(ns, NS_XMPP_PING) == 0) {
-	/* can't set public xml jabber: namespaces either! */
+    /* to someone else? */
+    if (m->packet->to != NULL)
 	return M_PASS;
-    }
 
-    /* if its to someone other than ourselves */
-    if (to != NULL) {
+    /* we only handle requests in the jabber:iq:private namespace */
+    if (!NSCHECK(m->packet->iq, NS_PRIVATE))
 	return M_PASS;
-    } else {
-	/* no to implies to ourselves */
-	log_debug2(ZONE, LOGT_DELIVER, "handling user request %s", xmlnode_serialize_string(m->packet->iq, NULL, NULL, 0));
-        to = m->user->id;
-    }
 
-    switch(jpacket_subtype(m->packet)) {
+    private = 1;
+    inx = xmlnode_get_firstchild(m->packet->iq);
+    while (inx != NULL && (xmlnode_get_type(inx) != NTYPE_TAG || j_strcmp(xmlnode_get_namespace(inx), NS_PRIVATE) == 0 ))
+	inx = xmlnode_get_nextsibling(inx);
+    if (inx == NULL) {
+	jutil_error_xmpp(m->packet->x, (xterror){406, N_("The query element in the jabber:iq:private namespace needs a child element in another namespace."), "modify", "not-acceptable"});
+	js_session_to(m->s, m->packet);
+	return M_HANDLED;
+    }
+    ns = xmlnode_get_namespace(inx);
+
+    switch (jpacket_subtype(m->packet)) {
 	case JPACKET__GET:
-	    log_debug2(ZONE, LOGT_DELIVER|LOGT_STORAGE, "handling get request for %s",ns);
-	    xmlnode_put_attrib_ns(m->packet->x, "type", NULL, NULL, "result");
+	    log_debug2(ZONE, LOGT_DELIVER|LOGT_STORAGE, "handling get request for %s", ns);
 
-	    /* insert the chunk into the parent, that being either the iq:private container or the iq itself */
-	    if ((storedx = xdb_get(m->si->xc, to, ns)) != NULL) {
-		if (private) /* hack, ick! */
-		    xmlnode_hide_attrib_ns(storedx, "j_private_flag", NULL);
-		xmlnode_insert_tag_node(xmlnode_get_parent(inx), storedx);
-		xmlnode_hide(inx);
+	    /* get the stored data */
+	    storedx = xdb_get(m->si->xc, m->user->id, NS_PRIVATE);
+
+	    /* get the relevant items */
+	    for (result_item = xmlnode_get_tags(storedx, spools(m->packet->p, "private:query[@jabberd:ns='", ns, "']", m->packet->p), m->si->std_namespace_prefixes); result_item != NULL; result_item = result_item->next) {
+		if (!got_result) {
+		    got_result = 1;
+		    /* prepare result */
+		    jutil_iqresult(m->packet->x);
+		}
+		log_debug2(ZONE, LOGT_STORAGE, "found node: %s", xmlnode_serialize_string(result_item->node, NULL, NULL, 0));
+		xmlnode_hide_attrib_ns(result_item->node, "ns", NS_JABBERD_WRAPPER);
+		xmlnode_insert_tag_node(m->packet->x, result_item->node);
 	    }
 
-	    /* send to the user */
-	    jpacket_reset(m->packet);
-	    js_session_to(m->s,m->packet);
+	    /* found something? */
+	    if (!got_result) {
+		/* no => return error */
+		js_bounce_xmpp(m->si, m->packet->x, XTERROR_NOTFOUND);
+	    } else {
+		/* yes => return result */
+		jpacket_reset(m->packet);
+		js_session_to(m->s,m->packet);
+	    }
+
+	    /* free the result */
 	    xmlnode_free(storedx);
 
 	    break;
@@ -138,35 +127,12 @@ mreturn mod_xml_set(mapi m, void *arg) {
 	    log_debug2(ZONE, LOGT_DELIVER|LOGT_STORAGE, "handling set request for %s with data %s", ns, xmlnode_serialize_string(inx, NULL, NULL, 0));
 
 	    /* save the changes */
-	    if (private) /* hack, ick! */
-		xmlnode_put_attrib_ns(inx, "j_private_flag", NULL, NULL, "1");
-	    if (xdb_set(m->si->xc, to, ns, inx))
-		jutil_error_xmpp(m->packet->x,XTERROR_UNAVAIL);
-	    else
-		jutil_iqresult(m->packet->x);
+	    xmlnode_put_attrib_ns(m->packet->iq, "ns", "jabberd", NS_JABBERD_WRAPPER, ns);
+	    if (xdb_act_path(m->si->xc, m->user->id, NS_PRIVATE, "insert", spools(m->packet->p, "private:query[@jabberd:ns='", ns, "']", m->packet->p), m->si->std_namespace_prefixes, m->packet->iq))
+		jutil_error_xmpp(m->packet->x, XTERROR_UNAVAIL);
 
-	    /* insert the namespace on the list */
-	    storedx = xmlnode_new_tag_ns("ns", NULL, NS_XDBNSLIST);
-	    xmlnode_insert_cdata(storedx, ns, -1);
-	    if(private)
-		xmlnode_put_attrib_ns(storedx, "type", NULL, NULL, "private");
-	    xdb_act(m->si->xc, to, NS_XDBNSLIST, "insert", spools(m->packet->p,"ns=",ns,m->packet->p), storedx); /* match and replace any existing namespaces already listed */
-	    xmlnode_free(storedx);
-
-	    /* if it's to a resource that isn't browseable yet, fix that */
-	    if (to->resource != NULL) {
-		if ((storedx = xdb_get(m->si->xc, to, NS_BROWSE)) == NULL) {
-		    /* send an iq set w/ a generic browse item for this resource */
-		    jp = jpacket_new(jutil_iqnew(JPACKET__SET, NS_BROWSE));
-		    storedx = xmlnode_insert_tag_ns(jp->iq, "item", NULL, NS_BROWSE);
-		    xmlnode_put_attrib_ns(storedx, "jid", NULL, NULL, jid_full(to));
-		    js_session_from(m->s, jp);
-		} else {
-		    xmlnode_free(storedx);
-		}
-	    }
-
-	    /* send to the user */
+	    /* build result and send back */
+	    jutil_iqresult(m->packet->x);
 	    jpacket_reset(m->packet);
 	    js_session_to(m->s,m->packet);
 
@@ -176,62 +142,6 @@ mreturn mod_xml_set(mapi m, void *arg) {
 	    return M_PASS;
     }
 
-    return M_HANDLED;
-}
-
-/**
- * callback that handles iq stanzas from other users (either set and get requests)
- *
- * Requests in namespaces starting with "jabber:" and in the "vcard-temp" and "http://jabberd.org/ns/storedpresence"
- * namespaces are not handled, set-requests in other namespaces are explicitly rejected, get-requests are replied with information
- * stored in the user's xdb data if the data is not marked with a j_private_flag attribute of any value.
- *
- * @param m the mapi strcture
- * @param arg unused/ignored
- * @return M_IGNORED if it is no iq stanza, M_PASS if the stanza has not been handled, M_HANDLED if the stanza has been handled
- */
-mreturn mod_xml_get(mapi m, void *arg) {
-    xmlnode xns;
-    const char *ns = xmlnode_get_namespace(m->packet->iq);
-
-    if (m->packet->type != JPACKET_IQ)
-	return M_IGNORE;
-    if (j_strncmp(ns,"jabber:",7) == 0
-	    || j_strcmp(ns, "vcard-temp") == 0
-	    || j_strcmp(ns, NS_XMPP_PING) == 0
-	    || j_strcmp(ns, NS_JABBERD_STOREDPRESENCE) == 0
-	    || j_strcmp(ns, NS_JABBERD_HISTORY) == 0)
-	return M_PASS; /* only handle alternate namespaces */
-
-    /* first, is this a valid request? */
-    switch (jpacket_subtype(m->packet)) {
-	case JPACKET__RESULT:
-	case JPACKET__ERROR:
-	    return M_PASS;
-	case JPACKET__SET:
-	    js_bounce_xmpp(m->si,m->packet->x,XTERROR_FORBIDDEN);
-	    return M_HANDLED;
-    }
-
-    log_debug2(ZONE, LOGT_DELIVER|LOGT_STORAGE, "handling %s request for user %s",ns,jid_full(m->packet->to));
-
-    /* get the foreign namespace */
-    xns = xdb_get(m->si->xc, m->packet->to, ns);
-
-    if (xmlnode_get_attrib_ns(xns, "j_private_flag", NULL) != NULL) {
-	/* uhoh, set from a private namespace */
-        js_bounce_xmpp(m->si,m->packet->x,XTERROR_FORBIDDEN);
-	xmlnode_free(xns);
-        return M_HANDLED;
-    }
-
-    /* reply to the request w/ any data */
-    jutil_iqresult(m->packet->x);
-    jpacket_reset(m->packet);
-    xmlnode_insert_tag_node(m->packet->x,xns);
-    js_deliver(m->si,m->packet);
-
-    xmlnode_free(xns);
     return M_HANDLED;
 }
 
@@ -264,8 +174,6 @@ mreturn mod_xml_delete(mapi m, void *arg) {
 /**
  * init the mod_xml module by registering callbacks
  *
- * mod_xml_get will handle requests from other users
- *
  * mod_xml_session will register the mod_xml_set callback to process
  * requests from the user itself when the user starts a new session
  *
@@ -274,6 +182,5 @@ mreturn mod_xml_delete(mapi m, void *arg) {
 void mod_xml(jsmi si) {
     js_mapi_register(si, e_SESSION, mod_xml_session, NULL);
     js_mapi_register(si, e_DESERIALIZE, mod_xml_session, NULL);
-    js_mapi_register(si, e_OFFLINE, mod_xml_get, NULL);
     js_mapi_register(si, e_DELETE, mod_xml_delete, NULL);
 }
