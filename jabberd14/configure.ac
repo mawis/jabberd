@@ -390,6 +390,9 @@ fi
 dnl define where the configuration file is located
 AC_DEFINE_DIR(CONFIG_DIR,sysconfdir,[where the configuration file can be found])
 
+dnl define where the locales can be found
+AC_DEFINE_UNQUOTED(LOCALEDIR, "${prefix}/${DATADIRNAME}/locale", [Name of gettext locale directory])
+
 dnl Create the makefiles
 AC_OUTPUT(Makefile \
 	  jabberd/Makefile \
