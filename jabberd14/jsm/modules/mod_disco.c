@@ -273,6 +273,7 @@ mreturn mod_disco_user_info(mapi m) {
     xmlnode x = NULL;
     xmlnode vcard = NULL;
     xmlnode_list_item vcard_fn = NULL;
+    int is_admin = 0;
 
     if (jpacket_subtype(m->packet) == JPACKET__SET) {
 	js_bounce_xmpp(m->si, m->packet->x, XTERROR_NOTALLOWED);
@@ -286,16 +287,17 @@ mreturn mod_disco_user_info(mapi m) {
     jutil_iqresult(m->packet->x);
     m->packet->iq = xmlnode_insert_tag_ns(m->packet->x, "query", NULL, NS_DISCO_INFO);
 
+    is_admin = acl_check_access(m->si->xc, "showasadmin", m->packet->to);
     x = xmlnode_insert_tag_ns(m->packet->iq, "identity", NULL, NS_DISCO_INFO);
     xmlnode_put_attrib_ns(x, "category", NULL, NULL, "account");
-    xmlnode_put_attrib_ns(x, "type", NULL, NULL, acl_check_access(m->si->xc, "showasadmin", m->packet->to) ? "admin" : "registered");
+    xmlnode_put_attrib_ns(x, "type", NULL, NULL, is_admin ? "admin" : "registered");
 
     vcard = xdb_get(m->si->xc, m->user->id, NS_VCARD);
     vcard_fn = xmlnode_get_tags(vcard, "vcard:FN", m->si->std_namespace_prefixes);
     if (vcard_fn != NULL) {
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, xmlnode_get_data(vcard_fn->node));
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, is_admin ? spools(m->packet->p, xmlnode_get_data(vcard_fn->node), messages_get(xmlnode_get_lang(m->packet->x), N_(" (administrator)")), m->packet->p) : xmlnode_get_data(vcard_fn->node));
     } else {
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(xmlnode_get_lang(m->packet->x), N_("User")));
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(xmlnode_get_lang(m->packet->x), is_admin ? N_("Administrator") : N_("User")));
     }
 
     if (vcard != NULL) {
