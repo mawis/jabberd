@@ -1132,6 +1132,9 @@
 	  <grant feature='adminmsg'>
 	      <jid>xmpp@localhost</jid>
 	  </grant>
+	  <grant feature='showasadmin'>
+	      <jid>administrator@localhost</jid>
+	  </grant>
 	  <grant feature='localusers'>
 	      <domain>example.com</domain>
 	      <domain>example.net</domain>
