@@ -1,6 +1,6 @@
 2006-11-29  Matthias Wimmer  <m@tthias.eu>
 
-    * jsm/modules/mod_disco.c: service discovery for user JIDs
+    * jsm/modules/mod_disco.c: service discovery for user JIDs, show admins
     * jsm/modules/mod_ping.c: correct ping support after jsm restart
 
 2006-11-27  Matthias Wimmer  <m@tthias.eu>
