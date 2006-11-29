@@ -210,6 +210,131 @@ mreturn mod_disco_server(mapi m, void *arg) {
 }
 
 /**
+ * This function handles a disco items request to a user's JID
+ *
+ * @param m the mapi structure containing the request
+ * @return M_PASS if the request has not been processed, M_HANDLED if the request has been handled
+ */
+mreturn mod_disco_user_items(mapi m) {
+    xmlnode x = NULL;
+    session s = NULL;
+
+    if (jpacket_subtype(m->packet) == JPACKET__SET) {
+	js_bounce_xmpp(m->si, m->packet->x, XTERROR_NOTALLOWED);
+	return M_HANDLED;
+    }
+    if (jpacket_subtype(m->packet) != JPACKET__GET) {
+	return M_PASS;
+    }
+
+    /* make result */
+    jutil_iqresult(m->packet->x);
+    m->packet->iq = xmlnode_insert_tag_ns(m->packet->x, "query", NULL, NS_DISCO_INFO);
+
+    if (js_trust(m->user, m->packet->from)) {
+        for (s = m->user->sessions; s != NULL; s = s->next) {
+            /* if(s->priority < 0) continue; *** include all resources I guess */
+            if (xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, spools(m->packet->p,"*[@jid='",jid_full(s->id), "']'", m->packet->p), m->si->std_namespace_prefixes), 0) != NULL)
+		continue; /* already in the browse result */
+            x = xmlnode_insert_tag_ns(m->packet->iq, "item", NULL, NS_BROWSE);
+            xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(s->id));
+        }
+    }
+
+    /* deliver and return */
+    jpacket_reset(m->packet);
+    js_deliver(m->si, m->packet);
+    return M_HANDLED;
+}
+
+/**
+ * This function handles a disco info request to a user's JID
+ *
+ * @param m the mapi structure containing the request
+ * @return M_PASS if the request has not been processed, M_HANDLED if the request has been handled
+ */
+mreturn mod_disco_user_info(mapi m) {
+    xmlnode x = NULL;
+    xmlnode vcard = NULL;
+    xmlnode_list_item vcard_fn = NULL;
+
+    if (jpacket_subtype(m->packet) == JPACKET__SET) {
+	js_bounce_xmpp(m->si, m->packet->x, XTERROR_NOTALLOWED);
+	return M_HANDLED;
+    }
+    if (jpacket_subtype(m->packet) != JPACKET__GET) {
+	return M_PASS;
+    }
+
+    /* make result */
+    jutil_iqresult(m->packet->x);
+    m->packet->iq = xmlnode_insert_tag_ns(m->packet->x, "query", NULL, NS_DISCO_INFO);
+
+    x = xmlnode_insert_tag_ns(m->packet->iq, "identity", NULL, NS_DISCO_INFO);
+    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "account");
+    xmlnode_put_attrib_ns(x, "type", NULL, NULL, acl_check_access(m->si->xc, "showasadmin", m->packet->to) ? "admin" : "registered");
+
+    vcard = xdb_get(m->si->xc, m->user->id, NS_VCARD);
+    vcard_fn = xmlnode_get_tags(vcard, "vcard:FN", m->si->std_namespace_prefixes);
+    if (vcard_fn != NULL) {
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, xmlnode_get_data(vcard_fn->node));
+    } else {
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(xmlnode_get_lang(m->packet->x), N_("User")));
+    }
+
+    if (vcard != NULL) {
+	x = xmlnode_insert_tag_ns(m->packet->iq, "feature", NULL, NS_DISCO_INFO);
+	xmlnode_put_attrib_ns(x, "var", NULL, NULL, NS_VCARD);
+    }
+
+    x = xmlnode_insert_tag_ns(m->packet->iq, "feature", NULL, NS_DISCO_INFO);
+    xmlnode_put_attrib_ns(x, "var", NULL, NULL, NS_XMPP_PING);
+
+    x = xmlnode_insert_tag_ns(m->packet->iq, "feature", NULL, NS_DISCO_INFO);
+    xmlnode_put_attrib_ns(x, "var", NULL, NULL, NS_BROWSE);
+
+    if (js_trust(m->user, m->packet->from)) {
+	x = xmlnode_insert_tag_ns(m->packet->iq, "feature", NULL, NS_DISCO_INFO);
+	xmlnode_put_attrib_ns(x, "var", NULL, NULL, NS_LAST);
+    }
+
+    /* free memory */
+    if (vcard != NULL) {
+	xmlnode_free(vcard);
+	vcard = NULL;
+    }
+
+    /* deliver and return */
+    jpacket_reset(m->packet);
+    js_deliver(m->si, m->packet);
+    return M_HANDLED;
+}
+
+/**
+ * This callback handles iq stanzas sent to a user's address.
+ *
+ * Everything but iq stanzas are ignored.
+ * Processing of queries in the namespace http://jabber.org/protocol/disco#items are delegated to mod_disco_user_items.
+ * Processing of queries in the namespace http://jabber.org/protocol/disco#info are delegated to mod_disco_user_info.
+ * No other namespaces are processed.
+ *
+ * @param m the mapi structure containing the request
+ * @param arg unused/ignored
+ * @return M_IGNORE if it is no iq stanza, M_PASS if the packet has not been processed, M_HANDLED if the packet has been processed
+ */
+mreturn mod_disco_user(mapi m, void *arg) {
+    if (m->packet->type != JPACKET_IQ)
+	return M_IGNORE;
+    if (m->packet->to->resource != NULL)
+	return M_PASS;
+    if (NSCHECK(m->packet->iq, NS_DISCO_ITEMS))
+	return mod_disco_user_items(m);
+    if (NSCHECK(m->packet->iq, NS_DISCO_INFO))
+	return mod_disco_user_info(m);
+    return M_PASS;
+}
+
+/**
  * init the mod_disco module in the session manager
  *
  * register a callback for stanzas sent to the server's address
@@ -218,4 +343,5 @@ mreturn mod_disco_server(mapi m, void *arg) {
  */
 void mod_disco(jsmi si) {
     js_mapi_register(si, e_SERVER, mod_disco_server, NULL);
+    js_mapi_register(si, e_OFFLINE, mod_disco_user, NULL);
 }
