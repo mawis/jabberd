@@ -125,6 +125,8 @@ mreturn mod_disco_server_info(mapi m, void *arg) {
  */
 mreturn mod_disco_server_items(mapi m, void *arg) {
   xmlnode browse, query, cur;
+  jid admins = NULL;
+  jid admin_iter = NULL;
   
   if ((xmlnode_get_attrib_ns(m->packet->iq, "node", NULL)) != NULL)
       return M_PASS;
@@ -174,6 +176,20 @@ mreturn mod_disco_server_items(mapi m, void *arg) {
     xmlnode_put_attrib_ns(item, "name", NULL, NULL, "Online Users");
     xmlnode_put_attrib_ns(item, "node", NULL, NULL, "online users");
   }
+
+  /* list administrators */
+  admins = acl_get_users(m->si->xc, "showasadmin");
+  for (admin_iter = admins; admin_iter != NULL; admin_iter = admin_iter->next) {
+      xmlnode item = NULL;
+      item = xmlnode_insert_tag_ns(query, "item", NULL, NS_DISCO_ITEMS);
+      xmlnode_put_attrib_ns(item, "jid", NULL, NULL, jid_full(admin_iter));
+      xmlnode_put_attrib_ns(item, "name", NULL, NULL, messages_get(xmlnode_get_lang(m->packet->x), N_("Administrator")));
+  }
+  if (admins != NULL) {
+      pool_free(admins->p);
+      admins = NULL;
+  }
+
 
   jpacket_reset(m->packet);
   js_deliver(m->si,m->packet);

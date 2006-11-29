@@ -234,6 +234,10 @@ mreturn mod_admin_message(mapi m, void *arg) {
 	xmlnode_put_attrib_ns(p->x, "to", NULL, NULL, jid_full(p->to));
 	js_deliver(m->si, p);
     }
+    if (admins != NULL) {
+	pool_free(admins->p);
+	admins = NULL;
+    }
 
     /* reply, but only if we haven't in the last few or so jids */
     reply = js_config(m->si, "jsm:admin/reply");
