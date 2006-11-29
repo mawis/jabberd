@@ -189,5 +189,6 @@ static mreturn mod_ping_deliver(mapi m, void *arg) {
 void mod_ping(jsmi si) {
     js_mapi_register(si, e_SERVER, mod_ping_server, NULL);
     js_mapi_register(si, e_SESSION, mod_ping_session, NULL);
+    js_mapi_register(si, e_DESERIALIZE, mod_ping_session, NULL);
     js_mapi_register(si, e_DELIVER, mod_ping_deliver, NULL);
 }
