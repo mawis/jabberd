@@ -52,10 +52,13 @@
  * generate an error packet, that bounces a packet back to the server
  *
  * @param si the session manger instance
+ * @param s the session this bounce is related to (for selecting the right filters), NULL if not related to any session
  * @param x the xmlnode for which the bounce packet should be generated
  * @param xterr the reason for the bounce
  */
-void js_bounce_xmpp(jsmi si, xmlnode x, xterror xterr) {
+void js_bounce_xmpp(jsmi si, session s, xmlnode x, xterror xterr) {
+    jpacket result_packet = NULL;
+
     /* if the node is a subscription */
     if (j_strcmp(xmlnode_get_localname(x), "presence") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_SERVER) == 0 && j_strcmp(xmlnode_get_attrib(x,"type"),"subscribe") == 0) {
         /* turn the node into a result tag. it's a hack, but it get's the job done */
@@ -64,7 +67,10 @@ void js_bounce_xmpp(jsmi si, xmlnode x, xterror xterr) {
         xmlnode_insert_cdata(xmlnode_insert_tag_ns(x, "status", NULL, NS_SERVER), xterr.msg, -1);
 
         /* deliver it back to the client */
-        js_deliver(si, jpacket_new(x));
+	result_packet = jpacket_new(x);
+	if (result_packet != NULL)
+	    result_packet->flag = PACKET_PASS_FILTERS_MAGIC;
+        js_deliver(si, result_packet, s);
         return;
 
     }
@@ -78,8 +84,10 @@ void js_bounce_xmpp(jsmi si, xmlnode x, xterror xterr) {
 
     /* if it's neither of these, make an error message an deliver it */
     jutil_error_xmpp(x, xterr);
-    js_deliver(si, jpacket_new(x));
-
+    result_packet = jpacket_new(x);
+    if (result_packet != NULL)
+	result_packet->flag = PACKET_PASS_FILTERS_MAGIC;
+    js_deliver(si, result_packet, s);
 }
 
 /**

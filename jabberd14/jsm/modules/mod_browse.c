@@ -128,14 +128,14 @@ static mreturn mod_browse_set(mapi m, void *arg) {
 
     /* get the id of the new browse item */
     if ((cur = xmlnode_get_firstchild(m->packet->iq)) == NULL || (id = jid_new(m->packet->p, xmlnode_get_attrib_ns(cur, "jid", NULL))) == NULL) {
-        js_bounce_xmpp(m->si, m->packet->x, XTERROR_NOTACCEPTABLE);
+        js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_NOTACCEPTABLE);
         return M_HANDLED;
     }
 
     /* insert the new item into the resource it was sent to */
     xmlnode_hide_attrib_ns(cur, "xmlns", NS_XMLNS); /* just in case, to make sure it inserts */
     if (xdb_act_path(m->si->xc, to, NS_BROWSE, "insert", spools(m->packet->p, "*[@jid='", jid_full(id), "']", m->packet->p), m->si->std_namespace_prefixes, cur)) {
-        js_bounce_xmpp(m->si, m->packet->x, XTERROR_UNAVAIL);
+        js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_UNAVAIL);
         return M_HANDLED;
     }
         
@@ -196,7 +196,7 @@ static mreturn mod_browse_reply(mapi m, void *arg) {
 	case JPACKET__ERROR:
 	    return M_PASS;
 	case JPACKET__SET:
-	    js_bounce_xmpp(m->si, m->packet->x, XTERROR_NOTALLOWED);
+	    js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_NOTALLOWED);
 	    return M_HANDLED;
     }
 
@@ -227,7 +227,7 @@ static mreturn mod_browse_reply(mapi m, void *arg) {
     jutil_iqresult(m->packet->x);
     jpacket_reset(m->packet);
     xmlnode_insert_tag_node(m->packet->x,browse);
-    js_deliver(m->si,m->packet);
+    js_deliver(m->si, m->packet, m->s);
 
     xmlnode_free(browse);
     return M_HANDLED;
@@ -288,7 +288,7 @@ static mreturn _mod_browse_server(mapi m) {
     }
 
     jpacket_reset(m->packet);
-    js_deliver(m->si,m->packet);
+    js_deliver(m->si,m->packet, m->s);
 
     xmlnode_free(browse);
     xmlnode_free(vcard_fn);

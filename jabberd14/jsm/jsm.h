@@ -343,8 +343,36 @@ typedef int event;
   */
 #define e_PASSWORDCHANGE 11
 
+/**
+ * e_FILTER_IN is called for incoming stanzas, that are handled by a session.
+ * It is used to filter stanzas before they are delivered to the e_OFFLINE
+ * event.
+ *
+ * The called module gets passed the ::jpacket_struct (stanza) and the ::udata_struct (user data),
+ * but gets passed no ::session_struct as there is no such session.
+ */
+#define e_FILTER_IN 12
+
+/**
+ * e_FILTER_OUT is called for outgoing stanzas, that are not sent by a specific
+ * session of a user. It is used to filter stanzas before they are sent out.
+ *
+ * The called module gets passed the ::jpacket_struct (stanza) and the ::udata_struct (user data)
+ * of the sending user, but gets passed no ::session_struct.
+ */
+#define e_FILTER_OUT 13
+
+/**
+ * e_ROSTERCHANGE is called when the roster of a user has changed.
+ *
+ * The called module gets passed the ::jpacket_struct containing the updated item inside a
+ * iq[@type='set']/roster:query, the ::udata_struct (user data) of the user owning the
+ * roster, but gets passed no ::session_struct.
+ */
+#define e_ROSTERCHANGE 14
+
 /* always add new event types here, to maintain backwards binary compatibility */
-#define e_LAST     12  /**< flag for the highest event type*/
+#define e_LAST     15  /**< flag for the highest event type*/
 
 /* session event types */
 
@@ -401,9 +429,40 @@ typedef int event;
  */
 #define es_SERIALIZE 3
 
+/**
+ * es_FILTER_IN is the mapi event, that is fired for incoming messages, that
+ * will get delivered to a session afterwards
+ *
+ * If the es_FILTER_IN handlers are all PASSing, the event is then sent to the
+ * es_IN event queue.
+ *
+ * The handler is passed the ::udata_struct of the destination user, the
+ * ::jpacket_struct containing the stanza, and the ::session_struct for the
+ * correct user's session.
+ *
+ * As all es_ events, the es_IN event has to be registered for a session using
+ * the js_mapi_session() call.
+ */
+#define es_FILTER_IN 4
+
+/**
+ * es_FILTER_OUT is the mapi event, that is fired for outgoing messages, send
+ * by a user's session
+ *
+ * If the es_FILTER_OUT handlers are all PASSing, the packet is sent out.
+ * If one handler returns M_HANDLED, the packet is not further processed.
+ *
+ * The handler gets passed the ::udata_struct of the sending user, the
+ * ::jpacket_struct containing the stanza, and the ::session_struct for the
+ * sending user's session.
+ *
+ * As all es_ events, the es_FILTER_OUT event has to be registered for a session
+ * using the js_mapi_session() call.
+ */
+#define es_FILTER_OUT 5
 
 /* always add new event types here, to maintain backwards binary compatibility */
-#define es_LAST    4  /**< flag for the highest session event type */
+#define es_LAST    6  /**< flag for the highest session event type */
 
 /* admin user account flags */
 #define ADMIN_MOTD	"motd"		/**< admin right to set/update/delete the message of the day */
@@ -492,6 +551,7 @@ struct udata_struct
     /* this variable is not used at all => removed
     struct udata_struct *next;
     */
+    xht aux_data;		/**< additional data stored by modules */
 };
 
 xmlnode js_config(jsmi si, char *query);
@@ -499,7 +559,7 @@ xmlnode js_config(jsmi si, char *query);
 udata js_user(jsmi si, jid id, xht ht);
 int js_user_create(jsmi si, jid id);
 int js_user_delete(jsmi si, jid id);
-void js_deliver(jsmi si, jpacket p);
+void js_deliver(jsmi si, jpacket p, session sending_s);
 
 
 /** structure that holds the data for a single session of a user */
@@ -528,6 +588,8 @@ struct session_struct {
     char *sc_c2s;	/**< the identifier for the session on c2s if session control protocol is used */
     char *sc_sm;	/**< the identifier for the session on the session manager if session control protocol is used */
 
+    xht aux_data;	/**< hash where modules can store additional data for a session (data stored in this hash has to be freed by the module */
+
     struct session_struct *next; /**< pointer to the next list element of sessions, NULL for the last entry */
 };
 
@@ -537,6 +599,9 @@ struct session_struct {
 /** this value is set as a flag to a jpacket for a subscription state change, that should be sent out in any case */
 #define PACKET_FORCE_SENT_MAGIC 1836017748
 
+/** this value is set as a flag to a jpacket for a locally generated error stanza to pass privacy lists */
+#define PACKET_PASS_FILTERS_MAGIC 20060704
+
 session js_session_new(jsmi si, dpacket p);
 session js_sc_session_new(jsmi si, dpacket p, xmlnode sc_session);
 void js_session_end(session s, char *reason);
@@ -544,6 +609,7 @@ session js_session_get(udata user, char *res);
 session js_session_primary(udata user);
 void js_session_to(session s, jpacket p);
 void js_session_from(session s, jpacket p);
+void js_session_free_aux_data(void* arg);
 
 void js_server_main(void *arg);
 void js_offline_main(void *arg);
@@ -557,7 +623,7 @@ typedef struct jpq_struct {
 
 void js_psend(jsmi si, jpacket p, mtq_callback f); /* sends p to a function */
 
-void js_bounce_xmpp(jsmi si, xmlnode x, xterror xterr); /* logic to bounce packets w/o looping, eats x and delivers error */
+void js_bounce_xmpp(jsmi si, session s, xmlnode x, xterror xterr); /* logic to bounce packets w/o looping, eats x and delivers error */
 
 void js_mapi_register(jsmi si, event e, mcall c, void *arg);
 void js_mapi_session(event e, session s, mcall c, void *arg);

@@ -111,7 +111,7 @@ mreturn mod_xml_set(mapi m, void *arg) {
 	    /* found something? */
 	    if (!got_result) {
 		/* no => return error */
-		js_bounce_xmpp(m->si, m->packet->x, XTERROR_NOTFOUND);
+		js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_NOTFOUND);
 	    } else {
 		/* yes => return result */
 		jpacket_reset(m->packet);

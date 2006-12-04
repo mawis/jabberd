@@ -170,7 +170,7 @@ static int _js_mapi_process_additional_result(mapi m) {
 
     /* yes: create packet and send */
     jpacket_reset(m->additional_result);
-    js_deliver(m->si, m->additional_result);
+    js_deliver(m->si, m->additional_result, m->s);
     return 1;
 }
 
@@ -179,7 +179,7 @@ static int _js_mapi_process_additional_result(mapi m) {
  *
  * Addes callbacks to the ignore mask for a given packet type if they return M_IGNORE.
  *
- * @param si the session manager instance data
+ * @param si the session manager instance data (MUST be NULL for a es_* event)
  * @param e call the modules for which event type
  * @param packet the packet being processed, may be NULL
  * @param user the user data for the current session (or the sender for e_SERVER if it is local), may be NULL

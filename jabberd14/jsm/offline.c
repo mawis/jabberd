@@ -61,9 +61,13 @@ void js_offline_main(void *arg) {
     /* debug message */
     log_debug2(ZONE, LOGT_DELIVER, "THREAD:OFFLINE received %s's packet: %s", jid_full(user->id), xmlnode_serialize_string(q->p->x, NULL, NULL, 0));
 
-    /* let the modules handle the packet */
-    if(!js_mapi_call(q->si, e_OFFLINE, q->p, user, NULL))
-        js_bounce_xmpp(q->si,q->p->x,XTERROR_RECIPIENTUNAVAIL);
+    /* let the filters check the packet */
+    if (q->p->flag == PACKET_PASS_FILTERS_MAGIC || !js_mapi_call(q->si, e_FILTER_IN, q->p, user, NULL)) {
+	/* let the modules handle the packet */
+	if(!js_mapi_call(q->si, e_OFFLINE, q->p, user, NULL)) {
+	    js_bounce_xmpp(q->si, NULL, q->p->x, XTERROR_RECIPIENTUNAVAIL);
+	}
+    }
 
     /* it can be cleaned up now */
     user->ref--;

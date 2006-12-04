@@ -107,7 +107,7 @@ mreturn mod_example_server(mapi m, void *arg) {
 
     /* reset the packet and deliver it again */
     jpacket_reset(m->packet);
-    js_deliver(m->si,m->packet);
+    js_deliver(m->si, m->packet, m->s);
 
     /* we handled the packet */
     return M_HANDLED;

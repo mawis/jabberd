@@ -208,6 +208,7 @@ void jsm(instance i, xmlnode x) {
     xhash_put(si->std_namespace_prefixes, "state", NS_JABBERD_STOREDSTATE);
     xhash_put(si->std_namespace_prefixes, "xoob", NS_XOOB);
     xhash_put(si->std_namespace_prefixes, "private", NS_PRIVATE);
+    xhash_put(si->std_namespace_prefixes, "privacy", NS_PRIVACY);
     xhash_put(si->std_namespace_prefixes, "jabberd", NS_JABBERD_WRAPPER);
     si->xc = xdb_cache(i); /* getting xdb_* handle and fetching config */
     config = js_config(si, NULL);

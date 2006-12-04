@@ -14,12 +14,8 @@
  * JOSL.
  *
  * Copyrights
- * 
- * Portions created by or assigned to Jabber.com, Inc. are 
- * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
- * information for Jabber.com, Inc. is available at http://www.jabber.com/.
  *
- * Portions Copyright (c) 1998-1999 Jeremie Miller.
+ * (C) 2006 Matthias Wimmer
  * 
  * Acknowledgements
  * 
@@ -83,7 +79,7 @@ static mreturn mod_ping_server_ping(mapi m) {
     /* build the result IQ */
     jutil_iqresult(m->packet->x);
     jpacket_reset(m->packet);
-    js_deliver(m->si, m->packet);
+    js_deliver(m->si, m->packet, NULL);
 
     return M_HANDLED;
 }
@@ -143,7 +139,7 @@ static mreturn mod_ping_out(mapi m, void *arg) {
 
     jutil_iqresult(m->packet->x);
     jpacket_reset(m->packet);
-    js_deliver(m->si, m->packet);
+    js_deliver(m->si, m->packet, m->s);
 
     return M_HANDLED;
 }
@@ -176,7 +172,7 @@ static mreturn mod_ping_deliver(mapi m, void *arg) {
 
     jutil_iqresult(m->packet->x);
     jpacket_reset(m->packet);
-    js_deliver(m->si, m->packet);
+    js_deliver(m->si, m->packet, m->s);
 
     return M_HANDLED;
 }

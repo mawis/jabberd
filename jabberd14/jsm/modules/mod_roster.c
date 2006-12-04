@@ -119,11 +119,15 @@ void mod_roster_push(udata user, xmlnode item) {
     xmlnode_hide_attrib_ns(xmlnode_get_firstchild(query), "subscribe", NULL); /* hide the server tirds */
 
     /* send a copy to all session that have a roster */
-    for(cur = user->sessions; cur != NULL; cur = cur->next)
-        if (cur->roster)
+    for(cur = user->sessions; cur != NULL; cur = cur->next) {
+        if (cur->roster) {
             js_session_to(cur, jpacket_new(xmlnode_dup(packet)));
+	}
+    }
 
-    xmlnode_free(packet);
+    /* fire event to notify about changed roster */
+    if (!js_mapi_call(user->si, e_ROSTERCHANGE, jpacket_new(packet), user, NULL))
+	xmlnode_free(packet);
 }
 
 /**
@@ -602,9 +606,9 @@ mreturn mod_roster_s10n(mapi m, void *arg) {
 
     /* these are delayed until after we check the roster back in, avoid rancid race conditions */
     if (reply != NULL)
-	js_deliver(m->si,jpacket_new(reply));
+	js_deliver(m->si, jpacket_new(reply), m->s);
     if (reply2 != NULL)
-	js_deliver(m->si,jpacket_new(reply2));
+	js_deliver(m->si, jpacket_new(reply2), m->s);
 
     /* find primary session */
     top = js_session_primary(m->user);
@@ -670,14 +674,14 @@ mreturn mod_roster_delete(mapi m, void *arg) {
 	    xmlnode_put_attrib_ns(pp, "from", NULL, NULL, jid_full(m->user->id));
 	    jp = jpacket_new(pp);
 	    jp->flag = PACKET_FORCE_SENT_MAGIC; /* we are removing the roster, sent anyway */
-	    js_deliver(m->si, jp);
+	    js_deliver(m->si, jp, m->s);
 	}
 	if (unsubscribed) {
 	    xmlnode pp = jutil_presnew(JPACKET__UNSUBSCRIBED, jid_full(peer), NULL);
 	    xmlnode_put_attrib_ns(pp, "from", NULL, NULL, jid_full(m->user->id));
 	    jp = jpacket_new(pp);
 	    jp->flag = PACKET_FORCE_SENT_MAGIC; /* we are removing the roster, sent anyway */
-	    js_deliver(m->si, jp);
+	    js_deliver(m->si, jp, m->s);
 	}
     }
     xmlnode_free(roster);
