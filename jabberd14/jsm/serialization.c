@@ -214,6 +214,11 @@ static void _jsm_deserialize_session(jsmi si, const jid user_jid, const char *re
     s = pmalloco(p, sizeof(struct session_struct));
     s->p = p;
     s->si = si;
+
+    /* create aux_data hash */
+    s->aux_data = xhash_new(17);
+    pool_cleanup(s->p, js_session_free_aux_data, s);
+
     s->id = jid_new(p, jid_full(user_jid));
     jid_set(s->id, resource, JID_RESOURCE);
     s->res = s->id->resource;

@@ -780,6 +780,7 @@ typedef struct xterror_struct
 #define NS_LAST      "jabber:iq:last"
 #define NS_ENVELOPE  "jabber:x:envelope"
 #define NS_EXPIRE    "jabber:x:expire"
+#define NS_PRIVACY   "jabber:iq:privacy"
 #define NS_XHTML     "http://www.w3.org/1999/xhtml"
 #define NS_DISCO_INFO "http://jabber.org/protocol/disco#info"
 #define NS_DISCO_ITEMS "http://jabber.org/protocol/disco#items"

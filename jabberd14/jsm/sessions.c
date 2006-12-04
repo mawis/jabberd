@@ -133,6 +133,21 @@ static void _js_create_session_id(char resultbuffer[9], xht existing_sessions) {
 }
 
 /**
+ * delete the aux hash if a session structure is freed
+ */
+void js_session_free_aux_data(void* arg) {
+    session s = (session)arg;
+
+    if (s == NULL)
+	return;
+
+    if (s->aux_data != NULL) {
+	xhash_free(s->aux_data);
+	s->aux_data = NULL;
+    }
+}
+
+/**
  * create a new session, register the resource for it (initiated by the old c2s-sm-protocol)
  *
  * Sets up all the data associated with a new session, then
@@ -160,6 +175,10 @@ session js_session_new(jsmi si, dpacket dp) {
     s = pmalloco(p, sizeof(struct session_struct));
     s->p = p;
     s->si = si;
+
+    /* create aux_data hash */
+    s->aux_data = xhash_new(17);
+    pool_cleanup(s->p, js_session_free_aux_data, s);
 
     /* save authorative remote session id */
     s->sid = jid_new(p, xmlnode_get_attrib_ns(dp->x, "from", NULL));
@@ -257,6 +276,11 @@ session js_sc_session_new(jsmi si, dpacket dp, xmlnode sc_session) {
     s = pmalloco(p, sizeof(struct session_struct));
     s->p = p;
     s->si = si;
+
+    /* create aux_data hash */
+    s->aux_data = xhash_new(17);
+    pool_cleanup(s->p, js_session_free_aux_data, s);
+
     s->id = user_id;
     s->res = user_id->resource;
     s->u = u;
@@ -479,7 +503,7 @@ void _js_session_from(void *arg) {
     }
 
     /* pass these to the general delivery function */
-    js_deliver(s->si, p);
+    js_deliver(s->si, p, s);
 
 }
 
@@ -506,7 +530,7 @@ void _js_session_to(void *arg)
     if(s->exit_flag) {
         /* ... and the packet is a message */
         if(p->type == JPACKET_MESSAGE)
-            js_deliver(s->si, p);
+            js_deliver(s->si, p, s);
         else /* otherwise send it to oblivion */
             xmlnode_free(p->x);
         return;
@@ -518,6 +542,10 @@ void _js_session_to(void *arg)
     /* increment packet in count */
     s->c_in++;
 
+    /* let the filters check the packet */
+    if (p->flag != PACKET_PASS_FILTERS_MAGIC && js_mapi_call(NULL, es_FILTER_IN, p, s->u, s))
+	return;
+
     /* let the modules have their heyday */
     if(js_mapi_call(NULL, es_IN, p, s->u, s))
         return;
@@ -527,7 +555,7 @@ void _js_session_to(void *arg)
     {
         /* deliver that packet if it was a message, and sk'daddle */
         if(p->type == JPACKET_MESSAGE)
-            js_deliver(s->si, p);
+            js_deliver(s->si, p, s);
         else
             xmlnode_free(p->x);
         return;

@@ -71,7 +71,7 @@ static mreturn _mod_time_reply(mapi m) {
 
     /* first, is this a valid request? */
     if (jpacket_subtype(m->packet) != JPACKET__GET) {
-        js_bounce_xmpp(m->si,m->packet->x,XTERROR_NOTALLOWED);
+        js_bounce_xmpp(m->si, m->s, m->packet->x,XTERROR_NOTALLOWED);
         return M_HANDLED;
     }
 
@@ -97,7 +97,7 @@ static mreturn _mod_time_reply(mapi m) {
     xmlnode_insert_cdata(xmlnode_insert_tag_ns(m->packet->iq, "tz", NULL, NS_TIME), tzname[0], -1);
 #endif
 
-    js_deliver(m->si,m->packet);
+    js_deliver(m->si, m->packet, m->s);
 
     return M_HANDLED;
 }

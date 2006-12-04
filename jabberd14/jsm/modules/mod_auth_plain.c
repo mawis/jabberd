@@ -162,7 +162,7 @@ static mreturn mod_auth_plain_pwchange(mapi m, void *arg) {
 
     /* tuck away for a rainy day */
     if (mod_auth_plain_reset(m, id, pass)) {
-        js_bounce_xmpp(m->si, m->packet->x, XTERROR_STORAGE_FAILED);
+        js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_STORAGE_FAILED);
         return M_HANDLED;
     }
 

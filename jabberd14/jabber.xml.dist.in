@@ -405,6 +405,7 @@
 
     <load main="jsm">
       <jsm>@libdir@/libjabberdsm.so</jsm>
+      <mod_privacy>@libdir@/libjabberdsm.so</mod_privacy>
       <mod_stat>@libdir@/libjabberdsm.so</mod_stat>
       <mod_echo>@libdir@/libjabberdsm.so</mod_echo>
       <mod_roster>@libdir@/libjabberdsm.so</mod_roster>

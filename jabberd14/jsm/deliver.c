@@ -62,7 +62,7 @@
  * @param p the packet to deliver
  * @param ht the hash table containing the users of the relevant host
  */
-void js_deliver_local(jsmi si, jpacket p, xht ht) {
+static void js_deliver_local(jsmi si, jpacket p, xht ht) {
     int incremented = 0;
     udata user = NULL;
     session s = NULL;
@@ -99,6 +99,15 @@ void js_deliver_local(jsmi si, jpacket p, xht ht) {
 
     /* the packet has neither been handled by the e_DELIVER modules nor was for the server */
 
+    /* if the stanza is a message, we reroute to the top session, if we have no session yet */
+    if (p->type == JPACKET_MESSAGE && user != NULL && s == NULL) {
+	session top = js_session_primary(user);
+
+	if (top != NULL && top->priority >= 0) {
+	    s = top;
+	}
+    }
+
     if(s != NULL) {
 	/* it's sent right to the resource */
         js_session_to(s, p);
@@ -128,7 +137,7 @@ void js_deliver_local(jsmi si, jpacket p, xht ht) {
 	xmlnode_put_attrib_ns(presence_unsubscribed, "from", NULL, NULL, jid_full(jid_user(p->to)));
 	jp = jpacket_new(presence_unsubscribed);
 	jp->flag = PACKET_FORCE_SENT_MAGIC;
-	js_deliver(si, jp);
+	js_deliver(si, jp, NULL);
 
 	log_notice(si->i->id, "got presence probe from '%s' for non-existant user '%s' => sent unsubscribed", jid_full(p->from), jid_full(p->to));
     } else if (p->type == JPACKET_PRESENCE && jpacket_subtype(p) != JPACKET__ERROR && jpacket_subtype(p) != JPACKET__UNAVAILABLE) {
@@ -138,13 +147,13 @@ void js_deliver_local(jsmi si, jpacket p, xht ht) {
 	xmlnode_put_attrib_ns(presence_unsubscribe, "from", NULL, NULL, jid_full(jid_user(p->to)));
 	jp = jpacket_new(presence_unsubscribe);
 	jp->flag = PACKET_FORCE_SENT_MAGIC;
-	js_deliver(si, jp);
+	js_deliver(si, jp, NULL);
 
 	log_notice(si->i->id, "got presence from '%s' for non-existant user '%s' => sent unsubscribe", jid_full(p->from), jid_full(p->to));
     }
 
     /* no user, so bounce the packet */
-    js_bounce_xmpp(si,p->x,XTERROR_NOTFOUND);
+    js_bounce_xmpp(si, NULL, p->x, XTERROR_NOTFOUND);
 }
 
 /**
@@ -538,14 +547,17 @@ result js_packet(instance i, dpacket p, void *arg) {
  * @note any jpacket sent to deliver *MUST* match jpacket_new(p->x),
  * jpacket is simply a convenience wrapper
  * 
+ * @param si the session manager instance this is called in
+ * @param p the packet to deliver
+ * @param sending_s the sending session of the packet (used to select the correct outgoing filter), NULL if packet is not related to a session
  */
-void js_deliver(jsmi si, jpacket p) {
+void js_deliver(jsmi si, jpacket p, session sending_s) {
     xht ht;		/* hashtable containing the users of the relevant host */
 
     /* does it have a destination address? */
     if (p->to == NULL) {
         log_warn(NULL, "jsm: Invalid Recipient, returning data %s", xmlnode_serialize_string(p->x, NULL, NULL, 0));
-        js_bounce_xmpp(si,p->x,XTERROR_BAD);
+        js_bounce_xmpp(si, sending_s, p->x, XTERROR_BAD);
         return;
     }
 
@@ -555,6 +567,26 @@ void js_deliver(jsmi si, jpacket p) {
         xmlnode_free(p->x);
         return;
     }
+
+    /* do we have to pass it through the outgoing filters? */
+
+    /* only filter if packet is from a user, and if the packet is not to the user himself */
+    if (p->flag != PACKET_PASS_FILTERS_MAGIC && p->from->user != NULL && jid_cmpx(p->to, p->from, JID_USER|JID_SERVER) != 0) {
+	/* filter through a session's filter? */
+	if (sending_s != NULL) {
+	    if (js_mapi_call(NULL, es_FILTER_OUT, p, sending_s->u, sending_s)) {
+		return; /* blocked by a filter module */
+	    }
+	} else {
+	    /* sending through offline filter */
+	    udata sending_user = js_user(si, p->from, NULL);
+
+	    if (js_mapi_call(si, e_FILTER_OUT, p, sending_user, NULL)) {
+		return; /* blocked by a filter module */
+	    }
+	}
+    }
+
 
     log_debug2(ZONE, LOGT_DELIVER, "deliver(to[%s],from[%s],type[%d],packet[%s])", jid_full(p->to), jid_full(p->from), p->type, xmlnode_serialize_string(p->x, NULL, NULL, 0));
 
