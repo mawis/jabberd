@@ -1,3 +1,38 @@
+2006-12-04  Matthias Wimmer  <m@tthias.eu>
+
+    * jsm/modules/mod_privacy: implement privacy lists (XEP-0016)
+    * jsm/jsm.h: same
+    * jsm/users.c: same
+    * jsm/offline.c: same
+    * jsm/server.c: same
+    * jsm/sessions.c: same
+    * jsm/modules/mod_vcard.c: same
+    * jsm/modules/mod_auth_digest.c: same
+    * jsm/modules/mod_xml.c: same
+    * jsm/modules/mod_disco.c: same
+    * jsm/modules/mod_browse.c: same
+    * jsm/modules/mod_last.c: same
+    * jsm/modules/mod_presence.c: same
+    * jsm/modules/mod_announce.c: same
+    * jsm/modules/mod_echo.c: same
+    * jsm/modules/mod_roster.c: same
+    * jsm/modules/mod_agents.c: same
+    * jsm/modules/mod_offline.c: same
+    * jsm/modules/mod_auth_crypt.c: same
+    * jsm/modules/mod_auth_plain.c: same
+    * jsm/modules/mod_register.c: same
+    * jsm/modules/mod_version.c: same
+    * jsm/modules/mod_admin.c: same
+    * jsm/modules/mod_example.c: same
+    * jsm/modules/mod_ping.c: same
+    * jsm/modules/mod_time.c: same
+    * jsm/modules.c: same
+    * jsm/jsm.c: same
+    * jsm/deliver.c: same
+    * jsm/serialization.c: same
+    * jsm/util.c: same
+    * jabberd/lib/jabberdlib.h: same
+
 2006-11-29  Matthias Wimmer  <m@tthias.eu>
 
     * jsm/modules/mod_disco.c: service discovery for user JIDs, show admins

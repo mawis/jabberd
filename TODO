@@ -1,8 +1,13 @@
 after jabberd 1.6.0
 ===================
 
-- privacy lists successor (XEP-0016?)
 - SASL c2s without jadc2s add-on (XMPP)
+- Session manager clustering
+- Service discovery on all components
+- Pinging users, that are inactive for a long time
+
+- remove dependancy on libpth
+- true dynamic config
 
 - fix cygwin build
 - allow <jabberd:include/> in configuration to include directories
@@ -13,54 +18,3 @@ after jabberd 1.6.0
 - other xdb modules (ldap, bdbxml)
 - remove global variables
 - change threading library
-
->>>>>>>> old TODO follows >>>>>>>>
-
-===================================
-Testing
-===================================
-dialback
-user browsing
-vcard+jud+server-vcard
-last + unavail pres
-registration & unreg + welcome
-browse editing
-agent[s]
-iq:private
-public xml + ns
-filter + ns
-offline msg event
-all auth
-log record
-base accept/connect
-base exec/stdout
-jabberd ns/logtype filtering
-get_tag("foo=bar")
-xdb errors
-static
-admin + config edit
-announce/motd
-groups
-roster bookmarks
-
-
-===================================
-Post-1.4
-===================================
-
-farming: meshing and hashed jid distribution
-c2s socket ioctl tweaks, r/w buffers, reduce data loss, shorten timeouts
-
-
-=====================================================
-2.0+ (jabberd 2.0 is something completely different!)
-=====================================================
-
-pthreads
-poll
-custom xml parser and smarter xmlnodes
-new hash-based filtering and event registration jsm module api
-config: register a command description like apache?
-admin/snmp across all components
-true dynamic config
-smarter failure handling and detection (component keepalive?)

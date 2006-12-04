@@ -64,6 +64,7 @@ Changes in features visible to the user
     * Support for XMPP Ping (XEP-0199)
     * jabberd14 can localize the messages it sends to users to different
       languages
+    * Support for Privacy Lists (RFC3921 and XEP-0016)
 
 
 Version 1.4.4 - 2005-04-16

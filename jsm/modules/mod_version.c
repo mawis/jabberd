@@ -84,7 +84,7 @@ static mreturn _mod_version_reply(mapi m, mod_version_i mi) {
 
     /* first, is this a valid request? */
     if (jpacket_subtype(m->packet) != JPACKET__GET) {
-        js_bounce_xmpp(m->si, m->packet->x, XTERROR_NOTALLOWED);
+        js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_NOTALLOWED);
         return M_HANDLED;
     }
 
@@ -97,7 +97,7 @@ static mreturn _mod_version_reply(mapi m, mod_version_i mi) {
     xmlnode_insert_cdata(xmlnode_insert_tag_ns(m->packet->iq, "version", NULL, NS_VERSION), mi->version, j_strlen(mi->version));
     xmlnode_insert_cdata(xmlnode_insert_tag_ns(m->packet->iq, "os", NULL, NS_VERSION), mi->os, j_strlen(mi->os));
     
-    js_deliver(m->si,m->packet);
+    js_deliver(m->si, m->packet, NULL);
 
     return M_HANDLED;
 }

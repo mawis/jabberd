@@ -74,7 +74,7 @@ mreturn mod_vcard_jud(mapi m) {
         xmlnode_insert_cdata(xmlnode_insert_tag_ns(regq, "last", NULL, NS_REGISTER), xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(vcard, "vcard:N/vcard:FAMILY", m->si->std_namespace_prefixes) ,0)),-1);
         xmlnode_insert_cdata(xmlnode_insert_tag_ns(regq, "nick", NULL, NS_REGISTER), xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(vcard, "vcard:NICKNAME", m->si->std_namespace_prefixes) ,0)),-1);
         xmlnode_insert_cdata(xmlnode_insert_tag_ns(regq, "email", NULL, NS_REGISTER), xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(vcard, "vcard:EMAIL", m->si->std_namespace_prefixes) ,0)),-1);
-        js_deliver(m->si,jpacket_new(reg));
+        js_deliver(m->si, jpacket_new(reg), NULL);
     }
 
     xmlnode_free(m->packet->x);
@@ -194,7 +194,7 @@ mreturn mod_vcard_reply(mapi m, void *arg) {
 	case JPACKET__ERROR:
 	    return M_PASS;
 	case JPACKET__SET:
-	    js_bounce_xmpp(m->si, m->packet->x, XTERROR_NOTALLOWED);
+	    js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_NOTALLOWED);
 	    return M_HANDLED;
     }
 
@@ -207,7 +207,7 @@ mreturn mod_vcard_reply(mapi m, void *arg) {
     jutil_iqresult(m->packet->x);
     jpacket_reset(m->packet);
     xmlnode_insert_tag_node(m->packet->x,vcard);
-    js_deliver(m->si,m->packet);
+    js_deliver(m->si, m->packet, m->s);
 
     xmlnode_free(vcard);
     return M_HANDLED;
@@ -255,7 +255,7 @@ mreturn mod_vcard_server(mapi m, void *arg) {
     jutil_iqresult(m->packet->x);
     query = xmlnode_insert_tag_node(m->packet->x,vcard);
     jpacket_reset(m->packet);
-    js_deliver(m->si,m->packet);
+    js_deliver(m->si, m->packet, NULL);
 
     xmlnode_fre(vcard);
     return M_HANDLED;
