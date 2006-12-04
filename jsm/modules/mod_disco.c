@@ -192,7 +192,7 @@ mreturn mod_disco_server_items(mapi m, void *arg) {
 
 
   jpacket_reset(m->packet);
-  js_deliver(m->si,m->packet);
+  js_deliver(m->si, m->packet, NULL);
 
   xmlnode_free(browse);
   
@@ -236,7 +236,7 @@ mreturn mod_disco_user_items(mapi m) {
     session s = NULL;
 
     if (jpacket_subtype(m->packet) == JPACKET__SET) {
-	js_bounce_xmpp(m->si, m->packet->x, XTERROR_NOTALLOWED);
+	js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_NOTALLOWED);
 	return M_HANDLED;
     }
     if (jpacket_subtype(m->packet) != JPACKET__GET) {
@@ -259,7 +259,7 @@ mreturn mod_disco_user_items(mapi m) {
 
     /* deliver and return */
     jpacket_reset(m->packet);
-    js_deliver(m->si, m->packet);
+    js_deliver(m->si, m->packet, m->s);
     return M_HANDLED;
 }
 
@@ -276,7 +276,7 @@ mreturn mod_disco_user_info(mapi m) {
     int is_admin = 0;
 
     if (jpacket_subtype(m->packet) == JPACKET__SET) {
-	js_bounce_xmpp(m->si, m->packet->x, XTERROR_NOTALLOWED);
+	js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_NOTALLOWED);
 	return M_HANDLED;
     }
     if (jpacket_subtype(m->packet) != JPACKET__GET) {
@@ -324,7 +324,7 @@ mreturn mod_disco_user_info(mapi m) {
 
     /* deliver and return */
     jpacket_reset(m->packet);
-    js_deliver(m->si, m->packet);
+    js_deliver(m->si, m->packet, m->s);
     return M_HANDLED;
 }
 

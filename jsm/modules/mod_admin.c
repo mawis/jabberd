@@ -119,7 +119,7 @@ static void _mod_admin_disco_online_items(jsmi si, jpacket p) {
 
     /* send back */
     jpacket_reset(p);
-    js_deliver(si, p);
+    js_deliver(si, p, NULL);
 }
 
 /**
@@ -140,7 +140,7 @@ static void _mod_admin_disco_online_info(jsmi si, jpacket p) {
 
     /* send back */
     jpacket_reset(p);
-    js_deliver(si, p);
+    js_deliver(si, p, NULL);
 }
 
 /**
@@ -167,7 +167,7 @@ mreturn mod_admin_dispatch(mapi m, void *arg) {
 	if (acl_check_access(m->si->xc, ADMIN_LISTSESSIONS, m->packet->from))
 	    _mod_admin_disco_online_info(m->si, m->packet);
 	else
-	    js_bounce_xmpp(m->si, m->packet->x, XTERROR_NOTALLOWED);
+	    js_bounce_xmpp(m->si, NULL, m->packet->x, XTERROR_NOTALLOWED);
 	return M_HANDLED;
     }
     if (NSCHECK(m->packet->iq, NS_DISCO_ITEMS) && j_strcmp(xmlnode_get_attrib_ns(m->packet->iq, "node", NULL), "online users") == 0 && jpacket_subtype(m->packet) == JPACKET__GET) {
@@ -175,7 +175,7 @@ mreturn mod_admin_dispatch(mapi m, void *arg) {
 	if (acl_check_access(m->si->xc, ADMIN_LISTSESSIONS, m->packet->from))
 	    _mod_admin_disco_online_items(m->si, m->packet);
 	else
-	    js_bounce_xmpp(m->si, m->packet->x, XTERROR_NOTALLOWED);
+	    js_bounce_xmpp(m->si, NULL, m->packet->x, XTERROR_NOTALLOWED);
 	return M_HANDLED;
     }
 
@@ -232,7 +232,7 @@ mreturn mod_admin_message(mapi m, void *arg) {
 	p = jpacket_new(xmlnode_dup(m->packet->x));
 	p->to = jid_new(p->p, jid_full(admin_iter));
 	xmlnode_put_attrib_ns(p->x, "to", NULL, NULL, jid_full(p->to));
-	js_deliver(m->si, p);
+	js_deliver(m->si, p, NULL);
     }
     if (admins != NULL) {
 	pool_free(admins->p);
@@ -264,7 +264,7 @@ mreturn mod_admin_message(mapi m, void *arg) {
 
         jutil_tofrom(m->packet->x);
         jpacket_reset(m->packet);
-        js_deliver(m->si,m->packet);
+        js_deliver(m->si, m->packet, NULL);
     } else {
         xmlnode_free(m->packet->x);
     }

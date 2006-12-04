@@ -170,7 +170,7 @@ void _mod_presence_broadcast(session s, jid notify, xmlnode x, jid intersect) {
         s->c_out++;
         pres = xmlnode_dup(x);
         xmlnode_put_attrib_ns(pres, "to", NULL, NULL, jid_full(cur));
-        js_deliver(s->si,jpacket_new(pres));
+        js_deliver(s->si, jpacket_new(pres), s);
     }
 }
 
@@ -212,7 +212,7 @@ mreturn mod_presence_in(mapi m, void *arg) {
 		xmlnode_put_attrib_ns(presence_unsubscribed, "from", NULL, NULL, jid_full(m->packet->to));
 		jp = jpacket_new(presence_unsubscribed);
 		jp->flag = PACKET_FORCE_SENT_MAGIC;
-		js_deliver(m->si, jp);
+		js_deliver(m->si, jp, m->s);
 	    }
 
 	    /* XXX generate either <forbidden/> or <not-authorized/> error stanza (RFC 3921, 5.1.3) */
@@ -255,7 +255,7 @@ mreturn mod_presence_in(mapi m, void *arg) {
 	    xmlnode_put_attrib_ns(presence_unsubscribe, "from", NULL, NULL, jid_full(m->packet->to));
 	    jp = jpacket_new(presence_unsubscribe);
 	    jp->flag = PACKET_FORCE_SENT_MAGIC;
-	    js_deliver(m->si, jp);
+	    js_deliver(m->si, jp, m->s);
 	}
     }
 

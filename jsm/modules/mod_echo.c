@@ -78,7 +78,7 @@ mreturn mod_echo_reply(mapi m, void *arg) {
     xmlnode_put_attrib_ns(m->packet->x, "from", NULL, NULL, jid_full(m->packet->to));
     xmlnode_put_attrib_ns(m->packet->x, "to", NULL, NULL, jid_full(m->packet->from));
     jpacket_reset(m->packet);
-    js_deliver(m->si,m->packet);
+    js_deliver(m->si, m->packet, NULL);
 
     return M_HANDLED;
 }

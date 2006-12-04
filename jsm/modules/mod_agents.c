@@ -109,7 +109,7 @@ mreturn mod_agents_agents(mapi m) {
         xmlnode_put_attrib_ns(m->packet->x, "from", NULL, NULL, m->packet->from->server);
         js_session_to(m->s,m->packet);
     }else{
-        js_deliver(m->si,m->packet);
+        js_deliver(m->si, m->packet, NULL);
     }
 
     xmlnode_free(agents);
@@ -162,7 +162,7 @@ mreturn mod_agents_agent(mapi m) {
         xmlnode_put_attrib_ns(m->packet->x, "from", NULL, NULL, m->packet->from->server);
         js_session_to(m->s,m->packet);
     } else {
-        js_deliver(m->si,m->packet);
+        js_deliver(m->si, m->packet, NULL);
     }
 
     xmlnode_free(info);

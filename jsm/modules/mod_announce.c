@@ -192,7 +192,7 @@ mreturn mod_announce_dispatch(mapi m, void *arg) {
     }
 
     /* if he isn't, bounce the message */
-    js_bounce_xmpp(m->si, m->packet->x, XTERROR_NOTALLOWED);
+    js_bounce_xmpp(m->si, NULL, m->packet->x, XTERROR_NOTALLOWED);
     return M_HANDLED;
 }
 

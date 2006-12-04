@@ -103,10 +103,12 @@ mreturn mod_offline_message(mapi m, modoffline_conf conf) {
     char timestamp[25];
 
     /* if there's an existing session with a priority of at least 0, just give it to them */
+    /* moved this logic to jsm/deliver.c because of privacy list handling
     if ((top = js_session_primary(m->user)) != NULL && top->priority >= 0) {
         js_session_to(top,m->packet);
         return M_HANDLED;
     }
+    */
 
     /* look for event messages */
     for (cur = xmlnode_get_firstchild(m->packet->x); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
@@ -132,19 +134,19 @@ mreturn mod_offline_message(mapi m, modoffline_conf conf) {
     switch (jpacket_subtype(m->packet)) {
 	case JPACKET__CHAT:
 	    if (!conf->store_type_chat) {
-		js_bounce_xmpp(m->si, m->packet->x, XTERROR_RECIPIENTUNAVAIL);
+		js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_RECIPIENTUNAVAIL);
 		return M_HANDLED;
 	    }
 	    break;
 	case JPACKET__GROUPCHAT:
 	    if (!conf->store_type_groupchat) {
-		js_bounce_xmpp(m->si, m->packet->x, XTERROR_RECIPIENTUNAVAIL);
+		js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_RECIPIENTUNAVAIL);
 		return M_HANDLED;
 	    }
 	    break;
 	case JPACKET__HEADLINE:
 	    if (!conf->store_type_headline) {
-		js_bounce_xmpp(m->si, m->packet->x, XTERROR_RECIPIENTUNAVAIL);
+		js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_RECIPIENTUNAVAIL);
 		return M_HANDLED;
 	    }
 	    break;
@@ -157,7 +159,7 @@ mreturn mod_offline_message(mapi m, modoffline_conf conf) {
 	    break;
 	default:
 	    if (!conf->store_type_normal) {
-		js_bounce_xmpp(m->si, m->packet->x, XTERROR_RECIPIENTUNAVAIL);
+		js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_RECIPIENTUNAVAIL);
 		return M_HANDLED;
 	    }
 	    break;
@@ -189,7 +191,7 @@ mreturn mod_offline_message(mapi m, modoffline_conf conf) {
         /* fill it in and send it on */
         xmlnode_insert_tag_ns(cur, "offline", NULL, NS_EVENT);
         xmlnode_insert_cdata(xmlnode_insert_tag_ns(cur, "id", NULL, NS_EVENT), xmlnode_get_attrib_ns(m->packet->x, "id", NULL), -1);
-        js_deliver(m->si, jpacket_reset(m->packet));
+        js_deliver(m->si, jpacket_reset(m->packet), m->s);
     } else {
         xmlnode_free(m->packet->x);
     }
@@ -425,7 +427,7 @@ void mod_offline_out_get_message_list(mapi m) {
     }
     
     jpacket_reset(m->packet);
-    js_deliver(m->si,m->packet);
+    js_session_to(m->s, m->packet);
 
     if (offline_messages != NULL) {
 	xmlnode_free(offline_messages);
@@ -496,7 +498,7 @@ static void mod_offline_out_get_message_count(mapi m) {
     xmlnode_insert_cdata(xmlnode_insert_tag_ns(cur, "value", NULL, NS_DATA), msgcount, -1);
     
     jpacket_reset(m->packet);
-    js_deliver(m->si,m->packet);
+    js_session_to(m->s, m->packet);
 
     if (offline_messages != NULL) {
 	xmlnode_free(offline_messages);
@@ -544,7 +546,7 @@ void mod_offline_out_handle_query(mapi m) {
     /* confirm that we processed the request */
     jutil_iqresult(m->packet->x);
     jpacket_reset(m->packet);
-    js_deliver(m->si, m->packet);
+    js_session_to(m->s, m->packet);
 }
 
 /**
@@ -568,7 +570,7 @@ mreturn mod_offline_out_iq(mapi m, modoffline_session session_conf) {
 	    if (jpacket_subtype(m->packet) == JPACKET__GET) {
 		mod_offline_out_get_message_count(m);
 	    } else {
-		js_bounce_xmpp(m->si, m->packet->x, XTERROR_FORBIDDEN);
+		js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_FORBIDDEN);
 	    }
 	    return M_HANDLED;
 	}
@@ -583,7 +585,7 @@ mreturn mod_offline_out_iq(mapi m, modoffline_session session_conf) {
 	    if (jpacket_subtype(m->packet) == JPACKET__GET) {
 		mod_offline_out_get_message_list(m);
 	    } else {
-		js_bounce_xmpp(m->si, m->packet->x, XTERROR_FORBIDDEN);
+		js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_FORBIDDEN);
 	    }
 	    return M_HANDLED;
 	}

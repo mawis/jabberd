@@ -186,7 +186,7 @@ static mreturn mod_register_new(mapi m, void *arg) {
 
 		x = jutil_msgnew("chat", m->packet->to->server, "Registration Notice", spool_print(msg_body));
 		xmlnode_put_attrib_ns(x, "from", NULL, NULL, m->packet->to->server);
-		js_deliver(m->si,jpacket_new(x));
+		js_deliver(m->si, jpacket_new(x), m->s);
 	    }
 
 	    /* if also configured, send the new user a welcome message */
@@ -202,7 +202,7 @@ static mreturn mod_register_new(mapi m, void *arg) {
 		    xmlnode_put_attrib_ns(x, "lang", "xml", NS_XML, lang);
 		}
 		xmlnode_insert_node(x, xmlnode_get_firstchild(welcome));
-		js_deliver(m->si,jpacket_new(x));
+		js_deliver(m->si, jpacket_new(x), m->s);
 	    }
 	    xmlnode_free(welcome);
 	    welcome = NULL;
@@ -397,7 +397,7 @@ static mreturn _mod_register_server_register(mapi m) {
 		    if (nounregister_data != NULL) {
 			snprintf(err.msg, sizeof(err.msg), "%s", nounregister_data);
 		    }
-		    js_bounce_xmpp(m->si, m->packet->x, err);
+		    js_bounce_xmpp(m->si, m->s, m->packet->x, err);
 		    xmlnode_free(nounregister);
 		    xmlnode_free(reg);
 		    log_notice(m->user->id->server, "Denied unregistration to user %s", jid_full(m->user->id));
@@ -430,7 +430,7 @@ static mreturn _mod_register_server_register(mapi m) {
 			}
 
 			/* user tries to change his username */
-			js_bounce_xmpp(m->si, m->packet->x, XTERROR_NOTACCEPTABLE);
+			js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_NOTACCEPTABLE);
 			xmlnode_free(reg);
 			log_notice(m->user->id->server, "Denied update of username for %s to %s", jid_full(m->user->id), xmlnode_get_data(iter->node));
 			return M_HANDLED;
@@ -448,7 +448,7 @@ static mreturn _mod_register_server_register(mapi m) {
 
 		/* ensure, that there is exactly one username */
 		if (has_username > 1) {
-		    js_bounce_xmpp(m->si, m->packet->x, XTERROR_BAD);
+		    js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_BAD);
 		    xmlnode_free(reg);
 		    log_notice(m->user->id->server, "User %s sent registration data set request containing multiple usernames", jid_full(m->user->id));
 		    return M_HANDLED;
@@ -457,7 +457,7 @@ static mreturn _mod_register_server_register(mapi m) {
 
 		/* did we find anything useful? */
 		if (!is_passwordchange && only_passwordchange) {
-		    js_bounce_xmpp(m->si, m->packet->x, XTERROR_BAD);
+		    js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_BAD);
 		    xmlnode_free(reg);
 		    log_notice(m->user->id->server, "User %s sent incomplete registration data set request", jid_full(m->user->id));
 		    return M_HANDLED;
@@ -468,7 +468,7 @@ static mreturn _mod_register_server_register(mapi m) {
 		    log_debug2(ZONE, LOGT_ROSTER, "updating registration for %s",jid_full(m->user->id));
 
 		    if (mod_register_check(m, NULL) == M_HANDLED) {
-			js_deliver(m->si, jpacket_reset(m->packet));
+			js_deliver(m->si, jpacket_reset(m->packet), m->s);
 			xmlnode_free(reg);
 			return M_HANDLED;
 		    }
@@ -481,7 +481,7 @@ static mreturn _mod_register_server_register(mapi m) {
 			if (noregistrationchange_data != NULL) {
 			    snprintf(err.msg, sizeof(err.msg), "%s", noregistrationchange_data);
 			}
-			js_bounce_xmpp(m->si, m->packet->x, err);
+			js_bounce_xmpp(m->si, m->s, m->packet->x, err);
 			xmlnode_free(noregistrationchange);
 			xmlnode_free(reg);
 			log_notice(m->user->id->server, "Denied registration data change to user %s", jid_full(m->user->id));
@@ -498,7 +498,7 @@ static mreturn _mod_register_server_register(mapi m) {
 			if (nopasswordchange_data != NULL) {
 			    snprintf(err.msg, sizeof(err.msg), "%s", nopasswordchange_data);
 			}
-			js_bounce_xmpp(m->si, m->packet->x, err);
+			js_bounce_xmpp(m->si, m->s, m->packet->x, err);
 			xmlnode_free(nopasswordchange);
 			xmlnode_free(reg);
 			log_notice(m->user->id->server, "Denied password change to user %s", jid_full(m->user->id));
@@ -531,7 +531,7 @@ static mreturn _mod_register_server_register(mapi m) {
     }
 
     xmlnode_free(reg);
-    js_deliver(m->si, jpacket_reset(m->packet));
+    js_deliver(m->si, jpacket_reset(m->packet), m->s);
     return M_HANDLED;
 }
 

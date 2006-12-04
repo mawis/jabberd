@@ -127,6 +127,14 @@ result js_users_gc(void *arg)
 }
 
 
+void js_user_free_aux_data(void *arg) {
+    xht aux_data = (xht)arg;
+
+    if (aux_data == NULL)
+	return;
+
+    xhash_free(aux_data);
+}
 
 /**
  *  get the udata record for a user
@@ -189,6 +197,8 @@ udata js_user(jsmi si, jid id, xht ht) {
     newu = pmalloco(p, sizeof(_udata));
     newu->p = p;
     newu->si = si;
+    newu->aux_data = xhash_new(17);
+    pool_cleanup(p, js_user_free_aux_data, newu->aux_data);
     /* removing user from udata, id->user can be used instead
     newu->user = pstrdup(p, uid->user);
     */

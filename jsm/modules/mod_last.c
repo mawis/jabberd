@@ -80,7 +80,7 @@ static mreturn _mod_last_server_last(mapi m, time_t start) {
     snprintf(str, sizeof(str), "%d", (int)passed);
     xmlnode_put_attrib_ns(last, "seconds", NULL, NULL, str);
 
-    js_deliver(m->si,m->packet);
+    js_deliver(m->si,m->packet, NULL);
 
     return M_HANDLED;
 }
@@ -239,13 +239,13 @@ static mreturn mod_last_reply(mapi m, void *arg) {
 	case JPACKET__ERROR:
 	    return M_PASS;
 	case JPACKET__SET:
-	    js_bounce_xmpp(m->si,m->packet->x,XTERROR_NOTALLOWED);
+	    js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_NOTALLOWED);
 	    return M_HANDLED;
     }
 
     /* make sure they're in the roster */
     if (!js_trust(m->user,m->packet->from)) {
-        js_bounce_xmpp(m->si,m->packet->x,XTERROR_FORBIDDEN);
+        js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_FORBIDDEN);
         return M_HANDLED;
     }
 
@@ -263,7 +263,7 @@ static mreturn mod_last_reply(mapi m, void *arg) {
         xmlnode_put_attrib_ns(last, "seconds", NULL, NULL, str);
         xmlnode_insert_tag_node(m->packet->x,last);
     }
-    js_deliver(m->si,m->packet);
+    js_deliver(m->si,m->packet, m->s);
 
     xmlnode_free(last);
     return M_HANDLED;
