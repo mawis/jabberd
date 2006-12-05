@@ -1,3 +1,10 @@
+2006-12-05  Matthias Wimmer  <m@tthias.eu>
+
+    * jsm/modules/mod_roster.c: fireing the event that the roster changed
+	after roster has been stored, and passing the new roster along
+    * jsm/modules/mod_privacy.c: correct privacy list reload after roster
+    	changed
+
 2006-12-04  Matthias Wimmer  <m@tthias.eu>
 
     * jsm/modules/mod_privacy: implement privacy lists (XEP-0016)
