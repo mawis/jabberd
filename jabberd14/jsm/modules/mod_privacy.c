@@ -523,7 +523,9 @@ static int mod_privacy_activate_named(session s, const char* name) {
     if (s == NULL)
 	return 0;
 
-    /* get the default privacy list */
+    log_debug2(ZONE, LOGT_EXECFLOW, "mod_privacy_activate_named() for '%s' list '%s'", jid_full(s->id), name);
+
+    /* get all privacy lists and select the correct one */
     all_lists = xdb_get(s->si->xc, s->u->id, NS_PRIVACY);
     if (name == NULL) {
 	named_list = xmlnode_get_tags(all_lists, "*[@jabberd:default]", s->si->std_namespace_prefixes);
@@ -1219,32 +1221,24 @@ static mreturn mod_privacy_rosterchange(mapi m, void* arg) {
     if (m == NULL || m->user == NULL)
 	return M_PASS;
 
-    log_debug2(ZONE, LOGT_EXECFLOW, "received rosterchange event: %s", xmlnode_serialize_string(m->packet->x, NULL, NULL, 0));
-
-    /* get the roster item */
-    roster_item = xmlnode_get_tags(m->packet->iq, "roster:item[@jid]", m->si->std_namespace_prefixes);
-    if (roster_item == NULL) {
-	log_debug2(ZONE, LOGT_EXECFLOW, "cannot get changed jid");
-	return M_PASS;
-    }
-
-    /* get the JID that has been updated */
-    updated_jid = jid_new(m->packet->p, xmlnode_get_attrib_ns(roster_item->node, "jid", NULL));
-    if (updated_jid == NULL) {
-	log_debug2(ZONE, LOGT_EXECFLOW, "JID is not valid");
-	return M_PASS;
-    }
+    log_debug2(ZONE, LOGT_EXECFLOW, "received rosterchange event for user '%s'", jid_full(m->user->id));
 
     /* check if the default list has been loaded for offline delivery, and reload if yes */
     if (xhash_get(m->user->aux_data, "mod_privacy_lists_loaded")) {
+	log_debug2(ZONE, LOGT_EXECFLOW, "reloading default list for offline handling");
 	mod_privacy_load_offline_list(m->user);
     }
 
     /* reload the sessions' lists */
     for (cur = m->user->sessions; cur != NULL; cur = cur->next) {
 	const char* active_list = xhash_get(cur->aux_data, "mod_privacy_active");
-	if (active_list != NULL)
-	    mod_privacy_activate_named(m->s, active_list);
+
+	if (active_list != NULL) {
+	    log_debug2(ZONE, LOGT_EXECFLOW, "Reloading list '%s' for session '%s'", active_list, jid_full(cur->id));
+	    mod_privacy_activate_named(cur, active_list);
+	} else {
+	    log_debug2(ZONE, LOGT_EXECFLOW, "No active list for session '%s'", jid_full(cur->id));
+	}
     }
 
     return M_PASS;

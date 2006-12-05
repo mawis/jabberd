@@ -97,6 +97,19 @@ xmlnode mod_roster_get_item(xmlnode roster, jid id, int *newflag) {
 }
 
 /**
+ * notify modules that are interested in, that a roster has changed
+ *
+ */
+void mod_roster_changed(udata user, xmlnode roster) {
+    xmlnode iq = jutil_iqnew(JPACKET__SET, NULL);
+    xmlnode_insert_tag_node(iq, roster);
+
+    if (!js_mapi_call(user->si, e_ROSTERCHANGE, jpacket_new(iq), user, NULL)) {
+	xmlnode_free(iq);
+    }
+}
+
+/**
  * push a (changed) roster item to all sessions of a user
  *
  * @param user the user's data
@@ -125,9 +138,7 @@ void mod_roster_push(udata user, xmlnode item) {
 	}
     }
 
-    /* fire event to notify about changed roster */
-    if (!js_mapi_call(user->si, e_ROSTERCHANGE, jpacket_new(packet), user, NULL))
-	xmlnode_free(packet);
+    xmlnode_free(packet);
 }
 
 /**
@@ -175,6 +186,7 @@ mreturn mod_roster_out_s10n(mapi m) {
     xmlnode roster, item;
     int newflag=0, to=0, from=0, p_in=0, p_out=0, route=0, force_sent=0;
     jid curr;
+    int rosterchange = 0;
 
     /* the packet needs a destination */
     if (m->packet->to == NULL)
@@ -221,6 +233,7 @@ mreturn mod_roster_out_s10n(mapi m) {
 	    if (!to) {
 		/* no */
 		xmlnode_put_attrib_ns(item, "ask", NULL, NULL, "subscribe");
+		rosterchange = 1;
 		mod_roster_push(m->user, item);
 	    }
 	    /* always route the packet, the user might have rerequested auth
@@ -236,6 +249,7 @@ mreturn mod_roster_out_s10n(mapi m) {
 		xmlnode_hide_attrib_ns(item, "subscribe", NULL); /* reset "Pending In" */
 		xmlnode_hide_attrib_ns(item, "hidden", NULL); /* make it visible on the user's roster */
 		mod_roster_pforce(m->user, m->packet->to, 0); /* they are now subscribed to us, send them our presence */
+		rosterchange = 1;
 		mod_roster_push(m->user, item); /* new roster to the user's other sessions */
 
 		/* delete stored subscription request from xdb */
@@ -254,6 +268,7 @@ mreturn mod_roster_out_s10n(mapi m) {
 		 */
 		mod_roster_set_s10n(from, 0, item);
 		xmlnode_hide_attrib_ns(item, "ask", NULL); /* reset Pending Out */
+		rosterchange = 1;
 		mod_roster_push(m->user, item);
 		js_remove_seen(m->user, m->packet->to);
 	    } else if (newflag) {
@@ -280,6 +295,7 @@ mreturn mod_roster_out_s10n(mapi m) {
 		if (from) {
 		    mod_roster_set_s10n(0, to, item); /* update subscription */
 		    mod_roster_pforce(m->user, m->packet->to, 1); /* make us offline */
+		    rosterchange = 1;
 		    mod_roster_push(m->user, item);
 		} else if (force_sent) {
 		    mod_roster_pforce(m->user, m->packet->to, 1); /* make us offline */
@@ -296,6 +312,11 @@ mreturn mod_roster_out_s10n(mapi m) {
     /* save the roster */
     /* XXX what do we do if the set fails?  hrmf... */
     xdb_set(m->si->xc, m->user->id, NS_ROSTER, roster);
+
+    if (rosterchange) {
+	/* fire event to notify about changed roster */
+	mod_roster_changed(m->user, roster);
+    }
 
     /* make sure it's sent from the *user*, not the resource */
     xmlnode_put_attrib_ns(m->packet->x, "from", NULL, NULL, jid_full(jid_user(m->s->id)));
@@ -319,6 +340,7 @@ mreturn mod_roster_out_iq(mapi m) {
     int newflag;
     jid id;
     xmlnode_list_item iter = NULL;
+    int rosterchange = 0;
 
     if (!NSCHECK(m->packet->iq,NS_ROSTER)) return M_PASS;
 
@@ -401,6 +423,7 @@ mreturn mod_roster_out_iq(mapi m) {
 		    }
 
 		    /* push this remove out */
+		    rosterchange = 1;
 		    mod_roster_push(m->user,iter->node);
 		    continue;
 		}
@@ -412,6 +435,7 @@ mreturn mod_roster_out_iq(mapi m) {
 		xmlnode_insert_tag_node(roster,iter->node);
 
 		/* push the new item */
+		rosterchange = 1;
 		mod_roster_push(m->user,iter->node);
 	    }
 
@@ -429,6 +453,11 @@ mreturn mod_roster_out_iq(mapi m) {
 	default:
 	    /* JPACKET__RESULT: result from a roster push to the client */
 	    xmlnode_free(m->packet->x);
+    }
+
+    if (rosterchange) {
+	/* fire event to notify about changed roster */
+	mod_roster_changed(m->user, roster);
     }
 
     xmlnode_free(roster);
@@ -619,8 +648,12 @@ mreturn mod_roster_s10n(mapi m, void *arg) {
     else
 	xmlnode_free(m->packet->x);
 
-    if (push)
+    if (push) {
         mod_roster_push(m->user,item);
+
+	/* fire event to notify about changed roster */
+	mod_roster_changed(m->user, roster);
+    }
 
     xmlnode_free(roster);
     return M_HANDLED;
