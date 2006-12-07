@@ -1609,16 +1609,19 @@ int _client_io_read(mio_t m, int fd, conn_t c) {
 	case state_NONE:
 	case state_SASL:
 	    /* before the client is authorized, we tip-toe through the data to find the auth packets */
-	    while(c->state == state_NONE || c->state == state_SASL)
-	    {
+	    while (c->state == state_NONE || c->state == state_SASL) {
 		/* read data from the scoket taking care of the
 		 * security layers we put on the connection
 		 */
-		len = _read_actual(c, fd, buf, 10);
+		len = _read_actual(c, fd, buf, sizeof(buf));
 		/* process what has been read */
-		if((ret = conn_read(c, buf, len)) == 0) return 0;
+		if ((ret = conn_read(c, buf, len)) == 0) {
+		    return 0;
+		}
 		/* come back again if no more data */
-		if(ret == 2 || len < 10) return 1;
+		if (ret == 2 || (len < 10 && !c->ssl_continue_read)) {
+		    return 1;
+		}
 	    }
 	    return 0;
 	   

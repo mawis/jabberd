@@ -472,8 +472,9 @@ int conn_read(conn_t c, char *buf, int len)
     {
         log_debug(ZONE,"conn_read: errno(%d : %s)",errno,strerror(errno));
 
-        if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN)
+        if((errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN) && !c->ssl_continue_read) {
             return 2; /* flag that we're blocking now */
+	}
 	
         mio_close(c->c2s->mio, c->fd);
         return 0;
@@ -654,9 +655,14 @@ int _read_actual(conn_t c, int fd, char *buf, size_t count) {
     if(c->ssl != NULL)
     {
 	int ssl_init_finished = SSL_is_init_finished(c->ssl);
+	c->ssl_continue_read = 0;
 	bytes_read = SSL_read(c->ssl, buf, count);
-	if (bytes_read > 0)
+	if (bytes_read > 0) {
+	    if (bytes_read == count) {
+		c->ssl_continue_read = 1;
+	    }
 	    c->in_bytes += bytes_read;	/* XXX counting decrypted bytes */
+	}
 	if (!ssl_init_finished && SSL_is_init_finished(c->ssl))
 	    log_write(c->c2s->log, LOG_NOTICE, "ssl/tls established on fd %i: %s %s", c->fd, SSL_get_version(c->ssl), SSL_get_cipher(c->ssl));
 	if (bytes_read == 0)
