@@ -666,6 +666,7 @@ void _client_do_sasl_step(conn_t c, chunk_t chunk) {
     const char *server_out = NULL;
     unsigned server_out_len = 0;
     chunk_t response = NULL;
+    int now_authenticated = 0;
 
     /* received what we expected? */
     if (j_strncmp(NAD_ENAME(chunk->nad, 0), "response", NAD_ENAME_L(chunk->nad, 0)) != 0) {
@@ -698,7 +699,7 @@ void _client_do_sasl_step(conn_t c, chunk_t chunk) {
     }
 
     /* doing SASL authentication */
-    sasl_result = sasl_server_step(c->sasl_conn, client_response, client_response_len, &server_out, &server_out_len);
+    sasl_result = sasl_server_step(c->sasl_conn, client_response ? client_response : "", client_response_len, &server_out, &server_out_len);
     if (client_response != NULL) {
 	free(client_response);
 	client_response = NULL;
@@ -739,8 +740,9 @@ void _client_do_sasl_step(conn_t c, chunk_t chunk) {
 		/* XXX we should not check that here, if that fails, we should not return success and drop the connection */
 		if (sasl_result2 == SASL_OK) {
 		    log_write(c->c2s->log, LOG_NOTICE, "SASL authentication successfull for user %s on fd %i", sasl_username, c->fd);
+
 		    c->reset_stream = 1;
-		    c->sasl_state = state_auth_SASL_DONE;
+		    now_authenticated = 1;
 
 		    /* only username or username and realm? */
 		    if (sasl_username != NULL && strchr(sasl_username, '@') != NULL) {
@@ -758,13 +760,18 @@ void _client_do_sasl_step(conn_t c, chunk_t chunk) {
 		    /* did we get a valid JabberID? */
 		    if (c->authzid == NULL) {
 			/* no -> close connection */
+			log_write(c->c2s->log, LOG_WARNING, "Could not process username for authenticated user");
 			c->depth = -1;
 		    }
 		} else {
+		    log_write(c->c2s->log, LOG_WARNING, "Could not get username for authenticated user");
 		    c->depth = -1; /* internal error? flag to close the connection */
 		}
 	    }
 	    chunk_write(c, response, NULL, NULL, NULL);
+	    if (now_authenticated != 0) {
+		c->sasl_state = state_auth_SASL_DONE;
+	    }
 	    break;
 	case SASL_NOMECH:
 	    log_write(c->c2s->log, LOG_NOTICE, "SASL authentication failure: %s", sasl_errdetail(c->sasl_conn));

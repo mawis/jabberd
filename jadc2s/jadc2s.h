@@ -170,6 +170,10 @@ struct conn_st {
     				/**< SSL/TLS autodetection state */
 #endif
 
+    int eof;                    /**< if the connection has been closed by the peer (read returned 0) */
+    char* read_buffer;          /**< to keep data that has been read on the socket, but not returned by _read_actual yet */
+    size_t read_buffer_len;     /**< size of the data in the read_buffer */
+
     /* tracking the id for the conn or chunk */
     pool idp;			/**< memory pool for JIDs in this structure */
     char *sid;			/**< session id (used for some auth schemes */
