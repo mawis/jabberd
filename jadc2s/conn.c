@@ -95,6 +95,10 @@ conn_t conn_new(c2s_t c2s, int fd)
 void conn_free(conn_t c)
 {
     /* free allocated strings */
+    if (c->read_buffer != NULL) {
+	free(c->read_buffer);
+	c->read_buffer = NULL;
+    }
     if (c->sid != NULL) {
 	free(c->sid);
 	c->sid = NULL;
@@ -352,19 +356,14 @@ void chunk_write_typed(conn_t c, chunk_t chunk, const char *to, const char *from
 
 	    /* append or new data? */
 	    if (encoded_data == NULL) {
-		encoded_data = strdup(encoded_step_data);
+		encoded_data = malloc(encoded_step_len);
+		memcpy(encoded_data, encoded_step_data, encoded_step_len);
 		encoded_len = encoded_step_len;
 	    } else {
-		char *old_encoded_data = encoded_data;
-
-		/* to append we need a bigger buffer and append the new data in the new buffer */
-		encoded_data = (char*)malloc(encoded_len + encoded_step_len);
-		memcpy(encoded_data, old_encoded_data, encoded_len);
+		/* append */
+		encoded_data = realloc(encoded_data, encoded_len + encoded_step_len);
 		memcpy(encoded_data+encoded_len, encoded_step_data, encoded_step_len);
 		encoded_len += encoded_step_len;
-
-		/* free the old buffer that got to small */
-		free(old_encoded_data);
 	    }
 	}
 
@@ -457,11 +456,16 @@ int conn_read(conn_t c, char *buf, int len)
     log_debug(ZONE,"conn_read: len(%d)",len);
 
     /* client gone */
-    if(len == 0)
-    {
+    if (c->eof != 0) {
+	log_write(c->c2s->log, LOG_NOTICE, "Received EOF on fd %i", c->fd);
         mio_close(c->c2s->mio, c->fd);
         return 0;
     }
+    c->eof = 0;
+
+    /* no data received? */
+    if (len == 0)
+	return 1;
 
     /* deal with errors */
     if(len < 0)
@@ -618,9 +622,33 @@ static int _log_ssl_io_error(log_t l, SSL *ssl, int retcode, int fd, const char 
 }
 #endif
 
-int _read_actual(conn_t c, int fd, char *buf, size_t count)
-{
+int _read_actual(conn_t c, int fd, char *buf, size_t count) {
     int bytes_read;
+    size_t additionally_returned = 0;
+
+    /* is there data in the read_buffer we have to return first? */
+    if (c->read_buffer != NULL) {
+	/* is there enough data in the read_buffer to fullfill the request? */
+	if (c->read_buffer_len >= count) {
+	    memcpy(buf, c->read_buffer, count);
+	    memcpy(c->read_buffer, c->read_buffer+count, c->read_buffer_len-count);
+	    c->read_buffer_len -= count;
+	    if (c->read_buffer_len == 0) {
+		free(c->read_buffer);
+		c->read_buffer = NULL;
+	    }
+	    return count;
+	}
+
+	/* not enough, copy the read_buffer content, and try to read more */
+	memcpy(buf, c->read_buffer, c->read_buffer_len);
+	additionally_returned = c->read_buffer_len;
+	c->read_buffer_len = 0;
+	free(c->read_buffer);
+	c->read_buffer = NULL;
+	buf += additionally_returned;
+	count -= additionally_returned;
+    }
 
 #ifdef USE_SSL
     if(c->ssl != NULL)
@@ -631,8 +659,16 @@ int _read_actual(conn_t c, int fd, char *buf, size_t count)
 	    c->in_bytes += bytes_read;	/* XXX counting decrypted bytes */
 	if (!ssl_init_finished && SSL_is_init_finished(c->ssl))
 	    log_write(c->c2s->log, LOG_NOTICE, "ssl/tls established on fd %i: %s %s", c->fd, SSL_get_version(c->ssl), SSL_get_cipher(c->ssl));
-	if (bytes_read <= 0)
-	    _log_ssl_io_error(c->c2s->log, c->ssl, bytes_read, c->fd, "SSL_read");
+	if (bytes_read == 0)
+	    c->eof = 1;
+	if (bytes_read <= 0) {
+	    if (additionally_returned) {
+		return additionally_returned;
+	    } else {
+		_log_ssl_io_error(c->c2s->log, c->ssl, bytes_read, c->fd, "SSL_read");
+		return bytes_read;
+	    }
+	}
 
 #ifdef WITH_SASL
 	if (bytes_read > 0 && c->sasl_conn != NULL && c->sasl_state != state_auth_NONE) {
@@ -642,14 +678,37 @@ int _read_actual(conn_t c, int fd, char *buf, size_t count)
 
 	    sasl_result = sasl_decode(c->sasl_conn, buf, bytes_read, &decoded_data, &decoded_len);
 	    if (sasl_result != SASL_OK) {
+		log_write(c->c2s->log, LOG_WARNING, "could not decode data: %s", sasl_errdetail(c->sasl_conn));
 		errno = EIO;
 		return -1;
 	    }
-	    memcpy(buf, decoded_data, decoded_len < count ? decoded_len : count);
-	    return decoded_len < count ? decoded_len : count;
+
+	    /* can we return everything in a single return? */
+	    if (decoded_len <= count) {
+		memcpy(buf, decoded_data, decoded_len);
+		return decoded_len + additionally_returned;
+	    }
+
+	    /* no, keep a part in the read_buffer */
+	    memcpy(buf, decoded_data, count);
+	    decoded_data += count;
+	    decoded_len -= count;
+
+	    /* resize read_buffer */
+	    if (c->read_buffer == NULL) {
+		c->read_buffer = malloc(decoded_len);
+	    } else {
+		c->read_buffer = realloc(c->read_buffer, c->read_buffer_len + decoded_len);
+	    }
+
+	    /* store remaining data to the read_buffer */
+	    memcpy(c->read_buffer + c->read_buffer_len, decoded_data, decoded_len);
+	    c->read_buffer_len += decoded_len;
+
+	    return count + additionally_returned;
 	}
 #endif
-        return bytes_read;
+        return bytes_read + additionally_returned;
     }
 #endif
     bytes_read = read(fd, buf, count);
@@ -663,15 +722,43 @@ int _read_actual(conn_t c, int fd, char *buf, size_t count)
 
 	sasl_result = sasl_decode(c->sasl_conn, buf, bytes_read, &decoded_data, &decoded_len);
 	if (sasl_result != SASL_OK) {
+	    log_write(c->c2s->log, LOG_WARNING, "could not decode data: %s", sasl_errdetail(c->sasl_conn));
 	    errno = EIO;
 	    return -1;
 	}
-	memcpy(buf, decoded_data, decoded_len < count ? decoded_len : count);
-	return decoded_len < count ? decoded_len : count;
+
+	/* can we return everything in a single return? */
+	if (decoded_len <= count) {
+	    memcpy(buf, decoded_data, decoded_len);
+	    return decoded_len + additionally_returned;
+	}
+
+	/* no, keep a part in the read_buffer */
+	memcpy(buf, decoded_data, count);
+	decoded_data += count;
+	decoded_len -= count;
+
+	/* resize read_buffer */
+	if (c->read_buffer == NULL) {
+	    c->read_buffer = malloc(decoded_len);
+	} else {
+	    c->read_buffer = realloc(c->read_buffer, c->read_buffer_len + decoded_len);
+	}
+
+	/* store remaining data to the read_buffer */
+	memcpy(c->read_buffer + c->read_buffer_len, decoded_data, decoded_len);
+	c->read_buffer_len += decoded_len;
+
+	return count + additionally_returned;
     }
 #endif
+
+    if (bytes_read == 0)
+	c->eof = 1;
+    else if (bytes_read < 0 && additionally_returned > 0)
+	return additionally_returned;
  
-    return bytes_read;
+    return bytes_read + additionally_returned;
 }
 
 /* XXX cannot be used after a SASL security layer has been established! */
