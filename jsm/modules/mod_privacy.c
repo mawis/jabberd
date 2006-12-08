@@ -159,11 +159,14 @@ static void mod_privacy_send_notify_new_list(udata user, const char* edited_list
 
     /* iterate on sessions */
     for(cur = user->sessions; cur != NULL; cur = cur->next) {
+	char id_str[33] = "push at ";
 	xmlnode push_iq = jutil_iqnew(JPACKET__SET, NS_PRIVACY);
 	jpacket push_packet = jpacket_new(push_iq);
 
+	jutil_timestamp_ms(id_str+8);
 	xmlnode_put_attrib_ns(xmlnode_insert_tag_ns(push_packet->iq, "list", NULL, NS_PRIVACY), "name", NULL, NULL, edited_list);
 	xmlnode_put_attrib_ns(push_packet->x, "to", NULL, NULL, jid_full(cur->id));
+	xmlnode_put_attrib_ns(push_packet->x, "id", NULL, NULL, id_str);
 	jpacket_reset(push_packet);
 	js_session_to(cur, push_packet);
     }

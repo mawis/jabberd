@@ -1,3 +1,7 @@
+2006-12-08  Matthias Wimmer  <m@tthias.eu>
+
+    * jsm/modules/mod_privacy.c: sending an id attribute in list pushes
+
 2006-12-05  Matthias Wimmer  <m@tthias.eu>
 
     * jsm/modules/mod_roster.c: fireing the event that the roster changed
