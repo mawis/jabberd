@@ -1615,11 +1615,12 @@ int _client_io_read(mio_t m, int fd, conn_t c) {
 		 */
 		len = _read_actual(c, fd, buf, sizeof(buf));
 		/* process what has been read */
-		if ((ret = conn_read(c, buf, len)) == 0) {
+		ret = conn_read(c, buf, len);
+		if (ret == 0) {
 		    return 0;
 		}
 		/* come back again if no more data */
-		if (ret == 2 || (len < 10 && !c->ssl_continue_read)) {
+		if (ret == 2 || len < sizeof(buf)) {
 		    return 1;
 		}
 	    }

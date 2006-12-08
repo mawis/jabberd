@@ -1,3 +1,10 @@
+2006-12-08  Matthias Wimmer  <m@tthias.eu>
+
+    * conn.c: rewritten code that reads from a connection, possible speed-up
+    * clients.c: same
+    * jadc2s.h: same
+    * connect.c: same
+
 2006-12-07  Matthias Wimmer  <m@tthias.eu>
 
     * clients.c: fixing problem when using SASL security layer

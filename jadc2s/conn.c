@@ -447,38 +447,29 @@ int conn_max_read_len(conn_t c)
     return 0;
 }
 
-/* process the xml data that's been read */
-int conn_read(conn_t c, char *buf, int len)
-{
+/**
+ * process the xml data that's been read
+ *
+ * @param c the connection on which the data has been read
+ * @param buf buffer containing the data
+ * @param len size of the read data, 0 if no data was available, -1 on error or EOF
+ * @return 0 no more events requested, 1 request to get more read events
+ */
+int conn_read(conn_t c, char *buf, int len) {
     char *err = NULL;
     int cur_len = 0;
 
     log_debug(ZONE,"conn_read: len(%d)",len);
 
-    /* client gone */
-    if (c->eof != 0) {
-	log_write(c->c2s->log, LOG_NOTICE, "Received EOF on fd %i", c->fd);
+    /* client gone or error? */
+    if (len < 0) {
         mio_close(c->c2s->mio, c->fd);
         return 0;
     }
-    c->eof = 0;
 
     /* no data received? */
     if (len == 0)
 	return 1;
-
-    /* deal with errors */
-    if(len < 0)
-    {
-        log_debug(ZONE,"conn_read: errno(%d : %s)",errno,strerror(errno));
-
-        if((errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN) && !c->ssl_continue_read) {
-            return 2; /* flag that we're blocking now */
-	}
-	
-        mio_close(c->c2s->mio, c->fd);
-        return 0;
-    }
 
     /* Stupid us for not thinking of this from the beginning...
      * Some libaries (Flash) like to \0 terminate all of their packets
@@ -493,8 +484,7 @@ int conn_read(conn_t c, char *buf, int len)
      * reatmon@jabber.org
      */
     
-    while(cur_len < len && c->fd >= 0)
-    {
+    while(cur_len < len && c->fd >= 0) {
         /* Look for a shorter buffer based on \0 */
         char* new_buf = &buf[cur_len];
         int max_len = strlen(new_buf);
@@ -507,12 +497,9 @@ int conn_read(conn_t c, char *buf, int len)
         c->read_bytes += max_len;
     
         /* parse the xml baby */
-        if(!XML_Parse(c->expat, new_buf, max_len, 0))
-        {
+        if(!XML_Parse(c->expat, new_buf, max_len, 0)) {
             err = (char *)XML_ErrorString(XML_GetErrorCode(c->expat));
-        }
-        else if(c->depth > MAXDEPTH)
-        {
+        } else if(c->depth > MAXDEPTH) {
             err = MAXDEPTH_ERR;
         }
 
@@ -623,148 +610,150 @@ static int _log_ssl_io_error(log_t l, SSL *ssl, int retcode, int fd, const char 
 }
 #endif
 
+/**
+ * do the read read on a socket, taking care about the TLS and SASL layer
+ *
+ * @param c the connection to read on
+ * @param fd the file descriptor to read on
+ * @param where to store the resulting data
+ * @param count the maximum amount of bytes to return
+ * @return if 0 &lt; x &lt; count, then x bytes have been read and no more data was available; if x = count, then x bytes have been read, and there might be more data available for reading; if x = 0 the connection is still open, but there was no data available; if x < 0 there was a non-recoverable error, or the connection closed
+ */
 int _read_actual(conn_t c, int fd, char *buf, size_t count) {
-    int bytes_read;
-    size_t additionally_returned = 0;
-
-    /* is there data in the read_buffer we have to return first? */
-    if (c->read_buffer != NULL) {
-	/* is there enough data in the read_buffer to fullfill the request? */
-	if (c->read_buffer_len >= count) {
-	    memcpy(buf, c->read_buffer, count);
-	    memcpy(c->read_buffer, c->read_buffer+count, c->read_buffer_len-count);
-	    c->read_buffer_len -= count;
-	    if (c->read_buffer_len == 0) {
-		free(c->read_buffer);
-		c->read_buffer = NULL;
-	    }
-	    return count;
-	}
-
-	/* not enough, copy the read_buffer content, and try to read more */
-	memcpy(buf, c->read_buffer, c->read_buffer_len);
-	additionally_returned = c->read_buffer_len;
-	c->read_buffer_len = 0;
-	free(c->read_buffer);
-	c->read_buffer = NULL;
-	buf += additionally_returned;
-	count -= additionally_returned;
-    }
+    int tls_already_established = 0;	/* 0 = TLS layer not (yet) established or no TLS conn, 1 = TLS layer established */
+    int had_final_error_or_eof = 0;
 
 #ifdef USE_SSL
-    if(c->ssl != NULL)
-    {
-	int ssl_init_finished = SSL_is_init_finished(c->ssl);
-	c->ssl_continue_read = 0;
-	bytes_read = SSL_read(c->ssl, buf, count);
-	if (bytes_read > 0) {
-	    if (bytes_read == count) {
-		c->ssl_continue_read = 1;
-	    }
-	    c->in_bytes += bytes_read;	/* XXX counting decrypted bytes */
-	}
-	if (!ssl_init_finished && SSL_is_init_finished(c->ssl))
-	    log_write(c->c2s->log, LOG_NOTICE, "ssl/tls established on fd %i: %s %s", c->fd, SSL_get_version(c->ssl), SSL_get_cipher(c->ssl));
-	if (bytes_read == 0)
-	    c->eof = 1;
-	if (bytes_read <= 0) {
-	    if (additionally_returned) {
-		return additionally_returned;
-	    } else {
-		_log_ssl_io_error(c->c2s->log, c->ssl, bytes_read, c->fd, "SSL_read");
-		return bytes_read;
-	    }
-	}
-
-#ifdef WITH_SASL
-	if (bytes_read > 0 && c->sasl_conn != NULL && c->sasl_state != state_auth_NONE) {
-	    int sasl_result = 0;
-	    const char *decoded_data = NULL;
-	    size_t decoded_len = 0;
-
-	    sasl_result = sasl_decode(c->sasl_conn, buf, bytes_read, &decoded_data, &decoded_len);
-	    if (sasl_result != SASL_OK) {
-		log_write(c->c2s->log, LOG_WARNING, "could not decode data: %s", sasl_errdetail(c->sasl_conn));
-		errno = EIO;
-		return -1;
-	    }
-
-	    /* can we return everything in a single return? */
-	    if (decoded_len <= count) {
-		memcpy(buf, decoded_data, decoded_len);
-		return decoded_len + additionally_returned;
-	    }
-
-	    /* no, keep a part in the read_buffer */
-	    memcpy(buf, decoded_data, count);
-	    decoded_data += count;
-	    decoded_len -= count;
-
-	    /* resize read_buffer */
-	    if (c->read_buffer == NULL) {
-		c->read_buffer = malloc(decoded_len);
-	    } else {
-		c->read_buffer = realloc(c->read_buffer, c->read_buffer_len + decoded_len);
-	    }
-
-	    /* store remaining data to the read_buffer */
-	    memcpy(c->read_buffer + c->read_buffer_len, decoded_data, decoded_len);
-	    c->read_buffer_len += decoded_len;
-
-	    return count + additionally_returned;
-	}
-#endif
-        return bytes_read + additionally_returned;
+    /* remember the state of the TLS establishment, we need to log if the TLS layer gets established this time */
+    if (c->ssl != NULL) {
+	tls_already_established = SSL_is_init_finished(c->ssl);
     }
 #endif
-    bytes_read = read(fd, buf, count);
-    if (bytes_read > 0)
-	c->in_bytes += bytes_read;
-#ifdef WITH_SASL
-    if (bytes_read > 0 && c->sasl_conn != NULL && c->sasl_state != state_auth_NONE) {
-	int sasl_result = 0;
-	const char *decoded_data = NULL;
-	size_t decoded_len = 0;
 
-	sasl_result = sasl_decode(c->sasl_conn, buf, bytes_read, &decoded_data, &decoded_len);
-	if (sasl_result != SASL_OK) {
-	    log_write(c->c2s->log, LOG_WARNING, "could not decode data: %s", sasl_errdetail(c->sasl_conn));
-	    errno = EIO;
+    /* if we do not have enought data in the read_buffer, first try if we can fill up the buffer */
+    while (c->read_buffer_len < count) {
+	char local_buffer[1024];	/* remember: when using a bigger buffer, we would have to use another maxbufsize for SASL */
+	int read_bytes = 0;
+
+#ifdef USE_SSL
+	/* do we read on a raw socket or from a TLS layer? */
+	if (c->ssl != NULL) {
+	    /* reading from TLS layer */
+	    read_bytes = SSL_read(c->ssl, local_buffer, sizeof(local_buffer));
+
+	    /* check if the TLS layer just got established */
+	    if (!tls_already_established && SSL_is_init_finished(c->ssl)) {
+		tls_already_established = 1;
+		log_write(c->c2s->log, LOG_NOTICE, "TLS layer established on fd %i: %s %s", c->fd, SSL_get_version(c->ssl), SSL_get_cipher(c->ssl));
+	    }
+	} else {
+#endif
+	    /* raw socket */
+	    read_bytes = read(fd, local_buffer, sizeof(local_buffer));
+#ifdef USE_SSL
+	}
+#endif
+
+	/* have bytes been read? */
+	if (read_bytes > 0) {
+#ifdef WITH_SASL
+	    /* do we have to sasl_decode() the data? */
+	    if (c->sasl_conn != NULL && c->sasl_state != state_auth_NONE) {
+		int sasl_result = 0;
+		const char *decoded_data = NULL;
+		size_t decoded_len = 0;
+
+		/* decode the SASL layer */
+		sasl_result = sasl_decode(c->sasl_conn, local_buffer, read_bytes, &decoded_data, &decoded_len);
+		if (sasl_result != SASL_OK) {
+		    log_write(c->c2s->log, LOG_WARNING, "could not decode data at the SASL layer: %s", sasl_errdetail(c->sasl_conn));
+		    return -1;
+		}
+
+		/* if we got data back, add the the read_buffer */
+		if (decoded_len > 0 && decoded_data != NULL) {
+		    c->read_buffer = realloc(c->read_buffer, c->read_buffer_len + decoded_len);
+		    memcpy(c->read_buffer + c->read_buffer_len, decoded_data, decoded_len);
+		    c->read_buffer_len += decoded_len;
+		}
+	    } else {
+#endif
+		/* no SASL layer, just copy data to the read_buffer */
+		c->read_buffer = realloc(c->read_buffer, c->read_buffer_len + read_bytes);
+		memcpy(c->read_buffer + c->read_buffer_len, local_buffer, read_bytes);
+		c->read_buffer_len += read_bytes;
+#ifdef WITH_SASL
+	    }
+#endif
+	}
+
+	/* no more data to read? then break while loop */
+	if (read_bytes > 0 && read_bytes < sizeof(local_buffer)) {
+	    break;
+	} else if (read_bytes == 0) {
+	    /* there was EOF */
+	    had_final_error_or_eof = 1;
+	    break;
+	} else if (read_bytes < 0) {
+#ifdef USE_SSL
+	    if (c->ssl != NULL) {
+		int ssl_error = SSL_get_error(c->ssl, read_bytes);
+		if (ssl_error == SSL_ERROR_WANT_READ || ssl_error == SSL_ERROR_WANT_WRITE) {
+		    /* these errors are non-final for a TLS conn */
+		    break;
+		}
+	    } else {
+#endif
+		if (errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN) {
+		    /* there errors are non-final for a raw conn */
+		    break;
+		}
+#ifdef USE_SSL
+	    }
+#endif
+	    had_final_error_or_eof = 1;
+	    break;
+	}
+    }
+
+    /* now return data out of the buffer if possible */
+    if (c->read_buffer != NULL) {
+	/* sanity check */
+	if (c->read_buffer_len <= 0) {
+	    log_write(c->c2s->log, LOG_ERR, "Internal error: existing read_buffer, but no content");
 	    return -1;
 	}
 
-	/* can we return everything in a single return? */
-	if (decoded_len <= count) {
-	    memcpy(buf, decoded_data, decoded_len);
-	    return decoded_len + additionally_returned;
+	/* can the complete buffer be returned? */
+	if (c->read_buffer_len <= count) {
+	    int returned_size = c->read_buffer_len;
+
+	    /* copy memory to the result buffer */
+	    memcpy(buf, c->read_buffer, c->read_buffer_len);
+
+	    /* free read_buffer */
+	    c->read_buffer_len = 0;
+	    free(c->read_buffer);
+	    c->read_buffer = NULL;
+
+	    /* return number of returned bytes */
+	    return returned_size;
 	}
 
-	/* no, keep a part in the read_buffer */
-	memcpy(buf, decoded_data, count);
-	decoded_data += count;
-	decoded_len -= count;
+	/* return part of the read_buffer */
+	memcpy(buf, c->read_buffer, count);
 
-	/* resize read_buffer */
-	if (c->read_buffer == NULL) {
-	    c->read_buffer = malloc(decoded_len);
-	} else {
-	    c->read_buffer = realloc(c->read_buffer, c->read_buffer_len + decoded_len);
-	}
+	/* update read_buffer */
+	memcpy(c->read_buffer, c->read_buffer+count, c->read_buffer_len-count);
+	c->read_buffer_len -= count;
+	c->read_buffer = realloc(c->read_buffer, c->read_buffer_len);
 
-	/* store remaining data to the read_buffer */
-	memcpy(c->read_buffer + c->read_buffer_len, decoded_data, decoded_len);
-	c->read_buffer_len += decoded_len;
-
-	return count + additionally_returned;
+	/* return number of returned bytes */
+	return count;
     }
-#endif
 
-    if (bytes_read == 0)
-	c->eof = 1;
-    else if (bytes_read < 0 && additionally_returned > 0)
-	return additionally_returned;
- 
-    return bytes_read + additionally_returned;
+    /* we cannot return data, return is different for errors than for 'just no data available' */
+    return had_final_error_or_eof ? -1 : 0;
 }
 
 /* XXX cannot be used after a SASL security layer has been established! */

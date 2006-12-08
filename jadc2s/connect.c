@@ -582,7 +582,7 @@ static int _connect_io(mio_t m, mio_action_t a, int fd, void *data, void *arg)
         /* read as much data as we can from the sm */
         while(1)
         {
-            len = read(fd, buf, 1024);
+            len = _read_actual(c, fd, buf, 1024);
             if((ret = conn_read(c, buf, len)) != 1 || len < 1024) break;
         }
         return 1;
