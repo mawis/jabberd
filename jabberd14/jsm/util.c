@@ -97,9 +97,10 @@ void js_bounce_xmpp(jsmi si, session s, xmlnode x, xterror xterr) {
  * @param query the path through the tag hierarchy of the desired tag, eg. for the conf file
  * 	<foo><bar>bar value</bar><baz/></foo> use "foo/bar" to retrieve the bar node, may be
  * 	NULL to get the root node of the jsm config
+ * @param lang the prefered language, NULL for no prefered language
  * @return a pointer to the xmlnode (has to be freed by the caller!), or NULL if no such node could be found
  */
-xmlnode js_config(jsmi si, char *query) {
+xmlnode js_config(jsmi si, const char* query, const char* lang) {
 
     log_debug2(ZONE, LOGT_CONFIG, "config query %s",query);
 
@@ -109,7 +110,7 @@ xmlnode js_config(jsmi si, char *query) {
 	pool_free(temp_p);
 	return config;
     } else
-        return xmlnode_get_list_item(xmlnode_get_tags(js_config(si, NULL), query, si->std_namespace_prefixes), 0);
+        return xmlnode_select_by_lang(xmlnode_get_tags(js_config(si, NULL, lang), query, si->std_namespace_prefixes), lang);
 }
 
 /**

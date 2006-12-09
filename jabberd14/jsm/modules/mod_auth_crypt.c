@@ -189,7 +189,7 @@ static int mod_auth_crypt_reset(mapi m, jid id, xmlnode pass) {
     xmlnode newpass;
     char* hashalgo;
     int usedhashalgo;
-    xmlnode mod_auth_crypt_config = js_config(m->si, "jsm:mod_auth_crypt");
+    xmlnode mod_auth_crypt_config = js_config(m->si, "jsm:mod_auth_crypt", NULL);
 
     log_debug2(ZONE, LOGT_AUTH, "resetting password");
 
@@ -293,7 +293,7 @@ static mreturn mod_auth_crypt_delete(mapi m, void *arg) {
 void mod_auth_crypt(jsmi si) {
     log_debug2(ZONE, LOGT_INIT, "init");
     log_warn(NULL, "You configured your server to use the mod_auth_crypt module. This module might cause problems if you want to upgrade to SASL authentication.");
-    xmlnode register_config = js_config(si, "register:register");
+    xmlnode register_config = js_config(si, "register:register", NULL);
 
     js_mapi_register(si, e_AUTH, mod_auth_crypt_jane, NULL);
     js_mapi_register(si, e_PASSWORDCHANGE, mod_auth_crypt_pwchange, NULL);

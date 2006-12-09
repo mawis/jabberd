@@ -752,7 +752,7 @@ mreturn mod_presence_delete(mapi m, void *arg) {
  * @param si the session manager instance
  */
 void mod_presence(jsmi si) {
-    xmlnode cfg = js_config(si, "jsm:presence");
+    xmlnode cfg = js_config(si, "jsm:presence", NULL);
     modpres_conf conf = (modpres_conf)pmalloco(si->p, sizeof(_modpres_conf));
 
     log_debug2(ZONE, LOGT_INIT, "init");

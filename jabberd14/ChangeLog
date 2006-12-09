@@ -2,6 +2,28 @@
 
     * jabberd/mio_ssl.c: changed behaviour: using dNSName for cert
 	verification also if id-on-xmppAddr is present. (RFC 3920bis)
+    * jabberd/lib/xmlnode.c: possibility to add different languages to config
+    * jabberd/lib/jabberdlib.h: same
+    * jsm/jsm.h: same
+    * jsm/authreg.c: same
+    * jsm/modules/mod_vcard.c: same
+    * jsm/modules/mod_auth_digest.c: same
+    * jsm/modules/mod_browse.c: same
+    * jsm/modules/mod_disco.c: same
+    * jsm/modules/mod_last.c: same
+    * jsm/modules/mod_presence.c: same
+    * jsm/modules/mod_useridpolicy.c: same
+    * jsm/modules/mod_agents.c: same
+    * jsm/modules/mod_log.c: same
+    * jsm/modules/mod_offline.c: same
+    * jsm/modules/mod_auth_crypt.c: same
+    * jsm/modules/mod_auth_plain.c: same
+    * jsm/modules/mod_register.c: same
+    * jsm/modules/mod_version.c: same
+    * jsm/modules/mod_admin.c: same
+    * jsm/jsm.c: same
+    * jsm/deliver.c: same
+    * jsm/util.c: same
 
 2006-12-08  Matthias Wimmer  <m@tthias.eu>
 

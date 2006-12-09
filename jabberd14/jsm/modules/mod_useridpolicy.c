@@ -84,7 +84,7 @@ mreturn mod_useridpolicy_new(mapi m, void *arg) {
     username = user_jid->user;
 
     /* get configuration, disable the module if not configured */
-    if ((config = js_config(m->si, "jsm:mod_useridpolicy")) == NULL)
+    if ((config = js_config(m->si, "jsm:mod_useridpolicy", NULL)) == NULL)
 	return M_IGNORE;
     
     /* check for forbidden usernames */
