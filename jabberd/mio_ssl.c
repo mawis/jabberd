@@ -681,28 +681,15 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 	}
     }
 
-    /* was there a match on id-on-xmppAddr? */
-    if (id_on_xmppAddr_match > 0) {
+    /* was there a match on id-on-xmppAddr or dNSName? */
+    if (id_on_xmppAddr_match > 0 || dNSName_match > 0) {
 	pool_free(p);
 	return 1;
     }
 
-    /* no match but id-on-xmppAddr present? */
-    if (id_on_xmppAddr_count > 0) {
-	log_notice(id_on_xmppAddr, "TLS verification failed: id-on-xmppAddr present but no match");
-	pool_free(p);
-	return 0;
-    }
-
-    /* was there a match on dNSName? */
-    if (dNSName_match > 0) {
-	pool_free(p);
-	return 1;
-    }
-
-    /* no match, but dNSName present? */
-    if (dNSName_count > 0) {
-	log_notice(id_on_xmppAddr, "TLS verification failed: dNSName present but no match");
+    /* no match but id-on-xmppAddr or dNSName present? */
+    if (id_on_xmppAddr_count > 0 || dNSName_count > 0) {
+	log_notice(id_on_xmppAddr, "TLS verification failed: %s present but no match - not checking CN in that case", id_on_xmppAddr_count > 0 ? (dNSName_count > 0 ? "id_on_xmppAddr and dNSName" : "id_on_xmppAddr") : "dNSName");
 	pool_free(p);
 	return 0;
     }
