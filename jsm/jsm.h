@@ -554,7 +554,7 @@ struct udata_struct
     xht aux_data;		/**< additional data stored by modules */
 };
 
-xmlnode js_config(jsmi si, char *query);
+xmlnode js_config(jsmi si, const char* query, const char* lang);
 
 udata js_user(jsmi si, jid id, xht ht);
 int js_user_create(jsmi si, jid id);

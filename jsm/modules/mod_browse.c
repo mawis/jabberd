@@ -255,13 +255,13 @@ static mreturn _mod_browse_server(mapi m) {
 	return M_PASS;
 
     /* get data from the config file */
-    if ((browse = js_config(m->si, "browse:browse")) == NULL)
+    if ((browse = js_config(m->si, "browse:browse", xmlnode_get_lang(m->packet->x))) == NULL)
         return M_PASS;
 
     log_debug2(ZONE, LOGT_DELIVER, "handling browse query");
 
     /* build the result IQ */
-    vcard_fn = js_config(m->si, "vcard:vCard/vcard:FN");
+    vcard_fn = js_config(m->si, "vcard:vCard/vcard:FN", xmlnode_get_lang(m->packet->x));
     query = xmlnode_insert_tag_ns(jutil_iqresult(m->packet->x), "service", NULL, NS_BROWSE);
     xmlnode_put_attrib_ns(query, "type", NULL, NULL, "jabber");
     xmlnode_put_attrib_ns(query, "jid", NULL, NULL, m->packet->to->server);

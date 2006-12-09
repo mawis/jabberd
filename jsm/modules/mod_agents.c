@@ -65,7 +65,7 @@ mreturn mod_agents_agents(mapi m) {
     xmlnode ret, retq, agents, cur, a, cur2;
 
     /* get data from the config file */
-    agents = js_config(m->si, "browse:browse");
+    agents = js_config(m->si, "browse:browse", xmlnode_get_lang(m->packet->x));
 
     /* if we don't have anything to say, bounce */
     if(agents == NULL)
@@ -131,9 +131,9 @@ mreturn mod_agents_agent(mapi m) {
     xmlnode ret, retq, info, agents, reg;
 
     /* get data from the config file */
-    info = js_config(m->si,"vcard:vCard");
-    agents = js_config(m->si,"jsm:agents");
-    reg = js_config(m->si,"register:register");
+    info = js_config(m->si,"vcard:vCard", xmlnode_get_lang(m->packet->x));
+    agents = js_config(m->si,"jsm:agents", xmlnode_get_lang(m->packet->x));
+    reg = js_config(m->si,"register:register", NULL);
 
     /* if we don't have anything to say, bounce */
     if(info == NULL && agents == NULL && reg == NULL)

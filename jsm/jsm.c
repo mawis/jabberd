@@ -162,7 +162,7 @@ static void _jsm_routing_update(instance i, const char *destination, int is_regi
 
 	/* make sure this hostname is in the master table */
 	if ((ht = (xht)xhash_get(si->hosts, destination)) == NULL) {
-	    xmlnode maxusers = js_config(si, "jsm:maxusers");
+	    xmlnode maxusers = js_config(si, "jsm:maxusers", NULL);
 	    ht = xhash_new(j_atoi(xmlnode_get_data(maxusers), USERS_PRIME));
 	    xmlnode_free(maxusers);
 	    maxusers = NULL;
@@ -211,7 +211,7 @@ void jsm(instance i, xmlnode x) {
     xhash_put(si->std_namespace_prefixes, "privacy", NS_PRIVACY);
     xhash_put(si->std_namespace_prefixes, "jabberd", NS_JABBERD_WRAPPER);
     si->xc = xdb_cache(i); /* getting xdb_* handle and fetching config */
-    config = js_config(si, NULL);
+    config = js_config(si, NULL, NULL);
     si->hosts = xhash_new(j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:maxhosts", si->std_namespace_prefixes), 0)), HOSTS_PRIME));
     si->sc_sessions = xhash_new(j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:maxusers", si->std_namespace_prefixes), 0)), USERS_PRIME));
     for (n=0; n<e_LAST; n++)

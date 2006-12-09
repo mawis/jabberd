@@ -764,7 +764,7 @@ mreturn mod_offline_server(mapi m, void *arg) {
  * @param si the session manager instance
  */
 void mod_offline(jsmi si) {
-    xmlnode cfg = js_config(si, "jsm:mod_offline");
+    xmlnode cfg = js_config(si, "jsm:mod_offline", NULL);
     modoffline_conf conf = (modoffline_conf)pmalloco(si->p, sizeof(_modoffline_conf));
 
     /* which types of messages should be stored offline? */

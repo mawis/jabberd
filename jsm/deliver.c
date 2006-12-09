@@ -508,7 +508,7 @@ result js_packet(instance i, dpacket p, void *arg) {
 
     /* make sure this hostname is in the master table */
     if ((ht = (xht)xhash_get(si->hosts,p->host)) == NULL) {
-	xmlnode maxusers = js_config(si, "jsm:maxusers");
+	xmlnode maxusers = js_config(si, "jsm:maxusers", NULL);
         ht = xhash_new(j_atoi(xmlnode_get_data(maxusers), USERS_PRIME));
 	xmlnode_free(maxusers);
 	maxusers = NULL;
