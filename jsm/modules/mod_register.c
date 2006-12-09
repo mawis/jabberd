@@ -136,8 +136,10 @@ static mreturn mod_register_passwordchange(mapi m) {
 static mreturn mod_register_new(mapi m, void *arg) {
     xmlnode reg, x;
     xmlnode welcome = NULL;
+    xmlnode prefered_nodes = NULL;
+    xmlnode_list_item all_nodes = NULL;
 
-    if ((reg = js_config(m->si, "register:register")) == NULL)
+    if ((reg = js_config(m->si, "register:register", NULL)) == NULL)
 	return M_PASS;
 
     log_debug2(ZONE, LOGT_AUTH, "checking");
@@ -147,6 +149,24 @@ static mreturn mod_register_new(mapi m, void *arg) {
 
 	    /* copy in the registration fields from the config file */
 	    xmlnode_insert_node(m->packet->iq, xmlnode_get_firstchild(reg));
+
+	    /* remove duplicate <instructions/> elements */
+	    all_nodes = xmlnode_get_tags(m->packet->iq, "register:instructions", m->si->std_namespace_prefixes);
+	    prefered_nodes = xmlnode_select_by_lang(all_nodes, xmlnode_get_lang(m->packet->x));
+	    for (; all_nodes != NULL; all_nodes = all_nodes->next) {
+		if (all_nodes->node != prefered_nodes) {
+		    xmlnode_hide(all_nodes->node);
+		}
+	    }
+
+	    /* remove duplicate <x xmlns='jabber:x:oob'/> elements */
+	    all_nodes = xmlnode_get_tags(m->packet->iq, "xoob:x", m->si->std_namespace_prefixes);
+	    prefered_nodes = xmlnode_select_by_lang(all_nodes, xmlnode_get_lang(m->packet->x));
+	    for (; all_nodes != NULL; all_nodes = all_nodes->next) {
+		if (all_nodes->node != prefered_nodes) {
+		    xmlnode_hide(all_nodes->node);
+		}
+	    }
 
 	    break;
 
@@ -190,7 +210,7 @@ static mreturn mod_register_new(mapi m, void *arg) {
 	    }
 
 	    /* if also configured, send the new user a welcome message */
-	    if ((welcome = js_config(m->si, "welcome")) != NULL) {
+	    if ((welcome = js_config(m->si, "welcome", xmlnode_get_lang(m->packet->x))) != NULL) {
 		const char *lang = NULL;
 
 		lang = xmlnode_get_lang(welcome);
@@ -250,7 +270,7 @@ static mreturn mod_register_check(mapi m, void *arg) {
     }
 
     /* get the fields that we requested */
-    register_config = js_config(m->si, "register:register");
+    register_config = js_config(m->si, "register:register", NULL);
     if (register_config == NULL) {
 	/* there is nothing we have to verify */
 	return M_PASS;
@@ -361,7 +381,7 @@ static mreturn _mod_register_server_register(mapi m) {
 	    xmlnode_insert_tag_ns(m->packet->iq, "registered", NULL, NS_REGISTER);
 
 	    /* copy additional required fields from configuration */
-	    register_config = js_config(m->si, "register:register");
+	    register_config = js_config(m->si, "register:register", NULL);
 	    register_namespace = xhash_new(1);
 	    xhash_put(register_namespace, "", NS_REGISTER);
 	    for (iter = xmlnode_get_tags(register_config, "register:*", m->si->std_namespace_prefixes); iter != NULL; iter = iter->next) {
@@ -390,7 +410,7 @@ static mreturn _mod_register_server_register(mapi m) {
 		xmlnode nounregister = NULL;
 
 		/* is deleting accounts forbidden by the configuration? */
-		nounregister = js_config(m->si, "jsm:nounregister");
+		nounregister = js_config(m->si, "jsm:nounregister", xmlnode_get_lang(m->packet->x));
 		if (nounregister != NULL) {
 		    xterror err = {405, N_("Not Allowed"), "cancel", "not-allowed"};
 		    char* nounregister_data = xmlnode_get_data(nounregister);
@@ -474,7 +494,7 @@ static mreturn _mod_register_server_register(mapi m) {
 		    }
 
 		    /* is updating registration data forbidden by the configuration? */
-		    noregistrationchange = js_config(m->si, "jsm:noregistrationchange");
+		    noregistrationchange = js_config(m->si, "jsm:noregistrationchange", xmlnode_get_lang(m->packet->x));
 		    if (noregistrationchange != NULL) {
 			xterror err = {405, N_("Not Allowed"), "cancel", "not-allowed"};
 			char* noregistrationchange_data = xmlnode_get_data(noregistrationchange);
@@ -491,7 +511,7 @@ static mreturn _mod_register_server_register(mapi m) {
 
 		/* let the authentication modules update the stored password */
 		if (is_passwordchange) {
-		    xmlnode nopasswordchange = js_config(m->si, "jsm:nopasswordchange");
+		    xmlnode nopasswordchange = js_config(m->si, "jsm:nopasswordchange", xmlnode_get_lang(m->packet->x));
 		    if (nopasswordchange != NULL) {
 			xterror err = {405, N_("Not Allowed"), "cancel", "not-allowed"};
 			char* nopasswordchange_data = xmlnode_get_data(nopasswordchange);

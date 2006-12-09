@@ -149,7 +149,7 @@ void _js_authreg_register(jpacket p) {
 	    jutil_error_xmpp(p->x, (xterror){409, N_("Username Not Available"), "cancel", "conflict"});
 	} else {
 	    /* check if this account is blocked for registration as this account already exited */
-	    xmlnode regtimeout_config = js_config(si, "jsm:regtimeout");
+	    xmlnode regtimeout_config = js_config(si, "jsm:regtimeout", NULL);
 	    int regtimeout = j_atoi(xmlnode_get_attrib_ns(regtimeout_config, "timeout", NULL), 365*86400/2);
 	    xmlnode_free(regtimeout_config);
 	    regtimeout_config = NULL;

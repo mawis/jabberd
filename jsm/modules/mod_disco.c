@@ -82,7 +82,7 @@ mreturn mod_disco_server_info(mapi m, void *arg) {
 	return M_PASS;
 
     /* special identity in configuration? else generate from vCard */
-    identity = js_config(m->si, "disco-info:disco/disco-info:identity");
+    identity = js_config(m->si, "disco-info:disco/disco-info:identity", xmlnode_get_lang(m->packet->x));
 
     /* general features, not added by other modules */
     feature = xmlnode_insert_tag_ns(m->additional_result->iq, "feature", NULL, NS_DISCO_INFO);
@@ -100,7 +100,7 @@ mreturn mod_disco_server_info(mapi m, void *arg) {
 	xmlnode_insert_node(m->additional_result->iq, identity);
     } else {
 	xmlnode generated_identity = xmlnode_insert_tag_ns(m->additional_result->iq, "identity", NULL, NS_DISCO_INFO);
-	xmlnode vcard_fn = js_config(m->si, "vcard:vCard/vcard:FN");
+	xmlnode vcard_fn = js_config(m->si, "vcard:vCard/vcard:FN", xmlnode_get_lang(m->packet->x));
 	xmlnode_put_attrib_ns(generated_identity, "category", NULL, NULL, "server");
 	xmlnode_put_attrib_ns(generated_identity, "type", NULL, NULL, "im");
 	xmlnode_put_attrib_ns(generated_identity, "name", NULL, NULL, xmlnode_get_data(vcard_fn));
@@ -132,7 +132,7 @@ mreturn mod_disco_server_items(mapi m, void *arg) {
       return M_PASS;
 
   /* config get */        
-  if ((browse = js_config(m->si,"browse:browse")) == NULL)
+  if ((browse = js_config(m->si,"browse:browse", xmlnode_get_lang(m->packet->x))) == NULL)
 	return M_PASS;
   
   log_debug2(ZONE, LOGT_DELIVER, "handling disco#items query");

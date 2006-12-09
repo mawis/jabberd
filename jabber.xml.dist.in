@@ -61,10 +61,16 @@
 
       <!-- The server vCard -->
 
-      <vCard xmlns='vcard-temp'>
+      <vCard xmlns='vcard-temp' xml:lang='en'>
         <FN>jabberd14 server</FN>
-        <DESC>A Jabber Server!</DESC>
-        <URL>http://localhost/</URL>
+        <DESC>A Jabber Server using jabberd14!</DESC>
+        <URL>http://jabberd.org/</URL>
+      </vCard>
+
+      <vCard xmlns='vcard-temp' xml:lang='de'>
+        <FN>jabberd14-Server</FN>
+        <DESC>Ein Jabber-Server, der jabberd14 benutzt.</DESC>
+        <URL>http://jabberd.org/</URL>
       </vCard>
 
       <!-- 
@@ -149,14 +155,18 @@
       <!-- 
       A welcome note that is sent to every new user who registers 
       with your server. Comment it out to disable this function.
-      You can add additional <body/>, and <subject/> elements containing
-      the welcome message in other languages. Mark these additional
-      elements with xml:lang='languagecode'
+      You can have multiple <welcome/> elements for different languages.
+      Put the default response at the first position.
       -->
 
       <welcome xml:lang='en' xmlns='jabber:server'>
         <subject>Welcome!</subject>
-        <body>Welcome to the Jabber server at localhost -- we hope you enjoy this service! For information about how to use Jabber, visit the Jabber User's Guide at http://jabbermanual.jabberstudio.org/</body>
+        <body>Welcome to the Jabber server at localhost -- we hope you enjoy this service!</body>
+      </welcome>
+
+      <welcome xml:lang='de' xmlns='jabber:server'>
+	<subject>Herzlich Willkommen!</subject>
+	<body>Willkommen auf dem Jabberserver auf localhost -- wir hoffen Sie mögen diesen Dienst!</body>
       </welcome>
 
       <!--
@@ -205,7 +215,12 @@
         <reply xml:lang='en' xmlns='jabber:server'>
           <subject>Auto Reply</subject>
           <body>This is a special administrative address.  Your message was received and forwarded to server administrators.</body>
-        </reply>
+	</reply>
+
+        <reply xml:lang='de' xmlns='jabber:server'>
+	  <subject>Automatische Antwort</subject>
+	  <body>Dies ist eine spezielle Administrationsadresse. Ihre Nachricht wurde empfangen und an die Server-Administratoren weitergeleitet.</body>
+	</reply>
       </admin>
       -->
 

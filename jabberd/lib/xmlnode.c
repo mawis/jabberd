@@ -1770,7 +1770,8 @@ xmlnode xmlnode_wrap(xmlnode x, const char *wrapper) {
  * @return the new element, that is wrapping x
  */
 xmlnode xmlnode_wrap_ns(xmlnode x, const char *name, const char *prefix, const char *ns_iri) {
-    xmlnode wrap;
+    xmlnode wrap = NULL;
+    const char* wrapped_lang = NULL;
 
     if (x == NULL || name == NULL)
 	return NULL;
@@ -1781,6 +1782,12 @@ xmlnode xmlnode_wrap_ns(xmlnode x, const char *name, const char *prefix, const c
     wrap->firstchild=x;
     wrap->lastchild=x;
     x->parent=wrap;
+
+    wrapped_lang = xmlnode_get_lang(x);
+    if (wrapped_lang != NULL) {
+	xmlnode_put_attrib_ns(wrap, "lang", "xml", NS_XML, wrapped_lang);
+    }
+
     return wrap;
 }
 
@@ -2036,4 +2043,49 @@ xmlnode xmlnode_get_list_item(xmlnode_list_item first, unsigned int i) {
 
     /* not found */
     return NULL;
+}
+
+/**
+ * select one note from a list of notes by language
+ *
+ * This picks the first node in the list with the specified language,
+ * if no such node exists, the first node without a language is
+ * selected, if no nodes without a language are in the list, the
+ * first list item is returned.
+ *
+ * @param nodes pointer to the first entry in the list of nodes
+ * @param lang language to prefere (if NULL, the first node without language is prefered)
+ * @param the selected nodes, NULL if no nodes have been passed
+ */
+xmlnode xmlnode_select_by_lang(xmlnode_list_item nodes, const char* lang) {
+    xmlnode_list_item iter = NULL;
+    xmlnode first_without_lang = NULL;
+
+    /* santiy check */
+    if (nodes == NULL) {
+	return NULL;
+    }
+
+    /* iterate the nodes */
+    for (iter = nodes; iter != NULL; iter = iter->next) {
+	/* get the language of the node */
+	const char* this_nodes_lang = xmlnode_get_lang(iter->node);
+
+	/* match by language? */
+	if (lang != NULL) {
+	    if (j_strcmp(this_nodes_lang, lang) == 0) {
+		return iter->node;
+	    }
+	}
+
+	/* check for nodes without a language */
+	if (first_without_lang == NULL && this_nodes_lang == NULL) {
+	    if (lang == NULL)
+		return iter->node;
+	    first_without_lang = iter->node;
+	}
+    }
+
+    /* no match by language, either return node without language (prefered), or first node */
+    return first_without_lang != NULL ? first_without_lang : nodes->node;
 }

@@ -296,7 +296,7 @@ static mreturn mod_last_delete(mapi m, void *arg) {
  */
 void mod_last(jsmi si) {
     time_t *ttmp;
-    xmlnode register_config = js_config(si, "register:register");
+    xmlnode register_config = js_config(si, "register:register", NULL);
     log_debug2(ZONE, LOGT_INIT, "initing");
 
     if (register_config != NULL)

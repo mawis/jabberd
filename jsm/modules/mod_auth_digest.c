@@ -180,7 +180,7 @@ static mreturn mod_auth_digest_pwchange(mapi m, void *arg) {
  * @param si the jsmi_struct containing instance internal data for the Jabber session manager
  */
 void mod_auth_digest(jsmi si) {
-    xmlnode register_config = js_config(si, "register:register");
+    xmlnode register_config = js_config(si, "register:register", NULL);
 
     log_debug2(ZONE, LOGT_INIT, "init");
     js_mapi_register(si,e_AUTH, mod_auth_digest_yum, NULL);
