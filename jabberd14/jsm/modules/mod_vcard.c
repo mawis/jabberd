@@ -135,14 +135,14 @@ mreturn mod_vcard_set(mapi m, void *arg) {
 	    jpacket_reset(m->packet);
 	    js_session_to(m->s,m->packet);
 
-	    vcard2jud = js_config(m->si, "jsm:vcard2jud");
+	    vcard2jud = js_config(m->si, "jsm:vcard2jud", NULL);
 	    if (vcard2jud == NULL)
 		break;
 	    xmlnode_free(vcard2jud);
 	    vcard2jud=NULL;
 
 	    /* handle putting the vcard to the configured jud: send a get request to the jud services */
-	    browse = js_config(m->si, "browse:browse");
+	    browse = js_config(m->si, "browse:browse", xmlnode_get_lang(m->packet->x));
 	    for(cur = xmlnode_get_firstchild(browse); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
 		if(j_strcmp(xmlnode_get_attrib_ns(cur, "type", NULL),"jud") != 0) continue;
 
@@ -246,7 +246,7 @@ mreturn mod_vcard_server(mapi m, void *arg) {
     if(jpacket_subtype(m->packet) != JPACKET__GET || !NSCHECK(m->packet->iq,NS_VCARD) || m->packet->to->resource != NULL) return M_PASS;
 
     /* get data from the config file */
-    if((vcard = js_config(m->si,"vcard:vCard")) == NULL)
+    if((vcard = js_config(m->si,"vcard:vCard", xmlnode_get_lang(m->packet->x))) == NULL)
         return M_PASS;
 
     log_debug2(ZONE, LOGT_DELIVER, "handling server vcard query");
@@ -257,7 +257,7 @@ mreturn mod_vcard_server(mapi m, void *arg) {
     jpacket_reset(m->packet);
     js_deliver(m->si, m->packet, NULL);
 
-    xmlnode_fre(vcard);
+    xmlnode_free(vcard);
     return M_HANDLED;
 }
 

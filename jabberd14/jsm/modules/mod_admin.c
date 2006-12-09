@@ -240,7 +240,7 @@ mreturn mod_admin_message(mapi m, void *arg) {
     }
 
     /* reply, but only if we haven't in the last few or so jids */
-    reply = js_config(m->si, "jsm:admin/reply");
+    reply = js_config(m->si, "jsm:admin/reply", xmlnode_get_lang(m->packet->x));
     if (reply != NULL && strstr(jidlist,jid_full(jid_user(m->packet->from))) == NULL) {
 	const char *lang = NULL;
 

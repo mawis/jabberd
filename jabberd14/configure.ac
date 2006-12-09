@@ -6,7 +6,7 @@ AC_PREREQ(2.50)
 
 
 AC_INIT(jabberd/jabberd.h)
-AM_INIT_AUTOMAKE(jabberd14,1.6.0-beta3plus)
+AM_INIT_AUTOMAKE(jabberd14,1.6.0-RC1)
 AM_CONFIG_HEADER(config.h)
 AC_LANG(C++)
 
@@ -390,9 +390,6 @@ fi
 dnl define where the configuration file is located
 AC_DEFINE_DIR(CONFIG_DIR,sysconfdir,[where the configuration file can be found])
 
-dnl define where the locales can be found
-AC_DEFINE_UNQUOTED(LOCALEDIR, "${prefix}/${DATADIRNAME}/locale", [Name of gettext locale directory])
-
 dnl Create the makefiles
 AC_OUTPUT(Makefile \
 	  jabberd/Makefile \
@@ -405,6 +402,7 @@ AC_OUTPUT(Makefile \
 	  man/Makefile \
 	  pthsock/Makefile \
 	  xdb_file/Makefile \
-	  xdb_sql/Makefile)
+	  xdb_sql/Makefile \
+	  po/Makefile)
 
 printf "\nYou may now type 'make' to build your new Jabber system.\nType 'make install' to install then.\n"

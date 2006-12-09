@@ -147,7 +147,7 @@ mreturn mod_log_session(mapi m, void *arg) {
  * @param si the session manager instance
  */
 void mod_log(jsmi si) {
-    xmlnode cfg = js_config(si, "jsm:archive");
+    xmlnode cfg = js_config(si, "jsm:archive", NULL);
     jid svcs = NULL;
 
     log_debug2(ZONE, LOGT_INIT, "mod_log init");

@@ -370,6 +370,7 @@ char* xmlnode_get_tag_data(xmlnode parent, const char* name);
 xmlnode_list_item xmlnode_get_tags(xmlnode context_node, const char *path, xht namespaces);
 xmlnode xmlnode_get_list_item(xmlnode_list_item first, unsigned int i);
 char* xmlnode_get_list_item_data(xmlnode_list_item first, unsigned int i);
+xmlnode xmlnode_select_by_lang(xmlnode_list_item nodes, const char* lang);
 
 /* Attribute accessors */
 void     xmlnode_put_attrib(xmlnode owner, const char* name, const char* value);

@@ -187,7 +187,7 @@ void mod_version(jsmi si) {
 
     /* get the values that should be reported by mod_version */
     uname(&un);
-    config = js_config(si,"jsm:mod_version");
+    config = js_config(si, "jsm:mod_version", NULL);
     name = xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:name", si->std_namespace_prefixes), 0);
     version = xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:version", si->std_namespace_prefixes), 0);
     os = xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:os", si->std_namespace_prefixes), 0);

@@ -196,7 +196,7 @@ mreturn mod_auth_plain_delete(mapi m, void *arg) {
  * @param si the session manager instance
  */
 void mod_auth_plain(jsmi si) {
-    xmlnode register_config = js_config(si, "register:register");
+    xmlnode register_config = js_config(si, "register:register", NULL);
 
     log_debug2(ZONE, LOGT_INIT, "mod_auth_plain is initializing");
 
