@@ -1,51 +1,71 @@
 This is a list of XMPP/Jabber protocols, that relate to Jabber server
-implementations and their state in jabberd 1.4.5-alpha
+implementations and their state in jabberd14 1.6.0.
 
-RFC 3920	XMPP Core				mostly
-RFC 3921	XMPP IM					mostly
+RFC 3920	XMPP Core				supported (*)
+RFC 3921	XMPP IM					supported
 
 XEP-0004	Data Forms				-
 XEP-0011	Jabber Browsing				supported
 XEP-0012	Last Activity				supported
 XEP-0013	Flexible Offline Message Retrieval	supported
+XEP-0016	Privacy Lists				supported
 XEP-0018	Invisible Presence			supported
 XEP-0022	Message Events				supported
 XEP-0023	Message Expiration			supported
 XEP-0030	Service Discovery			supported
+XEP-0033	Extended Stanza Addressing		-
 XEP-0045	Multi-User Chat				(by add-on)
+XEP-0048	Bookmark Storage			supported
 XEP-0049	Private XML Storage			supported
 XEP-0050	Ad-Hoc Commands				-
 XEP-0054	vcard-temp				supported
 XEP-0055	Jabber Search				(by add-on)
+XEP-0059	Result Set Management			-
 XEP-0060	Publish-Subscribe			(by add-on)
 XEP-0065	SOCKS5 Bytestreams			(by add-on)
+XEP-0073	Basic IM Protocol Suite			supported
 XEP-0077	In-Band Registration			supported
 XEP-0078	Non-SASL Authentication			supported
 XEP-0079	Advanced Message Processing		-
+XEP-0083	Nested Roster Groups			supported
 XEP-0086	Error Condition Mappings		supported
 XEP-0090	Entity Time				supported
 XEP-0091	Delayed Delivery			supported
 XEP-0092	Software Version			supported
 XEP-0093	Agent Information			supported
 XEP-0114	Jabber Component Protocol		supported
+XEP-0117	Intermediate IM Protocol Suite		(by add-on)
 XEP-0124	HTTP Binding				-
 XEP-0133	Service Administration			-
 XEP-0136	Message Archiving			-
 XEP-0138	Stream Compression			-
 XEP-0142	Workgroups				-
+XEP-0145	Annotations				supported
 XEP-0150	Use of Entity Tags in XMPP Extensions	-
+XEP-0153	vCard-Based Avatars			supported
 XEP-0154	User Profile				-
 XEP-0157	Contact Addresses for XMPP Services	supported
+XEP-0159	SPIM-Blocking Control			-
 XEP-0160	Best Practices for Handling Offline
 		Messages				supported
+XEP-0163	Personal Eventing via Pubsub		-
 XEP-0170	Recommended Order of Stream Feature
 		Negotiation				supported
 XEP-0175	Best Practices of Use of SASL ANONYMOUS	-
+XEP-0178	Best Practices of Use of SASL EXTERNAL	supported
+XEP-0185	Dialback Key Generation and Validation	supported
+XEP-0186	Invisible Command			-
+XEP-0191	Simple Communications Blocking		-
+XEP-0199	XMPP Ping				supported
+
+(*) SASL for clients is only supported if you install jabberd14 together
+    with jadc2s.
 
 
-Additional features supported by jabberd 1.4.5-alpha (without plugins):
+Additional features supported by jabberd14 1.6.0 (without plugins):
 
 - Server admin address
 - Offline message storage
 - Message archiving
 - Storage in files, MySQL, PostreSQL
+- Invisible Presence
