@@ -505,6 +505,11 @@
   <!-- you can use your existing storage configuration if you want to.	-->
   <!-- But as this is not suggested for new setups, the configuration	-->
   <!-- examples for this have been removed.				-->
+  <!-- Migration from filespools to SQL databases is easy as well:      -->
+  <!-- Configure jabberd14 to use the new SQL storage handler and	-->
+  <!-- import the old filespool using the -I command line option of	-->
+  <!-- jabberd:								-->
+  <!-- jabberd -c yourConfigFile.xml -I /path/to/var/spool/jabberd	-->
   <!--									-->
   <!-- The following settings are optimized of MySQL 4.1+.		-->
   <!-- For using PostgreSQL, or if you want to learn more about		-->

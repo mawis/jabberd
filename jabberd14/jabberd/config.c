@@ -298,6 +298,7 @@ static void show_pid(xmlnode x) {
 int configurate(char *file, xht cmd_line, int is_restart) {
     char def[] = CONFIG_DIR"/jabber.xml";
     char *realfile = (char *)def;
+    char *import_spool = NULL;
     xmlnode incl;
     char *c;
 
@@ -316,7 +317,7 @@ int configurate(char *file, xht cmd_line, int is_restart) {
     }
 
     /* parse -i foo.xml,bar.xml */
-    if((realfile = xhash_get(cmd_line,"i")) != NULL)
+    if((realfile = xhash_get(cmd_line,"i")) != NULL) {
         while(realfile != NULL)
         {
             c = strchr(realfile,',');
@@ -335,7 +336,19 @@ int configurate(char *file, xht cmd_line, int is_restart) {
             }
             realfile = c;
         }
+    }
 
+    /* adding a spool importer if requested (-I command-line option) */
+    import_spool = xhash_get(cmd_line, "I");
+    if (import_spool != NULL) {
+	xmlnode service = NULL;
+	xmlnode importspool = NULL;
+
+	service = xmlnode_insert_tag_ns(greymatter__, "service", NULL, NS_JABBERD_CONFIGFILE);
+	xmlnode_put_attrib_ns(service, "id", NULL, NULL, "spoolimporter.localhost");
+	importspool = xmlnode_insert_tag_ns(service, "importspool", NULL, NS_JABBERD_CONFIGFILE);
+	xmlnode_insert_cdata(importspool, import_spool, -1);
+    }
 
     /* check greymatter for additional includes */
     do_include(0,greymatter__);

@@ -109,6 +109,7 @@ int main (int argc, const char** argv) {
     char *zones = NULL;		/* debugging zones */
     char *host = NULL;		/* domain/hostname to run as */
     char *spool = NULL;		/* spool directory for xdb_file */
+    char *import_spool = NULL;	/* spool base dir for import */
     char *do_include = NULL;	/* include files in configuration */
     float avload;
     int do_debug = 0;           /* Debug output option, default no */
@@ -133,6 +134,7 @@ int main (int argc, const char** argv) {
 	{ "background", 'B', POPT_ARG_NONE, &do_background, 0, "background the server process", NULL},
 	{ "host", 'h', POPT_ARG_STRING, &host, 0, "hostname that should be served by " PACKAGE, "domain (FQDN)"},
 	{ "spooldir", 's', POPT_ARG_STRING, &spool, 0, "directory where to place the file spool of xdb_file", "directory path"},
+	{ "import", 'I', POPT_ARG_STRING, &import_spool, 0, "import data to the server from a filespool", "basedir of file-spool"},
 	{ "version", 'V', POPT_ARG_NONE, &do_version, 0, "print server version", NULL},
 	{ NULL, 'v', POPT_ARG_NONE|POPT_ARGFLAG_DOC_HIDDEN, &do_version, 0, "print server version", NULL},
 	POPT_AUTOHELP
@@ -226,6 +228,9 @@ int main (int argc, const char** argv) {
     }
     if (do_include != NULL) {
 	xhash_put(jabberd.cmd_line, "i", do_include);
+    }
+    if (import_spool != NULL) {
+	xhash_put(jabberd.cmd_line, "I", import_spool);
     }
 
     /* the special -Z flag provides a list of zones to filter debug output for, flagged w/ a simple hash */
@@ -334,6 +339,10 @@ int main (int argc, const char** argv) {
     /* begin delivery of queued msgs */
     deliver__flag=1;
     deliver(NULL,NULL);
+
+    /* was there a request to import an existing filespool? */
+    if (import_spool != NULL) {
+    }
 
     while (1) {
         pth_ctrl(PTH_CTRL_GETAVLOAD, &avload);

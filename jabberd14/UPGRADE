@@ -71,6 +71,20 @@ compatibility with them, configure your server to only request the
 <username/>, or offer account registration on your web-site. For
 configuration examples see the included jabber.xml.dist file.
 
+If your Jabber server was configured to store user data in a spool
+directory (AKA xdb_file), you can easily migrate this data to storing
+data in a SQL database if you want. Just reconfigure your jabberd14
+server to use the xdb_sql module to handle storage (this is in the
+default configuration file now) and import your old spool directory
+using the -I command line option of jabberd:
+    jabberd -c yourNewConfigFile.xml -I /path/to/var/spool/jabberd
+Your jabberd14 server will then import all data from your existing
+filespools in /path/to/var/spool/jabberd to the new storage module
+configured in your configuration file.
+(Note that the path you specify using the -I option should be the
+directory containing the directories that are named after your domains,
+and should not point to the domain directories directly.)
+
 
 Upgrading from 1.4.3(.1) to 1.4.4
 ---------------------------------
