@@ -144,7 +144,10 @@ mreturn mod_vcard_set(mapi m, void *arg) {
 	    /* handle putting the vcard to the configured jud: send a get request to the jud services */
 	    browse = js_config(m->si, "browse:browse", xmlnode_get_lang(m->packet->x));
 	    for(cur = xmlnode_get_firstchild(browse); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
-		if(j_strcmp(xmlnode_get_attrib_ns(cur, "type", NULL),"jud") != 0) continue;
+		if (j_strcmp(xmlnode_get_attrib_ns(cur, "type", NULL), "user") != 0)
+		    continue;
+		if (j_strcmp(xmlnode_get_attrib_ns(cur, "category", NULL), "directory") != 0)
+		    continue;
 
 		judreg = jutil_iqnew(JPACKET__GET,NS_REGISTER);
 		xmlnode_put_attrib_ns(judreg, "to", NULL, NULL, xmlnode_get_attrib_ns(cur, "jid", NULL));
