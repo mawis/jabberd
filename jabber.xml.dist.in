@@ -1,135 +1,191 @@
-<?xml version='1.0'?>
-<jabber xmlns:jabberd='http://jabberd.org/ns/configfile/replace' xmlns='http://jabberd.org/ns/configfile' xmlns:acl='http://jabberd.org/ns/acl'>
+<?xml version="1.0"?>
+<jabber xmlns:jabberd="http://jabberd.org/ns/configfile/replace" xmlns="http://jabberd.org/ns/configfile" xmlns:acl="http://jabberd.org/ns/acl">
+    
+  <!-- This is the Jabber server configuration file. The file is broken	-->
+  <!-- into different sections based on the services being managed by	-->
+  <!-- jabberd, the server daemon. Most of the important sections have	-->
+  <!-- comments and are easy to modify.                                 -->
+  <!--									-->
+  <!-- The options here should be self-explaining if you read the	-->
+  <!-- comments, that are in this file. More available configuration	-->
+  <!-- options can be found in the manual page jabber.xml (5).          -->
+  <!--									-->
+  <!-- The following tags in this configuration file have special	-->
+  <!-- meaning:								-->
+  <!--									-->
+  <!-- jabberd:include							-->
+  <!--	   Used to include other (XML) configuration files. The		-->
+  <!--	   included file should have the parent element of the		-->
+  <!--	   jabberd:include element as its root element (including the	-->
+  <!--	   same namespace!). In that case the parent element is not	-->
+  <!--	   included, but only its child elements.			-->
+  <!--	   In case that the included file has a different parent	-->
+  <!--	   element, the whole file (including the parent element) is	-->
+  <!--	   included.							-->
+  <!--									-->
+  <!-- jabberd:cmdline							-->
+  <!--	   This can be used to replace values in the configuration	-->
+  <!--	   file, by values passed at the command line of jabberd. The	-->
+  <!--	   flag attribute of this element selects which command line	-->
+  <!--	   option is used for replacement. E.g. the command line option	-->
+  <!--	   '-x h:example.com' will set how				-->
+  <!--	   <jabberd:cmdline flag='h'>...</jabberd:cmdline>		-->
+  <!--	   gets replaced.						-->
+  <!--	   If no such option is passed on the command line, the element	-->
+  <!--	   will get replaced by its textual content in the		-->
+  <!--	   configuration file (in this case this would be '...').	-->
+  <!--									-->
+  <!--	   The '-h foo' command line option is a short-hand for		-->
+  <!--	   '-x h:foo'.							-->
+  <!--	   The '-s foo' command line option is a short-hand for		-->
+  <!--	   '-x s:foo'.							-->
+  <!--									-->
+  <!-- All text in this configuration file has to be encoded using the	-->
+  <!-- UTF-8 charset, therefore you can place any character in this	-->
+  <!-- configuration file as long as it is encoded correctly.		-->
+  <!-- ASCII is a sub-set of UTF-8. Therefore you can also place any	-->
+  <!-- ASCII string in this configuration file.				-->
+  <!--									-->
+  <!-- Note as you comment things in and out that jabberd (and XML in	-->
+  <!-- general) does not like comments within comments, so be careful	-->
+  <!-- with your XML. :)						-->
+  <!--									-->
+  <!-- If your configuration file is not working as expected, use an	-->
+  <!-- XML validator to check your configuration file. E.g. you can	-->
+  <!-- just use Firefox to open this file; or use 'xmllint jabber.xml'	-->
+  <!-- to check this file.						-->
 
-  <!--
-  This is the Jabber server configuration file. The file is
-  broken into different sections based on the services being 
-  managed by jabberd, the server daemon. Most of the important 
-  sections have comments and are easy to modify.
 
-  At http://jabberd.org/1.4/ you find further instructions
-  including an annotated version of this configuration file
-  and an installation guide.
-  
-  Note that when you see a tag like "jabberd:cmdline", it's
-  automatically replaced on startup with the command line flag
-  passed in to jabberd. This enables you to override para-
-  meters set in this configuration file if necessary or de-
-  sired. Also note as you comment things in and out that
-  jabberd does not like comments within comments, so be care-
-  ful with your XML. :)
-  -->
+  <!-- The following <service/> section is for the session manager, the	-->
+  <!-- most important component within the server. This section		-->
+  <!-- contains the following types of information:			-->
+  <!--									-->
+  <!-- * the server's hostname						-->
+  <!-- * other basic server information					-->
+  <!-- * the location of the session log file				-->
+  <!-- * registration instructions for new users			-->
+  <!-- * a welcome message for new users				-->
+  <!-- * a list of agents with which users can register			-->
+  <!-- * load rules for the modules within the session manager		-->
 
+  <service id="sessions.localhost">
 
-  <!-- 
-  The following <service/> section is for the session manager, 
-  the most important component within the server. This section
-  contains the following types of information: 
-
-    * the server's hostname
-    * other basic server information
-    * the location of the session log file
-    * email addresses for server administrators 
-    * registration instructions for new users
-    * a welcome message for new users
-    * a list of agents with which users can register
-    * load rules for the modules within the session manager
-
-  -->
-
-  <service id="sessions">
-
-    <!-- 
-    Replace all occurrences of "localhost" in this file by
-    the hostname of your Jabber server. Be aware changing
-    the server's name is all but impossible once users start
-    to use the server. So choose a name that is permanent
-    (especially no Intranet hostnames or IP addresses).
-
-    Multiple <host/> entries are allowed - each one is for a 
-    separate virtual server.
-    -->
+    <!-- Replace all occurrences of "localhost" in this file by the	-->
+    <!-- hostname of your Jabber server. Be aware changing the server's	-->
+    <!-- name is all but impossible once users start to use the server.	-->
+    <!-- So choose a name that is permanent (especially no Intranet	-->
+    <!-- hostnames).							-->
+    <!--								-->
+    <!-- Please do also not use IP addresses as your server name. Most	-->
+    <!-- likely you will get into troubles sooner or later by using	-->
+    <!-- them as your server name. And also it is not very convenient	-->
+    <!-- to use them, as the server name is always part of a user's	-->
+    <!-- address. You cannot just use the username as a Jabber address.	-->
+    <!-- You always have to send your messages to 'username@domain'.	-->
+    <!--								-->
+    <!-- Multiple <host/> entries are allowed - each one is for a	-->
+    <!-- separate virtual server. (I.e. multiple domains do NOT share	-->
+    <!-- the userbase.)							-->
+    <!--								-->
+    <!-- Note: There must be no whitespace between the start and the	-->
+    <!-- end tag of the host element.					-->
 
     <host><jabberd:cmdline flag="h">localhost</jabberd:cmdline></host>
 
-    <!-- 
-    This is the custom configuration section for the 
-    Jabber session manager, a.k.a. "JSM". 
-    -->
-
     <jsm xmlns="jabber:config:jsm">
 
-      <!-- The server vCard -->
+      <!-- The server's vCard is returned by the server, if a user	-->
+      <!-- requests to get some information about the server. Having a	-->
+      <!-- vCard is not required, but you can put here some basic	-->
+      <!-- information about your server.				-->
+      <!--								-->
+      <!-- If you want to return different vCards depending on the	-->
+      <!-- language of the user, you can add multiple cards here and    -->
+      <!-- use the xml:lang attribute to tell the server which one to   -->
+      <!-- use for which language.					-->
+      <!-- If the server has no vCard of the requested language, it	-->
+      <!-- will send back the first vCard.				-->
 
-      <vCard xmlns='vcard-temp' xml:lang='en'>
+      <vCard xmlns="vcard-temp" xml:lang="en">
         <FN>jabberd14 server</FN>
         <DESC>A Jabber Server using jabberd14!</DESC>
         <URL>http://jabberd.org/</URL>
       </vCard>
 
-      <vCard xmlns='vcard-temp' xml:lang='de'>
+      <vCard xmlns="vcard-temp" xml:lang="de">
         <FN>jabberd14-Server</FN>
         <DESC>Ein Jabber-Server, der jabberd14 benutzt.</DESC>
         <URL>http://jabberd.org/</URL>
       </vCard>
 
-      <!-- 
-      Registration instructions and required fields. The 
-      notify attribute will send the server administrator(s)
-      a message after each valid registration if the notify
-      attribute is present.
+      <!-- With the <register/> element, you configure which fields	-->
+      <!-- a Jabber client is required to send when registering an user	-->
+      <!-- account on your server.					-->
+      <!-- When you add the notify attribute with a value of 'yes' to	-->
+      <!-- the <register/> element, all administrators (users with the	-->
+      <!-- acl right 'adminmsg') will get a notification message, when	-->
+      <!-- a new user has registered.					-->
+      <!--								-->
+      <!-- In contrast to older versions of jabberd14, this version now	-->
+      <!-- checks that all requested fields are returned (as required	-->
+      <!-- by XEP-0077). Some clients (e.g. Psi) have problems with	-->
+      <!-- this, as they do not request the list of required fields	-->
+      <!-- before submitting the registration request.			-->
+      <!-- To allow also these clients, that do not conform to XEP-0077	-->
+      <!-- to register with your server, either implement registration	-->
+      <!-- of accounts on your web-site, or configure your server to	-->
+      <!-- only request (require) a username (i.e. remove the <name/>	-->
+      <!-- and the <email/> element in the configuration below).	-->
+      <!--								-->
+      <!-- If you want to allow inband-registration, you have to	-->
+      <!-- request at least one element (e.g. just the <username/>	-->
+      <!-- element). If you remove all requested elements, jabberd14	-->
+      <!-- will not allow inband registration, but will still reply	-->
+      <!-- to registration get requests. (I.e. you can then use the	-->
+      <!-- content of the <instructions/> element to give additional	-->
+      <!-- information on why registration is not possible, or you can	-->
+      <!-- use it to redirect the client to a web page, where account	-->
+      <!-- registration is possible.					-->
 
-      jabberd14 now checks that all requested fields are returned
-      (as defined in XEP-0077). Some clients (i.e. Psi) have
-      problems with this, as they do not request the list of
-      required fields before sending them. To allow these
-      clients, that do not conform the XMPP-0077, to register
-      with your server, either implement registration of accounts
-      on your web-site, or configure your server to only request
-      a username (i.e. remove the <name/> and the <email/> element
-      in the configuration below.
-
-      If you want to allow inband-registration, you have to request
-      at least one element (at least the <username/> element). If
-      you remove all requested elements, jabberd14 will not allow
-      inband registration, but reply to a get request (e.g. to
-      direct a client to a web location).
-      -->
-      
-      <!--
-      The following register example requests the user to enter
-      his real name and an email address. The server checks, that
-      both fields are returned, but does not check their content
-      (i.e. even empty content is acceptable).
-      -->
-      <register notify="yes" xmlns='jabber:iq:register'>
-	<instructions>Choose a username and password to register with this server.</instructions>
-	<username/>
+      <!-- The following example requests the user to enter his real	-->
+      <!-- name and an email address. The server checks, that both	-->
+      <!-- fields are returned, but does not check their content (i.e.	-->
+      <!-- even empty content is acceptable).				-->
+      <register xmlns="jabber:iq:register" notify="yes">
+        <instructions>Choose a username and password to register with this server.</instructions>
+        <username/>
         <name/>
         <email/>
       </register>
 
+      <!-- Other possible configurations:				-->
+
+      <!-- The following example is compatible with the Psi Jabber	-->
+      <!-- client and other clients, that are not XEP-0077 conformant.	-->
+      <!-- You should use this configuration example, if you want to be	-->
+      <!-- as compatible as possible, but you won't get the email	-->
+      <!-- addresses of your users, that might be very helpful if they	-->
+      <!-- forget their password and request a new one.			-->
       <!--
-      Other possible configurations:
-
-      Compatible with the Psi jabber client:
-
       <register notify="yes" xmlns='jabber:iq:register'>
 	<instructions>Choose a username and password to register with this server.</instructions>
 	<username/>
       </register>
+      -->
 
-      Do not allow inband-registration, but return the location of a webpage,
-      that allows the user to register an account:
-
-      <register notify="yes" xmlns='jabber:iq:register'>
+      <!-- Do not allow inband-registration, but return the location of	-->
+      <!-- a webpage, that allows the user to register an account:	-->
+      <!--
+      <register xmlns='jabber:iq:register'>
 	<instructions>Please use our web-site to register this service.</instructions>
 	<x xmlns='jabber:x:oob'><url>http://example.com/register/</url></x>
       </register>
+      -->
 
-      Allow inband-registration, but send a location where registration on the web is
-      possible as well:
-
+      <!-- The following configuration does allow inband-registration,	-->
+      <!-- but sends a URL pointing to an alternative registration page -->
+      <!-- to the client as well.					-->
+      <!--
       <register notify="yes" xmlns='jabber:iq:register'>
 	<instructions>Choose a username and password to register with this server.</instructions>
 	<username/>
@@ -137,84 +193,103 @@
         <email/>
 	<x xmlns='jabber:x:oob'><url>http://example.com/register/</url></x>
       </register>
-
       -->
 
-      <!--
-      Registration timeout. You cannot reuse a JabberID that was
-      deleted less then the configured number of seconds ago.
-
-      Set this to -1 to block unregistered accounts forever.
-      Use 0 to allow registration of accounts immediatelly after
-      they have been unregistered again.
-
-      Default is to block registration for 182.5 days.
-      -->
+      <!-- After a user deletes his account on your server, the Jabber	-->
+      <!-- address of this deleted account keeps getting reserved for	-->
+      <!-- half a year.							-->
+      <!-- With the following configuration option, you can change	-->
+      <!-- duration which which deleted user accounts are blocked.	-->
+      <!-- When you set this to '-1', unregistered accounts are blocked	-->
+      <!-- forever. When you set this to '0', unregistered accounts	-->
+      <!-- are not blocked at all and can be reregistered immediatelly.	-->
+      <!-- All other values are interpreted as seconds.			-->
+      <!--								-->
+      <!-- If you want to unblock an account manually, you just have	-->
+      <!-- to remove the correspondant entry from the 'last' SQL table.	-->
       <regtimeout timeout="15768000"/>
 
-      <!-- 
-      A welcome note that is sent to every new user who registers 
-      with your server. Comment it out to disable this function.
-      You can have multiple <welcome/> elements for different languages.
-      Put the default response at the first position.
-      -->
-
-      <welcome xml:lang='en' xmlns='jabber:server'>
+      <!-- The following configures a welcome note, that is sent to	-->
+      <!-- every new user who registeres with your server (using	-->
+      <!-- inband-registration of course).				-->
+      <!--								-->
+      <!-- You can have multiple <welcome/> elements for different	-->
+      <!-- languages. Put the default, that is sent whenever the server	-->
+      <!-- has no message of the user's language at the first position.	-->
+      <!--								-->
+      <!-- If you have no welcome note in your configuration file, no	-->
+      <!-- welcome notes will be sent to your users.			-->
+      <welcome xmlns="jabber:server" xml:lang="en">
         <subject>Welcome!</subject>
         <body>Welcome to the Jabber server at localhost -- we hope you enjoy this service!</body>
       </welcome>
 
-      <welcome xml:lang='de' xmlns='jabber:server'>
-	<subject>Herzlich Willkommen!</subject>
-	<body>Willkommen auf dem Jabberserver auf localhost -- wir hoffen Sie mögen diesen Dienst!</body>
+      <welcome xmlns="jabber:server" xml:lang="de">
+        <subject>Herzlich Willkommen!</subject>
+        <body>Willkommen auf dem Jabberserver auf localhost -- wir hoffen Sie m&#xF6;gen diesen Dienst!</body>
       </welcome>
 
-      <!--
-      With the <nounregister/> element you can configure mod_register
-      to not allow deleting server accounts. You might want to use this
-      if other data is bound to the registration data, or you want to
-      do account deletion on your web-site instead.
-      -->
+      <!-- With the <nounregister/> element, you can configure the	-->
+      <!-- server to not allow deleting accounts. You might want to use	-->
+      <!-- this, if other data is bound to the registration data and	-->
+      <!-- therefore registration data should not get lost, or if you	-->
+      <!-- want to do account deletion on your web-site instead.	-->
+      <!--								-->
+      <!-- If you don't like the default error message jabberd14 is	-->
+      <!-- returning, you can add a customized error message as a text	-->
+      <!-- child node to this element. In that case you might want to	-->
+      <!-- have multiple <nounregister/> elements with different values	-->
+      <!-- of the xml:lang attribute.					-->
       <!--
       <nounregister/>
       -->
 
-      <!--
-      With the <noregistrationchange/> element you can configure mod_register
-      and the authentication modules not to process registration data/password
-      changes after a user has been sucessfully registered.
-      You might want to use this, if your users are not allowed to change
-      the data using their Jabber client, e.g. because you're doing it on
-      the web to ensure password policies, or because you want to verify
-      the e-mail addresses your users are providing.
-      -->
+      <!-- With the <noregistrationchange/> element you can configure	-->
+      <!-- the server not to process registration data changes after	-->
+      <!-- the user has been sucessfully registered.			-->
+      <!-- You might want to use this, if your users are not allowed to	-->
+      <!-- change the data using their Jabber client, e.g. because you	-->
+      <!-- want them to change this data on your web-site to be able	-->
+      <!-- to verify e-mail addresses of your users.			-->
+      <!--								-->
+      <!-- If you don't like the default error message jabberd14 is	-->
+      <!-- returning, you can add a customized error message as a text	-->
+      <!-- child node to this element. In that case you might want to	-->
+      <!-- have multiple <nounregister/> elements with different values	-->
+      <!-- of the xml:lang attribute.					-->
       <!--
       <noregistrationchange/>
       -->
 
-      <!-- 
-      The <reply> will be the message that is automatically
-      sent in response to any admin messages.
-      You can add additional <body/>, and <subject/> elements containing
-      the reply message in other languages. Mark these additional
-      elements with xml:lang='languagecode'
-      -->
-
-      <!--
-      With the <nopasswordchange/> element a user is not allowed
-      to change his password.
-      You might want to use this, if your implement password management on
-      your web-site. E.g. if you want to enforce a password policy.
-      -->
+      <!-- With the <nopasswordchange/> element you can configure	-->
+      <!-- the server not to process password changes after the user	-->
+      <!-- has been sucessfully registered.				-->
+      <!-- You might want to use this, if your users are not allowed to	-->
+      <!-- change the data using their Jabber client, e.g. because you	-->
+      <!-- want them to change this data on your web-site to be able	-->
+      <!-- to ensure a password policy.					-->
+      <!--								-->
+      <!-- If you don't like the default error message jabberd14 is	-->
+      <!-- returning, you can add a customized error message as a text	-->
+      <!-- child node to this element. In that case you might want to	-->
+      <!-- have multiple <nounregister/> elements with different values	-->
+      <!-- of the xml:lang attribute.					-->
       <!--
       <nopasswordchange/>
       -->
 
-      <!--
+      <!-- With the <reply/> elements inside the <admin/> element, you	-->
+      <!-- can set a message, that is returned to a user, whenever it	-->
+      <!-- sents a message to the bare server's address.		-->
+      <!-- If the server receives such a message, it does forward it	-->
+      <!-- to all users having the 'adminmsg' acl right.		-->
+      <!--								-->
+      <!-- You can have multiple <reply/> elements inside the <admin/>	-->
+      <!-- element, to configure replies in different languages.	-->
       <admin>
         <reply xml:lang='en' xmlns='jabber:server'>
           <subject>Auto Reply</subject>
-          <body>This is a special administrative address.  Your message was received and forwarded to server administrators.</body>
+          <body>This is a special administrative address. Your message was received and forwarded to server administrators.</body>
 	</reply>
 
         <reply xml:lang='de' xmlns='jabber:server'>
@@ -222,133 +297,133 @@
 	  <body>Dies ist eine spezielle Administrationsadresse. Ihre Nachricht wurde empfangen und an die Server-Administratoren weitergeleitet.</body>
 	</reply>
       </admin>
-      -->
 
-      <!--
-      This enables the server to automatically update the 
-      user directory when a vcard is edited.  The update is
-      only sent to the first listed jud service below.  It is
-      safe to remove this flag if you do not want any users
-      automatically added to the directory.
-      -->
-
+      <!-- The following setting enables the server to automatically	-->
+      <!-- update a user's registration with the first user directory	-->
+      <!-- configured in the <browse/> section below, whenever the user	-->
+      <!-- updates his vcard.						-->
+      <!-- If you do not want to use this feature (e.g. because your	-->
+      <!-- server is intranet-only and you do not operate your own	-->
+      <!-- user's directory), you can just comment out or remove this	-->
+      <!-- element.							-->
       <vcard2jud/>
 
-      <!--
-      The <browse/> section identifies the transports and other
-      services that are available from this server. Note that each
-      entity identified here must exist elsewhere or be further 
-      defined in its own <service/> section below. These services 
-      will appear in the user interface of Jabber clients that
-      connect to your server.
-      The <browse/> section is also used by mod_disco (see below)
-      for building the disco#items reply.
-      -->
+      <!-- The <browse/> element configures the services that a server	-->
+      <!-- announces to its clients.					-->
+      <!-- Note that this only configures which services are announced,	-->
+      <!-- if these services should be working, they must exist either	-->
+      <!-- on a foreign Jabber server, or you have to configure these	-->
+      <!-- services elsewhere in your configuration with their own	-->
+      <!-- <service/> element.						-->
+      <!--								-->
+      <!-- If you want to announce different services (or maybe just	-->
+      <!-- different names for your services) to your users depending	-->
+      <!-- on their language, you can place multiple <browse/> elements	-->
+      <!-- here, each having a different value of the xml:lang		-->
+      <!-- attribute.							-->
+      <!--								-->
+      <!-- For possible values of the category and type attribute of	-->
+      <!-- the <item/> element, please see				-->
+      <!-- http://www.xmpp.org/registrar/disco-categories.html		-->
+      <!--								-->
+      <!-- If you want to have some service only visible for some users	-->
+      <!-- you can use access control lists for that. (See the aim	-->
+      <!-- transport's example below for an example.)			-->
+      <!--								-->
+      <!-- In addition to the <item/>s configured below, the server	-->
+      <!-- will also announce all users with the 'showasadmin' ACL	-->
+      <!-- right to be an administrator of this server.			-->
+      <!-- If you don't want this to happen, please to not give anybody	-->
+      <!-- this ACL right.						-->
+      <browse xmlns="jabber:iq:browse">
 
-      <browse xmlns='jabber:iq:browse'>
-
-        <!-- 
-        This is the default agent for the master Jabber User 
-        Directory, a.k.a. "JUD", which is located at jabber.org.
-        You can add separate <item/> sections for additional
-	directories, e.g., one for a company intranet.
-
-	For possible values of category and item see XEP-0011
-        -->
-
-        <item category="service" type="jud" jid="users.jabber.org" name="Jabber User Directory">
+	<!-- The following entry announces a reference to the global	-->
+	<!-- Jabber users directory at jabber.org.			-->
+	<!-- If you want to announce multiple user directories, you	-->
+	<!-- can add them as multiple <item/>s. (E.g. a second		-->
+	<!-- user directory, that is internal to your company.)		-->
+	<!--								-->
+	<!-- If your server has no access to the public Jabber network	-->
+	<!-- on the internet, you should remove the following item	-->
+	<!-- as your users won't be able to use it anyway.		-->
+        <item category="directory" type="user" jid="users.jabber.org" name="Jabber User Directory">
           <ns>jabber:iq:search</ns>
           <ns>jabber:iq:register</ns>
-        </item>
+	</item>
 
-        <!--
-        The following services are examples only, you will need to
-        create/modify them to get them working on your Jabber 
-        server. See the README files for each service and/or the 
-        server howto for further information/instructions. 
-        -->
+	<!-- The following services are examples for popular transports	-->
+	<!-- only. You will need to additionally install and configure	-->
+	<!-- these services. See the documentation of the respective	-->
+	<!-- transports for further information/instructions.		-->
 
-        <!-- we're commenting these out, of course :)
-
-        <item category="service" type="aim" jid="aim.localhost" name="AIM Transport" acl:if='localusers'>
+	<!-- Example for announcing a transport/gateway to the AIM	-->
+	<!-- network.							-->
+	<!-- Note the acl:if attribute on the <item/> element. This	-->
+	<!-- configures the server to only return this item if the	-->
+	<!-- requesting user has the selected ACL right. (The		-->
+	<!-- 'localusers' ACL right in this case.)			-->
+	<!--
+        <item category="gateway" type="aim" jid="aim.localhost" name="AIM Transport" acl:if='localusers'>
           <ns>jabber:iq:gateway</ns>
           <ns>jabber:iq:register</ns>
-        </item>
+	</item>
+	-->
 
-        <item category="service" type="yahoo" jid="yahoo.localhost" name="Yahoo! Transport">
+	<!--
+        <item category="gateway" type="yahoo" jid="yahoo.localhost" name="Yahoo! Transport">
           <ns>jabber:iq:gateway</ns>
           <ns>jabber:iq:register</ns>
-        </item>
-
-        end of service examples -->
-
+	</item>
+	-->
       </browse>
 
-      <!--
-      "Service Discovery" (disco, XEP-0030) supersedes
-      "Jabber Browsing" (XEP-0011).
-      The <identity/> element inside the <disco/> section can be used
-      to configure a special identity result for the server. If
-      not present, the name is fetched from the server's vCard.
-      -->
-      <!--
-      <disco xmlns='http://jabber.org/protocol/disco#info'>
-	<identity category='server' type='im' name='jabberd14 server'/>
-      </disco>
-      -->
-
-      <!--
-      Select the hashing algorithm that mod_auth_crypt uses
-      for storing passwords
-      Possible values:
-      crypt ... traditional hashing as implemented in crypt()
-      SHA1  ... using SHA1 hashes
-      -->
-      <mod_auth_crypt>
-        <hash>SHA1</hash>
-      </mod_auth_crypt>
-
-      <!--
-      Configuration for mod_version. By defining <no_os_version/>
-      mod_version will not report the version of your OS.
-      -->
+      <!-- By default the server will tell Jabber clients which which	-->
+      <!-- operating system and which version of it you are using.	-->
+      <!-- If you consider this to be a security thread, you might	-->
+      <!-- disable this feature using the following setting:		-->
       <!--
       <mod_version>
         <no_os_version/>
       </mod_version>
       -->
 
-      <!--
-      Configuration for mod_presence. By using <bcc>jid</bcc> you
-      can send a copy of all presences to the configured Jabber address.
-      By using <presence2xdb/> you can configure that the presence of
-      the top session should be stored to xdb. This is not used by
-      jabberd itself, but might be useful if you direct the
-      http://jabberd.org/ns/storedpresence namespace to xdb_sql and want
-      to use this information to generate webpages.
-      -->
+      <!-- The following setting configures your server to store the	-->
+      <!-- current presence of all online users to your SQL database.	-->
+      <!-- This information is not needed by jabberd14 itself. It is	-->
+      <!-- only stored there if you want to use it with other		-->
+      <!-- applications, or you want to display it on your web-site.	-->
+      <!-- If you do not need this information there, you can safely	-->
+      <!-- comment out or remove the following setting.			-->
       <presence>
-          <!-- <bcc>component.example.com</bcc> -->
-	  <!-- <presence2xdb/> -->
+	<presence2xdb/>
       </presence>
 
-      <!--
-      The history configuration element can be used to instruct the session
-      manager to store a copy of all messages to xdb.
-      The sent element will enable storage of sent messages, the recv
-      element will enable storage of received messages.
-      You can configure the session manager to not store messages it reads
-      from offline storage. With xdb_sql you can then construct a delete
-      query, that does not delete the message, but just flags it as
-      delivered, so we don't have to store the message in the
-      history again.
-      Messages with type error, headline, or groupchat are not stored
-      in the history. This can be changed by defining the attributes
-      special or offline with the values 'store' or 'ignore'.
-
-      This is an experimental feature, it might be removed in future
-      versions of this software or it might get incompatible changes.
-      -->
+      <!-- The <history/> configuration element can be used to instruct	-->
+      <!-- the session manager to store a copy of all messages to your	-->
+      <!-- SQL database.						-->
+      <!-- The <sent/> element inside this element is used to enable	-->
+      <!-- storage of messages sent by your users.			-->
+      <!-- The <recv/> element inside the <history/> element is used to	-->
+      <!-- enable storage of messages received by your users.		-->
+      <!-- The following optional attributes exist on these two		-->
+      <!-- settings:							-->
+      <!--								-->
+      <!-- special (default value is 'ignore'):				-->
+      <!--	By default jabberd14 does not store some types of	-->
+      <!--	special messages even if message logging is enabled	-->
+      <!--	(error messages, headlines, and groupchat messages).	-->
+      <!--	By setting this attribute to 'store' jabberd will	-->
+      <!--	also store these special messages.			-->
+      <!-- offline (default value is 'store', only for <recv/>):	-->
+      <!--	By default jabberd14 does also store message it		-->
+      <!--	reads from the offline storeage (i.e. that have been	-->
+      <!--	received by the server while the user was offline).	-->
+      <!--	When you set this to 'ignore' jabberd14 will not	-->
+      <!--	store these message. You can use this setting to	-->
+      <!--	improve performance, when you change your database	-->
+      <!--	settings in a way, that the already stored offline	-->
+      <!--	messages will not get deleted if a user reads them,	-->
+      <!--	put only marked as read.				-->
       <!--
       <history>
 	  <sent special='ignore'/>
@@ -356,68 +431,41 @@
       </history>
       -->
 
-      <!--
-      Configuration of mod_offline. This defines which types of messages
-      should be stored offline, if a user has no active connection
-      and new messages are received.
-      The default if there is no mod_offline element is to store
-      normal and chat messages offline. If there is a mod_offline element,
-      only the configured types are stored. To disable offline storage
-      place an empty mod_offline element here.
-      -->
-      <!--
-      <mod_offline>
-        <normal/>
-	<chat/>
-	<groupchat/>
-	<headline/>
-	<error/>
-      </mod_offline>
-      -->
-
-      <!--
-      Configuration of mod_useridpolicy: block some usernames
-      from being registered
-      -->
+      <!-- Configure which usernames are not acceptable for account	-->
+      <!-- registration.						-->
+      <!-- There are some usernames, that are blocked against account	-->
+      <!-- registration by this default configuration file. This is	-->
+      <!-- because users might associate special functions with these	-->
+      <!-- account names.						-->
+      <!-- Also you can configure usernames to have a minimum or	-->
+      <!-- maximum length.						-->
+      <!-- These settings do not affect existing accounts, but only	-->
+      <!-- account registration. If you are registering accounts	-->
+      <!-- manually or on your web-site by inserting the accounts to	-->
+      <!-- your SQL database, these settings have no effect.		-->
       <mod_useridpolicy>
-        <!-- usernames that are not available for registration -->
+	<!-- usernames that are not available for registration		-->
         <forbidden>admin</forbidden>
-	<forbidden>administrator</forbidden>
-	<forbidden>chatmaster</forbidden>
-	<forbidden>hostmaster</forbidden>
-	<forbidden>jabbermaster</forbidden>
-	<forbidden>postmaster</forbidden>
-	<forbidden>root</forbidden>
-	<forbidden>support</forbidden>
-	<forbidden>system</forbidden>
-	<forbidden>webmaster</forbidden>
-	<forbidden>xmpp</forbidden>
-	<!-- minimum and maximum length of usernames that can be registered -->
-	<minlen>3</minlen>
-	<maxlen>16</maxlen>
+        <forbidden>administrator</forbidden>
+        <forbidden>chatmaster</forbidden>
+        <forbidden>hostmaster</forbidden>
+        <forbidden>jabbermaster</forbidden>
+        <forbidden>postmaster</forbidden>
+        <forbidden>root</forbidden>
+        <forbidden>support</forbidden>
+        <forbidden>system</forbidden>
+        <forbidden>webmaster</forbidden>
+        <forbidden>xmpp</forbidden>
+	<!-- minimum and maximum length of usernames			-->
+        <minlen>3</minlen>
+        <maxlen>16</maxlen>
       </mod_useridpolicy>
-
-      <!--
-      The session manager can serialize all state information that is necessary
-      to resume sessions after restart to an XML file.
-      Use this to configure state serialization.
-      -->
-      <!--
-      <serialization>
-	<file>@localstatedir@/cache/jabberd/jsm-state.xml</file>
-	<interval>60</interval>
-      </serialization>
-      -->
     </jsm>
 
-    <!--
-    The following section dynamically loads the individual
-    modules that make up the session manager. Remove or 
-    comment out modules to disable them. Note that the order
-    of modules is important, since packets are delivered 
-    based on the following order!!
-    -->
-
+    <!-- The following section dynamically loads the individual modules	-->
+    <!-- that make up the session manager. You normally do not want to	-->
+    <!-- change anything here.						-->
+    <!-- If you do, take note, that the order is important!		-->
     <load main="jsm">
       <jsm>@libdir@/libjabberdsm.so</jsm>
       <mod_privacy>@libdir@/libjabberdsm.so</mod_privacy>
@@ -436,221 +484,198 @@
       <mod_ping>@libdir@/libjabberdsm.so</mod_ping>
       <mod_presence>@libdir@/libjabberdsm.so</mod_presence>
       <mod_useridpolicy>@libdir@/libjabberdsm.so</mod_useridpolicy>
-
-      <!--
-      Authentication
-      For standard setups mod_auth_digest is recommended. Additionally
-      enable mod_auth_plain if you need plaintext authentication.
-      For maximum security, force TLS connections and use mod_auth_crypt
-      exclusively. Be aware encrypted password storage can lead to
-      problems when migrating to other authentication mechanisms
-      (LDAP...).
-      Switching from plain/digest to crypt needs manual work for
-      existing accounts, the reverse is not possible.
-      http://jabberd.org/1.4/doc/adminguide#security
-      -->
-      <!-- mod_auth_digest: Password in clear text in storage,
-           encrypted/hashed on the wire -->
       <mod_auth_digest>@libdir@/libjabberdsm.so</mod_auth_digest>
-      <!-- mod_auth_plain: Password in clear text in storage
-           and on the wire. Disable this if you do not use clients
-           that need plaintext auth -->
       <mod_auth_plain>@libdir@/libjabberdsm.so</mod_auth_plain>
-      <!-- mod_auth_crypt: Password encrypted/hashed in storage,
-           clear text on the wire. Disabled as this only makes
-           sense when used exclusively and with TLS mandatory
-      <mod_auth_crypt>@libdir@/libjabberdsm.so</mod_auth_crypt> -->
-
       <mod_log>@libdir@/libjabberdsm.so</mod_log>
       <mod_register>@libdir@/libjabberdsm.so</mod_register>
       <mod_xml>@libdir@/libjabberdsm.so</mod_xml>
     </load>
-
   </service>
 
-  <!-- OK, we've finished defining the Jabber Session Manager. -->
-
-  <!--
-  The <xdb/> component handles all data storage, using the filesystem.
-  Make sure the spool directory defined here exists and has proper
-  permissions.
-  -->
-
-  <xdb id="xdb">
-    <!--
-    handle the xdb for all domains/components of this server
-    -->
+  <!-- The following section defines how data gets stored to your SQL	-->
+  <!-- database. If you do not have need to access customized or	-->
+  <!-- existing database structures, just use the following defaults.	-->
+  <!-- But if you want to organize your database differently or want to	-->
+  <!-- access an existing database with a different layout, these	-->
+  <!-- settings are a very powerful tool to customize how jabberd14	-->
+  <!-- accesses your SQL database.					-->
+  <!--									-->
+  <!-- Former versions of jabberd14 did by default use files to store	-->
+  <!-- the user's data. This is still supported by jabberd14 1.6.0 and	-->
+  <!-- you can use your existing storage configuration if you want to.	-->
+  <!-- But as this is not suggested for new setups, the configuration	-->
+  <!-- examples for this have been removed.				-->
+  <!--									-->
+  <!-- The following settings are optimized of MySQL 4.1+.		-->
+  <!-- For using PostgreSQL, or if you want to learn more about		-->
+  <!-- jabberd14 accessing your SQL database, please see README.sql.	-->
+  
+  <xdb id="xdbsql.localhost">
     <host/>
-    
-    <!--
-    it is the default handler for all otherwise undefined namespaces
-    -->
-    <ns/>
-    
-    <load>
-      <xdb_file>@libdir@/libjabberdxdbfile.so</xdb_file>
-    </load>
-    <xdb_file xmlns="jabber:config:xdb_file">
-      <spool><jabberd:cmdline flag='s'>@localstatedir@/spool/jabberd</jabberd:cmdline></spool>
-      <!-- How long should XDB data be kept in memory?
-           Default: 3600 seconds. Change to <timeout/> to disable. -->
-      <timeout>3600</timeout>
-      <!-- What is the maximum size of a spool file?
-           Default: 500000 bytes. Change to <sizelimit/> to disable. -->
-      <sizelimit>500000</sizelimit>
-      <!-- Enable hierarchical spool dir layout if you have
-           many users and your spool is on a file system that
-           behaves badly with big directories.
-      <use_hierarchical_spool/> -->
-    </xdb_file>
-  </xdb>
-
-  <!--
-  You might want handle the accounts of your users in SQL using
-  a database backend. Uncomment the following section for this.
-
-  You should be able to use your existing database layout if you
-  configure the right SQL queries for it. The example below
-  expects a table "users" with at least two fields "jid" and
-  "password". You are free to have other fields in this table
-  as well, they will be ignored.
-
-  You may also store presence information of users in SQL tables.
-  Uncomment the <presence2xdb/> element in the session manager
-  configuration above and create a table presence with the following
-  fields in it: jid, presence, priority, status.
-
-  The two other configured examples here handle offline message
-  storage and storage of message history. These are only considered
-  to be examples. For more information read README.sql.
-
-  In README.sql you will also find how to create the tables that can
-  be used together with these examples.
-
-  For MySQL 4.1+ you might want to set the charset on connection.
-  Add <onconnect>SET NAMES utf8</onconnect> to the configuration
-  anywhere as the child of the <xdb_sql/> element in the configuration.
-  -->
-  <!--
-  <xdb id="xdbsql">
-    <host/>
-    <ns>jabber:iq:auth</ns>
-    <ns>jabber:iq:last</ns>
-    <ns>jabber:iq:register</ns>
-    <ns>jabber:iq:roster</ns>
-    <ns>jabber:x:offline</ns>
-    <ns>http://jabberd.org/ns/history</ns>
-    <ns>http://jabberd.org/ns/storedpresence</ns>
     <load>
       <xdb_sql>@libdir@/libjabberdxdbsql.so</xdb_sql>
     </load>
     <xdb_sql xmlns="jabber:config:xdb_sql">
+      <!-- change the following to <driver>postgresql</driver>		-->
+      <!-- if you are using PostreSQL.					-->
       <driver>mysql</driver>
       <mysql>
-        <user>jabber</user>
+	<!-- set your MySQL server credentials here.			-->
+	<user>jabber</user>
 	<password>secret</password>
 	<host>localhost</host>
 	<database>jabber</database>
       </mysql>
       <postgresql>
-        <conninfo>user=jabber password=secret</conninfo>
+	<!-- if you are using PostreSQL, set your credentials here.	-->
+	<conninfo>user=jabber password=secret</conninfo>
       </postgresql>
       <nsprefixes>
-	<namespace>jabber:server</namespace>
-	<namespace prefix='auth'>jabber:iq:auth</namespace>
-	<namespace prefix='last'>jabber:iq:last</namespace>
-	<namespace prefix='register'>jabber:iq:register</namespace>
+        <namespace>jabber:server</namespace>
+        <namespace prefix='auth'>jabber:iq:auth</namespace>
+        <namespace prefix='last'>jabber:iq:last</namespace>
+        <namespace prefix='register'>jabber:iq:register</namespace>
 	<namespace prefix='roster'>jabber:iq:roster</namespace>
+	<namespace prefix='browse'>jabber:iq:browse</namespace>
+	<namespace prefix='vcard'>vcard-temp</namespace>
+	<namespace prefix='subscription'>http://jabberd.org/ns/storedsubscriptionrequest</namespace>
+	<namespace prefix='private'>jabber:iq:private</namespace>
+	<namespace prefix='privacy'>jabber:iq:privacy</namespace>
+	<namespace prefix='jabberd'>http://jabberd.org/ns/wrapper</namespace>
       </nsprefixes>
-      <handler ns="jabber:iq:auth">
-         <get>
-	   <query>SELECT password FROM users WHERE jid='{attribute::to}'</query>
-	   <result><password xmlns='jabber:iq:auth'><value xmlns='http://jabberd.org/ns/xdbsql' value='1'/></password></result>
-	 </get>
-	 <set>INSERT INTO users (jid,password) VALUES ('{attribute::to}', '{auth:password/text()}')</set>
-	 <delete>DELETE FROM users WHERE jid='{attribute::to}'</delete>
-      </handler>
+      <!-- remove the following line, if you are using a MySQL version	-->
+      <!-- that is older than MySQL 4.1.				-->
+      <onconnect>SET NAMES utf8</onconnect>
       <handler ns="jabber:iq:last">
-        <get>
-	  <query>SELECT xml FROM last WHERE jid='{attribute::to}'</query>
+	<get>
+	  <query>SELECT xml FROM last WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1)</query>
 	  <result><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
 	</get>
-	<set>INSERT INTO last (jid,xml) VALUES ('{attribute::to}', '{last:query}')</set>
-	<delete>DELETE FROM last WHERE jid='{attribute::to}'</delete>
+	<set>INSERT INTO last (user, realm, last, text, xml) VALUES (SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1), SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1), '{last:query/attribute::last}', '{last:query/text()}', '{last:query}')</set>
+	<delete>DELETE FROM last WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1)</delete>
       </handler>
-      <handler ns="jabber:iq:register">
-        <get>
-          <query>SELECT SUBSTRING(jid, 1, INSTR(jid, '@')-1) as user,mailaddress FROM mailaddresses WHERE jid='{attribute::to}'</query>
-          <result><query xmlns='jabber:iq:register'><name><value xmlns='http://jabberd.org/ns/xdbsql' value='1'/></name><email><value xmlns='http://jabberd.org/ns/xdbsql' value='2'/></email></query></result>
-          </get>
-          <set>INSERT INTO mailaddresses (jid, mailaddress, lastmodified) VALUES ('{attribute::to}', IF('{register:query/register:email/text()}'='', NULL, '{register:query/register:email/text()}'), now())</set>
-          <delete>DELETE FROM mailaddresses WHERE jid='{attribute::to}'</delete>
+      <handler ns="jabber:iq:auth">
+	<get>
+	  <query>SELECT password FROM system_auth.users WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1)</query>
+	  <result><password xmlns='jabber:iq:auth'><value xmlns='http://jabberd.org/ns/xdbsql' value='1'/></password></result>
+	</get>
+	<set>INSERT INTO system_auth.users (user,realm,password) VALUES (SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1), SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1), '{auth:password/text()}')</set>
+	<delete>DELETE FROM system_auth.users WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1)</delete>
       </handler>
-      <handler ns="jabber:iq:roster">
-        <get>
-          <query>SELECT xml FROM roster WHERE jid='{attribute::to}'</query>
-          <result><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
-        </get>
-        <set>INSERT INTO roster (jid,xml) VALUES ('{attribute::to}', '{roster:query}')</set>
-        <delete>DELETE FROM roster WHERE jid='{attribute::to}'</delete>
+      <handler ns='http://jabberd.org/ns/storedsubscriptionrequest'>
+	<get>
+	  <query>SELECT xml FROM storedsubscriptionrequests WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1)</query>
+	  <result group='foo'><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
+	</get>
+	<set>INSERT INTO storedsubscriptionrequests (user, realm, fromjid, xml) VALUES (SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1), SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1), '{presence/attribute::from}', '{presence}')</set>
+	<delete>DELETE FROM storedsubscriptionrequests WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1) AND IF ('{attribute::matchpath}'='', 1=1, fromjid=SUBSTRING(SUBSTRING('{attribute::matchpath}', 1, LENGTH('{attribute::matchpath}')-2), 17) AND SUBSTRING('{attribute::matchpath}', 1, 15)='presence[@from=')</delete>
       </handler>
-      <handler ns="jabber:x:offline">
-        <get>
-          <query>SELECT xml FROM messages WHERE jid='{attribute::to}' AND type='offline' ORDER BY storetime</query>
-          <result group='foo' groupiri='jabber:x:offline'><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
-        </get>
-        <set>INSERT INTO messages (jid, node, correspondent, type, storetime, subject, body, xml) VALUES ('{attribute::to}', IF('{message/attribute::node}'='', NULL, '{message/attribute::node}'), '{message/attribute::from}', 'offline', now(), IF ('{message/subject}'='', NULL, '{message/subject/text()}'), '{message/body/text()}', '{message}')</set>
-	<delete>DELETE FROM messages WHERE jid='{attribute::to}' AND type='offline' AND IF ('{attribute::matchpath}'='', 1=1, node=SUBSTRING(SUBSTRING('{attribute::matchpath}', 1, LENGTH('{attribute::matchpath}')-2), 16) AND SUBSTRING('{attribute::matchpath}', 1, 14)='message[@node=')</delete>
+      <handler ns='jabber:x:offline'>
+	<get>
+	  <query>SELECT xml FROM messages WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1) AND type='offline' ORDER BY storetime</query>
+	  <result group='foo'><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
+	</get>
+	<set>INSERT INTO messages (user, realm, node, correspondent, type, storetime, subject, body, xml) VALUES (SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1), SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1), IF('{message/attribute::node}'='', NULL, '{message/attribute::node}'), REVERSE(SUBSTRING(REVERSE('{message/attribute::from}'), INSTR(REVERSE('{message/attribute::from}'), '/')+1)) , 'offline', now(), IF ('{message/subject}'='', NULL, '{message/subject/text()}'), '{message/body/text()}', '{message}')</set>
+	<delete>DELETE FROM messages WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1) AND type='offline' AND IF ('{attribute::matchpath}'='', 1=1, node=SUBSTRING(SUBSTRING('{attribute::matchpath}', 1, LENGTH('{attribute::matchpath}')-2), 16) AND SUBSTRING('{attribute::matchpath}', 1, 14)='message[@node=')</delete>
       </handler>
-      <handler ns="http://jabberd.org/ns/history">
-        <get>
-          <query>SELECT xml FROM messages WHERE jid='{attribute::to}' AND type!='offline'</query>
-          <result group='foo'><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
-        </get>
-        <set>INSERT INTO messages (jid, correspondent, type, storetime, delivertime, subject, body, xml) VALUES ('{attribute::to}', IF ('{message/attribute::direction}'='sent', '{message/attribute::to}', '{message/attribute::from}'), IF ('{message/attribute::direction}'='sent', 'sent', 'recv'), now(), IF ('{message/attribute::direction}'='sent', NULL, now()), '{message/subject/text()}', '{message/body/text()}', '{message}')</set>
-        <delete>DELETE FROM messages WHERE jid='{attribute::to}'AND type!='offline'</delete>
+      <handler ns='http://jabberd.org/ns/history'>
+	<get>
+	  <query>SELECT xml FROM messages WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1) AND type!='offline'</query>
+	  <result group='foo'><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
+	</get>
+	<set>INSERT INTO messages (user, realm, correspondent, type, storetime, delivertime, subject, body, xml) VALUES (SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1), SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1), IF ('{message/attribute::direction}'='sent', REVERSE(SUBSTRING(REVERSE('{message/attribute::to}'), INSTR(REVERSE('{message/attribute::to}'), '/')+1)), REVERSE(SUBSTRING(REVERSE('{message/attribute::from}'), INSTR(REVERSE('{message/attribute::from}'), '/')+1))), IF ('{message/attribute::direction}'='sent', 'sent', 'recv'), now(), IF ('{message/attribute::direction}'='sent', NULL, now()), '{message/subject/text()}', '{message/body/text()}', '{message}')</set>
+	<delete>DELETE FROM messages WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1)</delete>
       </handler>
       <handler ns="http://jabberd.org/ns/storedpresence">
         <get>
           <query>SELECT 'this namespace is never selected'</query>
           <result><this-namespace-is-never-selected/></result>
         </get>
-        <set>INSERT INTO presence (jid,presence,priority,status) VALUES ('{attribute::to}', IF ('{presence}'='','unavailable', IF ('{presence/show/text()}'='invisible' , 'unavailable', IF ('{presence/show/text()}'='','available', '{presence/show/text()}'))), IF ('{presence/priority/text()}'='', '0', '{presence/priority/text()}'), '{presence/status/text()}')</set>
-        <delete>DELETE FROM presence WHERE jid='{attribute::to}'</delete>
+	<set>INSERT INTO presence (user,realm,presence,priority,status,timestamp) VALUES (SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1), SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1), IF ('{presence}'='','unavailable', IF ('{presence/show/text()}'='','available', '{presence/show/text()}')), IF ('{presence/priority/text()}'='', '0', '{presence/priority/text()}'), '{presence/status/text()}', now())</set>
+	<delete>DELETE FROM presence WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1)</delete>
+      </handler>
+      <handler ns='jabber:iq:private'>
+	<get>
+	  <query>SELECT xml FROM private WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1) ORDER BY last_modified</query>
+	  <result group='foo'><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
+	</get>
+	<set>INSERT INTO private (user,realm,ns,xml,last_modified) VALUES (SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1), SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1), '{*/attribute::jabberd:ns}', '{private:query}', NOW())</set>
+	<delete>DELETE FROM private WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1) AND ns='{attribute::jabberd:ns}'</delete>
+      </handler>
+      <handler ns='jabber:iq:privacy'>
+	<get>
+	  <query>SELECT xml FROM privacy WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1) ORDER BY last_modified</query>
+	  <result group='foo'><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
+	</get>
+	<set>INSERT INTO privacy (user,realm,name,xml,last_modified,isdefault) VALUES (SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1), SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1), SUBSTRING(SUBSTRING('{attribute::matchpath}', 1, LENGTH('{attribute::matchpath}')-2), 21), '{privacy:list}', NOW(), IF('{*/attribute::jabberd:default}' = '', NULL, 'default'))</set>
+	<delete>DELETE FROM privacy WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1) AND IF ('{attribute::matchpath}'='', 1=1, name=SUBSTRING(SUBSTRING('{attribute::matchpath}', 1, LENGTH('{attribute::matchpath}')-2), 21) AND SUBSTRING('{attribute::matchpath}', 1, 19)='privacy:list[@name=')</delete>
+      </handler>
+      <handler ns='jabber:iq:register'>
+        <get>
+	  <query>SELECT user,mailaddress FROM mailaddresses WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1)</query>
+          <result><query xmlns='jabber:iq:register'><name><value xmlns='http://jabberd.org/ns/xdbsql' value='1'/></name><email><value xmlns='http://jabberd.org/ns/xdbsql' value='2'/></email></query></result>
+          </get>
+          <set>INSERT INTO mailaddresses (user, realm, mailaddress, lastmodified) VALUES (SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1), SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1), IF('{register:query/register:email/text()}'='', NULL, '{register:query/register:email/text()}'), now())</set>
+          <delete>DELETE FROM mailaddresses WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1)</delete>
+      </handler>
+      <handler ns="jabber:iq:roster">
+	<get>
+	  <query>SELECT xml FROM roster WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1)</query>
+	  <result><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
+	</get>
+	<set>INSERT INTO roster (user, realm, xml) VALUES (SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1), SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1), '{roster:query}')</set>
+	<delete>DELETE FROM roster WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1)</delete>
+      </handler>
+      <handler ns="jabber:iq:browse">
+	<get>
+	  <query>SELECT xml FROM browse WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1)</query>
+	  <result><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
+	</get>
+	<set>INSERT INTO browse (user, realm, xml) VALUES (SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1), SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1), '{*}')</set>
+	<delete>DELETE FROM browse WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1)</delete>
+      </handler>
+      <handler ns="vcard-temp">
+	<get>
+	  <query>SELECT xml FROM vcard WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1)</query>
+	  <result><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
+	</get>
+	<set>INSERT INTO vcard (user, realm, name, email, nickname, birthday, photo, xml) VALUES (SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1), SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1), IF('{vcard:vCard/vcard:FN/text()}'='', IF('{vcard:vCard/vcard:N/vcard:GIVEN/text()}'!='' AND '{vcard:vCard/vcard:N/vcard:MIDDLE/text()}'!='' AND '{vcard:vCard/vcard:N/vcard:FAMILY/text()}'!='', '{vcard:vCard/vcard:N/vcard:GIVEN/text()} {vcard:vCard/vcard:N/vcard:MIDDLE/text()} {vcard:vCard/vcard:N/vcard:FAMILY/text()}', IF('{vcard:vCard/vcard:N/vcard:GIVEN/text()}'!='' AND '{vcard:vCard/vcard:N/vcard:FAMILY/text()}'!='', '{vcard:vCard/vcard:N/vcard:GIVEN/text()} {vcard:vCard/vcard:N/vcard:FAMILY/text()}', IF('{vcard:vCard/vcard:N/vcard:FAMILY/text()}'!='','{vcard:vCard/vcard:N/vcard:FAMILY/text()}',IF('{vcard:vCard/vcard:N/vcard:GIVEN/text()}'!='', '{vcard:vCard/vcard:N/vcard:GIVEN/text()}', NULL)))), '{vcard:vCard/vcard:FN/text()}'), IF('{vcard:vCard/vcard:EMAIL/vcard:USERID/text()}'='', NULL, '{vcard:vCard/vcard:EMAIL/vcard:USERID/text()}'), IF('{vcard:vCard/vcard:NICKNAME/text()}'='', NULL, '{vcard:vCard/vcard:NICKNAME/text()}'), IF('{vcard:vCard/vcard:BDAY/text()}'='', NULL, '{vcard:vCard/vcard:BDAY/text()}'), IF('{vcard:vCard/vcard:PHOTO/vcard:BINVAL/text()}'='', IF('{vcard:vCard/vcard:PHOTO/text()}'='', NULL, '{vcard:vCard/vcard:PHOTO/text()}'), '{vcard:vCard/vcard:PHOTO/vcard:BINVAL/text()}'), '{vcard:vCard}')</set>
+	<delete>DELETE FROM vcard WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1)</delete>
       </handler>
     </xdb_sql>
   </xdb>
-  -->
 
-  <!--
-  The following service manages incoming client socket connections.
-  There are several items you can set here to optimize performance:
-
-    * authtime - default is 120 seconds of time allowed for
-      authentication to be completed. Change to <authtime/> to
-      disable limit.
-
-    * heartbeat - default is to send out heartbeat packets
-      to the clients every 60 seconds. This is useful if
-      you have a lot of dial-up or laptop users who
-      may drop their connection without logging off of jabber.
-      Otherwise the server won't notice that they are offline until
-      someone tries to send a packet to them (and the message is
-      lost). Change to <heartbeat/> to disable.
-
-    * karma - this is an input/output rate limiting system that
-      the Jabber team came up with to prevent bandwidth hogging.
-      For details about karma, read the io section at the bottom.
-      These are the low settings and apply per connection/socket
-      and can be changed as desired.
-      To disable rate limiting just delete the <karma/> section.
-  -->
-
+  <!-- While the main logic of your server resides in the session	-->
+  <!-- manager (you configured it as the first <service/> in your	-->
+  <!-- configuration file), some functionality has been separated from	-->
+  <!-- the session manager.						-->
+  <!-- One of the most important thinks, that have been separated from	-->
+  <!-- the session manager is the so called 'client connection manager'	-->
+  <!-- that gets configured now.					-->
+  <!-- The client connection manager is responsible for accepting	-->
+  <!-- incoming TCP/IP connections from your user's clients. It has	-->
+  <!-- been separated to an own service, to be able to replace this	-->
+  <!-- part of the server by other implementations, or run multiple	-->
+  <!-- instances of this component (clustering).			-->
+  <!-- The default implementation of the client connection manager is	-->
+  <!-- able to handle up to about 500 concurrent users. If you plan to	-->
+  <!-- serve more concurrent users, you should consider using the	-->
+  <!-- alternative client connection manager of jabberd14 which is	-->
+  <!-- called 'jadc2s' and can be downloaded from the jabberd web-site	-->
+  <!-- as well. (http://download.jabberd.org/jadc2s/)			-->
+  <!-- You will also want to use jadc2s if you want to enable SASL	-->
+  <!-- authentication for your users.					-->
+  <!-- With clustered instances of jadc2s, your server will be able	-->
+  <!-- to handle several thousand concurrent users.			-->
+  <!--									-->
+  <!-- If you do not want to change your client connection manager, you	-->
+  <!-- normally do not have to change any of the following settings,	-->
+  <!-- other then the commented ones.					-->
   <service id="c2s">
     <load>
       <pthsock_client>@libdir@/libjabberdpthsock.so</pthsock_client>
     </load>
-    <pthcsock xmlns='jabber:config:pth-csock'>
+    <pthcsock xmlns="jabber:config:pth-csock">
       <authtime>120</authtime>
       <heartbeat>60</heartbeat>
       <karma>
@@ -662,189 +687,146 @@
         <restore>10</restore>
       </karma>
 
-      <!-- 
-      Use these to listen on particular addresses and/or ports.
-      Example: <ip port="5222">127.0.0.1</ip>
-      Default is to listen on port 5222 on every interface.
-      Remove the <ip/> section to disable non-TLS client connections.
-      -->
+      <!-- Use the following setting to configure the addresses and/or	-->
+      <!-- ports your server is listening for incoming client		-->
+      <!-- The configured example will listen on port 5222 of all your	-->
+      <!-- IP addresses.						-->
+      <!-- You can have multipe <ip/>-Elements to listen on multiple	-->
+      <!-- ports or individual IP addresses.				-->
+      <!-- See the additional examples, that are commented out.		-->
       <ip port="5222"/>
 
+      <!-- Listening only on the loopback address, if this is the only	-->
+      <!-- configured address, your server will only accept connections	-->
+      <!-- from clients resisting on the same host as the server.	-->
       <!--
-      The <tls/> tag acts pretty much like the <ip/> tag,
-      except it defines that TLS is to be used on the 
-      ports and IP addresses specified. You must specify
-      an IP address here, or the connections will fail.
+      <ip port="5222">127.0.0.1</ip>
+      -->
 
-      * Please note that this is NOT the STARTTLS feature.
-      * STARTTLS will be available on the sockets defined with
-      * the <ip/> element!
-      * TLS is just what you mean, when you are typically talking
-      * about SSL. SSL is a protocol by Netscape, while TLS
-      * is an improved version of this protocol defined by the
-      * IETF in RFC 2246.
+      <!-- On Linux: Listening on any IPv4 and IPv6 address of your	-->
+      <!-- server. On BSD: Listening on any IPv6 address of your	-->
+      <!-- server.							-->
+      <!--
+      <ip port="5222">::</ip>
+      -->
 
+      <!-- While jabberd14 supports modern clients using encryption	-->
+      <!-- using the TLS protocol (which is a newer version of SSL)	-->
+      <!-- on port as well as using unencrypted connections, some older	-->
+      <!-- clients may need port 5223 to be open to connect encrypted	-->
+      <!-- to the server.						-->
+      <!-- Connecting to port 5222 using encryption should be prefered	-->
+      <!-- over this legacy connection type to port 5223, as port 5222	-->
+      <!-- better supports virtual hosting. But for now you might	-->
+      <!-- need to offer both ports.					-->
+      <!--								-->
+      <!-- Note that jabberd14 does not distinguish between the old	-->
+      <!-- and new ways to start encrypted connections by the port	-->
+      <!-- number, but by the configuration element you use for them.	-->
+      <!-- Therefore you should use the <tls/> configuration element	-->
+      <!-- for port 5223 only, and use the <ip/> configuration element	-->
+      <!-- for all other ports where clients connect to (typically this	-->
+      <!-- will be port 5222).						-->
+      <!-- Note as well, that the <tls/> configuration element has been	-->
+      <!-- called <ssl/> in former versions of jabberd14. This element	-->
+      <!-- is still considered to be an alias of the <tls/> config	-->
+      <!-- element, and my still be used.				-->
+      <!--
       <tls port='5223'>127.0.0.1</tls>
-      <tls port='5224'>192.168.1.100</tls>
+      <tls port='5223'>192.0.2.100</tls>
       -->
-
-      <!--
-      With the <noregister/> tag you can advice the client connection
-      manager not to advertise support for registering accounts in-band.
-      It does not actually disable support for registering accounts,
-      remove the <register/> tag from the session manager configuration
-      to disable registration and add the <noregister/> tag here.
-      -->
-      <!-- <noregister/> -->
-
     </pthcsock>
   </service>
 
-  <!-- 
-  This is the default server error logging component, 
-  which copies to a file and to STDERR. 
-  -->
+  <!-- The following section defines the logging of your Jabber server.	-->
+  <!-- The default settings will configure your server to send log	-->
+  <!-- messages to your system log using the 'local0' facility.		-->
+  <log id="elogger.localhost">
+    <host/>
+    <logtype/>
+    <format>[%t] (%h): %s</format>
+    <syslog>local0</syslog>
+  </log>
 
-  <log id='elogger'>
+  <!-- Alternatively you can use the following definition to instruct	-->
+  <!-- jabberd14 to write itself to its logfile, as well as writing a	-->
+  <!-- copy of the log message to the console.				-->
+  <!--
+  <log id="elogger2.localhost">
     <host/>
     <logtype/>
     <format>%d: [%t] (%h): %s</format>
     <file>@localstatedir@/log/jabberd/error.log</file>
     <stderr/>
-    
-    <!-- if you want to send the messages to the syslog instead of      -->
-    <!-- to a file: replace <format/>, <file/> and <stderr/> with these -->
-    <!-- lines:                                                         -->
-
-    <!--
-    <format>[%t] (%h): %s</format>
-    <syslog>local0</syslog>
-    -->
-
   </log>
-
-  <!-- 
-  This is the default server record logging component, 
-  which logs general statistical/tracking data. 
   -->
 
-  <log id='rlogger'>
-    <host/>
-    <logtype>record</logtype>
-    <format>%d %h %s</format>
-    <file>@localstatedir@/log/jabberd/record.log</file>
-  </log>
-
-  <!-- The following two services are for handling server-to-server traffic. -->
-
-  <!-- External asychronous DNS resolver -->
-
+  <!-- The following service is responsible for DNS resolution of other	-->
+  <!-- server's DNS records. If you do not want your server to federate	-->
+  <!-- with the public Jabber network (e.g. because you are operating	-->
+  <!-- your server only on your intranet) you can remove this service	-->
+  <!-- (as well as the server-2-server connection manager below) from	-->
+  <!-- your configuration file.						-->
+  <!-- Normally you do not need to change the following configuration.	-->
+  <!-- Changes are only needed if you want to cluster your server-2-	-->
+  <!-- server connection manager.					-->
   <service id="dnsrv">
     <host/>
     <load>
       <dnsrv>@libdir@/libjabberddnsrv.so</dnsrv>
     </load>
     <dnsrv xmlns="jabber:config:dnsrv">
-        <!--
-	You can configure dnsrv to resend packets after resolving
-	to different s2s instances. This allows you to distribute
-	outgoing connections among several s2s instances.
-	With the example below, dnsrv would send 2/3 of the
-	results for a _xmpp-server._tcp resolving to the
-	s2s-1 instance of s2s and 1/3 to the s2s-2 instance.
-	-->
-	<!--
-	<resend service="_xmpp-server._tcp">
-	    <partial weight="2">s2s-1</partial>
-	    <partial weight="1">s2s-2</partial>
-	</resend>
-	-->
-
-    	<resend service="_xmpp-server._tcp">s2s</resend> <!-- for supporting XMPP compliant SRV records -->
-    	<resend service="_jabber._tcp">s2s</resend> <!-- for supporting old style SRV records -->
-    	<resend>s2s</resend>
+      <resend service="_xmpp-server._tcp">s2s.localhost</resend>
+      <resend service="_jabber._tcp">s2s.localhost</resend>
+      <resend>s2s.localhost</resend>
     </dnsrv>
   </service>
 
-  <!--
-  The following 's2s' config handles server connections and 
-  dialback hostname verification.
-  The karma settings are a little higher here to handle the 
-  higher traffic of server-to-server connections (read
-  the io section below for more details, medium settings).
-  -->
-
+  <!-- The following service defines the so-called 'server-2-server	-->
+  <!-- connection manager. It is responsible for establishing and	-->
+  <!-- accepting TCP/IP connections with other Jabber servers.		-->
+  <!-- Normally you do not have to change anything in this service.	-->
   <service id="s2s">
     <load>
       <dialback>@libdir@/libjabberddialback.so</dialback>
     </load>
-    <dialback xmlns='jabber:config:dialback'>
-      <!--
-      With the <secret/> element you can configure a fixed
-      dialback secret. You will need this to cluster multiple
-      s2s instances in which case all instances have to use
-      the same dialback secret.
-      If no secret is configured, the server will generate
-      a new random secret on each start.
-      -->
-      <!-- <secret>somethingSecret</secret> -->
-
-      <!--
-      How long we are waiting for an outgoing connection to be
-      established before we bounce pending messages to this server.
-      Default: 30 seconds
-      -->
-      <!-- <queuetimeout>30</queuetimeout> -->
-
-      <!--
-      Close idle server to server connections after this number of
-      seconds.
-      Default: 900 seconds (15 minutes)
-      -->
-      <!-- <idletimeout>900</idletimeout> -->
-
-      <!-- using the following configuration option, you can    -->
-      <!-- disable, enable, or force the usage of features for  -->
-      <!-- the interconnect to other servers.                   -->
-      <!-- A setting is also applied to subdomains. E.g. a      -->
-      <!-- setting for b.example.com is also used if the        -->
-      <!-- dialback component establishes a connection to       -->
-      <!-- service.b.example.com.                               -->
-      <!-- To configure the default settings, omit the name     -->
-      <!-- attribute.                                           -->
-      <!-- Note: On incoming connections, the peer might not    -->
-      <!-- tell who he is before we initialize our stream, and  -->
-      <!-- we do not know then who the other side is. In that   -->
-      <!-- case the default settings are used!                  -->
-      <!--                                                      -->
-      <!-- xmpp-attribute:                                      -->
-      <!-- 'yes':   allow advertizing of stream version 1.0     -->
-      <!--          (this is the default)                       -->
-      <!-- 'no':    do not advertize or use XMPP version '1.0'  -->
-      <!--                                                      -->
-      <!-- tls-attribute:                                       -->
-      <!-- 'yes':   allow usage of STARTTLS                     -->
-      <!--          (this is the default)                       -->
-      <!-- 'no':    do not use/offer STARTTLS                   -->
-      <!-- 'force': require usage of STARTTLS                   -->
-      <!-- number:  require usage of STARTTLS with a cipher     -->
-      <!--          of at least (number) bits secret key length -->
-      <!--                                                      -->
-      <!-- auth-attribute:                                      -->
-      <!-- 'any':   allow dialback as well as SASL EXTERNAL     -->
-      <!--          authentication (this is the default)        -->
-      <!-- 'db':    only allow usage of dialback, disable SASL  -->
-      <!-- 'sasl':  only allow usage of SASL EXTERNAL           -->
-      <!--          authentication                              -->
+    <dialback xmlns="jabber:config:dialback">
+      <!-- using the following configuration option, you can disable,	-->
+      <!-- enable, or force the usage of features for the interconnect	-->
+      <!-- to other servers.						-->
+      <!-- A setting is also applied to subdomains. E.g. a setting for	-->
+      <!-- b.example.com is also used if the dialback component		-->
+      <!-- establishes a connection to service.b.example.com.		-->
+      <!-- To configure the default settings, omit the name attribute.	-->
+      <!--								-->
+      <!-- Note: On incoming connections, the peer might not tell who	-->
+      <!-- he is before we initialize our stream, and we do not know	-->
+      <!-- then who the other side is. In that case the default		-->
+      <!-- settings are used!						-->
+      <!--								-->
+      <!-- xmpp-attribute:						-->
+      <!-- 'yes':   allow advertizing of stream version 1.0		-->
+      <!--          (this is the default)				-->
+      <!-- 'no':    do not advertize or use XMPP version '1.0'		-->
+      <!--								-->
+      <!-- tls-attribute:						-->
+      <!-- 'yes':   allow usage of STARTTLS				-->
+      <!--          (this is the default)				-->
+      <!-- 'no':    do not use/offer STARTTLS				-->
+      <!-- 'force': require usage of STARTTLS				-->
+      <!-- number:  require usage of STARTTLS with a cipher		-->
+      <!--          of at least (number) bits secret key length		-->
+      <!--								-->
+      <!-- auth-attribute:						-->
+      <!-- 'any':   allow dialback as well as SASL EXTERNAL		-->
+      <!--          authentication (this is the default)		-->
+      <!-- 'db':    only allow usage of dialback, disable SASL		-->
+      <!-- 'sasl':  only allow usage of SASL EXTERNAL			-->
+      <!--          authentication					-->
       <!--
       <host name='a.example.com' xmpp='no' tls='no'/>
       <host name='b.example.com' xmpp='no'/>
       <host name='c.example.com' tls='256' auth='sasl'/>
-      -->
-
-      <!-- Use these to listen on particular addresses and/or ports.
-      <ip port="7000"/>
-      <ip port="5269">127.0.0.1</ip>
       -->
       <ip port="5269"/>
       <karma>
@@ -858,328 +840,239 @@
     </dialback>
   </service>
 
-  <!--
-  update.jabber.org is long dead but some clients still
-  request update information. In order to avoid errors
-  in the logs, just drop packages for update.jabber.org.
-  -->
+  <!-- The following service is used for easy integration of jabberd14	-->
+  <!-- into other applications. Other applications can send messages by	-->
+  <!-- just putting stanzas as XML files with the .stanza file name	-->
+  <!-- extension into the directory					-->
+  <!-- @localstatedir@/spool/jabberd/inject.localhost.	-->
+  <!--									-->
+  <!-- Make sure that the directory and the files you place there are	-->
+  <!-- readable and writeable by the user executing jabberd14.		-->
+  <service id="inject.localhost">
+    <dir>
+      <!-- *.stanza files in this directory are read and processed by	-->
+      <!-- jabberd14							-->
+      <in>@localstatedir@/spool/jabberd/inject.localhost</in>
+
+      <!-- *.out files are placed to this directory of stanzas are	-->
+      <!-- addressed to an address on the domain 'inject.localhost'	-->
+      <!-- (you can change this domain with the id attribute of the	-->
+      <!-- service element, or define additional domains by adding	-->
+      <!-- <host/> elements to the service).				-->
+      <!--								-->
+      <!-- This is disabled by default. Uncomment to enable this	-->
+      <!-- feature.							-->
+      <!--
+      <out>@localstatedir@/spool/jabberd/inject.localhost</out>
+      -->
+    </dir>
+  </service>
+
+  <!-- update.jabber.org is long dead, but some clients still request	-->
+  <!-- update information. In order to avoid errors in your logs, the	-->
+  <!-- following service just drops data addressed to this service.	-->
   <service id="update.jabber.org">
-    <host>update.jabber.org</host>
     <null/>
   </service>
 
-  <!--
-  If you have any former transports, that are not there
-  anymore, you can use the <unsubscribe/> target to
-  unsubscribe all roster itemes for the transport's host
-  from your users.
-  -->
+  <!-- If you have any former transports, that are not there anymore,	-->
+  <!-- you can use the <unsubscribe/> target to unsubscribe all roster	-->
+  <!-- itemes for the transport's host from your users.			-->
   <!--
   <service id='foobar.localhost'>
     <unsubscribe>The foobar transport at localhost does not exist anymore</unsubscribe>
   </service>
   -->
 
-  <!-- 
-  If you identified additional agents in the main <service/> 
-  section (see examples above), you'll need to define each 
-  of them here using a separate <service/> section for each 
-  <agent/> you identified. Note that the <agent/> sections
-  determine what gets shown to clients that connect to your
-  server, whereas the following <service/> sections define
-  these services within the server itself. The following are
-  examples only, you will need to create/modify them to get 
-  them working on your Jabber server. See the README files 
-  for each agent and/or the server howto for further 
-  information/instructions. 
-  -->
-
-  <!-- we're commenting these out, of course :)
-
+  <!-- If you want to add transports to your server, you have to	-->
+  <!-- configure your jabberd14 server, to accept incoming connections	-->
+  <!-- from these transports with the following type of configuration.	-->
+  <!--									-->
+  <!-- Please note:							-->
+  <!-- * You will require such a section for each transport you are	-->
+  <!--	 offering.							-->
+  <!-- * Do not give away the credentials used to connect a transport	-->
+  <!--	 to your server. Everyone that can connect to your server	-->
+  <!--	 with the rights of a transport has access to jabberd14's	-->
+  <!--	 storage engine and can therefore e.g. access your user's	-->
+  <!--	 passwords!							-->
+  <!-- * If you are operating the transports on the same host, it	-->
+  <!--	 is probably best to only accept incoming connections on the	-->
+  <!--	 IP address '127.0.0.1'.					-->
+  <!--
   <service id="aim.localhost">
     <accept>
-      <ip/>
+      <ip>127.0.0.1</ip>
       <port>7009</port>
       <secret>jabber-rocks</secret>
     </accept>
   </service>
-
-  <service id="yahoo.localhost">
-    <accept>
-      <ip/>
-      <port>9001</port>
-      <secret>jabber-rocks</secret>
-    </accept>
-  </service>
-
-  end of <service/> examples -->
-
-  <!--
-  The following <io/> config initializes the top-level
-  I/O, otherwise known as MIO (Managed Input/Output).
   -->
 
+  <!-- The following <io/> configuration element contains global I/O	-->
+  <!-- settings for your jabberd14 server.				-->
   <io>
-
-    <!-- Set the default karma for *all* sockets -->
-    <!-- definition of terms:
-
-      * Avg. Throughput - The number of bytes you can
-        send every second without incuring any penalty.
-
-      * Burst Allowed - The maximum number of bytes you
-        can send in 2 seconds without incurring any penalty.
-
-      * Max Sustained Rate - If you send data as fast as 
-        you can, you will hit penalty, and will not be 
-        able to send for 10 seconds; the max sustained 
-        rate is the average rate you can dump data when 
-        you are dumping as much data as you can, as fast 
-        as you can.
-
-      * Seconds to Recover from Burst - The amount of time 
-        it will take to reach Avg. Throughput capability 
-        after sending a max burst of data.
-
-      * Penalty Length - The length of your penalty is
-        determined according to this formula:
-              abs(penalty) * Heartbeat seconds
-        E.g., a penalty of -5 and heartbeat of 2 will 
-        cause your penalty length to be 10 seconds. 
-        Note that a penalty CANNOT be less than -100, 
-        otherwise strange things might happen.
-
-    -->
-    <!-- Example of Low Karma Limits 
-        Avg. Throughput: 1k-2k/s 
-        Burst Allowed To: 5.5k/s 
-        Max Sustained Rate: 485b/s
-        Seconds to Recover from Burst: 20
-        Penalty Length: 12 seconds
-    <karma>
-      <heartbeat>2</heartbeat>
-      <init>10</init>
-      <max>10</max>
-      <inc>1</inc>
-      <dec>1</dec>
-      <penalty>-6</penalty>
-      <restore>10</restore>
-    </karma>
-    -->
-
-    <!-- Example of Medium Karma Limits 
-        Avg. Throughput: 5k-10k/s 
-        Burst Allowed: 125.5k/s 
-        Max Sustained Rate: 12.6k/s
-        Seconds to Recover From Burst: 25
-        Penalty Length: 10 seconds
-    <karma>
-      <heartbeat>2</heartbeat>
-      <init>50</init>
-      <max>50</max>
-      <inc>4</inc>
-      <dec>1</dec>
-      <penalty>-5</penalty>
-      <restore>50</restore>
-    </karma>
-    -->
-
-    <!-- Example of High Karma Limits 
-        Avg. Throughput: 5k-10k/s 
-        Burst Allowed: 206k/s 
-        Max Sustained Rate: 34.3k/s
-        Seconds to Recover from Burst: 21
-        Penalty Length: 6 seconds
-    <karma>
-      <heartbeat>2</heartbeat>
-      <init>64</init>
-      <max>64</max>
-      <inc>6</inc>
-      <dec>1</dec>
-      <penalty>-3</penalty>
-      <restore>64</restore>
-    </karma>
-    -->
-
-    <!-- 
-    Set rate limits to monitor the number of connection
-    attempts from a single IP, any more than [points]
-    within [time] will engage the limit.  This setting
-    applies to all incoming connections to any service,
-    unless otherwise overridden by that service.
-    -->
-
-    <rate points="5" time="25"/>
-
-    <!-- 
-    The following section initializes TLS (also known as SSL)
-    for top-level I/O.
-    This works only when the server is compiled with OpenSSL!
-
-    As the id, use one of the following things:
-    - and IP address for usage with client conns on port 5223
-    - a host name for usage with the STARTTLS feature
-    - a star ("*") as a default for the STARTTLS feature
-
-    The following attributes can be defined using any value:
-    - no-ssl-v2: disable usage of SSLv2
-    - no-ssl-v3: disable usage of SSLv3
-    - no-tls-v1: disable usage of TLSv1 (= SSLv3.1)
-    - enable-workarounds: should not be needed
-
-    By using the ciphers attribute you can select which ciphers
-    are allowed to be used.
-    -->
-    <!--
+    <!-- The following section initializes TLS (also known as SSL).	-->
+    <!-- This works only when the server is compiled with OpenSSL!	-->
+    <!--								-->
+    <!-- The most important thing to configure for TLS is to define	-->
+    <!-- Which certificates your jabberd14 server should use.		-->
+    <!-- This is done using the <key/> element. (key because the	-->
+    <!-- certificates contain your private key, therefore you should	-->
+    <!-- keep these files protected.)					-->
+    <!--								-->
+    <!-- The key element can have the following attributes:		-->
+    <!--								-->
+    <!-- id='$ipAddress'						-->
+    <!--	Use this key for incoming client connections configured	-->
+    <!--	using the <tls/> configuration element with the		-->
+    <!--	specified IP address as the address the socket is	-->
+    <!--	listening on.						-->
+    <!-- id='$domain'							-->
+    <!--	Use this key for incoming client connections configured	-->
+    <!--	using the <ip/> configuration element that connect to	-->
+    <!--	this domain - as well as for all server 2 server	-->
+    <!--	connections where we have this domain as your local	-->
+    <!--	address.						-->
+    <!-- id='*'								-->
+    <!--	Use this key if no other certificate matches.		-->
+    <!--								-->
+    <!-- The following attributes are available on the key element as	-->
+    <!-- well but are normally not needed:				-->
+    <!--								-->
+    <!-- no-ssl-v2='true'						-->
+    <!--	Do not allow usage of version 2 of the SSL protocol.	-->
+    <!--	This version of SSL is known to be weak.		-->
+    <!-- no-ssl-v3='true'						-->
+    <!--	Do not allow usage of version 3.0 of the SSL protocol.	-->
+    <!-- no-tls-v1='true'						-->
+    <!--	Do not allow usage of version 1.0 of the TLS protocol.	-->
+    <!--	This protocol is also known as version 3.1 of the	-->
+    <!--	SSL protocol.						-->
+    <!-- ciphers='$listOfCiphers'					-->
+    <!--	Configure which ciphers are allowed to be used.		-->
+    <!--								-->
+    <!-- With the <cacertfile/> configuration element, you configure	-->
+    <!-- the root certificats of the certification authorities your	-->
+    <!-- server trusts.							-->
     <tls>
-      <key id='192.168.1.1'>@sysconfdir@/cert_and_key.pem</key>
-      <key id='192.168.1.100'>@sysconfdir@/other_cert_and_key.pem</key>
+      <!--
+      <key id='127.0.0.1'>@sysconfdir@/cert_and_key.pem</key>
+      <key id='192.0.2.100'>@sysconfdir@/other_cert_and_key.pem</key>
       <key id='localhost'>@sysconfdir@/localhost.pem</key>
       <key id='*'>@sysconfdir@/default-STARTTLS.pem</key>
+      -->
 
       <cacertfile>@sysconfdir@/cacerts.pem</cacertfile>
     </tls>
-    -->
 
-    <!-- 
-    The following section is used to allow or deny 
-    communications from specified IP networks or 
-    addressses. If there is no <allow/> section, 
-    then *all* IPs will be allowed to connect. If 
-    you allow one block, then only that block may 
-    connect. Note that <allow/> is checked before
-    <deny/>, so if a specific address is allowed 
-    but the network for that address is denied, 
-    then that address will still be denied.
-    -->
+    <!-- The following section is used to allow or deny communications	-->
+    <!-- from specified IP networks or addressses. If there is no	-->
+    <!-- <allow/> section, then *all* IPs will be allowed to connect.	-->
+    <!-- If you allow one block, then only that block may connect. Note	-->
+    <!-- that <allow/> is checked before <deny/>, so if a specific	-->
+    <!-- address is allowed but the network for that address is denied,	-->
+    <!-- then that address will still be denied.			-->
+    <!--								-->
+    <!-- If neither <allow/> nor <deny/> elements are present, your	-->
+    <!-- server will accept incoming connections from any IP address.	-->
     <!--
     <allow><ip>127.0.0.0</ip><mask>255.255.255.0</mask></allow>
     <allow><ip>12.34.56.78</ip></allow>
     <deny><ip>22.11.44.0</ip><mask>255.255.255.0</mask></deny>
     -->
 
-    <!--
-    Bind to a specific IP address for outgoing connections.
-    -->
+    <!-- Bind to a specific IP address for outgoing connections.	-->
     <!--
     <bind>192.0.2.55</bind>
     -->
 
+    <!-- With this setting it is possible to configure jabberd to	-->
+    <!-- detect incoming HTTP requests. Jabberd14 will then bounce the	-->
+    <!-- user's agent to the configured URI. This might be especially	-->
+    <!-- useful, if you run your jabber server on port 80 and want to	-->
+    <!-- bounce web requests to a different domain.			-->
     <!--
-    The following section is used to configure
-    stream behaviour for individual streams
-    -->
-    <streamconf>
-      <default type='s2s'>
-        <stream-from/>
-      </default>
-    </streamconf>
-
-    <!--
-    With this setting it is possible to configure jabberd to detect incoming
-    HTTP requests. Jabberd will then bounce the user's agent to the
-    configured URI. This might be especially useful, if you run your
-    jabber server on port 80 and want to bounce web requests to a different
-    domain.
-    -->
     <bounce>http://www.example.com/</bounce>
-
+    -->
   </io>
 
-  <!--
-  Global configuration settings, affect a complete jabberd14 process
-  -->
+  <!-- Global configuration settings, affect a complete jabberd14	-->
+  <!-- process								-->
   <global>
-      <!-- Define mappings from language strings (used in XML) to    -->
-      <!-- locales (used on the operating system).                   -->
-      <!-- These mappings are used to generate localized             -->
-      <!-- (translated) messages.                                    -->
-      <!-- Beside having the mapping defined, you need a language    -->
-      <!-- file containing the action translations.                  -->
-      <!-- Note that you have to use locales, that use the UTF-8     -->
-      <!-- charmap. (They typically end in '.UTF-8'.) Else your      -->
-      <!-- server will send invalid XML data to your users and       -->
-      <!-- peers.                                                    -->
-      <locales>
-	  <locale lang="de" locale="de_DE.UTF-8"/>
-      </locales>
+    <!-- Define mappings from language strings (used in XML) to locales	-->
+    <!-- (used on the operating system).				-->
+    <!-- These mappings are used to generate localized (translated)	-->
+    <!-- messages.							-->
+    <!-- Beside having the mapping defined, you need a language file	-->
+    <!-- containing the action translations.				-->
+    <!-- Note that you have to use locales, that use the UTF-8		-->
+    <!-- character encoding. (They typically end in '.UTF-8'.) Else	-->
+    <!-- your server will send invalid XML data to your users and	-->
+    <!-- peers.								-->
+    <locales>
+      <locale lang="de" locale="de_DE.UTF-8"/>
+    </locales>
 
-      <!-- Define access control lists. You can grant access to some -->
-      <!-- functionality of the server only to selected users.       -->
-      <!-- To give a user access to a feature, place is JID inside   -->
-      <!-- a jid element inside the relevant grant group.            -->
-      <!-- The feature, that is controlled by a grant group is       -->
-      <!-- selected using the feature attribute of the grant         -->
-      <!-- element. A grant element with no feature attribute gives  -->
-      <!-- the users inside access to all features.                  -->
-      <!--                                                           -->
-      <!-- Currently defined features are:                           -->
-      <!-- 'motd': Set and change the message of the day             -->
-      <!-- 'listsessions': Get the list of active sessions           -->
-      <!-- 'adminmsg': Receive messages, that are sent to the        -->
-      <!-- admin address of the server (i.e. just the domain name)   -->
-      <!-- 's2s': read/change the status of the s2s component        -->
-      <!--                                                           -->
-      <!-- Setting and changing the message of the day works like    -->
-      <!-- that: You need to send a message to one of the following  -->
-      <!-- addresses:                                                -->
-      <!-- <message to='yourhostname/announce/online'>               -->
-      <!--   <body>announcement here</body>                          -->
-      <!-- </message>                                                -->
-      <!-- <message to='yourhostname/announce/motd'>                 -->
-      <!--   <body>message (of the day) that is sent only once to    -->
-      <!--      all users that are logged in and additionally to new -->
-      <!--      ones as they log in</body>                           -->
-      <!-- </message>                                                -->
-      <!--                                                           -->
-      <!-- Sending to yourhostname/announce/motd/delete will remove  -->
-      <!-- any existing motd, and to                                 -->
-      <!-- yourhostname/announce/motd/update will only update the    -->
-      <!-- motd without re-announcing to all logged in users.        -->
-
-      <!--
-      <acl xmlns='http://jabberd.org/ns/acl'>
-	  <grant feature='motd'>
-	      <jid>xmpp@localhost</jid>
-	  </grant>
-	  <grant feature='listsessions'>
-	      <jid>administrator@localhost</jid>
-	  </grant>
-	  <grant feature='adminmsg'>
-	      <jid>xmpp@localhost</jid>
-	  </grant>
-	  <grant feature='showasadmin'>
-	      <jid>administrator@localhost</jid>
-	  </grant>
-	  <grant feature='localusers'>
-	      <domain>example.com</domain>
-	      <domain>example.net</domain>
-	  </grant>
-	  <grant>
-	      <jid>admin@localhost</jid>
-	  </grant>
-      </acl>
-      -->
+    <!-- Define access control lists. You can grant access to some	-->
+    <!-- functionality of the server only to selected users.		-->
+    <!-- To give a user access to a feature, place is JID inside	-->
+    <!-- a jid element inside the relevant grant group.			-->
+    <!-- The feature, that is controlled by a grant group is		-->
+    <!-- selected using the feature attribute of the grant		-->
+    <!-- element. A grant element with no feature attribute gives	-->
+    <!-- the users inside access to all features.			-->
+    <!--								-->
+    <!-- Currently defined features are:				-->
+    <!-- 'motd': Set and change the message of the day			-->
+    <!-- 'listsessions': Get the list of active sessions		-->
+    <!-- 'adminmsg': Receive messages, that are sent to the		-->
+    <!-- admin address of the server (i.e. just the domain name)	-->
+    <!-- 's2s': read/change the status of the s2s componens		-->
+    <!-- 'showasadmin': Advertize this user as being an administrator	-->
+    <!-- of the server.							-->
+    <!--								-->
+    <!-- Setting and changing the message of the day works like		-->
+    <!-- that: You need to send a message to one of the following	-->
+    <!-- addresses:                                                	-->
+    <!-- <message to='yourhostname/announce/online'>               	-->
+    <!--   <body>announcement here</body>                          	-->
+    <!-- </message>                                                	-->
+    <!-- <message to='yourhostname/announce/motd'>                 	-->
+    <!--   <body>message (of the day) that is sent only once to    	-->
+    <!--      all users that are logged in and additionally to new 	-->
+    <!--      ones as they log in</body>                           	-->
+    <!-- </message>                                                	-->
+    <!--                                                           	-->
+    <!-- Sending to yourhostname/announce/motd/delete will remove  	-->
+    <!-- any existing motd, and to                                 	-->
+    <!-- yourhostname/announce/motd/update will only update the    	-->
+    <!-- motd without re-announcing to all logged in users.        	-->
+    <!--
+    <acl xmlns='http://jabberd.org/ns/acl'>
+      <grant feature='motd'>
+	<jid>xmpp@localhost</jid>
+      </grant>
+      <grant feature='listsessions'>
+	<jid>administrator@localhost</jid>
+      </grant>
+      <grant feature='adminmsg'>
+	<jid>xmpp@localhost</jid>
+      </grant>
+      <grant feature='showasadmin'>
+	<jid>administrator@localhost</jid>
+      </grant>
+      <grant feature='localusers'>
+	<domain>example.com</domain>
+	<domain>example.net</domain>
+      </grant>
+      <grant>
+	<jid>admin@localhost</jid>
+      </grant>
+    </acl>
+    -->
   </global>
 
-  <!--
-  Debugging settings. You can change these settings while jabberd is running
-  and notify the running process with a SIGHUP to reread these settings
-  -->
-  <debug>
-      <!-- which debug messages to activate -->
-      <!-- ORed with the mask given on the command line -->
-      <mask>0</mask>
-
-      <!-- activate logging to syslog and specify facility -->
-      <!-- default is to log to the standard output -->
-      <!-- <facility>local0</facility> -->
-  </debug>
-
-  <!--
-  This specifies the file to store the pid of the process in.
-  -->
+  <!-- This specifies the file to store the pid of the process in.	-->
   <pidfile>@localstatedir@/run/jabberd/jabber.pid</pidfile>
-
-
 </jabber>
