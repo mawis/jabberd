@@ -248,7 +248,7 @@ xmlnode xmlnode_str(const char *str, int len) {
  * @param file the filename
  * @return the graph of xmlnodes that represent the parsed document, NULL on failure
  */
-xmlnode xmlnode_file(char *file) {
+xmlnode xmlnode_file(const char *file) {
     XML_Parser p;
     _expat_callback_data callback_data = { NULL, NULL, NULL, NULL };
     char buf[BUFSIZ];

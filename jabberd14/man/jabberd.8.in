@@ -3,7 +3,7 @@
 jabberd \- jabberd daemon
 .SH SYNOPSIS
 .B jabberd
-.I [-B] [-c config] [-d mask | -D] [-H dir] [-v] [-V] [-Z zone(s)]
+.I [-B] [-c config] [-d mask | -D] [-H dir] [-v] [-V] [-Z zone(s)] [-I dir]
 .SH DESCRIPTION
 .BR jabberd
 is the core of the jabber server containing the routing functionality that
@@ -33,7 +33,7 @@ is printed by using the -Z option.
 .B \-D
 Like -d but enables debugging output of all types.
 .TP
-.B \-H
+.B \-H <dir>
 Resolve paths relative to this directory.
 .TP
 .B \-v \-V
@@ -44,6 +44,14 @@ Limit the debugging output to a given set of zones in the source code.
 Comma separated list of zones. Zones are the file names of the source
 files without the extension. (E.g. debugging statements in 'jabberd.c'
 correspond to the zone 'jabberd'.)
+.TP
+.B \-I <dir>
+Import data from a spool directory to the storage engine configured
+in the current configuration file. This is intended to be used for
+migration from xdb_file storage to xdb_sql. The directory you specify
+should be the directory, that contains the directories, that are named
+after the domains of your server. This is typically something like
+PREFIX/var/spool/jabberd.
 .SS Exit states
 .TP
 .B 0

@@ -44,6 +44,9 @@ Changes in administration of the server
       configure a disco result in the configuration file.
     * After an account has been deleted by the user, the JabberID is blocked
       against reregistrations for half a year.
+    * jabberd14 can now easily migrate from old filespools (xdb_file) to
+      newer storage handlers by reconfiguring the server and then importing
+      the old data (-I command line option)
 
 Changes in features visible to the user
     * Support for Flexible Offline Message Retrieval (XEP-0013)
