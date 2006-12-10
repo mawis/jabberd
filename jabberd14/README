@@ -18,20 +18,23 @@ users of prior versions of this software.
 If you need support for your jabberd14, please go to
 http://jabberd.org/gettingSupport
 
+If you need a new X.509 certificate for you server, you can get
+one for free on the XMPP federation page at https://www.xmpp.net/.
+
 -----------------------
 
   Installation instructions
 
-    Read
-    http://jabberd.org/1.4/doc/adminguide
-    for an in-depth installation guide!
+  First untar or move this folder into a directory where you
+  want to compile your server.
 
-  First, untar or move this folder into the final install location
-  (such as /usr/local/jabber).
+  Run the configure script, passing options to customize some
+  compile settings and where to install the compiled server:
+  e.g.: ./configure --prefix=/usr
 
-  To build, run "./configure" and then type "make".
+  Compile jabberd14 by typing "make".
 
-  To install on your system, run "make install".
+  If your server is compiled, you can install it using "make install".
 
   Edit jabber.xml, replace "localhost" by the host name of your
   server throughout the file. Edit other values as desired.
@@ -44,7 +47,7 @@ http://jabberd.org/gettingSupport
   Optional: to specify a config file other than ./jabber.xml, use
   -c /path/to/file.xml
 
-  Error messages are written to the ./error.log and copied to STDERR.
+  Error messages are written to your system logfile by default.
 
   To test operation, connect to the domain name you used with any
   client and register new users.
