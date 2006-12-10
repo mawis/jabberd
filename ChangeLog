@@ -1,6 +1,13 @@
 2006-12-10  Matthias Wimmer  <m@tthias.eu>
 
     * jsm/modules/mod_vcard.c: using updated identity of user directories
+    * jabberd/base/base_importspool.c: importing filespools to SQL
+    * jabberd/config.c: same
+    * jabberd/lib/expat.c: same
+    * jabberd/lib/jabberdlib.h: same
+    * jabberd/base/Makefile.am: same
+    * jabberd/base/base.c: same
+    * jabberd/jabberd.cc: same
 
 2006-12-09  Matthias Wimmer  <m@tthias.eu>
 

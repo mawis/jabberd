@@ -68,6 +68,7 @@ void base_syslog(pool p);
 void base_unsubscribe(pool p);
 void base_load(pool p);
 void base_null(pool p);
+void base_importspool(pool p);
 
 /**
  * load all base modules
@@ -87,4 +88,5 @@ void base_init(pool p) {
     base_syslog(p);
     base_to(p);
     base_unsubscribe(p);
+    base_importspool(p);
 }

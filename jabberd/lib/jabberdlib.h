@@ -348,7 +348,7 @@ xmlnode  xmlnode_insert_cdata(xmlnode parent, const char* CDATA, unsigned int si
 xmlnode  xmlnode_insert_tag_node(xmlnode parent, xmlnode node);
 void     xmlnode_insert_node(xmlnode parent, xmlnode node);
 xmlnode  xmlnode_str(const char *str, int len);
-xmlnode  xmlnode_file(char *file);
+xmlnode  xmlnode_file(const char *file);
 char*    xmlnode_file_borked(char *file); /* same as _file but returns the parsing error */
 xmlnode  xmlnode_dup(xmlnode x); /* duplicate x */
 xmlnode  xmlnode_dup_pool(pool p, xmlnode x);
