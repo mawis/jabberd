@@ -556,11 +556,11 @@
       </handler>
       <handler ns="jabber:iq:auth">
 	<get>
-	  <query>SELECT password FROM system_auth.users WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1)</query>
+	  <query>SELECT password FROM users WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1)</query>
 	  <result><password xmlns='jabber:iq:auth'><value xmlns='http://jabberd.org/ns/xdbsql' value='1'/></password></result>
 	</get>
-	<set>INSERT INTO system_auth.users (user,realm,password) VALUES (SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1), SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1), '{auth:password/text()}')</set>
-	<delete>DELETE FROM system_auth.users WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1)</delete>
+	<set>INSERT INTO users (user,realm,password) VALUES (SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1), SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1), '{auth:password/text()}')</set>
+	<delete>DELETE FROM users WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1)</delete>
       </handler>
       <handler ns='http://jabberd.org/ns/storedsubscriptionrequest'>
 	<get>
