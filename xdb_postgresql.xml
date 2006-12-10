@@ -1,0 +1,128 @@
+<?xml version="1.0"?>
+  <!-- If you are using PostreSQL instead of MySQL, this file contains	-->
+  <!-- modified versions of the SQL handlers, that are using slightly	-->
+  <!-- modified statements. Namely the SUBSTR function is replaced	-->
+  <!-- by the SUBSTR function, the STRPOS function is replaced by	-->
+  <!-- the STRPOS function, and the IF function is replaced by the	-->
+  <!-- CASE expression and the NULLIF function.				-->
+  <!--									-->
+  <!-- This file is not a complete configuration file for jabberd14.	-->
+  <!-- You may just want to replace the section that starts with the	-->
+  <!-- <xdb_sql xmlns="jabber:config:xdb_sql"> tag and ends with the	-->
+  <!-- </xdb_sql> tag, with the content of this file below.		-->
+    <xdb_sql xmlns="jabber:config:xdb_sql">
+      <driver>postgresql</driver>
+      <postgresql>
+	<!-- if you are using PostreSQL, set your credentials here.	-->
+	<conninfo>user=jabber password=secret</conninfo>
+      </postgresql>
+      <nsprefixes>
+        <namespace>jabber:server</namespace>
+        <namespace prefix='auth'>jabber:iq:auth</namespace>
+        <namespace prefix='last'>jabber:iq:last</namespace>
+        <namespace prefix='register'>jabber:iq:register</namespace>
+	<namespace prefix='roster'>jabber:iq:roster</namespace>
+	<namespace prefix='browse'>jabber:iq:browse</namespace>
+	<namespace prefix='vcard'>vcard-temp</namespace>
+	<namespace prefix='subscription'>http://jabberd.org/ns/storedsubscriptionrequest</namespace>
+	<namespace prefix='private'>jabber:iq:private</namespace>
+	<namespace prefix='privacy'>jabber:iq:privacy</namespace>
+	<namespace prefix='jabberd'>http://jabberd.org/ns/wrapper</namespace>
+      </nsprefixes>
+      <handler ns="jabber:iq:last">
+	<get>
+	  <query>SELECT xml FROM last WHERE realm=SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1) AND user=SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1)</query>
+	  <result><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
+	</get>
+	<set>INSERT INTO last (user, realm, last, text, xml) VALUES (SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1), SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1), '{last:query/attribute::last}', '{last:query/text()}', '{last:query}')</set>
+	<delete>DELETE FROM last WHERE realm=SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1) AND user=SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1)</delete>
+      </handler>
+      <handler ns="jabber:iq:auth">
+	<get>
+	  <query>SELECT password FROM users WHERE realm=SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1) AND user=SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1)</query>
+	  <result><password xmlns='jabber:iq:auth'><value xmlns='http://jabberd.org/ns/xdbsql' value='1'/></password></result>
+	</get>
+	<set>INSERT INTO users (user,realm,password) VALUES (SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1), SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1), '{auth:password/text()}')</set>
+	<delete>DELETE FROM users WHERE realm=SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1) AND user=SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1)</delete>
+      </handler>
+      <handler ns='http://jabberd.org/ns/storedsubscriptionrequest'>
+	<get>
+	  <query>SELECT xml FROM storedsubscriptionrequests WHERE realm=SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1) AND user=SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1)</query>
+	  <result group='foo'><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
+	</get>
+	<set>INSERT INTO storedsubscriptionrequests (user, realm, fromjid, xml) VALUES (SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1), SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1), '{presence/attribute::from}', '{presence}')</set>
+	<delete>DELETE FROM storedsubscriptionrequests WHERE realm=SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1) AND user=SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1) AND (CASE WHEN '{attribute::matchpath}'='' THEN 1=1 ELSE fromjid=SUBSTR(SUBSTR('{attribute::matchpath}', 1, LENGTH('{attribute::matchpath}')-2), 17) AND SUBSTR('{attribute::matchpath}', 1, 15)='presence[@from=' END)</delete>
+      </handler>
+      <handler ns='jabber:x:offline'>
+	<get>
+	  <query>SELECT xml FROM messages WHERE realm=SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1) AND user=SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1) AND type='offline' ORDER BY storetime</query>
+	  <result group='foo'><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
+	</get>
+	<set>INSERT INTO messages (user, realm, node, correspondent, type, storetime, subject, body, xml) VALUES (SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1), SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1), NULLIF('{message/attribute::node}', ''), REVERSE(SUBSTR(REVERSE('{message/attribute::from}'), STRPOS(REVERSE('{message/attribute::from}'), '/')+1)) , 'offline', now(), NULLIF('{message/subject}', ''), '{message/body/text()}', '{message}')</set>
+	<delete>DELETE FROM messages WHERE realm=SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1) AND user=SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1) AND type='offline' AND (CASE WHEN '{attribute::matchpath}'='' THEN 1=1 ELSE node=SUBSTR(SUBSTR('{attribute::matchpath}', 1, LENGTH('{attribute::matchpath}')-2), 16) AND SUBSTR('{attribute::matchpath}', 1, 14)='message[@node=' END)</delete>
+      </handler>
+      <handler ns='http://jabberd.org/ns/history'>
+	<get>
+	  <query>SELECT xml FROM messages WHERE realm=SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1) AND user=SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1) AND type!='offline'</query>
+	  <result group='foo'><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
+	</get>
+	<set>INSERT INTO messages (user, realm, correspondent, type, storetime, delivertime, subject, body, xml) VALUES (SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1), SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1), (CASE WHEN '{message/attribute::direction}'='sent' THEN REVERSE(SUBSTR(REVERSE('{message/attribute::to}'), STRPOS(REVERSE('{message/attribute::to}'), '/')+1)) ELSE REVERSE(SUBSTR(REVERSE('{message/attribute::from}'), STRPOS(REVERSE('{message/attribute::from}'), '/')+1)) END), (CASE WHEN '{message/attribute::direction}'='sent' THEN 'sent' ELSE 'recv' END), now(), (CASE WHEN '{message/attribute::direction}'='sent' THEN NULL ELSE now() END), '{message/subject/text()}', '{message/body/text()}', '{message}')</set>
+	<delete>DELETE FROM messages WHERE realm=SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1) AND user=SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1)</delete>
+      </handler>
+      <handler ns="http://jabberd.org/ns/storedpresence">
+        <get>
+          <query>SELECT 'this namespace is never selected'</query>
+          <result><this-namespace-is-never-selected/></result>
+        </get>
+	<set>INSERT INTO presence (user,realm,presence,priority,status,timestamp) VALUES (SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1), SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1), IF ('{presence}'='','unavailable', IF ('{presence/show/text()}'='','available', '{presence/show/text()}')), IF ('{presence/priority/text()}'='', '0', '{presence/priority/text()}'), '{presence/status/text()}', now())</set>
+	<delete>DELETE FROM presence WHERE realm=SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1) AND user=SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1)</delete>
+      </handler>
+      <handler ns='jabber:iq:private'>
+	<get>
+	  <query>SELECT xml FROM private WHERE realm=SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1) AND user=SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1) ORDER BY last_modified</query>
+	  <result group='foo'><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
+	</get>
+	<set>INSERT INTO private (user,realm,ns,xml,last_modified) VALUES (SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1), SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1), '{*/attribute::jabberd:ns}', '{private:query}', NOW())</set>
+	<delete>DELETE FROM private WHERE realm=SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1) AND user=SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1) AND ns='{attribute::jabberd:ns}'</delete>
+      </handler>
+      <handler ns='jabber:iq:privacy'>
+	<get>
+	  <query>SELECT xml FROM privacy WHERE realm=SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1) AND user=SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1) ORDER BY last_modified</query>
+	  <result group='foo'><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
+	</get>
+	<set>INSERT INTO privacy (user,realm,name,xml,last_modified,isdefault) VALUES (SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1), SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1), SUBSTR(SUBSTR('{attribute::matchpath}', 1, LENGTH('{attribute::matchpath}')-2), 21), '{privacy:list}', NOW(), (CASE WHEN '{*/attribute::jabberd:default}' = '' THEN NULL ELSE 'default' END))</set>
+	<delete>DELETE FROM privacy WHERE realm=SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1) AND user=SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1) AND (CASE WHEN '{attribute::matchpath}'='' THEN 1=1 ELSE name=SUBSTR(SUBSTR('{attribute::matchpath}', 1, LENGTH('{attribute::matchpath}')-2), 21) AND SUBSTR('{attribute::matchpath}', 1, 19)='privacy:list[@name=' END)</delete>
+      </handler>
+      <handler ns='jabber:iq:register'>
+        <get>
+	  <query>SELECT user,mailaddress FROM mailaddresses WHERE realm=SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1) AND user=SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1)</query>
+          <result><query xmlns='jabber:iq:register'><name><value xmlns='http://jabberd.org/ns/xdbsql' value='1'/></name><email><value xmlns='http://jabberd.org/ns/xdbsql' value='2'/></email></query></result>
+          </get>
+          <set>INSERT INTO mailaddresses (user, realm, mailaddress, lastmodified) VALUES (SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1), SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1), NULLIF('{register:query/register:email/text()}', ''), now())</set>
+          <delete>DELETE FROM mailaddresses WHERE realm=SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1) AND user=SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1)</delete>
+      </handler>
+      <handler ns="jabber:iq:roster">
+	<get>
+	  <query>SELECT xml FROM roster WHERE realm=SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1) AND user=SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1)</query>
+	  <result><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
+	</get>
+	<set>INSERT INTO roster (user, realm, xml) VALUES (SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1), SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1), '{roster:query}')</set>
+	<delete>DELETE FROM roster WHERE realm=SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1) AND user=SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1)</delete>
+      </handler>
+      <handler ns="jabber:iq:browse">
+	<get>
+	  <query>SELECT xml FROM browse WHERE realm=SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1) AND user=SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1)</query>
+	  <result><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
+	</get>
+	<set>INSERT INTO browse (user, realm, xml) VALUES (SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1), SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1), '{*}')</set>
+	<delete>DELETE FROM browse WHERE realm=SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1) AND user=SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1)</delete>
+      </handler>
+      <handler ns="vcard-temp">
+	<get>
+	  <query>SELECT xml FROM vcard WHERE realm=SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1) AND user=SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1)</query>
+	  <result><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
+	</get>
+	<set>INSERT INTO vcard (user, realm, name, email, nickname, birthday, photo, xml) VALUES (SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1), SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1), (CASE WHEN '{vcard:vCard/vcard:FN/text()}'!='' THEN '{vcard:vCard/vcard:FN/text()}' WHEN '{vcard:vCard/vcard:N/vcard:GIVEN/text()}'!='' AND '{vcard:vCard/vcard:N/vcard:MIDDLE/text()}'!='' AND '{vcard:vCard/vcard:N/vcard:FAMILY/text()}'!='' THEN '{vcard:vCard/vcard:N/vcard:GIVEN/text()}' || '{vcard:vCard/vcard:N/vcard:MIDDLE/text()}' || '{vcard:vCard/vcard:N/vcard:FAMILY/text()}' WHEN '{vcard:vCard/vcard:N/vcard:GIVEN/text()}'!='' AND '{vcard:vCard/vcard:N/vcard:FAMILY/text()}'!='' THEN '{vcard:vCard/vcard:N/vcard:GIVEN/text()}' || '{vcard:vCard/vcard:N/vcard:FAMILY/text()}' WHEN '{vcard:vCard/vcard:N/vcard:GIVEN/text()}'!='' THEN '{vcard:vCard/vcard:N/vcard:GIVEN/text()}' WHEN '{vcard:vCard/vcard:N/vcard:FAMILY/text()}'!='' THEN '{vcard:vCard/vcard:N/vcard:FAMILY/text()}' ELSE NULL END), NULLIF('{vcard:vCard/vcard:EMAIL/vcard:USERID/text()}', ''), NULLIF('{vcard:vCard/vcard:NICKNAME/text()}', ''), NULLIF('{vcard:vCard/vcard:BDAY/text()}', ''), NULLIF('{vcard:vCard/vcard:PHOTO/vcard:BINVAL/text()}', ''), '{vcard:vCard}')</set>
+	<delete>DELETE FROM vcard WHERE realm=SUBSTR('{attribute::to}', STRPOS('{attribute::to}', '@')+1) AND user=SUBSTR('{attribute::to}', 1, STRPOS('{attribute::to}', '@')-1)</delete>
+      </handler>
+    </xdb_sql>
