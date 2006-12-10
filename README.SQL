@@ -37,3 +37,10 @@ see:
 - See how many users are in which presence state:
 
   SELECT COUNT(*),presence FROM presence GROUP BY presence;
+
+
+Using PostgreSQL
+
+If you are using PostgreSQL instead of MySQL, you have to use slightly
+different SQL statements in your configuration file. Please have a look
+at xdb_postgresql.xml for statements, that can be used with PostgreSQL.
