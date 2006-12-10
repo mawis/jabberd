@@ -3,7 +3,7 @@ EXTRA_DIST = de.po
 LANGS = de.po
 
 jabberd14.pot:
-	-xgettext -o jabberd14.pot --from-code=UTF-8 --msgid-bugs-address=mail@amessage.eu --keyword=N_ `(find .. -name "*.cc" ; find .. -name "*.c") | xargs`
+	-xgettext -o jabberd14.pot --from-code=UTF-8 --msgid-bugs-address=mail@amessage.eu --keyword=N_ `(find .. -name "*.cc" ; find .. -name "*.c" ; find .. -name "*.h") | xargs`
 
 $(LANGS): jabberd14.pot
 	-msgmerge $@ jabberd14.pot > $@.bak ; mv $@.bak $@
