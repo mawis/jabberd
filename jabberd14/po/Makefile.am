@@ -1,6 +1,6 @@
-EXTRA_DIST = de.po
+EXTRA_DIST = de.po fr.po
 
-LANGS = de.po
+LANGS = de.po fr.po
 
 jabberd14.pot:
 	-xgettext -o jabberd14.pot --from-code=UTF-8 --msgid-bugs-address=mail@amessage.eu --keyword=N_ `(find .. -name "*.cc" ; find .. -name "*.c" ; find .. -name "*.h") | xargs`
