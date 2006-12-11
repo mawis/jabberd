@@ -80,8 +80,19 @@ std::string messages::get(const std::string& lang, const char* message) {
 	    return get(lang, "(null)");
 
 	// do we have a catalog for this language?
-	if (catalog_by_lang.find(lang) == catalog_by_lang.end())
+	if (catalog_by_lang.find(lang) == catalog_by_lang.end()) {
+	    std::string general_language = lang;
+	    std::string::size_type dash_pos = general_language.find('-');
+
+	    // maybe it is something like fr-FR and we can also check for fr ...
+	    if (dash_pos != std::string::npos) {
+		general_language.erase(dash_pos);
+		return get(general_language, message);
+	    }
+
+	    // no catalog found for this language
 	    return message;
+	}
 
 	const std::locale locale(locale_by_lang[lang].c_str());
 	const std::messages<char>& messages = std::use_facet<std::messages<char> >(locale);

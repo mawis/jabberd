@@ -2049,7 +2049,9 @@ xmlnode xmlnode_get_list_item(xmlnode_list_item first, unsigned int i) {
  * select one note from a list of notes by language
  *
  * This picks the first node in the list with the specified language,
- * if no such node exists, the first node without a language is
+ * if no such node exists, the language in general is searched (e.g.
+ * if lang is fr-FR, we then look for fr).
+ * If even no such node exists, the first node without a language is
  * selected, if no nodes without a language are in the list, the
  * first list item is returned.
  *
@@ -2060,10 +2062,22 @@ xmlnode xmlnode_get_list_item(xmlnode_list_item first, unsigned int i) {
 xmlnode xmlnode_select_by_lang(xmlnode_list_item nodes, const char* lang) {
     xmlnode_list_item iter = NULL;
     xmlnode first_without_lang = NULL;
+    xmlnode first_with_general_lang = NULL;
+    char general_lang[32] = "";
 
     /* santiy check */
     if (nodes == NULL) {
 	return NULL;
+    }
+
+    /* if language has a geographical veriant, get the language as well */
+    if (lang != NULL && strchr(lang, '-') != NULL) {
+	snprintf(general_lang, sizeof(general_lang), "%s", lang);
+	if (strchr(lang, '-') != NULL) {
+	    strchr(lang, '-')[0] = 0;
+	} else {
+	    general_lang[0] = 0;
+	}
     }
 
     /* iterate the nodes */
@@ -2073,9 +2087,14 @@ xmlnode xmlnode_select_by_lang(xmlnode_list_item nodes, const char* lang) {
 
 	/* match by language? */
 	if (lang != NULL) {
-	    if (j_strcmp(this_nodes_lang, lang) == 0) {
+	    if (j_strcasecmp(this_nodes_lang, lang) == 0) {
 		return iter->node;
 	    }
+	}
+
+	/* match by general_lang? */
+	if (first_with_general_lang == NULL && j_strcasecmp(this_nodes_lang, general_lang) == 0) {
+	    first_with_general_lang = iter->node;
 	}
 
 	/* check for nodes without a language */
@@ -2085,6 +2104,10 @@ xmlnode xmlnode_select_by_lang(xmlnode_list_item nodes, const char* lang) {
 	    first_without_lang = iter->node;
 	}
     }
+
+    /* match by the language in general? */
+    if (first_with_general_lang != NULL)
+	return first_with_general_lang;
 
     /* no match by language, either return node without language (prefered), or first node */
     return first_without_lang != NULL ? first_without_lang : nodes->node;
