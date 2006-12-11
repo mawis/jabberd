@@ -1,7 +1,7 @@
 # SOME DESCRIPTIVE TITLE.
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the PACKAGE package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+# Jean de Largentaye <none@invalid> 12-2006
 #
 #, fuzzy
 msgid ""
@@ -9,7 +9,7 @@ msgstr ""
 "Project-Id-Version: jabberd14 1.6.0\n"
 "Report-Msgid-Bugs-To: mail@amessage.eu\n"
 "POT-Creation-Date: 2006-12-10 22:57+0100\n"
-"PO-Revision-Date: 2006-12-11 15:00+0100\n"
+"PO-Revision-Date: 2006-12-11 17:02+0100\n"
 "Last-Translator: Jean de Largentaye <mail@amessage.eu>\n"
 "Language-Team: French <mail@amessage.eu>\n"
 "MIME-Version: 1.0\n"
@@ -26,7 +26,7 @@ msgstr "Stockage hors-ligne"
 #: ../jabberd14-1.6.0-RC1/jsm/modules/mod_register.c:304
 #: ../jabberd14-1.6.0-RC1/jsm/modules/mod_register.c:306
 msgid "Missing data field"
-msgstr "Champ de donnee manquant"
+msgstr "Champ de donnée manquant"
 
 #: ../jsm/modules/mod_register.c:306
 #: ../jabberd14-1.6.0-RC1/jsm/modules/mod_register.c:306
@@ -250,7 +250,7 @@ msgstr "Pas de destination valide."
 #: ../jabberd/base/base_accept.c:226
 #: ../jabberd14-1.6.0-RC1/jabberd/base/base_accept.c:226
 msgid "External Server Error"
-msgstr "Erreur externe au serveur"
+msgstr "Erreur de serveur distant"
 
 #: ../jabberd/base/base_accept.c:252
 #: ../jabberd14-1.6.0-RC1/jabberd/base/base_accept.c:252
@@ -267,7 +267,7 @@ msgstr "Livraison à '%s': Delai interne expiré"
 #: ../jabberd/base/base_connect.c:100
 #: ../jabberd14-1.6.0-RC1/jabberd/base/base_connect.c:100
 msgid "Circular Reference Detected"
-msgstr "Reference Circulaire détectée"
+msgstr "Reference Circulaire Détectée"
 
 #: ../jabberd/base/base_unsubscribe.c:101
 #: ../jabberd14-1.6.0-RC1/jabberd/base/base_unsubscribe.c:101
