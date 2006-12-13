@@ -1014,9 +1014,12 @@
     <!-- Note that you have to use locales, that use the UTF-8		-->
     <!-- character encoding. (They typically end in '.UTF-8'.) Else	-->
     <!-- your server will send invalid XML data to your users and	-->
-    <!-- peers.								-->
+    <!-- peers. And the locales have to exist on your server as well,	-->
+    <!-- else they will not work.					-->
     <locales>
       <locale lang="de" locale="de_DE.UTF-8"/>
+      <locale lang="fr" locale="fr_FR.UTF-8"/>
+      <locale lang="nl" locale="nl_NL.UTF-8"/>
     </locales>
 
     <!-- Define access control lists. You can grant access to some	-->
