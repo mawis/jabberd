@@ -2,7 +2,8 @@
 
     * jabberd/mio_ssl.c: by default using SSL_CTX_use_certificate_chain_file()
     * jsm/modules/mod_presence.c: compatibility improvement for roster sync
-    * jsm/modules/mod_privacy.c: send pres unavailable for new privacy item
+    * jsm/modules/mod_privacy.c: send pres unavailable for new privacy item,
+	compare group according to the resourceprep profile
     * jsm/modules/mod_xml.c: setting to improve compatibility with old clients
 
 2006-12-11  Matthias Wimmer  <m@tthias.eu>
