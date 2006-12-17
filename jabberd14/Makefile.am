@@ -1,4 +1,4 @@
-EXTRA_DIST = UPGRADE jabber.xml.dist.in README.SQL README.karma README.config README.protocols mysql.sql xdb_postgresql.xml
+EXTRA_DIST = UPGRADE jabber.xml.dist.in README.SQL README.karma README.config README.protocols mysql.sql xdb_postgresql.xml cacerts.pem
 
 SUBDIRS = jabberd dialback dnsrv jsm pthsock xdb_file xdb_sql man po
 DIST_SUBDIRS = jabberd dialback dnsrv jsm pthsock xdb_file xdb_sql man po
@@ -39,6 +39,11 @@ install-data-hook:
 		$(INSTALL_DATA) $$p $(DESTDIR)$(sysconfdir)/$$dest; \
 	    fi; \
 	done
+	@if test -f $(DESTDIR)$(sysconfdir)/cacerts.pem; then \
+	    echo "$@ will not overwrite existing $(DESTDIR)$(sysconfdir)/cacerts.pem"; \
+	else \
+	    cp cacerts.pem $(DESTDIR)$(sysconfdir)/cacerts.pem; \
+	fi;
 
 clean-local:
 	rm -f $(sysconf_DATA)
