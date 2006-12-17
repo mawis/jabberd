@@ -111,10 +111,10 @@ typedef struct modpres_struct {
  * @param ids the list of JabberIDs
  * @return 1 if it is contained, 0 else
  */
-int _mod_presence_search(jid id, jid ids) {
+static int _mod_presence_search(jid id, jid ids, int match_parts) {
     jid cur;
-    for(cur = ids; cur != NULL; cur = cur->next)
-        if(jid_cmp(cur,id) == 0)
+    for (cur = ids; cur != NULL; cur = cur->next)
+        if (jid_cmpx(cur, id, match_parts) == 0)
             return 1;
     return 0;
 }
@@ -166,7 +166,8 @@ void _mod_presence_broadcast(session s, jid notify, xmlnode x, jid intersect) {
     xmlnode pres;
 
     for (cur = notify; cur != NULL; cur = cur->next) {
-        if(intersect != NULL && !_mod_presence_search(cur,intersect)) continue; /* perform insersection search, must be in both */
+        if (intersect != NULL && !_mod_presence_search(cur, intersect, JID_USER|JID_SERVER|JID_RESOURCE))
+	    continue; /* perform insersection search, must be in both */
         s->c_out++;
         pres = xmlnode_dup(x);
         xmlnode_put_attrib_ns(pres, "to", NULL, NULL, jid_full(cur));
@@ -207,7 +208,7 @@ mreturn mod_presence_in(mapi m, void *arg) {
 
             log_debug2(ZONE, LOGT_DELIVER, "%s attempted to probe by someone not qualified",jid_full(m->packet->from));
 
-	    if (!_mod_presence_search(m->packet->from, mp->A)) {
+	    if (!_mod_presence_search(m->packet->from, mp->A, JID_USER|JID_SERVER|JID_RESOURCE)) {
 		presence_unsubscribed = jutil_presnew(JPACKET__UNSUBSCRIBED, jid_full(jid_user(m->packet->from)), NULL);
 		xmlnode_put_attrib_ns(presence_unsubscribed, "from", NULL, NULL, jid_full(m->packet->to));
 		jp = jpacket_new(presence_unsubscribed);
@@ -218,13 +219,13 @@ mreturn mod_presence_in(mapi m, void *arg) {
 	    /* XXX generate either <forbidden/> or <not-authorized/> error stanza (RFC 3921, 5.1.3) */
 	} else if (m->s->presence == NULL) {
             log_debug2(ZONE, LOGT_DELIVER, "probe from %s and no presence to return",jid_full(m->packet->from));
-        } else if (!mp->invisible && js_trust(m->user,m->packet->from) && !_mod_presence_search(m->packet->from,mp->I)) {
+        } else if (!mp->invisible && js_trust(m->user,m->packet->from) && !_mod_presence_search(m->packet->from, mp->I, JID_USER|JID_SERVER|JID_RESOURCE)) {
 	    /* compliment of I in T */
             log_debug2(ZONE, LOGT_DELIVER, "got a probe, responding to %s",jid_full(m->packet->from));
             pres = xmlnode_dup(m->s->presence);
             xmlnode_put_attrib_ns(pres, "to", NULL, NULL, jid_full(m->packet->from));
             js_session_from(m->s, jpacket_new(pres));
-        } else if (mp->invisible && js_trust(m->user,m->packet->from) && _mod_presence_search(m->packet->from,mp->A)) {
+        } else if (mp->invisible && js_trust(m->user,m->packet->from) && _mod_presence_search(m->packet->from,mp->A, JID_USER|JID_SERVER|JID_RESOURCE)) {
 	    /* when invisible, intersection of A and T */
             log_debug2(ZONE, LOGT_DELIVER, "got a probe when invisible, responding to %s",jid_full(m->packet->from));
             pres = jutil_presnew(JPACKET__AVAILABLE,jid_full(m->packet->from),NULL);
@@ -248,7 +249,7 @@ mreturn mod_presence_in(mapi m, void *arg) {
 	xmlnode presence_unsubscribe = NULL;
 	jpacket jp = NULL;
 
-	if (!_mod_presence_search(m->packet->from, mp->A)) {
+	if (!_mod_presence_search(m->packet->from, mp->A, JID_USER|JID_SERVER)) {
 	    log_debug2(ZONE, LOGT_DELIVER, "'%s' sent a presence to '%s' the user is not interested in", jid_full(m->packet->from), jid_full(m->packet->to));
 
 	    presence_unsubscribe = jutil_presnew(JPACKET__UNSUBSCRIBE, jid_full(jid_user(m->packet->from)), NULL);

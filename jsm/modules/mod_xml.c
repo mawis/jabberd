@@ -56,16 +56,17 @@
  * callback that handles iq stanzas of the user itself (either set and get requests!)
  *
  * @param m the mapi structure
- * @param arg unused/ignored
+ * @param arg how results for non-existant private data should be handled (NULL = <item-not-found/>, other = empty list)
  * @return M_IGNORE if it is not an iq stanza, M_PASS if the stanza has not been processed, M_HANDLED if the stanza has been handled
  */
-mreturn mod_xml_set(mapi m, void *arg) {
+static mreturn mod_xml_set(mapi m, void *arg) {
     xmlnode storedx, inx = m->packet->iq;
     const char *ns = xmlnode_get_namespace(m->packet->iq);
     int private = 0;
     int got_result = 0;
     jpacket jp;
     xmlnode_list_item result_item = NULL;
+    int is_delete = 0;
 
     if (m->packet->type != JPACKET_IQ)
 	return M_IGNORE;
@@ -110,8 +111,17 @@ mreturn mod_xml_set(mapi m, void *arg) {
 
 	    /* found something? */
 	    if (!got_result) {
-		/* no => return error */
-		js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_NOTFOUND);
+		if (!arg) {
+		    /* no => return error */
+		    js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_NOTFOUND);
+		} else {
+		    /* legacy client improved compatibility */
+		    jutil_iqresult(m->packet->x);
+		    m->packet->iq = xmlnode_insert_tag_ns(m->packet->x, "query", NULL, NS_PRIVATE);
+		    xmlnode_insert_tag_node(m->packet->iq, inx);
+		    jpacket_reset(m->packet);
+		    js_session_to(m->s,m->packet);
+		}
 	    } else {
 		/* yes => return result */
 		jpacket_reset(m->packet);
@@ -126,9 +136,13 @@ mreturn mod_xml_set(mapi m, void *arg) {
 	case JPACKET__SET:
 	    log_debug2(ZONE, LOGT_DELIVER|LOGT_STORAGE, "handling set request for %s with data %s", ns, xmlnode_serialize_string(inx, NULL, NULL, 0));
 
+	    is_delete = (xmlnode_get_firstchild(inx) == NULL);
+
+	    log_debug2(ZONE, LOGT_STORAGE, "is_delete=%i, ns=%s", is_delete, ns);
+
 	    /* save the changes */
 	    xmlnode_put_attrib_ns(m->packet->iq, "ns", "jabberd", NS_JABBERD_WRAPPER, ns);
-	    if (xdb_act_path(m->si->xc, m->user->id, NS_PRIVATE, "insert", spools(m->packet->p, "private:query[@jabberd:ns='", ns, "']", m->packet->p), m->si->std_namespace_prefixes, m->packet->iq))
+	    if (xdb_act_path(m->si->xc, m->user->id, NS_PRIVATE, "insert", spools(m->packet->p, "private:query[@jabberd:ns='", ns, "']", m->packet->p), m->si->std_namespace_prefixes, is_delete ? NULL : m->packet->iq))
 		jutil_error_xmpp(m->packet->x, XTERROR_UNAVAIL);
 
 	    /* build result and send back */
@@ -151,11 +165,11 @@ mreturn mod_xml_set(mapi m, void *arg) {
  * will register mod_xml_set as callback for stanzas sent by the user itself
  *
  * @param m the mapi structure
- * @param arg unused/ignored
+ * @param arg how results for non-existant private data should be handled (NULL = <item-not-found/>, other = empty list)
  * @return always M_PASS
  */
-mreturn mod_xml_session(mapi m, void *arg) {
-    js_mapi_session(es_OUT, m->s, mod_xml_set, NULL);
+static mreturn mod_xml_session(mapi m, void *arg) {
+    js_mapi_session(es_OUT, m->s, mod_xml_set, arg);
     return M_PASS;
 }
 
@@ -166,7 +180,7 @@ mreturn mod_xml_session(mapi m, void *arg) {
  * @param arg unused/ignored
  * @return always M_PASS
  */
-mreturn mod_xml_delete(mapi m, void *arg) {
+static mreturn mod_xml_delete(mapi m, void *arg) {
     xdb_set(m->si->xc, m->user->id, NS_PRIVATE, NULL);
     return M_PASS;
 }
@@ -180,7 +194,14 @@ mreturn mod_xml_delete(mapi m, void *arg) {
  * @param si the session manager instance
  */
 void mod_xml(jsmi si) {
-    js_mapi_register(si, e_SESSION, mod_xml_session, NULL);
-    js_mapi_register(si, e_DESERIALIZE, mod_xml_session, NULL);
+    int empty_results = 0;
+    xmlnode config = js_config(si, "jsm:mod_xml", NULL);
+    if (xmlnode_get_tags(config, "jsm:empty_results", si->std_namespace_prefixes) != NULL) {
+	empty_results = 1;
+    }
+    xmlnode_free(config);
+
+    js_mapi_register(si, e_SESSION, mod_xml_session, (void*)empty_results);
+    js_mapi_register(si, e_DESERIALIZE, mod_xml_session, (void*)empty_results);
     js_mapi_register(si, e_DELETE, mod_xml_delete, NULL);
 }
