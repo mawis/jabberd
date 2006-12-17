@@ -605,7 +605,7 @@
 	  <result group='foo'><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
 	</get>
 	<set>INSERT INTO private (user,realm,ns,xml,last_modified) VALUES (SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1), SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1), '{*/attribute::jabberd:ns}', '{private:query}', NOW())</set>
-	<delete>DELETE FROM private WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1) AND ns='{attribute::jabberd:ns}'</delete>
+	<delete>DELETE FROM private WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1) AND IF ('{attribute::matchpath}'='', 1=1, ns=SUBSTRING(SUBSTRING('{attribute::matchpath}', 1, LENGTH('{attribute::matchpath}')-2), 28) AND SUBSTRING('{attribute::matchpath}', 1, 26)='private:query[@jabberd:ns=')</delete>
       </handler>
       <handler ns='jabber:iq:privacy'>
 	<get>
