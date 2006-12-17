@@ -460,6 +460,16 @@ static void mod_privacy_insert_list_item(struct mod_privacy_compiled_list_item**
 	last->next = new_item;
 }
 
+/**
+ * insert the JIDs in a roster group into a compiled privacy list
+ *
+ * @param list the list to insert the JIDs to
+ * @param order the order value, where to insert the roster group
+ * @param group the group to add
+ * @param do_deny if the action of the roster group should be allow (0) or deny (1)
+ * @param roster the user's current roster
+ * @param std_namespace_prefixes hash containing namespace prefixes for xpath expressions
+ */
 static void mod_privacy_insert_rostergroup(struct mod_privacy_compiled_list_item** list, long order, const char *group, int do_deny, xmlnode roster, xht std_namespace_prefixes) {
     xmlnode_list_item item_iter = NULL;
 
@@ -477,7 +487,16 @@ static void mod_privacy_insert_rostergroup(struct mod_privacy_compiled_list_item
     }
 }
 
-static struct mod_privacy_compiled_list_item*  mod_privacy_compile_list(jsmi si, xmlnode list, xmlnode roster, const char* list_type) {
+/**
+ * 'compile' a privacy list: the list gets prepared for faster processing when it is needed.
+ *
+ * @param si the session manager instance this function runs in
+ * @param list the privacy list
+ * @param roster the roster of the user
+ * @param list_type for which type of stanzas the privacy list should get compiled ('iq', 'message', 'presence-in', or 'presence-out')
+ * @return pointer to the first entry in the compiled list (NULL if no list)
+ */
+static struct mod_privacy_compiled_list_item* mod_privacy_compile_list(jsmi si, xmlnode list, xmlnode roster, const char* list_type) {
     struct mod_privacy_compiled_list_item* new_list = NULL;
     xmlnode_list_item list_iter = NULL;
 
@@ -540,13 +559,6 @@ static struct mod_privacy_compiled_list_item*  mod_privacy_compile_list(jsmi si,
 	}
     }
 
-    /* store the compiled list */
-    /*
-    if (new_list != NULL) {
-	xhash_put(s->aux_data, spools(new_list->p, "mod_privacy_list_", list_type, new_list->p), new_list);
-    }
-    */
-
     return new_list;
 }
 
@@ -567,6 +579,7 @@ static int mod_privacy_activate_list(jsmi si, session s, xmlnode list) {
     jid blocked_trustees_after = NULL;
     jid blocked_seen_jids_before = NULL;
     jid blocked_seen_jids_after = NULL;
+    xmlnode_list_item group = NULL;
 
     /* sanity check */
     if (s == NULL || list == NULL)
@@ -593,6 +606,57 @@ static int mod_privacy_activate_list(jsmi si, session s, xmlnode list) {
 
     /* get the user's roster, we need it to compile the list */
     roster = xdb_get(s->si->xc, s->u->id, NS_ROSTER);
+
+    /* normalize roster group names */
+    for (group = xmlnode_get_tags(roster, "roster:item/roster:group", si->std_namespace_prefixes); group != NULL; group = group->next) {
+	/* get normalized group name */
+	const char* group_name = xmlnode_get_data(group->node);
+	jid normal_group = jid_new(p, "invalid");
+	jid_set(normal_group, group_name, JID_RESOURCE);
+
+	log_debug2(ZONE, LOGT_EXECFLOW, "Checking normalization of roster group: %s", group_name);
+
+	/* could the name be normalized? */
+	if (normal_group == NULL || normal_group->resource == NULL) {
+	    log_debug2(ZONE, LOGT_EXECFLOW, "Could not normalize group name in roster: %s", group_name);
+	    xmlnode_hide(group->node);
+	    continue;
+	}
+
+	/* insert normalized data if necessary */
+	if (j_strcmp(group_name, normal_group->resource) != 0) {
+	    xmlnode_list_item text_node = xmlnode_get_tags(group->node, "text()", si->std_namespace_prefixes);
+
+	    log_debug2(ZONE, LOGT_EXECFLOW, "Normalized '%s' to '%s'", group_name, normal_group->resource);
+
+	    if (text_node != NULL) {
+		xmlnode_hide(text_node->node);
+	    }
+	    xmlnode_insert_cdata(group->node, normal_group->resource, -1);
+	}
+    }
+
+    /* normalize group names in a privacy list */
+    for (group = xmlnode_get_tags(list, "privacy:item[@type='group']", si->std_namespace_prefixes); group != NULL; group = group->next) {
+	const char* group_name = xmlnode_get_attrib_ns(group->node, "value", NULL);
+	jid normal_group = jid_new(p, "invalid");
+	jid_set(normal_group, group_name, JID_RESOURCE);
+
+	log_debug2(ZONE, LOGT_EXECFLOW, "Checking normalization of group on list: %s", group_name);
+
+	/* could the name be normalized? */
+	if (normal_group == NULL || normal_group->resource == NULL) {
+	    log_debug2(ZONE, LOGT_EXECFLOW, "Could not normalize group name on list: %s", group_name);
+	    xmlnode_hide(group->node);
+	    continue;
+	}
+
+	/* update value if necessary */
+	if (j_strcmp(group_name, normal_group->resource) != 0) {
+	    log_debug2(ZONE, LOGT_EXECFLOW, "Normalized '%s' to '%s'", group_name, normal_group->resource);
+	    xmlnode_put_attrib_ns(group->node, "value", NULL, NULL, normal_group->resource);
+	}
+    }
 
     /* compile the new filter list */
     log_debug2(ZONE, LOGT_EXECFLOW, "Compiling list for 'message'");
