@@ -267,13 +267,111 @@ static void mod_privacy_free_current_offline_list_definitions(udata user) {
 }
 
 /**
+ * filter a list of JIDs against a privacy list, return only denied JIDs
+ *
+ *
+ * @param p memory pool to use
+ * @param jid_list list of JIDs that should get filtered
+ * @param user the user the privacy list is for
+ * @param privacy_list the filter
+ * @return list of JIDs that where denied on the privacy_list, NULL if empty set
+ */
+static jid mod_privacy_filter_jidlist(pool p, const jid jid_list, udata user, struct mod_privacy_compiled_list_item* privacy_list) {
+    jid cur = NULL;
+    jid result = NULL;
+
+    /* sanity check */
+    if (jid_list == NULL || privacy_list == NULL) {
+	return NULL;
+    }
+
+    /* iterate the list */
+    for (cur = jid_list; cur != NULL; cur = cur->next) {
+	/* is this trustee blocked? */
+	if (mod_privacy_denied(privacy_list, user, cur)) {
+	    /* first blocked trustee? */
+	    if (result == NULL) {
+		result = jid_new(p, jid_full(cur));
+	    } else {
+		jid_append(result, cur);
+	    }
+	}
+    }
+
+    return result;
+}
+
+/**
+ * gets a list of trusted but currently presence-out blocked JIDs
+ *
+ * @param p pool to use for memory allocations
+ * @param s for which session the list should get calculated
+ * @return list of JIDs, that are subscribed to us, but have presence-out currently blocked, NULL if none
+ */
+static jid mod_privacy_blocked_trustees(pool p, session s) {
+    struct mod_privacy_compiled_list_item* list = NULL;
+
+    /* get the current privacy list for presence-out */
+    list = xhash_get(s->aux_data, "mod_privacy_list_presence-out");
+
+    /* return filtered result */
+    return mod_privacy_filter_jidlist(p, js_trustees(s->u), s->u, list);
+}
+
+/**
+ * gets a list of seen but currently presence-in blocked JIDs
+ *
+ * @param p pool to use for memory allocations
+ * @param s for which session the list should get calculated
+ * @return list of JIDs, we are subscribed to, but have presence-in currently blocked, NULL if none
+ */
+static jid mod_privacy_blocked_seen_jids(pool p, session s) {
+    struct mod_privacy_compiled_list_item* list = NULL;
+
+    /* get the current privacy list for presence-in */
+    list = xhash_get(s->aux_data, "mod_privacy_list_presence-in");
+
+    /* return filtered result */
+    return mod_privacy_filter_jidlist(p, js_seen_jids(s->u), s->u, list);
+}
+
+/**
  * sets no privacy list to be active
  *
  * @param s the session for which no privacy list should be active
  */
-static void mod_privacy_no_active_list(session s) {
+static void mod_privacy_no_active_list(jsmi si, session s) {
+    jid cur = NULL;
+
+    /* get memory pool used inside this function */
+    pool p = pool_new();
+
+    /* remember blocked trustees */
+    jid blocked_trustees = mod_privacy_blocked_trustees(p, s);
+
+    /* remember blocked seen_jids */
+    jid blocked_seen_jids = mod_privacy_blocked_seen_jids(p, s);
+
+    /* delete current privacy lists */
     xhash_put(s->aux_data, "mod_privacy_active", NULL);
     mod_privacy_free_current_list_definitions(s);
+
+    /* there are no blocked users now, send presence to trustees, that where blocked before */
+    for (cur = blocked_trustees; cur != NULL; cur=cur->next) {
+	xmlnode presence = xmlnode_dup(s->presence);
+	xmlnode_put_attrib_ns(presence, "to", NULL, NULL, jid_full(cur));
+	js_deliver(si, jpacket_new(presence), s);
+    }
+
+    /* there are no blocked users now, probe presence for seen jids, that where blocked before */
+    for (cur = blocked_seen_jids; cur != NULL; cur=cur->next) {
+	xmlnode probe = jutil_presnew(JPACKET__PROBE, jid_full(cur), NULL);
+	xmlnode_put_attrib_ns(probe, "from", NULL, NULL, jid_full(s->u->id));
+	js_deliver(si, jpacket_new(probe), s);
+    }
+
+    /* free memory pool again */
+    pool_free(p);
 }
 
 /**
@@ -459,14 +557,29 @@ static struct mod_privacy_compiled_list_item*  mod_privacy_compile_list(jsmi si,
  * @param list the list to activate
  * @return if the given privacy list has been activated
  */
-static int mod_privacy_activate_list(session s, xmlnode list) {
+static int mod_privacy_activate_list(jsmi si, session s, xmlnode list) {
     struct mod_privacy_compiled_list_item* new_list = NULL;
     const char* list_name = NULL;
     xmlnode roster = NULL;
+    jid cur = NULL;
+    pool p = NULL;
+    jid blocked_trustees_before = NULL;
+    jid blocked_trustees_after = NULL;
+    jid blocked_seen_jids_before = NULL;
+    jid blocked_seen_jids_after = NULL;
 
     /* sanity check */
     if (s == NULL || list == NULL)
 	return 0;
+
+    /* get memory pool used inside this function */
+    p = pool_new();
+
+    /* remember blocked trustees */
+    blocked_trustees_before = mod_privacy_blocked_trustees(p, s);
+
+    /* remember blocked seen_jids */
+    blocked_seen_jids_before = mod_privacy_blocked_seen_jids(p, s);
 
     /* get the list name */
     list_name = xmlnode_get_attrib_ns(list, "name", NULL);
@@ -506,6 +619,109 @@ static int mod_privacy_activate_list(session s, xmlnode list) {
     if (roster != NULL)
 	xmlnode_free(roster);
 
+    /* see which trustees are now blocked */
+    blocked_trustees_after = mod_privacy_blocked_trustees(p, s);
+
+    /* send presence updates to trustees not blocked anymore */
+    for (cur = blocked_trustees_before; cur != NULL; cur=cur->next) {
+	jid cur2 = NULL;
+	xmlnode presence = NULL;
+
+	log_debug2(ZONE, LOGT_EXECFLOW, "trustee blocked before: %s", jid_full(cur));
+
+	/* no presence, if still denied */
+	for (cur2 = blocked_trustees_after; cur2 != NULL; cur2=cur2->next) {
+	    if (jid_cmp(cur, cur2) == 0) {
+		continue;
+	    }
+	}
+
+	log_debug2(ZONE, LOGT_EXECFLOW, "... not blocked anymore. Send current presence.");
+
+	/* not blocked anymore. send current presence */
+	presence = xmlnode_dup(s->presence);
+	xmlnode_put_attrib_ns(presence, "to", NULL, NULL, jid_full(cur));
+	js_deliver(si, jpacket_new(presence), s);
+    }
+
+    /* send presence unavailable to trustees now blocked */
+    for (cur = blocked_trustees_after; cur != NULL; cur=cur->next) {
+	jid cur2 = NULL;
+	xmlnode presence = NULL;
+	jpacket jp = NULL;
+
+	log_debug2(ZONE, LOGT_EXECFLOW, "trustee now blocked: %s", jid_full(cur));
+
+	/* no unavailable, if already blocked before */
+	for (cur2 = blocked_trustees_before; cur2 != NULL; cur2=cur2->next) {
+	    if (jid_cmp(cur, cur2) == 0) {
+		continue;
+	    }
+	}
+
+	log_debug2(ZONE, LOGT_EXECFLOW, "... not blocked before. Send presence unavailable.");
+
+	/* new block, send unavailable */
+	presence = jutil_presnew(JPACKET__UNAVAILABLE, jid_full(cur), NULL);
+	xmlnode_put_attrib_ns(presence, "from", NULL, NULL, jid_full(s->id));
+	jp = jpacket_new(presence);
+	jp->flag = PACKET_PASS_FILTERS_MAGIC;
+	js_deliver(si, jp, s);
+    }
+
+    /* see which seen JIDs are now blocked */
+    blocked_seen_jids_after = mod_privacy_blocked_seen_jids(p, s);
+
+    /* send presence probes to seen JIDs not blocked anymore */
+    for (cur = blocked_seen_jids_before; cur != NULL; cur=cur->next) {
+	jid cur2 = NULL;
+	xmlnode probe = NULL;
+
+	log_debug2(ZONE, LOGT_EXECFLOW, "seen JID blocked before: %s", jid_full(cur));
+
+	/* no presence, if still denied */
+	for (cur2 = blocked_seen_jids_after; cur2 != NULL; cur2=cur2->next) {
+	    if (jid_cmp(cur, cur2) == 0) {
+		continue;
+	    }
+	}
+
+	log_debug2(ZONE, LOGT_EXECFLOW, "... not blocked anymore. Send presence probe.");
+
+	/* not blocked anymore. send presence probe */
+	probe = jutil_presnew(JPACKET__PROBE, jid_full(cur), NULL);
+	xmlnode_put_attrib_ns(probe, "from", NULL, NULL, jid_full(s->u->id));
+	js_deliver(si, jpacket_new(probe), s);
+    }
+
+    /* send presence unavailable for seen JIDs now blocked */
+    for (cur = blocked_seen_jids_after; cur != NULL; cur=cur->next) {
+	jid cur2 = NULL;
+	xmlnode presence = NULL;
+	jpacket jp = NULL;
+
+	log_debug2(ZONE, LOGT_EXECFLOW, "seen JID now blocked: %s", jid_full(cur));
+
+	/* no unavailable, if already blocked before */
+	for (cur2 = blocked_seen_jids_before; cur2 != NULL; cur2=cur2->next) {
+	    if (jid_cmp(cur, cur2) == 0) {
+		continue;
+	    }
+	}
+
+	log_debug2(ZONE, LOGT_EXECFLOW, "... not blocked before. Send presence unavailable.");
+
+	/* new block, send unavailable */
+	presence = jutil_presnew(JPACKET__UNAVAILABLE, jid_full(s->id), NULL);
+	xmlnode_put_attrib_ns(presence, "from", NULL, NULL, jid_full(cur)); /* XXX: well actually we should send it from the resource, but we do not have it here */
+	jp = jpacket_new(presence);
+	jp->flag = PACKET_PASS_FILTERS_MAGIC;
+	js_session_to(s, jp);
+    }
+
+    /* free local pool */
+    pool_free(p);
+
     /* new list is active now */
     return 1;
 }
@@ -517,7 +733,7 @@ static int mod_privacy_activate_list(session s, xmlnode list) {
  * @param name the name of the list (or NULL for the default privacy list)
  * @return if the named privacy list has been enabled
  */
-static int mod_privacy_activate_named(session s, const char* name) {
+static int mod_privacy_activate_named(jsmi si, session s, const char* name) {
     xmlnode all_lists = NULL;
     xmlnode_list_item named_list = NULL;
     int result = 0;
@@ -535,7 +751,7 @@ static int mod_privacy_activate_named(session s, const char* name) {
 
 	if (named_list == NULL) {
 	    log_debug2(ZONE, LOGT_EXECFLOW, "Activating default list, with declined default list: disabling privacy lists for this session");
-	    mod_privacy_no_active_list(s);
+	    mod_privacy_no_active_list(si, s);
 	    xmlnode_free(all_lists);
 	    return 1;
 	}
@@ -552,7 +768,7 @@ static int mod_privacy_activate_named(session s, const char* name) {
     }
 
     /* do the actual parsing and evaluation of the privacy list */
-    result = mod_privacy_activate_list(s, named_list->node);
+    result = mod_privacy_activate_list(si, s, named_list->node);
 
     /* free xdb result */
     xmlnode_free(all_lists);
@@ -568,8 +784,8 @@ static int mod_privacy_activate_named(session s, const char* name) {
  * @param s the session for which the default privacy list should be activated
  * @return if a default privacy list has been enabled
  */
-static int mod_privacy_activate_default(session s) {
-    return mod_privacy_activate_named(s, NULL);
+static int mod_privacy_activate_default(jsmi si, session s) {
+    return mod_privacy_activate_named(si, s, NULL);
 }
 
 /**
@@ -671,7 +887,7 @@ static mreturn mod_privacy_out_iq_set_active(mapi m, const char* new_active_list
 	log_debug2(ZONE, LOGT_EXECFLOW, "decline active privacy list");
 
 	/* disable privacy lists for this session */
-	mod_privacy_no_active_list(m->s);
+	mod_privacy_no_active_list(m->si, m->s);
 
 	/* send reply */
 	jutil_iqresult(m->packet->x);
@@ -687,7 +903,7 @@ static mreturn mod_privacy_out_iq_set_active(mapi m, const char* new_active_list
     }
 
     /* activate a named list */
-    if (mod_privacy_activate_named(m->s, new_active_list)) {
+    if (mod_privacy_activate_named(m->si, m->s, new_active_list)) {
 	/* success: send reply */
 	jutil_iqresult(m->packet->x);
 	jpacket_reset(m->packet);
@@ -772,7 +988,7 @@ static mreturn mod_privacy_out_iq_set_default(mapi m, const char* new_default_li
     /* update the active list for the current session, if the default list was in use */
     current_active_list = xhash_get(m->s->aux_data, "mod_privacy_active");
     if (current_active_list == NULL && old_default_list == NULL || j_strcmp(current_active_list, old_default_list) == 0) {
-	mod_privacy_activate_default(m->s);
+	mod_privacy_activate_default(m->si, m->s);
     }
 
     /* update the default list for offline handling */
@@ -921,9 +1137,9 @@ static mreturn mod_privacy_out_iq_set_list(mapi m, xmlnode new_list) {
     if (j_strcmp(xhash_get(m->s->aux_data, "mod_privacy_active"), edited_list) == 0) {
 	log_debug2(ZONE, LOGT_EXECFLOW, "The edited list was in use by us. Updating used list.");
 	if (list_items > 0) {
-	    mod_privacy_activate_named(m->s, edited_list);
+	    mod_privacy_activate_named(m->si, m->s, edited_list);
 	} else {
-	    mod_privacy_no_active_list(m->s);
+	    mod_privacy_no_active_list(m->si, m->s);
 	}
     }
 
@@ -1238,7 +1454,7 @@ static mreturn mod_privacy_rosterchange(mapi m, void* arg) {
 
 	if (active_list != NULL) {
 	    log_debug2(ZONE, LOGT_EXECFLOW, "Reloading list '%s' for session '%s'", active_list, jid_full(cur->id));
-	    mod_privacy_activate_named(cur, active_list);
+	    mod_privacy_activate_named(m->si, cur, active_list);
 	} else {
 	    log_debug2(ZONE, LOGT_EXECFLOW, "No active list for session '%s'", jid_full(cur->id));
 	}
@@ -1267,7 +1483,7 @@ static mreturn mod_privacy_end_session(mapi m, void* arg) {
  */
 static mreturn mod_privacy_session(mapi m, void* arg) {
     /* activate default privacy list */
-    mod_privacy_activate_default(m->s);
+    mod_privacy_activate_default(m->si, m->s);
 
     /* register callbacks */
     js_mapi_session(es_OUT, m->s, mod_privacy_out, NULL);
@@ -1293,7 +1509,7 @@ static mreturn mod_privacy_session(mapi m, void* arg) {
 static mreturn mod_privacy_deserialize(mapi m, void* arg) {
     xmlnode_list_item active_list = xmlnode_get_tags(m->serialization_node, "state:modPrivacy/privacy:active", m->si->std_namespace_prefixes);
     if (active_list != NULL)
-	mod_privacy_activate_named(m->s, xmlnode_get_attrib_ns(active_list->node, "name", NULL));
+	mod_privacy_activate_named(m->si, m->s, xmlnode_get_attrib_ns(active_list->node, "name", NULL));
 
     /* register callbacks */
     js_mapi_session(es_OUT, m->s, mod_privacy_out, NULL);

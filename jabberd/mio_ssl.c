@@ -121,6 +121,9 @@ void mio_ssl_init(xmlnode x) {
 
     /* Walk our node and add the created contexts */
     for (key_element = xmlnode_get_tags(x, "key", namespaces); key_element != NULL; key_element = key_element->next) {
+	const char* filetype = xmlnode_get_attrib_ns(key_element->node, "type", NULL);
+	int filetype_der = (j_strcmp(filetype, "der") == 0);
+
 	/* ip is the fallback for jabberd 1.4.3 compatibility */
 	host = xmlnode_get_attrib_ns(key_element->node, "id", NULL);
 	if (host == NULL)
@@ -158,12 +161,20 @@ void mio_ssl_init(xmlnode x) {
 
         /* Setup the keys and certs */
         log_debug2(ZONE, LOGT_INIT, "Loading TLS certificate %s for %s", keypath, host);
-        if (!SSL_CTX_use_certificate_file(ctx, keypath,SSL_FILETYPE_PEM)) {
-            log_warn(NULL, "TLS error using certificate file: %s", keypath);
-            SSL_CTX_free(ctx);
-            continue;
-        }
-        if (!SSL_CTX_use_PrivateKey_file(ctx, keypath,SSL_FILETYPE_PEM)) {
+	if (filetype == NULL) {
+	    if (!SSL_CTX_use_certificate_chain_file(ctx, keypath)) {
+		log_warn(NULL, "TLS error using certificate file: %s", keypath);
+		SSL_CTX_free(ctx);
+		continue;
+	    }
+	} else {
+	    if (!SSL_CTX_use_certificate_file(ctx, keypath, filetype_der ? SSL_FILETYPE_ASN1 : SSL_FILETYPE_PEM)) {
+		log_warn(NULL, "TLS error using certificate file: %s", keypath);
+		SSL_CTX_free(ctx);
+		continue;
+	    }
+	}
+        if (!SSL_CTX_use_PrivateKey_file(ctx, keypath, filetype_der ? SSL_FILETYPE_ASN1 : SSL_FILETYPE_PEM)) {
             log_warn(NULL, "TLS error using Private Key file");
             SSL_CTX_free(ctx);
             continue;
