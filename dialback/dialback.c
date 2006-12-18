@@ -449,7 +449,7 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	    if (gmtime_r(&last, &last_utc)) {
 		char last_str[36];
 
-		snprintf(last_str, sizeof(last_str), "$s %d-%02d-%02d %02d:%02d:%02d UTC", messages_get(lang, N_("Last used:")),
+		snprintf(last_str, sizeof(last_str), "%s %d-%02d-%02d %02d:%02d:%02d UTC", messages_get(lang, N_("Last used:")),
 			1900+last_utc.tm_year, last_utc.tm_mon+1, last_utc.tm_mday, last_utc.tm_hour, last_utc.tm_min, last_utc.tm_sec);
 
 		x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
