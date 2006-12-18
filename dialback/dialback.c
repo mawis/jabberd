@@ -487,7 +487,7 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	} else {
 	    char ip_str[128];
 
-	    snprintf(ip_str, sizeof(ip_str), "%s %s=%s;%d remote=%s;%d tls=%s",
+	    snprintf(ip_str, sizeof(ip_str), "%s %s=%s;%d %s=%s;%d %s=%s",
 		    messages_get(lang, N_("IP/port:")),
 		    messages_get(lang, N_("local")),
 		    md->m->our_ip,
