@@ -92,7 +92,7 @@ mreturn mod_agents_agents(mapi m) {
 
         /* map the included <ns>'s in browse to the old agent flags */
         for (cur2 = xmlnode_get_firstchild(cur); cur2 != NULL; cur2 = xmlnode_get_nextsibling(cur2)) {
-            if (j_strcmp(xmlnode_get_localname(cur2),"ns") != 0 || j_strcmp(xmlnode_get_namespace(cur2), NS_AGENTS) != 0)
+            if (j_strcmp(xmlnode_get_localname(cur2),"ns") != 0 || j_strcmp(xmlnode_get_namespace(cur2), NS_BROWSE) != 0)
 		continue;
             if (j_strcmp(xmlnode_get_data(cur2),"jabber:iq:register") == 0)
                 xmlnode_insert_tag_ns(a, "register", NULL, NS_AGENTS);
