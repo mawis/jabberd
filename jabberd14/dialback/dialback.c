@@ -596,7 +596,7 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), messages_get(lang, N_("Dialback: ")), dc->flags.db ? messages_get(lang, N_("supported")) : messages_get(lang, N_("unsupported")), messages_get(lang, N_(" by peer")), xmlnode_pool(result)));
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools( xmlnode_pool(result), messages_get(lang, N_("Dialback: ")), dc->flags.db ?  messages_get(lang, N_("supported by peer")) : messages_get(lang, N_("unsupported by peer")), xmlnode_pool(result)));
 	} else if (j_strcmp(node, "connectresults") == 0) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
