@@ -7,88 +7,43 @@ msgid ""
 msgstr ""
 "Project-Id-Version: jabberd14\n"
 "Report-Msgid-Bugs-To: mail@amessage.eu\n"
-"POT-Creation-Date: 2006-12-10 22:57+0100\n"
-"PO-Revision-Date: 2006-12-10 22:45+0100\n"
+"POT-Creation-Date: 2006-12-18 09:53+0100\n"
+"PO-Revision-Date: 2006-12-18 09:54+0100\n"
 "Last-Translator: Matthias Wimmer <m@tthias.eu>\n"
 "Language-Team: German <m@tthias.eu>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: ../jsm/modules/mod_offline.c:169 ../jsm/modules/mod_roster.c:632
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_offline.c:169
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_roster.c:632
-msgid "Offline Storage"
-msgstr "Offline-Speicherung"
-
-#: ../jsm/modules/mod_register.c:304 ../jsm/modules/mod_register.c:306
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_register.c:304
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_register.c:306
-msgid "Missing data field"
-msgstr "Fehlendes Datenfeld"
-
-#: ../jsm/modules/mod_register.c:306
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_register.c:306
-msgid "you may also register at"
-msgstr "Anmeldung auch auf"
-
-#: ../jsm/modules/mod_register.c:324
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_register.c:324
-msgid "Registration not allowed."
-msgstr "Anmeldung nicht gestattet."
-
-#: ../jsm/modules/mod_register.c:326
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_register.c:326
-msgid "Registration not allowed. See"
-msgstr "Anmeldung nicht gestattet. Siehe"
-
-#: ../jsm/modules/mod_register.c:415 ../jsm/modules/mod_register.c:499
-#: ../jsm/modules/mod_register.c:516
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_register.c:415
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_register.c:499
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_register.c:516
-#: ../jabberd/lib/jabberdlib.h:721
-#: ../jabberd14-1.6.0-RC1/jabberd/lib/jabberdlib.h:721
-msgid "Not Allowed"
-msgstr "Nicht gestattet"
-
-#: ../jsm/modules/mod_privacy.c:685 ../jsm/modules/mod_privacy.c:725
-#: ../jsm/modules/mod_privacy.c:826
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_privacy.c:685
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_privacy.c:725
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_privacy.c:826
+#: ../jsm/modules/mod_privacy.c:965 ../jsm/modules/mod_privacy.c:1005
+#: ../jsm/modules/mod_privacy.c:1106
 msgid "The server cannot accept that privacy list name."
 msgstr "Der Server kann den Namen der Privacy-Liste nicht annehmen."
 
-#: ../jsm/modules/mod_privacy.c:857
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_privacy.c:857
+#: ../jsm/modules/mod_privacy.c:1137
 msgid "Privacy list is invalid: item without order attribute"
 msgstr "Privacy-Liste ist ungültig: Item ohne order-Attribut"
 
-#: ../jsm/modules/mod_privacy.c:862
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_privacy.c:862
+#: ../jsm/modules/mod_privacy.c:1142
 msgid "Privacy list is invalid: item action has to be either 'deny' or 'allow'"
 msgstr ""
 "Privacy-Liste ist ungültig: Item action muss entweder 'deny' oder 'allow' "
 "sein"
 
-#: ../jsm/modules/mod_privacy.c:868
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_privacy.c:868
+#: ../jsm/modules/mod_privacy.c:1148
 msgid ""
 "Privacy list is invalid: fall-through item is not allowed to have a value"
 msgstr ""
 "Privacy-Liste ist ungültig: Item ohne type-Attribut darf auch kein value-"
 "Attribut haben"
 
-#: ../jsm/modules/mod_privacy.c:875
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_privacy.c:875
+#: ../jsm/modules/mod_privacy.c:1155
 msgid "Privacy list is invalid: if type is 'jid', value has to be a valid JID"
 msgstr ""
 "Privacy-Liste ist ungültig: wenn der Typ 'jid' ist, muss der Value eine "
 "gültige JID sein"
 
-#: ../jsm/modules/mod_privacy.c:881
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_privacy.c:881
+#: ../jsm/modules/mod_privacy.c:1161
 msgid ""
 "Privacy list is invalid: if type is 'group', value has to be a roster group "
 "name"
@@ -96,8 +51,7 @@ msgstr ""
 "Privacy-Liste ist ungültig: wenn der Typ 'group' ist, muss der Value den "
 "Namen einer Rostergruppe haben"
 
-#: ../jsm/modules/mod_privacy.c:888
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_privacy.c:888
+#: ../jsm/modules/mod_privacy.c:1168
 msgid ""
 "Privacy list is invalid: if type is 'subscription', value has to be one of "
 "'none', 'from', 'to', or 'both'"
@@ -105,8 +59,7 @@ msgstr ""
 "Privacy-Liste ist ungültig: wenn der Typ 'subscription' ist, muss der Value "
 "eines von 'none', 'from', 'to' oder 'both' sein"
 
-#: ../jsm/modules/mod_privacy.c:893
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_privacy.c:893
+#: ../jsm/modules/mod_privacy.c:1173
 msgid ""
 "Privacy list is invalid: if type is present, it has to be one of 'jid', "
 "'group', or 'subscription'"
@@ -114,37 +67,19 @@ msgstr ""
 "Privacy-Liste ist ungültig: wenn das type-Attribut vorhanden ist, muss es "
 "einen der folgenden Werte haben: 'jid', 'group' oder 'subscription'"
 
-#: ../jsm/modules/mod_privacy.c:1194
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_privacy.c:1194
+#: ../jsm/modules/mod_privacy.c:1474
 msgid "Blocked by recipient's privacy list"
 msgstr "Gesperrt durch die Privacy-Liste des Empfängers"
 
-#: ../jsm/modules/mod_privacy.c:1196
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_privacy.c:1196
+#: ../jsm/modules/mod_privacy.c:1476
 msgid "Blocked by your own privacy list"
 msgstr "Gesperrt durch Ihre eigene Privacy-Liste"
 
-#: ../jsm/modules/mod_roster.c:550
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_roster.c:550
-msgid "Already Subscribed"
-msgstr "Bereits eingeschrieben"
+#: ../jsm/modules/mod_offline.c:169 ../jsm/modules/mod_roster.c:632
+msgid "Offline Storage"
+msgstr "Offline-Speicherung"
 
-#: ../jsm/modules/mod_roster.c:595
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_roster.c:595
-msgid "Autoreply"
-msgstr "Automatische Antwort"
-
-#: ../jsm/modules/mod_last.c:178
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_last.c:178
-msgid "Registered"
-msgstr "Registriert"
-
-#: ../jsm/modules/mod_last.c:280
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_last.c:280
-msgid "Unregistered"
-msgstr "Abgemeldet"
-
-#: ../jsm/modules/mod_xml.c:86 ../jabberd14-1.6.0-RC1/jsm/modules/mod_xml.c:86
+#: ../jsm/modules/mod_xml.c:87
 msgid ""
 "The query element in the jabber:iq:private namespace needs a child element "
 "in another namespace."
@@ -152,214 +87,207 @@ msgstr ""
 "Das query-Element im jabber:iq:private-Namespace braucht ein Child-Element "
 "in einem anderen namespace."
 
+#: ../jsm/modules/mod_register.c:304 ../jsm/modules/mod_register.c:306
+msgid "Missing data field"
+msgstr "Fehlendes Datenfeld"
+
+#: ../jsm/modules/mod_register.c:306
+msgid "you may also register at"
+msgstr "Anmeldung auch auf"
+
+#: ../jsm/modules/mod_register.c:324
+msgid "Registration not allowed."
+msgstr "Anmeldung nicht gestattet."
+
+#: ../jsm/modules/mod_register.c:326
+msgid "Registration not allowed. See"
+msgstr "Anmeldung nicht gestattet. Siehe"
+
+#: ../jsm/modules/mod_register.c:415 ../jsm/modules/mod_register.c:499
+#: ../jsm/modules/mod_register.c:516 ../jabberd/lib/jabberdlib.h:721
+msgid "Not Allowed"
+msgstr "Nicht gestattet"
+
+#: ../jsm/modules/mod_roster.c:550
+msgid "Already Subscribed"
+msgstr "Bereits eingeschrieben"
+
+#: ../jsm/modules/mod_roster.c:595
+msgid "Autoreply"
+msgstr "Automatische Antwort"
+
+#: ../jsm/modules/mod_last.c:178
+msgid "Registered"
+msgstr "Registriert"
+
+#: ../jsm/modules/mod_last.c:280
+msgid "Unregistered"
+msgstr "Abgemeldet"
+
 #: ../jsm/modules/mod_disco.c:186 ../jsm/modules/mod_disco.c:300
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_disco.c:186
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_disco.c:300
 msgid "Administrator"
 msgstr "Administrator"
 
 #: ../jsm/modules/mod_disco.c:298
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_disco.c:298
 msgid " (administrator)"
 msgstr " (Administrator)"
 
 #: ../jsm/modules/mod_disco.c:300
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_disco.c:300
 msgid "User"
 msgstr "Benutzer"
 
 #: ../jsm/modules/mod_admin.c:85
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_admin.c:85
 msgid "dur"
 msgstr "Dauer"
 
 #: ../jsm/modules/mod_admin.c:87
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_admin.c:87
 msgid "s"
 msgstr "s"
 
 #: ../jsm/modules/mod_admin.c:87
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_admin.c:87
 msgid "in"
 msgstr "ein"
 
 #: ../jsm/modules/mod_admin.c:89 ../jsm/modules/mod_admin.c:91
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_admin.c:89
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_admin.c:91
 msgid "stnz"
 msgstr "Stnz"
 
 #: ../jsm/modules/mod_admin.c:89
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_admin.c:89
 msgid "out"
 msgstr "aus"
 
 #: ../jsm/modules/mod_admin.c:224
-#: ../jabberd14-1.6.0-RC1/jsm/modules/mod_admin.c:224
 msgid "Admin: "
 msgstr "Admin: "
 
 #: ../jsm/sessions.c:76 ../jsm/deliver.c:245 ../jsm/deliver.c:308
-#: ../jabberd14-1.6.0-RC1/jsm/deliver.c:245
-#: ../jabberd14-1.6.0-RC1/jsm/deliver.c:308
-#: ../jabberd14-1.6.0-RC1/jsm/sessions.c:76 ../jabberd/lib/jabberdlib.h:742
-#: ../jabberd14-1.6.0-RC1/jabberd/lib/jabberdlib.h:742
+#: ../jabberd/lib/jabberdlib.h:742
 msgid "Disconnected"
 msgstr "Getrennt"
 
 #: ../jsm/sessions.c:208 ../jsm/sessions.c:307 ../jsm/serialization.c:244
-#: ../jabberd14-1.6.0-RC1/jsm/sessions.c:208
-#: ../jabberd14-1.6.0-RC1/jsm/sessions.c:307
-#: ../jabberd14-1.6.0-RC1/jsm/serialization.c:244
 msgid "Replaced by new connection"
 msgstr "Durch neue Verbindung ersetzt"
 
 #: ../jsm/authreg.c:149 ../jsm/authreg.c:169
-#: ../jabberd14-1.6.0-RC1/jsm/authreg.c:149
-#: ../jabberd14-1.6.0-RC1/jsm/authreg.c:169
 msgid "Username Not Available"
 msgstr "Benutzername nicht verfügbar"
 
 #: ../jsm/deliver.c:176 ../jsm/deliver.c:289
-#: ../jabberd14-1.6.0-RC1/jsm/deliver.c:176
-#: ../jabberd14-1.6.0-RC1/jsm/deliver.c:289
 msgid "Session Failed"
 msgstr "Sitzung fehlgeschlagen"
 
-#: ../jsm/deliver.c:249 ../jabberd14-1.6.0-RC1/jsm/deliver.c:249
+#: ../jsm/deliver.c:249
 msgid "Removed"
 msgstr "Entfernt"
 
 #: ../jsm/deliver.c:322 ../jsm/deliver.c:333
-#: ../jabberd14-1.6.0-RC1/jsm/deliver.c:322
-#: ../jabberd14-1.6.0-RC1/jsm/deliver.c:333
 msgid "no valid target"
 msgstr "kein gültiges Ziel"
 
-#: ../jsm/deliver.c:338 ../jabberd14-1.6.0-RC1/jsm/deliver.c:338
+#: ../jsm/deliver.c:338
 msgid "Unknown session control action"
 msgstr "Unbekannte Sitzungskontroll-Aktion"
 
-#: ../jsm/deliver.c:436 ../jabberd14-1.6.0-RC1/jsm/deliver.c:436
+#: ../jsm/deliver.c:436
 msgid "Invalid User"
 msgstr "Ungültiger Nutzer"
 
-#: ../jsm/deliver.c:475 ../jabberd14-1.6.0-RC1/jsm/deliver.c:475
+#: ../jsm/deliver.c:475
 msgid "Invalid Session"
 msgstr "Ungültige Sitzung"
 
-#: ../jsm/jsm.c:81 ../jabberd14-1.6.0-RC1/jsm/jsm.c:81
+#: ../jsm/jsm.c:81
 msgid "sessionmanager shutdown"
 msgstr "Sessionmanager-Abschaltung"
 
 #: ../jabberd/base/base_importspool.c:61
-#: ../jabberd14-1.6.0-RC1/jabberd/base/base_importspool.c:61
 msgid "This is no valid destination."
 msgstr "Dies ist kein gültiges Ziel."
 
 #: ../jabberd/base/base_accept.c:226
-#: ../jabberd14-1.6.0-RC1/jabberd/base/base_accept.c:226
 msgid "External Server Error"
 msgstr "Entfernter Serverfehler"
 
 #: ../jabberd/base/base_accept.c:252
-#: ../jabberd14-1.6.0-RC1/jabberd/base/base_accept.c:252
 #, c-format
 msgid "Component '%s' is not connected to server"
 msgstr "Komponente '%s' ist nicht mit dem Server verbunden"
 
 #: ../jabberd/base/base_accept.c:273
-#: ../jabberd14-1.6.0-RC1/jabberd/base/base_accept.c:273
 #, c-format
 msgid "delivery to '%s': Internal Timeout"
 msgstr "Zustellung an '%s': interne Zeitüberschreitung"
 
 #: ../jabberd/base/base_connect.c:100
-#: ../jabberd14-1.6.0-RC1/jabberd/base/base_connect.c:100
 msgid "Circular Reference Detected"
 msgstr "Ringschluss festgestellt"
 
 #: ../jabberd/base/base_unsubscribe.c:101
-#: ../jabberd14-1.6.0-RC1/jabberd/base/base_unsubscribe.c:101
 msgid "Destination blocked by server administrator"
 msgstr "Ziel vom Server-Administrator gesperrt"
 
-#: ../jabberd/deliver.c:841 ../jabberd14-1.6.0-RC1/jabberd/deliver.c:841
+#: ../jabberd/deliver.c:841
 msgid "Unable to deliver, destination unknown"
 msgstr "Nicht zustellbar, Ziel unbekannt"
 
-#: ../jabberd/deliver.c:856 ../jabberd14-1.6.0-RC1/jabberd/deliver.c:856
+#: ../jabberd/deliver.c:856
 msgid "Internal Delivery Error"
 msgstr "Interner Zustellfehler"
 
 #: ../dialback/dialback_out.c:202
-#: ../jabberd14-1.6.0-RC1/dialback/dialback_out.c:202
 msgid "connection object just created"
 msgstr "Verbindungsobjekt gerade erstellt"
 
 #: ../dialback/dialback_out.c:204
-#: ../jabberd14-1.6.0-RC1/dialback/dialback_out.c:204
 msgid "connecting to other host"
 msgstr "Verbinde zu anderem Host"
 
 #: ../dialback/dialback_out.c:206
-#: ../jabberd14-1.6.0-RC1/dialback/dialback_out.c:206
 msgid "connected to other host"
 msgstr "Verbunden mit anderem Host"
 
 #: ../dialback/dialback_out.c:208
-#: ../jabberd14-1.6.0-RC1/dialback/dialback_out.c:208
 msgid "got the stream root"
 msgstr "Datenstrom-Wurzel empfangen"
 
 #: ../dialback/dialback_out.c:210
-#: ../jabberd14-1.6.0-RC1/dialback/dialback_out.c:210
 msgid "waiting for stream features on XMPP stream"
 msgstr "Warte auf XMPP-Datenstrom-Fähigkeiten"
 
 #: ../dialback/dialback_out.c:212
-#: ../jabberd14-1.6.0-RC1/dialback/dialback_out.c:212
 msgid "got stream features on XMPP stream"
 msgstr "XMPP-Datenstromfähigkeiten empfangen"
 
 #: ../dialback/dialback_out.c:214
-#: ../jabberd14-1.6.0-RC1/dialback/dialback_out.c:214
 msgid "sent out dialback request"
 msgstr "Rückrufanfrage abgesandt"
 
 #: ../dialback/dialback_out.c:216
-#: ../jabberd14-1.6.0-RC1/dialback/dialback_out.c:216
 msgid "dialback succeeded"
 msgstr "Rückruf gelungen"
 
 #: ../dialback/dialback_out.c:218 ../dialback/dialback.c:591
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:591
-#: ../jabberd14-1.6.0-RC1/dialback/dialback_out.c:218
 msgid "dialback failed"
 msgstr "Rückruf fehlgeschlagen"
 
 #: ../dialback/dialback_out.c:220
-#: ../jabberd14-1.6.0-RC1/dialback/dialback_out.c:220
 msgid "started using SASL"
 msgstr "SASL-Nutzung begonnen"
 
 #: ../dialback/dialback_out.c:222
-#: ../jabberd14-1.6.0-RC1/dialback/dialback_out.c:222
 msgid "failed to auth using SASL"
 msgstr "SASL-Autorisation fehlgeschlagen"
 
 #: ../dialback/dialback_out.c:224
-#: ../jabberd14-1.6.0-RC1/dialback/dialback_out.c:224
 msgid "SASL succeeded"
 msgstr "SASL war erfolgreich"
 
 #: ../dialback/dialback_out.c:226
-#: ../jabberd14-1.6.0-RC1/dialback/dialback_out.c:226
 msgid "unknown connection state"
 msgstr "unbekannter Verbindungsstatus"
 
 #: ../dialback/dialback_out.c:264
-#: ../jabberd14-1.6.0-RC1/dialback/dialback_out.c:264
 msgid ""
 "Failed to deliver stanz to other server because of configured stream "
 "parameters."
@@ -368,493 +296,393 @@ msgstr ""
 "Datenstromparametern fehlgeschlagen."
 
 #: ../dialback/dialback_out.c:266
-#: ../jabberd14-1.6.0-RC1/dialback/dialback_out.c:266
 msgid "Failed to deliver stanza to other server while "
 msgstr "Zustellung des Absatzes an anderen Server fehlgeschlagen wärend: "
 
 #: ../dialback/dialback_out.c:275
-#: ../jabberd14-1.6.0-RC1/dialback/dialback_out.c:275
 msgid "Could not send stanza to other server"
 msgstr "Konnte Absatz nicht an anderen Server senden"
 
 #: ../dialback/dialback_out.c:933
-#: ../jabberd14-1.6.0-RC1/dialback/dialback_out.c:933
 msgid "Server connect timeout while "
 msgstr "Zeitüberschreitung beim Server-Verbindungsaufbau wärend "
 
 #: ../dialback/dialback_out.c:942
-#: ../jabberd14-1.6.0-RC1/dialback/dialback_out.c:942
 msgid "Server Connect Timeout"
 msgstr "Zeitüberschreitung beim Server-Verbindungsaufbau"
 
 #: ../dialback/dialback.c:415 ../dialback/dialback.c:895
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:415
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:895
 msgid "established outgoing connections"
 msgstr "Hergestellte abgehende Verbindungen"
 
 #: ../dialback/dialback.c:420 ../dialback/dialback.c:900
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:420
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:900
 msgid "connecting outgoing connections"
 msgstr "Verbindende abgehende Verbindungen"
 
 #: ../dialback/dialback.c:425 ../dialback/dialback.c:905
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:425
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:905
 msgid "established incoming connections"
 msgstr "Hergestellte eingehende Verbindungen"
 
 #: ../dialback/dialback.c:430 ../dialback/dialback.c:910
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:430
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:910
 msgid "connecting incoming connections"
 msgstr "Verbindende eingehende Verbindungen"
 
 #: ../dialback/dialback.c:444 ../dialback/dialback.c:468
 #: ../dialback/dialback.c:486 ../dialback/dialback.c:652
 #: ../dialback/dialback.c:676 ../dialback/dialback.c:694
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:444
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:468
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:486
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:652
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:676
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:694
 msgid "-- connection gone --"
 msgstr "-- Verbindung beendet --"
 
 #: ../dialback/dialback.c:452 ../dialback/dialback.c:660
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:452
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:660
 msgid "Last used:"
 msgstr "Zuletzt genutzt:"
 
 #: ../dialback/dialback.c:472 ../dialback/dialback.c:680
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:472
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:680
 msgid "Stanza count:"
 msgstr "Absatz-Zahl:"
 
 #: ../dialback/dialback.c:491 ../dialback/dialback.c:524
 #: ../dialback/dialback.c:699 ../dialback/dialback.c:730
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:491
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:524
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:699
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:730
 msgid "IP/port:"
 msgstr "IP/Port:"
 
 #: ../dialback/dialback.c:492 ../dialback/dialback.c:525
 #: ../dialback/dialback.c:700 ../dialback/dialback.c:731
-#: ../dialback/dialback.c:749 ../jabberd14-1.6.0-RC1/dialback/dialback.c:492
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:525
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:700
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:731
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:749
+#: ../dialback/dialback.c:749
 msgid "local"
 msgstr "lokal"
 
 #: ../dialback/dialback.c:495 ../dialback/dialback.c:527
 #: ../dialback/dialback.c:702 ../dialback/dialback.c:733
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:495
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:527
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:702
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:733
 msgid "remote"
 msgstr "entfernt"
 
 #: ../dialback/dialback.c:498 ../dialback/dialback.c:529
 #: ../dialback/dialback.c:704 ../dialback/dialback.c:735
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:498
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:529
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:704
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:735
 msgid "tls"
 msgstr "tls"
 
 #: ../dialback/dialback.c:499 ../dialback/dialback.c:530
 #: ../dialback/dialback.c:609 ../dialback/dialback.c:705
-#: ../dialback/dialback.c:736 ../jabberd14-1.6.0-RC1/dialback/dialback.c:499
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:530
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:609
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:705
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:736
+#: ../dialback/dialback.c:736
 msgid "no"
 msgstr "nein"
 
 #: ../dialback/dialback.c:499 ../dialback/dialback.c:530
 #: ../dialback/dialback.c:609 ../dialback/dialback.c:705
-#: ../dialback/dialback.c:736 ../jabberd14-1.6.0-RC1/dialback/dialback.c:499
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:530
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:609
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:705
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:736
+#: ../dialback/dialback.c:736
 msgid "yes"
 msgstr "ja"
 
 #: ../dialback/dialback.c:518 ../dialback/dialback.c:724
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:518
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:724
 msgid "-- connection gone or now established --"
 msgstr "-- Verbindung beendet oder nun hergestellt --"
 
 #: ../dialback/dialback.c:532 ../dialback/dialback.c:738
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:532
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:738
 msgid "IP/port: no current connection"
 msgstr "IP/Port: keine aktuelle Verbindung"
 
 #: ../dialback/dialback.c:546 ../dialback/dialback.c:762
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:546
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:762
 msgid "Connection start:"
 msgstr "Verbindungsbeginn:"
 
 #: ../dialback/dialback.c:558 ../dialback/dialback.c:754
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:558
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:754
 msgid "XMPP version: unknown"
 msgstr "XMPP-Version: unbekannt"
 
 #: ../dialback/dialback.c:558 ../dialback/dialback.c:754
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:558
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:754
 msgid "XMPP version: 1.0"
 msgstr "XMPP-Version: 1.0"
 
 #: ../dialback/dialback.c:558 ../dialback/dialback.c:754
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:558
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:754
 msgid "XMPP version: 0.9"
 msgstr "XMPP-Version: 0.9"
 
-#: ../dialback/dialback.c:563 ../jabberd14-1.6.0-RC1/dialback/dialback.c:563
+#: ../dialback/dialback.c:563
 msgid "Pending IPs: "
 msgstr "Bevorstehende IPs: "
 
-#: ../dialback/dialback.c:563 ../jabberd14-1.6.0-RC1/dialback/dialback.c:563
+#: ../dialback/dialback.c:563
 msgid "no more other IPs will be tried"
 msgstr "Keine weiteren IPs werden versucht"
 
-#: ../dialback/dialback.c:568 ../jabberd14-1.6.0-RC1/dialback/dialback.c:568
+#: ../dialback/dialback.c:568
 msgid "Stream ID: "
 msgstr "Stream-ID: "
 
-#: ../dialback/dialback.c:573 ../jabberd14-1.6.0-RC1/dialback/dialback.c:573
+#: ../dialback/dialback.c:573
 msgid "Dialback state: "
 msgstr "Rückruf-Status: "
 
-#: ../dialback/dialback.c:574 ../jabberd14-1.6.0-RC1/dialback/dialback.c:574
+#: ../dialback/dialback.c:574
 msgid "no dialback request, just sending verifies"
 msgstr "Keine Rückrufanforderung, sende nur Nachprüfungen"
 
-#: ../dialback/dialback.c:575 ../jabberd14-1.6.0-RC1/dialback/dialback.c:575
+#: ../dialback/dialback.c:575
 msgid "we could send dialback requests, if we want to"
 msgstr "Wir könnten Rückrufanforderungen senden, wenn wir wollten"
 
-#: ../dialback/dialback.c:576 ../jabberd14-1.6.0-RC1/dialback/dialback.c:576
+#: ../dialback/dialback.c:576
 msgid "we want to send dialback requests, but cannot do that yet"
 msgstr "Wir wollen Rückrufanforderungen senden, aber können dies noch nicht"
 
-#: ../dialback/dialback.c:577 ../jabberd14-1.6.0-RC1/dialback/dialback.c:577
+#: ../dialback/dialback.c:577
 msgid "we have sent a dialback request"
 msgstr "Wir haben eine Rückrufanforderung gesendet"
 
 #: ../dialback/dialback.c:577 ../dialback/dialback.c:594
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:577
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:594
 msgid "invalid"
 msgstr "ungültig"
 
-#: ../dialback/dialback.c:582 ../jabberd14-1.6.0-RC1/dialback/dialback.c:582
+#: ../dialback/dialback.c:582
 msgid "Connection state: "
 msgstr "Verbindungs-Status: "
 
-#: ../dialback/dialback.c:583 ../jabberd14-1.6.0-RC1/dialback/dialback.c:583
+#: ../dialback/dialback.c:583
 msgid "created, not yet started to connect"
 msgstr "erstellt, Verbindungsaufbau noch nicht begonnen"
 
-#: ../dialback/dialback.c:584 ../jabberd14-1.6.0-RC1/dialback/dialback.c:584
+#: ../dialback/dialback.c:584
 msgid "we started to connect, no connection yet"
 msgstr "Verbindungsaufbau begonnen, noch keine Verbindung"
 
-#: ../dialback/dialback.c:585 ../jabberd14-1.6.0-RC1/dialback/dialback.c:585
+#: ../dialback/dialback.c:585
 msgid "connected to the other host"
 msgstr "mit anderem Host verbunden"
 
-#: ../dialback/dialback.c:586 ../jabberd14-1.6.0-RC1/dialback/dialback.c:586
+#: ../dialback/dialback.c:586
 msgid "we got peer's stream root"
 msgstr "Datenstrom-Wurzel des Gegenübers empfangen"
 
-#: ../dialback/dialback.c:587 ../jabberd14-1.6.0-RC1/dialback/dialback.c:587
+#: ../dialback/dialback.c:587
 msgid "we are waiting for stream features"
 msgstr "wir warten auf Datenstrom-Fähigkeiten"
 
-#: ../dialback/dialback.c:588 ../jabberd14-1.6.0-RC1/dialback/dialback.c:588
+#: ../dialback/dialback.c:588
 msgid "we got the stream features"
 msgstr "wir haben die Datenstrom-Fähigkeiten empfangen"
 
-#: ../dialback/dialback.c:589 ../jabberd14-1.6.0-RC1/dialback/dialback.c:589
+#: ../dialback/dialback.c:589
 msgid "we sent out a dialback request"
 msgstr "wir haben eine Rückrufanfrage versandt"
 
-#: ../dialback/dialback.c:590 ../jabberd14-1.6.0-RC1/dialback/dialback.c:590
+#: ../dialback/dialback.c:590
 msgid "we had success with our dialback request"
 msgstr "unsere Rückrufanfrage war erfolgreich"
 
-#: ../dialback/dialback.c:592 ../jabberd14-1.6.0-RC1/dialback/dialback.c:592
+#: ../dialback/dialback.c:592
 msgid "we started to authenticate using sasl"
 msgstr "wir haben begonnen mit SASL zu autorisieren"
 
-#: ../dialback/dialback.c:593 ../jabberd14-1.6.0-RC1/dialback/dialback.c:593
+#: ../dialback/dialback.c:593
 msgid "there was a SASL authentication failure"
 msgstr "es gab einen SASL-Autorisationsfehler"
 
-#: ../dialback/dialback.c:594 ../jabberd14-1.6.0-RC1/dialback/dialback.c:594
+#: ../dialback/dialback.c:594
 msgid "successfully authenticated using SASL"
 msgstr "erfolgreich mit SASL autorisiert"
 
-#: ../dialback/dialback.c:599 ../jabberd14-1.6.0-RC1/dialback/dialback.c:599
+#: ../dialback/dialback.c:599
 msgid "Dialback: "
 msgstr "Rückruf: "
 
-#: ../dialback/dialback.c:599 ../jabberd14-1.6.0-RC1/dialback/dialback.c:599
-msgid "supported"
-msgstr "unterstützt"
+#: ../dialback/dialback.c:599
+msgid "supported by peer"
+msgstr "unterstützt vom Gegenüber"
 
-#: ../dialback/dialback.c:599 ../jabberd14-1.6.0-RC1/dialback/dialback.c:599
-msgid "unsupported"
-msgstr "nicht-unterstützt"
+#: ../dialback/dialback.c:599
+msgid "unsupported by peer"
+msgstr "nicht unterstützt vom Gegenüber"
 
-#: ../dialback/dialback.c:599 ../jabberd14-1.6.0-RC1/dialback/dialback.c:599
-msgid " by peer"
-msgstr " vom Gegenüber"
-
-#: ../dialback/dialback.c:604 ../jabberd14-1.6.0-RC1/dialback/dialback.c:604
+#: ../dialback/dialback.c:604
 msgid "Connection results: "
 msgstr "Verbindungsergebnis: "
 
-#: ../dialback/dialback.c:609 ../jabberd14-1.6.0-RC1/dialback/dialback.c:609
+#: ../dialback/dialback.c:609
 msgid "Dropped because of settings: "
 msgstr "Abgeworfen aufgrund der Einstellungen: "
 
-#: ../dialback/dialback.c:623 ../jabberd14-1.6.0-RC1/dialback/dialback.c:623
+#: ../dialback/dialback.c:623
 msgid "Pending verifies: "
 msgstr "Bevorstehende Nachprüfungen: "
 
-#: ../dialback/dialback.c:637 ../jabberd14-1.6.0-RC1/dialback/dialback.c:637
+#: ../dialback/dialback.c:637
 msgid "Pending stanzas: "
 msgstr "Bevorstehende Abschnitte: "
 
-#: ../dialback/dialback.c:749 ../jabberd14-1.6.0-RC1/dialback/dialback.c:749
+#: ../dialback/dialback.c:749
 msgid "Addresses:"
 msgstr "Adressen:"
 
-#: ../dialback/dialback.c:749 ../jabberd14-1.6.0-RC1/dialback/dialback.c:749
+#: ../dialback/dialback.c:749
 msgid "peer"
 msgstr "Gegenüber"
 
 #: ../dialback/dialback.c:922 ../dialback/dialback.c:1017
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:922
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:1017
 msgid "Last used"
 msgstr "Zuletzt genutzt"
 
 #: ../dialback/dialback.c:927 ../dialback/dialback.c:1022
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:927
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:1022
 msgid "Stanza count"
 msgstr "Abschnittszahl"
 
 #: ../dialback/dialback.c:932 ../dialback/dialback.c:954
 #: ../dialback/dialback.c:1027 ../dialback/dialback.c:1044
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:932
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:954
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:1027
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:1044
 msgid "IP/port"
 msgstr "IP/Port"
 
 #: ../dialback/dialback.c:949 ../dialback/dialback.c:1059
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:949
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:1059
 msgid "Connection start"
 msgstr "Verbindungsbeginn"
 
 #: ../dialback/dialback.c:959 ../dialback/dialback.c:1054
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:959
-#: ../jabberd14-1.6.0-RC1/dialback/dialback.c:1054
 msgid "XMPP version"
 msgstr "XMPP-Version"
 
-#: ../dialback/dialback.c:964 ../jabberd14-1.6.0-RC1/dialback/dialback.c:964
+#: ../dialback/dialback.c:964
 msgid "Pending IPs"
 msgstr "Bevorstehende IPs"
 
-#: ../dialback/dialback.c:969 ../jabberd14-1.6.0-RC1/dialback/dialback.c:969
+#: ../dialback/dialback.c:969
 msgid "Dialback verifies"
 msgstr "Rückruf-Nachprüfungen"
 
-#: ../dialback/dialback.c:974 ../jabberd14-1.6.0-RC1/dialback/dialback.c:974
+#: ../dialback/dialback.c:974
 msgid "Pending stanzas"
 msgstr "Bevorstehende Abschnitte"
 
-#: ../dialback/dialback.c:979 ../jabberd14-1.6.0-RC1/dialback/dialback.c:979
+#: ../dialback/dialback.c:979
 msgid "Dropped because of settings"
 msgstr "Abgeworfen aufgrund von Einstellungen"
 
-#: ../dialback/dialback.c:984 ../jabberd14-1.6.0-RC1/dialback/dialback.c:984
+#: ../dialback/dialback.c:984
 msgid "Stream ID"
 msgstr "Stream-ID"
 
-#: ../dialback/dialback.c:989 ../jabberd14-1.6.0-RC1/dialback/dialback.c:989
+#: ../dialback/dialback.c:989
 msgid "Dialback state"
 msgstr "Rückruf-Status"
 
-#: ../dialback/dialback.c:994 ../jabberd14-1.6.0-RC1/dialback/dialback.c:994
+#: ../dialback/dialback.c:994
 msgid "Connection state"
 msgstr "Verbindungs-Status"
 
-#: ../dialback/dialback.c:999 ../jabberd14-1.6.0-RC1/dialback/dialback.c:999
+#: ../dialback/dialback.c:999
 msgid "Connect results"
 msgstr "Verbindungsergebnisse"
 
-#: ../dialback/dialback.c:1004 ../jabberd14-1.6.0-RC1/dialback/dialback.c:1004
+#: ../dialback/dialback.c:1004
 msgid "Dialback"
 msgstr "Rückruf"
 
-#: ../dialback/dialback.c:1049 ../jabberd14-1.6.0-RC1/dialback/dialback.c:1049
+#: ../dialback/dialback.c:1049
 msgid "Addresses"
 msgstr "Adressen"
 
-#: ../dnsrv/dnsrv.c:283 ../jabberd14-1.6.0-RC1/dnsrv/dnsrv.c:283
+#: ../dnsrv/dnsrv.c:283
 msgid "Unable to resolve hostname."
 msgstr "Kann Hostnamen nicht auflösen."
 
-#: ../dnsrv/dnsrv.c:300 ../jabberd14-1.6.0-RC1/dnsrv/dnsrv.c:300
+#: ../dnsrv/dnsrv.c:300
 msgid "DNS Resolver Error"
 msgstr "Fehler bei der DNS-Auflösung"
 
-#: ../dnsrv/dnsrv.c:529 ../jabberd14-1.6.0-RC1/dnsrv/dnsrv.c:529
+#: ../dnsrv/dnsrv.c:529
 msgid "Hostname Resolution Timeout"
 msgstr "Zeitüberschreitung in der Namensauflösung"
 
-#: ../pthsock/client.c:139 ../jabberd14-1.6.0-RC1/pthsock/client.c:139
+#: ../pthsock/client.c:139
 msgid "invalid client packet"
 msgstr "ungültiges Client-Paket"
 
-#: ../pthsock/client.c:313 ../jabberd14-1.6.0-RC1/pthsock/client.c:313
+#: ../pthsock/client.c:313
 msgid "Socket Error to Client"
 msgstr "Socket-Fehler zum Client"
 
 #: ../jabberd/lib/jabberdlib.h:712 ../jabberd/lib/jabberdlib.h:719
-#: ../jabberd14-1.6.0-RC1/jabberd/lib/jabberdlib.h:712
-#: ../jabberd14-1.6.0-RC1/jabberd/lib/jabberdlib.h:719
 msgid "Bad Request"
 msgstr "Fehlerhafte Anfrage"
 
 #: ../jabberd/lib/jabberdlib.h:713
-#: ../jabberd14-1.6.0-RC1/jabberd/lib/jabberdlib.h:713
 msgid "Conflict"
 msgstr "Konflikt"
 
 #: ../jabberd/lib/jabberdlib.h:714
-#: ../jabberd14-1.6.0-RC1/jabberd/lib/jabberdlib.h:714
 msgid "Not Implemented"
 msgstr "Nicht implementiert"
 
 #: ../jabberd/lib/jabberdlib.h:715
-#: ../jabberd14-1.6.0-RC1/jabberd/lib/jabberdlib.h:715
 msgid "Forbidden"
 msgstr "Zugriff verweigert"
 
 #: ../jabberd/lib/jabberdlib.h:716
-#: ../jabberd14-1.6.0-RC1/jabberd/lib/jabberdlib.h:716
 msgid "Gone"
 msgstr "Nicht mehr verfügbar"
 
 #: ../jabberd/lib/jabberdlib.h:717
-#: ../jabberd14-1.6.0-RC1/jabberd/lib/jabberdlib.h:717
 msgid "Internal Server Error"
 msgstr "Serverfehler"
 
 #: ../jabberd/lib/jabberdlib.h:718
-#: ../jabberd14-1.6.0-RC1/jabberd/lib/jabberdlib.h:718
 msgid "Not Found"
 msgstr "Nicht gefunden"
 
 #: ../jabberd/lib/jabberdlib.h:720
-#: ../jabberd14-1.6.0-RC1/jabberd/lib/jabberdlib.h:720
 msgid "Not Acceptable"
 msgstr "Nicht annehmbar"
 
 #: ../jabberd/lib/jabberdlib.h:722
-#: ../jabberd14-1.6.0-RC1/jabberd/lib/jabberdlib.h:722
 msgid "Unauthorized"
 msgstr "Authentisierung fehlgeschlagen"
 
 #: ../jabberd/lib/jabberdlib.h:723
-#: ../jabberd14-1.6.0-RC1/jabberd/lib/jabberdlib.h:723
 msgid "Payment Required"
 msgstr "Zahlung erforderlich"
 
 #: ../jabberd/lib/jabberdlib.h:724
-#: ../jabberd14-1.6.0-RC1/jabberd/lib/jabberdlib.h:724
 msgid "Recipient Is Unavailable"
 msgstr "Empfänger nicht verfügbar"
 
 #: ../jabberd/lib/jabberdlib.h:725
-#: ../jabberd14-1.6.0-RC1/jabberd/lib/jabberdlib.h:725
 msgid "Redirect"
 msgstr "Umleitung"
 
 #: ../jabberd/lib/jabberdlib.h:726
-#: ../jabberd14-1.6.0-RC1/jabberd/lib/jabberdlib.h:726
 msgid "Registration Required"
 msgstr "Anmeldung erforderlich"
 
 #: ../jabberd/lib/jabberdlib.h:727
-#: ../jabberd14-1.6.0-RC1/jabberd/lib/jabberdlib.h:727
 msgid "Remote Server Not Found"
 msgstr "Entfernter Server nicht gefunden"
 
 #: ../jabberd/lib/jabberdlib.h:728 ../jabberd/lib/jabberdlib.h:741
-#: ../jabberd14-1.6.0-RC1/jabberd/lib/jabberdlib.h:728
-#: ../jabberd14-1.6.0-RC1/jabberd/lib/jabberdlib.h:741
 msgid "Remote Server Timeout"
 msgstr "Zeitüberschreitung des entfernten Servers"
 
 #: ../jabberd/lib/jabberdlib.h:729
-#: ../jabberd14-1.6.0-RC1/jabberd/lib/jabberdlib.h:729
 msgid "Resource Constraint"
 msgstr "Betriebsmitteleinschränkung"
 
 #: ../jabberd/lib/jabberdlib.h:730
-#: ../jabberd14-1.6.0-RC1/jabberd/lib/jabberdlib.h:730
 msgid "Service Unavailable"
 msgstr "Dienst nicht verfügbar"
 
 #: ../jabberd/lib/jabberdlib.h:731
-#: ../jabberd14-1.6.0-RC1/jabberd/lib/jabberdlib.h:731
 msgid "Subscription Required"
 msgstr "Abonnement erforderlich"
 
 #: ../jabberd/lib/jabberdlib.h:737
-#: ../jabberd14-1.6.0-RC1/jabberd/lib/jabberdlib.h:737
 msgid "Unexpected Request"
 msgstr "Unerwartete Anfrage"
 
 #: ../jabberd/lib/jabberdlib.h:739
-#: ../jabberd14-1.6.0-RC1/jabberd/lib/jabberdlib.h:739
 msgid "Request Timeout"
 msgstr "Zeitüberschreitung in der Anfrage"
 
 #: ../jabberd/lib/jabberdlib.h:740
-#: ../jabberd14-1.6.0-RC1/jabberd/lib/jabberdlib.h:740
 msgid "Remote Server Error"
 msgstr "Fehler auf entferntem Server"
 
 #: ../jabberd/lib/jabberdlib.h:743
-#: ../jabberd14-1.6.0-RC1/jabberd/lib/jabberdlib.h:743
 msgid "Storage Failed"
 msgstr "Aufbewahrung fehlgeschlagen"
