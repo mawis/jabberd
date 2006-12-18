@@ -1,6 +1,7 @@
 2006-12-18  Matthias Wimmer  <m@tthias.eu>
 
     * dialback/dialback.c: fixing typo
+    * jsm/modules/mod_agents.c: fix in handling the jabber:iq:agents namespace
 
 2006-12-17  Matthias Wimmer  <m@tthias.eu>
 
