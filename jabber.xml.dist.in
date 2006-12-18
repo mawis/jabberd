@@ -351,6 +351,11 @@
           <ns>jabber:iq:register</ns>
 	</item>
 
+	<!-- The following entry allows users with the s2s ACL right	-->
+	<!-- to browse to the incoming and outgoing connections of the	-->
+	<!-- server.							-->
+	<item category="component" type="s2s" jid="s2s.localhost" name="connections to other servers" acl:if="s2s"/>
+
 	<!-- The following services are examples for popular transports	-->
 	<!-- only. You will need to additionally install and configure	-->
 	<!-- these services. See the documentation of the respective	-->
@@ -775,7 +780,7 @@
   <!-- Normally you do not need to change the following configuration.	-->
   <!-- Changes are only needed if you want to cluster your server-2-	-->
   <!-- server connection manager.					-->
-  <service id="dnsrv">
+  <service id="dnsrv.localhost">
     <host/>
     <load>
       <dnsrv>@libdir@/libjabberddnsrv.so</dnsrv>
@@ -791,7 +796,7 @@
   <!-- connection manager. It is responsible for establishing and	-->
   <!-- accepting TCP/IP connections with other Jabber servers.		-->
   <!-- Normally you do not have to change anything in this service.	-->
-  <service id="s2s">
+  <service id="s2s.localhost">
     <load>
       <dialback>@libdir@/libjabberddialback.so</dialback>
     </load>
@@ -1068,6 +1073,9 @@
 	<jid>xmpp@localhost</jid>
       </grant>
       <grant feature='showasadmin'>
+	<jid>administrator@localhost</jid>
+      </grant>
+      <grant feature='s2s'>
 	<jid>administrator@localhost</jid>
       </grant>
       <grant feature='localusers'>
