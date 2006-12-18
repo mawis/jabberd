@@ -25,7 +25,7 @@ AC_ARG_ENABLE(developer, AC_HELP_STRING([--enable-developer],
 
 if test x-$developer = "x-yes" ; then
     AC_MSG_RESULT(yes)
-    CFLAGS="$CFLAGS -Wall -g"
+    CPPFLAGS="$CPPFLAGS -Wall -g"
 else
     AC_MSG_RESULT(no)
 fi
@@ -254,7 +254,7 @@ dnl AC_ARG_ENABLE(gnutls, AC_HELP_STRING([--enable-gnutls], [Enable protection w
 dnl if test x-$gnutls = "x-yes" ; then
 dnl     AC_MSG_RESULT(yes)
 dnl     AM_PATH_LIBGNUTLS()
-dnl     CFLAGS="$CFLAGS $LIBGNUTLS_CFLAGS"
+dnl     CPPFLAGS="$CPPFLAGS $LIBGNUTLS_CFLAGS"
 dnl     LDFLAGS="$LDFLAGS $LIBGNUTLS_LIBS"
 dnl     AC_DEFINE(HAVE_GNUTLS,,[SSL/TLS with GNU TLS requested])
 dnl else
@@ -271,7 +271,7 @@ dnl no GNU TLS? check for OpenSSL
 	    AC_MSG_ERROR([To enable SSL/TLS support use --enable-ssl and not --with-ssl-legacy])
 	else
 	    AC_DEFINE(HAVE_SSL,,[SSL/TLS with openssl requested])
-	    CFLAGS="$CFLAGS -I$ssllegacy"
+	    CPPFLAGS="$CPPFLAGS -I$ssllegacy"
 	    LDFLAGS="$LDFLAGS -L$ssllegacy -lssl -lcrypto"
 	fi
 	
@@ -281,7 +281,7 @@ dnl no GNU TLS? check for OpenSSL
 	    AC_MSG_RESULT(yes)
 	    AC_DEFINE(HAVE_SSL,,[SSL/TLS with openssl requested])
 	    PKG_CHECK_MODULES(OPENSSL, openssl >= 0.9.7)
-	    CFLAGS="$CFLAGS $JABBERD_SSL_INCLUDES $OPENSSL_CFLAGS"
+	    CPPFLAGS="$CPPFLAGS $JABBERD_SSL_INCLUDES $OPENSSL_CFLAGS"
 	    LDFLAGS="$LDFLAGS $JABBERD_SSL_LIBS $OPENSSL_LIBS"
 	else
 	    AC_MSG_RESULT(no)
