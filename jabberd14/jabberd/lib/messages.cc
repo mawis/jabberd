@@ -37,6 +37,7 @@
 #include <map>
 #include <string>
 #include <locale>
+#include <stdexcept>
 
 #include "jabberdlib.h"
 
@@ -56,21 +57,25 @@ class messages {
 messages messages::static_messages;
 
 void messages::set_mapping(const std::string& lang, const std::string& locale_name) {
-    // get the locale
-    const std::locale locale(locale_name.c_str());
+    try {
+	// get the locale
+	const std::locale locale(locale_name.c_str());
 
-    // get the messages facet
-    const std::messages<char>& messages = std::use_facet<std::messages<char> >(locale);
+	// get the messages facet
+	const std::messages<char>& messages = std::use_facet<std::messages<char> >(locale);
 
-    // (try to) open the catalog
-    std::messages<char>::catalog catalog = messages.open(PACKAGE, locale, LOCALEDIR);
-    if (catalog == -1) {
-	return;
+	// (try to) open the catalog
+	std::messages<char>::catalog catalog = messages.open(PACKAGE, locale, LOCALEDIR);
+	if (catalog == -1) {
+	    return;
+	}
+
+	// put catalog and mapping in the map
+	catalog_by_lang[lang] = catalog;
+	locale_by_lang[lang] = locale_name;
+    } catch (std::runtime_error) {
+	// propably the requested system locale does not exist ...
     }
-
-    // put catalog and mapping in the map
-    catalog_by_lang[lang] = catalog;
-    locale_by_lang[lang] = locale_name;
 }
 
 std::string messages::get(const std::string& lang, const char* message) {
