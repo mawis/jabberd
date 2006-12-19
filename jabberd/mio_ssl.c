@@ -121,8 +121,14 @@ void mio_ssl_init(xmlnode x) {
 
     /* Walk our node and add the created contexts */
     for (key_element = xmlnode_get_tags(x, "key", namespaces); key_element != NULL; key_element = key_element->next) {
-	const char* filetype = xmlnode_get_attrib_ns(key_element->node, "type", NULL);
-	int filetype_der = (j_strcmp(filetype, "der") == 0);
+	const char* loadtype = xmlnode_get_attrib_ns(key_element->node, "type", NULL);
+	const char* private_key = xmlnode_get_attrib_ns(key_element->node, "private-key", NULL);
+	int loadtype_num = 0;	/* 0 = pem, 1 = der, 2 = chain */
+	if (j_strcmp(loadtype, "der") == 0) {
+	    loadtype_num = 1;
+	} else if (j_strcmp(loadtype, "chain") == 0) {
+	    loadtype_num = 2;
+	}
 
 	/* ip is the fallback for jabberd 1.4.3 compatibility */
 	host = xmlnode_get_attrib_ns(key_element->node, "id", NULL);
@@ -133,6 +139,11 @@ void mio_ssl_init(xmlnode x) {
 
         if (!host || !keypath)
             continue;
+
+	/* private-key file defaults to the same file as the certificate */
+	if (private_key == NULL) {
+	    private_key = keypath;
+	}
 
         log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "Handling: %s", xmlnode_serialize_string(key_element->node, NULL, NULL, 0));
 
@@ -161,20 +172,20 @@ void mio_ssl_init(xmlnode x) {
 
         /* Setup the keys and certs */
         log_debug2(ZONE, LOGT_INIT, "Loading TLS certificate %s for %s", keypath, host);
-	if (filetype == NULL) {
+	if (loadtype_num == 2) {
 	    if (!SSL_CTX_use_certificate_chain_file(ctx, keypath)) {
 		log_warn(NULL, "TLS error using certificate file: %s", keypath);
 		SSL_CTX_free(ctx);
 		continue;
 	    }
 	} else {
-	    if (!SSL_CTX_use_certificate_file(ctx, keypath, filetype_der ? SSL_FILETYPE_ASN1 : SSL_FILETYPE_PEM)) {
+	    if (!SSL_CTX_use_certificate_file(ctx, keypath, loadtype_num == 1 ? SSL_FILETYPE_ASN1 : SSL_FILETYPE_PEM)) {
 		log_warn(NULL, "TLS error using certificate file: %s", keypath);
 		SSL_CTX_free(ctx);
 		continue;
 	    }
 	}
-        if (!SSL_CTX_use_PrivateKey_file(ctx, keypath, filetype_der ? SSL_FILETYPE_ASN1 : SSL_FILETYPE_PEM)) {
+        if (!SSL_CTX_use_PrivateKey_file(ctx, private_key, loadtype_num == 1 ? SSL_FILETYPE_ASN1 : SSL_FILETYPE_PEM)) {
             log_warn(NULL, "TLS error using Private Key file");
             SSL_CTX_free(ctx);
             continue;
