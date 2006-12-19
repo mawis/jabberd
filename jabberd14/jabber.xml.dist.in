@@ -947,6 +947,38 @@
     <!-- id='*'								-->
     <!--	Use this key if no other certificate matches.		-->
     <!--								-->
+    <!-- type='pem' (default)						-->
+    <!--	The key file contains the base64 encoded certificate	-->
+    <!--	and no other certificates (i.e. no intermediate		-->
+    <!--	certificate files).					-->
+    <!--	It may optionally also contain the private key.		-->
+    <!-- type='der'							-->
+    <!--	The key file contains the binary version of the		-->
+    <!--	certificate. No other certificates nor the private	-->
+    <!--	key is allowed to be in the same file.			-->
+    <!-- type='chain'							-->
+    <!--	The key file continas the base64 encoded certificate	-->
+    <!--	as well as all other certificates needed to build the	-->
+    <!--	chain of certificates up to the CA root certificate.	-->
+    <!--	The certificates have to be ordered starting from	-->
+    <!--	your own certificate, and ending in the root		-->
+    <!--	certificate. You have to use this type, if your		-->
+    <!--	certificate is signed by an intermediate certification	-->
+    <!--	authority and you have to add the intermadiate CA	-->
+    <!--	certificate in this file then.				-->
+    <!--	(I.e. you have to use this type, if you get your	-->
+    <!--	certificate from the XMPP Federation CA.)		-->
+    <!--	It may optionally also contain the private key.		-->
+    <!--								-->
+    <!-- private-key='location of the private key file'			-->
+    <!--	If your private key is not contained in the same	-->
+    <!--	file as your certificate, you can use this attribute	-->
+    <!--	to specify the location of your private key.		-->
+    <!--	This is especially needed, if you use a binary		-->
+    <!--	certification file. (type='der')			-->
+    <!--	The private key is read using the same type (either	-->
+    <!--	binary/der or base64/pem) as the certificate.		-->
+    <!--								-->
     <!-- The following attributes are available on the key element as	-->
     <!-- well but are normally not needed:				-->
     <!--								-->
