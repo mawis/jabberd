@@ -485,14 +485,12 @@ msgid "Dialback: "
 msgstr "Dialback: "
 
 #: ../dialback/dialback.c:599
-#, fuzzy
 msgid "supported by peer"
-msgstr "supportato"
+msgstr "supportato dal peer"
 
 #: ../dialback/dialback.c:599
-#, fuzzy
 msgid "unsupported by peer"
-msgstr "non supportato"
+msgstr "non supportato dal peer"
 
 #: ../dialback/dialback.c:604
 msgid "Connection results: "
@@ -686,6 +684,3 @@ msgstr "Errore del server remoto"
 #: ../jabberd/lib/jabberdlib.h:743
 msgid "Storage Failed"
 msgstr "Immagazzinamento dei dati fallito"
-
-#~ msgid " by peer"
-#~ msgstr " dal peer"
