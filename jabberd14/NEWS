@@ -63,7 +63,7 @@ Changes in administration of the server
       set your used charset ("SET NAMES utf8").
     * jabberd14 now uses libpopt for command line parsing.
     * jabberd14 now detects stale pidfiles, and ignores them.
-    * The list of online users has to be fetched using service discovery
+    * The list of online sessions has to be fetched using service discovery
       instead of browsing now.
     * Removed support for the jabber:iq:admin namespace.
     * Disabled support for the jabber:iq:agent and jabber:iq:agents in the
