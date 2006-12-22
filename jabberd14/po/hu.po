@@ -1,361 +1,352 @@
-# SOME DESCRIPTIVE TITLE.
-# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
-# This file is distributed under the same license as the PACKAGE package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
-#
 msgid ""
 msgstr ""
 "Project-Id-Version: jabberd14\n"
 "Report-Msgid-Bugs-To: mail@amessage.eu\n"
 "POT-Creation-Date: 2006-12-22 16:19+0100\n"
-"PO-Revision-Date: 2006-12-18 09:54+0100\n"
-"Last-Translator: Matthias Wimmer <m@tthias.eu>\n"
-"Language-Team: German <m@tthias.eu>\n"
+"PO-Revision-Date: 2006-12-19 21:23+0100\n"
+"Last-Translator: Bubreg István <bubreg@freemail.hu>\n"
+"Language-Team: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
 #: ../jsm/modules/mod_privacy.c:965 ../jsm/modules/mod_privacy.c:1005
 #: ../jsm/modules/mod_privacy.c:1106
 msgid "The server cannot accept that privacy list name."
-msgstr "Der Server kann den Namen der Privacy-Liste nicht annehmen."
+msgstr "A kiszolgáló nem tudja elfogadni a listanevet"
 
 #: ../jsm/modules/mod_privacy.c:1137
 msgid "Privacy list is invalid: item without order attribute"
-msgstr "Privacy-Liste ist ungültig: Item ohne order-Attribut"
+msgstr "Érvénytelen titoklista: elem jellemző nélkül"
 
 #: ../jsm/modules/mod_privacy.c:1142
 msgid "Privacy list is invalid: item action has to be either 'deny' or 'allow'"
-msgstr ""
-"Privacy-Liste ist ungültig: Item action muss entweder 'deny' oder 'allow' "
-"sein"
+msgstr "Érvénytelen titoklista: elem művelet 'engedélyez' vagy 'tilt' legyen"
 
 #: ../jsm/modules/mod_privacy.c:1148
 msgid ""
 "Privacy list is invalid: fall-through item is not allowed to have a value"
-msgstr ""
-"Privacy-Liste ist ungültig: Item ohne type-Attribut darf auch kein value-"
-"Attribut haben"
+msgstr "Érvénytelen titoklista: az elemnek nem lehet értéke"
 
 #: ../jsm/modules/mod_privacy.c:1155
 msgid "Privacy list is invalid: if type is 'jid', value has to be a valid JID"
 msgstr ""
-"Privacy-Liste ist ungültig: wenn der Typ 'jid' ist, muss der Value eine "
-"gültige JID sein"
+"Érvénytelen titoklista: ha a típus 'jid', az értéknek érvényes JID-nek kell "
+"lennie"
 
 #: ../jsm/modules/mod_privacy.c:1161
 msgid ""
 "Privacy list is invalid: if type is 'group', value has to be a roster group "
 "name"
 msgstr ""
-"Privacy-Liste ist ungültig: wenn der Typ 'group' ist, muss der Value den "
-"Namen einer Rostergruppe haben"
+"Érvénytelen titoklista:'group' típus esetén az értéknek csoportnévnek kell "
+"lennie"
 
 #: ../jsm/modules/mod_privacy.c:1168
 msgid ""
 "Privacy list is invalid: if type is 'subscription', value has to be one of "
 "'none', 'from', 'to', or 'both'"
 msgstr ""
-"Privacy-Liste ist ungültig: wenn der Typ 'subscription' ist, muss der Value "
-"eines von 'none', 'from', 'to' oder 'both' sein"
+"Érvénytelen titoklista:ha a típus 'subscription', akkor az érték 'none' "
+"'from' 'to' vagy 'both' legyen"
 
 #: ../jsm/modules/mod_privacy.c:1173
 msgid ""
 "Privacy list is invalid: if type is present, it has to be one of 'jid', "
 "'group', or 'subscription'"
 msgstr ""
-"Privacy-Liste ist ungültig: wenn das type-Attribut vorhanden ist, muss es "
-"einen der folgenden Werte haben: 'jid', 'group' oder 'subscription'"
+"Érvénytelen titoklista:ha van típus, akkor 'jid', 'group', vagy "
+"'subscription' legyenÉrvénytelen titoklista:"
 
 #: ../jsm/modules/mod_privacy.c:1474
 msgid "Blocked by recipient's privacy list"
-msgstr "Gesperrt durch die Privacy-Liste des Empfängers"
+msgstr "Blokkolva a címzett listája miatt"
 
 #: ../jsm/modules/mod_privacy.c:1476
 msgid "Blocked by your own privacy list"
-msgstr "Gesperrt durch Ihre eigene Privacy-Liste"
+msgstr "Blokkolva a saját listája miatt"
 
 #: ../jsm/modules/mod_offline.c:169 ../jsm/modules/mod_roster.c:632
 msgid "Offline Storage"
-msgstr "Offline-Speicherung"
+msgstr "Offline tároló"
 
 #: ../jsm/modules/mod_xml.c:87
 msgid ""
 "The query element in the jabber:iq:private namespace needs a child element "
 "in another namespace."
 msgstr ""
-"Das query-Element im jabber:iq:private-Namespace braucht ein Child-Element "
-"in einem anderen namespace."
+"The query element in the jabber:iq:private namespace needs a child element "
+"in another namespace."
 
 #: ../jsm/modules/mod_register.c:304 ../jsm/modules/mod_register.c:306
 msgid "Missing data field"
-msgstr "Fehlendes Datenfeld"
+msgstr "Hiányzó adat"
 
 #: ../jsm/modules/mod_register.c:306
 msgid "you may also register at"
-msgstr "Anmeldung auch auf"
+msgstr "regisztárlhatsz itt is:"
 
 #: ../jsm/modules/mod_register.c:324
 msgid "Registration not allowed."
-msgstr "Anmeldung nicht gestattet."
+msgstr "A regisztráció nem engedélyezett"
 
 #: ../jsm/modules/mod_register.c:326
 msgid "Registration not allowed. See"
-msgstr "Anmeldung nicht gestattet. Siehe"
+msgstr "A regisztráció nem engedélyezett, lásd"
 
 #: ../jsm/modules/mod_register.c:415 ../jsm/modules/mod_register.c:499
 #: ../jsm/modules/mod_register.c:516 ../jabberd/lib/jabberdlib.h:721
 msgid "Not Allowed"
-msgstr "Nicht gestattet"
+msgstr "Nem engedélyezett"
 
 #: ../jsm/modules/mod_roster.c:550
 msgid "Already Subscribed"
-msgstr "Bereits eingeschrieben"
+msgstr "Már elő van fizetve"
 
 #: ../jsm/modules/mod_roster.c:595
 msgid "Autoreply"
-msgstr "Automatische Antwort"
+msgstr "Autoválasz"
 
 #: ../jsm/modules/mod_last.c:178
 msgid "Registered"
-msgstr "Registriert"
+msgstr "Regisztrálva"
 
 #: ../jsm/modules/mod_last.c:280
 msgid "Unregistered"
-msgstr "Abgemeldet"
+msgstr "Nincs regisztrálva"
 
 #: ../jsm/modules/mod_disco.c:186 ../jsm/modules/mod_disco.c:300
 msgid "Administrator"
-msgstr "Administrator"
+msgstr "Adminisztrátor"
 
 #: ../jsm/modules/mod_disco.c:298
 msgid " (administrator)"
-msgstr " (Administrator)"
+msgstr " (adminisztrátor)"
 
 #: ../jsm/modules/mod_disco.c:300
 msgid "User"
-msgstr "Benutzer"
+msgstr "Felhasználó"
 
 #: ../jsm/modules/mod_admin.c:85
 msgid "dur"
-msgstr "Dauer"
+msgstr "tart"
 
 #: ../jsm/modules/mod_admin.c:87
 msgid "s"
-msgstr "s"
+msgstr "mp"
 
 #: ../jsm/modules/mod_admin.c:87
 msgid "in"
-msgstr "ein"
+msgstr "be"
 
 #: ../jsm/modules/mod_admin.c:89 ../jsm/modules/mod_admin.c:91
 msgid "stnz"
-msgstr "Stnz"
+msgstr "szksz"
 
 #: ../jsm/modules/mod_admin.c:89
 msgid "out"
-msgstr "aus"
+msgstr "ki"
 
 #: ../jsm/modules/mod_admin.c:224
 msgid "Admin: "
-msgstr "Admin: "
+msgstr "Admin:"
 
 #: ../jsm/sessions.c:76 ../jsm/deliver.c:245 ../jsm/deliver.c:308
 #: ../jabberd/lib/jabberdlib.h:742
 msgid "Disconnected"
-msgstr "Getrennt"
+msgstr "Kapcsolat bontva:"
 
 #: ../jsm/sessions.c:208 ../jsm/sessions.c:307 ../jsm/serialization.c:244
 msgid "Replaced by new connection"
-msgstr "Durch neue Verbindung ersetzt"
+msgstr "Új kapcsolatra cserélve"
 
 #: ../jsm/authreg.c:149 ../jsm/authreg.c:169
 msgid "Username Not Available"
-msgstr "Benutzername nicht verfügbar"
+msgstr "Felhasználónév nem elérhető"
 
 #: ../jsm/deliver.c:176 ../jsm/deliver.c:289
 msgid "Session Failed"
-msgstr "Sitzung fehlgeschlagen"
+msgstr "Munkamenet siertelen"
 
 #: ../jsm/deliver.c:249
 msgid "Removed"
-msgstr "Entfernt"
+msgstr "Eltávolítva"
 
 #: ../jsm/deliver.c:322 ../jsm/deliver.c:333
 msgid "no valid target"
-msgstr "kein gültiges Ziel"
+msgstr "nincs érvényes cél"
 
 #: ../jsm/deliver.c:338
 msgid "Unknown session control action"
-msgstr "Unbekannte Sitzungskontroll-Aktion"
+msgstr "Ismeretlen munkamenet vezérlő művelet"
 
 #: ../jsm/deliver.c:436
 msgid "Invalid User"
-msgstr "Ungültiger Nutzer"
+msgstr "Érvénytelen felhasználó"
 
 #: ../jsm/deliver.c:475
 msgid "Invalid Session"
-msgstr "Ungültige Sitzung"
+msgstr "Érvénytelen munkamenet"
 
 #: ../jsm/jsm.c:81
 msgid "sessionmanager shutdown"
-msgstr "Sessionmanager-Abschaltung"
+msgstr "munkamenet-vezérlő lezárás"
 
 #: ../jabberd/base/base_importspool.c:61
 msgid "This is no valid destination."
-msgstr "Dies ist kein gültiges Ziel."
+msgstr "Nincs érvényes cél"
 
 #: ../jabberd/base/base_accept.c:226
 msgid "External Server Error"
-msgstr "Entfernter Serverfehler"
+msgstr "Külső kiszolgálóhiba"
 
 #: ../jabberd/base/base_accept.c:252
 #, c-format
 msgid "Component '%s' is not connected to server"
-msgstr "Komponente '%s' ist nicht mit dem Server verbunden"
+msgstr "'%s' komponens nincs kapcsolatban a kiszolgálóval"
 
 #: ../jabberd/base/base_accept.c:273
 #, c-format
 msgid "delivery to '%s': Internal Timeout"
-msgstr "Zustellung an '%s': interne Zeitüberschreitung"
+msgstr "kézbesítés '%s'-nek: időtúllépés"
 
 #: ../jabberd/base/base_connect.c:100
 msgid "Circular Reference Detected"
-msgstr "Ringschluss festgestellt"
+msgstr "Körkörös hivatkozást találtam"
 
 #: ../jabberd/base/base_unsubscribe.c:101
 msgid "Destination blocked by server administrator"
-msgstr "Ziel vom Server-Administrator gesperrt"
+msgstr "Célt blokkolta a kiszoláló adminisztrátor"
 
 #: ../jabberd/deliver.c:841
 msgid "Unable to deliver, destination unknown"
-msgstr "Nicht zustellbar, Ziel unbekannt"
+msgstr "Nem lehet kézbesíteni, ismeretlen cím"
 
 #: ../jabberd/deliver.c:856
 msgid "Internal Delivery Error"
-msgstr "Interner Zustellfehler"
+msgstr "Belső kézbesítési hiba"
 
 #: ../dialback/dialback_out.c:202
 msgid "connection object just created"
-msgstr "Verbindungsobjekt gerade erstellt"
+msgstr "kapcsolat objektum létrejött"
 
 #: ../dialback/dialback_out.c:204
 msgid "connecting to other host"
-msgstr "Verbinde zu anderem Host"
+msgstr "kapcsolódás a másik géphez"
 
 #: ../dialback/dialback_out.c:206
 msgid "connected to other host"
-msgstr "Verbunden mit anderem Host"
+msgstr "kapcsolódva a másik géphez"
 
 #: ../dialback/dialback_out.c:208
 msgid "got the stream root"
-msgstr "Datenstrom-Wurzel empfangen"
+msgstr "megvan a folyamat gyökér"
 
 #: ../dialback/dialback_out.c:210
 msgid "waiting for stream features on XMPP stream"
-msgstr "Warte auf XMPP-Datenstrom-Fähigkeiten"
+msgstr "várakozás folyam jellemzőkre az XMPP folyamon"
 
 #: ../dialback/dialback_out.c:212
 msgid "got stream features on XMPP stream"
-msgstr "XMPP-Datenstromfähigkeiten empfangen"
+msgstr "megvannak a folyam jellemzők az XMPP folyamon"
 
 #: ../dialback/dialback_out.c:214
 msgid "sent out dialback request"
-msgstr "Rückrufanfrage abgesandt"
+msgstr "visszahívási kérés elküldve"
 
 #: ../dialback/dialback_out.c:216
 msgid "dialback succeeded"
-msgstr "Rückruf gelungen"
+msgstr "visszahívás sikeres"
 
 #: ../dialback/dialback_out.c:218 ../dialback/dialback.c:591
 msgid "dialback failed"
-msgstr "Rückruf fehlgeschlagen"
+msgstr "visszahívás sikertelen"
 
 #: ../dialback/dialback_out.c:220
 msgid "started using SASL"
-msgstr "SASL-Nutzung begonnen"
+msgstr "SASL-el elindult"
 
 #: ../dialback/dialback_out.c:222
 msgid "failed to auth using SASL"
-msgstr "SASL-Autorisation fehlgeschlagen"
+msgstr "sikertelen SASL hitelesítés"
 
 #: ../dialback/dialback_out.c:224
 msgid "SASL succeeded"
-msgstr "SASL war erfolgreich"
+msgstr "SASL sikeres"
 
 #: ../dialback/dialback_out.c:226
 msgid "unknown connection state"
-msgstr "unbekannter Verbindungsstatus"
+msgstr "érvénytelen kapcsolat állapot"
 
 #: ../dialback/dialback_out.c:264
 msgid ""
 "Failed to deliver stanz to other server because of configured stream "
 "parameters."
 msgstr ""
-"Zustellung des Absatzes an anderen Server aufgrund der konfigurierten "
-"Datenstromparametern fehlgeschlagen."
+"Sikertelen szakasz kézbesítés a másik kiszolgálóra konfigurálatlan folyam "
+"paraméterek miatt"
 
 #: ../dialback/dialback_out.c:266
 msgid "Failed to deliver stanza to other server while "
-msgstr "Zustellung des Absatzes an anderen Server fehlgeschlagen wärend: "
+msgstr "Sikertelen szakasz kézbesítés a másik kiszolálóra mialatt"
 
 #: ../dialback/dialback_out.c:275
 msgid "Could not send stanza to other server"
-msgstr "Konnte Absatz nicht an anderen Server senden"
+msgstr "Sikertelen szakasz küldés a másik kiszolgálóra"
 
 #: ../dialback/dialback_out.c:933
 msgid "Server connect timeout while "
-msgstr "Zeitüberschreitung beim Server-Verbindungsaufbau wärend "
+msgstr "Kiszolgáló időtúllépés mialatt"
 
 #: ../dialback/dialback_out.c:942
 msgid "Server Connect Timeout"
-msgstr "Zeitüberschreitung beim Server-Verbindungsaufbau"
+msgstr "Kiszolgáló időtúllépés"
 
 #: ../dialback/dialback.c:415 ../dialback/dialback.c:895
 msgid "established outgoing connections"
-msgstr "Hergestellte abgehende Verbindungen"
+msgstr "kimeneti kapcsolat létrejött"
 
 #: ../dialback/dialback.c:420 ../dialback/dialback.c:900
 msgid "connecting outgoing connections"
-msgstr "Verbindende abgehende Verbindungen"
+msgstr "kimeneti kapcsolat felépítése"
 
 #: ../dialback/dialback.c:425 ../dialback/dialback.c:905
 msgid "established incoming connections"
-msgstr "Hergestellte eingehende Verbindungen"
+msgstr "bejövő kapcsolat létrejött"
 
 #: ../dialback/dialback.c:430 ../dialback/dialback.c:910
 msgid "connecting incoming connections"
-msgstr "Verbindende eingehende Verbindungen"
+msgstr "bejövő kapcsolat felépítése"
 
 #: ../dialback/dialback.c:444 ../dialback/dialback.c:468
 #: ../dialback/dialback.c:486 ../dialback/dialback.c:652
 #: ../dialback/dialback.c:676 ../dialback/dialback.c:694
 msgid "-- connection gone --"
-msgstr "-- Verbindung beendet --"
+msgstr "-- kapcsolat bontva --"
 
 #: ../dialback/dialback.c:452 ../dialback/dialback.c:660
 msgid "Last used:"
-msgstr "Zuletzt genutzt:"
+msgstr "Utoljára használt:"
 
 #: ../dialback/dialback.c:472 ../dialback/dialback.c:680
 msgid "Stanza count:"
-msgstr "Absatz-Zahl:"
+msgstr "Szakasz számláló:"
 
 #: ../dialback/dialback.c:491 ../dialback/dialback.c:524
 #: ../dialback/dialback.c:699 ../dialback/dialback.c:730
 msgid "IP/port:"
-msgstr "IP/Port:"
+msgstr "IP/port:"
 
 #: ../dialback/dialback.c:492 ../dialback/dialback.c:525
 #: ../dialback/dialback.c:700 ../dialback/dialback.c:731
 #: ../dialback/dialback.c:749
 msgid "local"
-msgstr "lokal"
+msgstr "helyi"
 
 #: ../dialback/dialback.c:495 ../dialback/dialback.c:527
 #: ../dialback/dialback.c:702 ../dialback/dialback.c:733
 msgid "remote"
-msgstr "entfernt"
+msgstr "távoli"
 
 #: ../dialback/dialback.c:498 ../dialback/dialback.c:529
 #: ../dialback/dialback.c:704 ../dialback/dialback.c:735
@@ -366,323 +357,328 @@ msgstr "tls"
 #: ../dialback/dialback.c:609 ../dialback/dialback.c:705
 #: ../dialback/dialback.c:736
 msgid "no"
-msgstr "nein"
+msgstr "nem"
 
 #: ../dialback/dialback.c:499 ../dialback/dialback.c:530
 #: ../dialback/dialback.c:609 ../dialback/dialback.c:705
 #: ../dialback/dialback.c:736
 msgid "yes"
-msgstr "ja"
+msgstr "igen"
 
 #: ../dialback/dialback.c:518 ../dialback/dialback.c:724
 msgid "-- connection gone or now established --"
-msgstr "-- Verbindung beendet oder nun hergestellt --"
+msgstr "-- kapcsolat elment vagy most stabilizálódott --"
 
 #: ../dialback/dialback.c:532 ../dialback/dialback.c:738
 msgid "IP/port: no current connection"
-msgstr "IP/Port: keine aktuelle Verbindung"
+msgstr "IP/port: nincs aktuális kapcsolat"
 
 #: ../dialback/dialback.c:546 ../dialback/dialback.c:762
 msgid "Connection start:"
-msgstr "Verbindungsbeginn:"
+msgstr "Kapcsolat kezdete:"
 
 #: ../dialback/dialback.c:558 ../dialback/dialback.c:754
 msgid "XMPP version: unknown"
-msgstr "XMPP-Version: unbekannt"
+msgstr "XMPP verzió: ismeretlen"
 
 #: ../dialback/dialback.c:558 ../dialback/dialback.c:754
 msgid "XMPP version: 1.0"
-msgstr "XMPP-Version: 1.0"
+msgstr "XMPP verzió:1.0"
 
 #: ../dialback/dialback.c:558 ../dialback/dialback.c:754
 msgid "XMPP version: 0.9"
-msgstr "XMPP-Version: 0.9"
+msgstr "XMPP verzió:0.9"
 
 #: ../dialback/dialback.c:563
 msgid "Pending IPs: "
-msgstr "Bevorstehende IPs: "
+msgstr "Függő IP-k"
 
 #: ../dialback/dialback.c:563
 msgid "no more other IPs will be tried"
-msgstr "Keine weiteren IPs werden versucht"
+msgstr "nem lesz több IP próbálva"
 
 #: ../dialback/dialback.c:568
 msgid "Stream ID: "
-msgstr "Stream-ID: "
+msgstr "Folyamat ID:"
 
 #: ../dialback/dialback.c:573
 msgid "Dialback state: "
-msgstr "Rückruf-Status: "
+msgstr "Visszahívás állapota:"
 
 #: ../dialback/dialback.c:574
 msgid "no dialback request, just sending verifies"
-msgstr "Keine Rückrufanforderung, sende nur Nachprüfungen"
+msgstr "nincs visszahívási kérelem, csak ellenőrzés küldés"
 
 #: ../dialback/dialback.c:575
 msgid "we could send dialback requests, if we want to"
-msgstr "Wir könnten Rückrufanforderungen senden, wenn wir wollten"
+msgstr "lehetne visszahívási kérelmet küldeni, ha akarnánk"
 
 #: ../dialback/dialback.c:576
 msgid "we want to send dialback requests, but cannot do that yet"
-msgstr "Wir wollen Rückrufanforderungen senden, aber können dies noch nicht"
+msgstr "kellene visszahívási kérelmet küldeni, de még nem lehet"
 
 #: ../dialback/dialback.c:577
 msgid "we have sent a dialback request"
-msgstr "Wir haben eine Rückrufanforderung gesendet"
+msgstr "visszahívási kérelem elküldve"
 
 #: ../dialback/dialback.c:577 ../dialback/dialback.c:594
 msgid "invalid"
-msgstr "ungültig"
+msgstr "érvénytelen"
 
 #: ../dialback/dialback.c:582
 msgid "Connection state: "
-msgstr "Verbindungs-Status: "
+msgstr "Kapcsolat állapota"
 
 #: ../dialback/dialback.c:583
 msgid "created, not yet started to connect"
-msgstr "erstellt, Verbindungsaufbau noch nicht begonnen"
+msgstr "létrehozva, még nem kezdett kapcsolódni"
 
 #: ../dialback/dialback.c:584
 msgid "we started to connect, no connection yet"
-msgstr "Verbindungsaufbau begonnen, noch keine Verbindung"
+msgstr "a kapcsolódás megkezdődött, még nincs kapcsolat"
 
 #: ../dialback/dialback.c:585
 msgid "connected to the other host"
-msgstr "mit anderem Host verbunden"
+msgstr "kapcsolódva a másik géphez"
 
 #: ../dialback/dialback.c:586
 msgid "we got peer's stream root"
-msgstr "Datenstrom-Wurzel des Gegenübers empfangen"
+msgstr "megvan a partner folyamat gyökere"
 
 #: ../dialback/dialback.c:587
 msgid "we are waiting for stream features"
-msgstr "wir warten auf Datenstrom-Fähigkeiten"
+msgstr "várakozás folyamat jellemzőkre"
 
 #: ../dialback/dialback.c:588
 msgid "we got the stream features"
-msgstr "wir haben die Datenstrom-Fähigkeiten empfangen"
+msgstr "megvannak a folyamat jellemzők"
 
 #: ../dialback/dialback.c:589
 msgid "we sent out a dialback request"
-msgstr "wir haben eine Rückrufanfrage versandt"
+msgstr "visszahívási kérés elküldve"
 
 #: ../dialback/dialback.c:590
 msgid "we had success with our dialback request"
-msgstr "unsere Rückrufanfrage war erfolgreich"
+msgstr "visszahívási kérés sikeres"
 
 #: ../dialback/dialback.c:592
 msgid "we started to authenticate using sasl"
-msgstr "wir haben begonnen mit SASL zu autorisieren"
+msgstr "sasl hitelesítés megkezdve"
 
 #: ../dialback/dialback.c:593
 msgid "there was a SASL authentication failure"
-msgstr "es gab einen SASL-Autorisationsfehler"
+msgstr "SASL hiba"
 
 #: ../dialback/dialback.c:594
 msgid "successfully authenticated using SASL"
-msgstr "erfolgreich mit SASL autorisiert"
+msgstr "sikeres SASL hitelesítés"
 
 #: ../dialback/dialback.c:599
 msgid "Dialback: "
-msgstr "Rückruf: "
+msgstr "Visszahívás:"
 
 #: ../dialback/dialback.c:599
+#, fuzzy
 msgid "supported by peer"
-msgstr "unterstützt vom Gegenüber"
+msgstr "támogatott"
 
 #: ../dialback/dialback.c:599
+#, fuzzy
 msgid "unsupported by peer"
-msgstr "nicht unterstützt vom Gegenüber"
+msgstr "nem támogatott"
 
 #: ../dialback/dialback.c:604
 msgid "Connection results: "
-msgstr "Verbindungsergebnis: "
+msgstr "Kapcsolat eredménye:"
 
 #: ../dialback/dialback.c:609
 msgid "Dropped because of settings: "
-msgstr "Abgeworfen aufgrund der Einstellungen: "
+msgstr "Eldoba beállítás miatt:"
 
 #: ../dialback/dialback.c:623
 msgid "Pending verifies: "
-msgstr "Bevorstehende Nachprüfungen: "
+msgstr "Függő ellenőrzések:"
 
 #: ../dialback/dialback.c:637
 msgid "Pending stanzas: "
-msgstr "Bevorstehende Abschnitte: "
+msgstr "Függő szakaszok:"
 
 #: ../dialback/dialback.c:749
 msgid "Addresses:"
-msgstr "Adressen:"
+msgstr "Címek:"
 
 #: ../dialback/dialback.c:749
 msgid "peer"
-msgstr "Gegenüber"
+msgstr "partner"
 
 #: ../dialback/dialback.c:922 ../dialback/dialback.c:1017
 msgid "Last used"
-msgstr "Zuletzt genutzt"
+msgstr "Utoljára használva"
 
 #: ../dialback/dialback.c:927 ../dialback/dialback.c:1022
 msgid "Stanza count"
-msgstr "Abschnittszahl"
+msgstr "Szakasz számláló"
 
 #: ../dialback/dialback.c:932 ../dialback/dialback.c:954
 #: ../dialback/dialback.c:1027 ../dialback/dialback.c:1044
 msgid "IP/port"
-msgstr "IP/Port"
+msgstr "IP/port"
 
 #: ../dialback/dialback.c:949 ../dialback/dialback.c:1059
 msgid "Connection start"
-msgstr "Verbindungsbeginn"
+msgstr "Kapcsolat kezdete"
 
 #: ../dialback/dialback.c:959 ../dialback/dialback.c:1054
 msgid "XMPP version"
-msgstr "XMPP-Version"
+msgstr "XMPP verzió"
 
 #: ../dialback/dialback.c:964
 msgid "Pending IPs"
-msgstr "Bevorstehende IPs"
+msgstr "Függő IP-k"
 
 #: ../dialback/dialback.c:969
 msgid "Dialback verifies"
-msgstr "Rückruf-Nachprüfungen"
+msgstr "Visszahívás ellenőrzése"
 
 #: ../dialback/dialback.c:974
 msgid "Pending stanzas"
-msgstr "Bevorstehende Abschnitte"
+msgstr "Függő szakaszok"
 
 #: ../dialback/dialback.c:979
 msgid "Dropped because of settings"
-msgstr "Abgeworfen aufgrund von Einstellungen"
+msgstr "Eldobva beállítások miatt"
 
 #: ../dialback/dialback.c:984
 msgid "Stream ID"
-msgstr "Stream-ID"
+msgstr "Folyam ID"
 
 #: ../dialback/dialback.c:989
 msgid "Dialback state"
-msgstr "Rückruf-Status"
+msgstr "Visszahívás állapota"
 
 #: ../dialback/dialback.c:994
 msgid "Connection state"
-msgstr "Verbindungs-Status"
+msgstr "Kapcsolat állapota"
 
 #: ../dialback/dialback.c:999
 msgid "Connect results"
-msgstr "Verbindungsergebnisse"
+msgstr "Kapcsolat eredménye"
 
 #: ../dialback/dialback.c:1004
 msgid "Dialback"
-msgstr "Rückruf"
+msgstr "Visszahívás"
 
 #: ../dialback/dialback.c:1049
 msgid "Addresses"
-msgstr "Adressen"
+msgstr "Címek"
 
 #: ../dnsrv/dnsrv.c:283
 msgid "Unable to resolve hostname."
-msgstr "Kann Hostnamen nicht auflösen."
+msgstr "Hosztnév feloldás sikertelen"
 
 #: ../dnsrv/dnsrv.c:300
 msgid "DNS Resolver Error"
-msgstr "Fehler bei der DNS-Auflösung"
+msgstr "DNS hiba"
 
 #: ../dnsrv/dnsrv.c:529
 msgid "Hostname Resolution Timeout"
-msgstr "Zeitüberschreitung in der Namensauflösung"
+msgstr "Hosztnév feloldás időtúllépés"
 
 #: ../pthsock/client.c:139
 msgid "invalid client packet"
-msgstr "ungültiges Client-Paket"
+msgstr "érvénytelen kliens csomag"
 
 #: ../pthsock/client.c:313
 msgid "Socket Error to Client"
-msgstr "Socket-Fehler zum Client"
+msgstr "Socket hiba"
 
 #: ../jabberd/lib/jabberdlib.h:712 ../jabberd/lib/jabberdlib.h:719
 msgid "Bad Request"
-msgstr "Fehlerhafte Anfrage"
+msgstr "Hibás kérés"
 
 #: ../jabberd/lib/jabberdlib.h:713
 msgid "Conflict"
-msgstr "Konflikt"
+msgstr "Ütközés"
 
 #: ../jabberd/lib/jabberdlib.h:714
 msgid "Not Implemented"
-msgstr "Nicht implementiert"
+msgstr "Nincs megvalósítva"
 
 #: ../jabberd/lib/jabberdlib.h:715
 msgid "Forbidden"
-msgstr "Zugriff verweigert"
+msgstr "Rejtett"
 
 #: ../jabberd/lib/jabberdlib.h:716
 msgid "Gone"
-msgstr "Nicht mehr verfügbar"
+msgstr "Elment"
 
 #: ../jabberd/lib/jabberdlib.h:717
 msgid "Internal Server Error"
-msgstr "Serverfehler"
+msgstr "Belső kiszolgálóhiba"
 
 #: ../jabberd/lib/jabberdlib.h:718
 msgid "Not Found"
-msgstr "Nicht gefunden"
+msgstr "Nem található"
 
 #: ../jabberd/lib/jabberdlib.h:720
 msgid "Not Acceptable"
-msgstr "Nicht annehmbar"
+msgstr "Nem elfogadható"
 
 #: ../jabberd/lib/jabberdlib.h:722
 msgid "Unauthorized"
-msgstr "Authentisierung fehlgeschlagen"
+msgstr "Nincs bejelentkezve"
 
 #: ../jabberd/lib/jabberdlib.h:723
 msgid "Payment Required"
-msgstr "Zahlung erforderlich"
+msgstr "Fizetés szükséges"
 
 #: ../jabberd/lib/jabberdlib.h:724
 msgid "Recipient Is Unavailable"
-msgstr "Empfänger nicht verfügbar"
+msgstr "A hívott nem elérhető"
 
 #: ../jabberd/lib/jabberdlib.h:725
 msgid "Redirect"
-msgstr "Umleitung"
+msgstr "Átirányítás"
 
 #: ../jabberd/lib/jabberdlib.h:726
 msgid "Registration Required"
-msgstr "Anmeldung erforderlich"
+msgstr "Regisztráció szükséges"
 
 #: ../jabberd/lib/jabberdlib.h:727
 msgid "Remote Server Not Found"
-msgstr "Entfernter Server nicht gefunden"
+msgstr "Kiszolgáló nem található"
 
 #: ../jabberd/lib/jabberdlib.h:728 ../jabberd/lib/jabberdlib.h:741
 msgid "Remote Server Timeout"
-msgstr "Zeitüberschreitung des entfernten Servers"
+msgstr "Időtúllépés"
 
 #: ../jabberd/lib/jabberdlib.h:729
 msgid "Resource Constraint"
-msgstr "Betriebsmitteleinschränkung"
+msgstr "Erőforrás kényszer"
 
 #: ../jabberd/lib/jabberdlib.h:730
 msgid "Service Unavailable"
-msgstr "Dienst nicht verfügbar"
+msgstr "A szolgáltatás nem érhető el"
 
 #: ../jabberd/lib/jabberdlib.h:731
 msgid "Subscription Required"
-msgstr "Abonnement erforderlich"
+msgstr "Előfizetés szükséges"
 
 #: ../jabberd/lib/jabberdlib.h:737
 msgid "Unexpected Request"
-msgstr "Unerwartete Anfrage"
+msgstr "Váratlan kérés"
 
 #: ../jabberd/lib/jabberdlib.h:739
 msgid "Request Timeout"
-msgstr "Zeitüberschreitung in der Anfrage"
+msgstr "Időtúllépés"
 
 #: ../jabberd/lib/jabberdlib.h:740
 msgid "Remote Server Error"
-msgstr "Fehler auf entferntem Server"
+msgstr "Távoli kiszolgáló hiba"
 
 #: ../jabberd/lib/jabberdlib.h:743
 msgid "Storage Failed"
-msgstr "Aufbewahrung fehlgeschlagen"
+msgstr "Tárolás sikertelen"
+
+#~ msgid " by peer"
+#~ msgstr "partnerenként"
