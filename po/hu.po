@@ -478,14 +478,12 @@ msgid "Dialback: "
 msgstr "Visszahívás:"
 
 #: ../dialback/dialback.c:599
-#, fuzzy
 msgid "supported by peer"
-msgstr "támogatott"
+msgstr "támogatott partnerenként"
 
 #: ../dialback/dialback.c:599
-#, fuzzy
 msgid "unsupported by peer"
-msgstr "nem támogatott"
+msgstr "nem támogatott partnerenként"
 
 #: ../dialback/dialback.c:604
 msgid "Connection results: "
@@ -679,6 +677,3 @@ msgstr "Távoli kiszolgáló hiba"
 #: ../jabberd/lib/jabberdlib.h:743
 msgid "Storage Failed"
 msgstr "Tárolás sikertelen"
-
-#~ msgid " by peer"
-#~ msgstr "partnerenként"
