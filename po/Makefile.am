@@ -1,4 +1,4 @@
-EXTRA_DIST = de.po fr.po nl.po
+EXTRA_DIST = de.po fr.po hu.po it.po nl.po
 
 LANGS = de.po fr.po nl.po
 
