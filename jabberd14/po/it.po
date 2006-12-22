@@ -1,16 +1,16 @@
 # SOME DESCRIPTIVE TITLE.
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the PACKAGE package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+# FULL NAME <EMAIL@ADDRESS>, YEAR"
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: jabberd14\n"
 "Report-Msgid-Bugs-To: mail@amessage.eu\n"
 "POT-Creation-Date: 2006-12-22 16:19+0100\n"
-"PO-Revision-Date: 2006-12-18 09:54+0100\n"
-"Last-Translator: Matthias Wimmer <m@tthias.eu>\n"
-"Language-Team: German <m@tthias.eu>\n"
+"PO-Revision-Date: 2006-12-22 16:15+0100\n"
+"Last-Translator: Stefano Sabatini <stefano.sabatini-lala@poste.it>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -18,127 +18,125 @@ msgstr ""
 #: ../jsm/modules/mod_privacy.c:965 ../jsm/modules/mod_privacy.c:1005
 #: ../jsm/modules/mod_privacy.c:1106
 msgid "The server cannot accept that privacy list name."
-msgstr "Der Server kann den Namen der Privacy-Liste nicht annehmen."
+msgstr "Il server non può accettare il nome della lista di privacy."
 
 #: ../jsm/modules/mod_privacy.c:1137
 msgid "Privacy list is invalid: item without order attribute"
-msgstr "Privacy-Liste ist ungültig: Item ohne order-Attribut"
+msgstr "Lista di privacy invalida: oggetto privo di attributo di ordine"
 
 #: ../jsm/modules/mod_privacy.c:1142
 msgid "Privacy list is invalid: item action has to be either 'deny' or 'allow'"
-msgstr ""
-"Privacy-Liste ist ungültig: Item action muss entweder 'deny' oder 'allow' "
-"sein"
+msgstr "La lista della privacy è invalida: item action has to be either 'deny' or 'allow'"
 
 #: ../jsm/modules/mod_privacy.c:1148
 msgid ""
 "Privacy list is invalid: fall-through item is not allowed to have a value"
 msgstr ""
-"Privacy-Liste ist ungültig: Item ohne type-Attribut darf auch kein value-"
-"Attribut haben"
+"Lista della privacy invalida: all'oggetto di tipo fall-through non è "
+"consentito avere un valore"
 
 #: ../jsm/modules/mod_privacy.c:1155
 msgid "Privacy list is invalid: if type is 'jid', value has to be a valid JID"
 msgstr ""
-"Privacy-Liste ist ungültig: wenn der Typ 'jid' ist, muss der Value eine "
-"gültige JID sein"
+"La lista della privacy è invalida: se il tipo è 'jid', il valore "
+"corrispondente deve essere un JID valido"
 
 #: ../jsm/modules/mod_privacy.c:1161
 msgid ""
 "Privacy list is invalid: if type is 'group', value has to be a roster group "
 "name"
 msgstr ""
-"Privacy-Liste ist ungültig: wenn der Typ 'group' ist, muss der Value den "
-"Namen einer Rostergruppe haben"
+"La lista della privacy è invalida: se il tipo è 'group', il valore "
+"corrispondente deve essere un gruppo del roster"
 
 #: ../jsm/modules/mod_privacy.c:1168
 msgid ""
 "Privacy list is invalid: if type is 'subscription', value has to be one of "
 "'none', 'from', 'to', or 'both'"
 msgstr ""
-"Privacy-Liste ist ungültig: wenn der Typ 'subscription' ist, muss der Value "
-"eines von 'none', 'from', 'to' oder 'both' sein"
+"La lista della privacy è invalida: se il tipo è 'subscription', il valore "
+"deve essere scelto tra 'none', 'from', 'to' o 'both'"
 
 #: ../jsm/modules/mod_privacy.c:1173
 msgid ""
 "Privacy list is invalid: if type is present, it has to be one of 'jid', "
 "'group', or 'subscription'"
 msgstr ""
-"Privacy-Liste ist ungültig: wenn das type-Attribut vorhanden ist, muss es "
-"einen der folgenden Werte haben: 'jid', 'group' oder 'subscription'"
+"Lista della privacy invalida: se il tipo è presente, deve essere scelto tra "
+"'jid', 'group' o 'subscription'"
 
 #: ../jsm/modules/mod_privacy.c:1474
 msgid "Blocked by recipient's privacy list"
-msgstr "Gesperrt durch die Privacy-Liste des Empfängers"
+msgstr "Bloccato dalla lista di privacy del destinatario"
 
 #: ../jsm/modules/mod_privacy.c:1476
 msgid "Blocked by your own privacy list"
-msgstr "Gesperrt durch Ihre eigene Privacy-Liste"
+msgstr "Bloccato dalla tua lista della privacy"
 
 #: ../jsm/modules/mod_offline.c:169 ../jsm/modules/mod_roster.c:632
 msgid "Offline Storage"
-msgstr "Offline-Speicherung"
+msgstr "Immagazzinamento dei dati offline"
 
 #: ../jsm/modules/mod_xml.c:87
 msgid ""
 "The query element in the jabber:iq:private namespace needs a child element "
 "in another namespace."
 msgstr ""
-"Das query-Element im jabber:iq:private-Namespace braucht ein Child-Element "
-"in einem anderen namespace."
+"L'elemento della interrogazione nello spazio di nomi jabber:iq:private ha "
+"bisogno diun elemento figlio in un altro spazio di nomi."
 
 #: ../jsm/modules/mod_register.c:304 ../jsm/modules/mod_register.c:306
 msgid "Missing data field"
-msgstr "Fehlendes Datenfeld"
+msgstr "Campo mancante"
 
 #: ../jsm/modules/mod_register.c:306
 msgid "you may also register at"
-msgstr "Anmeldung auch auf"
+msgstr "puoi anche registrarti a"
 
 #: ../jsm/modules/mod_register.c:324
 msgid "Registration not allowed."
-msgstr "Anmeldung nicht gestattet."
+msgstr "Registrazione non consentita"
 
 #: ../jsm/modules/mod_register.c:326
 msgid "Registration not allowed. See"
-msgstr "Anmeldung nicht gestattet. Siehe"
+msgstr "Registrazione non consentita. Vedi"
 
 #: ../jsm/modules/mod_register.c:415 ../jsm/modules/mod_register.c:499
 #: ../jsm/modules/mod_register.c:516 ../jabberd/lib/jabberdlib.h:721
 msgid "Not Allowed"
-msgstr "Nicht gestattet"
+msgstr "Non consentito"
 
 #: ../jsm/modules/mod_roster.c:550
 msgid "Already Subscribed"
-msgstr "Bereits eingeschrieben"
+msgstr "Già sottoscritto"
 
 #: ../jsm/modules/mod_roster.c:595
 msgid "Autoreply"
-msgstr "Automatische Antwort"
+msgstr "Replica automatica"
 
 #: ../jsm/modules/mod_last.c:178
 msgid "Registered"
-msgstr "Registriert"
+msgstr "Registrato"
 
 #: ../jsm/modules/mod_last.c:280
 msgid "Unregistered"
-msgstr "Abgemeldet"
+msgstr "Non registrato"
 
 #: ../jsm/modules/mod_disco.c:186 ../jsm/modules/mod_disco.c:300
 msgid "Administrator"
-msgstr "Administrator"
+msgstr "Amministratore"
 
 #: ../jsm/modules/mod_disco.c:298
 msgid " (administrator)"
-msgstr " (Administrator)"
+msgstr " (amministratore)"
 
 #: ../jsm/modules/mod_disco.c:300
 msgid "User"
-msgstr "Benutzer"
+msgstr "Utente"
 
 #: ../jsm/modules/mod_admin.c:85
 msgid "dur"
-msgstr "Dauer"
+msgstr "dur"
 
 #: ../jsm/modules/mod_admin.c:87
 msgid "s"
@@ -146,15 +144,15 @@ msgstr "s"
 
 #: ../jsm/modules/mod_admin.c:87
 msgid "in"
-msgstr "ein"
+msgstr "in"
 
 #: ../jsm/modules/mod_admin.c:89 ../jsm/modules/mod_admin.c:91
 msgid "stnz"
-msgstr "Stnz"
+msgstr "stnz"
 
 #: ../jsm/modules/mod_admin.c:89
 msgid "out"
-msgstr "aus"
+msgstr "out"
 
 #: ../jsm/modules/mod_admin.c:224
 msgid "Admin: "
@@ -163,199 +161,199 @@ msgstr "Admin: "
 #: ../jsm/sessions.c:76 ../jsm/deliver.c:245 ../jsm/deliver.c:308
 #: ../jabberd/lib/jabberdlib.h:742
 msgid "Disconnected"
-msgstr "Getrennt"
+msgstr "Disconnesso"
 
 #: ../jsm/sessions.c:208 ../jsm/sessions.c:307 ../jsm/serialization.c:244
 msgid "Replaced by new connection"
-msgstr "Durch neue Verbindung ersetzt"
+msgstr "Sostituita con una nuova connessione"
 
 #: ../jsm/authreg.c:149 ../jsm/authreg.c:169
 msgid "Username Not Available"
-msgstr "Benutzername nicht verfügbar"
+msgstr "Nome utente non disponibile"
 
 #: ../jsm/deliver.c:176 ../jsm/deliver.c:289
 msgid "Session Failed"
-msgstr "Sitzung fehlgeschlagen"
+msgstr "Sessione fallita"
 
 #: ../jsm/deliver.c:249
 msgid "Removed"
-msgstr "Entfernt"
+msgstr "Rimosso"
 
 #: ../jsm/deliver.c:322 ../jsm/deliver.c:333
 msgid "no valid target"
-msgstr "kein gültiges Ziel"
+msgstr "obbiettivo non valido"
 
 #: ../jsm/deliver.c:338
 msgid "Unknown session control action"
-msgstr "Unbekannte Sitzungskontroll-Aktion"
+msgstr "Azione di controllo della sessione sconosciuta"
 
 #: ../jsm/deliver.c:436
 msgid "Invalid User"
-msgstr "Ungültiger Nutzer"
+msgstr "Utente non valido"
 
 #: ../jsm/deliver.c:475
 msgid "Invalid Session"
-msgstr "Ungültige Sitzung"
+msgstr "Sessione non valida"
 
 #: ../jsm/jsm.c:81
 msgid "sessionmanager shutdown"
-msgstr "Sessionmanager-Abschaltung"
+msgstr ""
 
 #: ../jabberd/base/base_importspool.c:61
 msgid "This is no valid destination."
-msgstr "Dies ist kein gültiges Ziel."
+msgstr "Destinazione invalida"
 
 #: ../jabberd/base/base_accept.c:226
 msgid "External Server Error"
-msgstr "Entfernter Serverfehler"
+msgstr "Errore del server esterno"
 
 #: ../jabberd/base/base_accept.c:252
 #, c-format
 msgid "Component '%s' is not connected to server"
-msgstr "Komponente '%s' ist nicht mit dem Server verbunden"
+msgstr "La componente '%s' non è connessa al server"
 
 #: ../jabberd/base/base_accept.c:273
 #, c-format
 msgid "delivery to '%s': Internal Timeout"
-msgstr "Zustellung an '%s': interne Zeitüberschreitung"
+msgstr "consegna verso '%s': tempo di consegna scaduto"
 
 #: ../jabberd/base/base_connect.c:100
 msgid "Circular Reference Detected"
-msgstr "Ringschluss festgestellt"
+msgstr "Individuato una riferimento circolare"
 
 #: ../jabberd/base/base_unsubscribe.c:101
 msgid "Destination blocked by server administrator"
-msgstr "Ziel vom Server-Administrator gesperrt"
+msgstr "Destinazione bloccata dall'amministratore del server"
 
 #: ../jabberd/deliver.c:841
 msgid "Unable to deliver, destination unknown"
-msgstr "Nicht zustellbar, Ziel unbekannt"
+msgstr "Consegna impossibile, destinazione sconosciuta"
 
 #: ../jabberd/deliver.c:856
 msgid "Internal Delivery Error"
-msgstr "Interner Zustellfehler"
+msgstr "Errore interno di consegna"
 
 #: ../dialback/dialback_out.c:202
 msgid "connection object just created"
-msgstr "Verbindungsobjekt gerade erstellt"
+msgstr "oggetto di connessione appena creato"
 
 #: ../dialback/dialback_out.c:204
 msgid "connecting to other host"
-msgstr "Verbinde zu anderem Host"
+msgstr "connessione ad un'altro host in corso"
 
 #: ../dialback/dialback_out.c:206
 msgid "connected to other host"
-msgstr "Verbunden mit anderem Host"
+msgstr "connessione all'host avvenuta"
 
 #: ../dialback/dialback_out.c:208
 msgid "got the stream root"
-msgstr "Datenstrom-Wurzel empfangen"
+msgstr "ottenuto il flusso radice"
 
 #: ../dialback/dialback_out.c:210
 msgid "waiting for stream features on XMPP stream"
-msgstr "Warte auf XMPP-Datenstrom-Fähigkeiten"
+msgstr "in attesa della comunicazione delle caratteristiche del flusso XMPP"
 
 #: ../dialback/dialback_out.c:212
 msgid "got stream features on XMPP stream"
-msgstr "XMPP-Datenstromfähigkeiten empfangen"
+msgstr "acquisita la comunicazione delle caratteristiche del flusso XMPP"
 
 #: ../dialback/dialback_out.c:214
 msgid "sent out dialback request"
-msgstr "Rückrufanfrage abgesandt"
+msgstr "spedita richiesta di dialback"
 
 #: ../dialback/dialback_out.c:216
 msgid "dialback succeeded"
-msgstr "Rückruf gelungen"
+msgstr "dialback avvenuto con successo"
 
 #: ../dialback/dialback_out.c:218 ../dialback/dialback.c:591
 msgid "dialback failed"
-msgstr "Rückruf fehlgeschlagen"
+msgstr "dialback fallito"
 
 #: ../dialback/dialback_out.c:220
 msgid "started using SASL"
-msgstr "SASL-Nutzung begonnen"
+msgstr "Si è iniziato ad usare SASL"
 
 #: ../dialback/dialback_out.c:222
 msgid "failed to auth using SASL"
-msgstr "SASL-Autorisation fehlgeschlagen"
+msgstr "autenticazione con SASL fallita"
 
 #: ../dialback/dialback_out.c:224
 msgid "SASL succeeded"
-msgstr "SASL war erfolgreich"
+msgstr "autenticazione con SASL avvenuta con successo"
 
 #: ../dialback/dialback_out.c:226
 msgid "unknown connection state"
-msgstr "unbekannter Verbindungsstatus"
+msgstr "stato della connessione sconosciuto"
 
 #: ../dialback/dialback_out.c:264
 msgid ""
 "Failed to deliver stanz to other server because of configured stream "
 "parameters."
 msgstr ""
-"Zustellung des Absatzes an anderen Server aufgrund der konfigurierten "
-"Datenstromparametern fehlgeschlagen."
+"Fallimento nella consegna della stanz al server remoto a causa dei parametri "
+"di configurazione del flusso XMPP"
 
 #: ../dialback/dialback_out.c:266
 msgid "Failed to deliver stanza to other server while "
-msgstr "Zustellung des Absatzes an anderen Server fehlgeschlagen wärend: "
+msgstr "Fallimento nella consegna della stanza all'altro server mentre "
 
 #: ../dialback/dialback_out.c:275
 msgid "Could not send stanza to other server"
-msgstr "Konnte Absatz nicht an anderen Server senden"
+msgstr "Non è stato possibile inviare una stanza all'altro server"
 
 #: ../dialback/dialback_out.c:933
 msgid "Server connect timeout while "
-msgstr "Zeitüberschreitung beim Server-Verbindungsaufbau wärend "
+msgstr "Tempo di connessione al server scaduto durante "
 
 #: ../dialback/dialback_out.c:942
 msgid "Server Connect Timeout"
-msgstr "Zeitüberschreitung beim Server-Verbindungsaufbau"
+msgstr "Tempo di connessione al server scaduto"
 
 #: ../dialback/dialback.c:415 ../dialback/dialback.c:895
 msgid "established outgoing connections"
-msgstr "Hergestellte abgehende Verbindungen"
+msgstr "è stata stabilita la connessione verso l'esterno"
 
 #: ../dialback/dialback.c:420 ../dialback/dialback.c:900
 msgid "connecting outgoing connections"
-msgstr "Verbindende abgehende Verbindungen"
+msgstr "connessione verso l'esterno in corso"
 
 #: ../dialback/dialback.c:425 ../dialback/dialback.c:905
 msgid "established incoming connections"
-msgstr "Hergestellte eingehende Verbindungen"
+msgstr "è stata stabilita una connessione verso l'interno"
 
 #: ../dialback/dialback.c:430 ../dialback/dialback.c:910
 msgid "connecting incoming connections"
-msgstr "Verbindende eingehende Verbindungen"
+msgstr "connessione verso l'interno in corso"
 
 #: ../dialback/dialback.c:444 ../dialback/dialback.c:468
 #: ../dialback/dialback.c:486 ../dialback/dialback.c:652
 #: ../dialback/dialback.c:676 ../dialback/dialback.c:694
 msgid "-- connection gone --"
-msgstr "-- Verbindung beendet --"
+msgstr "-- connessione persa --"
 
 #: ../dialback/dialback.c:452 ../dialback/dialback.c:660
 msgid "Last used:"
-msgstr "Zuletzt genutzt:"
+msgstr "Ultimo uso:"
 
 #: ../dialback/dialback.c:472 ../dialback/dialback.c:680
 msgid "Stanza count:"
-msgstr "Absatz-Zahl:"
+msgstr ""
 
 #: ../dialback/dialback.c:491 ../dialback/dialback.c:524
 #: ../dialback/dialback.c:699 ../dialback/dialback.c:730
 msgid "IP/port:"
-msgstr "IP/Port:"
+msgstr "porta IP:"
 
 #: ../dialback/dialback.c:492 ../dialback/dialback.c:525
 #: ../dialback/dialback.c:700 ../dialback/dialback.c:731
 #: ../dialback/dialback.c:749
 msgid "local"
-msgstr "lokal"
+msgstr "locale"
 
 #: ../dialback/dialback.c:495 ../dialback/dialback.c:527
 #: ../dialback/dialback.c:702 ../dialback/dialback.c:733
 msgid "remote"
-msgstr "entfernt"
+msgstr "remoto"
 
 #: ../dialback/dialback.c:498 ../dialback/dialback.c:529
 #: ../dialback/dialback.c:704 ../dialback/dialback.c:735
@@ -366,323 +364,328 @@ msgstr "tls"
 #: ../dialback/dialback.c:609 ../dialback/dialback.c:705
 #: ../dialback/dialback.c:736
 msgid "no"
-msgstr "nein"
+msgstr "no"
 
 #: ../dialback/dialback.c:499 ../dialback/dialback.c:530
 #: ../dialback/dialback.c:609 ../dialback/dialback.c:705
 #: ../dialback/dialback.c:736
 msgid "yes"
-msgstr "ja"
+msgstr "sì"
 
 #: ../dialback/dialback.c:518 ../dialback/dialback.c:724
 msgid "-- connection gone or now established --"
-msgstr "-- Verbindung beendet oder nun hergestellt --"
+msgstr ""
 
 #: ../dialback/dialback.c:532 ../dialback/dialback.c:738
 msgid "IP/port: no current connection"
-msgstr "IP/Port: keine aktuelle Verbindung"
+msgstr "porta IP: non vi è alcuna connessione in corso"
 
 #: ../dialback/dialback.c:546 ../dialback/dialback.c:762
 msgid "Connection start:"
-msgstr "Verbindungsbeginn:"
+msgstr "Inizio della connessione:"
 
 #: ../dialback/dialback.c:558 ../dialback/dialback.c:754
 msgid "XMPP version: unknown"
-msgstr "XMPP-Version: unbekannt"
+msgstr "Versione di XMPP: sconosciuta"
 
 #: ../dialback/dialback.c:558 ../dialback/dialback.c:754
 msgid "XMPP version: 1.0"
-msgstr "XMPP-Version: 1.0"
+msgstr "Versione di XMPP: 1.0"
 
 #: ../dialback/dialback.c:558 ../dialback/dialback.c:754
 msgid "XMPP version: 0.9"
-msgstr "XMPP-Version: 0.9"
+msgstr "Versione di XMPP: 0.9"
 
 #: ../dialback/dialback.c:563
 msgid "Pending IPs: "
-msgstr "Bevorstehende IPs: "
+msgstr "IP pendenti: "
 
 #: ../dialback/dialback.c:563
 msgid "no more other IPs will be tried"
-msgstr "Keine weiteren IPs werden versucht"
+msgstr "non verranno provati altri IP"
 
 #: ../dialback/dialback.c:568
 msgid "Stream ID: "
-msgstr "Stream-ID: "
+msgstr "ID del flusso:"
 
 #: ../dialback/dialback.c:573
 msgid "Dialback state: "
-msgstr "Rückruf-Status: "
+msgstr "Stato di dialback: "
 
 #: ../dialback/dialback.c:574
 msgid "no dialback request, just sending verifies"
-msgstr "Keine Rückrufanforderung, sende nur Nachprüfungen"
+msgstr "nessuna richiesta di dialback, invio di verifiche"
 
 #: ../dialback/dialback.c:575
 msgid "we could send dialback requests, if we want to"
-msgstr "Wir könnten Rückrufanforderungen senden, wenn wir wollten"
+msgstr "possiamo eventualmente inviare richieste di dialback"
 
 #: ../dialback/dialback.c:576
 msgid "we want to send dialback requests, but cannot do that yet"
-msgstr "Wir wollen Rückrufanforderungen senden, aber können dies noch nicht"
+msgstr "vogliamo inviare una richiesta di dialback, ma ancora non possiamo"
 
 #: ../dialback/dialback.c:577
 msgid "we have sent a dialback request"
-msgstr "Wir haben eine Rückrufanforderung gesendet"
+msgstr "abbiamo inviato una richiesta di dialback"
 
 #: ../dialback/dialback.c:577 ../dialback/dialback.c:594
 msgid "invalid"
-msgstr "ungültig"
+msgstr "invalido"
 
 #: ../dialback/dialback.c:582
 msgid "Connection state: "
-msgstr "Verbindungs-Status: "
+msgstr "Stato della connessione:"
 
 #: ../dialback/dialback.c:583
 msgid "created, not yet started to connect"
-msgstr "erstellt, Verbindungsaufbau noch nicht begonnen"
+msgstr "creato, non ancora iniziata la connessione"
 
 #: ../dialback/dialback.c:584
 msgid "we started to connect, no connection yet"
-msgstr "Verbindungsaufbau begonnen, noch keine Verbindung"
+msgstr "stabilimento della connessione in corso, ancora non avvenuta"
 
 #: ../dialback/dialback.c:585
 msgid "connected to the other host"
-msgstr "mit anderem Host verbunden"
+msgstr "connesso all'altro host"
 
 #: ../dialback/dialback.c:586
 msgid "we got peer's stream root"
-msgstr "Datenstrom-Wurzel des Gegenübers empfangen"
+msgstr "abbiamo ottenuto il flusso radice del nodo"
 
 #: ../dialback/dialback.c:587
 msgid "we are waiting for stream features"
-msgstr "wir warten auf Datenstrom-Fähigkeiten"
+msgstr "in attesa della comunicazione delle caratteristiche del flusso"
 
 #: ../dialback/dialback.c:588
 msgid "we got the stream features"
-msgstr "wir haben die Datenstrom-Fähigkeiten empfangen"
+msgstr "la comunicazione delle caratteristiche del flusso è state acquisita"
 
 #: ../dialback/dialback.c:589
 msgid "we sent out a dialback request"
-msgstr "wir haben eine Rückrufanfrage versandt"
+msgstr "abbiamo inviato una richiesta di dialback"
 
 #: ../dialback/dialback.c:590
 msgid "we had success with our dialback request"
-msgstr "unsere Rückrufanfrage war erfolgreich"
+msgstr "successo riportato nella richiesta di dialback"
 
 #: ../dialback/dialback.c:592
 msgid "we started to authenticate using sasl"
-msgstr "wir haben begonnen mit SASL zu autorisieren"
+msgstr "autenticazione con SASL è stata avviata"
 
 #: ../dialback/dialback.c:593
 msgid "there was a SASL authentication failure"
-msgstr "es gab einen SASL-Autorisationsfehler"
+msgstr "fallimento nella autenticazione con SASL"
 
 #: ../dialback/dialback.c:594
 msgid "successfully authenticated using SASL"
-msgstr "erfolgreich mit SASL autorisiert"
+msgstr "autenticazione con SASL avvenuta con successo"
 
 #: ../dialback/dialback.c:599
 msgid "Dialback: "
-msgstr "Rückruf: "
+msgstr "Dialback: "
 
 #: ../dialback/dialback.c:599
+#, fuzzy
 msgid "supported by peer"
-msgstr "unterstützt vom Gegenüber"
+msgstr "supportato"
 
 #: ../dialback/dialback.c:599
+#, fuzzy
 msgid "unsupported by peer"
-msgstr "nicht unterstützt vom Gegenüber"
+msgstr "non supportato"
 
 #: ../dialback/dialback.c:604
 msgid "Connection results: "
-msgstr "Verbindungsergebnis: "
+msgstr "Risultati della connessione: "
 
 #: ../dialback/dialback.c:609
 msgid "Dropped because of settings: "
-msgstr "Abgeworfen aufgrund der Einstellungen: "
+msgstr "Persi a causa delle impostazioni: "
 
 #: ../dialback/dialback.c:623
 msgid "Pending verifies: "
-msgstr "Bevorstehende Nachprüfungen: "
+msgstr "Verifiche pendenti: "
 
 #: ../dialback/dialback.c:637
 msgid "Pending stanzas: "
-msgstr "Bevorstehende Abschnitte: "
+msgstr "Stanza pendenti: "
 
 #: ../dialback/dialback.c:749
 msgid "Addresses:"
-msgstr "Adressen:"
+msgstr "Indirizzi: "
 
 #: ../dialback/dialback.c:749
 msgid "peer"
-msgstr "Gegenüber"
+msgstr "peer"
 
 #: ../dialback/dialback.c:922 ../dialback/dialback.c:1017
 msgid "Last used"
-msgstr "Zuletzt genutzt"
+msgstr "Ultimo uso"
 
 #: ../dialback/dialback.c:927 ../dialback/dialback.c:1022
 msgid "Stanza count"
-msgstr "Abschnittszahl"
+msgstr "Conteggio di stanza"
 
 #: ../dialback/dialback.c:932 ../dialback/dialback.c:954
 #: ../dialback/dialback.c:1027 ../dialback/dialback.c:1044
 msgid "IP/port"
-msgstr "IP/Port"
+msgstr "porta IP"
 
 #: ../dialback/dialback.c:949 ../dialback/dialback.c:1059
 msgid "Connection start"
-msgstr "Verbindungsbeginn"
+msgstr "Connessione in corso"
 
 #: ../dialback/dialback.c:959 ../dialback/dialback.c:1054
 msgid "XMPP version"
-msgstr "XMPP-Version"
+msgstr "Versione di XMPP"
 
 #: ../dialback/dialback.c:964
 msgid "Pending IPs"
-msgstr "Bevorstehende IPs"
+msgstr "IP pendenti"
 
 #: ../dialback/dialback.c:969
 msgid "Dialback verifies"
-msgstr "Rückruf-Nachprüfungen"
+msgstr "Verifiche di dialback"
 
 #: ../dialback/dialback.c:974
 msgid "Pending stanzas"
-msgstr "Bevorstehende Abschnitte"
+msgstr "Stanza pendenti"
 
 #: ../dialback/dialback.c:979
 msgid "Dropped because of settings"
-msgstr "Abgeworfen aufgrund von Einstellungen"
+msgstr "Persi a causa delle impostazioni"
 
 #: ../dialback/dialback.c:984
 msgid "Stream ID"
-msgstr "Stream-ID"
+msgstr "ID del flusso"
 
 #: ../dialback/dialback.c:989
 msgid "Dialback state"
-msgstr "Rückruf-Status"
+msgstr "Stato di dialback"
 
 #: ../dialback/dialback.c:994
 msgid "Connection state"
-msgstr "Verbindungs-Status"
+msgstr "Stato della connessione"
 
 #: ../dialback/dialback.c:999
 msgid "Connect results"
-msgstr "Verbindungsergebnisse"
+msgstr "Risultati della connessione"
 
 #: ../dialback/dialback.c:1004
 msgid "Dialback"
-msgstr "Rückruf"
+msgstr "Dialback"
 
 #: ../dialback/dialback.c:1049
 msgid "Addresses"
-msgstr "Adressen"
+msgstr "Indirizzi"
 
 #: ../dnsrv/dnsrv.c:283
 msgid "Unable to resolve hostname."
-msgstr "Kann Hostnamen nicht auflösen."
+msgstr "Impossibile risolvere il nome dell'host"
 
 #: ../dnsrv/dnsrv.c:300
 msgid "DNS Resolver Error"
-msgstr "Fehler bei der DNS-Auflösung"
+msgstr "Errore del risolutore DNS"
 
 #: ../dnsrv/dnsrv.c:529
 msgid "Hostname Resolution Timeout"
-msgstr "Zeitüberschreitung in der Namensauflösung"
+msgstr "Tempo di risoluzione dell'hostname scaduto"
 
 #: ../pthsock/client.c:139
 msgid "invalid client packet"
-msgstr "ungültiges Client-Paket"
+msgstr "pacchetto del client invalido"
 
 #: ../pthsock/client.c:313
 msgid "Socket Error to Client"
-msgstr "Socket-Fehler zum Client"
+msgstr ""
 
 #: ../jabberd/lib/jabberdlib.h:712 ../jabberd/lib/jabberdlib.h:719
 msgid "Bad Request"
-msgstr "Fehlerhafte Anfrage"
+msgstr "Richiesta invalida"
 
 #: ../jabberd/lib/jabberdlib.h:713
 msgid "Conflict"
-msgstr "Konflikt"
+msgstr "Conflitto"
 
 #: ../jabberd/lib/jabberdlib.h:714
 msgid "Not Implemented"
-msgstr "Nicht implementiert"
+msgstr "Non implementato"
 
 #: ../jabberd/lib/jabberdlib.h:715
 msgid "Forbidden"
-msgstr "Zugriff verweigert"
+msgstr "Proibito"
 
 #: ../jabberd/lib/jabberdlib.h:716
 msgid "Gone"
-msgstr "Nicht mehr verfügbar"
+msgstr "Perso"
 
 #: ../jabberd/lib/jabberdlib.h:717
 msgid "Internal Server Error"
-msgstr "Serverfehler"
+msgstr "Errore del server interno"
 
 #: ../jabberd/lib/jabberdlib.h:718
 msgid "Not Found"
-msgstr "Nicht gefunden"
+msgstr "Non trovato"
 
 #: ../jabberd/lib/jabberdlib.h:720
 msgid "Not Acceptable"
-msgstr "Nicht annehmbar"
+msgstr "Non accettabile"
 
 #: ../jabberd/lib/jabberdlib.h:722
 msgid "Unauthorized"
-msgstr "Authentisierung fehlgeschlagen"
+msgstr "Non autorizzato"
 
 #: ../jabberd/lib/jabberdlib.h:723
 msgid "Payment Required"
-msgstr "Zahlung erforderlich"
+msgstr "Pagamento richiesto"
 
 #: ../jabberd/lib/jabberdlib.h:724
 msgid "Recipient Is Unavailable"
-msgstr "Empfänger nicht verfügbar"
+msgstr "Il destinatario è invalido"
 
 #: ../jabberd/lib/jabberdlib.h:725
 msgid "Redirect"
-msgstr "Umleitung"
+msgstr "Ridiretto"
 
 #: ../jabberd/lib/jabberdlib.h:726
 msgid "Registration Required"
-msgstr "Anmeldung erforderlich"
+msgstr "Registrazione richiesta"
 
 #: ../jabberd/lib/jabberdlib.h:727
 msgid "Remote Server Not Found"
-msgstr "Entfernter Server nicht gefunden"
+msgstr "Server remoto non trovato"
 
 #: ../jabberd/lib/jabberdlib.h:728 ../jabberd/lib/jabberdlib.h:741
 msgid "Remote Server Timeout"
-msgstr "Zeitüberschreitung des entfernten Servers"
+msgstr "Tempo del server remoto scaduto"
 
 #: ../jabberd/lib/jabberdlib.h:729
 msgid "Resource Constraint"
-msgstr "Betriebsmitteleinschränkung"
+msgstr "Limite nell'utilizzo delle risorse"
 
 #: ../jabberd/lib/jabberdlib.h:730
 msgid "Service Unavailable"
-msgstr "Dienst nicht verfügbar"
+msgstr "Servizio non disponibile"
 
 #: ../jabberd/lib/jabberdlib.h:731
 msgid "Subscription Required"
-msgstr "Abonnement erforderlich"
+msgstr "Sottoscrizione richiesta"
 
 #: ../jabberd/lib/jabberdlib.h:737
 msgid "Unexpected Request"
-msgstr "Unerwartete Anfrage"
+msgstr "Richiesta inaspettata"
 
 #: ../jabberd/lib/jabberdlib.h:739
 msgid "Request Timeout"
-msgstr "Zeitüberschreitung in der Anfrage"
+msgstr "Tempo della richiesta scaduto"
 
 #: ../jabberd/lib/jabberdlib.h:740
 msgid "Remote Server Error"
-msgstr "Fehler auf entferntem Server"
+msgstr "Errore del server remoto"
 
 #: ../jabberd/lib/jabberdlib.h:743
 msgid "Storage Failed"
-msgstr "Aufbewahrung fehlgeschlagen"
+msgstr "Immagazzinamento dei dati fallito"
+
+#~ msgid " by peer"
+#~ msgstr " dal peer"

@@ -1056,6 +1056,8 @@
     <locales>
       <locale lang="de" locale="de_DE.UTF-8"/>
       <locale lang="fr" locale="fr_FR.UTF-8"/>
+      <locale lang="hu" locale="hu_HU.UTF-8"/>
+      <locale lang="it" locale="it_IT.UTF-8"/>
       <locale lang="nl" locale="nl_NL.UTF-8"/>
     </locales>
 
