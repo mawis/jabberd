@@ -1,3 +1,8 @@
+2006-12-22  Matthias Wimmer  <m@tthias.eu>
+
+    * jsm/modules/mod_admin.c: change node's name to show online sessions
+    * jsm/modules/mod_disco.c: same
+
 2006-12-19  Matthias Wimmer  <m@tthias.eu>
 
     * jabberd/mio_ssl.c: reverted default to SSL_CTX_use_certificate_file()

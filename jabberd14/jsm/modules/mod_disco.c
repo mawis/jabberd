@@ -174,7 +174,7 @@ mreturn mod_disco_server_items(mapi m, void *arg) {
     item = xmlnode_insert_tag_ns(query, "item", NULL, NS_DISCO_ITEMS);
     xmlnode_put_attrib_ns(item, "jid", NULL, NULL, jid_full(m->packet->to));
     xmlnode_put_attrib_ns(item, "name", NULL, NULL, "Online Users");
-    xmlnode_put_attrib_ns(item, "node", NULL, NULL, "online users");
+    xmlnode_put_attrib_ns(item, "node", NULL, NULL, "online sessions");
   }
 
   /* list administrators */

@@ -46,13 +46,13 @@
  *
  * This implements the admin functionallity of the session manger:
  * - The admin can discover the list of online users using service discovery on
- *   server node 'online users'
+ *   server node 'online sessions'
  * - Messages addressed to the session manager (without a resource) are forwarded to the
  *   configured admin address(es)
  */
 
 /**
- * xhash_walker function used by _mod_admin_disco_online_items to add all online users to the iq result
+ * xhash_walker function used by _mod_admin_disco_online_items to add all online sessions to the iq result
  *
  * @param h not used by this function
  * @param key not used by this function
@@ -97,7 +97,7 @@ static void _mod_admin_disco_online_iter(xht h, const char *key, void *data, voi
 }
 
 /**
- * handle iq disco items request for the server's node 'online users'
+ * handle iq disco items request for the server's node 'online sessions'
  *
  * Send a reply to the disco#items request
  *
@@ -107,14 +107,14 @@ static void _mod_admin_disco_online_iter(xht h, const char *key, void *data, voi
 static void _mod_admin_disco_online_items(jsmi si, jpacket p) {
     xmlnode query = NULL;
 
-    log_notice(NULL, "trying to handle online users items request");
+    log_notice(NULL, "trying to handle online sessions items request");
 
     /* prepare the stanza */
     jutil_iqresult(p->x);
     query =xmlnode_insert_tag_ns(p->x, "query", NULL, NS_DISCO_INFO);
-    xmlnode_put_attrib_ns(query, "node", NULL, NULL, "online users");
+    xmlnode_put_attrib_ns(query, "node", NULL, NULL, "online sessions");
 
-    /* add the online users */
+    /* add the online sessions */
     xhash_walk(xhash_get(si->hosts, p->to->server), _mod_admin_disco_online_iter, (void *)query);
 
     /* send back */
@@ -123,7 +123,7 @@ static void _mod_admin_disco_online_items(jsmi si, jpacket p) {
 }
 
 /**
- * handle iq disco info request for the server's node 'online users'
+ * handle iq disco info request for the server's node 'online sessions'
  *
  * Send a reply to the disco#info request
  *
@@ -136,7 +136,7 @@ static void _mod_admin_disco_online_info(jsmi si, jpacket p) {
     /* prepare the stanza */
     jutil_iqresult(p->x);
     query =xmlnode_insert_tag_ns(p->x, "query", NULL, NS_DISCO_INFO);
-    xmlnode_put_attrib_ns(query, "node", NULL, NULL, "online users");
+    xmlnode_put_attrib_ns(query, "node", NULL, NULL, "online sessions");
 
     /* send back */
     jpacket_reset(p);
@@ -162,16 +162,16 @@ mreturn mod_admin_dispatch(mapi m, void *arg) {
     if (jpacket_subtype(m->packet) == JPACKET__ERROR)
 	return M_PASS;
 
-    /* check disco node 'online users' feature */
-    if (NSCHECK(m->packet->iq, NS_DISCO_INFO) && j_strcmp(xmlnode_get_attrib_ns(m->packet->iq, "node", NULL), "online users") == 0 && jpacket_subtype(m->packet) == JPACKET__GET) {
+    /* check disco node 'online sessions' feature */
+    if (NSCHECK(m->packet->iq, NS_DISCO_INFO) && j_strcmp(xmlnode_get_attrib_ns(m->packet->iq, "node", NULL), "online sessions") == 0 && jpacket_subtype(m->packet) == JPACKET__GET) {
 	if (acl_check_access(m->si->xc, ADMIN_LISTSESSIONS, m->packet->from))
 	    _mod_admin_disco_online_info(m->si, m->packet);
 	else
 	    js_bounce_xmpp(m->si, NULL, m->packet->x, XTERROR_NOTALLOWED);
 	return M_HANDLED;
     }
-    if (NSCHECK(m->packet->iq, NS_DISCO_ITEMS) && j_strcmp(xmlnode_get_attrib_ns(m->packet->iq, "node", NULL), "online users") == 0 && jpacket_subtype(m->packet) == JPACKET__GET) {
-	log_notice(NULL, "we got a disco items online users request");
+    if (NSCHECK(m->packet->iq, NS_DISCO_ITEMS) && j_strcmp(xmlnode_get_attrib_ns(m->packet->iq, "node", NULL), "online sessions") == 0 && jpacket_subtype(m->packet) == JPACKET__GET) {
+	log_notice(NULL, "we got a disco items online sessions request");
 	if (acl_check_access(m->si->xc, ADMIN_LISTSESSIONS, m->packet->from))
 	    _mod_admin_disco_online_items(m->si, m->packet);
 	else
