@@ -5,10 +5,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: jabberd14\n"
+"Project-Id-Version: jabberd14 1.6.0\n"
 "Report-Msgid-Bugs-To: mail@amessage.eu\n"
-"POT-Creation-Date: 2006-12-22 16:19+0100\n"
-"PO-Revision-Date: 2006-12-22 16:15+0100\n"
+"POT-Creation-Date: 2006-12-24 01:03+0100\n"
+"PO-Revision-Date: 2006-12-24 01:05+0100\n"
 "Last-Translator: Stefano Sabatini <stefano.sabatini-lala@poste.it>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
@@ -197,11 +197,11 @@ msgstr "Sessione non valida"
 
 #: ../jsm/jsm.c:81
 msgid "sessionmanager shutdown"
-msgstr ""
+msgstr "chiusura del gestore della sessione"
 
 #: ../jabberd/base/base_importspool.c:61
 msgid "This is no valid destination."
-msgstr "Destinazione invalida"
+msgstr "Questa destinazione è invalida"
 
 #: ../jabberd/base/base_accept.c:226
 msgid "External Server Error"
@@ -219,7 +219,7 @@ msgstr "consegna verso '%s': tempo di consegna scaduto"
 
 #: ../jabberd/base/base_connect.c:100
 msgid "Circular Reference Detected"
-msgstr "Individuato una riferimento circolare"
+msgstr "Individuata una referenza circolare"
 
 #: ../jabberd/base/base_unsubscribe.c:101
 msgid "Destination blocked by server administrator"
@@ -235,7 +235,7 @@ msgstr "Errore interno di consegna"
 
 #: ../dialback/dialback_out.c:202
 msgid "connection object just created"
-msgstr "oggetto di connessione appena creato"
+msgstr "oggetto associato alla connessione appena creato"
 
 #: ../dialback/dialback_out.c:204
 msgid "connecting to other host"
@@ -290,8 +290,8 @@ msgid ""
 "Failed to deliver stanz to other server because of configured stream "
 "parameters."
 msgstr ""
-"Fallimento nella consegna della stanz al server remoto a causa dei parametri "
-"di configurazione del flusso XMPP"
+"Fallimento nella consegna della stanza al server remoto a causa dei "
+"parametri di configurazione del flusso XMPP"
 
 #: ../dialback/dialback_out.c:266
 msgid "Failed to deliver stanza to other server while "
@@ -299,7 +299,7 @@ msgstr "Fallimento nella consegna della stanza all'altro server mentre "
 
 #: ../dialback/dialback_out.c:275
 msgid "Could not send stanza to other server"
-msgstr "Non è stato possibile inviare una stanza all'altro server"
+msgstr "Non è stato possibile inviare la stanza all'altro server"
 
 #: ../dialback/dialback_out.c:933
 msgid "Server connect timeout while "
@@ -333,11 +333,11 @@ msgstr "-- connessione persa --"
 
 #: ../dialback/dialback.c:452 ../dialback/dialback.c:660
 msgid "Last used:"
-msgstr "Ultimo uso:"
+msgstr "Ultimo usato:"
 
 #: ../dialback/dialback.c:472 ../dialback/dialback.c:680
 msgid "Stanza count:"
-msgstr ""
+msgstr "Conteggio di stanza"
 
 #: ../dialback/dialback.c:491 ../dialback/dialback.c:524
 #: ../dialback/dialback.c:699 ../dialback/dialback.c:730
@@ -374,7 +374,7 @@ msgstr "sì"
 
 #: ../dialback/dialback.c:518 ../dialback/dialback.c:724
 msgid "-- connection gone or now established --"
-msgstr ""
+msgstr "-- connessione persa oppure appena stablilita"
 
 #: ../dialback/dialback.c:532 ../dialback/dialback.c:738
 msgid "IP/port: no current connection"
@@ -442,7 +442,7 @@ msgstr "creato, non ancora iniziata la connessione"
 
 #: ../dialback/dialback.c:584
 msgid "we started to connect, no connection yet"
-msgstr "stabilimento della connessione in corso, ancora non avvenuta"
+msgstr "abbiamo iniziato a stabilire la connessione, ancora non avvenuta"
 
 #: ../dialback/dialback.c:585
 msgid "connected to the other host"
@@ -450,7 +450,7 @@ msgstr "connesso all'altro host"
 
 #: ../dialback/dialback.c:586
 msgid "we got peer's stream root"
-msgstr "abbiamo ottenuto il flusso radice del nodo"
+msgstr "abbiamo ottenuto il flusso radice dell'altro nodo"
 
 #: ../dialback/dialback.c:587
 msgid "we are waiting for stream features"
@@ -466,11 +466,11 @@ msgstr "abbiamo inviato una richiesta di dialback"
 
 #: ../dialback/dialback.c:590
 msgid "we had success with our dialback request"
-msgstr "successo riportato nella richiesta di dialback"
+msgstr "la richiesta di dialback è avvenuta con successo"
 
 #: ../dialback/dialback.c:592
 msgid "we started to authenticate using sasl"
-msgstr "autenticazione con SASL è stata avviata"
+msgstr "abbiamo iniziato l'autenticazione con SASL"
 
 #: ../dialback/dialback.c:593
 msgid "there was a SASL authentication failure"
@@ -518,7 +518,7 @@ msgstr "peer"
 
 #: ../dialback/dialback.c:922 ../dialback/dialback.c:1017
 msgid "Last used"
-msgstr "Ultimo uso"
+msgstr "Ultimo usato"
 
 #: ../dialback/dialback.c:927 ../dialback/dialback.c:1022
 msgid "Stanza count"
@@ -531,7 +531,7 @@ msgstr "porta IP"
 
 #: ../dialback/dialback.c:949 ../dialback/dialback.c:1059
 msgid "Connection start"
-msgstr "Connessione in corso"
+msgstr "Inizio della connessione"
 
 #: ../dialback/dialback.c:959 ../dialback/dialback.c:1054
 msgid "XMPP version"
@@ -543,7 +543,7 @@ msgstr "IP pendenti"
 
 #: ../dialback/dialback.c:969
 msgid "Dialback verifies"
-msgstr "Verifiche di dialback"
+msgstr "Verifica del dialback"
 
 #: ../dialback/dialback.c:974
 msgid "Pending stanzas"
@@ -655,7 +655,7 @@ msgstr "Server remoto non trovato"
 
 #: ../jabberd/lib/jabberdlib.h:728 ../jabberd/lib/jabberdlib.h:741
 msgid "Remote Server Timeout"
-msgstr "Tempo del server remoto scaduto"
+msgstr "Timeout del server remoto"
 
 #: ../jabberd/lib/jabberdlib.h:729
 msgid "Resource Constraint"
