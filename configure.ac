@@ -353,7 +353,7 @@ AC_ARG_WITH(mysql, AC_HELP_STRING([--with-mysql=DIR],
 	    mysql=$withval, mysql=yes)
 if test "$mysql" != "no"; then
     if test "$mysql" != "yes"; then
-	LDFLAGS="${LDFLAGS} -L$mysql/lib"
+	LDFLAGS="${LDFLAGS} -L$mysql/lib -L$mysql/lib/mysql"
 	CPPFLAGS="${CPPFLAGS} -I$mysql/include"
     fi
     AC_CHECK_HEADER(mysql/mysql.h,
