@@ -261,7 +261,7 @@ void dialback_out_connection_cleanup(dboc c)
 	/* generate bounce message, but only if there are queued messages */
 	errmsg = spool_new(c->p);
 	if (c->settings_failed) {
-	    spool_add(errmsg, messages_get(lang, N_("Failed to deliver stanz to other server because of configured stream parameters.")));
+	    spool_add(errmsg, messages_get(lang, N_("Failed to deliver stanza to other server because of configured stream parameters.")));
 	} else {
 	    spool_add(errmsg, messages_get(lang, N_("Failed to deliver stanza to other server while ")));
 	    spool_add(errmsg, messages_get(lang, N_(dialback_out_connection_state_string(c->connection_state))));
