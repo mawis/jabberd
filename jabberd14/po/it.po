@@ -5,10 +5,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: jabberd14 1.6.0\n"
+"Project-Id-Version: jabberd14\n"
 "Report-Msgid-Bugs-To: mail@amessage.eu\n"
 "POT-Creation-Date: 2006-12-24 01:11+0100\n"
-"PO-Revision-Date: 2006-12-24 01:05+0100\n"
+"PO-Revision-Date: 2006-12-24 12:19+0100\n"
 "Last-Translator: Stefano Sabatini <stefano.sabatini-lala@poste.it>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
@@ -26,9 +26,7 @@ msgstr "Lista di privacy invalida: oggetto privo di attributo di ordine"
 
 #: ../jsm/modules/mod_privacy.c:1142
 msgid "Privacy list is invalid: item action has to be either 'deny' or 'allow'"
-msgstr ""
-"La lista della privacy è invalida: item action has to be either 'deny' or "
-"'allow'"
+msgstr "La lista della privacy è invalida: item action has to be either 'deny' or 'allow'"
 
 #: ../jsm/modules/mod_privacy.c:1148
 msgid ""
@@ -49,7 +47,7 @@ msgid ""
 "name"
 msgstr ""
 "La lista della privacy è invalida: se il tipo è 'group', il valore "
-"corrispondente deve essere un gruppo del roster"
+"corrispondente deve essere un gruppo della lista dei contatti"
 
 #: ../jsm/modules/mod_privacy.c:1168
 msgid ""
@@ -84,7 +82,7 @@ msgid ""
 "The query element in the jabber:iq:private namespace needs a child element "
 "in another namespace."
 msgstr ""
-"L'elemento della interrogazione nello spazio di nomi jabber:iq:private ha "
+"L'elemento dell'interrogazione nello spazio di nomi jabber:iq:private ha "
 "bisogno diun elemento figlio in un altro spazio di nomi."
 
 #: ../jsm/modules/mod_register.c:304 ../jsm/modules/mod_register.c:306
@@ -138,7 +136,7 @@ msgstr "Utente"
 
 #: ../jsm/modules/mod_admin.c:85
 msgid "dur"
-msgstr "dur"
+msgstr "durata"
 
 #: ../jsm/modules/mod_admin.c:87
 msgid "s"
@@ -146,15 +144,15 @@ msgstr "s"
 
 #: ../jsm/modules/mod_admin.c:87
 msgid "in"
-msgstr "in"
+msgstr "ricevuti"
 
 #: ../jsm/modules/mod_admin.c:89 ../jsm/modules/mod_admin.c:91
 msgid "stnz"
-msgstr "stnz"
+msgstr "stanza"
 
 #: ../jsm/modules/mod_admin.c:89
 msgid "out"
-msgstr "out"
+msgstr "inviati"
 
 #: ../jsm/modules/mod_admin.c:224
 msgid "Admin: "
@@ -241,11 +239,11 @@ msgstr "oggetto associato alla connessione appena creato"
 
 #: ../dialback/dialback_out.c:204
 msgid "connecting to other host"
-msgstr "connessione ad un'altro host in corso"
+msgstr "connessione ad un host remoto in corso"
 
 #: ../dialback/dialback_out.c:206
 msgid "connected to other host"
-msgstr "connessione all'host avvenuta"
+msgstr "connessione all'host remoto avvenuta"
 
 #: ../dialback/dialback_out.c:208
 msgid "got the stream root"
@@ -301,7 +299,7 @@ msgstr "Fallimento nella consegna della stanza all'altro server mentre "
 
 #: ../dialback/dialback_out.c:275
 msgid "Could not send stanza to other server"
-msgstr "Non è stato possibile inviare la stanza all'altro server"
+msgstr "Non è stato possibile inviare la stanza al server remoto"
 
 #: ../dialback/dialback_out.c:933
 msgid "Server connect timeout while "
@@ -597,7 +595,7 @@ msgstr "pacchetto del client invalido"
 
 #: ../pthsock/client.c:313
 msgid "Socket Error to Client"
-msgstr ""
+msgstr "Errore di connessione con il client"
 
 #: ../jabberd/lib/jabberdlib.h:712 ../jabberd/lib/jabberdlib.h:719
 msgid "Bad Request"
@@ -657,7 +655,7 @@ msgstr "Server remoto non trovato"
 
 #: ../jabberd/lib/jabberdlib.h:728 ../jabberd/lib/jabberdlib.h:741
 msgid "Remote Server Timeout"
-msgstr "Timeout del server remoto"
+msgstr "Timeout sulla risposta del server remoto"
 
 #: ../jabberd/lib/jabberdlib.h:729
 msgid "Resource Constraint"
@@ -686,3 +684,6 @@ msgstr "Errore del server remoto"
 #: ../jabberd/lib/jabberdlib.h:743
 msgid "Storage Failed"
 msgstr "Immagazzinamento dei dati fallito"
+
+#~ msgid " by peer"
+#~ msgstr " dal peer"
