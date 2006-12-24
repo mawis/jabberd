@@ -3,12 +3,11 @@
 # This file is distributed under the same license as the PACKAGE package.
 # Jean de Largentaye <none@invalid> 12-2006
 #
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: jabberd14 1.6.0\n"
 "Report-Msgid-Bugs-To: mail@amessage.eu\n"
-"POT-Creation-Date: 2006-12-22 16:19+0100\n"
+"POT-Creation-Date: 2006-12-24 01:11+0100\n"
 "PO-Revision-Date: 2006-12-18 09:56+0100\n"
 "Last-Translator: Jean de Largentaye <mail@amessage.eu>\n"
 "Language-Team: French <mail@amessage.eu>\n"
@@ -289,7 +288,7 @@ msgstr "état de connexion inconnu"
 
 #: ../dialback/dialback_out.c:264
 msgid ""
-"Failed to deliver stanz to other server because of configured stream "
+"Failed to deliver stanza to other server because of configured stream "
 "parameters."
 msgstr ""
 "Echec de la livraison de la stanza a cause des paramètres configurés du flux."
