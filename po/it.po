@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: jabberd14 1.6.0\n"
 "Report-Msgid-Bugs-To: mail@amessage.eu\n"
-"POT-Creation-Date: 2006-12-24 01:03+0100\n"
+"POT-Creation-Date: 2006-12-24 01:11+0100\n"
 "PO-Revision-Date: 2006-12-24 01:05+0100\n"
 "Last-Translator: Stefano Sabatini <stefano.sabatini-lala@poste.it>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -26,7 +26,9 @@ msgstr "Lista di privacy invalida: oggetto privo di attributo di ordine"
 
 #: ../jsm/modules/mod_privacy.c:1142
 msgid "Privacy list is invalid: item action has to be either 'deny' or 'allow'"
-msgstr "La lista della privacy è invalida: item action has to be either 'deny' or 'allow'"
+msgstr ""
+"La lista della privacy è invalida: item action has to be either 'deny' or "
+"'allow'"
 
 #: ../jsm/modules/mod_privacy.c:1148
 msgid ""
@@ -287,7 +289,7 @@ msgstr "stato della connessione sconosciuto"
 
 #: ../dialback/dialback_out.c:264
 msgid ""
-"Failed to deliver stanz to other server because of configured stream "
+"Failed to deliver stanza to other server because of configured stream "
 "parameters."
 msgstr ""
 "Fallimento nella consegna della stanza al server remoto a causa dei "
