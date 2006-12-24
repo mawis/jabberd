@@ -406,3 +406,10 @@ AC_OUTPUT(Makefile \
 	  po/Makefile)
 
 printf "\nYou may now type 'make' to build your new Jabber system.\nType 'make install' to install then.\n"
+
+if test "$mysql" = "no" -a "$postgresql" = "no"; then
+    printf "\n\nWARNING:\n"
+    printf "Your jabberd14 build will neither support PostgreSQL nor MySQL.\n"
+    printf "You will have to reconfigure the server to store data in files.\n"
+    printf "Please see at README.filespool on how to do this.\n"
+fi
