@@ -1,0 +1,57 @@
+How to revert to the old storage system of jabberd14
+using one plain XML file per user.
+
+
+This small README wants to show you, how jabberd14 can be instructed
+NOT to use a SQL database to store its data. This might be necessary,
+if you do not have MySQL or PostgreSQL available on your server.
+
+The two steps you have to do then is:
+
+- Locate the SQL storage module in the jabber.xml configuration file
+  by searching the <xdb>...</xdb> section. Remove this part of the
+  configuration.
+- Add the following extract to your jabber.xml configuration file
+  where the old <xdb>...</xdb> section has been removed:
+
+  <xdb id="xdb">
+    <!--
+    handle the xdb for all domains/components of this server
+    -->
+    <host/>
+    
+    <!--
+    it is the default handler for all otherwise undefined namespaces
+    -->
+    <ns/>
+    
+    <load>
+      <!--
+      you have to replace $PREFIX with the location where you
+      installed jabberd14 in the following line:
+      -->
+      <xdb_file>$PREFIX/lib/libjabberdxdbfile.so</xdb_file>
+    </load>
+    <xdb_file xmlns="jabber:config:xdb_file">
+      <!--
+      you have to replace $PREFIX with the location where you
+      installed jabberd14 in the following line:
+      -->
+      <spool><jabberd:cmdline flag='s'>$PREFIX/var/spool/jabberd</jabberd:cmdline></spool>
+      <!-- How long should XDB data be kept in memory?
+           Default: 3600 seconds. Change to <timeout/> to disable. -->
+      <timeout>3600</timeout>
+      <!-- What is the maximum size of a spool file?
+           Default: 500000 bytes. Change to <sizelimit/> to disable. -->
+      <sizelimit>500000</sizelimit>
+      <!-- Enable hierarchical spool dir layout if you have
+           many users and your spool is on a file system that
+           behaves badly with big directories.
+      <use_hierarchical_spool/> -->
+    </xdb_file>
+  </xdb>
+
+  Note: you have to replace the $PREFIX variable with the path to where you
+  installed your jabberd14.
+
+  
