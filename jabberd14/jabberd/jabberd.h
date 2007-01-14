@@ -367,7 +367,6 @@ typedef struct mio_st {
 	int	recall_write_when_writeable:1;	/**< recall the write function, when the socket allows writing again */
 	int	recall_handshake_when_readable:1; /**< recall the handshake function, when the socket has data available for reading */
 	int	recall_handshake_when_writeable:1; /**< recall the handshake function, when the socket allows writing again */
-	int	tls_reread:1;		/**< there might be more data available to be read from the TLS library */
     } flags;
 
     struct karma k;			/**< karma for this socket, used to limit bandwidth of a connection */

@@ -135,75 +135,94 @@ void _mio_ssl_cleanup(void *arg) {
     gnutls_deinit(session);
 }
 
+/**
+ * read data from a socket, that is TLS protected
+ *
+ * The m->flags.recall_read_when_readable and m->flags.recall_read_when_writeable is updated by this function.
+ *
+ * @param m the ::mio where data might be available
+ * @param buf where to write the written data to
+ * @param count how many bytes should be read at most
+ * @return 0 < ret < count: ret bytes read and no more bytes to read; ret = count: ret bytes read, possibly more bytes to read; ret = 0: currently nothing to read; ret < 0: non-recoverable error or connection closed
+ */
 ssize_t _mio_ssl_read(mio m, void *buf, size_t count) {
-    int ret = 0;
+    int read_return = 0;
 
     /* sanity checks */
     if (count <= 0 || buf == NULL || m == NULL) {
-	return 0;
+	return count == 0 ? 0 : -1;
     }
 
-    log_debug2(ZONE, LOGT_IO, "Asked to read %i B from %i (m->ssl = %X)", count, m->fd, m->ssl);
+    log_debug2(ZONE, LOGT_IO, "Trying to read up to %i B from socket %i using GnuTLS", count, m->fd);
 
-    /* resetting flags, we set them again if neccessary */
-    m->flags.tls_reread = 0;
+    /* reset flags */
     m->flags.recall_read_when_readable = 0;
     m->flags.recall_read_when_writeable = 0;
 
-    /* try to read data */
-    ret = gnutls_record_recv(m->ssl, (char *)buf, count);
+    /* trying to read */
+    read_return = gnutls_record_recv(m->ssl, (char*)buf, count);
 
-    /* if we read as much as possible, there might be more */
-    if (ret == count) {
-	m->flags.tls_reread = 1;
-	log_debug2(ZONE, LOGT_IO, "GNU TLS asked to reread from %d", m->fd);
-    } else if (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN) {
+    if (read_return > 0) {
+	log_debug2(ZONE, LOGT_IO, "Read %i B on socket %i", read_return, m->fd);
+	return read_return;
+    }
+    if (read_return == GNUTLS_E_INTERRUPTED || read_return == GNUTLS_E_AGAIN) {
 	if (gnutls_record_get_direction(m->ssl) == 0) {
 	    m->flags.recall_read_when_readable = 1;
 	} else {
 	    m->flags.recall_read_when_writeable = 1;
 	}
-	return -1;
-    } else if (ret < 0) {
-	log_debug2(ZONE, LOGT_IO, "Reading failed on socket #%i: %s", m->fd, gnutls_strerror(ret));
-	return -1;
-    } else if (ret > 0) {
-	log_debug2(ZONE, LOGT_IO, "Read from TLS socket: %.*s", ret, buf);
+	return 0;
     }
 
-    return ret;
+    log_debug2(ZONE, LOGT_IO, "Error case after gnutls_record_recv(): %s", gnutls_strerror(read_return));
+
+    return -1;
 }
 
+/**
+ * write data to a socket, that is TLS protected
+ *
+ * The m->flags.recall_write_when_readable and m->flags.recall_write_when_writeable is updated by this function.
+ *
+ * @param m the ::mio where writing is possible
+ * @param buf data that should be written
+ * @param count how many bytes should be written at most
+ * @param ret > 0: ret bytes written; ret == 0: no bytes could be written; ret < 0: non-recoverable error or connection closed
+ */
 ssize_t _mio_ssl_write(mio m, const void *buf, size_t count) {
-    int ret = 0;
+    int write_return = 0;
 
     /* sanity checks */
-    if (m == NULL || buf == NULL || count == 0) {
-	return -1;
+    if (count <= 0 || buf == NULL || m == NULL) {
+	return count == 0 ? 0 : -1;
     }
 
-    log_debug2(ZONE, LOGT_IO, "writing to TLS socket: %.*s", count, buf);
+    log_debug2(ZONE, LOGT_IO, "Trying to write up to %i B to socket %i using GnuTLS", count, m->fd);
 
-    /* resetting flags, we set them again if neccessary */
+    /* reset flags */
     m->flags.recall_write_when_readable = 0;
     m->flags.recall_write_when_writeable = 0;
 
-    /* try to write data */
-    ret = gnutls_record_send(m->ssl, buf, count);
+    /* trying to write data */
+    write_return = gnutls_record_send(m->ssl, buf, count);
 
-    if (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN) {
+    if (write_return > 0) {
+	log_debug2(ZONE, LOGT_IO, "Wrote %i B on socket %i", write_return, m->fd);
+	return write_return;
+    }
+    if (write_return == GNUTLS_E_INTERRUPTED || write_return == GNUTLS_E_AGAIN) {
 	if (gnutls_record_get_direction(m->ssl) == 0) {
 	    m->flags.recall_write_when_readable = 1;
 	} else {
 	    m->flags.recall_write_when_writeable = 1;
 	}
-	return -1;
-    } else if (ret < 0) {
-	log_debug2(ZONE, LOGT_IO, "Writing failed on socket #%i: %s", m->fd, gnutls_strerror(ret));
-	return -1;
+	return 0;
     }
-    
-    return ret;
+
+    log_debug2(ZONE, LOGT_IO, "Error case after gnutls_record_send(): %s", gnutls_strerror(write_return));
+
+    return -1;
 }
 
 /**
@@ -308,6 +327,7 @@ int mio_ssl_starttls(mio m, int originator, const char* identity) {
     ret = gnutls_init(&session, originator ? GNUTLS_CLIENT : GNUTLS_SERVER);
     if (ret != 0) {
 	log_debug2(ZONE, LOGT_IO, "Error initializing session for fd #%i: %s", m->fd, gnutls_strerror(ret));
+	return 1;
     }
     log_debug2(ZONE, LOGT_EXECFLOW, "Created new session %X", session);
     ret = gnutls_set_default_priority(session);
@@ -325,6 +345,10 @@ int mio_ssl_starttls(mio m, int originator, const char* identity) {
 
     /* associate with the socket */
     gnutls_transport_set_ptr(session, (gnutls_transport_ptr_t) m->fd);
+
+    /* use new read/write handlers */
+    m->mh->read = MIO_SSL_READ;
+    m->mh->write = MIO_SSL_WRITE;
 
     /* TLS handshake */
     m->flags.recall_handshake_when_readable = 0;
@@ -360,7 +384,7 @@ int mio_ssl_starttls(mio m, int originator, const char* identity) {
 
     log_debug2(ZONE, LOGT_IO, "Established TLS layer on socket %d, mio %X", m->fd, m);
 
-    return 1;
+    return 0;
 }
 
 /**
