@@ -425,10 +425,6 @@ typedef struct mio_handlers_st
 } _mio_handlers, *mio_handlers; 
 
 /* standard read/write/accept/connect functions */
-#define MIO_READ_FUNC    pth_read 
-#define MIO_WRITE_FUNC   pth_write
-#define MIO_CONNECT_FUNC pth_connect
-
 ssize_t _mio_raw_read(mio m, void *buf, size_t count);
 ssize_t _mio_raw_write(mio m, void *buf, size_t count);
 void _mio_raw_parser(mio m, const void *buf, size_t bufsz);
@@ -453,7 +449,6 @@ void    mio_ssl_init     (xmlnode x);
 int	mio_ssl_starttls (mio m, int originator, const char* identity);
 int	mio_ssl_starttls_possible (mio m, const char* identity);
 int	mio_ssl_verify(mio m, const char *id_on_xmppAddr);
-void    _mio_ssl_cleanup (void *arg);
 ssize_t _mio_ssl_read    (mio m, void *buf, size_t count);
 ssize_t _mio_ssl_write   (mio m, const void*      buf,       size_t     count);
 int     _mio_ssl_accepted(mio m);

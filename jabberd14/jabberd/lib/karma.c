@@ -98,7 +98,6 @@
  * @param old pointer to the values, that should be copied
  */
 void karma_copy(struct karma *new_instance, struct karma *old) {
-    new_instance->init        = old->init;
     new_instance->val         = old->val;
     new_instance->bytes       = old->bytes;
     new_instance->max         = old->max;
@@ -122,7 +121,6 @@ struct karma *karma_new(pool p) {
         return NULL;
 
     new          = pmalloco(p, sizeof(struct karma));
-    new->init    = 0;
     new->bytes   = 0;
     new->val     = KARMA_INIT;
     new->max     = KARMA_MAX;

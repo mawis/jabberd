@@ -69,24 +69,22 @@ void _mio_raw_parser(mio m, const void *buf, size_t bufsz) {
  * @param m the mio representing this socket
  * @param buf the buffer where to read data to
  * @param count size of the buffer, how many data should be read at most
- * @return number of bytes read if positive, 0 on EOF, -1 on error (which might be an indication for no data available for reading, in which case m->flags.recall_read_when_readable gets set)
+ * @return 0 < ret < count: ret bytes read and no more bytes to read; ret = count: ret bytes read, possibly more bytes to read; ret = 0: currently nothing to read; ret < 0: non-recoverable error or connection closed
  */
 ssize_t _mio_raw_read(mio m, void *buf, size_t count) {
-    int ret = 0;
+    ssize_t read_return = 0;
 
-    /* reset recall flags */
-    m->flags.recall_read_when_readable = 0;
-    m->flags.recall_read_when_writeable = 0;
+    read_return = pth_read(m->fd, buf, count);
 
-    /* read ... */
-    ret = MIO_READ_FUNC(m->fd, buf, count);
-
-    /* set the recall flag if neccessary */
-    if (ret == -1 && (errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN)) {
-	m->flags.recall_read_when_readable = 1;
+    if (read_return > 0) {
+	return read_return;
     }
 
-    return ret;
+    if (read_return == -1 && (errno == EINTR || errno == EAGAIN)) {
+	return 0;
+    }
+
+    return -1;
 }
 
 /**
@@ -97,22 +95,20 @@ ssize_t _mio_raw_read(mio m, void *buf, size_t count) {
  * @param m the mio representing this socket
  * @param buf the data that should be written
  * @param count how many bytes should be written (at most)
- * @return number of written bytes if positive, 0 on EOF, -1 on error (which might be an indication that writing would have blocked, in which case m->flags.recall_write_when_writeable gets set)
+ * @param ret > 0: ret bytes written; ret == 0: no bytes could be written; ret < 0: non-recoverable error or connection closed
  */
 ssize_t _mio_raw_write(mio m, void *buf, size_t count) {
-    int ret = 0;
+    ssize_t write_return = 0;
 
-    /* reset recall flags */
-    m->flags.recall_write_when_readable = 0;
-    m->flags.recall_write_when_writeable = 0;
+    write_return = pth_write(m->fd, buf, count);
 
-    /* write ... */
-    ret = MIO_WRITE_FUNC(m->fd, buf, count);
-
-    /* set the recall flag if neccessary */
-    if (ret == -1 && (errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN)) {
-	m->flags.recall_write_when_writeable = 1;
+    if (write_return > 0) {
+	return write_return;
     }
-    
-    return ret;
+
+    if (write_return == -1 && (errno == EINTR || errno == EAGAIN)) {
+	return 0;
+    }
+
+    return -1;
 }
