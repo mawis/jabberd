@@ -7,6 +7,7 @@
     * jabberd/lib/karma.c: same
     * jabberd/base/base_stdout.c: same
     * jabberd/mio_raw.c: same
+    * jabberd/mio_tls.c: fixed and reenabled GnuTLS
 
 2006-12-22  Matthias Wimmer  <m@tthias.eu>
 
