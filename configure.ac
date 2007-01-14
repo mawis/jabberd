@@ -6,7 +6,7 @@ AC_PREREQ(2.50)
 
 
 AC_INIT(jabberd/jabberd.h)
-AM_INIT_AUTOMAKE(jabberd14,1.6.0+svn)
+AM_INIT_AUTOMAKE(jabberd14,1.6.0+20070114)
 AM_CONFIG_HEADER(config.h)
 AC_LANG(C++)
 
@@ -248,17 +248,16 @@ AC_SUBST(POOL_DEBUG)
 dnl check if SSL/TLS is requested
 
 dnl first check for GNU TLS
-dnl ... disabled for the moment, we have problems with GNU TLS
-dnl AC_MSG_CHECKING(if GNU TLS is requested)
-dnl AC_ARG_ENABLE(gnutls, AC_HELP_STRING([--enable-gnutls], [Enable protection with SSL/TLS using GNU TLS]), gnutls=yes)
-dnl if test x-$gnutls = "x-yes" ; then
-dnl     AC_MSG_RESULT(yes)
-dnl     AM_PATH_LIBGNUTLS()
-dnl     CPPFLAGS="$CPPFLAGS $LIBGNUTLS_CFLAGS"
-dnl     LDFLAGS="$LDFLAGS $LIBGNUTLS_LIBS"
-dnl     AC_DEFINE(HAVE_GNUTLS,,[SSL/TLS with GNU TLS requested])
-dnl else
-dnl     AC_MSG_RESULT(no)
+AC_MSG_CHECKING(if GNU TLS is requested)
+AC_ARG_ENABLE(gnutls, AC_HELP_STRING([--enable-gnutls], [Enable protection with SSL/TLS using GNU TLS]), gnutls=yes)
+if test x-$gnutls = "x-yes" ; then
+    AC_MSG_RESULT(yes)
+    AM_PATH_LIBGNUTLS()
+    CPPFLAGS="$CPPFLAGS $LIBGNUTLS_CFLAGS"
+    LDFLAGS="$LDFLAGS $LIBGNUTLS_LIBS"
+    AC_DEFINE(HAVE_GNUTLS,,[SSL/TLS with GNU TLS requested])
+else
+    AC_MSG_RESULT(no)
 
 dnl no GNU TLS? check for OpenSSL
     AC_MSG_CHECKING(if OpenSSL is requested)
@@ -288,7 +287,7 @@ dnl no GNU TLS? check for OpenSSL
 	fi
     fi
     AC_SUBST(HAVE_SSL)
-dnl fi
+fi
 
 dnl check for libidn
 AC_ARG_WITH(libidn, AC_HELP_STRING([--with-libidn=DIR],

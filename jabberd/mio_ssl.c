@@ -256,10 +256,7 @@ static void _mio_ssl_cleanup(void *arg) {
 /**
  * read data from a socket, that is TLS protected
  *
- * If this function returns with an error (return value -1) it might be, that the OpenSSL
- * library just needs to read more data or needs to be able to write data first.
- * This is indicated using the flags m->flags.recall_read_when_readable and m->flags.recall_read_when_writeable.
- * These two flags are updated by this function.
+ * The m->flags.recall_read_when_readable and m->flags.recall_read_when_writeable is updated by this function.
  *
  * @param m the ::mio where data might be available
  * @param buf where to write the written data to
@@ -311,10 +308,7 @@ ssize_t _mio_ssl_read(mio m, void *buf, size_t count) {
 /**
  * write data to a socket, that is TLS protected
  *
- * If this function returns with an error (return value -1) it might be, that the OpenSSL
- * library just needs to read more data or needs to be able to write data first.
- * This is indicated using the flags m->flags.recall_write_when_readable and m->flags.recall_write_when_writeable.
- * These two flags are updated by this function.
+ * The m->flags.recall_write_when_readable and m->flags.recall_write_when_writeable is updated by this function.
  *
  * @param m the ::mio where writing is possible
  * @param buf data that should be written
