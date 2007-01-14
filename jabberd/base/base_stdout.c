@@ -127,7 +127,7 @@ static void *base_stdoutin(void *arg) {
     /* send the header to stdout */
     x = xstream_header(NULL,NULL);
     block = xstream_header_char(x, 0);
-    MIO_WRITE_FUNC(STDOUT_FILENO,block,strlen(block));
+    pth_write(STDOUT_FILENO,block,strlen(block));
     xmlnode_free(x);
 
     /* start xstream and event for reading packets from stdin */
@@ -151,7 +151,7 @@ static void *base_stdoutin(void *arg) {
         /* handle reading the incoming stream */
         if (pth_event_occurred(eread)) {
             log_debug2(ZONE, LOGT_IO, "stdin read event");
-            len = MIO_READ_FUNC(STDIN_FILENO, buff, 1024);
+            len = pth_read(STDIN_FILENO, buff, 1024);
             if (len <= 0)
 		break;
 
@@ -169,7 +169,7 @@ static void *base_stdoutin(void *arg) {
 
             /* write packet phase */
             block = xmlnode_serialize_string(p->x, NULL, NULL, 0);
-            if (MIO_WRITE_FUNC(STDOUT_FILENO, block, strlen(block)) <= 0)
+            if (pth_write(STDOUT_FILENO, block, strlen(block)) <= 0)
                 break;
 
             /* all sent, yay */

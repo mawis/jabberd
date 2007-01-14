@@ -261,7 +261,7 @@ static result _karma_heartbeat(void*arg) {
 	    /* Karma is enabled for this connection */
             int was_negative = 0;
             /* don't update if we are closing, or pre-initilized */
-            if (cur->state == state_CLOSE || cur->k.init == 0) 
+            if (cur->state == state_CLOSE) 
                 continue;
      
             /* if we are being punished, set the flag */
@@ -337,47 +337,45 @@ static void _mio_link(mio m) {
  * @return -1 on error, 0 on success, and 1 if more data to write
  */
 int _mio_write_dump(mio m) {
-    int len;
-    mio_wbq cur;
+    int len = 0;
+    mio_wbq cur = NULL;
 
     /* try to write as much as we can */
-    while(m->queue != NULL) {
+    while (m->queue != NULL) {
         cur = m->queue;
 
         log_debug2(ZONE, LOGT_IO, "write_dump writing data: %.*s", cur->len, cur->cur);
 
-        /* write a bit from the current buffer */
-        len = (*m->mh->write)(m, cur->cur, cur->len);
-	log_debug2(ZONE, LOGT_BYTES, "OUT (%i of %i, fd#%i): %.*s", len, cur->len, m->fd, len, cur->cur);
-        /* we had an error on the write */
-        if (len == 0) {
-            if (m->cb != NULL)
-                (*(mio_std_cb)m->cb)(m, MIO_ERROR, m->cb_arg);
-            return -1;
-        }
-        if (len < 0) { 
-            /* if we have an error, that isn't a blocking issue */ 
-            if (!m->flags.recall_write_when_readable && !m->flags.recall_write_when_writeable) { 
-                /* bounce the queue */
-                if(m->cb != NULL)
-                    (*(mio_std_cb)m->cb)(m, MIO_ERROR, m->cb_arg);
-                return -1;
-            }
-            return 1;
-        } else if (len < cur->len) { 
-	    /* we didnt' write it all, move the current buffer up */
-            cur->cur += len;
-            cur->len -= len;
-            return 1;
-        } else {  
-	    /* we wrote the entire node, kill it and move on */
-            m->queue = m->queue->next;
+	/* try to write a queue item */
+	len = (*m->mh->write)(m, cur->cur, cur->len);
+	log_debug2(ZONE, LOGT_BYTES, "written %i of %i B on socket %i: %.*s", len, cur->len, m->fd, len, cur->cur);
 
-            if (m->queue == NULL)
-                m->tail = NULL;
+	/* error? */
+	if (len < 0) {
+	    /* bounce the queue */
+	    if (m->cb != NULL) {
+		(*(mio_std_cb)m->cb)(m, MIO_ERROR, m->cb_arg);
+	    }
+	    return -1;
+	}
 
-            pool_free(cur->p);
-        }
+	/* just nothing could be written? */
+	if (len == 0) {
+	    return 1;
+	}
+
+	/* not everything written? */
+	if (len < cur->len) {
+	    cur->cur += len;
+	    cur->len -= len;
+	    return 1;
+	}
+
+	/* we could write the entire node, kill it and try to write another */
+	m->queue = m->queue->next;
+	if (m->queue == NULL)
+	    m->tail = NULL;
+	pool_free(cur->p);
     } 
     return 0;
 }
@@ -808,51 +806,77 @@ static void _mio_process_broadcast(int bcast) {
  * read data from a socket
  *
  * @param m the ::mio to read from
- * @param all_rfds the set for file descriptors we are trying to read on (gets modified)
  */
-static void _mio_read_from_socket(mio m, fd_set *all_rfds) {
+static void _mio_read_from_socket(mio m) {
     char buf[8192]; /* max socket read buffer */
+    size_t maxlen = 0;
+    ssize_t len = 0;
 
     do {
-	size_t maxlen = KARMA_READ_MAX(m->k.val);
-	ssize_t len = 0;
+	maxlen = KARMA_READ_MAX(m->k.val);
 
 	/* do not read more than the buffer is big */
 	if (maxlen > sizeof(buf)-1)
 	    maxlen = sizeof(buf)-1;
 
+	/* read from the socket */
 	len = (*(m->mh->read))(m, buf, maxlen);
 	log_debug2(ZONE, LOGT_BYTES, "IN (%i of max %i, fd#%i): %.*s", len, maxlen, m->fd, len, buf);
 
-	/* if we had a bad read */
-	if (len == 0 && maxlen > 0) { 
+	/* error? no more data to read? */
+	if (len < 0) {
+	    /* error or socket close */
 	    mio_close(m);
 	    return;
-	} else if (len < 0) {
-	    if (!m->flags.recall_read_when_readable && !m->flags.recall_read_when_writeable) {
-		/* kill this socket and move on */
-		mio_close(m);
-		return;
-	    }
-	    log_debug2(ZONE, LOGT_IO, "read returned negative, but not closing: errno=%i, m->flags.recall_read_when_readable=%i, ...writeable=%i", errno, m->flags.recall_read_when_readable, m->flags.recall_read_when_writeable);
-	} else {
-	    if (m->k.dec != 0) {
-		/* karma is enabled */
-		karma_decrement(&m->k, len);
-		/* Check if that socket ran out of karma */
-		if (m->k.val <= 0) {
-		    /* ran out of karma */
-		    log_notice("MIO_XML_READ", "socket from %s is out of karma: traffic exceeds karma limits defined in jabberd configuration", m->peer_ip);
-		    FD_CLR(m->fd, all_rfds); /* this fd is being punished */
-		}
-	    }
-
-	    buf[len] = '\0';
-
-	    log_debug2(ZONE, LOGT_IO, "MIO read from socket %d: %s", m->fd, buf);
-	    (*m->mh->parser)(m, buf, len);
+	} else if (len == 0) {
+	    /* no more data to read (but connection still there) */
+	    return;
 	}
-    } while (m->flags.tls_reread);
+
+	/* we have received data, update karma */
+	if (m->k.dec != 0) {
+	    /* karma is enabled */
+	    karma_decrement(&m->k, len);
+	}
+
+	/* terminate buffer with 0 byte - and print dump when in debug mode */
+	buf[len] = '\0';
+	log_debug2(ZONE, LOGT_IO, "read on socket %d: %.*s", m->fd, len, buf);
+
+	/* pass on the data we read */
+	(*m->mh->parser)(m, buf, len);
+
+    } while (len == maxlen);
+}
+
+/**
+ * helper function for _mio_loop_process_a_socket, that recalls the handshake function
+ *
+ * @param m mio on which the handshake function should be recalled
+ */
+static void _mio_do_handshake(mio m) {
+    int handshake_ret = 0;
+
+    /* sanity checks */
+    if (m == NULL) {
+	return;
+    }
+    if (m->mh == NULL || m->mh->handshake == NULL) {
+	m->flags.recall_handshake_when_readable = 0;
+	m->flags.recall_handshake_when_writeable = 0;
+	return;
+    }
+
+    /* recall the handshake function */
+    handshake_ret = m->mh->handshake(m);
+    if (handshake_ret < 0) {
+	mio_close(m);
+    }
+
+    /* handshake finished now? */
+    if (!m->flags.recall_handshake_when_readable && !m->flags.recall_handshake_when_writeable) {
+	log_debug2(ZONE, LOGT_IO, "handshake for socket %i has finished", m->fd);
+    }
 }
 
 /**
@@ -868,13 +892,11 @@ static void _mio_read_from_socket(mio m, fd_set *all_rfds) {
  *
  * @param cur the mio that should be processed
  * @param maxfd the maximum file descriptor (gets updated by this function)
- * @param all_rfds (gets updated by this function)
- * @param all_wfds (gets updated by this function)
- * @param rfds (gets updated by this function)
- * @param wfds (gets updated by this function)
+ * @param rfds sockets that had read events
+ * @param wfds sockets that had write events
  * @param select_retval the return value of the last pth_select() call
  */
-static void _mio_loop_process_a_socket(mio m, int *maxfd, fd_set *all_rfds, fd_set *rfds, fd_set *wfds, int select_retval) {
+static void _mio_loop_process_a_socket(mio m, int *maxfd, fd_set *rfds, fd_set *wfds, int select_retval) {
 
     log_debug2(ZONE, LOGT_IO, "processing mio %X (state %i)", m, m->state);
 
@@ -882,90 +904,121 @@ static void _mio_loop_process_a_socket(mio m, int *maxfd, fd_set *all_rfds, fd_s
     if (m->fd > *maxfd)
 	*maxfd = m->fd;
 
-    /* Karma handling:
-     * if the sock is not in the read set, and has good karma and we got a non read event,
-     * or if we need to initialize this socket */
-    if (m->k.init == 0 || (!FD_ISSET(m->fd, all_rfds) && m->k.val >= 0) ) {
-	if (m->k.init == 0) {
-	    /* set to intialized */
-	    m->k.init = 1;
-	    log_debug2(ZONE, LOGT_IO, "socket %d has been intialized with starting karma %d ", m->fd, m->k.val);
-	} else {
-	    /* reset the karma to restore val */
-	    log_debug2(ZONE, LOGT_IO, "socket %d has restore karma %d byte meter %d", m->fd, m->k.val, m->k.bytes);
-	}
-	/* and make sure that they are in the read set */
-	FD_SET(m->fd, all_rfds);
-    }
-
     /* pause while the rest of jabberd catches up */
     pth_yield(NULL);
 
-    if(select_retval == -1) {
-	/* we can't check anything else, and be XP on all platforms here.. */
+    /* we cannot continue processing this socket, if pth_select() failed */
+    if (select_retval == -1) {
 	return;
     }
 
-    /* handshake needs to be continued? */
-    if (m->type != type_LISTEN && m->mh->handshake && (m->flags.recall_handshake_when_readable || m->flags.recall_handshake_when_writeable)) {
-	log_debug2(ZONE, LOGT_IO, "continuing handshake on mio %X, state is %i, session is %X", m, m->state, m->ssl);
-	if ((FD_ISSET(m->fd, rfds) && m->flags.recall_handshake_when_readable) || (FD_ISSET(m->fd, wfds) && m->flags.recall_handshake_when_writeable)) {
-	    int handshake_ret = 0;
-	    
-	    handshake_ret = m->mh->handshake(m);
-	    log_debug2(ZONE, LOGT_IO, "handshake result is %i, ...readable=%i, ...writeable=%i", handshake_ret, m->flags.recall_handshake_when_readable, m->flags.recall_handshake_when_writeable);
-	    if (handshake_ret < 0) {
-		mio_close(m);
-	    }
-	}
-
-	/* we do not continue processing this socket, if the handshake did not finish or the socket gets closed anyway */
-	if (m->state == state_CLOSE || m->flags.recall_handshake_when_readable || m->flags.recall_handshake_when_writeable) {
-	    return;
-	}
-
-	log_debug2(ZONE, LOGT_IO, "... handshake seems to have finished ...");
-    }
-
-    /* if this socket needs to be read from */
-    if (FD_ISSET(m->fd, rfds) || FD_ISSET(m->fd, wfds) && m->flags.recall_read_when_writeable) {
-	/* new connection */
-	if (m->type == type_LISTEN) {
+    /* listening sockets are a bit different, we only check for new connections */
+    if (m->type == type_LISTEN) {
+	if (FD_ISSET(m->fd, rfds)) {
 	    mio accepted_m = _mio_accept(m);
 
 	    log_debug2(ZONE, LOGT_IO, "Accepted socket on MIO object %X, fd %i", accepted_m, accepted_m != NULL ? accepted_m->fd : -1);
 
 	    if(accepted_m != NULL) {
-		FD_SET(accepted_m->fd, all_rfds);
 		if(accepted_m->fd > *maxfd)
 		    *maxfd=accepted_m->fd;
 	    }
+	}
+	return;
+    }
 
-	    /* done accepting the socket (or it failed), further processing of the new socket using its own mio object */
+    /* handle recall-flags */
+    if (m->flags.recall_write_when_writeable) {
+	int write_return = 0;
+
+	if (!FD_ISSET(m->fd, wfds)) {
+	    log_debug2(ZONE, LOGT_IO, "socket %i waits to become writeable again ...", m->fd);
 	    return;
 	}
 
-	/* current connection, read from it */
-	log_debug2(ZONE, LOGT_IO, "Calling read on MIO object %X, fd %i", m, m->fd);
-	_mio_read_from_socket(m, all_rfds);
-    } 
+	/* re-call write */
+	write_return = _mio_write_dump(m);
+	if (write_return < 0) {
+	    mio_close(m);
+	}
+	return;
+    }
+    if (m->flags.recall_write_when_readable) {
+	int write_return = 0;
 
-    /* we could have gotten a bad read or parse, and want to close - no writing then */
+	if (!FD_ISSET(m->fd, rfds)) {
+	    log_debug2(ZONE, LOGT_IO, "socket %i waits to become readable again for being able to write ...", m->fd);
+	    return;
+	}
+
+	/* re-call write */
+	write_return = _mio_write_dump(m);
+	if (write_return < 0) {
+	    mio_close(m);
+	}
+	return;
+    }
+    if (m->flags.recall_read_when_writeable) {
+	if (!FD_ISSET(m->fd, wfds)) {
+	    log_debug2(ZONE, LOGT_IO, "socket %i waits to become writeable again for being able to read ...", m->fd);
+	    return;
+	}
+
+	/* re-call read */
+	_mio_read_from_socket(m);
+	return;
+    }
+    if (m->flags.recall_read_when_readable) {
+	if (!FD_ISSET(m->fd, rfds)) {
+	    log_debug2(ZONE, LOGT_IO, "socket %i waits to become readable again ...", m->fd);
+	    return;
+	}
+
+	/* re-call read */
+	_mio_read_from_socket(m);
+	return;
+    }
+    if (m->flags.recall_handshake_when_writeable) {
+	if (!FD_ISSET(m->fd, wfds)) {
+	    log_debug2(ZONE, LOGT_IO, "socket %i waits to become writeable again for being able to handshake ...", m->fd);
+	    return;
+	}
+
+	/* re-call handshake */
+	_mio_do_handshake(m);
+	return;
+    }
+    if (m->flags.recall_handshake_when_readable) {
+	if (!FD_ISSET(m->fd, rfds)) {
+	    log_debug2(ZONE, LOGT_IO, "socket %i waits to become readable again for being able to handshake ...", m->fd);
+	    return;
+	}
+
+	/* re-call handshake */
+	_mio_do_handshake(m);
+	return;
+    }
+
+    /* no outstanding recalls */
+
+    /* anything to read? */
+    if (FD_ISSET(m->fd, rfds)) {
+	log_debug2(ZONE, LOGT_IO, "Trying to read on socket %i", m->fd);
+	_mio_read_from_socket(m);
+    }
+
+    /* closed in the meantime? */
     if (m->state == state_CLOSE) {
 	return;
     }
 
-    /* if we need to write to this socket */
-    if((FD_ISSET(m->fd, wfds) || m->queue != NULL) || FD_ISSET(m->fd, rfds) && m->flags.recall_write_when_readable) {   
-	int ret;
+    /* try to write */
+    if (FD_ISSET(m->fd, wfds)) {
+	int write_return = 0;
+	write_return = _mio_write_dump(m);
 
-	/* write the current buffer */
-	ret = _mio_write_dump(m);
-
-	/* if an error occured */
-	if(ret == -1) {
+	if (write_return < 0) {
 	    mio_close(m);
-	    return;
 	}
     }
 }
@@ -976,10 +1029,8 @@ static void _mio_loop_process_a_socket(mio m, int *maxfd, fd_set *all_rfds, fd_s
  * @param arg unused/ignored
  */
 static void _mio_main(void *arg) {
-    fd_set      wfds,       /* fd set for current writes (the result of pth_select() to see where we can write) */
-                rfds,       /* fd set for current reads (the result of pth_select() to see where we can read) */
-                all_wfds,   /* fd set for all writes (where we want to check for write to be possible, what we give as copy to pth_select() */
-                all_rfds;   /* fd set for all reads (where we want to check for readable data, what we give as copy to pth_select() */
+    fd_set      wfds;       /* fd set containing fds that should be checked for/had a write event */
+    fd_set      rfds;       /* fd set containing fds that should be checked for/had a write event */
     mio         cur = NULL,
 		next = NULL;
     char        buf[8192]; /* max socket read buffer      */
@@ -997,9 +1048,8 @@ static void _mio_main(void *arg) {
 
     /* init the socket junk */
     maxfd = mio__data->zzz[0];
-    FD_ZERO(&all_wfds);
-    FD_ZERO(&all_rfds);
 
+    /* XXX: remove this again - nobody uses it! */
     /* the optional local broadcast receiver */
     if (xmlnode_get_list_item(xmlnode_get_tags(greymatter__, "io/announce", namespaces), 0) != NULL) {
         bcast = make_netsocket(j_atoi(xmlnode_get_attrib_ns(xmlnode_get_list_item(xmlnode_get_tags(greymatter__, "io/announce", namespaces), 0), "port", NULL), 5222), NULL, NETSOCKET_UDP);
@@ -1013,15 +1063,24 @@ static void _mio_main(void *arg) {
 
     /* loop forever -- will only exit when mio__data->master__list is NULL and mio__data->shutdown is 1*/
     while (1) {
-	/* make copys of the fd_sets because pth_select() will modify the arguments */
-        rfds = all_rfds;
-        wfds = all_wfds;
-
         log_debug2(ZONE, LOGT_EXECFLOW, "mio while loop top");
 
         /* if we are closing down, exit the loop */
         if (mio__data->shutdown == 1 && mio__data->master__list == NULL)
             break;
+
+	/* init the sockets we want to check */
+	FD_ZERO(&wfds);
+	FD_ZERO(&rfds);
+        for (cur = mio__data->master__list; cur != NULL; cur = cur->next) {
+	    /* check if we want to get write events for this socket */
+            if (cur->queue != NULL || cur->flags.recall_write_when_writeable || cur->flags.recall_read_when_writeable || cur->flags.recall_handshake_when_writeable)
+		FD_SET(cur->fd, &wfds);
+
+	    /* check if we want to get read events for this socket */
+	    if (cur->k.val > 0 || cur->flags.recall_write_when_readable || cur->flags.recall_read_when_readable || cur->flags.recall_handshake_when_readable)
+		FD_SET(cur->fd, &rfds);
+	}
 
         /* wait for a socket event */
         FD_SET(mio__data->zzz[0],&rfds); /* include our wakeup socket */
@@ -1033,7 +1092,7 @@ static void _mio_main(void *arg) {
         log_debug2(ZONE, LOGT_EXECFLOW, "mio while loop, working");
 
         /* reset maxfd, in case it changes (more updates in _mio_loop_process_a_socket() is it's updated when pth_select is called again) */
-        maxfd=mio__data->zzz[0];
+        maxfd=mio__data->zzz[0];		/* XXX: this does not honor the bcast socket! */
 
         /* check our zzz */
         if (FD_ISSET(mio__data->zzz[0],&rfds)) {
@@ -1052,25 +1111,12 @@ static void _mio_main(void *arg) {
 	    next = cur->next;		/* a mio might get deleted inside _mio_loop_process_a_socket() so that we cannot access cur afterwards! */
 	    /* if the mio socket is not closed, process it */
 	    if (cur->state != state_CLOSE) {
-		_mio_loop_process_a_socket(cur, &maxfd, &all_rfds, &rfds, &wfds, retval);
+		_mio_loop_process_a_socket(cur, &maxfd, &rfds, &wfds, retval);
 	    }
 	    /* if the mio socket is closed, close it on the socket layer */
 	    if (cur->state == state_CLOSE) {
-		FD_CLR(cur->fd, &all_rfds);
-		FD_CLR(cur->fd, &all_wfds);
 		_mio_close(cur);
 	    }
-	}
-
-	/* XXX
-	 * we are updating the all_wfds set once for an interation
-	 * this might be a performance hit and could be improved
-	 */
-        for (cur = mio__data->master__list; cur != NULL; cur = cur->next) {
-            if (cur->queue != NULL || cur->flags.recall_write_when_writeable || cur->flags.recall_read_when_writeable || cur->flags.recall_handshake_when_writeable)
-		FD_SET(cur->fd, &all_wfds);
-            else
-		FD_CLR(cur->fd, &all_wfds);
 	}
     }
 }

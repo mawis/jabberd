@@ -54,7 +54,7 @@ xht ssl__ctxs = NULL;		/**< hash containing OpenSSL contexts */
 /**
  * This function will generate a temporary key for us
  */
-RSA *_ssl_tmp_rsa_cb(SSL *ssl, int export, int keylength) {
+static RSA *_ssl_tmp_rsa_cb(SSL *ssl, int export, int keylength) {
     RSA *rsa_tmp = NULL;
 
     rsa_tmp = RSA_generate_key(keylength, RSA_F4, NULL, NULL);
@@ -246,7 +246,7 @@ void mio_ssl_init(xmlnode x) {
         
 }
 
-void _mio_ssl_cleanup(void *arg) {
+static void _mio_ssl_cleanup(void *arg) {
     SSL *ssl = (SSL *)arg;
 
     log_debug2(ZONE, LOGT_CLEANUP, "TLS cleanup for %x", ssl);
@@ -264,55 +264,48 @@ void _mio_ssl_cleanup(void *arg) {
  * @param m the ::mio where data might be available
  * @param buf where to write the written data to
  * @param count how many bytes should be read at most
- * @return 0 = end of file on socket, -1 = error reading, positive = number of bytes read on the socket
+ * @return 0 < ret < count: ret bytes read and no more bytes to read; ret = count: ret bytes read, possibly more bytes to read; ret = 0: currently nothing to read; ret < 0: non-recoverable error or connection closed
  */
 ssize_t _mio_ssl_read(mio m, void *buf, size_t count) {
-    SSL *ssl;
-    ssize_t ret;
-    int sret;
+    ssize_t read_return = 0;
+    int ssl_error = 0;
 
-    ssl = m->ssl;
-    
-    if(count <= 0)
-        return 0;
+    /* sanity checks */
+    if (m == NULL || buf == NULL || count == 0) {
+	return count == 0 ? 0 : -1;
+    }
 
-    log_debug2(ZONE, LOGT_IO, "Asked to read %d bytes from %d", count, m->fd);
-
-    /* we are rereading, gets set again if neccessary */
-    m->flags.tls_reread = 0;
-
-    /* we are recalling, reset the flags - if neccessary, they are set again later */
-    m->flags.recall_read_when_readable = 0;
+    /* reset recall-flags */
     m->flags.recall_read_when_writeable = 0;
+    m->flags.recall_read_when_readable = 0;
 
-    /* try to read data from the OpenSSL library */
-    ret = SSL_read(ssl, (char *)buf, count);
+    log_debug2(ZONE, LOGT_IO, "Trying to read %d B from TLS protected socket %d", count, m->fd);
 
-    /* if we read as much as possible, there might be more */
-    if (ret == count) {
-	m->flags.tls_reread = 1;
-        log_debug2(ZONE, LOGT_IO, "OpenSSL asked to reread from %d", m->fd);
+    /* try to read from the socket */
+    read_return = SSL_read(m->ssl, (char*)buf, count);
+
+    /* have we read any data? */
+    if (read_return > 0) {
+	return read_return;
     }
 
-    if (ret < 0) {
-	int ssl_error;
-
-	ssl_error = SSL_get_error(ssl, ret);
-	switch (ssl_error) {
-	    case SSL_ERROR_WANT_READ:
-		/* we have to recall SSL_read() as OpenSSL could not read enough data */
-		m->flags.recall_read_when_readable = 1;
-		return -1;
-	    case SSL_ERROR_WANT_WRITE:
-		/* we have to recall SSL_read() as OpenSSL could not write all data */
-		m->flags.recall_read_when_writeable = 1;
-		return -1;
-	}
-    } else if (ret > 0) {
-	log_debug2(ZONE, LOGT_IO, "Read from TLS socket: %.*s", ret, buf);
+    /* connection closed? */
+    if (read_return == 0) {
+	return -1;
     }
 
-    return ret;
+    /* if we got an error, maybe just no data available? */
+    ssl_error = SSL_get_error(m->ssl, read_return);
+    if (ssl_error == SSL_ERROR_WANT_READ) {
+	m->flags.recall_read_when_readable = 1;
+	return 0;
+    }
+    if (ssl_error == SSL_ERROR_WANT_WRITE) {
+	m->flags.recall_read_when_writeable = 1;
+	return 0;
+    }
+
+    return -1;
 }
 
 /**
@@ -326,37 +319,46 @@ ssize_t _mio_ssl_read(mio m, void *buf, size_t count) {
  * @param m the ::mio where writing is possible
  * @param buf data that should be written
  * @param count how many bytes should be written at most
- * @return 0 = end of file on socket, -1 = error writing, positive = number of bytes written on the socket
+ * @param ret > 0: ret bytes written; ret == 0: no bytes could be written; ret < 0: non-recoverable error or connection closed
  */
 ssize_t _mio_ssl_write(mio m, const void *buf, size_t count) {
-    int ret;
-    SSL *ssl;
-    ssl = m->ssl;
-   
-    log_debug2(ZONE, LOGT_IO, "writing to TLS socket: %.*s", count, buf);
+    ssize_t write_return = 0;
+    int ssl_error = 0;
 
-    /* we are recalling write, reset flags - they get set again if neccessary */
-    m->flags.recall_write_when_readable = 0;
-    m->flags.recall_write_when_writeable = 0;
-
-    /* try to write data to the OpenSSL library */
-    ret = SSL_write(ssl, buf, count);
-
-    if (ret < 0) {
-	int ssl_error;
-
-	ssl_error = SSL_get_error(ssl, ret);
-	switch (ssl_error) {
-	    case SSL_ERROR_WANT_READ:
-		m->flags.recall_write_when_readable = 1;
-		return -1;
-	    case SSL_ERROR_WANT_WRITE:
-		m->flags.recall_write_when_writeable = 1;
-		return -1;
-	}
+    /* sanity checks */
+    if (m == NULL || buf == NULL || count == 0) {
+	return count == 0 ? 0 : -1;
     }
 
-    return ret;
+    /* reset recall-flags */
+    m->flags.recall_write_when_writeable = 0;
+    m->flags.recall_write_when_readable = 0;
+
+    /* try to write something */
+    write_return = SSL_write(m->ssl, buf, count);
+
+    /* have we written anything? */
+    if (write_return > 0) {
+	return write_return;
+    }
+
+    /* connection closed? */
+    if (write_return == 0) {
+	return -1;
+    }
+
+    /* just nothing could we written without blocking? */
+    ssl_error = SSL_get_error(m->ssl, write_return);
+    if (ssl_error == SSL_ERROR_WANT_READ) {
+	m->flags.recall_write_when_readable = 1;
+	return 0;
+    }
+    if (ssl_error == SSL_ERROR_WANT_WRITE) {
+	m->flags.recall_write_when_writeable = 1;
+	return 0;
+    }
+
+    return -1;
 }
 
 /**

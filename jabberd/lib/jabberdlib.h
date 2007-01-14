@@ -651,7 +651,6 @@ int jlimit_check(jlimit r, char *key, int points);
 #define KARMA_RESETMETER 0 /* Reset byte meter on restore default is falst */
 
 struct karma {
-    int init; /**< 0: not yet initialized, 1: struct has been initialized */
     int reset_meter; /* reset the byte meter on restore */
     int val; /* current karma value */
     long bytes; /* total bytes read (in that time period) */
