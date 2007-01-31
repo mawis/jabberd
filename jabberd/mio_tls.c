@@ -461,10 +461,34 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 
 	/* for the first certificate we have special checks */
 	if (crt_index == 0) {
-	    /* XXX: check for subjectAltName/id-on-xmppAddr first */
-	    /* XXX: only verify subject for domain-only JIDs */
+	    int ext_count = 0;
+	    /* verify id-on-xmppAddr */
+	    do {
+		unsigned char subjectAltName[1024];
+		size_t subjectAltName_size = sizeof(subjectAltName);
+		int is_critical = 0;
 
-	    /* verify the subject */
+		ret = gnutls_x509_crt_get_extension_by_oid(cert, "2.5.29.17", ext_count, subjectAltName, &subjectAltName_size, &is_critical);
+		if (ret < 0 && ret != GNUTLS_E_REQUESTED_DATA_NOT_AVAILABLE) {
+		    log_warn(id_on_xmppAddr, "error requesting %i-th subjectAltName: %s", ext_count, gnutls_strerror(ret));
+		}
+		if (ret >= 0) {
+		    char subjectAltName_string[1024] = "";
+		    int pointer = 0;
+
+		    /* XXX verify id-on-xmppAddr */
+
+		    for (pointer = 0; pointer < 511 && pointer < subjectAltName_size; pointer++) {
+			snprintf(subjectAltName_string + 2*pointer, 3, "%02x", (int)subjectAltName[pointer]);
+		    }
+
+		    log_notice(id_on_xmppAddr, "got %i-th subjectAltName: ret=%i, subjectAltName_size=%i: %s", ext_count, ret, subjectAltName_size, subjectAltName_string);
+		}
+
+		ext_count++;
+	    } while (ret >= 0);
+
+	    /* verify the dNSName and subject */
 	    if (!gnutls_x509_crt_check_hostname(cert, id_on_xmppAddr)) {
 		log_notice(id_on_xmppAddr, "Certificate subject does not match.");
 		verification_result = 0;
