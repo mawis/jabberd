@@ -1,3 +1,10 @@
+2007-01-30  Matthias Wimmer  <m@tthias.eu>
+
+    * jabberd/lib/xmlnode.c: pre-C99-compatibility
+    * jabberd/mio_tls.c: working on id-on-xmppAddr support, but waiting for
+    solution in GnuTLS (see my mails on their mailing list)
+    * jabberd/lib/pool.c: more information when doing pool debugging
+
 2007-01-14  Matthias Wimmer  <m@tthias.eu>
 
     * jabberd/jabberd.h: cleaned interface to the mio read/write handlers
