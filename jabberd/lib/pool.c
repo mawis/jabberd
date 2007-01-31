@@ -435,16 +435,33 @@ void pool_cleanup(pool p, pool_cleaner f, void *arg)
 }
 
 #ifdef POOL_DEBUG
+
+typedef struct pool_debug_info_st {
+    int full;			/* full report? 0 = no, 1 = yes */
+    size_t used_memory;		/* used to sum up the amount of used memory */
+    size_t biggest_pool;	/* size of the biggest memory pool */
+    unsigned int count;		/* number of memory pools */
+} *pool_debug_info, _pool_debug_info;
+
 void debug_log(char *zone, const char *msgfmt, ...);
+void log_notice(const char *host, const char *msgfmt, ...);
+
 void _pool_stat(xht h, const char *key, void *data, void *arg)
 {
     pool p = (pool)data;
+    pool_debug_info debug_info = (pool_debug_info)arg;
+
+    debug_info->count++;
+    debug_info->used_memory += p->size;
+    if (p->size > debug_info->biggest_pool) {
+	debug_info->biggest_pool = p->size;
+    }
 
     if(p->lsize == -1)
         debug_log("pool_debug","%s: %s is a new pool",p->zone, p->name);
     else if(p->size > p->lsize)
         debug_log("pool_debug","%s: %s grew %d",p->zone, p->name, p->size - p->lsize);
-    else if((int)arg)
+    else if(debug_info->full)
         debug_log("pool_debug","%s: %s exists %d",p->zone,p->name, p->size);
     p->lsize = p->size;
 }
@@ -456,13 +473,21 @@ void _pool_stat(xht h, const char *key, void *data, void *arg)
  */
 void pool_stat(int full)
 {
+    _pool_debug_info debug_data;
+    debug_data.full = full;
+    debug_data.used_memory = 0;
+    debug_data.biggest_pool = 0;
+    debug_data.count = 0;
+
     if (pool__disturbed == NULL || pool__disturbed == (xht)1)
 	return;
     
-    xhash_walk(pool__disturbed,_pool_stat,(void *)full);
+    xhash_walk(pool__disturbed, _pool_stat, &debug_data);
     if(pool__total != pool__ltotal)
         debug_log("pool_debug","%d\ttotal missed mallocs",pool__total);
     pool__ltotal = pool__total;
+
+    log_notice("pool_debug", "Used memory by pools: %i / biggest pool: %i / number of pools: %i", debug_data.used_memory, debug_data.biggest_pool, debug_data.count);
 
     return;
 }

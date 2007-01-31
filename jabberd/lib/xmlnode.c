@@ -1576,6 +1576,7 @@ void xmlnode_hide_attrib_ns(xmlnode parent, const char *name, const char *ns_iri
  * @return pointer to the created string (uses the same memory ::pool as the xmlnode), or NULL if it was unsuccessfull
  */
 char *xmlnode2str(xmlnode node) {
+    spool s = NULL;
     ns_list_item first = NULL;
     ns_list_item last = NULL;
 
@@ -1583,7 +1584,7 @@ char *xmlnode2str(xmlnode node) {
     xmlnode_update_decl_list(xmlnode_pool(node), &first, &last, NULL, NS_SERVER);
     xmlnode_update_decl_list(xmlnode_pool(node), &first, &last, "stream", NS_STREAM);
     
-    spool s = spool_new(xmlnode_pool(node));
+    s = spool_new(xmlnode_pool(node));
     _xmlnode_serialize(s, node, first, last, 0);
     return spool_print(s);
 }
@@ -1616,11 +1617,13 @@ char *xmlnode2str(xmlnode node) {
  * @return serialized XML tree
  */
 char *xmlnode_serialize_string(xmlnode node, ns_list_item nslist_first, ns_list_item nslist_last, int stream_type) {
+    spool s = NULL;
+
     /* sanity check */
     if (node == NULL)
 	return NULL;
 
-    spool s = spool_new(xmlnode_pool(node));
+    s = spool_new(xmlnode_pool(node));
     _xmlnode_serialize(s, node, nslist_first, nslist_last, stream_type);
     return spool_print(s);
 }
