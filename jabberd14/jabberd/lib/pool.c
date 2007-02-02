@@ -473,11 +473,16 @@ void _pool_stat(xht h, const char *key, void *data, void *arg)
  */
 void pool_stat(int full)
 {
+    static char own_pid[16] = "";
     _pool_debug_info debug_data;
     debug_data.full = full;
     debug_data.used_memory = 0;
     debug_data.biggest_pool = 0;
     debug_data.count = 0;
+
+    if (own_pid[0] == '\0') {
+	snprintf(own_pid, sizeof(own_pid), "%i pool_debug", getpid());
+    }
 
     if (pool__disturbed == NULL || pool__disturbed == (xht)1)
 	return;
@@ -487,7 +492,7 @@ void pool_stat(int full)
         debug_log("pool_debug","%d\ttotal missed mallocs",pool__total);
     pool__ltotal = pool__total;
 
-    log_notice("pool_debug", "Used memory by pools: %i / biggest pool: %i / number of pools: %i", debug_data.used_memory, debug_data.biggest_pool, debug_data.count);
+    log_notice(own_pid, "Used memory by pools: %i / biggest pool: %i / number of pools: %i", debug_data.used_memory, debug_data.biggest_pool, debug_data.count);
 
     return;
 }
