@@ -95,6 +95,8 @@ typedef struct {
 
 jabberd_struct jabberd = { NULL, NULL, 0, NULL };		/**< global data for the jabberd */
 
+extern "C" void xmlnode_stat();
+
 /**
  * the entry point to jabberd
  *
@@ -349,6 +351,7 @@ int main (int argc, const char** argv) {
         log_debug2(ZONE, LOGT_STATUS, "main load check of %.2f with %ld total threads", avload, pth_ctrl(PTH_CTRL_GETTHREADS));
 #ifdef POOL_DEBUG
 	pool_stat(0);
+	xmlnode_stat();
 #endif
 #ifdef LIBIDN
 	jid_clean_cache();

@@ -45,6 +45,14 @@
  */
 
 #include <jabberdlib.h>
+#include <map>
+#include <list>
+
+extern "C" {
+
+#ifdef POOL_DEBUG
+    std::map<pool, std::list< xmlnode > > existing_xmlnodes;
+#endif
 
 /* Internal routines */
 
@@ -61,13 +69,13 @@
 static xmlnode _xmlnode_new(pool p, const char* name, const char *prefix, const char *ns_iri, unsigned int type) {
     xmlnode result = NULL;
     if (type > NTYPE_LAST)
-        return NULL;
+	return NULL;
 
     if (type != NTYPE_CDATA && name == NULL)
-        return NULL;
+	return NULL;
 
     if (p == NULL) {
-        p = pool_heap(1*1024);
+	p = pool_heap(1*1024);
     }
 
     /* Allocate & zero memory */
@@ -75,7 +83,7 @@ static xmlnode _xmlnode_new(pool p, const char* name, const char *prefix, const 
 
     /* Initialize fields */
     if (type != NTYPE_CDATA) {
-        result->name   = pstrdup(p, name);
+	result->name   = pstrdup(p, name);
 	result->prefix = pstrdup(p, prefix);
 	result->ns_iri = pstrdup(p, ns_iri);
     }
@@ -101,9 +109,9 @@ static xmlnode _xmlnode_append_sibling(xmlnode lastsibling, const char* name, co
 
     result = _xmlnode_new(xmlnode_pool(lastsibling), name, prefix, ns_iri, type);
     if (result != NULL) {
-        /* Setup sibling pointers */
-        result->prev = lastsibling;
-        lastsibling->next = result;
+	/* Setup sibling pointers */
+	result->prev = lastsibling;
+	lastsibling->next = result;
     }
     return result;
 }
@@ -128,11 +136,11 @@ static xmlnode _xmlnode_insert(xmlnode parent, const char* name, const char *pre
 
     /* If parent->firstchild is NULL, simply create a new node for the first child */
     if (parent->firstchild == NULL) {
-        result = _xmlnode_new(parent->p, name, prefix, ns_iri, type);
-        parent->firstchild = result;
+	result = _xmlnode_new(parent->p, name, prefix, ns_iri, type);
+	parent->firstchild = result;
     } else {
 	/* Otherwise, append this to the lastchild */
-        result= _xmlnode_append_sibling(parent->lastchild, name, prefix, ns_iri, type);
+	result= _xmlnode_append_sibling(parent->lastchild, name, prefix, ns_iri, type);
     }
     result->parent = parent;
     parent->lastchild = result;
@@ -176,22 +184,22 @@ static void _xmlnode_merge(xmlnode data) {
     /* get total size of all merged cdata */
     imerge = 0;
     for (cur = data; cur != NULL && cur->type == NTYPE_CDATA; cur = cur->next)
-        imerge += cur->data_sz;
+	imerge += cur->data_sz;
 
     /* copy in current data and then spin through all of them and merge */
-    scur = merge = pmalloc(data->p,imerge + 1);
+    scur = merge = static_cast<char*>(pmalloc(data->p,imerge + 1));
     for (cur = data; cur != NULL && cur->type == NTYPE_CDATA; cur = cur->next) {
-        memcpy(scur,cur->data,cur->data_sz);
-        scur += cur->data_sz;
+	memcpy(scur,cur->data,cur->data_sz);
+	scur += cur->data_sz;
     }
     *scur = '\0';
 
     /* this effectively hides all of the merged-in chunks */
     data->next = cur;
     if (cur == NULL)
-        data->parent->lastchild = data;
+	data->parent->lastchild = data;
     else
-        cur->prev = data;
+	cur->prev = data;
 
     /* reset data */
     data->data = merge;
@@ -205,12 +213,12 @@ static void _xmlnode_merge(xmlnode data) {
  */
 static void _xmlnode_hide_sibling(xmlnode child) {
     if (child == NULL)
-        return;
+	return;
 
     if (child->prev != NULL)
-        child->prev->next = child->next;
+	child->prev->next = child->next;
     if (child->next != NULL)
-        child->next->prev = child->prev;
+	child->next->prev = child->prev;
 }
 
 /**
@@ -519,7 +527,7 @@ static void _xmlnode_append_if_predicate(xmlnode_list_item *result_first, xmlnod
 	} else {
 	    attrib_name[0] = 0;
 	    attrib_name++;
-	    attrib_ns_iri = xhash_get(namespaces, predicate);
+	    attrib_ns_iri = static_cast<char*>(xhash_get(namespaces, predicate));
 	}
 
 	/* iterate over the namespace attributes */
@@ -555,7 +563,7 @@ static void _xmlnode_append_if_predicate(xmlnode_list_item *result_first, xmlnod
 
     /* if no next_step, than add the node to the list and return */
     if (next_step == NULL) {
-	xmlnode_list_item result_item = pmalloco(xmlnode_pool(node), sizeof(_xmlnode_list_item));
+	xmlnode_list_item result_item = static_cast<xmlnode_list_item>(pmalloco(xmlnode_pool(node), sizeof(_xmlnode_list_item)));
 	result_item->node = node;
 
 	/* first item in list? */
@@ -577,7 +585,7 @@ static void _xmlnode_append_if_predicate(xmlnode_list_item *result_first, xmlnod
 
     /* did we get a result we have to add? */
     while (sub_result != NULL) {
-	xmlnode_list_item result_item = pmalloco(xmlnode_pool(node), sizeof(_xmlnode_list_item));
+	xmlnode_list_item result_item = static_cast<xmlnode_list_item>(pmalloco(xmlnode_pool(node), sizeof(_xmlnode_list_item)));
 	result_item->node = sub_result->node;
 
 	/* first item in list? */
@@ -634,6 +642,16 @@ xmlnode xmlnode_new_tag_ns(const char* name, const char* prefix, const char* ns_
     return xmlnode_new_tag_pool_ns(pool_heap(1*1024), name, prefix, ns_iri);
 }
 
+#ifdef POOL_DEBUG
+/**
+ * function that gets called if a pool containing xmlnodes is deleted
+ */
+static void xmlnode_pool_deleted(void *pl) {
+    pool p = static_cast<pool>(pl);
+
+    existing_xmlnodes.erase(p);
+}
+#endif
 
 /**
  * create a tag node within given pool
@@ -653,25 +671,30 @@ xmlnode xmlnode_new_tag_pool(pool p, const char* name) {
     const char *ns_iri = NS_SERVER;
 
     if (name == NULL)
-        return NULL;
+	return NULL;
 
     local_name = strchr(name, ':');
     if (local_name == NULL)
-        local_name = name;
+	local_name = name;
     else
-        local_name++;
+	local_name++;
 
     if (local_name > name) {
-        prefix = pmalloco(p, local_name-name);
-        snprintf(prefix, local_name-name, "%s", name);
+	prefix = static_cast<char*>(pmalloco(p, local_name-name));
+	snprintf(prefix, local_name-name, "%s", name);
 
-        if (j_strcmp(prefix, "db") == 0)
-            ns_iri = NS_DIALBACK;
-        else if (j_strcmp(prefix, "stream") == 0)
-            ns_iri = NS_STREAM;
+	if (j_strcmp(prefix, "db") == 0)
+	    ns_iri = NS_DIALBACK;
+	else if (j_strcmp(prefix, "stream") == 0)
+	    ns_iri = NS_STREAM;
     }
 
     result = _xmlnode_new(p, local_name, prefix, ns_iri, NTYPE_TAG);
+
+#ifdef POOL_DEBUG
+    existing_xmlnodes[p].push_back(result);
+    pool_cleanup(p, xmlnode_pool_deleted, p);
+#endif
 
     return result;
 }
@@ -702,6 +725,11 @@ xmlnode xmlnode_new_tag_pool_ns(pool p, const char* name, const char* prefix, co
 	xmlnode_put_attrib_ns(result, prefix, "xmlns", NS_XMLNS, ns_iri);
     }
 
+#ifdef POOL_DEBUG
+    existing_xmlnodes[p].push_back(result);
+    pool_cleanup(p, xmlnode_pool_deleted, p);
+#endif
+
     return result;
 }
 
@@ -730,7 +758,7 @@ xmlnode xmlnode_insert_tag(xmlnode parent, const char* name) {
 
     result = _xmlnode_insert(parent, local_name, NULL, parent->ns_iri, NTYPE_TAG);
     if (result != NULL && local_name > name) {
-	result->prefix = pmalloco(xmlnode_pool(result), local_name-name);
+	result->prefix = static_cast<char*>(pmalloco(xmlnode_pool(result), local_name-name));
 	snprintf(result->prefix, local_name-name, "%s", name);
     }
     
@@ -781,17 +809,17 @@ xmlnode xmlnode_insert_cdata(xmlnode parent, const char* CDATA, unsigned int siz
     xmlnode result;
 
     if (CDATA == NULL || parent == NULL)
-        return NULL;
+	return NULL;
 
     if (size == -1)
-        size = strlen(CDATA);
+	size = strlen(CDATA);
 
     result = _xmlnode_insert(parent, NULL, NULL, NULL, NTYPE_CDATA);
     if (result != NULL) {
-        result->data = (char*)pmalloc(result->p, size + 1);
-        memcpy(result->data, CDATA, size);
-        result->data[size] = '\0';
-        result->data_sz = size;
+	result->data = (char*)pmalloc(result->p, size + 1);
+	memcpy(result->data, CDATA, size);
+	result->data[size] = '\0';
+	result->data_sz = size;
     }
 
     return result;
@@ -815,7 +843,7 @@ xmlnode xmlnode_get_tag(xmlnode parent, const char* name) {
 	return NULL;
 
     if (strstr(name, "/") == NULL && strstr(name,"?") == NULL && strstr(name, "=") == NULL)
-        return _xmlnode_search(parent->firstchild, name, NULL, NTYPE_TAG);
+	return _xmlnode_search(parent->firstchild, name, NULL, NTYPE_TAG);
 
     str = strdup(name);
     slash = strstr(str, "/");
@@ -825,57 +853,57 @@ xmlnode xmlnode_get_tag(xmlnode parent, const char* name) {
     if (equals != NULL && (slash == NULL || equals < slash) && (qmark == NULL || equals < qmark)) {
 	/* of type =cdata */
 
-        *equals = '\0';
-        equals++;
+	*equals = '\0';
+	equals++;
 
-        for (step = parent->firstchild; step != NULL; step = xmlnode_get_nextsibling(step)) {
-            if (xmlnode_get_type(step) != NTYPE_TAG)
-                continue;
+	for (step = parent->firstchild; step != NULL; step = xmlnode_get_nextsibling(step)) {
+	    if (xmlnode_get_type(step) != NTYPE_TAG)
+		continue;
 
-            if (*str != '\0')
-                if(j_strcmp(xmlnode_get_name(step),str) != 0)
-                    continue;
+	    if (*str != '\0')
+		if(j_strcmp(xmlnode_get_name(step),str) != 0)
+		    continue;
 
-            if (j_strcmp(xmlnode_get_data(step),equals) != 0)
-                continue;
+	    if (j_strcmp(xmlnode_get_data(step),equals) != 0)
+		continue;
 
-            break;
-        }
+	    break;
+	}
 
-        free(str);
-        return step;
+	free(str);
+	return step;
     }
 
 
     if (qmark != NULL && (slash == NULL || qmark < slash)) {
 	/* of type ?attrib */
 
-        *qmark = '\0';
-        qmark++;
-        if (equals != NULL) {
-            *equals = '\0';
-            equals++;
-        }
+	*qmark = '\0';
+	qmark++;
+	if (equals != NULL) {
+	    *equals = '\0';
+	    equals++;
+	}
 
-        for (step = parent->firstchild; step != NULL; step = xmlnode_get_nextsibling(step)) {
-            if (xmlnode_get_type(step) != NTYPE_TAG)
-                continue;
+	for (step = parent->firstchild; step != NULL; step = xmlnode_get_nextsibling(step)) {
+	    if (xmlnode_get_type(step) != NTYPE_TAG)
+		continue;
 
-            if (*str != '\0')
-                if (j_strcmp(xmlnode_get_name(step),str) != 0)
-                    continue;
+	    if (*str != '\0')
+		if (j_strcmp(xmlnode_get_name(step),str) != 0)
+		    continue;
 
-            if (xmlnode_get_attrib(step,qmark) == NULL)
-                continue;
+	    if (xmlnode_get_attrib(step,qmark) == NULL)
+		continue;
 
-            if (equals != NULL && j_strcmp(xmlnode_get_attrib(step,qmark),equals) != 0)
-                continue;
+	    if (equals != NULL && j_strcmp(xmlnode_get_attrib(step,qmark),equals) != 0)
+		continue;
 
-            break;
-        }
+	    break;
+	}
 
-        free(str);
-        return step;
+	free(str);
+	return step;
     }
 
 
@@ -883,17 +911,17 @@ xmlnode xmlnode_get_tag(xmlnode parent, const char* name) {
     ++slash;
 
     for (step = parent->firstchild; step != NULL; step = xmlnode_get_nextsibling(step)) {
-        if (xmlnode_get_type(step) != NTYPE_TAG)
+	if (xmlnode_get_type(step) != NTYPE_TAG)
 	    continue;
 
-        if (j_strcmp(xmlnode_get_name(step),str) != 0)
-            continue;
+	if (j_strcmp(xmlnode_get_name(step),str) != 0)
+	    continue;
 
-        ret = xmlnode_get_tag(step, slash);
-        if (ret != NULL) {
-            free(str);
-            return ret;
-        }
+	ret = xmlnode_get_tag(step, slash);
+	if (ret != NULL) {
+	    free(str);
+	    return ret;
+	}
     }
 
     free(str);
@@ -955,7 +983,7 @@ xmlnode_list_item xmlnode_get_tags(xmlnode context_node, const char *path, xht n
     if (start_predicate == NULL && next_step == NULL) {
 	this_step = pstrdup(xmlnode_pool(context_node), path);
     } else if (start_predicate == NULL || start_predicate > next_step && next_step != NULL) {
-	this_step = pmalloco(xmlnode_pool(context_node), next_step - path + 1);
+	this_step = static_cast<char*>(pmalloco(xmlnode_pool(context_node), next_step - path + 1));
 	snprintf(this_step, next_step - path + 1, "%s", path);
 	if (next_step != NULL)
 	    next_step++;
@@ -974,9 +1002,9 @@ xmlnode_list_item xmlnode_get_tags(xmlnode context_node, const char *path, xht n
 		next_step++;
 	}
 	
-	predicate = pmalloco(xmlnode_pool(context_node), end_predicate - start_predicate);
+	predicate = static_cast<char*>(pmalloco(xmlnode_pool(context_node), end_predicate - start_predicate));
 	snprintf(predicate, end_predicate - start_predicate, "%s", start_predicate+1);
-	this_step = pmalloco(xmlnode_pool(context_node), start_predicate - path + 1);
+	this_step = static_cast<char*>(pmalloco(xmlnode_pool(context_node), start_predicate - path + 1));
 	snprintf(this_step, start_predicate - path + 1, "%s", path);
     }
 
@@ -984,23 +1012,23 @@ xmlnode_list_item xmlnode_get_tags(xmlnode context_node, const char *path, xht n
     end_prefix = strchr(this_step, ':');
     if (end_prefix == NULL) {
 	/* default prefix (or NULL if axis is attribute::) */
-	ns_iri = axis == 2 ? NULL : xhash_get(namespaces, "");
+	ns_iri = axis == 2 ? NULL : static_cast<const char*>(xhash_get(namespaces, ""));
     } else {
 	/* prefixed name */
 	*end_prefix = 0;
-	ns_iri = xhash_get(namespaces, this_step);
+	ns_iri = static_cast<const char*>(xhash_get(namespaces, this_step));
 	this_step = end_prefix+1;
     }
 
     /* iterate over all child nodes, checking if this step matches them */
     for (
 	    iter = axis == 0 ? xmlnode_get_firstchild(context_node) :
-	    	axis == 1 ? xmlnode_get_parent(context_node) :
+		axis == 1 ? xmlnode_get_parent(context_node) :
 		axis == 2 ? xmlnode_get_firstattrib(context_node) :
 		NULL;
 	    iter != NULL;
 	    iter = axis == 0 ? xmlnode_get_nextsibling(iter) :
-	    	axis == 1 ? NULL :
+		axis == 1 ? NULL :
 		axis == 2 ? xmlnode_get_nextsibling(iter) :
 		NULL) {
 
@@ -1192,15 +1220,15 @@ void xmlnode_put_attrib_ns(xmlnode owner, const char *name, const char *prefix, 
     /* If there are no existing attributs, allocate a new one to start
     the list */
     if (owner->firstattrib == NULL) {
-        attrib = _xmlnode_new(owner->p, name, prefix, ns_iri, NTYPE_ATTRIB);
-        owner->firstattrib = attrib;
-        owner->lastattrib  = attrib;
+	attrib = _xmlnode_new(owner->p, name, prefix, ns_iri, NTYPE_ATTRIB);
+	owner->firstattrib = attrib;
+	owner->lastattrib  = attrib;
     } else {
-        attrib = _xmlnode_search(owner->firstattrib, name, ns_iri, NTYPE_ATTRIB);
-        if (attrib == NULL) {
-            attrib = _xmlnode_append_sibling(owner->lastattrib, name, prefix, ns_iri, NTYPE_ATTRIB);
-            owner->lastattrib = attrib;
-        } else {
+	attrib = _xmlnode_search(owner->firstattrib, name, ns_iri, NTYPE_ATTRIB);
+	if (attrib == NULL) {
+	    attrib = _xmlnode_append_sibling(owner->lastattrib, name, prefix, ns_iri, NTYPE_ATTRIB);
+	    owner->lastattrib = attrib;
+	} else {
 	}
     }
     /* Update the value of the attribute */
@@ -1238,9 +1266,9 @@ char* xmlnode_get_attrib_ns(xmlnode owner, const char* name, const char *ns_iri)
     xmlnode attrib;
 
     if (owner != NULL && owner->firstattrib != NULL) {
-        attrib = _xmlnode_search(owner->firstattrib, name, ns_iri, NTYPE_ATTRIB);
-        if (attrib != NULL)
-            return (char*)attrib->data;
+	attrib = _xmlnode_search(owner->firstattrib, name, ns_iri, NTYPE_ATTRIB);
+	if (attrib != NULL)
+	    return (char*)attrib->data;
     }
     return NULL;
 }
@@ -1258,13 +1286,13 @@ void xmlnode_put_vattrib(xmlnode owner, const char* name, void *value) {
     xmlnode attrib;
 
     if (owner != NULL) {
-        attrib = _xmlnode_search(owner->firstattrib, name, NULL, NTYPE_ATTRIB);
-        if (attrib == NULL) {
-            xmlnode_put_attrib_ns(owner, name, NULL, NULL, "");
-            attrib = _xmlnode_search(owner->firstattrib, name, NULL, NTYPE_ATTRIB);
-        }
-        if (attrib != NULL)
-            attrib->firstchild = (xmlnode)value;
+	attrib = _xmlnode_search(owner->firstattrib, name, NULL, NTYPE_ATTRIB);
+	if (attrib == NULL) {
+	    xmlnode_put_attrib_ns(owner, name, NULL, NULL, "");
+	    attrib = _xmlnode_search(owner->firstattrib, name, NULL, NTYPE_ATTRIB);
+	}
+	if (attrib != NULL)
+	    attrib->firstchild = (xmlnode)value;
     }
 }
 
@@ -1281,9 +1309,9 @@ void* xmlnode_get_vattrib(xmlnode owner, const char* name) {
     xmlnode attrib;
 
     if (owner != NULL && owner->firstattrib != NULL) {
-        attrib = _xmlnode_search(owner->firstattrib, name, NULL, NTYPE_ATTRIB);
-        if (attrib != NULL)
-            return (void*)attrib->firstchild;
+	attrib = _xmlnode_search(owner->firstattrib, name, NULL, NTYPE_ATTRIB);
+	if (attrib != NULL)
+	    return (void*)attrib->firstchild;
     }
     return NULL;
 }
@@ -1298,7 +1326,7 @@ void* xmlnode_get_vattrib(xmlnode owner, const char* name) {
  */
 xmlnode xmlnode_get_firstattrib(xmlnode parent) {
     if (parent != NULL)
-        return parent->firstattrib;
+	return parent->firstattrib;
     return NULL;
 }
 
@@ -1312,7 +1340,7 @@ xmlnode xmlnode_get_firstattrib(xmlnode parent) {
  */
 xmlnode xmlnode_get_firstchild(xmlnode parent) {
     if (parent != NULL)
-        return parent->firstchild;
+	return parent->firstchild;
     return NULL;
 }
 
@@ -1326,7 +1354,7 @@ xmlnode xmlnode_get_firstchild(xmlnode parent) {
  */
 xmlnode xmlnode_get_lastchild(xmlnode parent) {
     if (parent != NULL)
-        return parent->lastchild;
+	return parent->lastchild;
     return NULL;
 }
 
@@ -1340,7 +1368,7 @@ xmlnode xmlnode_get_lastchild(xmlnode parent) {
  */
 xmlnode xmlnode_get_nextsibling(xmlnode sibling) {
     if (sibling != NULL)
-        return sibling->next;
+	return sibling->next;
     return NULL;
 }
 
@@ -1354,7 +1382,7 @@ xmlnode xmlnode_get_nextsibling(xmlnode sibling) {
  */
 xmlnode xmlnode_get_prevsibling(xmlnode sibling) {
     if (sibling != NULL)
-        return sibling->prev;
+	return sibling->prev;
     return NULL;
 }
 
@@ -1366,7 +1394,7 @@ xmlnode xmlnode_get_prevsibling(xmlnode sibling) {
  */
 xmlnode xmlnode_get_parent(xmlnode node) {
     if (node != NULL)
-        return node->parent;
+	return node->parent;
     return NULL;
 }
 
@@ -1438,8 +1466,8 @@ const char* xmlnode_get_nsprefix(xmlnode node) {
  */
 char* xmlnode_get_data(xmlnode node) {
     if (xmlnode_get_type(node) == NTYPE_TAG) /* loop till we find a CDATA in the children */
-        for (node = xmlnode_get_firstchild(node); node != NULL; node = xmlnode_get_nextsibling(node))
-            if (xmlnode_get_type(node) == NTYPE_CDATA)
+	for (node = xmlnode_get_firstchild(node); node != NULL; node = xmlnode_get_nextsibling(node))
+	    if (xmlnode_get_type(node) == NTYPE_CDATA)
 		break;
 
     if (node == NULL)
@@ -1447,7 +1475,7 @@ char* xmlnode_get_data(xmlnode node) {
 
     /* check for a dirty node w/ unassembled cdata chunks */
     if (xmlnode_get_type(node->next) == NTYPE_CDATA)
-        _xmlnode_merge(node);
+	_xmlnode_merge(node);
 
     return node->data;
 }
@@ -1460,7 +1488,7 @@ char* xmlnode_get_data(xmlnode node) {
  */
 int xmlnode_get_type(xmlnode node) {
     if (node != NULL)
-        return node->type;
+	return node->type;
     return NTYPE_UNDEF;
 }
 
@@ -1472,7 +1500,7 @@ int xmlnode_get_type(xmlnode node) {
  */
 int xmlnode_has_children(xmlnode node) {
     if ((node != NULL) && (node->firstchild != NULL))
-        return 1;
+	return 1;
     return 0;
 }
 
@@ -1484,7 +1512,7 @@ int xmlnode_has_children(xmlnode node) {
  */
 pool xmlnode_pool(xmlnode node) {
     if (node != NULL)
-        return node->p;
+	return node->p;
     return (pool)NULL;
 }
 
@@ -1499,7 +1527,7 @@ void xmlnode_hide(xmlnode child) {
     xmlnode parent;
 
     if (child == NULL || child->parent == NULL)
-        return;
+	return;
 
     parent = child->parent;
 
@@ -1547,20 +1575,20 @@ void xmlnode_hide_attrib_ns(xmlnode parent, const char *name, const char *ns_iri
     xmlnode attrib;
 
     if (parent == NULL || parent->firstattrib == NULL || name == NULL)
-        return;
+	return;
 
     attrib = _xmlnode_search(parent->firstattrib, name, ns_iri, NTYPE_ATTRIB);
     if (attrib == NULL)
-        return;
+	return;
 
     /* first fix up at the child level */
     _xmlnode_hide_sibling(attrib);
 
     /* next fix up at the parent level */
     if (parent->firstattrib == attrib)
-        parent->firstattrib = attrib->next;
+	parent->firstattrib = attrib->next;
     if (parent->lastattrib == attrib)
-        parent->lastattrib = attrib->prev;
+	parent->lastattrib = attrib->prev;
 }
 
 /**
@@ -1643,9 +1671,9 @@ xmlnode xmlnode_insert_tag_node(xmlnode parent, xmlnode node) {
 
     child = xmlnode_insert_tag_ns(parent, node->name, node->prefix, node->ns_iri);
     if (_xmlnode_has_attribs(node))
-        xmlnode_insert_node(child, xmlnode_get_firstattrib(node));
+	xmlnode_insert_node(child, xmlnode_get_firstattrib(node));
     if (xmlnode_has_children(node))
-        xmlnode_insert_node(child, xmlnode_get_firstchild(node));
+	xmlnode_insert_node(child, xmlnode_get_firstchild(node));
 
     return child;
 }
@@ -1658,10 +1686,10 @@ xmlnode xmlnode_insert_tag_node(xmlnode parent, xmlnode node) {
  */
 void xmlnode_insert_node(xmlnode parent, xmlnode node) {
     if (node == NULL || parent == NULL)
-        return;
+	return;
 
     while (node != NULL) {
-        switch (xmlnode_get_type(node)) {
+	switch (xmlnode_get_type(node)) {
 	    case NTYPE_ATTRIB:
 		xmlnode_put_attrib_ns(parent, node->name, node->prefix, node->ns_iri, xmlnode_get_data(node));
 		break;
@@ -1670,8 +1698,8 @@ void xmlnode_insert_node(xmlnode parent, xmlnode node) {
 		break;
 	    case NTYPE_CDATA:
 		xmlnode_insert_cdata(parent, xmlnode_get_data(node), _xmlnode_get_datasz(node));
-        }
-        node = xmlnode_get_nextsibling(node);
+	}
+	node = xmlnode_get_nextsibling(node);
     }
 }
 
@@ -1688,14 +1716,14 @@ xmlnode xmlnode_dup(xmlnode x) {
     xmlnode x2;
 
     if (x == NULL)
-        return NULL;
+	return NULL;
 
     x2 = xmlnode_new_tag_ns(x->name, x->prefix, x->ns_iri);
 
     if (_xmlnode_has_attribs(x))
-        xmlnode_insert_node(x2, xmlnode_get_firstattrib(x));
+	xmlnode_insert_node(x2, xmlnode_get_firstattrib(x));
     if (xmlnode_has_children(x))
-        xmlnode_insert_node(x2, xmlnode_get_firstchild(x));
+	xmlnode_insert_node(x2, xmlnode_get_firstchild(x));
 
     return x2;
 }
@@ -1713,14 +1741,14 @@ xmlnode xmlnode_dup_pool(pool p, xmlnode x) {
     xmlnode x2;
 
     if(x == NULL)
-        return NULL;
+	return NULL;
 
     x2 = xmlnode_new_tag_pool_ns(p, x->name, x->prefix, x->ns_iri);
 
     if (_xmlnode_has_attribs(x))
-        xmlnode_insert_node(x2, xmlnode_get_firstattrib(x));
+	xmlnode_insert_node(x2, xmlnode_get_firstattrib(x));
     if (xmlnode_has_children(x))
-        xmlnode_insert_node(x2, xmlnode_get_firstchild(x));
+	xmlnode_insert_node(x2, xmlnode_get_firstchild(x));
 
     return x2;
 }
@@ -1753,7 +1781,7 @@ xmlnode xmlnode_wrap(xmlnode x, const char *wrapper) {
     result = xmlnode_wrap_ns(x, local_name, NULL, NS_SERVER);
 
     if (local_name > wrapper) {
-	result->prefix = pmalloco(result->p, local_name-wrapper);
+	result->prefix = static_cast<char*>(pmalloco(result->p, local_name-wrapper));
 	snprintf(result->prefix, local_name-wrapper, "%s", wrapper);
     }
 
@@ -1803,7 +1831,7 @@ xmlnode xmlnode_wrap_ns(xmlnode x, const char *name, const char *prefix, const c
  */
 void xmlnode_free(xmlnode node) {
     if(node == NULL)
-        return;
+	return;
 
     pool_free(node->p);
 }
@@ -1831,7 +1859,7 @@ void xmlnode_update_decl_list(pool p, ns_list_item *first_item_ptr, ns_list_item
 	ns_iri = NS_SERVER;
 
     /* create the new item */
-    new_item = pmalloco(p, sizeof(_ns_list_item));
+    new_item = static_cast<ns_list_item>(pmalloco(p, sizeof(_ns_list_item)));
     new_item->prefix = pstrdup(p, prefix);
     new_item->ns_iri = pstrdup(p, ns_iri);
 
@@ -1865,7 +1893,7 @@ void xmlnode_copy_decl_list(pool p, ns_list_item first, ns_list_item *copy_first
 
     /* copy the items */
     for (iter = first; iter != NULL; iter = iter->next) {
-    	xmlnode_update_decl_list(p, copy_first, copy_last, iter->prefix, iter->ns_iri);
+	xmlnode_update_decl_list(p, copy_first, copy_last, iter->prefix, iter->ns_iri);
     }
 }
 
@@ -2114,4 +2142,49 @@ xmlnode xmlnode_select_by_lang(xmlnode_list_item nodes, const char* lang) {
 
     /* no match by language, either return node without language (prefered), or first node */
     return first_without_lang != NULL ? first_without_lang : nodes->node;
+}
+
+#ifdef POOL_DEBUG
+void log_notice(const char *host, const char *msgfmt, ...);
+
+void xmlnode_stat() {
+    static char own_pid[16] = "";
+    unsigned int number_of_pools = 0;
+    unsigned int number_of_xmlnodes = 0;
+
+    size_t biggest_pool = 0;
+    unsigned int number_of_xmlnodes_in_biggest_pool = 0;
+
+    if (own_pid[0] == '\0') {
+	snprintf(own_pid, sizeof(own_pid), "%i xmlnode_debug", getpid());
+    }
+
+    std::map<pool, std::list< xmlnode > >::const_iterator p;
+    for (p = existing_xmlnodes.begin(); p != existing_xmlnodes.end(); ++p) {
+	number_of_pools++;
+	number_of_xmlnodes += p->second.size();
+
+	if (pool_size(p->first) > biggest_pool) {
+	    biggest_pool = pool_size(p->first);
+	    number_of_xmlnodes_in_biggest_pool = p->second.size();
+	}
+    }
+
+    log_notice(own_pid, "%i xmlnodes in %i pools / biggest used pool: %i, xmlnodes in this pool: %i", number_of_xmlnodes, number_of_pools, biggest_pool, number_of_xmlnodes_in_biggest_pool);
+
+    for (p = existing_xmlnodes.begin(); p != existing_xmlnodes.end(); ++p) {
+	if (pool_size(p->first) == biggest_pool) {
+	    std::list< xmlnode >::const_iterator p2;
+
+	    for (p2 = p->second.begin(); p2 != p->second.end(); ++p2) {
+		log_notice(own_pid, "root element: %s in namespace %s", xmlnode_get_localname(*p2), xmlnode_get_namespace(*p2));
+	    }
+	}
+    }
+}
+#else
+void xmlnode_stat() {
+}
+#endif
+
 }
