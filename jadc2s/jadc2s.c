@@ -59,9 +59,11 @@ static sasl_callback_t sasl_callbacks[] = {
  * callback for cyrus sasl, that stringpres XMPP user ids
  */
 static int _sasl_canon_user(sasl_conn_t *conn, void *context, const char *in, unsigned inlen, unsigned flags, const char *user_realm, char *out, unsigned out_max, unsigned *out_len) {
+    int has_at = 0;
     c2s_t c2s = (c2s_t)context;
     jid user_jid = NULL;
     pool local_pool = NULL;
+    const char* result = NULL;
 
     /* sanity check */
     if (c2s == NULL) {
@@ -69,26 +71,40 @@ static int _sasl_canon_user(sasl_conn_t *conn, void *context, const char *in, un
 	return SASL_FAIL;
     }
 
+    log_debug(ZONE, "_sasl_canon_user for %s", in);
+
+    has_at = (in != NULL && strchr(in, '@') == NULL) ? 0 : 1;
+
     /* stringprep the ID */
     local_pool = pool_new();
-    user_jid = jid_new(local_pool, c2s->jid_environment, user_realm);
-    jid_set(user_jid, in, JID_USER);
+    if (has_at) {
+	user_jid = jid_new(local_pool, c2s->jid_environment, in);
+    } else {
+	user_jid = jid_new(local_pool, c2s->jid_environment, user_realm);
+	jid_set(user_jid, in, JID_USER);
+    }
     if (user_jid->user == NULL) {
 	pool_free(local_pool);
 	return SASL_BADPROT;
     }
 
+    /* prepare the result */
+    result = has_at ? jid_full(user_jid) : user_jid->user;
+
     /* enough memory? */
-    if (j_strlen(user_jid->user) >= out_max) {
+    if (j_strlen(result) >= out_max) {
 	pool_free(local_pool);
 	return SASL_BUFOVER;
     }
 
     /* copy to the output buffer */
-    snprintf(out, out_max, "%s", user_jid->user);
-    *out_len = j_strlen(user_jid->user);
+    snprintf(out, out_max, "%s", result);
+    *out_len = j_strlen(result);
     pool_free(local_pool);
     user_jid = NULL;
+    result = NULL;
+
+    log_debug(ZONE, "result: %s", out);
 
     return SASL_OK;
 }
