@@ -45,11 +45,19 @@
 
 #include "jabberd.h"
 #ifdef HAVE_GNUTLS
+#include <libtasn1.h>
+
+extern const ASN1_ARRAY_TYPE subjectAltName_asn1_tab[];
 
 /**
  * the TLS credentials
  */
 gnutls_certificate_credentials_t mio_tls_x509_cred = NULL;
+
+/**
+ * tree of ASN1 structures
+ */
+ASN1_TYPE mio_tls_asn1_tree = ASN1_TYPE_EMPTY;
 
 /**
  * initialize the mio SSL/TLS module using the GNU TLS library
@@ -72,6 +80,15 @@ void mio_ssl_init(xmlnode x) {
     if (ret != 0) {
 	log_error(ZONE, "Error initializing GNU TLS library: %s", gnutls_strerror(ret));
 	/* XXX what to do now? */
+    }
+
+    /* load asn1 tree to be used by libtasn1 */
+    ret = asn1_array2tree(subjectAltName_asn1_tab, &mio_tls_asn1_tree, NULL);
+    if (ret != ASN1_SUCCESS) {
+	log_error(ZONE, "Error preparing the libtasn1 library: %s", libtasn1_strerror(ret));
+	/* XXX what to do now? */
+
+	/* XXX we have to delete the structure on shutdown using asn1_delete_structure(&mio_tls_asn1_tree) */
     }
 
     /* load certificates and such ... */
@@ -388,6 +405,45 @@ int mio_ssl_starttls(mio m, int originator, const char* identity) {
 }
 
 /**
+ * check if two domains are matching
+ *
+ * Used to check if a domain in a x509 certificate matches an expected domain name
+ *
+ * @todo take care of punycode encoded domains in the certificate
+ *
+ * @todo wildcard matching
+ *
+ * @param p memory pool, that can be used for the comparison
+ * @param cert_dom the domain out of a x509 domain, may contain wildcards as in RFC2818
+ * @param true_dom the expected domain (may NOT contain wildcards)
+ * @return 0 if the domains are matching, non-zero else
+ */
+static int mio_tls_cert_match(pool p, const char *cert_dom, const char *true_dom) {
+    /* sanity check */
+    if (p == NULL || cert_dom == NULL || true_dom == NULL) {
+	return 1;
+    }
+
+    /* does cert_dom contain wildcards? */
+    if (strchr(cert_dom, '*') == NULL) {
+	/* no wildcards */
+
+	/* make it a JID to get the domains stringpreped */
+	jid jid_cert = jid_new(p, cert_dom);
+	jid jid_true = jid_new(p, true_dom);
+
+	/* compare */
+	return jid_cmp(jid_cert, jid_true);
+    } else {
+	/* there are wildcards, match domain name fragment by fragment */
+
+	/* XXX: to be implemented - asume no match for now */
+	return 1;
+    }
+}
+
+
+/**
  * verify the SSL/TLS certificate of the peer for the given MIO connection
  *
  * @param m the connection for which the peer should be verified
@@ -459,40 +515,242 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 	    break;
 	}
 
-	/* for the first certificate we have special checks */
+	/* for the first certificate we have to check the subjectAltNames */
 	if (crt_index == 0) {
 	    int ext_count = 0;
-	    /* verify id-on-xmppAddr */
+	    int found_matching_subjectAltName = 0;
+	    int found_any_subjectAltName = 0;
+	    int may_match_dNSName = 1;
+
+	    log_debug2(ZONE, LOGT_AUTH, "verifying first certificate in chain ...");
+
+	    /* only pure domains may be matched against dNSName */
+	    if (id_on_xmppAddr == NULL || strchr(id_on_xmppAddr, '@') != NULL || strchr(id_on_xmppAddr, '/') != NULL) {
+		may_match_dNSName = 0;
+	    }
+
+	    /* verify id-on-xmppAddr and dNSName */
 	    do {
-		unsigned char subjectAltName[1024];
+		unsigned char subjectAltName[2048];
 		size_t subjectAltName_size = sizeof(subjectAltName);
 		int is_critical = 0;
 
 		ret = gnutls_x509_crt_get_extension_by_oid(cert, "2.5.29.17", ext_count, subjectAltName, &subjectAltName_size, &is_critical);
-		if (ret < 0 && ret != GNUTLS_E_REQUESTED_DATA_NOT_AVAILABLE) {
-		    log_warn(id_on_xmppAddr, "error requesting %i-th subjectAltName: %s", ext_count, gnutls_strerror(ret));
-		}
-		if (ret >= 0) {
-		    char subjectAltName_string[1024] = "";
-		    int pointer = 0;
+		if (ret < 0) {
+		    if (ret == GNUTLS_E_REQUESTED_DATA_NOT_AVAILABLE) {
+			log_debug2(ZONE, LOGT_AUTH, "no more subjectAltName extensions (%i)", ext_count);
+		    } else {
+			log_warn(id_on_xmppAddr, "error requesting %i-th subjectAltName: %s", ext_count, gnutls_strerror(ret));
+		    }
+		} else {
+		    ASN1_TYPE subjectAltName_element = ASN1_TYPE_EMPTY;
+		    int cnt = 0;
 
-		    /* XXX verify id-on-xmppAddr */
+		    log_debug2(ZONE, LOGT_AUTH, "got a%s subjectAltName extension", is_critical ? " critical" : "");
 
-		    for (pointer = 0; pointer < 511 && pointer < subjectAltName_size; pointer++) {
-			snprintf(subjectAltName_string + 2*pointer, 3, "%02x", (int)subjectAltName[pointer]);
+		    /* we got a subjectAltName */
+		    found_any_subjectAltName = 1;
+
+		    /* init subjectAltName_element */
+		    ret = asn1_create_element(mio_tls_asn1_tree, "PKIX1.SubjectAltName", &subjectAltName_element);
+		    if (ret != ASN1_SUCCESS) {
+			log_warn(id_on_xmppAddr, "error creating asn1 element for PKIX1.SubjectAltName: %s", libtasn1_strerror(ret));
+			break;
 		    }
 
-		    log_notice(id_on_xmppAddr, "got %i-th subjectAltName: ret=%i, subjectAltName_size=%i: %s", ext_count, ret, subjectAltName_size, subjectAltName_string);
+		    /* decode the extension */
+		    ret = asn1_der_decoding(&subjectAltName_element, subjectAltName, subjectAltName_size, NULL);
+		    if (ret != ASN1_SUCCESS) {
+			log_warn(id_on_xmppAddr, "error DER decoding subjectAltName extension: %s", libtasn1_strerror(ret));
+			asn1_delete_structure(&subjectAltName_element);
+			break;
+		    }
+
+		    /* subjectAltName is a sequence we have to iterate ... */
+		    for (cnt = 1; cnt < 1024 && !found_matching_subjectAltName; cnt++) {
+			char cnt_string[6];
+			char address_type[32];
+			size_t address_type_len = sizeof(address_type);
+
+			snprintf(cnt_string, sizeof(cnt_string), "?%i", cnt);
+
+			log_debug2(ZONE, LOGT_AUTH, "accessing subjectAltName element %s", cnt_string);
+
+			ret = asn1_read_value(subjectAltName_element, cnt_string, address_type, &address_type_len);
+			if (ret == ASN1_ELEMENT_NOT_FOUND) {
+			    log_debug2(ZONE, LOGT_AUTH, "no more values in subjectAltName (%s)", cnt_string);
+			    break;
+			}
+			if (ret != ASN1_SUCCESS) {
+			    log_notice(id_on_xmppAddr, "error accessing type for %s in subjectAltName: %s", cnt_string, libtasn1_strerror(ret));
+			    break;
+			}
+
+			log_debug2(ZONE, LOGT_AUTH, "... it is of type %s", address_type);
+
+			/* is it a dNSName? */
+			if (j_strncmp(address_type, "dNSName", 8) == 0) {
+			    if (!may_match_dNSName) {
+				log_debug2(ZONE, LOGT_AUTH, "not checking dNSName, as we are not searching for a domain");
+			    } else {
+				char access_string[14];
+				char dNSName[2048];
+				size_t dNSName_len = sizeof(dNSName);
+				pool compare_pool = NULL;
+
+				snprintf(access_string, sizeof(access_string), "%s.dNSName", cnt_string);
+
+				ret = asn1_read_value(subjectAltName_element, access_string, dNSName, &dNSName_len);
+				if (ret != ASN1_SUCCESS) {
+				    log_notice(id_on_xmppAddr, "error accessing %s in subjectAltName: %s", access_string, libtasn1_strerror(ret));
+				    break;
+				}
+
+				if (dNSName_len >= sizeof(dNSName)) {
+				    log_notice(id_on_xmppAddr, "got a dNSName which is longer then %i B. Skipping ...", sizeof(dNSName));
+				    break;
+				}
+
+				/* zero terminating the dNSName */
+				dNSName[dNSName_len] = 0;
+				log_debug2(ZONE, LOGT_AUTH, "found dNSName: %s", dNSName);
+
+				/* get a memory pool for doing comparisons */
+				compare_pool = pool_new();
+
+				/* compare the dNSName */
+				if (mio_tls_cert_match(compare_pool, dNSName, id_on_xmppAddr) == 0) {
+				    found_matching_subjectAltName = 1;
+				    log_debug2(ZONE, LOGT_AUTH, "match on dNSName: %s", dNSName);
+				}
+
+				/* free memory pool */
+				pool_free(compare_pool);
+				compare_pool = NULL;
+			    }
+			} else if (j_strncmp(address_type, "otherName", 10) == 0) {
+			    char access_string_type[24];
+			    char access_string_value[22];
+			    char otherNameType[1024];
+			    size_t otherNameType_len = sizeof(otherNameType);
+			    unsigned char otherNameValue[1024];
+			    size_t otherNameValue_len = sizeof(otherNameValue);
+
+			    snprintf(access_string_type, sizeof(access_string_type), "%s.otherName.type-id", cnt_string);
+			    snprintf(access_string_value, sizeof(access_string_value), "%s.otherName.value", cnt_string);
+
+			    /* get the OID of the otherName */
+			    ret = asn1_read_value(subjectAltName_element, access_string_type, otherNameType, &otherNameType_len);
+			    if (ret != ASN1_SUCCESS) {
+				log_notice(id_on_xmppAddr, "error accessing type information %s in subjectAltName: %s", access_string_type, libtasn1_strerror(ret));
+				break;
+			    }
+
+			    /* is it an id-on-xmppAddr */
+			    if (j_strncmp(otherNameType, "1.3.6.1.5.5.7.8.5", 18) != 0) {
+				log_notice(id_on_xmppAddr, "ignoring unknown otherName in subjectAltName");
+				break;
+			    }
+
+			    /* get the value of the otherName */
+			    ret = asn1_read_value(subjectAltName_element, access_string_value, otherNameValue, &otherNameValue_len);
+			    if (ret != ASN1_SUCCESS) {
+				log_notice(id_on_xmppAddr, "error accessing value of othername %s in subjectAltName: %s", access_string_value, libtasn1_strerror(ret));
+				break;
+			    }
+
+			    /* okay we now have an UTF8String ... get the content */
+			    {
+				ASN1_TYPE directoryString_element = ASN1_TYPE_EMPTY;
+				char thisIdOnXMPPaddr[3072];
+				size_t thisIdOnXMPPaddr_len = sizeof(thisIdOnXMPPaddr);
+				pool jid_pool = NULL;
+				jid cert_jid = NULL;
+
+				ret = asn1_create_element(mio_tls_asn1_tree, "PKIX1.DirectoryString", &directoryString_element);
+				if (ret != ASN1_SUCCESS) {
+				    log_notice(id_on_xmppAddr, "error creating DirectoryString element: %s", libtasn1_strerror(ret));
+				    asn1_delete_structure(&directoryString_element);
+				    break;
+				}
+
+				ret = asn1_der_decoding(&directoryString_element, otherNameValue, otherNameValue_len, NULL);
+				if (ret != ASN1_SUCCESS) {
+				    log_notice(id_on_xmppAddr, "error decoding DirectoryString: %s", libtasn1_strerror(ret));
+				    asn1_delete_structure(&directoryString_element);
+				    break;
+				}
+
+				ret = asn1_read_value(directoryString_element, "utf8String", thisIdOnXMPPaddr, &thisIdOnXMPPaddr_len);
+				if (ret != ASN1_SUCCESS) {
+				    log_notice(id_on_xmppAddr, "error accessing utf8String of DirectoryString: %s", libtasn1_strerror(ret));
+				    asn1_delete_structure(&directoryString_element);
+				    break;
+				}
+
+				if (thisIdOnXMPPaddr_len >= sizeof(thisIdOnXMPPaddr)) {
+				    log_notice(id_on_xmppAddr, "id-on-xmppAddr is %i B long ... ignoring");
+				    asn1_delete_structure(&directoryString_element);
+				    break;
+				}
+
+				/* zero-terminate the string */
+				thisIdOnXMPPaddr[thisIdOnXMPPaddr_len] = 0;
+
+				/* nameprep the domain */
+				jid_pool = pool_new();
+				cert_jid = jid_new(jid_pool, thisIdOnXMPPaddr);
+
+				if (cert_jid == NULL || cert_jid->server == NULL) {
+				    cert_jid = NULL;
+				    pool_free(jid_pool);
+				    jid_pool = NULL;
+
+				    log_notice(id_on_xmppAddr, "invalid id-on-xmppAddr: %s ... skipping this one", thisIdOnXMPPaddr);
+				    break;
+				}
+
+				log_debug2(ZONE, LOGT_AUTH, "found id-on-xmppAddr: %s", jid_full(cert_jid));
+
+				/* compare */
+				if (j_strcmp(id_on_xmppAddr, jid_full(cert_jid)) == 0) {
+				    found_matching_subjectAltName = 1;
+				    log_debug2(ZONE, LOGT_AUTH, "match on id-on-xmppAddr: %s", thisIdOnXMPPaddr);
+				}
+
+				/* free memory needed for nameprepping */
+				cert_jid = NULL;
+				pool_free(jid_pool);
+				jid_pool = NULL;
+
+				/* free memory needed to DER decode utf8String */
+				asn1_delete_structure(&directoryString_element);
+			    }
+
+			} else {
+			    log_notice(id_on_xmppAddr, "ignoring %s in subjectAltName", address_type);
+			}
+		    }
+
+		    asn1_delete_structure(&subjectAltName_element);
 		}
 
 		ext_count++;
-	    } while (ret >= 0);
+	    } while (ret >= 0 && !found_matching_subjectAltName);
 
-	    /* verify the dNSName and subject */
-	    if (!gnutls_x509_crt_check_hostname(cert, id_on_xmppAddr)) {
-		log_notice(id_on_xmppAddr, "Certificate subject does not match.");
-		verification_result = 0;
-		break;
+	    if (found_any_subjectAltName) {
+		if (!found_matching_subjectAltName) {
+		    log_notice(id_on_xmppAddr, "Found subjectAltName, but non matched");
+		    verification_result = 0;
+		    break;
+		}
+	    } else {
+		/* verify subject */
+		if (!gnutls_x509_crt_check_hostname(cert, id_on_xmppAddr)) {
+		    log_notice(id_on_xmppAddr, "Certificate subject does not match.");
+		    verification_result = 0;
+		    break;
+		}
 	    }
 	}
 
