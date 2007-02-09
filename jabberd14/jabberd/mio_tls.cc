@@ -583,10 +583,39 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 	return 0;
     }
     if (status != 0) {
-	log_notice(id_on_xmppAddr, "Certificate verification failed:%s%s%s",
-		status&GNUTLS_CERT_INVALID ? " not trusted," : "",
-		status&GNUTLS_CERT_SIGNER_NOT_FOUND ? " no known issuer," : "",
-		status&GNUTLS_CERT_REVOKED ? " revoked," : "");
+	std::ostringstream messages;
+	bool got_a_message = false;
+
+	if (status&GNUTLS_CERT_INVALID) {
+	    got_a_message = true;
+	    messages << "not trusted";
+	}
+	if (status&GNUTLS_CERT_REVOKED) {
+	    if (got_a_message)
+		messages << ", ";
+	    got_a_message = true;
+	    messages << "revoked";
+	}
+	if (status&GNUTLS_CERT_SIGNER_NOT_FOUND) {
+	    if (got_a_message)
+		messages << ", ";
+	    got_a_message = true;
+	    messages << "no known issuer";
+	}
+	if (status&GNUTLS_CERT_SIGNER_NOT_CA) {
+	    if (got_a_message)
+		messages << ", ";
+	    got_a_message = true;
+	    messages << "signer is no CA";
+	}
+	if (status&GNUTLS_CERT_INSECURE_ALGORITHM) {
+	    if (got_a_message)
+		messages << ", ";
+	    got_a_message = true;
+	    messages << "insecure algorithm";
+	}
+
+	log_notice(id_on_xmppAddr, "Certificate verification failed: %s", got_a_message ? messages.str().c_str() : "unknown reason");
 	return 0;
     }
 
