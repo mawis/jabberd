@@ -48,6 +48,8 @@
 #include <libtasn1.h>
 #include <map>
 #include <string>
+#include <fstream>
+#include <sstream>
 
 extern const ASN1_ARRAY_TYPE subjectAltName_asn1_tab[];
 
@@ -542,7 +544,6 @@ static int mio_tls_cert_match(pool p, const char *cert_dom, const char *true_dom
 int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
     int ret = 0;
     unsigned int status = 0;
-    gnutls_x509_crt_t cert = NULL;
     const gnutls_datum_t *cert_list = NULL;
     unsigned int cert_list_size = 0;
     int verification_result = 1;
@@ -567,12 +568,6 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 	return 0;
     }
 
-    /* no id_on_xmppAddr given to test subject/subjectAltName against? */
-    if (id_on_xmppAddr == NULL) {
-	log_debug2(ZONE, LOGT_AUTH, "accepting certificate without testing against a subject");
-	return 1;
-    }
-
     /* check if it is a X.509 certificate */
     if (gnutls_certificate_type_get(static_cast<gnutls_session_t>(m->ssl)) != GNUTLS_CRT_X509) {
 	/* no ... we cannot handle other certificates here yet ... declare as invalid */
@@ -581,31 +576,56 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
     }
 
     /* get the certificates */
-    ret = gnutls_x509_crt_init(&cert);
-    if (ret < 0) {
-	log_warn(id_on_xmppAddr, "Problem initializing the certificate var. Therefore I cannot verify the certificate.");
-	return 0;
-    }
     cert_list = gnutls_certificate_get_peers(static_cast<gnutls_session_t>(m->ssl), &cert_list_size);
     if (cert_list == NULL || cert_list_size <= 0) {
 	log_notice(id_on_xmppAddr, "Problem verifying certificate: No certificate was found!");
-	gnutls_x509_crt_deinit(cert);
 	return 0;
     }
 
+    log_debug2(ZONE, LOGT_AUTH, "We have to verify %i certificates for %s", cert_list_size, id_on_xmppAddr);
+
     /* iterate on the certificates */
     for (crt_index = 0; crt_index < cert_list_size; crt_index++) {
+	gnutls_x509_crt_t cert = NULL;
+
+	/* initialize X.509 certificate structure */
+	ret = gnutls_x509_crt_init(&cert);
+	if (ret < 0) {
+	    log_warn(id_on_xmppAddr, "Problem initializing the certificate var. Therefore I cannot verify the certificate.");
+	    return 0;
+	}
+
+	/* XXX begin debugging only
+	 *
+	std::ostringstream tmpfilename;
+	tmpfilename << "/tmp/";
+	if (id_on_xmppAddr != NULL) {
+	    tmpfilename << id_on_xmppAddr;
+	}
+	tmpfilename << "_" << crt_index << ".der";
+
+	std::ofstream tmpfile(tmpfilename.str().c_str());
+
+	for (int c=0; c<cert_list[crt_index].size; c++) {
+	    tmpfile.put(cert_list[crt_index].data[c]);	// write is not working because of libpth's definitions
+	}
+
+	tmpfile.close();
+	 *
+	 * XXX end debugging only */
 
 	/* get this certificate */
 	ret = gnutls_x509_crt_import(cert, &cert_list[crt_index], GNUTLS_X509_FMT_DER);
 	if (ret < 0) {
 	    log_warn(id_on_xmppAddr, "Error in loading certificate %i: %s", crt_index, gnutls_strerror(ret));
 	    verification_result = 0;
+	    gnutls_x509_crt_deinit(cert);
+	    cert = NULL;
 	    break;
 	}
 
 	/* for the first certificate we have to check the subjectAltNames */
-	if (crt_index == 0) {
+	if (crt_index == 0 && id_on_xmppAddr != NULL) {
 	    int ext_count = 0;
 	    int found_matching_subjectAltName = 0;
 	    int found_any_subjectAltName = 0;
@@ -831,6 +851,8 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 		if (!found_matching_subjectAltName) {
 		    log_notice(id_on_xmppAddr, "Found subjectAltName, but non matched");
 		    verification_result = 0;
+		    gnutls_x509_crt_deinit(cert);
+		    cert = NULL;
 		    break;
 		}
 	    } else {
@@ -838,6 +860,8 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 		if (!gnutls_x509_crt_check_hostname(cert, id_on_xmppAddr)) {
 		    log_notice(id_on_xmppAddr, "Certificate subject does not match.");
 		    verification_result = 0;
+		    gnutls_x509_crt_deinit(cert);
+		    cert = NULL;
 		    break;
 		}
 	    }
@@ -847,16 +871,20 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 	if (gnutls_x509_crt_get_expiration_time(cert) < time(NULL)) {
 	    log_notice(id_on_xmppAddr, "Certificate %i has expired", crt_index);
 	    verification_result = 0;
+	    gnutls_x509_crt_deinit(cert);
+	    cert = NULL;
 	    break;
 	}
 	if (gnutls_x509_crt_get_activation_time(cert) > time(NULL)) {
 	    log_notice(id_on_xmppAddr, "Certificate %i not yet active", crt_index);
 	    verification_result = 0;
+	    gnutls_x509_crt_deinit(cert);
+	    cert = NULL;
 	    break;
 	}
+	gnutls_x509_crt_deinit(cert);
     }
     
-    gnutls_x509_crt_deinit(cert);
     return verification_result;
 }
 
