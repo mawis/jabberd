@@ -46,13 +46,18 @@
 #include "jabberd.h"
 #ifdef HAVE_GNUTLS
 #include <libtasn1.h>
+#include <map>
+#include <string>
 
 extern const ASN1_ARRAY_TYPE subjectAltName_asn1_tab[];
 
 /**
- * the TLS credentials
+ * the credentials used by the server
+ *
+ * key is the virtual domain the credentials are used for ("*" for the default)
+ * value the credentials to use
  */
-gnutls_certificate_credentials_t mio_tls_x509_cred = NULL;
+std::map<std::string, gnutls_certificate_credentials_t> mio_tls_credentials;
 
 /**
  * tree of ASN1 structures
@@ -69,11 +74,12 @@ void mio_ssl_init(xmlnode x) {
     int ret = 0;
     static gnutls_dh_params_t mio_tls_dh_params;
     xht namespaces = NULL;
+    gnutls_certificate_credentials_t mio_tls_x509_cred;
 
     log_debug2(ZONE, LOGT_IO, "MIO TLS init (GNU TLS)");
 
     namespaces = xhash_new(3);
-    xhash_put(namespaces, "", NS_JABBERD_CONFIGFILE);
+    xhash_put(namespaces, "", const_cast<char*>(NS_JABBERD_CONFIGFILE));
 
     /* initialize the GNU TLS library */
     ret = gnutls_global_init();
@@ -91,49 +97,23 @@ void mio_ssl_init(xmlnode x) {
 	/* XXX we have to delete the structure on shutdown using asn1_delete_structure(&mio_tls_asn1_tree) */
     }
 
-    /* load certificates and such ... */
-    ret = gnutls_certificate_allocate_credentials (&mio_tls_x509_cred);
-    if (ret != 0) {
-	log_error(ZONE, "Error allocating GNU TLS credentials: %s", gnutls_strerror(ret));
-	/* XXX what to do now? */
-    }
-
+    /* find the default CA certificates file */
+    std::string default_cacertfile;
     for (cur = xmlnode_get_firstchild(x); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
 	if (cur->type != NTYPE_TAG) {
 	    continue;
 	}
-	/* it's a key */
-	if (j_strcmp(xmlnode_get_localname(cur), "key") == 0 && j_strcmp(xmlnode_get_namespace(cur), NS_JABBERD_CONFIGFILE) == 0) {
-	    char *file_to_use = xmlnode_get_data(cur);
 
-	    if (file_to_use == NULL) {
-		log_warn(NULL, "skipping a key element in the TLS configuration as no file is specified");
-		continue;
-	    }
-	    ret = gnutls_certificate_set_x509_key_file(mio_tls_x509_cred, file_to_use, file_to_use, GNUTLS_X509_FMT_PEM);
-	    if (ret < 0) {
-		log_error(ZONE, "Error loading key file %s: %s", file_to_use, gnutls_strerror(ret));
-	    }
-	}
-	/* it's a ca cert */
 	if (j_strcmp(xmlnode_get_localname(cur), "cacertfile") == 0 && j_strcmp(xmlnode_get_namespace(cur), NS_JABBERD_CONFIGFILE) == 0) {
-	    char *file_to_use = xmlnode_get_data(cur);
+	    char const* const cacertfile_data = xmlnode_get_data(cur);
 
-	    if (file_to_use == NULL) {
-		log_warn(NULL, "skipping a cacertfile element in the TLS configuration as no file is specified");
-		continue;
-	    }
-	    ret = gnutls_certificate_set_x509_trust_file(mio_tls_x509_cred, file_to_use, GNUTLS_X509_FMT_PEM);
-	    if (ret < 0) {
-		log_error(ZONE, "Error loading cacert file %s: %s", file_to_use, gnutls_strerror(ret));
+	    if (cacertfile_data != NULL) {
+		default_cacertfile = cacertfile_data;
 	    }
 	}
     }
 
-    xhash_free(namespaces);
-    namespaces = NULL;
-
-    /* init DH */
+    /* create DH parameters */
     ret = gnutls_dh_params_init(&mio_tls_dh_params);
     if (ret < 0) {
 	log_error(ZONE, "Error initializing DH params: %s", gnutls_strerror(ret));
@@ -142,7 +122,96 @@ void mio_ssl_init(xmlnode x) {
     if (ret < 0) {
 	log_error(ZONE, "Error generating DH params: %s", gnutls_strerror(ret));
     }
-    gnutls_certificate_set_dh_params(mio_tls_x509_cred, mio_tls_dh_params);
+
+    /* load certificates and such ... */
+    ret = gnutls_certificate_allocate_credentials (&mio_tls_x509_cred);
+    mio_tls_credentials["*"] = mio_tls_x509_cred;
+    if (ret != 0) {
+	log_error(ZONE, "Error allocating GNU TLS credentials: %s", gnutls_strerror(ret));
+	/* XXX what to do now? */
+    }
+
+    /* load the certificates */
+    for (cur = xmlnode_get_firstchild(x); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
+	if (cur->type != NTYPE_TAG) {
+	    continue;
+	}
+
+	/* it's a key */
+	if (j_strcmp(xmlnode_get_localname(cur), "key") == 0 && j_strcmp(xmlnode_get_namespace(cur), NS_JABBERD_CONFIGFILE) == 0) {
+	    char *file_to_use = xmlnode_get_data(cur);
+	    char *key_type = xmlnode_get_attrib_ns(cur, "type", NULL);
+	    char *id = xmlnode_get_attrib_ns(cur, "id", NULL);
+	    char *private_key_file = xmlnode_get_attrib_ns(cur, "private-key", NULL);
+	    char *no_ssl_v2 = xmlnode_get_attrib_ns(cur, "no-ssl-v2", NULL);
+	    char *no_ssl_v3 = xmlnode_get_attrib_ns(cur, "no-ssl-v3", NULL);
+	    char *no_tls_v1 = xmlnode_get_attrib_ns(cur, "no-tls-v1", NULL);
+	    char *ciphers = xmlnode_get_attrib_ns(cur, "ciphers", NULL);
+	    gnutls_x509_crt_fmt_t certificate_type = GNUTLS_X509_FMT_PEM;
+
+	    /* no id attribute? first try ip instead, else default key */
+	    if (id == NULL) {
+		id = xmlnode_get_attrib_ns(cur, "ip", NULL);
+		if (id == NULL) {
+		    id = "*";
+		}
+	    }
+
+	    /* no public key file? */
+	    if (file_to_use == NULL) {
+		log_notice(id, "Cannot load X.509 certificate: no file specified.");
+		continue;
+	    }
+
+	    /* PEM or DER format? */
+	    if (j_strcmp(xmlnode_get_attrib_ns(cur, "type", NULL), "der") == 0) {
+		certificate_type = GNUTLS_X509_FMT_DER;
+	    }
+
+	    /* check old attributes not supported anymore */
+	    if (no_ssl_v2 != NULL || no_ssl_v3 != NULL || no_tls_v1 != NULL || ciphers != NULL) {
+		log_notice(id, "Warning: ignoring a attribute when loading X.509 certificate. Not supported anymore are: no-ssl-v2, no-ssl-v3, no-tls-v1 and ciphers");
+	    }
+
+	    /* no special private key file? use the same as the public key file */
+	    if (private_key_file == NULL) {
+		private_key_file = file_to_use;
+	    }
+
+	    /* load the keys */
+	    gnutls_certificate_credentials_t current_credentials = NULL;
+	    ret = gnutls_certificate_allocate_credentials (&current_credentials);
+	    if (ret < 0) {
+		log_error(id, "Error initializing credentials: %s", gnutls_strerror(ret));
+		continue;
+	    }
+	    ret = gnutls_certificate_set_x509_key_file(current_credentials, file_to_use, private_key_file, certificate_type);
+	    if (ret < 0) {
+		log_error(id, "Error loading key file cert=%s/priv=%s: %s", file_to_use, private_key_file, gnutls_strerror(ret));
+		gnutls_certificate_free_credentials(current_credentials);
+		continue;
+	    }
+
+	    /* load CA certificates */
+	    if (default_cacertfile != "") {
+		ret = gnutls_certificate_set_x509_trust_file(current_credentials, default_cacertfile.c_str(), GNUTLS_X509_FMT_PEM);
+		if (ret < 0) {
+		    log_error(id, "Error loading CA certificates: %s", gnutls_strerror(ret));
+		}
+	    } else {
+		log_warn(id, "Not loading CA certificates for %s", id);
+	    }
+
+	    /* set the DH params for this certificate */
+	    gnutls_certificate_set_dh_params(current_credentials, mio_tls_dh_params);
+
+	    /* store the loaded certificate */
+	    mio_tls_credentials[id] = current_credentials;
+	}
+    }
+
+    xhash_free(namespaces);
+    namespaces = NULL;
 }
 
 void _mio_ssl_cleanup(void *arg) {
@@ -177,14 +246,14 @@ ssize_t _mio_ssl_read(mio m, void *buf, size_t count) {
     m->flags.recall_read_when_writeable = 0;
 
     /* trying to read */
-    read_return = gnutls_record_recv(m->ssl, (char*)buf, count);
+    read_return = gnutls_record_recv(static_cast<gnutls_session_t>(m->ssl), (char*)buf, count);
 
     if (read_return > 0) {
 	log_debug2(ZONE, LOGT_IO, "Read %i B on socket %i", read_return, m->fd);
 	return read_return;
     }
     if (read_return == GNUTLS_E_INTERRUPTED || read_return == GNUTLS_E_AGAIN) {
-	if (gnutls_record_get_direction(m->ssl) == 0) {
+	if (gnutls_record_get_direction(static_cast<gnutls_session_t>(m->ssl)) == 0) {
 	    m->flags.recall_read_when_readable = 1;
 	} else {
 	    m->flags.recall_read_when_writeable = 1;
@@ -222,14 +291,14 @@ ssize_t _mio_ssl_write(mio m, const void *buf, size_t count) {
     m->flags.recall_write_when_writeable = 0;
 
     /* trying to write data */
-    write_return = gnutls_record_send(m->ssl, buf, count);
+    write_return = gnutls_record_send(static_cast<gnutls_session_t>(m->ssl), buf, count);
 
     if (write_return > 0) {
 	log_debug2(ZONE, LOGT_IO, "Wrote %i B on socket %i", write_return, m->fd);
 	return write_return;
     }
     if (write_return == GNUTLS_E_INTERRUPTED || write_return == GNUTLS_E_AGAIN) {
-	if (gnutls_record_get_direction(m->ssl) == 0) {
+	if (gnutls_record_get_direction(static_cast<gnutls_session_t>(m->ssl)) == 0) {
 	    m->flags.recall_write_when_readable = 1;
 	} else {
 	    m->flags.recall_write_when_writeable = 1;
@@ -256,14 +325,14 @@ int _mio_tls_cont_handshake_server(mio m) {
     m->flags.recall_handshake_when_writeable = 0;
 
     /* continue the handshake */
-    ret = gnutls_handshake(m->ssl);
+    ret = gnutls_handshake(static_cast<gnutls_session_t>(m->ssl));
     if (ret >= 0) {
 	/* reset the handler for handshake */
 	m->mh->handshake = NULL;
 	log_debug2(ZONE, LOGT_IO, "TLS handshake finished for fd #%i", m->fd);
 	return 1;
     } else if (ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_INTERRUPTED) {
-	if (gnutls_record_get_direction(m->ssl) == 0) {
+	if (gnutls_record_get_direction(static_cast<gnutls_session_t>(m->ssl)) == 0) {
 	    log_debug2(ZONE, LOGT_IO, "TLS layer needs to read data to complete handshake (fd #%i)", m->fd);
 	    m->flags.recall_handshake_when_readable = 1;
 	} else {
@@ -294,7 +363,7 @@ int _mio_ssl_accepted(mio m) {
  * @return 0 if the connection is unprotected, 1 if the connection is integrity protected, >1 if the connection is encrypted
  */
 int mio_is_encrypted(mio m) {
-    return m->ssl == NULL ? 0 : gnutls_cipher_get_key_size(gnutls_cipher_get(m->ssl));
+    return m->ssl == NULL ? 0 : 8*gnutls_cipher_get_key_size(gnutls_cipher_get(static_cast<gnutls_session_t>(m->ssl)));
 }
 
 /**
@@ -310,10 +379,18 @@ int mio_ssl_starttls_possible(mio m, const char* identity) {
 	return 0;
     }
 
-    /* XXX: check if we have a certificate for the requested domain */
+    /* check if we have a certificate for this domain */
+    if (identity != NULL && mio_tls_credentials.find(identity) != mio_tls_credentials.end()) {
+	return 1;
+    }
 
-    /* XXX: for now just asume we can */
-    return 1;
+    /* or there might be a default certificate */
+    if (mio_tls_credentials.find("*") != mio_tls_credentials.end()) {
+	return 1;
+    }
+
+    /* no certificate credentials for this identity available */
+    return 0;
 }
 
 /**
@@ -326,6 +403,7 @@ int mio_ssl_starttls_possible(mio m, const char* identity) {
  */
 int mio_ssl_starttls(mio m, int originator, const char* identity) {
     gnutls_session_t session = NULL;
+    gnutls_certificate_credentials_t used_credentials = NULL;
     int ret = 0;
 
     /* sanity check */
@@ -335,6 +413,17 @@ int mio_ssl_starttls(mio m, int originator, const char* identity) {
     /* only start TLS on a connection once */
     if (m->ssl != NULL) {
 	log_debug2(ZONE, LOGT_EXECFLOW|LOGT_IO, "cannot start TLS layer on an already encrapted socket (mio=%X)", m);
+	return 1;
+    }
+
+    /* get the right credentials */
+    if (identity != NULL && mio_tls_credentials.find(identity) != mio_tls_credentials.end()) {
+	used_credentials = mio_tls_credentials[identity];
+    } else {
+	used_credentials = mio_tls_credentials["*"];
+    }
+    if (used_credentials == NULL) {
+	log_error(identity, "Cannot start TLS layer for %s - no credentials available, even no default ones", identity);
 	return 1;
     }
 
@@ -351,7 +440,7 @@ int mio_ssl_starttls(mio m, int originator, const char* identity) {
     if (ret != 0) {
 	log_debug2(ZONE, LOGT_IO, "Error setting default priorities for fd #%i: %s", m->fd, gnutls_strerror(ret));
     }
-    ret = gnutls_credentials_set(session, GNUTLS_CRD_CERTIFICATE, mio_tls_x509_cred);	/* XXX: different credentials based on IP */
+    ret = gnutls_credentials_set(session, GNUTLS_CRD_CERTIFICATE, used_credentials);	/* XXX: different credentials based on IP */
     if (ret != 0) {
 	log_debug2(ZONE, LOGT_IO, "Error setting default priorities for fd #%i: %s", m->fd, gnutls_strerror(ret));
     }
@@ -465,7 +554,7 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
     }
 
     /* check if the certificate is valid */
-    ret = gnutls_certificate_verify_peers2(m->ssl, &status);
+    ret = gnutls_certificate_verify_peers2(static_cast<gnutls_session_t>(m->ssl), &status);
     if (ret != 0) {
 	log_notice(id_on_xmppAddr, "TLS cert verification failed: %s", gnutls_strerror(ret));
 	return 0;
@@ -485,7 +574,7 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
     }
 
     /* check if it is a X.509 certificate */
-    if (gnutls_certificate_type_get(m->ssl) != GNUTLS_CRT_X509) {
+    if (gnutls_certificate_type_get(static_cast<gnutls_session_t>(m->ssl)) != GNUTLS_CRT_X509) {
 	/* no ... we cannot handle other certificates here yet ... declare as invalid */
 	log_notice(id_on_xmppAddr, "Rejecting certificate as it is no X.509 certificate");
 	return 0;
@@ -497,7 +586,7 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 	log_warn(id_on_xmppAddr, "Problem initializing the certificate var. Therefore I cannot verify the certificate.");
 	return 0;
     }
-    cert_list = gnutls_certificate_get_peers(m->ssl, &cert_list_size);
+    cert_list = gnutls_certificate_get_peers(static_cast<gnutls_session_t>(m->ssl), &cert_list_size);
     if (cert_list == NULL || cert_list_size <= 0) {
 	log_notice(id_on_xmppAddr, "Problem verifying certificate: No certificate was found!");
 	gnutls_x509_crt_deinit(cert);
@@ -533,7 +622,7 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 	    do {
 		unsigned char subjectAltName[2048];
 		size_t subjectAltName_size = sizeof(subjectAltName);
-		int is_critical = 0;
+		unsigned int is_critical = 0;
 
 		ret = gnutls_x509_crt_get_extension_by_oid(cert, "2.5.29.17", ext_count, subjectAltName, &subjectAltName_size, &is_critical);
 		if (ret < 0) {
@@ -570,7 +659,7 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 		    for (cnt = 1; cnt < 1024 && !found_matching_subjectAltName; cnt++) {
 			char cnt_string[6];
 			char address_type[32];
-			size_t address_type_len = sizeof(address_type);
+			int address_type_len = sizeof(address_type);
 
 			snprintf(cnt_string, sizeof(cnt_string), "?%i", cnt);
 
@@ -595,7 +684,7 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 			    } else {
 				char access_string[14];
 				char dNSName[2048];
-				size_t dNSName_len = sizeof(dNSName);
+				int dNSName_len = sizeof(dNSName);
 				pool compare_pool = NULL;
 
 				snprintf(access_string, sizeof(access_string), "%s.dNSName", cnt_string);
@@ -632,9 +721,9 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 			    char access_string_type[24];
 			    char access_string_value[22];
 			    char otherNameType[1024];
-			    size_t otherNameType_len = sizeof(otherNameType);
+			    int otherNameType_len = sizeof(otherNameType);
 			    unsigned char otherNameValue[1024];
-			    size_t otherNameValue_len = sizeof(otherNameValue);
+			    int otherNameValue_len = sizeof(otherNameValue);
 
 			    snprintf(access_string_type, sizeof(access_string_type), "%s.otherName.type-id", cnt_string);
 			    snprintf(access_string_value, sizeof(access_string_value), "%s.otherName.value", cnt_string);
@@ -663,7 +752,7 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 			    {
 				ASN1_TYPE directoryString_element = ASN1_TYPE_EMPTY;
 				char thisIdOnXMPPaddr[3072];
-				size_t thisIdOnXMPPaddr_len = sizeof(thisIdOnXMPPaddr);
+				int thisIdOnXMPPaddr_len = sizeof(thisIdOnXMPPaddr);
 				pool jid_pool = NULL;
 				jid cert_jid = NULL;
 
