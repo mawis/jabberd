@@ -114,6 +114,7 @@
 
 #ifdef HAVE_GNUTLS
 #   include <gnutls/gnutls.h>
+#   include <gnutls/x509.h>
 #   define SUPPORT_TLS
 #endif /* HAVE_GNUTLS */
 
