@@ -438,13 +438,35 @@ int mio_ssl_starttls(mio m, int originator, const char* identity) {
 	return 1;
     }
     log_debug2(ZONE, LOGT_EXECFLOW, "Created new session %X", session);
+
+    /* setting algorithm priorities */
     ret = gnutls_set_default_priority(session);
     if (ret != 0) {
 	log_debug2(ZONE, LOGT_IO, "Error setting default priorities for fd #%i: %s", m->fd, gnutls_strerror(ret));
     }
-    ret = gnutls_credentials_set(session, GNUTLS_CRD_CERTIFICATE, used_credentials);	/* XXX: different credentials based on IP */
+
+    static const int protocol_priority[] = { GNUTLS_TLS1_1, GNUTLS_TLS1_0, GNUTLS_SSL3, 0 };
+    ret = gnutls_protocol_set_priority(session, protocol_priority);
+    if (ret < 0) {
+	log_notice(identity, "error setting protocol priority: %s", gnutls_strerror(ret));
+    }
+
+    static const int kx_priority[] = { GNUTLS_KX_DHE_DSS, GNUTLS_KX_DHE_RSA, GNUTLS_KX_RSA, 0 };
+    ret = gnutls_kx_set_priority(session, kx_priority);
+    if (ret < 0) {
+	log_notice(identity, "error setting key exchange algorithm: %s", gnutls_strerror(ret));
+    }
+
+    static const int cipher_priority[] = { GNUTLS_CIPHER_AES_256_CBC, GNUTLS_CIPHER_AES_128_CBC, GNUTLS_CIPHER_3DES_CBC, GNUTLS_CIPHER_ARCFOUR_128, 0 };
+    ret = gnutls_cipher_set_priority(session, cipher_priority);
+    if (ret < 0) {
+	log_notice(identity, "error setting cipher priority: %s", gnutls_strerror(ret));
+    }
+
+    /* setting certificate credentials */
+    ret = gnutls_credentials_set(session, GNUTLS_CRD_CERTIFICATE, used_credentials);
     if (ret != 0) {
-	log_debug2(ZONE, LOGT_IO, "Error setting default priorities for fd #%i: %s", m->fd, gnutls_strerror(ret));
+	log_debug2(ZONE, LOGT_IO, "Error setting certificate credentials for fd #%i: %s", m->fd, gnutls_strerror(ret));
     }
     if (!originator) {
 	gnutls_certificate_server_set_request(session, GNUTLS_CERT_REQUEST);
