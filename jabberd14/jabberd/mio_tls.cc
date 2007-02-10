@@ -48,7 +48,6 @@
 #include <libtasn1.h>
 #include <map>
 #include <string>
-#include <fstream>
 #include <sstream>
 
 extern const ASN1_ARRAY_TYPE subjectAltName_asn1_tab[];
@@ -570,16 +569,24 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
     unsigned int cert_list_size = 0;
     int verification_result = 1;
     int crt_index = 0;
+    std::string log_id;
 
     /* sanity checks */
     if (m==NULL || m->ssl==NULL) {
 	return 0;
     }
 
+    /* generate id for logging */
+    if (id_on_xmppAddr == NULL) {
+	log_id = "<unknown peer>";
+    } else {
+	log_id = id_on_xmppAddr;
+    }
+
     /* check if the certificate is valid */
     ret = gnutls_certificate_verify_peers2(static_cast<gnutls_session_t>(m->ssl), &status);
     if (ret != 0) {
-	log_notice(id_on_xmppAddr, "TLS cert verification failed: %s", gnutls_strerror(ret));
+	log_notice(log_id.c_str(), "TLS cert verification failed: %s", gnutls_strerror(ret));
 	return 0;
     }
     if (status != 0) {
@@ -615,21 +622,52 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 	    messages << "insecure algorithm";
 	}
 
-	log_notice(id_on_xmppAddr, "Certificate verification failed: %s", got_a_message ? messages.str().c_str() : "unknown reason");
+	std::string cert_subject;
+	if (gnutls_certificate_type_get(static_cast<gnutls_session_t>(m->ssl)) == GNUTLS_CRT_X509) {
+	    cert_list = gnutls_certificate_get_peers(static_cast<gnutls_session_t>(m->ssl), &cert_list_size);
+	    if (cert_list != NULL && cert_list_size > 0) {
+		gnutls_x509_crt_t cert = NULL;
+		ret = gnutls_x509_crt_init(&cert);
+		if (ret >= 0) {
+		    ret = gnutls_x509_crt_import(cert, &cert_list[crt_index], GNUTLS_X509_FMT_DER);
+		    if (ret >= 0) {
+			char name[1024];
+			size_t name_len = sizeof(name);
+			ret = gnutls_x509_crt_get_dn(cert, name, &name_len);
+			if (ret >= 0 && name_len > 0) {
+			    cert_subject = name;
+			} else {
+			    cert_subject = gnutls_strerror(ret);
+			}
+		    } else {
+			cert_subject = gnutls_strerror(ret);
+		    }
+		} else {
+		    cert_subject = gnutls_strerror(ret);
+		}
+		gnutls_x509_crt_deinit(cert);
+	    } else {
+		cert_subject = "<no cert list>";
+	    }
+	} else {
+	    cert_subject = "<no X.509 cert>";
+	}
+
+	log_notice(log_id.c_str(), "Certificate verification failed: %s (%s)", got_a_message ? messages.str().c_str() : "unknown reason", cert_subject.c_str());
 	return 0;
     }
 
     /* check if it is a X.509 certificate */
     if (gnutls_certificate_type_get(static_cast<gnutls_session_t>(m->ssl)) != GNUTLS_CRT_X509) {
 	/* no ... we cannot handle other certificates here yet ... declare as invalid */
-	log_notice(id_on_xmppAddr, "Rejecting certificate as it is no X.509 certificate");
+	log_notice(log_id.c_str(), "Rejecting certificate as it is no X.509 certificate");
 	return 0;
     }
 
     /* get the certificates */
     cert_list = gnutls_certificate_get_peers(static_cast<gnutls_session_t>(m->ssl), &cert_list_size);
     if (cert_list == NULL || cert_list_size <= 0) {
-	log_notice(id_on_xmppAddr, "Problem verifying certificate: No certificate was found!");
+	log_notice(log_id.c_str(), "Problem verifying certificate: No certificate was found!");
 	return 0;
     }
 
@@ -638,11 +676,12 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
     /* iterate on the certificates */
     for (crt_index = 0; crt_index < cert_list_size; crt_index++) {
 	gnutls_x509_crt_t cert = NULL;
+	std::string cert_subject;
 
 	/* initialize X.509 certificate structure */
 	ret = gnutls_x509_crt_init(&cert);
 	if (ret < 0) {
-	    log_warn(id_on_xmppAddr, "Problem initializing the certificate var. Therefore I cannot verify the certificate.");
+	    log_warn(log_id.c_str(), "Problem initializing the certificate var. Therefore I cannot verify the certificate.");
 	    return 0;
 	}
 
@@ -668,12 +707,23 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 	/* get this certificate */
 	ret = gnutls_x509_crt_import(cert, &cert_list[crt_index], GNUTLS_X509_FMT_DER);
 	if (ret < 0) {
-	    log_warn(id_on_xmppAddr, "Error in loading certificate %i: %s", crt_index, gnutls_strerror(ret));
+	    log_warn(log_id.c_str(), "Error in loading certificate %i: %s", crt_index, gnutls_strerror(ret));
 	    verification_result = 0;
 	    gnutls_x509_crt_deinit(cert);
 	    cert = NULL;
 	    break;
 	}
+
+	/* get the DN of the certificate */
+	char name[1024];
+	size_t name_len = sizeof(name);
+	ret = gnutls_x509_crt_get_dn(cert, name, &name_len);
+	if (ret < 0) {
+	    log_warn(log_id.c_str(), "Error accessing DN of certificate %i: %s", crt_index, gnutls_strerror(ret));
+	} else {
+	    cert_subject = name;
+	}
+	log_debug2(ZONE, LOGT_AUTH, "verifying certificate: %s", cert_subject.c_str());
 
 	/* for the first certificate we have to check the subjectAltNames */
 	if (crt_index == 0 && id_on_xmppAddr != NULL) {
@@ -700,7 +750,7 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 		    if (ret == GNUTLS_E_REQUESTED_DATA_NOT_AVAILABLE) {
 			log_debug2(ZONE, LOGT_AUTH, "no more subjectAltName extensions (%i)", ext_count);
 		    } else {
-			log_warn(id_on_xmppAddr, "error requesting %i-th subjectAltName: %s", ext_count, gnutls_strerror(ret));
+			log_warn(log_id.c_str(), "error requesting %i-th subjectAltName: %s (%s)", ext_count, gnutls_strerror(ret), cert_subject.c_str());
 		    }
 		} else {
 		    ASN1_TYPE subjectAltName_element = ASN1_TYPE_EMPTY;
@@ -714,14 +764,14 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 		    /* init subjectAltName_element */
 		    ret = asn1_create_element(mio_tls_asn1_tree, "PKIX1.SubjectAltName", &subjectAltName_element);
 		    if (ret != ASN1_SUCCESS) {
-			log_warn(id_on_xmppAddr, "error creating asn1 element for PKIX1.SubjectAltName: %s", libtasn1_strerror(ret));
+			log_warn(log_id.c_str(), "error creating asn1 element for PKIX1.SubjectAltName: %s (%s)", libtasn1_strerror(ret), cert_subject.c_str());
 			break;
 		    }
 
 		    /* decode the extension */
 		    ret = asn1_der_decoding(&subjectAltName_element, subjectAltName, subjectAltName_size, NULL);
 		    if (ret != ASN1_SUCCESS) {
-			log_warn(id_on_xmppAddr, "error DER decoding subjectAltName extension: %s", libtasn1_strerror(ret));
+			log_warn(log_id.c_str(), "error DER decoding subjectAltName extension: %s (%s)", libtasn1_strerror(ret), cert_subject.c_str());
 			asn1_delete_structure(&subjectAltName_element);
 			break;
 		    }
@@ -742,7 +792,7 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 			    break;
 			}
 			if (ret != ASN1_SUCCESS) {
-			    log_notice(id_on_xmppAddr, "error accessing type for %s in subjectAltName: %s", cnt_string, libtasn1_strerror(ret));
+			    log_notice(log_id.c_str(), "error accessing type for %s in subjectAltName: %s (%s)", cnt_string, libtasn1_strerror(ret), cert_subject.c_str());
 			    break;
 			}
 
@@ -762,12 +812,12 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 
 				ret = asn1_read_value(subjectAltName_element, access_string, dNSName, &dNSName_len);
 				if (ret != ASN1_SUCCESS) {
-				    log_notice(id_on_xmppAddr, "error accessing %s in subjectAltName: %s", access_string, libtasn1_strerror(ret));
+				    log_notice(log_id.c_str(), "error accessing %s in subjectAltName: %s (%s)", access_string, libtasn1_strerror(ret), cert_subject.c_str());
 				    break;
 				}
 
 				if (dNSName_len >= sizeof(dNSName)) {
-				    log_notice(id_on_xmppAddr, "got a dNSName which is longer then %i B. Skipping ...", sizeof(dNSName));
+				    log_notice(log_id.c_str(), "got a dNSName which is longer then %i B. Skipping ... (%s)", sizeof(dNSName), cert_subject.c_str());
 				    break;
 				}
 
@@ -802,20 +852,20 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 			    /* get the OID of the otherName */
 			    ret = asn1_read_value(subjectAltName_element, access_string_type, otherNameType, &otherNameType_len);
 			    if (ret != ASN1_SUCCESS) {
-				log_notice(id_on_xmppAddr, "error accessing type information %s in subjectAltName: %s", access_string_type, libtasn1_strerror(ret));
+				log_notice(log_id.c_str(), "error accessing type information %s in subjectAltName: %s (%s)", access_string_type, libtasn1_strerror(ret), cert_subject.c_str());
 				break;
 			    }
 
 			    /* is it an id-on-xmppAddr */
 			    if (j_strncmp(otherNameType, "1.3.6.1.5.5.7.8.5", 18) != 0) {
-				log_notice(id_on_xmppAddr, "ignoring unknown otherName in subjectAltName");
+				log_notice(log_id.c_str(), "ignoring unknown otherName in subjectAltName (%s)", cert_subject.c_str());
 				break;
 			    }
 
 			    /* get the value of the otherName */
 			    ret = asn1_read_value(subjectAltName_element, access_string_value, otherNameValue, &otherNameValue_len);
 			    if (ret != ASN1_SUCCESS) {
-				log_notice(id_on_xmppAddr, "error accessing value of othername %s in subjectAltName: %s", access_string_value, libtasn1_strerror(ret));
+				log_notice(log_id.c_str(), "error accessing value of othername %s in subjectAltName: %s (%s)", access_string_value, libtasn1_strerror(ret), cert_subject.c_str());
 				break;
 			    }
 
@@ -829,27 +879,27 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 
 				ret = asn1_create_element(mio_tls_asn1_tree, "PKIX1.DirectoryString", &directoryString_element);
 				if (ret != ASN1_SUCCESS) {
-				    log_notice(id_on_xmppAddr, "error creating DirectoryString element: %s", libtasn1_strerror(ret));
+				    log_notice(log_id.c_str(), "error creating DirectoryString element: %s (%s)", libtasn1_strerror(ret), cert_subject.c_str());
 				    asn1_delete_structure(&directoryString_element);
 				    break;
 				}
 
 				ret = asn1_der_decoding(&directoryString_element, otherNameValue, otherNameValue_len, NULL);
 				if (ret != ASN1_SUCCESS) {
-				    log_notice(id_on_xmppAddr, "error decoding DirectoryString: %s", libtasn1_strerror(ret));
+				    log_notice(log_id.c_str(), "error decoding DirectoryString: %s (%s)", libtasn1_strerror(ret), cert_subject.c_str());
 				    asn1_delete_structure(&directoryString_element);
 				    break;
 				}
 
 				ret = asn1_read_value(directoryString_element, "utf8String", thisIdOnXMPPaddr, &thisIdOnXMPPaddr_len);
 				if (ret != ASN1_SUCCESS) {
-				    log_notice(id_on_xmppAddr, "error accessing utf8String of DirectoryString: %s", libtasn1_strerror(ret));
+				    log_notice(log_id.c_str(), "error accessing utf8String of DirectoryString: %s (%s)", libtasn1_strerror(ret), cert_subject.c_str());
 				    asn1_delete_structure(&directoryString_element);
 				    break;
 				}
 
 				if (thisIdOnXMPPaddr_len >= sizeof(thisIdOnXMPPaddr)) {
-				    log_notice(id_on_xmppAddr, "id-on-xmppAddr is %i B long ... ignoring");
+				    log_notice(log_id.c_str(), "id-on-xmppAddr is %i B long ... ignoring (%s)", thisIdOnXMPPaddr_len, cert_subject.c_str());
 				    asn1_delete_structure(&directoryString_element);
 				    break;
 				}
@@ -866,7 +916,7 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 				    pool_free(jid_pool);
 				    jid_pool = NULL;
 
-				    log_notice(id_on_xmppAddr, "invalid id-on-xmppAddr: %s ... skipping this one", thisIdOnXMPPaddr);
+				    log_notice(log_id.c_str(), "invalid id-on-xmppAddr: %s ... skipping this one (%s)", thisIdOnXMPPaddr, cert_subject.c_str());
 				    break;
 				}
 
@@ -888,7 +938,7 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 			    }
 
 			} else {
-			    log_notice(id_on_xmppAddr, "ignoring %s in subjectAltName", address_type);
+			    log_notice(log_id.c_str(), "ignoring %s in subjectAltName (%s)", address_type, cert_subject.c_str());
 			}
 		    }
 
@@ -900,7 +950,7 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 
 	    if (found_any_subjectAltName) {
 		if (!found_matching_subjectAltName) {
-		    log_notice(id_on_xmppAddr, "Found subjectAltName, but non matched");
+		    log_notice(log_id.c_str(), "Found subjectAltName, but non matched (%s)", cert_subject.c_str());
 		    verification_result = 0;
 		    gnutls_x509_crt_deinit(cert);
 		    cert = NULL;
@@ -909,7 +959,7 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 	    } else {
 		/* verify subject */
 		if (!gnutls_x509_crt_check_hostname(cert, id_on_xmppAddr)) {
-		    log_notice(id_on_xmppAddr, "Certificate subject does not match.");
+		    log_notice(log_id.c_str(), "Certificate subject does not match. (%s)", cert_subject.c_str());
 		    verification_result = 0;
 		    gnutls_x509_crt_deinit(cert);
 		    cert = NULL;
@@ -920,14 +970,14 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
 
 	/* check expiration */
 	if (gnutls_x509_crt_get_expiration_time(cert) < time(NULL)) {
-	    log_notice(id_on_xmppAddr, "Certificate %i has expired", crt_index);
+	    log_notice(log_id.c_str(), "Certificate %i has expired (%s)", crt_index, cert_subject.c_str());
 	    verification_result = 0;
 	    gnutls_x509_crt_deinit(cert);
 	    cert = NULL;
 	    break;
 	}
 	if (gnutls_x509_crt_get_activation_time(cert) > time(NULL)) {
-	    log_notice(id_on_xmppAddr, "Certificate %i not yet active", crt_index);
+	    log_notice(log_id.c_str(), "Certificate %i not yet active (%s)", crt_index, cert_subject.c_str());
 	    verification_result = 0;
 	    gnutls_x509_crt_deinit(cert);
 	    cert = NULL;
