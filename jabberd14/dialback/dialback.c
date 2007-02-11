@@ -121,11 +121,36 @@ int dialback_check_settings(db d, mio m, const char *server, int is_outgoing, in
 
     /* log the connection */
     if (protection_level < 1) {
-	log_notice(d->i->id, "%s %s (unencrypted, no certificate, auth=%s, stream=%s)", is_outgoing ? "connected to" : "connection from", server, auth_type ? "sasl" : "db", xmpp_version);
+	log_notice(d->i->id, "%s %s (unencrypted, no cert, auth=%s, stream=%s, compression=none)", is_outgoing ? "connected to" : "connection from", server, auth_type ? "sasl" : "db", xmpp_version);
     } else if (protection_level == 1) {
-	log_notice(d->i->id, "%s %s (integrity protected, certificate is %s, auth=%s, stream=%s)", is_outgoing ? "connected to" : "connection from", server, mio_ssl_verify(m, server) ? "valid" : "invalid", auth_type ? "sasl" : "db", xmpp_version);
+	char certtype[32] = "no TLS";
+	if (m->ssl) {
+	    mio_tls_get_certtype(m, certtype, sizeof(certtype));
+	}
+
+	char compression[32] = "no TLS";
+	if (m->ssl) {
+	    mio_tls_get_compression(m, compression, sizeof(compression));
+	}
+
+	log_notice(d->i->id, "%s %s (integrity protected, %s cert is %s, auth=%s, stream=%s, compression=%s)", is_outgoing ? "connected to" : "connection from", server, certtype, mio_ssl_verify(m, server) ? "valid" : "invalid", auth_type ? "sasl" : "db", xmpp_version, compression);
     } else {
-	log_notice(d->i->id, "%s %s (encrypted: %i bit, certificate is %s, auth=%s, stream=%s)", is_outgoing ? "connected to" : "connection from", server, protection_level, mio_ssl_verify(m, server) ? "valid" : "invalid", auth_type ? "sasl" : "db", xmpp_version);
+	char sl_characteristics[1024] = "no TLS";
+	if (m->ssl) {
+	    mio_tls_get_characteristics(m, sl_characteristics, sizeof(sl_characteristics));
+	}
+
+	char certtype[32] = "no TLS";
+	if (m->ssl) {
+	    mio_tls_get_certtype(m, certtype, sizeof(certtype));
+	}
+
+	char compression[32] = "no TLS";
+	if (m->ssl) {
+	    mio_tls_get_compression(m, compression, sizeof(compression));
+	}
+
+	log_notice(d->i->id, "%s %s (encrypted: %i b (%s), %s cert is %s, auth=%s, stream=%s, compression=%s)", is_outgoing ? "connected to" : "connection from", server, protection_level, m->ssl ? sl_characteristics : "no TLS", certtype, mio_ssl_verify(m, server) ? "valid" : "invalid", auth_type ? "sasl" : "db", xmpp_version, compression);
     }
     return 1;
 }
