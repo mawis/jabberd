@@ -9,8 +9,6 @@
 #   include <config.h>
 #endif
 
-#ifdef HAVE_GNUTLS
-
 #include <libtasn1.h>
 
 extern const ASN1_ARRAY_TYPE subjectAltName_asn1_tab[]={
@@ -1125,5 +1123,3 @@ extern const ASN1_ARRAY_TYPE subjectAltName_asn1_tab[]={
   {"policy",16391,0},
   {0,0,0}
 };
-
-#endif

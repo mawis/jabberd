@@ -1143,7 +1143,6 @@ void mio_init(void) {
     io = xmlnode_get_list_item(xmlnode_get_tags(greymatter__, "io", namespaces), 0);
     karma = xmlnode_get_list_item(xmlnode_get_tags(io, "karma", namespaces), 0);
 
-#ifdef SUPPORT_TLS
     tls = xmlnode_get_list_item(xmlnode_get_tags(io, "tls", namespaces), 0);
     if (tls == NULL) {
 	tls = xmlnode_get_list_item(xmlnode_get_tags(io, "ssl", namespaces) ,0);
@@ -1154,7 +1153,6 @@ void mio_init(void) {
     if (tls != NULL) {
         mio_ssl_init(tls);
     }
-#endif
 
     if (mio__data == NULL) {
         register_beat(KARMA_HEARTBEAT, _karma_heartbeat, NULL);
@@ -1687,68 +1685,3 @@ void mio_set_handlers(mio m, mio_handlers mh) {
 
     mio_handlers_free(old);
 }
-
-#ifndef SUPPORT_TLS
-/**
- * check if a connection is encrypted
- *
- * @param m the connection
- * @return 0 if the connection is not encrypted, 1 if the connection is integrity protected, >1 if encrypted
- */
-int mio_is_encrypted(mio m) {
-    return 0;
-}
-
-/**
- * check if it would be possible to start TLS on a connection
- *
- * @param m the connection
- * @param identity our own identity (check if certificate is present)
- * @return 0 if it is impossible, 1 if it is possible
- */
-int mio_ssl_starttls_possible(mio m, const char* identity) {
-    return 0;
-}
-
-/**
- * start a TLS layer on a connection and set the appropriate mio handlers for SSL/TLS
- *
- * @param m the connection on which the TLS layer should be established
- * @param originator 1 if this side is the originating side, 0 else
- * @param identity our own identity (selector for the used certificate)
- * @return 0 on success, non-zero on failure
- */
-int mio_ssl_starttls(mio m, int originator, const char* identity) {
-    return -1;
-}
-
-/**
- * get some information on what protocols are used inside the TLS layer
- *
- * @param m the mio object to request the information for
- * @param buffer where to write the result
- * @param len size of the buffer to place the information in
- */
-void	mio_tls_get_characteristics(mio m, char* buffer, size_t len) {
-    if (len >= 1) {
-	buffer[0] = 0;
-    }
-}
-
-void mio_tls_get_certtype(mio m, char* buffer, size_t len) {
-    if (len <= 0) {
-	return;
-    }
-
-    snprintf(buffer, len, "no TLS");
-}
-
-void mio_tls_get_compression(mio m, char* buffer, size_t len) {
-    if (len <= 0) {
-	return;
-    }
-
-    snprintf(buffer, len, "no TLS");
-}
-
-#endif

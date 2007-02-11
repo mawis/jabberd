@@ -111,17 +111,12 @@
 #endif
 
 #include <jabberdlib.h>
+#include <gnutls/gnutls.h>
+#include <gnutls/x509.h>
 
-#ifdef HAVE_GNUTLS
-#   include <gnutls/gnutls.h>
-#   include <gnutls/x509.h>
-#   define SUPPORT_TLS
-#endif /* HAVE_GNUTLS */
-
-#ifdef HAVE_SSL
-#   include <openssl/ssl.h>
-#   define SUPPORT_TLS
-#endif /* HAVE_SSL */
+#ifdef HAVE_GNUTLS_EXTRA
+#  include <gnutls/extra.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {

@@ -669,7 +669,6 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x) {
 		}
 
 		c->connection_state = got_features;
-#ifdef SUPPORT_TLS
 		/* is starttls supported? */
 		if (xmlnode_get_list_item(xmlnode_get_tags(x, "tls:starttls", c->d->std_ns_prefixes), 0) != NULL) {
 		    /* don't start if forbidden by caller (configuration) */
@@ -687,8 +686,6 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x) {
 			break;
 		    }
 		}
-		
-#endif /* SUPPORT_TLS */
 
 		/* is sasl-external supported? */
 		mechanisms = xmlnode_get_list_item(xmlnode_get_tags(x, "sasl:mechanisms", c->d->std_ns_prefixes), 0);
@@ -760,7 +757,6 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x) {
 		break;
 	    }
 
-#ifdef SUPPORT_TLS
 	    /* watch for positive starttls result */
 	    if (j_strcmp(xmlnode_get_localname(x), "proceed") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_XMPP_TLS) == 0) {
 		/* start tls on our side */
@@ -786,7 +782,6 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x) {
 		mio_close(m);
 		break;
 	    }
-#endif /* SUPPORT_TLS */
 
 	    /* watch for SASL success */
 	    if (j_strcmp(xmlnode_get_localname(x), "success") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_XMPP_SASL) == 0) {

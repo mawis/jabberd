@@ -159,7 +159,6 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x) {
     /* incoming starttls */
     if (j_strcmp(xmlnode_get_localname(x), "starttls") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_XMPP_TLS) == 0) {
 	/* starting TLS possible? */
-#ifdef SUPPORT_TLS
 	if (mio_ssl_starttls_possible(m, c->we_domain) && j_strcmp(xhash_get_by_domain(c->d->hosts_tls, c->other_domain), "no")!=0) {
 	    /* ACK the start */
 	    xmlnode proceed = xmlnode_new_tag_ns("proceed", NULL, NS_XMPP_TLS);
@@ -177,15 +176,12 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x) {
 	    
 	    return;
 	} else {
-#endif
 	    /* NACK */
 	    mio_write(m, NULL, "<failure xmlns='" NS_XMPP_TLS "'/></stream:stream>", -1);
 	    mio_close(m);
 	    xmlnode_free(x);
 	    return;
-#ifdef SUPPORT_TLS
 	}
-#endif
     }
     
     /* incoming SASL */
@@ -371,10 +367,8 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     dbns_defined = xmlnode_list_get_nsprefix(m->in_last_ns_root, NS_DIALBACK) ? 1 : 0;
     we_domain = xmlnode_get_attrib_ns(x, "to", NULL);
     other_domain = m->authed_other_side ? m->authed_other_side : xmlnode_get_attrib_ns(x, "from", NULL);
-#ifdef SUPPORT_TLS
     can_offer_starttls = m->authed_other_side==NULL && mio_ssl_starttls_possible(m, we_domain) ? 1 : 0;
     can_do_sasl_external = m->authed_other_side==NULL && (mio_is_encrypted(m) > 0 && mio_ssl_verify(m, other_domain)) ? 1 : 0;
-#endif
 
     /* disable by configuration */
     if (j_strcmp(xhash_get_by_domain(d->hosts_tls, other_domain), "no") == 0)
@@ -474,7 +468,6 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
     /* write stream features */
     if (c->xmpp_version >= 1) {
 	xmlnode features = xmlnode_new_tag_ns("features", "stream", NS_STREAM);
-#ifdef SUPPORT_TLS
 	if (can_offer_starttls) {
 	    xmlnode starttls = NULL;
 
@@ -488,7 +481,6 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x) {
 	    mechanism = xmlnode_insert_tag_ns(mechanisms, "mechanism", NULL, NS_XMPP_SASL);
 	    xmlnode_insert_cdata(mechanism, "EXTERNAL", -1);
 	}
-#endif
 	log_debug2(ZONE, LOGT_IO, "sending stream features: %s", xmlnode_serialize_string(features, NULL, NULL, 0));
 	mio_write(m, features, NULL, 0);
     }

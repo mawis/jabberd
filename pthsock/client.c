@@ -370,14 +370,12 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
 	    /* send stream features for XMPP version 1.0 streams */
 	    if (version>=1) {
 		xmlnode features = xmlnode_new_tag_ns("features", "stream", NS_STREAM);
-#ifdef SUPPORT_TLS
 		/* TLS possible on this connection? */
 		if (mio_ssl_starttls_possible(m, cd->session_id->server)) {
 		    xmlnode starttls = NULL;
 
 		    starttls = xmlnode_insert_tag_ns(features, "starttls", NULL, NS_XMPP_TLS);
 		}
-#endif /* SUPPORT_TLS */
 
 		/* advertise registration of accounts? */
 		if (cd->si->register_feature != 0) {
@@ -417,7 +415,6 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
 		xmlnode q_register = xmlnode_get_list_item(xmlnode_get_tags(x, "register:query", cd->si->std_namespace_prefixes), 0);
 		if (j_strcmp(xmlnode_get_localname(x), "starttls") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_XMPP_TLS) == 0) {
 		    /* starting TLS possible? */
-#ifdef SUPPORT_TLS
 		    if (mio_ssl_starttls_possible(m, cd->session_id->server)) {
 			/* ACK the start */
 			xmlnode proceed = xmlnode_new_tag_ns("proceed", NULL, NS_XMPP_TLS);
@@ -429,13 +426,10 @@ void pthsock_client_read(mio m, int flag, void *arg, xmlnode x)
 			    mio_close(m);
 			}
 		    } else {
-#endif
 			/* NACK */
 			mio_write(m, NULL, "<failure xmlns='" NS_XMPP_TLS "'/></stream:stream>", -1);
 			mio_close(m);
-#ifdef SUPPORT_TLS
 		    }
-#endif
 
 		    /* free the <starttls/> element and return */
 		    xmlnode_free(x);
@@ -654,7 +648,6 @@ void pthsock_client(instance i, xmlnode x) {
 	if(set_karma == 1) mio_karma2(m, k);
     }
 
-#ifdef SUPPORT_TLS
     item = xmlnode_get_tags(s__i->cfg, "pthcsock:tls", s__i->std_namespace_prefixes);
     if (item == NULL) {
 	item = xmlnode_get_tags(s__i->cfg, "pthcsock:ssl", s__i->std_namespace_prefixes);
@@ -679,7 +672,6 @@ void pthsock_client(instance i, xmlnode x) {
 	if (set_karma == 1)
 	    mio_karma2(m, k);
     }
-#endif
 
     /* register data callbacks */
     register_phandler(i, o_DELIVER, pthsock_client_packets, (void*)s__i);

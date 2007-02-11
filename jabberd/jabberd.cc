@@ -187,16 +187,9 @@ int main (int argc, const char** argv) {
 #ifdef WITH_IPV6
 	printf("- support for IPv6.\n");
 #endif
-#ifdef SUPPORT_TLS
 	printf("- support for TLS");
-#ifdef HAVE_GNUTLS
 	printf(" using GNU TLS");
-#endif
-#ifdef HAVE_SSL
-	printf(" using OpenSSL");
-#endif
 	printf("\n");
-#endif
 #ifdef HAVE_MYSQL
 	printf("- support for MySQL\n");
 #endif

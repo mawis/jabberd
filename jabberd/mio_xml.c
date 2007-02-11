@@ -382,7 +382,6 @@ void mio_xml_reset(mio m) {
  * @return 0 on success, non-zero on failure
  */
 int mio_xml_starttls(mio m, int originator, const char *identity) {
-#ifdef SUPPORT_TLS
     int result = 0;
     int waited = 0;
 
@@ -402,7 +401,4 @@ int mio_xml_starttls(mio m, int originator, const char *identity) {
     mio_xml_reset(m);
 
     return 0;
-#else /* no TLS enabled */
-    return 1;
-#endif /* SUPPORT_TLS */
 }
