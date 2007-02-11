@@ -44,7 +44,6 @@
  */
 
 #include "jabberd.h"
-#ifdef HAVE_GNUTLS
 #include <libtasn1.h>
 #include <map>
 #include <string>
@@ -85,9 +84,18 @@ void mio_ssl_init(xmlnode x) {
     /* initialize the GNU TLS library */
     ret = gnutls_global_init();
     if (ret != 0) {
-	log_error(ZONE, "Error initializing GNU TLS library: %s", gnutls_strerror(ret));
+	log_error(NULL, "Error initializing GnuTLS library: %s", gnutls_strerror(ret));
 	/* XXX what to do now? */
     }
+
+#ifdef HAVE_GNUTLS_EXTRA
+    /* initialize the GnuTLS extra library */
+    ret = gnutls_global_init_extra();
+    if (ret != 0) {
+	log_error(NULL, "Error initializing GnuTLS-extra library: %s", gnutls_strerror(ret));
+	/* XXX what to do now? */
+    }
+#endif
 
     /* load asn1 tree to be used by libtasn1 */
     ret = asn1_array2tree(subjectAltName_asn1_tab, &mio_tls_asn1_tree, NULL);
@@ -444,7 +452,11 @@ int mio_ssl_starttls(mio m, int originator, const char* identity) {
 	log_debug2(ZONE, LOGT_IO, "Error setting default priorities for fd #%i: %s", m->fd, gnutls_strerror(ret));
     }
 
-    static const int protocol_priority[] = { GNUTLS_TLS1_1, GNUTLS_TLS1_0, GNUTLS_SSL3, 0 };
+    static const int protocol_priority[] = {
+#ifdef HAVE_TLS1_2
+	GNUTLS_TLS1_2,
+#endif
+	GNUTLS_TLS1_1, GNUTLS_TLS1_0, GNUTLS_SSL3, 0 };
     ret = gnutls_protocol_set_priority(session, protocol_priority);
     if (ret < 0) {
 	log_notice(identity, "error setting protocol priority: %s", gnutls_strerror(ret));
@@ -1053,6 +1065,3 @@ void mio_tls_get_compression(mio m, char* buffer, size_t len) {
 
     snprintf(buffer, len, "%s", gnutls_compression_get_name(gnutls_compression_get(static_cast<gnutls_session_t>(m->ssl))));
 }
-
-
-#endif /* HAVE_GNUTLS */

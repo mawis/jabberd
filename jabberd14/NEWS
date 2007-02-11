@@ -1,10 +1,11 @@
 Version 1.6.1 - not released yet
 
 Changes in administration of the server
-    * Support for using GnuTLS as the TLS library (instead of OpenSSL)
+    * jabberd14 is now using the GnuTLS library instead of OpenSSL
     * Support for wildcards in certificates
-    * Support for TLS 1.1 (only when compiled with GnuTLS)
-    * Support for DH key exchanges (only when compiled with GnuTLS)
+    * Support for TLS 1.1
+    * Support for TLS 1.2 (if supported by your GnuTLS version)
+    * Support for DH key exchanges
 
 Version 1.6.0 - 2006-12-24
 
