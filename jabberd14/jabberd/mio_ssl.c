@@ -476,6 +476,8 @@ int mio_ssl_starttls(mio m, int originator, const char* identity) {
  *
  * Used to check if a domain in a x509 certificate matches an expected domain name
  *
+ * @todo take care of punycode encoded domains in the certificate
+ *
  * @param p memory pool, that can be used for the comparison
  * @param cert_dom the domain out of a x509 domain, may contain wildcards as in RFC2818
  * @param true_dom the expected domain (may NOT contain wildcards)
@@ -498,10 +500,27 @@ static int _mio_ssl_cert_match(pool p, const char *cert_dom, const char *true_do
 	/* compare */
 	return jid_cmp(jid_cert, jid_true);
     } else {
+	size_t match_len = 0;
+	size_t true_dom_len = 0;
+
 	/* there are wildcards, match domain name fragment by fragment */
 
-	/* XXX: to be implemented - asume no match for now */
-	return 1;
+	/* only accepting domains, that start with *. in the cert */
+	if (j_strncmp(cert_dom, "*.", 2) != 0) {
+	    return 1;
+	}
+
+	/* to match the matching part has to be bigger than the domain we are expecting */
+	match_len = strlen(cert_dom+1);
+	true_dom_len = strlen(true_dom);
+
+	/* it can't be a match */
+	if (match_len >= true_dom_len) {
+	    return 1;
+	}
+
+	/* check for match */
+	return strcasecmp(true_dom + true_dom_len - match_len, cert_dom+1);
     }
 }
 
