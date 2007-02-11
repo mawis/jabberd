@@ -245,48 +245,34 @@ fi
 
 AC_SUBST(POOL_DEBUG)
 
-dnl check if SSL/TLS is requested
+dnl first check for GnuTLS (required)
+AC_MSG_CHECKING(for GnuTLS)
+PKG_CHECK_MODULES(GNUTLS, gnutls >= 1.4.0, hasgnutls=yes, hasgnutls=no)
+if test $hasgnutls = "no" ; then
+    AC_MSG_RESULT($GNUTLS_PKG_ERRORS)
+    AC_MSG_ERROR([Couldn't find required GnuTLS installation])
+fi
+CPPFLAGS="$CPPFLAGS $GNUTLS_CFLAGS"
+LDFLAGS="$LDFLAGS $GNUTLS_LIBS"
 
-dnl first check for GNU TLS
-AC_MSG_CHECKING(if GNU TLS is requested)
-AC_ARG_ENABLE(gnutls, AC_HELP_STRING([--enable-gnutls], [Enable protection with SSL/TLS using GNU TLS]), gnutls=yes)
-if test x-$gnutls = "x-yes" ; then
+AC_MSG_CHECKING(for TLS 1.2 support in GnuTLS)
+AC_TRY_COMPILE([#include <gnutls/gnutls.h>], [gnutls_protocol_t pversion = GNUTLS_TLS1_2;], have_tls1_2_support=yes, have_tls1_2_support=no)
+if test "$have_tls1_2_support" = yes; then
     AC_MSG_RESULT(yes)
-    AM_PATH_LIBGNUTLS()
-    CPPFLAGS="$CPPFLAGS $LIBGNUTLS_CFLAGS"
-    LDFLAGS="$LDFLAGS $LIBGNUTLS_LIBS"
-    AC_DEFINE(HAVE_GNUTLS,,[SSL/TLS with GNU TLS requested])
+    AC_DEFINE(HAVE_TLS1_2,,[if GnuTLS has support for TLS 1.2])
 else
     AC_MSG_RESULT(no)
+fi
 
-dnl no GNU TLS? check for OpenSSL
-    AC_MSG_CHECKING(if OpenSSL is requested)
-    AC_ARG_WITH(ssl-legacy, AC_HELP_STRING([--with-ssl-legacy=DIR],
-		[Where to find OpenSSL (use only if your system does NOT support pkg-config, if it does use --enable-ssl)]),
-		ssllegacy=$withval, ssllegacy=no)
-    if test "$ssllegacy" != "no"; then
-	AC_MSG_RESULT(yes)
-	if test "$ssllegacy" = "yes"; then
-	    AC_MSG_ERROR([To enable SSL/TLS support use --enable-ssl and not --with-ssl-legacy])
-	else
-	    AC_DEFINE(HAVE_SSL,,[SSL/TLS with openssl requested])
-	    CPPFLAGS="$CPPFLAGS -I$ssllegacy"
-	    LDFLAGS="$LDFLAGS -L$ssllegacy -lssl -lcrypto"
-	fi
-	
-    else
-	AC_ARG_ENABLE(ssl, AC_HELP_STRING([--enable-ssl], [Enable protection with SSL/TLS using OpenSSL]), ssl=yes)
-	if test x-$ssl = "x-yes" ; then
-	    AC_MSG_RESULT(yes)
-	    AC_DEFINE(HAVE_SSL,,[SSL/TLS with openssl requested])
-	    PKG_CHECK_MODULES(OPENSSL, openssl >= 0.9.7)
-	    CPPFLAGS="$CPPFLAGS $JABBERD_SSL_INCLUDES $OPENSSL_CFLAGS"
-	    LDFLAGS="$LDFLAGS $JABBERD_SSL_LIBS $OPENSSL_LIBS"
-	else
-	    AC_MSG_RESULT(no)
-	fi
-    fi
-    AC_SUBST(HAVE_SSL)
+dnl then check for GnuTLS extra
+PKG_CHECK_MODULES(GNUTLSEXTRA, gnutls-extra >= 1.4.0, hasgnutlsextra=yes, hasgnutlsextra=no)
+if test $hasgnutls = "yes" ; then
+    AC_MSG_RESULT(yes)
+    CPPFLAGS="$CPPFLAGS $GNUTLSEXTRA_CFLAGS"
+    LDFLAGS="$LDFLAGS $GNUTLSEXTRA_LIBS"
+    AC_DEFINE(HAVE_GNUTLS_EXTRA,,[if GnuTLS-extra should be compiled in])
+else
+    AC_MSG_RESULT(no)
 fi
 
 dnl check for libidn

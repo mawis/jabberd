@@ -1,13 +1,20 @@
 2007-02-11  Matthias Wimmer  <m@tthias.eu>
 
-    * jabberd/mio_ssl.c: support for wildcards in certs
-    * jabberd/mio_tls.cc: same
+    * jabberd/mio_tls.cc: support for wildcards in certs
     * jabberd/lib/snprintf.c: removed - need buildin snprintf now
     * jabberd/lib/hash.cc: new SHA-1 implementation
     * jabberd/lib/jabberdlib.h: same
     * jabberd/lib/hmac.c(c): changes due to new SHA-1 implementation
     * jabberd/lib/sha.c: removed old SHA-1 implementation
-    * dialback/dialback.c: logging ciphers and such
+    * jabberd/mio_ssl.c: removed support for OpenSSL
+    * jabberd/jabberd.h: same
+    * jabberd/mio_xml.c: same
+    * jabberd/mio.c: same
+    * jabberd/jabberd.cc: same
+    * dialback/dialback_in.c: same
+    * dialback/dialback_out.c: same
+    * pthsock/client.c: same
+    * dialback/dialback.c: logging TLS protocols
 
 2007-02-10  Matthias Wimmer  <m@tthias.eu>
 
