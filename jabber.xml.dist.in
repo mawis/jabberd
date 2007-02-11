@@ -923,7 +923,6 @@
   <!-- settings for your jabberd14 server.				-->
   <io>
     <!-- The following section initializes TLS (also known as SSL).	-->
-    <!-- This works only when the server is compiled with OpenSSL!	-->
     <!--								-->
     <!-- The most important thing to configure for TLS is to define	-->
     <!-- Which certificates your jabberd14 server should use.		-->
@@ -982,17 +981,25 @@
     <!-- The following attributes are available on the key element as	-->
     <!-- well but are normally not needed:				-->
     <!--								-->
-    <!-- no-ssl-v2='true'						-->
-    <!--	Do not allow usage of version 2 of the SSL protocol.	-->
-    <!--	This version of SSL is known to be weak.		-->
-    <!-- no-ssl-v3='true'						-->
-    <!--	Do not allow usage of version 3.0 of the SSL protocol.	-->
-    <!-- no-tls-v1='true'						-->
-    <!--	Do not allow usage of version 1.0 of the TLS protocol.	-->
-    <!--	This protocol is also known as version 3.1 of the	-->
-    <!--	SSL protocol.						-->
-    <!-- ciphers='$listOfCiphers'					-->
-    <!--	Configure which ciphers are allowed to be used.		-->
+    <!-- protocols='list'                                               -->
+    <!--	The list of TLS that should be supported in the order   -->
+    <!--        of their preference, separated by a space.              -->
+    <!--        Possible values: SSL3, TLS1_0, TLS1_1, TLS1_2           -->
+    <!--        Default: 'TLS1_2 TLS1_1 TLS1_0 SSL3'                    -->
+    <!--        Note: '' means using the defaults of the GnuTLS library -->
+    <!-- kx='list'                                                      -->
+    <!--	The list of supported key exchange algorithms in the    -->
+    <!--	order of their preference, separated by a space.        -->
+    <!--	Possible values: DHE_DSS, DHE_RSA, RSA, ANON_DH		-->
+    <!--	Default: 'DHE_DSS DHE_RSA RSA ANON_DH'			-->
+    <!--	Note: '' means using the defaults of the GnuTLS library -->
+    <!-- cipher='list'							-->
+    <!--	The list of supported ciphers in the order of their	-->
+    <!--	preference, separated by a space.			-->
+    <!--	Possible values: AES_256_CBC, AES_128_CBC, 3DES_CBC,	-->
+    <!--			 ARCFOUR_128				-->
+    <!--	Default: 'AES_256_CBC AES_128_CBC 3DES_CBC ARCFOUR_128' -->
+    <!--	Note: '' means using the defaults of the GnuTLS library	-->
     <!--								-->
     <!-- With the <cacertfile/> configuration element, you configure	-->
     <!-- the root certificats of the certification authorities your	-->
