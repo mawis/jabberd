@@ -765,4 +765,43 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
     return 0;
 }
 
+/**
+ * get some information on what protocols are used inside the TLS layer
+ *
+ * @param m the mio object to request the information for
+ * @param buffer where to write the result
+ * @param len size of the buffer to place the information in
+ */
+void mio_tls_get_characteristics(mio m, char* buffer, size_t len) {
+    if (len >= 1) {
+	buffer[0] = 0;
+    }
+}
+
+void mio_tls_get_certtype(mio m, char* buffer, size_t len) {
+    if (len <= 0) {
+	return;
+    }
+
+    if (m == NULL || m->ssl == NULL) {
+	snprintf(buffer, sizeof(len), "%s", "no TLS");
+	return;
+    }
+
+    snprintf(buffer, sizeof(len), "X.509");
+}
+
+void mio_tls_get_compression(mio m, char* buffer, size_t len) {
+    if (len <= 0) {
+	return;
+    }
+
+    if (m == NULL || m->ssl == NULL) {
+	snprintf(buffer, sizeof(len), "%s", "no TLS");
+	return;
+    }
+
+    snprintf(buffer, sizeof(len), "NULL");
+}
+
 #endif /* HAVE_SSL */

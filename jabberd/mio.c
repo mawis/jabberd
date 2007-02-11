@@ -1721,4 +1721,34 @@ int mio_ssl_starttls_possible(mio m, const char* identity) {
 int mio_ssl_starttls(mio m, int originator, const char* identity) {
     return -1;
 }
+
+/**
+ * get some information on what protocols are used inside the TLS layer
+ *
+ * @param m the mio object to request the information for
+ * @param buffer where to write the result
+ * @param len size of the buffer to place the information in
+ */
+void	mio_tls_get_characteristics(mio m, char* buffer, size_t len) {
+    if (len >= 1) {
+	buffer[0] = 0;
+    }
+}
+
+void mio_tls_get_certtype(mio m, char* buffer, size_t len) {
+    if (len <= 0) {
+	return;
+    }
+
+    snprintf(buffer, len, "no TLS");
+}
+
+void mio_tls_get_compression(mio m, char* buffer, size_t len) {
+    if (len <= 0) {
+	return;
+    }
+
+    snprintf(buffer, len, "no TLS");
+}
+
 #endif

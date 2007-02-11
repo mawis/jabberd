@@ -1001,4 +1001,58 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
     return verification_result;
 }
 
+/**
+ * get some information on what protocols are used inside the TLS layer
+ *
+ * @param m the mio object to request the information for
+ * @param buffer where to write the result
+ * @param len size of the buffer to place the information in
+ */
+void mio_tls_get_characteristics(mio m, char* buffer, size_t len) {
+    /* sanity checks */
+    if (len <= 0) {
+	return;
+    }
+    if (m == NULL || m->ssl == NULL) {
+	snprintf(buffer, len, "no TLS");
+	return;
+    }
+
+    gnutls_session_t session = static_cast<gnutls_session_t>(m->ssl);
+
+    std::ostringstream characteristics;
+    characteristics << gnutls_protocol_get_name(gnutls_protocol_get_version(session));
+    characteristics << "/";
+    characteristics << gnutls_cipher_suite_get_name(gnutls_kx_get(session), gnutls_cipher_get(session), gnutls_mac_get(session));
+
+    snprintf(buffer, len, "%s", characteristics.str().c_str());
+}
+
+void mio_tls_get_certtype(mio m, char* buffer, size_t len) {
+    /* sanity checks */
+    if (len <= 0) {
+	return;
+    }
+    if (m == NULL || m->ssl == NULL) {
+	snprintf(buffer, len, "no TLS");
+	return;
+    }
+
+    snprintf(buffer, len, "%s", gnutls_certificate_type_get_name(gnutls_certificate_type_get(static_cast<gnutls_session_t>(m->ssl))));
+}
+
+void mio_tls_get_compression(mio m, char* buffer, size_t len) {
+    /* sanity checks */
+    if (len <= 0) {
+	return;
+    }
+    if (m == NULL || m->ssl == NULL) {
+	snprintf(buffer, len, "no TLS");
+	return;
+    }
+
+    snprintf(buffer, len, "%s", gnutls_compression_get_name(gnutls_compression_get(static_cast<gnutls_session_t>(m->ssl))));
+}
+
+
 #endif /* HAVE_GNUTLS */
