@@ -1,3 +1,8 @@
+2007-02-11  Matthias Wimmer  <m@tthias.eu>
+
+    * jabberd/mio_ssl.c: support for wildcards in certs
+    * jabberd/mio_tls.cc: same
+
 2007-02-10  Matthias Wimmer  <m@tthias.eu>
 
     * jabberd/mio_tls.cc: more info on rejected certificates
