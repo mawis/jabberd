@@ -2,6 +2,11 @@
 
     * jabberd/mio_ssl.c: support for wildcards in certs
     * jabberd/mio_tls.cc: same
+    * jabberd/lib/snprintf.c: removed - need buildin snprintf now
+    * jabberd/lib/hash.cc: new SHA-1 implementation
+    * jabberd/lib/jabberdlib.h: same
+    * jabberd/lib/hmac.c(c): changes due to new SHA-1 implementation
+    * jabberd/lib/sha.c: removed old SHA-1 implementation
 
 2007-02-10  Matthias Wimmer  <m@tthias.eu>
 
