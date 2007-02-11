@@ -452,6 +452,9 @@ int	mio_ssl_verify(mio m, const char *id_on_xmppAddr);
 ssize_t _mio_ssl_read    (mio m, void *buf, size_t count);
 ssize_t _mio_ssl_write   (mio m, const void*      buf,       size_t     count);
 int     _mio_ssl_accepted(mio m);
+void	mio_tls_get_characteristics(mio m, char* buffer, size_t len);
+void	mio_tls_get_certtype(mio m, char* buffer, size_t len);
+void	mio_tls_get_compression(mio m, char* buffer, size_t len);
 #define MIO_SSL_READ     _mio_ssl_read
 #define MIO_SSL_WRITE    _mio_ssl_write
 #define MIO_SSL_ACCEPTED _mio_ssl_accepted
