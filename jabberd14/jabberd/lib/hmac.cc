@@ -37,11 +37,11 @@
 #include "jabberdlib.h"
 
 static void hmac_sha1_r(char *secret, unsigned char *message, size_t len, unsigned char hmac[20]) {
-    unsigned char key[20];
-    unsigned char innerhash[20];
-    unsigned char outerhash[20];
-    unsigned char ipadded[20];
-    unsigned char opadded[20];
+    std::vector<uint8_t> key;
+    xmppd::sha1 innerhash;
+    xmppd::sha1 outerhash;
+    char ipadded[20];
+    char opadded[20];
     int i = 0;
     j_SHA_CTX ctx;
 
@@ -50,7 +50,9 @@ static void hmac_sha1_r(char *secret, unsigned char *message, size_t len, unsign
 	return;
 
     /* hash our key for HMAC-SHA1 usage */
-    shaBlock(secret, j_strlen(secret), key);
+    xmppd::sha1 keyhasher;
+    keyhasher.update(secret);
+    key = keyhasher.final();
 
     /* generate inner and outer pad */
     for (i = 0; i<20; i++) {
@@ -59,16 +61,18 @@ static void hmac_sha1_r(char *secret, unsigned char *message, size_t len, unsign
     }
 
     /* calculate inner hash */
-    shaInit(&ctx);
-    shaUpdate(&ctx, ipadded, 20);
-    shaUpdate(&ctx, message, len);
-    shaFinal(&ctx, innerhash);
+    innerhash.update(std::string(ipadded, 20));
+    innerhash.update(reinterpret_cast<char*>(message));
 
     /* calculate outer hash */
-    shaInit(&ctx);
-    shaUpdate(&ctx, opadded, 20);
-    shaUpdate(&ctx, innerhash, 20);
-    shaFinal(&ctx, hmac);
+    outerhash.update(std::string(opadded, 20));
+    outerhash.update(innerhash.final());
+
+    /* copy hmac to the result buffer */
+    std::vector<uint8_t> result = outerhash.final();
+    for (int i=0; i<20; i++) {
+	hmac[i] = result[0];
+    }
 }
 
 void hmac_sha1_ascii_r(char *secret, unsigned char *message, size_t len, char hmac[41]) {
