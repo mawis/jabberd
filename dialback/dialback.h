@@ -79,7 +79,7 @@ typedef struct miod_struct
 void dialback_out_packet(db d, xmlnode x, char *ip);
 result dialback_out_beat_packets(void *arg);
 
-void dialback_in_read(mio s, int flags, void *arg, xmlnode x);
+void dialback_in_read(mio s, int flags, void *arg, xmlnode x, char* unused1, int unused2);
 void dialback_in_verify(db d, xmlnode x);
 
 int dialback_check_settings(db d, mio m, const char *server, int is_outgoing, int auth_type, int version);
