@@ -1,16 +1,25 @@
 /*
- * Licence
+ * Copyrights
+ * 
+ * Copyright (c) 2006-2007 Matthias Wimmer
  *
- * Copyright (c) 2006 Matthias Wimmer,
- *                    mailto:m@tthias.eu, xmpp:mawis@amessage.info
+ * This file is part of jabberd14.
  *
- * You can use the content of this file using one of the following licences:
+ * This software is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of the
+ * License, or (at your option) any later version.
  *
- * - Version 1.0 of the Jabber Open Source Licence ("JOSL")
- * - GNU GENERAL PUBLIC LICENSE, Version 2 or any newer version of this licence at your choice
- * - Apache Licence, Version 2.0
- * - GNU Lesser General Public License, Version 2.1 or any newer version of this licence at your choice
- * - Mozilla Public License 1.1
+ * This software is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this software; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 /**
