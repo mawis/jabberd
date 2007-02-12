@@ -234,6 +234,7 @@ void log_alert(const char *host, const char *msgfmt, ...);
 #define log_error log_alert
 void logger(char *type, const char *host, char *message); /* actually creates and delivers the log message */
 void log_record(char *id, char *type, char *action, const char *msgfmt, ...); /* for generic logging support, like log_record("jer@jabber.org","session","end","...") */
+void log_generic(char *logtype, char *id, char *type, char *action, const char *msgfmt, ...);
 
 /*** xdb utilities ***/
 
@@ -321,6 +322,10 @@ struct mio_handlers_st; /* grr.. stupid fsking chicken and egg C definitions */
 typedef enum { state_ACTIVE, state_CLOSE } mio_state;
 typedef enum { type_LISTEN, type_NORMAL, type_NUL, type_HTTP } mio_type;
 
+/* standard i/o callback function definition */
+struct mio_st;
+typedef void (*mio_std_cb)(mio_st* m, int state, void *arg, xmlnode x, char *buffer, int bufsz);
+
 /**
  * Representation of a managed TCP socket
  */
@@ -336,7 +341,7 @@ typedef struct mio_st {
     struct mio_st *prev,*next;		/**< pointers to the previous and next item, if a list of mio_st elements is build */
 
     void *cb_arg;			/**< MIO event callback argument (do not modify directly) */
-    void *cb;				/**< MIO event callback (do not modify directly) */
+    mio_std_cb cb;			/**< MIO event callback (do not modify directly) */
     struct mio_handlers_st *mh;		/**< MIO internal handlers (for reading, writing, setting up TLS layers) */
 
     xstream    xs;   /* XXX kill me, I suck */
@@ -459,12 +464,6 @@ void         mio_set_handlers(mio m, mio_handlers mh);
 #define MIO_CLOSED    4
 #define MIO_ERROR     5
 
-/* standard i/o callback function definition */
-typedef void (*mio_std_cb)(mio m, int state, void *arg);
-typedef void (*mio_xml_cb)(mio m, int state, void *arg, xmlnode x);
-typedef void (*mio_raw_cb)(mio m, int state, void *arg, char *buffer,int bufsz);
-typedef void (*mio_ssl_cb)(mio m, int state, void *arg, char *buffer,int bufsz);
-
 /* Initializes the MIO subsystem */
 void mio_init(void);
 
@@ -472,10 +471,10 @@ void mio_init(void);
 void mio_stop(void);
 
 /* Create a new mio object from a file descriptor */
-mio mio_new(int fd, void *cb, void *cb_arg, mio_handlers mh);
+mio mio_new(int fd, mio_std_cb cb, void *cb_arg, mio_handlers mh);
 
 /* Reset the callback and argument for an mio object */
-void mio_reset(mio m, void *cb, void *arg);
+void mio_reset(mio m, mio_std_cb cb, void *arg);
 
 /* Request the mio socket be closed */
 void mio_close(mio m);
@@ -497,10 +496,12 @@ void mio_rate(mio m, int rate_time, int max_points);
 xmlnode mio_cleanup(mio m);
 
 /* Connects to an ip */
-void mio_connect(char *host, int port, void *cb, void *cb_arg, int timeout, mio_handlers mh);
+void mio_connect(char *host, int port, mio_std_cb cb, void *cb_arg, int timeout, mio_handlers mh);
 
 /* Starts listening on a port/ip, returns NULL if failed to listen */
-mio mio_listen(int port, char *sourceip, void *cb, void *cb_arg, mio_handlers mh);
+mio mio_listen(int port, char *sourceip, mio_std_cb cb, void *cb_arg, mio_handlers mh);
+
+int _mio_write_dump(mio m);
 
 /* some nice api utilities */
 #define mio_pool(m) (m->p)
