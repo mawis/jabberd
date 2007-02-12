@@ -1,3 +1,15 @@
+Upgrading from 1.6.0 to 1.6.1
+-----------------------------
+
+Version 1.6.1 is mainly just a switch from OpenSSL to GnuTLS as the
+TLS implementation. Therefore you now need GnuTLS to be installed on your
+system. The TLS layer configuration in the jabber.xml configuration file
+has had some small changes, so you might want to check it.
+
+Take care that mod_filter has been removed from your configuration file.
+The empty dummy implementation of this module has been removed.
+
+
 Upgrading from 1.4.4 to 1.6.0
 -----------------------------
 
