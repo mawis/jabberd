@@ -1,6 +1,7 @@
 2007-02-12  Matthias Wimmer  <m@tthias.eu>
 
     * *.c, *.cc, *.h: updated license headers
+    * *.c: switches to *.cc
 
 2007-02-11  Matthias Wimmer  <m@tthias.eu>
 
