@@ -58,16 +58,14 @@ extern xmlnode greymatter__;
 extern xht instance__ids;
 
 /*** internal functions ***/
-extern "C" {
-    void base_init(pool p);
-    int configo(int exec);
-    int configurate(char *file, xht cmd_line, int is_restart);
-    void deliver_init(pool p);
-    void deliver_shutdown(void);
-    void heartbeat_birth(void);
-    void heartbeat_death(void);
-    void shutdown_callbacks(void);
-}
+void base_init(pool p);
+int configo(int exec);
+int configurate(char *file, xht cmd_line, int is_restart);
+void deliver_init(pool p);
+void deliver_shutdown(void);
+void heartbeat_birth(void);
+void heartbeat_death(void);
+void shutdown_callbacks(void);
 static void _jabberd_signal(int sig);
 static void _jabberd_atexit(void);
 static result jabberd_signal_handler(void *arg);
