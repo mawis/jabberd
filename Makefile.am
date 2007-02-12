@@ -1,4 +1,4 @@
-EXTRA_DIST = UPGRADE jabber.xml.dist.in README.SQL README.karma README.config README.protocols README.filespool mysql.sql xdb_postgresql.xml cacerts.pem
+EXTRA_DIST = UPGRADE jabber.xml.dist.in README.SQL README.karma README.config README.protocols README.filespool mysql.sql pgsql_createdb.sql xdb_postgresql.xml cacerts.pem
 
 SUBDIRS = jabberd dialback dnsrv jsm pthsock xdb_file xdb_sql man po
 DIST_SUBDIRS = jabberd dialback dnsrv jsm pthsock xdb_file xdb_sql man po
