@@ -163,18 +163,25 @@ int jutil_priority(xmlnode x) {
     if(xmlnode_get_attrib_ns(x,"type", NULL) != NULL)
         return -129;
 
+    pool temp_pool = pool_new();
     namespaces = xhash_new(3);
     xhash_put(namespaces, "", const_cast<char*>(NS_SERVER));
-    x = xmlnode_get_list_item(xmlnode_get_tags(x, "priority", namespaces), 0);
+    x = xmlnode_get_list_item(xmlnode_get_tags(x, "priority", namespaces, temp_pool), 0);
     xhash_free(namespaces);
-    if(x == NULL)
+    if(x == NULL) {
+	pool_free(temp_pool);
         return 0;
+    }
 
     str = xmlnode_get_data((x));
-    if(str == NULL)
+    if(str == NULL) {
+	pool_free(temp_pool);
         return 0;
+    }
 
     p = atoi(str);
+    pool_free(temp_pool);
+
     /* xmpp-im section 2.2.2.3 */
     return p<-128 ? -128 : p>127 ? 127 : p;
 }

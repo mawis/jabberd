@@ -30,10 +30,6 @@
 
 #include "jabberd.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
  * @dir jsm
  * @brief Contains the Jabber session manager, that is extended by modules contained in jsm/modules
@@ -641,7 +637,3 @@ void jsm_shutdown(void *arg);
 
 void jsm_serialize(jsmi si);
 void jsm_deserialize(jsmi si, const char *host);
-
-#ifdef __cplusplus
-}
-#endif
