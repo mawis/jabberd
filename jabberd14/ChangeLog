@@ -15,6 +15,7 @@
     * jabberd/base/base_accept.cc: same
     * jabberd/jabberd.cc: same
     * jabberd/deliver.cc: same
+    * jabberd/lib/hmac.cc: fixing bug in HMAC calculation
 
 2007-02-12  Matthias Wimmer  <m@tthias.eu>
 
