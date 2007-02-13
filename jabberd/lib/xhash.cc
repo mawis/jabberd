@@ -395,9 +395,11 @@ xht xhash_from_xml(xmlnode hash) {
     ns = xhash_new(2);
     xhash_put(ns, "", const_cast<char*>(NS_JABBERD_HASH));
 
-    for (entry = xmlnode_get_tags(hash, "entry", ns); entry != NULL; entry = entry->next) {
-	char *key = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(entry->node, "key", ns), 0));
-	char *value = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(entry->node, "value", ns), 0));
+    pool temp_p = pool_new();
+
+    for (entry = xmlnode_get_tags(hash, "entry", ns, temp_p); entry != NULL; entry = entry->next) {
+	char *key = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(entry->node, "key", ns, temp_p), 0));
+	char *value = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(entry->node, "value", ns, temp_p), 0));
 
 	if (value == NULL)
 	    value = "";
@@ -407,6 +409,9 @@ xht xhash_from_xml(xmlnode hash) {
 
 	xhash_put(result, pstrdup(result->p, key), pstrdup(result->p, value));
     }
+
+    pool_free(temp_p);
+    temp_p = NULL;
 
     xhash_free(ns);
 

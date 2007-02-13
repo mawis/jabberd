@@ -43,13 +43,8 @@
 
 #include <jabberd.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /** s2s instance */
-typedef struct db_struct
-{
+typedef struct db_struct {
     instance i;		/**< data jabberd hold for each instance */
     xht nscache;	/**< host/ip local resolution cache */
     xht out_connecting;	/**< where unvalidated in-progress connections are, key is to/from */
@@ -176,7 +171,3 @@ typedef struct dbic_struct {
     int xmpp_version;	/**< version of the stream, -1 not yet known, 0 preXMPP */
     time_t stamp;	/**< then the connection has been accepted */
 } *dbic, _dbic;
-
-#ifdef __cplusplus
-}
-#endif

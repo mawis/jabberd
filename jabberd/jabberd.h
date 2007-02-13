@@ -108,10 +108,6 @@
 #  include <gnutls/extra.h>
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /** Packet types */
 typedef enum { p_NONE, p_NORM, p_XDB, p_LOG, p_ROUTE } ptype;
 
@@ -514,7 +510,3 @@ int _mio_write_dump(mio m);
 
 int acl_check_access(xdbcache xdb, const char *function, const jid user);
 jid acl_get_users(xdbcache xdb, const char *function);
-
-#ifdef __cplusplus
-}
-#endif

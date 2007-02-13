@@ -196,12 +196,21 @@ static result base_connect_config(instance id, xmlnode x, void *arg) {
     /* Extract info */
     namespaces = xhash_new(3);
     xhash_put(namespaces, "", const_cast<char*>(NS_JABBERD_CONFIGFILE));
-    ip = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "ip", namespaces), 0));
-    port = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "port", namespaces), 0)), 0);
-    secret = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "secret", namespaces), 0));
-    timeout = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "timeout", namespaces), 0)), 5);
-    tries = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "tries", namespaces), 0)), -1);
+    pool temp_pool = pool_new();
+    ip = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "ip", namespaces, temp_pool), 0));
+    port = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "port", namespaces, temp_pool), 0)), 0);
+    secret = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "secret", namespaces, temp_pool), 0));
+    timeout = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "timeout", namespaces, temp_pool), 0)), 5);
+    tries = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "tries", namespaces, temp_pool), 0)), -1);
     xhash_free(namespaces);
+
+    /* copy relevant data out of the temp_pool and free the temp_pool again */
+    if (ip != NULL)
+	ip = pstrdup(id->p, ip);
+    if (secret != NULL)
+	secret = pstrdup(id->p, secret);
+    pool_free(temp_pool);
+    temp_pool = NULL;
 
     if(id == NULL) {
         log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_accept_config validating configuration\n");
