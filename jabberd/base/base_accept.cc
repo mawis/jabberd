@@ -323,11 +323,7 @@ static result base_accept_config(instance id, xmlnode x, void *arg) {
     timeout = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "timeout", namespaces, temp_pool), 0)), 10);
     xhash_free(namespaces);
 
-    /* copy relevant data out of the temp_pool and free temp_pool */
-    if (secret != NULL)
-	secret = pstrdup(id->p, secret);
-    if (ip != NULL)
-	ip = pstrdup(id->p, ip);
+    /* free temp_pool again */
     pool_free(temp_pool);
     temp_pool = NULL;
 
