@@ -156,8 +156,11 @@ static result base_dir_config(instance id, xmlnode x, void *arg) {
     namespaces = xhash_new(3);
     xhash_put(namespaces, "", const_cast<char*>(NS_JABBERD_CONFIGFILE));
     conf_data = static_cast<base_dir_st>(pmalloc(id->p, sizeof(_base_dir_st)));
-    conf_data->in_dir = pstrdup(id->p, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "in", namespaces), 0)));
-    conf_data->out_dir = pstrdup(id->p, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "out", namespaces), 0)));
+    pool temp_pool = pool_new();
+    conf_data->in_dir = pstrdup(id->p, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "in", namespaces, temp_pool), 0)));
+    conf_data->out_dir = pstrdup(id->p, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "out", namespaces, temp_pool), 0)));
+    pool_free(temp_pool);
+    temp_pool = NULL;
     conf_data->id = id;
     conf_data->serial = 0;
     xhash_free(namespaces);

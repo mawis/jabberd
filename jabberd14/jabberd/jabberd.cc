@@ -432,8 +432,9 @@ static void _jabberd_atexit(void) {
 
     /* Get rid of our pid file */
     namespaces = xhash_new(3);
+    pool temp_pool = pool_new();
     xhash_put(namespaces, "", const_cast<void*>(static_cast<const void*>(NS_JABBERD_CONFIGFILE)));
-    pidfile = xmlnode_get_list_item(xmlnode_get_tags(greymatter__, "pidfile", namespaces), 0);
+    pidfile = xmlnode_get_list_item(xmlnode_get_tags(greymatter__, "pidfile", namespaces, temp_pool), 0);
     xhash_free(namespaces);
     if (pidfile != NULL) {
         pidpath = xmlnode_get_data(pidfile);
@@ -441,6 +442,10 @@ static void _jabberd_atexit(void) {
             unlink(pidpath);
     }
     xmlnode_free(greymatter__);
+    pidfile = NULL;
+    pidpath = NULL;
+    pool_free(temp_pool);
+    temp_pool = NULL;
 
     /* free delivery hashes */
     deliver_shutdown();

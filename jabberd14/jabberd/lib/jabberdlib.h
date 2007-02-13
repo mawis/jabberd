@@ -90,8 +90,6 @@
 #ifndef INCL_LIB_H
 #define INCL_LIB_H
 
-#ifdef __cplusplus
-
 #include <string>
 #include <vector>
 #include <sstream>
@@ -205,9 +203,6 @@ namespace xmppd {
 	    uint64_t l;
     };
 }
-
-extern "C" {
-#endif
 
 #define ZONE zonestr(__FILE__,__LINE__)
 char *zonestr(char *file, int line);
@@ -500,7 +495,7 @@ void xmlnode_free(xmlnode node);
 /* Locates a child tag by name and returns it */
 xmlnode  xmlnode_get_tag(xmlnode parent, const char* name);
 char* xmlnode_get_tag_data(xmlnode parent, const char* name);
-xmlnode_list_item xmlnode_get_tags(xmlnode context_node, const char *path, xht namespaces);
+xmlnode_list_item xmlnode_get_tags(xmlnode context_node, const char *path, xht namespaces, pool p = NULL);
 xmlnode xmlnode_get_list_item(xmlnode_list_item first, unsigned int i);
 char* xmlnode_get_list_item_data(xmlnode_list_item first, unsigned int i);
 xmlnode xmlnode_select_by_lang(xmlnode_list_item nodes, const char* lang);
@@ -985,9 +980,5 @@ char*   jutil_regkey(char *key, char *seed);		 /* pass a seed to generate a key,
 /* --------------------------------------------------------- */
 void messages_set_mapping(const char* lang, const char* locale_name);
 const char* messages_get(const char* lang, const char* message);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif	/* INCL_LIB_H */

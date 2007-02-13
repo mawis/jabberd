@@ -96,8 +96,12 @@ xmlnode js_config(jsmi si, const char* query, const char* lang) {
 	xmlnode config = xdb_get(si->xc, jid_new(temp_p, "config@-internal"), NS_JABBERD_CONFIG_JSM);
 	pool_free(temp_p);
 	return config;
-    } else
-        return xmlnode_select_by_lang(xmlnode_get_tags(js_config(si, NULL, lang), query, si->std_namespace_prefixes), lang);
+    } else {
+	pool temp_pool = pool_new();
+	xmlnode result = xmlnode_select_by_lang(xmlnode_get_tags(js_config(si, NULL, lang), query, si->std_namespace_prefixes, temp_pool), lang);
+	pool_free(temp_pool);
+	return result;
+    }
 }
 
 /**

@@ -97,24 +97,22 @@ std::string messages::get(const std::string& lang, const char* message) {
     }
 }
 
-extern "C" {
-    void messages_set_mapping(const char* lang, const char* locale_name) {
-	// sanity check
-	if (lang == NULL || locale_name == NULL)
-	    return;
+void messages_set_mapping(const char* lang, const char* locale_name) {
+    // sanity check
+    if (lang == NULL || locale_name == NULL)
+	return;
 
-	messages::static_messages.set_mapping(lang, locale_name);
-    }
+    messages::static_messages.set_mapping(lang, locale_name);
+}
 
-    const char* messages_get(const char* lang, const char* message) {
-	static std::string last_result;
+const char* messages_get(const char* lang, const char* message) {
+    static std::string last_result;
 
-	// sanity check
-	if (lang == NULL)
-	    return message;
+    // sanity check
+    if (lang == NULL)
+	return message;
 
-	// get message
-	last_result = messages::static_messages.get(lang, message);
-	return last_result.c_str();
-    }
+    // get message
+    last_result = messages::static_messages.get(lang, message);
+    return last_result.c_str();
 }
