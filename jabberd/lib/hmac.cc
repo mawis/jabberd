@@ -59,7 +59,7 @@ static void hmac_sha1_r(char *secret, unsigned char *message, size_t len, unsign
     /* copy hmac to the result buffer */
     std::vector<uint8_t> result = outerhash.final();
     for (int i=0; i<20; i++) {
-	hmac[i] = result[0];
+	hmac[i] = result[i];
     }
 }
 
