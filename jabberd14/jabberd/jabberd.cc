@@ -83,6 +83,7 @@ typedef struct {
 jabberd_struct jabberd = { NULL, NULL, 0, NULL };		/**< global data for the jabberd */
 
 void xmlnode_stat();
+void deliver_pool_debug();
 
 /**
  * the entry point to jabberd
@@ -332,6 +333,7 @@ int main (int argc, const char** argv) {
 #ifdef POOL_DEBUG
 	pool_stat(0);
 	xmlnode_stat();
+	deliver_pool_debug();
 #endif
 #ifdef LIBIDN
 	jid_clean_cache();
