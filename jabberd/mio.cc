@@ -145,12 +145,14 @@ static int _mio_access_check(const char *address, int check_allow) {
     char temp_ip[INET6_ADDRSTRLEN];
     static struct in_addr tmpa;
 #endif
+
+    pool temp_pool = pool_new();
    
     if (namespaces == NULL) {
 	namespaces = xhash_new(2);
 	xhash_put(namespaces, NULL, const_cast<char*>(NS_JABBERD_CONFIGFILE));
     }
-    xmlnode io = xmlnode_get_list_item(xmlnode_get_tags(greymatter__, "io", namespaces), 0);
+    xmlnode io = xmlnode_get_list_item(xmlnode_get_tags(greymatter__, "io", namespaces, temp_pool), 0);
     xmlnode cur;
 
 #ifdef WITH_IPV6
@@ -161,8 +163,10 @@ static int _mio_access_check(const char *address, int check_allow) {
     }
 #endif
 
-    if (xmlnode_get_list_item(xmlnode_get_tags(io, check_allow ? "allow" : "deny", namespaces), 0) == NULL)
+    if (xmlnode_get_list_item(xmlnode_get_tags(io, check_allow ? "allow" : "deny", namespaces, temp_pool), 0) == NULL) {
+	pool_free(temp_pool);
         return check_allow ? 1 : 0; /* if there is no allow/deny section, allow all */
+    }
 
     for (cur = xmlnode_get_firstchild(io); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
         char *ip, *netmask;
@@ -179,8 +183,8 @@ static int _mio_access_check(const char *address, int check_allow) {
         if (j_strcmp(xmlnode_get_localname(cur), check_allow ? "allow" : "deny") != 0 || j_strcmp(xmlnode_get_namespace(cur), NS_JABBERD_CONFIGFILE) != 0) 
             continue;
 
-	ip = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(cur, "ip", namespaces), 0));
-	netmask = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(cur, "mask", namespaces), 0));
+	ip = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(cur, "ip", namespaces, temp_pool), 0));
+	netmask = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(cur, "mask", namespaces, temp_pool), 0));
 
         if (ip == NULL)
             continue;
@@ -213,20 +217,23 @@ static int _mio_access_check(const char *address, int check_allow) {
             inet_aton(netmask, &in_netmask);
             if((in_address.s_addr & in_netmask.s_addr) == (in_ip.s_addr & in_netmask.s_addr)) {
 #endif
+		pool_free(temp_pool);
             	/* this ip is in the allow/deny network */
                 return 1;
             }
         } else {
 #ifdef WITH_IPV6
-	    if(_mio_compare_ipv6(&in_ip, &in_address, 128))
+	    if (_mio_compare_ipv6(&in_ip, &in_address, 128))
 #else
-            if(in_ip.s_addr == in_address.s_addr)
+            if (in_ip.s_addr == in_address.s_addr)
 #endif
+		pool_free(temp_pool);
                 return 2; /* exact matches hold greater weight */
         }
     }
 
     /* deny/allow the rest */
+    pool_free(temp_pool);
     return 0;
 }
 
@@ -581,19 +588,19 @@ static int _mio_connect_helper(mio m, struct sockaddr* serv_addr, socklen_t  add
  * @param arg ::connect_data for the connection
  */
 static void* _mio_connect(void *arg) {
-    connect_data cd = (connect_data)arg;
+    connect_data	cd = (connect_data)arg;
 #ifdef WITH_IPV6
-    struct sockaddr_in6 sa;
+    struct sockaddr_in6	sa;
     struct in6_addr	*saddr;
 #else
-    struct sockaddr_in sa;
-    struct in_addr     *saddr;
+    struct sockaddr_in	sa;
+    struct in_addr*	saddr;
 #endif
-    int                flag = 1,
-                       flags;
-    mio                newm;
-    pool               p;
-    sigset_t           set;
+    int			flag = 1,
+			flags;
+    mio			newm;
+    pool		p;
+    sigset_t		set;
     static xht		namespaces = NULL;
 
     if (namespaces == NULL) {
@@ -605,7 +612,6 @@ static void* _mio_connect(void *arg) {
     sigemptyset(&set);
     sigaddset(&set, SIGUSR2);
     pth_sigmask(SIG_BLOCK, &set, NULL);
-
 
     bzero((void*)&sa, sizeof(sa));
 
@@ -645,10 +651,11 @@ static void* _mio_connect(void *arg) {
     }
 
     /* optionally bind to a local address */
-    if (xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(greymatter__, "io/bind", namespaces), 0)) != NULL) {
+    pool temp_pool = pool_new();
+    if (xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(greymatter__, "io/bind", namespaces, temp_pool), 0)) != NULL) {
 #ifdef WITH_IPV6
 	struct sockaddr_in6 sa;
-	char *addr_str = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(greymatter__, "io/bind", namespaces), 0));
+	char *addr_str = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(greymatter__, "io/bind", namespaces, temp_pool), 0));
 	char temp_addr[INET6_ADDRSTRLEN];
 	struct in_addr tmp;
 
@@ -667,10 +674,12 @@ static void* _mio_connect(void *arg) {
         struct sockaddr_in sa;
         sa.sin_family = AF_INET;
         sa.sin_port   = 0;
-        inet_aton(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(greymatter__, "io/bind", namespaces), 0)), &sa.sin_addr);
+        inet_aton(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(greymatter__, "io/bind", namespaces, temp_pool), 0)), &sa.sin_addr);
 #endif
         bind(newm->fd, (struct sockaddr*)&sa, sizeof(sa));
     }
+    pool_free(temp_pool);
+    temp_pool = NULL;
 
     /* parse the IP to connect to */
 #ifdef WITH_IPV6
@@ -746,49 +755,7 @@ static void* _mio_connect(void *arg) {
     if (newm->cb != NULL)
         (*newm->cb)(newm, MIO_NEW, newm->cb_arg, NULL, NULL, 0);
 
-}
-
-/**
- * process an incoming broadcast query
- *
- * @param bcast the socket where we listen for broadcasts
- */
-static void _mio_process_broadcast(int bcast) {
-#ifdef WITH_IPV6
-    struct sockaddr_in6	remote_addr;			/* address of the sender of the query */
-    char		addr_str[INET6_ADDRSTRLEN];	/* buffer to hold an IPv6 address */
-#else
-    struct sockaddr_in	remote_addr;			/* address of the sender of the query */
-#endif
-    socklen_t		addrlen = sizeof(remote_addr);	/* length of the structure that should get the remote address */
-    xmlnode		curx = NULL;			/* to iterate on xmlnodes */
-    char		buf[8192];			/* max socket read buffer */
-    int			len;				/* hold varius lengths */
-    static xht		namespaces = NULL;		/* standard namespace prefixes */
-
-    if (namespaces == NULL) {
-	namespaces = xhash_new(3);
-	xhash_put(namespaces, "", const_cast<char*>(NS_JABBERD_CONFIGFILE));
-    }
-    
-    curx = xmlnode_get_list_item(xmlnode_get_tags(greymatter__, "io/announce/*", namespaces), 0);
-    /* XXX pth <1.4 doesn't have pth_* wrapper for recvfrom or sendto! */
-    len = recvfrom(bcast, buf, sizeof(buf), 0, (struct sockaddr*)&remote_addr, &addrlen);
-#ifdef WITH_IPV6
-    log_debug2(ZONE, LOGT_IO, "ANNOUNCER: received some data from %s: %.*s",inet_ntop(AF_INET, &remote_addr.sin6_addr, addr_str, sizeof(addr_str)),len,buf);
-#else
-    log_debug2(ZONE, LOGT_IO, "ANNOUNCER: received some data from %s: %.*s",inet_ntoa(remote_addr.sin_addr),len,buf);
-#endif
-    /* sending our data out */
-    for (; curx != NULL; curx = xmlnode_get_nextsibling(curx)) {
-	if (xmlnode_get_type(curx) != NTYPE_TAG)
-	    continue;
-	len = snprintf(buf, sizeof(buf), "%s", xmlnode_serialize_string(curx, NULL, NULL, 0));
-	if (len >= sizeof(buf))
-	    len = sizeof(buf)-1; /* XXX snprintf returns what would have been written if enough space, but if we truncate we still have problems! */
-	log_debug2(ZONE, LOGT_IO, "announcement packet: %.*s", len, buf);
-	sendto(bcast, buf, len, 0, (struct sockaddr*)&remote_addr, addrlen);
-    }
+    return NULL;
 }
 
 /**
@@ -1024,7 +991,6 @@ static void* _mio_main(void *arg) {
 		next = NULL;
     char        buf[8192]; /* max socket read buffer      */
     int         retval,
-                bcast=-1,
                 maxfd=0;
     static xht	namespaces = NULL;
 
@@ -1037,18 +1003,6 @@ static void* _mio_main(void *arg) {
 
     /* init the socket junk */
     maxfd = mio__data->zzz[0];
-
-    /* XXX: remove this again - nobody uses it! */
-    /* the optional local broadcast receiver */
-    if (xmlnode_get_list_item(xmlnode_get_tags(greymatter__, "io/announce", namespaces), 0) != NULL) {
-        bcast = make_netsocket(j_atoi(xmlnode_get_attrib_ns(xmlnode_get_list_item(xmlnode_get_tags(greymatter__, "io/announce", namespaces), 0), "port", NULL), 5222), NULL, NETSOCKET_UDP);
-        if (bcast < 0) {
-            log_notice("mio","failed to create network announce handler socket");
-        } else if (bcast > maxfd) {
-            maxfd = bcast;
-        }
-        log_debug2(ZONE, LOGT_IO|LOGT_INIT, "started announcement handler");
-    }
 
     /* loop forever -- will only exit when mio__data->master__list is NULL and mio__data->shutdown is 1*/
     while (1) {
@@ -1073,26 +1027,19 @@ static void* _mio_main(void *arg) {
 
         /* wait for a socket event */
         FD_SET(mio__data->zzz[0],&rfds); /* include our wakeup socket */
-        if (bcast > 0)
-            FD_SET(bcast,&rfds); /* optionally include our announcements socket */
         retval = pth_select(maxfd+1, &rfds, &wfds, NULL, NULL);
         /* if retval is -1, fd sets are undefined across all platforms */
 
         log_debug2(ZONE, LOGT_EXECFLOW, "mio while loop, working");
 
         /* reset maxfd, in case it changes (more updates in _mio_loop_process_a_socket() is it's updated when pth_select is called again) */
-        maxfd=mio__data->zzz[0];		/* XXX: this does not honor the bcast socket! */
+        maxfd=mio__data->zzz[0];
 
         /* check our zzz */
         if (FD_ISSET(mio__data->zzz[0],&rfds)) {
 	    log_debug2(ZONE, LOGT_EXECFLOW, "got a notify on zzz");
             pth_read(mio__data->zzz[0], buf, sizeof(buf));
 	    mio__data->zzz_active = 0;
-        }
-
-        /* check our pending announcements */
-        if (bcast > 0 && FD_ISSET(bcast,&rfds)) {
-	    _mio_process_broadcast(bcast);
         }
 
         /* loop through the sockets, check for stuff to do */
@@ -1128,13 +1075,14 @@ void mio_init(void) {
     xht namespaces = NULL;
 
     namespaces = xhash_new(3);
+    pool temp_pool = pool_new();
     xhash_put(namespaces, "", const_cast<char*>(NS_JABBERD_CONFIGFILE));
-    io = xmlnode_get_list_item(xmlnode_get_tags(greymatter__, "io", namespaces), 0);
-    karma = xmlnode_get_list_item(xmlnode_get_tags(io, "karma", namespaces), 0);
+    io = xmlnode_get_list_item(xmlnode_get_tags(greymatter__, "io", namespaces, temp_pool), 0);
+    karma = xmlnode_get_list_item(xmlnode_get_tags(io, "karma", namespaces, temp_pool), 0);
 
-    tls = xmlnode_get_list_item(xmlnode_get_tags(io, "tls", namespaces), 0);
+    tls = xmlnode_get_list_item(xmlnode_get_tags(io, "tls", namespaces, temp_pool), 0);
     if (tls == NULL) {
-	tls = xmlnode_get_list_item(xmlnode_get_tags(io, "ssl", namespaces) ,0);
+	tls = xmlnode_get_list_item(xmlnode_get_tags(io, "ssl", namespaces, temp_pool) ,0);
 	if (tls != NULL) {
 	    log_warn(NULL, "Please update your configuration. The <ssl/> elements have been renamed to <tls/>. Falling back to use <ssl/> for now: %s", xmlnode_serialize_string(tls, NULL, NULL, 0));
 	}
@@ -1167,20 +1115,21 @@ void mio_init(void) {
     }
 
     /* where to bounce HTTP requests to */
-    mio__data->bounce_uri = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(io, "bounce", namespaces), 0));
+    mio__data->bounce_uri = pstrdup(mio__data->p, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(io, "bounce", namespaces, temp_pool), 0)));
 
     if (karma != NULL) {
-        mio__data->k->val	  = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(karma, "init", namespaces), 0)), KARMA_INIT);
-        mio__data->k->max         = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(karma, "max", namespaces), 0)), KARMA_MAX);
-        mio__data->k->inc         = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(karma, "inc", namespaces), 0)), KARMA_INC);
-        mio__data->k->dec         = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(karma, "dec", namespaces), 0)), KARMA_DEC);
-        mio__data->k->penalty     = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(karma, "penalty", namespaces), 0)), KARMA_PENALTY);
-        mio__data->k->restore     = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(karma, "restore", namespaces), 0)), KARMA_RESTORE);
-        mio__data->k->reset_meter = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(karma, "resetmeter", namespaces), 0)), KARMA_RESETMETER);
+        mio__data->k->val	  = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(karma, "init", namespaces, temp_pool), 0)), KARMA_INIT);
+        mio__data->k->max         = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(karma, "max", namespaces, temp_pool), 0)), KARMA_MAX);
+        mio__data->k->inc         = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(karma, "inc", namespaces, temp_pool), 0)), KARMA_INC);
+        mio__data->k->dec         = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(karma, "dec", namespaces, temp_pool), 0)), KARMA_DEC);
+        mio__data->k->penalty     = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(karma, "penalty", namespaces, temp_pool), 0)), KARMA_PENALTY);
+        mio__data->k->restore     = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(karma, "restore", namespaces, temp_pool), 0)), KARMA_RESTORE);
+        mio__data->k->reset_meter = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(karma, "resetmeter", namespaces, temp_pool), 0)), KARMA_RESETMETER);
     }
-    mio__data->rate_t        = j_atoi(xmlnode_get_attrib_ns(xmlnode_get_list_item(xmlnode_get_tags(io, "rate", namespaces), 0), "time", NULL), 0);
-    mio__data->rate_p        = j_atoi(xmlnode_get_attrib_ns(xmlnode_get_list_item(xmlnode_get_tags(io, "rate", namespaces), 0), "points", NULL), 0);
+    mio__data->rate_t        = j_atoi(xmlnode_get_attrib_ns(xmlnode_get_list_item(xmlnode_get_tags(io, "rate", namespaces, temp_pool), 0), "time", NULL), 0);
+    mio__data->rate_p        = j_atoi(xmlnode_get_attrib_ns(xmlnode_get_list_item(xmlnode_get_tags(io, "rate", namespaces, temp_pool), 0), "points", NULL), 0);
 
+    pool_free(temp_pool);
     xhash_free(namespaces);
 }
 

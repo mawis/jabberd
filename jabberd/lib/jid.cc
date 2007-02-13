@@ -730,23 +730,25 @@ jid jid_append(jid a, jid b)
  * @param x the node, that contains the searched child nodes
  * @return the node, that has an jid attribute, NULL if no such node
  */
-xmlnode jid_nodescan(jid id, xmlnode x)
-{
+xmlnode jid_nodescan(jid id, xmlnode x) {
     xmlnode cur;
     pool p;
     jid tmp;
 
-    if(id == NULL || xmlnode_get_firstchild(x) == NULL) return NULL;
+    if (id == NULL || xmlnode_get_firstchild(x) == NULL)
+	return NULL;
 
     p = pool_new();
-    for(cur = xmlnode_get_firstchild(x); cur != NULL; cur = xmlnode_get_nextsibling(cur))
-    {
-        if(xmlnode_get_type(cur) != NTYPE_TAG) continue;
+    for (cur = xmlnode_get_firstchild(x); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
+        if (xmlnode_get_type(cur) != NTYPE_TAG)
+	    continue;
 
         tmp = jid_new(p,xmlnode_get_attrib_ns(cur,"jid", NULL));
-        if(tmp == NULL) continue;
+        if (tmp == NULL)
+	    continue;
 
-        if(jid_cmp(tmp,id) == 0) break;
+        if (jid_cmp(tmp,id) == 0)
+	    break;
     }
     pool_free(p);
 

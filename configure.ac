@@ -6,7 +6,7 @@ AC_PREREQ(2.50)
 
 
 AC_INIT(jabberd/jabberd.h)
-AM_INIT_AUTOMAKE(jabberd14,1.6.1-beta-20070212)
+AM_INIT_AUTOMAKE(jabberd14,1.6.1-beta-20070213)
 AM_CONFIG_HEADER(config.h)
 AC_LANG(C++)
 
@@ -267,12 +267,9 @@ fi
 dnl then check for GnuTLS extra
 PKG_CHECK_MODULES(GNUTLSEXTRA, gnutls-extra >= 1.4.0, hasgnutlsextra=yes, hasgnutlsextra=no)
 if test $hasgnutls = "yes" ; then
-    AC_MSG_RESULT(yes)
     CPPFLAGS="$CPPFLAGS $GNUTLSEXTRA_CFLAGS"
     LDFLAGS="$LDFLAGS $GNUTLSEXTRA_LIBS"
     AC_DEFINE(HAVE_GNUTLS_EXTRA,,[if GnuTLS-extra should be compiled in])
-else
-    AC_MSG_RESULT(no)
 fi
 
 dnl check for libidn

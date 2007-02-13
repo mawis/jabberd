@@ -37,8 +37,6 @@
 #include <map>
 #include <list>
 
-extern "C" {
-
 #ifdef POOL_DEBUG
     std::map<pool, std::list< xmlnode > > existing_xmlnodes;
 #endif
@@ -465,12 +463,13 @@ static int _xmlnode_get_datasz(xmlnode node) {
  * @param node the node, that should be appended if there is no next_step, or which should be the parent node for the next_step
  * @param predicate the predicate for this step
  * @param next_step the next step for recursion
+ * @param p memory pool to use for memory allocations
  */
-static void _xmlnode_append_if_predicate(xmlnode_list_item *result_first, xmlnode_list_item *result_last, xmlnode node, char *predicate, const char *next_step, xht namespaces) {
+static void _xmlnode_append_if_predicate(xmlnode_list_item *result_first, xmlnode_list_item *result_last, xmlnode node, char *predicate, const char *next_step, xht namespaces, pool p) {
     xmlnode_list_item sub_result = NULL;
 
     /* sanity checks */
-    if (result_first == NULL || result_last == NULL || node == NULL || namespaces == NULL)
+    if (result_first == NULL || result_last == NULL || node == NULL || namespaces == NULL || p == NULL)
 	return;
 
     /* check the predicate */
@@ -491,7 +490,7 @@ static void _xmlnode_append_if_predicate(xmlnode_list_item *result_first, xmlnod
 	predicate++;
 
 	/* make a copy of the predicate, so we can modify it */
-	predicate = pstrdup(xmlnode_pool(node), predicate);
+	predicate = pstrdup(p, predicate);			// XXX use local memory
 
 	/* is there a value we have to match? */
 	attrib_value = strchr(predicate, '=');
@@ -552,7 +551,7 @@ static void _xmlnode_append_if_predicate(xmlnode_list_item *result_first, xmlnod
 
     /* if no next_step, than add the node to the list and return */
     if (next_step == NULL) {
-	xmlnode_list_item result_item = static_cast<xmlnode_list_item>(pmalloco(xmlnode_pool(node), sizeof(_xmlnode_list_item)));
+	xmlnode_list_item result_item = static_cast<xmlnode_list_item>(pmalloco(p, sizeof(_xmlnode_list_item)));
 	result_item->node = node;
 
 	/* first item in list? */
@@ -570,11 +569,11 @@ static void _xmlnode_append_if_predicate(xmlnode_list_item *result_first, xmlnod
     }
 
     /* there is a next_step, we have to recurse */
-    sub_result = xmlnode_get_tags(node, next_step, namespaces);
+    sub_result = xmlnode_get_tags(node, next_step, namespaces, p);
 
     /* did we get a result we have to add? */
     while (sub_result != NULL) {
-	xmlnode_list_item result_item = static_cast<xmlnode_list_item>(pmalloco(xmlnode_pool(node), sizeof(_xmlnode_list_item)));
+	xmlnode_list_item result_item = static_cast<xmlnode_list_item>(pmalloco(p, sizeof(_xmlnode_list_item)));
 	result_item->node = sub_result->node;
 
 	/* first item in list? */
@@ -938,7 +937,7 @@ xmlnode xmlnode_get_tag(xmlnode parent, const char* name) {
  * @param xht hashtable mapping namespace prefixes to namespace IRIs
  * @return first item in the list of xmlnodes, or NULL if no xmlnode matched the path
  */
-xmlnode_list_item xmlnode_get_tags(xmlnode context_node, const char *path, xht namespaces) {
+xmlnode_list_item xmlnode_get_tags(xmlnode context_node, const char *path, xht namespaces, pool p) {
     char *this_step = NULL;
     const char *ns_iri = NULL;
     char *next_step = NULL;
@@ -955,6 +954,11 @@ xmlnode_list_item xmlnode_get_tags(xmlnode context_node, const char *path, xht n
     if (context_node == NULL || path == NULL || namespaces == NULL)
 	return NULL;
 
+    /* if no memory pool specified use the memory pool of the context_node */
+    if (p == NULL) {
+	p = xmlnode_pool(context_node);
+    }
+
     /* check if there is an axis */
     if (j_strncmp(path, "child::", 7) == 0) {
 	path = path+7;
@@ -970,9 +974,9 @@ xmlnode_list_item xmlnode_get_tags(xmlnode context_node, const char *path, xht n
     start_predicate = strchr(path, '[');
     next_step = strchr(path, '/');
     if (start_predicate == NULL && next_step == NULL) {
-	this_step = pstrdup(xmlnode_pool(context_node), path);
+	this_step = pstrdup(p, path);
     } else if (start_predicate == NULL || start_predicate > next_step && next_step != NULL) {
-	this_step = static_cast<char*>(pmalloco(xmlnode_pool(context_node), next_step - path + 1));
+	this_step = static_cast<char*>(pmalloco(p, next_step - path + 1));
 	snprintf(this_step, next_step - path + 1, "%s", path);
 	if (next_step != NULL)
 	    next_step++;
@@ -991,9 +995,9 @@ xmlnode_list_item xmlnode_get_tags(xmlnode context_node, const char *path, xht n
 		next_step++;
 	}
 	
-	predicate = static_cast<char*>(pmalloco(xmlnode_pool(context_node), end_predicate - start_predicate));
+	predicate = static_cast<char*>(pmalloco(p, end_predicate - start_predicate));
 	snprintf(predicate, end_predicate - start_predicate, "%s", start_predicate+1);
-	this_step = static_cast<char*>(pmalloco(xmlnode_pool(context_node), start_predicate - path + 1));
+	this_step = static_cast<char*>(pmalloco(p, start_predicate - path + 1));
 	snprintf(this_step, start_predicate - path + 1, "%s", path);
     }
 
@@ -1036,7 +1040,7 @@ xmlnode_list_item xmlnode_get_tags(xmlnode context_node, const char *path, xht n
 		_xmlnode_merge(iter);
 
 	    /* append to the result */
-	    _xmlnode_append_if_predicate(&result_first, &result_last, iter, predicate, next_step, namespaces);
+	    _xmlnode_append_if_predicate(&result_first, &result_last, iter, predicate, next_step, namespaces, p);
 
 	    continue;
 	}
@@ -1048,7 +1052,7 @@ xmlnode_list_item xmlnode_get_tags(xmlnode context_node, const char *path, xht n
 	    _xmlnode_merge(iter);
 
 	    /* append to the result */
-	    _xmlnode_append_if_predicate(&result_first, &result_last, iter, predicate, next_step, namespaces);
+	    _xmlnode_append_if_predicate(&result_first, &result_last, iter, predicate, next_step, namespaces, p);
 
 	    continue;
 	}
@@ -1057,7 +1061,7 @@ xmlnode_list_item xmlnode_get_tags(xmlnode context_node, const char *path, xht n
 	    /* matching element or attribute */
 
 	    /* append to the result */
-	    _xmlnode_append_if_predicate(&result_first, &result_last, iter, predicate, next_step, namespaces);
+	    _xmlnode_append_if_predicate(&result_first, &result_last, iter, predicate, next_step, namespaces, p);
 
 	    continue;
 	}
@@ -2175,5 +2179,3 @@ void xmlnode_stat() {
 void xmlnode_stat() {
 }
 #endif
-
-}
