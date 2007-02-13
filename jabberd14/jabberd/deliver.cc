@@ -1002,3 +1002,76 @@ void register_routing_update_callback(instance i, register_notify f, void *arg) 
     else
 	last->next = newn;
 }
+
+#ifdef POOL_DEBUG
+class instance_statistics {
+    private:
+	int count;
+	size_t pool_sum;
+	size_t biggest_pool;
+	std::string biggest_pool_name;
+
+    public:
+	instance_statistics();
+	void update(instance i);
+	std::string getSummary();
+};
+
+instance_statistics::instance_statistics() : count(0), pool_sum(0), biggest_pool(0) {
+};
+
+void instance_statistics::update(instance i) {
+    size_t this_instances_size = pool_size(i->p);
+    
+    count++;
+    pool_sum += this_instances_size;
+
+    if (this_instances_size > biggest_pool) {
+	biggest_pool = this_instances_size;
+	biggest_pool_name = i->id;
+    }
+}
+
+std::string instance_statistics::getSummary() {
+    std::ostringstream result;
+
+    result << "Instances: " << count << " / Mem in pools: " << pool_sum << " / biggest: " << biggest_pool << " " << biggest_pool_name;
+
+    return result.str();
+}
+
+static void _deliver_instance_stat_walker(xht hash, const char* key, void* value, void* arg) {
+    instance_statistics* stats = static_cast<instance_statistics*>(arg);
+    ilist il = static_cast<ilist>(value);
+
+    // sanity check
+    if (stats == NULL || il == NULL) {
+	return;
+    }
+
+    while (il != NULL) {
+	stats->update(il->i);
+	il = il->next;
+    }
+}
+
+void deliver_pool_debug() {
+    instance_statistics* stats = new instance_statistics;
+
+    xhash_walk(deliver_hashtable(p_LOG), _deliver_instance_stat_walker, stats);
+    xhash_walk(deliver_hashtable(p_XDB), _deliver_instance_stat_walker, stats);
+    xhash_walk(deliver_hashtable(p_NORM), _deliver_instance_stat_walker, stats);
+
+    static char own_pid[32] = "";
+    if (own_pid[0] == '\0') {
+	snprintf(own_pid, sizeof(own_pid), "%i deliver_pool_debug", getpid());
+    }
+
+    log_notice(own_pid, "%s", stats->getSummary().c_str());
+
+    delete stats;
+}
+#else
+void deliver_pool_debug() {
+}
+#endif
