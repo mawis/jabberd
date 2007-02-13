@@ -82,7 +82,7 @@ typedef struct {
 
 jabberd_struct jabberd = { NULL, NULL, 0, NULL };		/**< global data for the jabberd */
 
-extern "C" void xmlnode_stat();
+void xmlnode_stat();
 
 /**
  * the entry point to jabberd
