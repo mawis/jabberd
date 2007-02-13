@@ -64,8 +64,6 @@ static void _mod_admin_disco_online_iter(xht h, const char *key, void *data, voi
 
     lang = xmlnode_get_lang(query);
 
-    log_notice(NULL, "walk for %s", key);
-
     /* for all sessions of this user */
     for (session_iter = u->sessions; session_iter != NULL; session_iter = session_iter->next) {
 	xmlnode item = xmlnode_insert_tag_ns(query, "item", NULL, NS_DISCO_ITEMS);
