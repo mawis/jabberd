@@ -462,7 +462,7 @@ void _pool_stat(xht h, const char *key, void *data, void *arg)
  */
 void pool_stat(int full)
 {
-    static char own_pid[16] = "";
+    static char own_pid[32] = "";
     _pool_debug_info debug_data;
     debug_data.full = full;
     debug_data.used_memory = 0;

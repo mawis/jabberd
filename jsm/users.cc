@@ -96,20 +96,129 @@ void _js_hosts_del(xht h, const char *key, void *data, void *arg)
     xhash_walk(htc.ht, _js_users_del, &htc);
 }
 
+#ifdef POOL_DEBUG
+class js_pool_debug_stats {
+    private:
+	int hosts;
+
+	int users;
+	size_t users_pool_sum;
+	size_t biggest_user_pool;
+	std::string biggest_user;
+
+	int sessions;
+	size_t sessions_pool_sum;
+	size_t biggest_session_pool;
+	std::string biggest_session;
+
+	void updateSession(session s);
+    public:
+	js_pool_debug_stats();
+	void hostUpdate();
+	void updateUser(udata user);
+	std::string getSummary();
+};
+
+js_pool_debug_stats::js_pool_debug_stats() : hosts(0), users(0), users_pool_sum(0), biggest_user_pool(0), sessions(0), sessions_pool_sum(0), biggest_session_pool(0) {
+}
+
+void js_pool_debug_stats::hostUpdate() {
+    hosts++;
+}
+
+void js_pool_debug_stats::updateSession(session s) {
+    sessions++;
+
+    size_t session_pool_size = pool_size(s->p);
+
+    sessions_pool_sum += session_pool_size;
+
+    if (session_pool_size > biggest_session_pool) {
+	biggest_session_pool = session_pool_size;
+	biggest_session = jid_full(s->id);
+    }
+}
+
+void js_pool_debug_stats::updateUser(udata user) {
+    users++;
+
+    size_t user_pool_size = pool_size(user->p);
+
+    users_pool_sum += user_pool_size;
+
+    if (user_pool_size > biggest_user_pool) {
+	biggest_user_pool = user_pool_size;
+	biggest_user = jid_full(user->id);
+    }
+
+    session iter = user->sessions;
+    while (iter != NULL) {
+	updateSession(iter);
+	iter = iter->next;
+    }
+}
+
+std::string js_pool_debug_stats::getSummary() {
+    std::ostringstream result;
+
+    result << "hosts: " << hosts << " / users: " << users << " " << users_pool_sum << " / biggest user: " << biggest_user << " " << biggest_user_pool;
+    result << " / sessions: " << sessions << " " << sessions_pool_sum << " / biggest session: " << biggest_session << " " << biggest_session_pool;
+
+    return result.str();
+}
+
+static void js_users_pool_debug_walk(xht hash, const char* key, void* value, void* arg) {
+    js_pool_debug_stats* stats = static_cast<js_pool_debug_stats*>(arg);
+    udata user = static_cast<udata>(value);
+
+    // sanity check
+    if (stats == NULL || user == NULL) {
+	return;
+    }
+
+    stats->updateUser(user);
+}
+
+static void js_hosts_pool_debug_walk(xht hash, const char* key, void* value, void* arg) {
+    js_pool_debug_stats* stats = static_cast<js_pool_debug_stats*>(arg);
+    xht users = static_cast<xht>(value);
+
+    // sanity check
+    if (stats == NULL || users == NULL) {
+	return;
+    }
+
+    stats->hostUpdate();
+
+    xhash_walk(users, js_users_pool_debug_walk, stats);
+}
+#endif
+
 /**
  *  js_users_gc is a heartbeat that flushes old users from memory.  
  *
  *  @param arg the session manager internal data
  *  @return always r_DONE
  */
-result js_users_gc(void *arg)
-{
+result js_users_gc(void *arg) {
     jsmi si = (jsmi)arg;
 
     /* free user struct if we can */
     int js__usercount = 0;
     xhash_walk(si->hosts,_js_hosts_del, &js__usercount);
     log_debug2(ZONE, LOGT_STATUS, "%d\ttotal users",js__usercount);
+
+#ifdef POOL_DEBUG
+    js_pool_debug_stats* stats = new js_pool_debug_stats;
+    xhash_walk(si->hosts, js_hosts_pool_debug_walk, stats);
+    static char own_pid[32] = "";
+    if (own_pid[0] == '\0') {
+        snprintf(own_pid, sizeof(own_pid), "%i jsm_pool_debug", getpid());
+    }
+    log_notice(own_pid, "%s", stats->getSummary().c_str());
+    delete stats;
+#endif
+
     return r_DONE;
 }
 
