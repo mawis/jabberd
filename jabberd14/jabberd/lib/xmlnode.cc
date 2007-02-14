@@ -2141,7 +2141,7 @@ xmlnode xmlnode_select_by_lang(xmlnode_list_item nodes, const char* lang) {
 void log_notice(const char *host, const char *msgfmt, ...);
 
 void xmlnode_stat() {
-    static char own_pid[16] = "";
+    static char own_pid[32] = "";
     unsigned int number_of_pools = 0;
     unsigned int number_of_xmlnodes = 0;
 
