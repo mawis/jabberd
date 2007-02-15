@@ -241,7 +241,7 @@ void js_user_free_aux_data(void *arg) {
  *  If THAT fails, it returns NULL (not a user).
  *
  *  @param si the session manager instance data
- *  @param id which user to load
+ *  @param id which user to load (some memory is allocated from this jid's pool)
  *  @param ht the hash table for the host the user belongs to (may be NULL)
  *  @return the udata record for the user, NULL if no such user
  */
@@ -297,12 +297,6 @@ udata js_user(jsmi si, jid id, xht ht) {
     newu->si = si;
     newu->aux_data = xhash_new(17);
     pool_cleanup(p, js_user_free_aux_data, newu->aux_data);
-    /* removing user from udata, id->user can be used instead
-    newu->user = pstrdup(p, uid->user);
-    */
-    /* removing pass from udata, auth should always update passwords from xdb
-    newu->pass = x ? pstrdup(p, xmlnode_get_data(x)) : NULL;
-    */
     newu->id = jid_new(p,jid_full(uid));
     if (x)
 	xmlnode_free(x);
