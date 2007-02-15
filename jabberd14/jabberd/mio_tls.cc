@@ -36,8 +36,14 @@
 #include "jabberd.h"
 #include <libtasn1.h>
 #include <map>
+#include <set>
 #include <string>
 #include <sstream>
+#include <gcrypt.h>
+
+// prepare gcrypt for libpth
+// XXX it doesn't work for C++
+// GCRY_THREAD_OPTION_PTH_IMPL;
 
 extern const ASN1_ARRAY_TYPE subjectAltName_asn1_tab[];
 
@@ -54,6 +60,297 @@ std::map<std::string, gnutls_certificate_credentials_t> mio_tls_credentials;
  */
 ASN1_TYPE mio_tls_asn1_tree = ASN1_TYPE_EMPTY;
 
+
+static void mio_tls_process_credentials(xmlnode x, const std::string& default_cacertfile, gnutls_dh_params_t mio_tls_dh_params) {
+    std::set<std::string> domains;
+    int ret = 0;
+    bool loaded_cacerts = false;
+
+    // prepare the credentials
+    gnutls_certificate_credentials_t current_credentials = NULL;
+    ret = gnutls_certificate_allocate_credentials (&current_credentials);
+    if (ret < 0) {
+	log_error(NULL, "Error initializing credentials: %s", gnutls_strerror(ret));
+	return;
+    }
+
+    // iterate the child elements
+    for (xmlnode cur = xmlnode_get_firstchild(x); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
+	// we only process elements in the NS_JABBERD_CONFIGFILE namespace
+	if (j_strcmp(xmlnode_get_namespace(cur), NS_JABBERD_CONFIGFILE) != 0) {
+	    continue;
+	}
+
+	// is it a default declaration?
+	if (j_strcmp(xmlnode_get_localname(cur), "default") == 0) {
+	    domains.insert("*");
+	    continue;
+	}
+
+	// is it a domain declaration?
+	if (j_strcmp(xmlnode_get_localname(cur), "domain") == 0) {
+	    char const *const domain = xmlnode_get_data(cur);
+
+	    // check that we had a domain name in the configuration
+	    if (domain == NULL) {
+		log_warn(NULL, "Initializing TLS subsystem: <domain/> element inside the TLS configuration, that does not contain a domain name.");
+		continue;
+	    }
+
+	    // add it to the set for domains for which we have to add the credentials after we loaded them
+	    domains.insert(domain);
+	    continue;
+	}
+
+	// a X.509 certificate in PEM format?
+	if (j_strcmp(xmlnode_get_localname(cur), "pem") == 0) {
+	    char const *const pubfile = xmlnode_get_data(cur);
+	    char const * privfile = xmlnode_get_attrib_ns(cur, "private-key", NULL);
+
+	    // there needs to be a filename for the public key
+	    if (pubfile == NULL) {
+		log_warn(NULL, "Initializing TLS subsystem: <pem/> element inside the TLS configuration, that does not contain a file-name.");
+		continue;
+	    }
+
+	    // if there is no filename for the private key, use the same as for the public key (file containing both keys)
+	    if (privfile == NULL)
+		privfile = pubfile;
+
+	    // load the X.509 certificate
+	    ret = gnutls_certificate_set_x509_key_file(current_credentials, pubfile, privfile, GNUTLS_X509_FMT_PEM);
+	    if (ret < 0) {
+		log_error(NULL, "Error loading X.509 certificate (PEM) pub=%s/priv=%s: %s", pubfile, privfile, gnutls_strerror(ret));
+		continue;
+	    }
+
+	    continue;
+	}
+
+	// a X.509 certificate in DER format?
+	if (j_strcmp(xmlnode_get_localname(cur), "der") == 0) {
+	    char const *const pubfile = xmlnode_get_data(cur);
+	    char const * privfile = xmlnode_get_attrib_ns(cur, "private-key", NULL);
+
+	    // there needs to be a filename for the public key
+	    if (pubfile == NULL) {
+		log_warn(NULL, "Initializing TLS subsystem: <der/> element inside the TLS configuration, that does not contain a file-name.");
+		continue;
+	    }
+
+	    // if there is no filename for the private key, use the same as for the public key (file containing both keys)
+	    if (privfile == NULL)
+		privfile = pubfile;
+
+	    // load the X.509 certificate
+	    ret = gnutls_certificate_set_x509_key_file(current_credentials, pubfile, privfile, GNUTLS_X509_FMT_DER);
+	    if (ret < 0) {
+		log_error(NULL, "Error loading X.509 certificate (DER) pub=%s/priv=%s: %s", pubfile, privfile, gnutls_strerror(ret));
+		continue;
+	    }
+
+	    continue;
+	}
+
+	// load a certification authority certificate
+	if (j_strcmp(xmlnode_get_localname(cur), "ca") == 0) {
+	    bool format_der = j_strcmp(xmlnode_get_attrib_ns(cur, "type", NULL), "der") == 0;
+	    char const *const file = xmlnode_get_data(cur);
+
+	    // is there a filename?
+	    if (file == NULL) {
+		log_warn(NULL, "Initializing TLS subsystem: <ca/> element inside the TLS configuration, that does not contain a file-name.");
+		continue;
+	    }
+
+	    // load the CA's certificate
+	    ret = gnutls_certificate_set_x509_trust_file(current_credentials, file, format_der ? GNUTLS_X509_FMT_DER : GNUTLS_X509_FMT_PEM);
+	    if (ret < 0) {
+		log_error(NULL, "Error loading certificate of CA (%s) %s: %s", format_der ? "DER" : "PEM", file, gnutls_strerror(ret));
+		continue;
+	    }
+
+	    // we have had a CA certificate, we do not need to load the defaults
+	    loaded_cacerts = true;
+
+	    continue;
+	}
+
+	// load an OpenPGP key
+	if (j_strcmp(xmlnode_get_localname(cur), "openpgp") == 0) {
+	    char const *const pubfile = xmlnode_get_data(cur);
+	    char const *const privfile = xmlnode_get_attrib_ns(cur, "private-key", NULL);
+
+	    // ensure that we have two filenames
+	    if (pubfile == NULL) {
+		log_warn(NULL, "Initializing TLS subsystem: <openpgp/> element inside the TLS configuration, that does not contain a file-name.");
+		continue;
+	    }
+	    if (privfile == NULL) {
+		log_warn(NULL, "Initializing TLS subsystem: <openpgp/> element inside the TLS configuration, that does not contain a private-key file-name.");
+		continue;
+	    }
+
+	    // load OpenPGP key/certificate
+	    ret = gnutls_certificate_set_openpgp_key_file(current_credentials, pubfile, privfile);
+	    if (ret < 0) {
+		log_error(NULL, "Error loading OpenPGP key pub=%s/priv=%s: %s", pubfile, privfile, gnutls_strerror(ret));
+		continue;
+	    }
+
+	    continue;
+	}
+
+	// load OpenPGP keyring
+	if (j_strcmp(xmlnode_get_localname(cur), "keyring") == 0) {
+	    char const *const file = xmlnode_get_data(cur);
+
+	    if (file == NULL) {
+		log_warn(NULL, "Initializing TLS subsystem: <keyring/> element inside the TLS configuration, that does not contain a file-name.");
+		continue;
+	    }
+
+	    // load the OpenPGP keyring
+	    ret = gnutls_certificate_set_openpgp_keyring_file(current_credentials, file);
+	    if (ret < 0) {
+		log_error(NULL, "Error loading OpenPGP keyring %s: %s", file, gnutls_strerror(ret));
+		continue;
+	    }
+
+	    continue;
+	}
+
+	// setup protocols to use
+	if (j_strcmp(xmlnode_get_localname(cur), "protocols") == 0) {
+	    // XXX
+	    continue;
+	}
+
+	// setup key exchange protocols to use
+	if (j_strcmp(xmlnode_get_localname(cur), "kx") == 0) {
+	    // XXX
+	    continue;
+	}
+
+	// setup ciphers to use
+	if (j_strcmp(xmlnode_get_localname(cur), "ciphers") == 0) {
+	    // XXX
+	    continue;
+	}
+
+	// setup certificate types to use
+	if (j_strcmp(xmlnode_get_localname(cur), "certtypes") == 0) {
+	    // XXX
+	    continue;
+	}
+
+	// setup MAC algorithms to use
+	if (j_strcmp(xmlnode_get_localname(cur), "mac") == 0) {
+	    // XXX
+	    continue;
+	}
+    }
+
+    // loaded any CA certificate? if not load the defaults
+    if (!loaded_cacerts && default_cacertfile != "") {
+	ret = gnutls_certificate_set_x509_trust_file(current_credentials, default_cacertfile.c_str(), GNUTLS_X509_FMT_PEM);
+	if (ret < 0) {
+	    log_error(NULL, "Error loading default CA certificate %s: %s", default_cacertfile.c_str(), gnutls_strerror(ret));
+	}
+    }
+
+    // make the credentials active for the selected domains
+    bool credentials_used = false;
+    std::set<std::string>::const_iterator p;
+    for (p = domains.begin(); p!= domains.end(); ++p) {
+	if (mio_tls_credentials.find(*p) != mio_tls_credentials.end()) {
+	    log_warn(NULL, "Redefinition of TLS credentials for domain %s. Ignoring redefinition.", p->c_str());
+	    continue;
+	}
+
+	credentials_used = true;
+	mio_tls_credentials[*p] = current_credentials;
+    }
+
+    // check if the credentials are used for any domain
+    if (!credentials_used) {
+	log_warn(NULL, "Found credentials definition, that is not used for any domain.");
+	gnutls_certificate_free_credentials(current_credentials);
+    }
+}
+
+static void mio_tls_process_key(xmlnode x, const std::string& default_cacertfile, gnutls_dh_params_t mio_tls_dh_params) {
+    char *file_to_use = xmlnode_get_data(x);
+    char *key_type = xmlnode_get_attrib_ns(x, "type", NULL);
+    char *id = xmlnode_get_attrib_ns(x, "id", NULL);
+    char *private_key_file = xmlnode_get_attrib_ns(x, "private-key", NULL);
+    char *no_ssl_v2 = xmlnode_get_attrib_ns(x, "no-ssl-v2", NULL);
+    char *no_ssl_v3 = xmlnode_get_attrib_ns(x, "no-ssl-v3", NULL);
+    char *no_tls_v1 = xmlnode_get_attrib_ns(x, "no-tls-v1", NULL);
+    char *ciphers = xmlnode_get_attrib_ns(x, "ciphers", NULL);
+    gnutls_x509_crt_fmt_t certificate_type = GNUTLS_X509_FMT_PEM;
+    int ret = 0;
+
+    /* no id attribute? first try ip instead, else default key */
+    if (id == NULL) {
+	id = xmlnode_get_attrib_ns(x, "ip", NULL);
+	if (id == NULL) {
+	    id = "*";
+	}
+    }
+
+    /* no public key file? */
+    if (file_to_use == NULL) {
+	log_notice(id, "Cannot load X.509 certificate: no file specified.");
+	return;
+    }
+
+    /* PEM or DER format? */
+    if (j_strcmp(xmlnode_get_attrib_ns(x, "type", NULL), "der") == 0) {
+	certificate_type = GNUTLS_X509_FMT_DER;
+    }
+
+    /* check old attributes not supported anymore */
+    if (no_ssl_v2 != NULL || no_ssl_v3 != NULL || no_tls_v1 != NULL || ciphers != NULL) {
+	log_notice(id, "Warning: ignoring a attribute when loading X.509 certificate. Not supported anymore are: no-ssl-v2, no-ssl-v3, no-tls-v1 and ciphers");
+    }
+
+    /* no special private key file? use the same as the public key file */
+    if (private_key_file == NULL) {
+	private_key_file = file_to_use;
+    }
+
+    /* load the keys */
+    gnutls_certificate_credentials_t current_credentials = NULL;
+    ret = gnutls_certificate_allocate_credentials (&current_credentials);
+    if (ret < 0) {
+	log_error(id, "Error initializing credentials: %s", gnutls_strerror(ret));
+	return;
+    }
+    ret = gnutls_certificate_set_x509_key_file(current_credentials, file_to_use, private_key_file, certificate_type);
+    if (ret < 0) {
+	log_error(id, "Error loading key file cert=%s/priv=%s: %s", file_to_use, private_key_file, gnutls_strerror(ret));
+	gnutls_certificate_free_credentials(current_credentials);
+	return;
+    }
+
+    /* load CA certificates */
+    if (default_cacertfile != "") {
+	ret = gnutls_certificate_set_x509_trust_file(current_credentials, default_cacertfile.c_str(), GNUTLS_X509_FMT_PEM);
+	if (ret < 0) {
+	    log_error(id, "Error loading CA certificates: %s", gnutls_strerror(ret));
+	}
+    } else {
+	log_warn(id, "Not loading CA certificates for %s", id);
+    }
+
+    /* set the DH params for this certificate */
+    gnutls_certificate_set_dh_params(current_credentials, mio_tls_dh_params);
+
+    /* store the loaded certificate */
+    mio_tls_credentials[id] = current_credentials;
+}
+
 /**
  * initialize the mio SSL/TLS module using the GNU TLS library
  *
@@ -64,18 +361,21 @@ void mio_ssl_init(xmlnode x) {
     int ret = 0;
     static gnutls_dh_params_t mio_tls_dh_params;
     xht namespaces = NULL;
-    gnutls_certificate_credentials_t mio_tls_x509_cred;
 
     log_debug2(ZONE, LOGT_IO, "MIO TLS init (GNU TLS)");
 
     namespaces = xhash_new(3);
     xhash_put(namespaces, "", const_cast<char*>(NS_JABBERD_CONFIGFILE));
 
+    // prepare gcrypt with libpth
+    // XXX it doesn't work with a C++ compiler
+    // gcry_control(GCRYCTL_SET_THREAD_CBS, &gcry_threads_pth);
+
     /* initialize the GNU TLS library */
     ret = gnutls_global_init();
     if (ret != 0) {
 	log_error(NULL, "Error initializing GnuTLS library: %s", gnutls_strerror(ret));
-	/* XXX what to do now? */
+	return;
     }
 
 #ifdef HAVE_GNUTLS_EXTRA
@@ -83,7 +383,6 @@ void mio_ssl_init(xmlnode x) {
     ret = gnutls_global_init_extra();
     if (ret != 0) {
 	log_error(NULL, "Error initializing GnuTLS-extra library: %s", gnutls_strerror(ret));
-	/* XXX what to do now? */
     }
 #endif
 
@@ -91,8 +390,7 @@ void mio_ssl_init(xmlnode x) {
     ret = asn1_array2tree(subjectAltName_asn1_tab, &mio_tls_asn1_tree, NULL);
     if (ret != ASN1_SUCCESS) {
 	log_error(ZONE, "Error preparing the libtasn1 library: %s", libtasn1_strerror(ret));
-	/* XXX what to do now? */
-
+	return;
 	/* XXX we have to delete the structure on shutdown using asn1_delete_structure(&mio_tls_asn1_tree) */
     }
 
@@ -122,90 +420,19 @@ void mio_ssl_init(xmlnode x) {
 	log_error(ZONE, "Error generating DH params: %s", gnutls_strerror(ret));
     }
 
-    /* load certificates and such ... */
-    ret = gnutls_certificate_allocate_credentials (&mio_tls_x509_cred);
-    mio_tls_credentials["*"] = mio_tls_x509_cred;
-    if (ret != 0) {
-	log_error(ZONE, "Error allocating GNU TLS credentials: %s", gnutls_strerror(ret));
-	/* XXX what to do now? */
-    }
-
     /* load the certificates */
     for (cur = xmlnode_get_firstchild(x); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
 	if (cur->type != NTYPE_TAG) {
 	    continue;
 	}
 
-	/* it's a key */
-	if (j_strcmp(xmlnode_get_localname(cur), "key") == 0 && j_strcmp(xmlnode_get_namespace(cur), NS_JABBERD_CONFIGFILE) == 0) {
-	    char *file_to_use = xmlnode_get_data(cur);
-	    char *key_type = xmlnode_get_attrib_ns(cur, "type", NULL);
-	    char *id = xmlnode_get_attrib_ns(cur, "id", NULL);
-	    char *private_key_file = xmlnode_get_attrib_ns(cur, "private-key", NULL);
-	    char *no_ssl_v2 = xmlnode_get_attrib_ns(cur, "no-ssl-v2", NULL);
-	    char *no_ssl_v3 = xmlnode_get_attrib_ns(cur, "no-ssl-v3", NULL);
-	    char *no_tls_v1 = xmlnode_get_attrib_ns(cur, "no-tls-v1", NULL);
-	    char *ciphers = xmlnode_get_attrib_ns(cur, "ciphers", NULL);
-	    gnutls_x509_crt_fmt_t certificate_type = GNUTLS_X509_FMT_PEM;
-
-	    /* no id attribute? first try ip instead, else default key */
-	    if (id == NULL) {
-		id = xmlnode_get_attrib_ns(cur, "ip", NULL);
-		if (id == NULL) {
-		    id = "*";
-		}
-	    }
-
-	    /* no public key file? */
-	    if (file_to_use == NULL) {
-		log_notice(id, "Cannot load X.509 certificate: no file specified.");
-		continue;
-	    }
-
-	    /* PEM or DER format? */
-	    if (j_strcmp(xmlnode_get_attrib_ns(cur, "type", NULL), "der") == 0) {
-		certificate_type = GNUTLS_X509_FMT_DER;
-	    }
-
-	    /* check old attributes not supported anymore */
-	    if (no_ssl_v2 != NULL || no_ssl_v3 != NULL || no_tls_v1 != NULL || ciphers != NULL) {
-		log_notice(id, "Warning: ignoring a attribute when loading X.509 certificate. Not supported anymore are: no-ssl-v2, no-ssl-v3, no-tls-v1 and ciphers");
-	    }
-
-	    /* no special private key file? use the same as the public key file */
-	    if (private_key_file == NULL) {
-		private_key_file = file_to_use;
-	    }
-
-	    /* load the keys */
-	    gnutls_certificate_credentials_t current_credentials = NULL;
-	    ret = gnutls_certificate_allocate_credentials (&current_credentials);
-	    if (ret < 0) {
-		log_error(id, "Error initializing credentials: %s", gnutls_strerror(ret));
-		continue;
-	    }
-	    ret = gnutls_certificate_set_x509_key_file(current_credentials, file_to_use, private_key_file, certificate_type);
-	    if (ret < 0) {
-		log_error(id, "Error loading key file cert=%s/priv=%s: %s", file_to_use, private_key_file, gnutls_strerror(ret));
-		gnutls_certificate_free_credentials(current_credentials);
-		continue;
-	    }
-
-	    /* load CA certificates */
-	    if (default_cacertfile != "") {
-		ret = gnutls_certificate_set_x509_trust_file(current_credentials, default_cacertfile.c_str(), GNUTLS_X509_FMT_PEM);
-		if (ret < 0) {
-		    log_error(id, "Error loading CA certificates: %s", gnutls_strerror(ret));
-		}
-	    } else {
-		log_warn(id, "Not loading CA certificates for %s", id);
-	    }
-
-	    /* set the DH params for this certificate */
-	    gnutls_certificate_set_dh_params(current_credentials, mio_tls_dh_params);
-
-	    /* store the loaded certificate */
-	    mio_tls_credentials[id] = current_credentials;
+	/* which element did we get? */
+	if (j_strcmp(xmlnode_get_localname(cur), "credentials") == 0 && j_strcmp(xmlnode_get_namespace(cur), NS_JABBERD_CONFIGFILE) == 0) {
+	    /* it's a credentials group (new format) */
+	    mio_tls_process_credentials(cur, default_cacertfile, mio_tls_dh_params);
+	} else if (j_strcmp(xmlnode_get_localname(cur), "key") == 0 && j_strcmp(xmlnode_get_namespace(cur), NS_JABBERD_CONFIGFILE) == 0) {
+	    /* it's a key - old format */
+	    mio_tls_process_key(cur, default_cacertfile, mio_tls_dh_params);
 	}
     }
 
