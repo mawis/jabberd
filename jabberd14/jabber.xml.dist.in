@@ -1031,6 +1031,7 @@
       </credentials>
       -->
 
+      <dhparams type='pem'>@sysconfdir@/dhparams.pem</dhparams>
       <cacertfile>@sysconfdir@/cacerts.pem</cacertfile>
     </tls>
 
