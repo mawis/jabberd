@@ -46,14 +46,13 @@
  * @param c pointer to the function, that gets registered
  * @param arg an argument to pass to c when it is called
  */
-void js_mapi_register(jsmi si, event e, mcall c, void *arg)
-{
+void js_mapi_register(jsmi si, event e, mcall c, void *arg) {
     mlist newl, curl;
 
     if(c == NULL || si == NULL || e >= e_LAST) return;
 
     /* create a new mlist record for the call back */
-    newl = static_cast<mlist>(pmalloc(si->p, sizeof(_mlist)));
+    newl = static_cast<mlist>(pmalloco(si->p, sizeof(_mlist)));
     newl->c = c;
     newl->arg = arg;
     newl->mask = 0x00;
@@ -81,8 +80,7 @@ void js_mapi_register(jsmi si, event e, mcall c, void *arg)
  * @param c pointer to the function, that gets registered
  * @param arg an argument to pass to c when it is called
  */
-void js_mapi_session(event e, session s, mcall c, void *arg)
-{
+void js_mapi_session(event e, session s, mcall c, void *arg) {
     mlist newl, curl;
 
     if (c == NULL || s == NULL || e >= es_LAST)

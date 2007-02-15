@@ -519,24 +519,13 @@ struct jsmi_struct {
 /** User data structure/list. See js_user(). */
 struct udata_struct
 {
-    /* char *user; */                /**< the user's name */
-    /*
-    char *pass;  */              /**< the user's password */
     jid id;                    /**< the user's JID */
     jid utrust;                /**< list of JIDs the user trusts to send presence to (s10n==both or from). Do not access directly, use js_trustees() instead. */
     jid useen;		/**< list of JIDs a user wants to accept presences from (s10n==both or to). Do not access directly, use js_seen_users() instead. */
     jsmi si;                   /**< the session manager instance the user is associated with */
     session sessions;          /**< the user's session */
-    /* this variable is only incremented and decremented, but never used => removed
-    int scount; */               /**< the number of sessions associated to this user (w/ different JID ressource parts) */
     int ref;                   /**< reference counter */
-    /* not used, we have acl.c now
-    int admin;
-    */
     pool p;
-    /* this variable is not used at all => removed
-    struct udata_struct *next;
-    */
     xht aux_data;		/**< additional data stored by modules */
 };
 
