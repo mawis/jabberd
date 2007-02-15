@@ -396,17 +396,36 @@ void mio_ssl_init(xmlnode x) {
 
     /* find the default CA certificates file */
     std::string default_cacertfile;
+    std::string dhparams;
+    bool dhparams_der = false;
     for (cur = xmlnode_get_firstchild(x); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
 	if (cur->type != NTYPE_TAG) {
 	    continue;
 	}
 
-	if (j_strcmp(xmlnode_get_localname(cur), "cacertfile") == 0 && j_strcmp(xmlnode_get_namespace(cur), NS_JABBERD_CONFIGFILE) == 0) {
+	if (j_strcmp(xmlnode_get_namespace(cur), NS_JABBERD_CONFIGFILE) != 0) {
+	    continue;
+	}
+
+	if (j_strcmp(xmlnode_get_localname(cur), "cacertfile") == 0) {
 	    char const* const cacertfile_data = xmlnode_get_data(cur);
 
 	    if (cacertfile_data != NULL) {
 		default_cacertfile = cacertfile_data;
+		dhparams_der = j_strcmp(xmlnode_get_attrib_ns(cur, "type", NULL), "der") == 0;
 	    }
+
+	    continue;
+	}
+
+	if (j_strcmp(xmlnode_get_localname(cur), "dhparams") == 0) {
+	    char const *const dhparams_data = xmlnode_get_data(cur);
+
+	    if (dhparams_data != NULL) {
+		dhparams = dhparams_data;
+	    }
+
+	    continue;
 	}
     }
 
@@ -415,9 +434,38 @@ void mio_ssl_init(xmlnode x) {
     if (ret < 0) {
 	log_error(ZONE, "Error initializing DH params: %s", gnutls_strerror(ret));
     }
-    ret = gnutls_dh_params_generate2(mio_tls_dh_params, 1024);
-    if (ret < 0) {
-	log_error(ZONE, "Error generating DH params: %s", gnutls_strerror(ret));
+    bool dhparams_set = false;
+    if (dhparams != "") {
+	int filehandle = open(dhparams.c_str(), O_RDONLY);
+	if (filehandle == -1) {
+	    log_warn(NULL, "Cannot open %s for reading dhparams: %s", dhparams.c_str(), strerror(errno));
+	} else {
+	    std::string filecontent;
+	    char buffer[1024];
+	    do {
+		ret = pth_read(filehandle, buffer, sizeof(buffer));
+		if (ret > 0) {
+		    filecontent += std::string(buffer, ret);
+		}
+	    } while (ret > 0);
+	    close(filehandle);
+
+	    gnutls_datum_t pkcs3_data;
+	    pkcs3_data.size = filecontent.length();
+	    pkcs3_data.data = const_cast<unsigned char*>(reinterpret_cast<const unsigned char*>(filecontent.c_str()));
+	    ret = gnutls_dh_params_import_pkcs3(mio_tls_dh_params, &pkcs3_data, dhparams_der ? GNUTLS_X509_FMT_DER : GNUTLS_X509_FMT_PEM);
+	    if (ret > 0) {
+		log_warn(NULL, "Error importing dhparams (%s) %s: %s", dhparams_der ? "DER" : "PEM", dhparams.c_str(), gnutls_strerror(ret));
+	    } else {
+		dhparams_set = true;
+	    }
+	}
+    }
+    if (!dhparams_set) {
+	ret = gnutls_dh_params_generate2(mio_tls_dh_params, 1024);
+	if (ret < 0) {
+	    log_error(ZONE, "Error generating DH params: %s", gnutls_strerror(ret));
+	}
     }
 
     /* load the certificates */
