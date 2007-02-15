@@ -1011,6 +1011,25 @@
       <key id='localhost'>@sysconfdir@/localhost.pem</key>
       <key id='*'>@sysconfdir@/default-STARTTLS.pem</key>
       -->
+      <!--
+      <credentials>
+	  <default/>
+	  <domain>localhost</domain>
+	  <domain>transport.localhost</domain>
+	  <pem private-key='@sysconfdir@/privkey.pem'>@sysconfdir@/pubkey.pem</pem>
+	  <pem private-key='@sysconfdir@/dss-privkey.pem'>@sysconfdir@/dss-pubkey.pem</pem>
+	  <der private-key='@sysconfdir@/anotherprivate.der'>@sysconfdir@/anotherpublic.der</der>
+	  <ca type='pem'>@sysconfdir@/cacerts.pem</ca>
+	  <openpgp private-key='@sysconfdir@/secret.asc'>@sysconfdir@/public.asc</openpgp>
+	  <keyring>@sysconfdir@/ring.gpg</keyring>
+	  <protocols>TLS1_2 TLS1_1 TLS1_0 SSL3</protocols>
+	  <kx>DHE_DSS DHE_RSA RSA</kx>
+	  <ciphers>AES_256_CBC AES_128_CBC 3DES_CBC</ciphers>
+	  <compression>NULL</compression>
+	  <mac>SHA1</mac>
+	  <certtypes>X.509</certtypes>
+      </credentials>
+      -->
 
       <cacertfile>@sysconfdir@/cacerts.pem</cacertfile>
     </tls>
