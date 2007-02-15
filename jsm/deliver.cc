@@ -602,7 +602,7 @@ void js_psend(jsmi si, jpacket p, mtq_callback f) {
 
     log_debug2(ZONE, LOGT_DELIVER, "psending to %X packet %X",f,p);
 
-    q = static_cast<jpq>(pmalloc(p->p, sizeof(_jpq)));
+    q = static_cast<jpq>(pmalloco(p->p, sizeof(_jpq)));
     q->p = p;
     q->si = si;
 

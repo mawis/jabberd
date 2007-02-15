@@ -296,7 +296,7 @@ extern "C" void mod_last(jsmi si) {
     js_mapi_register(si, e_OFFLINE, mod_last_reply, NULL);
 
     /* set up the server responce, giving the startup time :) */
-    ttmp = static_cast<time_t*>(pmalloc(si->p, sizeof(time_t)));
+    ttmp = static_cast<time_t*>(pmalloco(si->p, sizeof(time_t)));
     time(ttmp);
     js_mapi_register(si, e_SERVER, mod_last_server, (void *)ttmp);
     js_mapi_register(si, e_DELETE, mod_last_delete, NULL);
