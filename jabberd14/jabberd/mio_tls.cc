@@ -40,6 +40,7 @@
 #include <string>
 #include <sstream>
 #include <gcrypt.h>
+#include <vector>
 
 // prepare gcrypt for libpth
 // XXX it doesn't work for C++
@@ -56,15 +57,405 @@ extern const ASN1_ARRAY_TYPE subjectAltName_asn1_tab[];
 std::map<std::string, gnutls_certificate_credentials_t> mio_tls_credentials;
 
 /**
+ * the protocols to use for a domain
+ *
+ * key is the virtual domain the credentials are used for ("*" for the default)
+ * value the protocols to use
+ */
+std::map<std::string, int const*> mio_tls_protocols;
+
+/**
+ * the key exchange protocols to use for a domain
+ *
+ * key is the virtual domain the kx protocols are used for ("*" for the default)
+ * value the kx protocols to use
+ */
+std::map<std::string, int const*> mio_tls_kx;
+
+/**
+ * the ciphers to use for a domain
+ *
+ * key is the virtual domain the ciphers are used for ("*" for the default)
+ * value the ciphers to use
+ */
+std::map<std::string, int const*> mio_tls_ciphers;
+
+/**
+ * certificate types to use for a domain
+ *
+ * key is the virtual domain the ciphers are used for ("*" for the default)
+ * value the certificate types to use
+ */
+std::map<std::string, int const*> mio_tls_certtypes;
+
+/**
+ * mac algorithms to use for a domain
+ *
+ * key is the virtual domain the mac algorithms are used for ("*" for the default)
+ * value the mac algorithms to use
+ */
+std::map<std::string, int const*> mio_tls_mac;
+
+/**
+ * compression algorithms to use for a domain
+ *
+ * key is the virtual domain the compression algorithms are used for ("*" for the default)
+ * value the compression algorithms to use
+ */
+std::map<std::string, int const*> mio_tls_compression;
+
+/**
+ * memory pool for allocation of priority arrays
+ */
+pool mio_tls_pool = NULL;
+
+/**
  * tree of ASN1 structures
  */
 ASN1_TYPE mio_tls_asn1_tree = ASN1_TYPE_EMPTY;
 
+/**
+ * convert a string of protocol names to a zero terminated array for protocol constants
+ *
+ * @param p memory pool to use to allocate the result
+ * @param protocols string containing the requested protocols
+ * @return zero terminated array of protocols, NULL if nothing found
+ */
+static int const* mio_tls_compile_protocols(pool p, const std::string& protocols) {
+    // sanity check
+    if (p == NULL)
+	return NULL;
+
+    // prepare the data we will work on
+    std::istringstream proto(protocols);
+    std::vector<int> resultList;
+
+    // convert string protocol by protocol
+    while (proto) {
+	std::string oneProtocol;
+	proto >> oneProtocol;
+
+	if (proto.eof())
+	    break;
+
+	if (oneProtocol == "SSL3") {
+	    resultList.push_back(GNUTLS_SSL3);
+	} else if (oneProtocol == "TLS1_0") {
+	    resultList.push_back(GNUTLS_TLS1_0);
+	} else if (oneProtocol == "TLS1_1") {
+	    resultList.push_back(GNUTLS_TLS1_1);
+#ifdef HAVE_TLS1_2
+	} else if (oneProtocol == "TLS1_2") {
+	    resultList.push_back(GNUTLS_TLS1_2);
+#endif
+	} else {
+	    log_warn(NULL, "Found unknown protocol: %s", oneProtocol.c_str());
+	}
+    }
+
+    // found any protocol?
+    if (resultList.size() == 0)
+	return NULL;
+
+    // convert from a vector to a standard array
+    int* result = static_cast<int*>(pmalloco(p, sizeof(int)*(resultList.size()+1)));
+    for (int c=0; c<resultList.size(); c++) {
+	result[c] = resultList[c];
+    }
+    result[resultList.size()] = 0;
+
+    // return the result
+    return result;
+}
+
+/**
+ * convert a string of kx algorithms to a zero terminated array for kx constants
+ *
+ * @param p memory pool to use to allocate the result
+ * @param kxAlgos string containing the requested kx algorithms
+ * @return zero terminated array of algorithms, NULL if nothing found
+ */
+static int const* mio_tls_compile_kx(pool p, const std::string& kxAlgos) {
+    // sanity check
+    if (p == NULL)
+	return NULL;
+
+    // prepare the data we will work on
+    std::istringstream kx(kxAlgos);
+    std::vector<int> resultList;
+
+    // convert string protocol by protocol
+    while (kx) {
+	std::string oneKx;
+	kx >> oneKx;
+
+	if (kx.eof())
+	    break;
+
+	if (oneKx == "RSA") {
+	    resultList.push_back(GNUTLS_KX_RSA);
+	} else if (oneKx == "DHE_DSS") {
+	    resultList.push_back(GNUTLS_KX_DHE_DSS);
+	} else if (oneKx == "DHE_RSA") {
+	    resultList.push_back(GNUTLS_KX_DHE_RSA);
+	} else if (oneKx == "ANON_DH") {
+	    resultList.push_back(GNUTLS_KX_ANON_DH);
+	} else if (oneKx == "SRP") {
+	    resultList.push_back(GNUTLS_KX_SRP);
+	} else if (oneKx == "RSA_EXPORT") {
+	    resultList.push_back(GNUTLS_KX_RSA_EXPORT);
+	} else if (oneKx == "SRP_RSA") {
+	    resultList.push_back(GNUTLS_KX_SRP_RSA);
+	} else if (oneKx == "SRP_DSS") {
+	    resultList.push_back(GNUTLS_KX_SRP_DSS);
+	} else if (oneKx == "PSK") {
+	    resultList.push_back(GNUTLS_KX_PSK);
+	} else if (oneKx == "DHE_PSK") {
+	    resultList.push_back(GNUTLS_KX_DHE_PSK);
+	} else {
+	    log_warn(NULL, "Found unknown key exchange algorithm: %s", oneKx.c_str());
+	}
+    }
+
+    // found any algorithms?
+    if (resultList.size() == 0)
+	return NULL;
+
+    // convert from a vector to a standard array
+    int* result = static_cast<int*>(pmalloco(p, sizeof(int)*(resultList.size()+1)));
+    for (int c=0; c<resultList.size(); c++) {
+	result[c] = resultList[c];
+    }
+    result[resultList.size()] = 0;
+
+    // return the result
+    return result;
+}
+
+/**
+ * convert a string of ciphers to a zero terminated array for ciphers
+ *
+ * @param p memory pool to use to allocate the result
+ * @param cipherAlgos string containing the requested ciphers
+ * @return zero terminated array of ciphers, NULL if nothing found
+ */
+static int const* mio_tls_compile_ciphers(pool p, const std::string& cipherAlgos) {
+    // sanity check
+    if (p == NULL)
+	return NULL;
+
+    // prepare the data we will work on
+    std::istringstream ciphers(cipherAlgos);
+    std::vector<int> resultList;
+
+    // convert string protocol by protocol
+    while (ciphers) {
+	std::string oneCipher;
+	ciphers >> oneCipher;
+
+	if (ciphers.eof())
+	    break;
+
+	if (oneCipher == "NULL") {
+	    resultList.push_back(GNUTLS_CIPHER_NULL);
+	} else if (oneCipher == "ARCFOUR_128") {
+	    resultList.push_back(GNUTLS_CIPHER_ARCFOUR_128);
+	} else if (oneCipher == "3DES_CBC") {
+	    resultList.push_back(GNUTLS_CIPHER_3DES_CBC);
+	} else if (oneCipher == "AES_128_CBC") {
+	    resultList.push_back(GNUTLS_CIPHER_AES_128_CBC);
+	} else if (oneCipher == "AES_256_CBC") {
+	    resultList.push_back(GNUTLS_CIPHER_AES_256_CBC);
+	} else if (oneCipher == "ARCFOUR_40") {
+	    resultList.push_back(GNUTLS_CIPHER_ARCFOUR_40);
+	} else if (oneCipher == "RC2_40_CBC") {
+	    resultList.push_back(GNUTLS_CIPHER_RC2_40_CBC);
+	} else if (oneCipher == "DES_CBC") {
+	    resultList.push_back(GNUTLS_CIPHER_DES_CBC);
+	} else {
+	    log_warn(NULL, "Found unknown cipher algorithm: %s", oneCipher.c_str());
+	}
+    }
+
+    // found any algorithms?
+    if (resultList.size() == 0)
+	return NULL;
+
+    // convert from a vector to a standard array
+    int* result = static_cast<int*>(pmalloco(p, sizeof(int)*(resultList.size()+1)));
+    for (int c=0; c<resultList.size(); c++) {
+	result[c] = resultList[c];
+    }
+    result[resultList.size()] = 0;
+
+    // return the result
+    return result;
+}
+
+/**
+ * convert a string of certificate types to a zero terminated array for certificate types
+ *
+ * @param p memory pool to use to allocate the result
+ * @param certTypes string containing the requested certificate types
+ * @return zero terminated array of ciphers, NULL if nothing found
+ */
+static int const* mio_tls_compile_certtypes(pool p, const std::string& certTypes) {
+    // sanity check
+    if (p == NULL)
+	return NULL;
+
+    // prepare the data we will work on
+    std::istringstream certs(certTypes);
+    std::vector<int> resultList;
+
+    // convert string protocol by protocol
+    while (certs) {
+	std::string oneCertType;
+	certs >> oneCertType;
+
+	if (certs.eof())
+	    break;
+
+	if (oneCertType == "X.509") {
+	    resultList.push_back(GNUTLS_CRT_X509);
+	} else if (oneCertType == "OpenPGP") {
+	    resultList.push_back(GNUTLS_CRT_OPENPGP);
+	} else {
+	    log_warn(NULL, "Found unknown certificate type: %s", oneCertType.c_str());
+	}
+    }
+
+    // found any algorithms?
+    if (resultList.size() == 0)
+	return NULL;
+
+    // convert from a vector to a standard array
+    int* result = static_cast<int*>(pmalloco(p, sizeof(int)*(resultList.size()+1)));
+    for (int c=0; c<resultList.size(); c++) {
+	result[c] = resultList[c];
+    }
+    result[resultList.size()] = 0;
+
+    // return the result
+    return result;
+}
+
+/**
+ * convert a string of mac algorithms to a zero terminated array for mac algorithms
+ *
+ * @param p memory pool to use to allocate the result
+ * @param macAlgos string containing the requested mac algorithms
+ * @return zero terminated array of mac algorithms, NULL if nothing found
+ */
+static int const* mio_tls_compile_mac(pool p, const std::string& macAlgos) {
+    // sanity check
+    if (p == NULL)
+	return NULL;
+
+    // prepare the data we will work on
+    std::istringstream macs(macAlgos);
+    std::vector<int> resultList;
+
+    // convert string protocol by protocol
+    while (macs) {
+	std::string oneMac;
+	macs >> oneMac;
+
+	if (macs.eof())
+	    break;
+
+	if (oneMac == "NULL") {
+	    resultList.push_back(GNUTLS_MAC_NULL);
+	} else if (oneMac == "MD5") {
+	    resultList.push_back(GNUTLS_MAC_MD5);
+	} else if (oneMac == "SHA1") {
+	    resultList.push_back(GNUTLS_MAC_SHA1);
+	} else if (oneMac == "RMD160") {
+	    resultList.push_back(GNUTLS_MAC_RMD160);
+	} else if (oneMac == "MD2") {
+	    resultList.push_back(GNUTLS_MAC_MD2);
+	} else {
+	    log_warn(NULL, "Found unknown MAC algorithm: %s", oneMac.c_str());
+	}
+    }
+
+    // found any algorithms?
+    if (resultList.size() == 0)
+	return NULL;
+
+    // convert from a vector to a standard array
+    int* result = static_cast<int*>(pmalloco(p, sizeof(int)*(resultList.size()+1)));
+    for (int c=0; c<resultList.size(); c++) {
+	result[c] = resultList[c];
+    }
+    result[resultList.size()] = 0;
+
+    // return the result
+    return result;
+}
+
+/**
+ * convert a string of compression algorithms to a zero terminated array for compression algorithms
+ *
+ * @param p memory pool to use to allocate the result
+ * @param compressionAlgos string containing the requested compression algorithms
+ * @return zero terminated array of compression algorithms, NULL if nothing found
+ */
+static int const* mio_tls_compile_compression(pool p, const std::string& compressionAlgos) {
+    // sanity check
+    if (p == NULL)
+	return NULL;
+
+    // prepare the data we will work on
+    std::istringstream compressions(compressionAlgos);
+    std::vector<int> resultList;
+
+    // convert string protocol by protocol
+    while (compressions) {
+	std::string oneCompression;
+	compressions >> oneCompression;
+
+	if (compressions.eof())
+	    break;
+
+	if (oneCompression == "NULL") {
+	    resultList.push_back(GNUTLS_COMP_NULL);
+	} else if (oneCompression == "DEFLATE") {
+	    resultList.push_back(GNUTLS_COMP_DEFLATE);
+#ifdef HAVE_GNUTLS_EXTRA
+	} else if (oneCompression == "LZO") {
+	    resultList.push_back(GNUTLS_COMP_LZO);
+#endif
+	} else {
+	    log_warn(NULL, "Found unknown compression algorithm: %s", oneCompression.c_str());
+	}
+    }
+
+    // found any algorithms?
+    if (resultList.size() == 0)
+	return NULL;
+
+    // convert from a vector to a standard array
+    int* result = static_cast<int*>(pmalloco(p, sizeof(int)*(resultList.size()+1)));
+    for (int c=0; c<resultList.size(); c++) {
+	result[c] = resultList[c];
+    }
+    result[resultList.size()] = 0;
+
+    // return the result
+    return result;
+}
 
 static void mio_tls_process_credentials(xmlnode x, const std::string& default_cacertfile, gnutls_dh_params_t mio_tls_dh_params) {
     std::set<std::string> domains;
     int ret = 0;
     bool loaded_cacerts = false;
+    std::string protocols;
+    std::string kx;
+    std::string ciphers;
+    std::string certtypes = "X.509";
+    std::string mac = "SHA1";
+    std::string compression = "NULL";
 
     // prepare the credentials
     gnutls_certificate_credentials_t current_credentials = NULL;
@@ -222,34 +613,55 @@ static void mio_tls_process_credentials(xmlnode x, const std::string& default_ca
 
 	// setup protocols to use
 	if (j_strcmp(xmlnode_get_localname(cur), "protocols") == 0) {
-	    // XXX
+	    char const *const protocols_data = xmlnode_get_data(cur);
+	    if (protocols_data != NULL)
+		protocols = protocols_data;
 	    continue;
 	}
 
 	// setup key exchange protocols to use
 	if (j_strcmp(xmlnode_get_localname(cur), "kx") == 0) {
-	    // XXX
+	    char const *const kx_data = xmlnode_get_data(cur);
+	    if (kx_data != NULL)
+		kx = kx_data;
 	    continue;
 	}
 
 	// setup ciphers to use
 	if (j_strcmp(xmlnode_get_localname(cur), "ciphers") == 0) {
-	    // XXX
+	    char const *const ciphers_data = xmlnode_get_data(cur);
+	    if (ciphers_data != NULL)
+		ciphers = ciphers_data;
 	    continue;
 	}
 
 	// setup certificate types to use
 	if (j_strcmp(xmlnode_get_localname(cur), "certtypes") == 0) {
-	    // XXX
+	    char const *const certtypes_data = xmlnode_get_data(cur);
+	    if (certtypes_data != NULL)
+		certtypes = certtypes_data;
 	    continue;
 	}
 
 	// setup MAC algorithms to use
 	if (j_strcmp(xmlnode_get_localname(cur), "mac") == 0) {
-	    // XXX
+	    char const *const mac_data = xmlnode_get_data(cur);
+	    if (mac_data != NULL)
+		mac = mac_data;
+	    continue;
+	}
+
+	// setup compression algorithms to use
+	if (j_strcmp(xmlnode_get_localname(cur), "compression") == 0) {
+	    char const *const compression_data = xmlnode_get_data(cur);
+	    if (compression_data != NULL)
+		compression = compression_data;
 	    continue;
 	}
     }
+
+    /* set the DH params for this certificate */
+    gnutls_certificate_set_dh_params(current_credentials, mio_tls_dh_params);
 
     // loaded any CA certificate? if not load the defaults
     if (!loaded_cacerts && default_cacertfile != "") {
@@ -270,6 +682,42 @@ static void mio_tls_process_credentials(xmlnode x, const std::string& default_ca
 
 	credentials_used = true;
 	mio_tls_credentials[*p] = current_credentials;
+	if (protocols != "" && mio_tls_protocols.find(*p) == mio_tls_protocols.end()) {
+	    int const* compiled_protocols = mio_tls_compile_protocols(mio_tls_pool, protocols);
+	    if (compiled_protocols != NULL) {
+		mio_tls_protocols[*p] = compiled_protocols;
+	    }
+	}
+	if (kx != "" && mio_tls_kx.find(*p) == mio_tls_kx.end()) {
+	    int const* compiled_kx = mio_tls_compile_kx(mio_tls_pool, kx);
+	    if (compiled_kx != NULL) {
+		mio_tls_kx[*p] = compiled_kx;
+	    }
+	}
+	if (ciphers != "" && mio_tls_ciphers.find(*p) == mio_tls_ciphers.end()) {
+	    int const* compiled_ciphers = mio_tls_compile_ciphers(mio_tls_pool, ciphers);
+	    if (compiled_ciphers != NULL) {
+		mio_tls_ciphers[*p] = compiled_ciphers;
+	    }
+	}
+	if (certtypes != "" && mio_tls_certtypes.find(*p) == mio_tls_certtypes.end()) {
+	    int const* compiled_certtypes = mio_tls_compile_certtypes(mio_tls_pool, certtypes);
+	    if (compiled_certtypes != NULL) {
+		mio_tls_certtypes[*p] = compiled_certtypes;
+	    }
+	}
+	if (mac != "" && mio_tls_mac.find(*p) == mio_tls_mac.end()) {
+	    int const* compiled_mac = mio_tls_compile_mac(mio_tls_pool, mac);
+	    if (compiled_mac != NULL) {
+		mio_tls_mac[*p] = compiled_mac;
+	    }
+	}
+	if (compression != "" && mio_tls_compression.find(*p) == mio_tls_compression.end()) {
+	    int const* compiled_compression = mio_tls_compile_compression(mio_tls_pool, compression);
+	    if (compiled_compression != NULL) {
+		mio_tls_compression[*p] = compiled_compression;
+	    }
+	}
     }
 
     // check if the credentials are used for any domain
@@ -393,6 +841,9 @@ void mio_ssl_init(xmlnode x) {
 	return;
 	/* XXX we have to delete the structure on shutdown using asn1_delete_structure(&mio_tls_asn1_tree) */
     }
+
+    /* create memory pool */
+    mio_tls_pool = pool_new();
 
     /* find the default CA certificates file */
     std::string default_cacertfile;
@@ -717,26 +1168,82 @@ int mio_ssl_starttls(mio m, int originator, const char* identity) {
 	log_debug2(ZONE, LOGT_IO, "Error setting default priorities for fd #%i: %s", m->fd, gnutls_strerror(ret));
     }
 
-    static const int protocol_priority[] = {
-#ifdef HAVE_TLS1_2
-	GNUTLS_TLS1_2,
-#endif
-	GNUTLS_TLS1_1, GNUTLS_TLS1_0, GNUTLS_SSL3, 0 };
-    ret = gnutls_protocol_set_priority(session, protocol_priority);
-    if (ret < 0) {
-	log_notice(identity, "error setting protocol priority: %s", gnutls_strerror(ret));
+    // overwrite protocol priorities?
+    if (mio_tls_protocols.find(identity) != mio_tls_protocols.end()) {
+	ret = gnutls_protocol_set_priority(session, mio_tls_protocols[identity]);
+	if (ret < 0) {
+	    log_notice(identity, "error setting protocol priority: %s", gnutls_strerror(ret));
+	}
+    } else if (mio_tls_protocols.find("*") != mio_tls_protocols.end()) {
+	ret = gnutls_protocol_set_priority(session, mio_tls_protocols["*"]);
+	if (ret < 0) {
+	    log_notice(identity, "error setting protocol priority: %s", gnutls_strerror(ret));
+	}
     }
 
-    static const int kx_priority[] = { GNUTLS_KX_DHE_DSS, GNUTLS_KX_DHE_RSA, GNUTLS_KX_RSA, 0 };
-    ret = gnutls_kx_set_priority(session, kx_priority);
-    if (ret < 0) {
-	log_notice(identity, "error setting key exchange algorithm: %s", gnutls_strerror(ret));
+    // overwrite kx algorithm priorities?
+    if (mio_tls_kx.find(identity) != mio_tls_kx.end()) {
+	ret = gnutls_kx_set_priority(session, mio_tls_kx[identity]);
+	if (ret < 0) {
+	    log_notice(identity, "error setting kx algorithm priority: %s", gnutls_strerror(ret));
+	}
+    } else if (mio_tls_kx.find("*") != mio_tls_kx.end()) {
+	ret = gnutls_kx_set_priority(session, mio_tls_kx["*"]);
+	if (ret < 0) {
+	    log_notice(identity, "error setting kx algorithm priority: %s", gnutls_strerror(ret));
+	}
     }
 
-    static const int cipher_priority[] = { GNUTLS_CIPHER_AES_256_CBC, GNUTLS_CIPHER_AES_128_CBC, GNUTLS_CIPHER_3DES_CBC, GNUTLS_CIPHER_ARCFOUR_128, 0 };
-    ret = gnutls_cipher_set_priority(session, cipher_priority);
-    if (ret < 0) {
-	log_notice(identity, "error setting cipher priority: %s", gnutls_strerror(ret));
+    // overwrite cipher priorities?
+    if (mio_tls_ciphers.find(identity) != mio_tls_ciphers.end()) {
+	ret = gnutls_cipher_set_priority(session, mio_tls_ciphers[identity]);
+	if (ret < 0) {
+	    log_notice(identity, "error setting cipher algorithm priority: %s", gnutls_strerror(ret));
+	}
+    } else if (mio_tls_ciphers.find("*") != mio_tls_ciphers.end()) {
+	ret = gnutls_cipher_set_priority(session, mio_tls_ciphers["*"]);
+	if (ret < 0) {
+	    log_notice(identity, "error setting cipher algorithm priority: %s", gnutls_strerror(ret));
+	}
+    }
+
+    // overwrite certificate priorities?
+    if (mio_tls_certtypes.find(identity) != mio_tls_certtypes.end()) {
+	ret = gnutls_certificate_type_set_priority(session, mio_tls_certtypes[identity]);
+	if (ret < 0) {
+	    log_notice(identity, "error setting certificate priorities: %s", gnutls_strerror(ret));
+	}
+    } else if (mio_tls_certtypes.find("*") != mio_tls_certtypes.end()) {
+	ret = gnutls_certificate_type_set_priority(session, mio_tls_certtypes["*"]);
+	if (ret < 0) {
+	    log_notice(identity, "error setting certificate priorities: %s", gnutls_strerror(ret));
+	}
+    }
+
+    // overwrite mac algorithm priorities?
+    if (mio_tls_mac.find(identity) != mio_tls_mac.end()) {
+	ret = gnutls_mac_set_priority(session, mio_tls_mac[identity]);
+	if (ret < 0) {
+	    log_notice(identity, "error setting mac algorithm priorities: %s", gnutls_strerror(ret));
+	}
+    } else if (mio_tls_mac.find("*") != mio_tls_mac.end()) {
+	ret = gnutls_mac_set_priority(session, mio_tls_mac["*"]);
+	if (ret < 0) {
+	    log_notice(identity, "error setting mac algorithm priorities: %s", gnutls_strerror(ret));
+	}
+    }
+
+    // overwrite compression algorithm priorities?
+    if (mio_tls_compression.find(identity) != mio_tls_compression.end()) {
+	ret = gnutls_compression_set_priority(session, mio_tls_compression[identity]);
+	if (ret < 0) {
+	    log_notice(identity, "error setting compression algorithm priorities: %s", gnutls_strerror(ret));
+	}
+    } else if (mio_tls_compression.find("*") != mio_tls_compression.end()) {
+	ret = gnutls_compression_set_priority(session, mio_tls_compression["*"]);
+	if (ret < 0) {
+	    log_notice(identity, "error setting compression algorithm priorities: %s", gnutls_strerror(ret));
+	}
     }
 
     /* setting certificate credentials */
