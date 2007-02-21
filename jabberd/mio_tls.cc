@@ -135,7 +135,7 @@ static int const* mio_tls_compile_protocols(pool p, const std::string& protocols
 	std::string oneProtocol;
 	proto >> oneProtocol;
 
-	if (proto.eof())
+	if (proto.fail())
 	    break;
 
 	if (oneProtocol == "SSL3") {
@@ -189,7 +189,7 @@ static int const* mio_tls_compile_kx(pool p, const std::string& kxAlgos) {
 	std::string oneKx;
 	kx >> oneKx;
 
-	if (kx.eof())
+	if (kx.fail())
 	    break;
 
 	if (oneKx == "RSA") {
@@ -253,7 +253,7 @@ static int const* mio_tls_compile_ciphers(pool p, const std::string& cipherAlgos
 	std::string oneCipher;
 	ciphers >> oneCipher;
 
-	if (ciphers.eof())
+	if (ciphers.fail())
 	    break;
 
 	if (oneCipher == "NULL") {
@@ -313,7 +313,7 @@ static int const* mio_tls_compile_certtypes(pool p, const std::string& certTypes
 	std::string oneCertType;
 	certs >> oneCertType;
 
-	if (certs.eof())
+	if (certs.fail())
 	    break;
 
 	if (oneCertType == "X.509") {
@@ -361,7 +361,7 @@ static int const* mio_tls_compile_mac(pool p, const std::string& macAlgos) {
 	std::string oneMac;
 	macs >> oneMac;
 
-	if (macs.eof())
+	if (macs.fail())
 	    break;
 
 	if (oneMac == "NULL") {
@@ -415,7 +415,7 @@ static int const* mio_tls_compile_compression(pool p, const std::string& compres
 	std::string oneCompression;
 	compressions >> oneCompression;
 
-	if (compressions.eof())
+	if (compressions.fail())
 	    break;
 
 	if (oneCompression == "NULL") {
