@@ -406,7 +406,10 @@ static void _mio_close(mio m) {
         (*m->cb)(m, MIO_CLOSED, m->cb_arg, NULL, NULL, 0);
 
     /* close the socket, and free all memory */
-    close(m->fd);
+    if (m->mh && m->mh->close)
+	(*m->mh->close)(m, true);
+    else
+	close(m->fd);
 
     if (m->flags.rated) 
         jlimit_free(m->rate);
