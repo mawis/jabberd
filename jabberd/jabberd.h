@@ -312,7 +312,7 @@ typedef struct mio_wb_q_st
     struct mio_wb_q_st *next;
 } _mio_wbq,*mio_wbq;
 
-struct mio_handlers_st; /* grr.. stupid fsking chicken and egg C definitions */
+struct mio_handlers_st;
 
 /* the mio data type */
 typedef enum { state_ACTIVE, state_CLOSE } mio_state;
@@ -393,21 +393,22 @@ typedef struct mio_main_st {
 } _ios,*ios;
 
 /* MIO SOCKET HANDLERS */
-typedef ssize_t (*mio_read_func)      (mio m, void*            buf,       size_t     count);
-typedef ssize_t (*mio_write_func)     (mio m, const void*      buf,       size_t     count); 
-typedef void    (*mio_parser_func)    (mio m,  const void*      buf,       size_t     bufsz);
-typedef int     (*mio_accepted_func)  (mio m);
-typedef int	(*mio_handshake_func) (mio m);
+typedef ssize_t (*mio_read_func)	(mio m, void* buf, size_t count);
+typedef ssize_t (*mio_write_func)	(mio m, void const* buf, size_t count); 
+typedef void    (*mio_parser_func)	(mio m, void const* buf, size_t bufsz);
+typedef int     (*mio_accepted_func)	(mio m);
+typedef int	(*mio_handshake_func)	(mio m);
+typedef void	(*mio_close_func)	(mio m, bool close_read);
 
 /** The MIO handlers data type */
-typedef struct mio_handlers_st
-{
+typedef struct mio_handlers_st {
     pool  p;
     mio_read_func	read;
     mio_write_func	write;
     mio_accepted_func	accepted;
     mio_parser_func	parser;
     mio_handshake_func	handshake;
+    mio_close_func	close;
 } _mio_handlers, *mio_handlers; 
 
 /* standard read/write/accept/connect functions */
