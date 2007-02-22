@@ -924,93 +924,209 @@
   <io>
     <!-- The following section initializes TLS (also known as SSL).	-->
     <!--								-->
-    <!-- The most important thing to configure for TLS is to define	-->
-    <!-- Which certificates your jabberd14 server should use.		-->
-    <!-- This is done using the <key/> element. (key because the	-->
-    <!-- certificates contain your private key, therefore you should	-->
-    <!-- keep these files protected.)					-->
+    <!-- Note: the format of this configuration section has changed     -->
+    <!-- from version 1.6.0 to version 1.6.1 of jabberd14, as many      -->
+    <!-- features supported by GnuTLS where not be configurable by      -->
+    <!-- the old format.                                                -->
+    <!-- The old config format is still processed (with some smaller	-->
+    <!-- exceptions), but it is better if you upgrade to the new        -->
+    <!-- one.								-->
     <!--								-->
-    <!-- The key element can have the following attributes:		-->
+    <!-- With the <credentials/> element here you can bind certificates	-->
+    <!-- to domains. As well as you can configure some additional	-->
+    <!-- settings, like the protocols and algorithms the TLS		-->
+    <!-- implementation should use for this set of domains.		-->
+    <!-- The configured domains are the local ones. E.g. you configure	-->
+    <!-- the domain 'example.com' to configure which certificate	-->
+    <!-- the server should use if a user connects to 'example.com'.	-->
+    <!-- There is only one exception for this: For client connects on	-->
+    <!-- the legacy port 5223, the server will not select the		-->
+    <!-- credentials element by the domain the client connects to, but	-->
+    <!-- by the IP address.						-->
     <!--								-->
-    <!-- id='$ipAddress'						-->
-    <!--	Use this key for incoming client connections configured	-->
-    <!--	using the <tls/> configuration element with the		-->
-    <!--	specified IP address as the address the socket is	-->
-    <!--	listening on.						-->
-    <!-- id='$domain'							-->
-    <!--	Use this key for incoming client connections configured	-->
-    <!--	using the <ip/> configuration element that connect to	-->
-    <!--	this domain - as well as for all server 2 server	-->
-    <!--	connections where we have this domain as your local	-->
-    <!--	address.						-->
-    <!-- id='*'								-->
-    <!--	Use this key if no other certificate matches.		-->
+    <!-- The following elements are available inside the <credentials/>	-->
+    <!-- element:							-->
+    <!-- <domain/>	Define a domain this definition should be used	-->
+    <!--		for. The content of this element is a domain	-->
+    <!--		for connects on ports 5222 and 5269, or an	-->
+    <!--		IP address for connects on legacy port 5223.	-->
+    <!-- <default/>	Defines that this definition should be used for	-->
+    <!--		all domains (or IP addresses), that have no	-->
+    <!--		other definition. This element has no content.	-->
+    <!-- <pem/>		Defines a certificate or certificate chain in	-->
+    <!--		PEM format to be loaded. The content of this	-->
+    <!--		element is the filename.			-->
+    <!--		By default both certificate and private key are	-->
+    <!--		read from the same file. If the private key is	-->
+    <!--		in a different file, the file for the private	-->
+    <!--		key can be configured using the private-key	-->
+    <!--		attribute of the <pem/> element.		-->
+    <!--		You can have multiple <pem/> elements to load	-->
+    <!--		multiple certificates. E.g. one for RSA and	-->
+    <!--		another for DSS.				-->
+    <!-- <der/>		Defines a certificate in DER format to be	-->
+    <!--		loaded. The content of this element is the	-->
+    <!--		filename.					-->
+    <!--		The file containing the private key that	-->
+    <!--		belongs to the certificate has to be specified	-->
+    <!--		using the private-key attribute of the <der/>	-->
+    <!--		element.					-->
+    <!--		You can have multiple <der/> elements to load	-->
+    <!--		multiple certificates. E.g. one for RSA and	-->
+    <!--		another for DSS.				-->
+    <!-- <ca/>		Load the certificate of a certification		-->
+    <!--		authority to be trusted. The content of this	-->
+    <!--		element is the filename, that contains the	-->
+    <!--		certificate of the certification authority.	-->
+    <!--		By default this file is read as a PEM encoded	-->
+    <!--		one. If it is DER encoded, you have to set the	-->
+    <!--		type attribute of the <ca/> element to the	-->
+    <!--		value 'der' (lower case!).			-->
+    <!--		If the encoding is PEM, you can have multiple	-->
+    <!--		or all certification authority certificates in	-->
+    <!--		one file. But you can also (or must in the case	-->
+    <!--		of DER encoding) have multiple <ca/> elements	-->
+    <!--		all defining a single certificate.		-->
+    <!--		If no <ca/> element is present, then the	-->
+    <!--		certificates defined by the <cacertfile/>	-->
+    <!--		element outside of <credentials/> are used as	-->
+    <!--		the default.					-->
+    <!-- <openpgp/>	This element defines the location of a public	-->
+    <!--		and private key for OpenPGP. You will only need	-->
+    <!--		this, if you want to use OpenPGP certificates	-->
+    <!--		or OpenPGP authentication. The content of this	-->
+    <!--		element is the filename for the public key. The	-->
+    <!--		filename for the private key is specified using	-->
+    <!--		the private-key attribute of the <openpgp/>	-->
+    <!--		element.					-->
+    <!-- <keyring/>	This element defines the OpenPGP keyring to be	-->
+    <!--		used. From this keyring the TLS implementation	-->
+    <!--		gets the key signers it trusts. The content of	-->
+    <!--		this element is the filename of the keyring.	-->
+    <!--		You will only need this, if you want to use	-->
+    <!--		OpenPGP authentication.				-->
+    <!-- <protocols/>	This defines the versions of the TLS (or SSL)	-->
+    <!--		protocol that should be used, and the priority	-->
+    <!--		of the protocols (i.e. which version should be	-->
+    <!--		used if the peer supports more than one of	-->
+    <!--		these versions). You specify it as a whitespace	-->
+    <!--		separated list of tokens. The token on the left	-->
+    <!--		has the highest priority.			-->
+    <!--		If this is not configured, the defaults of the	-->
+    <!--		TLS implementation are used.			-->
+    <!--		Possible protocol tokens are: TLS1_2 (only with	-->
+    <!--		newer versions of GnuTLS, otherwise ignored),	-->
+    <!--		TLS1_1, TLS1_0, and SSL3.			-->
+    <!-- <kx/>		The defines the key exchange algorithms, that	-->
+    <!--		should be used and their priority (i.e. which	-->
+    <!--		algorithm should be used, if the peer supports	-->
+    <!--		more than one of these algorithms). You specify	-->
+    <!--		it as a whitespace separated list of tokens.	-->
+    <!--		The leftmost token has the highest priority.	-->
+    <!--		If this is not configured, the defaults of the	-->
+    <!--		TLS implementation are used.			-->
+    <!--		Possible key-exchange algorithms are:		-->
+    <!--		DHE_DSS	DSS signed Diffie Hellmann key exchange	-->
+    <!--		DHE_RSA	RSA signed Diffie Hellmann key exchange	-->
+    <!--		RSA	RSA key exchange			-->
+    <!--		ANON_DH	Anonymous Diffie Hellmann key exchange	-->
+    <!-- <ciphers/>	This defines the cipher algorithms, that should -->
+    <!--		be supported as well as their priority (i.e.	-->
+    <!--		which algorithm should be used, if the peer	-->
+    <!--		supports more than one of these algorithms).	-->
+    <!--		You specify it as a whitespace separated list	-->
+    <!--		of tokens. The leftmost token has the highest	-->
+    <!--		priority.					-->
+    <!--		If this is not configured, the defaults of the	-->
+    <!--		TLS implementation are used. Please note that	-->
+    <!--		at least up to version 1.7.6 of GnuTLS AES with	-->
+    <!--		a 256 b key is not enabled by default. If you	-->
+    <!--		want to enable this algorithm, you have to	-->
+    <!--		use this setting.				-->
+    <!--		Possible cipher algorithms are:			-->
+    <!--		AES_256_CBC	The AES cipher using a 256 b	-->
+    <!--				key in CBC mode			-->
+    <!--		AES_128_CBC	The AES cipher using a 128 b	-->
+    <!--				key in CBC mode			-->
+    <!--		3DES_CBC	The 3DES cipher using a 168 b	-->
+    <!--				key in CBC mode			-->
+    <!--		ARCFOUR_128	The ARCFOUR stream cipher using	-->
+    <!--				a 128 b key			-->
+    <!--		These cipher algorithms are also possible but	-->
+    <!--		SHOULD NOT BE ENABLED:				-->
+    <!--		ARCFOUR_40	The ARCFOUR stream cipher using	-->
+    <!--				a 40 b key (this is weak!)	-->
+    <!--		RC2_40_CBC	The RC2 cipher using a 40 b key	-->
+    <!--				in CBC mode (this is weak!)	-->
+    <!--		DES_CBC		The DES cipher using a 58 b key -->
+    <!--				in CBC mode (this is weak!)	-->
+    <!--		NULL		The NULL cipher means to not	-->
+    <!--				encrypt at all. This is no	-->
+    <!--				protection at all and is just	-->
+    <!--				for debugging.			-->
+    <!-- <compression/>	The compression algorithms, that should be	-->
+    <!--		supported as well as their priority. The	-->
+    <!--		content of this element is a whitespace		-->
+    <!--		separated list of tokens.			-->
+    <!--		If this is not configured, the defaults of the	-->
+    <!--		TLS implementation are used. (Typically this	-->
+    <!--		will only enable NULL, and therefore disable	-->
+    <!--		compression.)					-->
+    <!--		The following compression algorithms are	-->
+    <!--		supported:					-->
+    <!--		NULL	Doing no compression at all, this is	-->
+    <!--			needed for compatibility to		-->
+    <!--			implementations, that do not support	-->
+    <!--			compression at the TLS layer.		-->
+    <!--		DEFLATE	Compression using the deflate		-->
+    <!--			algorithm.				-->
+    <!--		LZO	Compression using the LZO algorithm.	-->
+    <!--			This is only supported if the GnuTLS	-->
+    <!--			extra library has been linked to	-->
+    <!--			jabberd14 (done automatically if it is	-->
+    <!--			found by jabberd14's configure script)	-->
+    <!--			else this token is ignored.		-->
+    <!-- <mac/>		The message authentication code algorithms,	-->
+    <!--		that should be supported as well as their	-->
+    <!--		priority. The content of this element is a	-->
+    <!--		whitespace separated list of tokens.		-->
+    <!--		If this is not configured, the defaults of the	-->
+    <!--		TLS implementation are used.			-->
+    <!--		The following mac algorithms are supported:	-->
+    <!--		NULL	Using no MAC (not recommended)		-->
+    <!--		MD5	Using MD5				-->
+    <!--		SHA1	Using SHA1				-->
+    <!--		RMD160	Using RipeMD160				-->
+    <!--		MD2	Using MD2 (not recommended)		-->
+    <!--		SHA256	Using SHA256				-->
+    <!--		SHA384	Using SHA384				-->
+    <!--		SHA512	Using SHA512				-->
+    <!--		Note: SHA256, SHA384, and SHA512 are only	-->
+    <!--		supported by newer versions of GnuTLS.		-->
+    <!-- <certtypes/>	The types of certificates, that should be	-->
+    <!--		supported as well as their priority. The	-->
+    <!--		content of this element is a whitespace		-->
+    <!--		separated list of tokens.			-->
+    <!--		If this is not configured, the defaults of the	-->
+    <!--		TLS implementation are used. This typically	-->
+    <!--		will only enable X.509 certificates, which are	-->
+    <!--		the standard certificates of TLS.		-->
+    <!--		The following certificate types are supported:	-->
+    <!--		X.509	X.509 certificates			-->
+    <!--		OpenSSL	OpenSSL certificates			-->
     <!--								-->
-    <!-- type='pem' (default)						-->
-    <!--	The key file contains the base64 encoded certificate	-->
-    <!--	and no other certificates (i.e. no intermediate		-->
-    <!--	certificate files).					-->
-    <!--	It may optionally also contain the private key.		-->
-    <!-- type='der'							-->
-    <!--	The key file contains the binary version of the		-->
-    <!--	certificate. No other certificates nor the private	-->
-    <!--	key is allowed to be in the same file.			-->
-    <!-- type='chain'							-->
-    <!--	The key file continas the base64 encoded certificate	-->
-    <!--	as well as all other certificates needed to build the	-->
-    <!--	chain of certificates up to the CA root certificate.	-->
-    <!--	The certificates have to be ordered starting from	-->
-    <!--	your own certificate, and ending in the root		-->
-    <!--	certificate. You have to use this type, if your		-->
-    <!--	certificate is signed by an intermediate certification	-->
-    <!--	authority and you have to add the intermadiate CA	-->
-    <!--	certificate in this file then.				-->
-    <!--	(I.e. you have to use this type, if you get your	-->
-    <!--	certificate from the XMPP Federation CA.)		-->
-    <!--	It may optionally also contain the private key.		-->
+    <!-- With the <dhparams/> element right inside the <tls/> element,	-->
+    <!-- you can configure a file containing parameters for Diffie	-->
+    <!-- Hellmann key exchanges. If this configuration setting is not	-->
+    <!-- present, jabberd14 will generated these parameters		-->
+    <!-- automatically on each startup. This takes some time, therefore	-->
+    <!-- you get a faster startup, if this setting is present.		-->
     <!--								-->
-    <!-- private-key='location of the private key file'			-->
-    <!--	If your private key is not contained in the same	-->
-    <!--	file as your certificate, you can use this attribute	-->
-    <!--	to specify the location of your private key.		-->
-    <!--	This is especially needed, if you use a binary		-->
-    <!--	certification file. (type='der')			-->
-    <!--	The private key is read using the same type (either	-->
-    <!--	binary/der or base64/pem) as the certificate.		-->
-    <!--								-->
-    <!-- The following attributes are available on the key element as	-->
-    <!-- well but are normally not needed:				-->
-    <!--								-->
-    <!-- protocols='list'                                               -->
-    <!--	The list of TLS that should be supported in the order   -->
-    <!--        of their preference, separated by a space.              -->
-    <!--        Possible values: SSL3, TLS1_0, TLS1_1, TLS1_2           -->
-    <!--        Default: 'TLS1_2 TLS1_1 TLS1_0 SSL3'                    -->
-    <!--        Note: '' means using the defaults of the GnuTLS library -->
-    <!-- kx='list'                                                      -->
-    <!--	The list of supported key exchange algorithms in the    -->
-    <!--	order of their preference, separated by a space.        -->
-    <!--	Possible values: DHE_DSS, DHE_RSA, RSA, ANON_DH		-->
-    <!--	Default: 'DHE_DSS DHE_RSA RSA ANON_DH'			-->
-    <!--	Note: '' means using the defaults of the GnuTLS library -->
-    <!-- cipher='list'							-->
-    <!--	The list of supported ciphers in the order of their	-->
-    <!--	preference, separated by a space.			-->
-    <!--	Possible values: AES_256_CBC, AES_128_CBC, 3DES_CBC,	-->
-    <!--			 ARCFOUR_128				-->
-    <!--	Default: 'AES_256_CBC AES_128_CBC 3DES_CBC ARCFOUR_128' -->
-    <!--	Note: '' means using the defaults of the GnuTLS library	-->
-    <!--								-->
-    <!-- With the <cacertfile/> configuration element, you configure	-->
-    <!-- the root certificats of the certification authorities your	-->
-    <!-- server trusts.							-->
+    <!-- With the <cacertfile/> element right inside the <tls/>		-->
+    <!-- element, you can configure a file that is used as the file	-->
+    <!-- containing the certification authority certificates, if no	-->
+    <!-- <ca/> element is present inside a <credentials/> element.	-->
     <tls>
-      <!--
-      <key id='127.0.0.1'>@sysconfdir@/cert_and_key.pem</key>
-      <key id='192.0.2.100'>@sysconfdir@/other_cert_and_key.pem</key>
-      <key id='localhost'>@sysconfdir@/localhost.pem</key>
-      <key id='*'>@sysconfdir@/default-STARTTLS.pem</key>
-      -->
       <!--
       <credentials>
 	  <default/>
