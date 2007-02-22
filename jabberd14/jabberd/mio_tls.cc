@@ -115,6 +115,21 @@ pool mio_tls_pool = NULL;
 ASN1_TYPE mio_tls_asn1_tree = ASN1_TYPE_EMPTY;
 
 /**
+ * close the TLS connection
+ *
+ * @param m the mio structure that contains the connection to close
+ * @param close_read if the connection should be closed for reading as well
+ */
+static void mio_tls_close(mio m, bool close_read) {
+    // sanity checks
+    if (!m || !m->ssl)
+	return;
+
+    gnutls_bye(static_cast<gnutls_session_t>(m->ssl), close_read ? GNUTLS_SHUT_RDWR : GNUTLS_SHUT_WR);
+    shutdown(m->fd, close_read ? SHUT_RDWR : SHUT_WR);
+}
+
+/**
  * convert a string of protocol names to a zero terminated array for protocol constants
  *
  * @param p memory pool to use to allocate the result
@@ -1262,6 +1277,9 @@ int mio_ssl_starttls(mio m, int originator, const char* identity) {
     /* use new read/write handlers */
     m->mh->read = MIO_SSL_READ;
     m->mh->write = MIO_SSL_WRITE;
+
+    // close the TLS layer on connection shutdown
+    m->mh->close = mio_tls_close;
 
     /* TLS handshake */
     m->flags.recall_handshake_when_readable = 0;
