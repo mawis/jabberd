@@ -5,7 +5,10 @@ Changes in administration of the server
     * Support for wildcards in certificates
     * Support for TLS 1.1
     * Support for TLS 1.2 (if supported by your GnuTLS version)
-    * Support for DH key exchanges
+    * Support for DH key exchanges also when being the server side
+    * Support for stream compression in the TLS layer
+    * Support for loading certificate revocation lists
+    * Support for OpenPGP keys
     * mod_filter has to be removed from the JSM configuration (it was already
       just an empty dummy implementation in jabberd14 1.6.0)
 
