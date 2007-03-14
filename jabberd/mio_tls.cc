@@ -41,6 +41,7 @@
 #include <sstream>
 #include <gcrypt.h>
 #include <vector>
+#include <list>
 
 // prepare gcrypt for libpth
 // XXX it doesn't work for C++
@@ -461,7 +462,16 @@ static int const* mio_tls_compile_compression(pool p, const std::string& compres
     return result;
 }
 
-static void mio_tls_process_credentials(xmlnode x, const std::string& default_cacertfile, gnutls_dh_params_t mio_tls_dh_params) {
+/**
+ * process a configuration element configuring a set of credentials in the configuration file
+ *
+ * @param x the xmlnode containing the set
+ * @param default_cacertfile file containing ca certificates to use if the set does not contain its own definition
+ * @param mio_tls_dh_params DH params to use (for performance reasons the same params are used for all sets
+ * @param crl_files_pem the CRL files in PEM format to load
+ * @param crl_files_der the CRL files in DER format to load
+ */
+static void mio_tls_process_credentials(xmlnode x, const std::list<std::string>& default_cacertfile_pem, const std::list<std::string>& default_cacertfile_der, gnutls_dh_params_t mio_tls_dh_params, const std::list<std::string>& crl_files_pem, const std::list<std::string>& crl_files_der) {
     std::set<std::string> domains;
     int ret = 0;
     bool loaded_cacerts = false;
@@ -695,11 +705,39 @@ static void mio_tls_process_credentials(xmlnode x, const std::string& default_ca
     /* set the DH params for this certificate */
     gnutls_certificate_set_dh_params(current_credentials, mio_tls_dh_params);
 
-    // loaded any CA certificate? if not load the defaults
-    if (!loaded_cacerts && default_cacertfile != "") {
-	ret = gnutls_certificate_set_x509_trust_file(current_credentials, default_cacertfile.c_str(), GNUTLS_X509_FMT_PEM);
+    // load CRL files
+    std::list<std::string>::const_iterator crl_p;
+    for (crl_p=crl_files_pem.begin(); crl_p!=crl_files_pem.end(); ++crl_p) {
+	char const* file_to_load = crl_p->c_str();
+
+	ret = gnutls_certificate_set_x509_crl_file(current_credentials, file_to_load, GNUTLS_X509_FMT_PEM);
 	if (ret < 0) {
-	    log_error(NULL, "Error loading default CA certificate %s: %s", default_cacertfile.c_str(), gnutls_strerror(ret));
+	    log_error(NULL, "Error loading CRL file %s (PEM): %s", file_to_load, gnutls_strerror(ret));
+	}
+    }
+    for (crl_p=crl_files_der.begin(); crl_p!=crl_files_der.end(); ++crl_p) {
+	char const* file_to_load = crl_p->c_str();
+
+	ret = gnutls_certificate_set_x509_crl_file(current_credentials, file_to_load, GNUTLS_X509_FMT_DER);
+	if (ret < 0) {
+	    log_error(NULL, "Error loading CRL file %s (DER): %s", file_to_load, gnutls_strerror(ret));
+	}
+    }
+
+    // loaded any CA certificate? if not load the defaults
+    if (!loaded_cacerts) {
+	std::list<std::string>::const_iterator p;
+	for (p=default_cacertfile_pem.begin(); p!=default_cacertfile_pem.end(); ++p) {
+	    ret = gnutls_certificate_set_x509_trust_file(current_credentials, p->c_str(), GNUTLS_X509_FMT_PEM);
+	    if (ret < 0) {
+		log_error(NULL, "Error loading default CA certificate %s (PEM): %s", p->c_str(), gnutls_strerror(ret));
+	    }
+	}
+	for (p=default_cacertfile_der.begin(); p!=default_cacertfile_der.end(); ++p) {
+	    ret = gnutls_certificate_set_x509_trust_file(current_credentials, p->c_str(), GNUTLS_X509_FMT_DER);
+	    if (ret < 0) {
+		log_error(NULL, "Error loading default CA certificate %s (DER): %s", p->c_str(), gnutls_strerror(ret));
+	    }
 	}
     }
 
@@ -759,7 +797,7 @@ static void mio_tls_process_credentials(xmlnode x, const std::string& default_ca
     }
 }
 
-static void mio_tls_process_key(xmlnode x, const std::string& default_cacertfile, gnutls_dh_params_t mio_tls_dh_params) {
+static void mio_tls_process_key(xmlnode x, const std::list<std::string>& default_cacertfile_pem, const std::list<std::string>& default_cacertfile_der, gnutls_dh_params_t mio_tls_dh_params) {
     char *file_to_use = xmlnode_get_data(x);
     char *key_type = xmlnode_get_attrib_ns(x, "type", NULL);
     char *id = xmlnode_get_attrib_ns(x, "id", NULL);
@@ -815,13 +853,18 @@ static void mio_tls_process_key(xmlnode x, const std::string& default_cacertfile
     }
 
     /* load CA certificates */
-    if (default_cacertfile != "") {
-	ret = gnutls_certificate_set_x509_trust_file(current_credentials, default_cacertfile.c_str(), GNUTLS_X509_FMT_PEM);
+    std::list<std::string>::const_iterator p;
+    for (p=default_cacertfile_pem.begin(); p!=default_cacertfile_pem.end(); ++p) {
+	ret = gnutls_certificate_set_x509_trust_file(current_credentials, p->c_str(), GNUTLS_X509_FMT_PEM);
 	if (ret < 0) {
-	    log_error(id, "Error loading CA certificates: %s", gnutls_strerror(ret));
+	    log_error(id, "Error loading CA certificates %s (PEM): %s", p->c_str(), gnutls_strerror(ret));
 	}
-    } else {
-	log_warn(id, "Not loading CA certificates for %s", id);
+    }
+    for (p=default_cacertfile_der.begin(); p!=default_cacertfile_der.end(); ++p) {
+	ret = gnutls_certificate_set_x509_trust_file(current_credentials, p->c_str(), GNUTLS_X509_FMT_DER);
+	if (ret < 0) {
+	    log_error(id, "Error loading CA certificates %s (DER): %s", p->c_str(), gnutls_strerror(ret));
+	}
     }
 
     /* set the DH params for this certificate */
@@ -878,8 +921,11 @@ void mio_ssl_init(xmlnode x) {
     mio_tls_pool = pool_new();
 
     /* find the default CA certificates file */
-    std::string default_cacertfile;
+    std::list<std::string> default_cacertfile_pem;
+    std::list<std::string> default_cacertfile_der;
     std::string dhparams;
+    std::list<std::string> crl_files_pem;
+    std::list<std::string> crl_files_der;
     bool dhparams_der = false;
     for (cur = xmlnode_get_firstchild(x); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
 	if (cur->type != NTYPE_TAG) {
@@ -894,8 +940,13 @@ void mio_ssl_init(xmlnode x) {
 	    char const* const cacertfile_data = xmlnode_get_data(cur);
 
 	    if (cacertfile_data != NULL) {
-		default_cacertfile = cacertfile_data;
-		dhparams_der = j_strcmp(xmlnode_get_attrib_ns(cur, "type", NULL), "der") == 0;
+		bool der_format = j_strcmp(xmlnode_get_attrib_ns(cur, "type", NULL), "der") == 0;
+
+		if (der_format) {
+		    default_cacertfile_der.push_back(cacertfile_data);
+		} else {
+		    default_cacertfile_pem.push_back(cacertfile_data);
+		}
 	    }
 
 	    continue;
@@ -906,6 +957,22 @@ void mio_ssl_init(xmlnode x) {
 
 	    if (dhparams_data != NULL) {
 		dhparams = dhparams_data;
+		dhparams_der = j_strcmp(xmlnode_get_attrib_ns(cur, "type", NULL), "der") == 0;
+	    }
+
+	    continue;
+	}
+
+	if (j_strcmp(xmlnode_get_localname(cur), "crlfile") == 0) {
+	    char const *const crlfile_data = xmlnode_get_data(cur);
+	    char const *const crlfile_type = xmlnode_get_attrib_ns(cur, "type", NULL);
+
+	    if (crlfile_data != NULL) {
+		if (j_strcmp(crlfile_type, "der") == 0) {
+		    crl_files_der.push_back(crlfile_data);
+		} else {
+		    crl_files_pem.push_back(crlfile_data);
+		}
 	    }
 
 	    continue;
@@ -960,10 +1027,10 @@ void mio_ssl_init(xmlnode x) {
 	/* which element did we get? */
 	if (j_strcmp(xmlnode_get_localname(cur), "credentials") == 0 && j_strcmp(xmlnode_get_namespace(cur), NS_JABBERD_CONFIGFILE) == 0) {
 	    /* it's a credentials group (new format) */
-	    mio_tls_process_credentials(cur, default_cacertfile, mio_tls_dh_params);
+	    mio_tls_process_credentials(cur, default_cacertfile_pem, default_cacertfile_der, mio_tls_dh_params, crl_files_pem, crl_files_der);
 	} else if (j_strcmp(xmlnode_get_localname(cur), "key") == 0 && j_strcmp(xmlnode_get_namespace(cur), NS_JABBERD_CONFIGFILE) == 0) {
 	    /* it's a key - old format */
-	    mio_tls_process_key(cur, default_cacertfile, mio_tls_dh_params);
+	    mio_tls_process_key(cur, default_cacertfile_pem, default_cacertfile_der, mio_tls_dh_params);
 	}
     }
 

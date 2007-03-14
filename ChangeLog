@@ -1,6 +1,6 @@
 2007-03-14  Matthias Wimmer  <m@tthias.eu>
 
-    * jabberd/mio_tls.cc: verifying OpenPGP identities
+    * jabberd/mio_tls.cc: verifying OpenPGP identities, CRL processing
     * jabberd/jabberd.h: same
 
 2007-02-21  Matthias Wimmer  <m@tthias.eu>
