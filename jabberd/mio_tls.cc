@@ -1084,6 +1084,11 @@ ssize_t _mio_ssl_read(mio m, void *buf, size_t count) {
 	}
 	return 0;
     }
+    if (read_return == GNUTLS_E_FATAL_ALERT_RECEIVED) {
+	log_notice(NULL, "Received fatal TLS alert on socket %i: %s", m->fd, gnutls_alert_get_name(gnutls_alert_get(static_cast<gnutls_session_t>(m->ssl))));
+    } else if (read_return == GNUTLS_E_WARNING_ALERT_RECEIVED) {
+	log_debug2(ZONE, LOGT_IO, "Received warning TLS alert on socket %i: %s", m->fd, gnutls_alert_get_name(gnutls_alert_get(static_cast<gnutls_session_t>(m->ssl))));
+    }
 
     log_debug2(ZONE, LOGT_IO, "Error case after gnutls_record_recv(): %s", gnutls_strerror(read_return));
 
@@ -1128,6 +1133,11 @@ ssize_t _mio_ssl_write(mio m, const void *buf, size_t count) {
 	    m->flags.recall_write_when_writeable = 1;
 	}
 	return 0;
+    }
+    if (write_return == GNUTLS_E_FATAL_ALERT_RECEIVED) {
+	log_notice(NULL, "Received fatal TLS alert on socket %i: %s", m->fd, gnutls_alert_get_name(gnutls_alert_get(static_cast<gnutls_session_t>(m->ssl))));
+    } else if (write_return == GNUTLS_E_WARNING_ALERT_RECEIVED) {
+	log_debug2(ZONE, LOGT_IO, "Received warning TLS alert on socket %i: %s", m->fd, gnutls_alert_get_name(gnutls_alert_get(static_cast<gnutls_session_t>(m->ssl))));
     }
 
     log_debug2(ZONE, LOGT_IO, "Error case after gnutls_record_send(): %s", gnutls_strerror(write_return));
