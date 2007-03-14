@@ -1005,6 +1005,13 @@
     <!--		this element is the filename of the keyring.	-->
     <!--		You will only need this, if you want to use	-->
     <!--		OpenPGP authentication.				-->
+    <!-- <trustdb/>	This element defines the file containing the	-->
+    <!--		GnuPG trustdb file, that should be used (if	-->
+    <!--		any). The content of this element is the	-->
+    <!--		filename of the trustdb.			-->
+    <!--		This is not needed, if you do not want OpenPGP	-->
+    <!--		authentication. And even in that case it is	-->
+    <!--		optional.					-->
     <!-- <protocols/>	This defines the versions of the TLS (or SSL)	-->
     <!--		protocol that should be used, and the priority	-->
     <!--		of the protocols (i.e. which version should be	-->

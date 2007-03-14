@@ -106,6 +106,7 @@
 
 #ifdef HAVE_GNUTLS_EXTRA
 #  include <gnutls/extra.h>
+#  include <gnutls/openpgp.h>
 #endif
 
 /** Packet types */
