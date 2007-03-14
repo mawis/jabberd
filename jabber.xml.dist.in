@@ -1133,6 +1133,15 @@
     <!-- element, you can configure a file that is used as the file	-->
     <!-- containing the certification authority certificates, if no	-->
     <!-- <ca/> element is present inside a <credentials/> element.	-->
+    <!-- Multiple <cacertfile/> elements are possible, defining multipe -->
+    <!-- files to load. If a file loaded is in DER format, the element  -->
+    <!-- has to have the type attribute set to the value 'der'.		-->
+    <!--								-->
+    <!-- With the <crlfile/> element you can load CRL files. Multiple	-->
+    <!-- <crlfile/> elements may be set. By default the CRL files are	-->
+    <!-- expected to be in PEM format. If they are in DER format, the	-->
+    <!-- configuration element has to have the type attribute set to	-->
+    <!-- the value 'der'.						-->
     <tls>
       <!--
       <credentials>
