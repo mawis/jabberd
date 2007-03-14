@@ -626,6 +626,23 @@ static void mio_tls_process_credentials(xmlnode x, const std::string& default_ca
 	    continue;
 	}
 
+	// load GnuPG trustdb
+	if (j_strcmp(xmlnode_get_localname(cur), "trustdb") == 0) {
+	    char const *const file = xmlnode_get_data(cur);
+
+	    if (file == NULL) {
+		log_warn(NULL, "Initializing TLS subsystem: <trustdb/> element inside the TLS configuration, that does not contain a file-name.");
+		continue;
+	    }
+
+	    // load the GnuPG trustdb
+	    ret = gnutls_certificate_set_openpgp_trustdb(current_credentials, file);
+	    if (ret < 0) {
+		log_error(NULL, "Error loading GnuPG trustdb %s: %s", file, gnutls_strerror(ret));
+		continue;
+	    }
+	}
+
 	// setup protocols to use
 	if (j_strcmp(xmlnode_get_localname(cur), "protocols") == 0) {
 	    char const *const protocols_data = xmlnode_get_data(cur);
@@ -1368,115 +1385,104 @@ static int mio_tls_cert_match(pool p, const char *cert_dom, const char *true_dom
     }
 }
 
-
 /**
- * verify the SSL/TLS certificate of the peer for the given MIO connection
+ * verify a OpenPGP certificate
  *
- * @param m the connection for which the peer should be verified
- * @param the JabberID, that the certificate should be checked for, if NULL it is only checked if the certificate is valid and trusted
- * @return 0 the certificate is invalid, 1 the certificate is valid
+ * @param m the mio structure the certificate is verified for
+ * @param id_on_xmppAddr the xmpp address the peer claims to be, and that should be checked
+ * @param log_id which ID to use for logging if we have to log a message
+ * @return 0 if the verification failed, 1 if it succeeded
  */
-int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
+static int mio_tls_check_openpgp(mio m, char const* id_on_xmppAddr, const std::string& log_id) {
     int ret = 0;
-    unsigned int status = 0;
     const gnutls_datum_t *cert_list = NULL;
     unsigned int cert_list_size = 0;
+
+#ifdef HAVE_GNUTLS_EXTRA
+    // get the certificate (it's only a single one for OpenPGP)
+    cert_list = gnutls_certificate_get_peers(static_cast<gnutls_session_t>(m->ssl), &cert_list_size);
+    if (cert_list == NULL || cert_list_size <= 0) {
+	log_notice(log_id.c_str(), "Problem verifying certificate: No certificate was found!");
+	return 0;
+    }
+
+    // parse the key received in the certificate
+    gnutls_openpgp_key_t pgpkey = NULL;
+    ret = gnutls_openpgp_key_init(&pgpkey);
+    if (ret < 0) {
+	log_error(log_id.c_str(), "Could not initialize OpenPGP key structure: %s", gnutls_strerror(ret));
+	return 0;
+    }
+
+    // check if we find the correct entry
+    if (id_on_xmppAddr != NULL && strchr(id_on_xmppAddr, '@') == NULL && gnutls_openpgp_key_check_hostname(pgpkey, id_on_xmppAddr)) {
+	gnutls_openpgp_key_deinit(pgpkey);
+	return 1;
+    }
+
+    pool jidpool = pool_new();
+    jid expected_jid = jid_new(jidpool, id_on_xmppAddr);
+
+    // else check if there are "xmpp:" prefixed JIDs
+    for (int i=0; true; i++) {
+	char name[1024*3+5] = "";
+	size_t name_len = sizeof(name);
+
+	// get a name from the key
+	ret = gnutls_openpgp_key_get_name(pgpkey, i, name, &name_len);
+
+	// check for end of the loop
+	if (ret == GNUTLS_E_REQUESTED_DATA_NOT_AVAILABLE) {
+	    break;
+	}
+
+	// check for error
+	if (ret < 0) {
+	    log_error(log_id.c_str(), "Could not read name from OpenPGP key structure: %s", gnutls_strerror(ret));
+	    gnutls_openpgp_key_deinit(pgpkey);
+	    pool_free(jidpool);
+	    return 0;
+	}
+
+	// it can't be a valid protocol prefixed JID
+	if (name_len < 6)
+	    continue;
+
+	// correct protocol?
+	if (j_strncasecmp(name, "xmpp:", 5) != 0) {
+	    // no match of the protocol
+	    continue;
+	}
+
+	jid this_jid = jid_new(jidpool, name+5);
+	if (jid_cmp(expected_jid, this_jid) == 0) {
+	    log_debug2(ZONE, LOGT_AUTH, "matched %s on %s", id_on_xmppAddr, name);
+	    gnutls_openpgp_key_deinit(pgpkey);
+	    pool_free(jidpool);
+	    return 1;
+	}
+    }
+
+    // free memory
+    gnutls_openpgp_key_deinit(pgpkey);
+    pool_free(jidpool);
+#endif
+    return 0;
+}
+
+/**
+ * verify an X.509 certificate chain
+ *
+ * @param m the mio structure the certificate is verified for
+ * @param id_on_xmppAddr the xmpp address the peer claims to be, and that should be checked
+ * @param log_id which ID to use for logging if we have to log a message
+ * @return 0 if the verification failed, 1 if it succeeded
+ */
+static int mio_tls_check_x509(mio m, char const* id_on_xmppAddr, const std::string& log_id) {
+    int ret = 0;
     int verification_result = 1;
-    int crt_index = 0;
-    std::string log_id;
-
-    /* sanity checks */
-    if (m==NULL || m->ssl==NULL) {
-	return 0;
-    }
-
-    /* generate id for logging */
-    if (id_on_xmppAddr == NULL) {
-	log_id = "<unknown peer>";
-    } else {
-	log_id = id_on_xmppAddr;
-    }
-
-    /* check if the certificate is valid */
-    ret = gnutls_certificate_verify_peers2(static_cast<gnutls_session_t>(m->ssl), &status);
-    if (ret != 0) {
-	log_notice(log_id.c_str(), "TLS cert verification failed: %s", gnutls_strerror(ret));
-	return 0;
-    }
-    if (status != 0) {
-	std::ostringstream messages;
-	bool got_a_message = false;
-
-	if (status&GNUTLS_CERT_INVALID) {
-	    got_a_message = true;
-	    messages << "not trusted";
-	}
-	if (status&GNUTLS_CERT_REVOKED) {
-	    if (got_a_message)
-		messages << ", ";
-	    got_a_message = true;
-	    messages << "revoked";
-	}
-	if (status&GNUTLS_CERT_SIGNER_NOT_FOUND) {
-	    if (got_a_message)
-		messages << ", ";
-	    got_a_message = true;
-	    messages << "no known issuer";
-	}
-	if (status&GNUTLS_CERT_SIGNER_NOT_CA) {
-	    if (got_a_message)
-		messages << ", ";
-	    got_a_message = true;
-	    messages << "signer is no CA";
-	}
-	if (status&GNUTLS_CERT_INSECURE_ALGORITHM) {
-	    if (got_a_message)
-		messages << ", ";
-	    got_a_message = true;
-	    messages << "insecure algorithm";
-	}
-
-	std::string cert_subject;
-	if (gnutls_certificate_type_get(static_cast<gnutls_session_t>(m->ssl)) == GNUTLS_CRT_X509) {
-	    cert_list = gnutls_certificate_get_peers(static_cast<gnutls_session_t>(m->ssl), &cert_list_size);
-	    if (cert_list != NULL && cert_list_size > 0) {
-		gnutls_x509_crt_t cert = NULL;
-		ret = gnutls_x509_crt_init(&cert);
-		if (ret >= 0) {
-		    ret = gnutls_x509_crt_import(cert, &cert_list[crt_index], GNUTLS_X509_FMT_DER);
-		    if (ret >= 0) {
-			char name[1024];
-			size_t name_len = sizeof(name);
-			ret = gnutls_x509_crt_get_dn(cert, name, &name_len);
-			if (ret >= 0 && name_len > 0) {
-			    cert_subject = name;
-			} else {
-			    cert_subject = gnutls_strerror(ret);
-			}
-		    } else {
-			cert_subject = gnutls_strerror(ret);
-		    }
-		} else {
-		    cert_subject = gnutls_strerror(ret);
-		}
-		gnutls_x509_crt_deinit(cert);
-	    } else {
-		cert_subject = "<no cert list>";
-	    }
-	} else {
-	    cert_subject = "<no X.509 cert>";
-	}
-
-	log_notice(log_id.c_str(), "Certificate verification failed: %s (%s)", got_a_message ? messages.str().c_str() : "unknown reason", cert_subject.c_str());
-	return 0;
-    }
-
-    /* check if it is a X.509 certificate */
-    if (gnutls_certificate_type_get(static_cast<gnutls_session_t>(m->ssl)) != GNUTLS_CRT_X509) {
-	/* no ... we cannot handle other certificates here yet ... declare as invalid */
-	log_notice(log_id.c_str(), "Rejecting certificate as it is no X.509 certificate");
-	return 0;
-    }
+    const gnutls_datum_t *cert_list = NULL;
+    unsigned int cert_list_size = 0;
 
     /* get the certificates */
     cert_list = gnutls_certificate_get_peers(static_cast<gnutls_session_t>(m->ssl), &cert_list_size);
@@ -1488,7 +1494,7 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
     log_debug2(ZONE, LOGT_AUTH, "We have to verify %i certificates for %s", cert_list_size, id_on_xmppAddr);
 
     /* iterate on the certificates */
-    for (crt_index = 0; crt_index < cert_list_size; crt_index++) {
+    for (int crt_index = 0; crt_index < cert_list_size; crt_index++) {
 	gnutls_x509_crt_t cert = NULL;
 	std::string cert_subject;
 
@@ -1801,6 +1807,123 @@ int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
     }
     
     return verification_result;
+}
+
+
+
+/**
+ * verify the SSL/TLS certificate of the peer for the given MIO connection
+ *
+ * @param m the connection for which the peer should be verified
+ * @param the JabberID, that the certificate should be checked for, if NULL it is only checked if the certificate is valid and trusted
+ * @return 0 the certificate is invalid, 1 the certificate is valid
+ */
+int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
+    int ret = 0;
+    unsigned int status = 0;
+    const gnutls_datum_t *cert_list = NULL;
+    unsigned int cert_list_size = 0;
+    int crt_index = 0;
+    std::string log_id;
+
+    /* sanity checks */
+    if (m==NULL || m->ssl==NULL) {
+	return 0;
+    }
+
+    /* generate id for logging */
+    if (id_on_xmppAddr == NULL) {
+	log_id = "<unknown peer>";
+    } else {
+	log_id = id_on_xmppAddr;
+    }
+
+    /* check if the certificate is valid */
+    ret = gnutls_certificate_verify_peers2(static_cast<gnutls_session_t>(m->ssl), &status);
+    if (ret != 0) {
+	log_notice(log_id.c_str(), "TLS cert verification failed: %s", gnutls_strerror(ret));
+	return 0;
+    }
+    if (status != 0) {
+	std::ostringstream messages;
+	bool got_a_message = false;
+
+	if (status&GNUTLS_CERT_INVALID) {
+	    got_a_message = true;
+	    messages << "not trusted";
+	}
+	if (status&GNUTLS_CERT_REVOKED) {
+	    if (got_a_message)
+		messages << ", ";
+	    got_a_message = true;
+	    messages << "revoked";
+	}
+	if (status&GNUTLS_CERT_SIGNER_NOT_FOUND) {
+	    if (got_a_message)
+		messages << ", ";
+	    got_a_message = true;
+	    messages << "no known issuer";
+	}
+	if (status&GNUTLS_CERT_SIGNER_NOT_CA) {
+	    if (got_a_message)
+		messages << ", ";
+	    got_a_message = true;
+	    messages << "signer is no CA";
+	}
+	if (status&GNUTLS_CERT_INSECURE_ALGORITHM) {
+	    if (got_a_message)
+		messages << ", ";
+	    got_a_message = true;
+	    messages << "insecure algorithm";
+	}
+
+	std::string cert_subject;
+	if (gnutls_certificate_type_get(static_cast<gnutls_session_t>(m->ssl)) == GNUTLS_CRT_X509) {
+	    cert_list = gnutls_certificate_get_peers(static_cast<gnutls_session_t>(m->ssl), &cert_list_size);
+	    if (cert_list != NULL && cert_list_size > 0) {
+		gnutls_x509_crt_t cert = NULL;
+		ret = gnutls_x509_crt_init(&cert);
+		if (ret >= 0) {
+		    ret = gnutls_x509_crt_import(cert, &cert_list[crt_index], GNUTLS_X509_FMT_DER);
+		    if (ret >= 0) {
+			char name[1024];
+			size_t name_len = sizeof(name);
+			ret = gnutls_x509_crt_get_dn(cert, name, &name_len);
+			if (ret >= 0 && name_len > 0) {
+			    cert_subject = name;
+			} else {
+			    cert_subject = gnutls_strerror(ret);
+			}
+		    } else {
+			cert_subject = gnutls_strerror(ret);
+		    }
+		} else {
+		    cert_subject = gnutls_strerror(ret);
+		}
+		gnutls_x509_crt_deinit(cert);
+	    } else {
+		cert_subject = "<no cert list>";
+	    }
+	} else {
+	    cert_subject = "<no X.509 cert>";
+	}
+
+	log_notice(log_id.c_str(), "Certificate verification failed: %s (%s)", got_a_message ? messages.str().c_str() : "unknown reason", cert_subject.c_str());
+	return 0;
+    }
+
+    /* check if it is a X.509 certificate */
+    gnutls_certificate_type_t cert_type = gnutls_certificate_type_get(static_cast<gnutls_session_t>(m->ssl));
+    switch (cert_type) {
+	case GNUTLS_CRT_X509:
+	    return mio_tls_check_x509(m, id_on_xmppAddr, log_id);
+	case GNUTLS_CRT_OPENPGP:
+	    return mio_tls_check_openpgp(m, id_on_xmppAddr, log_id);
+	default:
+	    /* no ... we cannot handle other certificates here yet ... declare as invalid */
+	    log_notice(log_id.c_str(), "Rejecting certificate as it is no supported certificate format: %s", gnutls_certificate_type_get_name(cert_type));
+	    return 0;
+    }
 }
 
 /**
