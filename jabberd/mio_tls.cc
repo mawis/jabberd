@@ -29,7 +29,7 @@
  */
 
 /**
- * @file mio_tls.c
+ * @file mio_tls.cc
  * @brief MIO read/write functions to read/write on TLS encrypted sockets and handling for TLS in general (using the GNU TLS implementation)
  */
 
@@ -42,10 +42,10 @@
 #include <gcrypt.h>
 #include <vector>
 #include <list>
+#include <iostream>
 
-// prepare gcrypt for libpth
-// XXX it doesn't work for C++
-// GCRY_THREAD_OPTION_PTH_IMPL;
+// Tell gcrypt that we are using libpth - had to move this to a plain C file
+extern "C" void mio_tls_gcrypt_init();
 
 extern const ASN1_ARRAY_TYPE subjectAltName_asn1_tab[];
 
@@ -875,6 +875,44 @@ static void mio_tls_process_key(xmlnode x, const std::list<std::string>& default
 }
 
 /**
+ * early initiatizations for GnuTLS
+ *
+ * This has to be called as soon as possible after application startup
+ *
+ * @return true on success, false on failure
+ */
+bool mio_tls_early_init() {
+    // prepare gcrypt with libpth
+    mio_tls_gcrypt_init();
+
+    /* initialize the GNU TLS library */
+    int ret = gnutls_global_init();
+    if (ret != 0) {
+	std::cerr << "Error initializing GnuTLS library: " << gnutls_strerror(ret) << std::endl;
+	return false;
+    }
+
+#ifdef HAVE_GNUTLS_EXTRA
+    /* initialize the GnuTLS extra library */
+    ret = gnutls_global_init_extra();
+    if (ret != 0) {
+	std::cerr << "Error initializing GnuTLS-extra library: " << gnutls_strerror(ret) << std::endl;
+	return false;
+    }
+#endif
+
+    /* load asn1 tree to be used by libtasn1 */
+    ret = asn1_array2tree(subjectAltName_asn1_tab, &mio_tls_asn1_tree, NULL);
+    if (ret != ASN1_SUCCESS) {
+	std::cerr << "Error preparing the libtasn1 library: " << libtasn1_strerror(ret) << std::endl;
+	return false;
+	/* XXX we have to delete the structure on shutdown using asn1_delete_structure(&mio_tls_asn1_tree) */
+    }
+
+    return true;
+}
+
+/**
  * initialize the mio SSL/TLS module using the GNU TLS library
  *
  * @param x xmlnode containing the configuration information (the io/tls element)
@@ -889,33 +927,6 @@ void mio_ssl_init(xmlnode x) {
 
     namespaces = xhash_new(3);
     xhash_put(namespaces, "", const_cast<char*>(NS_JABBERD_CONFIGFILE));
-
-    // prepare gcrypt with libpth
-    // XXX it doesn't work with a C++ compiler
-    // gcry_control(GCRYCTL_SET_THREAD_CBS, &gcry_threads_pth);
-
-    /* initialize the GNU TLS library */
-    ret = gnutls_global_init();
-    if (ret != 0) {
-	log_error(NULL, "Error initializing GnuTLS library: %s", gnutls_strerror(ret));
-	return;
-    }
-
-#ifdef HAVE_GNUTLS_EXTRA
-    /* initialize the GnuTLS extra library */
-    ret = gnutls_global_init_extra();
-    if (ret != 0) {
-	log_error(NULL, "Error initializing GnuTLS-extra library: %s", gnutls_strerror(ret));
-    }
-#endif
-
-    /* load asn1 tree to be used by libtasn1 */
-    ret = asn1_array2tree(subjectAltName_asn1_tab, &mio_tls_asn1_tree, NULL);
-    if (ret != ASN1_SUCCESS) {
-	log_error(ZONE, "Error preparing the libtasn1 library: %s", libtasn1_strerror(ret));
-	return;
-	/* XXX we have to delete the structure on shutdown using asn1_delete_structure(&mio_tls_asn1_tree) */
-    }
 
     /* create memory pool */
     mio_tls_pool = pool_new();
