@@ -434,6 +434,7 @@ void _mio_xml_parser(mio m, const void *buf, size_t bufsz);
 
 /* TLS functions */
 void    mio_ssl_init     (xmlnode x);
+bool	mio_tls_early_init();
 int	mio_ssl_starttls (mio m, int originator, const char* identity);
 int	mio_ssl_starttls_possible (mio m, const char* identity);
 int	mio_ssl_verify(mio m, const char *id_on_xmppAddr);

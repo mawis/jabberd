@@ -131,6 +131,10 @@ int main (int argc, const char** argv) {
 	POPT_TABLEEND
     };
 
+    if (!mio_tls_early_init()) {
+	return 2;
+    }
+
     /* create hash for command line options */
     jabberd.cmd_line = xhash_new(11);
     

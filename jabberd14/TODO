@@ -1,10 +1,11 @@
-after jabberd 1.6.0
-===================
+after jabberd14 1.6.1
+=====================
 
 - SASL c2s without jadc2s add-on (XMPP)
 - Session manager clustering
 - Service discovery on all components
 - Pinging users, that are inactive for a long time
+- TLS session resumption
 
 - remove dependancy on libpth
 - true dynamic config
