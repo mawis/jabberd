@@ -366,13 +366,9 @@ typedef struct mio_st {
     char *connect_errmsg;		/**< error message on failed connects (don't free messages) */
     char *authed_other_side;		/**< if the other side of the stream is authenticated, the identity can be placed here */
 
-    ns_list_item out_first_ns;		/**< pointer to the first element in list of declared namespaces on the outgoing stream root element */
-    ns_list_item out_last_ns;		/**< pointer to the last element in list of declared namespaces on the outgoing stream root element */
-    ns_list_item in_first_ns_root;	/**< pointer to the first element in list of declared namespaces on the incoming stream root element */
-    ns_list_item in_last_ns_root;	/**< pointer to the last element in list of declared namespaces on the incoming stream root element */
-    ns_list_item in_first_ns_stanza;	/**< pointer to the first element in list of declared namespaces on the incoming stream current stanza */
-    ns_list_item in_last_ns_stanza;	/**< pointer to the last element in list of declared namespaces on the incoming stream current stanza */
-    pool in_ns_pool;			/**< memory pool to allocate memory for in_first_ns_stanza/in_last_ns_stanza */
+    xmppd::ns_decl_list* out_ns;	/**< pointer to the namespaces declared on the outgoing stream root element */
+    xmppd::ns_decl_list* in_root;	/**< pointer to the namespaces declared on the incoming root element */
+    xmppd::ns_decl_list* in_stanza;	/**< pointer to the namespaces declared on the currently recevied stanza */
     const char *root_lang;		/**< declared language of the incoming stream root element */
 } *mio, _mio;
 

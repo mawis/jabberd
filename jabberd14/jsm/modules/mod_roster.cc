@@ -109,7 +109,7 @@ static void mod_roster_push(udata user, xmlnode item) {
     session cur;
     xmlnode packet, query;
 
-    log_debug2(ZONE, LOGT_ROSTER, "pushing %s", xmlnode_serialize_string(item, NULL, NULL, 0));
+    log_debug2(ZONE, LOGT_ROSTER, "pushing %s", xmlnode_serialize_string(item, xmppd::ns_decl_list(), 0));
 
     if (xmlnode_get_attrib_ns(item, "hidden", NULL) != NULL)
 	return;
@@ -435,7 +435,7 @@ static mreturn mod_roster_out_iq(mapi m) {
 	    js_session_to(m->s,m->packet);
 
 	    /* save the changes */
-	    log_debug2(ZONE, LOGT_ROSTER, "SROSTER: %s",xmlnode_serialize_string(roster, NULL, NULL, 0));
+	    log_debug2(ZONE, LOGT_ROSTER, "SROSTER: %s",xmlnode_serialize_string(roster, xmppd::ns_decl_list(), 0));
 	    /* XXX what do we do if the set fails?  hrmf... */
 	    xdb_set(m->si->xc, m->user->id, NS_ROSTER, roster);
 
@@ -513,7 +513,7 @@ static mreturn mod_roster_s10n(mapi m, void *arg) {
     reply2 = reply = NULL;
     jid_set(m->packet->to, NULL, JID_RESOURCE); /* make sure we're only dealing w/ the user id */
 
-    log_debug2(ZONE, LOGT_ROSTER, "s10n %s request from %s with existing item %s", xmlnode_get_attrib_ns(m->packet->x, "type", NULL), jid_full(m->packet->from), xmlnode_serialize_string(item, NULL, NULL, 0));
+    log_debug2(ZONE, LOGT_ROSTER, "s10n %s request from %s with existing item %s", xmlnode_get_attrib_ns(m->packet->x, "type", NULL), jid_full(m->packet->from), xmlnode_serialize_string(item, xmppd::ns_decl_list(), 0));
 
     /* vars containing the old state of the subscritpion */
     if (j_strcmp(xmlnode_get_attrib_ns(item, "subscription", NULL), "to") == 0)

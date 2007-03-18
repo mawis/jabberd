@@ -61,6 +61,9 @@
 
 #include <expat.h>
 
+#include <utility>
+#include <list>
+
 /*
 **  Arrange to use either varargs or stdargs
 */
@@ -380,6 +383,7 @@ void xhash_walk(xht h, xhash_walker w, void *arg);
 /* --------------------------------------------------------- */
 char *strescape(pool p, char *buf); /* Escape <>&'" chars */
 char *strunescape(pool p, char *buf);
+std::string strescape(std::string s);
 
 
 /* --------------------------------------------------------- */
@@ -444,6 +448,26 @@ typedef struct xmlnode_t {
      struct xmlnode_t*  lastattrib;	/**< last attribute node of this node */
 } _xmlnode, *xmlnode;
 
+namespace xmppd {
+
+    /**
+     * This class represents and manages a list of bindings from namespace prefixes to namespace IRIs
+     */
+    class ns_decl_list : private std::list<std::pair<std::string, std::string> > {
+	public:
+	    ns_decl_list();
+	    ns_decl_list(const xmlnode node);
+	    void update(const std::string& prefix, const std::string& ns_iri);
+	    void delete_last(const std::string& prefix);
+	    char const* get_nsprefix(const std::string& iri) const;
+	    char const* get_nsiri(const std::string& prefix) const;
+	    bool check_prefix(const std::string& prefix, const std::string& ns_iri) const;
+	private:
+    };
+
+}
+
+
 /**
  * item in a list of xmlnodes
  */
@@ -451,17 +475,6 @@ typedef struct xmlnode_list_item_t {
     xmlnode			node;	/**< the node contained in this list item */
     struct xmlnode_list_item_t *next;	/**< next item in the list */
 } _xmlnode_list_item, *xmlnode_list_item;
-
-/**
- * a list of these elements is used for serializing ::xmlnode objects. It declares the namespaces, that do not need to be serialized,
- * as they have been declared already by a parent element
- */
-typedef struct ns_list_item_t {
-    struct ns_list_item_t*	prev;	/**< previous item in the list */
-    struct ns_list_item_t*	next;	/**< next item in the list */
-    const char*			prefix;	/**< declared namespace prefix */
-    const char*			ns_iri;	/**< the namespace IRI */
-} _ns_list_item, *ns_list_item;
 
 /* Node creation routines */
 xmlnode  xmlnode_wrap(xmlnode x,const char* wrapper);
@@ -505,7 +518,7 @@ void     xmlnode_put_attrib(xmlnode owner, const char* name, const char* value);
 void     xmlnode_put_attrib_ns(xmlnode owner, const char* name, const char* prefix, const char *ns_iri, const char* value);
 char*    xmlnode_get_attrib(xmlnode owner, const char* name);
 char*    xmlnode_get_attrib_ns(xmlnode owner, const char* name, const char *ns_iri);
-void     xmlnode_put_expat_attribs(xmlnode owner, const char** atts, ns_list_item last_ns);
+void     xmlnode_put_expat_attribs(xmlnode owner, const char** atts, xmppd::ns_decl_list& nslist);
 
 const char* xmlnode_get_lang(xmlnode node);
 
@@ -533,17 +546,10 @@ void	 xmlnode_change_namespace(xmlnode node, const char *ns_iri);
 int      xmlnode_has_children(xmlnode node);
 
 /* Node-to-string translation */
-char*    xmlnode2str(xmlnode node);
-char*	 xmlnode_serialize_string(xmlnode node, ns_list_item nslist_first, ns_list_item nslist_last, int stream_type);
+char*	 xmlnode_serialize_string(xmlnode_t const* node, const xmppd::ns_decl_list& nslist, int stream_type);
 
 int      xmlnode2file(char *file, xmlnode node); /* writes node to file */
 int	 xmlnode2file_limited(char *file, xmlnode node, size_t sizelimit);
-void	 xmlnode_update_decl_list(pool p, ns_list_item *first_item_ptr, ns_list_item *last_item_ptr, const char *prefix, const char *ns_iri);
-void	 xmlnode_copy_decl_list(pool p, ns_list_item first, ns_list_item *copy_first, ns_list_item *copy_last);
-void	 xmlnode_get_decl_list(pool p, xmlnode node, ns_list_item *first_ns, ns_list_item *last_ns);
-void	 xmlnode_delete_last_decl(ns_list_item *first_ns, ns_list_item *last_ns, const char *prefix);
-const char *xmlnode_list_get_nsprefix(ns_list_item last_ns, const char *iri);
-const char *xmlnode_list_get_nsiri(ns_list_item last_ns, const char *prefix);
 
 /* Expat callbacks */
 void expat_startElement(void* userdata, const char* name, const char** atts);
@@ -568,8 +574,7 @@ xht xhash_from_xml(xmlnode hash);
 
 typedef void (*xstream_onNode)(int type, xmlnode x, void *arg); /* xstream event handler */
 
-typedef struct xstream_struct
-{
+typedef struct xstream_struct {
     XML_Parser parser;
     xmlnode node;
     char *cdata;
@@ -582,11 +587,8 @@ typedef struct xstream_struct
 
     const char *root_lang;		/**< declared language on the root element */
 
-    ns_list_item first_ns_root;		/**< first item in list of declared namespaces for the root element */
-    ns_list_item last_ns_root;		/**< last item in list of declared namespaces for the root element */
-    ns_list_item first_ns_stanza;	/**< first item in list of declared namespaces for the current stanza */
-    ns_list_item last_ns_stanza;	/**< last item in list of declared namespaces for the current stanza */
-    pool ns_pool;			/**< memory pool for the namespaces for the current stanza */
+    xmppd::ns_decl_list *ns_root;	/**< list of declared namespaces for the root element */
+    xmppd::ns_decl_list *ns_stanza;	/**< list of declared namespaces for the current stanza */
 } *xstream, _xstream;
 
 xstream xstream_new(pool p, xstream_onNode f, void *arg); /* create a new xstream */

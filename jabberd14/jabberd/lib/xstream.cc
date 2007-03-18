@@ -41,6 +41,8 @@
 
 #include <jabberdlib.h>
 
+#include <iostream>
+
 /* ========== internal expat callbacks =========== */
 
 /**
@@ -48,64 +50,60 @@
  */
 static void _xstream_startElement(void* _xs, const char* name, const char** atts) {
     xstream xs = static_cast<xstream>(_xs);
-    pool p = NULL;
-    char *prefix = NULL;
-    char *ns_iri = NULL;
-    char *local_name = NULL;
+    std::string prefix;
+    std::string ns_iri;
+    std::string local_name;
+    std::string qname(name ? name : "");
 
-    /* create a new memory pool if necessary, and copy what namespaces we already have on the root element */
-    if (xs->ns_pool == NULL) {
-        xs->ns_pool = pool_new();
-        xmlnode_copy_decl_list(xs->ns_pool, xs->first_ns_root, &(xs->first_ns_stanza), &(xs->last_ns_stanza));
+    // if we do not have a ns declaration list for the stanza yet create one by copying the root's ns_decl_list
+    if (!xs->ns_stanza) {
+	xs->ns_stanza = xs->ns_root ? new xmppd::ns_decl_list(*xs->ns_root) : new xmppd::ns_decl_list();
     }
 
-    /* get prefix, iri, and local name of the element */
-    if (strchr(name, XMLNS_SEPARATOR) != NULL) {
-        /* expat found the namespace IRI for us */
-        ns_iri = pstrdup(xs->ns_pool, name);
-        local_name = strchr(ns_iri, XMLNS_SEPARATOR);
-        local_name[0] = 0;
-        local_name++;
-        prefix = pstrdup(xs->ns_pool, xmlnode_list_get_nsprefix(xs->last_ns_stanza, ns_iri));
-    } else if (strchr(name, ':') != NULL) {
-        /* expat could not expand the prefix, it's not declared */
-
-        /* ... be liberal in what you accept ... */
-
-        /* start with a guess */
-        prefix = pstrdup(xs->ns_pool, name);
-        local_name = strchr(prefix, ':');
-        local_name[0] = 0;
-        local_name++;
-        ns_iri = "http://jabberd.org/no/clue";
-
-        /* some well known prefixes (but they would have to been declared!) */
-        if (j_strcmp(prefix, "stream") == 0) {
-            ns_iri = NS_STREAM;
-        } else if (j_strcmp(prefix, "db") == 0) {
-            ns_iri = NS_DIALBACK;
-        }
+    // get prefix and local name of the element
+    std::string::size_type separator_pos = qname.find(XMLNS_SEPARATOR);
+    if (separator_pos != std::string::npos) {
+	ns_iri = qname.substr(0, separator_pos);
+	local_name = qname.substr(separator_pos+1);
+	try {
+	    // XXX do we need to care about the prefix at all?
+	    prefix = xs->ns_stanza->get_nsprefix(ns_iri);
+	} catch (std::invalid_argument) {
+	}
     } else {
-        /* default namespace, but not declared */
+	// expat could not expand the prefix, it's not declared
+	//
+	// ... be liberal in what you accept ...
+	//
+	// XXX do we really want to be?
+	
+	// start with a guess
+	std::string::size_type colon_pos = qname.find(':');
+	if (colon_pos != std::string::npos) {
+	    prefix = qname.substr(0, colon_pos);
+	    local_name = qname.substr(colon_pos+1);
+	    ns_iri = "http://jabberd.org/ns/clue";
 
-        /* ... be liberal in what you accept ... (guessing it's 'jabber:server') */
-        prefix = NULL;
-        ns_iri = "jabber:server";
-        local_name = pstrdup(xs->ns_pool, name);
+	    // some well known prefixes (but tehy would have to be declared!)
+	    if (prefix == "stream") {
+		ns_iri = NS_STREAM;
+	    } else if (prefix == "db") {
+		ns_iri = NS_DIALBACK;
+	    }
+	} else {
+	    local_name = qname;
+	    ns_iri = NS_SERVER;
+	}
     }
-
-    if (prefix != NULL && prefix[0] == '\0')
-        prefix = NULL;
-
 
     /* if xstream is bad, get outa here */
     if (xs->status > XSTREAM_NODE)
 	return;
 
     if (xs->node == NULL) {
-        p = pool_heap(5*1024); /* 5k, typically 1-2k each plus copy of self and workspace */
-        xs->node = xmlnode_new_tag_pool_ns(p, local_name, prefix, ns_iri);
-        xmlnode_put_expat_attribs(xs->node, atts, xs->last_ns_stanza);
+        pool p = pool_heap(5*1024); /* 5k, typically 1-2k each plus copy of self and workspace */
+        xs->node = xmlnode_new_tag_pool_ns(p, local_name.c_str(), prefix=="" ? NULL : prefix.c_str(), ns_iri.c_str());
+        xmlnode_put_expat_attribs(xs->node, atts, *xs->ns_stanza);
 
         if (xs->status == XSTREAM_ROOT) {
 	    const char *prefix = NULL;
@@ -113,27 +111,38 @@ static void _xstream_startElement(void* _xs, const char* name, const char** atts
             xs->root_lang = pstrdup(xs->p, xmlnode_get_lang(xs->node));
 
             /* move the namespace list to where we look for the root namespace list */
-            xmlnode_copy_decl_list(xs->p, xs->first_ns_stanza, &(xs->first_ns_root), &(xs->last_ns_root));
-            pool_free(xs->ns_pool);
-            xs->ns_pool = NULL;
-
-            /* for the root element: check if NS_SERVER, NS_CLIENT, NS_COMPONENT_ACCEPT, or NS_DIALBACK has been declared => add explicitly */
-            if (prefix = xmlnode_list_get_nsprefix(xs->last_ns_root, NS_SERVER))
-                xmlnode_put_attrib_ns(xs->node, prefix && prefix[0] ? prefix : "xmlns", prefix && prefix[0] ? "xmlns" : NULL, NS_XMLNS, NS_SERVER);
-            if (prefix = xmlnode_list_get_nsprefix(xs->last_ns_root, NS_CLIENT))
-                xmlnode_put_attrib_ns(xs->node, prefix && prefix[0] ? prefix : "xmlns", prefix && prefix[0] ? "xmlns" : NULL, NS_XMLNS, NS_CLIENT);
-            if (prefix = xmlnode_list_get_nsprefix(xs->last_ns_root, NS_COMPONENT_ACCEPT))
-                xmlnode_put_attrib_ns(xs->node, prefix && prefix[0] ? prefix : "xmlns", prefix && prefix[0] ? "xmlns" : NULL, NS_XMLNS, NS_COMPONENT_ACCEPT);
-            if (prefix = xmlnode_list_get_nsprefix(xs->last_ns_root, NS_DIALBACK))
-                xmlnode_put_attrib_ns(xs->node, prefix && prefix[0] ? prefix : "xmlns", prefix && prefix[0] ? "xmlns" : NULL, NS_XMLNS, NS_DIALBACK);
+	    xs->ns_root = xs->ns_stanza;
+	    xs->ns_stanza = NULL;
+	    
+	    // for the root element: check if NS_SERVER, NS_CLIENT, NS_COMPONENT_ACCEPT, or NS_DIALBACK has been declared => add attribute explicitly
+	    try {
+		std::string prefix = xs->ns_root->get_nsprefix(NS_SERVER);
+		xmlnode_put_attrib_ns(xs->node, prefix == "" ? "xmlns" : prefix.c_str(), prefix == "" ? NULL : "xmlns", NS_XMLNS, NS_SERVER);
+	    } catch (std::invalid_argument) {
+	    }
+	    try {
+		std::string prefix = xs->ns_root->get_nsprefix(NS_CLIENT);
+		xmlnode_put_attrib_ns(xs->node, prefix == "" ? "xmlns" : prefix.c_str(), prefix == "" ? NULL : "xmlns", NS_XMLNS, NS_CLIENT);
+	    } catch (std::invalid_argument) {
+	    }
+	    try {
+		std::string prefix = xs->ns_root->get_nsprefix(NS_COMPONENT_ACCEPT);
+		xmlnode_put_attrib_ns(xs->node, prefix == "" ? "xmlns" : prefix.c_str(), prefix == "" ? NULL : "xmlns", NS_XMLNS, NS_COMPONENT_ACCEPT);
+	    } catch (std::invalid_argument) {
+	    }
+	    try {
+		std::string prefix = xs->ns_root->get_nsprefix(NS_DIALBACK);
+		xmlnode_put_attrib_ns(xs->node, prefix == "" ? "xmlns" : prefix.c_str(), prefix == "" ? NULL : "xmlns", NS_XMLNS, NS_DIALBACK);
+	    } catch (std::invalid_argument) {
+	    }
 
             xs->status = XSTREAM_NODE; /* flag status that we're processing nodes now */
             (xs->f)(XSTREAM_ROOT, xs->node, xs->arg); /* send the root, f must free all nodes */
             xs->node = NULL;
         }
     } else {
-        xs->node = xmlnode_insert_tag_ns(xs->node, name, prefix, ns_iri);
-        xmlnode_put_expat_attribs(xs->node, atts, xs->last_ns_stanza);
+        xs->node = xmlnode_insert_tag_ns(xs->node, local_name.c_str(), prefix.c_str(), ns_iri.c_str());
+        xmlnode_put_expat_attribs(xs->node, atts, *xs->ns_stanza);
     }
 
     /* depth check */
@@ -150,23 +159,21 @@ static void _xstream_endElement(void* _xs, const char* name) {
     xmlnode parent;
 
     /* if xstream is bad, get outa here */
-    if(xs->status > XSTREAM_NODE) return;
+    if (xs->status > XSTREAM_NODE)
+	return;
 
     /* if it's already NULL we've received </stream>, tell the app and we're outta here */
-    if(xs->node == NULL)
-    {
+    if (xs->node == NULL) {
         xs->status = XSTREAM_CLOSE;
         (xs->f)(XSTREAM_CLOSE, NULL, xs->arg);
-    }else{
+    } else {
         parent = xmlnode_get_parent(xs->node);
 
         /* we are the top-most node, feed to the app who is responsible to delete it */
-        if(parent == NULL) {
+        if (parent == NULL) {
 	    /* we do not need the list of namespaces for the stanza anymore */
-	    pool_free(xs->ns_pool);
-	    xs->ns_pool = NULL;
-	    xs->first_ns_stanza = NULL;
-	    xs->last_ns_stanza = NULL;
+	    delete xs->ns_stanza;
+	    xs->ns_stanza = NULL;
 	    
             (xs->f)(XSTREAM_NODE, xs->node, xs->arg);
 	}
@@ -204,16 +211,15 @@ static void _xstream_charData(void* _xs, const char *str, int len) {
  * @param iri namespace IRI for this prefix
  */
 static void _xstream_startNamespaceDecl(void *arg, const XML_Char *prefix, const XML_Char *iri) {
-    xstream xs = (xstream)arg;
+    xstream xs = static_cast<xstream>(arg);
 
-    /* create a new memory pool if necessary, and copy what namespaces we already have on the root element */
-    if (xs->ns_pool == NULL) {
-        xs->ns_pool = pool_new();
-        xmlnode_copy_decl_list(xs->ns_pool, xs->first_ns_root, &(xs->first_ns_stanza), &(xs->last_ns_stanza));
+    // create a new ns_decl_list if necessary, and copy what namespaces we already have on the root element
+    if (!xs->ns_stanza) {
+	xs->ns_stanza = xs->ns_root ? new xmppd::ns_decl_list(*xs->ns_root) : new xmppd::ns_decl_list();
     }
 
-    /* store the new prefix in the list */
-    xmlnode_update_decl_list(xs->ns_pool, &(xs->first_ns_stanza), &(xs->last_ns_stanza), prefix, iri);
+    // add the new prefix to the list
+    xs->ns_stanza->update(prefix ? prefix : "", iri ? iri : "");
 }
 
 /**
@@ -225,10 +231,11 @@ static void _xstream_startNamespaceDecl(void *arg, const XML_Char *prefix, const
  * @param prefix prefix that gets undeclared
  */
 static void _xstream_endNamespaceDecl(void *arg, const XML_Char *prefix) {
-    xstream xs = (xstream)arg;
+    xstream xs = static_cast<xstream>(arg);
 
-    /* remove the prefix from the list */
-    xmlnode_delete_last_decl(&(xs->first_ns_stanza), &(xs->last_ns_stanza), prefix);
+    // remove the prefix from the list of namespaces
+    if (xs->ns_stanza)
+	xs->ns_stanza->delete_last(prefix ? prefix : "");
 }
 
 /**
@@ -242,14 +249,15 @@ static void _xstream_cleanup(void *arg) {
     xmlnode_free(xs->node); /* cleanup anything left over */
     XML_ParserFree(xs->parser);
 
-    if (xs->ns_pool != NULL) {
-	pool_free(xs->ns_pool);
+    // cleanup lists of namespace declarations
+    if (xs->ns_stanza) {
+	delete xs->ns_stanza;
+	xs->ns_stanza = NULL;
     }
-    xs->ns_pool = NULL;
-    xs->first_ns_stanza = NULL;
-    xs->last_ns_stanza = NULL;
-    xs->first_ns_root = NULL;
-    xs->last_ns_root = NULL;
+    if (xs->ns_root) {
+	delete xs->ns_root;
+	xs->ns_root = NULL;
+    }
 }
 
 
@@ -364,28 +372,39 @@ xmlnode xstream_header(const char *to, const char *from) {
  *
  * @note NO CHILDREN ALLOWED
  *
+ * @note this function does ignore most explicit declarations of namespace prefixes.
+ * The only exceptions are explicit declarations of the default namespace, or the
+ * namespace defined by the prefix 'db'
+ *
  * @param x the xmlnode
  * @param stream_type 0 for 'jabber:server', 1 for 'jabber:client', 2 for 'jabber:component:accept'
  * @return string representation of the start tag
  */
 char *xstream_header_char(xmlnode x, int stream_type) {
-    spool s;
-    char *fixr, *head;
-
-    if(xmlnode_has_children(x)) {
-        fprintf(stderr,"Fatal Programming Error: xstream_header_char() was sent a header with children!\n");
-        return NULL;
+    if (xmlnode_has_children(x)) {
+	std::cerr << "Fatal programming error: xstream_header_char() was sent a header with children!" << std::endl;
+	return NULL;
     }
 
-    s = spool_new(xmlnode_pool(x));
-    spooler(s,"<?xml version='1.0'?>",xmlnode_serialize_string(x, NULL, NULL, stream_type),s);
-    head = spool_print(s);
-    fixr = strstr(head,"/>");
-    *fixr = '>';
-    ++fixr;
-    *fixr = '\0';
+    std::string head = "<?xml version='1.0'?>";
+    head += xmlnode_serialize_string(x, xmppd::ns_decl_list(), stream_type);
+    head = head.substr(0, head.find("/>"));
 
-    return head;
+    char const* default_namespace = xmlnode_get_attrib_ns(x, "xmlns", NS_XMLNS);
+    if (default_namespace) {
+	if (stream_type && std::string(default_namespace) == NS_SERVER) {
+	    default_namespace = stream_type == 1 ? NS_CLIENT : stream_type == 2 ? NS_COMPONENT_ACCEPT : NS_SERVER;
+	}
+	head += " xmlns='" + strescape(default_namespace) + "'";
+    }
+    char const* db_namespace = xmlnode_get_attrib_ns(x, "db", NS_XMLNS);
+    if (db_namespace) {
+	head += " xmlns:db='" + strescape(db_namespace) + "'";
+    }
+
+    head += ">";
+
+    return pstrdup(xmlnode_pool(x), head.c_str());
 }
 
 /**

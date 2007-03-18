@@ -369,7 +369,7 @@ static mreturn mod_presence_out(mapi m, void *arg) {
 
     if(m->packet->to != NULL || jpacket_subtype(m->packet) == JPACKET__PROBE || jpacket_subtype(m->packet) == JPACKET__ERROR) return M_PASS;
 
-    log_debug2(ZONE, LOGT_DELIVER, "new presence from %s of %s", jid_full(m->s->id), xmlnode_serialize_string(m->packet->x, NULL, NULL, 0));
+    log_debug2(ZONE, LOGT_DELIVER, "new presence from %s of %s", jid_full(m->s->id), xmlnode_serialize_string(m->packet->x, xmppd::ns_decl_list(), 0));
 
     /* pre-existing conditions (no, we are not an insurance company) */
     oldpri = m->s->priority;

@@ -50,7 +50,7 @@ void js_offline_main(void *arg) {
     user = (udata)q->p->aux1;
 
     /* debug message */
-    log_debug2(ZONE, LOGT_DELIVER, "THREAD:OFFLINE received %s's packet: %s", jid_full(user->id), xmlnode_serialize_string(q->p->x, NULL, NULL, 0));
+    log_debug2(ZONE, LOGT_DELIVER, "THREAD:OFFLINE received %s's packet: %s", jid_full(user->id), xmlnode_serialize_string(q->p->x, xmppd::ns_decl_list(), 0));
 
     /* let the filters check the packet */
     if (q->p->flag == PACKET_PASS_FILTERS_MAGIC || !js_mapi_call(q->si, e_FILTER_IN, q->p, user, NULL)) {

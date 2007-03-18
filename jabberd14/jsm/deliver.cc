@@ -421,7 +421,7 @@ result _js_routed_packet(instance i, dpacket p, jsmi si, xht ht) {
     }
     if (u == NULL) {
 	/* no user!?!?! */
-	log_notice(p->host, "Bouncing packet intended for non-existant %s: %s", sc_sm == NULL ? "user" : "session",xmlnode_serialize_string(p->x, NULL, NULL, 0));
+	log_notice(p->host, "Bouncing packet intended for non-existant %s: %s", sc_sm == NULL ? "user" : "session",xmlnode_serialize_string(p->x, xmppd::ns_decl_list(), 0));
 	deliver_fail(dpacket_new(p->x), N_("Invalid User"));
 	return r_DONE;
     }
@@ -450,7 +450,7 @@ result _js_routed_packet(instance i, dpacket p, jsmi si, xht ht) {
 
     if(jp == NULL) {
 	/* uhh, empty packet, *shrug* */
-	log_notice(p->host,"Dropping an invalid or empty route packet: %s",xmlnode_serialize_string(p->x, NULL, NULL, 0),jid_full(p->id));
+	log_notice(p->host,"Dropping an invalid or empty route packet: %s",xmlnode_serialize_string(p->x, xmppd::ns_decl_list(), 0),jid_full(p->id));
 	xmlnode_free(p->x);
 	return r_DONE;
     }
@@ -493,7 +493,7 @@ result js_packet(instance i, dpacket p, void *arg) {
     jpacket jp = NULL;
     xht ht = NULL;
 
-    log_debug2(ZONE, LOGT_DELIVER, "(%X)incoming packet %s",si,xmlnode_serialize_string(p->x, NULL, NULL, 0));
+    log_debug2(ZONE, LOGT_DELIVER, "(%X)incoming packet %s",si,xmlnode_serialize_string(p->x, xmppd::ns_decl_list(), 0));
 
     /* make sure this hostname is in the master table */
     if ((ht = (xht)xhash_get(si->hosts,p->host)) == NULL) {
@@ -515,7 +515,7 @@ result js_packet(instance i, dpacket p, void *arg) {
 
     jp = jpacket_new(p->x);
     if (jp == NULL) {
-        log_warn(p->host, "Dropping invalid incoming packet: %s", xmlnode_serialize_string(p->x, NULL, NULL, 0));
+        log_warn(p->host, "Dropping invalid incoming packet: %s", xmlnode_serialize_string(p->x, xmppd::ns_decl_list(), 0));
         xmlnode_free(p->x);
         return r_DONE;
     }
@@ -545,14 +545,14 @@ void js_deliver(jsmi si, jpacket p, session sending_s) {
 
     /* does it have a destination address? */
     if (p->to == NULL) {
-        log_warn(NULL, "jsm: Invalid Recipient, returning data %s", xmlnode_serialize_string(p->x, NULL, NULL, 0));
+        log_warn(NULL, "jsm: Invalid Recipient, returning data %s", xmlnode_serialize_string(p->x, xmppd::ns_decl_list(), 0));
         js_bounce_xmpp(si, sending_s, p->x, XTERROR_BAD);
         return;
     }
 
     /* does it have a sender address? */
     if (p->from == NULL) {
-        log_warn(NULL, "jsm: Invalid Sender, discarding data %s", xmlnode_serialize_string(p->x, NULL, NULL, 0));
+        log_warn(NULL, "jsm: Invalid Sender, discarding data %s", xmlnode_serialize_string(p->x, xmppd::ns_decl_list(), 0));
         xmlnode_free(p->x);
         return;
     }
@@ -577,7 +577,7 @@ void js_deliver(jsmi si, jpacket p, session sending_s) {
     }
 
 
-    log_debug2(ZONE, LOGT_DELIVER, "deliver(to[%s],from[%s],type[%d],packet[%s])", jid_full(p->to), jid_full(p->from), p->type, xmlnode_serialize_string(p->x, NULL, NULL, 0));
+    log_debug2(ZONE, LOGT_DELIVER, "deliver(to[%s],from[%s],type[%d],packet[%s])", jid_full(p->to), jid_full(p->from), p->type, xmlnode_serialize_string(p->x, xmppd::ns_decl_list(), 0));
 
     /* external or local delivery? */
     if ((ht = (xht)xhash_get(si->hosts,p->to->server)) != NULL) {

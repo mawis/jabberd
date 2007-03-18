@@ -98,7 +98,7 @@ static mreturn mod_browse_set(mapi m, void *arg) {
     if(!NSCHECK(m->packet->iq,NS_BROWSE) || jpacket_subtype(m->packet) != JPACKET__SET) return M_PASS;
     if(m->packet->to != NULL) return M_PASS; /* if its to someone other than ourselves */
 
-    log_debug2(ZONE, LOGT_DELIVER, "handling set request %s", xmlnode_serialize_string(m->packet->iq, NULL, NULL, 0));
+    log_debug2(ZONE, LOGT_DELIVER, "handling set request %s", xmlnode_serialize_string(m->packet->iq, xmppd::ns_decl_list(), 0));
 
     /* no to implies to ourselves */
     if (m->packet->to != NULL)

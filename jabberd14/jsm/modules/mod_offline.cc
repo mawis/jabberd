@@ -262,7 +262,7 @@ static int mod_offline_check_expired(mapi m, xmlnode message) {
     if (diff >= expire) {
 	char *node = xmlnode_get_attrib_ns(message, "node", NULL);
 
-	log_debug2(ZONE, LOGT_DELIVER, "dropping expired message %s",xmlnode_serialize_string(message, NULL, NULL, 0));
+	log_debug2(ZONE, LOGT_DELIVER, "dropping expired message %s",xmlnode_serialize_string(message, xmppd::ns_decl_list(), 0));
 
 	/* delete the message from offline storage */
 	if (node != NULL) {
@@ -331,7 +331,7 @@ static int mod_offline_send_messages(mapi m, const char *filter, int offline_ele
 	/* send the message */
 	read_stanza = jpacket_new(xmlnode_dup(cur));
 	read_stanza->flag = PACKET_FROM_OFFLINE_MAGIC;
-	log_debug2(ZONE, LOGT_DELIVER, "js_session_to for %s", xmlnode_serialize_string(cur, NULL, NULL, 0));
+	log_debug2(ZONE, LOGT_DELIVER, "js_session_to for %s", xmlnode_serialize_string(cur, xmppd::ns_decl_list(), 0));
         js_session_to(m->s,read_stanza);
 	sent_messages++;
         xmlnode_hide(cur);
@@ -387,7 +387,7 @@ static void mod_offline_out_get_message_list(mapi m) {
     /* get messages from xdb storage */
     offline_messages = xdb_get(m->si->xc, m->user->id, NS_OFFLINE);
 
-    log_debug2(ZONE, LOGT_STORAGE, "got offline messages from xdb: %s", xmlnode_serialize_string(offline_messages, NULL, NULL, 0));
+    log_debug2(ZONE, LOGT_STORAGE, "got offline messages from xdb: %s", xmlnode_serialize_string(offline_messages, xmppd::ns_decl_list(), 0));
 
     jutil_iqresult(m->packet->x);
     query = xmlnode_insert_tag_ns(m->packet->x, "query", NULL, NS_DISCO_ITEMS);
@@ -401,7 +401,7 @@ static void mod_offline_out_get_message_list(mapi m) {
 	if (xmlnode_get_type(cur) != NTYPE_TAG)
 	    continue;
 
-	log_debug2(ZONE, LOGT_STORAGE, "processing message %s", xmlnode_serialize_string(cur, NULL, NULL, 0));
+	log_debug2(ZONE, LOGT_STORAGE, "processing message %s", xmlnode_serialize_string(cur, xmppd::ns_decl_list(), 0));
 
 	/* check if the message expired */
 	if (mod_offline_check_expired(m, cur)) {
@@ -440,7 +440,7 @@ static void mod_offline_out_get_message_count(mapi m) {
     /* get messages from xdb storage */
     offline_messages = xdb_get(m->si->xc, m->user->id, NS_OFFLINE);
 
-    log_debug2(ZONE, LOGT_STORAGE, "got offline messages from xdb: %s", xmlnode_serialize_string(offline_messages, NULL, NULL, 0));
+    log_debug2(ZONE, LOGT_STORAGE, "got offline messages from xdb: %s", xmlnode_serialize_string(offline_messages, xmppd::ns_decl_list(), 0));
 
     jutil_iqresult(m->packet->x);
     query = xmlnode_insert_tag_ns(m->packet->x, "query", NULL, NS_DISCO_INFO);
@@ -452,7 +452,7 @@ static void mod_offline_out_get_message_count(mapi m) {
 	if (xmlnode_get_type(cur) != NTYPE_TAG)
 	    continue;
 
-	log_debug2(ZONE, LOGT_STORAGE, "processing message %s", xmlnode_serialize_string(cur, NULL, NULL, 0));
+	log_debug2(ZONE, LOGT_STORAGE, "processing message %s", xmlnode_serialize_string(cur, xmppd::ns_decl_list(), 0));
 
 	/* check if the message expired */
 	if (mod_offline_check_expired(m, cur)) {
@@ -530,7 +530,7 @@ static void mod_offline_out_handle_query(mapi m) {
 	    }
 	}
 
-	log_debug2(ZONE, LOGT_STORAGE, "processing offline command %s", xmlnode_serialize_string(cur, NULL, NULL, 0));
+	log_debug2(ZONE, LOGT_STORAGE, "processing offline command %s", xmlnode_serialize_string(cur, xmppd::ns_decl_list(), 0));
     }
 
     /* confirm that we processed the request */
@@ -610,7 +610,7 @@ static mreturn mod_offline_out(mapi m, void *arg) {
 
     if (m->packet->type != JPACKET_PRESENCE) return M_IGNORE;
 
-    log_debug2(ZONE, LOGT_IO, "handling presence packet: %s", xmlnode_serialize_string(m->packet->x, NULL, NULL, 0));
+    log_debug2(ZONE, LOGT_IO, "handling presence packet: %s", xmlnode_serialize_string(m->packet->x, xmppd::ns_decl_list(), 0));
 
     /* If its an available presence, we have to check for offline messages */
     if (m != NULL && m->packet != NULL && (jpacket_subtype(m->packet) == JPACKET__AVAILABLE || jpacket_subtype(m->packet) == JPACKET__INVISIBLE)) {
