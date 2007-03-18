@@ -217,7 +217,7 @@ static result base_connect_config(instance id, xmlnode x, void *arg) {
         return r_PASS;
     }
 
-    log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "Activating configuration: %s\n", xmlnode_serialize_string(x, NULL, NULL, 0));
+    log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "Activating configuration: %s\n", xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
 
     /* Allocate a conn structures, using this instances' mempool */
     ci              = static_cast<conn_info>(pmalloco(id->p, sizeof(_conn_info)));

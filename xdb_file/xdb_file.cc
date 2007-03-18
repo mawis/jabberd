@@ -289,7 +289,7 @@ result xdb_file_phandler(instance i, dpacket p, void *arg) {
     xmlnode file, top, data;
     int ret = 0, flag_set = 0;
 
-    log_debug2(ZONE, LOGT_STORAGE|LOGT_DELIVER, "handling xdb request %s", xmlnode_serialize_string(p->x, NULL, NULL, 0));
+    log_debug2(ZONE, LOGT_STORAGE|LOGT_DELIVER, "handling xdb request %s", xmlnode_serialize_string(p->x, xmppd::ns_decl_list(), 0));
 
     /* the request needs to have a defined namespace, that it is querying */
     if ((ns = xmlnode_get_attrib_ns(p->x, "ns", NULL)) == NULL)
@@ -616,7 +616,7 @@ extern "C" void xdb_file(instance i, xmlnode x) {
     /* where to store all the files (base directory) */
     spl = xmlnode_get_list_item_data(xmlnode_get_tags(config, "conf:spool", xf->std_ns_prefixes), 0);
     if (spl == NULL) {
-        log_error(i->id,"xdb_file: No filesystem spool location configured: %s", xmlnode_serialize_string(config, NULL, NULL, 0));
+        log_error(i->id,"xdb_file: No filesystem spool location configured: %s", xmlnode_serialize_string(config, xmppd::ns_decl_list(), 0));
         return;
     }
 

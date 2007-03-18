@@ -332,6 +332,40 @@ char *strunescape(pool p, char *buf)
     return(temp);
 }
 
+/**
+ * escape a string to be print as XML
+ *
+ * @param s the original string
+ * @result the string with &, ', ", &lt; and > replaced with their entity representation
+ */
+std::string strescape(std::string s) {
+    // replace & with &amp;
+    for (std::string::size_type pos = s.find('&'); pos != std::string::npos; pos = s.find('&', pos+1)) {
+	s.insert(pos+1, "amp;");
+    }
+
+    // replace ' with &apos;
+    for (std::string::size_type pos = s.find('\''); pos != std::string::npos; pos = s.find('\'', pos+1)) {
+	s.replace(pos, pos+1, "&apos;");
+    }
+
+    // replace " with &quot;
+    for (std::string::size_type pos = s.find('"'); pos != std::string::npos; pos = s.find('"', pos+1)) {
+	s.replace(pos, pos+1, "&quot;");
+    }
+
+    // replace < with &lt;
+    for (std::string::size_type pos = s.find('<'); pos != std::string::npos; pos = s.find('<', pos+1)) {
+	s.replace(pos, pos+1, "&lt;");
+    }
+
+    // replace > with &gt;
+    for (std::string::size_type pos = s.find('>'); pos != std::string::npos; pos = s.find('>', pos+1)) {
+	s.replace(pos, pos+1, "gt;");
+    }
+
+    return s;
+}
 
 char *strescape(pool p, char *buf)
 {
