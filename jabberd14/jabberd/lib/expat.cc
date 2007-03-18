@@ -50,8 +50,7 @@
  */
 typedef struct {
     xmlnode 		x;		/**< pointer to the xmlnode that is currently read */
-    ns_list_item 	first_ns;	/**< first element in the list of declared namespace prefixes */
-    ns_list_item 	last_ns;	/**< last element in the list of declared namespace prefixes */
+    xmppd::ns_decl_list* ns;		/**< list of declared namespace prefixes */
     pool		parse_pool;	/**< memory pool used while parsing */
 } _expat_callback_data, *expat_callback_data;
 
@@ -81,7 +80,7 @@ void expat_startElement(void* userdata, const char* name, const char** atts) {
 	local_name = strchr(ns_iri, XMLNS_SEPARATOR);
 	local_name[0] = 0;
 	local_name++;
-	prefix = pstrdup(callback_data->parse_pool, xmlnode_list_get_nsprefix(callback_data->last_ns, ns_iri));
+	prefix = pstrdup(callback_data->parse_pool, callback_data->ns->get_nsprefix(ns_iri));
     } else if (strchr(name, ':') != NULL) {
 	/* expat could not expand the prefix, it's not declared */
 
@@ -119,7 +118,7 @@ void expat_startElement(void* userdata, const char* name, const char** atts) {
 	/* insert as child node */
 	callback_data->x = xmlnode_insert_tag_ns(callback_data->x, local_name, prefix, ns_iri);
     }
-    xmlnode_put_expat_attribs(callback_data->x, atts, callback_data->last_ns);
+    xmlnode_put_expat_attribs(callback_data->x, atts, *callback_data->ns);
 }
 
 /**
@@ -178,7 +177,7 @@ static void expat_startNamespaceDecl(void *userdata, const XML_Char *prefix, con
     expat_callback_data callback_data = (expat_callback_data)userdata;
 
     /* store the new prefix in the list */
-    xmlnode_update_decl_list(callback_data->parse_pool, &(callback_data->first_ns), &(callback_data->last_ns), prefix, iri);
+    callback_data->ns->update(prefix ? prefix : "", iri ? iri : "");
 }
 
 /**
@@ -194,7 +193,7 @@ static void expat_endNamespaceDecl(void *userdata, const XML_Char *prefix) {
     expat_callback_data callback_data = (expat_callback_data)userdata;
 
     /* remove the prefix from the list */
-    xmlnode_delete_last_decl(&(callback_data->first_ns), &(callback_data->last_ns), prefix);
+    callback_data->ns->delete_last(prefix ? prefix : "");
 }
 
 /**
@@ -208,12 +207,13 @@ static void expat_endNamespaceDecl(void *userdata, const XML_Char *prefix) {
  */
 xmlnode xmlnode_str(const char *str, int len) {
     XML_Parser p;
-    _expat_callback_data callback_data = { NULL, NULL, NULL, NULL };
+    _expat_callback_data callback_data = { NULL, NULL, NULL };
 
     if(NULL == str)
         return NULL;
 
     callback_data.parse_pool = pool_new();
+    callback_data.ns = new xmppd::ns_decl_list();
     p = XML_ParserCreateNS(NULL, XMLNS_SEPARATOR);
     XML_SetUserData(p, &callback_data);
     XML_SetElementHandler(p, expat_startElement, expat_endElement);
@@ -226,6 +226,7 @@ xmlnode xmlnode_str(const char *str, int len) {
     }
     XML_ParserFree(p);
     pool_free(callback_data.parse_pool);
+    delete callback_data.ns;
     return callback_data.x; /* return the xmlnode x points to */
 }
 
@@ -239,7 +240,7 @@ xmlnode xmlnode_str(const char *str, int len) {
  */
 xmlnode xmlnode_file(const char *file) {
     XML_Parser p;
-    _expat_callback_data callback_data = { NULL, NULL, NULL, NULL };
+    _expat_callback_data callback_data = { NULL, NULL, NULL };
     char buf[BUFSIZ];
     int done, fd, len;
 
@@ -251,6 +252,7 @@ xmlnode xmlnode_file(const char *file) {
         return NULL;
 
     callback_data.parse_pool = pool_new();
+    callback_data.ns = new xmppd::ns_decl_list();
     p = XML_ParserCreateNS(NULL, XMLNS_SEPARATOR);
     XML_SetUserData(p, &callback_data);
     XML_SetElementHandler(p, expat_startElement, expat_endElement);
@@ -271,6 +273,7 @@ xmlnode xmlnode_file(const char *file) {
     XML_ParserFree(p);
     close(fd);
     pool_free(callback_data.parse_pool);
+    delete callback_data.ns;
     return callback_data.x; /* return the xmlnode x points to */
 }
 
@@ -342,7 +345,7 @@ int xmlnode2file_limited(char *file, xmlnode node, size_t sizelimit) {
         return -1;
 
     /* serialize the document ... we need to know the size of it */
-    doc = xmlnode_serialize_string(node, NULL, NULL, 0);
+    doc = xmlnode_serialize_string(node, xmppd::ns_decl_list(), 0);
     doclen = j_strlen(doc);
 
     /* is it to big? (23 is the size of the XML declaration and the trailing newline in the file) */
@@ -399,7 +402,7 @@ int xmlnode2file_limited(char *file, xmlnode node, size_t sizelimit) {
  * @param owner where to add the attributes
  * @param atts the attributes in expat format (even indexes are the attribute names, odd indexes the values)
  */
-void xmlnode_put_expat_attribs(xmlnode owner, const char** atts, ns_list_item last_ns) {
+void xmlnode_put_expat_attribs(xmlnode owner, const char** atts, xmppd::ns_decl_list& nslist) {
     int i = 0;
     
     if (atts == NULL)
@@ -417,7 +420,7 @@ void xmlnode_put_expat_attribs(xmlnode owner, const char** atts, ns_list_item la
 	    local_name = strchr(ns_iri, XMLNS_SEPARATOR);
 	    local_name[0] = 0;
 	    local_name++;
-	    prefix = pstrdup(xmlnode_pool(owner), xmlnode_list_get_nsprefix(last_ns, ns_iri));
+	    prefix = pstrdup(xmlnode_pool(owner),nslist.get_nsprefix(ns_iri ? ns_iri : ""));
 	} else if (strchr(atts[i], ':') != NULL) {
 	    /* expat could not expand the prefix, it's not declared */
 

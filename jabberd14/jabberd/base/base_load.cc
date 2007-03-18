@@ -159,7 +159,7 @@ static result base_load_config(instance id, xmlnode x, void *arg) {
     }
 
     
-    log_debug2(ZONE, LOGT_CONFIG|LOGT_DYNAMIC, "dynamic loader processing configuration %s\n", xmlnode2str(x));
+    log_debug2(ZONE, LOGT_CONFIG|LOGT_DYNAMIC, "dynamic loader processing configuration %s\n", xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
 
     for (so = xmlnode_get_firstchild(x); so != NULL; so = xmlnode_get_nextsibling(so)) {
         if (xmlnode_get_type(so) != NTYPE_TAG) continue;

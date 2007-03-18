@@ -176,7 +176,7 @@ static mreturn mod_register_new(mapi m, void *arg) {
 	    /* stamp the registration data */
 	    jutil_delay(m->packet->iq,"registered");
 
-	    log_debug2(ZONE, LOGT_REGISTER, "handled packet is: %s", xmlnode_serialize_string(m->packet->iq, NULL, NULL, 0));
+	    log_debug2(ZONE, LOGT_REGISTER, "handled packet is: %s", xmlnode_serialize_string(m->packet->iq, xmppd::ns_decl_list(), 0));
 
 	    /* don't store password in the NS_REGISTER namespace */
 	    xmlnode_hide(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:password", m->si->std_namespace_prefixes), 0));
@@ -297,7 +297,7 @@ static mreturn mod_register_check(mapi m, void *arg) {
 	}
 	log_debug2(ZONE, LOGT_REGISTER, "returned err msg: %s", err.msg);
 	jutil_error_xmpp(m->packet->x, err);
-	log_debug2(ZONE, LOGT_REGISTER, "missing fields: %s", xmlnode_serialize_string(register_config, NULL, NULL, 0));
+	log_debug2(ZONE, LOGT_REGISTER, "missing fields: %s", xmlnode_serialize_string(register_config, xmppd::ns_decl_list(), 0));
 	xmlnode_free(register_config);
 	return M_HANDLED;
     }
@@ -356,7 +356,7 @@ static mreturn _mod_register_server_register(mapi m) {
     /* check for their registration */
     reg =  xdb_get(m->si->xc, m->user->id, NS_REGISTER);
 
-    log_debug2(ZONE, LOGT_AUTH, "current registration data: %s", xmlnode_serialize_string(reg, NULL, NULL, 0));
+    log_debug2(ZONE, LOGT_AUTH, "current registration data: %s", xmlnode_serialize_string(reg, xmppd::ns_decl_list(), 0));
 
     switch (jpacket_subtype(m->packet)) {
 	case JPACKET__GET:

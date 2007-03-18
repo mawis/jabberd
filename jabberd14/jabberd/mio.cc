@@ -1087,7 +1087,7 @@ void mio_init(void) {
     if (tls == NULL) {
 	tls = xmlnode_get_list_item(xmlnode_get_tags(io, "ssl", namespaces, temp_pool) ,0);
 	if (tls != NULL) {
-	    log_warn(NULL, "Please update your configuration. The <ssl/> elements have been renamed to <tls/>. Falling back to use <ssl/> for now: %s", xmlnode_serialize_string(tls, NULL, NULL, 0));
+	    log_warn(NULL, "Please update your configuration. The <ssl/> elements have been renamed to <tls/>. Falling back to use <ssl/> for now: %s", xmlnode_serialize_string(tls, xmppd::ns_decl_list(), 0));
 	}
     }
     if (tls != NULL) {
@@ -1317,15 +1317,14 @@ void mio_write(mio m, xmlnode stanza, char *buffer, int len) {
             memcpy(newwbq->data,buffer,len);
         }
     } else {
-	ns_list_item first = NULL;
-	ns_list_item last = NULL;
-
         newwbq->type = queue_XMLNODE;
-	xmlnode_copy_decl_list(p, m->out_first_ns, &first, &last);
-        if ((newwbq->data = xmlnode_serialize_string(stanza, first, last, 0)) == NULL) {
-            pool_free(p);
-            return;
-        }
+
+	newwbq->data = xmlnode_serialize_string(stanza, m->out_ns ? *m->out_ns : xmppd::ns_decl_list(), 0);
+	if (!newwbq->data) {
+	    pool_free(p);
+	    return;
+	}
+
         len = strlen(static_cast<char*>(newwbq->data));
     }
 
@@ -1374,7 +1373,21 @@ void mio_write_root(mio m, xmlnode root, int stream_type) {
     mio_write(m, NULL, serialized_root, -1);
 
     /* remember namespaces */
-    xmlnode_get_decl_list(m->p, root, &(m->out_first_ns), &(m->out_last_ns));
+    m->out_ns = new xmppd::ns_decl_list();
+
+    // xstream_header_char() might have added declarations for the default namespace as well as for the namespace defined by the db prefix
+    char const* default_namespace = xmlnode_get_attrib_ns(root, "xmlns", NS_XMLNS);
+    if (default_namespace) {
+	// we do handle NS_CLIENT and NS_COMPONENT_ACCEPT as NS_SERVER internally
+	if (default_namespace == NS_CLIENT || default_namespace == NS_COMPONENT_ACCEPT)
+	    default_namespace = NS_SERVER;
+
+	m->out_ns->update("", default_namespace);
+    }
+    char const* db_namespace = xmlnode_get_attrib_ns(root, "db", NS_XMLNS);
+    if (db_namespace) {
+	m->out_ns->update("db", db_namespace);
+    }
 
     xmlnode_free(root);
 }

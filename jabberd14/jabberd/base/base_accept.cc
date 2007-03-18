@@ -107,18 +107,7 @@ static void base_accept_process_xml(mio m, int state, void* arg, xmlnode x, char
 
     switch (state) {
         case MIO_XML_ROOT:
-            /* Ensure request namespace is correct... */
-	    if (xmlnode_list_get_nsprefix(m->in_last_ns_root, NS_SERVER) == NULL) {
-                /* Log that the connected component sent an invalid namespace */
-                log_warn(ai->i->id, "Recv'd invalid namespace. Closing connection.");
-                /* Notify component with stream:error */
-                mio_write(m, NULL, SERROR_NAMESPACE, -1);
-                /* Close the socket and cleanup */
-                mio_close(m);
-                break;
-            }
-
-            /* Send header w/ proper namespace, using instance i */
+           /* Send header w/ proper namespace, using instance i */
             cur = xstream_header(NULL, ai->i->id);
             /* Save stream ID for auth'ing later */
             ai->id = pstrdup(ai->p, xmlnode_get_attrib_ns(cur, "id", NULL));
@@ -336,7 +325,7 @@ static result base_accept_config(instance id, xmlnode x, void *arg) {
         return r_PASS;
     }
 
-    log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_accept_config performing configuration %s\n",xmlnode2str(x));
+    log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_accept_config performing configuration %s\n", xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
 
     /* Setup the default sink for this instance */ 
     inst              = static_cast<accept_instance>(pmalloco(id->p, sizeof(_accept_instance)));

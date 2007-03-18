@@ -44,7 +44,7 @@ result xdb_results(instance id, dpacket p, void *arg) {
     if(p->type != p_NORM || *(xmlnode_get_localname(p->x)) != 'x' || j_strcmp(xmlnode_get_namespace(p->x), NS_SERVER) != 0)
 	return r_PASS; /* yes, we are matching ANY <x*> element */
 
-    log_debug2(ZONE, LOGT_STORAGE, "xdb_results checking xdb packet %s",xmlnode_serialize_string(p->x, NULL, NULL, 0));
+    log_debug2(ZONE, LOGT_STORAGE, "xdb_results checking xdb packet %s",xmlnode_serialize_string(p->x, xmppd::ns_decl_list(), 0));
 
     if((idstr = xmlnode_get_attrib_ns(p->x, "id", NULL)) == NULL)
 	return r_ERR;
@@ -102,7 +102,7 @@ void xdb_deliver(instance i, xdbcache xc) {
 	    xmlnode_put_attrib_ns(x, "matchpath", NULL, NULL, xc->matchpath);
 	if (xc->namespaces != NULL) {
 	    xmlnode namespaces = xhash_to_xml(xc->namespaces);
-	    xmlnode_put_attrib_ns(x, "matchns", NULL, NULL, xmlnode_serialize_string(namespaces, NULL, NULL, 0));
+	    xmlnode_put_attrib_ns(x, "matchns", NULL, NULL, xmlnode_serialize_string(namespaces, xmppd::ns_decl_list(), 0));
 	    xmlnode_free(namespaces);
 	}
     }
@@ -111,7 +111,7 @@ void xdb_deliver(instance i, xdbcache xc) {
     xmlnode_put_attrib_ns(x, "ns", NULL, NULL, xc->ns);
     snprintf(ids, sizeof(ids), "%d", xc->id);
     xmlnode_put_attrib_ns(x, "id", NULL, NULL, ids); /* to track response */
-    log_debug2(ZONE, LOGT_EXECFLOW, "delivering xdb request: %s", xmlnode_serialize_string(x, NULL, NULL, 0));
+    log_debug2(ZONE, LOGT_EXECFLOW, "delivering xdb request: %s", xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
     deliver(dpacket_new(x), i);
 }
 

@@ -36,10 +36,17 @@
 #include <jabberdlib.h>
 #include <map>
 #include <list>
+#include <sstream>
+#include <stdexcept>
 
 #ifdef POOL_DEBUG
     std::map<pool, std::list< xmlnode > > existing_xmlnodes;
 #endif
+
+// Forward declarations
+static xmlnode_t const* xmlnode_get_firstattrib_const(xmlnode_t const* parent);
+static xmlnode_t const* xmlnode_get_firstchild_const(xmlnode_t const* parent);
+static xmlnode_t const* xmlnode_get_nextsibling_const(xmlnode_t const* sibling);
 
 /* Internal routines */
 
@@ -209,218 +216,116 @@ static void _xmlnode_hide_sibling(xmlnode child) {
 }
 
 /**
- * check if a namespace prefix is already declared as we need it
- *
- * @param nslist_last pointer to the last element in the list of already printed namespace prefix declarations
- * @return 1 if the namespace prefix is already declared as we need it, 0 else
- */
-static int _xmlnode_check_prefix(ns_list_item nslist_last, const char *prefix, const char *ns_iri) {
-    ns_list_item cur = NULL;
-
-    /* iterate backwards on the list */
-    for (cur = nslist_last; cur != NULL; cur = cur->prev) {
-	if (j_strcmp(prefix, cur->prefix) == 0 || (prefix == NULL && cur->prefix == NULL)) {
-	    /* prefix is already declared, does it have the same namespace or do you have to redeclare? */
-	    return j_strcmp(ns_iri, cur->ns_iri) == 0 ? 1 : 0;
-	}
-    }
-
-    /* prefix not found at all */
-    return 0;
-}
-
-/**
- * print an xmlnode document to a spool
+ * print an xmlnode and its childs to an ostream
  *
  * This is a recursive function.
  *
- * @param s the spool to print the xmlnode to
+ * @param s the ostream to print the xmlnode to
  * @param x the xmlnode to print
- * @param nslist_first pointer to the first element in the list of already printed namespace prefix declarations
- * @param nslist_last pointer to the last element in the list of already printed namespace prefix declarations
- * @param ns_replace 0 for no namespace IRI replacing, 1 for replacing 'jabber:server' namespace with 'jabber:client', 2 for replacing 'jabber:server' namespace with 'jabber:component:accept'
+ * @param nslist the list of declared namespaces
+ * @param ns_replace 0 for no namespace IRI replacing, 1 for replacing 'jabber:server' ns with 'jabber:client', 2 for replacing 'jabber:server' ns with 'jabber:component:accept'
+ * @param ns_number the number of the namespace, that should be declared next if needed
  */
-static void _xmlnode_serialize(spool s, xmlnode x, ns_list_item nslist_first, ns_list_item nslist_last, int ns_replace) {
-    xmlnode cur = NULL;
-    xht this_level_prefixes = NULL;
-    int has_childs = 0;
-    ns_list_item stored_nslist_last = nslist_last;
-
-    /* NTYPE_CDATA and NTYPE_ATTRIB are printed inside, we don't handle them as direct arguments! */
-    if (x->type != NTYPE_TAG) {
+static void _xmlnode_serialize(std::ostream& s, xmlnode_t const* x, xmppd::ns_decl_list nslist, int ns_replace, int ns_number = 0) {
+    // print out NTYPE_CDATA?
+    if (x->type == NTYPE_CDATA) {
+	s << strescape(xmlnode_get_data(const_cast<xmlnode>(x)));
 	return;
     }
 
-    /* create a hash of prefix declarations done at this level */
-    this_level_prefixes = xhash_new(101);
-
-    /* write the start tag */
-    spool_add(s, "<");
-    if (x->prefix != NULL) {
-	spool_add(s, x->prefix);
-	spool_add(s, ":");
-    }
-    spool_add(s, x->name);
-
-    /* do we have to declare the namespace of this element's name? */
-    if (_xmlnode_check_prefix(nslist_last, x->prefix, x->ns_iri) == 0) {
-	if (x->prefix == NULL) {
-	    spool_add(s, " xmlns='");
-	} else {
-	    spool_add(s, " xmlns:");
-	    spool_add(s, x->prefix);
-	    spool_add(s, "='");
+    // print out NTYPE_ATTRIB?
+    if (x->type == NTYPE_ATTRIB) {
+	// do we have to print a prefix? (if yes: hopefully it is defined, else we get an exception)
+	if (x->ns_iri) {
+	    s << nslist.get_nsprefix(x->ns_iri) << ':';
 	}
-	if (ns_replace && j_strcmp(x->ns_iri, NS_SERVER) == 0) {
-	    switch (ns_replace) {
-		case 1:
-		    spool_add(s, NS_CLIENT);
-		    break;
-		case 2:
-		    spool_add(s, NS_COMPONENT_ACCEPT);
-		    break;
-		default:
-		    spool_add(s, NS_SERVER);
-	    }
-	} else {
-	    spool_add(s, strescape(s->p, x->ns_iri));
-	}
-	spool_add(s, "'");
 
-	xhash_put(this_level_prefixes, x->prefix ? x->prefix : "", x->ns_iri);
+	// print local name and value
+	s << x->name << "='" << strescape(xmlnode_get_data(const_cast<xmlnode>(x))) << "'";
 
-	xmlnode_update_decl_list(s->p, &nslist_first, &nslist_last, x->prefix, x->ns_iri);
+	// we are done with the attribute
+	return;
     }
 
-    /* print attributes, that do not declare a namespace */
-    for (cur = xmlnode_get_firstattrib(x); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
-	if (j_strcmp(cur->ns_iri, NS_XMLNS) == 0) {
-	    /* it is a namespace prefix declaration */
-	    continue;
-	}
+    // It's NTYPE_TAG if we reach here ...
+    s << '<';
 
-	spool_add(s, " ");
-
-	/* does this attribute has a namespace? If yes: do you have to declare it? */
-	if (cur->prefix) {
-	    if (j_strcmp(cur->prefix, "xml") != 0) {
-		if (_xmlnode_check_prefix(nslist_last, cur->prefix, cur->ns_iri) == 0) {
-		    /* we need to declare the namespace */
-		    /* XXX: do we conflict a namespace declaration in this element? We have to rename the prefix then? */
-
-		    spool_add(s, "xmlns");
-		    if (cur->prefix != NULL) {
-			spool_add(s, ":");
-			spool_add(s, cur->prefix);
-		    }
-		    spool_add(s, "='");
-		    if (ns_replace && j_strcmp(x->ns_iri, NS_SERVER) == 0) {
-			switch (ns_replace) {
-			    case 1:
-				spool_add(s, NS_CLIENT);
-				break;
-			    case 2:
-				spool_add(s, NS_COMPONENT_ACCEPT);
-				break;
-			    default:
-				spool_add(s, NS_SERVER);
-			}
-		    } else {
-			spool_add(s, strescape(s->p, cur->ns_iri));
-		    }
-		    spool_add(s, "' ");
-
-		    xhash_put(this_level_prefixes, cur->prefix ? cur->prefix : "", cur->ns_iri);
-
-		    xmlnode_update_decl_list(s->p, &nslist_first, &nslist_last, cur->prefix, cur->ns_iri);
-		}
-	    }
-
-	    spool_add(s, cur->prefix); /* XXX probably use renamed prefix! */
-	    spool_add(s, ":");
-	}
-
-	spool_add(s, cur->name);
-	spool_add(s, "='");
-	spool_add(s, strescape(s->p, xmlnode_get_data(cur)));
-	spool_add(s, "'");
+    // We use the default namespace for everything but NS_STREAM
+    bool stream_ns = false;
+    if (x->ns_iri && std::string(NS_STREAM) == x->ns_iri) {
+	s << "stream:";
+	stream_ns = true;
     }
 
-    /* print namespace declarations for namespaces, that are not yet declared */
-    for (cur = xmlnode_get_firstattrib(x); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
-	if (j_strcmp(cur->ns_iri, NS_XMLNS) != 0) {
-	    /* normal attribute, not a namespace declaration */
-	    continue;
-	}
-	
-	/* already declared here or at higher level? */
-	if (xhash_get(this_level_prefixes, cur->prefix ? cur->name : "") != NULL || _xmlnode_check_prefix(nslist_last, cur->prefix ? cur->name : NULL, xmlnode_get_data(cur)) == 1) {
-	    /* yes, no need to print */
-	    continue;
-	}
+    // write the local name
+    s << x->name;
 
-	/* print the declaration */
-	spool_add(s, " ");
-	if (cur->prefix != NULL) {
-	    spool_add(s, cur->prefix);
-	    spool_add(s, ":");
+    // do we have to redeclare a namespace?
+    if (stream_ns) {
+	// NS_STREAM already bound to the stream prefix?
+	if (!nslist.check_prefix("stream", NS_STREAM)) {
+	    s << " xmlns:stream='" NS_STREAM "'";
+	    nslist.update("stream", NS_STREAM);
 	}
-	spool_add(s, cur->name);
-	spool_add(s, "='");
-	if (ns_replace && j_strcmp(xmlnode_get_data(cur), NS_SERVER) == 0) {
-	    switch (ns_replace) {
-		case 1:
-		    spool_add(s, NS_CLIENT);
-		    break;
-		case 2:
-		    spool_add(s, NS_COMPONENT_ACCEPT);
-		    break;
-		default:
-		    spool_add(s, NS_SERVER);
-	    }
-	} else {
-	    spool_add(s, strescape(s->p, xmlnode_get_data(cur)));
-	}
-	spool_add(s, "'");
-    }
-
-    /* we don't need the list of prefixes defined at this level anymore */
-    xhash_free(this_level_prefixes);
-    this_level_prefixes = NULL;
-  
-    /* write childs */
-    for (cur = xmlnode_get_firstchild(x); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
-	/* close the start tag now? */
-	if (has_childs == 0) {
-	    spool_add(s,">");
-	    has_childs = 1;
-	}
-
-	switch (cur->type) {
-	    case NTYPE_TAG:
-		_xmlnode_serialize(s, cur, nslist_first, nslist_last, ns_replace);
-		break;
-	    case NTYPE_CDATA:
-		spool_add(s, strescape(s->p, xmlnode_get_data(cur)));
-	}
-    }
-
-    /* write the end tag */
-    if (has_childs > 0) {
-	spool_add(s, "</");
-	if (x->prefix != NULL) {
-	    spool_add(s, x->prefix);
-	    spool_add(s, ":");
-	}
-	spool_add(s, x->name);
-	spool_add(s, ">");
     } else {
-	spool_add(s, "/>");
+	// use the default namespace, check if it has to be redeclared
+	if (!nslist.check_prefix("", x->ns_iri ? x->ns_iri : "")) {
+	    char const* ns_iri = x->ns_iri ? x->ns_iri : "";
+	    if (ns_replace && std::string(ns_iri) == NS_SERVER) {
+		ns_iri = ns_replace == 1 ? NS_CLIENT : ns_replace == 2 ? NS_COMPONENT_ACCEPT : NS_SERVER;
+	    }
+	    s << " xmlns='" << strescape(ns_iri) << "'";
+	    nslist.update("", x->ns_iri ? x->ns_iri : "");
+	}
     }
 
-    /* update ns_list: remove what we added */
-    if (stored_nslist_last != NULL) {
-	stored_nslist_last->next = NULL;
+    // serialize attributes on this element
+    for (xmlnode_t const* cur = xmlnode_get_firstattrib_const(x); cur != NULL; cur = xmlnode_get_nextsibling_const(cur)) {
+	// does the attribute have a namespace IRI?
+	if (cur->ns_iri) {
+	    // attributes that are just namespace declarations are not serialized, they are created as needed automatically
+	    if (std::string(NS_XMLNS) == cur->ns_iri)
+		continue;
+
+	    // check if we need to declare a namespace prefix for this attribute
+	    try {
+		nslist.get_nsprefix(cur->ns_iri);
+	    } catch (std::invalid_argument) {
+		// we have to declare a new prefix, create one
+		std::ostringstream ns;
+		ns << "ns" << ns_number++;
+		s << " xmlns:" << ns.str() << "='" << strescape(cur->ns_iri) << "'";
+		nslist.update(ns.str(), cur->ns_iri);
+	    }
+	}
+
+	// serialize the attribute
+	s << ' ';
+	_xmlnode_serialize(s, cur, nslist, ns_replace, ns_number);
+    }
+
+    // serialize child nodes
+    bool has_childs = false;
+    for (xmlnode_t const* cur = xmlnode_get_firstchild_const(x); cur != NULL; cur = xmlnode_get_nextsibling_const(cur)) {
+	// first child? then close the opening tag
+	if (!has_childs) {
+	    s << ">";
+	    has_childs = true;
+	}
+
+	// serialize the child
+	_xmlnode_serialize(s, cur, nslist, ns_replace, ns_number);
+    }
+
+    // write the end tag
+    if (has_childs) {
+	s << "</";
+	if (stream_ns) {
+	    s << "stream:";
+	}
+	s << x->name << ">";
+    } else {
+	s << "/>";
     }
 }
 
@@ -1323,6 +1228,10 @@ xmlnode xmlnode_get_firstattrib(xmlnode parent) {
     return NULL;
 }
 
+static xmlnode_t const* xmlnode_get_firstattrib_const(xmlnode_t const* parent) {
+    return parent ? parent->firstattrib : NULL;
+}
+
 /**
  * get the first child node of a node
  *
@@ -1335,6 +1244,10 @@ xmlnode xmlnode_get_firstchild(xmlnode parent) {
     if (parent != NULL)
 	return parent->firstchild;
     return NULL;
+}
+
+static xmlnode_t const* xmlnode_get_firstchild_const(xmlnode_t const* parent) {
+    return parent ? parent->firstchild : NULL;
 }
 
 /**
@@ -1363,6 +1276,10 @@ xmlnode xmlnode_get_nextsibling(xmlnode sibling) {
     if (sibling != NULL)
 	return sibling->next;
     return NULL;
+}
+
+static xmlnode_t const* xmlnode_get_nextsibling_const(xmlnode_t const* sibling) {
+    return sibling ? sibling->next : NULL;
 }
 
 /**
@@ -1585,32 +1502,6 @@ void xmlnode_hide_attrib_ns(xmlnode parent, const char *name, const char *ns_iri
 }
 
 /**
- * convert given xmlnode tree into a string
- *
- * This function guesses, that it is writing a stanza on a stream where the default prefix is declared to
- * be 'jabber:server', 'jabber:client', or 'jabber:component:accept' and the namespace prefix stream is
- * declared to be 'http://etherx.jabber.org/streams'.
- *
- * @deprecated this function is not aware of correct namespace handling. Use xmlnode_serialize_string() instead
- *
- * @param node pointer to the xmlnode tree that should be printed to the string
- * @return pointer to the created string (uses the same memory ::pool as the xmlnode), or NULL if it was unsuccessfull
- */
-char *xmlnode2str(xmlnode node) {
-    spool s = NULL;
-    ns_list_item first = NULL;
-    ns_list_item last = NULL;
-
-    /* expect we are serializing a stanza on a standard stream */
-    xmlnode_update_decl_list(xmlnode_pool(node), &first, &last, NULL, NS_SERVER);
-    xmlnode_update_decl_list(xmlnode_pool(node), &first, &last, "stream", NS_STREAM);
-    
-    s = spool_new(xmlnode_pool(node));
-    _xmlnode_serialize(s, node, first, last, 0);
-    return spool_print(s);
-}
-
-/**
  * serialize a given xmlnode to a string
  *
  * This function can be used to serialize a stanza. As a stanza is typically written to an XML stream, there might be
@@ -1632,21 +1523,23 @@ char *xmlnode2str(xmlnode node) {
  * serialized as the right namespace. This is controled by the stream_type argument.
  *
  * @param node the base xmlnode of the tree, that should be serialized
- * @param nslist_first pointer to the first element of already declared namespaces
- * @param nslist_last pointer to the last element of already declared namespaces
+ * @param nslist list of already declared namespaces
  * @param stream_type 0 for a 'jabber:server' stream, 1 for a 'jabber:client' stream, 2 for a 'jabber:component:accept' stream
  * @return serialized XML tree
  */
-char *xmlnode_serialize_string(xmlnode node, ns_list_item nslist_first, ns_list_item nslist_last, int stream_type) {
-    spool s = NULL;
-
-    /* sanity check */
-    if (node == NULL)
+char* xmlnode_serialize_string(xmlnode_t const* node, const xmppd::ns_decl_list& nslist, int stream_type) {
+    // sanity check
+    if (!node)
 	return NULL;
 
-    s = spool_new(xmlnode_pool(node));
-    _xmlnode_serialize(s, node, nslist_first, nslist_last, stream_type);
-    return spool_print(s);
+    // create an ostream where we can write the serialization to
+    std::ostringstream s;
+
+    // serialize
+    _xmlnode_serialize(s, node, nslist, stream_type);
+
+    // return result
+    return pstrdup(xmlnode_pool(const_cast<xmlnode>(node)), s.str().c_str());
 }
 
 /**
@@ -1830,102 +1723,6 @@ void xmlnode_free(xmlnode node) {
 }
 
 /**
- * add a declared prefix to the list of namespace prefix declarations
- *
- * @param p memory pool to allocate memory for the items
- * @param first_item_ptr pointer to the pointer to the first list element
- * @param last_item_ptr pointer to the pointer to the last list element
- * @param prefix namespace prefix to add
- * @param ns_iri namespace IRI to add
- */
-void xmlnode_update_decl_list(pool p, ns_list_item *first_item_ptr, ns_list_item *last_item_ptr, const char *prefix, const char *ns_iri) {
-    ns_list_item new_item = NULL;
-
-    /* sanity check */
-    if (p == NULL || first_item_ptr == NULL || last_item_ptr == NULL)
-	return;
-
-    /* 'jabber:client' and 'jabber:component:accept' are represented as 'jabber:server' internally */
-    if (j_strcmp(ns_iri, NS_CLIENT) == 0)
-	ns_iri = NS_SERVER;
-    else if (j_strcmp(ns_iri, NS_COMPONENT_ACCEPT) == 0)
-	ns_iri = NS_SERVER;
-
-    /* create the new item */
-    new_item = static_cast<ns_list_item>(pmalloco(p, sizeof(_ns_list_item)));
-    new_item->prefix = pstrdup(p, prefix);
-    new_item->ns_iri = pstrdup(p, ns_iri);
-
-    /* first item in list? */
-    if (*first_item_ptr == NULL || *last_item_ptr == NULL) {
-	*first_item_ptr = new_item;
-	*last_item_ptr = new_item;
-	return;
-    }
-
-    /* append to the end of the list */
-    (*last_item_ptr)->next = new_item;
-    new_item->prev = (*last_item_ptr);
-    *last_item_ptr = new_item;
-}
-
-/**
- * copy a list of declared namespaces
- *
- * @param p Memory pool used to allocate memory for the copy of the list
- * @param first where to start copying
- * @param copy_first pointer to a ::ns_list_item variable, where the pointer to the first element of the copy will be stored
- * @param copy_last pointer to a ::ns_list_item variable, where the pointer to the last element of the copy will be stored
- */
-void xmlnode_copy_decl_list(pool p, ns_list_item first, ns_list_item *copy_first, ns_list_item *copy_last) {
-    ns_list_item iter = NULL;
-
-    /* at the beginning there was nothing */
-    *copy_first = NULL;
-    *copy_last = NULL;
-
-    /* copy the items */
-    for (iter = first; iter != NULL; iter = iter->next) {
-	xmlnode_update_decl_list(p, copy_first, copy_last, iter->prefix, iter->ns_iri);
-    }
-}
-
-/**
- * get the list of declared namespaces from an xmlnode
- *
- * @param p memory pool used to allocate memory for the list
- * @param node xmlnode to get the declared namespaces from
- * @param first_ns pointer to where a pointer to the first entry should be stored
- * @param last_ns pointer to where a pointer to the last entry should be stored
- */
-void xmlnode_get_decl_list(pool p, xmlnode node, ns_list_item *first_ns, ns_list_item *last_ns) {
-    xmlnode iter = NULL;
-
-    /* sanity checks */
-    if (p == NULL || node == NULL || first_ns == NULL || last_ns == NULL) {
-	return;
-    }
-
-    /* start with an empty list */
-    *first_ns = NULL;
-    *last_ns = NULL;
-
-    /* iterate on attributes to get namespaces */
-    for (iter = xmlnode_get_firstattrib(node); iter != NULL; iter = xmlnode_get_nextsibling(iter)) {
-	if (j_strcmp(xmlnode_get_namespace(iter), NS_XMLNS) != 0) {
-	    /* not a namespace declaration */
-	    continue;
-	}
-
-	/* declaring default namespace? */
-	if (iter->prefix == NULL)
-	    xmlnode_update_decl_list(p, first_ns, last_ns, NULL, xmlnode_get_data(iter));
-	else
-	    xmlnode_update_decl_list(p, first_ns, last_ns, xmlnode_get_localname(iter), xmlnode_get_data(iter));
-    }
-}
-
-/**
  * get the declared language of a node
  *
  * @param node the node to get the language for
@@ -1948,103 +1745,6 @@ const char* xmlnode_get_lang(xmlnode node) {
 
     /* it's the language of the parent, that we have as well */
     return xmlnode_get_lang(node->parent);
-}
-
-/**
- * delete the last occurence for a prefix declaration in a list of namespace declarations
- *
- * @param first_ns pointer to the pointer of the first list element (might get updated)
- * @param last_ns pointer to the pointer of the last list element (might get updated)
- * @param prefix the prefix, that should be deleted
- */
-void xmlnode_delete_last_decl(ns_list_item *first_ns, ns_list_item *last_ns, const char *prefix) {
-    ns_list_item iter = NULL;
-    
-    /* sanity check */
-    if (first_ns == NULL || last_ns == NULL) {
-	return;
-    }
-
-    /* nothing to do if there is no list */
-    if (*first_ns == NULL || *last_ns == NULL) {
-	return;
-    }
-
-    /* find last declaration */
-    for (iter = *last_ns; iter != NULL; iter = iter->prev) {
-	/* is it the prefix we are searching for? */
-	if (j_strcmp(iter->prefix, prefix) == 0)
-	    break;
-    }
-
-    /* prefix found? */
-    if (iter == NULL)
-	return; /* no */
-
-    /* delete the prefix */
-    if (iter->prev != NULL) {
-	/* if it isn't the first list item, we have to update the item before this one */
-	iter->prev->next = iter->next;
-    } else {
-	/* if it is the first item, we have up update the start of the list */
-	*first_ns = iter->next;
-    }
-    if (iter->next != NULL) {
-	/* if it isn't the last list item, we have to update the item after this one */
-	iter->next->prev = iter->prev;
-    } else {
-	/* if it is the last item, we have to update the end of the list */
-	*last_ns = iter->prev;
-    }
-}
-
-/**
- * get a prefix for the namespace IRI in the list of declared namespaces
- *
- * @param last_ns pointer to the last list item
- * @param iri namespace IRI to search for
- * @return prefix found for this namespace, NULL if not found, "" if default prefix
- */
-const char *xmlnode_list_get_nsprefix(ns_list_item last_ns, const char *iri) {
-    ns_list_item iter = NULL;
-
-    /* this prefix is aways defined */
-    if (j_strcmp(iri, NS_XML) == 0) {
-	return "xml";
-    }
-
-    /* iterate the list backwards */
-    for (iter = last_ns; iter != NULL; iter = iter->prev) {
-	/* does this item declare the right namespace? */
-	if (j_strcmp(iter->ns_iri, iri) == 0) {
-	    return iter->prefix == NULL ? "" : iter->prefix;
-	}
-    }
-
-    /* nothing found */
-    return NULL;
-}
-
-/**
- * get the namespace IRI for a prefix
- *
- * @param last_ns pointer to the last list item
- * @param prefix the prefix to search the IRI for
- * @return namespace IRI assigned to the prefix, NULL if no such prefix
- */
-const char *xmlnode_list_get_nsiri(ns_list_item last_ns, const char *prefix) {
-    ns_list_item iter = NULL;
-
-    /* iterate the list backwards */
-    for (iter = last_ns; iter != NULL; iter = iter->prev) {
-	/* does this item define the right prefix? */
-	if ((prefix == NULL && iter->prefix == NULL) || j_strcmp(iter->prefix, prefix) == 0) {
-	    return iter->ns_iri;
-	}
-    }
-
-    /* nothing found */
-    return NULL;
 }
 
 /**
@@ -2135,6 +1835,134 @@ xmlnode xmlnode_select_by_lang(xmlnode_list_item nodes, const char* lang) {
 
     /* no match by language, either return node without language (prefered), or first node */
     return first_without_lang != NULL ? first_without_lang : nodes->node;
+}
+
+namespace xmppd {
+    /**
+     * Create an empty namespace declaration list
+     */
+    ns_decl_list::ns_decl_list() {
+	update("xml", NS_XML);
+	update("xmlns", NS_XMLNS);
+    }
+
+    /**
+     * create a namespace declaration list from the namespaces defined on a node
+     */
+    ns_decl_list::ns_decl_list(const xmlnode node) {
+	update("xml", NS_XML);
+	update("xmlns", NS_XMLNS);
+
+	// sanity check
+	if (node == NULL) {
+	    return;
+	}
+
+	// iterate on attributes to get namespaces
+	for (xmlnode iter = xmlnode_get_firstattrib(node); iter != NULL; iter = xmlnode_get_nextsibling(iter)) {
+	    char const* const attrib_ns = xmlnode_get_namespace(iter);
+
+	    // check if it declares a namespace
+	    if (attrib_ns == NULL)
+		continue;
+	    if (std::string(NS_XMLNS) != attrib_ns)
+		continue;
+
+	    // the defined namespace
+	    char const* ns_iri = xmlnode_get_data(iter);
+	    if (ns_iri == NULL)
+		ns_iri = "";
+
+	    // does it define the default namespace?
+	    if (iter->prefix == NULL)
+		update("", ns_iri);
+	    else
+		update(xmlnode_get_localname(iter), ns_iri);
+	}
+    }
+
+    /**
+     * add a declared prefix to the list of namespace prefix declarations
+     *
+     * @param prefix namespace prefix to add
+     * @param ns_iri namespace IRI to add
+     */
+    void ns_decl_list::update(const std::string& prefix, const std::string& ns_iri) {
+	std::pair<std::string, std::string> new_declaration(prefix, ns_iri);
+	push_back(new_declaration);
+    }
+
+    /**
+     * delete the last declaration of a prefix
+     *
+     * @param prefix the prefix, that should get undeclared
+     */
+    void ns_decl_list::delete_last(const std::string& prefix) {
+	ns_decl_list::reverse_iterator p;
+	for (p = rbegin(); p != rend(); ++p) {
+	    if (p->first == prefix) {
+		erase((++p).base());
+		return;
+	    }
+	}
+    }
+
+    /**
+     * get the latest prefix, that is bould to a namespace IRI
+     *
+     * @param iri the namespace IRI to search for
+     * @return the latest prefix, that is bould to this namespace IRI
+     * @throws std::invalid_argument if namespace is not declared
+     */
+    char const* ns_decl_list::get_nsprefix(const std::string& iri) const {
+	ns_decl_list::const_reverse_iterator p;
+	for (p = rbegin(); p != rend(); ++p) {
+	    if (p->second == iri) {
+		return p->first.c_str();
+	    }
+	}
+
+	// namespace is not declared
+	throw std::invalid_argument("Namespace currently not declared");
+    }
+
+    /**
+     * get the namespace IRI, that is currently bound to a namespace prefix
+     *
+     * @param prefix the namespace prefix to check
+     * @return the namespace IRI the prefix is bound to, NULL if the prefix is not declared
+     * @throws std::invalid_argument if prefix is not bound to a namespace
+     */
+    char const* ns_decl_list::get_nsiri(const std::string& prefix) const {
+	ns_decl_list::const_reverse_iterator p;
+	for (p = rbegin(); p != rend(); ++p) {
+	    if (p->first == prefix) {
+		return p->second.c_str();
+	    }
+	}
+
+	// prefix is not bound
+	throw std::invalid_argument("Namespace prefix not bound to a namespace");
+    }
+
+    /**
+     * check if a namespace is already declared as we need it
+     *
+     * @param prefix the prefix we want to check
+     * @param ns_iri the IRI we check if the prefix maps to it
+     * @return true if the namespace prefix is already declared as we need it
+     */
+    bool ns_decl_list::check_prefix(const std::string& prefix, const std::string& ns_iri) const {
+	try {
+	    char const* const current_value = get_nsiri(prefix);
+
+	    // what we expect?
+	    return ns_iri == current_value;
+	} catch (std::invalid_argument) {
+	    // prefix not declared at all
+	    return false;
+	}
+    }
 }
 
 #ifdef POOL_DEBUG

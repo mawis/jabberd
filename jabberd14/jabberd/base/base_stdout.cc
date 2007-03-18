@@ -158,7 +158,7 @@ static void *base_stdoutin(void *arg) {
             p = d->p;
 
             /* write packet phase */
-            block = xmlnode_serialize_string(p->x, NULL, NULL, 0);
+            block = xmlnode_serialize_string(p->x, xmppd::ns_decl_list(), 0);
             if (pth_write(STDOUT_FILENO, block, strlen(block)) <= 0)
                 break;
 

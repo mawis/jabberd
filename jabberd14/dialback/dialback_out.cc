@@ -299,12 +299,12 @@ void dialback_out_packet(db d, xmlnode x, char *ip) {
     to = jid_new(xmlnode_pool(x),xmlnode_get_attrib_ns(x, "to", NULL));
     from = jid_new(xmlnode_pool(x),xmlnode_get_attrib_ns(x, "from", NULL));
     if (to == NULL || from == NULL) {
-        log_warn(d->i->id, "dropping packet, invalid to or from: %s", xmlnode_serialize_string(x, NULL, NULL, 0));
+        log_warn(d->i->id, "dropping packet, invalid to or from: %s", xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
         xmlnode_free(x);
         return;
     }
 
-    log_debug2(ZONE, LOGT_IO, "dbout packet[%s]: %s", ip, xmlnode_serialize_string(x, NULL, NULL, 0));
+    log_debug2(ZONE, LOGT_IO, "dbout packet[%s]: %s", ip, xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
 
     /* db:verify packets come in with us as the sender */
     if (j_strcmp(from->server, d->i->id) == 0) {
@@ -359,7 +359,7 @@ void dialback_out_packet(db d, xmlnode x, char *ip) {
     }
 
     if (c == NULL) {
-        log_warn(d->i->id, "dropping a packet that was missing an ip to connect to: %s", xmlnode_serialize_string(x, NULL, NULL, 0));
+        log_warn(d->i->id, "dropping a packet that was missing an ip to connect to: %s", xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
         xmlnode_free(x);
         return;
     }
@@ -508,7 +508,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 	    return;
 
 	case MIO_XML_ROOT:
-	    log_debug2(ZONE, LOGT_IO, "Incoming root %s", xmlnode_serialize_string(x, NULL, NULL, 0));
+	    log_debug2(ZONE, LOGT_IO, "Incoming root %s", xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
 	    if (c->connection_state != sasl_success)
 		c->connection_state = got_streamroot;
 	    else {
@@ -516,13 +516,6 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 		    c->settings_failed = 1;
 		    break;
 		}
-	    }
-
-	    /* validate namespace */
-	    if (xmlnode_list_get_nsprefix(m->in_last_ns_root, NS_SERVER) == NULL) {
-		mio_write(m, NULL, "<stream:error><invalid-namespace xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>'" NS_SERVER "' namespace not declared on the stream root element.</text></stream:error>", -1);
-		mio_close(m);
-		break;
 	    }
 
 	    /* remember the stream id the connected entity assigned ... required to do dialback */
@@ -543,7 +536,12 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 
 	    /* check version */
 	    c->xmpp_version = j_atoi(xmlnode_get_attrib_ns(x, "version", NULL), 0);
-	    c->flags.db = xmlnode_list_get_nsprefix(m->in_last_ns_root, NS_DIALBACK) != NULL ? 1 : 0;
+	    try {
+		m->in_root->get_nsprefix(NS_DIALBACK);
+		c->flags.db = 1;
+	    } catch (std::invalid_argument) {
+		c->flags.db = 0;
+	    }
 
 	    /* deprecated non-dialback protocol, reject connection */
 	    if (c->xmpp_version < 1 && !c->flags.db) {
@@ -692,7 +690,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 			    continue;
 
 			/* SASL EXTERNAL is supported: use it */
-			log_debug2(ZONE, LOGT_IO, "SASL EXTERNAL seems to be supported: %s", xmlnode_serialize_string(mechanisms, NULL, NULL, 0));
+			log_debug2(ZONE, LOGT_IO, "SASL EXTERNAL seems to be supported: %s", xmlnode_serialize_string(mechanisms, xmppd::ns_decl_list(), 0));
 			auth = xmlnode_new_tag_ns("auth", NULL, NS_XMPP_SASL);
 			xmlnode_put_attrib_ns(auth, "mechanism", NULL, NS_XMPP_SASL, xmlnode_get_data(mechanism));
 
@@ -703,7 +701,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 			xmlnode_insert_cdata(auth, base64_source_domain, -1);
 
 			/* send the initial exchange */
-			log_debug2(ZONE, LOGT_IO, "trying authentication: %s", xmlnode_serialize_string(auth, NULL, NULL, 0));
+			log_debug2(ZONE, LOGT_IO, "trying authentication: %s", xmlnode_serialize_string(auth, xmppd::ns_decl_list(), 0));
 			mio_write(m, auth, NULL, 0);
 
 			c->db_state = sent_request;
@@ -774,7 +772,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 
 	    /* watch for SASL success */
 	    if (j_strcmp(xmlnode_get_localname(x), "success") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_XMPP_SASL) == 0) {
-		log_debug2(ZONE, LOGT_IO, "SASL success response: %s", xmlnode_serialize_string(x, NULL, NULL, 0));
+		log_debug2(ZONE, LOGT_IO, "SASL success response: %s", xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
 
 		c->connection_state = sasl_success;
 
@@ -789,13 +787,13 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 
 	    /* watch for SASL failure */
 	    if (j_strcmp(xmlnode_get_localname(x), "failure") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_XMPP_SASL) == 0) {
-		log_debug2(ZONE, LOGT_IO, "SASL failure response: %s", xmlnode2str(x));
+		log_debug2(ZONE, LOGT_IO, "SASL failure response: %s", xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
 		
 		/* something went wrong, we were invalid? */
 		c->connection_state = sasl_fail;
 		if (c->connect_results != NULL) {
 		    spool_add(c->connect_results, " (SASL EXTERNAL auth failed: ");
-		    spool_add(c->connect_results, xmlnode_serialize_string(x, NULL, NULL, 0));
+		    spool_add(c->connect_results, xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
 		    spool_add(c->connect_results, ")");
 		}
 		log_alert(c->d->i->id, "SASL EXTERNAL authentication failed on authenticating ourselfs to %s (sending name: %s)", c->key->server, c->key->resource);
@@ -852,7 +850,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 		return;
 	    }
 
-	    log_warn(c->d->i->id,"Dropping connection due to illegal incoming packet on an unverified socket from %s to %s (%s): %s",c->key->resource,c->key->server, mio_ip(m), xmlnode_serialize_string(x, NULL, NULL, 0));
+	    log_warn(c->d->i->id,"Dropping connection due to illegal incoming packet on an unverified socket from %s to %s (%s): %s",c->key->resource,c->key->server, mio_ip(m), xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
 	    mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Not Allowed to send data on this socket!</text></stream:error>", -1);
 	    mio_close(m);
 	    break;

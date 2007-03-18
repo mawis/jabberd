@@ -92,7 +92,7 @@ static mreturn mod_xml_set(mapi m, void *arg) {
 		    /* prepare result */
 		    jutil_iqresult(m->packet->x);
 		}
-		log_debug2(ZONE, LOGT_STORAGE, "found node: %s", xmlnode_serialize_string(result_item->node, NULL, NULL, 0));
+		log_debug2(ZONE, LOGT_STORAGE, "found node: %s", xmlnode_serialize_string(result_item->node, xmppd::ns_decl_list(), 0));
 		xmlnode_hide_attrib_ns(result_item->node, "ns", NS_JABBERD_WRAPPER);
 		xmlnode_insert_tag_node(m->packet->x, result_item->node);
 	    }
@@ -122,7 +122,7 @@ static mreturn mod_xml_set(mapi m, void *arg) {
 	    break;
 
 	case JPACKET__SET:
-	    log_debug2(ZONE, LOGT_DELIVER|LOGT_STORAGE, "handling set request for %s with data %s", ns, xmlnode_serialize_string(inx, NULL, NULL, 0));
+	    log_debug2(ZONE, LOGT_DELIVER|LOGT_STORAGE, "handling set request for %s with data %s", ns, xmlnode_serialize_string(inx, xmppd::ns_decl_list(), 0));
 
 	    is_delete = (xmlnode_get_firstchild(inx) == NULL);
 

@@ -302,7 +302,7 @@ static void deliver_internal(dpacket p, instance i) {
     xmlnode x;
     char *ns = xmlnode_get_attrib_ns(p->x, "ns", NULL);
 
-    log_debug2(ZONE, LOGT_DELIVER, "@-internal processing %s", xmlnode_serialize_string(p->x, NULL, NULL, 0));
+    log_debug2(ZONE, LOGT_DELIVER, "@-internal processing %s", xmlnode_serialize_string(p->x, xmppd::ns_decl_list(), 0));
 
     if(j_strcmp(p->id->user,"config") == 0) {
 	/* config@-internal means it's a special xdb request to get data from the config file */
@@ -611,7 +611,7 @@ void deliver(dpacket p, instance i) {
         return;
     }
 
-    log_debug2(ZONE, LOGT_DELIVER, "DELIVER %d:%s %s", p->type, p->host, xmlnode_serialize_string(p->x, NULL, NULL, 0));
+    log_debug2(ZONE, LOGT_DELIVER, "DELIVER %d:%s %s", p->type, p->host, xmlnode_serialize_string(p->x, xmppd::ns_decl_list(), 0));
 
     b = NULL;
     a = deliver_hashmatch(deliver_hashtable(p->type), p->host);
@@ -771,7 +771,7 @@ void deliver_fail(dpacket p, const char *err) {
     switch (p->type) {
 	case p_LOG:
 	    /* stderr and drop */
-	    snprintf(message, sizeof(message), "WARNING!  Logging Failed: %s\n", xmlnode_serialize_string(p->x, NULL, NULL, 0));
+	    snprintf(message, sizeof(message), "WARNING!  Logging Failed: %s\n", xmlnode_serialize_string(p->x, xmppd::ns_decl_list(), 0));
 	    fprintf(stderr, "%s\n", message);
 	    pool_free(p->p);
 	    break;
@@ -927,7 +927,7 @@ dpacket dpacket_new(xmlnode x) {
         p->id = jid_new(p->p, xmlnode_get_attrib_ns(x, "to", NULL));
 
     if(p->id == NULL) {
-        log_warn(NULL,"Packet Delivery Failed, invalid packet, dropping %s",xmlnode_serialize_string(x, NULL, NULL, 0));
+        log_warn(NULL,"Packet Delivery Failed, invalid packet, dropping %s",xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
         xmlnode_free(x);
         return NULL;
     }
@@ -955,7 +955,7 @@ dpacket dpacket_new(xmlnode x) {
 	    break;
     }
     if (p==NULL) {
-        log_warn(NULL, "Packet Delivery Failed, invalid packet, dropping %s",xmlnode_serialize_string(x, NULL, NULL, 0));
+        log_warn(NULL, "Packet Delivery Failed, invalid packet, dropping %s",xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
         xmlnode_free(x);
         return NULL;
     }
