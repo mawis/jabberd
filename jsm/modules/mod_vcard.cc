@@ -110,7 +110,7 @@ static mreturn mod_vcard_set(mapi m, void *arg) {
 
 	    break;
 	case JPACKET__SET:
-	    log_debug2(ZONE, LOGT_DELIVER, "handling set request %s",xmlnode_serialize_string(m->packet->iq, NULL, NULL, 0));
+	    log_debug2(ZONE, LOGT_DELIVER, "handling set request %s",xmlnode_serialize_string(m->packet->iq, xmppd::ns_decl_list(), 0));
 
 	    /* save and send response to the user */
 	    if (xdb_set(m->si->xc, m->user->id, NS_VCARD, m->packet->iq)) {

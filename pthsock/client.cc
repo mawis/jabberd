@@ -214,25 +214,7 @@ static result pthsock_client_packets(instance id, dpacket p, void *arg) {
     if (xmlnode_get_firstchild(p->x) == NULL || xhash_get(s__i->users, xmlnode_get_attrib_ns(p->x, "to", NULL)) == NULL) {
         xmlnode_free(p->x);
     } else {
-        /* change the to name to match what the client wants to hear 
-	 * jer: I have no sympathy for clients that can't handle this right, they should check the stream from="" anyway
-        if(cdcur->aliased)
-        {
-            jid j = jid_new(p->p, xmlnode_get_attrib(xmlnode_get_firstchild(p->x), "to"));
-            if(j != NULL && j_strcmp(j->server, cdcur->sending_id->server) != 0)
-            {
-                jid_set(j, cdcur->sending_id->server, JID_SERVER);
-                xmlnode_put_attrib(xmlnode_get_firstchild(p->x), "to", jid_full(j));
-            }
-
-            j = jid_new(p->p, xmlnode_get_attrib(xmlnode_get_firstchild(p->x), "from"));
-            if(j != NULL && j->user == NULL && j_strcmp(j->server, cdcur->session_id->server) == 0)
-            {
-                jid_set(j, cdcur->sending_id->server, JID_SERVER);
-                xmlnode_put_attrib(xmlnode_get_firstchild(p->x), "from", jid_full(j));
-            }
-        }*/
-        log_debug2(ZONE, LOGT_IO, "[%s] Writing packet to MIO: %s", ZONE, xmlnode_serialize_string(xmlnode_get_firstchild(p->x), NULL, NULL, 0));
+        log_debug2(ZONE, LOGT_IO, "[%s] Writing packet to MIO: %s", ZONE, xmlnode_serialize_string(xmlnode_get_firstchild(p->x), xmppd::ns_decl_list(), 0));
         mio_write(m, xmlnode_get_firstchild(p->x), NULL, 0);
         cdcur->last_activity = time(NULL);
     }
@@ -288,7 +270,7 @@ static void pthsock_client_read(mio m, int flag, void *arg, xmlnode x, char* unu
 		mio_wbq q;
 
 		while ((q = (mio_wbq)pth_msgport_get(cd->pre_auth_mp)) != NULL) {
-		    log_debug2(ZONE, LOGT_IO, "[%s] freeing unsent packet due to disconnect with no auth: %s", ZONE, xmlnode_serialize_string(q->x, NULL, NULL, 0));
+		    log_debug2(ZONE, LOGT_IO, "[%s] freeing unsent packet due to disconnect with no auth: %s", ZONE, xmlnode_serialize_string(q->x, xmppd::ns_decl_list(), 0));
 		    xmlnode_free(q->x);
 		}
 
@@ -302,7 +284,7 @@ static void pthsock_client_read(mio m, int flag, void *arg, xmlnode x, char* unu
 
 	    break;
 	case MIO_XML_ROOT:
-	    log_debug2(ZONE, LOGT_IO, "[%s] root received for %d: %s", ZONE, m->fd, xmlnode_serialize_string(x, NULL, NULL, 0));
+	    log_debug2(ZONE, LOGT_IO, "[%s] root received for %d: %s", ZONE, m->fd, xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
 	    to = xmlnode_get_attrib_ns(x, "to", NULL);
 	    cd->sending_id = jid_new(cd->m->p, to);
 
@@ -329,29 +311,19 @@ static void pthsock_client_read(mio m, int flag, void *arg, xmlnode x, char* unu
 	    /* XXX hack in the style that jabber.com uses for flash mode support */
 	    if (j_strcmp(xmlnode_get_namespace(x), NS_FLASHSTREAM) == 0) {
 		h = xmlnode_new_tag_pool_ns(xmlnode_pool(h), "stream", "flash", NS_FLASHSTREAM);
-		xmlnode_put_attrib_ns(h, "stream", "xmlns", NS_XMLNS, NS_STREAM);
-		xmlnode_put_attrib_ns(h, "xmlns", NULL, NS_XMLNS, NS_SERVER);
 		xmlnode_put_attrib_ns(h, "id", NULL, NULL, cd->sid); 
-		xmlnode_put_attrib_ns(h, "from", NULL, NULL, jid_full(cd->session_id)); 
-		/* put real stream declaration on incoming root */
-		xmlnode_put_attrib_ns(x, "stream", "xmlns", NS_XMLNS, NS_STREAM); 
+		xmlnode_put_attrib_ns(h, "from", NULL, NULL, jid_full(cd->session_id));
+		xmlnode_put_attrib_ns(h, "xmlns", NS_XMLNS, NULL, NS_SERVER);
+		xmlnode_put_attrib_ns(h, "stream", NS_XMLNS, "xmlns", NS_STREAM);
 	    }
 	    if (version>=1) {
 		xmlnode_put_attrib_ns(h, "version", NULL, NULL, "1.0");
 	    }
 	    mio_write_root(m, h, 1);
 
-	    /* Check the default namespace of the stream, as xmlnode is mapping 'jabber:client' to 'jabber:server', we're checking for the later */
-	    if (xmlnode_list_get_nsprefix(m->in_last_ns_root, NS_SERVER) == NULL) {
-		/* if they sent something other than jabber:client */
-		mio_write(m, NULL, "<stream:error><invalid-namespace xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Namespace prefix for " NS_CLIENT" not declared</text></stream:error></stream:stream>", -1);
-		mio_close(m);
-	    } else if (cd->session_id == NULL) {
+	    if (cd->session_id == NULL) {
 		/* they didn't send a to="" and no valid alias */
 		mio_write(m, NULL, "<stream:error><improper-addressing xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Did not specify a valid to argument</text></stream:error></stream:stream>", -1);
-		mio_close(m);
-	    } else if (xmlnode_list_get_nsprefix(m->in_last_ns_root, NS_STREAM) == NULL) {
-		mio_write(m, NULL, "<stream:error><invalid-namespace xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Namespace Prefix for " NS_STREAM " not declared</text></stream:error></stream:stream>", -1);
 		mio_close(m);
 	    }
 

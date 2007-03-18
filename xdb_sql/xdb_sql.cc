@@ -183,7 +183,7 @@ static char *xdb_sql_construct_query(const std::vector<std::string> &sqltemplate
     }
 
     /* debugging */
-    log_debug2(ZONE, LOGT_STORAGE, "constructing query using xdb_query %s", xmlnode_serialize_string(xdb_query, NULL, NULL, 0));
+    log_debug2(ZONE, LOGT_STORAGE, "constructing query using xdb_query %s", xmlnode_serialize_string(xdb_query, xmppd::ns_decl_list(), 0));
 
     /* construct the result */
     std::vector<std::string>::const_iterator p;
@@ -200,7 +200,7 @@ static char *xdb_sql_construct_query(const std::vector<std::string> &sqltemplate
 	    selected = xmlnode_get_list_item(xmlnode_get_tags(xdb_query, p->c_str(), namespaces), 0);
 	    switch (xmlnode_get_type(selected)) {
 		case NTYPE_TAG:
-		    subst = xmlnode_serialize_string(selected, NULL, NULL, 0);
+		    subst = xmlnode_serialize_string(selected, xmppd::ns_decl_list(), 0);
 		    break;
 		case NTYPE_ATTRIB:
 		case NTYPE_CDATA:
@@ -336,7 +336,7 @@ static int xdb_sql_execute_mysql(instance i, xdbsql xq, char *query, xmlnode xml
 
 	    /* insert the result */
 	    if (row_okay) {
-		log_debug2(ZONE, LOGT_STORAGE, "the row results in: %s", xmlnode_serialize_string(new_instance, NULL, NULL, 0));
+		log_debug2(ZONE, LOGT_STORAGE, "the row results in: %s", xmlnode_serialize_string(new_instance, xmppd::ns_decl_list(), 0));
 		xmlnode_insert_node(result, xmlnode_get_firstchild(new_instance));
 	    } else {
 		log_warn(i->id, "ignoring a row in a SQL result, due to problems with it");
@@ -442,7 +442,7 @@ static int xdb_sql_execute_postgresql(instance i, xdbsql xq, char *query, xmlnod
 	}
 
 	/* insert the result */
-	log_debug2(ZONE, LOGT_STORAGE, "the row results in: %s", xmlnode_serialize_string(new_instance, NULL, NULL, 0));
+	log_debug2(ZONE, LOGT_STORAGE, "the row results in: %s", xmlnode_serialize_string(new_instance, xmppd::ns_decl_list(), 0));
 	xmlnode_insert_node(result, xmlnode_get_firstchild(new_instance));
     }
 
@@ -509,7 +509,7 @@ static result xdb_sql_phandler(instance i, dpacket p, void *arg) {
     char *matchpath = NULL;	/* xdb-set matchpath */
     std::list< std::vector<std::string> >::iterator iter;
 
-    log_debug2(ZONE, LOGT_STORAGE|LOGT_DELIVER, "handling xdb request %s", xmlnode_serialize_string(p->x, NULL, NULL, 0));
+    log_debug2(ZONE, LOGT_STORAGE|LOGT_DELIVER, "handling xdb request %s", xmlnode_serialize_string(p->x, xmppd::ns_decl_list(), 0));
 
     /* get the namespace of the request */
     ns = xmlnode_get_attrib_ns(p->x, "ns", NULL);
@@ -810,7 +810,7 @@ static void xdb_sql_handler_process(instance i, xdbsql xq, xmlnode handler) {
     char *handled_ns = NULL;	/* which namespace this definition is for */
     int count = 0;
     
-    log_debug2(ZONE, LOGT_INIT, "processing handler definition: %s", xmlnode_serialize_string(handler, NULL, NULL, 0));
+    log_debug2(ZONE, LOGT_INIT, "processing handler definition: %s", xmlnode_serialize_string(handler, xmppd::ns_decl_list(), 0));
 
     /* query the relevant tags from this handler */
     handled_ns = pstrdup(i->p, xmlnode_get_attrib_ns(handler, "ns", NULL));

@@ -29,7 +29,7 @@
  */
 
 /**
- * @file dialback.c
+ * @file dialback.cc
  * @brief main file of the dialback component implementing server to server connections
  *
  * This is the main file of the dialback component (module) of the Jabber server.
@@ -223,7 +223,7 @@ void dialback_miod_read(miod md, xmlnode x)
     /* only accept valid jpackets! */
     if(jp == NULL)
     {
-        log_warn(md->d->i->id, "dropping invalid packet from server: %s",xmlnode_serialize_string(x, NULL, NULL, 0));
+        log_warn(md->d->i->id, "dropping invalid packet from server: %s",xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
         xmlnode_free(x);
         return;
     }

@@ -160,7 +160,7 @@ void dnsrv_child_process_xstream_io(int type, xmlnode x, void* args) {
 		    }
 		    iternode = iternode->next;
 	       }
-               str = xmlnode_serialize_string(x, NULL, NULL, 0);
+               str = xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0);
 	       write(di->out, str, strlen(str));
 #ifdef LIBIDN
 	       if (ascii_hostname != NULL)
@@ -306,7 +306,7 @@ void dnsrv_lookup(dns_io d, dpacket p) {
     req = xmlnode_new_tag_pool_ns(p->p, "host", NULL, NS_SERVER);
     xmlnode_insert_cdata(req,p->host,-1);
 
-    reqs = xmlnode_serialize_string(req, NULL, NULL, 0);
+    reqs = xmlnode_serialize_string(req, xmppd::ns_decl_list(), 0);
     log_debug2(ZONE, LOGT_IO, "dnsrv: Transmitting lookup request: %s", reqs);
     pth_write(d->out, reqs, strlen(reqs));
 }
@@ -329,7 +329,7 @@ result dnsrv_deliver(instance i, dpacket p, void* args) {
 
      /* Ensure this packet doesn't already have an IP */
      if (xmlnode_get_attrib_ns(p->x, "ip", NULL) || xmlnode_get_attrib_ns(p->x, "iperror", NULL)) {
-        log_notice(p->host, "dropping looping dns lookup request: %s", xmlnode_serialize_string(p->x, NULL, NULL, 0));
+        log_notice(p->host, "dropping looping dns lookup request: %s", xmlnode_serialize_string(p->x, xmppd::ns_decl_list(), 0));
         xmlnode_free(p->x);
         return r_DONE;
      }
@@ -365,7 +365,7 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg) {
 
     /* Node Format: <host ip="201.83.28.2">foo.org</host> */
     if (type == XSTREAM_NODE) {	  
-	log_debug2(ZONE, LOGT_IO, "incoming resolution: %s",xmlnode_serialize_string(x, NULL, NULL, 0));
+	log_debug2(ZONE, LOGT_IO, "incoming resolution: %s",xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
 	hostname = xmlnode_get_data(x);
 
 	/* whatever the response was, let's cache it */
@@ -395,7 +395,7 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg) {
 	    }
 	} else {
 	    /* Host name was not found, something is _TERRIBLY_ wrong! */
-	    log_debug2(ZONE, LOGT_IO, "Resolved unknown host/ip request: %s\n", xmlnode_serialize_string(x, NULL, NULL, 0));
+	    log_debug2(ZONE, LOGT_IO, "Resolved unknown host/ip request: %s\n", xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
 	}
 
 	return; /* we cached x above, so we don't free it below :) */
@@ -571,7 +571,7 @@ extern "C" void dnsrv(instance i, xmlnode x) {
 	  /* Move to next child */
 	  iternode = xmlnode_get_prevsibling(iternode);
      }
-     log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "dnsrv debug: %s\n", xmlnode_serialize_string(config, NULL, NULL, 0));
+     log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "dnsrv debug: %s\n", xmlnode_serialize_string(config, xmppd::ns_decl_list(), 0));
 
      /* Setup the hash of dns_packet_list */
      di->packet_table = xhash_new(j_atoi(xmlnode_get_attrib_ns(config,"queuemax", NULL),101));

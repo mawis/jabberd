@@ -218,7 +218,7 @@ void logger(char *type, const char *host, char *message) {
         xmlnode_put_attrib_ns(log, "from", NULL, NULL, "-internal");
     xmlnode_insert_cdata(log, message, j_strlen(message));
 
-    log_debug2(ZONE, LOGT_DELIVER, "%s", xmlnode_serialize_string(log, NULL, NULL, 0));
+    log_debug2(ZONE, LOGT_DELIVER, "%s", xmlnode_serialize_string(log, xmppd::ns_decl_list(), 0));
     deliver(dpacket_new(log), NULL);
 }
 
@@ -315,7 +315,7 @@ void log_generic(char *logtype, char *id, char *type, char *action, const char *
     xmlnode_insert_cdata(log, " ", 1);
     xmlnode_insert_cdata(log, logmsg, j_strlen(logmsg));
 
-    log_debug2(ZONE, LOGT_DELIVER, "%s", xmlnode_serialize_string(log, NULL, NULL, 0));
+    log_debug2(ZONE, LOGT_DELIVER, "%s", xmlnode_serialize_string(log, xmppd::ns_decl_list(), 0));
     deliver(dpacket_new(log), NULL);
 }
 

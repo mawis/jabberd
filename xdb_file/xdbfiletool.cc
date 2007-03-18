@@ -26,6 +26,8 @@
 #include <dlfcn.h>
 #include <popt.h>
 
+#include <iostream>
+
 /**
  * @file xdbfilepath.c
  * @brief small utility that prints out the location of a spool file inside the root spool directory
@@ -101,12 +103,12 @@ int main(int argc, const char **argv) {
 	    case 1:
 		prefix = pstrdup(namespace_prefixes->p, poptGetOptArg(pCtx));
 		if (prefix == NULL) {
-		    fprintf(stderr, "Problem processing namespace prefix declaration ...\n");
+		    std::cerr << "Problem processing namespace prefix declaration ..." << std::endl;
 		    return 1;
 		}
 		ns_iri = strchr(prefix, ':');
 		if (ns_iri == NULL) {
-		    fprintf(stderr, "Invalid namespace prefix declaration ('%s'). Required format is prefix:IRI ...\n", prefix);
+		    std::cerr << "Invalid namespace prefix declaration ('" << prefix << "'). Required format is prefix:IRI ..." << std::endl;
 		    return 1;
 		}
 		ns_iri[0] = 0;
@@ -118,15 +120,15 @@ int main(int argc, const char **argv) {
 
     /* error? */
     if (pReturn < -1) {
-	fprintf(stderr, "%s: %s\n", poptBadOption(pCtx, POPT_BADOPTION_NOALIAS), poptStrerror(pReturn));
+	std::cerr << poptBadOption(pCtx, POPT_BADOPTION_NOALIAS) << ": " << poptStrerror(pReturn) << std::endl;
 	return 1;
     }
 
     /* show version information? */
     if (show_version != 0) {
-	fprintf(stdout, "xdbfiletool out of " PACKAGE " version " VERSION "\n");
-	fprintf(stdout, "Default config file is: %s\n", CONFIG_DIR "/jabber.xml");
-	fprintf(stdout, "For more information please visit http://jabberd.org/\n");
+	std::cout << "xdbfiletool out of " PACKAGE " version " VERSION << std::endl;
+	std::cout << "Default config file is: " CONFIG_DIR << "/jabber.xml" << std::endl;
+	std::cout << "For more information please visit http://jabberd.org/" << std::endl;
 	return 0;
     }
 
@@ -140,7 +142,7 @@ int main(int argc, const char **argv) {
      */
     so_h = dlopen("libjabberdxdbfile.so", RTLD_LAZY);
     if (so_h == NULL) {
-	fprintf(stderr, "While loading libjabberdxdbfile.so: %s\n", dlerror());
+	std::cerr << "While loading libjabberdxdbfile.so: " << dlerror() << std::endl;
 	return 3;
     }
     dlerror();
@@ -148,17 +150,17 @@ int main(int argc, const char **argv) {
     /* load the needed functions */
     *(void **) (&xdb_file_full) = dlsym(so_h, "xdb_file_full");
     if ((error = dlerror()) != NULL) {
-	fprintf(stderr, "While loading xdb_file_full: %s\n", dlerror());
+	std::cerr << "While loading xdb_file_full(): " << dlerror() << std::endl;
 	return 3;
     }
     *(void **) (&xdb_convert_spool) = dlsym(so_h, "xdb_convert_spool");
     if ((error = dlerror()) != NULL) {
-	fprintf(stderr, "While loading xdb_convert_spool: %s\n", dlerror());
+	std::cerr << "While loading xdb_convert_spool(): " << dlerror() << std::endl;
 	return 3;
     }
     *(void **) (&xdb_file_load) = dlsym(so_h, "xdb_file_load");
     if ((error = dlerror()) != NULL) {
-	fprintf(stderr, "While loading xdb_file_load: %s\n", dlerror());
+	std::cerr << "While loading xdb_file_load(): " << dlerror() << std::endl;
 	return 3;
     }
 
@@ -169,7 +171,8 @@ int main(int argc, const char **argv) {
 
 	/* load configuration file */
 	if (configfile == NULL) {
-	    fprintf(stderr, "You have not specified a basedir, and config file ('%s') could not be loaded:\n%s\n", cfgfile, xmlnode_file_borked(cfgfile));
+	    std::cerr << "You have not specified a basedir, and config file ('" << cfgfile << "') could not be loaded:" << std::endl;
+	    std::cerr << xmlnode_file_borked(cfgfile) << std::endl;
 	    return 1;
 	}
 
@@ -180,7 +183,7 @@ int main(int argc, const char **argv) {
 	basedir_node = xmlnode_get_tags(configfile, "conf:xdb/xdbfile:xdb_file/xdbfile:spool/*", std_namespace_prefixes);
 
 	if (basedir_node == NULL) {
-	    fprintf(stderr, "Basedir could not be found in the config file ('%s'). Please use --basedir to specify base directory.\n", cfgfile);
+	    std::cerr << "Basedir could not be found in the config file ('" << cfgfile << "'). Please use --basedir to specify base directory." << std::endl;
 	    return 1;
 	}
 	if (basedir_node->node->type == NTYPE_TAG
@@ -189,24 +192,24 @@ int main(int argc, const char **argv) {
 	    basedir_node->node = xmlnode_get_firstchild(basedir_node->node);
 	}
 	if (basedir_node->node == NULL || basedir_node->node->type != NTYPE_CDATA) {
-	    fprintf(stderr, "Could not determine base directory for spool using config file ('%s'). Please use --basedir to specify base directory.\n", cfgfile);
+	    std::cerr << "Could not determine base directory for spool using config file ('" << cfgfile << "'). Please use --basedir to specify base directory." << std::endl;
 	    return 1;
 	}
 	basedir = xmlnode_get_data(basedir_node->node);
 	if (basedir_node->next != NULL) {
-	    fprintf(stderr, "Could not determine base directory, found different possibilities. Please use --basedir to specify base directory.\n");
+	    std::cerr << "Could not determine base directory, found different possibilities. Plase use --basedir to specify base directory." << std::endl;
 	    return 1;
 	}
 	if (basedir == NULL) {
-	    fprintf(stderr, "Could not automatically determine base directory, please use --basedir to specify base directory.\n");
+	    std::cerr << "Could not automatically determine base directory, plase use --basedir to specify base directory." << std::endl;
 	    return 1;
 	}
     }
 
     if (convert) {
-	printf("Converting xdb_file's spool directories in %s ... this may take some time!\n", basedir);
+	std::cout << "Converting xdb_file's spool directories in " << basedir << " ... this may take some time!" << std::endl;
 	(*xdb_convert_spool)(basedir);
-	printf("Done.\n");
+	std::cout << "Done." << std::endl;
 	return 0;
     }
 
@@ -214,17 +217,17 @@ int main(int argc, const char **argv) {
 	struct jid_struct *user = jid_new(p, getpath);
 	
 	if (user == NULL) {
-	    fprintf(stderr, "Problem processing specified JabberID: %s\n", getpath);
+	    std::cerr << "Problem processing secified JabberID: " << getpath << std::endl;
 	    return 1;
 	}
-	printf("%s\n", (*xdb_file_full)(0, p, basedir, user->server, user->user, "xml", hashspool));
+	std::cout << (*xdb_file_full)(0, p, basedir, user->server, user->user, "xml", hashspool) << std::endl;
 	pool_free(p);
 
 	return 0;
     }
 
     if (jid == NULL && (do_get != NULL || do_set != NULL || do_del != NULL)) {
-	fprintf(stderr, "When doing a get/set/del operation, you have to specify the JabberID of the user using --jid\n");
+	std::cerr << "When doing a get/set/del operation, you have to specify the JabberID of the user using --jid" << std::endl;
 	return 1;
     }
 
@@ -232,7 +235,7 @@ int main(int argc, const char **argv) {
 	parsed_jid = jid_new(p, jid);
 
 	if (parsed_jid == NULL) {
-	    fprintf(stderr, "Could not parse the JID %s\n", jid);
+	    std::cerr << "Could not parse the JID " << jid << std::endl;
 	    return 1;
 	}
     }
@@ -246,7 +249,7 @@ int main(int argc, const char **argv) {
 	int is_updated = 0;
 
 	if (do_set != NULL && replacement == NULL) {
-	    fprintf(stderr, "You have to specify a replacement for the --set operation.\n");
+	    std::cerr << "You have to specify a replacement for the --set operation." << std::endl;
 	    return 1;
 	}
 
@@ -254,7 +257,7 @@ int main(int argc, const char **argv) {
 	file = (*xdb_file_load)(NULL, spoolfile, NULL);
 
 	if (file == NULL) {
-	    fprintf(stderr, "Could not load the spool file (%s). No such user?\n", spoolfile);
+	    std::cerr << "Could not load the spool file (" << spoolfile << "). No such user?" << std::endl;
 	    return 1;
 	}
 
@@ -262,11 +265,11 @@ int main(int argc, const char **argv) {
 	    if (do_get) {
 		switch (result_item->node->type) {
 		    case NTYPE_TAG:
-			fprintf(stdout, "%s\n", xmlnode_serialize_string(result_item->node, NULL, NULL, 0));
+			std::cout << xmlnode_serialize_string(result_item->node, xmppd::ns_decl_list(), 0) << std::endl;
 			break;
 		    case NTYPE_CDATA:
 		    case NTYPE_ATTRIB:
-			fprintf(stdout, "%s\n", xmlnode_get_data(result_item->node));
+			std::cout << xmlnode_get_data(result_item->node) << std::endl;
 			break;
 		}
 	    } else {
@@ -289,7 +292,7 @@ int main(int argc, const char **argv) {
 			case NTYPE_TAG:
 			    x = xmlnode_str(replacement, j_strlen(replacement));
 			    if (x == NULL) {
-				fprintf(stderr, "%s cannot be parsed.\n", replacement);
+				std::cerr << replacement << " cannot be parsed." << std::endl;
 				return 1;
 			    }
 			    xmlnode_insert_node(parent, x);

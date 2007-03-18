@@ -498,7 +498,7 @@ static struct mod_privacy_compiled_list_item* mod_privacy_compile_list(jsmi si, 
 	long order_long = 0;
 	int do_deny = 1;
 
-	log_debug2(ZONE, LOGT_EXECFLOW, "Compiling privacy list item: %s", xmlnode_serialize_string(list_iter->node, NULL, NULL, 0));
+	log_debug2(ZONE, LOGT_EXECFLOW, "Compiling privacy list item: %s", xmlnode_serialize_string(list_iter->node, xmppd::ns_decl_list(), 0));
 
 	/* check if this item is relevant for the list */
 	child_element = xmlnode_get_tags(list_iter->node, "privacy:*", si->std_namespace_prefixes);
@@ -1112,7 +1112,7 @@ static mreturn mod_privacy_out_iq_set_list(mapi m, xmlnode new_list) {
     }
 
     /* is it an edit or a delete request? */
-    log_debug2(ZONE, LOGT_EXECFLOW, "Checking the new list: %s", xmlnode_serialize_string(new_list, NULL, NULL, 0));
+    log_debug2(ZONE, LOGT_EXECFLOW, "Checking the new list: %s", xmlnode_serialize_string(new_list, xmppd::ns_decl_list(), 0));
     for (new_items = xmlnode_get_tags(new_list, "privacy:item", m->si->std_namespace_prefixes); new_items != NULL; new_items = new_items->next) {
 	const char* type = xmlnode_get_attrib_ns(new_items->node, "type", NULL);
 	const char* value = xmlnode_get_attrib_ns(new_items->node, "value", NULL);
@@ -1418,7 +1418,7 @@ static mreturn mod_privacy_filter(mapi m, void* arg) {
     if (arg == (void*)0 && jid_cmpx(m->packet->to, m->packet->from, JID_USER|JID_SERVER) == 0)
 	return M_PASS;
 
-    log_debug2(ZONE, LOGT_EXECFLOW, "filtering %s packet %s: %s", arg ? "outgoing" : "incoming", m->s ? "for session" : "for offline account", xmlnode_serialize_string(m->packet->x, NULL, NULL, 0));
+    log_debug2(ZONE, LOGT_EXECFLOW, "filtering %s packet %s: %s", arg ? "outgoing" : "incoming", m->s ? "for session" : "for offline account", xmlnode_serialize_string(m->packet->x, xmppd::ns_decl_list(), 0));
 
     /* if it is to an offline user, we might have to load the privacy lists first */
     if (m->s == NULL && !xhash_get(m->user->aux_data, "mod_privacy_lists_loaded")) {

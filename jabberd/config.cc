@@ -34,6 +34,8 @@
  */
 
 #include "jabberd.h"
+#include <iostream>
+
 #define MAX_INCLUDE_NESTING 20 /**< the maximum number of nexted &lt;jabberd:include/&gt; elements in the configuration */
 xht instance__ids=NULL;	/**< hash of all created XML routing target instances (key is the id of the instance, value is the ::instance) */
 
@@ -73,9 +75,8 @@ static void do_include(int nesting_level,xmlnode x) {
             char *include_file=xmlnode_get_data(cur);
             xmlnode include_x=xmlnode_file(include_file);
             /* check for bad nesting */
-            if(nesting_level>MAX_INCLUDE_NESTING)
-            {
-                fprintf(stderr, "ERROR: Included files nested %d levels deep.  Possible Recursion\n",nesting_level);
+            if (nesting_level>MAX_INCLUDE_NESTING) {
+		std::cerr << "ERROR: Included files nested " << nesting_level << " levels deep. Possible recursion!" << std::endl;
                 exit(1);
             }
             include=cur;
@@ -94,18 +95,18 @@ static void do_include(int nesting_level,xmlnode x) {
 		     while (xmlnode_get_firstchild(example_root_element) != NULL)
 			 xmlnode_hide(xmlnode_get_firstchild(example_root_element));
 
-		     fprintf(stderr, "WARNING (while including file '%s'):\n", include_file);
-		     fprintf(stderr, "Local name (%s) of the included file's root element matches the\n", xmlnode_get_localname(include_x));
-		     fprintf(stderr, "parent element, but namespaces are different. This means the two elements\n");
-		     fprintf(stderr, "are different and are handled as different elements. You might want this,\n");
-		     fprintf(stderr, "and in that case you can just ignore this warning. But in most cases this\n");
-		     fprintf(stderr, "is a configuration bug, and not what the writer of the configuration file\n");
-		     fprintf(stderr, "intends. In that case you might want to update the root element of the\n");
-		     fprintf(stderr, "included file to declare the right namespace.\n\n");
-		     fprintf(stderr, "Currently the namespace of the parent element is '%s',\n", xmlnode_get_namespace(xmlnode_get_parent(cur)));
-		     fprintf(stderr, "and the namespace of the included root element is '%s'.\n\n", xmlnode_get_namespace(include_x));
-		     fprintf(stderr, "What you probably want is the following root element in the included file:\n");
-		     fprintf(stderr, "%s\n\n", xmlnode_serialize_string(example_root_element, NULL, NULL, 0));
+		     std::cerr << "WARNING (while including file '" << include_file << "'):" << std::endl;
+		     std::cerr << "Local name (" << xmlnode_get_localname(include_x) << ") of the included file's root element matches the" << std::endl;
+		     std::cerr << "parent element, but namespaces are different. This means the two elements" << std::endl;
+		     std::cerr << "are different and are handled as different elements. You might want this," << std::endl;
+		     std::cerr << "and in that case you can just ignore this warning. But in most cases this" << std::endl;
+		     std::cerr << "is a configuration bug, and not what the writer of the configuration file" << std::endl;
+		     std::cerr << "intends. In that case you might want to update the root element of the" << std::endl;
+		     std::cerr << "included file to declare the correct namespace." << std::endl << std::endl;
+		     std::cerr << "Currently the namespace of the parent element is: " << xmlnode_get_namespace(xmlnode_get_parent(cur)) << std::endl;
+		     std::cerr << "and the namespace of the included root element is: " << xmlnode_get_namespace(include_x) << std::endl;
+		     std::cerr << "Waht you probably want is the following root element in the included file:" << std::endl;
+		     std::cerr << xmlnode_serialize_string(example_root_element, xmppd::ns_decl_list(), 0) << std::endl << std::endl;
 
 		     xmlnode_free(example_root_element);
 		 }
@@ -226,16 +227,16 @@ static void show_pid(xmlnode x) {
 	    /* check if the process is still running */
 	    fd = open(path, O_RDONLY);
 	    if (fd < 0) {
-		fprintf(stderr, "The pidfile %s already exists, and it cannot be opened for reading (%s). Exiting ...\n", path, strerror(errno));
+		std::cerr << "The pidfile " << path << " already exists, and it cannot be opened for reading (" << strerror(errno) << "). Exiting ..." << std::endl;
 		_exit(1);
 	    }
 
 	    bytesread = read(fd, oldpid, sizeof(oldpid)-1);
 	    if (bytesread < 0) {
-		fprintf(stderr, "The pidfile %s already exists, but there is a problem reading its content (%s). Exiting ...\n", path, strerror(errno));
+		std::cerr << "The pidfile " << path << " already exists, but there is a problem reading its content (" << strerror(errno) << "). Exiting ..." << std::endl;
 		_exit(1);
 	    } else if (bytesread == 0) {
-		fprintf(stderr, "The pidfile %s already exists, but it has no content. Deleting it ...\n", path);
+		std::cerr << "The pidfile " << path << " already exists, but it has no content. Deleting it ..." << std::endl;
 	    } else {
 		pid_t filepid = 0;
 		int killres = 0;
@@ -244,15 +245,15 @@ static void show_pid(xmlnode x) {
 		filepid = j_atoi(oldpid, 0);
 
 		if (filepid == 0) {
-		    fprintf(stderr, "The pidfile %s already exists, but does not contain a PID (%s). Exiting ...\n", path, oldpid);
+		    std::cerr << "The pidfile " << path << " already exists, but does not contain a PID (" << oldpid << "). Exiting ..." << std::endl;
 		    _exit(1);
 		}
 
 		killres = kill(filepid, 0);
 		if (killres == -1 && errno == ESRCH) {
-		    fprintf(stderr, "Stale pidfile %s found. No process with PID %i is running. Deleting pidfile ...\n", path, filepid);
+		    std::cerr << "Stale pidfile " << path << " found. No process with PID " << filepid << " is running. Deleting pidfile ..." << std::endl;
 		} else {
-		    fprintf(stderr, "A pidfile already exists at %s, containing the PID (%i) of a running process. Exiting ...\n", path, filepid);
+		    std::cerr << "A pidfile already exists at " << path << ", containing the PID (" << filepid << ") of a running process. Exiting ..." << std::endl;
 		    _exit(1);
 		}
 	    }
@@ -260,11 +261,11 @@ static void show_pid(xmlnode x) {
 	    unlink(path);
 	    fd = open(path, O_CREAT | O_EXCL | O_WRONLY, 0600);
 	    if (fd < 0) {
-		fprintf(stderr, "Still having problems accessing pidfile %s: %s\n", path, strerror(errno));
+		std::cerr << "Still having problems accessing pidfile " << path << ": " << strerror(errno) << std::endl;
 		_exit(1);
 	    }
         } else {
-	    fprintf(stderr, "Not writing pidfile %s: %s\n", path, strerror(errno));
+	    std::cerr << "Not writing pidfile " << path << ": " << strerror(errno) << std::endl;
 	    return;
 	}
     }
@@ -471,15 +472,15 @@ static int instance_startup(xmlnode x, int exec) {
         type = p_NORM;
 
     if (type == p_NONE || xmlnode_get_attrib(x, "id") == NULL || xmlnode_get_firstchild(x) == NULL) {
-        fprintf(stderr, "Configuration error in:\n%s\n", xmlnode2str(x));
+	std::cerr << "Configuration error in:" << std::endl << xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0) << std::endl;
         if (type == p_NONE) {
-            fprintf(stderr, "ERROR: Invalid Tag type: %s\n",xmlnode_get_name(x));
+	    std::cerr << "ERROR: Invalid tag type: " << xmlnode_get_name(x) << std::endl;
         }
         if (xmlnode_get_attrib(x, "id") == NULL) {
-            fprintf(stderr, "ERROR: Section needs an 'id' attribute\n");
+	    std::cerr << "ERROR: Section needs an 'id' attribute" << std::endl;
         }
         if (xmlnode_get_firstchild(x)==NULL) {
-            fprintf(stderr, "ERROR: Section Has no data in it\n");
+	    std::cerr << "ERROR: Section has no data in it" << std::endl;
         }
         return -1;
     }
@@ -487,7 +488,7 @@ static int instance_startup(xmlnode x, int exec) {
     if (exec == 1) {
         newi = static_cast<instance_struct*>(xhash_get(instance__ids, xmlnode_get_attrib(x,"id")));
         if (newi != NULL) {
-            fprintf(stderr, "ERROR: Multiple Instances with same id: %s\n", xmlnode_get_attrib(x, "id"));
+	    std::cerr << "ERROR: Multiple instances with same id: " << xmlnode_get_attrib_ns(x, "id", NULL) << std::endl;
             return -1;
         }
     }
@@ -531,11 +532,12 @@ static int instance_startup(xmlnode x, int exec) {
         if (c == NULL  || (c->f)(newi, cur, c->arg) == r_ERR) {
             char *error = pstrdup(xmlnode_pool(cur), xmlnode_get_attrib(cur,"error"));
             xmlnode_hide_attrib(cur, "error");
-            fprintf(stderr, "Invalid Configuration in instance '%s':\n%s\n",xmlnode_get_attrib(x,"id"),xmlnode2str(cur));
+	    std::cerr << "Invalid configuration in instance '" << xmlnode_get_attrib_ns(x, "id", NULL) << ":" << std::endl;
+	    std::cerr << xmlnode_serialize_string(cur, xmppd::ns_decl_list(), 0) << std::endl;
             if (c == NULL) 
-                fprintf(stderr, "ERROR: Unknown Base Tag: %s\n",xmlnode_get_name(cur));
+		std::cerr << "ERROR: Unknown base tag: " << xmlnode_get_name(cur) << std::endl;
             else if (error != NULL)
-                fprintf(stderr, "ERROR: Base Handler Returned an Error:\n%s\n", error);
+		std::cerr << "ERROR: Base handler returned an error:" << std::endl << error << std::endl;
             return -1;
         }
     }

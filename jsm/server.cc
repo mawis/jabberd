@@ -48,7 +48,7 @@ void js_server_main(void *arg) {
     jpq q = (jpq)arg;
     udata u = NULL;
 
-    log_debug2(ZONE, LOGT_DELIVER, "THREAD:SERVER received a packet: %s", xmlnode_serialize_string(q->p->x, NULL, NULL, 0));
+    log_debug2(ZONE, LOGT_DELIVER, "THREAD:SERVER received a packet: %s", xmlnode_serialize_string(q->p->x, xmppd::ns_decl_list(), 0));
 
     /* get the user struct for convience if the sender was local */
     if (js_islocal(q->si, q->p->from))
