@@ -3,6 +3,8 @@
     * jabberd/lib/str.cc: fixing XML escaping error for character >
     * jabberd/lib/xmlnode.cc: using the db: prefix for the
 	jabber:server:dialback namespace
+    * dialback/dialback_out.cc: using correct namespace for mechanisms
+	attribute on the SASL <auth/> element (no namespace)
 
 2007-03-18  Matthias Wimmer  <m@tthias.eu>
 
