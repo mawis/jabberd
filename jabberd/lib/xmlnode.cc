@@ -237,7 +237,7 @@ static void _xmlnode_serialize(std::ostream& s, xmlnode_t const* x, xmppd::ns_de
     if (x->type == NTYPE_ATTRIB) {
 	// do we have to print a prefix? (if yes: hopefully it is defined, else we get an exception)
 	if (x->ns_iri) {
-	    s << nslist.get_nsprefix(x->ns_iri) << ':';
+	    s << nslist.get_nsprefix(x->ns_iri, false) << ':';
 	}
 
 	// print local name and value
@@ -299,7 +299,7 @@ static void _xmlnode_serialize(std::ostream& s, xmlnode_t const* x, xmppd::ns_de
 
 	    // check if we need to declare a namespace prefix for this attribute
 	    try {
-		nslist.get_nsprefix(cur->ns_iri);
+		nslist.get_nsprefix(cur->ns_iri, false);
 	    } catch (std::invalid_argument) {
 		// we have to declare a new prefix, create one
 		std::ostringstream ns;
@@ -1927,9 +1927,23 @@ namespace xmppd {
      * @throws std::invalid_argument if namespace is not declared
      */
     char const* ns_decl_list::get_nsprefix(const std::string& iri) const {
+	return get_nsprefix(iri, true);
+    }
+
+    /**
+     * get the latest prefix, that is bould to a namespace IRI
+     *
+     * @param iri the namespace IRI to search for
+     * @param accept_default_prefix if set to false, the method will only search for a non-default prefix
+     * @return the latest prefix, that is bould to this namespace IRI
+     * @throws std::invalid_argument if namespace is not declared
+     */
+    char const* ns_decl_list::get_nsprefix(const std::string& iri, bool accept_default_prefix) const {
 	ns_decl_list::const_reverse_iterator p;
+	// iterate on all list items backwards
 	for (p = rbegin(); p != rend(); ++p) {
-	    if (p->second == iri) {
+	    // is it the IRI we are looking for? if it's the default prefix, do we accept it? isn't the prefix redeclared differently?
+	    if (p->second == iri && (accept_default_prefix || p->first != "") && check_prefix(p->first, iri)) {
 		return p->first.c_str();
 	    }
 	}

@@ -460,6 +460,7 @@ namespace xmppd {
 	    void update(const std::string& prefix, const std::string& ns_iri);
 	    void delete_last(const std::string& prefix);
 	    char const* get_nsprefix(const std::string& iri) const;
+	    char const* get_nsprefix(const std::string& iri, bool accept_default_prefix) const;
 	    char const* get_nsiri(const std::string& prefix) const;
 	    bool check_prefix(const std::string& prefix, const std::string& ns_iri) const;
 	private:
