@@ -250,11 +250,15 @@ static void _xmlnode_serialize(std::ostream& s, xmlnode_t const* x, xmppd::ns_de
     // It's NTYPE_TAG if we reach here ...
     s << '<';
 
-    // We use the default namespace for everything but NS_STREAM
+    // We use the default namespace for everything but NS_STREAM, and NS_DIALBACK
     bool stream_ns = false;
+    bool dialback_ns = false;
     if (x->ns_iri && std::string(NS_STREAM) == x->ns_iri) {
 	s << "stream:";
 	stream_ns = true;
+    } else if (x->ns_iri && std::string(NS_DIALBACK) == x->ns_iri) {
+	s << "db:";
+	dialback_ns = true;
     }
 
     // write the local name
@@ -266,6 +270,12 @@ static void _xmlnode_serialize(std::ostream& s, xmlnode_t const* x, xmppd::ns_de
 	if (!nslist.check_prefix("stream", NS_STREAM)) {
 	    s << " xmlns:stream='" NS_STREAM "'";
 	    nslist.update("stream", NS_STREAM);
+	}
+    } else if (dialback_ns) {
+	// NS_DIALBACK already bound to the db prefix?
+	if (!nslist.check_prefix("db", NS_DIALBACK)) {
+	    s << " xmlns:db='" NS_DIALBACK "'";
+	    nslist.update("db", NS_DIALBACK);
 	}
     } else {
 	// use the default namespace, check if it has to be redeclared
@@ -322,6 +332,8 @@ static void _xmlnode_serialize(std::ostream& s, xmlnode_t const* x, xmppd::ns_de
 	s << "</";
 	if (stream_ns) {
 	    s << "stream:";
+	} else if (dialback_ns) {
+	    s << "db:";
 	}
 	s << x->name << ">";
     } else {
