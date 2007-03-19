@@ -692,7 +692,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 			/* SASL EXTERNAL is supported: use it */
 			log_debug2(ZONE, LOGT_IO, "SASL EXTERNAL seems to be supported: %s", xmlnode_serialize_string(mechanisms, xmppd::ns_decl_list(), 0));
 			auth = xmlnode_new_tag_ns("auth", NULL, NS_XMPP_SASL);
-			xmlnode_put_attrib_ns(auth, "mechanism", NULL, NS_XMPP_SASL, xmlnode_get_data(mechanism));
+			xmlnode_put_attrib_ns(auth, "mechanism", NULL, NULL, xmlnode_get_data(mechanism));
 
 			/* add our id as base64 encoded CDATA */
 			base64_source_domain_len = (j_strlen(c->key->resource)+2)/3*4+1;
