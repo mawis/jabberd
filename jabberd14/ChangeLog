@@ -1,6 +1,8 @@
 2007-03-19  Matthias Wimmer  <m@tthias.eu>
 
     * jabberd/lib/str.cc: fixing XML escaping error for character >
+    * jabberd/lib/xmlnode.cc: using the db: prefix for the
+	jabber:server:dialback namespace
 
 2007-03-18  Matthias Wimmer  <m@tthias.eu>
 
