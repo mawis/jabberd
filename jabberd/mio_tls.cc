@@ -127,7 +127,11 @@ static void mio_tls_close(mio m, bool close_read) {
 	return;
 
     gnutls_bye(static_cast<gnutls_session_t>(m->ssl), close_read ? GNUTLS_SHUT_RDWR : GNUTLS_SHUT_WR);
-    shutdown(m->fd, close_read ? SHUT_RDWR : SHUT_WR);
+    if (close_read) {
+	close(m->fd);
+    } else {
+	shutdown(m->fd, SHUT_WR);
+    }
 }
 
 /**
