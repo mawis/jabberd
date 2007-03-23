@@ -346,22 +346,22 @@ std::string strescape(std::string s) {
 
     // replace ' with &apos;
     for (std::string::size_type pos = s.find('\''); pos != std::string::npos; pos = s.find('\'', pos+1)) {
-	s.replace(pos, pos+1, "&apos;");
+	s.replace(pos, 1, "&apos;");
     }
 
     // replace " with &quot;
     for (std::string::size_type pos = s.find('"'); pos != std::string::npos; pos = s.find('"', pos+1)) {
-	s.replace(pos, pos+1, "&quot;");
+	s.replace(pos, 1, "&quot;");
     }
 
     // replace < with &lt;
     for (std::string::size_type pos = s.find('<'); pos != std::string::npos; pos = s.find('<', pos+1)) {
-	s.replace(pos, pos+1, "&lt;");
+	s.replace(pos, 1, "&lt;");
     }
 
     // replace > with &gt;
     for (std::string::size_type pos = s.find('>'); pos != std::string::npos; pos = s.find('>', pos+1)) {
-	s.replace(pos, pos+1, "&gt;");
+	s.replace(pos, 1, "&gt;");
     }
 
     return s;
