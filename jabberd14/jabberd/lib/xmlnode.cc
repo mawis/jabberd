@@ -313,7 +313,16 @@ static void _xmlnode_serialize(std::ostream& s, xmlnode_t const* x, xmppd::ns_de
 	    } catch (std::invalid_argument) {
 		// we have to declare a new prefix, create one
 		std::ostringstream ns;
-		ns << "ns" << ns_number++;
+
+		if (std::string(NS_STREAM) == cur->ns_iri) {
+		    ns << "stream";
+		} else if (std::string(NS_DIALBACK) == cur->ns_iri) {
+		    ns << "db";
+		} else if (std::string(NS_SESSION) == cur->ns_iri) {
+		    ns << "sc";
+		} else {
+		    ns << "ns" << ns_number++;
+		}
 		s << " xmlns:" << ns.str() << "='" << strescape(cur->ns_iri) << "'";
 		nslist.update(ns.str(), cur->ns_iri);
 	    }
