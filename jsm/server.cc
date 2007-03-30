@@ -31,7 +31,7 @@
 #include "jsm.h"
 
 /**
- * @file server.c
+ * @file server.cc
  * @brief handle packets intended for the server: administration, public IQ (agents, etc)
  */
 

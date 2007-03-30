@@ -31,7 +31,7 @@
 #include "jsm.h"
 
 /**
- * @file mod_auth_crypt.c
+ * @file mod_auth_crypt.cc
  * @brief handle (non-SASL) authentication using plain text passwords on the wire but hashes in storage
  *
  * This is an alternative implementation for plain text password on the wire (the other is mod_auth_crypt.c).

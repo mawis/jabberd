@@ -31,7 +31,7 @@
 #include "jabberd.h"
 
 /**
- * @file mtq.c
+ * @file mtq.cc
  * @brief mtq is Managed Thread Queues - it manages the multithreading in jabberd
  *
  * they queue calls to be run sequentially on a thread, that comes from a system pool of threads

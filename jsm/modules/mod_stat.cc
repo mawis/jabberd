@@ -25,7 +25,7 @@
 #include "jsm.h"
 
 /**
- * @file mod_stat.c
+ * @file mod_stat.cc
  * @brief collect statistical information and write it the the log
  *
  * this module collects statistical information and writes them every 5 minutes to

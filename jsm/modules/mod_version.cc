@@ -32,7 +32,7 @@
 #include <sys/utsname.h>
 
 /**
- * @file mod_version.c
+ * @file mod_version.cc
  * @brief implements handling of 'jabber:iq:version' (XEP-0092) in the session manager
  *
  * This session manager module implements the 'Software Version' protocol in the

@@ -29,7 +29,7 @@
  */
 
 /**
- * @file karma.c
+ * @file karma.cc
  * @brief implements bandwidth limits
  *
  * This is used by jabberd to limit the connection bandwidth on the receiving

@@ -29,7 +29,7 @@
  */
 
 /**
- * @file base_load.c
+ * @file base_load.cc
  * @brief module loader: handles the loading of components, that are installed as loadable modules - the &lt;load/&gt; configuration element
  */
 

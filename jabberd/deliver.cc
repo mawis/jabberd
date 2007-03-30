@@ -29,7 +29,7 @@
  */
 
 /**
- * @file jabberd/deliver.c
+ * @file jabberd/deliver.cc
  * @brief implements the XML stanza routing of jabberd
  *
  * The jabberd execuatable is mainly a router for XML stanzas, that routes stanzas between the base handlers, that connect the components

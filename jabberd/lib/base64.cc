@@ -31,7 +31,7 @@
 #include <jabberdlib.h>
 
 /**
- * @file base64.c
+ * @file base64.cc
  * @brief Functions to handle Base64 encoding and decoding
  */
 

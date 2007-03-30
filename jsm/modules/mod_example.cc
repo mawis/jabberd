@@ -31,7 +31,7 @@
 #include "jsm.h"
 
 /**
- * @file mod_example.c
+ * @file mod_example.cc
  * @brief example how to implement your own Jabber session manager (jsm) module
  *
  * This module will reply to messages sent to the resource "example" of the server address

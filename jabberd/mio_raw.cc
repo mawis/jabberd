@@ -29,7 +29,7 @@
  */
 
 /**
- * @file mio_raw.c
+ * @file mio_raw.cc
  * @brief MIO read/write functions to read/write on unencrypted network sockets
  */
 

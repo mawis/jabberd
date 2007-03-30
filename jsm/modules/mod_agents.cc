@@ -31,7 +31,7 @@
 #include "jsm.h"
 
 /**
- * @file mod_agents.c
+ * @file mod_agents.cc
  * @brief handling jabber:iq:agents (XEP-0094) and jabber:iq:agent (undocumented) iq requests - DEPRICATED
  *
  * This module implements the jabber:iq:agents functionallity in the session manager.

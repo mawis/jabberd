@@ -29,7 +29,7 @@
  */
 
 /**
- * @file jid.c
+ * @file jid.cc
  * @brief representation and normalization of JabberIDs
  */
 

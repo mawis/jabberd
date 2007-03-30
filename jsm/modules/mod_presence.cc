@@ -31,7 +31,7 @@
 #include "jsm.h"
 
 /**
- * @file mod_presence.c
+ * @file mod_presence.cc
  * @brief handles presences: send to subscribers, send offline on session end, probe for subscribed presences
  *
  * This module is responsible for sending presences to all contacts that subscribed to the user's presence.

@@ -43,7 +43,7 @@
  */
 
 /**
- * @file client.c
+ * @file client.cc
  * @brief this file implements the client connection manager
  */
 

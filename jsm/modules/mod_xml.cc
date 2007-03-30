@@ -31,7 +31,7 @@
 #include "jsm.h"
 
 /**
- * @file mod_xml.c
+ * @file mod_xml.cc
  * @brief handling jabber:iq:private (XEP-0049) requests
  *
  * This module implements the storage of private data by a client on the server using the

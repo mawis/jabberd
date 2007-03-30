@@ -25,7 +25,7 @@
 #include "jsm.h"
 
 /**
- * @file mod_ping.c
+ * @file mod_ping.cc
  * @brief implements XEP-0199 - XMPP Ping
  *
  * This module allows the administrator to block some user-names from being registered

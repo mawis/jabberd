@@ -31,7 +31,7 @@
 #include "jsm.h"
 
 /**
- * @file mod_announce.c
+ * @file mod_announce.cc
  * @brief This session manager module implements the message of the day and the online user announcement functionality (undocumented)
  *
  * This module implements the 'message of the day' and the 'announcement to online users' functionality.

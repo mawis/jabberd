@@ -29,7 +29,7 @@
  */
 
 /**
- * @file socket.c
+ * @file socket.cc
  * @brief some misc functions to handle sockets
  */
 

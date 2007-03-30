@@ -31,7 +31,7 @@
 #include "jsm.h"
 
 /**
- * @file modules.c
+ * @file modules.cc
  * @brief jsm module API
  */
 

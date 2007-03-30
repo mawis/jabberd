@@ -29,7 +29,7 @@
  */
 
 /**
- * @file xmlnode.c
+ * @file xmlnode.cc
  * @brief handling of XML documents in a DOM like way
  */
 

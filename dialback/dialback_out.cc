@@ -29,7 +29,7 @@
  */
 
 /**
- * @file dialback_out.c
+ * @file dialback_out.cc
  * @brief handle outgoing server to server connections
  *
  * This is where the server to server connection manager handles outgoing connections.

@@ -32,7 +32,7 @@
 #include <time.h>
 
 /**
- * @file authreg.c
+ * @file authreg.cc
  * @brief handle authentication or new-user registration requests
  */
 

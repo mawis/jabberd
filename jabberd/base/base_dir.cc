@@ -23,7 +23,7 @@
  */
 
 /**
- * @file base_dir.c
+ * @file base_dir.cc
  * @brief base module base_dir: reads stanzas that are placed in a directory and processes them
  *
  * This module is can be used to periodically read a directory and check if new files
