@@ -29,7 +29,7 @@
  */
 
 /**
- * @file xdb_file.c
+ * @file xdb_file.cc
  * @brief implements storage in XML files
  *
  * @todo the xdbns attribute in the spool files should be contained in its own namespace

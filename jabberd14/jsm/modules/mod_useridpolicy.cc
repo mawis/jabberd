@@ -25,7 +25,7 @@
 #include "jsm.h"
 
 /**
- * @file mod_useridpolicy.c
+ * @file mod_useridpolicy.cc
  * @brief checks new user registrations against a policy for allowed/forbidden usernames
  *
  * This module allows the administrator to block some user-names from being registered

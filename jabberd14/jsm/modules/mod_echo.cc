@@ -31,7 +31,7 @@
 #include "jsm.h"
 
 /**
- * @file mod_echo.c
+ * @file mod_echo.cc
  * @brief reflect messages sent to serverdomain/echo back to the sender (undocumented)
  *
  * This module implements some functionality useful for testing if a server can be reached. It can

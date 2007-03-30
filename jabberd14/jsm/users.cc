@@ -31,7 +31,7 @@
 #include "jsm.h"
 
 /**
- * @file users.c
+ * @file users.cc
  * @brief functions for manipulating data for logged in users
  *
  * Contains the garbage collector for user records we don't need in memory anymore and

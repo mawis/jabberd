@@ -23,7 +23,7 @@
  */
 
 /**
- * @file base_null.c
+ * @file base_null.cc
  * @brief implements a base handler (xml routing target), that drops all messages
  */
 

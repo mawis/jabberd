@@ -29,7 +29,7 @@
 #include <iostream>
 
 /**
- * @file xdbfilepath.c
+ * @file xdbfilepath.cc
  * @brief small utility that prints out the location of a spool file inside the root spool directory
  */
 

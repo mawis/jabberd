@@ -29,7 +29,7 @@
  */
 
 /**
- * @file jabberd.c
+ * @file jabberd.cc
  * @brief Where all begins ... this file contains the main function, shutdown routines and signal handlers
  */
 

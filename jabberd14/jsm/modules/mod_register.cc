@@ -31,7 +31,7 @@
 #include "jsm.h"
 
 /**
- * @file mod_register.c
+ * @file mod_register.cc
  * @brief handles in-band registrations (XEP-0077)
  *
  * This module implements the functionality used to register and unregister accounts on the Jabber

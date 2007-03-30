@@ -31,7 +31,7 @@
 #include "jsm.h"
 
 /**
- * @file offline.c
+ * @file offline.cc
  * @brief handle packets addressed to existing but offline users
  */
 

@@ -25,7 +25,7 @@
 #include "jsm.h"
 
 /**
- * @file mod_privacy.c
+ * @file mod_privacy.cc
  * @brief implements XEP-0016 - Privacy Lists
  *
  * This module allows the user to configure and use privacy lists to

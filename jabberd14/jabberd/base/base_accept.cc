@@ -29,7 +29,7 @@
  */
 
 /**
- * @file base_accept.c
+ * @file base_accept.cc
  * @brief opens a socket to handle incoming connections using the component protocol defined in XEP-0114
  */
  

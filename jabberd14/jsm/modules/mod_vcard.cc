@@ -31,7 +31,7 @@
 #include "jsm.h"
 
 /**
- * @file mod_vcard.c
+ * @file mod_vcard.cc
  * @brief Implement handling of namespace 'vcard-temp' (XEP-0054)
  *
  * This module allows publishing of vcard data, replies queries for the vcard data

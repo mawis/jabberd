@@ -29,7 +29,7 @@
  */
 
 /**
- * @file jpacket.c
+ * @file jpacket.cc
  * @brief a jpacket is a wrapper around an xmlnode that contains an XMPP stanza
  *
  * A jpacket adds some variables to an xmlnode that contains a stanza, so that

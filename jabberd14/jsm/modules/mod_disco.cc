@@ -33,7 +33,7 @@
 #include "jsm.h"
 
 /**
- * @file mod_disco.c
+ * @file mod_disco.cc
  * @brief implement handling of service discovery (XEP-0030) in the session manager
  *
  * This module implements service discovery to get the list of available services

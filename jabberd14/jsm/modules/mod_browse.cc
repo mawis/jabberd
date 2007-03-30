@@ -31,7 +31,7 @@
 #include "jsm.h"
 
 /**
- * @file mod_browse.c
+ * @file mod_browse.cc
  * @brief implement handling of the jabber:iq:browse namespace (XEP-0011) in the session manager - DEPRICATED
  *
  * This module implements the handling of jabber:iq:browse to query client information

@@ -29,7 +29,7 @@
  */
 
 /**
- * @file dialback_in.c
+ * @file dialback_in.cc
  * @brief handle incoming server to server connections
  *
  * In this file there are the functions used to handle the incoming connections

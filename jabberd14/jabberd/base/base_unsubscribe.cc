@@ -23,7 +23,7 @@
  */
 
 /**
- * @file base_unsubscribe.c
+ * @file base_unsubscribe.cc
  * @brief base module base_unsubscribe: bounces messages and iqs, on receiving presences it sends unsubscribes
  *
  * This module is intended to be used, if the administrator of a server

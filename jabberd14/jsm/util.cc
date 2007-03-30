@@ -31,7 +31,7 @@
 #include "jsm.h"
 
 /**
- * @file util.c
+ * @file util.cc
  * @brief utility functions for jsm
  */
 
