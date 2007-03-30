@@ -6,8 +6,12 @@ after jabberd14 1.6.1
 - Service discovery on all components
 - Pinging users, that are inactive for a long time
 - TLS session resumption
+- remove dependancy on libpth, and support epoll afterwards
 
-- remove dependancy on libpth
+- object oriented C++ interface for components and session manager
+  modules
+- scripting API to write components and session manager modules
+  (perl or python, maybe ruby?)
 - true dynamic config
 
 - fix cygwin build
