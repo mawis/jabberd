@@ -29,7 +29,7 @@
  */
 
 /**
- * @file pool.c
+ * @file pool.cc
  * @brief Handling of memory pools
  *
  * Jabberd handles its memory allocations in pools. You create a pool, can

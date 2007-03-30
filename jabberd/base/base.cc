@@ -29,7 +29,7 @@
  */
 
 /**
- * @file base.c
+ * @file base.cc
  * @brief load all base handlers, register their configuration handlers
  */
 

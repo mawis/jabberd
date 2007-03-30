@@ -31,7 +31,7 @@
 #include "jsm.h"
 
 /**
- * @file mod_last.c
+ * @file mod_last.cc
  * @brief Implement handling of jabber:iq:last (XEP-0012) in the session manager
  *
  * By sending a jabber:iq:last query of type get the server will either reply

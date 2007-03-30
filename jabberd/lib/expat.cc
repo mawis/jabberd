@@ -29,7 +29,7 @@
  */
 
 /**
- * @file expat.c
+ * @file expat.cc
  * @brief reading/writing xmlnodes from/to files, reading xmlnodes from strings
  *
  * This file implements some tools for the xmlnode implementation in xmlnode.c

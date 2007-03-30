@@ -31,7 +31,7 @@
 #include "jsm.h"
 
 /**
- * @file mod_log.c
+ * @file mod_log.cc
  * @brief write a log entry if a session ends, optionally forward all messages to a configured entity
  *
  * This module only logs ending sessions. (It expects that the beginning of a session is logged

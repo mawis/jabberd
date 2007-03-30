@@ -29,7 +29,7 @@
  */
 
 /**
- * @file heartbeat.c
+ * @file heartbeat.cc
  * @brief functions used to register other functions to be called regularily
  */
 #include "jabberd.h"

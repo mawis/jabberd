@@ -29,7 +29,7 @@
  */
 
 /**
- * @file acl.c
+ * @file acl.cc
  * @brief Functions that check access of users to restricted functionality of the server
  *
  * For the moment this is only a provisional implementation of ACLs for jabberd14

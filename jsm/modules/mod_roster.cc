@@ -31,7 +31,7 @@
 #include "jsm.h"
 
 /**
- * @file mod_roster.c
+ * @file mod_roster.cc
  * @brief handle subscription state changes and the user's access to his roster
  *
  * The protocols implemented in this module are documented in XMPP IM.

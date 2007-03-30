@@ -31,7 +31,7 @@
 #include "jsm.h"
 
 /**
- * @file mod_auth_plain.c
+ * @file mod_auth_plain.cc
  * @brief handles authentication using plaintext password with plaintext passwords in xdb
  *
  * This module is responsible for handling authentication if the client uses

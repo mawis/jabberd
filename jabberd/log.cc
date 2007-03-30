@@ -29,7 +29,7 @@
  */
 
 /**
- * @file log.c
+ * @file log.cc
  * @brief functions used to generate log messages, and logging of debug messages
  *
  * Generated log messages are routed to a logging component using the XML router.

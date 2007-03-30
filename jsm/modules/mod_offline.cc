@@ -31,7 +31,7 @@
 #include "jsm.h"
 
 /**
- * @file mod_offline.c
+ * @file mod_offline.cc
  * @brief Handle offline messages to users (including message expiration (XEP-0023), that is DEPRICATED by XEP-0079, message events (XEP-0022), that might become DEPRICATED by XEP-0085 or a successor, and flexible offline message retrieval (XEP-0013))
  * 
  * This module is responsible for checking if a message can be delivered to a user session

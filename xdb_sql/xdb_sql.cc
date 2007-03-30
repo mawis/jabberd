@@ -47,7 +47,7 @@
 #define XDBSQL_MAXNS_PRIME 101
 
 /**
- * @file xdb_sql.c
+ * @file xdb_sql.cc
  * @brief xdb module that handles the requests using a SQL database
  *
  * xdb_sql is an implementation of a xdb module for jabberd14, that handles

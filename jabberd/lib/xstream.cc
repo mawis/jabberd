@@ -29,7 +29,7 @@
  */
 
 /**
- * @file xstream.c
+ * @file xstream.cc
  * @brief handling of incoming XML stream based events
  *
  * xstream is a way to have a consistent method of handling incoming XML stream based events ...

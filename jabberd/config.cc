@@ -29,7 +29,7 @@
  */
 
 /**
- * @file config.c
+ * @file config.cc
  * @brief handle the configuration file
  */
 

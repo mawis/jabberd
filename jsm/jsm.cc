@@ -31,7 +31,7 @@
 #include "jsm.h"
 
 /**
- * @file jsm.c
+ * @file jsm.cc
  * @brief main part of the jsm (Jabberd session manager) module
  *
  * This file contains the function that is called by jabberd to load this

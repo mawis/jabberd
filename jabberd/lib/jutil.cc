@@ -29,7 +29,7 @@
  */
 
 /**
- * @file jutil.c
+ * @file jutil.cc
  * @brief various utilities mainly for handling xmlnodes containing stanzas
  */
 
