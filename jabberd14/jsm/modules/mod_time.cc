@@ -31,7 +31,7 @@
 #include "jsm.h"
 
 /**
- * @file mod_time.c
+ * @file mod_time.cc
  * @brief implement the Entity Time protocol (XEP-0090)
  *
  * The protocol implemented by this module can be used the query the current time on the server.

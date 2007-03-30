@@ -23,7 +23,7 @@
  */
 
 /**
- * @file base_importspool.c
+ * @file base_importspool.cc
  * @brief base module base_importspool: reads a filespool and sets all contained data using the configured xdb handler.
  *
  * This module is used internally by jabberd14 if you request it to import data from an existing filespool.

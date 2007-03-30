@@ -29,7 +29,7 @@
  */
 
 /**
- * @file sessions.c
+ * @file sessions.cc
  * @brief handle messages to and from user sessions
  */
 

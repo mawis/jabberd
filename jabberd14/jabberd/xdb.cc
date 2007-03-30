@@ -29,7 +29,7 @@
  */
 
 /**
- * @file xdb.c
+ * @file xdb.cc
  * @brief implement the interface to the XML database access
  */
 

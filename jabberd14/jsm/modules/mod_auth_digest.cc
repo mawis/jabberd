@@ -31,7 +31,7 @@
 #include <jsm.h>
 
 /**
- * @file mod_auth_digest.c
+ * @file mod_auth_digest.cc
  * @brief Handle authentication using hashed passwords on the wire (requires plain passwords in storage) and registration. See XEP-0077 and XEP-0078 for the protocol.
  */
 

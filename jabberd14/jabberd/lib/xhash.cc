@@ -29,7 +29,7 @@
  */
 
 /**
- * @file xhash.c
+ * @file xhash.cc
  * @brief implements a hash type collection
  */
 

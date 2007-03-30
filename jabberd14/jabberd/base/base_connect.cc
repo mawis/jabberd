@@ -30,6 +30,14 @@
 
 #include "jabberd.h"
 
+/**
+ * @file base_connect.cc
+ * @brief connects to another instance using the component protocol
+ *
+ * This base handler implements connecting to another jabberd or other server instance
+ * using the component protocol defined in XEP-0114.
+ */
+
 /* ---------------------------------------------------------
    base_connect - Connects to a specified host/port and 
                   exchanges xmlnodes with it over a socket

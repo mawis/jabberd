@@ -29,7 +29,7 @@
  */
 
 /**
- * @file mio_xml.c
+ * @file mio_xml.cc
  * @brief handling of XML streams on network connections
  *
  * This file implements the functionality used to handle XML streams

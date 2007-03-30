@@ -29,7 +29,7 @@
  */
 
 /**
- * @file mio.c
+ * @file mio.cc
  * @brief MIO -- Managed Input/Output
  *
  * The purpose of this file, is mainly to provide support, to any component

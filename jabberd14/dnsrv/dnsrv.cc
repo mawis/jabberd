@@ -29,7 +29,7 @@
  */
 
 /**
- * @file dnsrv.c
+ * @file dnsrv.cc
  * @brief implements the main part of the DNS resolver component
  *
  * Config format:

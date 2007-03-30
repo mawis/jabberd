@@ -25,7 +25,7 @@
 #include "jsm.h"
 
 /**
- * @file serialization.c
+ * @file serialization.cc
  * @brief functions for serialization an deserialization of JSM state
  *
  * Contains code to serialize all necessary state information of JSM to a XML file

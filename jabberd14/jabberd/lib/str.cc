@@ -29,7 +29,7 @@
  */
 
 /**
- * @file str.c
+ * @file str.cc
  * @brief utilities for string handling
  *
  * This file contains utility functions for string handling:

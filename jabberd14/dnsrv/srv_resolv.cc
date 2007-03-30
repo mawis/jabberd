@@ -38,7 +38,7 @@
 #include "srv_resolv.h"
 
 /**
- * @file srv_resolv.c
+ * @file srv_resolv.cc
  * @brief implements SRV DNS resolving
  *
  * This file implements resolving of services in the DNS using the protocol defined in RFC 2782.

@@ -29,7 +29,7 @@
  */
 
 /**
- * @file rate.c
+ * @file rate.cc
  * @brief calculate rate limits
  *
  * Rate limits can be used to limit the number of allowed events in a given interval,

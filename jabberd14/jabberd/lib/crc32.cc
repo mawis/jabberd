@@ -23,7 +23,7 @@
  */
 
 /**
- * @file crc32.c
+ * @file crc32.cc
  * @brief Implementation of CRC32 using precomputed remainders
  */
 

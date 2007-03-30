@@ -31,7 +31,7 @@
 #include "jsm.h"
 
 /**
- * @file mod_admin.c
+ * @file mod_admin.cc
  * @brief Admin functionallity for the session manager
  *
  * This implements the admin functionallity of the session manger:
