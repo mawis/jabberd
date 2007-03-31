@@ -33,9 +33,9 @@
  * @brief implements the main part of the DNS resolver component
  *
  * Config format:
- * <dnsrv xmlns='jabber:config:dnsrv'>
- *     <resend service="_jabber._tcp">s2s-component</resend>
- * </dnsrv>
+ * &lt;dnsrv xmlns='jabber:config:dnsrv'&gt;
+ *     &lt;resend service="_jabber._tcp"&gt;s2s-component&lt;/resend&gt;
+ * &lt;/dnsrv&gt;
  *
  * Note: You must specify the services in the order you want them tried
  */

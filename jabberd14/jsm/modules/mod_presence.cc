@@ -734,7 +734,7 @@ static mreturn mod_presence_delete(mapi m, void *arg) {
  * init the module, register callbacks
  *
  * builds a list of JabberIDs where presences should be blind carbon copied to.
- * (Enclosing each in a <bcc/> element, which are contained in one <presence/>
+ * (Enclosing each in a &lt;bcc/&gt; element, which are contained in one &lt;presence/&gt;
  * element in the session manager configuration.)
  *
  * registers mod_presence_session() as a callback, that gets notified on new sessions

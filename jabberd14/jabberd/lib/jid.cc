@@ -418,7 +418,7 @@ int _jid_safe_resource(jid id) {
 /**
  * check if the domain identifier in a JID is valid
  *
- * @param jid data structure holding the JID
+ * @param id data structure holding the JID
  * @return 0 if domain is valid, non zero otherwise
  */
 int _jid_safe_domain(jid id) {
@@ -446,7 +446,7 @@ int _jid_safe_domain(jid id) {
 /**
  * check if the node identifier in a JID is valid
  *
- * @param jid data structure holding the JID
+ * @param id data structure holding the JID
  * @return 0 if node is valid, non zero otherwise
  */
 int _jid_safe_node(jid id) {
@@ -468,7 +468,7 @@ int _jid_safe_node(jid id) {
 /**
  * check if the resource identifier in a JID is valid
  *
- * @param jid data structure holding the JID
+ * @param id data structure holding the JID
  * @return 0 if resource is valid, non zero otherwise
  */
 int _jid_safe_resource(jid id) {
@@ -485,7 +485,7 @@ int _jid_safe_resource(jid id) {
 /**
  * nodeprep/nameprep/resourceprep the JID and check if it is valid
  *
- * @param jid data structure holding the JID
+ * @param id data structure holding the JID
  * @return NULL if the JID is invalid, pointer to the jid otherwise
  */
 jid jid_safe(jid id)

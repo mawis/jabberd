@@ -381,7 +381,9 @@ void dialback_out_packet(db d, xmlnode x, char *ip) {
  * @param m the connection the packet has been received on
  * @param flags the mio action, we ignore anything but MIO_XML_NODE
  * @param arg the dialback instance
- * @param the packet that has been received
+ * @param x the packet that has been received
+ * @param unused1 unused/ignored
+ * @param unused2 unused/ignored
  */
 void dialback_out_read_db(mio m, int flags, void *arg, xmlnode x, char* unused1, int unused2) {
     db d = (db)arg;
@@ -878,7 +880,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 
 /**
  * callback for walking the connecting hash tree: timing out connections that did not get
- * authorized in time (default is 30 seconds, can be configured with <queuetimeout/> in
+ * authorized in time (default is 30 seconds, can be configured with &lt;queuetimeout/&gt; in
  * the configuration file)
  *
  * @param h the hash containing all pending connections
@@ -929,7 +931,7 @@ void _dialback_out_beat_packets(xht h, const char *key, void *data, void *arg) {
 /**
  * start walking the connection hash tree, to see if connections dig not get authorizsed in time
  *
- * @param db the dialback instance
+ * @param arg the dialback instance
  * @return allways r_DONE
  */
 result dialback_out_beat_packets(void *arg) {
