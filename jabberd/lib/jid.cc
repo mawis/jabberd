@@ -30,7 +30,7 @@
 
 /**
  * @file jid.cc
- * @brief representation and normalization of JabberIDs
+ * @brief representation, normalization and comparison of JabberIDs (addresses in XMPP)
  */
 
 #include <jabberdlib.h>

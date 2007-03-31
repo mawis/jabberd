@@ -28,6 +28,27 @@
  *
  */
 
+/**
+ * @dir lib
+ * @brief Contains basic functionality, that is needed to form the server and its components
+ *
+ * In this directory there is the basic functionality on which the jabber server is build.
+ *
+ * Maybe the most basic file in here is pool.cc which contains the memory management of
+ * jabberd14. Memory in jabberd14 is managed in this pools, which means, that all memory allocated
+ * on a pool gets freed together when this pool is freed. This allows, that we do not need
+ * that many single memory freeings, and therefore the risk that freeing memory is forgotten gets
+ * reduced.
+ *
+ * Another basic module is in jid.cc which contains the functionality to manage XMPP addresses
+ * (JIDs). It can be used to modify and compare JIDs as well as to get them normalized.
+ *
+ * The third most basic module is in xmlnode.cc which contains a DOM-like interface to XML
+ * trees. Based on this XML interface jabberd14 builds the jpacket_struct which combines an
+ * XML document (a stanza) with fields of relevant information about this stanza (stanza
+ * type, sender and receipient, ...) jpackets are implemented in jpacket.cc.
+ */
+
 #ifdef HAVE_CONFIG_H
 #   include <config.h>
 #endif

@@ -31,6 +31,8 @@
 /**
  * @file socket.cc
  * @brief some misc functions to handle sockets
+ *
+ * Hint: after creating a socket with these function, you probably want to register this socket in mio using mio_new().
  */
 
 #include <jabberdlib.h>
