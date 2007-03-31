@@ -146,7 +146,7 @@ static void js_deliver_local(jsmi si, jpacket p, xht ht) {
 }
 
 /**
- * handle incoming <route type='session'/> packets, we get passed from jabberd:
+ * handle incoming &lt;route type='session'/&gt; packets, we get passed from jabberd:
  * create a new session
  *
  * @param i the jsm instance we are running in
@@ -175,11 +175,11 @@ result _js_routed_session_packet(instance i, dpacket p, jsmi si) {
 }
 
 /**
- * handle incoming <route type='auth'/> packets, we get passed from jabberd:
+ * handle incoming &lt;route type='auth'/&gt; packets, we get passed from jabberd:
  * authentication or registration requests
  *
  * Check if another component is configured to handle the auth packets
- * using the <auth/> element containing the other component's address
+ * using the &lt;auth/&gt; element containing the other component's address
  * in jsm's configuration.
  *
  * If not let js_authreg process the request.
@@ -212,7 +212,7 @@ result _js_routed_auth_packet(instance i, dpacket p, jsmi si, jpacket jp) {
 }
 
 /**
- * handle incoming <route type='error'/> packets, we get passed from jabberd:
+ * handle incoming &lt;route type='error'/&gt; packets, we get passed from jabberd:
  * most likely returned packets we sent to the client connection manager - the
  * user seems to have disconnected (or the component has crashed *g*)
  *

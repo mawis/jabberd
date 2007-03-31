@@ -40,7 +40,7 @@
  *
  * @param type the type of the presence (one of the JPACKET__* contants)
  * @param to to whom the presence should be sent, NULL for a broadcast presence
- * @param status optional status (CDATA for the <status/> element, NULL for no <status/> element)
+ * @param status optional status (CDATA for the &lt;status/&gt; element, NULL for no &lt;status/&gt; element)
  * @return the xmlnode containing the created presence stanza
  */
 xmlnode jutil_presnew(int type, char *to, const char *status) {
@@ -79,14 +79,14 @@ xmlnode jutil_presnew(int type, char *to, const char *status) {
 }
 
 /**
- * utility for making IQ stanzas, that contain a <query/> element in a different namespace
+ * utility for making IQ stanzas, that contain a &lt;query/&gt; element in a different namespace
  *
  * @note In traditional Jabber protocols the element inside an iq element has the name "query".
  * This util is not able to create IQ stanzas that contain a query which a element that does
  * not have the name "query"
  *
  * @param type the type of the iq stanza (one of JPACKET__GET, JPACKET__SET, JPACKET__RESULT, JPACKET__ERROR)
- * @param ns the namespace of the <query/> element
+ * @param ns the namespace of the &lt;query/&gt; element
  * @return the created xmlnode
  */
 xmlnode jutil_iqnew(int type, char *ns) {
@@ -149,7 +149,7 @@ xmlnode jutil_msgnew(char *type, char *to, char *subj, char *body) {
 /**
  * returns the priority on an available presence packet
  *
- * @param xmlnode the xmlnode containing the presence packet
+ * @param x the xmlnode containing the presence packet
  * @return the presence priority, -129 for unavailable presences and errors
  */
 int jutil_priority(xmlnode x) {

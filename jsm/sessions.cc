@@ -44,9 +44,9 @@ void _js_session_end(void *arg);
 /**
  * deliver a packet to the client connection manager responsible for the session
  *
- * The packet is wrapped inside a <route/> element and routed to
+ * The packet is wrapped inside a &lt;route/&gt; element and routed to
  * the client connection manager, that handles the connection for the
- * sepcified session. If the xmlnode in is NULL, a <route type='error'/>
+ * sepcified session. If the xmlnode in is NULL, a &lt;route type='error'/&gt;
  * stanza is sent to the client connection manager, signalling that the
  * session is not valid anymore.
  *
@@ -711,7 +711,7 @@ void js_session_to(session s, jpacket p)
 }
 
 /**
- * handle normal stanzas received inside a <route/> stanza from
+ * handle normal stanzas received inside a &lt;route/&gt; stanza from
  * jabberd. These are packets we get from the client connection manager,
  * that are from one of our users.
  *

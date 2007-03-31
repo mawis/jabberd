@@ -50,14 +50,14 @@ typedef struct db_struct {
     xht out_connecting;	/**< where unvalidated in-progress connections are, key is to/from */
     xht out_ok_db;	/**< hash table of all connected dialback hosts, key is same to/from */
     xht in_id;		/**< all the incoming connections waiting to be checked, rand id attrib is key */
-    xht in_ok_db;	/**< all the incoming dialback connections that are ok, ID@to/from is key */
+    xht in_ok_db;	/**< all the incoming dialback connections that are ok, ID\@to/from is key */
     xht hosts_xmpp;	/**< hash containing the XMPP version configuration for peers */
     xht hosts_tls;	/**< hash containing the STARTTLS configuration for peers */
     xht hosts_auth;	/**< hash containing the authentiction configuration for peers */
     char *secret;	/**< our dialback secret */
-    int timeout_packets;/**< configuration option <queuetimeout/>: how long should stanzas wait for an established connection */
-    int timeout_idle;	/**< configuration option <idletimeout/>: after how many seconds an authorized connection should be timed out */
-    int timeout_auth;	/**< configuration option <authtimeout/>: after how many seconds a connection should be closed, if it is not authorized for any domain */
+    int timeout_packets;/**< configuration option &lt;queuetimeout/&gt;: how long should stanzas wait for an established connection */
+    int timeout_idle;	/**< configuration option &lt;idletimeout/&gt;: after how many seconds an authorized connection should be timed out */
+    int timeout_auth;	/**< configuration option &lt;authtimeout/&gt;: after how many seconds a connection should be closed, if it is not authorized for any domain */
     xht std_ns_prefixes;/**< standard prefixes used inside the dialback component for xpath expressions */
     xdbcache xc;	/**< pointer to the ::xdbcache_cache structure used to access the ACL and configuration */
 } *db, _db;

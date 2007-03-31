@@ -136,7 +136,7 @@ static result base_unsubscribe_config(instance id, xmlnode x, void *arg) {
 }
 
 /**
- * load the base_unsubscribe base module by registering a configuration handler for <unsubscribe/>
+ * load the base_unsubscribe base module by registering a configuration handler for &lt;unsubscribe/&gt;
  *
  * @param p memory pool used to register the configuration handler, must be available for the livetime of jabberd
  */

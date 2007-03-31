@@ -200,7 +200,7 @@ static void _mio_xstream_endElement(void* _m, const char* name) {
 /**
  * internal expat callback for CDATA nodes
  *
- * @param m the mio
+ * @param _m the mio
  * @param cdata content of the CDATA node (not zero terminated!)
  * @param len length of the content
  */
