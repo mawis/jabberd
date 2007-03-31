@@ -22,6 +22,13 @@
  *
  */
 
+/**
+ * @file messages.cc
+ * @brief support for internationalized messages
+ *
+ * This implements an interface to access message translation catalogs
+ */
+
 #include <map>
 #include <string>
 #include <locale>
@@ -34,11 +41,36 @@
  */
 class messages {
     public:
+	/**
+	 * globally available instance of messages
+	 */
 	static messages static_messages;
+
+	/**
+	 * define a mapping from a language token in XML to a system locale
+	 *
+	 * @param lang the XML language token
+	 * @param locale_name the system locale name
+	 */
 	void set_mapping(const std::string& lang, const std::string& locale_name);
+
+	/**
+	 * get a translated message
+	 *
+	 * @param lang the language (XML language token) to get the message for
+	 * @param message the message to get a translation for
+	 * @return the translated message (if available), or same as message
+	 */
 	std::string get(const std::string& lang, const char* message);
     private:
+	/**
+	 * mappings from XML language token to system locales
+	 */
 	std::map<std::string, std::string> locale_by_lang;
+
+	/**
+	 * mapping from XML language token to a message catalog instance
+	 */
 	std::map<std::string, std::messages<char>::catalog> catalog_by_lang;
 };
 
@@ -97,6 +129,12 @@ std::string messages::get(const std::string& lang, const char* message) {
     }
 }
 
+/**
+ * define a mapping from a language token in XML to a system locale for the static messages instance
+ *
+ * @param lang the XML language token
+ * @param locale_name the system locale name
+ */
 void messages_set_mapping(const char* lang, const char* locale_name) {
     // sanity check
     if (lang == NULL || locale_name == NULL)
@@ -105,6 +143,13 @@ void messages_set_mapping(const char* lang, const char* locale_name) {
     messages::static_messages.set_mapping(lang, locale_name);
 }
 
+/**
+ * get a translated message from the static messages instance
+ *
+ * @param lang the language (XML language token) to get the message for
+ * @param message the message to get a translation for
+ * @return the translated message (if available), or same as message
+ */
 const char* messages_get(const char* lang, const char* message) {
     static std::string last_result;
 

@@ -28,6 +28,11 @@
  *
  */
 
+/**
+ * @file base_file.cc
+ * @brief write received data to a file (used to do logging)
+ */
+
 #include "jabberd.h"
 
 static result base_file_deliver(instance id, dpacket p, void* arg) {

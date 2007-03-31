@@ -22,6 +22,11 @@
  *
  */
 
+/**
+ * @file base_syslog.cc
+ * @brief write received packets to syslog (used for logging)
+ */
+
 #include "jabberd.h"
 
 #ifdef HAVE_SYSLOG

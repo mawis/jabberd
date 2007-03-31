@@ -26,6 +26,13 @@
  *
  */
 
+/**
+ * @file subjectAltName_asn1_tab.c
+ * @brief data needed to access ASN.1 structures contained in X.509 certificates
+ *
+ * This is needed because older versions GnuTLS do not give use another possibility to access id_on_xmppAddr values in certificates.
+ */
+
 #ifdef HAVE_CONFIG_H
 #   include <config.h>
 #endif
