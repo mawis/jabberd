@@ -22,8 +22,24 @@
  *
  */
 
+/**
+ * @file hmac.cc
+ * @brief This file implements HMAC-SHA1
+ *
+ * HMAC-SHA1 is a keyed-hash message authentication code, which can be used to authenticate data.
+ * This is used inside jabberd14 to generate dialback keys.
+ */
+
 #include "jabberdlib.h"
 
+/**
+ * Calculate the HMAC-SHA1 for a given block of data, the result is the binary value
+ *
+ * @param secret the key to use
+ * @param message the message to calculate the HMAC-SHA1 for
+ * @param len the length of the message in bytes
+ * @param hmac where to place the result
+ */
 static void hmac_sha1_r(char *secret, unsigned char *message, size_t len, unsigned char hmac[20]) {
     std::vector<uint8_t> key;
     xmppd::sha1 innerhash;
@@ -63,6 +79,14 @@ static void hmac_sha1_r(char *secret, unsigned char *message, size_t len, unsign
     }
 }
 
+/**
+ * Calculate the HMAC-SHA1 for a given block of data, the result a string containing the hmac as hex value
+ *
+ * @param secret the key to use
+ * @param message the message to calculate the HMAC-SHA1 for
+ * @param len the length of the message in bytes
+ * @param hmac where to place the result
+ */
 void hmac_sha1_ascii_r(char *secret, unsigned char *message, size_t len, char hmac[41]) {
     unsigned char hmac_bin[20];
     int i = 0;

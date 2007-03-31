@@ -28,6 +28,11 @@
  *
  */
 
+/**
+ * @file base_to.cc
+ * @brief forward received messages to a special destination address
+ */
+
 #include "jabberd.h"
 
 static result base_to_deliver(instance id,dpacket p,void* arg) {

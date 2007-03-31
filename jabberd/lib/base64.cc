@@ -33,6 +33,10 @@
 /**
  * @file base64.cc
  * @brief Functions to handle Base64 encoding and decoding
+ *
+ * The function to decode base64 data is base64_decode(), the general encoding function is base64_encode(). If the data that should get encoded is not
+ * binary data, but zero terminated character data, the str_b64decode() function can be used instead, which does not require the caller to specify the
+ * length of that data that should get encoded.
  */
 
 /**
@@ -46,8 +50,7 @@ const char *BASE64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
  * @param triple three bytes that should be encoded
  * @param result buffer of four characters where the result is stored
  */
-void _base64_encode_triple(unsigned char triple[3], char result[4])
-{
+static void _base64_encode_triple(unsigned char triple[3], char result[4]) {
     int tripleValue, i;
 
     tripleValue = triple[0];
@@ -56,8 +59,7 @@ void _base64_encode_triple(unsigned char triple[3], char result[4])
     tripleValue *= 256;
     tripleValue += triple[2];
 
-    for (i=0; i<4; i++)
-    {
+    for (i=0; i<4; i++) {
 	result[3-i] = BASE64_CHARS[tripleValue%64];
 	tripleValue /= 64;
     }
@@ -72,15 +74,13 @@ void _base64_encode_triple(unsigned char triple[3], char result[4])
  * @param targetlen the length of the target buffer
  * @return 1 on success, 0 otherwise
  */
-int base64_encode(unsigned char *source, size_t sourcelen, char *target, size_t targetlen)
-{
+int base64_encode(unsigned char *source, size_t sourcelen, char *target, size_t targetlen) {
     /* check if the result will fit in the target buffer */
     if ((sourcelen+2)/3*4 > targetlen-1)
 	return 0;
 
     /* encode all full triples */
-    while (sourcelen >= 3)
-    {
+    while (sourcelen >= 3) {
 	_base64_encode_triple(source, target);
 	sourcelen -= 3;
 	source += 3;
@@ -88,8 +88,7 @@ int base64_encode(unsigned char *source, size_t sourcelen, char *target, size_t 
     }
 
     /* encode the last one or two characters */
-    if (sourcelen > 0)
-    {
+    if (sourcelen > 0) {
 	unsigned char temp[3];
 	memset(temp, 0, sizeof(temp));
 	memcpy(temp, source, sourcelen);

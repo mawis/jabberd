@@ -31,6 +31,8 @@
 /**
  * @file xhash.cc
  * @brief implements a hash type collection
+ *
+ * @deprecated Use STL containers (e.g. std::map) instead xhash for new code.
  */
 
 #include <jabberdlib.h>

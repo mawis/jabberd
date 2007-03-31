@@ -28,6 +28,11 @@
  *
  */
 
+/**
+ * @file base_format.cc
+ * @brief reformat stanzas and let them pass to the next base handler (used to format log messages)
+ */
+
 #include "jabberd.h"
 
 static result base_format_modify(instance id, dpacket p, void *arg) {
