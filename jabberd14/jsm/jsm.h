@@ -323,7 +323,7 @@ typedef int event;
   * A fictive stanza is passed as ::jpacket_struct containing the following XML
   * data:
   *
-  * &lt;query xmlns='jabber:iq:auth' to='user@server'>
+  * &lt;query xmlns='jabber:iq:auth' to='user\@server'>
   * &lt;password>newpass&lt;/password>
   * &lt/query>
   */
@@ -352,7 +352,7 @@ typedef int event;
  * e_ROSTERCHANGE is called when the roster of a user has changed.
  *
  * The called module gets passed the ::jpacket_struct containing the updated item inside a
- * iq[@type='set']/roster:query, the ::udata_struct (user data) of the user owning the
+ * iq[\@type='set']/roster:query, the ::udata_struct (user data) of the user owning the
  * roster, but gets passed no ::session_struct.
  */
 #define e_ROSTERCHANGE 14

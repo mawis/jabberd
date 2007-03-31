@@ -42,7 +42,7 @@
 
 /**
  * the maximum number of defined namespaces to handle, can be overridden with
- * the <maxns/> configuration setting
+ * the &lt;maxns/&gt; configuration setting
  */
 #define XDBSQL_MAXNS_PRIME 101
 
@@ -866,7 +866,7 @@ static void xdb_sql_cleanup(void *arg) {
  * init the xdb_sql module, called by the jabberd module loader
  *
  * @param i jabberd's data about our instance
- * @param x the <load/> xmlnode that instructed the moduleloader to load us
+ * @param x the &lt;load/&gt; xmlnode that instructed the moduleloader to load us
  */
 extern "C" void xdb_sql(instance i, xmlnode x) {
     xdbcache xc;		/* to fetch our configuration */

@@ -193,7 +193,7 @@ static result base_dir_config(instance id, xmlnode x, void *arg) {
 }
 
 /**
- * load the base_dir base module by registering a configuration handler for <dir/>
+ * load the base_dir base module by registering a configuration handler for &lt;dir/&gt;
  *
  * @param p memory pool used to register the configuration handler (must be available for the livetime of jabberd)
  */

@@ -401,6 +401,7 @@ int xmlnode2file_limited(char *file, xmlnode node, size_t sizelimit) {
  *
  * @param owner where to add the attributes
  * @param atts the attributes in expat format (even indexes are the attribute names, odd indexes the values)
+ * @param nslist list of currently defined prefixes for namespace IRIs
  */
 void xmlnode_put_expat_attribs(xmlnode owner, const char** atts, xmppd::ns_decl_list& nslist) {
     int i = 0;

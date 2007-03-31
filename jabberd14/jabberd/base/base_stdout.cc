@@ -34,7 +34,7 @@
  * @file base_stdout.cc
  * @brief this handler will cause all packets to be delivered to standard out (STDOUT) from the jabberd process, it also flags a thread to read on STDIN for incoming packets - DEPRICATED
  *
- * @depricated using this handler is depricated, it will be removed from future versions of jabberd14
+ * @deprecated using this handler is depricated, it will be removed from future versions of jabberd14
  */
 
 /* for cleanup signalling */

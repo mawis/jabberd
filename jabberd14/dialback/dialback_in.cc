@@ -107,6 +107,8 @@ static dbic dialback_in_dbic_new(db d, mio m, const char *we_domain, const char 
  * @param flags the mio action, should always be MIO_XML_NODE, other actions are ignored
  * @param arg the dbic instance of the stream on which the stanza has been read
  * @param x the stanza that has been read
+ * @param unused1 unused/ignored
+ * @param unused2 unused/ignored
  */
 void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x, char* unused1, int unused2) {
     dbic c = (dbic)arg;
@@ -326,9 +328,11 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x, char* unused1, 
  * - Reset the mio callback. Stanzas are handled by dialback_in_read_db()
  *
  * @param m the connection on which the stream root element has been received
- * @param the mio action, everything but MIO_XML_ROOT is ignored
+ * @param flags the mio action, everything but MIO_XML_ROOT is ignored
  * @param arg the db instance
  * @param x the stream root element
+ * @param unused1 unused/ignored
+ * @param unused2 unused/ignored
  */
 void dialback_in_read(mio m, int flags, void *arg, xmlnode x, char* unused1, int unused2) {
     db d = (db)arg;

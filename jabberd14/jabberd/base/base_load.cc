@@ -188,7 +188,7 @@ static result base_load_config(instance id, xmlnode x, void *arg) {
 /**
  * init the module loader
  *
- * register that we want to handle the <load/> element in the configuration
+ * register that we want to handle the &lt;load/&gt; element in the configuration
  *
  * @param p memory pool used to register memory for the registration of handling the &lt;load/&gt; config element
  */

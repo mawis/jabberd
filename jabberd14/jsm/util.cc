@@ -82,7 +82,7 @@ void js_bounce_xmpp(jsmi si, session s, xmlnode x, xterror xterr) {
  *
  * @param si the session manager instance data
  * @param query the path through the tag hierarchy of the desired tag, eg. for the conf file
- * 	<foo><bar>bar value</bar><baz/></foo> use "foo/bar" to retrieve the bar node, may be
+ * 	&lt;foo&gt;&lt;bar&gt;bar value&lt;/bar&gt;&lt;baz/&gt;&lt;/foo&gt; use "foo/bar" to retrieve the bar node, may be
  * 	NULL to get the root node of the jsm config
  * @param lang the prefered language, NULL for no prefered language
  * @return a pointer to the xmlnode (has to be freed by the caller!), or NULL if no such node could be found

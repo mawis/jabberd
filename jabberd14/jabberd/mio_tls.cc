@@ -1118,7 +1118,7 @@ ssize_t _mio_ssl_read(mio m, void *buf, size_t count) {
  * @param m the ::mio where writing is possible
  * @param buf data that should be written
  * @param count how many bytes should be written at most
- * @param ret > 0: ret bytes written; ret == 0: no bytes could be written; ret < 0: non-recoverable error or connection closed
+ * @return ret > 0: ret bytes written; ret == 0: no bytes could be written; ret < 0: non-recoverable error or connection closed
  */
 ssize_t _mio_ssl_write(mio m, const void *buf, size_t count) {
     int write_return = 0;
@@ -1907,7 +1907,7 @@ static int mio_tls_check_x509(mio m, char const* id_on_xmppAddr, const std::stri
  * verify the SSL/TLS certificate of the peer for the given MIO connection
  *
  * @param m the connection for which the peer should be verified
- * @param the JabberID, that the certificate should be checked for, if NULL it is only checked if the certificate is valid and trusted
+ * @param id_on_xmppAddr the JabberID, that the certificate should be checked for, if NULL it is only checked if the certificate is valid and trusted
  * @return 0 the certificate is invalid, 1 the certificate is valid
  */
 int mio_ssl_verify(mio m, const char *id_on_xmppAddr) {
