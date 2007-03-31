@@ -28,6 +28,11 @@
  *
  */
 
+/**
+ * @file base_stderr.cc
+ * @brief write incoming packets to stderr (used to dump log messages)
+ */
+
 #include "jabberd.h"
 
 static result base_stderr_display(instance i, dpacket p, void* args) {   
