@@ -84,7 +84,7 @@ ssize_t _mio_raw_read(mio m, void *buf, size_t count) {
  * @param m the mio representing this socket
  * @param buf the data that should be written
  * @param count how many bytes should be written (at most)
- * @param ret > 0: ret bytes written; ret == 0: no bytes could be written; ret < 0: non-recoverable error or connection closed
+ * @return ret > 0: ret bytes written; ret == 0: no bytes could be written; ret < 0: non-recoverable error or connection closed
  */
 ssize_t _mio_raw_write(mio m, void *buf, size_t count) {
     ssize_t write_return = 0;

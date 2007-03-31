@@ -1139,7 +1139,7 @@ result dialback_packets(instance i, dpacket dp, void *arg) {
 /**
  * callback for walking each miod-value host hash tree, close connections that have been idle to long
  *
- * The timeout value is configured in the dialback component configuration using the <idletimeout/>
+ * The timeout value is configured in the dialback component configuration using the &lt;idletimeout/&gt;
  * element.
  *
  * @param h the hash table containing all connections

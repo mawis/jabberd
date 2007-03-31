@@ -94,7 +94,7 @@ void _jsm_shutdown(xht h, const char *key, void *data, void *arg) {
 /**
  * callback function where jabberd signals the shutdown of the server
  *
- * @param our instance internal jsm data
+ * @param arg instance internal jsm data
  */
 void jsm_shutdown(void *arg) {
     jsmi si = (jsmi)arg;
@@ -167,7 +167,7 @@ static void _jsm_routing_update(instance i, const char *destination, int is_regi
  * startup the jsm module, register the jsm modules in jsm
  *
  * @param i the instance we are in jabberd
- * @param x the <load/> module that instructed the moduleloader to load us
+ * @param x the &lt;load/&gt; module that instructed the moduleloader to load us
  */
 extern "C" void jsm(instance i, xmlnode x) {
     jsmi si;

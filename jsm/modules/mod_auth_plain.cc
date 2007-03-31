@@ -179,7 +179,7 @@ static mreturn mod_auth_plain_delete(mapi m, void *arg) {
  * - mod_auth_plain_jane as authentication handler
  * - mod_auth_plain_server to process packets sent to the server address
  * - mod_auth_plain_reg to process request for required files in a registration
- *   request (only if there is a <register/> element in the session manager
+ *   request (only if there is a &lt;register/&gt; element in the session manager
  *   configuration)
  * - mod_auth_plain_pwchange to process changed passwords
  *

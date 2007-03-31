@@ -1174,7 +1174,7 @@ void mio_stop(void) {
  * @param cb the callback function, MIO should call on events
  * @param arg the argument MIO should pass to the callback function, when calling it
  * @param mh which ::mio_handlers MIO should use for this connection
- * @param pointer to the new MIO object, NULL on failure
+ * @return pointer to the new MIO object, NULL on failure
  */
 mio mio_new(int fd, mio_std_cb cb, void *arg, mio_handlers mh) {
     mio   newm    =  NULL;
@@ -1272,7 +1272,7 @@ void mio_close(mio m) {
  * the buffer is used and the xmlnode is ignored.
  *
  * @param m the ::mio to write the data to
- * @param x ::xmlnode containing the stanza, that should be written to a stream (gets freed after the data has been written)
+ * @param stanza ::xmlnode containing the stanza, that should be written to a stream (gets freed after the data has been written)
  * @param buffer pointer to a buffer of characters, that should be written to the connection
  * @param len number of bytes contained in the buffer, that should be written (-1 to write a zero terminated string contained in the buffer)
  */

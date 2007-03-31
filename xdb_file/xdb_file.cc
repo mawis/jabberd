@@ -184,6 +184,7 @@ void _xdb_get_hashes(const char *filename, char digit01[3], char digit23[3]) {
 /**
  * create folders in the spool
  *
+ * @param sp spool to write the result to
  * @param spoolroot the root of the spool
  * @param host the host for which the directory should be created
  * @param hash1 the hash for the first subdirectory

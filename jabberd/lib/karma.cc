@@ -83,7 +83,7 @@
 /**
  * make a copy of a karma structure
  *
- * @param new pointer to the destination (the structure must already exist)
+ * @param new_instance pointer to the destination (the structure must already exist)
  * @param old pointer to the values, that should be copied
  */
 void karma_copy(struct karma *new_instance, struct karma *old) {

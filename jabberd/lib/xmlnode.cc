@@ -865,14 +865,15 @@ xmlnode xmlnode_get_tag(xmlnode parent, const char* name) {
  *
  * Examples:
  * - foo/bar/text()
- * - foo/bar[@baz='true']/text()
+ * - foo/bar[\@baz='true']/text()
  * - foobar
- * - foobar[@attribute]
- * - *[@attribute='value']
+ * - foobar[\@attribute]
+ * - *[\@attribute='value']
  *
- * @param parent the xmlnode where to start the path
+ * @param context_node the xmlnode where to start the path
  * @param path the path (xpath like syntax, but only a small subset)
- * @param xht hashtable mapping namespace prefixes to namespace IRIs
+ * @param namespaces hashtable mapping namespace prefixes to namespace IRIs
+ * @param p memory pool to use
  * @return first item in the list of xmlnodes, or NULL if no xmlnode matched the path
  */
 xmlnode_list_item xmlnode_get_tags(xmlnode context_node, const char *path, xht namespaces, pool p) {
@@ -1135,6 +1136,7 @@ void xmlnode_put_attrib(xmlnode owner, const char* name, const char* value) {
  * @param name local name of the attribute
  * @param prefix namespace prefix of the attribute
  * @param ns_iri namespace IRI of the attribute
+ * @param value the value to set for the attribute
  */
 void xmlnode_put_attrib_ns(xmlnode owner, const char *name, const char *prefix, const char *ns_iri, const char *value) {
     xmlnode attrib;
@@ -1232,7 +1234,7 @@ void xmlnode_put_vattrib(xmlnode owner, const char* name, void *value) {
  *
  * @deprecated Do not use it. It's just a big hack. Probably you could use a ::xhash for the same things.
  *
- * @param element where to get the attribute for
+ * @param owner where to get the attribute for
  * @param name name of the attribute
  * @return pointer to the value
  */
@@ -1814,7 +1816,7 @@ xmlnode xmlnode_get_list_item(xmlnode_list_item first, unsigned int i) {
  *
  * @param nodes pointer to the first entry in the list of nodes
  * @param lang language to prefere (if NULL, the first node without language is prefered)
- * @param the selected nodes, NULL if no nodes have been passed
+ * @return the selected nodes, NULL if no nodes have been passed
  */
 xmlnode xmlnode_select_by_lang(xmlnode_list_item nodes, const char* lang) {
     xmlnode_list_item iter = NULL;

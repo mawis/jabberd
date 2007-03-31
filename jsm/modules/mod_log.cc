@@ -38,12 +38,12 @@
  * by the client connection manager which is able to log the IP address if required as well.)
  *
  * The module can be configured to forward all message stanzas to a configured entity on the router.
- * The message forwarding is configured using the <archive/> element containing a <service/> element
+ * The message forwarding is configured using the &lt;archive/&gt; element containing a &lt;service/&gt; element
  * for each destination having the destination's address as the CDATA node in it. The messages are
- * then forwarded using a <route/> element, therefore you cannot forward messages to entities
+ * then forwarded using a &lt;route/&gt; element, therefore you cannot forward messages to entities
  * not connected to your router (you cannot use s2s).
  *
- * The message forwarding functionallity is disabled if there is no <archive/> element in the
+ * The message forwarding functionallity is disabled if there is no &lt;archive/&gt; element in the
  * configuration of the session manager.
  *
  * mod_log should be the last in the list of modules in the session manager.
@@ -129,7 +129,7 @@ static mreturn mod_log_session(mapi m, void *arg) {
  * init the mod_log in the session manager
  *
  * build the list of forwarding destinations for the message logging functionallity
- * (using the <service/> elements inside the <archive/> element in the configuration
+ * (using the &lt;service/&gt; elements inside the &lt;archive/&gt; element in the configuration
  * of the session manager)
  *
  * register mod_log_session as callback for new sessions
