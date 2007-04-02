@@ -944,8 +944,10 @@
     <!-- credentials element by the domain the client connects to, but	-->
     <!-- by the IP address.						-->
     <!--								-->
-    <!-- The following elements are available inside the <credentials/>	-->
-    <!-- element:							-->
+    <!-- The following elements are the most important settings which   -->
+    <!-- you are typically interested in. For more available settings   -->
+    <!-- please consult the jabber.xml man page.			-->
+    <!-- 								-->
     <!-- <domain/>	Define a domain this definition should be used	-->
     <!--		for. The content of this element is a domain	-->
     <!--		for connects on ports 5222 and 5269, or an	-->
@@ -962,16 +964,6 @@
     <!--		key can be configured using the private-key	-->
     <!--		attribute of the <pem/> element.		-->
     <!--		You can have multiple <pem/> elements to load	-->
-    <!--		multiple certificates. E.g. one for RSA and	-->
-    <!--		another for DSS.				-->
-    <!-- <der/>		Defines a certificate in DER format to be	-->
-    <!--		loaded. The content of this element is the	-->
-    <!--		filename.					-->
-    <!--		The file containing the private key that	-->
-    <!--		belongs to the certificate has to be specified	-->
-    <!--		using the private-key attribute of the <der/>	-->
-    <!--		element.					-->
-    <!--		You can have multiple <der/> elements to load	-->
     <!--		multiple certificates. E.g. one for RSA and	-->
     <!--		another for DSS.				-->
     <!-- <ca/>		Load the certificate of a certification		-->
@@ -991,86 +983,6 @@
     <!--		certificates defined by the <cacertfile/>	-->
     <!--		element outside of <credentials/> are used as	-->
     <!--		the default.					-->
-    <!-- <openpgp/>	This element defines the location of a public	-->
-    <!--		and private key for OpenPGP. You will only need	-->
-    <!--		this, if you want to use OpenPGP certificates	-->
-    <!--		or OpenPGP authentication. The content of this	-->
-    <!--		element is the filename for the public key. The	-->
-    <!--		filename for the private key is specified using	-->
-    <!--		the private-key attribute of the <openpgp/>	-->
-    <!--		element.					-->
-    <!-- <keyring/>	This element defines the OpenPGP keyring to be	-->
-    <!--		used. From this keyring the TLS implementation	-->
-    <!--		gets the key signers it trusts. The content of	-->
-    <!--		this element is the filename of the keyring.	-->
-    <!--		You will only need this, if you want to use	-->
-    <!--		OpenPGP authentication.				-->
-    <!-- <trustdb/>	This element defines the file containing the	-->
-    <!--		GnuPG trustdb file, that should be used (if	-->
-    <!--		any). The content of this element is the	-->
-    <!--		filename of the trustdb.			-->
-    <!--		This is not needed, if you do not want OpenPGP	-->
-    <!--		authentication. And even in that case it is	-->
-    <!--		optional.					-->
-    <!-- <protocols/>	This defines the versions of the TLS (or SSL)	-->
-    <!--		protocol that should be used, and the priority	-->
-    <!--		of the protocols (i.e. which version should be	-->
-    <!--		used if the peer supports more than one of	-->
-    <!--		these versions). You specify it as a whitespace	-->
-    <!--		separated list of tokens. The token on the left	-->
-    <!--		has the highest priority.			-->
-    <!--		If this is not configured, the defaults of the	-->
-    <!--		TLS implementation are used.			-->
-    <!--		Possible protocol tokens are: TLS1_2 (only with	-->
-    <!--		newer versions of GnuTLS, otherwise ignored),	-->
-    <!--		TLS1_1, TLS1_0, and SSL3.			-->
-    <!-- <kx/>		The defines the key exchange algorithms, that	-->
-    <!--		should be used and their priority (i.e. which	-->
-    <!--		algorithm should be used, if the peer supports	-->
-    <!--		more than one of these algorithms). You specify	-->
-    <!--		it as a whitespace separated list of tokens.	-->
-    <!--		The leftmost token has the highest priority.	-->
-    <!--		If this is not configured, the defaults of the	-->
-    <!--		TLS implementation are used.			-->
-    <!--		Possible key-exchange algorithms are:		-->
-    <!--		DHE_DSS	DSS signed Diffie Hellmann key exchange	-->
-    <!--		DHE_RSA	RSA signed Diffie Hellmann key exchange	-->
-    <!--		RSA	RSA key exchange			-->
-    <!--		ANON_DH	Anonymous Diffie Hellmann key exchange	-->
-    <!-- <ciphers/>	This defines the cipher algorithms, that should -->
-    <!--		be supported as well as their priority (i.e.	-->
-    <!--		which algorithm should be used, if the peer	-->
-    <!--		supports more than one of these algorithms).	-->
-    <!--		You specify it as a whitespace separated list	-->
-    <!--		of tokens. The leftmost token has the highest	-->
-    <!--		priority.					-->
-    <!--		If this is not configured, the defaults of the	-->
-    <!--		TLS implementation are used. Please note that	-->
-    <!--		at least up to version 1.7.6 of GnuTLS AES with	-->
-    <!--		a 256 b key is not enabled by default. If you	-->
-    <!--		want to enable this algorithm, you have to	-->
-    <!--		use this setting.				-->
-    <!--		Possible cipher algorithms are:			-->
-    <!--		AES_256_CBC	The AES cipher using a 256 b	-->
-    <!--				key in CBC mode			-->
-    <!--		AES_128_CBC	The AES cipher using a 128 b	-->
-    <!--				key in CBC mode			-->
-    <!--		3DES_CBC	The 3DES cipher using a 168 b	-->
-    <!--				key in CBC mode			-->
-    <!--		ARCFOUR_128	The ARCFOUR stream cipher using	-->
-    <!--				a 128 b key			-->
-    <!--		These cipher algorithms are also possible but	-->
-    <!--		SHOULD NOT BE ENABLED:				-->
-    <!--		ARCFOUR_40	The ARCFOUR stream cipher using	-->
-    <!--				a 40 b key (this is weak!)	-->
-    <!--		RC2_40_CBC	The RC2 cipher using a 40 b key	-->
-    <!--				in CBC mode (this is weak!)	-->
-    <!--		DES_CBC		The DES cipher using a 58 b key -->
-    <!--				in CBC mode (this is weak!)	-->
-    <!--		NULL		The NULL cipher means to not	-->
-    <!--				encrypt at all. This is no	-->
-    <!--				protection at all and is just	-->
-    <!--				for debugging.			-->
     <!-- <compression/>	The compression algorithms, that should be	-->
     <!--		supported as well as their priority. The	-->
     <!--		content of this element is a whitespace		-->
@@ -1093,34 +1005,6 @@
     <!--			jabberd14 (done automatically if it is	-->
     <!--			found by jabberd14's configure script)	-->
     <!--			else this token is ignored.		-->
-    <!-- <mac/>		The message authentication code algorithms,	-->
-    <!--		that should be supported as well as their	-->
-    <!--		priority. The content of this element is a	-->
-    <!--		whitespace separated list of tokens.		-->
-    <!--		If this is not configured, the defaults of the	-->
-    <!--		TLS implementation are used.			-->
-    <!--		The following mac algorithms are supported:	-->
-    <!--		NULL	Using no MAC (not recommended)		-->
-    <!--		MD5	Using MD5				-->
-    <!--		SHA1	Using SHA1				-->
-    <!--		RMD160	Using RipeMD160				-->
-    <!--		MD2	Using MD2 (not recommended)		-->
-    <!--		SHA256	Using SHA256				-->
-    <!--		SHA384	Using SHA384				-->
-    <!--		SHA512	Using SHA512				-->
-    <!--		Note: SHA256, SHA384, and SHA512 are only	-->
-    <!--		supported by newer versions of GnuTLS.		-->
-    <!-- <certtypes/>	The types of certificates, that should be	-->
-    <!--		supported as well as their priority. The	-->
-    <!--		content of this element is a whitespace		-->
-    <!--		separated list of tokens.			-->
-    <!--		If this is not configured, the defaults of the	-->
-    <!--		TLS implementation are used. This typically	-->
-    <!--		will only enable X.509 certificates, which are	-->
-    <!--		the standard certificates of TLS.		-->
-    <!--		The following certificate types are supported:	-->
-    <!--		X.509	X.509 certificates			-->
-    <!--		OpenSSL	OpenSSL certificates			-->
     <!--								-->
     <!-- With the <dhparams/> element right inside the <tls/> element,	-->
     <!-- you can configure a file containing parameters for Diffie	-->
@@ -1148,18 +1032,9 @@
 	  <default/>
 	  <domain>localhost</domain>
 	  <domain>transport.localhost</domain>
-	  <pem private-key='@sysconfdir@/privkey.pem'>@sysconfdir@/pubkey.pem</pem>
-	  <pem private-key='@sysconfdir@/dss-privkey.pem'>@sysconfdir@/dss-pubkey.pem</pem>
-	  <der private-key='@sysconfdir@/anotherprivate.der'>@sysconfdir@/anotherpublic.der</der>
+	  <pem>@sysconfdir@/your-certificate.pem</pem>
 	  <ca type='pem'>@sysconfdir@/cacerts.pem</ca>
-	  <openpgp private-key='@sysconfdir@/secret.asc'>@sysconfdir@/public.asc</openpgp>
-	  <keyring>@sysconfdir@/ring.gpg</keyring>
-	  <protocols>TLS1_2 TLS1_1 TLS1_0 SSL3</protocols>
-	  <kx>DHE_DSS DHE_RSA RSA</kx>
-	  <ciphers>AES_256_CBC AES_128_CBC 3DES_CBC</ciphers>
-	  <compression>NULL</compression>
-	  <mac>SHA1</mac>
-	  <certtypes>X.509</certtypes>
+	  <compression>LZO DEFLATE NULL</compression>
       </credentials>
       -->
 

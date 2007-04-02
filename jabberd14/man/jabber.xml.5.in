@@ -1,4 +1,4 @@
-.TH jabber.xml 5 "13 Nov 2006" "@VERSION@" "jabberd14 project"
+.TH jabber.xml 5 "02 Apr 2007" "@VERSION@" "jabberd14 project"
 .SH NAME
 jabber.xml \- jabberd daemon configuration file
 .SH SYNOPSIS
@@ -64,7 +64,7 @@ This element is an immediate child element of the <jabber/> root element.
 In this section of the configuration file you can define different settings
 that are related to the network I/O layer. This includes bandwidth limitations
 (using the <karma/> element), assigning X.509 certificates to sockets (using
-the <ssl/> element), and to limit access to the server to specific IP address
+the <tls/> element), and to limit access to the server to specific IP address
 ranges (using the <allow/> and <deny/> elements).
 .TP
 .B <pidfile/>
@@ -275,5 +275,179 @@ Therefore you should have a body element inside this one, and a subject
 element might be good to have as well. It is possible to use xml:lang
 attributes for the content of this element. No default setting, if
 element is missing, no welcome message is generated.
+.TP
+.B TLS settings: cfg:jabber/cfg:io/cfg:tls
+Inside this configuration element you find the settings, that configure
+how TLS is used inside jabberd14. Settings inside this element are
+grouped together using the <credentials/> element. Every set of settings
+defined within such an element is used for the set of domains, that
+are configured using the <domain/> element inside this element. If
+jabberd14 searches for settings and does not find a set that contains
+the relevant domain, it will search a set that contains the <default/>
+element. If even no such set is found, TLS is disabled for this domain.
+(Note: This is designed to be used with the STARTTLS mechanism of the
+XMPP protocol. If you are using legacy TLS connections for clients on
+port 5223, you have to configure the IP addresses your are listening
+on as domain as well. E.g. <domain>192.0.2.34</domain> if you are
+listening on port 5223 or the IP address 192.0.2.34.)
+Beside the <credentials/> element, there are three more valid elements,
+that can be placed inside the <tls/> element:
+.TP
+.B TLS setting: cfg:jabber/cfg:io/cfg:tls/cfg:dhparams
+If this setting is not present, jabberd14 will generate parameters
+for Diffie Hellman keyexchanges on the fly when starting up. As this
+may take some time, you might want to use pre-calculated parameters.
+Use this setting to load them. Specify the filename containing the
+parameters as the content of this element. By default the file is
+expected to by PEM encoded. Add the flag type="der" if the file is
+DER encoded.
+.TP
+.B TLS setting: cfg:jabber/cfg:io/cfg:tls/cfg:cacertfile
+This setting defines a file containing certificates of the CAs jabberd14
+should trust when authenticating peers using certificates. These CA
+certificates are used as the default CAs and can be overwritten using
+the <ca/> element inside the <credentials/> elements for each set of
+TLS settings.
+.TP
+.B TLS setting: cfg:jabber/cfg:io/cfg:tls/cfg:crlfile
+This setting allows you to load a certificate revocation list from a file.
+Place the filename as the content of this element. By default the file is
+tried to be loaded as a PEM encoded file. If the file is DER encoded, please
+specify the type="der" attribute on this element.
+.TP
+.B TLS setting: cfg:jabber/cfg:io/cfg:tls/cfg:credentials/cfg:default
+Define that this set of TLS settings should be used when no explicit
+set of settings can be found for a domain.
+.TP
+.B TLS setting: cfg:jabber/cfg:io/cfg:tls/cfg:credentials/cfg:domain
+Bind a set of settings to a domain. The domain for which the set
+should be used has to be placed as the content of this element. No
+whitespace should be present in the content of this element. This element
+can be used multiple times inside the <credentials/> element to bind a
+set of settings to multiple domains.
+.TP
+.B TLS setting: cfg:jabber/cfg:io/cfg:tls/cfg:credentials/cfg:pem
+This setting is used to load a server certificate of a certificate
+chain, that is PEM encoded. By default jabberd14 tries to read the
+private key from the same file as the certificate. If you have your
+private key in a different file, please specify the filename of this
+file using the private-key attribute on the <pem/> element.
+If you have multiple certificates for the set of domains (e.g. a
+RSA and a DSA certificate) you can place multiple <pem/> elements
+inside a <credentials/> element. But if your certificates are for
+different domains, you have to place them in different <credentials/>
+elements.
+.TP
+.B TLS setting: cfg:jabber/cfg:io/cfg:tls/cfg:credentials/cfg:der
+This is the same setting as the <pem/> element, with the only
+difference that the file is expected to be DER encoded instead of
+PEM encoded. Please also note, that with DER encoded certificates
+you always have to place your private key in a different file, and
+therefore have to use the private-key attribute of the <der/> element.
+.TP
+.B TLS setting: cfg:jabber/cfg:io/cfg:tls/cfg:credentials/cfg:ca
+Load one or many certificates of CAs the server should trust to do
+certificate based authentication of peers. By default the file is expected
+to be PEM encoded. If the file is DER encoded, you have to add the type="der"
+attribute to this element. This element can be used multiple times to
+load multiple files.
+.TP
+.B TLS setting: cfg:jabber/cfg:io/cfg:tls/cfg:credentials/cfg:openpgp
+Load an OpenPGP key as certificate. Specify the file containing the public
+key as the content of this element and the file containing your private
+key using the private-key attribute of this element.
+.TP
+.B TLS setting: cfg:jabber/cfg:io/cfg:tls/cfg:credentials/cfg:keyring
+Load an OpenPGP keyring from the file specified using the content of this
+element.
+.TP
+.B TLS setting: cfg:jabber/cfg:io/cfg:tls/cfg:credentials/cfg:trustdb
+Load a GnuPG trust database from the file specified using the content of
+this element.
+.TP
+.B TLS setting: cfg:jabber/cfg:io/cfg:tls/cfg:credentials/cfg:protocols
+This setting is used to specify which version of the TLS protocol should be
+used and in which order they should be prefered. If you omit this setting,
+the protocols and their preference are defined by the used TLS library
+(GnuTLS) itself. Place the list of protocols in the order of their
+preference separated by whitespace as content of this element. Recognized
+values are: TLS1_2 for TLS version 1.2 (only known if jabberd14 is
+compiled with a TLS library supporting this version of TLS, otherwise
+ignored), TLS1_1 for TLS version 1.1, TLS1_0 for TLS version 1.0, and
+SSL3 for SSL version 3.0 (predecessor of TLS 1_0). SSL versions before
+3.0 are not supported by jabberd14 anymore as they are considered weak.
+.TP
+.B TLS setting: cfg:jabber/cfg:io/cfg:tls/cfg:credentials/cfg:kx
+This setting is used to specify which key exchange algorithms should be used
+and in which order they should be prefered. If you omit this setting, the
+algorithms and their preference are defined by the used TLS library (GnuTLS)
+itself. Place the list of algorithms in the order of their preference
+separated by whitespace as content of this element. Recognized values are:
+RSA for exchanging keys on a RSA encrypted channel, DHE_RSA for using a
+RSA signed Diffie Hellman keyexchange, DHE_DSS for using a DSS signed
+Diffie Hellman keyexchange. The DHE_* key exchanges might need a bit more
+computing power, but will result in a non-compromized key even if your
+certificate gets compromized. With a pure RSA key exchange the encrypted
+session gets readable if your RSA certificate gets compromized. For
+RSA and DHE_RSA keyexchanges you need a RSA certificate when being the server
+side of the connection, for the DHE_DSS key exchange you need a DSS
+certificate when being the server side of the connection. If you are the
+server (i.e. connected) side of the TLS connection, this setting will only
+select which key exchange algorithms you support/offer as it is the client's
+task to select one of the offered algorithms. Therefore the order of this
+setting is only relevant if you are the connecting side of a TLS connection.
+(Note: ANON_DH is supported as well and results in an anonymous Diffie
+Hellman keyexchange. Normally you do not want to enable this key exchange,
+please only enable it, if you know what you are doing.)
+.TP
+.B TLS setting: cfg:jabber/cfg:io/cfg:tls/cfg:credentials/cfg:ciphers
+This setting is used to specify which cipher algorithms should be used and in
+which order they should be prefered. If you omit this setting, the ciphers
+and their preference are defined by the used TLS library (GnuTLS) itself.
+Place the list of ciphers in the order of their preference separated by
+whitespace as content of this element. Recognized values are:
+AES_256_CBC is the AES cipher using a 256 b key in CBC mode, AES_128_CBC is
+the AES cipher using a 128 b key in CBC mode, 3DES_CBC is the 3DES cipher
+using 168 b key (effective strength is considered to be only 112 b) in CBC
+mode, ARCFOUR_128 is the ARCFOUR stream cipher using a 128 b key.
+(The following ciphers are recognized as well, but you normally should not
+configure them: ARCFOUR_40, RC2_40_CBC, DES_CBC, NULL. Only allow these
+additional ciphers, if you know exactly what you are doing. They are
+considered to be weak ciphers.)
+.TP
+.B TLS setting: cfg:jabber/cfg:io/cfg:tls/cfg:credentials/cfg:compression
+This setting is used to specify which compression algorithms should be used
+and in which order they should be prefered. If you omit this setting, the
+compression algorithms and their preference are defined by the used TLS
+library (GnuTLS) itself. With current versions of GnuTLS this means disabling
+compression. Therefore if you want to use TLS stream compression, you have
+to define this setting. Place the list of compression algorithms in the order
+of their preference separated by whitespace as content of this element.
+Recognized values are: LZO for compression using the LZO algorithm (only
+supported if GnuTLS extra has been found on compilation of jabberd14,
+ignored otherwise), DEFLATE for compression using the deflate/gzip algorithm,
+NULL for no compression. The LZO algorithm might have a better performance
+than the DEFLATE algorithm.
+.TP
+.B TLS setting: cfg:jabber/cfg:io/cfg:tls/cfg:credentials/cfg:mac
+This setting is used to specify which MAC algorithms should be used and in
+which order they should be prefered. If you omit this setting, the algorithms
+and their preference are defined by the used TLS library (GnuTLS) itself.
+Place the list of mac algorithms in the order of their preference separated by
+whitespace as content of this element. Recognized values are: NULL (for using
+no MAC), MD5, SHA1, RMD160, MD2 (not recommended), SHA256, SHA386, SHA512.
+This setting is for expert users only. Normally you want to leave the
+defaults. (SHA256, SHA386 and SHA512 are only present if the underlying TLS
+library support them.)
+.TP
+.B TLS setting: cfg:jabber/cfg:io/cfg:tls/cfg:credentials/cfg:certtypes
+This setting is used to specify which certificate types should be used and in
+which order they should be prefered. If you omit this setting, the types and
+their preference are defined by the used TLS library (GnuTLS) itself. With
+current versions of GnuTLS this means only supporting X.509 certificates,
+which is what you currently normally want to use. Place the list of types in
+the order of their preference separated by whitespace as content of this
+element. Recognized values are: X.509 for X.509 certificates and OpenPGP for
+using OpenPGP keys as certificates.
 .SH AUTHOR
 jabberd14 project
