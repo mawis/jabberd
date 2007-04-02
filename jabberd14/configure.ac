@@ -11,7 +11,7 @@ AM_CONFIG_HEADER(config.h)
 AC_LANG(C++)
 
 dnl version info for libraries
-VERSION_INFO="-version-info 0:0:0"
+VERSION_INFO="-version-info 2:0:0"
 AC_SUBST(VERSION_INFO)
 
 dnl helper macros
