@@ -85,6 +85,10 @@
 #include <utility>
 #include <list>
 
+#ifdef HAS_TR1_UNORDERED_MAP
+#   include <tr1/unordered_map>
+#endif
+
 /*
 **  Arrange to use either varargs or stdargs
 */
@@ -374,19 +378,42 @@ void crc32_r(const char *str, char crc32buf[9]);
 /* Hashtable functions                                       */
 /*                                                           */
 /* --------------------------------------------------------- */
-typedef struct xhn_struct
-{
-    struct xhn_struct *next;
-    const char *key;
-    void *val;
-} *xhn, _xhn;
+namespace xmppd {
 
-typedef struct xht_struct
-{
-    pool p;
-    int prime;
-    xhn *zen;
-} *xht, _xht;
+    /**
+     * a class implementing a hash with std::string as key and void* as value
+     *
+     * This is a replacement for the xht structure in older versions of jabberd14 and the
+     * xhash_...() functions are mapped to method calls on this object.
+     *
+     * @todo This dynamically maps to either a map or an unordered_map if available.
+     * This depends on a test made in the configure script. But we should not depend on
+     * definitions in config.h (i.e. definitions made by the configure script) in files
+     * we do install. This should be fixed before this code gets released.
+     */
+    class xhash :
+#ifdef HAS_TR1_UNORDERED_MAP
+	public std::tr1::unordered_map<std::string, void*>
+#else
+	public std::map<std::string, void*>
+#endif
+    {
+	public:
+	    /**
+	     * get an entry from the hash but consider the key to be a domain
+	     *
+	     * This accesor function also matches if the domainkey is a 'subdomain' for a domain in the map.
+	     * If there are multiple matches, the most specific one is returned. If no match can be found,
+	     * "*" is tried as a default key.
+	     *
+	     * @param domainkey the key that should be considered as a domain
+	     * @return iterator to the found value
+	     */
+	    iterator get_by_domain(std::string domainkey);
+    };
+}
+
+typedef xmppd::xhash* xht;
 
 xht xhash_new(int prime);
 void xhash_put(xht h, const char *key, void *val);
@@ -580,7 +607,7 @@ void expat_charData(void* userdata, const char* s, int len);
 
 /* conversion between xhash to xml */
 xmlnode xhash_to_xml(xht h);
-xht xhash_from_xml(xmlnode hash);
+xht xhash_from_xml(xmlnode hash, pool p);
 
 /***********************
  * XSTREAM Section

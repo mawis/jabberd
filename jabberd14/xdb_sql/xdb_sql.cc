@@ -903,7 +903,7 @@ extern "C" void xdb_sql(instance i, xmlnode x) {
 	if (ns_iri == NULL)
 	    continue;
 
-	xhash_put(xq->namespace_prefixes, prefix ? pstrdup(xq->namespace_prefixes->p, prefix) : "", pstrdup(xq->namespace_prefixes->p, ns_iri));
+	xhash_put(xq->namespace_prefixes, prefix ? pstrdup(i->p, prefix) : "", pstrdup(i->p, ns_iri));
     }
 
     /* check if we have to execute an XML query after we connected to the database server */

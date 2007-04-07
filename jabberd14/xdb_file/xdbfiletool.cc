@@ -101,7 +101,7 @@ int main(int argc, const char **argv) {
 
 	switch (pReturn) {
 	    case 1:
-		prefix = pstrdup(namespace_prefixes->p, poptGetOptArg(pCtx));
+		prefix = pstrdup(p, poptGetOptArg(pCtx));
 		if (prefix == NULL) {
 		    std::cerr << "Problem processing namespace prefix declaration ..." << std::endl;
 		    return 1;

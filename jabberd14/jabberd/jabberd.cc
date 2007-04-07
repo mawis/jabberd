@@ -78,9 +78,10 @@ typedef struct {
     pool	runtime_pool;	/**< memory pool with a livetime of the jabber server */
     int		signalflag;	/**< set to the signal value, if jabberd receives a signal */
     char*	cfgfile;	/**< configuration file the user specified at the command line (NULL for the default file) */
+    pool	cmd_line_p;	/**< memory pool for command line command processing (use with extrem caution, not freed before shutdown!) */
 } jabberd_struct;
 
-jabberd_struct jabberd = { NULL, NULL, 0, NULL };		/**< global data for the jabberd */
+jabberd_struct jabberd = { NULL, NULL, 0, NULL, NULL };		/**< global data for the jabberd */
 
 void xmlnode_stat();
 void deliver_pool_debug();
@@ -137,6 +138,7 @@ int main (int argc, const char** argv) {
 
     /* create hash for command line options */
     jabberd.cmd_line = xhash_new(11);
+    jabberd.cmd_line_p = pool_new();
     
     /* parse command line options */
     pCtx = poptGetContext(NULL, argc, argv, options, 0);
@@ -146,7 +148,7 @@ int main (int argc, const char** argv) {
 		do_debug = -1;
 		break;
 	    case 2:
-		cmd = pstrdup(jabberd.cmd_line->p, poptGetOptArg(pCtx));
+		cmd = pstrdup(jabberd.cmd_line_p, poptGetOptArg(pCtx));
 		c = strchr(cmd, ':');
 		if (c == NULL) {
 		    fprintf(stderr, "Invalid definition for config file replacement: %s\nNeeds to be of key:value\n", cmd);
@@ -223,7 +225,7 @@ int main (int argc, const char** argv) {
     /* the special -Z flag provides a list of zones to filter debug output for, flagged w/ a simple hash */
     if (zones != NULL) {
 	debug__zones = xhash_new(11);
-	cmd = pstrdup(debug__zones->p, zones);
+	cmd = pstrdup(jabberd.cmd_line_p, zones);
         while(cmd != NULL) {
             c = strchr(cmd, ',');
             if (c != NULL) {
