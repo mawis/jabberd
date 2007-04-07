@@ -117,7 +117,7 @@ int make_netsocket(u_short port, char *host, int type) {
     if(type == NETSOCKET_UDP)
     {
         /* bind to all addresses for now */
-        if(bind(s,(struct sockaddr*)&sa,sizeof sa) < 0)
+        if(host == NULL && bind(s,(struct sockaddr*)&sa,sizeof sa) < 0)
         {
             close(s);
             return(-1);
