@@ -6,7 +6,7 @@ AC_PREREQ(2.50)
 
 
 AC_INIT(jabberd/jabberd.h)
-AM_INIT_AUTOMAKE(jabberd14,1.6.1-rc1)
+AM_INIT_AUTOMAKE(jabberd14,1.6.2-alpha-20070407)
 AM_CONFIG_HEADER(config.h)
 AC_LANG(C++)
 
@@ -217,6 +217,17 @@ AC_MSG_CHECKING(for crypt.h)
 AC_CHECK_HEADER(crypt.h, crypt_header=yes, crypt_header=no)
 if test "$crypt_header" != "no"; then
     AC_DEFINE(INCLUDE_CRYPT_H,,[include the crypt.h header file])
+fi
+
+dnl check for tr1/unordered_map
+AC_MSG_CHECKING(for tr1/unordered_map)
+AC_TRY_COMPILE([#include <tr1/unordered_map>
+#include <string>], [std::tr1::unordered_map<std::string, std::string> m; m["foo"]="bar";], have_tr1_unordered_map=yes, have_tr1_unordered_map=no)
+if test "$have_tr1_unordered_map" = yes; then
+    AC_MSG_RESULT(yes)
+    AC_DEFINE(HAS_TR1_UNORDERED_MAP,,[support for hashmaps from TR1 has been detected])
+else
+    AC_MSG_RESULT(no)
 fi
 
 dnl debugging

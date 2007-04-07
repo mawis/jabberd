@@ -1,6 +1,11 @@
 2007-04-07  Matthias Wimmer  <m@tthias.eu>
 
-    * jabberd/lib/xhash.cc: Fix in handling "" as key
+    * jabberd/lib/xhash.cc: use container from the STL as hash implementation
+    * jabberd/lib/jabberdlib.h: same
+    * jabberd/jabberd.cc: same
+    * xdb_sql/xdb_sql.cc: same
+    * xdb_file/xdbfiletool.cc: same
+    * xdb_file/xdb_file.cc: same
 
 2007-03-29  Matthias Wimmer  <m@tthias.eu>
 

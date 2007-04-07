@@ -334,11 +334,12 @@ result xdb_file_phandler(instance i, dpacket p, void *arg) {
 	matchns = xmlnode_get_attrib_ns(p->x, "matchns", NULL);
         if (act != NULL) {
 	    xht namespaces = NULL;
+	    pool value_strings = NULL;
 
 	    if (matchns != NULL) {
 		xmlnode namespacesxml = NULL;
 		namespacesxml = xmlnode_str(matchns, j_strlen(matchns));
-		namespaces = xhash_from_xml(namespacesxml);
+		namespaces = xhash_from_xml(namespacesxml, value_strings);
 		xmlnode_free(namespacesxml);
 	    }
             switch (*act) {
@@ -413,6 +414,8 @@ result xdb_file_phandler(instance i, dpacket p, void *arg) {
             }
 	    if (namespaces)
 		xhash_free(namespaces);
+	    if (value_strings)
+		pool_free(value_strings);
         } else {
             if (data != NULL)
                 xmlnode_hide(data);
