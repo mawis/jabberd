@@ -838,6 +838,16 @@ void deliver_instance(instance i, dpacket p) {
 
     /* try all the handlers */
     hlast = h = i->hds;
+
+    // no handler?
+    if (!h) {
+	// this may happen if a component does not register_phandler() a handler for packets
+	// we either have to bounce or free the packet, else we have a memory leak in this case
+	// this may happen with base_dir, if no <out/> is configured.
+	deliver_fail(p, N_("Destination has no handler for this stanza."));
+	return;
+    }
+
     while (h != NULL) {
         /* there may be multiple delivery handlers, make a backup copy first if we have to */
         if (h->o == o_DELIVER && h->next != NULL)

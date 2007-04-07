@@ -6,6 +6,11 @@
     * xdb_sql/xdb_sql.cc: same
     * xdb_file/xdbfiletool.cc: same
     * xdb_file/xdb_file.cc: same
+     * jabberd/base/base_dir.cc: Fix memory leak when stanza is written to a
+ 	directory using the base_dir handler (<dir/> in config file)
+     * jabberd/deliver.cc: Fix memory leak if there is no packet handler in
+ 	an instance (happens if the base_dir handler is only configured to
+ 	inject, but not to write stanzas to files)
 
 2007-03-29  Matthias Wimmer  <m@tthias.eu>
 
