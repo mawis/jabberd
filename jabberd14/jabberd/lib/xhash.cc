@@ -259,10 +259,9 @@ void *xhash_get_by_domain(xht h, const char *domain) {
 void xhash_zap(xht h, const char *key) {
     xhn n = NULL;
     xhn previous_node = NULL;
-    int klen = 0;
     int index = 0;
 
-    if(h == NULL || key == NULL || (klen = strlen(key)) == 0)
+    if(h == NULL || key == NULL)
           return;
 
     index = _xhasher(key) % h->prime;
