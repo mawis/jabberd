@@ -130,7 +130,14 @@ static result base_dir_deliver(instance id, dpacket p, void *arg) {
     shahash_r(jid_full(p->id), jid_hash);
 
     /* write to file */
-    return xmlnode2file(spools(p->p, conf_data->out_dir, "/", id->id, "-", jid_hash, "-", jutil_timestamp_ms(timestamp), "-", serial, ".out", p->p), p->x) > 0 ? r_DONE : r_ERR;
+    int res = xmlnode2file(spools(p->p, conf_data->out_dir, "/", id->id, "-", jid_hash, "-", jutil_timestamp_ms(timestamp), "-", serial, ".out", p->p), p->x) > 0 ? r_DONE : r_ERR;
+
+    // if we consumed the dpacket, we have to free the xmlnode now
+    if (res) {
+	xmlnode_free(p->x);
+    }
+
+    return res ? r_DONE : r_ERR;
 }
 
 /**
