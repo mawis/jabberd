@@ -32,24 +32,65 @@
 
 /**
  * @file mtq.cc
- * @brief mtq is Managed Thread Queues - it manages the multithreading in jabberd
+ * @brief mtq is Managed Thread Queues - threads that do asyncronous jobs inside jabberd14
  *
- * they queue calls to be run sequentially on a thread, that comes from a system pool of threads
+ * Let me try to explain the Managed Thread Queues. I know that they might be the strangest part in jabberd14.D
+ * At least for myself, I guess it was the last part I understood. As for many older parts of the server I have never
+ * seen any documentation, but had to understand what is going on by looking at the code. But at this file understanding
+ * what is going on by looking at the code was a hard job, as it is mostly based on calls to libpth which IMO also does
+ * not have a very good documentation.
+ *
+ * So what is mtq? In mtq 10 threads are created when this module is used the first time. (This is done inside mtq_send()
+ * by checking if mtq__master still has the initial value of NULL which means it is not initialized yet.) These threads can
+ * be used to execute code. So when at some point in jabberd14 you notice that something should get executed, but you do
+ * not want to interrupt the normal execution flow (i.e. you do want to call a function, but the caller does not want to
+ * wait until the function has finished to be continued). In that situation you can just use the mtq_send() function and
+ * pass NULL as the first argument (q), a memory pool where some memory can be allocated from as the argument p, the
+ * function as the third argument and the argument you want to pass to your function as the last argument of mtq_send().
+ * mtq will then care, that your function is called by one of the threads that are managed by it. (Please note: pth are
+ * cooperative threads, therefore if you delegate a task to its own thread for not blocking the main execution, you still
+ * have to care that your job does not block the CPU too long. You might use pth_yield() to give pth a change to switch
+ * threads in longer running jobs.)
+ *
+ * Now there is a second use-case for mtq as well, that is only a little bit more complicated. It's where mtq_new() comes
+ * into place. In the use-case above when just using mtq_send() we create a job that is executed in parallel to the normal
+ * execution flow. If a second job gets started using mtq_send() then, we have the main execution flow as well as two
+ * additional jobs being executed at the same time. While this is okay for independant jobs, there are situations where
+ * you want some jobs being executed in parallel to the normal execution flow, but the order in which these jobs are done
+ * have to be kept. An example for this in jabberd14 is inside the session manager: The work for handling a stanza might take
+ * some time, e.g. if we have to wait for the result of an xdb request, and we do not want all other tasks to get interrupted
+ * until the xdb request has been handled. So this is a typical candidate for a job that is executed in parallel. But on the
+ * other side handling of stanzas for the same session of a user must be kept in order as we are not allowed to reorder
+ * the stanzas while forwarding them to its destination.
+ *
+ * mtq_new() is now exactly what we need for that. The queue we get returned by mtq_new() ensures, that all jobs that have
+ * been started using the same queue will get executed in exactly the same order as they have been requested, while
+ * their can still be executed in parallel to the main execution flow, jobs not being associated with a queue or jobs
+ * being associated with a different queue. To associate a job with a queue, we just pass the queue instead of NULL as
+ * the first argument of mtq_send(). In the session manager example from the previous paragraph we create a queue for each
+ * new session of a user (and as it is bound to the session memory pool it is automatically destroyed again when the
+ * session is destroyed). So each stanza that is handled gets its job bound to the session's queue so all stanzas are
+ * handled in order but in parallel to stanzas of other sessions.
  */
 
 typedef struct mtqcall_struct {
     pth_message_t head;	/**< the standard pth message header */
     mtq_callback f;	/**< function to run within the thread */
     void *arg;		/**< the data for this call */
-    mtq q;		/**< if this is a queue to process */
+    mtq q;		/**< set if this call is part of a queue, else its an unsyncronized call */
 } _mtqcall, *mtqcall;
 
 typedef struct mtqmaster_struct {
-    mth all[MTQ_THREADS];
-    int overflow;
-    pth_msgport_t mp;
+    mth all[MTQ_THREADS];	/**< array of the threads that are managed by mtq */
+    int overflow;		/**< if there has been a job for which there was now free thread. If set the job is in mp and has to be gotten from there when a thread gets free */
+    pth_msgport_t mp;		/**< message port, that contains the overlowed jobs */
 } *mtqmaster, _mtqmaster;
 
+/**
+ * global data of mtq
+ *
+ * NULL as long as mtq has not been initialized. Initialization is done at the first call of mtq_send().
+ */
 mtqmaster mtq__master = NULL;
 
 /**
@@ -73,10 +114,21 @@ static void mtq_cleanup(void *arg) {
 
 /**
  * public queue creation function, queue lives as long as the pool
+ *
+ * Create a new job queue
+ *
+ * The queue gets destroyed automatically when the passed pool gets freed.
+ *
+ * For more information on what a queue is and how it is used, please see the information
+ * about mtq.cc.
+ *
+ * @param p the memory pool where some memory can be allocated from and with that the new queue will share the lifetime.
+ * @return the new queue
  */
 mtq mtq_new(pool p) {
     mtq q;
 
+    // sanity check
     if (p == NULL)
 	return NULL;
 
@@ -96,6 +148,10 @@ mtq mtq_new(pool p) {
 
 /**
  * main slave thread
+ *
+ * Each of the threads managed by mtq execute mtq_main() which is responsible to wait for jobs that have to get executed
+ *
+ * @param arg thread data for this thread
  */
 static void *mtq_main(void *arg) {
     mth t = (mth)arg;
@@ -171,6 +227,16 @@ static void *mtq_main(void *arg) {
     return NULL;
 }
 
+/**
+ * initiate that a function is executed asyncronously to the calling thread
+ *
+ * This will arrange that the function f is executed in one of the threads managed by mtq.
+ *
+ * @param q thread queue to which f should be added (NULL if f should be called as soon as possible and no thread queue is used)
+ * @param p memory pool that can be used to allocate some memory used to manage this job (should not get freed before the job has been finished)
+ * @param f the function to execute
+ * @param arg argument to pass to f
+ */
 void mtq_send(mtq q, pool p, mtq_callback f, void *arg) {
     mtqcall c;
     mth t = NULL;
