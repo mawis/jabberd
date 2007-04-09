@@ -827,7 +827,7 @@ void deliver_fail(dpacket p, const char *err) {
 void deliver_instance(instance i, dpacket p) {
     handel h, hlast;
     result r;
-    dpacket pig = p;
+    dpacket pig = NULL;
 
     if (i == NULL) {
         deliver_fail(p, N_("Unable to deliver, destination unknown"));
@@ -856,23 +856,30 @@ void deliver_instance(instance i, dpacket p) {
         /* call the handler */
         if ((r = (h->f)(i,p,h->arg)) == r_ERR) {
             deliver_fail(p, N_("Internal Delivery Error"));
-            break;
+	    return;
         }
 
         /* if a non-delivery handler says it handled it, we have to be done */
         if (h->o != o_DELIVER && r == r_DONE)
-            break;
+	    return;
+
+	/* a delivery handler says it handled it, and there is no remaining handler, we have to be done as well */
+	if (r == r_DONE && h->next == NULL)
+	    return;
 
         /* if a conditional handler wants to halt processing */
         if (h->o == o_COND && r == r_LAST)
-            break;
+	    return;
 
         /* deal with that backup copy we made */
         if (h->o == o_DELIVER && h->next != NULL) {
-            if (r == r_DONE) /* they ate it, use copy */
+            if (r == r_DONE) {
+		/* they ate it, use copy */
                 p = pig;
-            else
+		pig = NULL;
+	    } else {
                 pool_free(pig->p); /* they never used it, trash copy */
+	    }
         }
 
         /* unregister this handler */
@@ -895,6 +902,8 @@ void deliver_instance(instance i, dpacket p) {
         h = h->next;
     }
 
+    // if we reach here we still have a non-consumed packet we have to free
+   pool_free(p->p);
 }
 
 /**

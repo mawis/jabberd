@@ -1,3 +1,11 @@
+2007-04-09  Matthias Wimmer  <m@tthias.eu>
+
+    * jabberd/xdb.cc: declaring local functions xdb_results(), xdb_deliver()
+	and xdb_thump() as static and therefore removing them from the
+	interface
+    * jabberd/deliver.cc: fixing some edge cases in deliver_instance() even
+    	if they seem not to be used
+
 2007-04-07  Matthias Wimmer  <m@tthias.eu>
 
     * jabberd/lib/xhash.cc: Fix in handling "" as key
