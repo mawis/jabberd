@@ -35,7 +35,15 @@
 
 #include "jabberd.h"
 
-result xdb_results(instance id, dpacket p, void *arg) {
+/**
+ * ::o_PRECOND packet handler that filters the packets incoming for the instance to look for xdb packets
+ *
+ * @param id the ::instance this packet gets delivered to
+ * @param p the ::dpacket that gets delivered
+ * @param arg the ::xdbcache incoming xdb results would be for
+ * @return r_PASS if we don't care about this packet, r_DONE if it has been an xdb packet we could handle, r_ERR if it was an invalid xdb packet
+ */
+static result xdb_results(instance id, dpacket p, void *arg) {
     xdbcache xc = (xdbcache)arg;
     xdbcache curx;
     int idnum;
@@ -46,6 +54,7 @@ result xdb_results(instance id, dpacket p, void *arg) {
 
     log_debug2(ZONE, LOGT_STORAGE, "xdb_results checking xdb packet %s",xmlnode_serialize_string(p->x, xmppd::ns_decl_list(), 0));
 
+    // we need an id on the xdb as this is what we use to find the query this result is for
     if((idstr = xmlnode_get_attrib_ns(p->x, "id", NULL)) == NULL)
 	return r_ERR;
 
@@ -83,9 +92,17 @@ result xdb_results(instance id, dpacket p, void *arg) {
     return r_DONE; /* we processed it */
 }
 
-/* actually deliver the xdb request */
-/* Should be called while holding the xc mutex */
-void xdb_deliver(instance i, xdbcache xc) {
+/**
+ * actually deliver the xdb request
+ *
+ * Should be called while holding the xc mutex
+ *
+ * The xdb stanza gets created and delivered
+ *
+ * @param i the instance this xdb request is sent by
+ * @param xc the ::_xdbcache instance that holds the request (not the head of the xdbcache)
+ */
+static void xdb_deliver(instance i, xdbcache xc) {
     xmlnode x;
     char ids[9];
 
@@ -115,7 +132,15 @@ void xdb_deliver(instance i, xdbcache xc) {
     deliver(dpacket_new(x), i);
 }
 
-result xdb_thump(void *arg) {
+/**
+ * beat handler for an xdbcache
+ *
+ * resends unresponded xdb queries after 10 seconds and removes unresponded xdb queries after 30 seconds.
+ *
+ * @param arg the xdbcache this function is called for
+ * @return always r_DONE
+ */
+static result xdb_thump(void *arg) {
     xdbcache xc = (xdbcache)arg;
     xdbcache cur, next;
     int now = time(NULL);
@@ -157,19 +182,30 @@ result xdb_thump(void *arg) {
     return r_DONE;
 }
 
-xdbcache xdb_cache(instance id)
-{
+/**
+ * create an xdbcache for the specified instance
+ *
+ * This creates the ::_xdbcache structure from the memory pool of the instance, and registers two handlers:
+ * One handler is registered to get/handle the xdb responses that are delivered to the instance. The other
+ * handler is registered to get called regularily every 10 seconds.
+ *
+ * @param id the ::instance to create the ::_xdbcache for.
+ * @return the newly created xdbcache
+ */
+xdbcache xdb_cache(instance id) {
     xdbcache newx;
 
+    // sanity check
     if (id == NULL) {
         fprintf(stderr, "Programming Error: xdb_cache() called with NULL\n");
         return NULL;
     }
 
+    // allocate the structure and init it
     newx = static_cast<xdbcache>(pmalloco(id->p, sizeof(_xdbcache)));
     newx->i = id; /* flags it as the top of the ring too */
     newx->next = newx->prev = newx; /* init ring */
-    pth_mutex_init(&(newx->mutex));
+    pth_mutex_init(&(newx->mutex)); // init mutex that protects the access to the xdbcache
 
     /* register the handler in the instance to filter out xdb results */
     register_phandler(id, o_PRECOND, xdb_results, (void *)newx);

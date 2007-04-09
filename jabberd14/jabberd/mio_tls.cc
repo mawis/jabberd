@@ -801,6 +801,14 @@ static void mio_tls_process_credentials(xmlnode x, const std::list<std::string>&
     }
 }
 
+/**
+ * process a &lt;key/&gt; configuration element
+ *
+ * @param x the configuration element
+ * @param default_cacertfile_pem list of PEM files containing the CA certificates to use
+ * @param default_cacertfile_der list of DER files containing the CA certificates to use
+ * @param mio_tls_dh_params the Diffie-Hellman parameters to be used
+ */
 static void mio_tls_process_key(xmlnode x, const std::list<std::string>& default_cacertfile_pem, const std::list<std::string>& default_cacertfile_der, gnutls_dh_params_t mio_tls_dh_params) {
     char *file_to_use = xmlnode_get_data(x);
     char *key_type = xmlnode_get_attrib_ns(x, "type", NULL);
