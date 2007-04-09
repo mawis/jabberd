@@ -79,17 +79,17 @@
  * XML routing. The most known base handler might be the handler for the &lt;load/&gt; target in the configuration
  * file. This handler loads a shared object file containing a component and connects this component to the
  * XML routing.
- * Other important base handlers are the handlers implemented in base_accept.c and base_connect.c, which implement
+ * Other important base handlers are the handlers implemented in base_accept.cc and base_connect.cc, which implement
  * the &lt;accept/&gt; and &lt;connect/&gt; targets used to connect two (or more) instances of jabberd running to build
  * a single server.
  *
- * In addition to the XML routing, you find the implementation of the multithreading (mtq.c), a scedular to invoke
- * regularly tasks (heartbeat.c), logging services (log.c), the handling of the configuration file (config.c),
- * the handling of network sockets (mio.c, mio_raw.c, mio_ssl.c, mio_xml.c), and the XML database interface (xdb.c).
+ * In addition to the XML routing, you find the implementation of the managed threads (mtq.cc), a scedular to invoke
+ * regularly tasks (heartbeat.cc), logging services (log.cc), the handling of the configuration file (config.cc),
+ * the handling of network sockets (mio.cc, mio_raw.cc, mio_tls.cc, mio_xml.cc), the XML database interface (xdb.cc),
+ * and access control lists (acl.cc).
  *
- * The XML routing itself is implemented in the file deliver.c. Routines used for the startup of the server can
- * be found in jabberd.c and static.c. load.c implements the base handler for the &lt;load/&gt; target in the
- * configuration file.
+ * The XML routing itself is implemented in the file deliver.cc. Routines used for the startup of the server can
+ * be found in jabberd.cc.
  *
  * The jabberd executable also contains a library of functions used either by the base executable itself or
  * that are of general use for components (which are implemented as loadable objects). This jabberd library
@@ -112,11 +112,33 @@
 /** Packet types */
 typedef enum { p_NONE, p_NORM, p_XDB, p_LOG, p_ROUTE } ptype;
 
-/** Ordering types, me first me first, managerial, engineer, grunt */
-typedef enum { o_PRECOND, o_COND, o_PREDELIVER, o_DELIVER } order;
+/**
+ * the stages of packet delivery - the order in which packet handlers gets called.
+ *
+ * Delivery starts with o_PRECOND handlers, then o_COND handlers, then o_PREDELIVER handlers, and o_DELIVER handlers last
+ */
+typedef enum {
+    o_PRECOND,		/**< o_PRECOND handlers always get called first - used by xdb.cc to filter out xdb results */
+    o_COND,		/**< currently not used by jabberd14 */
+    o_PREDELIVER,	/**< handlers that should get called before o_DELIVER handlers - used by base_format.cc to reformat messages */
+    o_DELIVER		/**< normal deliveries */
+} order;
 
-/** Result types, unregister me, I pass, I should be last, I suck, I rock */
-typedef enum { r_UNREG, r_NONE, r_PASS, r_LAST, r_ERR, r_DONE } result;
+/**
+ * Result types, unregister me, I pass, I should be last, I suck, I rock
+ *
+ * In case of r_DONE or r_LAST the passed data is consumed (i.e. freed), if
+ * of the other values is returned, the data has not been consumed and the caller must
+ * free it if necessary.
+ */
+typedef enum {
+    r_UNREG,		/**< unregister the packet handler and keep delivering the packet */
+    r_NONE,		/**< unused value ... might get removed */
+    r_PASS,		/**< packet has not been handled nor did it cause an error, keep delivering the packet to later handlers */
+    r_LAST,		/**< can only be returned by o_COND handlers in which case delivery is not continued with later handlers -- currently not used by jabberd14 */
+    r_ERR,		/**< final delivery error, create error bounce and do not call later handlers */
+    r_DONE		/**< packet has been handled, if o_DELIVER handler other handlers are called as well, else delivery is stopped */
+} result;
 
 typedef struct instance_struct *instance, _instance;
 
@@ -248,7 +270,7 @@ typedef struct xdbcache_struct {
     xmlnode data; /**< for set */
     jid owner;
     int sent;
-    int preblock;
+    int preblock;		/**< thread that created the query is waiting for a pth_cond_notify() on ::cond */
     pth_cond_t cond;
     pth_mutex_t mutex;
     struct xdbcache_struct *prev;
