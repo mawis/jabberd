@@ -497,7 +497,7 @@ void mio_reset(mio m, mio_std_cb cb, void *arg);
 void mio_close(mio m);
 
 /* Writes an xmlnode to the socket */
-void mio_write(mio m, xmlnode stanza, char *buffer, int len);
+void mio_write(mio m, xmlnode stanza, char const* buffer, int len);
 
 /* write the root element to a mio stream */
 void mio_write_root(mio m, xmlnode root, int stream_type);
@@ -531,3 +531,120 @@ int _mio_write_dump(mio m);
 
 int acl_check_access(xdbcache xdb, const char *function, const jid user);
 jid acl_get_users(xdbcache xdb, const char *function);
+
+/*--------------------------
+ * OOP-instances base class
+ *--------------------------*/
+namespace xmppd {
+
+    /**
+     * class that implements the basic functionality for a component in the server
+     */
+    class instance_base {
+	public:
+	    /**
+	     * constructor to create an OOP instance from jabberd14's instance structure
+	     *
+	     * @param i the instance struct for this component
+	     * @param x configuration element that caused this instance to be loaded
+	     */
+	    instance_base(instance i, xmlnode x);
+
+	protected:
+	    /**
+	     * event that has to handle received packets
+	     *
+	     * @param dp packet that has to be handled
+	     * @return should normally return r_DONE if the packet is handled (for other possible values see teh result type)
+	     */
+	    virtual result on_packet(dpacket dp);
+
+	    /**
+	     * event that gets fired regularly
+	     */
+	    virtual void on_heartbeat();
+
+	    /**
+	     * (re)set the heartbeat interval
+	     *
+	     * If no heartbeat has been registered for this instance yet, it gets registered
+	     *
+	     * @param interval the interval in seconds how often the on_heartbeat() event should be fired, 0 for disabling heartbeat again
+	     */
+	    void set_heartbeat_interval(int interval);
+
+	    /**
+	     * send out a stanza
+	     *
+	     * @param p the packet containing the stanza, that should be sent
+	     */
+	    void deliver(dpacket p);
+
+	    /**
+	     * send out a stanza
+	     *
+	     * @param x the xmlnode representing the stanza that should be sent
+	     */
+	    void deliver(xmlnode x);
+
+	    /**
+	     * reject accepting a packet, generate a bounce
+	     *
+	     * @param p the packet that could not sucessfully be processed
+	     * @param reason_text textual reason why the packet has been rejected
+	     */
+	    void deliver_fail(dpacket p, const std::string& reason_text);
+
+	private:
+	    /**
+	     * instance structure that gets capsulated by this instance_base
+	     */
+	    instance i;
+
+	    /**
+	     * copy constructor - disabled
+	     *
+	     * @param ref source of the copy
+	     */
+	    instance_base(instance_base& ref);
+
+	    /**
+	     * Method called as the beathandler that checks if the beat frequency should be changed and calls the on_heartbeat() method
+	     */
+	    result beathandler_wrapper();
+
+	    /**
+	     * helper function that forwards the phandler callback to an instance method
+	     *
+	     * @param id the instance this callback is for (ignored)
+	     * @param p the packet that gets notified
+	     * @param arg the class instance this call is for
+	     */
+	    static result phandler_helper(instance id, dpacket p, void* arg);
+
+	    /**
+	     * helper method, that forwards the heartbeat callback to an instance method
+	     *
+	     * @param arg the class instance this call is for
+	     */
+	    static result beathandler_helper(void* arg);
+
+	    /**
+	     * the frequency with which heartbeat is currently registered
+	     *
+	     * 0 if no heartbeat is currently registered
+	     *
+	     * @todo this has to be protected by a mutex if we get real threads
+	     */
+	    int current_heartbeat_frequency;
+
+	    /**
+	     * the frequency with which heartbeat is requested to be done on this instance
+	     *
+	     * 0 if no heartbeat is currently requested
+	     *
+	     * @todo this has to be protected by a mutex if we get real threads
+	     */
+	    int requested_heartbeat_frequency;
+    };
+}
