@@ -6,7 +6,7 @@ AC_PREREQ(2.50)
 
 
 AC_INIT(jabberd/jabberd.h)
-AM_INIT_AUTOMAKE(jabberd14,1.6.2-alpha-20070407)
+AM_INIT_AUTOMAKE(jabberd14,1.6.2-alpha-20070410)
 AM_CONFIG_HEADER(config.h)
 AC_LANG(C++)
 
