@@ -1,6 +1,7 @@
 2007-04-10  Matthias Wimmer  <m@tthias.eu>
 
     * jabberd/base/base_syslog.cc: fixing build on 64 b systems
+    * jabberd/instance_base.cc: starting to have an OOP instance interface
 
 2007-04-09  Matthias Wimmer  <m@tthias.eu>
 

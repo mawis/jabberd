@@ -38,7 +38,7 @@
 typedef struct beat_struct {
     beathandler f;
     void *arg;
-    int freq;
+    int freq;	/**< interval length in seconds */
     int last;
     pool p;
     struct beat_struct *prev;

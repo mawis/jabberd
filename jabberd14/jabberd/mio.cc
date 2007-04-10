@@ -1276,7 +1276,7 @@ void mio_close(mio m) {
  * @param buffer pointer to a buffer of characters, that should be written to the connection
  * @param len number of bytes contained in the buffer, that should be written (-1 to write a zero terminated string contained in the buffer)
  */
-void mio_write(mio m, xmlnode stanza, char *buffer, int len) {
+void mio_write(mio m, xmlnode stanza, char const* buffer, int len) {
     mio_wbq newwbq;
     pool p;
 
