@@ -34,7 +34,7 @@
 #include <syslog.h>
 
 static result base_syslog_deliver(instance id, dpacket p, void* arg) {
-    int facility = (int)arg;
+    int* facility = static_cast<int*>(arg);
     char* message = NULL;
     char* type_s = NULL;
     int type;
@@ -55,7 +55,7 @@ static result base_syslog_deliver(instance id, dpacket p, void* arg) {
     if (type == -1)
 	type = LOG_INFO;
 
-    syslog(facility|type, "%s", message);
+    syslog(*facility|type, "%s", message);
     
     /* Release the packet */
     pool_free(p->p);
@@ -63,7 +63,7 @@ static result base_syslog_deliver(instance id, dpacket p, void* arg) {
 }
 
 static result base_syslog_config(instance id, xmlnode x, void *arg) {
-    int facility = 0;
+    int* facility = NULL;
     char *facility_str = NULL;
 
     if (id == NULL) {
@@ -84,17 +84,20 @@ static result base_syslog_config(instance id, xmlnode x, void *arg) {
         return r_ERR;
     }
 
+    // allocate memory for the facility
+    facility = static_cast<int*>(pmalloco(id->p, sizeof(int)));
+
     /* check which facility to use */
     facility_str = xmlnode_get_data(x);
-    facility = log_get_facility(facility_str);
+    *facility = log_get_facility(facility_str);
 
-    if (facility == -1) {
+    if (*facility == -1) {
 	log_alert(NULL, "base_syslog_config error: unknown syslog facility: %s", facility_str);
 	return r_ERR;
     }
 
     /* Register a handler for this instance... */
-    register_phandler(id, o_DELIVER, base_syslog_deliver, (void*)facility); 
+    register_phandler(id, o_DELIVER, base_syslog_deliver, facility); 
 
     return r_DONE;
 }
