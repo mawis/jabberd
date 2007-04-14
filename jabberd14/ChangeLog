@@ -1,3 +1,7 @@
+2007-04-15  Matthias Wimmer  <m@tthias.eu>
+
+    * jabberd/lib/pointer.tcc: import from jadc2s of a pointer template class
+
 2007-04-10  Matthias Wimmer  <m@tthias.eu>
 
     * jabberd/base/base_syslog.cc: fixing build on 64 b systems

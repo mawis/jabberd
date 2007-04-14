@@ -125,8 +125,126 @@
 #include <vector>
 #include <sstream>
 #include <stdexcept>
+#include <set>
 
 namespace xmppd {
+
+    /* ******************** Managed pointers ******************** */
+
+    /**
+     * the pointer template class is used as a replacement for real pointers
+     *
+     * Instead of real pointers this template class should be used everywhere
+     * inside this package. Managed pointers have the advantage, that they
+     * track for you if the object pointed to does still exist.
+     */
+    template<class pointed_type> class pointer {
+	public:
+	    /**
+	     * constructor to create a managed pointer pointing to nothing
+	     */
+	    pointer();
+
+	    /**
+	     * constructor to create a managed pointer for a real pointer
+	     *
+	     * After constructing a managed pointer, the freeing of the pointed_object is
+	     * done by the managed pointer. Therefore the caller should not free the
+	     * pointed_object itself.
+	     *
+	     * @param pointed_object the object a managed pointer should be created for
+	     * @param malloc_allocated if false, the pointed_object is deleted using the delete operator (default);
+	     * if true, the pointed object is deleted using std::free()
+	     */
+	    pointer(pointed_type* pointed_object, bool malloc_allocated = false);
+
+	    /**
+	     * copy constructor
+	     *
+	     * Makes a copy of a managed pointer to an object.
+	     *
+	     * @param src the copy source
+	     */
+	    pointer(const pointer<pointed_type>& src);
+
+	    /**
+	     * destruct a pointer
+	     *
+	     * Destructs a pointer, and if it is the last pointer to the object, it
+	     * deletes (or frees) the object
+	     */
+	    ~pointer();
+
+	    /**
+	     * delete the object the pointer points to
+	     *
+	     * This marks all managed pointers pointing to this object as pointing to
+	     * nothing.
+	     */
+	    void delete_object();
+
+	    /**
+	     * assignment operator
+	     *
+	     * Assignes the value of another managed pointer to a managed pointer
+	     *
+	     * @param src the object, that gets assigned to this managed pointer
+	     * @return the managed pointer itself
+	     */
+	    pointer<pointed_type>& operator=(const pointer<pointed_type>& src);
+
+	    /**
+	     * dereference operator
+	     *
+	     * Dereferences a managed pointer (i.e. gives access to the object the
+	     * managed pointer points to)
+	     *
+	     * @return the object the managed pointer points to
+	     */
+	    pointed_type& operator*();
+
+	    /**
+	     * pointer operator
+	     *
+	     * @note do NOT use this to get back a real pointer to the object. The operator
+	     * is just there to let you access the object like you are used to do it
+	     * with real pointers. (i.e. myptr->fieldname)
+	     *
+	     * @return the real pointer to the object
+	     */
+	    pointed_type* operator->() const;
+
+	    /**
+	     * check if this pointer points to nothing
+	     *
+	     * @return true if the pointer does not point to anything, else false
+	     */
+	    bool points_to_NULL() const;
+	private:
+	    /**
+	     * let the pointer point to nothing
+	     */
+	    void point_nothing();
+
+	    /**
+	     * real pointer to the object the managed pointer points to
+	     */
+	    pointed_type* pointed_object;
+
+	    /**
+	     * real pointer to the set of all managed pointers to the object
+	     */
+	    std::set<pointer<pointed_type>*>* all_pointers_to_this_object;
+
+	    /**
+	     * default is that we delete an object we point to, but we may also use std::free() instead
+	     *
+	     * If true, std::free() will be used to delete object; else delete operator will be used
+	     */
+	    bool malloc_allocated;
+    };
+
+    /* ******************** Hashing algorithms ****************** */
 
     /**
      * generic base class for a hash function
