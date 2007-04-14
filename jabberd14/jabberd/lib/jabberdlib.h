@@ -459,6 +459,15 @@ int j_strlen(const char *a); /* provides NULL safe strlen wrapper */
 int j_atoi(const char *a, int def); /* checks for NULL and uses default instead, convienence */
 void str_b64decode(char *str); /* what it says */
 
+namespace xmppd {
+    class to_lower {
+	public:
+	    to_lower(std::locale const& l) : loc(l) {}
+	    char operator() (char c) const { return std::tolower(c, loc); }
+	private:
+	    std::locale const& loc;
+    };
+}
 
 /* --------------------------------------------------------- */
 /*                                                           */
@@ -1089,6 +1098,7 @@ typedef struct xterror_struct
 #define NS_IQ_AUTH    "http://jabber.org/features/iq-auth"
 #define NS_REGISTER_FEATURE "http://jabber.org/features/iq-register"
 #define NS_MSGOFFLINE "msgoffline"
+#define NS_BYTESTREAMS "http://jabber.org/protocol/bytestreams"
 
 /* #define NS_XDBGINSERT "jabber:xdb:ginsert" XXX: I guess this it not used ANYWHERE and can be deleted */
 #define NS_XDBNSLIST  "jabber:xdb:nslist"
