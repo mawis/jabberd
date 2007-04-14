@@ -32,11 +32,83 @@
 
 namespace xmppd {
     instance_base::instance_base(instance i, xmlnode x) : i(i), current_heartbeat_frequency(0), requested_heartbeat_frequency(0) {
+	// register our packet handler with the server
 	::register_phandler(i, o_DELIVER, instance_base::phandler_helper, this);
     }
 
     result instance_base::on_packet(dpacket dp) {
-	return r_UNREG;
+	// sanity check
+	if (dp == NULL)
+	    return r_ERR;
+
+	switch (dp->type) {
+	    case p_NORM:
+		return on_stanza_packet(dp);
+	    case p_XDB:
+		return on_xdb_packet(dp);
+	    case p_LOG:
+		return on_log_packet(dp);
+	    case p_ROUTE:
+		return on_route_packet(dp);
+	    default:
+		deliver_fail(dp, N_("This component does not know the type of packet."));
+		return r_DONE;
+	}
+    }
+
+    result instance_base::on_stanza_packet(dpacket dp) {
+	::jpacket p = ::jpacket_new(dp->x);
+
+	switch (p->type) {
+	    case JPACKET_MESSAGE:
+		return on_message_stanza(p);
+	    case JPACKET_PRESENCE:
+		return on_presence_stanza(p);
+	    case JPACKET_IQ:
+		return on_iq_stanza(p);
+	    case JPACKET_S10N:
+		return on_subscription_stanza(p);
+	    default:
+		deliver_fail(dp, N_("The stanza type could not be determined."));
+		return r_DONE;
+	}
+    }
+
+    result instance_base::on_message_stanza(jpacket p) {
+	bounce_stanza(p->x, XTERROR_NOTIMPL);
+	return r_DONE;
+    }
+
+    result instance_base::on_presence_stanza(jpacket p) {
+	bounce_stanza(p->x, XTERROR_NOTIMPL);
+	return r_DONE;
+    }
+
+    result instance_base::on_iq_stanza(jpacket p) {
+	bounce_stanza(p->x, XTERROR_NOTIMPL);
+	return r_DONE;
+    }
+
+    result instance_base::on_subscription_stanza(jpacket p) {
+	// we cannot bounce subscription stanzas
+	// XXX send unsubscribe instead
+	xmlnode_free(p->x);
+	return r_DONE;
+    }
+
+    result instance_base::on_log_packet(dpacket dp) {
+	deliver_fail(dp, N_("This component does not handle log packets"));
+	return r_DONE;
+    }
+
+    result instance_base::on_xdb_packet(dpacket dp) {
+	deliver_fail(dp, N_("This component does not handle xdb packets"));
+	return r_DONE;
+    }
+
+    result instance_base::on_route_packet(dpacket dp) {
+	deliver_fail(dp, N_("This component does not handle routed packets"));
+	return r_DONE;
     }
 
     void instance_base::on_heartbeat() {
@@ -98,5 +170,19 @@ namespace xmppd {
 
     result instance_base::beathandler_helper(void* arg) {
 	static_cast<instance_base*>(arg)->on_heartbeat();
+    }
+
+    void instance_base::bounce_stanza(xmlnode x, xterror xterr) {
+	// format the bounce
+	jutil_error_xmpp(x, xterr);
+
+	// send the bounce
+	deliver(x);
+    }
+
+    std::string instance_base::get_instance_id() {
+	if (i->id == NULL)
+	    throw std::domain_error("instance has no id");
+	return i->id;
     }
 };

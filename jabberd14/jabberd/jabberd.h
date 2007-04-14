@@ -552,12 +552,96 @@ namespace xmppd {
 
 	protected:
 	    /**
-	     * event that has to handle received packets
+	     * event that handles received packets
+	     *
+	     * The default implementation of this handler checks the type of packet that has been received and calls the relevant handler: on_stanza_packet(), on_xdb_packet(), on_log_packet(), or on_route_packet()
 	     *
 	     * @param dp packet that has to be handled
-	     * @return should normally return r_DONE if the packet is handled (for other possible values see teh result type)
+	     * @return should normally return r_DONE if the packet is handled (for other possible values see the result type)
 	     */
 	    virtual result on_packet(dpacket dp);
+
+	    /**
+	     * event that handles received packets, that contain a normal stanza (type ::p_NORM)
+	     *
+	     * The default implementation of this handler is to forward the stanza to the relevant handler: on_message_stanza(), on_presence_stanza(), on_iq_stanza(), or on_subscription_stanza()
+	     *
+	     * @param dp the packet containing the stanza
+	     * @return should normally return r_DONE if the packet has been handled (for other possible values see the ::result type)
+	     */
+	    virtual result on_stanza_packet(dpacket dp);
+
+	    /**
+	     * event that handles received packets, that contain a normal stanza (type ::p_XDB)
+	     *
+	     * The default implementation is to bounce the packet
+	     *
+	     * @param dp the packet containing the stanza
+	     * @return should normally return r_DONE if the packet has been handled (for other possible values see the ::result type)
+	     */
+	    virtual result on_xdb_packet(dpacket dp);
+
+	    /**
+	     * event that handles received packets, that contain a normal stanza (type ::p_LOG)
+	     *
+	     * The default implementation is to bounce the packet
+	     *
+	     * @param dp the packet containing the stanza
+	     * @return should normally return r_DONE if the packet has been handled (for other possible values see the ::result type)
+	     */
+	    virtual result on_log_packet(dpacket dp);
+
+	    /**
+	     * event that handles received packets, that contain a normal stanza (type ::p_ROUTE)
+	     *
+	     * The default implementation is to bounce the packet
+	     *
+	     * @param dp the packet containing the stanza
+	     * @return should normally return r_DONE if the packet has been handled (for other possible values see the ::result type)
+	     */
+	    virtual result on_route_packet(dpacket dp);
+
+	    /**
+	     * event that handles received message stanzas
+	     *
+	     * The default implementation is to bounce the stanza
+	     *
+	     * @param p the received message stanza
+	     * @return should normally return r_DONE if the stanza has been handled (for other possible values see the ::result type)
+	     */
+	    virtual result on_message_stanza(jpacket p);
+
+	    /**
+	     * event that handles received presence stanzas
+	     *
+	     * @note This handler does not get notified for subscription stanzas, on_subscription_stanza() is used for them instead.
+	     *
+	     * The default implementation is to bounce the stanza
+	     *
+	     * @param p the received message stanza
+	     * @return should normally return r_DONE if the stanza has been handled (for other possible values see the ::result type)
+	     */
+	    virtual result on_presence_stanza(jpacket p);
+
+	    /**
+	     * event that handles received iq stanzas
+	     *
+	     * The default implementation is to bounce the stanza
+	     *
+	     * @param p the received message stanza
+	     * @return should normally return r_DONE if the stanza has been handled (for other possible values see the ::result type)
+	     */
+	    virtual result on_iq_stanza(jpacket p);
+
+	    /**
+	     * event that handles received subscription stanzas
+	     *
+	     * The default implementation is to bounce the stanza
+	     *
+	     * @param p the received message stanza
+	     * @return should normally return r_DONE if the stanza has been handled (for other possible values see the ::result type)
+	     */
+	    virtual result on_subscription_stanza(jpacket p);
 
 	    /**
 	     * event that gets fired regularly
@@ -588,16 +672,34 @@ namespace xmppd {
 	    void deliver(xmlnode x);
 
 	    /**
-	     * reject accepting a packet, generate a bounce
+	     * reject accepting a packet
 	     *
 	     * @param p the packet that could not sucessfully be processed
 	     * @param reason_text textual reason why the packet has been rejected
 	     */
 	    void deliver_fail(dpacket p, const std::string& reason_text);
 
+	    /**
+	     * create a bounce for a stanza, send this bounce back
+	     *
+	     * This method consumes the stanza!
+	     *
+	     * @note you should not bounce subscription stanzas. Bouncing them creates presence errors, not subscription errors (which do not exist in XMPP)
+	     *
+	     * @param x the stanza that should get bounced
+	     * @param xterr the error reason used to bounce the stanza
+	     */
+	    void bounce_stanza(xmlnode x, xterror xterr);
+
+	    /**
+	     * get the (main) ID of this instance
+	     *
+	     * @return id of this instance
+	     */
+	    std::string get_instance_id();
 	private:
 	    /**
-	     * instance structure that gets capsulated by this instance_base
+	     * the instance structure the server identifies us with
 	     */
 	    instance i;
 
