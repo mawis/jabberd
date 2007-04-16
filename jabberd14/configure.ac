@@ -6,7 +6,7 @@ AC_PREREQ(2.50)
 
 
 AC_INIT(jabberd/jabberd.h)
-AM_INIT_AUTOMAKE(jabberd14,1.6.2-alpha-20070410)
+AM_INIT_AUTOMAKE(jabberd14,1.6.2-alpha-20070417)
 AM_CONFIG_HEADER(config.h)
 AC_LANG(C++)
 
@@ -128,6 +128,14 @@ if test "$has_syslog" = yes; then
 else
     AC_MSG_RESULT(no)
 fi
+
+dnl check for glibmm-2.4
+PKG_CHECK_MODULES(GLIBMM, glibmm-2.4 >= 2.12.0, hasglibmm=yes, hasglibmm=no)
+if test $hasglibmm = "no" ; then
+    AC_MSG_ERROR($GLIBMM_PKG_ERRORS)
+fi
+CPPFLAGS="$CPPFLAGS $GLIBMM_CFLAGS"
+LIBS="$LIBS $GLIBMM_LIBS"
 
 dnl check for libpopt
 AC_MSG_CHECKING(for libpopt)
@@ -393,6 +401,7 @@ AC_OUTPUT(Makefile \
 	  jsm/Makefile \
 	  jsm/modules/Makefile \
 	  man/Makefile \
+	  proxy65/Makefile \
 	  pthsock/Makefile \
 	  xdb_file/Makefile \
 	  xdb_sql/Makefile \
