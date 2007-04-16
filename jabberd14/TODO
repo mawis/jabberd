@@ -1,15 +1,23 @@
 after jabberd14 1.6.1
 =====================
 
+most important:
+- reduce memory usage by improved memory management
+- remove dependancy on libpth, and support epoll afterwards
+- improve detection of stale sessions/presences (pinging users)
+- automated routing (spanning tree?)
+- improve DNS resolving
+- Proxy65 support
+- mu conferencing
+- stream compression
+
 - SASL c2s without jadc2s add-on (XMPP)
 - Session manager clustering
 - Service discovery on all components
-- Pinging users, that are inactive for a long time
-- TLS session resumption
-- remove dependancy on libpth, and support epoll afterwards
-
 - object oriented C++ interface for components and session manager
   modules
+
+- TLS session resumption
 - scripting API to write components and session manager modules
   (perl or python, maybe ruby?)
 - true dynamic config
@@ -22,4 +30,3 @@ after jabberd14 1.6.1
 - http binding (maybe only in jadc2s)
 - other xdb modules (ldap, bdbxml)
 - remove global variables
-- change threading library
