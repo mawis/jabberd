@@ -850,6 +850,15 @@
     </dialback>
   </service>
 
+  <service id="proxy65.localhost">
+    <load>
+      <proxy65>@libdir@/libjabberdproxy65.so</proxy65>
+    </load>
+    <proxy65 xmlns="http://xmppd.org/ns/proxy65">
+	<listen port='6565' showhost='proxy65.localhost' showport='6565'>::</listen>
+    </proxy65>
+  </service>
+
   <!-- The following service is used for easy integration of jabberd14	-->
   <!-- into other applications. Other applications can send messages by	-->
   <!-- just putting stanzas as XML files with the .stanza file name	-->
