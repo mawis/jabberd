@@ -66,9 +66,26 @@ namespace xmppd {
 		 */
 		static void mio_event_wrapper(mio m, int state, void *arg, xmlnode unused1, char* buffer, int bufferlen);
 
+		/**
+		 * the event that handles if one of the connected sockets get closed
+		 *
+		 * @param socketindex the index of the socket that has been closed (either 0 or 1)
+		 */
 		void on_closed(int socketindex);
+
+		/**
+		 * the event that handles data that has been received on one of the sockets, that are connected
+		 *
+		 * @param socketindex the index of the socket on which the data has been received
+		 * @param received_data the data that has been received
+		 */
 		void on_data(int socketindex, const std::string& received_data);
 
+		/**
+		 * this signal gets fired if the connection of the two sockets ended
+		 *
+		 * A pointer to the instance that got disconnected is passed
+		 */
 		sigc::signal<void, connected_sockets*> closed;
 	};
 

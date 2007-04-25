@@ -459,7 +459,7 @@ WARN_LOGFILE           =
 # directories like "/usr/src/myproject". Separate the files or directories 
 # with spaces.
 
-INPUT                  = dialback dnsrv jabberd jabberd/base jabberd/lib jsm jsm/modules pthsock xdb_file xdb_sql
+INPUT                  = dialback dnsrv jabberd jabberd/base jabberd/lib jsm jsm/modules proxy65 pthsock xdb_file xdb_sql
 
 # If the value of the INPUT tag contains directories, you can use the 
 # FILE_PATTERNS tag to specify one or more wildcard pattern (like *.cpp 
