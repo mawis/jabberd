@@ -56,6 +56,8 @@ namespace xmppd {
 	}
 
 	void proxy65::connection_accepted(mio m) {
+	    log_debug2(ZONE, LOGT_IO, "New connection has been accepted on fd #%i", m->fd);
+
 	    // create new stub for this connection
 	    socks5stub* stub = new socks5stub(m);
 
@@ -68,11 +70,14 @@ namespace xmppd {
 	}
 
 	void proxy65::connecting_connection_disconnected(socks5stub* stub) {
+	    log_debug2(ZONE, LOGT_IO, "Connecting connection has been disconnected");
 	    connecting_connections.erase(stub);
-	    disconnected_connections.insert(stub);
+	    delete stub;
 	}
 
 	void proxy65::connecting_connection_protocol_done(socks5stub* stub) {
+	    log_debug2(ZONE, LOGT_IO, "Connection has finished the SOCKS5 part of the protocol");
+
 	    connecting_connections.erase(stub);
 
 	    waiting_connections.insert(std::pair<std::string, std::pair<socks5stub*, time_t> >(stub->get_connection_id(), std::pair<socks5stub*, time_t>(stub, std::time(NULL))));
@@ -168,6 +173,8 @@ namespace xmppd {
 	}
 
 	result proxy65::iq_bytestreams_activate(jpacket p) {
+	    log_debug2(ZONE, LOGT_EXECFLOW, "Got request to activate a bytestream: %s", xmlnode_serialize_string(p->x, xmppd::ns_decl_list(), 0));
+
 	    // get who initiated the connection
 	    char const* initiator = jid_full(p->from);
 
@@ -207,12 +214,13 @@ namespace xmppd {
 		}
 	    }
 
+	    log_debug2(ZONE, LOGT_EXECFLOW, "We have %i waiting connections with hash %s", matched_connections.size(), session_id.c_str());
+
 	    // we should have found exactly two connections
 	    if (matched_connections.size() != 2) {
 		std::vector<socks5stub*>::iterator iter;
 		for (iter = matched_connections.begin(); iter != matched_connections.end(); ++iter) {
-		    // XXX signal failure to the connection
-		    disconnected_connections.insert(*iter);	// XXX take care that we do not double delete instance after we signal failure above
+		    delete *iter;
 		}
 
 		// signal failure
@@ -221,9 +229,11 @@ namespace xmppd {
 	    }
 
 	    // interconnect the two connections
-	    connected_sockets* new_conn = new connected_sockets(matched_connections[1], matched_connections[2]);
+	    connected_sockets* new_conn = new connected_sockets(matched_connections[0], matched_connections[1]);
 	    new_conn->event_closed().connect(sigc::mem_fun(*this, &proxy65::active_connection_disconnected));
 	    active_connections.insert(new_conn);		// XXX protect this for the case that it diconnectes before it gets inserted
+
+	    log_debug2(ZONE, LOGT_EXECFLOW, "We activated the bytestream");
 	    
 	    // send result
 	    jutil_iqresult(p->x);
@@ -233,10 +243,13 @@ namespace xmppd {
 
 	void proxy65::active_connection_disconnected(connected_sockets* conn) {
 	    active_connections.erase(conn);
+	    delete conn;
 	}
 
 	socks5stub::socks5stub(mio m) : m(m), current_state(state_connected) {
 	    mio_reset(m, socks5stub::mio_event_wrapper, this);
+
+	    log_debug2(ZONE, LOGT_EXECFLOW, "socks5stub created for fd #%i", m->fd);
 	}
 
 	void socks5stub::mio_event_wrapper(mio m, int state, void *arg, xmlnode unused1, char* buffer, int bufferlen) {
@@ -258,6 +271,8 @@ namespace xmppd {
 
 	void socks5stub::on_data(const std::string& received_data) {
 	    unprocessed_data += received_data;
+
+	    log_debug2(ZONE, LOGT_IO, "socks5stub::on_data(), state is %i, unprocessed bytes are %i", current_state, unprocessed_data.length());
 
 	    // what we do depends on our current state
 	    switch (current_state) {
@@ -402,6 +417,8 @@ namespace xmppd {
 	    socket1->m = NULL;
 	    this->sockets[1] = socket2->m;
 	    socket2->m = NULL;
+
+	    log_debug2(ZONE, LOGT_IO, "connecting two sockets together: #%i #%i", this->sockets[0]->fd, this->sockets[1]->fd);
 
 	    // register new event handlers
 	    mio_reset(this->sockets[0], connected_sockets::mio_event_wrapper, this);

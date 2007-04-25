@@ -240,11 +240,6 @@ namespace xmppd {
 		std::multimap<std::string, std::pair<socks5stub*, time_t> > waiting_connections;
 
 		/**
-		 * the connections, that have been disconnected and need to get destructed
-		 */
-		std::set<socks5stub*> disconnected_connections;
-
-		/**
 		 * the connections, that have been connected together
 		 */
 		std::set<connected_sockets*> active_connections;
