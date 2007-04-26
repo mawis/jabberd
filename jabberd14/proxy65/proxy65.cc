@@ -249,7 +249,7 @@ namespace xmppd {
 	void proxy65::active_connection_disconnected(connected_sockets* conn) {
 	    active_connections.erase(conn);
 
-	    log_notice(get_instance_id().c_str(), "Reflected bytestream has been closed after transfering %ui B: %s", conn->get_forwarded_traffic(), conn->get_identifier().c_str());
+	    log_notice(get_instance_id().c_str(), "Reflected bytestream has been closed after transfering %u B: %s", conn->get_forwarded_traffic(), conn->get_identifier().c_str());
 	    delete conn;
 	}
 
