@@ -72,6 +72,7 @@ namespace xmppd {
 	void proxy65::connecting_connection_disconnected(socks5stub* stub) {
 	    log_debug2(ZONE, LOGT_IO, "Connecting connection has been disconnected");
 	    connecting_connections.erase(stub);
+	    log_debug2(ZONE, LOGT_IO, "XXX deleting stub in proxy65::connecting_connection_disconnected");
 	    delete stub;
 	}
 
@@ -228,8 +229,12 @@ namespace xmppd {
 		return r_DONE;
 	    }
 
+	    // create identifier for this connection (only used for logging)
+	    std::ostringstream identifier;
+	    identifier << initiator << " -> " << target << " (" << sid << ")";
+
 	    // interconnect the two connections
-	    connected_sockets* new_conn = new connected_sockets(matched_connections[0], matched_connections[1]);
+	    connected_sockets* new_conn = new connected_sockets(matched_connections[0], matched_connections[1], identifier.str());
 	    new_conn->event_closed().connect(sigc::mem_fun(*this, &proxy65::active_connection_disconnected));
 	    active_connections.insert(new_conn);		// XXX protect this for the case that it diconnectes before it gets inserted
 
@@ -243,6 +248,8 @@ namespace xmppd {
 
 	void proxy65::active_connection_disconnected(connected_sockets* conn) {
 	    active_connections.erase(conn);
+
+	    log_notice(get_instance_id().c_str(), "Reflected bytestream has been closed after transfering %ui B: %s", conn->get_forwarded_traffic(), conn->get_identifier().c_str());
 	    delete conn;
 	}
 
@@ -250,6 +257,17 @@ namespace xmppd {
 	    mio_reset(m, socks5stub::mio_event_wrapper, this);
 
 	    log_debug2(ZONE, LOGT_EXECFLOW, "socks5stub created for fd #%i", m->fd);
+	}
+
+	socks5stub::~socks5stub() {
+	    close_socket();
+	}
+
+	void socks5stub::close_socket() {
+	    if (m) {
+		mio_reset(m, NULL, NULL);
+		mio_close(m);
+	    }
 	}
 
 	void socks5stub::mio_event_wrapper(mio m, int state, void *arg, xmlnode unused1, char* buffer, int bufferlen) {
@@ -401,11 +419,14 @@ namespace xmppd {
 	}
 
 	void socks5stub::on_closed() {
+	    // we are not allowed to access the socket anymore
+	    m = NULL;
+
 	    // send signal
 	    disconnected(this);
 	}
 
-	connected_sockets::connected_sockets(socks5stub* socket1, socks5stub* socket2) {
+	connected_sockets::connected_sockets(socks5stub* socket1, socks5stub* socket2, const std::string& identifier) : forwarded_traffic(0), identifier(identifier) {
 	    // sanity checks
 	    if (!socket1 || !socket2)
 		throw std::invalid_argument("NULL socket passed to connected_sockets constructor");
@@ -433,6 +454,10 @@ namespace xmppd {
 		mio_write(this->sockets[0], NULL, socket2->unprocessed_data.c_str(), socket2->unprocessed_data.length());
 		socket2->unprocessed_data = "";
 	    }
+
+	    // delete the passed sockets
+	    delete socket1;
+	    delete socket2;
 	}
 
 	void connected_sockets::mio_event_wrapper(mio m, int state, void *arg, xmlnode unused1, char* buffer, int bufferlen) {
@@ -458,22 +483,39 @@ namespace xmppd {
 	}
 
 	void connected_sockets::on_closed(int socketindex) {
-	    int othersocket = 1 - socketindex;
+	    // remember that the one connection is closed and cannot be accessed anymore
+	    sockets[socketindex] = NULL;
 
-	    if (sockets[othersocket]) {
-		mio_close(sockets[othersocket]);
-	    }
+	    // close the other socket
+	    close_sockets();
 
-	    sockets[0] = NULL;
-	    sockets[1] = NULL;
+	    // signal that the connection has been closed
+	    closed(this);
 	}
 
 	void connected_sockets::on_data(int socketindex, const std::string& received_data) {
 	    int othersocket = 1 - socketindex;
 
+	    // send data received on the one socket to the other socket
 	    if (sockets[othersocket]) {
+		forwarded_traffic += received_data.length();
 		mio_write(sockets[othersocket], NULL, received_data.c_str(), received_data.length());
 	    }
+	}
+
+	void connected_sockets::close_sockets() {
+	    for (int c=0; c<2; c++) {
+		if (sockets[c]) {
+		    mio_reset(sockets[c], NULL, NULL);
+		    mio_close(sockets[c]);
+		    sockets[c] = NULL;
+		}
+	    }
+	}
+
+	connected_sockets::~connected_sockets() {
+	    // ensure that the sockets are closed
+	    close_sockets();
 	}
     }
 }

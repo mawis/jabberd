@@ -41,13 +41,52 @@ namespace xmppd {
 		/**
 		 * create a new instance by connecting two sockets
 		 *
+		 * - The passed sockets (socket1 and socket2) get deleted by this constructor if no exception is thrown.
+		 * - The two sockets need to have a connection
+		 *
 		 * @param socket1 the one socket that gets connected
 		 * @param socket2 the other socket that gets connected
+		 * @param identifier an identifier for this connection (this identifier can later be requested with get_identifier())
 		 */
-		connected_sockets(socks5stub* socket1, socks5stub* socket2);
+		connected_sockets(socks5stub* socket1, socks5stub* socket2, const std::string& identifier);
 
+		/**
+		 * destruct an instance of connected sockets, this will
+		 * also close the connection if it is still present
+		 */
+		~connected_sockets();
+
+		/**
+		 * event that signals that the connection has been closed
+		 *
+		 * a pointer to the instance that has been closed gets passed with the event
+		 */
 		sigc::signal<void, connected_sockets*>& event_closed() { return closed; }
+
+		/**
+		 * get the amount of traffic that has been forwarded already
+		 *
+		 * @return the traffic in bytes
+		 */
+		size_t get_forwarded_traffic() { return forwarded_traffic; }
+
+		/**
+		 * get the identifier for this connection
+		 *
+		 * @return the identifier of the connection
+		 */
+		const std::string& get_identifier() { return identifier; }
 	    private:
+		/**
+		 * the identifier for this connection
+		 */
+		std::string identifier;
+
+		/**
+		 * Counter to remember the amount of bytes that have been forwarded
+		 */
+		size_t forwarded_traffic;
+
 		/**
 		 * array of the two sockets this instance is interconnecting
 		 */
@@ -87,6 +126,11 @@ namespace xmppd {
 		 * A pointer to the instance that got disconnected is passed
 		 */
 		sigc::signal<void, connected_sockets*> closed;
+
+		/**
+		 * closed the sockets that are connected, if they are not already closed
+		 */
+		void close_sockets();
 	};
 
 	/**
@@ -100,6 +144,11 @@ namespace xmppd {
 		 * @param m the connection the instance should be created for
 		 */
 		socks5stub(mio m);
+
+		/**
+		 * destruct an instance
+		 */
+		~socks5stub();
 
 		/**
 		 * get reference to the protocol_done signal
@@ -198,6 +247,11 @@ namespace xmppd {
 		 * Until the 'destination address' is received, this is the empty string
 		 */
 		std::string connection_id;
+
+		/**
+		 * close the socket of this instance (if it owns any)
+		 */
+		void close_socket();
 
 		friend class connected_sockets;
 	};

@@ -1,3 +1,8 @@
+2007-04-26  Matthias Wimmer  <m@tthias.eu>
+
+    * proxy65/proxy65.cc: destruction and logging
+    * proxy65/proxy65.h: same
+
 2007-04-25  Matthias Wimmer  <m@tthias.eu>
 
     * proxy65/proxy65.h: continued work on proxy65
