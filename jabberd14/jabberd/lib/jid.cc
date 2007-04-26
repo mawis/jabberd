@@ -103,11 +103,6 @@ void _jid_clean_walker(xht h, const char *key, void *val, void *arg) {
 	if (entry->preped != NULL)
 	    free(entry->preped);
 	free(entry);
-
-	/* sorry, I have to cast the const away */
-	/* any idea how I could delete the key else? */
-	if (key != NULL)
-	    free((void*)key);
     }
 }
 
@@ -227,6 +222,9 @@ int _jid_cached_stringprep(char *in_out_buffer, int max_len, _jid_prep_cache_t c
 
 		/* store the entry in the cache */
 		xhash_put(cache->hashtable, original, preped);
+
+		// the xhash made a copy of the key (since we are using std::string as keys), we can now delete our copy
+		free(original);
 
 		/* we're done, release the lock on the cache */
 		pth_mutex_release(&(cache->mutex));

@@ -2,6 +2,9 @@
 
     * proxy65/proxy65.cc: destruction and logging
     * proxy65/proxy65.h: same
+    * jabberd/lib/xhash.cc: being prepared that an xhash_walker might delete
+	an element
+    * jabberd/lib/jid.cc: fixing a problem caused by casting away const
 
 2007-04-25  Matthias Wimmer  <m@tthias.eu>
 

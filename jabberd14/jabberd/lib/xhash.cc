@@ -182,7 +182,11 @@ void xhash_walk(xht h, xhash_walker w, void *arg) {
 
     // iterate the elements
     xmppd::xhash::iterator p;
-    for (p = h->begin(); p != h->end(); ++p) {
+    xmppd::xhash::iterator next = h->begin();
+    for (p = h->begin(); p != h->end(); p = next) {
+	// already get iterator to the next element, the callback might remove this one
+	++next;
+
 	(*w)(h, p->first.c_str(), p->second, arg);
     }
 }
