@@ -1239,7 +1239,6 @@ const char* dialback_get_loopcheck_token(db d) {
 extern "C" void dialback(instance i, xmlnode x) {
     db d;
     xmlnode cfg, cur;
-    xmlnode_list_item cur_item;
     struct karma k;
     int max;
     int rate_time, rate_points;
@@ -1312,11 +1311,12 @@ extern "C" void dialback(instance i, xmlnode x) {
          set_karma = 1; /* set to true */
     }
 
-    cur_item = xmlnode_get_tags(cfg, "conf:ip", d->std_ns_prefixes);
-    if (cur_item != NULL) {
-        for (; cur_item != NULL; cur_item = cur_item->next) {
+    xmlnode_vector ips = xmlnode_get_tags(cfg, "conf:ip", d->std_ns_prefixes);
+    if (ips.size() > 0) {
+	xmlnode_vector::iterator iter;
+	for (iter = ips.begin(); iter != ips.end(); ++iter) {
             mio m;
-            m = mio_listen(j_atoi(xmlnode_get_attrib_ns(cur_item->node, "port", NULL), 5269), xmlnode_get_data(cur_item->node), dialback_in_read, (void*)d, MIO_LISTEN_XML);
+            m = mio_listen(j_atoi(xmlnode_get_attrib_ns(*iter, "port", NULL), 5269), xmlnode_get_data(*iter), dialback_in_read, (void*)d, MIO_LISTEN_XML);
             if(m == NULL)
                 return;
             /* Set New rate and points */
@@ -1336,19 +1336,21 @@ extern "C" void dialback(instance i, xmlnode x) {
     }
 
     /* check for hosts where we don't want to use XMPP streams or STARTTLS */
-    for (cur_item = xmlnode_get_tags(cfg, "conf:host", d->std_ns_prefixes); cur_item != NULL; cur_item = cur_item->next) {
+    xmlnode_vector hosts = xmlnode_get_tags(cfg, "conf:host", d->std_ns_prefixes);
+    xmlnode_vector::iterator cur_item;
+    for (cur_item = hosts.begin(); cur_item != hosts.end(); ++cur_item) {
 	char *xmpp = NULL;
 	char *tls = NULL;
 	char *auth = NULL;
-	char *hostname = pstrdup(i->p, xmlnode_get_attrib_ns(cur_item->node, "name", NULL));
+	char *hostname = pstrdup(i->p, xmlnode_get_attrib_ns(*cur_item, "name", NULL));
 
 	/* the default setting is stored as a setting for '*' */
 	if (hostname == NULL)
 	    hostname = "*";
 
-	xmpp = pstrdup(i->p, xmlnode_get_attrib_ns(cur_item->node, "xmpp", NULL));
-	tls = pstrdup(i->p, xmlnode_get_attrib_ns(cur_item->node, "tls", NULL));
-	auth = pstrdup(i->p, xmlnode_get_attrib_ns(cur_item->node, "auth", NULL));
+	xmpp = pstrdup(i->p, xmlnode_get_attrib_ns(*cur_item, "xmpp", NULL));
+	tls = pstrdup(i->p, xmlnode_get_attrib_ns(*cur_item, "tls", NULL));
+	auth = pstrdup(i->p, xmlnode_get_attrib_ns(*cur_item, "auth", NULL));
 
 	if (xmpp != NULL) {
 	    xhash_put(d->hosts_xmpp, hostname, xmpp);

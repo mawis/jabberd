@@ -124,7 +124,7 @@ static int mod_auth_plain_reset(mapi m, jid id, xmlnode pass) {
 static mreturn mod_auth_plain_reg(mapi m, void *arg) {
     if (jpacket_subtype(m->packet) == JPACKET__GET) {
 	/* type=get means we tell what we need */
-	if (xmlnode_get_tags(m->packet->iq, "register:password", m->si->std_namespace_prefixes) == NULL)
+	if (xmlnode_get_tags(m->packet->iq, "register:password", m->si->std_namespace_prefixes).size() == 0)
 	    xmlnode_insert_tag_ns(m->packet->iq, "password", NULL, NS_REGISTER);
     }
     return M_PASS;

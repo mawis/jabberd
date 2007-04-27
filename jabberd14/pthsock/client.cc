@@ -532,7 +532,7 @@ extern "C" void pthsock_client(instance i, xmlnode x) {
     struct karma *k = karma_new(i->p); /* Get new inialized karma */
     int set_karma = 0; /* Default false; Did they want to change the karma parameters */
     char *tls_config_element_name = "tls";
-    xmlnode_list_item item = NULL;
+    xmlnode_vector item;
 
     log_debug2(ZONE, LOGT_INIT, "[%s] pthsock_client loading", ZONE);
 
@@ -596,9 +596,10 @@ extern "C" void pthsock_client(instance i, xmlnode x) {
     }
 
     /* start listening */
-    for (item = xmlnode_get_tags(s__i->cfg, "pthcsock:ip", s__i->std_namespace_prefixes); item != NULL; item = item->next) {
+    item = xmlnode_get_tags(s__i->cfg, "pthcsock:ip", s__i->std_namespace_prefixes);
+    for (xmlnode_vector::iterator iter = item.begin(); iter != item.end(); ++iter) {
 	mio m;
-	m = mio_listen(j_atoi(xmlnode_get_attrib_ns(item->node, "port", NULL), 5222), xmlnode_get_data(item->node), pthsock_client_listen, (void*)s__i, MIO_LISTEN_XML);
+	m = mio_listen(j_atoi(xmlnode_get_attrib_ns(*iter, "port", NULL), 5222), xmlnode_get_data(*iter), pthsock_client_listen, (void*)s__i, MIO_LISTEN_XML);
 	if(m == NULL)
 	    return;
 
@@ -609,20 +610,20 @@ extern "C" void pthsock_client(instance i, xmlnode x) {
     }
 
     item = xmlnode_get_tags(s__i->cfg, "pthcsock:tls", s__i->std_namespace_prefixes);
-    if (item == NULL) {
+    if (item.size() == 0) {
 	item = xmlnode_get_tags(s__i->cfg, "pthcsock:ssl", s__i->std_namespace_prefixes);
-	if (item != NULL)
+	if (item.size() > 0)
 	    log_warn(NULL, "Processing legacy <ssl/> element(s) inside pthsock_client configuration. The element has been renamed to <tls/>.");
     }
 
     /* listen on TLS sockets */
-    for (; item != NULL; item = item->next) {
+    for (xmlnode_vector::iterator iter = item.begin(); iter != item.end(); ++iter) {
 	mio m;
 	mio_handlers mh;
 
 	mh = mio_handlers_new(MIO_SSL_READ, MIO_SSL_WRITE, MIO_XML_PARSER);
 	mh->accepted = MIO_SSL_ACCEPTED;
-	m = mio_listen(j_atoi(xmlnode_get_attrib_ns(item->node, "port", NULL), 5223), xmlnode_get_data(item->node), pthsock_client_listen, (void*)s__i, mh);
+	m = mio_listen(j_atoi(xmlnode_get_attrib_ns(*iter, "port", NULL), 5223), xmlnode_get_data(*iter), pthsock_client_listen, (void*)s__i, mh);
 	if (m == NULL)
 	    return;
 	/* Set New rate and points */

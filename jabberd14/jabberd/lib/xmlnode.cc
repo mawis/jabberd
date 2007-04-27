@@ -399,68 +399,64 @@ static int _xmlnode_get_datasz(xmlnode node) {
  * @param result_first pointer to the pointer to the first list element of the result (gets modified)
  * @param result_last pointer to the pointer to the first list element of the result (gets modified)
  * @param node the node, that should be appended if there is no next_step, or which should be the parent node for the next_step
- * @param predicate the predicate for this step
+ * @param _predicate the predicate for this step
  * @param next_step the next step for recursion
- * @param p memory pool to use for memory allocations
  */
-static void _xmlnode_append_if_predicate(xmlnode_list_item *result_first, xmlnode_list_item *result_last, xmlnode node, char *predicate, const char *next_step, xht namespaces, pool p) {
-    xmlnode_list_item sub_result = NULL;
-
+static void _xmlnode_append_if_predicate(xmlnode_vector& result_vector, xmlnode node, char const* _predicate, const char *next_step, xht namespaces) {
     /* sanity checks */
-    if (result_first == NULL || result_last == NULL || node == NULL || namespaces == NULL || p == NULL)
+    if (node == NULL || namespaces == NULL)
 	return;
 
     /* check the predicate */
-    if (predicate != NULL) {
+    if (_predicate != NULL) {
 	char *attrib_ns_iri = NULL;
-	char *attrib_name = NULL;
-	char *attrib_value = NULL;
 	xmlnode iter = NULL;
 	int predicate_matched = 0;
 
 	/* we only support checking for attribute existence or attribute values for now */
-	if (predicate[0] != '@') {
+	if (_predicate[0] != '@') {
 	    /* do not add, we do not support the predicate :-( */
 	    return;
 	}
 
 	/* skip the '@' */
-	predicate++;
+	_predicate++;
 
-	/* make a copy of the predicate, so we can modify it */
-	predicate = pstrdup(p, predicate);			// XXX use local memory
+	/* make predicate a string, so we can better work with it */
+	std::string predicate(_predicate);
 
 	/* is there a value we have to match? */
-	attrib_value = strchr(predicate, '=');
-	if (attrib_value != NULL) {
-	    attrib_value[0] = 0;
-	    attrib_value++;
+	std::string attrib_value;
+	std::string attrib_name;
+	bool attrib_value_present = false;
+	std::string::size_type pos = predicate.find("=");
+	if (pos != std::string::npos) {
+	    attrib_value_present = true;
+	    attrib_value = predicate.substr(pos+1);
 
-	    /* remove quotes */
-	    if (attrib_value[0] != 0) {
-		attrib_value++;
-		if (attrib_value[0] != 0) {
-		    attrib_value[j_strlen(attrib_value)-1] = 0;
-		}
-	    }
+	    // remove quotes
+	    attrib_value.erase(0, 1);
+	    if (attrib_value.length() > 1)
+		attrib_value.erase(attrib_value.length()-1);
+
+	    // get the name of the attribute (including the prefix for now)
+	    attrib_name = predicate.substr(0, pos);
+	} else {
+	    attrib_name = predicate;
 	}
 
-	/* get the namespace of the attribute */
-	attrib_name = strchr(predicate, ':');
-	if (attrib_name == NULL) {
-	    attrib_name = predicate;
-	    attrib_ns_iri = NULL;
-	} else {
-	    attrib_name[0] = 0;
-	    attrib_name++;
-	    attrib_ns_iri = static_cast<char*>(xhash_get(namespaces, predicate));
+	// does the attribute have a namespace prefix?
+	pos = attrib_name.find(":");
+	if (pos != std::string::npos) {
+	    attrib_ns_iri = static_cast<char*>(xhash_get(namespaces, attrib_name.substr(0, pos).c_str()));
+	    attrib_name.erase(0, pos+1);
 	}
 
 	/* iterate over the namespace attributes */
 	for (iter = xmlnode_get_firstattrib(node); iter != NULL; iter = xmlnode_get_nextsibling(iter)) {
 
 	    /* attribute differs in name? */
-	    if (j_strcmp(attrib_name, iter->name) != 0) {
+	    if (j_strcmp(attrib_name.c_str(), iter->name) != 0) {
 		continue;
 	    }
 
@@ -470,7 +466,7 @@ static void _xmlnode_append_if_predicate(xmlnode_list_item *result_first, xmlnod
 	    }
 
 	    /* we have to check the value and it differs */
-	    if (attrib_value != NULL && j_strcmp(attrib_value, xmlnode_get_data(iter)) != 0) {
+	    if (attrib_value_present && j_strcmp(attrib_value.c_str(), xmlnode_get_data(iter)) != 0) {
 		continue;
 	    }
 
@@ -489,44 +485,17 @@ static void _xmlnode_append_if_predicate(xmlnode_list_item *result_first, xmlnod
 
     /* if no next_step, than add the node to the list and return */
     if (next_step == NULL) {
-	xmlnode_list_item result_item = static_cast<xmlnode_list_item>(pmalloco(p, sizeof(_xmlnode_list_item)));
-	result_item->node = node;
-
-	/* first item in list? */
-	if (*result_first == NULL)
-	    *result_first = result_item;
-
-	/* is there already a last item */
-	if (*result_last != NULL)
-	    (*result_last)->next = result_item;
-
-	/* this is now the last item */
-	*result_last = result_item;
-
+	result_vector.push_back(node);
 	return;
     }
 
     /* there is a next_step, we have to recurse */
-    sub_result = xmlnode_get_tags(node, next_step, namespaces, p);
+    xmlnode_vector sub_result = xmlnode_get_tags(node, next_step, namespaces);
 
     /* did we get a result we have to add? */
-    while (sub_result != NULL) {
-	xmlnode_list_item result_item = static_cast<xmlnode_list_item>(pmalloco(p, sizeof(_xmlnode_list_item)));
-	result_item->node = sub_result->node;
-
-	/* first item in list? */
-	if (*result_first == NULL)
-	    *result_first = result_item;
-
-	/* is there already a last item */
-	if (*result_last != NULL)
-	    (*result_last)->next = result_item;
-
-	/* this is now the last item */
-	*result_last = result_item;
-
-	/* iterate */
-	sub_result = sub_result->next;
+    xmlnode_vector::iterator iter;
+    for (iter=sub_result.begin(); iter!=sub_result.end(); ++iter) {
+	result_vector.push_back(*iter);
     }
 }
 
@@ -876,80 +845,68 @@ xmlnode xmlnode_get_tag(xmlnode parent, const char* name) {
  * @param p memory pool to use
  * @return first item in the list of xmlnodes, or NULL if no xmlnode matched the path
  */
-xmlnode_list_item xmlnode_get_tags(xmlnode context_node, const char *path, xht namespaces, pool p) {
-    char *this_step = NULL;
-    const char *ns_iri = NULL;
-    char *next_step = NULL;
-    char *start_predicate = NULL;
-    char *end_predicate = NULL;
-    char *predicate = NULL;
-    char *end_prefix = NULL;
+xmlnode_vector xmlnode_get_tags(xmlnode context_node, const char *_path, xht namespaces) {
     int axis = 0;	/* 0 = child, 1 = parent, 2 = attribute */
-    xmlnode_list_item result_first = NULL;
-    xmlnode_list_item result_last = NULL;
+    char const* ns_iri = NULL;
+    xmlnode_vector result_vector;
     xmlnode iter = NULL;
 
     /* sanity check */
-    if (context_node == NULL || path == NULL || namespaces == NULL)
-	return NULL;
+    if (context_node == NULL || _path == NULL || namespaces == NULL)
+	return xmlnode_vector();
 
-    /* if no memory pool specified use the memory pool of the context_node */
-    if (p == NULL) {
-	p = xmlnode_pool(context_node);
-    }
+    // make path a string we can better work with
+    std::string path = _path;
 
     /* check if there is an axis */
-    if (j_strncmp(path, "child::", 7) == 0) {
-	path = path+7;
-    } else if (j_strncmp(path, "parent::", 8) == 0) {
+    if (path.substr(0, 7) == "child::") {
+	path.erase(0, 7);
+    } else if (path.substr(0, 8) == "parent::") {
 	axis = 1;
-	path = path+8;
-    } else if (j_strncmp(path, "attribute::", 11) == 0) {
+	path.erase(0, 8);
+    } else if (path.substr(0, 11) == "attribute::") {
 	axis = 2;
-	path = path+11;
+	path.erase(0, 11);
     }
 
     /* separate this step from the next one, and check for a predicate in this step */
-    start_predicate = strchr(path, '[');
-    next_step = strchr(path, '/');
-    if (start_predicate == NULL && next_step == NULL) {
-	this_step = pstrdup(p, path);
-    } else if (start_predicate == NULL || start_predicate > next_step && next_step != NULL) {
-	this_step = static_cast<char*>(pmalloco(p, next_step - path + 1));
-	snprintf(this_step, next_step - path + 1, "%s", path);
-	if (next_step != NULL)
-	    next_step++;
+    std::string::size_type start_predicate = path.find("[");
+    std::string::size_type start_next_step = path.find("/");
+    std::string this_step;
+    std::string next_step;
+    std::string predicate;
+    if (start_predicate == std::string::npos && start_next_step == std::string::npos) {
+	// there is neither a predicate nor a next step in the path
+	this_step = path;
+    } else if (start_predicate == std::string::npos || start_next_step != std::string::npos && start_predicate > start_next_step) {
+	this_step = path.substr(0, start_next_step);
+	next_step = path.substr(start_next_step+1);
     } else {
-
-	end_predicate = strchr(start_predicate, ']');
-	if (end_predicate == NULL) {
-	    /* error in predicate syntax */
-	    return NULL;
+	std::string::size_type end_predicate = path.find("]", start_predicate);
+	if (end_predicate == std::string::npos) {
+	    // error in predicate syntax, return empty vector
+	    return xmlnode_vector();
 	}
 
-	if (next_step != NULL) {
-	    if (next_step < end_predicate)
-		next_step = strchr(end_predicate, '/');
-	    if (next_step != NULL)
-		next_step++;
+	if (start_next_step != std::string::npos) {
+	    if (start_next_step < end_predicate)
+		start_next_step = path.find("/", end_predicate);
+	    if (start_next_step != std::string::npos)
+		next_step = path.substr(start_next_step+1);
 	}
-	
-	predicate = static_cast<char*>(pmalloco(p, end_predicate - start_predicate));
-	snprintf(predicate, end_predicate - start_predicate, "%s", start_predicate+1);
-	this_step = static_cast<char*>(pmalloco(p, start_predicate - path + 1));
-	snprintf(this_step, start_predicate - path + 1, "%s", path);
+
+	predicate = path.substr(start_predicate+1, end_predicate-start_predicate-1);
+	this_step = path.substr(0, start_predicate);
     }
 
     /* check for the namespace IRI we have to match the node */
-    end_prefix = strchr(this_step, ':');
-    if (end_prefix == NULL) {
-	/* default prefix (or NULL if axis is attribute::) */
+    std::string::size_type end_prefix = this_step.find(":");
+    if (end_prefix == std::string::npos) {
+	// default prefix or NULL if axis is an attribute
 	ns_iri = axis == 2 ? NULL : static_cast<const char*>(xhash_get(namespaces, ""));
     } else {
-	/* prefixed name */
-	*end_prefix = 0;
-	ns_iri = static_cast<const char*>(xhash_get(namespaces, this_step));
-	this_step = end_prefix+1;
+	ns_iri = static_cast<const char*>(xhash_get(namespaces, this_step.substr(0, end_prefix).c_str()));
+	this_step.erase(0, end_prefix+1);
     }
 
     /* iterate over all child nodes, checking if this step matches them */
@@ -964,11 +921,11 @@ xmlnode_list_item xmlnode_get_tags(xmlnode context_node, const char *path, xht n
 		axis == 2 ? xmlnode_get_nextsibling(iter) :
 		NULL) {
 
-	if (this_step != NULL && this_step[0] == '*' && this_step[1] == 0) {
+	if (this_step == "*") {
 	    /* matching all nodes */
 
 	    /* match ns_iri if prefix has been specified */
-	    if (end_prefix != NULL) {
+	    if (end_prefix != std::string::npos) {
 		if (iter->type == NTYPE_CDATA || j_strcmp(ns_iri, iter->ns_iri) != 0) {
 		    continue;
 		}
@@ -979,34 +936,34 @@ xmlnode_list_item xmlnode_get_tags(xmlnode context_node, const char *path, xht n
 		_xmlnode_merge(iter);
 
 	    /* append to the result */
-	    _xmlnode_append_if_predicate(&result_first, &result_last, iter, predicate, next_step, namespaces, p);
+	    _xmlnode_append_if_predicate(result_vector, iter, predicate.length() > 0 ? predicate.c_str() : NULL, next_step.length() > 0 ? next_step.c_str() : NULL, namespaces);
 
 	    continue;
 	}
 
-	if (iter->type == NTYPE_CDATA && j_strcmp(this_step, "text()") == 0) {
+	if (iter->type == NTYPE_CDATA && this_step == "text()") {
 	    /* matching text node */
 
 	    /* merge all text nodes, that are direct siblings with this one */
 	    _xmlnode_merge(iter);
 
 	    /* append to the result */
-	    _xmlnode_append_if_predicate(&result_first, &result_last, iter, predicate, next_step, namespaces, p);
+	    _xmlnode_append_if_predicate(result_vector, iter, predicate.length() > 0 ? predicate.c_str() : NULL, next_step.length() > 0 ? next_step.c_str() : NULL, namespaces);
 
 	    continue;
 	}
 
-	if (iter->type != NTYPE_CDATA && (ns_iri == NULL && iter->ns_iri == NULL || j_strcmp(ns_iri, iter->ns_iri) == 0) && j_strcmp(this_step, iter->name) == 0) {
+	if (iter->type != NTYPE_CDATA && (ns_iri == NULL && iter->ns_iri == NULL || j_strcmp(ns_iri, iter->ns_iri) == 0) && j_strcmp(this_step.c_str(), iter->name) == 0) {
 	    /* matching element or attribute */
 
 	    /* append to the result */
-	    _xmlnode_append_if_predicate(&result_first, &result_last, iter, predicate, next_step, namespaces, p);
+	    _xmlnode_append_if_predicate(result_vector, iter, predicate.length() > 0 ? predicate.c_str() : NULL, next_step.length() > 0 ? next_step.c_str() : NULL, namespaces);
 
 	    continue;
 	}
     }
 
-    return result_first;
+    return result_vector;
 }
 
 /**
@@ -1037,14 +994,13 @@ char *xmlnode_get_tag_data(xmlnode parent, const char *name) {
  * @param i which item to use
  * @return textual content, or NULL if no textual content, or item not found
  */
-char* xmlnode_get_list_item_data(xmlnode_list_item first, unsigned int i) {
-    xmlnode tag;
-
-    tag = xmlnode_get_list_item(first, i);
-    if (tag == NULL)
+char* xmlnode_get_list_item_data(const xmlnode_vector& first, unsigned int i) {
+    // check if the element exists
+    if (i >= first.size())
 	return NULL;
 
-    return xmlnode_get_data(tag);
+    // return the element
+    return xmlnode_get_data(first[i]);
 }
 
 /**
@@ -1789,19 +1745,13 @@ const char* xmlnode_get_lang(xmlnode node) {
  * @param i which item to get (we start counting at zero)
  * @return the node of the list item, NULL if no such item
  */
-xmlnode xmlnode_get_list_item(xmlnode_list_item first, unsigned int i) {
-    /* find the item */
-    while (first != NULL && i > 0) {
-	first = first->next;
-	i--;
-    }
+xmlnode xmlnode_get_list_item(const xmlnode_vector& first, unsigned int i) {
+    // check if the element exists
+    if (i >= first.size())
+	return NULL;
 
-    /* found? */
-    if (first != NULL)
-	return first->node;
-
-    /* not found */
-    return NULL;
+    // return it
+    return first[i];
 }
 
 /**
@@ -1818,14 +1768,13 @@ xmlnode xmlnode_get_list_item(xmlnode_list_item first, unsigned int i) {
  * @param lang language to prefere (if NULL, the first node without language is prefered)
  * @return the selected nodes, NULL if no nodes have been passed
  */
-xmlnode xmlnode_select_by_lang(xmlnode_list_item nodes, const char* lang) {
-    xmlnode_list_item iter = NULL;
+xmlnode xmlnode_select_by_lang(const xmlnode_vector& nodes, const char* lang) {
     xmlnode first_without_lang = NULL;
     xmlnode first_with_general_lang = NULL;
     char general_lang[32] = "";
 
     /* santiy check */
-    if (nodes == NULL) {
+    if (nodes.size() == 0) {
 	return NULL;
     }
 
@@ -1840,27 +1789,28 @@ xmlnode xmlnode_select_by_lang(xmlnode_list_item nodes, const char* lang) {
     }
 
     /* iterate the nodes */
-    for (iter = nodes; iter != NULL; iter = iter->next) {
+    xmlnode_vector::const_iterator iter;
+    for (iter = nodes.begin(); iter != nodes.end(); ++iter) {
 	/* get the language of the node */
-	const char* this_nodes_lang = xmlnode_get_lang(iter->node);
+	const char* this_nodes_lang = xmlnode_get_lang(*iter);
 
 	/* match by language? */
 	if (lang != NULL) {
 	    if (j_strcasecmp(this_nodes_lang, lang) == 0) {
-		return iter->node;
+		return *iter;
 	    }
 	}
 
 	/* match by general_lang? */
 	if (first_with_general_lang == NULL && j_strcasecmp(this_nodes_lang, general_lang) == 0) {
-	    first_with_general_lang = iter->node;
+	    first_with_general_lang = *iter;
 	}
 
 	/* check for nodes without a language */
 	if (first_without_lang == NULL && this_nodes_lang == NULL) {
 	    if (lang == NULL)
-		return iter->node;
-	    first_without_lang = iter->node;
+		return *iter;
+	    first_without_lang = *iter;
 	}
     }
 
@@ -1869,7 +1819,7 @@ xmlnode xmlnode_select_by_lang(xmlnode_list_item nodes, const char* lang) {
 	return first_with_general_lang;
 
     /* no match by language, either return node without language (prefered), or first node */
-    return first_without_lang != NULL ? first_without_lang : nodes->node;
+    return first_without_lang != NULL ? first_without_lang : nodes[0];
 }
 
 namespace xmppd {

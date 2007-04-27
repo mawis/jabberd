@@ -261,7 +261,7 @@ static mreturn mod_disco_user_items(mapi m) {
 static mreturn mod_disco_user_info(mapi m) {
     xmlnode x = NULL;
     xmlnode vcard = NULL;
-    xmlnode_list_item vcard_fn = NULL;
+    xmlnode_vector vcard_fn;
     int is_admin = 0;
 
     if (jpacket_subtype(m->packet) == JPACKET__SET) {
@@ -283,8 +283,8 @@ static mreturn mod_disco_user_info(mapi m) {
 
     vcard = xdb_get(m->si->xc, m->user->id, NS_VCARD);
     vcard_fn = xmlnode_get_tags(vcard, "vcard:FN", m->si->std_namespace_prefixes);
-    if (vcard_fn != NULL) {
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, is_admin ? spools(m->packet->p, xmlnode_get_data(vcard_fn->node), messages_get(xmlnode_get_lang(m->packet->x), N_(" (administrator)")), m->packet->p) : xmlnode_get_data(vcard_fn->node));
+    if (vcard_fn.size() > 0) {
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, is_admin ? spools(m->packet->p, xmlnode_get_data(vcard_fn[0]), messages_get(xmlnode_get_lang(m->packet->x), N_(" (administrator)")), m->packet->p) : xmlnode_get_data(vcard_fn[0]));
     } else {
 	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(xmlnode_get_lang(m->packet->x), is_admin ? N_("Administrator") : N_("User")));
     }

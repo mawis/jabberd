@@ -1,3 +1,36 @@
+2007-04-27  Matthias Wimmer  <m@tthias.eu>
+
+    * jabberd/lib/xmlnode.cc: improved memory management of xmlnode_get_tags()
+    * jabberd/lib/xhash.cc: same
+    * jabberd/lib/jabberdlib.h: same
+    * jabberd/lib/jutil.cc: same
+    * jabberd/acl.cc: same
+    * jabberd/config.cc: same
+    * jabberd/mio.cc: same
+    * jabberd/base/base_dir.cc: same
+    * jabberd/base/base_connect.cc: same
+    * jabberd/base/base_accept.cc: same
+    * jabberd/jabberd.cc: same
+    * jabberd/deliver.cc: same
+    * jsm/util.cc: same
+    * jsm/serialization.cc: same
+    * jsm/authreg.cc: same
+    * jsm/modules/mod_xml.cc: same
+    * jsm/modules/mod_auth_digest.cc: same
+    * jsm/modules/mod_disco.cc: same
+    * jsm/modules/mod_presence.cc: same
+    * jsm/modules/mod_privacy.cc: same
+    * jsm/modules/mod_roster.cc: same
+    * jsm/modules/mod_auth_crypt.cc: same
+    * jsm/modules/mod_auth_plain.cc: same
+    * jsm/modules/mod_register.cc: same
+    * dialback/dialback.cc: same
+    * xdb_sql/xdb_sql.cc: same
+    * proxy65/proxy65.cc: same
+    * pthsock/client.cc: same
+    * xdb_file/xdbfiletool.cc: same
+    * xdb_file/xdb_file.cc: same
+
 2007-04-26  Matthias Wimmer  <m@tthias.eu>
 
     * proxy65/proxy65.cc: destruction and logging

@@ -354,21 +354,17 @@ void register_instance(instance i, char *host) {
     namespaces = xhash_new(3);
     xhash_put(namespaces, "", const_cast<char*>(NS_JABBERD_CONFIGFILE));
 
-    pool temp_pool = pool_new();
-
     /* fail, since ns is required on every XDB instance if it's used on any one */
-    if (i->type == p_XDB && deliver__ns != NULL && xmlnode_get_list_item(xmlnode_get_tags(i->x, "ns", namespaces, temp_pool), 0) == NULL) {
+    if (i->type == p_XDB && deliver__ns != NULL && xmlnode_get_list_item(xmlnode_get_tags(i->x, "ns", namespaces), 0) == NULL) {
         fprintf(stderr, "Configuration Error!  If <ns> is used in any xdb section, it must be used in all sections for correct packet routing.");
         exit(1);
     }
     /* fail, since logtype is required on every LOG instance if it's used on any one */
-    if (i->type == p_LOG && deliver__logtype != NULL && xmlnode_get_list_item(xmlnode_get_tags(i->x, "logtype", namespaces, temp_pool), 0) == NULL) {
+    if (i->type == p_LOG && deliver__logtype != NULL && xmlnode_get_list_item(xmlnode_get_tags(i->x, "logtype", namespaces), 0) == NULL) {
         fprintf(stderr, "Configuration Error!  If <logtype> is used in any log section, it must be used in all sections for correct packet routing.");
         exit(1);
     }
     xhash_free(namespaces);
-    pool_free(temp_pool);
-    temp_pool = NULL;
 
     /* inform the instance about the newly routed domain */
     for (notify_callback = i->routing_update_callbacks; notify_callback != NULL; notify_callback = notify_callback->next) {

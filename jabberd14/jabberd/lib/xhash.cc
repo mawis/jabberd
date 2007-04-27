@@ -250,7 +250,6 @@ xmlnode xhash_to_xml(xht h) {
 xht xhash_from_xml(xmlnode hash, pool p) {
     xht result = NULL;
     xht ns = NULL;
-    xmlnode_list_item entry = NULL;
     int prime = j_atoi(xmlnode_get_attrib_ns(hash, "prime", NULL), 101);
 
     if (hash == NULL)
@@ -260,11 +259,11 @@ xht xhash_from_xml(xmlnode hash, pool p) {
     ns = xhash_new(2);
     xhash_put(ns, "", const_cast<char*>(NS_JABBERD_HASH));
 
-    pool temp_p = pool_new();
-
-    for (entry = xmlnode_get_tags(hash, "entry", ns, temp_p); entry != NULL; entry = entry->next) {
-	char *key = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(entry->node, "key", ns, temp_p), 0));
-	char *value = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(entry->node, "value", ns, temp_p), 0));
+    xmlnode_vector entry = xmlnode_get_tags(hash, "entry", ns);
+    xmlnode_vector::iterator iter;
+    for (iter = entry.begin(); iter != entry.end(); ++iter) {
+	char *key = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(*iter, "key", ns), 0));
+	char *value = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(*iter, "value", ns), 0));
 
 	if (value == NULL)
 	    value = "";
@@ -274,9 +273,6 @@ xht xhash_from_xml(xmlnode hash, pool p) {
 
 	xhash_put(result, key, pstrdup(p, value));
     }
-
-    pool_free(temp_p);
-    temp_p = NULL;
 
     xhash_free(ns);
 

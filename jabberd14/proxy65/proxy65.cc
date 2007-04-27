@@ -187,12 +187,12 @@ namespace xmppd {
 	    }
 
 	    // get the target of the connection
-	    xmlnode_list_item activate = xmlnode_get_tags(p->iq, "bytestreams:activate", std_namespace_prefixes);
-	    if (!activate) {
+	    xmlnode_vector activate = xmlnode_get_tags(p->iq, "bytestreams:activate", std_namespace_prefixes);
+	    if (!activate.size()) {
 		bounce_stanza(p->x, XTERROR_BAD);
 		return r_DONE;
 	    }
-	    char const* target = jid_full(jid_new(p->p, xmlnode_get_data(activate->node)));
+	    char const* target = jid_full(jid_new(p->p, xmlnode_get_data(activate[0])));
 	    if (!target) {
 		bounce_stanza(p->x, XTERROR_BAD);
 		return r_DONE;

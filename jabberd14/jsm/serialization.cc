@@ -247,23 +247,23 @@ static void _jsm_deserialize_session(jsmi si, const jid user_jid, const char *re
  * @param x the XML fragment, that should be deserialized
  */
 static void _jsm_deserialize_xml(jsmi si, const char *host, xmlnode x) {
-    xmlnode_list_item user_fragment = NULL;
-    xmlnode_list_item session_fragment = NULL;
-    jid user = NULL;
+    jid user_jid = NULL;
 
     /* sanity check */
     if (si == NULL || host == NULL || x == NULL)
 	return;
 
     /* initialize the JID */
-    user = jid_new(xmlnode_pool(x), host);
+    user_jid = jid_new(xmlnode_pool(x), host);
 
     /* iterate on the users */
-    for (user_fragment = xmlnode_get_tags(x, "state:user", si->std_namespace_prefixes); user_fragment != NULL; user_fragment = user_fragment->next) {
-	jid_set(user, xmlnode_get_attrib_ns(user_fragment->node, "name", NULL), JID_USER);
+    xmlnode_vector users = xmlnode_get_tags(x, "state:user", si->std_namespace_prefixes);
+    for (xmlnode_vector::iterator user = users.begin(); user != users.end(); ++user) {
+	jid_set(user_jid, xmlnode_get_attrib_ns(*user, "name", NULL), JID_USER);
 
-	for (session_fragment = xmlnode_get_tags(user_fragment->node, "state:session", si->std_namespace_prefixes); session_fragment != NULL; session_fragment = session_fragment->next) {
-	    _jsm_deserialize_session(si, user, xmlnode_get_attrib_ns(session_fragment->node, "resource", NULL), session_fragment->node);
+	xmlnode_vector sessions = xmlnode_get_tags(*user, "state:session", si->std_namespace_prefixes);
+	for (xmlnode_vector::iterator session = sessions.begin(); session != sessions.end(); ++session) {
+	    _jsm_deserialize_session(si, user_jid, xmlnode_get_attrib_ns(*session, "resource", NULL), *session);
 	}
     }
 }
@@ -276,7 +276,6 @@ static void _jsm_deserialize_xml(jsmi si, const char *host, xmlnode x) {
  */
 void jsm_deserialize(jsmi si, const char *host) {
     xmlnode file = NULL;
-    xmlnode_list_item jsm_host = NULL;
     pool p = NULL;
 
     /* sanity check */
@@ -292,18 +291,17 @@ void jsm_deserialize(jsmi si, const char *host) {
 
     /* get the right XML tree fragment */
     p = xmlnode_pool(file);
-    jsm_host = xmlnode_get_tags(file, spools(p, "state:jsm[@host='", host, "']", p), si->std_namespace_prefixes);
+    xmlnode_vector jsm_host = xmlnode_get_tags(file, spools(p, "state:jsm[@host='", host, "']", p), si->std_namespace_prefixes);
 
-    if (jsm_host == NULL) {
+    if (jsm_host.size() == 0) {
 	log_notice(si->i->id, "There is no state for '%s' in %s: not deserializing previous jsm state", host, si->statefile);
 	xmlnode_free(file);
 	return;
     }
 
     /* deserialize the data for this host */
-    while (jsm_host != NULL) {
-	_jsm_deserialize_xml(si, host, jsm_host->node);
-	jsm_host = jsm_host->next;
+    for (xmlnode_vector::iterator iter = jsm_host.begin(); iter != jsm_host.end(); ++iter) {
+	_jsm_deserialize_xml(si, host, *iter);
     }
 
     xmlnode_free(file);

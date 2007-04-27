@@ -45,8 +45,7 @@ extern xmlnode greymatter__;
 
 static int acl_check_access_domain(xdbcache xdb, const char* function, const jid user) {
     static xht		namespaces = NULL;
-    xmlnode_list_item	acl = NULL;
-    xmlnode_list_item	feature = NULL;
+    xmlnode_vector	acl;
     pool		p = NULL;
     jid			result = NULL;
 
@@ -61,30 +60,27 @@ static int acl_check_access_domain(xdbcache xdb, const char* function, const jid
 	xhash_put(namespaces, "acl", const_cast<char*>(NS_JABBERD_ACL));
     }
 
-    pool temp_pool = pool_new();
-
     /* get the acl */
-    acl = xmlnode_get_tags(greymatter__, "global/acl:acl/acl:grant", namespaces, temp_pool);
+    acl = xmlnode_get_tags(greymatter__, "global/acl:acl/acl:grant", namespaces);
 
     /* iterate the features */
-    for (feature = acl; feature != NULL; feature = feature->next) {
-	const char *f = xmlnode_get_attrib_ns(feature->node, "feature", NULL);
+    xmlnode_vector::iterator iter;
+    for (iter = acl.begin(); iter != acl.end(); ++iter) {
+	const char *f = xmlnode_get_attrib_ns(*iter, "feature", NULL);
 
 	/* are we interested in this feature element? */
 	if (f == NULL || j_strcmp(f, function) == 0) {
-	    xmlnode_list_item domain = NULL;
-
 	    /* check for domain tags */
-	    for (domain = xmlnode_get_tags(feature->node, "acl:domain", namespaces, temp_pool); domain != NULL; domain = domain->next) {
-		if (j_strcmp(user->server, xmlnode_get_data(domain->node)) == 0) {
-		    pool_free(temp_pool);
+	    xmlnode_vector domain = xmlnode_get_tags(*iter, "acl:domain", namespaces);
+	    xmlnode_vector::iterator p;
+	    for (p = domain.begin(); p != domain.end(); ++p) {
+		if (j_strcmp(user->server, xmlnode_get_data(*p)) == 0) {
 		    return 1;
 		}
 	    }
 	}
     }
 
-    pool_free(temp_pool);
     return 0;
 }
 
@@ -105,10 +101,7 @@ int acl_check_access(xdbcache xdb, const char *function, const jid user) {
 	return 1;
 
     /* get list of all allowed users */
-    pool temp_pool = pool_new();
     allowed_users = acl_get_users(xdb, function);
-    pool_free(temp_pool);
-    temp_pool = NULL;
 
     /* is this user allowed? */
     for (iter = allowed_users; iter != NULL; iter = iter->next) {
@@ -139,8 +132,7 @@ int acl_check_access(xdbcache xdb, const char *function, const jid user) {
  */
 jid acl_get_users(xdbcache xdb, const char *function) {
     static xht		namespaces = NULL;
-    xmlnode_list_item	acl = NULL;
-    xmlnode_list_item	feature = NULL;
+    xmlnode_vector	acl;
     pool		p = NULL;
     jid			result = NULL;
 
@@ -156,21 +148,21 @@ jid acl_get_users(xdbcache xdb, const char *function) {
     }
 
     /* get the acl */
-    pool temp_pool = pool_new();
-    acl = xmlnode_get_tags(greymatter__, "global/acl:acl/acl:grant", namespaces, temp_pool);
+    acl = xmlnode_get_tags(greymatter__, "global/acl:acl/acl:grant", namespaces);
 
     /* iterate the features */
-    for (feature = acl; feature != NULL; feature = feature->next) {
-	const char *f = xmlnode_get_attrib_ns(feature->node, "feature", NULL);
+    xmlnode_vector::iterator feature;
+    for (feature = acl.begin(); feature != acl.end(); ++feature) {
+	const char *f = xmlnode_get_attrib_ns(*feature, "feature", NULL);
 
 	/* are we interested in this feature element? */
 	if (f == NULL || j_strcmp(f, function) == 0) {
-	    xmlnode_list_item jid_iter = NULL;
-	    xmlnode_list_item jids = xmlnode_get_tags(feature->node, "acl:jid", namespaces, temp_pool);
+	    xmlnode_vector::iterator jid_iter;
+	    xmlnode_vector jids = xmlnode_get_tags(*feature, "acl:jid", namespaces);
 
 	    /* get all jids inside */
-	    for (jid_iter = jids; jid_iter != NULL; jid_iter = jid_iter->next) {
-		const char *jid_str = xmlnode_get_data(jid_iter->node);
+	    for (jid_iter = jids.begin(); jid_iter != jids.end(); ++jid_iter) {
+		const char *jid_str = xmlnode_get_data(*jid_iter);
 
 		if (jid_str != NULL) {
 		    if (p == NULL)
@@ -181,6 +173,5 @@ jid acl_get_users(xdbcache xdb, const char *function) {
 	}
     }
 
-    pool_free(temp_pool);
     return result;
 }
