@@ -349,19 +349,18 @@ int configurate(char *file, xht cmd_line, int is_restart) {
     /* set locale mappings */
     if (!is_restart) {
 	xht namespaces = NULL;
-	xmlnode_list_item locale = NULL;
+	xmlnode_vector locale;
 
 	namespaces = xhash_new(1);
 	xhash_put(namespaces, "", const_cast<char*>(NS_JABBERD_CONFIGFILE));
-	pool temp_pool = pool_new();
-	locale = xmlnode_get_tags(greymatter__, "global/locales/locale", namespaces, temp_pool);
+	locale = xmlnode_get_tags(greymatter__, "global/locales/locale", namespaces);
 	xhash_free(namespaces);
 	namespaces = NULL;
 
-	for (; locale != NULL; locale = locale->next) {
-	    messages_set_mapping(xmlnode_get_attrib_ns(locale->node, "lang", NULL), xmlnode_get_attrib_ns(locale->node, "locale", NULL));
+	xmlnode_vector::iterator iter;
+	for (iter = locale.begin(); iter != locale.end(); ++iter) {
+	    messages_set_mapping(xmlnode_get_attrib_ns(*iter, "lang", NULL), xmlnode_get_attrib_ns(*iter, "locale", NULL));
 	}
-	pool_free(temp_pool);
     }
 
     return 0;

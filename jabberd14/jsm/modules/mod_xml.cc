@@ -54,7 +54,6 @@ static mreturn mod_xml_set(mapi m, void *arg) {
     const char *ns = xmlnode_get_namespace(m->packet->iq);
     int got_result = 0;
     jpacket jp;
-    xmlnode_list_item result_item = NULL;
     int is_delete = 0;
 
     if (m->packet->type != JPACKET_IQ)
@@ -78,6 +77,7 @@ static mreturn mod_xml_set(mapi m, void *arg) {
     }
     ns = xmlnode_get_namespace(inx);
 
+    xmlnode_vector result_items;
     switch (jpacket_subtype(m->packet)) {
 	case JPACKET__GET:
 	    log_debug2(ZONE, LOGT_DELIVER|LOGT_STORAGE, "handling get request for %s", ns);
@@ -86,15 +86,16 @@ static mreturn mod_xml_set(mapi m, void *arg) {
 	    storedx = xdb_get(m->si->xc, m->user->id, NS_PRIVATE);
 
 	    /* get the relevant items */
-	    for (result_item = xmlnode_get_tags(storedx, spools(m->packet->p, "private:query[@jabberd:ns='", ns, "']", m->packet->p), m->si->std_namespace_prefixes); result_item != NULL; result_item = result_item->next) {
+	    result_items = xmlnode_get_tags(storedx, spools(m->packet->p, "private:query[@jabberd:ns='", ns, "']", m->packet->p), m->si->std_namespace_prefixes);
+	    for (xmlnode_vector::iterator result_item = result_items.begin(); result_item != result_items.end(); ++result_item) {
 		if (!got_result) {
 		    got_result = 1;
 		    /* prepare result */
 		    jutil_iqresult(m->packet->x);
 		}
-		log_debug2(ZONE, LOGT_STORAGE, "found node: %s", xmlnode_serialize_string(result_item->node, xmppd::ns_decl_list(), 0));
-		xmlnode_hide_attrib_ns(result_item->node, "ns", NS_JABBERD_WRAPPER);
-		xmlnode_insert_tag_node(m->packet->x, result_item->node);
+		log_debug2(ZONE, LOGT_STORAGE, "found node: %s", xmlnode_serialize_string(*result_item, xmppd::ns_decl_list(), 0));
+		xmlnode_hide_attrib_ns(*result_item, "ns", NS_JABBERD_WRAPPER);
+		xmlnode_insert_tag_node(m->packet->x, *result_item);
 	    }
 
 	    /* found something? */
@@ -184,7 +185,7 @@ static mreturn mod_xml_delete(mapi m, void *arg) {
 extern "C" void mod_xml(jsmi si) {
     int empty_results = 0;
     xmlnode config = js_config(si, "jsm:mod_xml", NULL);
-    if (xmlnode_get_tags(config, "jsm:empty_results", si->std_namespace_prefixes) != NULL) {
+    if (xmlnode_get_tags(config, "jsm:empty_results", si->std_namespace_prefixes).size() > 0) {
 	empty_results = 1;
     }
     xmlnode_free(config);

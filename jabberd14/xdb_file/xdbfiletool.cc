@@ -166,7 +166,6 @@ int main(int argc, const char **argv) {
 
     /* get the base directory */
     if (basedir == NULL) {
-	xmlnode_list_item basedir_node = NULL, hashspool_node = NULL;
 	xmlnode configfile = xmlnode_file(cfgfile);
 
 	/* load configuration file */
@@ -176,27 +175,27 @@ int main(int argc, const char **argv) {
 	    return 1;
 	}
 
-	hashspool_node = xmlnode_get_tags(configfile, "conf:xdb/xdbfile:xdb_file/xdbfile:use_hierarchical_spool", std_namespace_prefixes);
-	if (hashspool_node != NULL)
+	xmlnode_vector hashspool_node = xmlnode_get_tags(configfile, "conf:xdb/xdbfile:xdb_file/xdbfile:use_hierarchical_spool", std_namespace_prefixes);
+	if (hashspool_node.size() > 0)
 	    hashspool = 1;
 
-	basedir_node = xmlnode_get_tags(configfile, "conf:xdb/xdbfile:xdb_file/xdbfile:spool/*", std_namespace_prefixes);
+	xmlnode_vector basedir_node = xmlnode_get_tags(configfile, "conf:xdb/xdbfile:xdb_file/xdbfile:spool/*", std_namespace_prefixes);
 
-	if (basedir_node == NULL) {
+	if (basedir_node.size() == 0) {
 	    std::cerr << "Basedir could not be found in the config file ('" << cfgfile << "'). Please use --basedir to specify base directory." << std::endl;
 	    return 1;
 	}
-	if (basedir_node->node->type == NTYPE_TAG
-		&& j_strcmp(xmlnode_get_localname(basedir_node->node), "cmdline") == 0
-		&& j_strcmp(xmlnode_get_namespace(basedir_node->node), NS_JABBERD_CONFIGFILE_REPLACE) == 0) {
-	    basedir_node->node = xmlnode_get_firstchild(basedir_node->node);
+	if (basedir_node[0]->type == NTYPE_TAG
+		&& j_strcmp(xmlnode_get_localname(basedir_node[0]), "cmdline") == 0
+		&& j_strcmp(xmlnode_get_namespace(basedir_node[0]), NS_JABBERD_CONFIGFILE_REPLACE) == 0) {
+	    basedir_node[0] = xmlnode_get_firstchild(basedir_node[0]);
 	}
-	if (basedir_node->node == NULL || basedir_node->node->type != NTYPE_CDATA) {
+	if (basedir_node[0] == NULL || basedir_node[0]->type != NTYPE_CDATA) {
 	    std::cerr << "Could not determine base directory for spool using config file ('" << cfgfile << "'). Please use --basedir to specify base directory." << std::endl;
 	    return 1;
 	}
-	basedir = xmlnode_get_data(basedir_node->node);
-	if (basedir_node->next != NULL) {
+	basedir = xmlnode_get_data(basedir_node[0]);
+	if (basedir_node.size() > 1) {
 	    std::cerr << "Could not determine base directory, found different possibilities. Plase use --basedir to specify base directory." << std::endl;
 	    return 1;
 	}
@@ -242,7 +241,6 @@ int main(int argc, const char **argv) {
 
     if (do_get != NULL || do_set != NULL || do_del != NULL) {
 	char *spoolfile = NULL;
-	xmlnode_list_item result_item = NULL;
 	xmlnode file = NULL;
 	const char *path = do_get ? do_get : do_set ? do_set : do_del;
 	const char *replacement = do_set ? poptGetArg(pCtx) : NULL;
@@ -261,33 +259,34 @@ int main(int argc, const char **argv) {
 	    return 1;
 	}
 
-	for (result_item = xmlnode_get_tags(file, path, namespace_prefixes); result_item != NULL; result_item = result_item -> next) {
+	xmlnode_vector result_items = xmlnode_get_tags(file, path, namespace_prefixes);
+	for (xmlnode_vector::iterator result_item = result_items.begin(); result_item != result_items.end(); ++result_item) {
 	    if (do_get) {
-		switch (result_item->node->type) {
+		switch ((*result_item)->type) {
 		    case NTYPE_TAG:
-			std::cout << xmlnode_serialize_string(result_item->node, xmppd::ns_decl_list(), 0) << std::endl;
+			std::cout << xmlnode_serialize_string(*result_item, xmppd::ns_decl_list(), 0) << std::endl;
 			break;
 		    case NTYPE_CDATA:
 		    case NTYPE_ATTRIB:
-			std::cout << xmlnode_get_data(result_item->node) << std::endl;
+			std::cout << xmlnode_get_data(*result_item) << std::endl;
 			break;
 		}
 	    } else {
 		/* del, or set: hide the old content */
-		xmlnode_hide(result_item->node);
+		xmlnode_hide(*result_item);
 		is_updated=1;
 
 		/* if it's a set, place the new content */
 		if (do_set) {
-		    xmlnode parent = xmlnode_get_parent(result_item->node);
+		    xmlnode parent = xmlnode_get_parent(*result_item);
 		    xmlnode x = NULL;
 
-		    switch (result_item->node->type) {
+		    switch ((*result_item)->type) {
 			case NTYPE_CDATA:
 			    xmlnode_insert_cdata(parent, replacement, -1);
 			    break;
 			case NTYPE_ATTRIB:
-			    xmlnode_put_attrib_ns(parent, xmlnode_get_localname(result_item->node), xmlnode_get_nsprefix(result_item->node), xmlnode_get_namespace(result_item->node), replacement);
+			    xmlnode_put_attrib_ns(parent, xmlnode_get_localname(*result_item), xmlnode_get_nsprefix(*result_item), xmlnode_get_namespace(*result_item), replacement);
 			    break;
 			case NTYPE_TAG:
 			    x = xmlnode_str(replacement, j_strlen(replacement));

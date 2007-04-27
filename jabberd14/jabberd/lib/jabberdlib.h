@@ -646,14 +646,15 @@ namespace xmppd {
 
 }
 
-
 /**
- * item in a list of xmlnodes
+ * container, that contains a vector of xmlnodes
+ *
+ * This has been a pointer to a special struct in former versions of jabberd14,
+ * but we are now using a standard container. Declaring this type to keep the
+ * syntax of the interface. So don't be confused by the name of this type, it
+ * is not a single item but the complete vector.
  */
-typedef struct xmlnode_list_item_t {
-    xmlnode			node;	/**< the node contained in this list item */
-    struct xmlnode_list_item_t *next;	/**< next item in the list */
-} _xmlnode_list_item, *xmlnode_list_item;
+typedef std::vector<xmlnode> xmlnode_vector;
 
 /* Node creation routines */
 xmlnode  xmlnode_wrap(xmlnode x,const char* wrapper);
@@ -687,10 +688,10 @@ void xmlnode_free(xmlnode node);
 /* Locates a child tag by name and returns it */
 xmlnode  xmlnode_get_tag(xmlnode parent, const char* name);
 char* xmlnode_get_tag_data(xmlnode parent, const char* name);
-xmlnode_list_item xmlnode_get_tags(xmlnode context_node, const char *path, xht namespaces, pool p = NULL);
-xmlnode xmlnode_get_list_item(xmlnode_list_item first, unsigned int i);
-char* xmlnode_get_list_item_data(xmlnode_list_item first, unsigned int i);
-xmlnode xmlnode_select_by_lang(xmlnode_list_item nodes, const char* lang);
+xmlnode_vector xmlnode_get_tags(xmlnode context_node, const char *path, xht namespaces);
+xmlnode xmlnode_get_list_item(const xmlnode_vector& first, unsigned int i);
+char* xmlnode_get_list_item_data(const xmlnode_vector& first, unsigned int i);
+xmlnode xmlnode_select_by_lang(const xmlnode_vector& nodes, const char* lang);
 
 /* Attribute accessors */
 void     xmlnode_put_attrib(xmlnode owner, const char* name, const char* value);

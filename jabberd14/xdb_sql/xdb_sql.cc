@@ -788,12 +788,12 @@ static void xdb_sql_query_preprocess(instance i, char *query, std::vector<std::s
  * @param path which definition to handle
  */
 static void _xdb_sql_create_preprocessed_sql_list(instance i, xdbsql xq, xmlnode handler, std::list< std::vector<std::string> > &dest, const char *path) {
-    xmlnode_list_item definition = NULL;
+    xmlnode_vector definitions = xmlnode_get_tags(handler, path, xq->std_namespace_prefixes);
 
-    for (definition = xmlnode_get_tags(handler, path, xq->std_namespace_prefixes); definition!= NULL; definition=definition->next) {
+    for (xmlnode_vector::iterator definition = definitions.begin(); definition != definitions.end(); ++definition) {
 	std::vector<std::string> parsed_definition;
 
-	xdb_sql_query_preprocess(i, xmlnode_get_data(definition->node), parsed_definition);
+	xdb_sql_query_preprocess(i, xmlnode_get_data(*definition), parsed_definition);
 	dest.push_back(parsed_definition);
     }
 
@@ -873,7 +873,6 @@ extern "C" void xdb_sql(instance i, xmlnode x) {
     xmlnode config = NULL;	/* our configuration */
     xdbsql xq = NULL;		/* pointer to instance internal data */
     char *driver = NULL;	/* database driver to use */
-    xmlnode_list_item ns_def = NULL; /* for reading namespace prefix defintions */
 
     /* output a first sign of life ... :) */
     log_debug2(ZONE, LOGT_INIT, "xdb_sql loading");
@@ -896,9 +895,10 @@ extern "C" void xdb_sql(instance i, xmlnode x) {
     xq->namespace_prefixes = xhash_new(101);
 
     /* get the namespace prefixes used in query definitions */
-    for (ns_def = xmlnode_get_tags(config, "xdbsql:nsprefixes/xdbsql:namespace", xq->std_namespace_prefixes); ns_def != NULL; ns_def = ns_def->next) {
-	const char *ns_iri = xmlnode_get_data(ns_def->node);
-	const char *prefix = xmlnode_get_attrib_ns(ns_def->node, "prefix", NULL);
+    xmlnode_vector ns_defs = xmlnode_get_tags(config, "xdbsql:nsprefixes/xdbsql:namespace", xq->std_namespace_prefixes);
+    for (xmlnode_vector::iterator ns_def = ns_defs.begin(); ns_def != ns_defs.end(); ++ns_def) {
+	const char *ns_iri = xmlnode_get_data(*ns_def);
+	const char *prefix = xmlnode_get_attrib_ns(*ns_def, "prefix", NULL);
 
 	if (ns_iri == NULL)
 	    continue;

@@ -637,8 +637,8 @@ static mreturn mod_presence_session(mapi m, void *arg) {
 static mreturn mod_presence_deserialize(mapi m, void *arg) {
     modpres_conf conf = (modpres_conf)arg;
     modpres mp;
-    xmlnode_list_item mod_presence_x = NULL;
-    xmlnode_list_item jid_x = NULL;
+    xmlnode_vector mod_presence_x;
+    xmlnode_vector jid_x;
 
     /* track our session stuff */
     mp = static_cast<modpres>(pmalloco(m->s->p, sizeof(_modpres)));
@@ -651,26 +651,32 @@ static mreturn mod_presence_deserialize(mapi m, void *arg) {
     js_mapi_session(es_SERIALIZE, m->s, mod_presence_serialize, mp);
 
     /* deserialize data */
-    for (mod_presence_x = xmlnode_get_tags(m->serialization_node, "state:modPresence", m->si->std_namespace_prefixes); mod_presence_x!=NULL; mod_presence_x = mod_presence_x->next) {
-	if (mod_presence_x->node == NULL)
+    xmlnode_vector::iterator iter;
+    mod_presence_x = xmlnode_get_tags(m->serialization_node, "state:modPresence", m->si->std_namespace_prefixes);
+    for (iter = mod_presence_x.begin(); iter != mod_presence_x.end(); ++iter) {
+	if (*iter == NULL)
 	    continue;
 
-	if (xmlnode_get_tags(mod_presence_x->node, "state:invisible", m->si->std_namespace_prefixes) != NULL)
+	if (xmlnode_get_tags(*iter, "state:invisible", m->si->std_namespace_prefixes).size() > 0)
 	    mp->invisible = 1;
 
-	for (jid_x = xmlnode_get_tags(mod_presence_x->node, "state:visibleTo", m->si->std_namespace_prefixes); jid_x != NULL; jid_x = jid_x->next) {
+	jid_x = xmlnode_get_tags(*iter, "state:visibleTo", m->si->std_namespace_prefixes);
+	xmlnode_vector::iterator jid_iter;
+	for (jid_iter = jid_x.begin(); jid_iter != jid_x.end(); ++jid_iter) {
 	    jid item = NULL;
 	    if (mp->A == NULL)
-		mp->A = jid_new(m->s->p, xmlnode_get_data(jid_x->node));
+		mp->A = jid_new(m->s->p, xmlnode_get_data(*jid_iter));
 	    else
-		jid_append(mp->A, jid_new(xmlnode_pool(jid_x->node), xmlnode_get_data(jid_x->node)));
+		jid_append(mp->A, jid_new(xmlnode_pool(*jid_iter), xmlnode_get_data(*jid_iter)));
 	}
-	for (jid_x = xmlnode_get_tags(mod_presence_x->node, "state:knownInvisibleTo", m->si->std_namespace_prefixes); jid_x != NULL; jid_x = jid_x->next) {
+
+	jid_x = xmlnode_get_tags(*iter, "state:knownInvisibleTo", m->si->std_namespace_prefixes);
+	for (jid_iter = jid_x.begin(); jid_iter != jid_x.end(); ++jid_iter) {
 	    jid item = NULL;
 	    if (mp->I == NULL)
-		mp->I = jid_new(m->s->p, xmlnode_get_data(jid_x->node));
+		mp->I = jid_new(m->s->p, xmlnode_get_data(*jid_iter));
 	    else
-		jid_append(mp->I, jid_new(xmlnode_pool(jid_x->node), xmlnode_get_data(jid_x->node)));
+		jid_append(mp->I, jid_new(xmlnode_pool(*jid_iter), xmlnode_get_data(*jid_iter)));
 	}
     }
 

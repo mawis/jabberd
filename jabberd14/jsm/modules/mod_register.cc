@@ -52,7 +52,6 @@
  */
 static mreturn mod_register_passwordchange(mapi m) {
     xmlnode passwordchange = NULL;
-    xmlnode_list_item iter = NULL;
     jpacket p;
     int password_present = 0;
 
@@ -64,30 +63,32 @@ static mreturn mod_register_passwordchange(mapi m) {
     xmlnode_change_namespace(p->iq, NS_AUTH);
 
     /* remove all but the new password, and the username */
-    for (iter = xmlnode_get_tags(p->iq, "*", m->si->std_namespace_prefixes); iter != NULL; iter = iter->next) {
-	if (iter->node->type != NTYPE_TAG) {
-	    xmlnode_hide(iter->node);
+    xmlnode_vector childs = xmlnode_get_tags(p->iq, "*", m->si->std_namespace_prefixes);
+    xmlnode_vector::iterator child;
+    for (child = childs.begin(); child != childs.end(); ++child) {
+	if ((*child)->type != NTYPE_TAG) {
+	    xmlnode_hide(*child);
 	    continue;
 	}
 
-	if (!NSCHECK(iter->node, NS_REGISTER)) {
-	    xmlnode_hide(iter->node);
+	if (!NSCHECK(*child, NS_REGISTER)) {
+	    xmlnode_hide(*child);
 	    continue;
 	}
 
-	if (j_strcmp(xmlnode_get_localname(iter->node), "username") == 0) {
-	    jid_set(p->to, xmlnode_get_data(iter->node), JID_USER);
+	if (j_strcmp(xmlnode_get_localname(*child), "username") == 0) {
+	    jid_set(p->to, xmlnode_get_data(*child), JID_USER);
 	    xmlnode_put_attrib_ns(p->x, "to", NULL, NS_SERVER, jid_full(p->to));
-	    xmlnode_hide(iter->node);
+	    xmlnode_hide(*child);
 	    continue;
 	}
 
-	if (j_strcmp(xmlnode_get_localname(iter->node), "password") != 0) {
-	    xmlnode_hide(iter->node);
+	if (j_strcmp(xmlnode_get_localname(*child), "password") != 0) {
+	    xmlnode_hide(*child);
 	    continue;
 	}
 
-	xmlnode_change_namespace(iter->node, NS_AUTH);
+	xmlnode_change_namespace(*child, NS_AUTH);
 	password_present++;
     }
 
@@ -127,7 +128,8 @@ static mreturn mod_register_new(mapi m, void *arg) {
     xmlnode reg, x;
     xmlnode welcome = NULL;
     xmlnode prefered_nodes = NULL;
-    xmlnode_list_item all_nodes = NULL;
+    xmlnode_vector all_nodes;
+    xmlnode_vector::iterator iter;
 
     if ((reg = js_config(m->si, "register:register", NULL)) == NULL)
 	return M_PASS;
@@ -143,18 +145,18 @@ static mreturn mod_register_new(mapi m, void *arg) {
 	    /* remove duplicate <instructions/> elements */
 	    all_nodes = xmlnode_get_tags(m->packet->iq, "register:instructions", m->si->std_namespace_prefixes);
 	    prefered_nodes = xmlnode_select_by_lang(all_nodes, xmlnode_get_lang(m->packet->x));
-	    for (; all_nodes != NULL; all_nodes = all_nodes->next) {
-		if (all_nodes->node != prefered_nodes) {
-		    xmlnode_hide(all_nodes->node);
+	    for (iter = all_nodes.begin(); iter != all_nodes.end(); ++iter) {
+		if (*iter != prefered_nodes) {
+		    xmlnode_hide(*iter);
 		}
 	    }
 
 	    /* remove duplicate <x xmlns='jabber:x:oob'/> elements */
 	    all_nodes = xmlnode_get_tags(m->packet->iq, "xoob:x", m->si->std_namespace_prefixes);
 	    prefered_nodes = xmlnode_select_by_lang(all_nodes, xmlnode_get_lang(m->packet->x));
-	    for (; all_nodes != NULL; all_nodes = all_nodes->next) {
-		if (all_nodes->node != prefered_nodes) {
-		    xmlnode_hide(all_nodes->node);
+	    for (iter = all_nodes.begin(); iter != all_nodes.end(); ++iter) {
+		if (*iter != prefered_nodes) {
+		    xmlnode_hide(*iter);
 		}
 	    }
 
@@ -239,8 +241,6 @@ static mreturn mod_register_new(mapi m, void *arg) {
  */
 static mreturn mod_register_check(mapi m, void *arg) {
     xmlnode register_config = NULL;
-    xmlnode_list_item item = NULL;
-    xmlnode_list_item request_item = NULL;
     int returned_elements = 0;
     xht register_namespace = NULL;
 
@@ -269,31 +269,37 @@ static mreturn mod_register_check(mapi m, void *arg) {
     /* we never require the client to send <instructions/> back */
     register_namespace = xhash_new(1);
     xhash_put(register_namespace, "", const_cast<char*>(NS_REGISTER));
-    for (item = xmlnode_get_tags(register_config, "instructions", register_namespace); item != NULL; item = item->next) {
-	xmlnode_hide(item->node);
+    xmlnode_vector instructions = xmlnode_get_tags(register_config, "instructions", register_namespace);
+    xmlnode_vector::iterator instruction;
+    for (instruction = instructions.begin(); instruction != instructions.end(); ++instruction) {
+	xmlnode_hide(*instruction);
     }
 
     /* check which elements have been sent back */
-    for (request_item = xmlnode_get_tags(m->packet->iq, "register:*", m->si->std_namespace_prefixes); request_item != NULL; request_item = request_item->next) {
-	log_debug2(ZONE, LOGT_REGISTER, "we got a reply for: %s", xmlnode_get_localname(request_item->node));
+    xmlnode_vector request_items = xmlnode_get_tags(m->packet->iq, "register:*", m->si->std_namespace_prefixes);
+    xmlnode_vector::iterator request_item;
+    for (request_item = request_items.begin(); request_item != request_items.end(); ++request_item) {
+	log_debug2(ZONE, LOGT_REGISTER, "we got a reply for: %s", xmlnode_get_localname(*request_item));
 
-	for (item = xmlnode_get_tags(register_config, xmlnode_get_localname(request_item->node), register_namespace); item != NULL; item = item->next) {
+	xmlnode_vector items = xmlnode_get_tags(register_config, xmlnode_get_localname(*request_item), register_namespace);
+	xmlnode_vector::iterator item;
+	for (item = items.begin(); item != items.end(); ++item) {
 	    returned_elements++;
-	    xmlnode_hide(item->node);
+	    xmlnode_hide(*item);
 	}
     }
     xhash_free(register_namespace);
     register_namespace = NULL;
 
     /* check if all elements have been returned */
-    item = xmlnode_get_tags(register_config, "register:*", m->si->std_namespace_prefixes);
-    if (item != NULL) {
-	xmlnode_list_item xoob_url = xmlnode_get_tags(register_config, "xoob:x/xoob:url", m->si->std_namespace_prefixes);
+    xmlnode_vector item = xmlnode_get_tags(register_config, "register:*", m->si->std_namespace_prefixes);
+    if (item.size() > 0) {
+	xmlnode_vector xoob_url = xmlnode_get_tags(register_config, "xoob:x/xoob:url", m->si->std_namespace_prefixes);
 	xterror err = {400, "", "modify", "bad-request"};
-	if (xoob_url == NULL) {
-	    snprintf(err.msg, sizeof(err.msg), "%s: %s", messages_get(xmlnode_get_lang(m->packet->x), N_("Missing data field")), xmlnode_get_localname(item->node));
+	if (xoob_url.size() == 0) {
+	    snprintf(err.msg, sizeof(err.msg), "%s: %s", messages_get(xmlnode_get_lang(m->packet->x), N_("Missing data field")), xmlnode_get_localname(item[0]));
 	} else {
-	    snprintf(err.msg, sizeof(err.msg), "%s: %s - %s %s", messages_get(xmlnode_get_lang(m->packet->x), N_("Missing data field")), xmlnode_get_localname(item->node), messages_get(xmlnode_get_lang(m->packet->x), N_("you may also register at")), xmlnode_get_data(xoob_url->node));
+	    snprintf(err.msg, sizeof(err.msg), "%s: %s - %s %s", messages_get(xmlnode_get_lang(m->packet->x), N_("Missing data field")), xmlnode_get_localname(item[0]), messages_get(xmlnode_get_lang(m->packet->x), N_("you may also register at")), xmlnode_get_data(xoob_url[0]));
 	}
 	log_debug2(ZONE, LOGT_REGISTER, "returned err msg: %s", err.msg);
 	jutil_error_xmpp(m->packet->x, err);
@@ -310,10 +316,10 @@ static mreturn mod_register_check(mapi m, void *arg) {
     if (returned_elements <= 0) {
 	item = xmlnode_get_tags(register_config, "xoob:x/xoob:url", m->si->std_namespace_prefixes);
 	xterror err = {400, "", "modify", "bad-request"};
-	if (item == NULL) {
+	if (item.size() == 0) {
 	    snprintf(err.msg, sizeof(err.msg), messages_get(xmlnode_get_lang(m->packet->x), N_("Registration not allowed.")));
 	} else {
-	    snprintf(err.msg, sizeof(err.msg), "%s %s", messages_get(xmlnode_get_lang(m->packet->x), N_("Registration not allowed. See")), xmlnode_get_data(item->node));
+	    snprintf(err.msg, sizeof(err.msg), "%s %s", messages_get(xmlnode_get_lang(m->packet->x), N_("Registration not allowed. See")), xmlnode_get_data(item[0]));
 	}
 	log_debug2(ZONE, LOGT_REGISTER, "returned err msg: %s", err.msg);
 	jutil_error_xmpp(m->packet->x, err);
@@ -345,7 +351,6 @@ static mreturn _mod_register_server_register(mapi m) {
     xmlnode reg, cur, check;
     xht register_namespace = NULL;
     xmlnode register_config = NULL;
-    xmlnode_list_item iter = NULL;
 
     /* pre-requisites */
     if (m->user == NULL)
@@ -357,6 +362,9 @@ static mreturn _mod_register_server_register(mapi m) {
     reg =  xdb_get(m->si->xc, m->user->id, NS_REGISTER);
 
     log_debug2(ZONE, LOGT_AUTH, "current registration data: %s", xmlnode_serialize_string(reg, xmppd::ns_decl_list(), 0));
+
+    xmlnode_vector register_items;
+    xmlnode_vector::iterator iter;
 
     switch (jpacket_subtype(m->packet)) {
 	case JPACKET__GET:
@@ -374,16 +382,17 @@ static mreturn _mod_register_server_register(mapi m) {
 	    register_config = js_config(m->si, "register:register", NULL);
 	    register_namespace = xhash_new(1);
 	    xhash_put(register_namespace, "", const_cast<char*>(NS_REGISTER));
-	    for (iter = xmlnode_get_tags(register_config, "register:*", m->si->std_namespace_prefixes); iter != NULL; iter = iter->next) {
-		if (j_strcmp(xmlnode_get_localname(iter->node), "instructions") == 0)
+	    register_items = xmlnode_get_tags(register_config, "register:*", m->si->std_namespace_prefixes);
+	    for (iter = register_items.begin(); iter != register_items.end(); ++iter) {
+		if (j_strcmp(xmlnode_get_localname(*iter), "instructions") == 0)
 		    continue;
 
 		/* check if the field is already present */
-		if (xmlnode_get_tags(m->packet->iq, xmlnode_get_localname(iter->node), register_namespace) != NULL)
+		if (xmlnode_get_tags(m->packet->iq, xmlnode_get_localname(*iter), register_namespace).size() > 0)
 		    continue;
 
 		/* insert the field */
-		xmlnode_insert_tag_ns(m->packet->iq, xmlnode_get_localname(iter->node), NULL, NS_REGISTER);
+		xmlnode_insert_tag_ns(m->packet->iq, xmlnode_get_localname(*iter), NULL, NS_REGISTER);
 	    }
 
 	    /* free temp data */
@@ -422,27 +431,28 @@ static mreturn _mod_register_server_register(mapi m) {
 		int only_passwordchange = 1;
 		int is_passwordchange = 0;
 		int has_username = 0;
-		xmlnode_list_item iter = NULL;
 		xmlnode noregistrationchange = NULL;
 
 		/* is it a password change, or an update for the registration data? */
-		for (iter = xmlnode_get_tags(m->packet->iq, "register:*", m->si->std_namespace_prefixes); iter != NULL; iter = iter->next) {
-		    const char* localname = xmlnode_get_localname(iter->node);
+		xmlnode_vector register_items = xmlnode_get_tags(m->packet->iq, "register:*", m->si->std_namespace_prefixes);
+		xmlnode_vector::iterator iter;
+		for (iter = register_items.begin(); iter != register_items.end(); ++iter) {
+		    const char* localname = xmlnode_get_localname(*iter);
 
 		    /* the username cannot be changed, if it is present, it has to stay the same */
 		    if (j_strcmp(localname, "username") == 0) {
 			has_username++;
 			jid username_jid = jid_new(m->packet->p, jid_full(m->user->id));
-			jid_set(username_jid, xmlnode_get_data(iter->node), JID_USER);
+			jid_set(username_jid, xmlnode_get_data(*iter), JID_USER);
 			if (jid_cmp(m->user->id, username_jid) == 0) {
-			    xmlnode_hide(iter->node); /* we'll regenerate using preped version */
+			    xmlnode_hide(*iter); /* we'll regenerate using preped version */
 			    continue; /* it's still the same username, everything is perfect */
 			}
 
 			/* user tries to change his username */
 			js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_NOTACCEPTABLE);
 			xmlnode_free(reg);
-			log_notice(m->user->id->server, "Denied update of username for %s to %s", jid_full(m->user->id), xmlnode_get_data(iter->node));
+			log_notice(m->user->id->server, "Denied update of username for %s to %s", jid_full(m->user->id), xmlnode_get_data(*iter));
 			return M_HANDLED;
 		    }
 

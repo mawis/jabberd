@@ -303,18 +303,13 @@ static result base_accept_config(instance id, xmlnode x, void *arg) {
 
     namespaces = xhash_new(3);
     xhash_put(namespaces, "", const_cast<char*>(NS_JABBERD_CONFIGFILE));
-    pool temp_pool = pool_new();
-    secret = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "secret", namespaces, temp_pool), 0));
-    ip = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "ip", namespaces, temp_pool), 0));
-    port = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "port", namespaces, temp_pool), 0)), 0);
-    restrict_var = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "restrict", namespaces, temp_pool), 0)) != NULL ? 1 : 0;
-    offline = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "offline", namespaces, temp_pool), 0)) != NULL ? 1 : 0;
-    timeout = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "timeout", namespaces, temp_pool), 0)), 10);
+    secret = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "secret", namespaces), 0));
+    ip = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "ip", namespaces), 0));
+    port = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "port", namespaces), 0)), 0);
+    restrict_var = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "restrict", namespaces), 0)) != NULL ? 1 : 0;
+    offline = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "offline", namespaces), 0)) != NULL ? 1 : 0;
+    timeout = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "timeout", namespaces), 0)), 10);
     xhash_free(namespaces);
-
-    /* free temp_pool again */
-    pool_free(temp_pool);
-    temp_pool = NULL;
 
     if(id == NULL) {
         log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_accept_config validating configuration...");

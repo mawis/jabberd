@@ -459,17 +459,17 @@ static void mod_privacy_insert_list_item(struct mod_privacy_compiled_list_item**
  * @param std_namespace_prefixes hash containing namespace prefixes for xpath expressions
  */
 static void mod_privacy_insert_rostergroup(struct mod_privacy_compiled_list_item** list, long order, const char *group, int do_deny, xmlnode roster, xht std_namespace_prefixes) {
-    xmlnode_list_item item_iter = NULL;
-
     /* iterate over all items */
-    for (item_iter = xmlnode_get_tags(roster, "roster:item", std_namespace_prefixes); item_iter != NULL; item_iter = item_iter->next) {
-	xmlnode_list_item group_iter = NULL;
-
+    xmlnode_vector items = xmlnode_get_tags(roster, "roster:item", std_namespace_prefixes);
+    xmlnode_vector::iterator item_iter;
+    for (item_iter = items.begin(); item_iter != items.end(); ++item_iter) {
 	/* check if the contact is in the required group */
-	for (group_iter = xmlnode_get_tags(item_iter->node, "roster:group", std_namespace_prefixes); group_iter != NULL; group_iter = group_iter->next) {
-	    if (j_strcmp(xmlnode_get_data(group_iter->node), group) == 0) {
+	xmlnode_vector groups = xmlnode_get_tags(*item_iter, "roster:group", std_namespace_prefixes);
+	xmlnode_vector::iterator group_iter;
+	for (group_iter = groups.begin(); group_iter != groups.end(); ++group_iter) {
+	    if (j_strcmp(xmlnode_get_data(*group_iter), group) == 0) {
 		/* if yes: add to the list */
-		mod_privacy_insert_list_item(list, order, xmlnode_get_attrib_ns(item_iter->node, "jid", NULL), NULL, do_deny);
+		mod_privacy_insert_list_item(list, order, xmlnode_get_attrib_ns(*item_iter, "jid", NULL), NULL, do_deny);
 	    }
 	}
     }
@@ -486,11 +486,11 @@ static void mod_privacy_insert_rostergroup(struct mod_privacy_compiled_list_item
  */
 static struct mod_privacy_compiled_list_item* mod_privacy_compile_list(jsmi si, xmlnode list, xmlnode roster, const char* list_type) {
     struct mod_privacy_compiled_list_item* new_list = NULL;
-    xmlnode_list_item list_iter = NULL;
 
     /* iterate over all items in the XML list */
-    for (list_iter = xmlnode_get_tags(list, "privacy:item", si->std_namespace_prefixes); list_iter != NULL; list_iter = list_iter->next) {
-	xmlnode_list_item child_element = NULL;
+    xmlnode_vector privacy_items = xmlnode_get_tags(list, "privacy:item", si->std_namespace_prefixes);
+    xmlnode_vector::iterator list_iter;
+    for (list_iter = privacy_items.begin(); list_iter != privacy_items.end(); ++list_iter) {
 	const char* type = NULL;
 	const char* value = NULL;
 	const char* action = NULL;
@@ -498,14 +498,15 @@ static struct mod_privacy_compiled_list_item* mod_privacy_compile_list(jsmi si, 
 	long order_long = 0;
 	int do_deny = 1;
 
-	log_debug2(ZONE, LOGT_EXECFLOW, "Compiling privacy list item: %s", xmlnode_serialize_string(list_iter->node, xmppd::ns_decl_list(), 0));
+	log_debug2(ZONE, LOGT_EXECFLOW, "Compiling privacy list item: %s", xmlnode_serialize_string(*list_iter, xmppd::ns_decl_list(), 0));
 
 	/* check if this item is relevant for the list */
-	child_element = xmlnode_get_tags(list_iter->node, "privacy:*", si->std_namespace_prefixes);
-	if (child_element != NULL) {
+	xmlnode_vector child_element = xmlnode_get_tags(*list_iter, "privacy:*", si->std_namespace_prefixes);
+	if (child_element.size() > 0) {
 	    int match = 0;
-	    for (; child_element != NULL; child_element = child_element->next) {
-		if (j_strcmp(list_type, xmlnode_get_localname(child_element->node)) == 0) {
+	    xmlnode_vector::iterator child_iter;
+	    for (child_iter = child_element.begin(); child_iter != child_element.end(); ++child_iter) {
+		if (j_strcmp(list_type, xmlnode_get_localname(*child_iter)) == 0) {
 		    match = 1;
 		    break;
 		}
@@ -518,10 +519,10 @@ static struct mod_privacy_compiled_list_item* mod_privacy_compile_list(jsmi si, 
 	    }
 	}
 
-	type = xmlnode_get_attrib_ns(list_iter->node, "type", NULL);
-	value = xmlnode_get_attrib_ns(list_iter->node, "value", NULL);
-	action = xmlnode_get_attrib_ns(list_iter->node, "action", NULL);
-	order = xmlnode_get_attrib_ns(list_iter->node, "order", NULL);
+	type = xmlnode_get_attrib_ns(*list_iter, "type", NULL);
+	value = xmlnode_get_attrib_ns(*list_iter, "value", NULL);
+	action = xmlnode_get_attrib_ns(*list_iter, "action", NULL);
+	order = xmlnode_get_attrib_ns(*list_iter, "order", NULL);
 
 	if (action == NULL || order == NULL) {
 	    log_debug2(ZONE, LOGT_EXECFLOW, "Ignoring invalid list item");
@@ -567,7 +568,6 @@ static int mod_privacy_activate_list(jsmi si, session s, xmlnode list) {
     jid blocked_trustees_after = NULL;
     jid blocked_seen_jids_before = NULL;
     jid blocked_seen_jids_after = NULL;
-    xmlnode_list_item group = NULL;
 
     /* sanity check */
     if (s == NULL || list == NULL)
@@ -596,9 +596,11 @@ static int mod_privacy_activate_list(jsmi si, session s, xmlnode list) {
     roster = xdb_get(s->si->xc, s->u->id, NS_ROSTER);
 
     /* normalize roster group names */
-    for (group = xmlnode_get_tags(roster, "roster:item/roster:group", si->std_namespace_prefixes); group != NULL; group = group->next) {
+    xmlnode_vector groups = xmlnode_get_tags(roster, "roster:item/roster:group", si->std_namespace_prefixes);
+    xmlnode_vector::iterator group;
+    for (group = groups.begin(); group != groups.end(); ++group) {
 	/* get normalized group name */
-	const char* group_name = xmlnode_get_data(group->node);
+	const char* group_name = xmlnode_get_data(*group);
 	jid normal_group = jid_new(p, "invalid");
 	jid_set(normal_group, group_name, JID_RESOURCE);
 
@@ -607,26 +609,27 @@ static int mod_privacy_activate_list(jsmi si, session s, xmlnode list) {
 	/* could the name be normalized? */
 	if (normal_group == NULL || normal_group->resource == NULL) {
 	    log_debug2(ZONE, LOGT_EXECFLOW, "Could not normalize group name in roster: %s", group_name);
-	    xmlnode_hide(group->node);
+	    xmlnode_hide(*group);
 	    continue;
 	}
 
 	/* insert normalized data if necessary */
 	if (j_strcmp(group_name, normal_group->resource) != 0) {
-	    xmlnode_list_item text_node = xmlnode_get_tags(group->node, "text()", si->std_namespace_prefixes);
+	    xmlnode_vector text_node = xmlnode_get_tags(*group, "text()", si->std_namespace_prefixes);
 
 	    log_debug2(ZONE, LOGT_EXECFLOW, "Normalized '%s' to '%s'", group_name, normal_group->resource);
 
-	    if (text_node != NULL) {
-		xmlnode_hide(text_node->node);
+	    if (text_node.size() > 0) {
+		xmlnode_hide(text_node[0]);
 	    }
-	    xmlnode_insert_cdata(group->node, normal_group->resource, -1);
+	    xmlnode_insert_cdata(*group, normal_group->resource, -1);
 	}
     }
 
     /* normalize group names in a privacy list */
-    for (group = xmlnode_get_tags(list, "privacy:item[@type='group']", si->std_namespace_prefixes); group != NULL; group = group->next) {
-	const char* group_name = xmlnode_get_attrib_ns(group->node, "value", NULL);
+    groups = xmlnode_get_tags(list, "privacy:item[@type='group']", si->std_namespace_prefixes);
+    for (group = groups.begin(); group != groups.end(); ++group) {
+	const char* group_name = xmlnode_get_attrib_ns(*group, "value", NULL);
 	jid normal_group = jid_new(p, "invalid");
 	jid_set(normal_group, group_name, JID_RESOURCE);
 
@@ -635,14 +638,14 @@ static int mod_privacy_activate_list(jsmi si, session s, xmlnode list) {
 	/* could the name be normalized? */
 	if (normal_group == NULL || normal_group->resource == NULL) {
 	    log_debug2(ZONE, LOGT_EXECFLOW, "Could not normalize group name on list: %s", group_name);
-	    xmlnode_hide(group->node);
+	    xmlnode_hide(*group);
 	    continue;
 	}
 
 	/* update value if necessary */
 	if (j_strcmp(group_name, normal_group->resource) != 0) {
 	    log_debug2(ZONE, LOGT_EXECFLOW, "Normalized '%s' to '%s'", group_name, normal_group->resource);
-	    xmlnode_put_attrib_ns(group->node, "value", NULL, NULL, normal_group->resource);
+	    xmlnode_put_attrib_ns(*group, "value", NULL, NULL, normal_group->resource);
 	}
     }
 
@@ -787,7 +790,7 @@ static int mod_privacy_activate_list(jsmi si, session s, xmlnode list) {
  */
 static int mod_privacy_activate_named(jsmi si, session s, const char* name) {
     xmlnode all_lists = NULL;
-    xmlnode_list_item named_list = NULL;
+    xmlnode_vector named_list;
     int result = 0;
 
     /* sanity check */
@@ -801,7 +804,7 @@ static int mod_privacy_activate_named(jsmi si, session s, const char* name) {
     if (name == NULL) {
 	named_list = xmlnode_get_tags(all_lists, "*[@jabberd:default]", s->si->std_namespace_prefixes);
 
-	if (named_list == NULL) {
+	if (named_list.size() == 0) {
 	    log_debug2(ZONE, LOGT_EXECFLOW, "Activating default list, with declined default list: disabling privacy lists for this session");
 	    mod_privacy_no_active_list(si, s);
 	    xmlnode_free(all_lists);
@@ -812,7 +815,7 @@ static int mod_privacy_activate_named(jsmi si, session s, const char* name) {
 	named_list = xmlnode_get_tags(all_lists, spools(p, "*[@name='", name, "']", p), s->si->std_namespace_prefixes);
 	pool_free(p);
 
-	if (named_list == NULL) {
+	if (named_list.size() == 0) {
 	    log_debug2(ZONE, LOGT_EXECFLOW, "privacy list '%s' not found for user %s", name, jid_full(s->id));
 	    xmlnode_free(all_lists);
 	    return 0;
@@ -820,7 +823,7 @@ static int mod_privacy_activate_named(jsmi si, session s, const char* name) {
     }
 
     /* do the actual parsing and evaluation of the privacy list */
-    result = mod_privacy_activate_list(si, s, named_list->node);
+    result = mod_privacy_activate_list(si, s, named_list[0]);
 
     /* free xdb result */
     xmlnode_free(all_lists);
@@ -862,7 +865,6 @@ static void mod_privacy_free_offline(void *arg) {
 static void mod_privacy_load_offline_list(udata user) {
     xmlnode all_lists = NULL;
     xmlnode roster = NULL;
-    xmlnode_list_item default_list = NULL;
     struct mod_privacy_compiled_list_item* new_list = NULL;
 
     log_debug2(ZONE, LOGT_EXECFLOW, "Loading (default) privacy list for offline handling of user %s", jid_full(user->id));
@@ -875,7 +877,7 @@ static void mod_privacy_load_offline_list(udata user) {
 	return;
 
     /* get the default privacy list */
-    default_list = xmlnode_get_tags(all_lists, "*[@jabberd:default]", user->si->std_namespace_prefixes);
+    xmlnode_vector default_list = xmlnode_get_tags(all_lists, "*[@jabberd:default]", user->si->std_namespace_prefixes);
 
     /* is it the first list that is loaded? register cleanup handler */
     if (xhash_get(user->aux_data, "mod_privacy_lists_loaded") == NULL) {
@@ -887,7 +889,7 @@ static void mod_privacy_load_offline_list(udata user) {
     }
 
     /* no default list? we are finished */
-    if (default_list == NULL) {
+    if (default_list.size() == 0) {
 	log_debug2(ZONE, LOGT_EXECFLOW, "This user has no default list.");
 	xmlnode_free(all_lists);
 	return;
@@ -900,16 +902,16 @@ static void mod_privacy_load_offline_list(udata user) {
     mod_privacy_free_current_offline_list_definitions(user);
 
     /* compile and register the lists */
-    new_list = mod_privacy_compile_list(user->si, default_list->node, roster, "message");
+    new_list = mod_privacy_compile_list(user->si, default_list[0], roster, "message");
     if (new_list)
 	xhash_put(user->aux_data, "mod_privacy_list_message", new_list);
-    new_list = mod_privacy_compile_list(user->si, default_list->node, roster, "presence-in");
+    new_list = mod_privacy_compile_list(user->si, default_list[0], roster, "presence-in");
     if (new_list)
 	xhash_put(user->aux_data, "mod_privacy_list_presence-out", new_list);
-    new_list = mod_privacy_compile_list(user->si, default_list->node, roster, "presence-out");
+    new_list = mod_privacy_compile_list(user->si, default_list[0], roster, "presence-out");
     if (new_list)
 	xhash_put(user->aux_data, "mod_privacy_list_presence-in", new_list);
-    new_list = mod_privacy_compile_list(user->si, default_list->node, roster, "iq");
+    new_list = mod_privacy_compile_list(user->si, default_list[0], roster, "iq");
     if (new_list)
 	xhash_put(user->aux_data, "mod_privacy_list_iq", new_list);
 
@@ -977,8 +979,6 @@ static mreturn mod_privacy_out_iq_set_active(mapi m, const char* new_active_list
  */
 static mreturn mod_privacy_out_iq_set_default(mapi m, const char* new_default_list) {
     xmlnode all_lists = NULL;
-    xmlnode_list_item default_list = NULL;
-    xmlnode_list_item default_list_new = NULL;
     const char* old_default_list = NULL;
     const char* current_active_list = NULL;
 
@@ -1002,9 +1002,9 @@ static mreturn mod_privacy_out_iq_set_default(mapi m, const char* new_default_li
 	return M_HANDLED;
     }
 
-    default_list = xmlnode_get_tags(all_lists, "privacy:list[@jabberd:default]", m->si->std_namespace_prefixes);
-    if (default_list != NULL) {
-	old_default_list = xmlnode_get_attrib_ns(default_list->node, "name", NULL);
+    xmlnode_vector default_list = xmlnode_get_tags(all_lists, "privacy:list[@jabberd:default]", m->si->std_namespace_prefixes);
+    if (default_list.size() > 0) {
+	old_default_list = xmlnode_get_attrib_ns(default_list[0], "name", NULL);
     }
 
     /* is the current default list in use by any other session? */
@@ -1018,8 +1018,8 @@ static mreturn mod_privacy_out_iq_set_default(mapi m, const char* new_default_li
 
     /* is there any list with the requested name? */
     if (new_default_list != NULL) {
-	default_list_new = xmlnode_get_tags(all_lists, spools(m->packet->p, "privacy:list[@name='", new_default_list, "']", m->packet->p), m->si->std_namespace_prefixes);
-	if (default_list_new == NULL) {
+	xmlnode_vector default_list_new = xmlnode_get_tags(all_lists, spools(m->packet->p, "privacy:list[@name='", new_default_list, "']", m->packet->p), m->si->std_namespace_prefixes);
+	if (default_list_new.size() == 0) {
 	    /* requested list does not exist */
 	    js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_NOTFOUND);
 	    xmlnode_free(all_lists);
@@ -1027,14 +1027,14 @@ static mreturn mod_privacy_out_iq_set_default(mapi m, const char* new_default_li
 	}
 
 	/* set the new list to be the default */
-	xmlnode_put_attrib_ns(default_list_new->node, "default", "jabberd", NS_JABBERD_WRAPPER, "default");
-	xdb_act_path(m->si->xc, m->user->id, NS_PRIVACY, "insert", spools(m->packet->p, "privacy:list[@name='", new_default_list, "']", m->packet->p), m->si->std_namespace_prefixes, default_list_new->node);
+	xmlnode_put_attrib_ns(default_list_new[0], "default", "jabberd", NS_JABBERD_WRAPPER, "default");
+	xdb_act_path(m->si->xc, m->user->id, NS_PRIVACY, "insert", spools(m->packet->p, "privacy:list[@name='", new_default_list, "']", m->packet->p), m->si->std_namespace_prefixes, default_list_new[0]);
     }
 
     /* unselect the old default list */
-    if (default_list != NULL) {
-	xmlnode_hide_attrib_ns(default_list->node, "default", NS_JABBERD_WRAPPER);
-	xdb_act_path(m->si->xc, m->user->id, NS_PRIVACY, "insert", spools(m->packet->p, "privacy:list[@name='", old_default_list, "']", m->packet->p), m->si->std_namespace_prefixes, default_list->node);
+    if (default_list.size() > 0) {
+	xmlnode_hide_attrib_ns(default_list[0], "default", NS_JABBERD_WRAPPER);
+	xdb_act_path(m->si->xc, m->user->id, NS_PRIVACY, "insert", spools(m->packet->p, "privacy:list[@name='", old_default_list, "']", m->packet->p), m->si->std_namespace_prefixes, default_list[0]);
     }
 
     /* update the active list for the current session, if the default list was in use */
@@ -1067,10 +1067,8 @@ static mreturn mod_privacy_out_iq_set_default(mapi m, const char* new_default_li
 static mreturn mod_privacy_out_iq_set_list(mapi m, xmlnode new_list) {
     const char* edited_list = NULL;
     char* edited_list_path = NULL;
-    xmlnode_list_item new_items = NULL;
     int xdb_result = 0;
     xmlnode previous_lists = NULL;
-    xmlnode_list_item previous_list = NULL;
     int is_default_update = 0;
     int list_items = 0;
 
@@ -1105,19 +1103,21 @@ static mreturn mod_privacy_out_iq_set_list(mapi m, xmlnode new_list) {
     /* is the edited list the default list? */
     previous_lists = xdb_get(m->si->xc, m->user->id, NS_PRIVACY);
     edited_list_path = spools(m->packet->p, "privacy:list[@name='", edited_list, "']", m->packet->p);
-    previous_list = xmlnode_get_tags(previous_lists, edited_list_path, m->si->std_namespace_prefixes);
-    if (previous_list != NULL && xmlnode_get_attrib_ns(previous_list->node, "default", NS_JABBERD_WRAPPER) != NULL) {
+    xmlnode_vector previous_list = xmlnode_get_tags(previous_lists, edited_list_path, m->si->std_namespace_prefixes);
+    if (previous_list.size() > 0 && xmlnode_get_attrib_ns(previous_list[0], "default", NS_JABBERD_WRAPPER) != NULL) {
 	is_default_update = 1;
 	xmlnode_put_attrib_ns(new_list, "default", "jabberd", NS_JABBERD_WRAPPER, "default");
     }
 
     /* is it an edit or a delete request? */
     log_debug2(ZONE, LOGT_EXECFLOW, "Checking the new list: %s", xmlnode_serialize_string(new_list, xmppd::ns_decl_list(), 0));
-    for (new_items = xmlnode_get_tags(new_list, "privacy:item", m->si->std_namespace_prefixes); new_items != NULL; new_items = new_items->next) {
-	const char* type = xmlnode_get_attrib_ns(new_items->node, "type", NULL);
-	const char* value = xmlnode_get_attrib_ns(new_items->node, "value", NULL);
-	const char* action = xmlnode_get_attrib_ns(new_items->node, "action", NULL);
-	const char* order = xmlnode_get_attrib_ns(new_items->node, "order", NULL);
+    xmlnode_vector new_items = xmlnode_get_tags(new_list, "privacy:item", m->si->std_namespace_prefixes);
+    xmlnode_vector::iterator new_item;
+    for (new_item = new_items.begin(); new_item != new_items.end(); ++new_item) {
+	const char* type = xmlnode_get_attrib_ns(*new_item, "type", NULL);
+	const char* value = xmlnode_get_attrib_ns(*new_item, "value", NULL);
+	const char* action = xmlnode_get_attrib_ns(*new_item, "action", NULL);
+	const char* order = xmlnode_get_attrib_ns(*new_item, "order", NULL);
 
 	/* validate this item */
 	if (order == NULL) {
@@ -1165,7 +1165,7 @@ static mreturn mod_privacy_out_iq_set_list(mapi m, xmlnode new_list) {
 	list_items++;
     }
 
-    if (new_items <= 0) {
+    if (new_items.size() <= 0) {
 	log_debug2(ZONE, LOGT_EXECFLOW, "This is a deletion request");
     }
 
@@ -1213,21 +1213,19 @@ static mreturn mod_privacy_out_iq_set_list(mapi m, xmlnode new_list) {
  * @return M_HANDLED if the request has been processed, M_PASS if not
  */
 static mreturn mod_privacy_out_iq_set(mapi m) {
-    xmlnode_list_item child_element = NULL;
-
     /* check the type of request: exactly one child element in the NS_PRIVACY namespace required */
-    child_element = xmlnode_get_tags(m->packet->iq, "privacy:*", m->si->std_namespace_prefixes);
-    if (child_element == NULL || child_element->next != NULL) {
+    xmlnode_vector child_element = xmlnode_get_tags(m->packet->iq, "privacy:*", m->si->std_namespace_prefixes);
+    if (child_element.size() != 1) {
 	js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_BAD);
 	return M_HANDLED;
     }
 
-    if (j_strcmp(xmlnode_get_localname(child_element->node), "active") == 0) {
-	return mod_privacy_out_iq_set_active(m, xmlnode_get_attrib_ns(child_element->node, "name", NULL));
-    } else if (j_strcmp(xmlnode_get_localname(child_element->node), "default") == 0) {
-	return mod_privacy_out_iq_set_default(m, xmlnode_get_attrib_ns(child_element->node, "name", NULL));
-    } else if (j_strcmp(xmlnode_get_localname(child_element->node), "list") == 0) {
-	return mod_privacy_out_iq_set_list(m, child_element->node);
+    if (j_strcmp(xmlnode_get_localname(child_element[0]), "active") == 0) {
+	return mod_privacy_out_iq_set_active(m, xmlnode_get_attrib_ns(child_element[0], "name", NULL));
+    } else if (j_strcmp(xmlnode_get_localname(child_element[0]), "default") == 0) {
+	return mod_privacy_out_iq_set_default(m, xmlnode_get_attrib_ns(child_element[0], "name", NULL));
+    } else if (j_strcmp(xmlnode_get_localname(child_element[0]), "list") == 0) {
+	return mod_privacy_out_iq_set_list(m, child_element[0]);
     }
 
     js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_BAD);
@@ -1242,16 +1240,14 @@ static mreturn mod_privacy_out_iq_set(mapi m) {
  */
 static mreturn mod_privacy_out_iq_get(mapi m) {
     xmlnode storedlists = NULL;
-    xmlnode_list_item query_data = NULL;
-    xmlnode_list_item list_iter = NULL;
     const char* requested_list = NULL;
 
     /* get the lists from xdb */
     storedlists = xdb_get(m->si->xc, m->user->id, NS_PRIVACY);
 
     /* check if it is a request to get the names of the privacy lists */
-    query_data = xmlnode_get_tags(m->packet->iq, "privacy:*", m->si->std_namespace_prefixes);
-    if (query_data == NULL) {
+    xmlnode_vector query_data = xmlnode_get_tags(m->packet->iq, "privacy:*", m->si->std_namespace_prefixes);
+    if (query_data.size() == 0) {
 	xmlnode firstchild = NULL;
 	const char* active_list = NULL;
 
@@ -1268,18 +1264,20 @@ static mreturn mod_privacy_out_iq_get(mapi m) {
 	}
 
 	/* iterate the lists and hide their child nodes */
-	for (list_iter = xmlnode_get_tags(m->packet->iq, "privacy:list", m->si->std_namespace_prefixes); list_iter != NULL; list_iter = list_iter->next) {
+	xmlnode_vector lists = xmlnode_get_tags(m->packet->iq, "privacy:list", m->si->std_namespace_prefixes);
+	xmlnode_vector::iterator list_iter;
+	for (list_iter = lists.begin(); list_iter != lists.end(); ++list_iter) {
 	    /* check if it is the default list, and add <active/> element in that case */
-	    const char* default_list = xmlnode_get_attrib_ns(list_iter->node, "default", NS_JABBERD_WRAPPER);
+	    const char* default_list = xmlnode_get_attrib_ns(*list_iter, "default", NS_JABBERD_WRAPPER);
 	    if (default_list != NULL) {
-		default_list = xmlnode_get_attrib_ns(list_iter->node, "name", NULL);
+		default_list = xmlnode_get_attrib_ns(*list_iter, "name", NULL);
 		xmlnode default_element = xmlnode_insert_tag_ns(m->packet->iq, "default", NULL, NS_PRIVACY);
 		xmlnode_put_attrib_ns(default_element, "name", NULL, NULL, default_list);
-		xmlnode_hide_attrib_ns(list_iter->node, "default", NS_JABBERD_WRAPPER);
+		xmlnode_hide_attrib_ns(*list_iter, "default", NS_JABBERD_WRAPPER);
 		log_debug2(ZONE, LOGT_EXECFLOW, "default list is: %s", default_list);
 	    }
 
-	    while (firstchild = xmlnode_get_firstchild(list_iter->node)) {
+	    while (firstchild = xmlnode_get_firstchild(*list_iter)) {
 		log_debug2(ZONE, LOGT_EXECFLOW, "hiding list content");
 		xmlnode_hide(firstchild);
 	    }
@@ -1300,7 +1298,7 @@ static mreturn mod_privacy_out_iq_get(mapi m) {
     }
 
     /* if query has more than one child in the privacy namespace, we deny the request */
-    if (query_data->next != NULL || j_strcmp(xmlnode_get_localname(query_data->node), "list") != 0) {
+    if (query_data.size() > 1 || j_strcmp(xmlnode_get_localname(query_data[0]), "list") != 0) {
 	if (storedlists)
 	    xmlnode_free(storedlists);
 	js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_BAD);
@@ -1308,7 +1306,7 @@ static mreturn mod_privacy_out_iq_get(mapi m) {
     }
 
     /* check which list is requested */
-    requested_list = xmlnode_get_attrib_ns(query_data->node, "name", NULL);
+    requested_list = xmlnode_get_attrib_ns(query_data[0], "name", NULL);
     if (requested_list == NULL || !mod_privacy_safe_name(requested_list)) {
 	if (storedlists)
 	    xmlnode_free(storedlists);
@@ -1318,10 +1316,10 @@ static mreturn mod_privacy_out_iq_get(mapi m) {
     log_debug2(ZONE, LOGT_EXECFLOW, "Client requested privacy list: %s", requested_list);
 
     /* get the requested list */
-    list_iter = xmlnode_get_tags(storedlists, spools(m->packet->p, "privacy:list[@name='", requested_list, "']", m->packet->p), m->si->std_namespace_prefixes);
+    xmlnode_vector lists = xmlnode_get_tags(storedlists, spools(m->packet->p, "privacy:list[@name='", requested_list, "']", m->packet->p), m->si->std_namespace_prefixes);
 
     /* no such list? */
-    if (list_iter == NULL) {
+    if (lists.size() == 0) {
 	if (storedlists)
 	    xmlnode_free(storedlists);
 	js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_NOTFOUND);
@@ -1331,7 +1329,7 @@ static mreturn mod_privacy_out_iq_get(mapi m) {
     /* prepare result */
     jutil_iqresult(m->packet->x);
     m->packet->iq = xmlnode_insert_tag_ns(m->packet->x, "query", NULL, NS_PRIVACY);
-    xmlnode_insert_tag_node(m->packet->iq, list_iter->node);
+    xmlnode_insert_tag_node(m->packet->iq, lists[0]);
     jpacket_reset(m->packet);
     js_session_to(m->s, m->packet);
 
@@ -1485,7 +1483,6 @@ static mreturn mod_privacy_filter(mapi m, void* arg) {
  */
 static mreturn mod_privacy_rosterchange(mapi m, void* arg) {
     session cur = NULL;
-    xmlnode_list_item roster_item = NULL;
     jid updated_jid = NULL;
 
     /* sanity check */
@@ -1559,9 +1556,9 @@ static mreturn mod_privacy_session(mapi m, void* arg) {
  * @return always M_PASS
  */
 static mreturn mod_privacy_deserialize(mapi m, void* arg) {
-    xmlnode_list_item active_list = xmlnode_get_tags(m->serialization_node, "state:modPrivacy/privacy:active", m->si->std_namespace_prefixes);
-    if (active_list != NULL)
-	mod_privacy_activate_named(m->si, m->s, xmlnode_get_attrib_ns(active_list->node, "name", NULL));
+    xmlnode_vector active_list = xmlnode_get_tags(m->serialization_node, "state:modPrivacy/privacy:active", m->si->std_namespace_prefixes);
+    if (active_list.size() > 0)
+	mod_privacy_activate_named(m->si, m->s, xmlnode_get_attrib_ns(active_list[0], "name", NULL));
 
     /* register callbacks */
     js_mapi_session(es_OUT, m->s, mod_privacy_out, NULL);

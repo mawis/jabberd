@@ -350,10 +350,10 @@ result xdb_file_phandler(instance i, dpacket p, void *arg) {
 			xmlnode_put_attrib_ns(data, "xdbns", NULL, NULL, ns);
 		    }
 		    if (matchpath != NULL) {
-			xmlnode_list_item match_item = NULL;
+			xmlnode_vector match_items = xmlnode_get_tags(data, matchpath, namespaces);
 
-			for (match_item = xmlnode_get_tags(data, matchpath, namespaces); match_item != NULL; match_item = match_item->next) {
-			    xmlnode_hide(match_item->node);
+			for (xmlnode_vector::iterator match_item = match_items.begin(); match_item != match_items.end(); ++match_item) {
+			    xmlnode_hide(*match_item);
 			}
 		    } else {
 			xmlnode_hide(xmlnode_get_tag(data, match)); /* any match is a goner */

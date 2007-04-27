@@ -97,9 +97,7 @@ xmlnode js_config(jsmi si, const char* query, const char* lang) {
 	pool_free(temp_p);
 	return config;
     } else {
-	pool temp_pool = pool_new();
-	xmlnode result = xmlnode_select_by_lang(xmlnode_get_tags(js_config(si, NULL, lang), query, si->std_namespace_prefixes, temp_pool), lang);
-	pool_free(temp_pool);
+	xmlnode result = xmlnode_select_by_lang(xmlnode_get_tags(js_config(si, NULL, lang), query, si->std_namespace_prefixes), lang);
 	return result;
     }
 }
