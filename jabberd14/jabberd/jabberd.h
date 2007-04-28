@@ -109,6 +109,8 @@
 #  include <gnutls/openpgp.h>
 #endif
 
+#include <glibmm.h>
+
 /** Packet types */
 typedef enum { p_NONE, p_NORM, p_XDB, p_LOG, p_ROUTE } ptype;
 
@@ -251,7 +253,7 @@ void log_notice(const char *host, const char *msgfmt, ...);
 void log_warn(const char *host, const char *msgfmt, ...);
 void log_alert(const char *host, const char *msgfmt, ...);
 #define log_error log_alert
-void logger(char *type, const char *host, char *message); /* actually creates and delivers the log message */
+void logger(const char *type, const char *host, const char *message); /* actually creates and delivers the log message */
 void log_record(char *id, char *type, char *action, const char *msgfmt, ...); /* for generic logging support, like log_record("jer@jabber.org","session","end","...") */
 void log_generic(char *logtype, char *id, char *type, char *action, const char *msgfmt, ...);
 
@@ -532,10 +534,122 @@ int _mio_write_dump(mio m);
 int acl_check_access(xdbcache xdb, const char *function, const jid user);
 jid acl_get_users(xdbcache xdb, const char *function);
 
+namespace xmppd {
+
+    /* ******************** Logging ******************** */
+
+    /* forward declaration */
+    class logging;
+
+    /**
+     * possible loglevels
+     */
+    enum loglevel {
+	notice,
+	warn,
+	error,
+	alert
+    };
+
+    /**
+     * outstream used to generate a logging line
+     *
+     * A user may write as he writes to a normal stream. On destruction the written data will be sent to the log.
+     */
+    class logmessage : public std::ostringstream {
+	public:
+	    /**
+	     * instantiate a logmessage instance, which will use the logging level level
+	     *
+	     * @param log_entity where the message will be written to
+	     * @param level the logging level to use
+	     */
+	    logmessage(logging& log_entity, loglevel level);
+
+	    /**
+	     * destructor: will write the collected message to the logging instance
+	     */
+	    ~logmessage();
+
+	    /**
+	     * to output char* as the first text on a logging->level() rvalue
+	     *
+	     * @param text the string to output
+	     * @return the stream on which the output has been done, can be used to output more data using the operator<<()
+	     */
+	    std::ostream& operator<<(const char* text);
+
+	    /**
+	     * to output std::string as the first text on a logging->level() rvalue
+	     *
+	     * @param text the string to output
+	     * @return the stream on which the output has been done, can be used to output more data using the operator<<()
+	     */
+	    std::ostream& operator<<(const std::string& text);
+
+	    /**
+	     * copy constructor: needed by the logging class to return a logmessage instance for the level() member
+	     */
+	    logmessage(const logmessage& orig);
+
+	private:
+	    /**
+	     * where the message will be written to at the destruction
+	     */
+	    logging& log_entity;
+
+	    /**
+	     * which level to use for logging
+	     */
+	    loglevel level;
+    };
+
+    /**
+     * The logging class is used to send messages to a logging entity
+     */
+    class logging {
+	public:
+	    /**
+	     * instantiate a logging entity using the given identity
+	     *
+	     * @param ident the identity to use for logging
+	     */
+	    logging(Glib::ustring ident);
+
+	    /**
+	     * destruct the logging instance
+	     */
+	    ~logging();
+
+	    /**
+	     * get a logmessage instance to write a log message to
+	     *
+	     * @param level_to_use logging level to use for this message
+	     */
+	    logmessage level(loglevel level_to_use);
+	private:
+	    /**
+	     * write a message to the log
+	     *
+	     * @param level_to_use log level to use for writing
+	     * @param log_message which message to log
+	     */
+	    void write(loglevel level_to_use, Glib::ustring log_message);
+
+	    /**
+	     * the logmessage class needs to call the write method
+	     */
+	    friend class logmessage;
+
+	    /**
+	     * the identity that is used for logging
+	     */
+	    Glib::ustring identity;
+    };
+
 /*--------------------------
  * OOP-instances base class
  *--------------------------*/
-namespace xmppd {
 
     /**
      * class that implements the basic functionality for a component in the server
@@ -697,11 +811,24 @@ namespace xmppd {
 	     * @return id of this instance
 	     */
 	    std::string get_instance_id();
+
+	    /**
+	     * get a logmessage, that can be used to generate a message that gets logged
+	     *
+	     * @param level the loglevel to use
+	     * @return logmessage that can be used to stream message to
+	     */
+	    logmessage log(loglevel level);
 	private:
 	    /**
 	     * the instance structure the server identifies us with
 	     */
 	    instance i;
+
+	    /**
+	     * logging instance that is used by this instance_base
+	     */
+	    pointer<logging> logger;
 
 	    /**
 	     * copy constructor - disabled

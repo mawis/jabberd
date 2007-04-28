@@ -1,3 +1,11 @@
+2007-04-28  Matthias Wimmer  <m@tthias.eu>
+
+    * jabberd/jabberd.h: new std::ostream based logging interface
+    * jabberd/log.cc: same
+    * jabberd/instance_base.cc: same
+    * proxy65/proxy65.cc: using new logging interface
+    * jabberd/lib/jabberdlib.h: adding missing include for xmppd::pointer
+
 2007-04-27  Matthias Wimmer  <m@tthias.eu>
 
     * jabberd/lib/xmlnode.cc: improved memory management of xmlnode_get_tags()

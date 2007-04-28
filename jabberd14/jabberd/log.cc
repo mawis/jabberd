@@ -202,7 +202,7 @@ void debug_log2(char *zone, const int type, const char *msgfmt, ...) {
  * @param host the sending host (domain) of the message, or NULL if no sending host is known (the message are than logged as jabberd internal)
  * @param message The message to be logged
  */
-void logger(char *type, const char *host, char *message) {
+void logger(const char *type, const char *host, const char *message) {
     xmlnode log;
 
     if (type == NULL || message == NULL) {
@@ -508,4 +508,54 @@ int log_get_facility(const char *facility) {
 	return LOG_UUCP;
 #endif
     return -1;
+}
+
+/***********************************************************************
+ * Copyright for the part below is completely owned by Matthias Wimmer *
+ ***********************************************************************/
+
+namespace xmppd {
+
+    logmessage::logmessage(logging &log_entity, loglevel level) : log_entity(log_entity), level(level) {
+    }
+
+    logmessage::logmessage(const logmessage &orig) : log_entity(orig.log_entity), level(orig.level) {
+    }
+
+    logmessage::~logmessage() {
+	const Glib::ustring &message = str();
+
+	/* only log if something has been written */
+	if (message != "")
+	    log_entity.write(level, message);
+    }
+
+    logging::logging(Glib::ustring ident) : identity(ident) {
+    }
+
+    logging::~logging() {
+    }
+
+    logmessage logging::level(loglevel level_to_use) {
+	return logmessage(*this, level_to_use);
+    }
+
+    void logging::write(loglevel level_to_use, Glib::ustring log_message) {
+	std::string message;
+	try {
+	    message = Glib::locale_from_utf8(log_message);
+	} catch (Glib::ConvertError) {
+	    message = "<Conversion Error, logging as UTF-8> ";
+	    message += log_message;
+	}
+	logger(level_to_use == xmppd::alert ? "alert" : level_to_use == xmppd::error ? "error" : level_to_use == xmppd::warn ? "warn" : level_to_use == xmppd::notice ? "notice" : "unknown", identity.c_str(), message.c_str());
+    }
+
+    std::ostream &logmessage::operator<<(const char *text) {
+	return static_cast<std::ostream&>(*this) << text;
+    }
+
+    std::ostream& logmessage::operator<<(const std::string& text) {
+	return static_cast<std::ostream&>(*this) << text;
+    }
 }
