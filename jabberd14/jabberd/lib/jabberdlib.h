@@ -1453,4 +1453,6 @@ namespace xmppd {
     }
 }
 
+#include <pointer.tcc>
+
 #endif	/* INCL_LIB_H */

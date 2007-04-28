@@ -34,6 +34,13 @@ namespace xmppd {
     instance_base::instance_base(instance i, xmlnode x) : i(i), current_heartbeat_frequency(0), requested_heartbeat_frequency(0) {
 	// register our packet handler with the server
 	::register_phandler(i, o_DELIVER, instance_base::phandler_helper, this);
+
+	// create our logger
+	try {
+	    logger = new logging(get_instance_id());
+	} catch (std::domain_error) {
+	    logger = new logging("-internal.invalid");
+	}
     }
 
     result instance_base::on_packet(dpacket dp) {
@@ -184,5 +191,9 @@ namespace xmppd {
 	if (i->id == NULL)
 	    throw std::domain_error("instance has no id");
 	return i->id;
+    }
+
+    logmessage instance_base::log(loglevel level) {
+	return logger->level(level);
     }
 };
