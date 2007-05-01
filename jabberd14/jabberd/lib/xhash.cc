@@ -36,15 +36,15 @@
 #include <jabberdlib.h>
 
 namespace xmppd {
-    xmppd::xhash::iterator xhash::get_by_domain(std::string domainkey) {
+    template<class value_type> typename xmppd::xhash<value_type>::iterator xhash<value_type>::get_by_domain(std::string domainkey) {
 	while (true) {
-	    xmppd::xhash::iterator result = find(domainkey);
-	    if (result != end())
+	    typename xmppd::xhash<value_type>::iterator result = xhash<value_type>::find(domainkey);
+	    if (result != xhash<value_type>::end())
 		return result;
 
 	    std::string::size_type dot_pos = domainkey.find(".");
 	    if (dot_pos == std::string::npos)
-		return find("*");
+		return xhash<value_type>::find("*");
 
 	    domainkey.erase(0, dot_pos+1);
 	}
@@ -58,7 +58,7 @@ namespace xmppd {
  * @return pointer to the new hash
  */
 xht xhash_new(int prima) {
-    return new xmppd::xhash();
+    return new xmppd::xhash<void*>();
 }
 
 /**
@@ -92,7 +92,7 @@ void* xhash_get(xht h, const char *key) {
     }
 
     // check if the element exists
-    xmppd::xhash::iterator i = h->find(key);
+    xmppd::xhash<void*>::iterator i = h->find(key);
 
     // element does not exist?
     if (i == h->end()) {
@@ -125,7 +125,7 @@ void *xhash_get_by_domain(xht h, const char *domain) {
     }
 
     // check if the element exists
-    xmppd::xhash::iterator i = h->get_by_domain(domain);
+    xmppd::xhash<void*>::iterator i = h->get_by_domain(domain);
 
     // element does not exist?
     if (i == h->end()) {
@@ -181,8 +181,8 @@ void xhash_walk(xht h, xhash_walker w, void *arg) {
     }
 
     // iterate the elements
-    xmppd::xhash::iterator p;
-    xmppd::xhash::iterator next = h->begin();
+    xmppd::xhash<void*>::iterator p;
+    xmppd::xhash<void*>::iterator next = h->begin();
     for (p = h->begin(); p != h->end(); p = next) {
 	// already get iterator to the next element, the callback might remove this one
 	++next;
