@@ -521,11 +521,11 @@ namespace xmppd {
      * definitions in config.h (i.e. definitions made by the configure script) in files
      * we do install. This should be fixed before this code gets released.
      */
-    class xhash :
+    template <class value_type> class xhash :
 #ifdef HAS_TR1_UNORDERED_MAP
-	public std::tr1::unordered_map<std::string, void*>
+	public std::tr1::unordered_map<std::string, value_type>
 #else
-	public std::map<std::string, void*>
+	public std::map<std::string, value_type>
 #endif
     {
 	public:
@@ -539,11 +539,11 @@ namespace xmppd {
 	     * @param domainkey the key that should be considered as a domain
 	     * @return iterator to the found value
 	     */
-	    iterator get_by_domain(std::string domainkey);
+	    typename xhash<value_type>::iterator get_by_domain(std::string domainkey);
     };
 }
 
-typedef xmppd::xhash* xht;
+typedef xmppd::xhash<void*>* xht;
 
 xht xhash_new(int prime);
 void xhash_put(xht h, const char *key, void *val);
