@@ -1,3 +1,8 @@
+2007-05-16  Matthias Wimmer <m@tthias.eu>
+
+    * util/nsparser.cc: we can only throw xmlpp::exception instances in
+	on_start_attribute()
+
 2006-11-09  Matthias Wimmer <m@tthias.eu>
 
     * util/xmlostream.cc: add the ability to set a default namespace
