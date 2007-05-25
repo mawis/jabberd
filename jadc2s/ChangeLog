@@ -1,3 +1,9 @@
+2007-05-25  Matthias Wimmer  <m@tthias.eu>
+
+    * util/nad.c: do not retry forever to allocate memory (in nad.c as well)
+    * util/util.h: making the helper in pool.c for this usable by nad.c
+    * util/pool.c: same
+
 2007-04-24  Matthias Wimmer  <m@tthias.eu>
 
     * util/pool.c: do not retry forever to allocate memory

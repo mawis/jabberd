@@ -72,6 +72,10 @@ extern int ap_vsnprintf(char *, size_t, const char *, va_list ap);
 # define POOL_NUM 40009 
 #endif
 
+#define MAX_MALLOC_TRIES 10 /**< how many seconds we try to allocate memory */
+
+inline void *retried__malloc(size_t size);
+
 /* pheap - singular allocation of memory */
 struct pheap
 {

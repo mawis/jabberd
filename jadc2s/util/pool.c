@@ -40,8 +40,6 @@
 
 #include "util.h"
 
-#define MAX_MALLOC_TRIES 10 /**< how many seconds we try to allocate memory */
-
 #ifdef POOL_DEBUG
 int pool__total = 0;
 int pool__ltotal = 0;
@@ -70,7 +68,7 @@ void _pool__free(void *block)
  * @param size how many bytes of memory we allocate
  * @return pointer to the allocated memory
  */
-static inline void *retried__malloc(size_t size) {
+inline void *retried__malloc(size_t size) {
     void *allocated_memory;
     int malloc_tries = 0;
 
