@@ -42,6 +42,31 @@
 
 #define BLOCKSIZE 1024
 
+/**
+ * try to reallocate memory
+ *
+ * If reallocation fails, it will be retried for MAX_MALLOC_TRIES seconds.
+ * If it still fails, we exit the process
+ *
+ * @param size how many bytes of memory we allocate
+ * @return pointer to the allocated memory
+ */
+static inline void *retried__realloc(void *old_pointer, size_t size) {
+    void *allocated_memory;
+    int realloc_tries = 0;
+
+    while ((allocated_memory=realloc(old_pointer, size)) == NULL) {
+        if (realloc_tries++ > MAX_MALLOC_TRIES) {
+            exit(999);
+        }
+
+        sleep(1);
+    }
+
+    return allocated_memory;
+}
+
+
 /* internal: do and return the math and ensure it gets realloc'd */
 static int _nad_realloc(void **oblocks, int len) {
     void *nblocks;
@@ -51,8 +76,7 @@ static int _nad_realloc(void **oblocks, int len) {
     nlen = (((len-1)/BLOCKSIZE)+1)*BLOCKSIZE;
 
     /* keep trying till we get it */
-    while ((nblocks = realloc(*oblocks, nlen)) == NULL)
-	sleep(1);
+    nblocks = retried__realloc(*oblocks, nlen);
     *oblocks = nblocks;
     return nlen;
 }
@@ -91,8 +115,7 @@ static int _nad_attr(nad_t nad, int elem, const char *name, const char *val) {
 /* create a new cache, simple pointer to a list of nads */
 nad_cache_t nad_cache_new(void) {
     nad_cache_t cache;
-    while ((cache = malloc(sizeof(nad_cache_t))) == NULL)
-	sleep(1);
+    cache = retried__malloc(sizeof(nad_cache_t));
     *cache = NULL;
     return cache;
 }
@@ -127,8 +150,7 @@ nad_t nad_new(nad_cache_t cache) {
     }
 #endif
 
-    while ((nad = malloc(sizeof(struct nad_st))) == NULL)
-	sleep(1);
+    nad = retried__malloc(sizeof(struct nad_st));
     memset(nad, 0, sizeof(struct nad_st));
     nad->cache = cache;
     return nad;
