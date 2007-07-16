@@ -102,7 +102,7 @@ typedef struct xdbsql_struct {
 } *xdbsql, _xdbsql;
 
 /* forward declaration */
-static int xdb_sql_execute(instance i, xdbsql xq, char *query, xmlnode xmltemplate, xmlnode result);
+static int xdb_sql_execute(instance i, xdbsql xq, const char *query, xmlnode xmltemplate, xmlnode result);
 
 /**
  * connect to the mysql server
@@ -261,7 +261,7 @@ static xmlnode xdb_sql_find_node_recursive(xmlnode root, const char *name, const
  * @param result where to add the results
  * @return 0 on success, non zero on failure
  */
-static int xdb_sql_execute_mysql(instance i, xdbsql xq, char *query, xmlnode xmltemplate, xmlnode result) {
+static int xdb_sql_execute_mysql(instance i, xdbsql xq, const char *query, xmlnode xmltemplate, xmlnode result) {
 #ifdef HAVE_MYSQL
     int ret = 0;
     MYSQL_RES *res = NULL;
@@ -364,7 +364,7 @@ static int xdb_sql_execute_mysql(instance i, xdbsql xq, char *query, xmlnode xml
  * @param result where to add the results
  * @return 0 on success, non zero on failure
  */
-static int xdb_sql_execute_postgresql(instance i, xdbsql xq, char *query, xmlnode xmltemplate, xmlnode result) {
+static int xdb_sql_execute_postgresql(instance i, xdbsql xq, const char *query, xmlnode xmltemplate, xmlnode result) {
 #ifdef HAVE_POSTGRESQL
     PGresult *res = NULL;
     ExecStatusType status = static_cast<ExecStatusType>(0);
@@ -465,7 +465,7 @@ static int xdb_sql_execute_postgresql(instance i, xdbsql xq, char *query, xmlnod
  * @param result where to add the results
  * @return 0 on success, non zero on failure
  */
-static int xdb_sql_execute(instance i, xdbsql xq, char *query, xmlnode xmltemplate, xmlnode result) {
+static int xdb_sql_execute(instance i, xdbsql xq, const char *query, xmlnode xmltemplate, xmlnode result) {
 #ifdef HAVE_MYSQL
     if (xq->use_mysql) {
 	return xdb_sql_execute_mysql(i, xq, query, xmltemplate, result);

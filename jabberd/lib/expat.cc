@@ -285,7 +285,7 @@ xmlnode xmlnode_file(const char *file) {
  * @param file the filename
  * @return pointer to a message why parsing failed, NULL if parsing did not fail
  */
-char* xmlnode_file_borked(char *file) {
+const char* xmlnode_file_borked(const char *file) {
     XML_Parser p;
     char buf[BUFSIZ];
     static char err[1024];

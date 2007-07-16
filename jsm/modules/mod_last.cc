@@ -137,7 +137,7 @@ static mreturn mod_last_server(mapi m, void *arg) {
  * @param to which user should be updated
  * @param reason why the stored last information is updated
  */
-static void mod_last_set(mapi m, jid to, char *reason) {
+static void mod_last_set(mapi m, jid to, const char *reason) {
     xmlnode last;
     char str[11];
 

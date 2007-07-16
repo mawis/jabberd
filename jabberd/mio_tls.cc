@@ -45,7 +45,7 @@
 #include <iostream>
 
 // Tell gcrypt that we are using libpth - had to move this to a plain C file
-extern "C" void mio_tls_gcrypt_init();
+extern "C" void mio_tls_gcrypt_init(void);
 
 extern const ASN1_ARRAY_TYPE subjectAltName_asn1_tab[];
 

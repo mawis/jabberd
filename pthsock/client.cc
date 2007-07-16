@@ -96,7 +96,7 @@ typedef struct edata_st {
 
 
 /* makes a route packet, intelligently */
-static xmlnode pthsock_make_route(xmlnode x, char *to, char *from, char *type) {
+static xmlnode pthsock_make_route(xmlnode x, const char *to, const char *from, const char *type) {
     xmlnode newx;
     newx = x ? xmlnode_wrap_ns(x, "route", NULL, NS_SERVER) : xmlnode_new_tag_ns("route", NULL, NS_SERVER);
 
@@ -531,7 +531,7 @@ extern "C" void pthsock_client(instance i, xmlnode x) {
     char *host;
     struct karma *k = karma_new(i->p); /* Get new inialized karma */
     int set_karma = 0; /* Default false; Did they want to change the karma parameters */
-    char *tls_config_element_name = "tls";
+    char const* tls_config_element_name = "tls";
     xmlnode_list_item item = NULL;
 
     log_debug2(ZONE, LOGT_INIT, "[%s] pthsock_client loading", ZONE);

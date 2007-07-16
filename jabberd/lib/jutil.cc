@@ -43,7 +43,7 @@
  * @param status optional status (CDATA for the &lt;status/&gt; element, NULL for no &lt;status/&gt; element)
  * @return the xmlnode containing the created presence stanza
  */
-xmlnode jutil_presnew(int type, char *to, const char *status) {
+xmlnode jutil_presnew(int type, const char *to, const char *status) {
     xmlnode pres;
 
     pres = xmlnode_new_tag_ns("presence", NULL, NS_SERVER);
@@ -89,7 +89,7 @@ xmlnode jutil_presnew(int type, char *to, const char *status) {
  * @param ns the namespace of the &lt;query/&gt; element
  * @return the created xmlnode
  */
-xmlnode jutil_iqnew(int type, char *ns) {
+xmlnode jutil_iqnew(int type, const char *ns) {
     xmlnode iq;
 
     iq = xmlnode_new_tag_ns("iq", NULL, NS_SERVER);
@@ -122,7 +122,7 @@ xmlnode jutil_iqnew(int type, char *ns) {
  * @param body the body of the message
  * @return the xmlnode containing the new message stanza
  */
-xmlnode jutil_msgnew(char *type, char *to, char *subj, char *body) {
+xmlnode jutil_msgnew(const char *type, const char *to, const char *subj, const char *body) {
     xmlnode msg;
 
     msg = xmlnode_new_tag_ns("message", NULL, NS_SERVER);
@@ -416,7 +416,7 @@ void jutil_error(xmlnode x, terror E)
  * @param msg the message where the element should be added
  * @param reason plain text information why the delayed delivery information has been added
  */
-void jutil_delay(xmlnode msg, char *reason)
+void jutil_delay(xmlnode msg, const char *reason)
 {
     xmlnode delay;
 

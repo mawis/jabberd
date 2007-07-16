@@ -322,7 +322,7 @@ session js_sc_session_new(jsmi si, dpacket dp, xmlnode sc_session) {
  * @param s the session, that is closing
  * @param reason textual reason for the shutdown
  */
-void js_session_end(session s, char *reason) {
+void js_session_end(session s, const char *reason) {
     xmlnode x;      /* new presence data */
     session cur;    /* used to iterate over the user's session list
                        when removing the session from the list */

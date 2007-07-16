@@ -192,7 +192,7 @@ void _xdb_get_hashes(const char *filename, char digit01[3], char digit23[3]) {
  * @param use_subdirs true if file should be located in subdirectories
  * @return 1 on success, 0 on failure
  */
-int _xdb_gen_dirs(spool sp, const char *spoolroot, char *host, const char *hash1, const char *hash2, int use_subdirs) {
+int _xdb_gen_dirs(spool sp, const char *spoolroot, const char *host, const char *hash1, const char *hash2, int use_subdirs) {
     struct stat s;
     char *tmp;
 
@@ -243,7 +243,7 @@ int _xdb_gen_dirs(spool sp, const char *spoolroot, char *host, const char *hash1
  * @param use_subdirs true if file should be located in subdirectories
  * @return concatenated string of the form spl+"/"+somehashes+"/"+file+"."+ext
  */
-char *xdb_file_full(int create, pool p, const char *spl, char *host, const char *file, char *ext, int use_subdirs) {
+char *xdb_file_full(int create, pool p, const char *spl, const char *host, const char *file, const char *ext, int use_subdirs) {
     spool sp = spool_new(p);
     char digit01[3], digit23[3];
     char *ret;

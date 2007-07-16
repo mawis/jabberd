@@ -435,7 +435,7 @@ char *strescape(pool p, char *buf)
     return temp;
 }
 
-char *zonestr(char *file, int line)
+char *zonestr(const char *file, int line)
 {
     static char buff[64];
     int i;

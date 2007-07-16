@@ -399,8 +399,8 @@ xht xhash_from_xml(xmlnode hash) {
     pool temp_p = pool_new();
 
     for (entry = xmlnode_get_tags(hash, "entry", ns, temp_p); entry != NULL; entry = entry->next) {
-	char *key = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(entry->node, "key", ns, temp_p), 0));
-	char *value = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(entry->node, "value", ns, temp_p), 0));
+	char const* key = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(entry->node, "key", ns, temp_p), 0));
+	char const* value = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(entry->node, "value", ns, temp_p), 0));
 
 	if (value == NULL)
 	    value = "";

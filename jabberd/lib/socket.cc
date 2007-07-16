@@ -45,7 +45,7 @@
  * @param type type of socket (NETSOCKET_SERVER, NETSOCKET_CLIENT; or NETSOCKET_UDP)
  * @return file handle of the new socket
  */
-int make_netsocket(u_short port, char *host, int type) {
+int make_netsocket(u_short port, const char *host, int type) {
     int s, flag = 1;
 #ifdef WITH_IPV6
     struct sockaddr_in6 sa;
@@ -149,7 +149,7 @@ int make_netsocket(u_short port, char *host, int type) {
  * @param host the IPv4 address or hostname to convert, on NULL, the hostname is used
  * @return the in_addr struct that holds the result (pointer to a static structure, overwritten on next call!)
  */
-struct in_addr *make_addr(char *host) {
+struct in_addr *make_addr(const char *host) {
     struct hostent *hp;
     static struct in_addr addr;
     char myname[MAXHOSTNAMELEN + 1];
@@ -203,7 +203,7 @@ void _map_addr_to6(const struct in_addr *src, struct in6_addr *dest) {
  * @param host the IPv4 or IPv6 address or hostname to convert, on NULL, the hostname is used
  * @return the in6_addr struct that holds the result (pointer to a static structure, overwritten on next call!)
  */
-struct in6_addr *make_addr_ipv6(char *host) {
+struct in6_addr *make_addr_ipv6(const char *host) {
     static struct in6_addr addr;
     struct addrinfo hints;
     struct addrinfo *addr_res;

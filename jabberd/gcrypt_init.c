@@ -37,7 +37,7 @@ GCRY_THREAD_OPTION_PTH_IMPL;
 /**
  * Tell gcrypt we are using libpth
  */
-void mio_tls_gcrypt_init() {
+void mio_tls_gcrypt_init(void) {
     /* prepare gcrypt with libpth */
     gcry_control(GCRYCTL_SET_THREAD_CBS, &gcry_threads_pth);
 }
