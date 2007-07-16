@@ -185,7 +185,7 @@ dboc dialback_out_connection(db d, jid key, char *ip, db_request db_state) {
  * @param state the state
  * @return the textual representation
  */
-static char *dialback_out_connection_state_string(db_connection_state state) {
+static const char *dialback_out_connection_state_string(db_connection_state state) {
     switch (state) {
 	case created:
 	    return N_("connection object just created");

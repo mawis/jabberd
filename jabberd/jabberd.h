@@ -193,7 +193,7 @@ typedef result (*cfhandler)(instance id, xmlnode x, void *arg);
 typedef result (*beathandler)(void *arg);
 
 /*** public functions for base modules ***/
-void register_config(pool p, char *node, cfhandler f, void *arg); /* register a function to handle that node in the config file */
+void register_config(pool p, const char *node, cfhandler f, void *arg); /* register a function to handle that node in the config file */
 void register_instance(instance i, char *host); /* associate an id with a hostname for that packet type */
 void unregister_instance(instance i, char *host); /* disassociate an id with a hostname for that packet type */
 void register_routing_update_callback(instance i, register_notify f, void *arg); /**< register a function that gets called on registering/unregistering a host for an instance */
@@ -516,7 +516,7 @@ xmlnode mio_cleanup(mio m);
 void mio_connect(char *host, int port, mio_std_cb cb, void *cb_arg, int timeout, mio_handlers mh);
 
 /* Starts listening on a port/ip, returns NULL if failed to listen */
-mio mio_listen(int port, char *sourceip, mio_std_cb cb, void *cb_arg, mio_handlers mh);
+mio mio_listen(int port, const char *sourceip, mio_std_cb cb, void *cb_arg, mio_handlers mh);
 
 int _mio_write_dump(mio m);
 

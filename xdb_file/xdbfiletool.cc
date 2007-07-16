@@ -45,7 +45,7 @@ xht debug__zones;
 void *so_h = NULL;
 
 /* functions in libjabberdxdbfile.so used */
-char* (*xdb_file_full)(int create, pool p, const char *spl, char *host, const char *file, char *ext, int use_subdirs);
+char* (*xdb_file_full)(int create, pool p, const char *spl, const char *host, const char *file, const char *ext, int use_subdirs);
 void (*xdb_convert_spool)(const char *spoolroot);
 xmlnode (*xdb_file_load)(char *host, char *fname, xht cache);
 

@@ -1545,7 +1545,7 @@ void mio_connect(char *host, int port, mio_std_cb cb, void *cb_arg, int timeout,
  * @param mh ::mio_handlers used for this connection
  * @return the listening mio object that has been created, NULL on failure
  */
-mio mio_listen(int port, char *listen_host, mio_std_cb cb, void *arg, mio_handlers mh) {
+mio mio_listen(int port, const char *listen_host, mio_std_cb cb, void *arg, mio_handlers mh) {
     mio        newm;
     int        fd;
 

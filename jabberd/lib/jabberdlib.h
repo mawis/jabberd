@@ -229,7 +229,7 @@ namespace xmppd {
 }
 
 #define ZONE zonestr(__FILE__,__LINE__)
-char *zonestr(char *file, int line);
+char *zonestr(const char *file, int line);
 
 /* --------------------------------------------------------- */
 /*                                                           */
@@ -311,10 +311,10 @@ int pool_size(pool p); /* returns total bytes allocated in this pool */
 #define NETSOCKET_UDP 2    /**< type of a UDP connection socket */
 
 #ifndef WIN32
-int make_netsocket(u_short port, char *host, int type);
-struct in_addr *make_addr(char *host);
+int make_netsocket(u_short port, const char *host, int type);
+struct in_addr *make_addr(const char *host);
 #ifdef WITH_IPV6
-struct in6_addr *make_addr_ipv6(char *host);
+struct in6_addr *make_addr_ipv6(const char *host);
 #endif
 #endif
 
@@ -512,7 +512,7 @@ xmlnode  xmlnode_insert_tag_node(xmlnode parent, xmlnode node);
 void     xmlnode_insert_node(xmlnode parent, xmlnode node);
 xmlnode  xmlnode_str(const char *str, int len);
 xmlnode  xmlnode_file(const char *file);
-char*    xmlnode_file_borked(char *file); /* same as _file but returns the parsing error */
+const char* xmlnode_file_borked(const char *file); /* same as _file but returns the parsing error */
 xmlnode  xmlnode_dup(xmlnode x); /* duplicate x */
 xmlnode  xmlnode_dup_pool(pool p, xmlnode x);
 
@@ -982,9 +982,9 @@ typedef struct xterror_struct
 /* JUtil functions                                           */
 /*                                                           */
 /* --------------------------------------------------------- */
-xmlnode jutil_presnew(int type, char *to, const char *status); /* Create a skeleton presence packet */
-xmlnode jutil_iqnew(int type, char *ns);		 /* Create a skeleton iq packet */
-xmlnode jutil_msgnew(char *type, char *to, char *subj, char *body);
+xmlnode jutil_presnew(int type, const char *to, const char *status); /* Create a skeleton presence packet */
+xmlnode jutil_iqnew(int type, const char *ns);		 /* Create a skeleton iq packet */
+xmlnode jutil_msgnew(const char *type, const char *to, const char *subj, const char *body);
 							 /* Create a skeleton message packet */
 int     jutil_priority(xmlnode x);			 /* Determine priority of this packet */
 void    jutil_tofrom(xmlnode x);			 /* Swaps to/from fields on a packet */
@@ -994,7 +994,7 @@ char*   jutil_timestamp_ms(char *buffer);		 /* Get stringified timestamp includi
 void    jutil_error(xmlnode x, terror E);		 /* Append an <error> node to x */
 void    jutil_error_xmpp(xmlnode x, xterror E);		 /* Append an <error> node to x using XMPP syntax */
 void	jutil_error_map(terror old, xterror *mapped);	 /* map an old terror structure to a new xterror structure */
-void    jutil_delay(xmlnode msg, char *reason);		 /* Append a delay packet to msg */
+void    jutil_delay(xmlnode msg, const char *reason);		 /* Append a delay packet to msg */
 char*   jutil_regkey(char *key, char *seed);		 /* pass a seed to generate a key, pass the key again to validate (returns it) */
 
 /* --------------------------------------------------------- */

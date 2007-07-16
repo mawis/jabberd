@@ -387,7 +387,7 @@ cfg cfhandlers__ = NULL;	/**< list of config handlers */
  * @param f the handler function that should be registered
  * @param arg argument, that should be passed to the handler function
  */
-void register_config(pool p, char *node, cfhandler f, void *arg) {
+void register_config(pool p, const char *node, cfhandler f, void *arg) {
     cfg newg;
 
     /* create and setup */
