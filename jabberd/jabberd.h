@@ -252,8 +252,8 @@ void log_warn(const char *host, const char *msgfmt, ...);
 void log_alert(const char *host, const char *msgfmt, ...);
 #define log_error log_alert
 void logger(char *type, const char *host, char *message); /* actually creates and delivers the log message */
-void log_record(char *id, char *type, char *action, const char *msgfmt, ...); /* for generic logging support, like log_record("jer@jabber.org","session","end","...") */
-void log_generic(char *logtype, char *id, char *type, char *action, const char *msgfmt, ...);
+void log_record(char const* id, char *type, char *action, const char *msgfmt, ...); /* for generic logging support, like log_record("jer@jabber.org","session","end","...") */
+void log_generic(char const* logtype, char *id, char *type, char *action, const char *msgfmt, ...);
 
 /*** xdb utilities ***/
 
