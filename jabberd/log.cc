@@ -282,7 +282,7 @@ void log_alert(const char *host, const char *msgfmt, ...) {
  * @param action action that is logged (e.g. a failed auth)
  * @param msgfmt printf()-like format string, parameters are following
  */
-void log_generic(const char *logtype, const char *id, const char *type, const char *action, const char *msgfmt, ...) {
+void log_generic(char const* logtype, const char *id, const char *type, const char *action, const char *msgfmt, ...) {
     va_list ap;
     char logmsg[512] = "";
     xmlnode log;
@@ -327,7 +327,7 @@ void log_generic(const char *logtype, const char *id, const char *type, const ch
  * @param action action that is logged (e.g. a failed auth)
  * @param msgfmt printf()-like format string, parameters are following
  */
-void log_record(const char *id, const char *type, const char *action, const char *msgfmt, ...) {
+void log_record(char const* id, const char *type, const char *action, const char *msgfmt, ...) {
     va_list ap;
     char logmsg[512] = "";
 
