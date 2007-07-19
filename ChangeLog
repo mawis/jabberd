@@ -1,3 +1,8 @@
+2007-07-20  Matthias Wimmer  <m@tthias.eu>
+
+    * jabberd/lib/jutil.cc: fix for the case that tv.tv_sec is not defined as
+	time_t - seems to be the case on FreeBSD up to version 6.2
+
 2007-07-17  Matthias Wimmer  <m@tthias.eu>
 
     * jabberd/jabberd.h: compile fix by Stefan Huehner
