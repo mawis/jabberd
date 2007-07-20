@@ -245,15 +245,15 @@ void set_debug_facility(int facility);
 #define log_debug if(debug_flag&1) debug_log
 #define log_debug2 if(debug_flag) debug_log2
 #endif
-void debug_log(char *zone, const char *msgfmt, ...);
-void debug_log2(char *zone, const int type, const char *msgfmt, ...);
-void log_notice(const char *host, const char *msgfmt, ...);
-void log_warn(const char *host, const char *msgfmt, ...);
-void log_alert(const char *host, const char *msgfmt, ...);
+void debug_log(char const* zone, char const* msgfmt, ...);
+void debug_log2(char const* zone, int type, char const* msgfmt, ...);
+void log_notice(char const* host, char const* msgfmt, ...);
+void log_warn(char const* host, char const* msgfmt, ...);
+void log_alert(char const* host, char const* msgfmt, ...);
 #define log_error log_alert
-void logger(char *type, const char *host, char *message); /* actually creates and delivers the log message */
-void log_record(char const* id, char *type, char *action, const char *msgfmt, ...); /* for generic logging support, like log_record("jer@jabber.org","session","end","...") */
-void log_generic(char const* logtype, char *id, char *type, char *action, const char *msgfmt, ...);
+void logger(char const* type, char const* host, char const* message); /* actually creates and delivers the log message */
+void log_record(char const* id, char const* type, char const* action, char const* msgfmt, ...); /* for generic logging support, like log_record("jer@jabber.org","session","end","...") */
+void log_generic(char const* logtype, char const* id, char const* type, char const* action, char const* msgfmt, ...);
 
 /*** xdb utilities ***/
 

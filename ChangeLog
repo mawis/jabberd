@@ -2,6 +2,9 @@
 
     * jabberd/lib/jutil.cc: fix for the case that tv.tv_sec is not defined as
 	time_t - seems to be the case on FreeBSD up to version 6.2
+    * jabberd/jabberd.h: checking the const declarations for logging again
+    * jabberd/log.cc: same
+
 
 2007-07-17  Matthias Wimmer  <m@tthias.eu>
 
