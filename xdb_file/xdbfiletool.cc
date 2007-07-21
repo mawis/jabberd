@@ -51,7 +51,7 @@ xmlnode (*xdb_file_load)(char *host, char *fname, xht cache);
 
 int main(int argc, const char **argv) {
     char *host = NULL;
-    char *error = NULL;
+    char const* error = NULL;
     char *cfgfile = CONFIG_DIR "/jabber.xml";
     char *basedir = NULL;
     char *do_get = NULL;
