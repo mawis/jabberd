@@ -352,20 +352,29 @@ void nad_append_cdata(nad_t nad, const char *cdata, int len, int depth) {
     nad->elems[elem].ltail += len;
 }
 
-static void _nad_escape(nad_t nad, int data, int len, int flag) {
+/**
+ * escape a string for XML printing
+ *
+ * recursivly XML escape a string in a nad
+ *
+ * @param nad the nad containing the string
+ * @param data starting index in nad's data
+ * @param len length starting at data in nad's data
+ */
+static void _nad_escape(nad_t nad, int data, int len) {
     char *c;
     int ic;
 
     if (len <= 0)
 	return;
 
-    /* first, if told, find and escape ' */
-    while (flag >= 3 && (c = memchr(nad->cdata + data,'\'',len)) != NULL) {
+    /* first find and escape ' */
+    while ((c = memchr(nad->cdata + data,'\'',len)) != NULL) {
         /* get offset */
         ic = c - nad->cdata;
 
         /* cute, eh?  handle other data before this normally */
-        _nad_escape(nad, data, ic - data, 2);
+        _nad_escape(nad, data, ic - data);
 
         /* ensure enough space, and add our escaped &apos; */
         NAD_SAFE(nad->cdata, nad->ccur + 6, nad->clen);
@@ -377,10 +386,29 @@ static void _nad_escape(nad_t nad, int data, int len, int flag) {
         data = ic+1;
     }
 
-    /* next look for < */
-    while (flag >= 2 && (c = memchr(nad->cdata + data,'<',len)) != NULL) {
+    /* next find and escape " */
+    while ((c = memchr(nad->cdata + data,'"',len)) != NULL) {
+        /* get offset */
         ic = c - nad->cdata;
-        _nad_escape(nad, data, ic - data, 1);
+
+        /* cute, eh?  handle other data before this normally */
+        _nad_escape(nad, data, ic - data);
+
+        /* ensure enough space, and add our escaped &quot; */
+        NAD_SAFE(nad->cdata, nad->ccur + 6, nad->clen);
+        memcpy(nad->cdata + nad->ccur, "&quot;", 6);
+        nad->ccur += 6;
+
+        /* just update and loop for more */
+        len -= (ic+1) - data;
+        data = ic+1;
+    }
+
+
+    /* next look for < */
+    while ((c = memchr(nad->cdata + data,'<',len)) != NULL) {
+        ic = c - nad->cdata;
+        _nad_escape(nad, data, ic - data);
 
         /* ensure enough space, and add our escaped &lt; */
         NAD_SAFE(nad->cdata, nad->ccur + 4, nad->clen);
@@ -392,23 +420,15 @@ static void _nad_escape(nad_t nad, int data, int len, int flag) {
         data = ic+1;
     }
 
-    /* check for ]]>, we need to escape the > */
-    while (flag >= 1 && (c = memchr(nad->cdata + data, '>', len)) != NULL) {
+    /* check for > */
+    while ((c = memchr(nad->cdata + data, '>', len)) != NULL) {
         ic = c - nad->cdata;
-        _nad_escape(nad, data, ic - data, 0);
+        _nad_escape(nad, data, ic - data);
 
-        /* check for the sequence */
-        if (c >= nad->cdata + 2 && c[-1] == ']' && c[-2] == ']') {
-            /* ensure enough space, and add our escaped &gt; */
-            NAD_SAFE(nad->cdata, nad->ccur + 4, nad->clen);
-            memcpy(nad->cdata + nad->ccur, "&gt;", 4);
-            nad->ccur += 4;
-        } else {
-	    /* otherwise, just plug the > in as-is */
-            NAD_SAFE(nad->cdata, nad->ccur + 1, nad->clen);
-            *(nad->cdata + nad->ccur) = '>';
-            nad->ccur++;
-        }
+	/* ensure enough space, and add our escaped &gt; */
+	NAD_SAFE(nad->cdata, nad->ccur + 4, nad->clen);
+	memcpy(nad->cdata + nad->ccur, "&gt;", 4);
+	nad->ccur += 4;
 
         /* just update and loop for more */
         len -= (ic+1) - data;
@@ -427,7 +447,7 @@ static void _nad_escape(nad_t nad, int data, int len, int flag) {
         memcpy(nad->cdata + nad->ccur, nad->cdata + data, (ic - data));
         nad->ccur += (ic - data);
 
-        /* append escaped &lt; */
+        /* append escaped &amp; */
         memcpy(nad->cdata + nad->ccur, "&amp;", 5);
         nad->ccur += 5;
 
@@ -475,7 +495,7 @@ static int _nad_lp0(nad_t nad, int elem) {
 	    *(nad->cdata + nad->ccur++) = '\'';
 
 	    /* copy in the escaped value */
-	    _nad_escape(nad, nad->attrs[attr].ival, nad->attrs[attr].lval, 3);
+	    _nad_escape(nad, nad->attrs[attr].ival, nad->attrs[attr].lval);
 
 	    /* make enough space for the closing quote and add it */
 	    NAD_SAFE(nad->cdata, nad->ccur + 1, nad->clen);
@@ -499,7 +519,7 @@ static int _nad_lp0(nad_t nad, int elem) {
 		*(nad->cdata + nad->ccur++) = '>';
 
 		/* copy in escaped cdata */
-		_nad_escape(nad, nad->elems[elem].icdata, nad->elems[elem].lcdata,2);
+		_nad_escape(nad, nad->elems[elem].icdata, nad->elems[elem].lcdata);
 
 		/* close tag */
 		NAD_SAFE(nad->cdata, nad->ccur + 3 + nad->elems[elem].lname, nad->clen);
@@ -511,7 +531,7 @@ static int _nad_lp0(nad_t nad, int elem) {
 	    }
 
 	    /* always try to append the tail */
-	    _nad_escape(nad, nad->elems[elem].itail, nad->elems[elem].ltail,2);
+	    _nad_escape(nad, nad->elems[elem].itail, nad->elems[elem].ltail);
 
 	    /* if no siblings either, bail */
 	    if (ndepth < nad->elems[elem].depth)
@@ -526,7 +546,7 @@ static int _nad_lp0(nad_t nad, int elem) {
 	    /* close ourself and append any cdata first */
 	    NAD_SAFE(nad->cdata, nad->ccur + 1, nad->clen);
 	    *(nad->cdata + nad->ccur++) = '>';
-	    _nad_escape(nad, nad->elems[elem].icdata, nad->elems[elem].lcdata,2);
+	    _nad_escape(nad, nad->elems[elem].icdata, nad->elems[elem].lcdata);
 
 	    /* process children */
 	    nelem = _nad_lp0(nad,elem+1);
@@ -538,7 +558,7 @@ static int _nad_lp0(nad_t nad, int elem) {
 	    memcpy(nad->cdata + nad->ccur, nad->cdata + nad->elems[elem].iname, nad->elems[elem].lname);
 	    nad->ccur += nad->elems[elem].lname;
 	    *(nad->cdata + nad->ccur++) = '>';
-	    _nad_escape(nad, nad->elems[elem].itail, nad->elems[elem].ltail,2);
+	    _nad_escape(nad, nad->elems[elem].itail, nad->elems[elem].ltail);
 
 	    /* if the next element is not our sibling, we're done */
 	    if (nad->elems[nelem].depth < nad->elems[elem].depth)
