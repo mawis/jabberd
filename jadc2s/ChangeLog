@@ -1,3 +1,9 @@
+2007-07-22  Matthias Wimmer  <m@tthias.eu>
+
+    * util/nad.c: according to RFC3920 XML entities have to be used, also if
+	they are not required by the XML spec at this place - so we now
+	escape special characters always
+
 2007-05-25  Matthias Wimmer  <m@tthias.eu>
 
     * util/nad.c: do not retry forever to allocate memory (in nad.c as well)
