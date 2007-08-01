@@ -6,7 +6,7 @@ AC_PREREQ(2.50)
 
 
 AC_INIT(jabberd/jabberd.h)
-AM_INIT_AUTOMAKE(jabberd14,1.6.1.1)
+AM_INIT_AUTOMAKE(jabberd14,1.6.1.1-p1)
 AM_CONFIG_HEADER(config.h)
 AC_LANG(C++)
 
@@ -270,6 +270,15 @@ if test $hasgnutls = "yes" ; then
     CPPFLAGS="$CPPFLAGS $GNUTLSEXTRA_CFLAGS"
     LDFLAGS="$LDFLAGS $GNUTLSEXTRA_LIBS"
     AC_DEFINE(HAVE_GNUTLS_EXTRA,,[if GnuTLS-extra should be compiled in])
+fi
+
+dnl check for libtasn
+PKG_CHECK_MODULES(LIBTASN, libtasn1 >= 0.3.0, haslibtasn=yes, haslibtasn=no)
+if test $haslibtasn = "yes" ; then
+    CPPFLAGS="$CPPFLAGS $LIBTASN_CFLAGS"
+    LDFLAGS="$LDFLAGS $LIBTASN_LIBS"
+else
+    AC_MSG_ERROR([Couldn't find required libtasn1 installation])
 fi
 
 dnl check for libidn
