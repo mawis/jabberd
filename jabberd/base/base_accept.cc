@@ -38,11 +38,11 @@
 #define A_ERROR  -1
 #define A_READY   1
 
-typedef struct queue_struct {
+typedef struct jqueue_struct {
     int stamp;
     xmlnode x;
-    struct queue_struct *next;
-} *queue, _queue;
+    struct jqueue_struct *next;
+} *jqueue, _jqueue;
 
 typedef struct accept_instance_st {
     mio m;
@@ -57,15 +57,15 @@ typedef struct accept_instance_st {
     int restrict_var;
     xdbcache offline;
     jid offjid;
-    queue q;
+    jqueue q;
     /* dpacket dplast; */
 } *accept_instance, _accept_instance;
 
 static void base_accept_queue(accept_instance ai, xmlnode x) {
-    queue q;
+    jqueue q;
     if(ai == NULL || x == NULL) return;
 
-    q = static_cast<queue>(pmalloco(xmlnode_pool(x),sizeof(_queue)));
+    q = static_cast<jqueue>(pmalloco(xmlnode_pool(x),sizeof(_jqueue)));
     q->stamp = time(NULL);
     q->x = x;
     q->next = ai->q;
@@ -99,7 +99,7 @@ static result base_accept_deliver(instance i, dpacket p, void* arg) {
 static void base_accept_process_xml(mio m, int state, void* arg, xmlnode x, char* unused1, int unused2) {
     accept_instance ai = (accept_instance)arg;
     xmlnode cur, off;
-    queue q, q2;
+    jqueue q, q2;
     char hashbuf[41];
     jpacket jp;
 
@@ -256,7 +256,7 @@ static void base_accept_offline(accept_instance ai, xmlnode x) {
 /* check the packet queue for stale packets */
 static result base_accept_beat(void *arg) {
     accept_instance ai = (accept_instance)arg;
-    queue bouncer, lastgood, cur, next;
+    jqueue bouncer, lastgood, cur, next;
     int now = time(NULL);
 
     cur = ai->q;
