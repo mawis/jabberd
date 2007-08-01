@@ -1,3 +1,8 @@
+2007-08-01  Matthias Wimmer  <m@tthias.eu>
+
+    * jabberd/base/base_accept.cc: renaming queue to jqueue, solving name
+	clash on Solaris
+
 2007-07-22  Matthias Wimmer  <m@tthias.eu>
 
     * xdb_file/xdbfiletool.cc: another const fix proposed by Martin Matuska
