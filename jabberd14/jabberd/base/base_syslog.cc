@@ -55,7 +55,15 @@ static result base_syslog_deliver(instance id, dpacket p, void* arg) {
     if (type == -1)
 	type = LOG_INFO;
 
-    syslog(*facility|type, "%s", message);
+    // convert log message to locale's charset
+    std::string locale_charset_message;
+    try {
+	locale_charset_message = Glib::locale_from_utf8(message);
+    } catch (Glib::ConvertError) {
+	locale_charset_message = "<Conversion Error, logging as UTF-8> ";
+	locale_charset_message += message;
+    }
+    syslog(*facility|type, "%s", locale_charset_message.c_str());
     
     /* Release the packet */
     pool_free(p->p);
