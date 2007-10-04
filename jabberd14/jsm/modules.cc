@@ -227,7 +227,8 @@ int js_mapi_call2(jsmi si, event e, jpacket packet, udata user, session s, xmlno
 	    /* this module is ignoring this packet->type */
 	    case M_IGNORE:
 		/* add the packet type to the mask */
-		l->mask |= packet->type;
+		if (packet)
+		    l->mask |= packet->type;
 		break;
 	    /* this module handled the packet */
 	    case M_HANDLED:

@@ -3,6 +3,7 @@
     * jabberd/log.cc: not chaning data to locale, that gets inserted in XML
     * jabberd/base/base_syslog.cc: converting to locale before sending message
 	to syslog
+    * jsm/modules.cc: adding sanity check
 
 2007-05-01  Matthias Wimmer  <m@tthias.eu>
 
