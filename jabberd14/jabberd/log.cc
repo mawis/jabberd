@@ -82,7 +82,7 @@ static char *debug_log_timestamp(void) {
  * @param zone the zone where the logging message comes from
  * @return 1 if it should be logged, 0 if not
  */
-static inline int _debug_log_zonefilter(char *zone) {
+static inline int _debug_log_zonefilter(char const* zone) {
     char *pos, c = '\0';
     if(zone != NULL && debug__zones != NULL)
     {
@@ -112,7 +112,7 @@ static inline int _debug_log_zonefilter(char *zone) {
  * @param zone the zone (file) the function is called from. __ZONE__ should be used here.
  * @param msgfmt the format string for the log message, parameters like for printf() are given afterwards
  */
-void debug_log(char *zone, const char *msgfmt, ...) {
+void debug_log(char const* zone, char const* msgfmt, ...) {
     va_list ap;
     char message[MAX_LOG_SIZE];
     int offset;
@@ -157,7 +157,7 @@ void debug_log(char *zone, const char *msgfmt, ...) {
  * @param type LOGT_* constent telling which type of debug log message is passed
  * @param msgfmt the format string for the log message, parameters like for printf() are given afterwards
  */
-void debug_log2(char *zone, const int type, const char *msgfmt, ...) {
+void debug_log2(char const* zone, int type, char const* msgfmt, ...) {
     va_list ap;
     char message[MAX_LOG_SIZE];
     int offset;
@@ -202,7 +202,7 @@ void debug_log2(char *zone, const int type, const char *msgfmt, ...) {
  * @param host the sending host (domain) of the message, or NULL if no sending host is known (the message are than logged as jabberd internal)
  * @param message The message to be logged
  */
-void logger(const char *type, const char *host, const char *message) {
+void logger(char const* type, char const* host, char const* message) {
     xmlnode log;
 
     if (type == NULL || message == NULL) {
@@ -228,7 +228,7 @@ void logger(const char *type, const char *host, const char *message) {
  * @param host the sending host (domain) of the log message - NULL if the host is not known, in that case the message is logged as jabberd internal
  * @param msgfmt the format string for the message, parameters are passed afterwards like for the printf() function
  */
-void log_notice(const char *host, const char *msgfmt, ...) {
+void log_notice(char const* host, char const* msgfmt, ...) {
     va_list ap;
     char logmsg[512] = "";
 
@@ -245,7 +245,7 @@ void log_notice(const char *host, const char *msgfmt, ...) {
  * @param host the sending host (domain) of the log message - NULL if the host is not known, in that case the message is logged as jabberd internal
  * @param msgfmt the format string for the message, parameters are passed afterwards like for the printf() function
  */
-void log_warn(const char *host, const char *msgfmt, ...) {
+void log_warn(char const* host, char const* msgfmt, ...) {
     va_list ap;
     char logmsg[512] = "";
 
@@ -262,7 +262,7 @@ void log_warn(const char *host, const char *msgfmt, ...) {
  * @param host the sending host (domain) of the log message - NULL if the host is not known, in that case the message is logged as jabberd internal
  * @param msgfmt the format string for the message, parameters are passed afterwards like for the printf() function
  */
-void log_alert(const char *host, const char *msgfmt, ...) {
+void log_alert(char const* host, char const* msgfmt, ...) {
     va_list ap;
     char logmsg[512] = "";
 
@@ -282,7 +282,7 @@ void log_alert(const char *host, const char *msgfmt, ...) {
  * @param action action that is logged (e.g. a failed auth)
  * @param msgfmt printf()-like format string, parameters are following
  */
-void log_generic(char *logtype, char *id, char *type, char *action, const char *msgfmt, ...) {
+void log_generic(char const* logtype, char const* id, char const* type, char const* action, char const* msgfmt, ...) {
     va_list ap;
     char logmsg[512] = "";
     xmlnode log;
@@ -327,7 +327,7 @@ void log_generic(char *logtype, char *id, char *type, char *action, const char *
  * @param action action that is logged (e.g. a failed auth)
  * @param msgfmt printf()-like format string, parameters are following
  */
-void log_record(char *id, char *type, char *action, const char *msgfmt, ...) {
+void log_record(char const* id, char const* type, char const* action, char const* msgfmt, ...) {
     va_list ap;
     char logmsg[512] = "";
 
@@ -386,7 +386,7 @@ void set_debug_facility(int facility) {
  * @param level as a string
  * @return numerical level value or -1 on error
  */
-int log_get_level(const char *level) {
+int log_get_level(char const* level) {
     /* XXX is there any portable way other than this? */
 #ifdef LOG_NOTICE
     if (j_strcmp(level, "notice") == 0 || j_strcmp(level, "record") == 0)
@@ -429,7 +429,7 @@ int log_get_level(const char *level) {
  * @param facility as a string
  * @return numerical facility value or -1 on error
  */
-int log_get_facility(const char *facility) {
+int log_get_facility(char const* facility) {
     /* XXX is there any portable way other than this? */
 #ifdef LOG_DAEMON
     if (j_strcmp(facility, "daemon") == 0)
@@ -541,14 +541,7 @@ namespace xmppd {
     }
 
     void logging::write(loglevel level_to_use, Glib::ustring log_message) {
-	std::string message;
-	try {
-	    message = Glib::locale_from_utf8(log_message);
-	} catch (Glib::ConvertError) {
-	    message = "<Conversion Error, logging as UTF-8> ";
-	    message += log_message;
-	}
-	logger(level_to_use == xmppd::alert ? "alert" : level_to_use == xmppd::error ? "error" : level_to_use == xmppd::warn ? "warn" : level_to_use == xmppd::notice ? "notice" : "unknown", identity.c_str(), message.c_str());
+	logger(level_to_use == xmppd::alert ? "alert" : level_to_use == xmppd::error ? "error" : level_to_use == xmppd::warn ? "warn" : level_to_use == xmppd::notice ? "notice" : "unknown", identity.c_str(), log_message.c_str());
     }
 
     std::ostream &logmessage::operator<<(const char *text) {

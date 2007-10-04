@@ -232,8 +232,8 @@ instance deliver_hostcheck(char *host); /* util that returns the instance handli
 #define LOGT_ROSTER 131072
 #define LOGT_BYTES 262144
 
-int log_get_facility(const char *facility);
-int log_get_level(const char *level);
+int log_get_facility(char const* facility);
+int log_get_level(char const* level);
 #define MAX_LOG_SIZE 1024
 extern int debug_flag;
 inline int get_debug_flag(void);
@@ -247,15 +247,15 @@ void set_debug_facility(int facility);
 #define log_debug if(debug_flag&1) debug_log
 #define log_debug2 if(debug_flag) debug_log2
 #endif
-void debug_log(char *zone, const char *msgfmt, ...);
-void debug_log2(char *zone, const int type, const char *msgfmt, ...);
-void log_notice(const char *host, const char *msgfmt, ...);
-void log_warn(const char *host, const char *msgfmt, ...);
-void log_alert(const char *host, const char *msgfmt, ...);
+void debug_log(char const* zone, char const* msgfmt, ...);
+void debug_log2(char const* zone, int type, char const* msgfmt, ...);
+void log_notice(char const* host, char const* msgfmt, ...);
+void log_warn(char const* host, char const* msgfmt, ...);
+void log_alert(char const* host, char const* msgfmt, ...);
 #define log_error log_alert
-void logger(const char *type, const char *host, const char *message); /* actually creates and delivers the log message */
-void log_record(char *id, char *type, char *action, const char *msgfmt, ...); /* for generic logging support, like log_record("jer@jabber.org","session","end","...") */
-void log_generic(char *logtype, char *id, char *type, char *action, const char *msgfmt, ...);
+void logger(char const* type, char const* host, char const* message); /* actually creates and delivers the log message */
+void log_record(char const* id, char const* type, char const* action, char const* msgfmt, ...); /* for generic logging support, like log_record("jer@jabber.org","session","end","...") */
+void log_generic(char const* logtype, char const* id, char const* type, char const* action, char const* msgfmt, ...);
 
 /*** xdb utilities ***/
 
