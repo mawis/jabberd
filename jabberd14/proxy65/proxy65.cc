@@ -128,7 +128,9 @@ namespace xmppd {
 		    deliver(p->x);
 		    return r_DONE;
 		case JPACKET__SET:
-		    bounce_stanza(p->x, XTERROR_FORBIDDEN);
+		    {
+			bounce_stanza(p->x, XTERROR_FORBIDDEN);
+		    }
 		    return r_DONE;
 		default:
 		    xmlnode_free(p->x);
@@ -144,7 +146,9 @@ namespace xmppd {
 		    deliver(p->x);
 		    return r_DONE;
 		case JPACKET__SET:
-		    bounce_stanza(p->x, XTERROR_FORBIDDEN);
+		    {
+			bounce_stanza(p->x, XTERROR_FORBIDDEN);
+		    }
 		    return r_DONE;
 		default:
 		    xmlnode_free(p->x);
