@@ -1,3 +1,13 @@
+2007-11-19  Matthias Wimmer  <m@tthias.eu>
+
+    * jabberd/lib/jabberdlib.h: new namespace declaration NS_COMMAND
+    * jabberd/deliver.cc: freeing all @-internal packets
+    * jsm/jsm.h: adding/removing hostname dynamically to the session manager
+    * jsm/modules/mod_disco.cc: same
+    * jsm/modules/mod_browse.cc: same
+    * jsm/modules/mod_dynamic.cc: same
+    * jsm/jsm.cc: same
+
 2007-08-01  Matthias Wimmer  <m@tthias.eu>
 
     * jabberd/base/base_accept.cc: renaming queue to jqueue, solving name

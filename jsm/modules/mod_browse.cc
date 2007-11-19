@@ -273,6 +273,11 @@ static mreturn _mod_browse_server(mapi m) {
 	if (acl != NULL && acl_check_access(m->si->xc, acl, m->packet->from))
 	    continue;
 
+	// also skip this element if it has a node ... (for disco only then)
+	if (xmlnode_get_attrib_ns(x, "node", NULL)) {
+	    continue;
+	}
+
 	/* copy the node */
 	xmlnode_insert_tag_node(query, x);
     }
