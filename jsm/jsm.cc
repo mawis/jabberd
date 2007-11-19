@@ -182,7 +182,7 @@ extern "C" void jsm(instance i, xmlnode x) {
     si = static_cast<jsmi>(pmalloco(i->p, sizeof(_jsmi)));
     si->i = i;
     si->p = i->p;
-    si->std_namespace_prefixes = xhash_new(17);
+    si->std_namespace_prefixes = xhash_new(19);
     xhash_put(si->std_namespace_prefixes, "", const_cast<char*>(NS_SERVER));
     xhash_put(si->std_namespace_prefixes, "jsm", const_cast<char*>(NS_JABBERD_CONFIG_JSM));
     xhash_put(si->std_namespace_prefixes, "auth", const_cast<char*>(NS_AUTH));
@@ -199,6 +199,8 @@ extern "C" void jsm(instance i, xmlnode x) {
     xhash_put(si->std_namespace_prefixes, "private", const_cast<char*>(NS_PRIVATE));
     xhash_put(si->std_namespace_prefixes, "privacy", const_cast<char*>(NS_PRIVACY));
     xhash_put(si->std_namespace_prefixes, "jabberd", const_cast<char*>(NS_JABBERD_WRAPPER));
+    xhash_put(si->std_namespace_prefixes, "cmd", const_cast<char*>(NS_COMMAND));
+    xhash_put(si->std_namespace_prefixes, "data", const_cast<char*>(NS_DATA));
     si->xc = xdb_cache(i); /* getting xdb_* handle and fetching config */
     config = js_config(si, NULL, NULL);
     si->hosts = xhash_new(j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:maxhosts", si->std_namespace_prefixes), 0)), HOSTS_PRIME));

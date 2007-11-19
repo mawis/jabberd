@@ -295,7 +295,7 @@ static instance deliver_intersect(ilist a, ilist b) {
  * @TODO The whole thing is a bit hacky. As long as we are using this hack, we might
  * at least better use one of the RFC 2606 domains.
  *
- * @param p the packet to deliver
+ * @param p the packet to deliver (packet gets consumed)
  * @param i the sender instance of the packet
  */
 static void deliver_internal(dpacket p, instance i) {
@@ -327,14 +327,18 @@ static void deliver_internal(dpacket p, instance i) {
     if(j_strcmp(p->id->user,"host") == 0) {
 	/* dynamic register_instance crap */
         register_instance(i,p->id->resource);
+	pool_free(p->p);
         return;
     }
 
     if(j_strcmp(p->id->user,"unhost") == 0) {
 	/* dynamic register_instance crap */
         unregister_instance(i,p->id->resource); 
+	pool_free(p->p);
         return;
     }
+
+    pool_free(p->p);
 }
 
 /**
@@ -565,7 +569,7 @@ static void _deliver_notify_walker(xht h, const char *key, void *value, void *ar
 /**
  * deliver a ::dpacket to an ::instance using the configured XML routings
  *
- * @param p the packet that should be delivered
+ * @param p the packet that should be delivered (packet gets consumed)
  * @param i the instance of the sender (!) of the packet
  */
 void deliver(dpacket p, instance i) {
@@ -823,6 +827,9 @@ void deliver_fail(dpacket p, const char *err) {
 
 /**
  * actually perform the delivery to an instance
+ *
+ * @param i the instance to deliver to
+ * @param p the packet that gets delivered (packet gets consumed)
  */
 void deliver_instance(instance i, dpacket p) {
     handel h, hlast;
