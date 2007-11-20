@@ -208,6 +208,7 @@ void deliver(dpacket p, instance i); /* deliver packet from sending instance */
 void deliver_fail(dpacket p, const char *err); /* bounce a packet intelligently */
 void deliver_instance(instance i, dpacket p); /* deliver packet TO the instance, if the result != r_DONE, you have to handle the packet! */
 instance deliver_hostcheck(char *host); /* util that returns the instance handling this hostname for normal packets */
+bool deliver_is_uplink(instance i); // checks if an instance is configured to be the uplink
 
 /*** global logging/signal symbols ***/
 #define LOGT_LEGACY 1

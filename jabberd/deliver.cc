@@ -207,6 +207,9 @@ xht deliver__logtype = NULL; /**< log types, fixed set, but it's easier (wussier
 /* ilist deliver__all = NULL; / all instances - not used anymore!? */
 instance deliver__uplink = NULL; /**< uplink instance, only one */
 
+pool global_routing_update_pool = NULL; /**< memory pool to hold the entries in the global_routing_update_callbacks list */
+register_notifier global_routing_update_callbacks; /**< list of callback functions, that should be called on all routing updates */
+
 /**
  * utility to find the right routing hashtable based on type of a stanza
  *
@@ -342,6 +345,16 @@ static void deliver_internal(dpacket p, instance i) {
 }
 
 /**
+ * checks if an instance is configured to be the uplink
+ *
+ * @param i the instance to check
+ * @return true if uplink, else false
+ */
+bool deliver_is_uplink(instance i) {
+    return i == deliver__uplink;
+}
+
+/**
  * register this instance as a possible recipient of packets to this host
  *
  * @param i the instance to register
@@ -378,6 +391,10 @@ void register_instance(instance i, char *host) {
     for (notify_callback = i->routing_update_callbacks; notify_callback != NULL; notify_callback = notify_callback->next) {
 	(notify_callback->callback)(i, host, 1, notify_callback->arg);
     }
+    // inform other instances about the newly routed domain
+    for (notify_callback = global_routing_update_callbacks; notify_callback != NULL; notify_callback = notify_callback->next) {
+	(notify_callback->callback)(i, host, 1, notify_callback->arg);
+    }
 
     ht = deliver_hashtable(i->type);
     l = static_cast<ilist>(xhash_get(ht, host));
@@ -408,6 +425,10 @@ void unregister_instance(instance i, char *host) {
 
     /* inform the instance about the domain, that is not routed anymore */
     for (notify_callback = i->routing_update_callbacks; notify_callback != NULL; notify_callback = notify_callback->next) {
+	(notify_callback->callback)(i, host, 0, notify_callback->arg);
+    }
+    // inform other instances about the newly unrouted domain
+    for (notify_callback = global_routing_update_callbacks; notify_callback != NULL; notify_callback = notify_callback->next) {
 	(notify_callback->callback)(i, host, 0, notify_callback->arg);
     }
 
@@ -1002,29 +1023,38 @@ dpacket dpacket_copy(dpacket p) {
 
 /**
  * register a function that gets called on registering/unregistering a host for an instance
+ *
+ * @param i the instance to get register/unregister events for (NULL for a global registration)
+ * @param f the callback method to call
+ * @param arg argument to pass to the callback
  */
 void register_routing_update_callback(instance i, register_notify f, void *arg) {
+    register_notifier* notifier_list = i ? &(i->routing_update_callbacks) : &global_routing_update_callbacks;
     register_notifier last = NULL;
     register_notifier newn = NULL;
 
     log_debug2(ZONE, LOGT_EXECFLOW, "register_routing_update_callback(%x, %x, %x)", i, f, arg);
 
     /* sanity check */
-    if (i==NULL || f == NULL)
+    if (!f)
 	return;
 
     /* search end of list of already registered callback */
-    for (last = i->routing_update_callbacks; last != NULL && last->next != NULL; last = last->next)
+    for (last = *notifier_list; last != NULL && last->next != NULL; last = last->next)
 	; /* nothing */
 
+    // need to init global_routing_update_pool?
+    if (!i && !global_routing_update_pool)
+	global_routing_update_pool = pool_new();
+
     /* create new list element */
-    newn = static_cast<register_notifier>(pmalloco(i->p, sizeof(_register_notifier)));
+    newn = static_cast<register_notifier>(pmalloco(i ? i->p : global_routing_update_pool, sizeof(_register_notifier)));
     newn->callback = f;
     newn->arg = arg;
 
     /* append to list */
     if (last == NULL)
-	i->routing_update_callbacks = newn;
+	*notifier_list = newn;
     else
 	last->next = newn;
 }
