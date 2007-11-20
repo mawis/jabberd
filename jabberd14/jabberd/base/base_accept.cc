@@ -291,6 +291,42 @@ static result base_accept_beat(void *arg) {
     return r_DONE;
 }
 
+/**
+ * callback that gets notified if a new host is routed by this jabberd instance
+ *
+ * @param i the instance that (un)registered the host
+ * @param destination the host that got (un)registered
+ * @param is_register 0 for unregister, non-zero for register
+ * @param arg the accept_instance that registered this callback
+ */
+static void base_accept_routingupdate(instance i, char const* destination, int is_register, void *arg) {
+    accept_instance inst = static_cast<accept_instance>(arg);
+    // sanity check
+    if (!inst)
+	return;
+
+    // we only care for routingupdates if we are configured to be the uplink
+    if (!deliver_is_uplink(inst->i))
+	return;
+
+    // and we have to have an established connection
+    if (!inst->m || inst->state != A_READY)
+	return;
+
+    // do not route back updates if both sides feel being an uplink
+    if (inst->i == i)
+	return;
+
+    log_debug2(ZONE, LOGT_DYNAMIC, "base_accept is uplink and has to forward %s", is_register ? "host-command" : "unhost-command");
+    xmlnode route_stanza = xmlnode_new_tag_ns("xdb", NULL, NS_SERVER);
+    xmlnode_put_attrib_ns(route_stanza, "ns", NULL, NULL, "");
+    xmlnode_put_attrib_ns(route_stanza, "from", NULL, NULL, inst->i->id);
+    jid magic_jid = jid_new(xmlnode_pool(route_stanza), is_register ? "host@-internal" : "unhost@-internal");
+    jid_set(magic_jid, destination, JID_RESOURCE);
+    xmlnode_put_attrib_ns(route_stanza, "to", NULL, NULL, jid_full(magic_jid));
+    mio_write(inst->m, route_stanza, NULL, 0);
+}
+
 static result base_accept_config(instance id, xmlnode x, void *arg) {
     char *secret = NULL;
     accept_instance inst;
@@ -345,6 +381,9 @@ static result base_accept_config(instance id, xmlnode x, void *arg) {
 
     /* Register a packet handler and cleanup heartbeat for this instance */
     register_phandler(id, o_DELIVER, base_accept_deliver, (void *)inst);
+
+    // Register a handler that gets notified on newly available hosts
+    register_routing_update_callback(NULL, base_accept_routingupdate, static_cast<void*>(inst));
 
     /* timeout check */
     register_beat(inst->timeout, base_accept_beat, (void *)inst);

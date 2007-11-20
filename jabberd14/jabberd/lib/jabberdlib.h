@@ -1100,6 +1100,7 @@ typedef struct xterror_struct
 #define NS_REGISTER_FEATURE "http://jabber.org/features/iq-register"
 #define NS_MSGOFFLINE "msgoffline"
 #define NS_BYTESTREAMS "http://jabber.org/protocol/bytestreams"
+#define NS_COMMAND	"http://jabber.org/protocol/commands"
 
 /* #define NS_XDBGINSERT "jabber:xdb:ginsert" XXX: I guess this it not used ANYWHERE and can be deleted */
 #define NS_XDBNSLIST  "jabber:xdb:nslist"

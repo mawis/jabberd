@@ -1,4 +1,20 @@
-Version 1.6.1 - not released yet
+Version 1.6.1.2 - not released yet
+
+This is a version specially made for a customer.
+
+Changes in administration of the server
+    * host can be dynamically added and removed from a session manager using
+      service discovery and ad-hoc commands.
+
+
+
+Version 1.6.1.1 - 2007-07-22
+
+Only bugfixes.
+
+
+
+Version 1.6.1 - 2007-07-17
 
 Changes in administration of the server
     * jabberd14 is now using the GnuTLS library instead of OpenSSL
@@ -11,6 +27,8 @@ Changes in administration of the server
     * Support for OpenPGP keys
     * mod_filter has to be removed from the JSM configuration (it was already
       just an empty dummy implementation in jabberd14 1.6.0)
+
+
 
 Version 1.6.0 - 2006-12-24
 

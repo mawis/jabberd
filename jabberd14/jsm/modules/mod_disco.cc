@@ -155,6 +155,10 @@ static mreturn mod_disco_server_items(mapi m, void *arg) {
 	name = xmlnode_get_attrib_ns(cur, "name", NULL);
 	if (name)
 	    xmlnode_put_attrib_ns(item, "name", NULL, NULL, name);
+	char const* node = xmlnode_get_attrib_ns(cur, "node", NULL);
+	if (node) {
+	    xmlnode_put_attrib_ns(item, "node", NULL, NULL, node);
+	}
   }
 
   /* list the admin stuff */
