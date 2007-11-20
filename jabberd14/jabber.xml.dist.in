@@ -494,6 +494,7 @@
       <mod_log>@libdir@/libjabberdsm.so</mod_log>
       <mod_register>@libdir@/libjabberdsm.so</mod_register>
       <mod_xml>@libdir@/libjabberdsm.so</mod_xml>
+      <mod_dynamic>@libdir@/libjabberdsm.so</mod_dynamic>
     </load>
   </service>
 
@@ -1121,6 +1122,8 @@
     <!-- 's2s': read/change the status of the s2s componens		-->
     <!-- 'showasadmin': Advertize this user as being an administrator	-->
     <!-- of the server.							-->
+    <!-- 'dynamic': add or remove hosts from a session manager		-->
+    <!-- dynamically.							-->
     <!--								-->
     <!-- Setting and changing the message of the day works like		-->
     <!-- that: You need to send a message to one of the following	-->

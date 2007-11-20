@@ -192,6 +192,34 @@ static void base_connect_kill(void *arg) {
     ci->state = conn_DIE;
 }
 
+static void base_connect_routingupdate(instance i, char const* destination, int is_register, void *arg) {
+    conn_info	ci = static_cast<conn_info>(arg);
+    // sanity check
+    if (!ci)
+	return;
+
+    // we only care for the routingupdates if we are configured to be the uplink
+    if (!deliver_is_uplink(ci->inst))
+	return;
+
+    // do not route back updates if both sides feel being an uplink
+    if (ci->inst == i)
+	return;
+
+    // and we have an established connection
+    if (!ci->io || ci->state != conn_AUTHD)
+	return;
+
+    log_debug2(ZONE, LOGT_DYNAMIC, "base_connect is uplink and has to forward %s", is_register ? "host-command" : "unhost-command");
+    xmlnode route_stanza = xmlnode_new_tag_ns("xdb", NULL, NS_SERVER);
+    xmlnode_put_attrib_ns(route_stanza, "ns", NULL, NULL, "");
+    xmlnode_put_attrib_ns(route_stanza, "from", NULL, NULL, ci->inst->id);
+    jid magic_jid = jid_new(xmlnode_pool(route_stanza), is_register ? "host@-internal" : "unhost@-internal");
+    jid_set(magic_jid, destination, JID_RESOURCE);
+    xmlnode_put_attrib_ns(route_stanza, "to", NULL, NULL, jid_full(magic_jid));
+    mio_write(ci->io, route_stanza, NULL, 0);
+}
+
 static result base_connect_config(instance id, xmlnode x, void *arg) {
     char*	secret = NULL;
     int		timeout = 5;
@@ -238,6 +266,9 @@ static result base_connect_config(instance id, xmlnode x, void *arg) {
 
     /* Register a handler to recieve inbound data for this instance */
     register_phandler(id, o_DELIVER, base_connect_deliver, (void*)ci);
+
+    // Register a handler that gets notified on newly available hosts
+    register_routing_update_callback(NULL, base_connect_routingupdate, static_cast<void*>(ci));
      
     /* Make a connection to the host, in another thread */
     mtq_send(NULL,ci->mempool,base_connect_connect,(void *)ci);

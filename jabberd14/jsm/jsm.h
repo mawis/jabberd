@@ -455,6 +455,7 @@ typedef int event;
 #define ADMIN_LISTSESSIONS "listsessions"	/**< admin right to see online users */
 #define ADMIN_ADMINMSG	"adminmsg"	/**< admin right to receive messages to admin address */
 #define ADMIN_SHOWPRES	"showpres"	/**< request presence and last info for any user */
+#define ADMIN_DYNAMIC	"dynamic"	/**< dynamic adding/removing hosts from session manager */
 
 /** return codes for mapi callback calls */
 typedef enum {

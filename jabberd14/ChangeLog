@@ -1,3 +1,15 @@
+2007-11-20  Matthias Wimmer  <m@tthias.eu>
+
+    * jabberd/jabberd.h: support for dynamically adding/removing hosts
+    * jabberd/lib/jabberdlib.h: same
+    * jabberd/base/base_connect.cc: same
+    * jabberd/base/base_accept.cc: same
+    * jabberd/deliver.cc: same
+    * jsm/jsm.h: same
+    * jsm/modules/mod_disco.cc: same
+    * jsm/modules/mod_browse.cc: same
+    * jsm/jsm.cc: same
+
 2007-10-04  Matthias Wimmer  <m@tthias.eu>
 
     * jabberd/log.cc: not chaning data to locale, that gets inserted in XML
