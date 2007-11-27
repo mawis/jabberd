@@ -82,6 +82,23 @@ typedef struct {
 
 static void base_connect_process_xml(mio m, int state, void* arg, xmlnode x, char* unused1, int unused2);
 
+/**
+ * send routing update to peer
+ *
+ * @param ci the base_connect instance
+ * @param host the host to send the routing update for
+ * @param is_register true to send a host command, false to send unhost command
+ */
+static void base_connect_send_routingupdate_peer(conn_info ci, char const* host, bool is_register) {
+    xmlnode route_stanza = xmlnode_new_tag_ns("xdb", NULL, NS_SERVER);
+    xmlnode_put_attrib_ns(route_stanza, "ns", NULL, NULL, "");
+    xmlnode_put_attrib_ns(route_stanza, "from", NULL, NULL, ci->inst->id);
+    jid magic_jid = jid_new(xmlnode_pool(route_stanza), is_register ? "host@-internal" : "unhost@-internal");
+    jid_set(magic_jid, host, JID_RESOURCE);
+    xmlnode_put_attrib_ns(route_stanza, "to", NULL, NULL, jid_full(magic_jid));
+    mio_write(ci->io, route_stanza, NULL, 0);
+}
+
 /* Deliver packets to the socket io thread */
 static result base_connect_deliver(instance i, dpacket p, void* arg) {
     conn_info ci = (conn_info)arg;
@@ -93,10 +110,16 @@ static result base_connect_deliver(instance i, dpacket p, void* arg) {
         pth_msgport_put(ci->write_queue, (pth_message_t*)entry);
     } else {
 	/* Otherwise, write directly to the MIO socket */
-        if (ci->dplast == p) /* don't handle packets that we generated! doh! */
+        if (ci->dplast == p) {
+	    /* don't handle packets that we generated! doh! */
             deliver_fail(p, N_("Circular Reference Detected"));
-        else
+
+	    // unregister being responsible for this domain in local router and remote
+	    unregister_instance(ci->inst, p->host);
+	    base_connect_send_routingupdate_peer(ci, p->host, false);
+	} else {
             mio_write(ci->io, p->x, NULL, 0);
+	}
     }
 
     return r_DONE;
@@ -192,6 +215,14 @@ static void base_connect_kill(void *arg) {
     ci->state = conn_DIE;
 }
 
+/**
+ * callback that gets notified on routingupdates
+ *
+ * @param i the instance that (un)registered the routing
+ * @param destination the host the gets (un)routed
+ * @param is_register true for a registration, false of an unregistration
+ * @param arg pointer to the base_connect instance data
+ */
 static void base_connect_routingupdate(instance i, char const* destination, int is_register, void *arg) {
     conn_info	ci = static_cast<conn_info>(arg);
     // sanity check
@@ -202,7 +233,7 @@ static void base_connect_routingupdate(instance i, char const* destination, int 
     if (!deliver_is_uplink(ci->inst))
 	return;
 
-    // do not route back updates if both sides feel being an uplink
+    // do not route updates for hosts we (un)registered ourself
     if (ci->inst == i)
 	return;
 
@@ -211,13 +242,7 @@ static void base_connect_routingupdate(instance i, char const* destination, int 
 	return;
 
     log_debug2(ZONE, LOGT_DYNAMIC, "base_connect is uplink and has to forward %s", is_register ? "host-command" : "unhost-command");
-    xmlnode route_stanza = xmlnode_new_tag_ns("xdb", NULL, NS_SERVER);
-    xmlnode_put_attrib_ns(route_stanza, "ns", NULL, NULL, "");
-    xmlnode_put_attrib_ns(route_stanza, "from", NULL, NULL, ci->inst->id);
-    jid magic_jid = jid_new(xmlnode_pool(route_stanza), is_register ? "host@-internal" : "unhost@-internal");
-    jid_set(magic_jid, destination, JID_RESOURCE);
-    xmlnode_put_attrib_ns(route_stanza, "to", NULL, NULL, jid_full(magic_jid));
-    mio_write(ci->io, route_stanza, NULL, 0);
+    base_connect_send_routingupdate_peer(ci, destination, is_register);
 }
 
 static result base_connect_config(instance id, xmlnode x, void *arg) {
