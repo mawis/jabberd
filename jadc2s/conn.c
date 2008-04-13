@@ -661,7 +661,7 @@ int _read_actual(conn_t c, int fd, char *buf, size_t count) {
 	    if (c->sasl_conn != NULL && c->sasl_state != state_auth_NONE) {
 		int sasl_result = 0;
 		const char *decoded_data = NULL;
-		size_t decoded_len = 0;
+		unsigned decoded_len = 0;
 
 		/* decode the SASL layer */
 		sasl_result = sasl_decode(c->sasl_conn, local_buffer, read_bytes, &decoded_data, &decoded_len);
