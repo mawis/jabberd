@@ -81,7 +81,8 @@ static mreturn mod_example_server(mapi m, void *arg) {
     if(m->packet->type != JPACKET_MESSAGE) return M_IGNORE;
 
     /* second, is this message sent to the right resource? */
-    if(m->packet->to->resource == NULL || strncasecmp(m->packet->to->resource,"example",7) != 0) return M_PASS;
+    if(!m->packet->to->has_resource() || m->packet->to->get_resource() == "example")
+	return M_PASS;
 
     log_debug2(ZONE, LOGT_DELIVER, "handling example request from %s",jid_full(m->packet->from));
 

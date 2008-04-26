@@ -243,10 +243,10 @@ static mreturn mod_dynamic_server_command(mapi m) {
 
 		xmlnode note = xmlnode_insert_tag_ns(m->packet->iq, "note", NULL, NS_COMMAND);
 
-		if (!preped_hostname || !preped_hostname->server) {
+		if (!preped_hostname) {
 		    xmlnode_put_attrib_ns(note, "type", NULL, NULL, "error");
 		    xmlnode_insert_cdata(note, messages_get(xmlnode_get_lang(m->packet->x), N_("The entered hostname is invalid.")), -1);
-		} else if (j_strcmp(preped_hostname->server, m->si->i->id) == 0) {
+		} else if (j_strcmp(preped_hostname->get_domain().c_str(), m->si->i->id) == 0) {
 		    xmlnode_put_attrib_ns(note, "type", NULL, NULL, "error");
 		    xmlnode_insert_cdata(note, messages_get(xmlnode_get_lang(m->packet->x), N_("The main hostname of a session manager cannot be modified.")), -1);
 		} else {
@@ -256,14 +256,14 @@ static mreturn mod_dynamic_server_command(mapi m) {
 		    switch (given_command) {
 			case host:
 			    xmlnode_insert_cdata(note, messages_get(xmlnode_get_lang(m->packet->x), N_("Hostname has been added.")), -1);
-			    log_debug2(ZONE, LOGT_DYNAMIC, "registering hostname %s on server %s", preped_hostname->server, m->si->i->id);
-			    register_instance(m->si->i, preped_hostname->server);
+			    log_debug2(ZONE, LOGT_DYNAMIC, "registering hostname %s on server %s", preped_hostname->get_domain().c_str(), m->si->i->id);
+			    register_instance(m->si->i, preped_hostname->get_domain().c_str());
 			    break;
 			case unhost:
 			    // XXX kick existing sessions and remove local data about this domain
 			    xmlnode_insert_cdata(note, messages_get(xmlnode_get_lang(m->packet->x), N_("Hostname has been removed.")), -1);
-			    log_debug2(ZONE, LOGT_DYNAMIC, "unregistering hostname %s on server %s", preped_hostname->server, m->si->i->id);
-			    unregister_instance(m->si->i, preped_hostname->server);
+			    log_debug2(ZONE, LOGT_DYNAMIC, "unregistering hostname %s on server %s", preped_hostname->get_domain().c_str(), m->si->i->id);
+			    unregister_instance(m->si->i, preped_hostname->get_domain().c_str());
 			    break;
 		    }
 		}

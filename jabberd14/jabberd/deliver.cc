@@ -235,7 +235,7 @@ static xht deliver_hashtable(ptype type) {
  * @param key the domain to be looked up (or "*" if the default routing is searched)
  * @return the list of instances registered for this routing
  */
-static ilist deliver_hashmatch(xht ht, char *key) {
+static ilist deliver_hashmatch(xht ht, char const* key) {
     ilist l;
     l = static_cast<ilist>(xhash_get(ht, key));
     if (l == NULL) {
@@ -307,7 +307,7 @@ static void deliver_internal(dpacket p, instance i) {
 
     log_debug2(ZONE, LOGT_DELIVER, "@-internal processing %s", xmlnode_serialize_string(p->x, xmppd::ns_decl_list(), 0));
 
-    if(j_strcmp(p->id->user,"config") == 0) {
+    if (p->id->get_node() == "config") {
 	/* config@-internal means it's a special xdb request to get data from the config file */
         for(x = xmlnode_get_firstchild(i->x); x != NULL; x = xmlnode_get_nextsibling(x)) {
 	    if (j_strcmp(xmlnode_get_namespace(x), NS_JABBERD_CONFIGFILE) == 0)
@@ -327,16 +327,16 @@ static void deliver_internal(dpacket p, instance i) {
         return;
     }
 
-    if(j_strcmp(p->id->user,"host") == 0) {
+    if (p->id->get_node() == "host") {
 	/* dynamic register_instance crap */
-        register_instance(i,p->id->resource);
+        register_instance(i,p->id->get_resource().c_str());
 	pool_free(p->p);
         return;
     }
 
-    if(j_strcmp(p->id->user,"unhost") == 0) {
+    if (p->id->get_node() == "unhost") {
 	/* dynamic register_instance crap */
-        unregister_instance(i,p->id->resource); 
+        unregister_instance(i,p->id->get_resource().c_str()); 
 	pool_free(p->p);
         return;
     }
@@ -360,7 +360,7 @@ bool deliver_is_uplink(instance i) {
  * @param i the instance to register
  * @param host the domain to register this instance for (or "*" to register as the default routing)
  */
-void register_instance(instance i, char *host) {
+void register_instance(instance i, char const* host) {
     ilist l;
     xht ht = NULL;
     xht namespaces = NULL;
@@ -404,7 +404,7 @@ void register_instance(instance i, char *host) {
  * @param i the instance to unregister
  * @param host the domain to unregister (or "*" to unregister as the default routing)
  */
-void unregister_instance(instance i, char *host) {
+void unregister_instance(instance i, char const* host) {
     ilist l;
     xht ht;
     register_notifier notify_callback = NULL;
@@ -650,12 +650,12 @@ void deliver(dpacket p, instance i) {
  * @param host the hostname to get checked
  * @return the instance packets of this host get mapped to
  */
-instance deliver_hostcheck(char *host) {
+instance deliver_hostcheck(char const* host) {
     ilist l;
 
     if (host == NULL)
 	return NULL;
-    if ((l = deliver_hashmatch(deliver__hnorm,host)) == NULL || l->next != NULL)
+    if ((l = deliver_hashmatch(deliver__hnorm,host)) == NULL || l->next)
 	return NULL;
 
     return l->i;
@@ -1003,7 +1003,7 @@ dpacket dpacket_new(xmlnode x) {
         return NULL;
     }
 
-    p->host = p->id->server;
+    p->host = pstrdup(p->p, p->id->get_domain().c_str());
     return p;
 }
 

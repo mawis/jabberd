@@ -40,7 +40,7 @@
  * @param len the length of the message in bytes
  * @param hmac where to place the result
  */
-static void hmac_sha1_r(char *secret, unsigned char *message, size_t len, unsigned char hmac[20]) {
+static void hmac_sha1_r(char const* secret, unsigned char const* message, size_t len, unsigned char hmac[20]) {
     std::vector<uint8_t> key;
     xmppd::sha1 innerhash;
     xmppd::sha1 outerhash;
@@ -66,7 +66,7 @@ static void hmac_sha1_r(char *secret, unsigned char *message, size_t len, unsign
 
     /* calculate inner hash */
     innerhash.update(std::string(ipadded, 20));
-    innerhash.update(reinterpret_cast<char*>(message));
+    innerhash.update(reinterpret_cast<char const*>(message));
 
     /* calculate outer hash */
     outerhash.update(std::string(opadded, 20));
@@ -87,7 +87,7 @@ static void hmac_sha1_r(char *secret, unsigned char *message, size_t len, unsign
  * @param len the length of the message in bytes
  * @param hmac where to place the result
  */
-void hmac_sha1_ascii_r(char *secret, unsigned char *message, size_t len, char hmac[41]) {
+void hmac_sha1_ascii_r(char const* secret, unsigned char const* message, size_t len, char hmac[41]) {
     unsigned char hmac_bin[20];
     int i = 0;
     char *ptr = hmac;

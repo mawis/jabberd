@@ -129,7 +129,7 @@ void _js_authreg_register(jpacket p) {
 	    return;
 	log_debug2(ZONE, LOGT_AUTH, "registration set request acceptable");
 
-	if (p->to->user == NULL || xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(p->iq, "register:password", namespaces), 0)) == NULL) {
+	if (!p->to->has_node() || xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(p->iq, "register:password", namespaces), 0)) == NULL) {
 	    log_debug2(ZONE, LOGT_AUTH, "registration set request without a password ...");
 	    jutil_error_xmpp(p->x, XTERROR_NOTACCEPTABLE);
 	} else if (js_user(si, p->to, NULL) != NULL) {
@@ -182,12 +182,7 @@ void js_authreg(void *arg) {
     jsmi si = (jsmi)(p->aux1);
     xmlnode x;
 
-    /* enforce the username to lowercase */
-    if (p->to->user != NULL)
-        for(ul = p->to->user;*ul != '\0'; ul++)
-            *ul = tolower(*ul);
-
-    if(p->to->user != NULL && (jpacket_subtype(p) == JPACKET__GET || p->to->resource != NULL) && NSCHECK(p->iq,NS_AUTH)) {
+    if(p->to->has_node() && (jpacket_subtype(p) == JPACKET__GET || p->to->has_resource()) && NSCHECK(p->iq,NS_AUTH)) {
 	/* is this a valid auth request? */
 	_js_authreg_auth(p);
     } else if (NSCHECK(p->iq,NS_REGISTER)) {

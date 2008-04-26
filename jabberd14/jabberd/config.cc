@@ -503,7 +503,7 @@ static int instance_startup(xmlnode x, int exec) {
         newi->x = x;
         /* make sure the id is valid for a hostname */
         temp = jid_new(p, newi->id);
-        if (temp == NULL || j_strcmp(temp->server, newi->id) != 0) {
+        if (temp == NULL || j_strcmp(temp->get_domain().c_str(), newi->id) != 0) {
             log_alert(NULL, "ERROR: Invalid id name: %s\n",newi->id);
             pool_free(p);
             return -1;

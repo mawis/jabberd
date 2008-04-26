@@ -58,7 +58,7 @@ static void js_deliver_local(jsmi si, jpacket p, xht ht) {
 
     /* first, collect some facts */
     user = js_user(si, p->to, ht);
-    s = js_session_get(user, p->to->resource);
+    s = js_session_get(user, p->to->get_resource().c_str());
 
     /* lock the udata from being freed while we are working on it */
     if (user != NULL) {
@@ -77,7 +77,7 @@ static void js_deliver_local(jsmi si, jpacket p, xht ht) {
         return;
     }
 
-    if(p->to->user == NULL) {
+    if(!p->to->has_node()) {
 	/* this is for the server */
         js_psend(si,p,js_server_main);
 	if (incremented != 0) {
@@ -232,7 +232,7 @@ result _js_routed_error_packet(instance i, dpacket p, jsmi si, xht ht, jpacket j
     if (s != NULL) {
 	s->sid = NULL; /* they generated the error, no use in sending there anymore! */
 	js_session_end(s, N_("Disconnected"));
-    } else if (p->id->resource == NULL) {
+    } else if (!p->id->has_resource()) {
 	/* a way to boot an entire user off */
 	for(s = u->sessions; s != NULL; s = s->next)
 	    js_session_end(s, N_("Removed"));
@@ -430,7 +430,7 @@ result _js_routed_packet(instance i, dpacket p, jsmi si, xht ht) {
     if (sc_sm == NULL) {
 	/* old protocol */
 	for (s = u->sessions; s != NULL; s = s->next)
-	    if(j_strcmp(p->id->resource, s->route->resource) == 0)
+	    if (p->id->get_resource() == s->route->get_resource())
 		break;
     } else {
 	/* new session control protocol */
@@ -560,7 +560,7 @@ void js_deliver(jsmi si, jpacket p, session sending_s) {
     /* do we have to pass it through the outgoing filters? */
 
     /* only filter if packet is from a user, and if the packet is not to the user himself */
-    if (p->flag != PACKET_PASS_FILTERS_MAGIC && p->from->user != NULL && jid_cmpx(p->to, p->from, JID_USER|JID_SERVER) != 0) {
+    if (p->flag != PACKET_PASS_FILTERS_MAGIC && p->from->has_node() && jid_cmpx(p->to, p->from, JID_USER|JID_SERVER) != 0) {
 	/* filter through a session's filter? */
 	if (sending_s != NULL) {
 	    if (js_mapi_call(NULL, es_FILTER_OUT, p, sending_s->u, sending_s)) {
@@ -580,7 +580,7 @@ void js_deliver(jsmi si, jpacket p, session sending_s) {
     log_debug2(ZONE, LOGT_DELIVER, "deliver(to[%s],from[%s],type[%d],packet[%s])", jid_full(p->to), jid_full(p->from), p->type, xmlnode_serialize_string(p->x, xmppd::ns_decl_list(), 0));
 
     /* external or local delivery? */
-    if ((ht = (xht)xhash_get(si->hosts,p->to->server)) != NULL) {
+    if ((ht = (xht)xhash_get(si->hosts, p->to->get_domain().c_str())) != NULL) {
         js_deliver_local(si, p, ht);
         return;
     }

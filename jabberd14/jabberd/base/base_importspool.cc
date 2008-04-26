@@ -145,7 +145,7 @@ static void import_file(instance i, xdbcache xc, xht std_namespace_prefixes, con
     p = pool_new();
     userid = jid_new(p, domain);
     jid_set(userid, user, JID_USER);
-    if (userid == NULL || userid->user == NULL) {
+    if (userid == NULL || !userid->has_node()) {
 	log_debug2(ZONE, LOGT_IO, "invalid user: %s@%s - skipping", user, domain);
 	xmlnode_free(spoolfile);
 	pool_free(p);

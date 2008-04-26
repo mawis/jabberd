@@ -96,7 +96,7 @@ static mreturn mod_agents_agents(mapi m) {
     jpacket_reset(m->packet);
     if(m->s != NULL) {
 	/* XXX null session hack! */
-        xmlnode_put_attrib_ns(m->packet->x, "from", NULL, NULL, m->packet->from->server);
+        xmlnode_put_attrib_ns(m->packet->x, "from", NULL, NULL, m->packet->from->get_domain().c_str());
         js_session_to(m->s,m->packet);
     } else {
         js_deliver(m->si, m->packet, NULL);
@@ -149,7 +149,7 @@ static mreturn mod_agents_agent(mapi m) {
     jpacket_reset(m->packet);
     if (m->s != NULL) {
 	/* XXX null session hack! */
-        xmlnode_put_attrib_ns(m->packet->x, "from", NULL, NULL, m->packet->from->server);
+        xmlnode_put_attrib_ns(m->packet->x, "from", NULL, NULL, m->packet->from->get_domain().c_str());
         js_session_to(m->s,m->packet);
     } else {
         js_deliver(m->si, m->packet, NULL);
@@ -176,7 +176,7 @@ static mreturn mod_agents_handler(mapi m, void *arg) {
 
     if (jpacket_subtype(m->packet) != JPACKET__GET)
 	return M_PASS; /* only care for IQ stanzas of type 'get' */
-    if (m->s != NULL && (m->packet->to != NULL && j_strcmp(jid_full(m->packet->to),m->packet->from->server) != 0))
+    if (m->s != NULL && (m->packet->to != NULL && j_strcmp(jid_full(m->packet->to),m->packet->from->get_domain().c_str()) != 0))
 	return M_PASS; /* for session calls, only answer to=NULL or to=server */
 
     if (NSCHECK(m->packet->iq, NS_AGENT))

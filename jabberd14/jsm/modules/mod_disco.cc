@@ -179,7 +179,7 @@ static mreturn mod_disco_server_items(mapi m, void *arg) {
       xmlnode_put_attrib_ns(item, "name", NULL, NULL, messages_get(xmlnode_get_lang(m->packet->x), N_("Administrator")));
   }
   if (admins != NULL) {
-      pool_free(admins->p);
+      pool_free(admins->get_pool());
       admins = NULL;
   }
 
@@ -209,7 +209,7 @@ static mreturn mod_disco_server(mapi m, void *arg) {
 	return M_IGNORE;
     if (jpacket_subtype(m->packet) != JPACKET__GET)
 	return M_PASS;
-    if (m->packet->to->resource != NULL)
+    if (m->packet->to->has_resource())
 	return M_PASS;
     if (NSCHECK(m->packet->iq, NS_DISCO_ITEMS))
 	return mod_disco_server_items(m,arg);
@@ -336,7 +336,7 @@ static mreturn mod_disco_user_info(mapi m) {
 static mreturn mod_disco_user(mapi m, void *arg) {
     if (m->packet->type != JPACKET_IQ)
 	return M_IGNORE;
-    if (m->packet->to->resource != NULL)
+    if (m->packet->to->has_resource())
 	return M_PASS;
     if (NSCHECK(m->packet->iq, NS_DISCO_ITEMS))
 	return mod_disco_user_items(m);

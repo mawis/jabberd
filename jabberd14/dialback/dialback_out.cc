@@ -142,9 +142,9 @@ dboc dialback_out_connection(db d, jid key, char *ip, db_request db_state) {
 	    } else if (c->db_state == could_request) {
 		/* send <db:result/> to request dialback */
 		xmlnode db_result = xmlnode_new_tag_ns("result", "db", NS_DIALBACK);
-		xmlnode_put_attrib_ns(db_result, "to", NULL, NULL, c->key->server);
-		xmlnode_put_attrib_ns(db_result, "from", NULL, NULL, c->key->resource);
-		xmlnode_insert_cdata(db_result,  dialback_merlin(xmlnode_pool(db_result), c->d->secret, c->key->server, c->key->resource, c->stream_id), -1);
+		xmlnode_put_attrib_ns(db_result, "to", NULL, NULL, c->key->get_domain().c_str());
+		xmlnode_put_attrib_ns(db_result, "from", NULL, NULL, c->key->get_resource().c_str());
+		xmlnode_insert_cdata(db_result,  dialback_merlin(xmlnode_pool(db_result), c->d->secret, c->key->get_domain().c_str(), c->key->get_resource().c_str(), c->stream_id), -1);
 		mio_write(c->m,db_result, NULL, 0);
 		c->db_state = sent_request;
 		log_debug2(ZONE, LOGT_IO, "packet for existing connection: state change could_request -> sent_request");
@@ -240,7 +240,7 @@ void dialback_out_connection_cleanup(dboc c)
 
     /* if there was never any ->m set but there's a queue yet, then we probably never got connected, just make a note of it */
     if(c->m == NULL && c->q != NULL) {
-	log_notice(c->d->i->id, "failed to establish connection to %s, %s: %s", c->key->server, dialback_out_connection_state_string(c->connection_state), connect_results);
+	log_notice(c->d->i->id, "failed to establish connection to %s, %s: %s", c->key->get_domain().c_str(), dialback_out_connection_state_string(c->connection_state), connect_results);
     }
 
     /* if there's any packets in the queue, flush them! */
@@ -307,7 +307,7 @@ void dialback_out_packet(db d, xmlnode x, char *ip) {
     log_debug2(ZONE, LOGT_IO, "dbout packet[%s]: %s", ip, xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
 
     /* db:verify packets come in with us as the sender */
-    if (j_strcmp(from->server, d->i->id) == 0) {
+    if (j_strcmp(from->get_domain().c_str(), d->i->id) == 0) {
         verify = 1;
         /* fix the headers, restore the real from */
 	/* (I think we wouldn't need to from/ofrom thing anymore because we have dnsqueryby, that we need for s2s clustering) */
@@ -318,8 +318,8 @@ void dialback_out_packet(db d, xmlnode x, char *ip) {
     }
 
     /* build the standard key */
-    key = jid_new(xmlnode_pool(x), to->server);
-    jid_set(key, from->server, JID_RESOURCE);
+    key = jid_new(xmlnode_pool(x), to->get_domain().c_str());
+    jid_set(key, from->get_domain().c_str(), JID_RESOURCE);
 
     /* try to get an active connection */
     md = static_cast<miod>(xhash_get(d->out_ok_db, jid_full(key)));
@@ -330,7 +330,7 @@ void dialback_out_packet(db d, xmlnode x, char *ip) {
     if (md != NULL) {
         /* if we've got an ip sent, and a connected host, we should be registered! */
         if (ip != NULL)
-            register_instance(md->d->i, key->server);
+            register_instance(md->d->i, key->get_domain().c_str());
         dialback_miod_write(md, x);
         return;
     }
@@ -497,11 +497,11 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 	    }
 
 	    /* outgoing conneciton, write the header */
-	    cur = xstream_header(c->key->server, c->key->resource);
+	    cur = xstream_header(c->key->get_domain().c_str(), c->key->get_resource().c_str());
 	    xmlnode_hide_attrib_ns(cur, "id", NULL);					/* no, we don't need the id on this stream */
-	    if (j_strcmp(static_cast<char*>(xhash_get_by_domain(c->d->hosts_auth, c->key->server)), "sasl") != 0)
+	    if (j_strcmp(static_cast<char*>(xhash_get_by_domain(c->d->hosts_auth, c->key->get_domain().c_str())), "sasl") != 0)
 		xmlnode_put_attrib_ns(cur, "db", "xmlns", NS_XMLNS, NS_DIALBACK);	/* flag ourselves as dialback capable */
-	    if (j_strcmp(static_cast<char*>(xhash_get_by_domain(c->d->hosts_xmpp, c->key->server)), "no") != 0) {
+	    if (j_strcmp(static_cast<char*>(xhash_get_by_domain(c->d->hosts_xmpp, c->key->get_domain().c_str())), "no") != 0) {
 		/* we flag support for XMPP 1.0 */
 		xmlnode_put_attrib_ns(cur, "version", NULL, NULL, "1.0");
 	    }
@@ -514,7 +514,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 	    if (c->connection_state != sasl_success)
 		c->connection_state = got_streamroot;
 	    else {
-		if (dialback_check_settings(c->d, m, c->key->server, 1, 1, c->xmpp_version) == 0) {
+		if (dialback_check_settings(c->d, m, c->key->get_domain().c_str(), 1, 1, c->xmpp_version) == 0) {
 		    c->settings_failed = 1;
 		    break;
 		}
@@ -530,7 +530,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 
 	    /* make sure we're not connecting to ourselves */
 	    if (xhash_get(c->d->in_id,c->stream_id) != NULL) {
-		log_alert(c->key->server,"hostname maps back to ourselves!- No service defined for this hostname, can not handle request. Check jabberd configuration.");
+		log_alert(c->key->get_domain().c_str(), "hostname maps back to ourselves!- No service defined for this hostname, can not handle request. Check jabberd configuration.");
 		mio_write(m, NULL, "<stream:error><internal-server-error xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Mirror Mirror on the wall (we connected to ourself)</text></stream:error>", -1);
 		mio_close(m);
 		break;
@@ -548,7 +548,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 	    /* deprecated non-dialback protocol, reject connection */
 	    if (c->xmpp_version < 1 && !c->flags.db) {
 		/* Muahahaha!  you suck! *click* */
-		log_notice(c->key->server,"Legacy server access denied");
+		log_notice(c->key->get_domain().c_str(), "Legacy server access denied");
 		mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Legacy Access Denied!</text></stream:error>", -1);
 		mio_close(m);
 		break;
@@ -557,13 +557,13 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 	    /* create and send our result request to initiate dialback for non XMPP-sessions (XMPP has to wait for stream features) */
 	    if (c->xmpp_version < 1) {
 		/* check the require-tls setting */
-		if (dialback_check_settings(c->d, m, c->key->server, 1, 0, c->xmpp_version) == 0) {
+		if (dialback_check_settings(c->d, m, c->key->get_domain().c_str(), 1, 0, c->xmpp_version) == 0) {
 		    c->settings_failed = 1;
 		    break;
 		}
 
 		if (j_strcmp(static_cast<char*>(xhash_get_by_domain(c->d->hosts_auth, "sasl")), "sasl") == 0) {
-		    log_warn(c->d->i->id, "pre-XMPP 1.0 peer %s cannot support SASL, but we are configured to require this.", c->key->server);
+		    log_warn(c->d->i->id, "pre-XMPP 1.0 peer %s cannot support SASL, but we are configured to require this.", c->key->get_domain().c_str());
 		    mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xml:lang='en' xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Sorry, but we require SASL auth, but you seem to only support dialback.</text></stream:error>", -1);
 		    mio_close(m);
 		    break;
@@ -573,9 +573,9 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 		if (c->db_state == want_request) {
 		    /* send db request */
 		    cur = xmlnode_new_tag_ns("result", "db", NS_DIALBACK);
-		    xmlnode_put_attrib_ns(cur, "to", NULL, NULL, c->key->server);
-		    xmlnode_put_attrib_ns(cur, "from", NULL, NULL, c->key->resource);
-		    xmlnode_insert_cdata(cur,  dialback_merlin(xmlnode_pool(cur), c->d->secret, c->key->server, c->key->resource, c->stream_id), -1);
+		    xmlnode_put_attrib_ns(cur, "to", NULL, NULL, c->key->get_domain().c_str());
+		    xmlnode_put_attrib_ns(cur, "from", NULL, NULL, c->key->get_resource().c_str());
+		    xmlnode_insert_cdata(cur,  dialback_merlin(xmlnode_pool(cur), c->d->secret, c->key->get_domain().c_str(), c->key->get_resource().c_str(), c->stream_id), -1);
 		    mio_write(m,cur, NULL, 0);
 		    c->db_state = sent_request;
 		    c->connection_state = sent_db_request;
@@ -661,14 +661,14 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 		/* is starttls supported? */
 		if (xmlnode_get_list_item(xmlnode_get_tags(x, "tls:starttls", c->d->std_ns_prefixes), 0) != NULL) {
 		    /* don't start if forbidden by caller (configuration) */
-		    if (j_strcmp(static_cast<char*>(xhash_get_by_domain(c->d->hosts_tls, c->key->server)), "no") == 0) {
-			log_notice(c->d->i->id, "Server %s advertized starttls, but disabled by our configuration.", c->key->server);
-		    } else if (mio_ssl_starttls_possible(m, c->key->resource)) {
+		    if (j_strcmp(static_cast<char*>(xhash_get_by_domain(c->d->hosts_tls, c->key->get_domain().c_str())), "no") == 0) {
+			log_notice(c->d->i->id, "Server %s advertized starttls, but disabled by our configuration.", c->key->get_domain().c_str());
+		    } else if (mio_ssl_starttls_possible(m, c->key->get_resource().c_str())) {
 			/* our side is prepared for starttls */
 			xmlnode starttls = NULL;
 
 			/* request to start tls on this connection */
-			log_debug2(ZONE, LOGT_IO, "requesting starttls for an outgoing connection to %s", c->key->server);
+			log_debug2(ZONE, LOGT_IO, "requesting starttls for an outgoing connection to %s", c->key->get_domain().c_str());
 
 			starttls = xmlnode_new_tag_ns("starttls", NULL, NS_XMPP_TLS);
 			mio_write(m, starttls, NULL, 0);
@@ -697,9 +697,9 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 			xmlnode_put_attrib_ns(auth, "mechanism", NULL, NULL, xmlnode_get_data(mechanism));
 
 			/* add our id as base64 encoded CDATA */
-			base64_source_domain_len = (j_strlen(c->key->resource)+2)/3*4+1;
+			base64_source_domain_len = (c->key->get_resource().length()+2)/3*4+1;
 			base64_source_domain = static_cast<char*>(pmalloco(xmlnode_pool(x), base64_source_domain_len));
-			base64_encode((unsigned char *)c->key->resource, j_strlen(c->key->resource), base64_source_domain, base64_source_domain_len);
+			base64_encode((unsigned char *)c->key->get_resource().c_str(), c->key->get_resource().length(), base64_source_domain, base64_source_domain_len);
 			xmlnode_insert_cdata(auth, base64_source_domain, -1);
 
 			/* send the initial exchange */
@@ -717,7 +717,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 		}
 
 		/* no stream:feature we'd like to use, now check the settings */
-		if (dialback_check_settings(c->d, m, c->key->server, 1, 0, c->xmpp_version) == 0) {
+		if (dialback_check_settings(c->d, m, c->key->get_domain().c_str(), 1, 0, c->xmpp_version) == 0) {
 		    c->settings_failed = 1;
 		    break;
 		}
@@ -727,9 +727,9 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 		if (c->db_state == want_request) {
 		    /* send the dialback query */
 		    cur = xmlnode_new_tag_ns("result", "db", NS_DIALBACK);
-		    xmlnode_put_attrib_ns(cur, "to", NULL, NULL, c->key->server);
-		    xmlnode_put_attrib_ns(cur, "from", NULL, NULL, c->key->resource);
-		    xmlnode_insert_cdata(cur,  dialback_merlin(xmlnode_pool(cur), c->d->secret, c->key->server, c->key->resource, c->stream_id), -1);
+		    xmlnode_put_attrib_ns(cur, "to", NULL, NULL, c->key->get_domain().c_str());
+		    xmlnode_put_attrib_ns(cur, "from", NULL, NULL, c->key->get_resource().c_str());
+		    xmlnode_insert_cdata(cur,  dialback_merlin(xmlnode_pool(cur), c->d->secret, c->key->get_domain().c_str(), c->key->get_resource().c_str(), c->stream_id), -1);
 		    mio_write(m,cur, NULL, 0);
 		    c->db_state = sent_request;
 		    c->connection_state = sent_db_request;
@@ -749,9 +749,9 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 	    /* watch for positive starttls result */
 	    if (j_strcmp(xmlnode_get_localname(x), "proceed") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_XMPP_TLS) == 0) {
 		/* start tls on our side */
-		if (mio_xml_starttls(m, 1, c->key->resource)) {
+		if (mio_xml_starttls(m, 1, c->key->get_resource().c_str())) {
 		    /* starting tls failed */
-		    log_warn(c->d->i->id, "Starting TLS on an outgoing s2s to %s failed on our side (%s).", c->key->server, c->key->resource);
+		    log_warn(c->d->i->id, "Starting TLS on an outgoing s2s to %s failed on our side (%s).", c->key->get_domain().c_str(), c->key->get_resource().c_str());
 		    mio_close(m);
 		    break;
 		}
@@ -767,7 +767,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 
 	    /* watch for negative starttls result */
 	    if (j_strcmp(xmlnode_get_localname(x), "failure") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_XMPP_TLS) == 0) {
-		log_warn(c->d->i->id, "Starting TLS on an outgoing s2s to %s failed on the other side.", c->key->server);
+		log_warn(c->d->i->id, "Starting TLS on an outgoing s2s to %s failed on the other side.", c->key->get_domain().c_str());
 		mio_close(m);
 		break;
 	    }
@@ -798,7 +798,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 		    spool_add(c->connect_results, xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
 		    spool_add(c->connect_results, ")");
 		}
-		log_alert(c->d->i->id, "SASL EXTERNAL authentication failed on authenticating ourselfs to %s (sending name: %s)", c->key->server, c->key->resource);
+		log_alert(c->d->i->id, "SASL EXTERNAL authentication failed on authenticating ourselfs to %s (sending name: %s)", c->key->get_domain().c_str(), c->key->get_resource().c_str());
 		/* close the stream (in former times we sent a stream error, but I think we shouldn't. There is stream fault by the other entity!) */ 
 		mio_write(m, NULL, "</stream:stream>", -1);
 		mio_close(m);
@@ -807,9 +807,9 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 
 	    /* watch for a valid result, then we're set to rock! */
 	    if(j_strcmp(xmlnode_get_localname(x),"result") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_DIALBACK) == 0) {
-		if(j_strcmp(xmlnode_get_attrib_ns(x, "from", NULL), c->key->server) != 0 || j_strcmp(xmlnode_get_attrib_ns(x, "to", NULL),c->key->resource) != 0) {
+		if(j_strcmp(xmlnode_get_attrib_ns(x, "from", NULL), c->key->get_domain().c_str()) != 0 || j_strcmp(xmlnode_get_attrib_ns(x, "to", NULL),c->key->get_resource().c_str()) != 0) {
 		    /* naughty... *click* */
-		    log_warn(c->d->i->id,"Received illegal dialback validation remote %s != %s or to %s != %s", c->key->server, xmlnode_get_attrib_ns(x, "from", NULL),c->key->resource, xmlnode_get_attrib_ns(x, "to", NULL));
+		    log_warn(c->d->i->id,"Received illegal dialback validation remote %s != %s or to %s != %s", c->key->get_domain().c_str(), xmlnode_get_attrib_ns(x, "from", NULL),c->key->get_resource().c_str(), xmlnode_get_attrib_ns(x, "to", NULL));
 		    mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Invalid Dialback Result</text></stream:error>", -1);
 		    mio_close(m);
 		    break;
@@ -839,7 +839,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 		    spool_add(c->connect_results, type_attribute ? type_attribute : "no type attribute");
 		    spool_add(c->connect_results, ")");
 		}
-		log_alert(c->d->i->id,"We were told by %s that our sending name %s is invalid, either something went wrong on their end, we tried using that name improperly, or dns does not resolve to us",c->key->server,c->key->resource);
+		log_alert(c->d->i->id, "We were told by %s that our sending name %s is invalid, either something went wrong on their end, we tried using that name improperly, or dns does not resolve to us", c->key->get_domain().c_str(), c->key->get_resource().c_str());
 		/* close the stream (in former times we sent a stream error, but I think we shouldn't. There is stream fault by the other entity!) */ 
 		mio_write(m, NULL, "</stream:stream>", -1);
 		mio_close(m);
@@ -852,7 +852,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 		return;
 	    }
 
-	    log_warn(c->d->i->id,"Dropping connection due to illegal incoming packet on an unverified socket from %s to %s (%s): %s",c->key->resource,c->key->server, mio_ip(m), xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
+	    log_warn(c->d->i->id, "Dropping connection due to illegal incoming packet on an unverified socket from %s to %s (%s): %s", c->key->get_resource().c_str(), c->key->get_domain().c_str(), mio_ip(m), xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
 	    mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Not Allowed to send data on this socket!</text></stream:error>", -1);
 	    mio_close(m);
 	    break;

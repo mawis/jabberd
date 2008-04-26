@@ -266,10 +266,10 @@ xht xhash_from_xml(xmlnode hash, pool p) {
 	char *value = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(*iter, "value", ns), 0));
 
 	if (value == NULL)
-	    value = "";
+	    value = pstrdup(p, "");
 
 	if (key == NULL)
-	    key = "";
+	    key = pstrdup(p, "");
 
 	xhash_put(result, key, pstrdup(p, value));
     }

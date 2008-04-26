@@ -52,7 +52,7 @@ static mreturn _mod_time_reply(mapi m) {
     char *tstr;
     struct tm *tmd;
 
-    if (m->packet->to->resource != NULL)
+    if (m->packet->to->has_resource())
 	return M_PASS;
 
     /* first, is this a valid request? */

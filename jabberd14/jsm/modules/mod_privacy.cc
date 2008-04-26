@@ -407,9 +407,9 @@ static void mod_privacy_insert_list_item(struct mod_privacy_compiled_list_item**
 	match_parts = JID_SERVER;
 
 	/* check if node or resource has to match */
-	if (match_jid->user != NULL)
+	if (match_jid->has_node())
 	    match_parts |= JID_USER;
-	if (match_jid->resource != NULL)
+	if (match_jid->has_resource())
 	    match_parts |= JID_RESOURCE;
     }
 
@@ -607,22 +607,22 @@ static int mod_privacy_activate_list(jsmi si, session s, xmlnode list) {
 	log_debug2(ZONE, LOGT_EXECFLOW, "Checking normalization of roster group: %s", group_name);
 
 	/* could the name be normalized? */
-	if (normal_group == NULL || normal_group->resource == NULL) {
+	if (normal_group == NULL || !normal_group->has_resource()) {
 	    log_debug2(ZONE, LOGT_EXECFLOW, "Could not normalize group name in roster: %s", group_name);
 	    xmlnode_hide(*group);
 	    continue;
 	}
 
 	/* insert normalized data if necessary */
-	if (j_strcmp(group_name, normal_group->resource) != 0) {
+	if (j_strcmp(group_name, normal_group->get_resource().c_str()) != 0) {
 	    xmlnode_vector text_node = xmlnode_get_tags(*group, "text()", si->std_namespace_prefixes);
 
-	    log_debug2(ZONE, LOGT_EXECFLOW, "Normalized '%s' to '%s'", group_name, normal_group->resource);
+	    log_debug2(ZONE, LOGT_EXECFLOW, "Normalized '%s' to '%s'", group_name, normal_group->get_resource().c_str());
 
 	    if (text_node.size() > 0) {
 		xmlnode_hide(text_node[0]);
 	    }
-	    xmlnode_insert_cdata(*group, normal_group->resource, -1);
+	    xmlnode_insert_cdata(*group, normal_group->get_resource().c_str(), -1);
 	}
     }
 
@@ -636,16 +636,16 @@ static int mod_privacy_activate_list(jsmi si, session s, xmlnode list) {
 	log_debug2(ZONE, LOGT_EXECFLOW, "Checking normalization of group on list: %s", group_name);
 
 	/* could the name be normalized? */
-	if (normal_group == NULL || normal_group->resource == NULL) {
+	if (normal_group == NULL || !normal_group->has_resource()) {
 	    log_debug2(ZONE, LOGT_EXECFLOW, "Could not normalize group name on list: %s", group_name);
 	    xmlnode_hide(*group);
 	    continue;
 	}
 
 	/* update value if necessary */
-	if (j_strcmp(group_name, normal_group->resource) != 0) {
-	    log_debug2(ZONE, LOGT_EXECFLOW, "Normalized '%s' to '%s'", group_name, normal_group->resource);
-	    xmlnode_put_attrib_ns(*group, "value", NULL, NULL, normal_group->resource);
+	if (j_strcmp(group_name, normal_group->get_resource().c_str()) != 0) {
+	    log_debug2(ZONE, LOGT_EXECFLOW, "Normalized '%s' to '%s'", group_name, normal_group->get_resource().c_str());
+	    xmlnode_put_attrib_ns(*group, "value", NULL, NULL, normal_group->get_resource().c_str());
 	}
     }
 

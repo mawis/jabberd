@@ -297,11 +297,6 @@ int main (int argc, const char** argv) {
     /* init pth */
     pth_init();
 
-#ifdef LIBIDN
-    /* init the stringprep caches for jid manipulation */
-    jid_init_cache();
-#endif
-
     /* fire em up baby! */
     heartbeat_birth();
 
@@ -340,9 +335,6 @@ int main (int argc, const char** argv) {
 	pool_stat(0);
 	xmlnode_stat();
 	deliver_pool_debug();
-#endif
-#ifdef LIBIDN
-	jid_clean_cache();
 #endif
         pth_sleep(60);
     };
@@ -454,11 +446,6 @@ static void _jabberd_atexit(void) {
 
     /* free delivery hashes */
     deliver_shutdown();
-
-#ifdef LIBIDN
-    /* free stringprep caches */
-    jid_stop_caching();
-#endif
 
     /* free instances hash table */
     if (instance__ids != NULL)

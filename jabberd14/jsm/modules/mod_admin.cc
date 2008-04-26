@@ -103,7 +103,7 @@ static void _mod_admin_disco_online_items(jsmi si, jpacket p) {
     xmlnode_put_attrib_ns(query, "node", NULL, NULL, "online sessions");
 
     /* add the online sessions */
-    xhash_walk(static_cast<xht>(xhash_get(si->hosts, p->to->server)), _mod_admin_disco_online_iter, (void *)query);
+    xhash_walk(static_cast<xht>(xhash_get(si->hosts, p->to->get_domain().c_str())), _mod_admin_disco_online_iter, (void *)query);
 
     /* send back */
     jpacket_reset(p);
@@ -197,7 +197,7 @@ static mreturn mod_admin_message(mapi m, void *arg) {
     /* check if we are interested in handling this packet */
     if (m->packet->type != JPACKET_MESSAGE)
 	return M_IGNORE; /* the session manager should not deliver this stanza type again */
-    if (m->packet->to->resource != NULL || jpacket_subtype(m->packet) == JPACKET__ERROR)
+    if (m->packet->to->has_resource() || jpacket_subtype(m->packet) == JPACKET__ERROR)
 	return M_PASS;
 
     /* drop ones w/ a delay! (circular safety) */
@@ -209,7 +209,7 @@ static mreturn mod_admin_message(mapi m, void *arg) {
     log_debug2(ZONE, LOGT_DELIVER, "delivering admin message from %s",jid_full(m->packet->from));
 
     /* update the message */
-    subject=spools(m->packet->p, messages_get(xmlnode_get_lang(m->packet->x), N_("Admin: ")), xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(m->packet->x, "subject", m->si->std_namespace_prefixes) ,0)), " (", m->packet->to->server, ")", m->packet->p);
+    subject=spools(m->packet->p, messages_get(xmlnode_get_lang(m->packet->x), N_("Admin: ")), xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(m->packet->x, "subject", m->si->std_namespace_prefixes) ,0)), " (", m->packet->to->get_domain().c_str(), ")", m->packet->p);
     xmlnode_hide(xmlnode_get_list_item(xmlnode_get_tags(m->packet->x, "subject", m->si->std_namespace_prefixes), 0));
     xmlnode_insert_cdata(xmlnode_insert_tag_ns(m->packet->x, "subject", NULL, NS_SERVER), subject, -1);
     jutil_delay(m->packet->x, "admin");
@@ -223,7 +223,7 @@ static mreturn mod_admin_message(mapi m, void *arg) {
 	js_deliver(m->si, p, NULL);
     }
     if (admins != NULL) {
-	pool_free(admins->p);
+	pool_free(admins->get_pool());
 	admins = NULL;
     }
 

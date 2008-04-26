@@ -96,7 +96,7 @@ static mreturn mod_register_passwordchange(mapi m) {
     if (password_present > 1) {
 	xmlnode_free(passwordchange);
 	jutil_error_xmpp(m->packet->x, XTERROR_NOTACCEPTABLE);
-	log_notice(m->user->id->server, "Denied password change, password field has been provied %i times (user %s)", password_present, jid_full(m->packet->to));
+	log_notice(m->user->id->get_domain().c_str(), "Denied password change, password field has been provied %i times (user %s)", password_present, jid_full(m->packet->to));
 	return M_HANDLED;
     }
 
@@ -168,12 +168,12 @@ static mreturn mod_register_new(mapi m, void *arg) {
 
 	    /* let the auth modules store the credentials */
 	    if (mod_register_passwordchange(m) == M_HANDLED) {
-		log_notice(m->user->id->server, "Could not store password when processing registration request: %s", jid_full(m->user->id));
+		log_notice(m->user->id->get_domain().c_str(), "Could not store password when processing registration request: %s", jid_full(m->user->id));
 		xmlnode_free(reg);
 		return M_HANDLED;
 	    }
 
-	    log_notice(m->packet->to->server, "User %s registered", jid_full(m->packet->to));
+	    log_notice(m->packet->to->get_domain().c_str(), "User %s registered", jid_full(m->packet->to));
 
 	    /* stamp the registration data */
 	    jutil_delay(m->packet->iq,"registered");
@@ -196,8 +196,8 @@ static mreturn mod_register_new(mapi m, void *arg) {
 		spool_add(msg_body, "E-Mail: ");
 		spool_add(msg_body, email ? email : "no address provided");
 
-		x = jutil_msgnew("chat", m->packet->to->server, "Registration Notice", spool_print(msg_body));
-		xmlnode_put_attrib_ns(x, "from", NULL, NULL, m->packet->to->server);
+		x = jutil_msgnew("chat", m->packet->to->get_domain().c_str(), "Registration Notice", spool_print(msg_body));
+		xmlnode_put_attrib_ns(x, "from", NULL, NULL, m->packet->to->get_domain().c_str());
 		js_deliver(m->si, jpacket_new(x), m->s);
 	    }
 
@@ -208,7 +208,7 @@ static mreturn mod_register_new(mapi m, void *arg) {
 		lang = xmlnode_get_lang(welcome);
 
 		x = xmlnode_new_tag_ns("message", NULL, NS_SERVER);
-		xmlnode_put_attrib_ns(x, "from", NULL, NULL, m->packet->to->server);
+		xmlnode_put_attrib_ns(x, "from", NULL, NULL, m->packet->to->get_domain().c_str());
 		xmlnode_put_attrib_ns(x, "to", NULL, NULL, jid_full(m->packet->to));
 		if (lang != NULL) {
 		    xmlnode_put_attrib_ns(x, "lang", "xml", NS_XML, lang);
@@ -356,7 +356,7 @@ static mreturn _mod_register_server_register(mapi m) {
     if (m->user == NULL)
 	return M_PASS;
 
-    log_debug2(ZONE, LOGT_AUTH, "updating server: %s, user %s", m->user->id->server, jid_full(m->user->id));
+    log_debug2(ZONE, LOGT_AUTH, "updating server: %s, user %s", m->user->id->get_domain().c_str(), jid_full(m->user->id));
 
     /* check for their registration */
     reg =  xdb_get(m->si->xc, m->user->id, NS_REGISTER);
@@ -419,11 +419,11 @@ static mreturn _mod_register_server_register(mapi m) {
 		    js_bounce_xmpp(m->si, m->s, m->packet->x, err);
 		    xmlnode_free(nounregister);
 		    xmlnode_free(reg);
-		    log_notice(m->user->id->server, "Denied unregistration to user %s", jid_full(m->user->id));
+		    log_notice(m->user->id->get_domain().c_str(), "Denied unregistration to user %s", jid_full(m->user->id));
 		    return M_HANDLED;
 		}
 	    
-		log_notice(m->user->id->server,"User Unregistered: %s",m->user->id->user);
+		log_notice(m->user->id->get_domain().c_str(), "User Unregistered: %s", m->user->id->get_node().c_str());
 
 		/* let the modules remove their data for this user */
 		js_user_delete(m->si, m->user->id);
@@ -452,7 +452,7 @@ static mreturn _mod_register_server_register(mapi m) {
 			/* user tries to change his username */
 			js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_NOTACCEPTABLE);
 			xmlnode_free(reg);
-			log_notice(m->user->id->server, "Denied update of username for %s to %s", jid_full(m->user->id), xmlnode_get_data(*iter));
+			log_notice(m->user->id->get_domain().c_str(), "Denied update of username for %s to %s", jid_full(m->user->id), xmlnode_get_data(*iter));
 			return M_HANDLED;
 		    }
 
@@ -470,16 +470,16 @@ static mreturn _mod_register_server_register(mapi m) {
 		if (has_username > 1) {
 		    js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_BAD);
 		    xmlnode_free(reg);
-		    log_notice(m->user->id->server, "User %s sent registration data set request containing multiple usernames", jid_full(m->user->id));
+		    log_notice(m->user->id->get_domain().c_str(), "User %s sent registration data set request containing multiple usernames", jid_full(m->user->id));
 		    return M_HANDLED;
 		}
-		xmlnode_insert_cdata(xmlnode_insert_tag_ns(m->packet->iq, "username", NULL, NS_REGISTER), m->user->id->user, -1);
+		xmlnode_insert_cdata(xmlnode_insert_tag_ns(m->packet->iq, "username", NULL, NS_REGISTER), m->user->id->get_node().c_str(), -1);
 
 		/* did we find anything useful? */
 		if (!is_passwordchange && only_passwordchange) {
 		    js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_BAD);
 		    xmlnode_free(reg);
-		    log_notice(m->user->id->server, "User %s sent incomplete registration data set request", jid_full(m->user->id));
+		    log_notice(m->user->id->get_domain().c_str(), "User %s sent incomplete registration data set request", jid_full(m->user->id));
 		    return M_HANDLED;
 		}
 
@@ -504,7 +504,7 @@ static mreturn _mod_register_server_register(mapi m) {
 			js_bounce_xmpp(m->si, m->s, m->packet->x, err);
 			xmlnode_free(noregistrationchange);
 			xmlnode_free(reg);
-			log_notice(m->user->id->server, "Denied registration data change to user %s", jid_full(m->user->id));
+			log_notice(m->user->id->get_domain().c_str(), "Denied registration data change to user %s", jid_full(m->user->id));
 			return M_HANDLED;
 		    }
 		}
@@ -521,7 +521,7 @@ static mreturn _mod_register_server_register(mapi m) {
 			js_bounce_xmpp(m->si, m->s, m->packet->x, err);
 			xmlnode_free(nopasswordchange);
 			xmlnode_free(reg);
-			log_notice(m->user->id->server, "Denied password change to user %s", jid_full(m->user->id));
+			log_notice(m->user->id->get_domain().c_str(), "Denied password change to user %s", jid_full(m->user->id));
 			return M_HANDLED;
 		    }
 		    xmlnode_free(nopasswordchange);
@@ -530,7 +530,7 @@ static mreturn _mod_register_server_register(mapi m) {
 			xmlnode_free(reg);
 			return M_HANDLED;
 		    }
-		    log_notice(m->user->id->server, "User %s changed password", jid_full(m->user->id));
+		    log_notice(m->user->id->get_domain().c_str(), "User %s changed password", jid_full(m->user->id));
 		}
 
 		if (!only_passwordchange) {

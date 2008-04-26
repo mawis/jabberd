@@ -381,7 +381,7 @@ static mreturn mod_presence_out(mapi m, void *arg) {
     } else {
 	newpri = j_atoi(priority, 0);
 	if (newpri < -128 || newpri > 127) {
-	    log_notice(m->s->id->server, "got presence with invalid priority value from %s", jid_full(m->s->id));
+	    log_notice(m->s->id->get_domain().c_str(), "got presence with invalid priority value from %s", jid_full(m->s->id));
 	    xmlnode_free(m->packet->x);
 	    return M_HANDLED;
 	}
@@ -704,8 +704,8 @@ static mreturn mod_presence_deliver(mapi m, void *arg) {
     log_debug2(ZONE, LOGT_DELIVER, "deliver phase");
 
     /* only if we HAVE a user, and it was sent to ONLY the user@server, and there is at least one session available */
-    if (m->user != NULL && m->packet->to->resource == NULL && js_session_primary(m->user) != NULL) {
-        log_debug2(ZONE, LOGT_DELIVER, "broadcasting to %s",m->user->id->user);
+    if (m->user && !m->packet->to->has_resource() && js_session_primary(m->user) != NULL) {
+        log_debug2(ZONE, LOGT_DELIVER, "broadcasting to %s",m->user->id->get_node().c_str());
 
         /* broadcast */
         for (cur = m->user->sessions; cur != NULL; cur = cur->next) {

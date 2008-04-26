@@ -115,7 +115,7 @@ static void _mod_announce_avail_hosts(xht h, const char *key, void *data, void *
  * @return always M_HANDLED
  */
 static mreturn mod_announce_avail(jsmi si, jpacket p) {
-    xmlnode_put_attrib_ns(p->x, "from", NULL, NULL, p->to->server);
+    xmlnode_put_attrib_ns(p->x, "from", NULL, NULL, p->to->get_domain().c_str());
     xhash_walk(si->hosts,_mod_announce_avail_hosts,(void *)(p->x));
     xmlnode_free(p->x);
     return M_HANDLED;
@@ -134,20 +134,20 @@ static mreturn mod_announce_motd(jsmi si, jpacket p, motd a) {
     if (a->x != NULL)
         xmlnode_free(a->x);
 
-    if (j_strcmp(p->to->resource,"announce/motd/delete") == 0) {
+    if (p->to->get_resource() == "announce/motd/delete") {
         a->x = NULL;
         xmlnode_free(p->x);
         return M_HANDLED;
     }
 
     /* store new message for all new sessions */
-    xmlnode_put_attrib_ns(p->x, "from", NULL, NULL, p->to->server);
+    xmlnode_put_attrib_ns(p->x, "from", NULL, NULL, p->to->get_domain().c_str());
     jutil_delay(p->x,"Announced"); /* at a timestamp to the element */
     a->x = p->x; /* keep the motd message */
     a->set = time(NULL); /* XXX shouldn't we only update this timestamp if it isn't an update? */
 
     /* tell current sessions if this wasn't an update */
-    if(j_strcmp(p->to->resource,"announce/motd/update") != 0)
+    if (p->to->get_resource() == "announce/motd/update")
         xhash_walk(si->hosts, _mod_announce_avail_hosts, (void *)(a->x));
 
     return M_HANDLED;
@@ -168,16 +168,16 @@ static mreturn mod_announce_dispatch(mapi m, void *arg) {
 
     if (m->packet->type != JPACKET_MESSAGE)
 	return M_IGNORE; /* ignore everything but messages */
-    if (j_strncmp(m->packet->to->resource,"announce/",9) != 0)
+    if (m->packet->to->get_resource().substr(0, 9) == "announce/")
 	return M_PASS; /* not a configuration message */
 
     log_debug2(ZONE, LOGT_DELIVER, "handling announce message from %s",jid_full(m->packet->from));
 
     /* if he is, process the message */
     if (acl_check_access(m->si->xc, ADMIN_MOTD, m->packet->from)) {
-        if (j_strncmp(m->packet->to->resource,"announce/online",15) == 0)
+	if (m->packet->to->get_resource().substr(0, 15) == "announce/online")
 	    return mod_announce_avail(m->si, m->packet);
-        if (j_strncmp(m->packet->to->resource,"announce/motd",13) == 0)
+	if (m->packet->to->get_resource().substr(0, 13) == "announce/motd")
 	    return mod_announce_motd(m->si, m->packet, (motd)arg);
     }
 

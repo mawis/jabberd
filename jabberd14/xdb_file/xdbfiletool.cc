@@ -45,14 +45,14 @@ xht debug__zones;
 void *so_h = NULL;
 
 /* functions in libjabberdxdbfile.so used */
-char* (*xdb_file_full)(int create, pool p, const char *spl, char *host, const char *file, char *ext, int use_subdirs);
+char* (*xdb_file_full)(int create, pool p, const char *spl, char const* host, const char *file, char const* ext, int use_subdirs);
 void (*xdb_convert_spool)(const char *spoolroot);
 xmlnode (*xdb_file_load)(char *host, char *fname, xht cache);
 
 int main(int argc, const char **argv) {
     char *host = NULL;
     char *error = NULL;
-    char *cfgfile = CONFIG_DIR "/jabber.xml";
+    char const* cfgfile = CONFIG_DIR "/jabber.xml";
     char *basedir = NULL;
     char *do_get = NULL;
     char *do_set = NULL;
@@ -67,7 +67,7 @@ int main(int argc, const char **argv) {
     char *getpath = NULL;
     int hashspool = 0;
     pool p = NULL;
-    struct jid_struct *parsed_jid = NULL;
+    ::jid parsed_jid = NULL;
 
     struct poptOption options[] = {
 	{ "convert", 0, POPT_ARG_NONE, &convert, 0, "convert from plain spool to hashspool", NULL},
@@ -88,7 +88,6 @@ int main(int argc, const char **argv) {
 
     /* init the libraries */
     pth_init();
-    jid_init_cache();
 
     p = pool_new();
     namespace_prefixes = xhash_new(101);
@@ -213,13 +212,13 @@ int main(int argc, const char **argv) {
     }
 
     if (getpath != NULL) {
-	struct jid_struct *user = jid_new(p, getpath);
+	::jid user = jid_new(p, getpath);
 	
 	if (user == NULL) {
 	    std::cerr << "Problem processing secified JabberID: " << getpath << std::endl;
 	    return 1;
 	}
-	std::cout << (*xdb_file_full)(0, p, basedir, user->server, user->user, "xml", hashspool) << std::endl;
+	std::cout << (*xdb_file_full)(0, p, basedir, user->get_domain().c_str(), user->get_node().c_str(), "xml", hashspool) << std::endl;
 	pool_free(p);
 
 	return 0;
@@ -251,7 +250,7 @@ int main(int argc, const char **argv) {
 	    return 1;
 	}
 
-	spoolfile = (*xdb_file_full)(0, p, basedir, parsed_jid->server, parsed_jid->user, "xml", hashspool);
+	spoolfile = (*xdb_file_full)(0, p, basedir, parsed_jid->get_domain().c_str(), parsed_jid->get_node().c_str(), "xml", hashspool);
 	file = (*xdb_file_load)(NULL, spoolfile, NULL);
 
 	if (file == NULL) {

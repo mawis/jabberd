@@ -128,7 +128,7 @@ static void base_accept_process_xml(mio m, int state, void* arg, xmlnode x, char
                 if(ai->restrict_var)
                 {
                     jp = jpacket_new(x);
-                    if(jp->type == JPACKET_UNKNOWN || jp->to == NULL || jp->from == NULL || deliver_hostcheck(jp->from->server) != ai->i)
+                    if(jp->type == JPACKET_UNKNOWN || jp->to == NULL || jp->from == NULL || deliver_hostcheck(jp->from->get_domain().c_str()) != ai->i)
                     {
                         jutil_error_xmpp(x,XTERROR_INTERNAL);
                         mio_write(m,x,NULL,0);

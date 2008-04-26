@@ -155,7 +155,7 @@ session js_session_new(jsmi si, dpacket dp) {
     char session_id[9];
 
     /* screen out illegal calls */
-    if(dp == NULL || dp->id->user == NULL || dp->id->resource == NULL || xmlnode_get_attrib_ns(dp->x, "from", NULL) == NULL || (u = js_user(si, dp->id, NULL)) == NULL)
+    if(dp == NULL || !dp->id->has_node() || !dp->id->has_resource() || xmlnode_get_attrib_ns(dp->x, "from", NULL) == NULL || (u = js_user(si, dp->id, NULL)) == NULL)
         return NULL;
 
     log_debug2(ZONE, LOGT_SESSION, "session_create %s", jid_full(dp->id));
@@ -178,7 +178,7 @@ session js_session_new(jsmi si, dpacket dp) {
     s->route = jid_new(p, jid_full(dp->id));
     _js_create_session_id(session_id, NULL);
     jid_set(s->route, session_id, JID_RESOURCE);
-    s->res = pstrdup(p, dp->id->resource);
+    s->res = pstrdup(p, dp->id->get_resource().c_str());
     s->u = u;
 
     /* default settings */
@@ -194,7 +194,7 @@ session js_session_new(jsmi si, dpacket dp) {
 
     /* remove any other session w/ this resource */
     for (cur = u->sessions; cur != NULL; cur = cur->next)
-        if (j_strcmp(dp->id->resource, cur->res) == 0)
+        if (j_strcmp(dp->id->get_resource().c_str(), cur->res) == 0)
             js_session_end(cur, N_("Replaced by new connection"));
 
     /* make sure we're linked with the user */
@@ -272,7 +272,7 @@ session js_sc_session_new(jsmi si, dpacket dp, xmlnode sc_session) {
     pool_cleanup(s->p, js_session_free_aux_data, s);
 
     s->id = user_id;
-    s->res = user_id->resource;
+    s->res = pstrdup(s->p, user_id->get_resource().c_str());
     s->u = u;
     s->exit_flag = 0;
     s->roster = 0;
@@ -293,7 +293,7 @@ session js_sc_session_new(jsmi si, dpacket dp, xmlnode sc_session) {
 
     /* remove any other session w/ this resource */
     for (cur = u->sessions; cur != NULL; cur = cur->next)
-        if (j_strcmp(dp->id->resource, cur->res) == 0)
+        if (j_strcmp(dp->id->get_resource().c_str(), cur->res) == 0)
             js_session_end(cur, N_("Replaced by new connection"));
 
     /* make sure we're linked with the user */
@@ -634,7 +634,7 @@ void _js_session_end(void *arg) {
  * @param res the resource to search for
  * @return a pointer to the session if the user is logged in, NULL if the user isn't logged in on this resource
  */
-session js_session_get(udata user, char *res) {
+session js_session_get(udata user, char const* res) {
     session cur;    /* session pointer */
 
     /* screen out illeagal calls */

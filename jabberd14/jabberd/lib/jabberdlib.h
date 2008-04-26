@@ -92,6 +92,8 @@
 #   include <map>
 #endif
 
+#include <glibmm.h>
+
 /*
 **  Arrange to use either varargs or stdargs
 */
@@ -670,7 +672,7 @@ xmlnode  xmlnode_insert_tag_node(xmlnode parent, xmlnode node);
 void     xmlnode_insert_node(xmlnode parent, xmlnode node);
 xmlnode  xmlnode_str(const char *str, int len);
 xmlnode  xmlnode_file(const char *file);
-char*    xmlnode_file_borked(char *file); /* same as _file but returns the parsing error */
+char*    xmlnode_file_borked(char const *file); /* same as _file but returns the parsing error */
 xmlnode  xmlnode_dup(xmlnode x); /* duplicate x */
 xmlnode  xmlnode_dup_pool(pool p, xmlnode x);
 
@@ -842,9 +844,213 @@ void shaBlock(unsigned char *dataIn, int len, unsigned char hashout[20]);
 
 
 /* message authentication code */
-void hmac_sha1_ascii_r(char *secret, unsigned char *message, size_t len, char hmac[41]);
+void hmac_sha1_ascii_r(char const* secret, unsigned char const* message, size_t len, char hmac[41]);
 
 /********** END OLD libxode.h BEGIN OLD jabber.h *************/
+
+namespace xmppd {
+
+    /**
+     * The jabberid class represents a jid address on the xmpp network
+     */
+    class jabberid {
+	public:
+	    /**
+	     * create a new jabberid instance initializing the address by parsing a string
+	     *
+	     * @param jid the initial address value
+	     * @throws std::invalid_argument if the jid cannot be prepared
+	     */
+	    jabberid(const Glib::ustring& jid);
+
+	    /**
+	     * sets the node part of a jabberid
+	     *
+	     * @param node the node to set (empty string to clear node)
+	     * @throws std::invalid_argument if the node cannot be prepared
+	     */
+	    void set_node(const Glib::ustring& node);
+
+	    /**
+	     * sets the domain part of a jabberid
+	     *
+	     * @param domain the domain to set
+	     * @throws std::invalid_argument if the domain cannot be prepared
+	     */
+	    void set_domain(const Glib::ustring& domain);
+
+	    /**
+	     * sets the resource part of a jabberid
+	     *
+	     * @param resource the resource to set (empty string to clear resource)
+	     * @throws std::invalid_argument if the resource cannot be prepared
+	     */
+	    void set_resource(const Glib::ustring& resource);
+
+	    /**
+	     * get the node part of a jabberid
+	     *
+	     * @return the node part, empty string if no node
+	     */
+	    const Glib::ustring& get_node() { return node; };
+
+	    /**
+	     * returns if a jabberid has a node
+	     *
+	     * @return true if the jabberid has a node
+	     */
+	    bool has_node() { return node.length() > 0; };
+
+	    /**
+	     * get the domain part of a jabberid
+	     *
+	     * @return the domain part
+	     */
+	    const Glib::ustring& get_domain() { return domain; };
+
+	    /**
+	     * get the resource part of a jabberid
+	     *
+	     * @return the resource part, empty string if no resource
+	     */
+	    const Glib::ustring& get_resource() { return resource; };
+
+	    /**
+	     * returns if a jabberid has a resource
+	     *
+	     * @return true if the jabberid has a resource
+	     */
+	    bool has_resource() { return resource.length() > 0; };
+
+	    /**
+	     * compare jabberid instance with another instance
+	     *
+	     * @param otherjid the other jabberid to compare with
+	     * @return true if both jabberid instances represent the same JIDs, false else
+	     */
+	    bool operator==(const jabberid& otherjid);
+
+	    /**
+	     * compare some parts of two jabberid instances
+	     *
+	     * @param otherjid the other jabberid to compare with
+	     * @param compare_resource true if the resource part should get compared
+	     * @param compare_node true if the node part should get compared
+	     * @param compare_domain true if the domain part should get compared
+	     * @return true if the compared parts of the jabberid instances are matching
+	     */
+	    bool compare(const jabberid& otherjid, bool compare_resource = false, bool compare_node = true, bool compare_domain = true);
+
+	    /**
+	     * get a copy of the jid without the resource
+	     *
+	     * @return new jabberid instance representing the same jabberid but without resource
+	     */
+	    jabberid get_user();
+
+	    /**
+	     * get the textual representation of a jabberid
+	     *
+	     * @return the textual representation
+	     */
+	    Glib::ustring full();
+	private:
+	    /**
+	     * node part of the JID (the part before the @ sign)
+	     *
+	     * empty string of no node
+	     */
+	    Glib::ustring node;
+
+	    /**
+	     * domain part of the JID
+	     *
+	     * there must always be a domain part in a JID
+	     */
+	    Glib::ustring domain;
+
+	    /**
+	     * resource part of the JID
+	     *
+	     * empty strong for no resource
+	     */
+	    Glib::ustring resource;
+    };
+
+    /**
+     * jabberid_pool is a child class of jabberid, that is used to implement
+     * the compatibility layer for existing code, that expect a jid to have
+     * an associated pool
+     */
+    class jabberid_pool : public jabberid {
+	public:
+	    /**
+	     * construct a jabberid_pool with an existing assigned pool
+	     *
+	     * @param jid initial jabberid
+	     * @param p the pool to assign
+	     * @throws std::invalid_argument if the JID is not valid
+	     */
+	    jabberid_pool(const Glib::ustring& jid, ::pool p);
+
+	    /**
+	     * get the textual representation of a jabberid (allocated in pooled memory
+	     *
+	     * @return the textual representation
+	     */
+	    char* full_pooled();
+
+	    /**
+	     * sets the node part of a jabberid
+	     *
+	     * @param node the node to set (empty string to clear node)
+	     * @throws std::invalid_argument if the node cannot be prepared
+	     */
+	    void set_node(const Glib::ustring& node);
+
+	    /**
+	     * sets the domain part of a jabberid
+	     *
+	     * @param domain the domain to set
+	     * @throws std::invalid_argument if the domain cannot be prepared
+	     */
+	    void set_domain(const Glib::ustring& domain);
+
+	    /**
+	     * sets the resource part of a jabberid
+	     *
+	     * @param resource the resource to set (empty string to clear resource)
+	     * @throws std::invalid_argument if the resource cannot be prepared
+	     */
+	    void set_resource(const Glib::ustring& resource);
+
+	    /**
+	     * the the pool of this jabberid_pool
+	     *
+	     * @return pool of this jabberid_pool
+	     */
+	    pool get_pool() { return p; };
+
+	    /**
+	     * helper pointer to construct legacy lists
+	     */
+	    jabberid_pool* next;
+	private:
+	    /**
+	     * assigned pool
+	     *
+	     * this pool is not used by jabberid_pool in any way!
+	     */
+	    ::pool p;
+
+	    /**
+	     * cached string version of jid (allocated from the assigned pool)
+	     *
+	     * @return the textual representation
+	     */
+	    char* jid_full;
+    };
+}
 
 /* --------------------------------------------------------- */
 /*                                                           */
@@ -855,30 +1061,16 @@ void hmac_sha1_ascii_r(char *secret, unsigned char *message, size_t len, char hm
 #define JID_USER     2
 #define JID_SERVER   4
 
-typedef struct jid_struct
-{ 
-    pool               p;
-    char*              resource;
-    char*              user;
-    char*              server;
-    char*              full;
-    struct jid_struct *next; /* for lists of jids */
-} *jid;
-  
+typedef xmppd::jabberid_pool* jid;
+
 jid     jid_new(pool p, const char *idstr);	       /* Creates a jabber id from the idstr */
 void    jid_set(jid id, const char *str, int item);  /* Individually sets jid components */
 char*   jid_full(jid id);		       /* Builds a string type=user/resource@server from the jid data */
 int     jid_cmp(jid a, jid b);		       /* Compares two jid's, returns 0 for perfect match */
 int     jid_cmpx(jid a, jid b, int parts);     /* Compares just the parts specified as JID_|JID_ */
-jid     jid_append(jid a, jid b);	       /* Appending b to a (list), no dups */
-/* xmlnode jid_xres(jid id); */		       /* Returns xmlnode representation of the resource?query=string */
-xmlnode jid_nodescan(jid id, xmlnode x);       /* Scans the children of the node for a matching jid attribute */
 jid     jid_user(jid a);                       /* returns the same jid but just of the user@host part */
 jid	jid_user_pool(jid a, pool p);	       /* returns the same jid, but just the user@host part */
-void	jid_init_cache();		       /**< initialize the stringprep caches */
-void	jid_stop_caching();		       /**< free all caches that have been initialized */
-void	jid_clean_cache();		       /**< check the stringprep caches for expired entries */
-
+jid	jid_append(jid a, jid b);
 
 /* --------------------------------------------------------- */
 /*                                                           */
@@ -1144,7 +1336,7 @@ typedef struct xterror_struct
 /* --------------------------------------------------------- */
 xmlnode jutil_presnew(int type, char *to, const char *status); /* Create a skeleton presence packet */
 xmlnode jutil_iqnew(int type, char *ns);		 /* Create a skeleton iq packet */
-xmlnode jutil_msgnew(char *type, char *to, char *subj, char *body);
+xmlnode jutil_msgnew(char *type, char const* to, char *subj, char *body);
 							 /* Create a skeleton message packet */
 int     jutil_priority(xmlnode x);			 /* Determine priority of this packet */
 void    jutil_tofrom(xmlnode x);			 /* Swaps to/from fields on a packet */

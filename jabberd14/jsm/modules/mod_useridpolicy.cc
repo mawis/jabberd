@@ -44,10 +44,10 @@
 static mreturn mod_useridpolicy_new(mapi m, void *arg) {
     xmlnode config = NULL;	/* xmlnode holding the module configuration */
     xmlnode x=NULL;		/* for iterating */
-    char *username = NULL;	/* the username that should be registered */
+    char const* username = NULL;	/* the username that should be registered */
     jid user_jid = NULL;	/* JID containing the username (to get stringpreped) */
     size_t username_len = 0;	/* length of the username in characters (!) */
-    char *ptr = NULL;		/* for iterating */
+    char const* ptr = NULL;		/* for iterating */
 
     log_debug2(ZONE, LOGT_AUTH, "checking registration policy");
 
@@ -65,7 +65,7 @@ static mreturn mod_useridpolicy_new(mapi m, void *arg) {
     /* stringprep the username */
     user_jid = jid_new(m->packet->p, "invalid"); /* for 'invalid' as domain see RFC 2606, we just need any domain */
     jid_set(user_jid, username, JID_USER);
-    username = user_jid->user;
+    username = user_jid->get_node().c_str();
 
     /* get configuration, disable the module if not configured */
     if ((config = js_config(m->si, "jsm:mod_useridpolicy", NULL)) == NULL)
@@ -86,7 +86,7 @@ static mreturn mod_useridpolicy_new(mapi m, void *arg) {
 
 	/* check for a match and possibly reject */
 	if (j_strcmp(xmlnode_get_data(x), username) == 0) {
-	    log_notice(m->packet->to->server, "blocked account '%s' from being registered: forbidden username", username);
+	    log_notice(m->packet->to->get_domain().c_str(), "blocked account '%s' from being registered: forbidden username", username);
 	    jutil_error_xmpp(m->packet->x, XTERROR_NOTACCEPTABLE);
 	    xmlnode_free(config);
 	    return M_HANDLED;
@@ -108,7 +108,7 @@ static mreturn mod_useridpolicy_new(mapi m, void *arg) {
 
     /* check for minimum length */
     if (j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:minlen", m->si->std_namespace_prefixes), 0)), 1) > username_len) {
-	log_notice(m->packet->to->server, "blocked account '%s' from being registered: username to short", username);
+	log_notice(m->packet->to->get_domain().c_str(), "blocked account '%s' from being registered: username to short", username);
 	jutil_error_xmpp(m->packet->x, XTERROR_NOTACCEPTABLE);
 	xmlnode_free(config);
 	return M_HANDLED;
@@ -116,7 +116,7 @@ static mreturn mod_useridpolicy_new(mapi m, void *arg) {
     
     /* check for maximum length */
     if (j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:maxlen", m->si->std_namespace_prefixes), 0)), 1023) < username_len) {
-	log_notice(m->packet->to->server, "blocked account '%s' from being registered: username to long", username);
+	log_notice(m->packet->to->get_domain().c_str(), "blocked account '%s' from being registered: username to long", username);
 	jutil_error_xmpp(m->packet->x, XTERROR_NOTACCEPTABLE);
 	xmlnode_free(config);
 	return M_HANDLED;

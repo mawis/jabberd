@@ -60,7 +60,7 @@ static mreturn _mod_last_server_last(mapi m, time_t start) {
     xmlnode last;
 
     /* pre-requisites */
-    if (jpacket_subtype(m->packet) != JPACKET__GET || m->packet->to->resource != NULL)
+    if (jpacket_subtype(m->packet) != JPACKET__GET || m->packet->to->has_resource())
 	return M_PASS;
 
     jutil_iqresult(m->packet->x);
@@ -239,7 +239,7 @@ static mreturn mod_last_reply(mapi m, void *arg) {
         return M_HANDLED;
     }
 
-    log_debug2(ZONE, LOGT_SESSION, "handling query for user %s", m->user->id->user);
+    log_debug2(ZONE, LOGT_SESSION, "handling query for user %s", m->user->id->get_node().c_str());
 
     last = xdb_get(m->si->xc, m->user->id, NS_LAST);
 

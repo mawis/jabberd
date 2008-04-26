@@ -192,7 +192,7 @@ void _xdb_get_hashes(const char *filename, char digit01[3], char digit23[3]) {
  * @param use_subdirs true if file should be located in subdirectories
  * @return 1 on success, 0 on failure
  */
-int _xdb_gen_dirs(spool sp, const char *spoolroot, char *host, const char *hash1, const char *hash2, int use_subdirs) {
+int _xdb_gen_dirs(spool sp, const char *spoolroot, char const* host, const char *hash1, const char *hash2, int use_subdirs) {
     struct stat s;
     char *tmp;
 
@@ -243,7 +243,7 @@ int _xdb_gen_dirs(spool sp, const char *spoolroot, char *host, const char *hash1
  * @param use_subdirs true if file should be located in subdirectories
  * @return concatenated string of the form spl+"/"+somehashes+"/"+file+"."+ext
  */
-char *xdb_file_full(int create, pool p, const char *spl, char *host, const char *file, char *ext, int use_subdirs) {
+char *xdb_file_full(int create, pool p, const char *spl, char const* host, const char *file, char const* ext, int use_subdirs) {
     spool sp = spool_new(p);
     char digit01[3], digit23[3];
     char *ret;
@@ -302,11 +302,11 @@ result xdb_file_phandler(instance i, dpacket p, void *arg) {
 
     /* create the filename of the responsible file */
     /* is this request specific to a user or global data? */
-    if (p->id->user != NULL)
-        full = xdb_file_full(flag_set, p->p, xf->spool, p->id->server, p->id->user, "xml", xf->use_hashspool);
+    if (p->id->has_node())
+        full = xdb_file_full(flag_set, p->p, xf->spool, p->id->get_domain().c_str(), p->id->get_node().c_str(), "xml", xf->use_hashspool);
     else
 	/* global data, not data for a user: never put it inside the hash directories (use global.xdb file) */
-        full = xdb_file_full(flag_set, p->p, xf->spool, p->id->server, "global", "xdb", 0);
+        full = xdb_file_full(flag_set, p->p, xf->spool, p->id->get_domain().c_str(), "global", "xdb", 0);
 
     /* no filename? -> error */
     if (full == NULL)
@@ -316,11 +316,11 @@ result xdb_file_phandler(instance i, dpacket p, void *arg) {
     top = file = xdb_file_load(p->host, full, xf->cache);
 
     /* if we're dealing w/ a resource, just get that element <res id='resource'/> inside <xdb/> */
-    if (p->id->resource != NULL) {
-	top = xmlnode_get_list_item(xmlnode_get_tags(top, spools(p->p, "res[@id='", p->id->resource, "']", p->p), xf->std_ns_prefixes), 0);
+    if (p->id->has_resource()) {
+	top = xmlnode_get_list_item(xmlnode_get_tags(top, spools(p->p, "res[@id='", p->id->get_resource().c_str(), "']", p->p), xf->std_ns_prefixes), 0);
 	if (top == NULL) {
             top = xmlnode_insert_tag_ns(file, "res", NULL, NS_JABBERD_XDB);
-            xmlnode_put_attrib_ns(top, "id", NULL, NULL, p->id->resource);
+            xmlnode_put_attrib_ns(top, "id", NULL, NULL, p->id->get_resource().c_str());
         }
     }
 
@@ -334,11 +334,12 @@ result xdb_file_phandler(instance i, dpacket p, void *arg) {
 	matchns = xmlnode_get_attrib_ns(p->x, "matchns", NULL);
         if (act != NULL) {
 	    xht namespaces = NULL;
-	    pool value_strings = NULL;
+	    pool value_strings = NULL; // pool for the value strings in the namespaces xhash
 
 	    if (matchns != NULL) {
 		xmlnode namespacesxml = NULL;
 		namespacesxml = xmlnode_str(matchns, j_strlen(matchns));
+		value_strings = pool_new();
 		namespaces = xhash_from_xml(namespacesxml, value_strings);
 		xmlnode_free(namespacesxml);
 	    }
@@ -371,6 +372,8 @@ result xdb_file_phandler(instance i, dpacket p, void *arg) {
 			log_debug2(ZONE, LOGT_STORAGE|LOGT_DELIVER, "xdb check action returning error to signify unsuccessful check");
 			if (namespaces)
 			    xhash_free(namespaces);
+			if (value_strings)
+			    pool_free(value_strings);
 			return r_ERR;
 		    }
 		    flag_set = 0;
@@ -410,6 +413,10 @@ result xdb_file_phandler(instance i, dpacket p, void *arg) {
 		    break;
 		default:
 		    log_warn(p->host, "unable to handle unknown xdb action '%s'", act);
+		    if (namespaces)
+			xhash_free(namespaces);
+		    if (value_strings)
+			pool_free(value_strings);
 		    return r_ERR;
             }
 	    if (namespaces)
@@ -429,9 +436,9 @@ result xdb_file_phandler(instance i, dpacket p, void *arg) {
 	if (flag_set) {
 	    int tmp = xmlnode2file_limited(full,file,xf->sizelimit);
 	    if (tmp == 0)
-		log_notice(p->id->server,"xdb request failed, due to the size limit of %i to file %s", xf->sizelimit, full);
+		log_notice(p->id->get_domain().c_str(), "xdb request failed, due to the size limit of %i to file %s", xf->sizelimit, full);
 	    else if (tmp < 0)
-		log_error(p->id->server,"xdb request failed, unable to save to file %s",full);
+		log_error(p->id->get_domain().c_str(), "xdb request failed, unable to save to file %s", full);
 	    else
 		ret = 1;
 	}
