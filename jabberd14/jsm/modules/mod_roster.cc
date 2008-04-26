@@ -46,7 +46,7 @@
 static xmlnode mod_roster_get(udata u) {
     xmlnode ret;
 
-    log_debug2(ZONE, LOGT_ROSTER, "getting %s's roster", u->id->user);
+    log_debug2(ZONE, LOGT_ROSTER, "getting %s's roster", u->id->get_node().c_str());
 
     /* get the existing roster */
     ret = xdb_get(u->si->xc, u->id, NS_ROSTER);
@@ -67,22 +67,23 @@ static xmlnode mod_roster_get(udata u) {
  * @param newflag where to store 1 if the item did not exist and has just been created
  * @return the roster item
  */
-static xmlnode mod_roster_get_item(xmlnode roster, jid id, int *newflag) {
-    xmlnode ret;
-
+static xmlnode mod_roster_get_item(mapi m, xmlnode roster, jid id, int *newflag) {
     log_debug2(ZONE, LOGT_ROSTER, "getting item %s", jid_full(id));
 
-    ret = jid_nodescan(id, roster);
+    std::ostringstream xpath;
+    xpath << "*[@jid='" << id << "']";
 
-    if (ret == NULL) {
-	/* there isn't one, brew one up */
-        log_debug2(ZONE, LOGT_ROSTER, "creating");
-        ret = xmlnode_insert_tag_ns(roster, "item", NULL, NS_ROSTER);
-        xmlnode_put_attrib_ns(ret, "jid", NULL, NULL, jid_full(id));
-        xmlnode_put_attrib_ns(ret, "subscription", NULL, NULL, "none");
-        *newflag = 1;
-    }
+    xmlnode_vector ret_v = xmlnode_get_tags(roster, xpath.str().c_str(), m->si->std_namespace_prefixes);
 
+    if (!ret_v.empty())
+	return ret_v[0];
+
+    /* there isn't one, brew one up */
+    log_debug2(ZONE, LOGT_ROSTER, "creating");
+    xmlnode ret = xmlnode_insert_tag_ns(roster, "item", NULL, NS_ROSTER);
+    xmlnode_put_attrib_ns(ret, "jid", NULL, NULL, jid_full(id));
+    xmlnode_put_attrib_ns(ret, "subscription", NULL, NULL, "none");
+    *newflag = 1;
     return ret;
 }
 
@@ -190,7 +191,7 @@ static mreturn mod_roster_out_s10n(mapi m) {
 
     /* get the roster item */
     roster = mod_roster_get(m->user);
-    item = mod_roster_get_item(roster, m->packet->to, &newflag);
+    item = mod_roster_get_item(m, roster, m->packet->to, &newflag);
 
     /* vars containing the old subscription state */
     if (j_strcmp(xmlnode_get_attrib_ns(item, "subscription", NULL), "to") == 0)
@@ -394,7 +395,7 @@ static mreturn mod_roster_out_iq(mapi m) {
 		    continue;
 
 		/* zoom to find the existing item in the current roster, and hide it */
-		item = mod_roster_get_item(roster, id, &newflag);
+		item = mod_roster_get_item(m, roster, id, &newflag);
 		xmlnode_hide(item);
 
 		/* drop you sukkah */
@@ -513,7 +514,7 @@ static mreturn mod_roster_s10n(mapi m, void *arg) {
 
     /* now we can get to work and handle this user's incoming subscription crap */
     roster = mod_roster_get(m->user);
-    item = mod_roster_get_item(roster, m->packet->from, &newflag);
+    item = mod_roster_get_item(m, roster, m->packet->from, &newflag);
     reply2 = reply = NULL;
     jid_set(m->packet->to, NULL, JID_RESOURCE); /* make sure we're only dealing w/ the user id */
 

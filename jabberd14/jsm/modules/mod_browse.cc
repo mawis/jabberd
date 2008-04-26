@@ -55,7 +55,7 @@ static xmlnode mod_browse_get(mapi m, jid id) {
     /* get main account browse */
     if ((browse = xdb_get(m->si->xc, id, NS_BROWSE)) == NULL) {
 	/* no browse is set up yet, we must create one for this user! */
-        if (id->resource == NULL) {
+        if (!id->has_resource()) {
 	    /* a user is only the user@host */
             browse = xmlnode_new_tag_ns("user", NULL, NS_BROWSE);
             /* get the friendly name for this user from somewhere */
@@ -107,7 +107,7 @@ static mreturn mod_browse_set(mapi m, void *arg) {
         to = m->user->id;
 
     /* if we set to a resource, we need to make sure that resource's browse is in the users browse */
-    if (to->resource != NULL) {
+    if (to->has_resource()) {
         browse = mod_browse_get(m, to); /* get our browse info */
         xmlnode_hide_attrib_ns(browse, "xmlns", NS_XMLNS); /* don't need a ns as a child */
         for (cur = xmlnode_get_firstchild(browse); cur != NULL; cur = xmlnode_get_nextsibling(cur))
@@ -130,7 +130,7 @@ static mreturn mod_browse_set(mapi m, void *arg) {
     }
         
     /* if the new data we're inserting is to one of our resources, update that resource's browse */
-    if (jid_cmpx(m->user->id, id, JID_USER|JID_SERVER) == 0 && id->resource != NULL) {
+    if (jid_cmpx(m->user->id, id, JID_USER|JID_SERVER) == 0 && id->has_resource()) {
         /* get the old */
         browse = mod_browse_get(m, id);
         /* transform the new one into the old one */
@@ -190,7 +190,7 @@ static mreturn mod_browse_reply(mapi m, void *arg) {
 	    return M_HANDLED;
     }
 
-    log_debug2(ZONE, LOGT_DELIVER, "handling query for user %s", m->user->id->user);
+    log_debug2(ZONE, LOGT_DELIVER, "handling query for user %s", m->user->id->get_node().c_str());
 
     /* get this dudes browse info */
     browse = mod_browse_get(m, m->packet->to);
@@ -241,7 +241,7 @@ static mreturn _mod_browse_server(mapi m) {
 
     if (m->packet->type != JPACKET_IQ)
 	return M_IGNORE;
-    if (jpacket_subtype(m->packet) != JPACKET__GET || m->packet->to->resource != NULL)
+    if (jpacket_subtype(m->packet) != JPACKET__GET || m->packet->to->has_resource())
 	return M_PASS;
 
     /* get data from the config file */
@@ -254,7 +254,7 @@ static mreturn _mod_browse_server(mapi m) {
     vcard_fn = js_config(m->si, "vcard:vCard/vcard:FN", xmlnode_get_lang(m->packet->x));
     query = xmlnode_insert_tag_ns(jutil_iqresult(m->packet->x), "service", NULL, NS_BROWSE);
     xmlnode_put_attrib_ns(query, "type", NULL, NULL, "jabber");
-    xmlnode_put_attrib_ns(query, "jid", NULL, NULL, m->packet->to->server);
+    xmlnode_put_attrib_ns(query, "jid", NULL, NULL, m->packet->to->get_domain().c_str());
     xmlnode_put_attrib_ns(query, "name", NULL, NULL, xmlnode_get_data(vcard_fn)); /* pull name from the server vCard */
 
     /* copy in the configured services */

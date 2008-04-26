@@ -60,7 +60,7 @@ static mreturn mod_echo_reply(mapi m, void *arg) {
 	return M_IGNORE;
 
     /* first, is this a valid request? */
-    if (m->packet->to->resource == NULL || strncasecmp(m->packet->to->resource, "echo", 4) != 0)
+    if (!m->packet->to->has_resource() || m->packet->to->get_resource() == "echo")
 	return M_PASS;
 
     log_debug2(ZONE, LOGT_DELIVER, "handling echo request from %s", jid_full(m->packet->from));

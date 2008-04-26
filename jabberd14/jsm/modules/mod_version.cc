@@ -69,7 +69,7 @@ typedef struct {
  * @return M_IGNORED if not a iq stanza, M_PASS if stanza not handled, M_HANDLED if stanza has been handled
  */
 static mreturn _mod_version_reply(mapi m, mod_version_i mi) {
-    if (m->packet->to->resource != NULL)
+    if (m->packet->to->has_resource())
 	return M_PASS;
 
     /* first, is this a valid request? */

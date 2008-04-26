@@ -1831,7 +1831,7 @@ static int mio_tls_check_x509(mio m, char const* id_on_xmppAddr, const std::stri
 				jid_pool = pool_new();
 				cert_jid = jid_new(jid_pool, thisIdOnXMPPaddr);
 
-				if (cert_jid == NULL || cert_jid->server == NULL) {
+				if (cert_jid == NULL) {
 				    cert_jid = NULL;
 				    pool_free(jid_pool);
 				    jid_pool = NULL;

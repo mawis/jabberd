@@ -110,7 +110,7 @@ static mreturn mod_offline_message(mapi m, modoffline_conf conf) {
         }
     }
 
-    log_debug2(ZONE, LOGT_DELIVER, "handling message for %s", m->user->id->user);
+    log_debug2(ZONE, LOGT_DELIVER, "handling message for %s", m->user->id->get_node().c_str());
 
     if ((cur2 = xmlnode_get_list_item(xmlnode_get_tags(m->packet->x,"expire:x", m->si->std_namespace_prefixes), 0)) != NULL) {
         if (j_atoi(xmlnode_get_attrib_ns(cur2, "seconds", NULL), 0) == 0)

@@ -217,7 +217,7 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x, char* unused1, 
 	other_side_jid = jid_new(x->p, decoded_initial_exchange);
 
 	/* we only accept servers, no users */
-	if (!other_side_jid || other_side_jid->user || other_side_jid->resource) {
+	if (!other_side_jid || other_side_jid->has_node() || other_side_jid->has_resource()) {
 	    mio_write(m, NULL, "<failure xmlns='" NS_XMPP_SASL "'><invalid-authzid/></failure></stream:stream>", -1);
 	    mio_close(m);
 	    xmlnode_free(x);
@@ -233,7 +233,7 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x, char* unused1, 
 	}
 
 	/* check the security settings */
-	if (!dialback_check_settings(c->d, c->m, other_side_jid->server, 0, 1, c->xmpp_version)) {
+	if (!dialback_check_settings(c->d, c->m, other_side_jid->get_domain().c_str(), 0, 1, c->xmpp_version)) {
 	    mio_write(m, NULL, "<failure xmlns='" NS_XMPP_SASL "'><mechanism-too-weak/></failure></stream:stream>", -1);
 	    mio_close(m);
 	    xmlnode_free(x);
@@ -281,7 +281,7 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x, char* unused1, 
     }
 
     /* make our special key */
-    jid_set(key,from->server,JID_RESOURCE);
+    jid_set(key, from->get_domain().c_str(), JID_RESOURCE);
     jid_set(key,c->id,JID_USER); /* special user of the id attrib makes this key unique */
 
     /* incoming result, track it and forward on */
@@ -549,7 +549,7 @@ void dialback_in_verify(db d, xmlnode x) {
 	/* accept incoming stanzas on this connection */
         dialback_miod_hash(dialback_miod_new(c->d, c->m), c->d->in_ok_db, key);
     } else
-	log_warn(d->i->id, "Denying peer to use the domain %s. Dialback failed (%s): %s", key->resource, type ? type : "timeout", xmlnode_serialize_string(x2, xmppd::ns_decl_list(), 0));
+	log_warn(d->i->id, "Denying peer to use the domain %s. Dialback failed (%s): %s", key->get_resource().c_str(), type ? type : "timeout", xmlnode_serialize_string(x2, xmppd::ns_decl_list(), 0));
 
     /* rewrite and send on to the socket */
     mio_write(c->m, x2, NULL, -1);

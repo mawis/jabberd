@@ -55,7 +55,7 @@ static void _jsm_serialize_user(xht usershash, const char *user, void *value, vo
 	/* generate the wrapper element when first session is processed */
 	if (thisuser == NULL) {
 	    thisuser = xmlnode_insert_tag_ns(resulttree, "user", NULL, NS_JABBERD_STOREDSTATE);
-	    xmlnode_put_attrib_ns(thisuser, "name", NULL, NULL, userdata->id->user);
+	    xmlnode_put_attrib_ns(thisuser, "name", NULL, NULL, userdata->id->get_node().c_str());
 	}
 
 	/* generate the wrapper element for the session */
@@ -80,7 +80,7 @@ static void _jsm_serialize_user(xht usershash, const char *user, void *value, vo
 
     /* debugging */
     if (thisuser == NULL) {
-	log_debug2(ZONE, LOGT_EXECFLOW, "user %s had no sessions", userdata->id->user);
+	log_debug2(ZONE, LOGT_EXECFLOW, "user %s had no sessions", userdata->id->get_node().c_str());
     }
 }
 
@@ -204,7 +204,7 @@ static void _jsm_deserialize_session(jsmi si, const jid user_jid, const char *re
 
     s->id = jid_new(p, jid_full(user_jid));
     jid_set(s->id, resource, JID_RESOURCE);
-    s->res = s->id->resource;
+    s->res = pstrdup(s->p, s->id->get_resource().c_str());
     s->u = u;
     s->exit_flag = 0;
     s->roster = roster;

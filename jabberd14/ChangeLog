@@ -1,3 +1,54 @@
+2008-04-26  Matthias Wimmer  <m@tthias.eu>
+
+    * jabberd/lib/jabberid.cc: new class for JabberID handling
+    * jabberd/jabberd.h: same
+    * jabberd/acl.cc: same
+    * jabberd/config.cc: same
+    * jabberd/mio_tls.cc: same
+    * jabberd/lib/jid.cc: same
+    * jabberd/lib/hmac.cc: same
+    * jabberd/lib/xhash.cc: same
+    * jabberd/lib/expat.cc: same
+    * jabberd/lib/jabberdlib.h: same
+    * jabberd/lib/jutil.cc: same
+    * jabberd/base/base_importspool.cc: same
+    * jabberd/base/base_accept.cc: same
+    * jabberd/jabberd.cc: same
+    * jabberd/deliver.cc: same
+    * jsm/jsm.h: same
+    * jsm/serialization.cc: same
+    * jsm/util.cc: same
+    * jsm/authreg.cc: same
+    * jsm/users.cc: same
+    * jsm/modules/mod_time.cc: same
+    * jsm/modules/mod_vcard.cc: same
+    * jsm/modules/mod_disco.cc: same
+    * jsm/modules/mod_browse.cc: same
+    * jsm/modules/mod_last.cc: same
+    * jsm/modules/mod_presence.cc: same
+    * jsm/modules/mod_announce.cc: same
+    * jsm/modules/mod_useridpolicy.cc: same
+    * jsm/modules/mod_privacy.cc: same
+    * jsm/modules/mod_echo.cc: same
+    * jsm/modules/mod_roster.cc: same
+    * jsm/modules/mod_agents.cc: same
+    * jsm/modules/mod_offline.cc: same
+    * jsm/modules/mod_dynamic.cc: same
+    * jsm/modules/mod_register.cc: same
+    * jsm/modules/mod_version.cc: same
+    * jsm/modules/mod_admin.cc: same
+    * jsm/modules/mod_example.cc: same
+    * jsm/sessions.cc: same
+    * jsm/deliver.cc: same
+    * dialback/dialback.h: same
+    * dialback/dialback_in.cc: same
+    * dialback/dialback_out.cc: same
+    * dialback/dialback.cc: same
+    * dnsrv/dnsrv.cc: same
+    * pthsock/client.cc: same
+    * xdb_file/xdbfiletool.cc: same
+    * xdb_file/xdb_file.cc: same
+
 2007-11-27  Matthias Wimmer  <m@tthias.eu>
 
     * jabberd/base/base_connect.cc: (try to) unroute host if loop is detected

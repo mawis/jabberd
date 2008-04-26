@@ -50,7 +50,7 @@ static int acl_check_access_domain(xdbcache xdb, const char* function, const jid
     jid			result = NULL;
 
     /* sanity check */
-    if (xdb == NULL || function == NULL || user == NULL || user->server == NULL)
+    if (xdb == NULL || function == NULL || user == NULL)
 	return 0;
 
     /* define namespace prefixes */
@@ -74,7 +74,7 @@ static int acl_check_access_domain(xdbcache xdb, const char* function, const jid
 	    xmlnode_vector domain = xmlnode_get_tags(*iter, "acl:domain", namespaces);
 	    xmlnode_vector::iterator p;
 	    for (p = domain.begin(); p != domain.end(); ++p) {
-		if (j_strcmp(user->server, xmlnode_get_data(*p)) == 0) {
+		if (j_strcmp(user->get_domain().c_str(), xmlnode_get_data(*p)) == 0) {
 		    return 1;
 		}
 	    }
@@ -108,7 +108,7 @@ int acl_check_access(xdbcache xdb, const char *function, const jid user) {
 	log_debug2(ZONE, LOGT_AUTH, "allowed for this feature is: %s", jid_full(iter));
 	if (jid_cmpx(iter, user, JID_USER|JID_SERVER) == 0) {
 	    /* match */
-	    pool_free(allowed_users -> p);
+	    pool_free(allowed_users->get_pool());
 	    log_debug2(ZONE, LOGT_AUTH, "user %s has access to %s", jid_full(user), function);
 	    return 1;
 	}
@@ -116,7 +116,7 @@ int acl_check_access(xdbcache xdb, const char *function, const jid user) {
 
     /* cleanup */
     if (allowed_users != NULL)
-	pool_free(allowed_users->p);
+	pool_free(allowed_users->get_pool());
 
     /* no match found */
     log_debug2(ZONE, LOGT_AUTH, "denied user %s access to %s", jid_full(user), function);

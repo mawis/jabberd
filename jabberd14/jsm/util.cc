@@ -110,9 +110,9 @@ xmlnode js_config(jsmi si, const char* query, const char* lang) {
  * @return 0 if the user is not local, 1 if the user is local
  */
 int js_islocal(jsmi si, jid id) {
-    if (id == NULL || id->user == NULL)
+    if (id == NULL || !id->has_node())
 	return 0;
-    if (xhash_get(si->hosts, id->server) == NULL)
+    if (xhash_get(si->hosts, id->get_domain().c_str()) == NULL)
 	return 0;
     return 1;
 }
@@ -255,15 +255,15 @@ void js_remove_seen(udata u, jid id) {
  */
 int _js_jidscanner(jid id, jid match) {
     for (;id != NULL; id = id->next) {
-        if (j_strcmp(id->server,match->server) != 0)
+	if (id->get_domain() != match->get_domain())
 	    continue;
-        if (id->user == NULL)
+        if (!id->has_node())
 	    return 1;
-        if (j_strcasecmp(id->user,match->user) != 0)
+	if (id->get_node() != match->get_node())
 	    continue;
-        if (id->resource == NULL)
+        if (!id->has_resource())
 	    return 1;
-        if (j_strcmp(id->resource,match->resource) != 0)
+	if (id->get_resource() != match->get_resource())
 	    continue;
         return 1;
     }

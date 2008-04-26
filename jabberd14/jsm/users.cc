@@ -70,7 +70,7 @@ void _js_users_del(xht h, const char *key, void *data, void *arg)
     if(u->ref > 0 || (u->sessions != NULL && ++*(htc->count)))
         return;
 
-    log_debug2(ZONE, LOGT_SESSION, "freeing %s", u->id->user);
+    log_debug2(ZONE, LOGT_SESSION, "freeing %s", u->id->get_node().c_str());
 
     xhash_zap(htc->ht, key);
     pool_free(u->p);
@@ -252,19 +252,19 @@ udata js_user(jsmi si, jid id, xht ht) {
     xmlnode x, y;
     jid uid;
 
-    if (si == NULL || id == NULL || id->user == NULL)
+    if (si == NULL || id == NULL || !id->has_node())
 	return NULL;
 
     /* get the host hash table if it wasn't provided */
     if (ht == NULL)
-        ht = static_cast<xht>(xhash_get(si->hosts,id->server));
+        ht = static_cast<xht>(xhash_get(si->hosts,id->get_domain().c_str()));
 
     /* hrm, like, this isn't our user! */
     if (ht == NULL)
 	return NULL;
 
     /* copy the id and convert user to lower case (if not done by libidn) */
-    uid = jid_new(id->p, jid_full(jid_user(id)));
+    uid = jid_new(id->get_pool(), jid_full(jid_user(id)));
 #ifndef LIBIDN
     for (ustr = uid->user; *ustr != '\0'; ustr++)
         *ustr = tolower(*ustr);
@@ -274,7 +274,7 @@ udata js_user(jsmi si, jid id, xht ht) {
     log_debug2(ZONE, LOGT_SESSION, "js_user(%s,%X)",jid_full(uid),ht);
 
     /* try to get the user data from the hash table */
-    if ((cur = static_cast<udata>(xhash_get(ht,uid->user))) != NULL)
+    if ((cur = static_cast<udata>(xhash_get(ht,uid->get_node().c_str()))) != NULL)
         return cur;
 
     /* debug message */
@@ -305,8 +305,8 @@ udata js_user(jsmi si, jid id, xht ht) {
 
 
     /* got the user, add it to the user list */
-    xhash_put(ht, newu->id->user, newu);
-    log_debug2(ZONE, LOGT_SESSION, "js_user debug %X %X", xhash_get(ht, newu->id->user), newu);
+    xhash_put(ht, newu->id->get_node().c_str(), newu);
+    log_debug2(ZONE, LOGT_SESSION, "js_user debug %X %X", xhash_get(ht, newu->id->get_node().c_str()), newu);
 
     return newu;
 }

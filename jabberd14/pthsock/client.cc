@@ -119,8 +119,8 @@ static result pthsock_client_packets(instance id, dpacket p, void *arg) {
     mio m;
     int fd = 0;
 
-    if (p->id->user != NULL)
-        fd = atoi(p->id->user); 
+    if (p->id->has_node())
+        fd = atoi(p->id->get_node().c_str()); 
     
     if (p->type != p_ROUTE || fd == 0) {
 	/* we only want <route/> packets or ones with a valid connection */
@@ -141,14 +141,19 @@ static result pthsock_client_packets(instance id, dpacket p, void *arg) {
         return r_DONE;
     }
 
-
-
-    if (fd != cdcur->m->fd || cdcur->m->state != state_ACTIVE)
-        m = NULL;
-    else if (j_strcmp(p->id->resource,cdcur->res) != 0)
-        m = NULL;
-    else
-        m = cdcur->m;
+    if (fd != cdcur->m->fd) {
+	log_debug2(ZONE, LOGT_SESSION, "Unexpected fd: packet for fd #%i while expecting fd #%i", fd, cdcur->m->fd);
+	m = NULL;
+    } else if (cdcur->m->state != state_ACTIVE) {
+	log_debug2(ZONE, LOGT_SESSION, "Got packet for un-active socket");
+	m = NULL;
+    } else if (j_strcmp(p->id->get_resource().c_str(), cdcur->res) != 0) {
+	log_debug2(ZONE, LOGT_SESSION, "Unexpected resource: packet for %s, expecting %s", p->id->get_resource().c_str(), cdcur->res);
+	log_debug2(ZONE, LOGT_SESSION, "XXX JID: %s", p->id->full().c_str());
+	m = NULL;
+    } else {
+	m = cdcur->m;
+    }
 
     if (m == NULL) { 
         if (j_strcmp(xmlnode_get_attrib_ns(p->x, "type", NULL), "error") == 0) {
@@ -189,14 +194,14 @@ static result pthsock_client_packets(instance id, dpacket p, void *arg) {
             log_debug2(ZONE, LOGT_SESSION, "[%s] requesting Session Start for %s", ZONE, xmlnode_get_attrib_ns(p->x, "from", NULL));
             deliver(dpacket_new(x), s__i->i);
         } else if (j_strcmp(type,"error") == 0) {
-            log_record(jid_full(jid_user(cdcur->session_id)), "login", "fail", "%s %s %s", mio_ip(cdcur->m), xmlnode_get_attrib_ns(xmlnode_get_list_item(xmlnode_get_tags(p->x, "iq/error", s__i->std_namespace_prefixes), 0), "code", NULL), cdcur->session_id->resource);
+            log_record(jid_full(jid_user(cdcur->session_id)), "login", "fail", "%s %s %s", mio_ip(cdcur->m), xmlnode_get_attrib_ns(xmlnode_get_list_item(xmlnode_get_tags(p->x, "iq/error", s__i->std_namespace_prefixes), 0), "code", NULL), cdcur->session_id->get_resource().c_str());
         }
     } else if (cdcur->state == state_UNKNOWN && j_strcmp(xmlnode_get_attrib_ns(p->x, "type", NULL), "session") == 0) {
 	/* got a session reply from the server */
         mio_wbq q;
 
         cdcur->state = state_AUTHD;
-        log_record(jid_full(jid_user(cdcur->session_id)), "login", "ok", "%s %s", mio_ip(cdcur->m), cdcur->session_id->resource);
+        log_record(jid_full(jid_user(cdcur->session_id)), "login", "ok", "%s %s", mio_ip(cdcur->m), cdcur->session_id->get_resource().c_str());
         /* change the host id */
         cdcur->session_id = jid_new(m->p, xmlnode_get_attrib_ns(p->x, "from", NULL));
         xmlnode_free(p->x);
@@ -331,7 +336,7 @@ static void pthsock_client_read(mio m, int flag, void *arg, xmlnode x, char* unu
 	    if (version>=1) {
 		xmlnode features = xmlnode_new_tag_ns("features", "stream", NS_STREAM);
 		/* TLS possible on this connection? */
-		if (mio_ssl_starttls_possible(m, cd->session_id->server)) {
+		if (mio_ssl_starttls_possible(m, cd->session_id->get_domain().c_str())) {
 		    xmlnode starttls = NULL;
 
 		    starttls = xmlnode_insert_tag_ns(features, "starttls", NULL, NS_XMPP_TLS);
@@ -357,13 +362,13 @@ static void pthsock_client_read(mio m, int flag, void *arg, xmlnode x, char* unu
 	    /* make sure alias is upheld */
 	    if (cd->aliased) {
 		jid j = jid_new(xmlnode_pool(x), xmlnode_get_attrib_ns(x, "to", NULL));
-		if (j != NULL && j_strcmp(j->server, cd->sending_id->server) == 0) {
-		    jid_set(j, cd->session_id->server, JID_SERVER);
+		if (j && j->get_domain() == cd->sending_id->get_domain()) {
+		    jid_set(j, cd->session_id->get_domain().c_str(), JID_SERVER);
 		    xmlnode_put_attrib_ns(x, "to", NULL, NULL, jid_full(j));
 		}
 		j = jid_new(xmlnode_pool(x), xmlnode_get_attrib_ns(x, "from", NULL));
-		if (j != NULL && j_strcmp(j->server, cd->sending_id->server) == 0) {
-		    jid_set(j, cd->session_id->server, JID_SERVER);
+		if (j && j->get_domain() == cd->sending_id->get_domain()) {
+		    jid_set(j, cd->session_id->get_domain().c_str(), JID_SERVER);
 		    xmlnode_put_attrib_ns(x, "from", NULL, NULL, jid_full(j));
 		}
 	    }
@@ -375,13 +380,13 @@ static void pthsock_client_read(mio m, int flag, void *arg, xmlnode x, char* unu
 		xmlnode q_register = xmlnode_get_list_item(xmlnode_get_tags(x, "register:query", cd->si->std_namespace_prefixes), 0);
 		if (j_strcmp(xmlnode_get_localname(x), "starttls") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_XMPP_TLS) == 0) {
 		    /* starting TLS possible? */
-		    if (mio_ssl_starttls_possible(m, cd->session_id->server)) {
+		    if (mio_ssl_starttls_possible(m, cd->session_id->get_domain().c_str())) {
 			/* ACK the start */
 			xmlnode proceed = xmlnode_new_tag_ns("proceed", NULL, NS_XMPP_TLS);
 			mio_write(m, proceed, NULL, 0);
 
 			/* start TLS on this connection */
-			if (mio_xml_starttls(m, 0, cd->session_id->server) != 0) {
+			if (mio_xml_starttls(m, 0, cd->session_id->get_domain().c_str()) != 0) {
 			    /* starttls failed */
 			    mio_close(m);
 			}

@@ -324,7 +324,7 @@ result dnsrv_deliver(instance i, dpacket p, void* args) {
             return r_ERR;
         p->x=xmlnode_get_firstchild(p->x);
         p->id = to;
-        p->host = to->server;
+	p->host = pstrdup(p->p, to->get_domain().c_str());
      }
 
      /* Ensure this packet doesn't already have an IP */
