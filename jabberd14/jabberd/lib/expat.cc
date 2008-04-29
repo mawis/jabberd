@@ -67,7 +67,7 @@ typedef struct {
  */
 void expat_startElement(void* userdata, const char* name, const char** atts) {
     char *prefix = NULL;
-    char *ns_iri = NULL;
+    char const *ns_iri = NULL;
     char *local_name = NULL;
 
     /* get the data we are working on */
@@ -220,7 +220,6 @@ xmlnode xmlnode_str(const char *str, int len) {
     XML_SetCharacterDataHandler(p, expat_charData);
     XML_SetNamespaceDeclHandler(p, expat_startNamespaceDecl, expat_endNamespaceDecl);
     if(!XML_Parse(p, str, len, 1)) {
-        /*        jdebug(ZONE,"xmlnode_str_error: %s",(char *)XML_ErrorString(XML_GetErrorCode(p)));*/
         xmlnode_free(callback_data.x);
 	callback_data.x = NULL;
     }
@@ -263,7 +262,6 @@ xmlnode xmlnode_file(const char *file) {
         done = len < BUFSIZ;
         if(!XML_Parse(p, buf, len, done))
         {
-            /*            jdebug(ZONE,"xmlnode_file_parseerror: %s",(char *)XML_ErrorString(XML_GetErrorCode(p)));*/
             xmlnode_free(callback_data.x);
 	    callback_data.x = NULL;
             done = 1;
@@ -285,7 +283,7 @@ xmlnode xmlnode_file(const char *file) {
  * @param file the filename
  * @return pointer to a message why parsing failed, NULL if parsing did not fail
  */
-char* xmlnode_file_borked(char const* file) {
+char const* xmlnode_file_borked(char const* file) {
     XML_Parser p;
     char buf[BUFSIZ];
     static char err[1024];
@@ -412,7 +410,7 @@ void xmlnode_put_expat_attribs(xmlnode owner, const char** atts, xmppd::ns_decl_
 
     while (atts[i] != '\0') {
 	char *prefix = NULL;
-	char *ns_iri = NULL;
+	char const* ns_iri = NULL;
 	char *local_name = NULL;
 
 	/* get prefix, iri, and local name of the element */
