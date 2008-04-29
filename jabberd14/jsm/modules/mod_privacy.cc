@@ -812,7 +812,9 @@ static int mod_privacy_activate_named(jsmi si, session s, const char* name) {
 	}
     } else {
 	pool p = pool_new();
-	named_list = xmlnode_get_tags(all_lists, spools(p, "*[@name='", name, "']", p), s->si->std_namespace_prefixes);
+	std::ostringstream xpath;
+	xpath << "*[@name='" << name << "']";
+	named_list = xmlnode_get_tags(all_lists, xpath.str().c_str(), s->si->std_namespace_prefixes);
 	pool_free(p);
 
 	if (named_list.size() == 0) {
@@ -1018,7 +1020,9 @@ static mreturn mod_privacy_out_iq_set_default(mapi m, const char* new_default_li
 
     /* is there any list with the requested name? */
     if (new_default_list != NULL) {
-	xmlnode_vector default_list_new = xmlnode_get_tags(all_lists, spools(m->packet->p, "privacy:list[@name='", new_default_list, "']", m->packet->p), m->si->std_namespace_prefixes);
+	std::ostringstream xpath;
+	xpath << "privacy:list[@name='" << new_default_list << "']";
+	xmlnode_vector default_list_new = xmlnode_get_tags(all_lists, xpath.str().c_str(), m->si->std_namespace_prefixes);
 	if (default_list_new.size() == 0) {
 	    /* requested list does not exist */
 	    js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_NOTFOUND);
@@ -1028,13 +1032,15 @@ static mreturn mod_privacy_out_iq_set_default(mapi m, const char* new_default_li
 
 	/* set the new list to be the default */
 	xmlnode_put_attrib_ns(default_list_new[0], "default", "jabberd", NS_JABBERD_WRAPPER, "default");
-	xdb_act_path(m->si->xc, m->user->id, NS_PRIVACY, "insert", spools(m->packet->p, "privacy:list[@name='", new_default_list, "']", m->packet->p), m->si->std_namespace_prefixes, default_list_new[0]);
+	xdb_act_path(m->si->xc, m->user->id, NS_PRIVACY, "insert", xpath.str().c_str(), m->si->std_namespace_prefixes, default_list_new[0]);
     }
 
     /* unselect the old default list */
     if (default_list.size() > 0) {
 	xmlnode_hide_attrib_ns(default_list[0], "default", NS_JABBERD_WRAPPER);
-	xdb_act_path(m->si->xc, m->user->id, NS_PRIVACY, "insert", spools(m->packet->p, "privacy:list[@name='", old_default_list, "']", m->packet->p), m->si->std_namespace_prefixes, default_list[0]);
+	std::ostringstream xpath;
+	xpath << "privacy:list[@name='" << old_default_list << "']";
+	xdb_act_path(m->si->xc, m->user->id, NS_PRIVACY, "insert", xpath.str().c_str(), m->si->std_namespace_prefixes, default_list[0]);
     }
 
     /* update the active list for the current session, if the default list was in use */
@@ -1066,7 +1072,6 @@ static mreturn mod_privacy_out_iq_set_default(mapi m, const char* new_default_li
  */
 static mreturn mod_privacy_out_iq_set_list(mapi m, xmlnode new_list) {
     const char* edited_list = NULL;
-    char* edited_list_path = NULL;
     int xdb_result = 0;
     xmlnode previous_lists = NULL;
     int is_default_update = 0;
@@ -1102,8 +1107,9 @@ static mreturn mod_privacy_out_iq_set_list(mapi m, xmlnode new_list) {
 
     /* is the edited list the default list? */
     previous_lists = xdb_get(m->si->xc, m->user->id, NS_PRIVACY);
-    edited_list_path = spools(m->packet->p, "privacy:list[@name='", edited_list, "']", m->packet->p);
-    xmlnode_vector previous_list = xmlnode_get_tags(previous_lists, edited_list_path, m->si->std_namespace_prefixes);
+    std::ostringstream edited_list_xpath;
+    edited_list_xpath << "privacy:list[@name='" << edited_list << "']";
+    xmlnode_vector previous_list = xmlnode_get_tags(previous_lists, edited_list_xpath.str().c_str(), m->si->std_namespace_prefixes);
     if (previous_list.size() > 0 && xmlnode_get_attrib_ns(previous_list[0], "default", NS_JABBERD_WRAPPER) != NULL) {
 	is_default_update = 1;
 	xmlnode_put_attrib_ns(new_list, "default", "jabberd", NS_JABBERD_WRAPPER, "default");
@@ -1170,7 +1176,7 @@ static mreturn mod_privacy_out_iq_set_list(mapi m, xmlnode new_list) {
     }
 
     /* save the new list */
-    xdb_result = xdb_act_path(m->si->xc, m->user->id, NS_PRIVACY, "insert", edited_list_path, m->si->std_namespace_prefixes, list_items > 0 ? new_list : NULL);
+    xdb_result = xdb_act_path(m->si->xc, m->user->id, NS_PRIVACY, "insert", edited_list_xpath.str().c_str(), m->si->std_namespace_prefixes, list_items > 0 ? new_list : NULL);
     if (xdb_result) {
 	xmlnode_free(previous_lists);
 	log_debug2(ZONE, LOGT_STORAGE, "Error updating stored data.");
@@ -1316,7 +1322,9 @@ static mreturn mod_privacy_out_iq_get(mapi m) {
     log_debug2(ZONE, LOGT_EXECFLOW, "Client requested privacy list: %s", requested_list);
 
     /* get the requested list */
-    xmlnode_vector lists = xmlnode_get_tags(storedlists, spools(m->packet->p, "privacy:list[@name='", requested_list, "']", m->packet->p), m->si->std_namespace_prefixes);
+    std::ostringstream xpath;
+    xpath << "privacy:list[@name='" << requested_list << "']";
+    xmlnode_vector lists = xmlnode_get_tags(storedlists, xpath.str().c_str(), m->si->std_namespace_prefixes);
 
     /* no such list? */
     if (lists.size() == 0) {

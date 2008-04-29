@@ -37,7 +37,6 @@
 
 static result base_to_deliver(instance id,dpacket p,void* arg) {
     char* log_data = xmlnode_get_data(p->x);
-    char* subject;
     xmlnode message;
 
     if (log_data == NULL)
@@ -46,9 +45,10 @@ static result base_to_deliver(instance id,dpacket p,void* arg) {
     message = xmlnode_new_tag_ns("message", NULL, NS_SERVER);
     
     xmlnode_insert_cdata(xmlnode_insert_tag_ns(message, "body", NULL, NS_SERVER), log_data, -1);
-    subject=spools(xmlnode_pool(message), "Log Packet from ", xmlnode_get_attrib_ns(p->x, "from", NULL), xmlnode_pool(message));
-    xmlnode_insert_cdata(xmlnode_insert_tag_ns(message, "thread", NULL, NS_SERVER), shahash(subject), -1);
-    xmlnode_insert_cdata(xmlnode_insert_tag_ns(message, "subject", NULL, NS_SERVER), subject, -1);
+    std::ostringstream subject;
+    subject << "Log Packet from " << xmlnode_get_attrib_ns(p->x, "from", NULL);
+    xmlnode_insert_cdata(xmlnode_insert_tag_ns(message, "thread", NULL, NS_SERVER), shahash(subject.str().c_str()), -1);
+    xmlnode_insert_cdata(xmlnode_insert_tag_ns(message, "subject", NULL, NS_SERVER), subject.str().c_str(), subject.str().length());
     xmlnode_put_attrib_ns(message, "from", NULL, NULL, xmlnode_get_attrib_ns(p->x, "from", NULL));
     xmlnode_put_attrib_ns(message, "to", NULL, NULL, (char*)arg);
 

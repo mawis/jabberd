@@ -177,7 +177,6 @@ char *dialback_randstr(void)
  */
 char *dialback_merlin(pool p, char const* secret, char const* to, char const* from, char const* challenge) {
     char *result = NULL;
-    char *message = NULL;
 
     /* sanity check */
     if (p == NULL)
@@ -187,10 +186,11 @@ char *dialback_merlin(pool p, char const* secret, char const* to, char const* fr
     result = static_cast<char*>(pmalloco(p, 41));
 
     /* generate the message, that has to be signed */
-    message = spools(p, to, " ", from, " ", challenge, p);
+    std::ostringstream message;
+    message << to << " " << from << " " << challenge;
 
     /* sign the message */
-    hmac_sha1_ascii_r(secret, reinterpret_cast<unsigned char*>(message), j_strlen(message), result);
+    hmac_sha1_ascii_r(secret, reinterpret_cast<unsigned char const*>(message.str().c_str()), message.str().length(), result);
 
     log_debug2(ZONE, LOGT_AUTH, "merlin casts his spell (%s - %s %s %s) %s", secret, to, from, challenge, result);
 
@@ -574,81 +574,139 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), messages_get(lang, N_("Pending IPs: ")), dc->ip ? dc->ip : messages_get(lang, N_("no more other IPs will be tried")), xmlnode_pool(result)));
+	    std::ostringstream name;
+	    name << messages_get(lang, N_("Pending IPs: ")) << (dc->ip ? dc->ip : messages_get(lang, N_("no more other IPs will be tried")));
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, name.str().c_str());
 	} else if (j_strcmp(node, "id") == 0) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), messages_get(lang, N_("Stream ID: ")), dc->stream_id, xmlnode_pool(result)));
+	    std::ostringstream name;
+	    name << messages_get(lang, N_("Stream ID: ")) << dc->stream_id;
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, name.str().c_str());
 	} else if (j_strcmp(node, "dbstate") == 0) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), messages_get(lang, N_("Dialback state: ")),
-			dc->db_state == not_requested ? messages_get(lang, N_("no dialback request, just sending verifies")) :
-			dc->db_state == could_request ? messages_get(lang, N_("we could send dialback requests, if we want to")) :
-			dc->db_state == want_request ? messages_get(lang, N_("we want to send dialback requests, but cannot do that yet")) :
-			dc->db_state == sent_request ? messages_get(lang, N_("we have sent a dialback request")) : messages_get(lang, N_("invalid")), xmlnode_pool(result)));
+	    std::ostringstream name;
+	    name << messages_get(lang, N_("Dialback state: "));
+	    switch (dc->db_state) {
+		case not_requested:
+		    name << messages_get(lang, N_("no dialback request, just sending verifies"));
+		    break;
+		case could_request:
+		    name << messages_get(lang, N_("we could send dialback requests, if we want to"));
+		    break;
+		case want_request:
+		    name << messages_get(lang, N_("we want to send dialback requests, but cannot do that yet"));
+		    break;
+		case sent_request:
+		    name << messages_get(lang, N_("we have sent a dialback request"));
+		    break;
+		default:
+		    name << messages_get(lang, N_("invalid"));
+	    }
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, name.str().c_str());
 	} else if (j_strcmp(node, "connstate") == 0) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), messages_get(lang, N_("Connection state: ")),
-			dc->connection_state == created ? messages_get(lang, N_("created, not yet started to connect")) :
-			dc->connection_state == connecting ? messages_get(lang, N_("we started to connect, no connection yet")) :
-			dc->connection_state == connected ? messages_get(lang, N_("connected to the other host")) :
-			dc->connection_state == got_streamroot ? messages_get(lang, N_("we got peer's stream root")) :
-			dc->connection_state == waiting_features ? messages_get(lang, N_("we are waiting for stream features")) :
-			dc->connection_state == got_features ? messages_get(lang, N_("we got the stream features")) :
-			dc->connection_state == sent_db_request ? messages_get(lang, N_("we sent out a dialback request")) :
-			dc->connection_state == db_succeeded ? messages_get(lang, N_("we had success with our dialback request")) :
-			dc->connection_state == db_failed ? messages_get(lang, N_("dialback failed")) :
-			dc->connection_state == sasl_started ? messages_get(lang, N_("we started to authenticate using sasl")) :
-			dc->connection_state == sasl_fail ? messages_get(lang, N_("there was a SASL authentication failure")) :
-			dc->connection_state == sasl_success ? messages_get(lang, N_("successfully authenticated using SASL")) : messages_get(lang, N_("invalid")), xmlnode_pool(result)));
+	    std::ostringstream name;
+	    name << messages_get(lang, N_("Connection state: "));
+	    switch (dc->connection_state) {
+		case created:
+		    name << messages_get(lang, N_("created, not yet started to connect"));
+		    break;
+		case connecting:
+		    name << messages_get(lang, N_("we started to connect, no connection yet"));
+		    break;
+		case connected:
+		    name << messages_get(lang, N_("connected to the other host"));
+		    break;
+		case got_streamroot:
+		    name << messages_get(lang, N_("we got peer's stream root"));
+		    break;
+		case waiting_features:
+		    name << messages_get(lang, N_("we are waiting for stream features"));
+		    break;
+		case got_features:
+		    name << messages_get(lang, N_("we got the stream features"));
+		    break;
+		case sent_db_request:
+		    name << messages_get(lang, N_("we sent out a dialback request"));
+		    break;
+		case db_succeeded:
+		    name << messages_get(lang, N_("we had success with our dialback request"));
+		    break;
+		case db_failed:
+		    name << messages_get(lang, N_("dialback failed"));
+		    break;
+		case sasl_started:
+		    name << messages_get(lang, N_("we started to authenticate using sasl"));
+		    break;
+		case sasl_fail:
+		    name << messages_get(lang, N_("there was a SASL authentication failure"));
+		    break;
+		case sasl_success:
+		    name << messages_get(lang, N_("successfully authenticated using SASL"));
+		    break;
+		default:
+		    name << messages_get(lang, N_("invalid"));
+	    }
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, name.str().c_str());
 	} else if (j_strcmp(node, "dialback") == 0) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools( xmlnode_pool(result), messages_get(lang, N_("Dialback: ")), dc->flags.db ?  messages_get(lang, N_("supported by peer")) : messages_get(lang, N_("unsupported by peer")), xmlnode_pool(result)));
+	    std::ostringstream name;
+	    name << messages_get(lang, N_("Dialback: ")) << (dc->flags.db ?  messages_get(lang, N_("supported by peer")) : messages_get(lang, N_("unsupported by peer")));
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, name.str().c_str());
 	} else if (j_strcmp(node, "connectresults") == 0) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), messages_get(lang, N_("Connection results: ")), spool_print(dc->connect_results), xmlnode_pool(result)));
+	    std::ostringstream name;
+	    name << messages_get(lang, N_("Connection results: "));
+	    if (dc && dc->connect_results)
+		name << dc->connect_results->str();
+	    else
+		name << (dc ? "dc->connect_results is NULL" : "dc is NULL");
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, name.str().c_str());
 	} else if (j_strcmp(node, "failedsettings") == 0) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), messages_get(lang, N_("Dropped because of settings: ")), dc->settings_failed ? messages_get(lang, N_("yes")) : messages_get(lang, N_("no")), xmlnode_pool(result)));
+	    std::ostringstream name;
+	    name << messages_get(lang, N_("Dropped because of settings: ")) << (dc->settings_failed ? messages_get(lang, N_("yes")) : messages_get(lang, N_("no")));
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, name.str().c_str());
 	} else if (j_strcmp(node, "verifies") == 0) {
 	    int count = 0;
 	    xmlnode iter = NULL;
-	    char count_str[16];
 
 	    for (iter = xmlnode_get_firstchild(dc->verifies); iter != NULL; iter = xmlnode_get_nextsibling(iter)) {
 		count++;
 	    }
-	    snprintf(count_str, sizeof(count_str), "%d", count);
 
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), messages_get(lang, N_("Pending verifies: ")), count_str, xmlnode_pool(result)));
+	    std::ostringstream name;
+	    name << messages_get(lang, N_("Pending verifies: ")) << count;
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, name.str().c_str());
 	} else if (j_strcmp(node, "pendingstanzas") == 0) {
 	    int count = 0;
 	    dboq iter = NULL;
-	    char count_str[16];
 
 	    for (iter = dc->q; iter != NULL; iter = iter->next) {
 		count++;
 	    }
-	    snprintf(count_str, sizeof(count_str), "%d", count);
 
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), messages_get(lang, N_("Pending stanzas: ")), count_str, xmlnode_pool(result)));
+	    std::ostringstream name;
+	    name << messages_get(lang, N_("Pending stanzas: ")) << count;
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, name.str().c_str());
 	}
     } else if (s2s_right && to->get_node() == "in-established" && to->has_resource() && node == NULL) {
 	x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
@@ -760,12 +818,25 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, spools(xmlnode_pool(result), messages_get(lang, N_("Addresses:")), " ", messages_get(lang, N_("local")), "=", c->we_domain, ", ", messages_get(lang, N_("peer")), "=", c->other_domain, xmlnode_pool(result)));
+	    std::ostringstream name;
+	    name << messages_get(lang, N_("Addresses:")) << " " << messages_get(lang, N_("local")) << "=" << c->we_domain << ", " << messages_get(lang, N_("peer")) << "=" << c->other_domain;
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, name.str().c_str());
 	} else if (j_strcmp(node, "xmppversion") == 0) {
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
 	    xmlnode_put_attrib_ns(x, "category", NULL, NULL, "hierarchy");
 	    xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
-	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, c->xmpp_version < 0 ? messages_get(lang, N_("XMPP version: unknown")) : c->xmpp_version ? messages_get(lang, N_("XMPP version: 1.0")) : messages_get(lang, N_("XMPP version: 0.9")));
+	    std::ostringstream name;
+	    switch (c->xmpp_version) {
+		case 1:
+		    name << messages_get(lang, N_("XMPP version: 1.0"));
+		    break;
+		case 0:
+		    name << messages_get(lang, N_("XMPP version: 0.9"));
+		    break;
+		default:
+		    name << messages_get(lang, N_("XMPP version: unknown")) << " (" << c->xmpp_version << ")";
+	    }
+	    xmlnode_put_attrib_ns(x, "name", NULL, NULL, name.str().c_str());
 	} else if (j_strcmp(node, "last") == 0) {
 	    struct tm last_utc;
 	    time_t last = c->stamp;

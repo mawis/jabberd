@@ -122,13 +122,13 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x, char* unused1, 
 
     /* incoming stream error? */
     if (j_strcmp(xmlnode_get_localname(x), "error") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_STREAM) == 0) {
-        spool s = spool_new(x->p);
+	std::ostringstream errs;
         streamerr errstruct = static_cast<streamerr>(pmalloco(x->p, sizeof(_streamerr)));
         char *errmsg = NULL;
 
         xstream_parse_error(x->p, x, errstruct);
-        xstream_format_error(s, errstruct);
-        errmsg = spool_print(s);
+        xstream_format_error(errs, errstruct);
+	errmsg = pstrdup(x->p, errs.str().c_str());
 
         switch (errstruct->severity) {
             case normal:
@@ -519,7 +519,9 @@ void dialback_in_verify(db d, xmlnode x) {
     jid_set(key, xmlnode_get_attrib_ns(x, "from", NULL),JID_RESOURCE);
     jid_set(key, c->id, JID_USER); /* special user of the id attrib makes this key unique */
 
-    x2 = xmlnode_get_list_item(xmlnode_get_tags(c->results, spools(xmlnode_pool(x), "*[@key='", jid_full(key), "']", xmlnode_pool(x)), d->std_ns_prefixes), 0);
+    std::ostringstream xpath;
+    xpath << "*[@key='" << jid_full(key) << "']";
+    x2 = xmlnode_get_list_item(xmlnode_get_tags(c->results, xpath.str().c_str(), d->std_ns_prefixes), 0);
     if (x2 == NULL) {
 	log_warn(d->i->id, "Dropping a db:verify answer, we don't have a waiting incoming <db:result/> query (anymore?) for this to/from pair: %s", xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
         xmlnode_free(x);

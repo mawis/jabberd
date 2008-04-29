@@ -291,7 +291,9 @@ void jsm_deserialize(jsmi si, const char *host) {
 
     /* get the right XML tree fragment */
     p = xmlnode_pool(file);
-    xmlnode_vector jsm_host = xmlnode_get_tags(file, spools(p, "state:jsm[@host='", host, "']", p), si->std_namespace_prefixes);
+    std::ostringstream xpath;
+    xpath << "state:jsm[@host='" << host << "']";
+    xmlnode_vector jsm_host = xmlnode_get_tags(file, xpath.str().c_str(), si->std_namespace_prefixes);
 
     if (jsm_host.size() == 0) {
 	log_notice(si->i->id, "There is no state for '%s' in %s: not deserializing previous jsm state", host, si->statefile);

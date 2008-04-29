@@ -46,10 +46,8 @@
  * @return M_HANDLED if the request was handled using digest authentication, M_PASS else
  */
 static mreturn mod_auth_digest_yum(mapi m, void *arg) {
-    spool s;
     char *sid;
     char *digest;
-    char *mydigest;
     const char *pass = NULL;
     xmlnode xmlpass = NULL;
 
@@ -77,16 +75,18 @@ static mreturn mod_auth_digest_yum(mapi m, void *arg) {
     /* Concat the stream id and password */
     /* SHA it up */
     log_debug2(ZONE, LOGT_AUTH, "Got SID: %s", sid);
-    s = spool_new(m->packet->p);
-    spooler(s,sid,pass,s);
 
-    mydigest = shahash(spool_print(s));
+    xmppd::sha1 mydigest;
+    if (sid)
+	mydigest.update(sid);
+    if (pass)
+	mydigest.update(pass);
 
-    log_debug2(ZONE, LOGT_AUTH, "comparing %s %s",digest,mydigest);
+    log_debug2(ZONE, LOGT_AUTH, "comparing %s %s", digest, mydigest.final_hex().c_str());
 
-    if (pass == NULL || sid == NULL || mydigest == NULL)
+    if (pass == NULL || sid == NULL)
         jutil_error_xmpp(m->packet->x, XTERROR_NOTIMPL);
-    else if (j_strcasecmp(digest, mydigest) != 0)
+    else if (j_strcasecmp(digest, mydigest.final_hex().c_str()) != 0)
         jutil_error_xmpp(m->packet->x, XTERROR_AUTH);
     else
         jutil_iqresult(m->packet->x);

@@ -122,7 +122,7 @@ xmlnode jutil_iqnew(int type, char *ns) {
  * @param body the body of the message
  * @return the xmlnode containing the new message stanza
  */
-xmlnode jutil_msgnew(char *type, char const* to, char *subj, char *body) {
+xmlnode jutil_msgnew(char const* type, char const* to, char const* subj, char const* body) {
     xmlnode msg;
 
     msg = xmlnode_new_tag_ns("message", NULL, NS_SERVER);

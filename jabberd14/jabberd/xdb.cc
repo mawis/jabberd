@@ -280,7 +280,7 @@ xmlnode xdb_get(xdbcache xc, jid owner, const char *ns) {
 /* act must be NULL, "check", or "insert" for now, insert will either blindly insert data into the parent (creating one if needed) or use match */
 /* match will find a child in the parent, and either replace (if it's an insert) or remove (if data is NULL) */
 /* XXX for the check action, read the comment in xdb_file/xdb_file.c, it might be buggy and not needed anyway */
-static int _xdb_act(xdbcache xc, jid owner, const char *ns, char *act, char *match, char *matchpath, xht namespaces, xmlnode data) {
+static int _xdb_act(xdbcache xc, jid owner, const char *ns, char const* act, char const* match, char const* matchpath, xht namespaces, xmlnode data) {
     _xdbcache newx;
 
     if (xc == NULL || owner == NULL || ns == NULL) {
@@ -336,7 +336,7 @@ int xdb_act(xdbcache xc, jid owner, const char *ns, char *act, char *match, xmln
     return _xdb_act(xc, owner, ns, act, match, NULL, NULL, data);
 }
 
-int xdb_act_path(xdbcache xc, jid owner, const char *ns, char *act, char *matchpath, xht namespaces, xmlnode data) {
+int xdb_act_path(xdbcache xc, jid owner, const char *ns, char const* act, char const* matchpath, xht namespaces, xmlnode data) {
     return _xdb_act(xc, owner, ns, act, NULL, matchpath, namespaces, data);
 }
 

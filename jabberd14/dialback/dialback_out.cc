@@ -81,8 +81,7 @@ void dialback_out_connect(dboc c) {
 
     /* to which IP we connect, for logging */
     if (c->connect_results != NULL) {
-	spool_add(c->connect_results, ip);
-	spool_add(c->connect_results, ": ");
+	*c->connect_results << ip << ": ";
     }
 
     /* get the ip/port for io_select */
@@ -118,6 +117,16 @@ void dialback_out_connect(dboc c) {
     c->connection_state = connecting;
     
     mio_connect(ip, port, dialback_out_read, (void *)c, 20, MIO_CONNECT_XML);
+}
+
+/**
+ * helper function used to register deleting a std::ostringstream as a pool_cleaner function
+ *
+ * @param arg pointer to the std::ostringstream to delete
+ */
+static void delete_ostringstream(void *arg) {
+    std::ostringstream* os = static_cast<std::ostringstream*>(arg);
+    delete os;
 }
 
 /**
@@ -167,7 +176,8 @@ dboc dialback_out_connection(db d, jid key, char *ip, db_request db_state) {
     c->ip = pstrdup(p,ip);
     c->db_state = db_state;
     c->connection_state = created;
-    c->connect_results = spool_new(p);
+    c->connect_results = new std::ostringstream();
+    pool_cleanup(p, delete_ostringstream, c->connect_results);
     c->xmpp_version = -1;
 
     /* insert in the hash */
@@ -226,21 +236,22 @@ void dialback_out_connection_cleanup(dboc c)
 {
     dboq cur, next;
     xmlnode x;
-    spool errmsg = NULL;
-    char *connect_results = NULL;
     char *bounce_reason = NULL;
     const char* lang = NULL;
 
     xhash_zap(c->d->out_connecting,jid_full(c->key));
 
     /* get the results of connection attempts */
+    Glib::ustring connect_results;
     if (c->connect_results != NULL) {
-	connect_results = spool_print(c->connect_results);
+	connect_results = c->connect_results->str();
+    } else {
+	connect_results = "(NULL)";
     }
 
     /* if there was never any ->m set but there's a queue yet, then we probably never got connected, just make a note of it */
     if(c->m == NULL && c->q != NULL) {
-	log_notice(c->d->i->id, "failed to establish connection to %s, %s: %s", c->key->get_domain().c_str(), dialback_out_connection_state_string(c->connection_state), connect_results);
+	log_notice(c->d->i->id, "failed to establish connection to %s, %s: %s", c->key->get_domain().c_str(), dialback_out_connection_state_string(c->connection_state), connect_results.c_str());
     }
 
     /* if there's any packets in the queue, flush them! */
@@ -248,16 +259,14 @@ void dialback_out_connection_cleanup(dboc c)
     if (cur != NULL) {
 	lang = xmlnode_get_lang(cur->x);
 	/* generate bounce message, but only if there are queued messages */
-	errmsg = spool_new(c->p);
+	std::ostringstream errmsg;
 	if (c->settings_failed) {
-	    spool_add(errmsg, messages_get(lang, N_("Failed to deliver stanza to other server because of configured stream parameters.")));
+	    errmsg << messages_get(lang, N_("Failed to deliver stanza to other server because of configured stream parameters."));
 	} else {
-	    spool_add(errmsg, messages_get(lang, N_("Failed to deliver stanza to other server while ")));
-	    spool_add(errmsg, messages_get(lang, N_(dialback_out_connection_state_string(c->connection_state))));
-	    spool_add(errmsg, ": ");
-	    spool_add(errmsg, connect_results);
+	    errmsg << messages_get(lang, N_("Failed to deliver stanza to other server while "));
+	    errmsg << messages_get(lang, N_(dialback_out_connection_state_string(c->connection_state))) << ": " << connect_results;
 	}
-	bounce_reason = spool_print(errmsg);
+	bounce_reason = pstrdup(c->p, errmsg.str().c_str());
     }
     while(cur != NULL) {
         next = cur->next;
@@ -397,28 +406,26 @@ void dialback_out_read_db(mio m, int flags, void *arg, xmlnode x, char* unused1,
     }
 
     if (j_strcmp(xmlnode_get_localname(x),"error") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_STREAM) == 0) {
-	spool s = spool_new(x->p);
+	std::ostringstream errmsg;
 	streamerr errstruct = static_cast<streamerr>(pmalloco(x->p, sizeof(_streamerr)));
-	char *errmsg = NULL;
 
 	/* generate the error message */
 	xstream_parse_error(x->p, x, errstruct);
-	xstream_format_error(s, errstruct);
-	errmsg = spool_print(s);
+	xstream_format_error(errmsg, errstruct);
 
 	/* logging */
 	switch (errstruct->severity) {
 	    case normal:
-		log_debug2(ZONE, LOGT_IO, "stream error on outgoing db conn to %s: %s", mio_ip(m), errmsg);
+		log_debug2(ZONE, LOGT_IO, "stream error on outgoing db conn to %s: %s", mio_ip(m), errmsg.str().c_str());
 		break;
 	    case configuration:
 	    case feature_lack:
 	    case unknown:
-		log_warn(d->i->id, "received stream error on outgoing db conn to %s: %s", mio_ip(m), errmsg);
+		log_warn(d->i->id, "received stream error on outgoing db conn to %s: %s", mio_ip(m), errmsg.str().c_str());
 		break;
 	    case error:
 	    default:
-		log_error(d->i->id, "received stream error on outgoing db conn to %s: %s", mio_ip(m), errmsg);
+		log_error(d->i->id, "received stream error on outgoing db conn to %s: %s", mio_ip(m), errmsg.str().c_str());
 	}
     } else {
         mio_write(m, NULL, "<stream:error><undefined-condition xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Received data on a send-only socket. You are not Allowed to send data on this socket!</text></stream:error>", -1);
@@ -491,7 +498,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 	    /* add to the connect result messages */
 	    if (c->connection_state != sasl_success) {
 		if (c->connect_results != NULL && c->connection_state != connected) {
-		    spool_add(c->connect_results, "Connected");
+		    *c->connect_results << "Connected";
 		}
 		c->connection_state = connected;
 	    }
@@ -601,35 +608,31 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 	case MIO_XML_NODE:
 	    /* watch for stream errors */
 	    if (j_strcmp(xmlnode_get_localname(x), "error") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_STREAM) == 0) {
-		spool s = spool_new(x->p);
+		std::ostringstream errmsg;
 		streamerr errstruct = static_cast<streamerr>(pmalloco(x->p, sizeof(_streamerr)));
-		char *errmsg = NULL;
 
 		/* generate error message */
 		xstream_parse_error(x->p, x, errstruct);
-		xstream_format_error(s, errstruct);
-		errmsg = spool_print(s);
+		xstream_format_error(errmsg, errstruct);
 
 		/* append error message to connect_results */
 		if (c->connect_results != NULL && errmsg != NULL) {
-		    spool_add(c->connect_results, " (");
-		    spool_add(c->connect_results, pstrdup(c->connect_results->p, errmsg));
-		    spool_add(c->connect_results, ")");
+		    *c->connect_results << " (" << errmsg.str() << ")";
 		}
 
 		/* logging */
 		switch (errstruct->severity) {
 		    case normal:
-			log_debug2(ZONE, LOGT_IO, "stream error on outgoing%s conn to %s (%s): %s", c->xmpp_version < 0 ? "" : c->xmpp_version == 0 ? " preXMPP" : " XMPP1.0", mio_ip(m), jid_full(c->key), errmsg);
+			log_debug2(ZONE, LOGT_IO, "stream error on outgoing%s conn to %s (%s): %s", c->xmpp_version < 0 ? "" : c->xmpp_version == 0 ? " preXMPP" : " XMPP1.0", mio_ip(m), jid_full(c->key), errmsg.str().c_str());
 			break;
 		    case configuration:
 		    case feature_lack:
 		    case unknown:
-			log_warn(c->d->i->id, "received stream error on outgoing%s conn to %s (%s): %s", c->xmpp_version < 0 ? "" : c->xmpp_version == 0 ? " preXMPP" : " XMPP1.0", mio_ip(m), jid_full(c->key), errmsg);
+			log_warn(c->d->i->id, "received stream error on outgoing%s conn to %s (%s): %s", c->xmpp_version < 0 ? "" : c->xmpp_version == 0 ? " preXMPP" : " XMPP1.0", mio_ip(m), jid_full(c->key), errmsg.str().c_str());
 			break;
 		    case error:
 		    default:
-			log_error(c->d->i->id, "received stream error on outgoing%s conn to %s (%s): %s", c->xmpp_version < 0 ? "" : c->xmpp_version == 0 ? " preXMPP" : " XMPP1.0", mio_ip(m), jid_full(c->key), errmsg);
+			log_error(c->d->i->id, "received stream error on outgoing%s conn to %s (%s): %s", c->xmpp_version < 0 ? "" : c->xmpp_version == 0 ? " preXMPP" : " XMPP1.0", mio_ip(m), jid_full(c->key), errmsg.str().c_str());
 		}
 		mio_close(m);
 		break;
@@ -794,9 +797,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 		/* something went wrong, we were invalid? */
 		c->connection_state = sasl_fail;
 		if (c->connect_results != NULL) {
-		    spool_add(c->connect_results, " (SASL EXTERNAL auth failed: ");
-		    spool_add(c->connect_results, xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
-		    spool_add(c->connect_results, ")");
+		    *c->connect_results << " (SASL EXTERNAL auth failed: " << xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0) << ")";
 		}
 		log_alert(c->d->i->id, "SASL EXTERNAL authentication failed on authenticating ourselfs to %s (sending name: %s)", c->key->get_domain().c_str(), c->key->get_resource().c_str());
 		/* close the stream (in former times we sent a stream error, but I think we shouldn't. There is stream fault by the other entity!) */ 
@@ -834,10 +835,8 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 		/* something went wrong, we were invalid? */
 		c->connection_state = db_failed;
 		if (c->connect_results != NULL) {
-		    char *type_attribute = pstrdup(c->connect_results->p, xmlnode_get_attrib_ns(x, "type", NULL));
-		    spool_add(c->connect_results, " (dialback result: ");
-		    spool_add(c->connect_results, type_attribute ? type_attribute : "no type attribute");
-		    spool_add(c->connect_results, ")");
+		    char const* type_attribute = xmlnode_get_attrib_ns(x, "type", NULL);
+		    *c->connect_results << " (dialback result: " << (type_attribute ? type_attribute : "no type attribute") << ")";
 		}
 		log_alert(c->d->i->id, "We were told by %s that our sending name %s is invalid, either something went wrong on their end, we tried using that name improperly, or dns does not resolve to us", c->key->get_domain().c_str(), c->key->get_resource().c_str());
 		/* close the stream (in former times we sent a stream error, but I think we shouldn't. There is stream fault by the other entity!) */ 
@@ -860,13 +859,13 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 	case MIO_CLOSED:
 	    /* add the connect error message to the list of messages for the tried hosts */
 	    if (c->connect_results != NULL) {
-		spool_add(c->connect_results, mio_connect_errmsg(m));
+		*c->connect_results << mio_connect_errmsg(m);
 	    }
 	    if(c->ip == NULL) {
 		dialback_out_connection_cleanup(c); /* buh bye! */
 	    } else {
 		if (c->connect_results != NULL) {
-		    spool_add(c->connect_results, " / ");
+		    *c->connect_results << " / ";
 		}
 		dialback_out_connect(c); /* this one failed, try another */
 	    }
@@ -913,14 +912,13 @@ void _dialback_out_beat_packets(xht h, const char *key, void *data, void *arg) {
             last->next = next;
 
 	if (bounce_reason == NULL) {
-	    spool errmsg = spool_new(c->p);
-	    spool_add(errmsg, messages_get(lang, N_("Server connect timeout while ")));
-	    spool_add(errmsg, messages_get(lang, dialback_out_connection_state_string(c->connection_state)));
-	    if (c->connect_results != NULL) {
-		spool_add(errmsg, ": ");
-		spool_add(errmsg, spool_print(c->connect_results));
+	    std::ostringstream errmsg;
+	    errmsg << messages_get(lang, N_("Server connect timeout while "));
+	    errmsg << messages_get(lang, dialback_out_connection_state_string(c->connection_state));
+	    if (c->connect_results) {
+		errmsg << ": " << c->connect_results->str();
 	    }
-	    bounce_reason = spool_print(errmsg);
+	    bounce_reason = pstrdup(c->p, errmsg.str().c_str());
 	}
 
         deliver_fail(dpacket_new(cur->x), bounce_reason ? bounce_reason : messages_get(lang, N_("Server Connect Timeout")));

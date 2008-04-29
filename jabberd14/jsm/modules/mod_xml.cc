@@ -78,6 +78,7 @@ static mreturn mod_xml_set(mapi m, void *arg) {
     ns = xmlnode_get_namespace(inx);
 
     xmlnode_vector result_items;
+    std::ostringstream xpath;
     switch (jpacket_subtype(m->packet)) {
 	case JPACKET__GET:
 	    log_debug2(ZONE, LOGT_DELIVER|LOGT_STORAGE, "handling get request for %s", ns);
@@ -86,7 +87,8 @@ static mreturn mod_xml_set(mapi m, void *arg) {
 	    storedx = xdb_get(m->si->xc, m->user->id, NS_PRIVATE);
 
 	    /* get the relevant items */
-	    result_items = xmlnode_get_tags(storedx, spools(m->packet->p, "private:query[@jabberd:ns='", ns, "']", m->packet->p), m->si->std_namespace_prefixes);
+	    xpath << "private:query[@jabberd:ns='" << ns << "']";
+	    result_items = xmlnode_get_tags(storedx, xpath.str().c_str(), m->si->std_namespace_prefixes);
 	    for (xmlnode_vector::iterator result_item = result_items.begin(); result_item != result_items.end(); ++result_item) {
 		if (!got_result) {
 		    got_result = 1;
@@ -131,7 +133,8 @@ static mreturn mod_xml_set(mapi m, void *arg) {
 
 	    /* save the changes */
 	    xmlnode_put_attrib_ns(m->packet->iq, "ns", "jabberd", NS_JABBERD_WRAPPER, ns);
-	    if (xdb_act_path(m->si->xc, m->user->id, NS_PRIVATE, "insert", spools(m->packet->p, "private:query[@jabberd:ns='", ns, "']", m->packet->p), m->si->std_namespace_prefixes, is_delete ? NULL : m->packet->iq))
+	    xpath << "private:query[@jabberd:ns='" << ns << "']";
+	    if (xdb_act_path(m->si->xc, m->user->id, NS_PRIVATE, "insert", xpath.str().c_str(), m->si->std_namespace_prefixes, is_delete ? NULL : m->packet->iq))
 		jutil_error_xmpp(m->packet->x, XTERROR_UNAVAIL);
 
 	    /* build result and send back */

@@ -135,7 +135,8 @@ static void base_connect_connect(void *arg) {
 static void base_connect_process_xml(mio m, int state, void* arg, xmlnode x, char* unused1, int unused2) {
     conn_info ci = (conn_info)arg;
     xmlnode cur;
-    char  hashbuf[41];
+    xmppd::sha1 pwdhash;
+    char const* tmp = NULL;
 
     log_debug2(ZONE, LOGT_XML, "process XML: m:%X state:%d, arg:%X, x:%X", m, state, arg, x);
 
@@ -155,11 +156,15 @@ static void base_connect_process_xml(mio m, int state, void* arg, xmlnode x, cha
 
         case MIO_XML_ROOT:
             /* Extract stream ID and generate a key to hash */
-            shahash_r(spools(x->p, xmlnode_get_attrib_ns(x, "id", NULL), ci->secret, x->p), hashbuf);
+	    tmp = xmlnode_get_attrib_ns(x, "id", NULL);
+	    if (tmp)
+		pwdhash.update(tmp);
+	    if (ci->secret)
+		pwdhash.update(ci->secret);
 
             /* Build a handshake packet */
             cur = xmlnode_new_tag_ns("handshake", NULL, NS_SERVER);
-            xmlnode_insert_cdata(cur, hashbuf, -1);
+            xmlnode_insert_cdata(cur, pwdhash.final_hex().c_str(), -1);
 
             /* Transmit handshake */
 	    mio_write(m, cur, NULL, 0);

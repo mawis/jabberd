@@ -214,8 +214,6 @@ static mreturn mod_offline_handler(mapi m, void *arg) {
  * @param filter which message to remove, NULL for all messages
  */
 static void mod_offline_remove_message(mapi m, const char *filter) {
-    spool s = NULL;
-
     if (m == NULL)
 	return;
 
@@ -225,15 +223,13 @@ static void mod_offline_remove_message(mapi m, const char *filter) {
     }
 
     /* generate the node path for the message to delete */
-    s = spool_new(m->packet->p);
-    spool_add(s, "message[@node='");
-    spool_add(s, filter);
-    spool_add(s, "']");
+    std::ostringstream xpath;
+    xpath << "message[@node='" << filter << "']";
 
-    log_debug2(ZONE, LOGT_STORAGE, "removing message by matched xdb: %s", spool_print(s));
+    log_debug2(ZONE, LOGT_STORAGE, "removing message by matched xdb: %s", xpath.str().c_str());
 
     /* replace this message with nothing */
-    xdb_act_path(m->si->xc, m->user->id, NS_OFFLINE, "insert", spool_print(s), m->si->std_namespace_prefixes, NULL);
+    xdb_act_path(m->si->xc, m->user->id, NS_OFFLINE, "insert", xpath.str().c_str(), m->si->std_namespace_prefixes, NULL);
 }
 
 /**

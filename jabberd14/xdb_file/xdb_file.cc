@@ -192,9 +192,9 @@ void _xdb_get_hashes(const char *filename, char digit01[3], char digit23[3]) {
  * @param use_subdirs true if file should be located in subdirectories
  * @return 1 on success, 0 on failure
  */
-int _xdb_gen_dirs(spool sp, const char *spoolroot, char const* host, const char *hash1, const char *hash2, int use_subdirs) {
+static int _xdb_gen_dirs(const char *spoolroot, char const* host, const char *hash1, const char *hash2, int use_subdirs) {
+    std::ostringstream folder;
     struct stat s;
-    char *tmp;
 
     /* check that the root of the spool structure exists */
     if (stat(spoolroot, &s) < 0) {
@@ -203,27 +203,24 @@ int _xdb_gen_dirs(spool sp, const char *spoolroot, char const* host, const char 
     }
 
     /* check and create the host-named folder */
-    spooler(sp, spoolroot, "/", host, sp);
-    tmp = spool_print(sp);
-    if(stat(tmp,&s) < 0 && mkdir(tmp, S_IRWXU) < 0) {
-	log_error(host, "could not create spool folder %s: %s", tmp, strerror(errno));
+    folder << spoolroot << "/" << host;
+    if(stat(folder.str().c_str(),&s) < 0 && mkdir(folder.str().c_str(), S_IRWXU) < 0) {
+	log_error(host, "could not create spool folder %s: %s", folder.str().c_str(), strerror(errno));
 	return 0;
     }
 
     if (use_subdirs) {
 	/* check or create the first level subdirectory */
-	spooler(sp, "/", hash1, sp);
-	tmp = spool_print(sp);
-	if(stat(tmp,&s) < 0 && mkdir(tmp, S_IRWXU) < 0) {
-	    log_error(host, "could not create spool folder %s: %s", tmp, strerror(errno));
+	folder << "/" << hash1;
+	if(stat(folder.str().c_str(),&s) < 0 && mkdir(folder.str().c_str(), S_IRWXU) < 0) {
+	    log_error(host, "could not create spool folder %s: %s", folder.str().c_str(), strerror(errno));
 	    return 0;
 	}
 
 	/* check or create the second level subdirectory */
-	spooler(sp, "/", hash2, sp);
-	tmp = spool_print(sp);
-	if(stat(tmp,&s) < 0 && mkdir(tmp, S_IRWXU) < 0) {
-	    log_error(host, "could not create spool folder %s: %s", tmp, strerror(errno));
+	folder << "/" << hash2;
+	if(stat(folder.str().c_str(),&s) < 0 && mkdir(folder.str().c_str(), S_IRWXU) < 0) {
+	    log_error(host, "could not create spool folder %s: %s", folder.str().c_str(), strerror(errno));
 	    return 0;
 	}
     }
@@ -244,32 +241,32 @@ int _xdb_gen_dirs(spool sp, const char *spoolroot, char const* host, const char 
  * @return concatenated string of the form spl+"/"+somehashes+"/"+file+"."+ext
  */
 char *xdb_file_full(int create, pool p, const char *spl, char const* host, const char *file, char const* ext, int use_subdirs) {
-    spool sp = spool_new(p);
+    std::ostringstream filepath;
+    std::ostringstream filename;
     char digit01[3], digit23[3];
-    char *ret;
-    char *filename;
 
-    filename = spools(p, file, ".", ext, p);
+    filename << file << "." << ext;
 
-    _xdb_get_hashes(filename, digit01, digit23);
+    _xdb_get_hashes(filename.str().c_str(), digit01, digit23);
 
     /* is the creation of the folder requested? */
     if(create) {
-	if (!_xdb_gen_dirs(sp, spl, host, digit01, digit23, use_subdirs)) {
+	if (!_xdb_gen_dirs(spl, host, digit01, digit23, use_subdirs)) {
 	    log_error(host, "xdb request failed, necessary directory was not created");
 	    return NULL;
 	}
-    } else if (use_subdirs) {
-	spooler(sp, spl, "/", host, "/", digit01, "/", digit23, sp);
-    } else {
-	spooler(sp, spl, "/", host, sp);
+    }
+
+    filepath << spl << "/" << host;
+
+    if (use_subdirs) {
+	filepath << "/" << digit01 << "/" << digit23;
     }
 
     /* full path to file */
-    spooler(sp,"/",filename, sp);
-    ret = spool_print(sp);
+    filepath << "/" << filename.str();
 
-    return ret;
+    return pstrdup(p, filepath.str().c_str());
 }
 
 /**
@@ -317,7 +314,9 @@ result xdb_file_phandler(instance i, dpacket p, void *arg) {
 
     /* if we're dealing w/ a resource, just get that element <res id='resource'/> inside <xdb/> */
     if (p->id->has_resource()) {
-	top = xmlnode_get_list_item(xmlnode_get_tags(top, spools(p->p, "res[@id='", p->id->get_resource().c_str(), "']", p->p), xf->std_ns_prefixes), 0);
+	std::ostringstream xpath;
+	xpath << "res[@id='" << p->id->get_resource() << "']";
+	top = xmlnode_get_list_item(xmlnode_get_tags(top, xpath.str().c_str(), xf->std_ns_prefixes), 0);
 	if (top == NULL) {
             top = xmlnode_insert_tag_ns(file, "res", NULL, NS_JABBERD_XDB);
             xmlnode_put_attrib_ns(top, "id", NULL, NULL, p->id->get_resource().c_str());
@@ -325,7 +324,9 @@ result xdb_file_phandler(instance i, dpacket p, void *arg) {
     }
 
     /* just query the relevant namespace */
-    data = xmlnode_get_list_item(xmlnode_get_tags(top, spools(p->p, "*[@xdbns='", ns, "']", p->p), xf->std_ns_prefixes), 0);
+    std::ostringstream xpath;
+    xpath << "*[@xdbns='" << ns << "']";
+    data = xmlnode_get_list_item(xmlnode_get_tags(top, xpath.str().c_str(), xf->std_ns_prefixes), 0);
 
     if (flag_set) {
 	act = xmlnode_get_attrib_ns(p->x, "action", NULL);
@@ -492,17 +493,17 @@ void _xdb_convert_hostspool(pool p, const char *spoolroot, char *host) {
     DIR *sdir;
     struct dirent *dent;
     char digit01[3], digit23[3];
-    char *hostspool;
 
     /* get the dir location */
-    hostspool = spools(p, spoolroot, "/", host, p);
+    std::ostringstream hostspool;
+    hostspool << spoolroot << "/" << host;
 
-    log_notice(host, "trying to convert spool %s (this may take some time)", hostspool);
+    log_notice(host, "trying to convert spool %s (this may take some time)", hostspool.str().c_str());
 
     /* we have to convert the spool */
-    sdir = opendir(hostspool);
+    sdir = opendir(hostspool.str().c_str());
     if (sdir == NULL) {
-	log_error(host, "failed to open directory %s for conversion: %s", hostspool, strerror(errno));
+	log_error(host, "failed to open directory %s for conversion: %s", hostspool.str().c_str(), strerror(errno));
 	return;
     }
 
@@ -517,16 +518,17 @@ void _xdb_convert_hostspool(pool p, const char *spoolroot, char *host) {
 
 	/* do we have to convert this file? */
 	if (j_strcmp(str_ptr, ".xml") == 0) {
-	    char *oldname, *newname;
 	    _xdb_get_hashes(dent->d_name, digit01, digit23);
 
-	    oldname = spools(p, hostspool, "/", dent->d_name, p);
-	    newname = spools(p, hostspool, "/", digit01, "/", digit23, "/", dent->d_name, p);
+	    std::ostringstream oldname;
+	    oldname << hostspool.str() << "/" << dent->d_name;
+	    std::ostringstream newname;
+	    newname << hostspool.str() << "/" << digit01 << "/" << digit23 << "/" << dent->d_name;
 
-	    if (!_xdb_gen_dirs(spool_new(p), spoolroot, host, digit01, digit23, 1))
+	    if (!_xdb_gen_dirs(spoolroot, host, digit01, digit23, 1))
 		log_error(host, "failed to create necessary directory for conversion");
-	    else if (rename(oldname, newname) < 0)
-		log_error(host, "failed to move %s to %s while converting spool: %s", oldname, newname, strerror(errno));
+	    else if (rename(oldname.str().c_str(), newname.str().c_str()) < 0)
+		log_error(host, "failed to move %s to %s while converting spool: %s", oldname.str().c_str(), newname.str().c_str(), strerror(errno));
 	}
     }
 
@@ -544,7 +546,6 @@ void xdb_convert_spool(const char *spoolroot) {
     DIR *sdir;
     struct dirent *dent;
     pool p;
-    char *flagfile;
     struct stat s;
     FILE *flagfileh;
 
@@ -552,8 +553,9 @@ void xdb_convert_spool(const char *spoolroot) {
     p = pool_new();
 
     /* check if we already converted this spool */
-    flagfile = spools(p, spoolroot, "/.hashspool", p);
-    if (stat(flagfile, &s) == 0) {
+    std::ostringstream flagfile;
+    flagfile << spoolroot << "/.hashspool";
+    if (stat(flagfile.str().c_str(), &s) == 0) {
 	log_debug2(ZONE, LOGT_STORAGE, "there is already a new hashspool");
 	pool_free(p);
 	return;
@@ -569,9 +571,10 @@ void xdb_convert_spool(const char *spoolroot) {
 
     while ((dent = readdir(sdir)) != NULL) {
 	struct stat s;
-	char *dirname = spools(p, spoolroot, "/", dent->d_name, p);
+	std::ostringstream dirname;
+	dirname << spoolroot << "/" << dent->d_name;
 
-	if (stat(dirname, &s)<0)
+	if (stat(dirname.str().c_str(), &s)<0)
 	    continue;
 
 	/* we only care about directories */
@@ -584,7 +587,7 @@ void xdb_convert_spool(const char *spoolroot) {
     closedir(sdir);
 
     /* write the flag that we converted the spool */
-    flagfileh = fopen(flagfile, "w");
+    flagfileh = fopen(flagfile.str().c_str(), "w");
     if (flagfileh != NULL) {
 	fwrite("Please do not delete this file.\n", 1, 32, flagfileh);
 	fclose(flagfileh);

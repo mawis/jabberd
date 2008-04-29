@@ -1316,7 +1316,9 @@ char* xmlnode_get_name(xmlnode node) {
     if (node->prefix == NULL)
 	return node->name;
 
-    return spools(node->p, node->prefix, ":", node->name, node->p);
+    std::ostringstream result;
+    result << node->prefix << ":" << node->name;
+    return pstrdup(node->p, result.str().c_str());
 }
 
 /**

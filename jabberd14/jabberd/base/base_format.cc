@@ -38,7 +38,8 @@
 static result base_format_modify(instance id, dpacket p, void *arg) {
     char  *cur, *nxt, *f;
     pool  sp;
-    spool log_result;
+    std::ostringstream log_result;
+    char const* tmp = NULL;
 
     if(id == NULL || p == NULL) 
         return r_ERR;
@@ -53,34 +54,45 @@ static result base_format_modify(instance id, dpacket p, void *arg) {
     sp=pool_new();
 
     f = pstrdup(sp, (char*)arg);
-    log_result = spool_new(sp);
 
     cur = f;
     nxt = strchr(f, '%');
     
     if (nxt == NULL)
-        spooler(log_result, f, log_result);
+	log_result << f;
     
     while (nxt != NULL) {
         nxt[0] = '\0'; 
         
         if(cur != nxt)
-            spooler(log_result, cur, log_result);
+	    log_result << cur;
         
         nxt++;
         
         switch(nxt[0]) {
 	    case 'h':
-		spooler(log_result, xmlnode_get_attrib_ns(p->x, "from", NULL), log_result);
+		tmp = xmlnode_get_attrib_ns(p->x, "from", NULL);
+		if (tmp)
+		    log_result << tmp;
+		else
+		    log_result << "(null)";
 		break;
 	    case 't':
-		spooler(log_result, xmlnode_get_attrib_ns(p->x, "type", NULL), log_result);
+		tmp = xmlnode_get_attrib_ns(p->x, "type", NULL);
+		if (tmp)
+		    log_result << tmp;
+		else
+		    log_result << "(null)";
 		break;
 	    case 'd':
-		spooler(log_result, jutil_timestamp(), log_result);
+		log_result << jutil_timestamp();
 		break;
 	    case 's':
-		spooler(log_result, xmlnode_get_data(p->x), log_result);
+		tmp = xmlnode_get_data(p->x);
+		if (tmp)
+		    log_result << tmp;
+		else
+		    log_result << "(null)";
 		break;
 	    default:
 		log_debug2(ZONE, LOGT_CONFIG|LOGT_STRANGE, "Invalid argument: %s", nxt[0]);
@@ -91,7 +103,7 @@ static result base_format_modify(instance id, dpacket p, void *arg) {
     }
 
     xmlnode_hide(xmlnode_get_firstchild(p->x));
-    xmlnode_insert_cdata(p->x, spool_print(log_result), -1);
+    xmlnode_insert_cdata(p->x, log_result.str().c_str(), -1);
 
     pool_free(sp);
     return r_PASS;

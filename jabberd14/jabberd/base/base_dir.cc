@@ -57,7 +57,6 @@ static result base_dir_read(void *arg) {
     struct dirent *dir_ent = NULL;
     DIR *dir = NULL;
     pool p = NULL;
-    char *filename = NULL;
     xmlnode x = NULL;
     jpacket jp = NULL;
 
@@ -83,22 +82,23 @@ static result base_dir_read(void *arg) {
 	}
 
 	/* get the full filename */
-	filename = spools(p, conf_data->in_dir, "/", dir_ent->d_name, p);
+	std::ostringstream filename;
+	filename << conf_data->in_dir << "/" << dir_ent->d_name;
 
 	/* process the stanza file */
-	x = xmlnode_file(filename);
+	x = xmlnode_file(filename.str().c_str());
 	jp = jpacket_new(x);
 	if (jp != NULL && (jp->type != JPACKET_UNKNOWN || j_strcmp(xmlnode_get_localname(x), "route") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_SERVER) == 0)) {
 	    deliver(dpacket_new(x), conf_data->id);
 	} else {
-	    log_warn(conf_data->id->id, "deleted invalid stanza %s", filename);
+	    log_warn(conf_data->id->id, "deleted invalid stanza %s", filename.str().c_str());
 	    xmlnode_free(x);
 	}
 
 	/* delete the file */
-	unlink(filename);
+	unlink(filename.str().c_str());
 
-	log_debug2(ZONE, LOGT_IO, "found file %s", filename);
+	log_debug2(ZONE, LOGT_IO, "found file %s", filename.str().c_str());
     }
 
     /* close directory, free memory and return */
@@ -130,7 +130,9 @@ static result base_dir_deliver(instance id, dpacket p, void *arg) {
     shahash_r(jid_full(p->id), jid_hash);
 
     /* write to file */
-    int res = xmlnode2file(spools(p->p, conf_data->out_dir, "/", id->id, "-", jid_hash, "-", jutil_timestamp_ms(timestamp), "-", serial, ".out", p->p), p->x) > 0 ? r_DONE : r_ERR;
+    std::ostringstream filename;
+    filename << conf_data->out_dir << "/" << id->id << "-" << jid_hash << "-" << jutil_timestamp_ms(timestamp) << "-" << serial << ".out";
+    int res = xmlnode2file(filename.str().c_str(), p->x) > 0 ? r_DONE : r_ERR;
 
     // if we consumed the dpacket, we have to free the xmlnode now
     if (res) {

@@ -191,9 +191,11 @@ extern "C" void mod_version(jsmi si) {
 	mi->os = pstrdup(p, xmlnode_get_data(os));
     else if (xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:no_os_version", si->std_namespace_prefixes), 0))
 	mi->os = pstrdup(p, un.sysname);
-    else
-	mi->os = spools(p, un.sysname, " ", un.release, p);
-
+    else {
+	std::ostringstream system;
+	system << un.sysname << " " << un.release;
+	mi->os = pstrdup(p, system.str().c_str());
+    }
 
     js_mapi_register(si,e_SERVER,mod_version_iq_server,(void *)mi);
     js_mapi_register(si,e_SHUTDOWN,mod_version_shutdown,(void *)mi);

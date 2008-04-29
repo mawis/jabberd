@@ -187,16 +187,13 @@ static mreturn mod_register_new(mapi m, void *arg) {
 	    /* if configured to, send admins a notice */
 	    if (xmlnode_get_attrib_ns(reg, "notify", NULL) != NULL) {
 		char *email = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:email", m->si->std_namespace_prefixes), 0));
-		spool msg_body = spool_new(m->packet->p);
+		std::ostringstream msg_body;
 
-		spool_add(msg_body, "A new user has just been created!\n");
-		spool_add(msg_body, "User: ");
-		spool_add(msg_body, jid_full(m->packet->to));
-		spool_add(msg_body, "\n");
-		spool_add(msg_body, "E-Mail: ");
-		spool_add(msg_body, email ? email : "no address provided");
+		msg_body << "A new user has just been created!" << std::endl;
+		msg_body << "User: " << jid_full(m->packet->to) << std::endl;
+		msg_body << "E-Mail: " << (email ? email : "no address provided");
 
-		x = jutil_msgnew("chat", m->packet->to->get_domain().c_str(), "Registration Notice", spool_print(msg_body));
+		x = jutil_msgnew("chat", m->packet->to->get_domain().c_str(), "Registration Notice", msg_body.str().c_str());
 		xmlnode_put_attrib_ns(x, "from", NULL, NULL, m->packet->to->get_domain().c_str());
 		js_deliver(m->si, jpacket_new(x), m->s);
 	    }

@@ -100,8 +100,9 @@ static void base_accept_process_xml(mio m, int state, void* arg, xmlnode x, char
     accept_instance ai = (accept_instance)arg;
     xmlnode cur, off;
     queue q, q2;
-    char hashbuf[41];
     jpacket jp;
+    char const* pwdsent;
+    xmppd::sha1 pwdcheck;
 
     log_debug2(ZONE, LOGT_XML, "process XML: m:%X state:%d, arg:%X, x:%X", m, state, arg, x);
 
@@ -148,8 +149,12 @@ static void base_accept_process_xml(mio m, int state, void* arg, xmlnode x, char
             }
 
             /* Create and check a SHA hash of this instance's password & SID */
-            shahash_r(spools(xmlnode_pool(x), ai->id, ai->secret, xmlnode_pool(x)), hashbuf);
-            if (j_strcmp(hashbuf, xmlnode_get_data(x)) != 0) {
+	    if (ai->id)
+		pwdcheck.update(ai->id);
+	    if (ai->secret)
+		pwdcheck.update(ai->secret);
+	    pwdsent = xmlnode_get_data(x);
+	    if (!pwdsent || pwdcheck.final_hex() != std::string(pwdsent)) {
                 mio_write(m, NULL, "<stream:error><not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/><text xmlns='urn:ietf:params:xml:ns:xmpp-streams' xml:lang='en'>Invalid handshake</text></stream:error>", -1);
                 mio_close(m);
 		break;
