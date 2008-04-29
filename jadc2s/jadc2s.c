@@ -464,6 +464,7 @@ int main(int argc, char **argv) {
 #ifdef USE_SSL
     c2s->local_sslport = j_atoi(config_get_one(c2s->config, "local.ssl.port", 0), 5223);
     c2s->pemfile = config_get_one(c2s->config, "local.ssl.pemfile", 0);
+    c2s->dhparam = config_get_one(c2s->config, "local.ssl.dhparam", 0);
     c2s->ciphers = config_get_one(c2s->config, "local.ssl.ciphers", 0);
     
     c2s->ssl_enable_workarounds = (config_get_one(c2s->config, "local.ssl.enable_workarounds", 0) != NULL);
@@ -618,6 +619,24 @@ int main(int argc, char **argv) {
 		}
 	    }
         }
+
+	if (c2s->dhparam) {
+	    DH *dhparam = NULL;
+	    FILE *paramfile;
+
+	    paramfile = fopen(c2s->dhparam, "r");
+	    if (paramfile) {
+		dhparam = PEM_read_DHparams(paramfile, NULL, NULL, NULL);
+		fclose(paramfile);
+
+		if (!SSL_CTX_set_tmp_dh(c2s->ssl_ctx, dhparam)) {
+		    log_write(c2s->log, LOG_ERR, "Failed to set DH params");
+		    log_ssl_errors(c2s->log, LOG_ERR);
+		}
+	    } else {
+		log_write(c2s->log, LOG_ERR, "failed to load DH parameter file: %s", c2s->dhparam);
+	    }
+	}
 
 	/* enable workarounds for different SSL client bugs or disable
 	 * some versions of SSL/TLS */

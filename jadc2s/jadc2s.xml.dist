@@ -49,6 +49,7 @@
         <!--  the certificate.                                             -->
 	<!--  <port/>      (default: 5223)                                 -->
 	<!--  <pemfile/>   (default: ./server.pem)                         -->
+	<!--  <dhparam/>   (default: no DH parameters configured)          -->
 	<!--  <no_ssl_v2/> (disables SSL protocol version 2)		   -->
 	<!--  <no_ssl_v3/> (disables SSL protocol version 3)		   -->
 	<!--  <no_tls_v1/> (disables TLS protocol version 1, aka SSL 3.1)  -->
