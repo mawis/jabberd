@@ -1,4 +1,9 @@
-2008-04-13  Matthias Wimmer  <m@ŧthias.eu>
+2008-04-28  Matthias Wimmer  <m@tthias.eu>
+
+    * jadc2s.c: support for DSA keys (by setting DH params)
+    * jadc2s.h: same
+
+2008-04-13  Matthias Wimmer  <m@tthias.eu>
 
     * conn.c: Fix for 64 bit systems
 

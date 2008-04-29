@@ -301,6 +301,7 @@ struct c2s_st
 #ifdef USE_SSL
     int local_sslport;
     char *pemfile;
+    char *dhparam;
     char *ciphers;
     int ssl_no_ssl_v2;
     int ssl_no_ssl_v3;
