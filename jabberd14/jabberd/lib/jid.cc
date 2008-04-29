@@ -1,7 +1,7 @@
 /*
  * Copyrights
  * 
- * Portions Copyright (c) 2008 Matthias Wimmer
+ * Copyright (c) 2008 Matthias Wimmer
  *
  * This file is part of jabberd14.
  *
