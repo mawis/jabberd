@@ -517,7 +517,7 @@ xmlnode mio_cleanup(mio m);
 void mio_connect(char *host, int port, mio_std_cb cb, void *cb_arg, int timeout, mio_handlers mh);
 
 /* Starts listening on a port/ip, returns NULL if failed to listen */
-mio mio_listen(int port, char *sourceip, mio_std_cb cb, void *cb_arg, mio_handlers mh);
+mio mio_listen(int port, char const* sourceip, mio_std_cb cb, void *cb_arg, mio_handlers mh);
 
 int _mio_write_dump(mio m);
 
