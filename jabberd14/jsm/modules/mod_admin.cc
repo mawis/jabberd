@@ -67,20 +67,17 @@ static void _mod_admin_disco_online_iter(xht h, const char *key, void *data, voi
     /* for all sessions of this user */
     for (session_iter = u->sessions; session_iter != NULL; session_iter = session_iter->next) {
 	xmlnode item = xmlnode_insert_tag_ns(query, "item", NULL, NS_DISCO_ITEMS);
-	spool sp = spool_new(xmlnode_pool(query));
+	std::ostringstream name;
 
 	/* generate text for this item */
-	spooler(sp, jid_full(session_iter->id), " (", messages_get(lang, N_("dur")), ": ", sp);
-	snprintf(buffer, sizeof(buffer), "%d", (int)(t - session_iter->started));
-	spooler(sp, buffer, " ", messages_get(lang, N_("s")), ", ", messages_get(lang, N_("in")), ": ", sp);
-	snprintf(buffer, sizeof(buffer), "%d", session_iter->c_out);
-	spooler(sp, buffer, " ", messages_get(lang, N_("stnz")), ", ", messages_get(lang, N_("out")), ": ", sp);
-	snprintf(buffer, sizeof(buffer), "%d", session_iter->c_in);
-	spooler(sp, buffer, " ", messages_get(lang, N_("stnz")), ")", sp);
+	name << jid_full(session_iter->id) << " (" << messages_get(lang, N_("dur")) << ": ";
+	name << static_cast<int>(t - session_iter->started) << " " << messages_get(lang, N_("s")) << ", " << messages_get(lang, N_("in")) << ": ";
+	name << session_iter->c_out << " " << messages_get(lang, N_("stnz")) << ", " << messages_get(lang, N_("out")) << ": ";
+	name << session_iter->c_in << " " << messages_get(lang, N_("stnz")) << ")";
 
 	/* add attributes for this item */
 	xmlnode_put_attrib_ns(item, "jid", NULL, NULL, jid_full(session_iter->id));
-	xmlnode_put_attrib_ns(item, "name", NULL, NULL, spool_print(sp));
+	xmlnode_put_attrib_ns(item, "name", NULL, NULL, name.str().c_str());
     }
 }
 
@@ -187,7 +184,6 @@ static mreturn mod_admin_dispatch(mapi m, void *arg) {
 static mreturn mod_admin_message(mapi m, void *arg) {
     jpacket p;
     xmlnode cur;
-    char *subject;
     const char *element_name;
     static char jidlist[1024] = "";
     jid admins = NULL;
@@ -209,9 +205,13 @@ static mreturn mod_admin_message(mapi m, void *arg) {
     log_debug2(ZONE, LOGT_DELIVER, "delivering admin message from %s",jid_full(m->packet->from));
 
     /* update the message */
-    subject=spools(m->packet->p, messages_get(xmlnode_get_lang(m->packet->x), N_("Admin: ")), xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(m->packet->x, "subject", m->si->std_namespace_prefixes) ,0)), " (", m->packet->to->get_domain().c_str(), ")", m->packet->p);
+    std::ostringstream subject;
+    subject << messages_get(xmlnode_get_lang(m->packet->x), N_("Admin: "));
+    char const* orig_subject = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(m->packet->x, "subject", m->si->std_namespace_prefixes) ,0));
+    subject << (orig_subject ? orig_subject : messages_get(xmlnode_get_lang(m->packet->x), N_("no subject")));
+    subject << " (" << m->packet->to->get_domain() << ")";
     xmlnode_hide(xmlnode_get_list_item(xmlnode_get_tags(m->packet->x, "subject", m->si->std_namespace_prefixes), 0));
-    xmlnode_insert_cdata(xmlnode_insert_tag_ns(m->packet->x, "subject", NULL, NS_SERVER), subject, -1);
+    xmlnode_insert_cdata(xmlnode_insert_tag_ns(m->packet->x, "subject", NULL, NS_SERVER), subject.str().c_str(), -1);
     jutil_delay(m->packet->x, "admin");
 
     /* forward the message to every configured admin */

@@ -243,7 +243,9 @@ static mreturn mod_disco_user_items(mapi m) {
     if (js_trust(m->user, m->packet->from)) {
         for (s = m->user->sessions; s != NULL; s = s->next) {
             /* if(s->priority < 0) continue; *** include all resources I guess */
-            if (xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, spools(m->packet->p,"*[@jid='",jid_full(s->id), "']'", m->packet->p), m->si->std_namespace_prefixes), 0) != NULL)
+	    std::ostringstream xpath;
+	    xpath << "*[@jid='" << jid_full(s->id) << "']'";
+            if (xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, xpath.str().c_str(), m->si->std_namespace_prefixes), 0) != NULL)
 		continue; /* already in the browse result */
             x = xmlnode_insert_tag_ns(m->packet->iq, "item", NULL, NS_BROWSE);
             xmlnode_put_attrib_ns(x, "jid", NULL, NULL, jid_full(s->id));
@@ -288,7 +290,11 @@ static mreturn mod_disco_user_info(mapi m) {
     vcard = xdb_get(m->si->xc, m->user->id, NS_VCARD);
     vcard_fn = xmlnode_get_tags(vcard, "vcard:FN", m->si->std_namespace_prefixes);
     if (vcard_fn.size() > 0) {
-	xmlnode_put_attrib_ns(x, "name", NULL, NULL, is_admin ? spools(m->packet->p, xmlnode_get_data(vcard_fn[0]), messages_get(xmlnode_get_lang(m->packet->x), N_(" (administrator)")), m->packet->p) : xmlnode_get_data(vcard_fn[0]));
+	std::ostringstream name;
+	name << xmlnode_get_data(vcard_fn[0]);
+	if (is_admin)
+	    name << messages_get(xmlnode_get_lang(m->packet->x), N_(" (administrator)"));
+	xmlnode_put_attrib_ns(x, "name", NULL, NULL, name.str().c_str());
     } else {
 	xmlnode_put_attrib_ns(x, "name", NULL, NULL, messages_get(xmlnode_get_lang(m->packet->x), is_admin ? N_("Administrator") : N_("User")));
     }

@@ -112,7 +112,9 @@ static mreturn mod_browse_set(mapi m, void *arg) {
         xmlnode_hide_attrib_ns(browse, "xmlns", NS_XMLNS); /* don't need a ns as a child */
         for (cur = xmlnode_get_firstchild(browse); cur != NULL; cur = xmlnode_get_nextsibling(cur))
             xmlnode_hide(cur); /* erase all children */
-        xdb_act_path(m->si->xc, m->user->id, NS_BROWSE, "insert", spools(m->packet->p,"*[@jid='", jid_full(to), "']", m->packet->p), m->si->std_namespace_prefixes, browse); /* insert and match replace */
+	std::ostringstream xpath;
+	xpath << "*[@jid='" << jid_full(to) << "']";
+        xdb_act_path(m->si->xc, m->user->id, NS_BROWSE, "insert", xpath.str().c_str(), m->si->std_namespace_prefixes, browse); /* insert and match replace */
         xmlnode_free(browse);
     }
 
@@ -124,7 +126,9 @@ static mreturn mod_browse_set(mapi m, void *arg) {
 
     /* insert the new item into the resource it was sent to */
     xmlnode_hide_attrib_ns(cur, "xmlns", NS_XMLNS); /* just in case, to make sure it inserts */
-    if (xdb_act_path(m->si->xc, to, NS_BROWSE, "insert", spools(m->packet->p, "*[@jid='", jid_full(id), "']", m->packet->p), m->si->std_namespace_prefixes, cur)) {
+    std::ostringstream xpath;
+    xpath << "*[@jid='" << jid_full(id) << "']";
+    if (xdb_act_path(m->si->xc, to, NS_BROWSE, "insert", xpath.str().c_str(), m->si->std_namespace_prefixes, cur)) {
         js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_UNAVAIL);
         return M_HANDLED;
     }
@@ -206,7 +210,9 @@ static mreturn mod_browse_reply(mapi m, void *arg) {
     if (js_trust(m->user, m->packet->from)) {
         for (s = m->user->sessions; s != NULL; s = s->next) {
             /* if(s->priority < 0) continue; *** include all resources I guess */
-            if (xmlnode_get_list_item(xmlnode_get_tags(browse, spools(m->packet->p,"*[@jid='",jid_full(s->id), "']'", m->packet->p), m->si->std_namespace_prefixes), 0) != NULL)
+	    std::ostringstream xpath;
+	    xpath << "*[@jid='" << jid_full(s->id) << "']'";
+            if (xmlnode_get_list_item(xmlnode_get_tags(browse, xpath.str().c_str(), m->si->std_namespace_prefixes), 0) != NULL)
 		continue; /* already in the browse result */
             cur = xmlnode_insert_tag_ns(browse, "user", NULL, NS_BROWSE);
             xmlnode_put_attrib_ns(cur, "type", NULL, NULL, "client");

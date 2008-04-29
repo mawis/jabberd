@@ -322,7 +322,7 @@ char* xmlnode_file_borked(char const* file) {
  * @param node the xmlnode that should be written
  * @return 1 on success, -1 on failure
  */
-int xmlnode2file(char *file, xmlnode node)
+int xmlnode2file(char const* file, xmlnode node)
 {
     return xmlnode2file_limited(file, node, 0);
 }
@@ -335,8 +335,8 @@ int xmlnode2file(char *file, xmlnode node)
  * @param sizelimit the maximum length of the file to be written
  * @return 1 on success, 0 if failed due to size limit, -1 on failure
  */
-int xmlnode2file_limited(char *file, xmlnode node, size_t sizelimit) {
-    char *doc, *ftmp;
+int xmlnode2file_limited(char const* file, xmlnode node, size_t sizelimit) {
+    char *doc;
     int fd, i;
     size_t doclen;
 
@@ -354,8 +354,9 @@ int xmlnode2file_limited(char *file, xmlnode node, size_t sizelimit) {
 	return 0;
     }
 
-    ftmp = spools(xmlnode_pool(node),file,".t.m.p",xmlnode_pool(node));
-    fd = open(ftmp, O_CREAT | O_WRONLY | O_TRUNC, 0600);
+    std::ostringstream ftmp;
+    ftmp << file << ".t.m.p";
+    fd = open(ftmp.str().c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0600);
     if (fd < 0)
         return -1;
 
@@ -363,7 +364,7 @@ int xmlnode2file_limited(char *file, xmlnode node, size_t sizelimit) {
     i = write(fd, "<?xml version='1.0'?>\n", 22);
     if (i < 0) {
 	close(fd);
-	unlink(ftmp);
+	unlink(ftmp.str().c_str());
 	return -1;
     }
 
@@ -371,7 +372,7 @@ int xmlnode2file_limited(char *file, xmlnode node, size_t sizelimit) {
     i = write(fd, doc, doclen);
     if (i < 0) {
 	close(fd);
-	unlink(ftmp);
+	unlink(ftmp.str().c_str());
         return -1;
     }
 
@@ -379,7 +380,7 @@ int xmlnode2file_limited(char *file, xmlnode node, size_t sizelimit) {
     i = write(fd, "\n", 1);
     if (i < 0) {
 	close(fd);
-	unlink(ftmp);
+	unlink(ftmp.str().c_str());
         return -1;
     }
 
@@ -387,8 +388,8 @@ int xmlnode2file_limited(char *file, xmlnode node, size_t sizelimit) {
     close(fd);
 
     /* replace the old file with the new one */
-    if(rename(ftmp,file) < 0) {
-        unlink(ftmp);
+    if(rename(ftmp.str().c_str(), file) < 0) {
+        unlink(ftmp.str().c_str());
         return -1;
     }
 

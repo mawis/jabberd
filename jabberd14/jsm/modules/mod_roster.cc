@@ -244,7 +244,9 @@ static mreturn mod_roster_out_s10n(mapi m) {
 		mod_roster_push(m->user, item); /* new roster to the user's other sessions */
 
 		/* delete stored subscription request from xdb */
-		xdb_act_path(m->si->xc, m->user->id, NS_JABBERD_STOREDREQUEST, "insert", spools(m->packet->p, "presence[@from='", jid_full(m->packet->to), "']", m->packet->p), m->si->std_namespace_prefixes, NULL);
+		std::ostringstream xpath;
+		xpath << "presence[@from='" << jid_full(m->packet->to) << "']";
+		xdb_act_path(m->si->xc, m->user->id, NS_JABBERD_STOREDREQUEST, "insert", xpath.str().c_str(), m->si->std_namespace_prefixes, NULL);
 	    } else {
 		/* XMPP IM, sect. 9 other states */
 		route = 0;
@@ -367,7 +369,9 @@ static mreturn mod_roster_out_iq(mapi m) {
 		if (xmlnode_get_attrib_ns(*iter, "subscribe", NULL) != NULL) {
 		    /* is there a stored version of the subscription request in xdb? */
 		    xmlnode stored_subscribes = xdb_get(m->si->xc, m->user->id, NS_JABBERD_STOREDREQUEST);
-		    pres =  xmlnode_dup(xmlnode_get_list_item(xmlnode_get_tags(stored_subscribes, spools(xmlnode_pool(*iter), "presence[@from='", xmlnode_get_attrib_ns(*iter, "jid", NULL), "']", xmlnode_pool(*iter)), m->si->std_namespace_prefixes), 0));
+		    std::ostringstream xpath;
+		    xpath << "presence[@from='" << xmlnode_get_attrib_ns(*iter, "jid", NULL) << "']";
+		    pres =  xmlnode_dup(xmlnode_get_list_item(xmlnode_get_tags(stored_subscribes, xpath.str().c_str(), m->si->std_namespace_prefixes), 0));
 
 		    /* if there is nothing in xdb, create a subscription request */
 		    if (pres == NULL) {
@@ -625,7 +629,9 @@ static mreturn mod_roster_s10n(mapi m, void *arg) {
     if (store_request) {
 	xmlnode request = xmlnode_dup(m->packet->x);
 	jutil_delay(request, N_("Offline Storage"));
-	xdb_act_path(m->si->xc, m->user->id, NS_JABBERD_STOREDREQUEST, "insert", spools(m->packet->p, "presence[@from='", jid_full(m->packet->from), "']", m->packet->p), m->si->std_namespace_prefixes, request);
+	std::ostringstream xpath;
+	xpath << "presence[@from='" << jid_full(m->packet->from) << "']";
+	xdb_act_path(m->si->xc, m->user->id, NS_JABBERD_STOREDREQUEST, "insert", xpath.str().c_str(), m->si->std_namespace_prefixes, request);
     }
 
     /* these are delayed until after we check the roster back in, avoid rancid race conditions */

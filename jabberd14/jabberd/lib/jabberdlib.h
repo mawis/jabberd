@@ -493,7 +493,7 @@ typedef unsigned short uint32;
 typedef unsigned int uint32;
 #endif /* HAVEUINT32 */
 
-char *shahash(char *str);	/* NOT THREAD SAFE */
+char *shahash(char const* str);	/* NOT THREAD SAFE */
 void shahash_r(const char* str, char hashbuf[41]); /* USE ME */
 void shaBlock(unsigned char *dataIn, int len, unsigned char hashout[20]);
 
@@ -564,32 +564,6 @@ void xhash_walk(xht h, xhash_walker w, void *arg);
 char *strescape(pool p, char *buf); /* Escape <>&'" chars */
 char *strunescape(pool p, char *buf);
 std::string strescape(std::string s);
-
-
-/* --------------------------------------------------------- */
-/*                                                           */
-/* String pools (spool) functions                            */
-/*                                                           */
-/* --------------------------------------------------------- */
-struct spool_node
-{
-    char *c;
-    struct spool_node *next;
-};
-
-typedef struct spool_struct
-{
-    pool p;
-    int len;
-    struct spool_node *last;
-    struct spool_node *first;
-} *spool;
-
-spool spool_new(pool p); /* create a string pool */
-void spooler(spool s, ...); /* append all the char * args to the pool, terminate args with s again */
-char *spool_print(spool s); /* return a big string */
-void spool_add(spool s, const char *str); /* add a single char to the pool */
-char *spools(pool p, ...); /* wrap all the spooler stuff in one function, the happy fun ball! */
 
 
 /* --------------------------------------------------------- */
@@ -730,8 +704,8 @@ int      xmlnode_has_children(xmlnode node);
 /* Node-to-string translation */
 char*	 xmlnode_serialize_string(xmlnode_t const* node, const xmppd::ns_decl_list& nslist, int stream_type);
 
-int      xmlnode2file(char *file, xmlnode node); /* writes node to file */
-int	 xmlnode2file_limited(char *file, xmlnode node, size_t sizelimit);
+int      xmlnode2file(char const* file, xmlnode node); /* writes node to file */
+int	 xmlnode2file_limited(char const* file, xmlnode node, size_t sizelimit);
 
 /* Expat callbacks */
 void expat_startElement(void* userdata, const char* name, const char** atts);
@@ -826,7 +800,7 @@ typedef struct streamerr_struct {
     streamerr_severity severity;/**< something that admin needs to care about? */
 } *streamerr, _streamerr;
 
-void xstream_format_error(spool s, streamerr errstruct);
+void xstream_format_error(std::ostream& out, streamerr errstruct);
 streamerr_severity xstream_parse_error(pool p, xmlnode errnode, streamerr errstruct);
 
 typedef struct {
@@ -1336,7 +1310,7 @@ typedef struct xterror_struct
 /* --------------------------------------------------------- */
 xmlnode jutil_presnew(int type, char *to, const char *status); /* Create a skeleton presence packet */
 xmlnode jutil_iqnew(int type, char *ns);		 /* Create a skeleton iq packet */
-xmlnode jutil_msgnew(char *type, char const* to, char *subj, char *body);
+xmlnode jutil_msgnew(char const* type, char const* to, char const* subj, char const* body);
 							 /* Create a skeleton message packet */
 int     jutil_priority(xmlnode x);			 /* Determine priority of this packet */
 void    jutil_tofrom(xmlnode x);			 /* Swaps to/from fields on a packet */

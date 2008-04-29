@@ -1,3 +1,39 @@
+2008-04-29  Matthias Wimmer  <m@tthias.eu>
+
+    * jsm/serialization.cc: removing string spool functions, using
+	C++ standard std::ostringstream instead
+    * jsm/modules/mod_xml.cc: same
+    * jsm/modules/mod_auth_digest.cc: same
+    * jsm/modules/mod_browse.cc: same
+    * jsm/modules/mod_disco.cc: same
+    * jsm/modules/mod_privacy.cc: same
+    * jsm/modules/mod_roster.cc: same
+    * jsm/modules/mod_offline.cc: same
+    * jsm/modules/mod_register.cc: same
+    * jsm/modules/mod_version.cc: same
+    * jsm/modules/mod_admin.cc: same
+    * jabberd/jabberd.h: same
+    * jabberd/xdb.cc: same
+    * jabberd/lib/xmlnode.cc: same
+    * jabberd/lib/str.cc: same
+    * jabberd/lib/expat.cc: same
+    * jabberd/lib/jabberdlib.h: same
+    * jabberd/lib/hash.cc: same
+    * jabberd/lib/xstream.cc: same
+    * jabberd/lib/jutil.cc: same
+    * jabberd/base/base_dir.cc: same
+    * jabberd/base/base_to.cc: same
+    * jabberd/base/base_importspool.cc: same
+    * jabberd/base/base_format.cc: same
+    * jabberd/base/base_connect.cc: same
+    * jabberd/base/base_accept.cc: same
+    * dialback/dialback.h: same
+    * dialback/dialback_in.cc: same
+    * dialback/dialback_out.cc: same
+    * dialback/dialback.cc: same
+    * dnsrv/srv_resolv.cc: same
+    * xdb_file/xdb_file.cc: same
+
 2008-04-26  Matthias Wimmer  <m@tthias.eu>
 
     * jabberd/lib/jabberid.cc: new class for JabberID handling

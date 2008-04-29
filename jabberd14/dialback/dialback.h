@@ -146,7 +146,7 @@ typedef struct {
     char *stream_id; /**< the stream id the connected entity assigned */
     db_request db_state; /**< if we want to send a <db:result/> and if we already did */
     db_connection_state connection_state; /**< how far did we proceed in connecting to the other host */
-    spool connect_results; /**< result messages for the connection attempts */
+    std::ostringstream* connect_results; /**< result messages for the connection attempts */
     struct {
 	int db:1;	/**< if the peer supports dialback */
     } flags;

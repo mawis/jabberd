@@ -410,107 +410,103 @@ char *xstream_header_char(xmlnode x, int stream_type) {
 /**
  * format a stream error for logging
  *
- * @param s where to spool the result
+ * @param out where to write the result
  * @param errstruct the information about the error
  */
-void xstream_format_error(spool s, streamerr errstruct) {
+void xstream_format_error(std::ostream& out, streamerr errstruct) {
     /* sanity checks */
-    if (s == NULL)
-	return;
     if (errstruct == NULL) {
-	spool_add(s, "stream:error=(NULL)");
+	out << "stream:error=(NULL)";
 	return;
     }
 
     switch (errstruct->reason) {
 	case unknown_error_type:
-	    spool_add(s, "unknown error type / legacy stream error");
+	    out << "unknown error type / legacy stream error";
 	    break;
 	case bad_format:
-	    spool_add(s, "sent XML that cannot be processed");
+	    out << "sent XML that cannot be processed";
 	    break;
 	case bad_namespace_prefix:
-	    spool_add(s, "sent a namespace prefix that is unsupported");
+	    out << "sent a namespace prefix that is unsupported";
 	    break;
 	case conflict:
-	    spool_add(s, "new stream has been initiated that confilicts with the existing one");
+	    out << "new stream has been initiated that confilicts with the existing one";
 	    break;
 	case connection_timeout:
-	    spool_add(s, "not generated any traffic over some time");
+	    out << "not generated any traffic over some time";
 	    break;
 	case host_gone:
-	    spool_add(s, "hostname is no longer hosted by the server");
+	    out << "hostname is no longer hosted by the server";
 	    break;
 	case host_unknown:
-	    spool_add(s, "hostname is not hosted by the server");
+	    out << "hostname is not hosted by the server";
 	    break;
 	case improper_addressing:
-	    spool_add(s, "stanza lacks a 'to' or 'from' attribute");
+	    out << "stanza lacks a 'to' or 'from' attribute";
 	    break;
 	case internal_server_error:
-	    spool_add(s, "internal server error: maybe missconfiguration");
+	    out << "internal server error: maybe missconfiguration";
 	    break;
 	case invalid_from:
-	    spool_add(s, "from address does not match an authorized JID or validated domain");
+	    out << "from address does not match an authorized JID or validated domain";
 	    break;
 	case invalid_id:
-	    spool_add(s, "stream or dialback id is invalid or does not match a previous one");
+	    out << "stream or dialback id is invalid or does not match a previous one";
 	    break;
 	case invalid_namespace:
-	    spool_add(s, "invalid namespace");
+	    out << "invalid namespace";
 	    break;
 	case invalid_xml:
-	    spool_add(s, "sent invalid XML, did not pass validation");
+	    out << "sent invalid XML, did not pass validation";
 	    break;
 	case not_authorized:
-	    spool_add(s, "tried to send data before stream has been authed");
+	    out << "tried to send data before stream has been authed";
 	    break;
 	case policy_violation:
-	    spool_add(s, "policy violation");
+	    out << "policy violation";
 	    break;
 	case remote_connection_failed:
-	    spool_add(s, "remote connection failed");
+	    out << "remote connection failed";
 	    break;
 	case resource_constraint:
-	    spool_add(s, "server lacks resources to service the stream");
+	    out << "server lacks resources to service the stream";
 	    break;
 	case restricted_xml:
-	    spool_add(s, "sent XML features that are forbidden by RFC3920");
+	    out << "sent XML features that are forbidden by RFC3920";
 	    break;
 	case see_other_host:
-	    spool_add(s, "redirected to other host");
+	    out << "redirected to other host";
 	    break;
 	case system_shutdown:
-	    spool_add(s, "system is being shut down");
+	    out << "system is being shut down";
 	    break;
 	case undefined_condition:
-	    spool_add(s, "undefined condition");
+	    out << "undefined condition";
 	    break;
 	case unsupported_encoding:
-	    spool_add(s, "unsupported encoding");
+	    out << "unsupported encoding";
 	    break;
 	case unsupported_stanza_type:
-	    spool_add(s, "sent a first-level child element (stanza) that is not supported");
+	    out << "sent a first-level child element (stanza) that is not supported";
 	    break;
 	case unsupported_version:
-	    spool_add(s, "unsupported stream version");
+	    out << "unsupported stream version";
 	    break;
 	case xml_not_well_formed:
-	    spool_add(s, "sent XML that is not well-formed");
+	    out << "sent XML that is not well-formed";
 	    break;
 	default:
-	    spool_add(s, "something else (shut not happen)");
+	    out << "something else (shut not happen)";
 	    break;
     }
 
     if (errstruct->text != NULL) {
-	spool_add(s, ": ");
+	out << ": ";
 	if (errstruct->lang != NULL) {
-	    spool_add(s, "[");
-	    spool_add(s, errstruct->lang);
-	    spool_add(s, "]");
+	    out << "[" << errstruct->lang << "]";
 	}
-	spool_add(s, errstruct->text);
+	out << errstruct->text;
     }
 }
 

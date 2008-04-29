@@ -184,7 +184,9 @@ static void import_file(instance i, xdbcache xc, xht std_namespace_prefixes, con
 		if (request->type != NTYPE_TAG)
 		    continue;
 
-		xdb_act_path(xc, userid, NS_JABBERD_STOREDREQUEST, "insert", spools(p, "presence[@from='", xmlnode_get_attrib_ns(request, "from", NULL), "']", p), std_namespace_prefixes, request);
+		std::ostringstream xpath;
+		xpath << "presence[@from='" << xmlnode_get_attrib_ns(request, "from", NULL) << "']";
+		xdb_act_path(xc, userid, NS_JABBERD_STOREDREQUEST, "insert", xpath.str().c_str(), std_namespace_prefixes, request);
 	    }
 	    continue;
 	}
@@ -226,7 +228,9 @@ static void import_file(instance i, xdbcache xc, xht std_namespace_prefixes, con
 		if (item->type != NTYPE_TAG)
 		    continue;
 
-		xdb_act_path(xc, userid, NS_PRIVATE, "insert", spools(p, "private:query[@jabberd:ns='", xmlnode_get_namespace(item), "']", p), std_namespace_prefixes, item);
+		std::ostringstream xpath;
+		xpath << "private:query[@jabberd:ns='" << xmlnode_get_namespace(item) << "']";
+		xdb_act_path(xc, userid, NS_PRIVATE, "insert", xpath.str().c_str(), std_namespace_prefixes, item);
 	    }
 	    continue;
 	}
@@ -240,7 +244,9 @@ static void import_file(instance i, xdbcache xc, xht std_namespace_prefixes, con
 		if (list->type != NTYPE_TAG)
 		    continue;
 
-		xdb_act_path(xc, userid, NS_PRIVACY, "insert", spools(p, "privacy:list[@name='", xmlnode_get_attrib_ns(list, "name", NULL), "']", p), std_namespace_prefixes, list);
+		std::ostringstream xpath;
+		xpath << "privacy:list[@name='" << xmlnode_get_attrib_ns(list, "name", NULL) << "']";
+		xdb_act_path(xc, userid, NS_PRIVACY, "insert", xpath.str().c_str(), std_namespace_prefixes, list);
 
 	    }
 	    continue;
@@ -251,7 +257,9 @@ static void import_file(instance i, xdbcache xc, xht std_namespace_prefixes, con
 	    continue;
 
 	/* all other data gets stored in the private namespace */
-	xdb_act_path(xc, userid, NS_PRIVATE, "insert", spools(p, "private:query[@jabberd:ns='", xmlnode_get_namespace(data_element), "']", p), std_namespace_prefixes, data_element);
+	std::ostringstream xpath;
+	xpath << "private:query[@jabberd:ns='" << xmlnode_get_namespace(data_element) << "']";
+	xdb_act_path(xc, userid, NS_PRIVATE, "insert", xpath.str().c_str(), std_namespace_prefixes, data_element);
     }
 
     /* free memory */

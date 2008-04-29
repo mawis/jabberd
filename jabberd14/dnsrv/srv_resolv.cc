@@ -126,7 +126,9 @@ void srv_xhash_join(pool p, xht ht, const char *key, char *value) {
 	xhash_put(ht, key, value);
 	return;
     }
-    xhash_put(ht, key, spools(p, value, ",", (char*)old, p));
+    std::ostringstream join;
+    join << value << "," << static_cast<char*>(old);
+    xhash_put(ht, key, pstrdup(p, join.str().c_str()));
 }
 
 /**
@@ -136,7 +138,7 @@ void srv_xhash_join(pool p, xht ht, const char *key, char *value) {
  *
  * @return 0 in case of success, non zero on error
  */
-int srv_lookup_aaaa_a(spool result, const char* domain) {
+static int srv_lookup_aaaa_a(std::ostream& result, const char* domain) {
     int			first_result = 1;
 #ifdef WITH_IPV6
     int			error_code;
@@ -174,19 +176,19 @@ int srv_lookup_aaaa_a(spool result, const char* domain) {
 	    case PF_INET:
 		inet_ntop(AF_INET, (char *)&((struct sockaddr_in*)addr_iter->ai_addr)->sin_addr, addr_str, sizeof(addr_str));
 		if (!first_result) {
-		    spooler(result, ",", addr_str, result);
+		    result << "," << addr_str;
 		} else {
 		    first_result = 0;
-		    spool_add(result, addr_str);
+		    result << addr_str;
 		}
 		break;
 	    case PF_INET6:
 		inet_ntop(AF_INET6, (char *)&((struct sockaddr_in6*)addr_iter->ai_addr)->sin6_addr, addr_str, sizeof(addr_str));
 		if (!first_result) {
-		    spooler(result, ",", addr_str, result);
+		    result << "," << addr_str;
 		} else {
 		    first_result = 0;
-		    spool_add(result, addr_str);
+		    result << addr_str;
 		}
 	}
     }
@@ -205,7 +207,7 @@ int srv_lookup_aaaa_a(spool result, const char* domain) {
     }
     
     snprintf(addr_str, sizeof(addr_str), "%u.%u.%u.%u", (unsigned char)(hp->h_addr[0]), (unsigned char)hp->h_addr[1], (unsigned char)hp->h_addr[2], (unsigned char)hp->h_addr[3]);
-    spooler(result, addr_str, result);
+    result << addr_str;
     return 0;
 #endif
 }
@@ -237,7 +239,6 @@ char* srv_lookup(pool p, const char* service, const char* domain)
      srv_list       tempnode = NULL;
      srv_list       iternode = NULL;
      xht	      arr_table;	   /* Hash of A records (name, ip) */
-     spool            result;
      int	      result_is_empty = 1;
      char*            ipname;
      char*            ipaddr;
@@ -251,9 +252,9 @@ char* srv_lookup(pool p, const char* service, const char* domain)
 
     /* If no service is specified, use a standard gethostbyname call */
     if (service == NULL) {
-	result = spool_new(p);
+	std::ostringstream result;
 	if (srv_lookup_aaaa_a(result, domain) == 0) {
-	    return spool_print(result);
+	    return pstrdup(p, result.str().c_str());
 	} else {
 	    return NULL;
 	}
@@ -410,7 +411,7 @@ char* srv_lookup(pool p, const char* service, const char* domain)
 
 	/* Now, walk the nicely sorted list and resolve the target's A records, sticking the resolved name in
 	 * a spooler -- hopefully these have been pre-cached, and arrived along with the SRV reply */
-	result = spool_new(p);
+	std::ostringstream result;
 
 	iternode = svrlist;
 	while (iternode != NULL) {
@@ -421,11 +422,11 @@ char* srv_lookup(pool p, const char* service, const char* domain)
 
 	    /* it hasn't been in the additional section, we have to lookup the IP address */
 	    if (ipaddr == NULL) {
-		spool temp_result = spool_new(p);
+		std::ostringstream temp_result;
 
 		log_debug2(ZONE, LOGT_IO, "'%s' not in additional section of DNS reply, looking it up using AAAA/A query", iternode->host);
 		srv_lookup_aaaa_a(temp_result, iternode->host);
-		ipaddr = spool_print(temp_result);
+		ipaddr = pstrdup(p, temp_result.str().c_str());
 	    }
 	   
 	    if (j_strlen(ipaddr) > 0) {
@@ -434,7 +435,7 @@ char* srv_lookup(pool p, const char* service, const char* domain)
 
 		/* if there has been a result already, we have to separate by a "," */
 		if (!result_is_empty) {
-		    spool_add(result, ",");
+		    result << ",";
 		} else {
 		    result_is_empty = 0;
 		}
@@ -444,15 +445,15 @@ char* srv_lookup(pool p, const char* service, const char* domain)
 		while (token != NULL) {
 		    if (strchr(token, ':')) {
 			/* IPv6 format */
-			spooler(result, "[", token, "]:", iternode->port, result);
+			result << "[" << token << "]:" << iternode->port;
 		    } else {
 			/* IPv4 format */
-			spooler(result, token, ":", iternode->port, result);
+			result << token << ":" << iternode->port;
 		    }
 		    /* get next token */
 		    token = strtok_r(NULL, ",", &ptrptr);
 		    if (token) {
-			spool_add(result, ","); /* separate results by ',' */
+			result << ","; // separate results by ','
 		    }
 		}
 		/* free our tokenized copy */
@@ -461,7 +462,7 @@ char* srv_lookup(pool p, const char* service, const char* domain)
 	    iternode = iternode->next;
 	}
 	/* Finally, turn the fully resolved list into a string <ip>:<host>,... */
-	return spool_print(result);
+	return pstrdup(p, result.str().c_str());
     }
     /* Otherwise, return NULL -- it's for the caller to finish up by using
      * standard A records */

@@ -253,7 +253,7 @@ void shahash_r(const char* str, char hashbuf[41]) {
     snprintf(hashbuf, 41, "%s", result.c_str());
 }
 
-char *shahash(char *str) {
+char *shahash(char const* str) {
     static char resultbuffer[41];
 
     shahash_r(str, resultbuffer);
