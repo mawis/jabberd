@@ -678,10 +678,6 @@ void     xmlnode_put_expat_attribs(xmlnode owner, const char** atts, xmppd::ns_d
 
 const char* xmlnode_get_lang(xmlnode node);
 
-/* Bastard am I, but these are fun for internal use ;-) */
-void     xmlnode_put_vattrib(xmlnode owner, const char* name, void *value);
-void*    xmlnode_get_vattrib(xmlnode owner, const char* name);
-
 /* Node traversal routines */
 xmlnode  xmlnode_get_firstattrib(xmlnode parent);
 xmlnode  xmlnode_get_firstchild(xmlnode parent);

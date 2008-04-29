@@ -438,6 +438,16 @@ static void _instance_cleanup(xht h, const char *key, void *data, void *arg) {
 void instance_shutdown(instance i);
 
 /**
+ * pool_cleaner that deletes the module_init_funcs map of an instance
+ *
+ * @param arg pointer to the module_init_funcs map, that has to be deleted
+ */
+static void instance_cleanup_module_init_funcs(void *arg) {
+    std::map<std::string, void*>* module_init_funcs = static_cast<std::map<std::string, void*>*>(arg);
+    delete module_init_funcs;
+}
+
+/**
  * handle a second-level configuration file element (beside the &lt;base/&gt; element)
  *
  * @param x the configuration element to be handled
@@ -501,6 +511,8 @@ static int instance_startup(xmlnode x, int exec) {
         newi->type = type;
         newi->p = p;
         newi->x = x;
+	newi->module_init_funcs = new std::map<std::string, void*>();
+	pool_cleanup(newi->p, instance_cleanup_module_init_funcs, newi->module_init_funcs);
         /* make sure the id is valid for a hostname */
         temp = jid_new(p, newi->id);
         if (temp == NULL || j_strcmp(temp->get_domain().c_str(), newi->id) != 0) {

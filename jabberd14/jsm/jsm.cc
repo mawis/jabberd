@@ -242,18 +242,19 @@ extern "C" void jsm(instance i, xmlnode x) {
     }
 
     /* fire up the modules by scanning the attribs on the xml we received */
-    for (cur = xmlnode_get_firstattrib(x); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
-        /* avoid multiple personality complex */
-        if (j_strcmp(xmlnode_get_localname(cur), "jsm") == 0)
-            continue;
+    for (std::map<std::string, void*>::iterator iter = i->module_init_funcs->begin(); iter != i->module_init_funcs->end(); ++iter) {
+	// do not run our main init method again!
+	if (iter->first == "jsm")
+	    continue;
 
-        /* vattrib is stored as firstchild on an attrib node */
-        if ((module = (modcall)xmlnode_get_firstchild(cur)) == NULL)
-            continue;
+	// get the init function reference
+	module = reinterpret_cast<modcall>(iter->second);
+	if (!module)
+	    continue;
 
-        /* call this module for this session instance */
-        log_debug2(ZONE, LOGT_INIT, "jsm: loading module %s", xmlnode_get_localname(cur));
-        (module)(si);
+	// call the module init function
+	log_debug2(ZONE, LOGT_INIT, "jsm: loading module %s", iter->first.c_str());
+	(module)(si);
     }
 
     /* register us for being notified of the server shutdown */

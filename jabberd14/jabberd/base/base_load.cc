@@ -37,7 +37,8 @@
 /* IN-PROCESS component loader */
 
 typedef void (*base_load_init)(instance id, xmlnode x);	/**< prototype for the initialization function of a component */
-xmlnode base_load__cache = NULL;				/**< hacky: xml document containing loaded shared objects as attributes */
+std::map<std::string, void*> base_load__cache;		/**< map pointing from file names of shared objects to their loaded instances */
+std::map<std::string, std::map<std::string, void*> > preloaded_functions; /**< module init functions that have been loaded and not assigned to the instance */
 int base_load_ref__count = 0;				/**< counts loaded components. triggers shutdown if all components are unloaded */
 
 /* use dynamic dlopen/dlsym stuff here! */
@@ -54,6 +55,10 @@ static void *base_load_loader(char *file) {
     const char *dlerr;
     char message[MAX_LOG_SIZE];
 
+    // sanity check
+    if (!file)
+	return NULL;
+
     /* load the dso */
     so_h = dlopen(file,RTLD_LAZY);
 
@@ -65,8 +70,8 @@ static void *base_load_loader(char *file) {
         return NULL;
     }
 
-    /* XXX do not use xmlnode_put_vattrib(), it's deprecated */
-    xmlnode_put_vattrib(base_load__cache, file, so_h); /* fun hack! yes, it's just a nice name-based void* array :) */
+    // store the loaded object
+    base_load__cache[file] = so_h;
     return so_h;
 }
 
@@ -87,8 +92,8 @@ static void *base_load_symbol(const char *func, char *file) {
     if (func == NULL || file == NULL)
         return NULL;
 
-    /* XXX do not use xmlnode_get_vattrib(), it's deprecated */
-    if ((so_h = xmlnode_get_vattrib(base_load__cache, file)) == NULL && (so_h = base_load_loader(file)) == NULL)
+    // load the module if not already loaded
+    if ((so_h = base_load__cache[file]) == NULL && (so_h = base_load_loader(file)) == NULL)
         return NULL;
 
     /* resolve a reference to the dso's init function */
@@ -127,9 +132,6 @@ static void base_load_shutdown(void *arg) {
     base_load_ref__count--;
     if (base_load_ref__count != 0)
         return;
-
-    xmlnode_free(base_load__cache);
-    base_load__cache = NULL;
 }
 
 /**
@@ -144,16 +146,26 @@ static result base_load_config(instance id, xmlnode x, void *arg) {
     xmlnode so;
     char *init = xmlnode_get_attrib_ns(x, "main", NULL);
     void *f;
-    int flag = 0;
+    char const* instance_id = xmlnode_get_attrib_ns(xmlnode_get_parent(x), "id", NULL);
+    bool something_loaded = false;
 
-    if (base_load__cache == NULL)
-        base_load__cache = xmlnode_new_tag_ns("so_cache", NULL, NS_JABBERD_WRAPPER);
+    if (!instance_id) {
+	log_debug2(ZONE, LOGT_CONFIG, "instance does not have an id");
+	return r_ERR;
+    }
 
     if (id != NULL) {
 	/* execution phase */
+
+	// copy preloaded_functions for this module to the instance
+	for (std::map<std::string, void*>::iterator p = preloaded_functions[instance_id].begin(); p != preloaded_functions[instance_id].end(); ++p) {
+	    (*id->module_init_funcs)[p->first] = p->second;
+	}
+
+	// load main function of the instance implementation
         base_load_ref__count++;
         pool_cleanup(id->p, base_load_shutdown, NULL);
-        f = xmlnode_get_vattrib(x, init);		/* XXX xmlnode_get_vattrib() is deprecated! */
+	f = (*id->module_init_funcs)[init];
         ((base_load_init)f)(id, x); /* fire up the main function for this extension */
         return r_PASS;
     }
@@ -164,22 +176,22 @@ static result base_load_config(instance id, xmlnode x, void *arg) {
     for (so = xmlnode_get_firstchild(x); so != NULL; so = xmlnode_get_nextsibling(so)) {
         if (xmlnode_get_type(so) != NTYPE_TAG) continue;
 
-        if (init == NULL && flag)
+        if (init == NULL && something_loaded)
             return r_ERR; /* you can't have two elements in a load w/o a main attrib */
 
         f = base_load_symbol(xmlnode_get_localname(so), xmlnode_get_data(so));
         if (f == NULL)
             return r_ERR;
 	/* XXX do not use xmlnode_put_vattrib(), it's deprecated */
-        xmlnode_put_vattrib(x, xmlnode_get_localname(so), f); /* hide the function pointer in the <load> element for later use */
-        flag = 1;
+	preloaded_functions[instance_id][xmlnode_get_localname(so)] = f; // remember module init functions to run
+	something_loaded = true;
 
         /* if there's only one .so loaded, it's the default, unless overridden */
         if (init == NULL)
             xmlnode_put_attrib_ns(x, "main", NULL, NULL, xmlnode_get_localname(so));
     }
 
-    if (!flag)
+    if (!something_loaded)
 	return r_ERR; /* we didn't DO anything, duh */
 
     return r_PASS;

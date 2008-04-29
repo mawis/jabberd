@@ -184,6 +184,7 @@ struct instance_struct
     ptype type; /**< the type of the instance (xdb/log/service) */
     handel hds; /**< delivery handler */
     register_notifier routing_update_callbacks; /**< list of callback functions, that should be called on a routing update */
+    std::map<std::string, void*>* module_init_funcs;	/**< map with the modules of this instance, key is name, value is init function */
 };
 
 /** Config file handler function callback definition */

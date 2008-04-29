@@ -339,7 +339,14 @@ result dnsrv_deliver(instance i, dpacket p, void* args) {
          /* if there's no IP, cached failed lookup, time those out 10 times faster! (weird, I know, *shrug*) */
          if ((ip = xmlnode_get_attrib_ns(c, "ip", NULL)) == NULL)
             timeout = timeout / 10;
-         if ((time(NULL) - *(time_t*)xmlnode_get_vattrib(c,"t")) > timeout) {
+
+	 char const* cache_time_str = xmlnode_get_attrib_ns(c, "t", NULL);
+	 time_t cache_time = 0;
+	 if (cache_time_str) {
+	     std::istringstream cache_time_stream(cache_time_str);
+	     cache_time_stream >> cache_time;
+	 }
+         if (std::time(NULL) - cache_time > timeout) {
 	     /* timed out of the cache, lookup again */
              xhash_zap(di->cache_table,p->host);
              xmlnode_free(c);
@@ -370,9 +377,11 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg) {
 
 	/* whatever the response was, let's cache it */
 	xmlnode_free((xmlnode)xhash_get(di->cache_table,hostname)); /* free any old cache, shouldn't ever be any */
-	ttmp = static_cast<time_t*>(pmalloc(xmlnode_pool(x),sizeof(time_t)));
-	time(ttmp);
-	xmlnode_put_vattrib(x,"t",(void*)ttmp);
+
+	std::ostringstream now;
+	now << std::time(NULL);
+
+	xmlnode_put_attrib(x,"t", now.str().c_str());
 	xhash_put(di->cache_table,hostname,(void*)x);
 
 	/* Get the hostname and look it up in the hashtable */

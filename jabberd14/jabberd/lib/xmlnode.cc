@@ -1163,49 +1163,6 @@ char* xmlnode_get_attrib_ns(xmlnode owner, const char* name, const char *ns_iri)
 }
 
 /**
- * very hacky: place a pointer to arbitrary data as the value of an attribute
- *
- * @deprecated Do not use it. It's just a big hack. Probably you could use a ::xhash for the same things.
- *
- * @param owner element where to place the attribute
- * @param name name of the attribute
- * @param value the pointer, that should be stored as the value of the attribute
- */
-void xmlnode_put_vattrib(xmlnode owner, const char* name, void *value) {
-    xmlnode attrib;
-
-    if (owner != NULL) {
-	attrib = _xmlnode_search(owner->firstattrib, name, NULL, NTYPE_ATTRIB);
-	if (attrib == NULL) {
-	    xmlnode_put_attrib_ns(owner, name, NULL, NULL, "");
-	    attrib = _xmlnode_search(owner->firstattrib, name, NULL, NTYPE_ATTRIB);
-	}
-	if (attrib != NULL)
-	    attrib->firstchild = (xmlnode)value;
-    }
-}
-
-/**
- * very hacky: retrieve the pointer to arbitrary data, that has been stored as an attribute using the xmlnode_put_vattrib() function
- *
- * @deprecated Do not use it. It's just a big hack. Probably you could use a ::xhash for the same things.
- *
- * @param owner where to get the attribute for
- * @param name name of the attribute
- * @return pointer to the value
- */
-void* xmlnode_get_vattrib(xmlnode owner, const char* name) {
-    xmlnode attrib;
-
-    if (owner != NULL && owner->firstattrib != NULL) {
-	attrib = _xmlnode_search(owner->firstattrib, name, NULL, NTYPE_ATTRIB);
-	if (attrib != NULL)
-	    return (void*)attrib->firstchild;
-    }
-    return NULL;
-}
-
-/**
  * get the first attribute node of an element
  *
  * iteration on all attributes is possible by using xmlnode_get_nextsibling() using the result of this function as the start
