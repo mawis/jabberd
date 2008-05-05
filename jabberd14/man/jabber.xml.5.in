@@ -361,10 +361,6 @@ key using the private-key attribute of this element.
 Load an OpenPGP keyring from the file specified using the content of this
 element.
 .TP
-.B TLS setting: cfg:jabber/cfg:io/cfg:tls/cfg:credentials/cfg:trustdb
-Load a GnuPG trust database from the file specified using the content of
-this element.
-.TP
 .B TLS setting: cfg:jabber/cfg:io/cfg:tls/cfg:credentials/cfg:protocols
 This setting is used to specify which version of the TLS protocol should be
 used and in which order they should be prefered. If you omit this setting,
