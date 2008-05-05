@@ -1,4 +1,4 @@
-.TH jabber.xml 5 "02 Apr 2007" "@VERSION@" "jabberd14 project"
+.TH jabber.xml 5 "05 May 2008" "@VERSION@" "jabberd14 project"
 .SH NAME
 jabber.xml \- jabberd daemon configuration file
 .SH SYNOPSIS
@@ -360,10 +360,6 @@ key using the private-key attribute of this element.
 .B TLS setting: cfg:jabber/cfg:io/cfg:tls/cfg:credentials/cfg:keyring
 Load an OpenPGP keyring from the file specified using the content of this
 element.
-.TP
-.B TLS setting: cfg:jabber/cfg:io/cfg:tls/cfg:credentials/cfg:trustdb
-Load a GnuPG trust database from the file specified using the content of
-this element.
 .TP
 .B TLS setting: cfg:jabber/cfg:io/cfg:tls/cfg:credentials/cfg:protocols
 This setting is used to specify which version of the TLS protocol should be
