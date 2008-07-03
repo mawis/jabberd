@@ -2,12 +2,13 @@ dnl jabberd14 configure script
 dnl based on the configure script of jadc2s,
 dnl that is for most parts the jabberd2 configure script
 
-AC_PREREQ(2.50)
+AC_PREREQ(2.61)
 
 
-AC_INIT(jabberd/jabberd.h)
+AC_INIT
+AC_CONFIG_SRCDIR([jabberd/jabberd.h])
 AM_INIT_AUTOMAKE(jabberd14,1.9.0-alpha-20080430)
-AM_CONFIG_HEADER(config.h)
+AC_CONFIG_HEADERS([config.h])
 AC_LANG(C++)
 
 dnl version info for libraries
@@ -19,8 +20,7 @@ sinclude(ac-helpers/ac_define_dir.m4)
 
 dnl for developers
 AC_MSG_CHECKING(if developer mode enabled)
-AC_ARG_ENABLE(developer, AC_HELP_STRING([--enable-developer],
-                    [Developer mode]),
+AC_ARG_ENABLE(developer, AS_HELP_STRING([--enable-developer],[Developer mode]),
               developer=yes)
 
 if test x-$developer = "x-yes" ; then
@@ -51,14 +51,14 @@ AC_HEADER_STDC
 
 dnl static builds
 AC_MSG_CHECKING(if static builds enabled)
-AC_ARG_ENABLE(all-static, AC_HELP_STRING([--enable-all-static], [Build static binaries]), all_static=yes, all_static=no)
+AC_ARG_ENABLE(all-static, AS_HELP_STRING([--enable-all-static],[Build static binaries]), all_static=yes, all_static=no)
 if test "x-$all_static" = "x-yes" ; then
     LDFLAGS="$LDFLAGS -Wl,-static -static"
 fi
 AC_MSG_RESULT($all_static)
 
 AC_MSG_CHECKING(if partial static builds enabled)
-AC_ARG_ENABLE(partial-static, AC_HELP_STRING([--enable-partial-static], [Build partially static binaries]), partial_static=yes, partial_static=no)
+AC_ARG_ENABLE(partial-static, AS_HELP_STRING([--enable-partial-static],[Build partially static binaries]), partial_static=yes, partial_static=no)
 if test "x-$partial_static" = "x-yes" ; then
     LDFLAGS="$LDFLAGS -Wl,-lc,-static -static"
 fi
@@ -121,7 +121,7 @@ else
 fi
 
 AC_MSG_CHECKING(for syslog)
-AC_TRY_COMPILE([#include <syslog.h>], [syslog(LOG_ERR, "jabber")], has_syslog=yes, has_syslog=no)
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <syslog.h>]], [[syslog(LOG_ERR, "jabber")]])],[has_syslog=yes],[has_syslog=no])
 if test "$has_syslog" = yes; then
     AC_MSG_RESULT(yes)
     AC_DEFINE(HAVE_SYSLOG,,[Syslog functionality enabled])
@@ -139,7 +139,7 @@ LIBS="$LIBS $GLIBMM_LIBS"
 
 dnl check for libpopt
 AC_MSG_CHECKING(for libpopt)
-AC_TRY_COMPILE([#include <popt.h>], [poptStrerror(0)], has_popt=yes, has_popt=no)
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <popt.h>]], [[poptStrerror(0)]])],[has_popt=yes],[has_popt=no])
 if test "$has_popt" = yes; then
     AC_MSG_RESULT(yes)
 else
@@ -149,9 +149,9 @@ fi
 dnl check for needed functions to enable IPv6
 
 AC_MSG_CHECKING(for inet_pton)
-AC_TRY_COMPILE([#include <sys/types.h>
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <sys/types.h>
 #include <sys/socket.h>
-#include <arpa/inet.h>], [inet_pton(0, (char *)0, (char *)0);], has_inet_pton=yes, has_inet_pton=no)
+#include <arpa/inet.h>]], [[inet_pton(0, (char *)0, (char *)0);]])],[has_inet_pton=yes],[has_inet_pton=no])
 if test "$has_inet_pton" = yes; then
     AC_MSG_RESULT(yes)
 else
@@ -159,9 +159,9 @@ else
 fi
 
 AC_MSG_CHECKING(for inet_ntop)
-AC_TRY_COMPILE([#include <sys/types.h>
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <sys/types.h>
 #include <sys/socket.h>
-#include <arpa/inet.h>], [inet_ntop(0, (char *)0, (char *)0, 0);], has_inet_ntop=yes, has_inet_ntop=no)
+#include <arpa/inet.h>]], [[inet_ntop(0, (char *)0, (char *)0, 0);]])],[has_inet_ntop=yes],[has_inet_ntop=no])
 if test "$has_inet_ntop" = yes; then
     AC_MSG_RESULT(yes)
 else
@@ -169,9 +169,9 @@ else
 fi
 
 AC_MSG_CHECKING(for getaddrinfo)
-AC_TRY_COMPILE([#include <sys/types.h>
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <sys/types.h>
 #include <sys/socket.h>
-#include <netdb.h>], [getaddrinfo(NULL, NULL, NULL, NULL)], has_getaddrinfo=yes, has_getaddrinfo=no)
+#include <netdb.h>]], [[getaddrinfo(NULL, NULL, NULL, NULL)]])],[has_getaddrinfo=yes],[has_getaddrinfo=no])
 if test "$has_getaddrinfo" = yes; then
     AC_MSG_RESULT(yes)
 else
@@ -179,7 +179,7 @@ else
 fi
 
 AC_MSG_CHECKING(if IPv6 is requested)
-AC_ARG_ENABLE(ipv6, AC_HELP_STRING([--enable-ipv6], [Enable IPv6 code]), ipv6=yes)
+AC_ARG_ENABLE(ipv6, AS_HELP_STRING([--enable-ipv6],[Enable IPv6 code]), ipv6=yes)
 if test x-$has_inet_pton = "x-no" ; then
     AC_MSG_RESULT(disabled: inet_pton missing)
 else if test x-$has_inet_ntop = "x-no" ; then
@@ -201,7 +201,7 @@ AC_SUBST(WITH_IPV6)
 dnl ** Check for broken glibc with __ss_family
                                                                                                                              
 AC_MSG_CHECKING(for broken glibc with __ss_family)
-AC_TRY_COMPILE([#include <sys/socket.h>], [struct sockaddr_storage s; s.__ss_family = AF_INET;], have_broken_ss_family=yes, have_broken_ss_family=no)
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <sys/socket.h>]], [[struct sockaddr_storage s; s.__ss_family = AF_INET;]])],[have_broken_ss_family=yes],[have_broken_ss_family=no])
 if test "$have_broken_ss_family" = yes; then
     AC_MSG_RESULT(yes)
     AC_DEFINE(ss_family,__ss_family,[use __ss_family instead of ss_family])
@@ -212,7 +212,7 @@ fi
 dnl ** Check for broken glibc with __ss_len
 
 AC_MSG_CHECKING(for broken glibc with __ss_len)
-AC_TRY_COMPILE([#include <sys/socket.h>], [struct sockaddr_storage s; s.__ss_len = 0;], have_broken_ss_len=yes, have_broken_ss_len=no)
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <sys/socket.h>]], [[struct sockaddr_storage s; s.__ss_len = 0;]])],[have_broken_ss_len=yes],[have_broken_ss_len=no])
 if test "$have_broken_ss_len" = yes; then
     AC_MSG_RESULT(yes)
     AC_DEFINE(ss_len,__ss_len,[use __ss_len instead of ss_len])
@@ -229,8 +229,8 @@ fi
 
 dnl check for tr1/unordered_map
 AC_MSG_CHECKING(for tr1/unordered_map)
-AC_TRY_COMPILE([#include <tr1/unordered_map>
-#include <string>], [std::tr1::unordered_map<std::string, std::string> m; m["foo"]="bar";], have_tr1_unordered_map=yes, have_tr1_unordered_map=no)
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <tr1/unordered_map>
+#include <string>]], [[std::tr1::unordered_map<std::string, std::string> m; m["foo"]="bar";]])],[have_tr1_unordered_map=yes],[have_tr1_unordered_map=no])
 if test "$have_tr1_unordered_map" = yes; then
     AC_MSG_RESULT(yes)
     AC_DEFINE(HAS_TR1_UNORDERED_MAP,,[support for hashmaps from TR1 has been detected])
@@ -240,8 +240,7 @@ fi
 
 dnl debugging
 AC_MSG_CHECKING(if debug messages wanted)
-AC_ARG_ENABLE(debug, AC_HELP_STRING([--enable-debug],
-                    [Enable debug messages]),
+AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug],[Enable debug messages]),
               debug=yes)
 
 if test x-$debug = "x-yes" ; then
@@ -254,7 +253,7 @@ fi
 AC_SUBST(DEBUG)
 
 AC_MSG_CHECKING(if pool debugging wanted)
-AC_ARG_ENABLE(pool_debug, AC_HELP_STRING([--enable-pool-debug], [Enable pool debugging]), pool_debug=yes)
+AC_ARG_ENABLE(pool_debug, AS_HELP_STRING([--enable-pool-debug],[Enable pool debugging]), pool_debug=yes)
 if test x-$pool_debug = "x-yes" ; then
     AC_MSG_RESULT(yes)
     AC_DEFINE(POOL_DEBUG,,[pool debug enabled])
@@ -275,7 +274,7 @@ CPPFLAGS="$CPPFLAGS $GNUTLS_CFLAGS"
 LDFLAGS="$LDFLAGS $GNUTLS_LIBS"
 
 AC_MSG_CHECKING(for TLS 1.2 support in GnuTLS)
-AC_TRY_COMPILE([#include <gnutls/gnutls.h>], [gnutls_protocol_t pversion = GNUTLS_TLS1_2;], have_tls1_2_support=yes, have_tls1_2_support=no)
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <gnutls/gnutls.h>]], [[gnutls_protocol_t pversion = GNUTLS_TLS1_2;]])],[have_tls1_2_support=yes],[have_tls1_2_support=no])
 if test "$have_tls1_2_support" = yes; then
     AC_MSG_RESULT(yes)
     AC_DEFINE(HAVE_TLS1_2,,[if GnuTLS has support for TLS 1.2])
@@ -292,8 +291,7 @@ if test $hasgnutls = "yes" ; then
 fi
 
 dnl check for libidn
-AC_ARG_WITH(libidn, AC_HELP_STRING([--with-libidn=DIR],
-	    [Where to find libidn (required)]),
+AC_ARG_WITH(libidn, AS_HELP_STRING([--with-libidn=DIR],[Where to find libidn (required)]),
 	    libidn=$withval, libidn=yes)
 if test "$libidn" != "no"; then
     if test "$libidn" != "yes"; then
@@ -312,8 +310,7 @@ else
 fi
 
 dnl check for pth
-AC_ARG_WITH(libpth, AC_HELP_STRING([--with-libpth=DIR],
-	    [Where to find libpth (required)]),
+AC_ARG_WITH(libpth, AS_HELP_STRING([--with-libpth=DIR],[Where to find libpth (required)]),
 	    libpth=$withval, libpth=yes)
 if test "$libpth" != "no"; then
     if test "$libpth" != "yes"; then
@@ -330,8 +327,7 @@ if test "$libpth" != "yes"; then
 fi
 
 dnl check for expat
-AC_ARG_WITH(libexpat, AC_HELP_STRING([--with-expat=DIR],
-	    [Where to find libexpat (required)]),
+AC_ARG_WITH(libexpat, AS_HELP_STRING([--with-expat=DIR],[Where to find libexpat (required)]),
 	    libexpat=$withval, libexpat=yes)
 if test "$libexpat" != "no"; then
     if test "$libexpat" != "yes"; then
@@ -349,8 +345,7 @@ fi
 
 
 dnl check for mysql
-AC_ARG_WITH(mysql, AC_HELP_STRING([--with-mysql=DIR],
-	    [Include mysql support for xdb_sql]),
+AC_ARG_WITH(mysql, AS_HELP_STRING([--with-mysql=DIR],[Include mysql support for xdb_sql]),
 	    mysql=$withval, mysql=yes)
 if test "$mysql" != "no"; then
     if test "$mysql" != "yes"; then
@@ -369,8 +364,7 @@ if test "$mysql" != "no"; then
 fi
 
 dnl check for postgresql
-AC_ARG_WITH(postgresql, AC_HELP_STRING([--with-postgresql=DIR],
-	    [Include postgresql support for xdb_sql]),
+AC_ARG_WITH(postgresql, AS_HELP_STRING([--with-postgresql=DIR],[Include postgresql support for xdb_sql]),
 	    postgresql=$withval, postgresql=yes)
 if test "$postgresql" != "no"; then
     if test "$postgresql" != "yes"; then
@@ -392,7 +386,7 @@ dnl define where the configuration file is located
 AC_DEFINE_DIR(CONFIG_DIR,sysconfdir,[where the configuration file can be found])
 
 dnl Create the makefiles
-AC_OUTPUT(Makefile \
+AC_CONFIG_FILES([Makefile \
 	  jabberd/Makefile \
 	  jabberd/base/Makefile \
 	  jabberd/lib/Makefile \
@@ -405,7 +399,8 @@ AC_OUTPUT(Makefile \
 	  pthsock/Makefile \
 	  xdb_file/Makefile \
 	  xdb_sql/Makefile \
-	  po/Makefile)
+	  po/Makefile])
+AC_OUTPUT
 
 printf "\nYou may now type 'make' to build your new Jabber system.\nType 'make install' to install then.\n"
 

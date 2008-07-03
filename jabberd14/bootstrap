@@ -18,10 +18,5 @@ if test -z "`automake --version 2>&1|head -n 1|egrep '1\.([5-9]|10)'`"; then
 	exit 1;
 fi
 
-if test -z "`libtool --version 2>&1|head -n 1|egrep '1\.[45]'`"; then
-	echo "Libtool 1.4+ is required. Aborting build...";
-	exit 1;
-fi
-
 # Fire up autotools
-libtoolize --force && aclocal $ACLOCAL_FLAGS && autoheader && automake --include-deps --add-missing && autoconf 
+aclocal $ACLOCAL_FLAGS && autoheader && automake --include-deps --add-missing && autoconf 
