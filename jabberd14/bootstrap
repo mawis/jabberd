@@ -19,4 +19,4 @@ if test -z "`automake --version 2>&1|head -n 1|egrep '1\.([5-9]|10)'`"; then
 fi
 
 # Fire up autotools
-aclocal $ACLOCAL_FLAGS && autoheader && automake --include-deps --add-missing && autoconf 
+libtoolize --force && aclocal $ACLOCAL_FLAGS && autoheader && automake --include-deps --add-missing && autoconf 
