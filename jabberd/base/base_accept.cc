@@ -190,6 +190,27 @@ static void base_accept_process_xml(mio m, int state, void* arg, xmlnode x, char
             }
             ai->q = NULL;
 
+	    // if we are configured as uplink, request the routings to the other instances of this process from our peer process
+	    if (deliver_is_uplink(ai->i)) {
+		std::set<std::string> hosts_to_route = deliver_routed_hosts(p_NORM, ai->i);
+
+		for (std::set<std::string>::const_iterator p = hosts_to_route.begin(); p != hosts_to_route.end(); ++p) {
+
+		    log_debug2(ZONE, LOGT_DYNAMIC, "base_accept is uplink. Sending routing request: %s", p->c_str());
+		    xmlnode route_stanza = xmlnode_new_tag_ns("xdb", NULL, NS_SERVER);
+		    xmlnode_put_attrib_ns(route_stanza, "ns", NULL, NULL, "");
+		    xmlnode_put_attrib_ns(route_stanza, "from", NULL, NULL, ai->i->id);
+		    jid magic_jid = jid_new(xmlnode_pool(route_stanza), "host@-internal");
+		    jid_set(magic_jid, p->c_str(), JID_RESOURCE);
+		    xmlnode_put_attrib_ns(route_stanza, "to", NULL, NULL, jid_full(magic_jid));
+		    mio_write(m, route_stanza, NULL, 0);
+		}
+	    }
+
+
+
+
+
             break;
 
         case MIO_ERROR:
