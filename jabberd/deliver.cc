@@ -217,15 +217,81 @@ register_notifier global_routing_update_callbacks; /**< list of callback functio
  * @return the correct hashtable used for the routing of this stanza type
  */
 static xht deliver_hashtable(ptype type) {
-    switch(type)
-    {
-    case p_LOG:
-        return deliver__hlog;
-    case p_XDB:
-        return deliver__hxdb;
-    default:
-        return deliver__hnorm;
+    switch(type) {
+	case p_LOG:
+	    return deliver__hlog;
+	case p_XDB:
+	    return deliver__hxdb;
+	default:
+	    return deliver__hnorm;
     }
+}
+
+/**
+ * arguments for the deliver_routed_hosts_walk xhash walker function
+ */
+struct deliver_routed_hosts_walk_args {
+    std::set<std::string>*	result;	/**< where to place the results */
+    instance			i;	/**< the instance to exclude */
+};
+
+/**
+ * helper function that walks a deliver hash to check for which domains explicit routings exist
+ *
+ * @param h the xhash to walk
+ * @param key the currently processed host
+ * @param value the instances responsible for this host
+ * @param arg arguments provided by the user of this walker
+ */
+static void deliver_routed_hosts_walk(xht h, char const* key, void* value, void* arg) {
+    // sanity checks
+    if (!h || !key || !value || !arg) {
+	return;
+    }
+
+    // restore types of void* params
+    deliver_routed_hosts_walk_args* args = static_cast<deliver_routed_hosts_walk_args*>(arg);
+    ilist instances = static_cast<ilist>(value);
+
+    // check if some other instance than args->i is responsible for this host
+    bool do_include = false;
+    for (ilist cur = instances; cur; cur = cur->next) {
+	if (cur->i != args->i) {
+	    do_include = true;
+	}
+    }
+
+    // include in result
+    if (do_include) {
+	args->result->insert(key);
+    }
+}
+
+/**
+ * get list of hosts with explicit routing
+ *
+ * @param type the type to get the routing for
+ * @param i the instance to exclude from the result (NULL for not excluding any instance)
+ * @return list of the hosts that have explicit routings to other components than i for the given type
+ */
+std::set<std::string> deliver_routed_hosts(ptype type, instance i) {
+    std::set<std::string> result;
+
+    // get the correct table
+    xht deliver_table = deliver_hashtable(type);
+
+    // create walker params
+    deliver_routed_hosts_walk_args* args = new deliver_routed_hosts_walk_args();
+    args->result = &result;
+    args->i = i;
+
+    // walk the table
+    xhash_walk(deliver_table, deliver_routed_hosts_walk, args);
+
+    // destroy arguments struct
+    delete args;
+
+    return result;
 }
 
 /**
