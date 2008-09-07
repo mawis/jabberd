@@ -43,7 +43,7 @@
  * @param u for which user we want to get the roster
  * @return the user's roster
  */
-static xmlnode mod_roster_get(udata u) {
+static xmlnode mod_roster_get(mapi m, udata u) {
     xmlnode ret;
 
     log_debug2(ZONE, LOGT_ROSTER, "getting %s's roster", u->id->get_node().c_str());
@@ -54,6 +54,34 @@ static xmlnode mod_roster_get(udata u) {
 	/* there isn't one, sucky, create a container node and let xdb manage it */
         log_debug2(ZONE, LOGT_ROSTER, "creating");
         ret = xmlnode_new_tag_ns("query", NULL, NS_ROSTER);
+    }
+
+    // check for duplicate items on the roster
+    bool removed_duplicate = false;
+    std::set<Glib::ustring> seen_jids;
+    xmlnode_vector items = xmlnode_get_tags(ret, "roster:item", m->si->std_namespace_prefixes);
+    for (xmlnode_vector::iterator p = items.begin(); p != items.end(); ++p) {
+	const char* item_jid = xmlnode_get_attrib(*p, "jid");
+	log_debug2(ZONE, LOGT_ROSTER, "has item: %s", item_jid);
+
+	// does the item have a JID?
+	if (!item_jid) {
+	    log_debug2(ZONE, LOGT_ROSTER, "removing this item, that has no JID");
+	    removed_duplicate = true;
+	    xmlnode_hide(*p);
+	    continue;
+	}
+
+	Glib::ustring item_jid_string = item_jid;
+	if (seen_jids.find(item_jid_string) == seen_jids.end()) {
+	    // new JID
+	    seen_jids.insert(item_jid_string);
+	} else {
+	    // duplicate JID
+	    removed_duplicate = true;
+	    xmlnode_hide(*p);
+	    log_debug2(ZONE, LOGT_ROSTER, "DUPLICATE ... removing");
+	}
     }
 
     return ret;
@@ -190,7 +218,7 @@ static mreturn mod_roster_out_s10n(mapi m) {
     log_debug2(ZONE, LOGT_ROSTER, "handling outgoing s10n");
 
     /* get the roster item */
-    roster = mod_roster_get(m->user);
+    roster = mod_roster_get(m, m->user);
     item = mod_roster_get_item(m, roster, m->packet->to, &newflag);
 
     /* vars containing the old subscription state */
@@ -338,7 +366,7 @@ static mreturn mod_roster_out_iq(mapi m) {
 
     if (!NSCHECK(m->packet->iq,NS_ROSTER)) return M_PASS;
 
-    roster = mod_roster_get(m->user);
+    roster = mod_roster_get(m, m->user);
 
     switch(jpacket_subtype(m->packet)) {
 	case JPACKET__GET:
@@ -517,7 +545,7 @@ static mreturn mod_roster_s10n(mapi m, void *arg) {
     if (jid_cmpx(m->packet->from, m->packet->to, JID_USER|JID_SERVER) == 0) return M_PASS; /* vanity complex */
 
     /* now we can get to work and handle this user's incoming subscription crap */
-    roster = mod_roster_get(m->user);
+    roster = mod_roster_get(m, m->user);
     item = mod_roster_get_item(m, roster, m->packet->from, &newflag);
     reply2 = reply = NULL;
     jid_set(m->packet->to, NULL, JID_RESOURCE); /* make sure we're only dealing w/ the user id */

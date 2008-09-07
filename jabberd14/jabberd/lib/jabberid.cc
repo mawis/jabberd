@@ -281,11 +281,11 @@ namespace xmppd {
     Glib::ustring jabberid::full() {
 	std::ostringstream result;
 	if (node.size() > 0) {
-	    result << node << "@";
+	    result << std::string(node) << "@";
 	}
-	result << domain;
+	result << std::string(domain);
 	if (resource.size() > 0) {
-	    result << "/" << resource;
+	    result << "/" << std::string(resource);
 	}
 
 	return result.str();
