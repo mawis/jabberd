@@ -1,3 +1,9 @@
+2008-09-08  Matthias Wimmer  <m@tthias.eu>
+
+    * jsm/modules/mod_roster.cc: fix duplicate roster item problem
+    * jabberd/lib/jabberdlib.h: better handling of new session control
+    * jabberd/deliver.cc: same
+
 2008-09-07  Matthias Wimmer  <m@tthias.eu>
 
     * jabberd/lib/jabberid.cc: fix UTF-8 handling in JabberIDs

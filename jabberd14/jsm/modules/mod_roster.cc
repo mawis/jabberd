@@ -84,6 +84,12 @@ static xmlnode mod_roster_get(mapi m, udata u) {
 	}
     }
 
+    // if something has changed: write back
+    if (removed_duplicate) {
+	log_debug2(ZONE, LOGT_ROSTER, "storing modified roster back");
+	xdb_set(u->si->xc, u->id, NS_ROSTER, ret);
+    }
+
     return ret;
 }
 
@@ -99,7 +105,9 @@ static xmlnode mod_roster_get_item(mapi m, xmlnode roster, jid id, int *newflag)
     log_debug2(ZONE, LOGT_ROSTER, "getting item %s", jid_full(id));
 
     std::ostringstream xpath;
-    xpath << "*[@jid='" << id << "']";
+    xpath << "*[@jid='" << jid_full(id) << "']";
+
+    log_debug2(ZONE, LOGT_ROSTER, "xpath to use: %s", xpath.str().c_str());
 
     xmlnode_vector ret_v = xmlnode_get_tags(roster, xpath.str().c_str(), m->si->std_namespace_prefixes);
 
