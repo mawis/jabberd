@@ -849,6 +849,8 @@ void register_phandler(instance id, order o, phandler f, void *arg) {
 void deliver_fail(dpacket p, const char *err) {
     xterror xt;
     char message[MAX_LOG_SIZE];
+    xmlnode child = NULL;
+    char const* sc_sm = NULL;
 
     log_debug2(ZONE, LOGT_DELIVER, "delivery failed (%s)", err);
 
@@ -867,6 +869,32 @@ void deliver_fail(dpacket p, const char *err) {
 	    log_warn(p->host, "dropping a %s xdb request to %s for %s", xmlnode_get_attrib_ns(p->x,"type", NULL), xmlnode_get_attrib_ns(p->x, "to", NULL), xmlnode_get_attrib_ns(p->x, "ns", NULL));
 	    /* drop through and treat like a route failure */
 	case p_ROUTE:
+	    // new session control protocol?
+	    child = xmlnode_get_firstchild(p->x);
+	    sc_sm = child ? xmlnode_get_attrib_ns(child, "sm", NS_SESSION) : NULL;
+	    if (sc_sm) {
+		// control packet?
+		if (j_strcmp(xmlnode_get_namespace(child), NS_SESSION) == 0) {
+		    // XXX
+		} else {
+		    log_notice(p->host, "ending session/packet bounce: from=%s, to=%s, err=%s", xmlnode_get_attrib_ns(p->x, "from", NULL), xmlnode_get_attrib_ns(p->x, "to", NULL), err);
+
+		    // routed packet for new session control protocol
+		    xmlnode_hide(child);
+		    
+		    xmlnode sc = xmlnode_insert_tag_ns(p->x, "session", "sc", NS_SESSION);
+		    xmlnode_put_attrib_ns(sc, "action", NULL, NULL, "ended");
+		    xmlnode_put_attrib_ns(sc, "c2s", "sc", NS_SESSION, xmlnode_get_attrib_ns(child, "c2s", NS_SESSION));
+		    xmlnode_put_attrib_ns(sc, "sm", "sc", NS_SESSION, xmlnode_get_attrib_ns(child, "c2s", NS_SESSION));
+		    xmlnode_put_attrib_ns(sc, "msg", "err", NS_JABBERD_ERRMSG, err);
+
+		    jutil_tofrom(p->x);
+		    deliver(dpacket_new(p->x), NULL);
+
+		    break;
+		}
+	    }
+
 	    /* route packet bounce */
 	    if (j_strcmp(xmlnode_get_attrib_ns(p->x, "type", NULL),"error") == 0) {
 		/* already bounced once, drop */
