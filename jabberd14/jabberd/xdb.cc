@@ -104,7 +104,7 @@ static result xdb_results(instance id, dpacket p, void *arg) {
  */
 static void xdb_deliver(instance i, xdbcache xc) {
     xmlnode x;
-    char ids[9];
+    std::ostringstream ids;
 
     x = xmlnode_new_tag_ns("xdb", NULL, NS_SERVER);
     xmlnode_put_attrib_ns(x, "type", NULL, NULL, "get");
@@ -126,8 +126,8 @@ static void xdb_deliver(instance i, xdbcache xc) {
     xmlnode_put_attrib_ns(x, "to", NULL, NULL, jid_full(xc->owner));
     xmlnode_put_attrib_ns(x, "from", NULL, NULL, i->id);
     xmlnode_put_attrib_ns(x, "ns", NULL, NULL, xc->ns);
-    snprintf(ids, sizeof(ids), "%d", xc->id);
-    xmlnode_put_attrib_ns(x, "id", NULL, NULL, ids); /* to track response */
+    ids << xc->id;
+    xmlnode_put_attrib_ns(x, "id", NULL, NULL, ids.str().c_str()); /* to track response */
     log_debug2(ZONE, LOGT_EXECFLOW, "delivering xdb request: %s", xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
     deliver(dpacket_new(x), i);
 }

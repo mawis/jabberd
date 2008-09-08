@@ -3,6 +3,8 @@
     * jsm/modules/mod_roster.cc: fix duplicate roster item problem
     * jabberd/lib/jabberdlib.h: better handling of new session control
     * jabberd/deliver.cc: same
+    * jabberd/xdb.cc: fix problem with fixed puffer for printing integer
+    	(problem reported by Vince Negri)
 
 2008-09-07  Matthias Wimmer  <m@tthias.eu>
 
