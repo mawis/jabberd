@@ -439,6 +439,7 @@ int pool_size(pool p); /* returns total bytes allocated in this pool */
 
 #ifndef WIN32
 int make_netsocket(u_short port, char const* host, int type);
+int make_netsocket2(Glib::ustring servname, Glib::ustring nodename, int type);
 struct in_addr *make_addr(char const* host);
 #ifdef WITH_IPV6
 struct in6_addr *make_addr_ipv6(char const* host);

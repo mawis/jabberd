@@ -196,4 +196,23 @@ namespace xmppd {
     logmessage instance_base::log(loglevel level) {
 	return logger->level(level);
     }
+
+    xmlnode instance_base::get_instance_config() {
+	// search for the first child element of the service element in a different namespace
+        for(xmlnode x = xmlnode_get_firstchild(i->x); x; x = xmlnode_get_nextsibling(x)) {
+	    // skip elements in the NS_JABBERD_CONFIGFILE namespace
+	    if (j_strcmp(xmlnode_get_namespace(x), NS_JABBERD_CONFIGFILE) == 0)
+		continue;
+
+	    // only elements
+	    if (xmlnode_get_type(x) != NTYPE_TAG)
+		continue;
+
+	    // we found it
+	    return x;
+        }
+
+	// no configuration element found
+	return NULL;
+    }
 };

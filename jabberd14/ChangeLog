@@ -1,3 +1,13 @@
+2008-09-09  Matthias Wimmer  <m@tthias.eu>
+
+    * resolver/resolver.cc: started work on lwresd client resolver
+    * resolver/resolver.h: same
+    * jabberd/jabberd.h: same
+    * jabberd/instance_base.cc: same
+    * jabberd/lib/jabberdlib.h: same
+    * jabberd/lib/socket.cc: same
+    * jabberd/mio_xml.cc: sanity change
+
 2008-09-08  Matthias Wimmer  <m@tthias.eu>
 
     * jsm/modules/mod_roster.cc: fix duplicate roster item problem

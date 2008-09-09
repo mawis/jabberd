@@ -820,6 +820,14 @@ namespace xmppd {
 	     * @return logmessage that can be used to stream message to
 	     */
 	    logmessage log(loglevel level);
+
+	    /**
+	     * get instance's configuration
+	     *
+	     * @return the configuration root node of the instance, NULL if no configuration (should NOT be freed)
+	     */
+	    xmlnode get_instance_config();
+
 	private:
 	    /**
 	     * the instance structure the server identifies us with
