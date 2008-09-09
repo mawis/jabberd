@@ -36,7 +36,6 @@
  */
 
 #include <jabberdlib.h>
-#include <iostream>
 
 /**
  * Simple wrapper to create sockets
@@ -53,8 +52,6 @@ int make_netsocket2(Glib::ustring servname, Glib::ustring nodename, int type) {
     int port = 0;
 
     servname_stream >> port;
-
-    std::clog << "Parsed port: " << port << std::endl;
 
     if (port < 1)
 	return -1;
@@ -84,8 +81,6 @@ int make_netsocket(u_short port, char const* host, int type) {
     /* is this a UDP socket or a TCP socket? */
     socket_type = (type == NETSOCKET_UDP)?SOCK_DGRAM:SOCK_STREAM;
 
-    std::clog << "Socket_type: " << socket_type << std::endl;
-
     bzero((void *)&sa,sizeof(sa));
 
 #ifdef WITH_IPV6
@@ -94,11 +89,8 @@ int make_netsocket(u_short port, char const* host, int type) {
     if((s = socket(PF_INET,socket_type,0)) < 0)
 #endif
         return(-1);
-    std::clog << "socket: " << s << std::endl;
     if(setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char*)&flag, sizeof(flag)) < 0)
         return(-1);
-
-    std::clog << "setsockopt() successfull" << std::endl;
 
 #ifdef WITH_IPV6
     saddr = make_addr_ipv6(host);
