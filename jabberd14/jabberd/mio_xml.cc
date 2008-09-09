@@ -257,6 +257,13 @@ static void _mio_xstream_endNamespaceDecl(void *arg, const XML_Char *prefix) {
 void _mio_xstream_cleanup(void* arg) {
     mio m = static_cast<mio>(arg);
 
+    // reset handlers
+    if (m->parser) {
+	XML_SetElementHandler(m->parser, NULL, NULL);
+	XML_SetCharacterDataHandler(m->parser, NULL);
+	XML_SetNamespaceDeclHandler(m->parser, NULL, NULL);
+    }
+
     xmlnode_free(m->stacknode);
     m->stacknode = NULL;
 

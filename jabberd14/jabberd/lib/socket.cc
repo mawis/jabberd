@@ -36,6 +36,31 @@
  */
 
 #include <jabberdlib.h>
+#include <iostream>
+
+/**
+ * Simple wrapper to create sockets
+ *
+ * @todo Currently servname has to be already numeric. It should be possible to provide service names that are resolved in /etc/services
+ *
+ * @param servname the service name (currently this has to be a numeric port number)
+ * @param nodename the hostname where to connect to or listen on
+ * @param type type of socket (NETSOCKET_SERVER, NETSOCKET_CLIENT, or NETSOCKET_UDP)
+ * @return file handle of the new socket (-1 or error)
+ */
+int make_netsocket2(Glib::ustring servname, Glib::ustring nodename, int type) {
+    std::istringstream servname_stream(servname);
+    int port = 0;
+
+    servname_stream >> port;
+
+    std::clog << "Parsed port: " << port << std::endl;
+
+    if (port < 1)
+	return -1;
+
+    return make_netsocket(port, nodename.c_str(), type);
+}
 
 /**
  * Simple wrapper to make socket creation easy.
@@ -43,7 +68,7 @@
  * @param port port number of the socket
  * @param host hostname where to connect to or listen on
  * @param type type of socket (NETSOCKET_SERVER, NETSOCKET_CLIENT; or NETSOCKET_UDP)
- * @return file handle of the new socket
+ * @return file handle of the new socket (-1 or error)
  */
 int make_netsocket(u_short port, char const* host, int type) {
     int s, flag = 1;
@@ -59,6 +84,8 @@ int make_netsocket(u_short port, char const* host, int type) {
     /* is this a UDP socket or a TCP socket? */
     socket_type = (type == NETSOCKET_UDP)?SOCK_DGRAM:SOCK_STREAM;
 
+    std::clog << "Socket_type: " << socket_type << std::endl;
+
     bzero((void *)&sa,sizeof(sa));
 
 #ifdef WITH_IPV6
@@ -67,8 +94,11 @@ int make_netsocket(u_short port, char const* host, int type) {
     if((s = socket(PF_INET,socket_type,0)) < 0)
 #endif
         return(-1);
+    std::clog << "socket: " << s << std::endl;
     if(setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char*)&flag, sizeof(flag)) < 0)
         return(-1);
+
+    std::clog << "setsockopt() successfull" << std::endl;
 
 #ifdef WITH_IPV6
     saddr = make_addr_ipv6(host);

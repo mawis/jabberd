@@ -397,6 +397,7 @@ AC_CONFIG_FILES([Makefile \
 	  man/Makefile \
 	  proxy65/Makefile \
 	  pthsock/Makefile \
+	  resolver/Makefile \
 	  xdb_file/Makefile \
 	  xdb_sql/Makefile \
 	  po/Makefile])
