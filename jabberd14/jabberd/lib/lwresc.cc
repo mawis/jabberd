@@ -109,7 +109,7 @@ namespace xmppd {
 		throw std::runtime_error("No data available to be read from the stream");
 	    }
 
-	    return first_char*0x100 + second_char;
+	    return static_cast<unsigned char>(first_char)*0x100 + static_cast<unsigned char>(second_char);
 	}
 
 	uint32_t lwresult::read_uint32(std::istream& is) {

@@ -7,6 +7,7 @@
     * jabberd/lib/jabberdlib.h: same
     * jabberd/lib/socket.cc: same
     * jabberd/mio_xml.cc: sanity change
+    * jabberd/lib/lwresc.cc: fix in reading uint16_t
 
 2008-09-08  Matthias Wimmer  <m@tthias.eu>
 
