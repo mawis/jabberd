@@ -40,10 +40,7 @@ namespace xmppd {
 	}
 
 	void resolver::open_lwresd_socket() {
-	    log_debug2(ZONE, LOGT_IO, "opening socket: service=%s, host=%s", lwresd_service.c_str(), lwresd_host.c_str());
 	    int udp_socket = make_netsocket2(lwresd_service, lwresd_host, NETSOCKET_UDP);
-
-	    log_debug2(ZONE, LOGT_IO, "netsocket is on fd %i", udp_socket);
 
 	    lwresd_socket = mio_new(udp_socket, mio_callback, this, MIO_CONNECT_RAW);
 	}
@@ -138,7 +135,6 @@ namespace xmppd {
 	    query_bin << query;
 
 	    // send it
-	    log_debug2(ZONE, LOGT_IO, "sending %i bytes", query_bin.str().length());
 	    mio_write(lwresd_socket, NULL, query_bin.str().c_str(), query_bin.str().length());
 	}
 
@@ -250,7 +246,7 @@ namespace xmppd {
 	    return r_DONE;
 	}
 
-	resolver_job::resolver_job(resolver& owner, dpacket dp) : owner(owner) {
+	resolver_job::resolver_job(resolver& owner, dpacket dp) : owner(owner), waited_srv_serial(0) {
 	    // sanity check
 	    if (!dp->host) {
 		throw std::invalid_argument("dpacket has no host");
@@ -298,12 +294,11 @@ namespace xmppd {
 		xmppd::lwresc::rrsetbyname query(name_to_resolve.str(), ns_c_in, ns_t_srv);
 
 		// register result callback
+		waited_srv_serial = query.getSerial();
 		connected_signals.push_back(owner.register_result_callback(query.getSerial(), sigc::mem_fun(*this, &xmppd::resolver::resolver_job::on_srv_query_result)));
 
 		// send query
 		owner.send_query(query);
-
-		// XXX implementation needed
 	    } else {
 		// no SRV lookup, just plain AAAA+A
 
@@ -321,6 +316,19 @@ namespace xmppd {
 	}
 
 	void resolver_job::on_srv_query_result(xmppd::lwresc::lwresult const& result) {
+	    // ignore all results we are not waiting for
+	    if (result.getSerial() != waited_srv_serial)
+		return;
+
+	    // did we successfully get a result?
+	    if (result.getResult() != xmppd::lwresc::lwresult::res_success) {
+		// try next service
+		++current_service;
+		start_resolving_service();
+		return;
+	    }
+
+	    // XXX implement this method
 	}
     }
 }

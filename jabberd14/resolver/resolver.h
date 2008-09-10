@@ -167,6 +167,11 @@ namespace xmppd {
 		 * handle results of SRV queries to the DNS
 		 */
 		void on_srv_query_result(xmppd::lwresc::lwresult const& result);
+
+		/**
+		 * the serial for the SRV query that we have sent last
+		 */
+		uint32_t waited_srv_serial;
 	};
 
 	/**
