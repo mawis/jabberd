@@ -201,6 +201,7 @@ extern "C" void jsm(instance i, xmlnode x) {
     xhash_put(si->std_namespace_prefixes, "jabberd", const_cast<char*>(NS_JABBERD_WRAPPER));
     xhash_put(si->std_namespace_prefixes, "cmd", const_cast<char*>(NS_COMMAND));
     xhash_put(si->std_namespace_prefixes, "data", const_cast<char*>(NS_DATA));
+    xhash_put(si->std_namespace_prefixes, "dhost", const_cast<char*>(NS_JABBERD_CONFIG_DYNAMICHOST));
     si->xc = xdb_cache(i); /* getting xdb_* handle and fetching config */
     config = js_config(si, NULL, NULL);
     si->hosts = xhash_new(j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:maxhosts", si->std_namespace_prefixes), 0)), HOSTS_PRIME));

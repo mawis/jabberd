@@ -180,6 +180,14 @@ CREATE TABLE `vcard` (
   `xml` longtext,
   UNIQUE KEY `jid` (`realm`(16),`user`(16))
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+-- DROP TABLE IF EXISTS `dynamichost`;
+CREATE TABLE `dynamichost` (
+  `basehost` tinytext NOT NULL,
+  `host` text NOT NULL,
+  `xml` longtext NOT NULL,
+  KEY `bhost` (`basehost`(16))
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

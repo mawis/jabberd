@@ -4,6 +4,9 @@
     * jabberd/lib/jabberdlib.h: same
     * jabberd/deliver.cc: same
     * jabberd/config.cc: logging filters
+    * jsm/modules/mod_dynamic.cc: making dynamic hosts persistent
+    * jsm/jsm.cc: same
+    * jabberd/xdb.cc: same
 
 2008-09-08  Matthias Wimmer  <m@tthias.eu>
 

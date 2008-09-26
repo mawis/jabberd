@@ -553,6 +553,7 @@
 	<namespace prefix='private'>jabber:iq:private</namespace>
 	<namespace prefix='privacy'>jabber:iq:privacy</namespace>
 	<namespace prefix='jabberd'>http://jabberd.org/ns/wrapper</namespace>
+	<namespace prefix='dhost'>http://xmppd.org/ns/dynamichost</namespace>
       </nsprefixes>
       <!-- remove the following line, if you are using a MySQL version	-->
       <!-- that is older than MySQL 4.1.				-->
@@ -588,6 +589,14 @@
 	</get>
 	<set>INSERT INTO messages (user, realm, node, correspondent, type, storetime, subject, body, xml) VALUES (SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1), SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1), IF('{message/attribute::node}'='', NULL, '{message/attribute::node}'), SUBSTRING('{message/attribute::from}/', 1, INSTR('{message/attribute::from}/', '/')-1), 'offline', now(), IF ('{message/subject}'='', NULL, '{message/subject/text()}'), '{message/body/text()}', '{message}')</set>
 	<delete>DELETE FROM messages WHERE realm=SUBSTRING('{attribute::to}', INSTR('{attribute::to}', '@')+1) AND user=SUBSTRING('{attribute::to}', 1, INSTR('{attribute::to}', '@')-1) AND type='offline' AND IF ('{attribute::matchpath}'='', 1=1, node=SUBSTRING(SUBSTRING('{attribute::matchpath}', 1, LENGTH('{attribute::matchpath}')-2), 16) AND SUBSTRING('{attribute::matchpath}', 1, 14)='message[@node=')</delete>
+      </handler>
+      <handler ns='http://xmppd.org/ns/dynamichost'>
+	<get>
+	  <query>SELECT xml FROM dynamichost WHERE basehost='{attribute::to}' ORDER BY host</query>
+	  <result group='foo'><value xmlns='http://jabberd.org/ns/xdbsql' value='1' parsed='parsed'/></result>
+	</get>
+	<set>INSERT INTO dynamichost (basehost, host, xml) VALUES ('{attribute::to}', '{dhost:host/attribute::jid}', '{dhost:host}')</set>
+	<delete>DELETE FROM dynamichost WHERE basehost='{attribute::to}' AND IF ('{attribute::matchpath}'='', 1=1, host=SUBSTRING(SUBSTRING('{attribute::matchpath}', 1, LENGTH('{attribute::matchpath}')-2), 18) AND SUBSTRING('{attribute::matchpath}', 1, 16)='dhost:host[@jid=')</delete>
       </handler>
       <handler ns='http://jabberd.org/ns/history'>
 	<get>

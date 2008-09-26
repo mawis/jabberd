@@ -978,6 +978,7 @@ typedef struct xterror_struct
 #define NS_JABBERD_CONFIG_JSM "jabber:config:jsm" /**< namespace of the jsm component configuration */
 #define NS_JABBERD_CONFIG_PTHCSOCK "jabber:config:pth-csock" /**< namespace of the pthsock_client component configuration */
 #define NS_JABBERD_CONFIG_XDBSQL "jabber:config:xdb_sql" /**< namepace of the xdb_sql component configuration */
+#define NS_JABBERD_CONFIG_DYNAMICHOST "http://xmppd.org/ns/dynamichost" /**< namespace of the dynamic configuration of additional hosts for components */
 
 /* --------------------------------------------------------- */
 /*                                                           */
