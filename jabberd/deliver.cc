@@ -479,7 +479,7 @@ bool deliver_is_uplink(instance i) {
  * @param i the instance to register
  * @param host the domain to register this instance for (or "*" to register as the default routing)
  */
-void register_instance(instance i, char *host) {
+void register_instance(instance i, char const* host) {
     ilist l;
     xht ht = NULL;
     xht namespaces = NULL;
@@ -527,7 +527,7 @@ void register_instance(instance i, char *host) {
  * @param i the instance to unregister
  * @param host the domain to unregister (or "*" to unregister as the default routing)
  */
-void unregister_instance(instance i, char *host) {
+void unregister_instance(instance i, char const* host) {
     ilist l;
     xht ht;
     register_notifier notify_callback = NULL;
