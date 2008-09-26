@@ -211,6 +211,7 @@ void deliver_instance(instance i, dpacket p); /* deliver packet TO the instance,
 instance deliver_hostcheck(char *host); /* util that returns the instance handling this hostname for normal packets */
 bool deliver_is_uplink(instance i); // checks if an instance is configured to be the uplink
 std::set<std::string> deliver_routed_hosts(ptype type, instance i);
+void deliver_config_filter(xmlnode greymatter);
 
 /*** global logging/signal symbols ***/
 #define LOGT_LEGACY 1

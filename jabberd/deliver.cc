@@ -133,6 +133,9 @@ deliver()
 int deliver__flag=0;	/**< 0 = pause delivery on startup and queue for later delivery, 1 = normal operation, -1 = shutdown: no delivery, no queueing */
 pth_msgport_t deliver__mp=NULL;	/**< message port, that contains all queued messages for later delivery while ::deliver__flag = 0 */
 
+xht filter_namespaces = NULL;	/**< namespaces using in dump filters of the router */
+std::list<std::string> filter_expressions; /**< xpath expressions used for logging routed packets */
+
 /**
  * queue item for the list of queued messages for later delivery, used while ::deliver__flag = 0
  */
@@ -149,6 +152,56 @@ typedef struct ilist_struct {
     instance i;
     struct ilist_struct *next;
 } *ilist, _ilist;
+
+/**
+ * initializes or updates the dump filters of the router
+ *
+ * @param greymatter the parsed configuration file
+ */
+void deliver_config_filter(xmlnode greymatter) {
+    // remove existing expressions
+    filter_expressions.erase(filter_expressions.begin(), filter_expressions.end());
+
+    // create a new hash for the prefixes, free old one if there is already one
+    xht old_filter_namespaces = filter_namespaces;
+    filter_namespaces = xhash_new(17);
+    if (old_filter_namespaces) {
+	xhash_free(old_filter_namespaces);
+	old_filter_namespaces = NULL;
+    }
+
+    // read prefixes from configuration
+    xht namespaces = xhash_new(1);
+    pool p = pool_new();
+    xhash_put(namespaces, "", const_cast<char*>(NS_JABBERD_CONFIGFILE));
+    xmlnode_list_item prefix_list = xmlnode_get_tags(greymatter, "global/router/namespace", namespaces, p);
+    for (xmlnode_list_item cur = prefix_list; cur; cur = cur->next) {
+	char const* prefix = xmlnode_get_attrib_ns(cur->node, "prefix", NULL);
+	char const* ns_iri = xmlnode_get_data(cur->node);
+
+	if (prefix && ns_iri) {
+	    log_debug2(ZONE, LOGT_DELIVER, "adding namespace prefix: %s=%s", prefix, ns_iri);
+	    xhash_put(filter_namespaces, prefix, pstrdup(filter_namespaces->p, ns_iri));
+	}
+    }
+
+    // read expressions from configuration
+    xmlnode_list_item expression_list = xmlnode_get_tags(greymatter, "global/router/dump", namespaces, p);
+    for (xmlnode_list_item cur = expression_list; cur; cur = cur->next) {
+	char const* expression = xmlnode_get_data(cur->node);
+
+	if (expression) {
+	    log_debug2(ZONE, LOGT_DELIVER, "adding filter expression: %s", expression);
+	    filter_expressions.push_back(expression);
+	}
+    }
+
+    // free temp memory
+    xhash_free(namespaces);
+    namespaces = NULL;
+    pool_free(p);
+    p = NULL;
+}
 
 /**
  * add an ::instance to the list of all instances
@@ -682,6 +735,15 @@ void deliver(dpacket p, instance i) {
     if (p == NULL)
 	 return;
 
+    // log-dump the packet?
+    if (p->type != p_LOG && filter_namespaces) {
+	for (std::list<std::string>::const_iterator cur = filter_expressions.begin(); cur != filter_expressions.end(); ++cur) {
+	    if (xmlnode_get_tags(p->x, cur->c_str(), filter_namespaces)) {
+		log_notice(NULL, "on router %s: %s", cur->c_str(), xmlnode_serialize_string(p->x, xmppd::ns_decl_list(), 0));
+	    }
+	}
+    }
+
     /* catch the @-internal xdb crap */
     if (p->type == p_XDB && *(p->host) == '-') {
         deliver_internal(p, i);
@@ -853,6 +915,8 @@ void register_phandler(instance id, order o, phandler f, void *arg) {
 void deliver_fail(dpacket p, const char *err) {
     xterror xt;
     char message[MAX_LOG_SIZE];
+    xmlnode child = NULL;
+    char const* sc_sm = NULL;
 
     log_debug2(ZONE, LOGT_DELIVER, "delivery failed (%s)", err);
 
@@ -871,6 +935,33 @@ void deliver_fail(dpacket p, const char *err) {
 	    log_warn(p->host, "dropping a %s xdb request to %s for %s", xmlnode_get_attrib_ns(p->x,"type", NULL), xmlnode_get_attrib_ns(p->x, "to", NULL), xmlnode_get_attrib_ns(p->x, "ns", NULL));
 	    /* drop through and treat like a route failure */
 	case p_ROUTE:
+	    // new session control protocol?
+	    child = xmlnode_get_firstchild(p->x);
+	    sc_sm = child ? xmlnode_get_attrib_ns(child, "sm", NS_SESSION) : NULL;
+	    if (sc_sm) {
+		// control packet?
+		if (j_strcmp(xmlnode_get_namespace(child), NS_SESSION) == 0) {
+		    // XXX
+		} else {
+		    log_notice(p->host, "ending session/packet bounce: from=%s, to=%s, err=%s", xmlnode_get_attrib_ns(p->x, "from", NULL), xmlnode_get_attrib_ns(p->x, "to", NULL), err);
+
+		    // routed packet for new session control protocol
+		    xmlnode_hide(child);
+		    
+		    xmlnode sc = xmlnode_insert_tag_ns(p->x, "session", "sc", NS_SESSION);
+		    xmlnode_put_attrib_ns(sc, "action", NULL, NULL, "ended");
+		    xmlnode_put_attrib_ns(sc, "c2s", "sc", NS_SESSION, xmlnode_get_attrib_ns(child, "c2s", NS_SESSION));
+		    xmlnode_put_attrib_ns(sc, "sm", "sc", NS_SESSION, xmlnode_get_attrib_ns(child, "c2s", NS_SESSION));
+		    xmlnode_put_attrib_ns(sc, "msg", "err", NS_JABBERD_ERRMSG, err);
+
+		    jutil_tofrom(p->x);
+		    log_notice(p->host, "ended packet is: %s", xmlnode_serialize_string(p->x, xmppd::ns_decl_list(), 0));
+		    deliver(dpacket_new(p->x), NULL);
+
+		    break;
+		}
+	    }
+
 	    /* route packet bounce */
 	    if (j_strcmp(xmlnode_get_attrib_ns(p->x, "type", NULL),"error") == 0) {
 		/* already bounced once, drop */

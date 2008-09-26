@@ -364,6 +364,9 @@ int configurate(char *file, xht cmd_line, int is_restart) {
 	pool_free(temp_pool);
     }
 
+    // update the filter settings in the XML router
+    deliver_config_filter(greymatter__);
+
     return 0;
 }
 
