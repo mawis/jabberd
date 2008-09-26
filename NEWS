@@ -4,7 +4,11 @@ This is a version specially made for a customer.
 
 Changes in administration of the server
     * host can be dynamically added and removed from a session manager using
-      service discovery and ad-hoc commands.
+      service discovery and ad-hoc commands
+    * logging of routed stanzas using xpath expressions can be configured
+    * bounced packets between the the session manager and a client connection
+      manager using the session control protocol will now trigger that the
+      client connection manager will close the session
 
 
 
