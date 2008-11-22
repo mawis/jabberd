@@ -332,17 +332,12 @@ static mreturn mod_dynamic_server(mapi m, void *arg) {
 }
 
 /**
- * init the module, register callbacks, load persisted hosts
+ * process the result of an xdb query to get the stored configured hosts after startup
  *
- * @param si the session manager instance
+ * @param si the session manager instance this is running in
+ * @param dynhosts the xdb result
  */
-extern "C" void mod_dynamic(jsmi si) {
-    jid config_jid = jid_new(si->p, si->i->id);
-
-    js_mapi_register(si, e_SERVER, mod_dynamic_server, config_jid);
-
-    // get additional hostnames of the session manager, that have been dynamically added
-    xmlnode dynhosts = xdb_get(si->xc, config_jid, NS_JABBERD_CONFIG_DYNAMICHOST);
+static void mod_dynamic_process_configured_hosts(jsmi si, xmlnode dynhosts) {
     for (xmlnode iter = xmlnode_get_firstchild(dynhosts); iter; iter = xmlnode_get_nextsibling(iter)) {
 	// skip what we do not care about
 	if (xmlnode_get_type(iter) != NTYPE_TAG) {
@@ -365,5 +360,50 @@ extern "C" void mod_dynamic(jsmi si) {
 	log_notice(si->i->id, "loading dynamic host: %s", dynhost);
 	register_instance(si->i, dynhost);
     }
-    xmlnode_free(dynhosts);
+}
+
+/**
+ * retry to load stored dynamic hosts
+ *
+ * @param arg the session manager instance data
+ * @returns always r_UNREG
+ */
+static result mod_dynamic_configured_hosts(void* arg) {
+    jsmi si = static_cast<jsmi>(arg);
+
+    // sanity check
+    if (!si) {
+	return r_UNREG;
+    }
+
+    jid config_jid = jid_new(si->p, si->i->id);
+    xmlnode dynhosts = xdb_get(si->xc, config_jid, NS_JABBERD_CONFIG_DYNAMICHOST);
+
+    if (dynhosts) {
+	mod_dynamic_process_configured_hosts(si, dynhosts);
+	xmlnode_free(dynhosts);
+    }
+
+    return r_UNREG;
+}
+
+/**
+ * init the module, register callbacks, load persisted hosts
+ *
+ * @param si the session manager instance
+ */
+extern "C" void mod_dynamic(jsmi si) {
+    jid config_jid = jid_new(si->p, si->i->id);
+
+    js_mapi_register(si, e_SERVER, mod_dynamic_server, config_jid);
+
+    // get additional hostnames of the session manager, that have been dynamically added
+    xmlnode dynhosts = xdb_get(si->xc, config_jid, NS_JABBERD_CONFIG_DYNAMICHOST);
+    if (dynhosts) {
+	mod_dynamic_process_configured_hosts(si, dynhosts);
+	xmlnode_free(dynhosts);
+    } else {
+	// xdb might not be configured yet, try again later
+	register_beat(10, mod_dynamic_configured_hosts, si);
+    }
 }

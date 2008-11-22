@@ -6,7 +6,7 @@ AC_PREREQ(2.50)
 
 
 AC_INIT(jabberd/jabberd.h)
-AM_INIT_AUTOMAKE(jabberd14,1.6.1.2-pre3)
+AM_INIT_AUTOMAKE(jabberd14,1.6.1.2-pre4)
 AM_CONFIG_HEADER(config.h)
 AC_LANG(C++)
 
@@ -260,6 +260,15 @@ AC_TRY_COMPILE([#include <gnutls/gnutls.h>], [gnutls_protocol_t pversion = GNUTL
 if test "$have_tls1_2_support" = yes; then
     AC_MSG_RESULT(yes)
     AC_DEFINE(HAVE_TLS1_2,,[if GnuTLS has support for TLS 1.2])
+else
+    AC_MSG_RESULT(no)
+fi
+
+AC_MSG_CHECKING(for new OpenPGP support in GnuTLS)
+AC_TRY_COMPILE([#include <gnutls/gnutls.h>], [int ret = gnutls_certificate_set_openpgp_keyring_file(NULL, NULL, GNUTLS_OPENPGP_FMT_BASE64);], have_new_gnutls=yes, have_new_gnutls=no)
+if test "$have_new_gnutls" = yes; then
+    AC_MSG_RESULT(yes)
+    AC_DEFINE(HAS_NEW_GNUTLS,,[if new OpenPGP method signatures are used by GnuTLS])
 else
     AC_MSG_RESULT(no)
 fi
