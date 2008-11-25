@@ -58,7 +58,7 @@ typedef struct accept_instance_st {
     xdbcache offline;
     jid offjid;
     jqueue q;
-    /* dpacket dplast; */
+    std::set<std::string>* dynamic_routings;	/**< hostnames the peer has dynamically routed to him, need to unregister on connection close */
 } *accept_instance, _accept_instance;
 
 static void base_accept_queue(accept_instance ai, xmlnode x) {
@@ -78,15 +78,7 @@ static result base_accept_deliver(instance i, dpacket p, void* arg) {
 
     /* Insert the message into the write_queue if we don't have a MIO socket yet.. */
     if (ai->state == A_READY) {
-        /*
-         * TSBandit -- this doesn't work, since many components simply modify the node in-place
-        if(ai->dplast == p) // don't return packets that they sent us! circular reference!
-        {
-            deliver_fail(p,"Circular Refernce Detected");
-        }
-        else
-        */
-            mio_write(ai->m, p->x, NULL, 0);
+	mio_write(ai->m, p->x, NULL, 0);
         return r_DONE;
     }
 
@@ -94,6 +86,25 @@ static result base_accept_deliver(instance i, dpacket p, void* arg) {
     return r_DONE;
 }
 
+static void base_accept_unregister_dynamics(accept_instance ai) {
+    // sanity check
+    if (!ai)
+	return;
+
+    // unregister the dynamic routings
+    if (ai->dynamic_routings) {
+	for(std::set<std::string>::const_iterator p = ai->dynamic_routings->begin(); p != ai->dynamic_routings->end(); ++p) {
+	    log_notice(ai->i->id, "unregistering dynamic routing for '%s'", p->c_str());
+	    unregister_instance(ai->i, p->c_str());
+	}
+
+	delete ai->dynamic_routings;
+	ai->dynamic_routings = NULL;
+    }
+
+    // create new set for future dynamic routings
+    ai->dynamic_routings = new std::set<std::string>();
+}
 
 /* Handle incoming packets from the xstream associated with an MIO object */
 static void base_accept_process_xml(mio m, int state, void* arg, xmlnode x, char* unused1, int unused2) {
@@ -117,16 +128,8 @@ static void base_accept_process_xml(mio m, int state, void* arg, xmlnode x, char
         case MIO_XML_NODE:
             /* If aio has been authenticated previously, go ahead and deliver the packet */
             if(ai->state == A_READY  && m == ai->m) {
-                /*
-                 * TSBandit -- this doesn't work.. since many components modify the node in-place
-                ai->dplast = dpacket_new(x);
-                deliver(ai->dplast, ai->i);
-                ai->dplast = NULL;
-                */
-
-                /* if we are supposed to be careful about what comes from this socket */
-                if(ai->restrict_var)
-                {
+		/* if we are supposed to be careful about what comes from this socket */
+                if (ai->restrict_var) {
                     jp = jpacket_new(x);
                     if(jp->type == JPACKET_UNKNOWN || jp->to == NULL || jp->from == NULL || deliver_hostcheck(jp->from->server) != ai->i)
                     {
@@ -136,7 +139,20 @@ static void base_accept_process_xml(mio m, int state, void* arg, xmlnode x, char
                     }
                 }
 
-                deliver(dpacket_new(x), ai->i);
+		// create a deliverable packet from the stanza we got
+		dpacket p = dpacket_new(x);
+
+		// check if this is a routing update we got
+		if (p && p->type == p_XDB && p->id && p->id->server && std::string("-internal") == p->id->server && p->id->user) {
+		    // check for host@-internal
+		    if (std::string("host") == p->id->user && p->id->resource) {
+			ai->dynamic_routings->insert(p->id->resource);
+		    }
+
+		    // XXX might check for unhost as well
+		}
+
+                deliver(p, ai->i);
                 return;
             }
 
@@ -207,10 +223,6 @@ static void base_accept_process_xml(mio m, int state, void* arg, xmlnode x, char
 		}
 	    }
 
-
-
-
-
             break;
 
         case MIO_ERROR:
@@ -220,9 +232,14 @@ static void base_accept_process_xml(mio m, int state, void* arg, xmlnode x, char
 
             ai->state = A_ERROR;
 
+	    log_notice(ai->i->id, "Connection to peer had an error");
+
             /* clean up any tirds */
             while ((cur = mio_cleanup(m)) != NULL)
                 deliver_fail(dpacket_new(cur), N_("External Server Error"));
+
+	    // unregister dynamic routings to peer
+	    base_accept_unregister_dynamics(ai);
 
             return;
 
@@ -231,9 +248,12 @@ static void base_accept_process_xml(mio m, int state, void* arg, xmlnode x, char
             if (m != ai->m)
                 return;
 
-            log_debug2(ZONE, LOGT_IO, "closing accepted socket");
+	    log_notice(ai->i->id, "Connection to peer has been closed");
             ai->m = NULL;
             ai->state = A_ERROR;
+
+	    // unregister dynamic routings to peer
+	    base_accept_unregister_dynamics(ai);
 
             return;
         default:
@@ -348,6 +368,16 @@ static void base_accept_routingupdate(instance i, char const* destination, int i
     mio_write(inst->m, route_stanza, NULL, 0);
 }
 
+static void _base_accept_freeing_instance(void* arg) {
+    accept_instance inst = static_cast<accept_instance>(arg);
+
+    if (!inst)
+	return;
+    
+    if (inst->dynamic_routings)
+	delete inst->dynamic_routings;
+}
+
 static result base_accept_config(instance id, xmlnode x, void *arg) {
     char *secret = NULL;
     accept_instance inst;
@@ -392,6 +422,8 @@ static result base_accept_config(instance id, xmlnode x, void *arg) {
     inst->ip          = ip;
     inst->port        = port;
     inst->timeout     = timeout;
+    inst->dynamic_routings = new std::set<std::string>();
+    pool_cleanup(id->p, _base_accept_freeing_instance, static_cast<void*>(inst)); 
     if (restrict_var)
         inst->restrict_var = 1;
     if (offline) {
