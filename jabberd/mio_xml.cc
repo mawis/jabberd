@@ -39,6 +39,7 @@
  */
 
 #include <jabberd.h>
+#include <fstream>
 
 /* defined in mio.c */
 extern ios mio__data;
@@ -321,22 +322,127 @@ void _mio_xml_parser(mio m, const void *vbuf, size_t bufsz) {
     /* init the parser if this is the first read call */
     if (m->parser == NULL) {
         _mio_xstream_init(m);
+
         /* XXX pretty big hack here, if the initial read contained a nul, assume nul-packet-terminating format stream */
-        if((nul = strchr(buf,'\0')) != NULL && (nul - buf) < bufsz)
-        {
+        if((nul = strchr(buf,'\0')) != NULL && (nul - buf) < bufsz) {
             m->type = type_NUL;
             nul[-2] = ' '; /* assume it's .../>0 and make the stream open again */
         }
-        /* XXX another big hack/experiment, for bypassing dumb proxies */
-        if(*buf == 'P')
-            m->type = type_HTTP;
 
-	/* Bounce HTTP-GET-Requests to the configured host */
-	if(*buf == 'G' && mio__data->bounce_uri != NULL) {
-	    mio_write(m, NULL, "HTTP/1.1 301 Moved permanently\r\nServer: " PACKAGE " " VERSION "\r\nConnection: close\r\nLocation: ", -1);
-	    mio_write(m, NULL, mio__data->bounce_uri, -1);
-	    mio_write(m, NULL, "\r\n\r\n", -1);
+	// Check for HTTP requests, extract frist line for that reason
+	std::string buffer_data(buf, bufsz);
+	std::istringstream buffer_stream(buffer_data);
+	std::string first_line;
+	std::getline(buffer_stream, first_line);
+
+	// PUT/POST requests are a legacy hack to bypass some HTTP proxies
+	// Note: Most HTTP proxies do not forward these PUT/POST requests
+	// of Jabber. Using proxy CONNECT with a jabberd listening on port
+	// 443 seems to work better.
+	if (first_line.substr(0, 1) == "P") {
+            m->type = type_HTTP;
+	}
+
+	// GET requests: first check if we do serve our own file, else we might
+	// have been configured to forward the request to some URI.
+	if (first_line.substr(0, 4) == "GET ") {
+	    // extract path and protocol
+	    std::istringstream first_line_stream(first_line.substr(4));
+	    std::string request_path;
+	    std::string request_protocol;
+	    first_line_stream >> request_path >> request_protocol;
+	    log_debug2(ZONE, LOGT_IO, "handling HTTP-GET path=%s, protocol=%s", request_path.c_str(), request_protocol.c_str());
+
+	    // internal mini webserver enabled?
+	    if (mio__data->webserver_path) {
+		char request_path_copy[1024] = "";
+		snprintf(request_path_copy, sizeof(request_path_copy), "%s", request_path.c_str());
+		request_path_copy[sizeof(request_path_copy)-1] = 0; // make sure the string is terminated
+		std::string request_basename = ::basename(request_path_copy);
+		if (request_basename == "/" ||request_basename == "") {
+		    request_basename = "index.html";
+		}
+		log_debug2(ZONE, LOGT_IO, "GET request processing for file %s", request_basename.c_str());
+
+		// check that the file is not a directory
+		std::string filename = std::string(mio__data->webserver_path) + "/" + request_basename;
+		struct stat stat_buf;
+		int stat_ret = ::stat(filename.c_str(), &stat_buf);
+		if (stat_ret == 0 && S_ISREG(stat_buf.st_mode)) {
+		    // try to open file
+		    std::ifstream file(filename.c_str(), std::ifstream::binary);
+		    if (file.is_open()) {
+			// get the file size
+			file.seekg(0, std::ios::end);
+			std::streampos file_size = file.tellg();
+			file.seekg(0, std::ios::beg);
+
+			if (file_size >= 1024*1024) {
+			    log_error(NULL, "mini-webserver tried to return %s (size: %i B) which is bigger than 1 MiB. Not able to handle that big files", filename.c_str(), static_cast<int>(file_size));
+
+			    std::string message("Request entity too large\r\n");
+
+			    std::ostringstream http_result;
+			    http_result << (request_protocol == "" || request_protocol == "HTTP/1.0" ? "HTTP/1.0" : "HTTP/1.1") << " 413 Request entity too large\r\n";
+			    http_result << "Server: " PACKAGE " " VERSION "\r\n";
+			    http_result << "Connection: close\r\n";
+			    http_result << "Content-Length: " << message.length() << "\r\n";
+			    http_result << "Content-Type: text/plain; charset=utf-8\r\n";
+			    http_result << "\r\n";
+			    http_result << message;
+
+			    mio_write(m, NULL, http_result.str().c_str(), http_result.str().length());
+			    mio_close(m);
+			} else {
+			    if (file_size >= 1024*100) {
+				log_warn(NULL, "Warning: mini-webserver is returning %s (size: %i B). You should not use jabberd to handle big files!", filename.c_str(), static_cast<int>(file_size));
+			    }
+
+			    char *result_buffer = new char[file_size];
+
+			    file.read(result_buffer, file_size);
+
+			    std::ostringstream http_result;
+			    http_result << (request_protocol == "" || request_protocol == "HTTP/1.0" ? "HTTP/1.0" : "HTTP/1.1") << " 200 OK\r\n";
+			    http_result << "Server: " PACKAGE " " VERSION "\r\n";
+			    http_result << "Connection: close\r\n";
+			    http_result << "Content-Length: " << file_size << "\r\n";
+			    http_result << "Content-Type: text/html\r\n";
+			    http_result << "\r\n";
+			    http_result << std::string(result_buffer, file_size);
+
+			    delete[] result_buffer;
+
+			    mio_write(m, NULL, http_result.str().c_str(), http_result.str().length());
+			    mio_close(m);
+			}
+
+			// close the file
+			file.close();
+
+			// we handled the request
+			return;
+		    }
+		}
+	    }
+
+	    // no document returned, send a bounce
+	    std::ostringstream http_result;
+	    http_result << (request_protocol == "" || request_protocol == "HTTP/1.0" ? "HTTP/1.0" : "HTTP/1.1") << " 301 Moved permanently\r\n";
+	    http_result << "Server: " PACKAGE " " VERSION "\r\n";
+	    http_result << "Connection: close\r\n";
+	    // bounce to a configured host?
+	    if (mio__data->bounce_uri) {
+		http_result << "Location: " << mio__data->bounce_uri << "\r\n";
+	    } else {
+		http_result << "Location: " HTTP_BOUNCE_URI "\r\n";
+	    }
+	    http_result << "\r\n";
+
+	    mio_write(m, NULL, http_result.str().c_str(), http_result.str().length());
 	    mio_close(m);
+
+	    // we handled the request now
 	    return;
 	}
     }

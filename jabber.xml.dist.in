@@ -1073,12 +1073,28 @@
     <bind>192.0.2.55</bind>
     -->
 
-    <!-- With this setting it is possible to configure jabberd to	-->
-    <!-- detect incoming HTTP requests. Jabberd14 will then bounce the	-->
-    <!-- user's agent to the configured URI. This might be especially	-->
+    <!-- Jabberd14 has build-in minimal HTTP server support. If it      -->
+    <!-- receives a HTTP GET request on one of its Jabber ports, it     -->
+    <!-- will try to answer this request. This might be especially	-->
     <!-- useful, if you run your jabber server on port 80 and want to	-->
     <!-- bounce web requests to a different domain.			-->
+    <!-- There are two configuration options available, that can be     -->
+    <!-- used:								-->
+    <!-- With the mini-webserver element, you can configure a		-->
+    <!-- directory in your filesystem, that will be used to hold the    -->
+    <!-- documents jabberd14 is returning for requests. For security    -->
+    <!-- reasons only files directly in this directory will be served   -->
+    <!-- back to the requestor. No sub-directories will be used.        -->
+    <!-- (Symbolic links are followed.)					-->
+    <!-- If jabberd14 could not find a matching document for the        -->
+    <!-- request in you mini-webserver directory, it will consult the   -->
+    <!-- content of the bounce element. This is then used as the        -->
+    <!-- destination for bouncing the HTTP client to.                   -->
+    <!-- Important: Do not use jabberd14 to return big files on HTTP	-->
+    <!-- requests. jabberd14 reads the complete file from disk to       -->
+    <!-- build the response in memory.					-->
     <!--
+    <mini-webserver>@localstatedir@/lib/jabberd/mini-webserver</mini-webserver>
     <bounce>http://www.example.com/</bounce>
     -->
   </io>

@@ -1,3 +1,9 @@
+2008-12-08  Matthias Wimmer  <m@tthias.eu>
+
+    * jabberd/mio_xml.cc: implemented mini-HTTP-server in jabberd14
+    * jabberd/mio.cc: same
+    * jabberd/jabberd.h: same
+
 2008-11-25  Matthias Wimmer  <m@tthias.eu>
 
     * jabberd/base/base_accept.cc: improvement in failure recovery for dynamic

@@ -412,7 +412,8 @@ typedef struct mio_main_st {
     int zzz_active;	/**< if set to something else then 1, there has been sent a signal already, that is not yet processed */
     struct karma *k;	/**< default karma */
     int rate_t, rate_p; /**< default rate, if any */
-    char *bounce_uri;	/**< where to bounce HTTP requests to */
+    char const* bounce_uri;	/**< where to bounce HTTP requests to */
+    char const* webserver_path;	/**< location where small HTTP requests are handled from */
 } _ios,*ios;
 
 /* MIO SOCKET HANDLERS */
@@ -501,7 +502,7 @@ void mio_reset(mio m, mio_std_cb cb, void *arg);
 void mio_close(mio m);
 
 /* Writes an xmlnode to the socket */
-void mio_write(mio m, xmlnode stanza, char *buffer, int len);
+void mio_write(mio m, xmlnode stanza, char const* buffer, int len);
 
 /* write the root element to a mio stream */
 void mio_write_root(mio m, xmlnode root, int stream_type);
@@ -528,6 +529,9 @@ int _mio_write_dump(mio m);
 #define mio_pool(m) (m->p)
 #define mio_ip(m) (m ? m->peer_ip : NULL)
 #define mio_connect_errmsg(m) (m->connect_errmsg)
+
+// where to bounce a HTTP GET request to if not otherwise configured
+#define HTTP_BOUNCE_URI "http://jabberd.org/get-bounce"
 
 /*-----------------
  * Access controll 
