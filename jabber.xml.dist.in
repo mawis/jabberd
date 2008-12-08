@@ -1103,7 +1103,7 @@
     <!-- about the flash basics on this, please look at:		-->
     <!-- http://www.adobe.com/devnet/flashplayer/articles/socket_policy_files.html -->
     <!--
-    <flash-policy-file>@localstatedir@/lib/jabberd/cross-domain-policy.xml</flash-policy-file>
+    <flash-policy>@localstatedir@/lib/jabberd/cross-domain-policy.xml</flash-policy>
     -->
   </io>
 
