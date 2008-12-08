@@ -464,8 +464,8 @@ void _mio_xml_parser(mio m, const void *vbuf, size_t bufsz) {
 
 
 			if (file_size < 1024*1024) {
-			    char *result_buffer = new char[file_size];
-			    file.read(result_buffer, file_size);
+			    char *result_buffer = new char[static_cast<int>(file_size)+1];
+			    result_buffer[file_size] = 0; // append NULL byte
 			    mio_write(m, NULL, result_buffer, file_size);
 			    delete[] result_buffer;
 
@@ -481,8 +481,10 @@ void _mio_xml_parser(mio m, const void *vbuf, size_t bufsz) {
 	    }
 
 	    // no configured flash policy, or policy too big. Send default
+	    std::string default_policy("<?xml version='1.0'?>\n<!DOCTYPE cross-domain-policy SYSTEM \"/xml/dtds/cross-domain-policy.dtd\">\n<cross-domain-policy/>\n");
 	    log_notice(NULL, "Received Flash policy-file-request, but none is configured. Returning (empty) default policy.");
-	    mio_write(m, NULL, "<?xml version='1.0'?>\n<!DOCTYPE cross-domain-policy SYSTEM \"/xml/dtds/cross-domain-policy.dtd\">\n<cross-domain-policy/>\n", -1);
+	    mio_write(m, NULL, default_policy.c_str(), default_policy.length()+1); // length()+1 because we want to send the NULL byte as well
+	    mio_write(m, NULL, "\0", 1);
 	    mio_close(m);
 	    return;
 
