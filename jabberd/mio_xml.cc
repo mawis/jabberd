@@ -40,6 +40,7 @@
 
 #include <jabberd.h>
 #include <fstream>
+#include <libgen.h>
 
 /* defined in mio.c */
 extern ios mio__data;
