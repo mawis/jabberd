@@ -446,6 +446,47 @@ void _mio_xml_parser(mio m, const void *vbuf, size_t bufsz) {
 	    // we handled the request now
 	    return;
 	}
+
+	// check for Flash policy requests
+	if (first_line.substr(0, 20) == "<policy-file-request") {
+	    // is there a configured flash policy?
+	    if (mio__data->flash_policy) {
+		struct stat stat_buf;
+		int stat_ret = ::stat(mio__data->flash_policy, &stat_buf);
+		if (stat_ret == 0 && S_ISREG(stat_buf.st_mode)) {
+		    // try to open file
+		    std::ifstream file(mio__data->flash_policy, std::ifstream::binary);
+		    if (file.is_open()) {
+			// get the file size
+			file.seekg(0, std::ios::end);
+			std::streampos file_size = file.tellg();
+			file.seekg(0, std::ios::beg);
+
+
+			if (file_size < 1024*1024) {
+			    char *result_buffer = new char[file_size];
+			    file.read(result_buffer, file_size);
+			    mio_write(m, NULL, result_buffer, file_size);
+			    delete[] result_buffer;
+
+			    mio_close(m);
+			    file.close();
+			    return;
+			}
+
+			log_warn(NULL, "Flash policy file is too big for being returned to the flash client.");
+			file.close();
+		    }
+		}
+	    }
+
+	    // no configured flash policy, or policy too big. Send default
+	    log_notice(NULL, "Received Flash policy-file-request, but none is configured. Returning (empty) default policy.");
+	    mio_write(m, NULL, "<?xml version='1.0'?>\n<!DOCTYPE cross-domain-policy SYSTEM \"/xml/dtds/cross-domain-policy.dtd\">\n<cross-domain-policy/>\n", -1);
+	    mio_close(m);
+	    return;
+
+	}
     }
 
     /* XXX more http hack to catch the end of the headers */

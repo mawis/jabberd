@@ -1,6 +1,7 @@
 2008-12-08  Matthias Wimmer  <m@tthias.eu>
 
-    * jabberd/mio_xml.cc: implemented mini-HTTP-server in jabberd14
+    * jabberd/mio_xml.cc: implemented mini-HTTP-server and additional flash
+	support (returning of cross-domain-policies) in jabberd14
     * jabberd/mio.cc: same
     * jabberd/jabberd.h: same
 

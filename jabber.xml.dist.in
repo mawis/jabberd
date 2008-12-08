@@ -1097,6 +1097,14 @@
     <mini-webserver>@localstatedir@/lib/jabberd/mini-webserver</mini-webserver>
     <bounce>http://www.example.com/</bounce>
     -->
+
+    <!-- The next option can be used to configure a cross-domain-policy -->
+    <!-- file, that is returned for flash clients. For more details     -->
+    <!-- about the flash basics on this, please look at:		-->
+    <!-- http://www.adobe.com/devnet/flashplayer/articles/socket_policy_files.html -->
+    <!--
+    <flash-policy-file>@localstatedir@/lib/jabberd/cross-domain-policy.xml</flash-policy-file>
+    -->
   </io>
 
   <!-- Global configuration settings, affect a complete jabberd14	-->
