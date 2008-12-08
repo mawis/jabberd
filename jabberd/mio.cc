@@ -1117,8 +1117,9 @@ void mio_init(void) {
         pth_yield(NULL);
     }
 
-    /* where to bounce HTTP requests to */
+    // HTTP configuration
     mio__data->bounce_uri = pstrdup(mio__data->p, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(io, "bounce", namespaces, temp_pool), 0)));
+    mio__data->webserver_path = pstrdup(mio__data->p, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(io, "mini-webserver", namespaces, temp_pool), 0)));
 
     if (karma != NULL) {
         mio__data->k->val	  = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(karma, "init", namespaces, temp_pool), 0)), KARMA_INIT);
@@ -1276,7 +1277,7 @@ void mio_close(mio m) {
  * @param buffer pointer to a buffer of characters, that should be written to the connection
  * @param len number of bytes contained in the buffer, that should be written (-1 to write a zero terminated string contained in the buffer)
  */
-void mio_write(mio m, xmlnode stanza, char *buffer, int len) {
+void mio_write(mio m, xmlnode stanza, char const* buffer, int len) {
     mio_wbq newwbq;
     pool p;
 
