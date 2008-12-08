@@ -465,6 +465,7 @@ void _mio_xml_parser(mio m, const void *vbuf, size_t bufsz) {
 
 			if (file_size < 1024*1024) {
 			    char *result_buffer = new char[file_size];
+			    file.read(result_buffer, file_size);
 			    std::string result_string(result_buffer, file_size);
 			    mio_write(m, NULL, result_string.c_str(), result_string.length()+1);
 			    delete[] result_buffer;
