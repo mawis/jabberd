@@ -414,6 +414,7 @@ typedef struct mio_main_st {
     int rate_t, rate_p; /**< default rate, if any */
     char const* bounce_uri;	/**< where to bounce HTTP requests to */
     char const* webserver_path;	/**< location where small HTTP requests are handled from */
+    char const* flash_policy;	/**< location of the flash policy file */
 } _ios,*ios;
 
 /* MIO SOCKET HANDLERS */
