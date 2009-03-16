@@ -332,6 +332,16 @@ static result base_accept_beat(void *arg) {
     return r_DONE;
 }
 
+static void base_accept_send_routingupdate(accept_instance inst, char const* destination, int is_register) {
+    xmlnode route_stanza = xmlnode_new_tag_ns("xdb", NULL, NS_SERVER);
+    xmlnode_put_attrib_ns(route_stanza, "ns", NULL, NULL, "");
+    xmlnode_put_attrib_ns(route_stanza, "from", NULL, NULL, inst->i->id);
+    jid magic_jid = jid_new(xmlnode_pool(route_stanza), is_register ? "host@-internal" : "unhost@-internal");
+    jid_set(magic_jid, destination, JID_RESOURCE);
+    xmlnode_put_attrib_ns(route_stanza, "to", NULL, NULL, jid_full(magic_jid));
+    mio_write(inst->m, route_stanza, NULL, 0);
+}
+
 /**
  * callback that gets notified if a new host is routed by this jabberd instance
  *
@@ -343,29 +353,27 @@ static result base_accept_beat(void *arg) {
 static void base_accept_routingupdate(instance i, char const* destination, int is_register, void *arg) {
     accept_instance inst = static_cast<accept_instance>(arg);
     // sanity check
-    if (!inst)
+    if (!inst || !destination)
 	return;
 
     // we only care for routingupdates if we are configured to be the uplink
     if (!deliver_is_uplink(inst->i))
 	return;
 
-    // and we have to have an established connection
-    if (!inst->m || inst->state != A_READY)
+    // we do not forward default routings
+    if (std::string("*") == destination)
 	return;
 
     // do not route back updates if both sides feel being an uplink
     if (inst->i == i)
 	return;
 
+    // and we have to have an established connection
+    if (!inst->m || inst->state != A_READY)
+	return;
+
     log_debug2(ZONE, LOGT_DYNAMIC, "base_accept is uplink and has to forward %s", is_register ? "host-command" : "unhost-command");
-    xmlnode route_stanza = xmlnode_new_tag_ns("xdb", NULL, NS_SERVER);
-    xmlnode_put_attrib_ns(route_stanza, "ns", NULL, NULL, "");
-    xmlnode_put_attrib_ns(route_stanza, "from", NULL, NULL, inst->i->id);
-    jid magic_jid = jid_new(xmlnode_pool(route_stanza), is_register ? "host@-internal" : "unhost@-internal");
-    jid_set(magic_jid, destination, JID_RESOURCE);
-    xmlnode_put_attrib_ns(route_stanza, "to", NULL, NULL, jid_full(magic_jid));
-    mio_write(inst->m, route_stanza, NULL, 0);
+    base_accept_send_routingupdate(inst, destination, is_register);
 }
 
 static void _base_accept_freeing_instance(void* arg) {

@@ -212,11 +212,15 @@ static void base_connect_kill(void *arg) {
 static void base_connect_routingupdate(instance i, char const* destination, int is_register, void *arg) {
     conn_info	ci = static_cast<conn_info>(arg);
     // sanity check
-    if (!ci)
+    if (!ci || !destination)
 	return;
 
     // we only care for the routingupdates if we are configured to be the uplink
     if (!deliver_is_uplink(ci->inst))
+	return;
+
+    // we do not forward default routings
+    if (std::string("*") == destination)
 	return;
 
     // do not route back updates if both sides feel being an uplink
