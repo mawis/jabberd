@@ -972,6 +972,7 @@ typedef struct xterror_struct
 
 #define NS_JABBERD_CONFIGFILE "http://jabberd.org/ns/configfile" /**< namespace of the root element in the config file */
 #define NS_JABBERD_CONFIGFILE_REPLACE "http://jabberd.org/ns/configfile/replace" /**< namespace of replace and include commands */
+#define NS_JABBERD_CONFIGFILE_ROUTER "http://xmppd.org/ns/configfile/router" /**< namespace for global router configuration */
 #define NS_JABBERD_CONFIG_XDBFILE "jabber:config:xdb_file" /**< namespace of xdb_file component configuration */
 #define NS_JABBERD_CONFIG_DIALBACK "jabber:config:dialback" /**< namespace of dialback component configuration */
 #define NS_JABBERD_CONFIG_DNSRV "jabber:config:dnsrv" /**< namespace of the dnsrv component configuration */

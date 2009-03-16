@@ -1191,6 +1191,16 @@
       </grant>
     </acl>
     -->
+
+    <!-- With the router configuration, you can block some packet       -->
+    <!-- sources. All packets from these addresses will be dropped.     -->
+    <!--
+    <router xmlns='http://xmppd.org/ns/configfile/router'>
+      <routing>
+	<null-source>foo@example.com</null-source>
+      </routing>
+    </router>
+    -->
   </global>
 
   <!-- This specifies the file to store the pid of the process in.	-->

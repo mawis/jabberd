@@ -147,7 +147,9 @@ typedef struct instance_struct *instance, _instance;
 typedef struct dpacket_struct
 {
     char *host;
-    jid id;
+    jid id;		/**< id used for routing (from for log stanzas, to of all other stanzas) */
+    jid from_jid;	/**< the from jid for this stanza */
+    jid to_jid;		/**< the to jid for this stanza */
     ptype type;
     pool p;
     xmlnode x;
