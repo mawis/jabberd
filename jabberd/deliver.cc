@@ -129,6 +129,9 @@ deliver()
 </jer> */
 
 #include "jabberd.h"
+#include <set>
+
+extern xmlnode greymatter__;
 
 int deliver__flag=0;	/**< 0 = pause delivery on startup and queue for later delivery, 1 = normal operation, -1 = shutdown: no delivery, no queueing */
 pth_msgport_t deliver__mp=NULL;	/**< message port, that contains all queued messages for later delivery while ::deliver__flag = 0 */
@@ -256,6 +259,8 @@ xht deliver__hxdb = NULL; /**< host filters for xdb requests */
 xht deliver__hlog = NULL; /**< host filters for logging */
 xht deliver__ns = NULL; /**< namespace filters for xdb */
 xht deliver__logtype = NULL; /**< log types, fixed set, but it's easier (wussier) to just be consistent and use a hashtable */
+
+std::set<std::string> null_sources;
 
 /* ilist deliver__all = NULL; / all instances - not used anymore!? */
 instance deliver__uplink = NULL; /**< uplink instance, only one */
@@ -716,6 +721,24 @@ void deliver(dpacket p, instance i) {
     ilist a, b;
 
     if(deliver__flag == 1 && p == NULL && i == NULL) {
+	// server is up, get the null sources
+	xht namespaces = xhash_new(3);
+	xhash_put(namespaces, "", const_cast<char*>(NS_JABBERD_CONFIGFILE));
+	xhash_put(namespaces, "router", const_cast<char*>(NS_JABBERD_CONFIGFILE_ROUTER));
+	pool temp_pool = pool_new();
+	xmlnode_list_item null_sources_e = xmlnode_get_tags(greymatter__, "global/router:router/router:routing/router:null-source", namespaces, temp_pool);
+	for (xmlnode_list_item null_source = null_sources_e; null_source; null_source = null_source->next) {
+	    jid null_jid = jid_new(temp_pool, xmlnode_get_data(null_source->node));
+	    log_debug2(ZONE, LOGT_CONFIG, "null route for %s", jid_full(null_jid));
+	    if (null_jid) {
+		null_sources.insert(std::string(jid_full(null_jid)));
+	    }
+	}
+	xhash_free(namespaces);
+	namespaces = NULL;
+	pool_free(temp_pool);
+	temp_pool = NULL;
+	
 	/* send notifies for already configured routings */
 	xhash_walk(deliver_hashtable(p_LOG), _deliver_notify_walker, NULL);
 	xhash_walk(deliver_hashtable(p_XDB), _deliver_notify_walker, NULL);
@@ -762,6 +785,24 @@ void deliver(dpacket p, instance i) {
         
         pth_msgport_put(deliver__mp, reinterpret_cast<pth_message_t*>(d));
         return;
+    }
+
+    // filter the packets we do not want to route (drop them instead)
+    if (p->from_jid) {
+	std::ostringstream filter_jid;
+	if (p->from_jid->user) {
+	    filter_jid << p->from_jid->user << '@';
+	}
+	if (p->from_jid->server) {
+	    filter_jid << p->from_jid->server;
+
+	    // is this address a null source?
+	    if (null_sources.find(filter_jid.str()) != null_sources.end()) {
+		log_notice(p->host, "Dropping packet because of configured source address. from='%s' to='%s'", jid_full(p->from_jid), jid_full(p->to_jid));
+		pool_free(p->p);
+		return;
+	    }
+	}
     }
 
     log_debug2(ZONE, LOGT_DELIVER, "DELIVER %d:%s %s", p->type, p->host, xmlnode_serialize_string(p->x, xmppd::ns_decl_list(), 0));
@@ -1124,11 +1165,15 @@ dpacket dpacket_new(xmlnode x) {
     if(p->type == p_XDB && (str = xmlnode_get_attrib_ns(p->x, "type", NULL)) != NULL && (*str == 'r' || *str == 'e' )) /* check full name? */
         p->type = p_NORM;
 
+    // the the to and from jid
+    p->to_jid = jid_new(p->p, xmlnode_get_attrib_ns(x, "to", NULL));
+    p->from_jid = jid_new(p->p, xmlnode_get_attrib_ns(x, "from", NULL));
+
     /* determine who to route it to, overriding the default to="" attrib only for logs where we use from */
     if(p->type == p_LOG)
-        p->id = jid_new(p->p, xmlnode_get_attrib_ns(x, "from", NULL));
+	p->id = p->from_jid;
     else
-        p->id = jid_new(p->p, xmlnode_get_attrib_ns(x, "to", NULL));
+	p->id = p->to_jid;
 
     if(p->id == NULL) {
         log_warn(NULL,"Packet Delivery Failed, invalid packet, dropping %s",xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
