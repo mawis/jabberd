@@ -357,6 +357,9 @@ namespace xmppd {
 	    }
 	}
 
+	rrecord::~rrecord() {
+	}
+
 	srv_record::srv_record(std::istream& is) {
 	    try {
 		uint16_t rrlen = lwresult::read_uint16(is);
