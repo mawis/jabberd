@@ -1,3 +1,18 @@
+2009-03-17  Matthias Wimmer  <m@tthias.eu>
+
+    * jabberd/lib/jabberdlib.h: fixing includes (by Robin Redeker)
+
+2009-03-16  Matthias Wimmer  <m@tthias.eu>
+
+    * jabberd/lib/lwresc.cc: work in progress on the new resolver
+    * jabberd/lib/jabberdlib.h: same
+    * jabberd/deliver.cc: same
+    * resolver/resolver_job.cc: same
+    * resolver/resend_service.cc: same
+    * resolver/resolver.cc: same
+    * resolver/resolver.h: same
+    * resolver/Makefile.am: same
+
 2008-09-09  Matthias Wimmer  <m@tthias.eu>
 
     * resolver/resolver.cc: started work on lwresd client resolver
