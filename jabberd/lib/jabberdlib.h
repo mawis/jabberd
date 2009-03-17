@@ -57,8 +57,8 @@
 #   define N_(n) (n)
 #endif
 
-#include <string.h>
-#include <stdlib.h>
+#include <cstring>
+#include <cstdlib>
 #include <sys/types.h>
 #include <stdio.h>
 #include <setjmp.h>
@@ -77,7 +77,7 @@
 #include <sys/time.h>
 #include <stdarg.h>
 #include <ctype.h>
-#include <time.h>
+#include <ctime>
 #include <pth.h>
 
 #include <expat.h>
