@@ -1455,6 +1455,8 @@ namespace xmppd {
 	};
 
 	class rrecord {
+	    public:
+		virtual ~rrecord();
 	};
 
 	class srv_record : public rrecord {

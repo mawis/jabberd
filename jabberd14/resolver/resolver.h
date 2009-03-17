@@ -56,6 +56,12 @@ namespace xmppd {
 		 */
 		Glib::ustring const& get_service_prefix() const;
 
+		/**
+		 * select one of the resend_hosts for this service
+		 *
+		 * @return choosen resend_host
+		 */
+		xmppd::jabberid get_resend_host() const;
 	    private:
 		/**
 		 * the service to resolve, empty string for no service but plain AAAA/A lookups
@@ -107,6 +113,36 @@ namespace xmppd {
 		 * @throws std::invalid_argument if the packet has a different destination, that what is being resolved by this job
 		 */
 		void add_packet(dpacket dp);
+
+		/**
+		 * get the waiting packets
+		 *
+		 * @return list of waiting packets
+		 */
+		std::list<dpacket> const& get_packets() const;
+
+		/**
+		 * register for being notified on finishing the job
+		 *
+		 * @param callback what should get notified on finishing the job
+		 */
+		sigc::connection register_result_callback(sigc::signal<void, resolver_job&>::slot_type const& callback);
+
+		/**
+		 * get the resolving result
+		 *
+		 * @return string containing IP/port pairs as the result to connect to
+		 */
+		Glib::ustring get_result() const;
+
+		/**
+		 * get the service where to send packets to that have been resolved by this job
+		 *
+		 * @return the service
+		 */
+		xmppd::jabberid get_resend_host() const;
+
+
 	    private:
 		/**
 		 * the destination, that is being resolved by this job
@@ -150,6 +186,11 @@ namespace xmppd {
 		std::list< std::pair<Glib::ustring, Glib::ustring> > providing_hosts;
 
 		/**
+		 * the providing host, that is currently resolved
+		 */
+		std::list< std::pair<Glib::ustring, Glib::ustring> >::const_iterator current_providing_host;
+
+		/**
 		 * do AAAA and A lookups for the hosts in providing_hosts
 		 *
 		 * This gets called after providing_hosts has been filled, either explicitly
@@ -157,6 +198,18 @@ namespace xmppd {
 		 * by the result of a SRV lookup.
 		 */
 		void resolve_providing_hosts();
+
+		/**
+		 * do AAAA and A lookups for the current_current_providing host
+		 *
+		 * This get called while iterating the entries in providing_hosts after updating current_providing_host
+		 */
+		void resolve_current_providing_host();
+
+		/**
+		 * do the remaining A lookup after the AAAA lookup has been done for the current_current_providing host
+		 */
+		void resolve_current_providing_host_a();
 
 		/**
 		 * list of signals to disconnect on destruction
@@ -169,9 +222,24 @@ namespace xmppd {
 		void on_srv_query_result(xmppd::lwresc::lwresult const& result);
 
 		/**
-		 * the serial for the SRV query that we have sent last
+		 * handle results of AAAA queries to the DNS
 		 */
-		uint32_t waited_srv_serial;
+		void on_aaaa_query_result(xmppd::lwresc::lwresult const& result);
+
+		/**
+		 * handle results of A queries to the DNS
+		 */
+		void on_a_query_result(xmppd::lwresc::lwresult const& result);
+
+		/**
+		 * buffer taking the result of resolving the job
+		 */
+		std::ostringstream result_buffer;
+
+		/**
+		 * listeners to get notified if the resolver_job is finished
+		 */
+		std::list<sigc::signal<void, resolver_job&> > result_listeners;
 	};
 
 	/**
@@ -211,6 +279,24 @@ namespace xmppd {
 		sigc::connection register_result_callback(uint32_t serial, sigc::signal<void, xmppd::lwresc::lwresult const&>::slot_type const& callback);
 
 	    private:
+		/**
+		 * resend a resolved packet to the configured service
+		 *
+		 * the packet may overwrite the destination where it wants to get resent to
+		 *
+		 * @param pkt the packet to resend
+		 * @param ips the resolving result to add to the packet
+		 * @param to the service to send the packet to (if not overwritten by the pkt itself)
+		 */
+		void resend_packet(xmlnode pkt, Glib::ustring ips, Glib::ustring to);
+
+		/**
+		 * handles completed resolvings
+		 *
+		 * @param job the resolver_job that completed
+		 */
+		void handle_completed_job(resolver_job& job);
+
 		/**
 		 * handle received stanzas
 		 *

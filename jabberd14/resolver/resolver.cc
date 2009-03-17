@@ -1,7 +1,7 @@
 /*
  * Copyrights
  * 
- * Copyright (c) 2008 Matthias Wimmer
+ * Copyright (c) 2008/2009 Matthias Wimmer
  *
  * This file is part of jabberd14.
  *
@@ -146,75 +146,6 @@ namespace xmppd {
 	    return result_listeners[serial].second.connect(callback);
 	}
 
-	resend_service::resend_service(xmlnode resend) : weight_sum(0) {
-	    char const* service_attribute_value = xmlnode_get_attrib_ns(resend, "service", NULL);
-
-	    // if there is a service attribute, keep it
-	    if (service_attribute_value)
-		service = service_attribute_value;
-
-	    // check, get and iterate partial childs
-	    xht namespaces = xhash_new(3);
-	    xhash_put(namespaces, "dnsrv", const_cast<char*>(NS_JABBERD_CONFIG_DNSRV));
-	    xmlnode_vector partial_elements = xmlnode_get_tags(resend, "dnsrv:partial", namespaces);
-	    xhash_free(namespaces);
-	    namespaces = NULL;
-	    for (xmlnode_vector::iterator p = partial_elements.begin(); p != partial_elements.end(); ++p) {
-		// get the weight for this partial destination
-		char const* weight_attrib = xmlnode_get_attrib_ns(*p, "weight", NULL);
-		int weight = 1;
-		if (weight_attrib) {
-		    std::istringstream weight_stream(weight_attrib);
-		    weight_stream >> weight;
-		}
-		if (weight < 1)
-		    weight = 1;
-
-		// get the destination
-		char const* resend_dest = xmlnode_get_data(*p);
-		if (!resend_dest)
-		    continue;
-		try {
-		    xmppd::jabberid resend_jid(resend_dest);
-
-		    // keep
-		    resend_hosts.push_back(std::pair<int, xmppd::jabberid>(weight, resend_jid));
-		    weight_sum += weight;
-		} catch (std::invalid_argument) {
-		    continue;
-		}
-
-	    }
-
-	    // if there where no partial childs, use the text() child of the <resend/> element
-	    if (resend_hosts.empty()) {
-		try {
-		    char const* resend_dest = xmlnode_get_data(resend);
-		    if (resend_dest) {
-			xmppd::jabberid resend_jid(resend_dest);
-
-			// keep
-			resend_hosts.push_back(std::pair<int, xmppd::jabberid>(1, resend_jid));
-			weight_sum++;
-		    }
-		} catch (std::invalid_argument) {
-		}
-	    }
-
-	    // still no valid resend_hosts?
-	    if (resend_hosts.empty()) {
-		throw std::invalid_argument("resend config contains no valid destination");
-	    }
-	}
-
-	bool resend_service::is_explicit_service() const {
-	    return service.length() > 0;
-	}
-
-	Glib::ustring const& resend_service::get_service_prefix() const {
-	    return service;
-	}
-
 	result resolver::on_stanza_packet(dpacket dp) {
 	    // sanity check
 	    if (!dp || !dp->host)
@@ -243,92 +174,44 @@ namespace xmppd {
 
 	    // store the packet, so that we can forward it when it has been resolved, and start resolving
 	    pending_jobs[dp->host] = new resolver_job(*this, dp);
+	    pending_jobs[dp->host]->register_result_callback(sigc::mem_fun(*this, &xmppd::resolver::resolver::handle_completed_job));
 	    return r_DONE;
 	}
 
-	resolver_job::resolver_job(resolver& owner, dpacket dp) : owner(owner), waited_srv_serial(0) {
-	    // sanity check
-	    if (!dp->host) {
-		throw std::invalid_argument("dpacket has no host");
-	    }
-
-	    // keep the packet
-	    add_packet(dp);
-
-	    // keep destination explicitly for faster access
-	    destination = dp->host;
-
-	    // get the services and resend destinations that we have to use (make copy)
-	    resend_services = owner.get_resend_services();
-
-	    // set current service
-	    current_service = resend_services.begin();
-
-	    // start resolving this service
-	    start_resolving_service();
-	}
-
-	resolver_job::~resolver_job() {
-	    // disconnect all signals pointing to us
-	    for (std::list<sigc::connection>::iterator p = connected_signals.begin(); p != connected_signals.end(); ++p) {
-		p->disconnect();
-	    }
-	}
-
-	void resolver_job::add_packet(dpacket dp) {
-	    waiting_packets.push_back(dp);
-	}
-
-	void resolver_job::start_resolving_service() {
-	    // reset the list of providing hosts
-	    providing_hosts.erase(providing_hosts.begin(), providing_hosts.end());
-
-	    // do we have a service, or do have have do plain AAAA+A queries?
-	    if (current_service->is_explicit_service()) {
-		// need to do SRV lookup
-		//
-		// create query
-		std::ostringstream name_to_resolve;
-		name_to_resolve << std::string(current_service->get_service_prefix()) << "." << std::string(destination);
-
-		xmppd::lwresc::rrsetbyname query(name_to_resolve.str(), ns_c_in, ns_t_srv);
-
-		// register result callback
-		waited_srv_serial = query.getSerial();
-		connected_signals.push_back(owner.register_result_callback(query.getSerial(), sigc::mem_fun(*this, &xmppd::resolver::resolver_job::on_srv_query_result)));
-
-		// send query
-		owner.send_query(query);
+	void resolver::resend_packet(xmlnode pkt, Glib::ustring ips, Glib::ustring to) {
+	    if (ips.empty()) {
+		jutil_error_xmpp(pkt, (xterror){502, N_("Unable to resolve hostname."), "wait", "service-unavailable"});
+		xmlnode_put_attrib_ns(pkt, "iperror", NULL, NULL, "");
 	    } else {
-		// no SRV lookup, just plain AAAA+A
+		char const* dnsresultto = xmlnode_get_attrib_ns(pkt, "dnsqueryby", NULL);
+		if (!dnsresultto) {
+		    dnsresultto = to.c_str();
+		}
 
-		// the hosts providing the service is just the destination on port 5269
-		// so put this in providing_hosts list
-		providing_hosts.push_back(std::pair<Glib::ustring, Glib::ustring>(destination, "5269"));
-
-		// no real SRV lookup step needed, so directly start the AAAA+A query stap
-		resolve_providing_hosts();
+		pkt = xmlnode_wrap_ns(pkt, "route", NULL, NULL);
+		xmlnode_put_attrib_ns(pkt, "to", NULL, NULL, dnsresultto);
+		xmlnode_put_attrib_ns(pkt, "ip", NULL, NULL, ips.c_str());
 	    }
+	    deliver(pkt);
 	}
 
-	void resolver_job::resolve_providing_hosts() {
-	    // XXX implement this method
-	}
+	void resolver::handle_completed_job(resolver_job& job) {
+	    // get the packets
+	    std::list<dpacket> const& packets = job.get_packets();
 
-	void resolver_job::on_srv_query_result(xmppd::lwresc::lwresult const& result) {
-	    // ignore all results we are not waiting for
-	    if (result.getSerial() != waited_srv_serial)
-		return;
+	    // get the resend destination
+	    Glib::ustring resend_host = job.get_resend_host().full();
 
-	    // did we successfully get a result?
-	    if (result.getResult() != xmppd::lwresc::lwresult::res_success) {
-		// try next service
-		++current_service;
-		start_resolving_service();
-		return;
+	    // get the resolved ips
+	    Glib::ustring ips = job.get_result();
+
+	    // resend the packets
+	    for (std::list<dpacket>::const_iterator p = packets.begin(); p != packets.end(); ++p) {
+		resend_packet((*p)->x, ips, resend_host);
 	    }
 
-	    // XXX implement this method
+	    // we are done with it, we can delete the job
+	    delete &job;
 	}
     }
 }

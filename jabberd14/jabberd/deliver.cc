@@ -138,7 +138,6 @@ pth_msgport_t deliver__mp=NULL;	/**< message port, that contains all queued mess
  */
 typedef struct deliver_mp_st {
     pth_message_t head;	/**< the standard pth message header */
-    instance i;		/**< the sending instance */
     dpacket p;		/**< the queued packet */
 } _deliver_msg,*deliver_msg;
 
@@ -653,7 +652,7 @@ static void _deliver_notify_walker(xht h, const char *key, void *value, void *ar
  * deliver a ::dpacket to an ::instance using the configured XML routings
  *
  * @param p the packet that should be delivered (packet gets consumed)
- * @param i the instance of the sender (!) of the packet
+ * @param i unused/ignored (was: the instance of the sender (!) of the packet)
  */
 void deliver(dpacket p, instance i) {
     ilist a, b;
@@ -667,7 +666,7 @@ void deliver(dpacket p, instance i) {
 	/* begin delivery of postponed messages */
         deliver_msg d;
         while ((d=(deliver_msg)pth_msgport_get(deliver__mp))!=NULL) {
-            deliver(d->p,d->i);
+            deliver(d->p, NULL);
         }
         pth_msgport_destroy(deliver__mp);
         deliver__mp = NULL;
@@ -691,7 +690,6 @@ void deliver(dpacket p, instance i) {
         if (deliver__mp == NULL)
             deliver__mp = pth_msgport_create("deliver__");
         
-        d->i = i;
         d->p = p;
         
         pth_msgport_put(deliver__mp, reinterpret_cast<pth_message_t*>(d));
