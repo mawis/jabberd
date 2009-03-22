@@ -437,7 +437,7 @@ namespace xmppd {
 		char one_byte;
 		if (!is.get(one_byte))
 		    throw std::runtime_error("Error reading A record");
-		address_stream << static_cast<unsigned>(one_byte);
+		address_stream << (static_cast<unsigned>(one_byte) & 0xFF);
 	    }
 
 	    address = address_stream.str();
