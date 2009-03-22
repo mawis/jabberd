@@ -196,6 +196,11 @@ namespace xmppd {
 	}
 
 	void resolver::handle_completed_job(resolver_job& job) {
+	    // move the job from pending to finished
+	    char const* host = job.get_packets().front()->host;
+	    finished_jobs.push_back(pending_jobs[host]);
+	    pending_jobs.erase(host);
+
 	    // get the packets
 	    std::list<dpacket> const& packets = job.get_packets();
 
@@ -209,9 +214,6 @@ namespace xmppd {
 	    for (std::list<dpacket>::const_iterator p = packets.begin(); p != packets.end(); ++p) {
 		resend_packet((*p)->x, ips, resend_host);
 	    }
-
-	    // we are done with it, we can delete the job
-	    delete &job;
 	}
     }
 }

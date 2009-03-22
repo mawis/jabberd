@@ -380,6 +380,13 @@ namespace xmppd {
 		xmppd::xhash< xmppd::pointer<resolver_job> > pending_jobs;
 
 		/**
+		 * the jobs that have finished
+		 *
+		 * @todo we have to delete these jobs, after they returned
+		 */
+		std::list< xmppd::pointer<resolver_job> > finished_jobs;
+
+		/**
 		 * map containing the listeners for resolver results
 		 *
 		 * the key is the query serial which will be in the result
