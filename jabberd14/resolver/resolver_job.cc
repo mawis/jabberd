@@ -34,7 +34,12 @@
 
 namespace xmppd {
     namespace resolver {
-	resolver_job::resolver_job(resolver& owner, dpacket dp) : owner(owner) {
+	long resolver_job::next_serial = 1;
+
+	resolver_job::resolver_job(resolver& owner, dpacket dp) : owner(owner), serial(next_serial++) {
+	    // remember when this job has been generated
+	    std::time(&timestamp);
+
 	    // sanity check
 	    if (!dp->host) {
 		throw std::invalid_argument("dpacket has no host");
@@ -282,6 +287,13 @@ namespace xmppd {
 
 	xmppd::jabberid resolver_job::get_resend_host() const {
 	    return current_service->get_resend_host();
+	}
+
+	std::ostream& operator<<(std::ostream& out, resolver_job& job) {
+	    time_t now = std::time(NULL);
+	    out << "JOB#" << job.serial << "(" << (now-job.timestamp) << " s): ";
+	    out << job.destination << " " << job.get_result();
+	    return out;
 	}
     }
 }
