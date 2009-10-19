@@ -157,7 +157,7 @@ namespace xmppd {
 
 		// drop type='error', bounce everything else
 		if (packet_type && Glib::ustring(packet_type) == "error") {
-		    log_warn(dp->host, "Looping DNS request. Dropped: %s", xmlnode_serialize_string(dp->x, xmppd::ns_decl_list(), 0));
+		    log(xmppd::warn) << "Looping DNS request. Dropped: " << xmlnode_serialize_string(dp->x, xmppd::ns_decl_list(), 0);
 		    xmlnode_free(dp->x);
 		} else {
 		    deliver_fail(dp, N_("Looping DNS request. Dropped."));
@@ -174,6 +174,7 @@ namespace xmppd {
 
 	    // store the packet, so that we can forward it when it has been resolved, and start resolving
 	    pending_jobs[dp->host] = new resolver_job(*this, dp);
+	    log(xmppd::notice) << "Created new resolver job: " << *(pending_jobs[dp->host]);
 	    pending_jobs[dp->host]->register_result_callback(sigc::mem_fun(*this, &xmppd::resolver::resolver::handle_completed_job));
 	    return r_DONE;
 	}
@@ -188,7 +189,7 @@ namespace xmppd {
 		    dnsresultto = to.c_str();
 		}
 
-		pkt = xmlnode_wrap_ns(pkt, "route", NULL, NULL);
+		pkt = xmlnode_wrap_ns(pkt, "route", NULL, NS_SERVER);
 		xmlnode_put_attrib_ns(pkt, "to", NULL, NULL, dnsresultto);
 		xmlnode_put_attrib_ns(pkt, "ip", NULL, NULL, ips.c_str());
 	    }
@@ -209,6 +210,8 @@ namespace xmppd {
 
 	    // get the resolved ips
 	    Glib::ustring ips = job.get_result();
+
+	    log(xmppd::notice) << "Finished resolver job: " << job;
 
 	    // resend the packets
 	    for (std::list<dpacket>::const_iterator p = packets.begin(); p != packets.end(); ++p) {

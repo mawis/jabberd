@@ -240,7 +240,26 @@ namespace xmppd {
 		 * listeners to get notified if the resolver_job is finished
 		 */
 		std::list<sigc::signal<void, resolver_job&> > result_listeners;
+
+		/**
+		 * timestamp when the resolver job has been generated
+		 */
+		time_t timestamp;
+
+		/**
+		 * ID of the resolver job
+		 */
+		long serial;
+
+		/**
+		 * the next serial that will be used for a new job
+		 */
+		static long next_serial;
+
+		friend std::ostream& operator<<(std::ostream& out, resolver_job& job);
 	};
+
+	std::ostream& operator<<(std::ostream& out, resolver_job& job);
 
 	/**
 	 * @brief resolver component implementation
