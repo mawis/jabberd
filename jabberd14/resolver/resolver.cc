@@ -74,6 +74,9 @@ namespace xmppd {
 	    std::istringstream buffer_stream(buffer);
 	    xmppd::lwresc::lwresult query_result(buffer_stream);
 
+	    // make sure the listener does not get deleted while it is running
+	    xmppd::xhash< xmppd::pointer<resolver_job> > pending_jobs_lock = pending_jobs;
+
 	    // send the signal for this result
 	    uint32_t serial = query_result.getSerial();
 	    std::map<uint32_t, std::pair<time_t, sigc::signal<void, xmppd::lwresc::lwresult const&> > >::iterator result_listener = result_listeners.find(serial);
@@ -197,9 +200,8 @@ namespace xmppd {
 	}
 
 	void resolver::handle_completed_job(resolver_job& job) {
-	    // move the job from pending to finished
+	    // delete the job from the pending jobs list
 	    char const* host = job.get_packets().front()->host;
-	    finished_jobs.push_back(pending_jobs[host]);
 	    pending_jobs.erase(host);
 
 	    // get the packets
@@ -211,7 +213,7 @@ namespace xmppd {
 	    // get the resolved ips
 	    Glib::ustring ips = job.get_result();
 
-	    log(xmppd::notice) << "Finished resolver job: " << job;
+	    log(xmppd::notice) << (ips.empty() ? "Finished resolver job without result: " : "Finished resolver job: ") << job;
 
 	    // resend the packets
 	    for (std::list<dpacket>::const_iterator p = packets.begin(); p != packets.end(); ++p) {

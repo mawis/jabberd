@@ -195,20 +195,21 @@ typedef result (*beathandler)(void *arg);
 
 /*** public functions for base modules ***/
 void register_config(pool p, char *node, cfhandler f, void *arg); /* register a function to handle that node in the config file */
-void register_instance(instance i, char const* host); /* associate an id with a hostname for that packet type */
-void unregister_instance(instance i, char const* host); /* disassociate an id with a hostname for that packet type */
-void register_routing_update_callback(instance i, register_notify f, void *arg); /**< register a function that gets called on registering/unregistering a host for an instance */
-void register_phandler(instance id, order o, phandler f, void *arg); /* register a function to handle delivery for this instance */
 void register_beat(int freq, beathandler f, void *arg); /* register the function to be called from the heartbeat, freq is how often, <= 0 is ignored */
 typedef void(*shutdown_func)(void*arg);
 void register_shutdown(shutdown_func f,void *arg); /* register to be notified when the server is shutting down */
 
+// functions in deliver.cc
+void register_instance(instance i, char const* host); /* associate an id with a hostname for that packet type */
+void unregister_instance(instance i, char const* host); /* disassociate an id with a hostname for that packet type */
+void register_routing_update_callback(instance i, register_notify f, void *arg); /**< register a function that gets called on registering/unregistering a host for an instance */
+void register_phandler(instance id, order o, phandler f, void *arg); /* register a function to handle delivery for this instance */
 dpacket dpacket_new(xmlnode x); /* create a new delivery packet from source xml */
 dpacket dpacket_copy(dpacket p); /* copy a packet (and it's flags) */
 void deliver(dpacket p, instance i); /* deliver packet from sending instance */
 void deliver_fail(dpacket p, const char *err); /* bounce a packet intelligently */
 void deliver_instance(instance i, dpacket p); /* deliver packet TO the instance, if the result != r_DONE, you have to handle the packet! */
-instance deliver_hostcheck(char const* host); /* util that returns the instance handling this hostname for normal packets */
+bool deliver_is_delivered_to(Glib::ustring const& host, _instance const* i); /* util that returns the instance handling this hostname for normal packets */
 bool deliver_is_uplink(instance i); // checks if an instance is configured to be the uplink
 std::set<Glib::ustring> deliver_routed_hosts(ptype type, instance i);
 
