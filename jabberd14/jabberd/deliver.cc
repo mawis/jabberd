@@ -714,15 +714,13 @@ void deliver(dpacket p, instance i) {
  * @param host the hostname to get checked
  * @return the instance packets of this host get mapped to
  */
-instance deliver_hostcheck(char const* host) {
+bool deliver_is_delivered_to(Glib::ustring const& host, _instance const* i) {
     ilist l;
 
-    if (host == NULL)
-	return NULL;
-    if ((l = deliver_hashmatch(deliver__hnorm,host)) == NULL || l->next)
-	return NULL;
+    if ((l = deliver_hashmatch(deliver__hnorm, host.c_str())) == NULL || l->next)
+	return false;
 
-    return l->i;
+    return l->i == i;
 }
 
 /**

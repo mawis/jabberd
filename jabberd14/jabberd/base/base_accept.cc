@@ -126,11 +126,9 @@ static void base_accept_process_xml(mio m, int state, void* arg, xmlnode x, char
                 */
 
                 /* if we are supposed to be careful about what comes from this socket */
-                if(ai->restrict_var)
-                {
+                if(ai->restrict_var) {
                     jp = jpacket_new(x);
-                    if(jp->type == JPACKET_UNKNOWN || jp->to == NULL || jp->from == NULL || deliver_hostcheck(jp->from->get_domain().c_str()) != ai->i)
-                    {
+                    if (jp->type == JPACKET_UNKNOWN || jp->to == NULL || jp->from == NULL || !deliver_is_delivered_to(jp->from->get_domain(), ai->i)) {
                         jutil_error_xmpp(x,XTERROR_INTERNAL);
                         mio_write(m,x,NULL,0);
                         return;
