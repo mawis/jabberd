@@ -209,7 +209,7 @@ dpacket dpacket_new(xmlnode x); /* create a new delivery packet from source xml 
 dpacket dpacket_copy(dpacket p); /* copy a packet (and it's flags) */
 void deliver(dpacket p, instance i); /* deliver packet from sending instance */
 void deliver_fail(dpacket p, const char *err); /* bounce a packet intelligently */
-void deliver_instance(instance i, dpacket p); /* deliver packet TO the instance, if the result != r_DONE, you have to handle the packet! */
+// void deliver_instance(instance i, dpacket p); /* deliver packet TO the instance, if the result != r_DONE, you have to handle the packet! */
 instance deliver_hostcheck(char *host); /* util that returns the instance handling this hostname for normal packets */
 bool deliver_is_uplink(instance i); // checks if an instance is configured to be the uplink
 std::set<std::string> deliver_routed_hosts(ptype type, instance i);

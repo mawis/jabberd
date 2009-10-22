@@ -411,6 +411,9 @@ static instance deliver_intersect(ilist a, ilist b) {
     return i;
 }
 
+// forward reference
+static void deliver_instance(instance i, dpacket p);
+
 /**
  * special case handler for xdb calls @-internal
  *
@@ -452,8 +455,13 @@ static void deliver_internal(dpacket p, instance i) {
     }
 
     if(j_strcmp(p->id->user,"host") == 0) {
+	// is there already a routing for this host?
+	xht ht = deliver_hashtable(i->type);
+	ilist l = static_cast<ilist>(xhash_get(ht, p->id->resource));
+	
 	/* dynamic register_instance crap */
-        register_instance(i,p->id->resource);
+	if (!l)
+	    register_instance(i,p->id->resource);
 	pool_free(p->p);
         return;
     }
@@ -1044,18 +1052,82 @@ void deliver_fail(dpacket p, const char *err) {
     }
 }
 
+static void deliver_log_routing_table_walker(xht hash, const char* key, void* value, void* arg) {
+    log_notice(NULL, "  entry: %s", key);
+
+    for (ilist il = static_cast<ilist>(value); il; il = il->next) {
+	log_notice(NULL, "    routing: %s", il->i ? il->i->id : "<NULL>");
+    }
+    /*
+    ilist il = static_cast<ilist>(value);
+    log_notice(NULL, "    routing: %s", il->i ? il->i->id : "<NULL>");
+    */
+}
+
+static void deliver_log_routing_table(int type) {
+    switch (type) {
+	case p_XDB:
+	    log_notice(NULL, ">>> Routing-Table for XDB packets:");
+	    xhash_walk(deliver__hxdb, deliver_log_routing_table_walker, NULL);
+	    log_notice(NULL, ">>> Routing-Table for NS:");
+	    xhash_walk(deliver__ns, deliver_log_routing_table_walker, NULL);
+	    break;
+	case p_LOG:
+	    log_notice(NULL, ">>> Routing-Table for Log packets:");
+	    xhash_walk(deliver__hlog, deliver_log_routing_table_walker, NULL);
+	    log_notice(NULL, ">>> Routing-Table for Logtype:");
+	    xhash_walk(deliver__logtype, deliver_log_routing_table_walker, NULL);
+	    break;
+	default:
+	    log_notice(NULL, ">>> Routing-Table for normal packets:");
+	    xhash_walk(deliver__hnorm, deliver_log_routing_table_walker, NULL);
+    }
+}
+
 /**
  * actually perform the delivery to an instance
  *
  * @param i the instance to deliver to
  * @param p the packet that gets delivered (packet gets consumed)
  */
-void deliver_instance(instance i, dpacket p) {
+static void deliver_instance(instance i, dpacket p) {
     handel h, hlast;
     result r;
     dpacket pig = NULL;
 
     if (i == NULL) {
+	log_warn(NULL, "********** CANNOT DELIVER A DPACKET **********");
+	if (p) {
+	    log_warn(NULL, "p->host     = %s", p->host);
+	    log_warn(NULL, "p->id       = %s", jid_full(p->id));
+	    log_warn(NULL, "p->from_jid = %s", jid_full(p->from_jid));
+	    log_warn(NULL, "p->to_jid   = %s", jid_full(p->to_jid));
+	    log_warn(NULL, "p->type     = %s", p->type == p_NONE ? "p_NONE" : p->type == p_NORM ? "p_NORM" : p->type == p_XDB ? "p_XDB" : p->type == p_LOG ? "p_LOG" : p->type == p_ROUTE ? "p_ROUTE" : "???");
+	    log_warn(NULL, "p->p        = %x", p->p);
+	    log_warn(NULL, "p->x        = %s", xmlnode_serialize_string(p->x, xmppd::ns_decl_list(), 0));
+
+	    ilist a = deliver_hashmatch(deliver_hashtable(p->type), p->host);
+	    log_warn(NULL, "A list on routing calculation is:");
+	    for (ilist cur = a; cur; cur = cur->next) {
+		log_warn(NULL, "  i=%x, id=%s", cur->i, cur->i->id);
+	    }
+	    ilist b = NULL;
+	    if (p->type == p_XDB)
+		b = deliver_hashmatch(deliver__ns, xmlnode_get_attrib_ns(p->x, "ns", NULL));
+	    else if(p->type == p_LOG)
+		b = deliver_hashmatch(deliver__logtype, xmlnode_get_attrib_ns(p->x, "type", NULL));
+	    if (b) {
+		log_warn(NULL, "B list on routing calculation is:");
+		for (ilist cur = b; cur; cur = cur->next) {
+		    log_warn(NULL, "  i=%x, id=%s", cur->i, cur->i->id);
+		}
+	    } else {
+		log_warn(NULL, "B list is non-existant");
+	    }
+	} else {
+	    log_warn(NULL, "p == NULL");
+	}
+	deliver_log_routing_table(p ? p->type : p_NONE);
         deliver_fail(p, N_("Unable to deliver, destination unknown"));
         return;
     }
