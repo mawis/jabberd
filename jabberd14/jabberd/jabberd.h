@@ -185,6 +185,7 @@ struct instance_struct
     handel hds; /**< delivery handler */
     register_notifier routing_update_callbacks; /**< list of callback functions, that should be called on a routing update */
     std::map<std::string, void*>* module_init_funcs;	/**< map with the modules of this instance, key is name, value is init function */
+    std::set<Glib::ustring>* static_hosts;	/**< set of host that are fixed configured for this host */
 };
 
 /** Config file handler function callback definition */

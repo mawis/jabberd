@@ -393,8 +393,12 @@ static void deliver_internal(dpacket p, instance i) {
     }
 
     if (p->id->get_node() == "host") {
+	// check if routing for this host is already registered
+	xht ht = deliver_hashtable(i->type);
+	ilist l = static_cast<ilist>(xhash_get(ht, p->id->get_resource().c_str()));
 	/* dynamic register_instance crap */
-        register_instance(i,p->id->get_resource().c_str());
+	if (!l)
+	    register_instance(i,p->id->get_resource().c_str());
 	pool_free(p->p);
         return;
     }
@@ -476,6 +480,12 @@ void unregister_instance(instance i, char const* host) {
 
     log_debug2(ZONE, LOGT_REGISTER, "Unregistering %s with instance %s",host,i->id);
 
+    // check for fixed routings
+    if (host && i->static_hosts->find(Glib::ustring(host)) != i->static_hosts->end()) {
+	log_notice(i->id, "Not unregistering %s as this is a fixed routing.", host);
+	return;
+    }
+
     ht = deliver_hashtable(i->type);
     l = static_cast<ilist>(xhash_get(ht, host));
     l = ilist_rem(l, i);
@@ -524,6 +534,7 @@ static result deliver_config_host(instance i, xmlnode x, void *arg) {
     }
 
     register_instance(i, host);
+    i->static_hosts->insert(Glib::ustring(host));
 
     return r_DONE;
 }

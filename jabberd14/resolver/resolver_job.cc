@@ -121,7 +121,7 @@ namespace xmppd {
 			try {
 			    xmppd::lwresc::a_record const* rr = dynamic_cast<xmppd::lwresc::a_record const*>(*p);
 
-			    result_buffer << " " << rr->getAddress() << ":" << current_providing_host->second;
+			    result_buffer << "," << rr->getAddress() << ":" << current_providing_host->second;
 			} catch (std::bad_cast) {
 			}
 		    }
@@ -168,7 +168,7 @@ namespace xmppd {
 			try {
 			    xmppd::lwresc::aaaa_record const* rr = dynamic_cast<xmppd::lwresc::aaaa_record const*>(*p);
 
-			    result_buffer << " [" << rr->getAddress() << "]:" << current_providing_host->second;
+			    result_buffer << ",[" << rr->getAddress() << "]:" << current_providing_host->second;
 			} catch (std::bad_cast) {
 			}
 		    }
