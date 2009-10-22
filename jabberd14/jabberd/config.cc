@@ -448,6 +448,16 @@ static void instance_cleanup_module_init_funcs(void *arg) {
 }
 
 /**
+ * pool_cleaner that deletes the static_hosts set of an instance
+ *
+ * @param arg pointer to the static_hosts set, that has to be deleted
+ */
+static void instance_cleanup_static_hosts(void *arg){
+    std::set<Glib::ustring>* static_hosts = static_cast<std::set<Glib::ustring>*>(arg);
+    delete static_hosts;
+}
+
+/**
  * handle a second-level configuration file element (beside the &lt;base/&gt; element)
  *
  * @param x the configuration element to be handled
@@ -513,6 +523,8 @@ static int instance_startup(xmlnode x, int exec) {
         newi->x = x;
 	newi->module_init_funcs = new std::map<std::string, void*>();
 	pool_cleanup(newi->p, instance_cleanup_module_init_funcs, newi->module_init_funcs);
+	newi->static_hosts = new std::set<Glib::ustring>();
+	pool_cleanup(newi->p, instance_cleanup_static_hosts, newi->static_hosts);
         /* make sure the id is valid for a hostname */
         temp = jid_new(p, newi->id);
         if (temp == NULL || j_strcmp(temp->get_domain().c_str(), newi->id) != 0) {

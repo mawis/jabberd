@@ -682,7 +682,9 @@ static void* _mio_connect(void *arg) {
     saddr = make_addr(cd->ip);
 #endif
     if (saddr == NULL) {
-	newm->connect_errmsg = "Could not resolve hostname or parse IP address";
+	std::ostringstream message;
+	message << "Could not resolve hostname or parse IP address: " << cd->ip;
+	newm->connect_errmsg = pstrdup(newm->p, message.str().c_str());
         if (cd->cb != NULL)
             (*cd->cb)(newm, MIO_CLOSED, cd->cb_arg, NULL, NULL, 0);
         cd->connected = -1;
