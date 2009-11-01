@@ -316,7 +316,7 @@ void dialback_out_packet(db d, xmlnode x, char *ip) {
     log_debug2(ZONE, LOGT_IO, "dbout packet[%s]: %s", ip, xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
 
     /* db:verify packets come in with us as the sender */
-    if (j_strcmp(from->get_domain().c_str(), d->i->id) == 0) {
+    if (j_strcmp(xmlnode_get_localname(x), "verify") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_DIALBACK) == 0 || j_strcmp(from->get_domain().c_str(), d->i->id) == 0) {
         verify = 1;
         /* fix the headers, restore the real from */
 	/* (I think we wouldn't need to from/ofrom thing anymore because we have dnsqueryby, that we need for s2s clustering) */
