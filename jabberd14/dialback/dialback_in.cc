@@ -297,6 +297,13 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x, char* unused1, 
 	xmlnode_put_attrib_ns(x2, "dnsqueryby", NULL, NULL, c->d->i->id); /* so this instance gets the DNS result back */
         xmlnode_put_attrib_ns(x2, "id", NULL, NULL, c->id);
         xmlnode_insert_node(x2, xmlnode_get_firstchild(x)); /* copy in any children */
+
+	// wrap by a route packet, so that we can ensure, that it gets routed to the resolver
+	x2 = xmlnode_wrap_ns(x2, "route", NULL, NS_SERVER);
+	xmlnode_put_attrib_ns(x2, "type", NULL, NULL, "resolve");
+	xmlnode_put_attrib_ns(x2, "to", NULL, NULL, "dnsrv.amessage.info");
+	xmlnode_put_attrib_ns(x2, "from", NULL, NULL, c->d->i->id);
+
         deliver(dpacket_new(x2), c->d->i);
 
         return;

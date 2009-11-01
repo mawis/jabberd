@@ -182,6 +182,25 @@ namespace xmppd {
 	    return r_DONE;
 	}
 
+	result resolver::on_route_packet(dpacket dp) {
+	    // only packets addressed to us directly (no default route) are accepted as routed packets
+	    if (!dp->host || get_instance_id() != dp->host) {
+		return instance_base::on_route_packet(dp);
+	    }
+
+	    // the routed packet has to have a to attribute
+	    jid to = jid_new(dp->p, xmlnode_get_attrib_ns(xmlnode_get_firstchild(dp->x), "to", NULL));
+	    if (to == NULL) {
+		return r_ERR;
+	    }
+
+	    // unpack the routed packet and process it
+	    dp->x = xmlnode_get_firstchild(dp->x);
+	    dp->id = to;
+	    dp->host = pstrdup(dp->p, to->get_domain().c_str());
+	    return on_stanza_packet(dp);
+	}
+
 	void resolver::resend_packet(xmlnode pkt, Glib::ustring ips, Glib::ustring to) {
 	    if (ips.empty()) {
 		jutil_error_xmpp(pkt, (xterror){502, N_("Unable to resolve hostname."), "wait", "service-unavailable"});
@@ -195,6 +214,11 @@ namespace xmppd {
 		pkt = xmlnode_wrap_ns(pkt, "route", NULL, NS_SERVER);
 		xmlnode_put_attrib_ns(pkt, "to", NULL, NULL, dnsresultto);
 		xmlnode_put_attrib_ns(pkt, "ip", NULL, NULL, ips.c_str());
+
+		// XXX
+		if (std::string("verify") == xmlnode_get_localname(pkt) && std::string(NS_DIALBACK) == xmlnode_get_namespace(pkt)) {
+		    log(xmppd::notice) << "DB resend: " << xmlnode_serialize_string(pkt, xmppd::ns_decl_list(), 0);
+		}
 	    }
 	    deliver(pkt);
 	}

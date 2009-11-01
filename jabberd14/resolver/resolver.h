@@ -325,6 +325,11 @@ namespace xmppd {
 	    	result on_stanza_packet(dpacket dp);
 
 		/**
+		 * handle received routed packets
+		 */
+		result on_route_packet(dpacket dp);
+
+		/**
 		 * create socket for lwresd access
 		 */
 		void open_lwresd_socket();
