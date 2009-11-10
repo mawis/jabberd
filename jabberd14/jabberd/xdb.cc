@@ -332,11 +332,11 @@ static int _xdb_act(xdbcache xc, jid owner, const char *ns, char const* act, cha
     return 0;
 }
 
-int xdb_act(xdbcache xc, jid owner, const char *ns, char *act, char *match, xmlnode data) {
+int xdb_act(xdbcache xc, jid owner, char const* ns, char const* act, char const* match, xmlnode data) {
     return _xdb_act(xc, owner, ns, act, match, NULL, NULL, data);
 }
 
-int xdb_act_path(xdbcache xc, jid owner, const char *ns, char const* act, char const* matchpath, xht namespaces, xmlnode data) {
+int xdb_act_path(xdbcache xc, jid owner, char const* ns, char const* act, char const* matchpath, xht namespaces, xmlnode data) {
     return _xdb_act(xc, owner, ns, act, NULL, matchpath, namespaces, data);
 }
 

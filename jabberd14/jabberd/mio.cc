@@ -1109,8 +1109,10 @@ void mio_init(void) {
         pth_yield(NULL);
     }
 
-    /* where to bounce HTTP requests to */
+    // HTTP configuration
     mio__data->bounce_uri = pstrdup(mio__data->p, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(io, "bounce", namespaces), 0)));
+    mio__data->webserver_path = pstrdup(mio__data->p, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(io, "mini-webserver", namespaces), 0)));
+    mio__data->flash_policy = pstrdup(mio__data->p, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(io, "flash-policy", namespaces), 0)));
 
     if (karma != NULL) {
         mio__data->k->val	  = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(karma, "init", namespaces), 0)), KARMA_INIT);

@@ -147,6 +147,8 @@ typedef struct dpacket_struct
 {
     char *host;
     jid id;
+    jid from_jid;
+    jid to_jid;
     ptype type;
     pool p;
     xmlnode x;
@@ -195,7 +197,7 @@ typedef result (*cfhandler)(instance id, xmlnode x, void *arg);
 typedef result (*beathandler)(void *arg);
 
 /*** public functions for base modules ***/
-void register_config(pool p, char *node, cfhandler f, void *arg); /* register a function to handle that node in the config file */
+void register_config(pool p, char const* node, cfhandler f, void *arg); /* register a function to handle that node in the config file */
 void register_beat(int freq, beathandler f, void *arg); /* register the function to be called from the heartbeat, freq is how often, <= 0 is ignored */
 typedef void(*shutdown_func)(void*arg);
 void register_shutdown(shutdown_func f,void *arg); /* register to be notified when the server is shutting down */
@@ -209,10 +211,11 @@ dpacket dpacket_new(xmlnode x); /* create a new delivery packet from source xml 
 dpacket dpacket_copy(dpacket p); /* copy a packet (and it's flags) */
 void deliver(dpacket p, instance i); /* deliver packet from sending instance */
 void deliver_fail(dpacket p, const char *err); /* bounce a packet intelligently */
-void deliver_instance(instance i, dpacket p); /* deliver packet TO the instance, if the result != r_DONE, you have to handle the packet! */
+// void deliver_instance(instance i, dpacket p); /* deliver packet TO the instance, if the result != r_DONE, you have to handle the packet! */
 bool deliver_is_delivered_to(Glib::ustring const& host, _instance const* i); /* util that returns the instance handling this hostname for normal packets */
 bool deliver_is_uplink(instance i); // checks if an instance is configured to be the uplink
 std::set<Glib::ustring> deliver_routed_hosts(ptype type, instance i);
+void deliver_config_filter(xmlnode greymatter);
 
 /*** global logging/signal symbols ***/
 #define LOGT_LEGACY 1
@@ -284,7 +287,7 @@ typedef struct xdbcache_struct {
 
 xdbcache xdb_cache(instance i); /**< create a new xdb cache for this instance */
 xmlnode xdb_get(xdbcache xc,  jid owner, const char *ns); /**< blocks until namespace is retrieved, returns xmlnode or NULL if failed */
-int xdb_act(xdbcache xc, jid owner, const char *ns, char *act, char *match, xmlnode data); /**< sends new xml action, returns non-zero if failure */
+int xdb_act(xdbcache xc, jid owner, const char *ns, char *act, char const* match, xmlnode data); /**< sends new xml action, returns non-zero if failure */
 int xdb_act_path(xdbcache xc, jid owner, const char *ns, char const *act, char const* matchpath, xht namespaces, xmlnode data); /**< sends new xml action, returns non-zero if failure */
 int xdb_set(xdbcache xc, jid owner, const char *ns, xmlnode data); /**< sends new xml to replace old, returns non-zero if failure */
 
@@ -413,7 +416,10 @@ typedef struct mio_main_st {
     int zzz_active;	/**< if set to something else then 1, there has been sent a signal already, that is not yet processed */
     struct karma *k;	/**< default karma */
     int rate_t, rate_p; /**< default rate, if any */
-    char *bounce_uri;	/**< where to bounce HTTP requests to */
+    char const* bounce_uri;	/**< where to bounce HTTP requests to */
+    char const* webserver_path;	/**< location where small HTTP requests are handled from */
+    char const* flash_policy;	/**< location of the flash policy file */
+
 } _ios,*ios;
 
 /* MIO SOCKET HANDLERS */
@@ -529,6 +535,9 @@ int _mio_write_dump(mio m);
 #define mio_pool(m) (m->p)
 #define mio_ip(m) (m ? m->peer_ip : NULL)
 #define mio_connect_errmsg(m) (m->connect_errmsg)
+
+// where to bounce a HTTP GET request to if not otherwise configured
+#define HTTP_BOUNCE_URI "http://jabberd.org/get-bounce"
 
 /*-----------------
  * Access controll 

@@ -38,11 +38,11 @@
 #define A_ERROR  -1
 #define A_READY   1
 
-typedef struct queue_struct {
+typedef struct jqueue_struct {
     int stamp;
     xmlnode x;
-    struct queue_struct *next;
-} *queue, _queue;
+    struct jqueue_struct *next;
+} *jqueue, _jqueue;
 
 typedef struct accept_instance_st {
     mio m;
@@ -57,15 +57,15 @@ typedef struct accept_instance_st {
     int restrict_var;
     xdbcache offline;
     jid offjid;
-    queue q;
-    /* dpacket dplast; */
+    jqueue q;
+    std::set<std::string>* dynamic_routings; /**< hostnames the peer has dynamically routed to him, need to unregister on connection close */
 } *accept_instance, _accept_instance;
 
 static void base_accept_queue(accept_instance ai, xmlnode x) {
-    queue q;
+    jqueue q;
     if(ai == NULL || x == NULL) return;
 
-    q = static_cast<queue>(pmalloco(xmlnode_pool(x),sizeof(_queue)));
+    q = static_cast<jqueue>(pmalloco(xmlnode_pool(x),sizeof(_jqueue)));
     q->stamp = time(NULL);
     q->x = x;
     q->next = ai->q;
@@ -78,15 +78,7 @@ static result base_accept_deliver(instance i, dpacket p, void* arg) {
 
     /* Insert the message into the write_queue if we don't have a MIO socket yet.. */
     if (ai->state == A_READY) {
-        /*
-         * TSBandit -- this doesn't work, since many components simply modify the node in-place
-        if(ai->dplast == p) // don't return packets that they sent us! circular reference!
-        {
-            deliver_fail(p,"Circular Refernce Detected");
-        }
-        else
-        */
-            mio_write(ai->m, p->x, NULL, 0);
+	mio_write(ai->m, p->x, NULL, 0);
         return r_DONE;
     }
 
@@ -94,12 +86,31 @@ static result base_accept_deliver(instance i, dpacket p, void* arg) {
     return r_DONE;
 }
 
+static void base_accept_unregister_dynamics(accept_instance ai) {
+    // sanity check
+    if (!ai)
+	return;
+
+    // unregister the dynamic routings
+    if (ai->dynamic_routings) {
+	for (std::set<std::string>::const_iterator p = ai->dynamic_routings->begin(); p != ai->dynamic_routings->end(); ++p) {
+	    log_notice(ai->i->id, "unregistering dynamic routing for '%s'", p->c_str());
+	    unregister_instance(ai->i, p->c_str());
+	}
+
+	delete ai->dynamic_routings;
+	ai->dynamic_routings = NULL;
+    }
+
+    // create new set for future dynamic routings
+    ai->dynamic_routings = new std::set<std::string>();
+}
 
 /* Handle incoming packets from the xstream associated with an MIO object */
 static void base_accept_process_xml(mio m, int state, void* arg, xmlnode x, char* unused1, int unused2) {
     accept_instance ai = (accept_instance)arg;
     xmlnode cur, off;
-    queue q, q2;
+    jqueue q, q2;
     jpacket jp;
     char const* pwdsent;
     xmppd::sha1 pwdcheck;
@@ -118,13 +129,6 @@ static void base_accept_process_xml(mio m, int state, void* arg, xmlnode x, char
         case MIO_XML_NODE:
             /* If aio has been authenticated previously, go ahead and deliver the packet */
             if(ai->state == A_READY  && m == ai->m) {
-                /*
-                 * TSBandit -- this doesn't work.. since many components modify the node in-place
-                ai->dplast = dpacket_new(x);
-                deliver(ai->dplast, ai->i);
-                ai->dplast = NULL;
-                */
-
                 /* if we are supposed to be careful about what comes from this socket */
                 if(ai->restrict_var) {
                     jp = jpacket_new(x);
@@ -135,7 +139,20 @@ static void base_accept_process_xml(mio m, int state, void* arg, xmlnode x, char
                     }
                 }
 
-                deliver(dpacket_new(x), ai->i);
+		// create a deliverable packet from the stanza we got
+		dpacket p = dpacket_new(x);
+
+		// check if this is a routing update we got
+		if (p && p->type == p_XDB && p->id && p->id->get_domain() == "-internal" && p->id->has_node()) {
+		    // check for host@-internal
+		    if (p->id->get_node() == "host" && p->id->has_resource()) {
+			ai->dynamic_routings->insert(p->id->get_resource());
+		    }
+
+		    // XXX might check for unhost as well
+		}
+
+                deliver(p, ai->i);
                 return;
             }
 
@@ -218,9 +235,14 @@ static void base_accept_process_xml(mio m, int state, void* arg, xmlnode x, char
 
             ai->state = A_ERROR;
 
+	    log_notice(ai->i->id, "Connection to peer had an error");
+
             /* clean up any tirds */
             while ((cur = mio_cleanup(m)) != NULL)
                 deliver_fail(dpacket_new(cur), N_("External Server Error"));
+
+	    // unregister dynamic routings to peer
+	    base_accept_unregister_dynamics(ai);
 
             return;
 
@@ -229,9 +251,12 @@ static void base_accept_process_xml(mio m, int state, void* arg, xmlnode x, char
             if (m != ai->m)
                 return;
 
-            log_debug2(ZONE, LOGT_IO, "closing accepted socket");
+	    log_notice(ai->i->id, "Connection to peer has been closed");
             ai->m = NULL;
             ai->state = A_ERROR;
+
+	    // unregister dynamic routings to peer
+	    base_accept_unregister_dynamics(ai);
 
             return;
         default:
@@ -275,7 +300,7 @@ static void base_accept_offline(accept_instance ai, xmlnode x) {
 /* check the packet queue for stale packets */
 static result base_accept_beat(void *arg) {
     accept_instance ai = (accept_instance)arg;
-    queue bouncer, lastgood, cur, next;
+    jqueue bouncer, lastgood, cur, next;
     int now = time(NULL);
 
     cur = ai->q;
@@ -310,6 +335,16 @@ static result base_accept_beat(void *arg) {
     return r_DONE;
 }
 
+static void base_accept_send_routingupdate(accept_instance inst, char const* destination, int is_register) {
+    xmlnode route_stanza = xmlnode_new_tag_ns("xdb", NULL, NS_SERVER);
+    xmlnode_put_attrib_ns(route_stanza, "ns", NULL, NULL, "");
+    xmlnode_put_attrib_ns(route_stanza, "from", NULL, NULL, inst->i->id);
+    jid magic_jid = jid_new(xmlnode_pool(route_stanza), is_register ? "host@-internal" : "unhost@-internal");
+    jid_set(magic_jid, destination, JID_RESOURCE);
+    xmlnode_put_attrib_ns(route_stanza, "to", NULL, NULL, jid_full(magic_jid));
+    mio_write(inst->m, route_stanza, NULL, 0);
+}
+
 /**
  * callback that gets notified if a new host is routed by this jabberd instance
  *
@@ -321,29 +356,37 @@ static result base_accept_beat(void *arg) {
 static void base_accept_routingupdate(instance i, char const* destination, int is_register, void *arg) {
     accept_instance inst = static_cast<accept_instance>(arg);
     // sanity check
-    if (!inst)
+    if (!inst || !destination)
 	return;
 
     // we only care for routingupdates if we are configured to be the uplink
     if (!deliver_is_uplink(inst->i))
 	return;
 
-    // and we have to have an established connection
-    if (!inst->m || inst->state != A_READY)
+    // we do not forward default routings
+    if (std::string("*") == destination)
 	return;
 
     // do not route back updates if both sides feel being an uplink
     if (inst->i == i)
 	return;
 
+    // and we have to have an established connection
+    if (!inst->m || inst->state != A_READY)
+	return;
+
     log_debug2(ZONE, LOGT_DYNAMIC, "base_accept is uplink and has to forward %s", is_register ? "host-command" : "unhost-command");
-    xmlnode route_stanza = xmlnode_new_tag_ns("xdb", NULL, NS_SERVER);
-    xmlnode_put_attrib_ns(route_stanza, "ns", NULL, NULL, "");
-    xmlnode_put_attrib_ns(route_stanza, "from", NULL, NULL, inst->i->id);
-    jid magic_jid = jid_new(xmlnode_pool(route_stanza), is_register ? "host@-internal" : "unhost@-internal");
-    jid_set(magic_jid, destination, JID_RESOURCE);
-    xmlnode_put_attrib_ns(route_stanza, "to", NULL, NULL, jid_full(magic_jid));
-    mio_write(inst->m, route_stanza, NULL, 0);
+    base_accept_send_routingupdate(inst, destination, is_register);
+}
+
+static void _base_accept_freeing_instance(void* arg) {
+    accept_instance inst = static_cast<accept_instance>(arg);
+
+    if (!inst)
+	return;
+
+    if (inst->dynamic_routings)
+	delete inst->dynamic_routings;
 }
 
 static result base_accept_config(instance id, xmlnode x, void *arg) {
@@ -385,6 +428,8 @@ static result base_accept_config(instance id, xmlnode x, void *arg) {
     inst->ip          = ip;
     inst->port        = port;
     inst->timeout     = timeout;
+    inst->dynamic_routings = new std::set<std::string>();
+    pool_cleanup(id->p, _base_accept_freeing_instance, static_cast<void*>(inst));
     if (restrict_var)
         inst->restrict_var = 1;
     if (offline) {
