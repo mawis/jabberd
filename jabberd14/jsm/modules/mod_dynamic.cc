@@ -140,9 +140,10 @@ static mreturn mod_dynamic_server_disco_info(mapi m) {
  * handle our server commands
  *
  * @param m the ::mapi_struct that contains the request
+ * @param config_jid the jid where dynamically hosts are stored to
  * @return signalling if this method processed the request
  */
-static mreturn mod_dynamic_server_command(mapi m) {
+static mreturn mod_dynamic_server_command(mapi m, jid config_jid) {
     // we only handle set requests
     if (jpacket_subtype(m->packet) != JPACKET__SET)
 	return M_PASS;
@@ -252,18 +253,31 @@ static mreturn mod_dynamic_server_command(mapi m) {
 		} else {
 		    xmlnode_put_attrib_ns(note, "type", NULL, NULL, "info");
 
+		    std::ostringstream replace_path;
+		    replace_path << "dhost:host[@jid='" << preped_hostname->get_domain() << "']";
+
 		    // execute
+		    xmlnode newhost = NULL;
 		    switch (given_command) {
 			case host:
 			    xmlnode_insert_cdata(note, messages_get(xmlnode_get_lang(m->packet->x), N_("Hostname has been added.")), -1);
 			    log_debug2(ZONE, LOGT_DYNAMIC, "registering hostname %s on server %s", preped_hostname->get_domain().c_str(), m->si->i->id);
 			    register_instance(m->si->i, preped_hostname->get_domain().c_str());
+
+			    // store in xdb
+			    newhost = xmlnode_new_tag_ns("host", NULL, NS_JABBERD_CONFIG_DYNAMICHOST);
+			    xmlnode_put_attrib_ns(newhost, "jid", NULL, NULL, preped_hostname->get_domain().c_str());
+			    xdb_act_path(m->si->xc, config_jid, NS_JABBERD_CONFIG_DYNAMICHOST, "insert", replace_path.str().c_str(), m->si->std_namespace_prefixes, newhost);
+			    xmlnode_free(newhost);
 			    break;
 			case unhost:
 			    // XXX kick existing sessions and remove local data about this domain
 			    xmlnode_insert_cdata(note, messages_get(xmlnode_get_lang(m->packet->x), N_("Hostname has been removed.")), -1);
 			    log_debug2(ZONE, LOGT_DYNAMIC, "unregistering hostname %s on server %s", preped_hostname->get_domain().c_str(), m->si->i->id);
 			    unregister_instance(m->si->i, preped_hostname->get_domain().c_str());
+
+			    // remove in xdb
+			    xdb_act_path(m->si->xc, config_jid, NS_JABBERD_CONFIG_DYNAMICHOST, "insert", replace_path.str().c_str(), m->si->std_namespace_prefixes, NULL);
 			    break;
 		    }
 		}
@@ -296,12 +310,12 @@ static mreturn mod_dynamic_server_command(mapi m) {
  * handle requests to add or remove hosts from the server
  *
  * @param m the ::mapi_struct that contains the request to handle
- * @param arg unused/ignored
+ * @param arg jid used for xdb access
  * @return signalling if this method processed the request
  */
 static mreturn mod_dynamic_server(mapi m, void *arg) {
     /* sanity check */
-    if (m == NULL || m->packet == NULL)
+    if (m == NULL || m->packet == NULL || !arg)
 	return M_PASS;
 
     /* only handle iqs */
@@ -315,7 +329,7 @@ static mreturn mod_dynamic_server(mapi m, void *arg) {
 	return mod_dynamic_server_disco_items(m);
 
     if (NSCHECK(m->packet->iq, NS_COMMAND))
-	return mod_dynamic_server_command(m);
+	return mod_dynamic_server_command(m, static_cast<jid>(arg));
 
     return M_PASS;
 }
@@ -326,5 +340,33 @@ static mreturn mod_dynamic_server(mapi m, void *arg) {
  * @param si the session manager instance
  */
 extern "C" void mod_dynamic(jsmi si) {
-    js_mapi_register(si, e_SERVER, mod_dynamic_server, NULL);
+    jid config_jid = jid_new(si->p, si->i->id);
+
+    js_mapi_register(si, e_SERVER, mod_dynamic_server, config_jid);
+
+    // get additional hostnames of the session manager, that have been dynamically added
+    xmlnode dynhosts = xdb_get(si->xc, config_jid, NS_JABBERD_CONFIG_DYNAMICHOST);
+    for (xmlnode iter = xmlnode_get_firstchild(dynhosts); iter; iter = xmlnode_get_nextsibling(iter)) {
+	// skip what we do not care about
+	if (xmlnode_get_type(iter) != NTYPE_TAG) {
+	    continue;
+	}
+	if (j_strcmp(xmlnode_get_namespace(iter), NS_JABBERD_CONFIG_DYNAMICHOST)) {
+	    continue;
+	}
+	if (j_strcmp(xmlnode_get_localname(iter), "host")) {
+	    continue;
+	}
+
+	char const* dynhost = xmlnode_get_attrib_ns(iter, "jid", NULL);
+	if (!dynhost) {
+	    log_notice(si->i->id, "ignoring empty dynamic host in configuration: %s", xmlnode_serialize_string(iter, xmppd::ns_decl_list(), 0));
+	    continue;
+	}
+
+	// actually register the hostname
+	log_notice(si->i->id, "loading dynamic host: %s", dynhost);
+	register_instance(si->i, dynhost);
+    }
+    xmlnode_free(dynhosts);
 }
