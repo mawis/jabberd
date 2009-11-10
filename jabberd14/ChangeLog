@@ -1,3 +1,18 @@
+2009-11-10  Matthias Wimmer  <m@tthias.eu>
+    * jsm/jsm.cc: porting changes in 1.6.x branch to trunk
+    * jabberd/jabberd.h: same
+    * jabberd/mio_xml.cc: same
+    * jabberd/config.cc: same
+    * jabberd/mio_tls.cc: same
+    * jabberd/xdb.cc: same
+    * jabberd/lib/str.cc: same
+    * jabberd/lib/jabberdlib.h: same
+    * jabberd/lib/jutil.cc: same
+    * jabberd/mio.cc: same
+    * jabberd/base/base_connect.cc: same
+    * jabberd/base/base_accept.cc: same
+    * jabberd/deliver.cc: same
+
 2009-03-17  Matthias Wimmer  <m@tthias.eu>
 
     * jabberd/lib/jabberdlib.h: fixing includes (by Robin Redeker)

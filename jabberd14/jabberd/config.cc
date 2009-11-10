@@ -363,6 +363,9 @@ int configurate(char *file, xht cmd_line, int is_restart) {
 	}
     }
 
+    // update the filter settings in the XML router
+    deliver_config_filter(greymatter__);
+
     return 0;
 }
 
@@ -386,7 +389,7 @@ cfg cfhandlers__ = NULL;	/**< list of config handlers */
  * @param f the handler function that should be registered
  * @param arg argument, that should be passed to the handler function
  */
-void register_config(pool p, char *node, cfhandler f, void *arg) {
+void register_config(pool p, char const* node, cfhandler f, void *arg) {
     cfg newg;
 
     /* create and setup */

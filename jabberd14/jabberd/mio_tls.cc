@@ -596,7 +596,7 @@ static void mio_tls_process_credentials(xmlnode x, const std::list<std::string>&
 	    continue;
 	}
 
-	/*
+#ifdef HAS_NEW_GNUTLS
 	// load an OpenPGP key
 	if (j_strcmp(xmlnode_get_localname(cur), "openpgp") == 0) {
 	    char const *const pubfile = xmlnode_get_data(cur);
@@ -640,7 +640,7 @@ static void mio_tls_process_credentials(xmlnode x, const std::list<std::string>&
 
 	    continue;
 	}
-	*/
+#endif
 
 	// setup protocols to use
 	if (j_strcmp(xmlnode_get_localname(cur), "protocols") == 0) {

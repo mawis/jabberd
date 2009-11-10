@@ -356,7 +356,7 @@ namespace xmppd {
 }
 
 #define ZONE zonestr(__FILE__,__LINE__)
-char *zonestr(char *file, int line);
+char *zonestr(char const* file, int line);
 
 /* --------------------------------------------------------- */
 /*                                                           */
@@ -1294,20 +1294,22 @@ typedef struct xterror_struct
 
 #define NS_JABBERD_CONFIGFILE "http://jabberd.org/ns/configfile" /**< namespace of the root element in the config file */
 #define NS_JABBERD_CONFIGFILE_REPLACE "http://jabberd.org/ns/configfile/replace" /**< namespace of replace and include commands */
+#define NS_JABBERD_CONFIGFILE_ROUTER "http://xmppd.org/ns/configfile/router" /**< namespace for global router configuration */
 #define NS_JABBERD_CONFIG_XDBFILE "jabber:config:xdb_file" /**< namespace of xdb_file component configuration */
 #define NS_JABBERD_CONFIG_DIALBACK "jabber:config:dialback" /**< namespace of dialback component configuration */
 #define NS_JABBERD_CONFIG_DNSRV "jabber:config:dnsrv" /**< namespace of the dnsrv component configuration */
 #define NS_JABBERD_CONFIG_JSM "jabber:config:jsm" /**< namespace of the jsm component configuration */
 #define NS_JABBERD_CONFIG_PTHCSOCK "jabber:config:pth-csock" /**< namespace of the pthsock_client component configuration */
 #define NS_JABBERD_CONFIG_XDBSQL "jabber:config:xdb_sql" /**< namepace of the xdb_sql component configuration */
+#define NS_JABBERD_CONFIG_DYNAMICHOST "http://xmppd.org/ns/dynamichost" /**< namespace of the dynamic configuration of additional hosts for components */
 
 /* --------------------------------------------------------- */
 /*                                                           */
 /* JUtil functions                                           */
 /*                                                           */
 /* --------------------------------------------------------- */
-xmlnode jutil_presnew(int type, char *to, const char *status); /* Create a skeleton presence packet */
-xmlnode jutil_iqnew(int type, char *ns);		 /* Create a skeleton iq packet */
+xmlnode jutil_presnew(int type, char const* to, const char *status); /* Create a skeleton presence packet */
+xmlnode jutil_iqnew(int type, char const* ns);		 /* Create a skeleton iq packet */
 xmlnode jutil_msgnew(char const* type, char const* to, char const* subj, char const* body);
 							 /* Create a skeleton message packet */
 int     jutil_priority(xmlnode x);			 /* Determine priority of this packet */
@@ -1318,7 +1320,7 @@ char*   jutil_timestamp_ms(char *buffer);		 /* Get stringified timestamp includi
 void    jutil_error(xmlnode x, terror E);		 /* Append an <error> node to x */
 void    jutil_error_xmpp(xmlnode x, xterror E);		 /* Append an <error> node to x using XMPP syntax */
 void	jutil_error_map(terror old, xterror *mapped);	 /* map an old terror structure to a new xterror structure */
-void    jutil_delay(xmlnode msg, char *reason);		 /* Append a delay packet to msg */
+void    jutil_delay(xmlnode msg, char const* reason);		 /* Append a delay packet to msg */
 char*   jutil_regkey(char *key, char *seed);		 /* pass a seed to generate a key, pass the key again to validate (returns it) */
 
 /* --------------------------------------------------------- */

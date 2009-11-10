@@ -43,7 +43,7 @@
  * @param status optional status (CDATA for the &lt;status/&gt; element, NULL for no &lt;status/&gt; element)
  * @return the xmlnode containing the created presence stanza
  */
-xmlnode jutil_presnew(int type, char *to, const char *status) {
+xmlnode jutil_presnew(int type, char const* to, char const* status) {
     xmlnode pres;
 
     pres = xmlnode_new_tag_ns("presence", NULL, NS_SERVER);
