@@ -75,6 +75,7 @@
 typedef struct modpres_conf_struct {
     jid bcc;		/**< who gets a blind carbon copy of our presences */
     int pres_to_xdb;	/**< if the (primary) presence of a user should be stored in xdb */
+    int peerpres_to_xdb;/**< if the peer presence of a user should be stored in xdb */
 } *modpres_conf, _modpres_conf;
 
 /**
@@ -326,6 +327,30 @@ static void mod_presence_store(mapi m) {
 
     /* store to xdb */
     xdb_set(m->si->xc, m->user->id, NS_JABBERD_STOREDPRESENCE, top ? top->presence : NULL);
+}
+
+/**
+ * store the presence of a peer to xdb
+ *
+ * @param m the mapi struct
+ */
+static void mod_peerpresence_store(mapi m) {
+    // sanity check
+    if (!m)
+	return;
+
+    // do not store presence probes
+    if (jpacket_subtype(m->packet) == JPACKET__PROBE)
+	return;
+
+    // generate the path of the presence to be replaced
+    std::ostringstream xpath;
+    xpath << "presence[@from='" << jid_full(m->packet->from) << "']";
+
+    log_debug2(ZONE, LOGT_STORAGE, "storing peer presence by matched xdb: %s", xpath.str().c_str());
+
+    /* replace this message with nothing */
+    xdb_act_path(m->si->xc, m->user->id, NS_JABBERD_STOREDPEERPRESENCE, "insert", xpath.str().c_str(), m->si->std_namespace_prefixes, m->packet->x);
 }
 
 /**
@@ -697,11 +722,21 @@ static mreturn mod_presence_deserialize(mapi m, void *arg) {
  */
 static mreturn mod_presence_deliver(mapi m, void *arg) {
     session cur;
+    modpres_conf conf = static_cast<modpres_conf>(arg);
+
+    // security check
+    if (!conf)
+	return M_PASS;
 
     if (m->packet->type != JPACKET_PRESENCE)
 	return M_IGNORE;
 
     log_debug2(ZONE, LOGT_DELIVER, "deliver phase");
+
+    // store presence in xdb?
+    if (conf->peerpres_to_xdb) {
+	mod_peerpresence_store(m);
+    }
 
     /* only if we HAVE a user, and it was sent to ONLY the user@server, and there is at least one session available */
     if (m->user && !m->packet->to->has_resource() && js_session_primary(m->user) != NULL) {
@@ -770,10 +805,12 @@ extern "C" void mod_presence(jsmi si) {
 		jid_append(conf->bcc,jid_new(si->p,xmlnode_get_data(cfg)));
 	} else if (j_strcmp(element_name, "presence2xdb") == 0) {
 	    conf->pres_to_xdb++;
+	} else if (j_strcmp(element_name, "peerpresence2xdb") == 0) {
+	    conf->peerpres_to_xdb++;
 	}
     }
 
-    js_mapi_register(si,e_DELIVER, mod_presence_deliver, NULL);
+    js_mapi_register(si,e_DELIVER, mod_presence_deliver, (void*)conf);
     js_mapi_register(si,e_SESSION, mod_presence_session, (void*)conf);
     js_mapi_register(si,e_DESERIALIZE, mod_presence_deserialize, (void*)conf);
     js_mapi_register(si, e_DELETE, mod_presence_delete, NULL);

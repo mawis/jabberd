@@ -1,3 +1,9 @@
+2009-11-16  Matthias Wimmer  <m@tthias.eu>
+
+    * jsm/modules/mod_presence.cc: allow jsm configuration to store presence
+    	information of user's contacts
+    * jabberd/lib/jabberdlib.h: same
+
 2009-11-10  Matthias Wimmer  <m@tthias.eu>
     * jsm/jsm.cc: porting changes in 1.6.x branch to trunk
     * jabberd/jabberd.h: same
