@@ -66,57 +66,55 @@ typedef struct {
  * @param atts attributes that are contained in the start element
  */
 void expat_startElement(void* userdata, const char* name, const char** atts) {
-    char *prefix = NULL;
-    char const *ns_iri = NULL;
-    char *local_name = NULL;
+    Glib::ustring qname = name;
+
+    Glib::ustring prefix;
+    Glib::ustring ns_iri;
+    Glib::ustring local_name;
 
     /* get the data we are working on */
-    expat_callback_data callback_data = (expat_callback_data)userdata;
+    expat_callback_data callback_data = static_cast<expat_callback_data>(userdata);
 
     /* get prefix, iri, and local name of the element */
-    if (strchr(name, XMLNS_SEPARATOR) != NULL) {
-	/* expat found the namespace IRI for us */
-	ns_iri = pstrdup(callback_data->parse_pool, name);
-	local_name = strchr(ns_iri, XMLNS_SEPARATOR);
-	local_name[0] = 0;
-	local_name++;
-	prefix = pstrdup(callback_data->parse_pool, callback_data->ns->get_nsprefix(ns_iri));
-    } else if (strchr(name, ':') != NULL) {
-	/* expat could not expand the prefix, it's not declared */
-
-	/* ... be liberal in what you accept ... */
-
-	/* start with a guess */
-	prefix = pstrdup(callback_data->parse_pool, name);
-	local_name = strchr(prefix, ':');
-	local_name[0] = 0;
-	local_name++;
-	ns_iri = "http://jabberd.org/no/clue";
-
-	/* some well known prefixes (but they would have to been declared!) */
-	if (j_strcmp(prefix, "stream") == 0) {
-	    ns_iri = NS_STREAM;
-	} else if (j_strcmp(prefix, "db") == 0) {
-	    ns_iri = NS_DIALBACK;
-	}
+    Glib::ustring::size_type xmlns_separator_pos = qname.find(XMLNS_SEPARATOR);
+    if (xmlns_separator_pos != Glib::ustring::npos) {
+	// expat found the namespace IRI for us (this should be the case for a correct stream)
+	ns_iri = qname.substr(0, xmlns_separator_pos);
+	local_name = qname.substr(xmlns_separator_pos + 1);
+	prefix = callback_data->ns->get_nsprefix(ns_iri);
     } else {
-	/* default namespace, but not declared */
+	Glib::ustring::size_type colon_pos = qname.find(':');
+	if (colon_pos != Glib::ustring::npos) {
+	    // expat could not expand the prefix, but there is one
 
-	/* ... be liberal in what you accept ... (guessing it's 'jabber:server') */
-	prefix = NULL;
-	ns_iri = "jabber:server";
-	local_name = pstrdup(callback_data->parse_pool, name);
+	    // ... be liberal in what you accept ...
+
+	    // start with a guess
+	    prefix = qname.substr(0, colon_pos);
+	    local_name = qname.substr(colon_pos + 1);
+	    ns_iri = "http://jabberd.org/no/clue";
+
+	    // some well known prefixes (but they would have to be declared!)
+	    if (prefix == "stream") {
+		ns_iri = NS_STREAM;
+	    } else if (prefix == "db") {
+		ns_iri = NS_DIALBACK;
+	    }
+	} else {
+	    // default namespace, but not declared
+
+	    // again: ... be liberal in what you accept ... (guessing it's 'jabber:server')
+	    ns_iri = NS_SERVER;
+	    local_name = qname;
+	}
     }
-
-    if (prefix != NULL && prefix[0] == '\0')
-	prefix = NULL;
 
     if (callback_data->x == NULL) {
         /* allocate a base node */
-	callback_data->x = xmlnode_new_tag_ns(local_name, prefix, ns_iri);
+	callback_data->x = xmlnode_new_tag_ns(local_name.c_str(), prefix.empty() ? NULL : prefix.c_str(), ns_iri.c_str());
     } else {
 	/* insert as child node */
-	callback_data->x = xmlnode_insert_tag_ns(callback_data->x, local_name, prefix, ns_iri);
+	callback_data->x = xmlnode_insert_tag_ns(callback_data->x, local_name.c_str(), prefix.empty() ? NULL : prefix.c_str(), ns_iri.c_str());
     }
     xmlnode_put_expat_attribs(callback_data->x, atts, *callback_data->ns);
 }
@@ -404,51 +402,51 @@ int xmlnode2file_limited(char const* file, xmlnode node, size_t sizelimit) {
  */
 void xmlnode_put_expat_attribs(xmlnode owner, const char** atts, xmppd::ns_decl_list& nslist) {
     int i = 0;
-    
+   
+    // sanity check
     if (atts == NULL)
 	return;
 
-    while (atts[i] != '\0') {
-	char *prefix = NULL;
-	char const* ns_iri = NULL;
-	char *local_name = NULL;
+    for (; atts[i] != '\0'; i += 2) {
+	// copy qname and the value to a ustring we can handle better
+	Glib::ustring qname(atts[i]);
+	Glib::ustring attribute_value(atts[i+1]);
 
-	/* get prefix, iri, and local name of the element */
-	if (strchr(atts[i], XMLNS_SEPARATOR) != NULL) {
-	    /* expat found the namespace IRI for us */
-	    ns_iri = pstrdup(xmlnode_pool(owner), atts[i]);
-	    local_name = strchr(ns_iri, XMLNS_SEPARATOR);
-	    local_name[0] = 0;
-	    local_name++;
-	    prefix = pstrdup(xmlnode_pool(owner),nslist.get_nsprefix(ns_iri ? ns_iri : ""));
-	} else if (strchr(atts[i], ':') != NULL) {
-	    /* expat could not expand the prefix, it's not declared */
+	Glib::ustring prefix;
+	Glib::ustring ns_iri;
+	Glib::ustring local_name;
 
-	    /* ... be liberal in what you accept ... */
-
-	    /* start with a guess */
-	    prefix = pstrdup(xmlnode_pool(owner), atts[i]);
-	    local_name = strchr(prefix, ':');
-	    local_name[0] = 0;
-	    local_name++;
-	    ns_iri = "http://jabberd.org/no/clue";
-
-	    /* some well known prefixes (but they would have to been declared!) */
-	    if (j_strcmp(prefix, "stream") == 0) {
-		ns_iri = NS_STREAM;
-	    } else if (j_strcmp(prefix, "db") == 0) {
-		ns_iri = NS_DIALBACK;
-	    }
+	// get prefix, iri, and local name of the element
+	Glib::ustring::size_type xmlns_separator_pos = qname.find(XMLNS_SEPARATOR);
+	if (xmlns_separator_pos != Glib::ustring::npos) {
+	    // expat found the namespace IRI for us (this should be the case for a correct stream)
+	    ns_iri = qname.substr(0, xmlns_separator_pos);
+	    local_name = qname.substr(xmlns_separator_pos + 1);
+	    prefix = nslist.get_nsprefix(ns_iri);
 	} else {
-	    /* default namespace, but not declared */
+	    Glib::ustring::size_type colon_pos = qname.find(':');
+	    if (colon_pos != Glib::ustring::npos) {
+		// expat could not expand the prefix, but there is one
 
-	    /* ... be liberal in what you accept ... (guessing it's 'jabber:server') */
-	    prefix = NULL;
-	    ns_iri = NULL;
-	    local_name = pstrdup(xmlnode_pool(owner), atts[i]);
+		// ... be liberal in what you accept ...
+
+		// start with a guess
+		prefix = qname.substr(0, colon_pos);
+		local_name = qname.substr(colon_pos + 1);
+		ns_iri = "http://jabberd.org/no/clue";
+
+		// some well known prefixes (but they would have to be declared!)
+		if (prefix == "stream") {
+		    ns_iri = NS_STREAM;
+		} else if (prefix == "db") {
+		    ns_iri = NS_DIALBACK;
+		}
+	    } else {
+		local_name = qname;
+	    }
 	}
 
-        xmlnode_put_attrib_ns(owner, local_name, prefix, ns_iri, atts[i+1]);
-        i += 2;
+	// add attribute to the node
+	xmlnode_put_attrib_ns(owner, local_name.c_str(), prefix.empty() ? NULL : prefix.c_str(), ns_iri.empty() ? NULL : ns_iri.c_str(), attribute_value.c_str());
     }
 }

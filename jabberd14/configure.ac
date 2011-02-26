@@ -7,7 +7,7 @@ AC_PREREQ(2.61)
 
 AC_INIT
 AC_CONFIG_SRCDIR([jabberd/jabberd.h])
-AM_INIT_AUTOMAKE(jabberd14,1.9.0-alpha-20080430)
+AM_INIT_AUTOMAKE(jabberd14,1.9.0-alpha-20110220)
 AC_CONFIG_HEADERS([config.h])
 AC_LANG(C++)
 
@@ -171,7 +171,7 @@ fi
 AC_MSG_CHECKING(for getaddrinfo)
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <sys/types.h>
 #include <sys/socket.h>
-#include <netdb.h>]], [[getaddrinfo(NULL, NULL, NULL, NULL)]])],[has_getaddrinfo=yes],[has_getaddrinfo=no])
+#include <netdb.h>]], [[getaddrinfo(0, 0, 0, 0)]])],[has_getaddrinfo=yes],[has_getaddrinfo=no])
 if test "$has_getaddrinfo" = yes; then
     AC_MSG_RESULT(yes)
 else

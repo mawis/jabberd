@@ -83,21 +83,15 @@ static char *debug_log_timestamp(void) {
  * @return 1 if it should be logged, 0 if not
  */
 static inline int _debug_log_zonefilter(char const* zone) {
-    char *pos, c = '\0';
-    if(zone != NULL && debug__zones != NULL)
-    {
-	pos = strchr(zone,'.');
-        if(pos != NULL)
-        {
-            c = *pos;
-            *pos = '\0'; /* chop */
-        }
-        if(xhash_get(debug__zones,zone) == NULL)
-            return 0;
-        if(pos != NULL)
-            *pos = c; /* restore */
+    // anything to filter?
+    if (zone == NULL || debug__zones == NULL) {
+	return 1;
     }
-    return 1;
+
+    std::string zone_string = zone;
+    std::string basename = zone_string.substr(0, zone_string.find('.'));
+
+    return xhash_get(debug__zones, basename.c_str()) != NULL;
 }
 
 /**

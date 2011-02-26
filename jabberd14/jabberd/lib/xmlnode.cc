@@ -1730,7 +1730,7 @@ xmlnode xmlnode_get_list_item(const xmlnode_vector& first, unsigned int i) {
 xmlnode xmlnode_select_by_lang(const xmlnode_vector& nodes, const char* lang) {
     xmlnode first_without_lang = NULL;
     xmlnode first_with_general_lang = NULL;
-    char general_lang[32] = "";
+    Glib::ustring general_lang;
 
     /* santiy check */
     if (nodes.size() == 0) {
@@ -1738,13 +1738,10 @@ xmlnode xmlnode_select_by_lang(const xmlnode_vector& nodes, const char* lang) {
     }
 
     /* if language has a geographical veriant, get the language as well */
-    if (lang != NULL && strchr(lang, '-') != NULL) {
-	snprintf(general_lang, sizeof(general_lang), "%s", lang);
-	if (strchr(lang, '-') != NULL) {
-	    strchr(lang, '-')[0] = 0;
-	} else {
-	    general_lang[0] = 0;
-	}
+    Glib::ustring lang_string = lang == NULL ? "" : lang;
+    Glib::ustring::size_type separator_pos = lang_string.find('-');
+    if (separator_pos != Glib::ustring::npos) {
+	general_lang = lang_string.substr(0, separator_pos);
     }
 
     /* iterate the nodes */
@@ -1761,7 +1758,7 @@ xmlnode xmlnode_select_by_lang(const xmlnode_vector& nodes, const char* lang) {
 	}
 
 	/* match by general_lang? */
-	if (first_with_general_lang == NULL && j_strcasecmp(this_nodes_lang, general_lang) == 0) {
+	if (first_with_general_lang == NULL && this_nodes_lang != NULL && !general_lang.empty() && general_lang == this_nodes_lang) {
 	    first_with_general_lang = *iter;
 	}
 
