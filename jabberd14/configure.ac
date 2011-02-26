@@ -7,9 +7,15 @@ AC_PREREQ(2.61)
 
 AC_INIT
 AC_CONFIG_SRCDIR([jabberd/jabberd.h])
+AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE(jabberd14,1.9.0-alpha-20110220)
 AC_CONFIG_HEADERS([config.h])
 AC_LANG(C++)
+
+LT_INIT
+LT_LANG([C++])
+AC_SUBST([LIBTOOL_DEPS])
+LT_OUTPUT
 
 dnl version info for libraries
 VERSION_INFO="-version-info 2:0:0"

@@ -3,6 +3,8 @@ EXTRA_DIST = UPGRADE jabber.xml.dist.in README.SQL README.karma README.config RE
 SUBDIRS = jabberd dialback dnsrv jsm proxy65 pthsock resolver xdb_file xdb_sql man po
 DIST_SUBDIRS = jabberd dialback dnsrv jsm proxy65 pthsock resolver xdb_file xdb_sql man po
 
+ACLOCAL_AMFLAGS = -I m4
+
 sysconf_DATA = jabber.xml.dist
 
 logdir = $(localstatedir)/log/jabberd
