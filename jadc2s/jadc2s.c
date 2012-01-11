@@ -83,7 +83,7 @@ static int _sasl_canon_user(sasl_conn_t *conn, void *context, const char *in, un
 	user_jid = jid_new(local_pool, c2s->jid_environment, user_realm);
 	jid_set(user_jid, in, JID_USER);
     }
-    if (user_jid->user == NULL) {
+    if (!user_jid || user_jid->user == NULL) {
 	pool_free(local_pool);
 	return SASL_BADPROT;
     }

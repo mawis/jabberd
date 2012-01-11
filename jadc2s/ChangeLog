@@ -1,3 +1,8 @@
+2012-01-11  Matthias Wimmer  <m@tthias.eu>
+
+    * jadc2s.c: fixing bug reported by Grégoire Menuel
+	<gregoire.menuel@gmail.com>
+
 2008-04-28  Matthias Wimmer  <m@tthias.eu>
 
     * jadc2s.c: support for DSA keys (by setting DH params)
