@@ -1552,13 +1552,13 @@ mio mio_listen(int port, char const* listen_host, mio_std_cb cb, void *arg, mio_
 
     /* if we got a bad fd we can't listen */
     if (fd < 0) {
-        log_alert(NULL, "mio unable to listen on %d [%s]: jabberd already running or invalid interface?", port, listen_host);
+        log_alert(NULL, "mio unable to create socket on %d [%s]: %s", port, listen_host, strerror(errno));
         return NULL;
     }
 
     /* start listening with a max accept queue of 10 */
     if (listen(fd, 10) < 0) {
-        log_alert(NULL, "mio unable to listen on %d [%s]: jabberd already running or invalid interface?", port, listen_host);
+        log_alert(NULL, "mio unable to listen on %d [%s]: %s", port, listen_host, strerror(errno));
         return NULL;
     }
 
