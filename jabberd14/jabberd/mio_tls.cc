@@ -43,10 +43,8 @@
 #include <vector>
 #include <list>
 #include <iostream>
-
 // Tell gcrypt that we are using libpth - had to move this to a plain C file
 extern "C" void mio_tls_gcrypt_init();
-
 extern const ASN1_ARRAY_TYPE subjectAltName_asn1_tab[];
 
 /**
@@ -114,7 +112,9 @@ pool mio_tls_pool = NULL;
  * tree of ASN1 structures
  */
 ASN1_TYPE mio_tls_asn1_tree = ASN1_TYPE_EMPTY;
-
+static inline const char *libtasn1_strerror(int code) {
+	return asn1_strerror(code);
+}
 /**
  * close the TLS connection
  *

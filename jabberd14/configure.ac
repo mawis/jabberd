@@ -231,6 +231,7 @@ AC_MSG_CHECKING(for crypt.h)
 AC_CHECK_HEADER(crypt.h, crypt_header=yes, crypt_header=no)
 if test "$crypt_header" != "no"; then
     AC_DEFINE(INCLUDE_CRYPT_H,,[include the crypt.h header file])
+    LIBS="$LIBS -lgcrypt"
 fi
 
 dnl check for tr1/unordered_map
@@ -289,12 +290,12 @@ else
 fi
 
 dnl then check for GnuTLS extra
-PKG_CHECK_MODULES(GNUTLSEXTRA, gnutls-extra >= 1.4.0, hasgnutlsextra=yes, hasgnutlsextra=no)
-if test $hasgnutls = "yes" ; then
-    CPPFLAGS="$CPPFLAGS $GNUTLSEXTRA_CFLAGS"
-    LDFLAGS="$LDFLAGS $GNUTLSEXTRA_LIBS"
-    AC_DEFINE(HAVE_GNUTLS_EXTRA,,[if GnuTLS-extra should be compiled in])
-fi
+#PKG_CHECK_MODULES(GNUTLSEXTRA, gnutls-extra >= 1.4.0, hasgnutlsextra=yes, hasgnutlsextra=no)
+#if test $hasgnutls = "yes" ; then
+#    CPPFLAGS="$CPPFLAGS $GNUTLSEXTRA_CFLAGS"
+#    LDFLAGS="$LDFLAGS $GNUTLSEXTRA_LIBS"
+#    AC_DEFINE(HAVE_GNUTLS_EXTRA,,[if GnuTLS-extra should be compiled in])
+#fi
 
 dnl check for libidn
 AC_ARG_WITH(libidn, AS_HELP_STRING([--with-libidn=DIR],[Where to find libidn (required)]),
