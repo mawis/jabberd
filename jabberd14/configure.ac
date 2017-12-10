@@ -269,6 +269,16 @@ fi
 
 AC_SUBST(POOL_DEBUG)
 
+dnl check for gcrypt
+AC_MSG_CHECKING(for gcrypt)
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <gcrypt.h>]], [[gcry_control(GCRYCTL_SET_THREAD_CBS, NULL);]])],[have_gcrypt=yes],[have_gcrypt=no])
+if test "$have_gcrypt" = yes; then
+    AC_MSG_RESULT(yes)
+else
+    AC_MSG_RESULT(no)
+    AC_MSG_ERROR([Couldn't find required gcrypt library])
+fi
+
 dnl first check for GnuTLS (required)
 AC_MSG_CHECKING(for GnuTLS)
 PKG_CHECK_MODULES(GNUTLS, gnutls >= 1.4.0, hasgnutls=yes, hasgnutls=no)

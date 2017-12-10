@@ -104,6 +104,10 @@
 #include <gnutls/gnutls.h>
 #include <gnutls/x509.h>
 
+#if GNUTLS_VERSION_NUMBER >= 0x030000
+#undef HAVE_GNUTLS_EXTRA
+#endif
+
 #ifdef HAVE_GNUTLS_EXTRA
 #  include <gnutls/extra.h>
 #  include <gnutls/openpgp.h>

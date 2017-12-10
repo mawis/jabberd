@@ -734,7 +734,7 @@ xmlnode xmlnode_get_tag(xmlnode parent, const char* name) {
     xmlnode step, ret;
 
 
-    if (parent == NULL || parent->firstchild == NULL || name == NULL || name == '\0')
+    if (parent == NULL || parent->firstchild == NULL || name == NULL || *name == '\0')
 	return NULL;
 
     if (strstr(name, "/") == NULL && strstr(name,"?") == NULL && strstr(name, "=") == NULL)

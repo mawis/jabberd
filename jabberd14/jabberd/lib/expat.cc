@@ -407,7 +407,7 @@ void xmlnode_put_expat_attribs(xmlnode owner, const char** atts, xmppd::ns_decl_
     if (atts == NULL)
 	return;
 
-    for (; atts[i] != '\0'; i += 2) {
+    for (; atts[i] != NULL; i += 2) {
 	// copy qname and the value to a ustring we can handle better
 	Glib::ustring qname(atts[i]);
 	Glib::ustring attribute_value(atts[i+1]);
