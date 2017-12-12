@@ -270,18 +270,16 @@ fi
 AC_SUBST(POOL_DEBUG)
 
 dnl check for gcrypt
-AC_MSG_CHECKING(for gcrypt)
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <gcrypt.h>]], [[gcry_control(GCRYCTL_SET_THREAD_CBS, NULL);]])],[have_gcrypt=yes],[have_gcrypt=no])
-if test "$have_gcrypt" = yes; then
-    AC_MSG_RESULT(yes)
-else
-    AC_MSG_RESULT(no)
-    AC_MSG_ERROR([Couldn't find required gcrypt library])
+AC_CHECK_HEADER(gcrypt.h,
+    AC_CHECK_LIB(gcrypt, gcry_control,
+	[libgcrypt=yes LIBS="${LIBS} -lgcrypt"], libgcrypt=no), libgcrypt=no)
+if test "$libgcrypt" = "no"; then
+    AC_MSG_ERROR([Couldn't find required libgcrypt installation])
 fi
 
 dnl first check for GnuTLS (required)
 AC_MSG_CHECKING(for GnuTLS)
-PKG_CHECK_MODULES(GNUTLS, gnutls >= 1.4.0, hasgnutls=yes, hasgnutls=no)
+PKG_CHECK_MODULES(GNUTLS, gnutls >= 3.0.0, hasgnutls=yes, hasgnutls=no)
 if test $hasgnutls = "no" ; then
     AC_MSG_RESULT($GNUTLS_PKG_ERRORS)
     AC_MSG_ERROR([Couldn't find required GnuTLS installation])
@@ -296,14 +294,6 @@ if test "$have_tls1_2_support" = yes; then
     AC_DEFINE(HAVE_TLS1_2,,[if GnuTLS has support for TLS 1.2])
 else
     AC_MSG_RESULT(no)
-fi
-
-dnl then check for GnuTLS extra
-PKG_CHECK_MODULES(GNUTLSEXTRA, gnutls-extra >= 1.4.0, hasgnutlsextra=yes, hasgnutlsextra=no)
-if test $hasgnutls = "yes" ; then
-    CPPFLAGS="$CPPFLAGS $GNUTLSEXTRA_CFLAGS"
-    LDFLAGS="$LDFLAGS $GNUTLSEXTRA_LIBS"
-    AC_DEFINE(HAVE_GNUTLS_EXTRA,,[if GnuTLS-extra should be compiled in])
 fi
 
 dnl check for libidn

@@ -1053,7 +1053,6 @@
 	  <domain>transport.localhost</domain>
 	  <pem>@sysconfdir@/your-certificate.pem</pem>
 	  <ca type='pem'>@sysconfdir@/cacerts.pem</ca>
-	  <compression>LZO DEFLATE NULL</compression>
       </credentials>
       -->
 

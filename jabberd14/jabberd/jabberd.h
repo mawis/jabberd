@@ -104,15 +104,6 @@
 #include <gnutls/gnutls.h>
 #include <gnutls/x509.h>
 
-#if GNUTLS_VERSION_NUMBER >= 0x030000
-#undef HAVE_GNUTLS_EXTRA
-#endif
-
-#ifdef HAVE_GNUTLS_EXTRA
-#  include <gnutls/extra.h>
-#  include <gnutls/openpgp.h>
-#endif
-
 /** Packet types */
 typedef enum { p_NONE, p_NORM, p_XDB, p_LOG, p_ROUTE } ptype;
 
@@ -397,7 +388,7 @@ typedef struct mio_st {
     uint16_t peer_port;			/**< port of the peer */
     char *our_ip;			/**< our own IP address */
     uint16_t our_port;			/**< port of us */
-    char *connect_errmsg;		/**< error message on failed connects (don't free messages) */
+    char const *connect_errmsg;		/**< error message on failed connects (don't free messages) */
     char *authed_other_side;		/**< if the other side of the stream is authenticated, the identity can be placed here */
 
     xmppd::ns_decl_list* out_ns;	/**< pointer to the namespaces declared on the outgoing stream root element */
