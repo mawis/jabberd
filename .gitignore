@@ -26,3 +26,7 @@ Makefile.in
 /jabberd14/missing
 /jabberd14/stamp-h1
 /jabberd14/jabberd/jabberd
+/jabberd14/jabber.xml.dist
+/jabberd14/man/jabber.xml.5
+/jabberd14/man/jabberd.8
+/jabberd14/xdb_file/xdbfiletool

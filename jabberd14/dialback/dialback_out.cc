@@ -195,7 +195,7 @@ dboc dialback_out_connection(db d, jid key, char *ip, db_request db_state) {
  * @param state the state
  * @return the textual representation
  */
-static char *dialback_out_connection_state_string(db_connection_state state) {
+static char const *dialback_out_connection_state_string(db_connection_state state) {
     switch (state) {
 	case created:
 	    return N_("connection object just created");
@@ -616,23 +616,24 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char* unused1, in
 		xstream_format_error(errmsg, errstruct);
 
 		/* append error message to connect_results */
-		if (c->connect_results != NULL && errmsg != NULL) {
-		    *c->connect_results << " (" << errmsg.str() << ")";
+		std::string errstr = errmsg.str();
+		if (c->connect_results != NULL && !errstr.empty()) {
+		    *c->connect_results << " (" << errstr << ")";
 		}
 
 		/* logging */
 		switch (errstruct->severity) {
 		    case normal:
-			log_debug2(ZONE, LOGT_IO, "stream error on outgoing%s conn to %s (%s): %s", c->xmpp_version < 0 ? "" : c->xmpp_version == 0 ? " preXMPP" : " XMPP1.0", mio_ip(m), jid_full(c->key), errmsg.str().c_str());
+			log_debug2(ZONE, LOGT_IO, "stream error on outgoing%s conn to %s (%s): %s", c->xmpp_version < 0 ? "" : c->xmpp_version == 0 ? " preXMPP" : " XMPP1.0", mio_ip(m), jid_full(c->key), errstr.c_str());
 			break;
 		    case configuration:
 		    case feature_lack:
 		    case unknown:
-			log_warn(c->d->i->id, "received stream error on outgoing%s conn to %s (%s): %s", c->xmpp_version < 0 ? "" : c->xmpp_version == 0 ? " preXMPP" : " XMPP1.0", mio_ip(m), jid_full(c->key), errmsg.str().c_str());
+			log_warn(c->d->i->id, "received stream error on outgoing%s conn to %s (%s): %s", c->xmpp_version < 0 ? "" : c->xmpp_version == 0 ? " preXMPP" : " XMPP1.0", mio_ip(m), jid_full(c->key), errstr.c_str());
 			break;
 		    case error:
 		    default:
-			log_error(c->d->i->id, "received stream error on outgoing%s conn to %s (%s): %s", c->xmpp_version < 0 ? "" : c->xmpp_version == 0 ? " preXMPP" : " XMPP1.0", mio_ip(m), jid_full(c->key), errmsg.str().c_str());
+			log_error(c->d->i->id, "received stream error on outgoing%s conn to %s (%s): %s", c->xmpp_version < 0 ? "" : c->xmpp_version == 0 ? " preXMPP" : " XMPP1.0", mio_ip(m), jid_full(c->key), errstr.c_str());
 		}
 		mio_close(m);
 		break;
