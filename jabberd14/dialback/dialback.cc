@@ -543,7 +543,7 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 			messages_get(lang, N_("tls")),
 			dc->m->ssl == NULL ? messages_get(lang, N_("no")) : messages_get(lang, N_("yes")));
 	    } else {
-		snprintf(ip_str, sizeof(ip_str), messages_get(lang, N_("IP/port: no current connection")));
+		snprintf(ip_str, sizeof(ip_str), "%s", messages_get(lang, N_("IP/port: no current connection")));
 	    }
 
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
@@ -807,7 +807,7 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 			messages_get(lang, N_("tls")),
 			c->m->ssl == NULL ? messages_get(lang, N_("no")) : messages_get(lang, N_("yes")));
 	    } else {
-		snprintf(ip_str, sizeof(ip_str), messages_get(lang, N_("IP/port: no current connection")));
+		snprintf(ip_str, sizeof(ip_str), "%s", messages_get(lang, N_("IP/port: no current connection")));
 	    }
 
 	    x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);
@@ -1417,7 +1417,7 @@ extern "C" void dialback(instance i, xmlnode x) {
 
 	/* the default setting is stored as a setting for '*' */
 	if (hostname == NULL)
-	    hostname = "*";
+	    hostname = pstrdup(i->p, "*");
 
 	xmpp = pstrdup(i->p, xmlnode_get_attrib_ns(*cur_item, "xmpp", NULL));
 	tls = pstrdup(i->p, xmlnode_get_attrib_ns(*cur_item, "tls", NULL));

@@ -6,7 +6,7 @@ bin_PROGRAMS = jabberd
 jabberd_SOURCES = jabberd.cc
 
 jabberd_LDADD = $(top_builddir)/jabberd/base/libjabberdbase.la \
-		$(top_builddir)/jabberd/libjabberd.la \
+		libjabberd.la \
 		-lpopt
 jabberd_LDFLAGS = @LDFLAGS@ -export-dynamic
 

@@ -314,7 +314,7 @@ static mreturn mod_register_check(mapi m, void *arg) {
 	item = xmlnode_get_tags(register_config, "xoob:x/xoob:url", m->si->std_namespace_prefixes);
 	xterror err = {400, "", "modify", "bad-request"};
 	if (item.size() == 0) {
-	    snprintf(err.msg, sizeof(err.msg), messages_get(xmlnode_get_lang(m->packet->x), N_("Registration not allowed.")));
+	    snprintf(err.msg, sizeof(err.msg), "%s", messages_get(xmlnode_get_lang(m->packet->x), N_("Registration not allowed.")));
 	} else {
 	    snprintf(err.msg, sizeof(err.msg), "%s %s", messages_get(xmlnode_get_lang(m->packet->x), N_("Registration not allowed. See")), xmlnode_get_data(item[0]));
 	}
