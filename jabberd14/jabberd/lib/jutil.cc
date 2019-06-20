@@ -412,7 +412,7 @@ void jutil_error(xmlnode x, terror E)
  * @param msg the message where the element should be added
  * @param reason plain text information why the delayed delivery information has been added
  */
-void jutil_delay(xmlnode msg, char *reason)
+void jutil_delay(xmlnode msg, char const *reason)
 {
     xmlnode delay;
 
