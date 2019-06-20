@@ -47,7 +47,6 @@ static void hmac_sha1_r(char const* secret, unsigned char const* message, size_t
     char ipadded[20];
     char opadded[20];
     int i = 0;
-    j_SHA_CTX ctx;
 
     /* sanity check */
     if (secret == NULL || message == NULL || hmac == NULL)

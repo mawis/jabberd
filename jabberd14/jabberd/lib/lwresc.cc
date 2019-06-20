@@ -76,7 +76,7 @@ namespace xmppd {
 	}
 
 	rrsetbyname::rrsetbyname(const std::string& hostname, ::ns_class qclass, ::ns_type qtype) :
-	    hostname(hostname), qclass(qclass), qtype(qtype), lwquery() {
+	    lwquery(), hostname(hostname), qclass(qclass), qtype(qtype) {
 	}
 
 	void rrsetbyname::write_to_stream(std::ostream& os) const {
@@ -324,6 +324,8 @@ namespace xmppd {
 			case ns_t_a:
 			    new_record = new a_record(is);
 			    break;
+                        default:
+                            break;
 		    }
 		} catch (std::runtime_error& re) {
 		    std::vector<rrecord*>::iterator p;
@@ -362,7 +364,7 @@ namespace xmppd {
 
 	srv_record::srv_record(std::istream& is) {
 	    try {
-		uint16_t rrlen = lwresult::read_uint16(is);
+		lwresult::read_uint16(is);
 	    } catch (std::runtime_error) {
 		throw std::runtime_error("Error reading rrlen");
 	    }

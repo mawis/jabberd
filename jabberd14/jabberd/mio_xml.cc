@@ -109,8 +109,6 @@ static void _mio_xstream_startElement(void* _m, const char* name, const char** a
 
 	/* If the root is 0, this must be the root node.. */
 	if (m->flags.root == 0) {
-	    const char *prefix = NULL;
-
 	    m->root_lang = pstrdup(m->p, xmlnode_get_lang(m->stacknode));
 
 	    /* move the namespace list to where we look for the root namespace list */
@@ -332,7 +330,7 @@ void _mio_xml_parser(mio m, const void *vbuf, size_t bufsz) {
         _mio_xstream_init(m);
 
         /* XXX pretty big hack here, if the initial read contained a nul, assume nul-packet-terminating format stream */
-        if((nul = strchr(buf,'\0')) != NULL && (nul - buf) < bufsz) {
+        if((nul = strchr(buf,'\0')) != NULL && (size_t) (nul - buf) < bufsz) {
             m->type = type_NUL;
             nul[-2] = ' '; /* assume it's .../>0 and make the stream open again */
         }
@@ -512,7 +510,7 @@ void _mio_xml_parser(mio m, const void *vbuf, size_t bufsz) {
 
     /* XXX more nul-term hack to ditch the nul's whenever */
     if (m->type == type_NUL)
-        while ((nul = strchr(buf,'\0')) != NULL && (nul - buf) < bufsz) {
+        while ((nul = strchr(buf,'\0')) != NULL && (size_t) (nul - buf) < bufsz) {
             memmove(nul,nul+1,strlen(nul+1));
             bufsz--;
         }
@@ -549,7 +547,6 @@ void mio_xml_reset(mio m) {
  */
 int mio_xml_starttls(mio m, int originator, const char *identity) {
     int result = 0;
-    int waited = 0;
 
     /* flush the write queue */
     if (_mio_write_dump(m) != 0) {

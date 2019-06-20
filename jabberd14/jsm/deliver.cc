@@ -191,8 +191,6 @@ result _js_routed_session_packet(instance i, dpacket p, jsmi si) {
  * @return always r_DONE
  */
 result _js_routed_auth_packet(instance i, dpacket p, jsmi si, jpacket jp) {
-    char *authto = NULL;
-
     /* check and see if we're configured to forward auth packets for processing elsewhere */
     if (si->auth != NULL) {
 	xmlnode_put_attrib_ns(p->x, "oto", NULL, NULL, xmlnode_get_attrib_ns(p->x, "to", NULL)); /* preserve original to */

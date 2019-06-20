@@ -50,7 +50,6 @@
 static mreturn _mod_time_reply(mapi m) {
     time_t t;
     char *tstr;
-    struct tm *tmd;
 
     if (m->packet->to->has_resource())
 	return M_PASS;
@@ -74,9 +73,9 @@ static mreturn _mod_time_reply(mapi m) {
     tstr[strlen(tstr) - 1] = '\0'; /* cut off newline */
     xmlnode_insert_cdata(xmlnode_insert_tag_ns(m->packet->iq, "display", NULL, NS_TIME),tstr,-1);
     tzset();
-    tmd = localtime(&t);
 
 #ifdef TMZONE
+    struct tm *tmd = localtime(&t);
     /* some platforms don't have tzname I guess */
     xmlnode_insert_cdata(xmlnode_insert_tag_ns(m->packet->iq, "tz", NULL, NS_TIME), tmd->tm_zone, -1);
 #else

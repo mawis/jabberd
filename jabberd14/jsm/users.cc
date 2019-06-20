@@ -248,7 +248,6 @@ void js_user_free_aux_data(void *arg) {
 udata js_user(jsmi si, jid id, xht ht) {
     pool p;
     udata cur, newu;
-    char *ustr;
     xmlnode x, y;
     jid uid;
 

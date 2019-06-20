@@ -163,9 +163,6 @@ static mreturn mod_announce_motd(jsmi si, jpacket p, motd a) {
  * @return M_IGNORE if the stanza is no message, M_PASS if it's not configuration message, M_HANDLED else.
  */
 static mreturn mod_announce_dispatch(mapi m, void *arg) {
-    int admin = 0;
-    xmlnode cur;
-
     if (m->packet->type != JPACKET_MESSAGE)
 	return M_IGNORE; /* ignore everything but messages */
     if (m->packet->to->get_resource().substr(0, 9) == "announce/")

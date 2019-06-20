@@ -401,7 +401,7 @@ namespace xmppd {
 		/**
 		 * the jobs currently being executed (resolving in progress) including the packets that are waiting for the completition
 		 */
-		xmppd::xhash< xmppd::pointer<resolver_job> > pending_jobs;
+		xmppd::xhash< std::shared_ptr<resolver_job> > pending_jobs;
 
 		/**
 		 * map containing the listeners for resolver results

@@ -139,8 +139,8 @@ void srv_xhash_join(pool p, xht ht, const char *key, char *value) {
  * @return 0 in case of success, non zero on error
  */
 static int srv_lookup_aaaa_a(std::ostream& result, const char* domain) {
-    int			first_result = 1;
 #ifdef WITH_IPV6
+    int			first_result = 1;
     int			error_code;
     struct addrinfo	hints;
     struct addrinfo*	addr_res;
@@ -242,13 +242,6 @@ char* srv_lookup(pool p, const char* service, const char* domain)
      int	      result_is_empty = 1;
      char*            ipname;
      char*            ipaddr;
-#ifdef WITH_IPV6
-     int	      error_code;
-     struct addrinfo  hints;
-     struct addrinfo* addr_res;
-#else
-     struct hostent*  hp;
-#endif
 
     /* If no service is specified, use a standard gethostbyname call */
     if (service == NULL) {

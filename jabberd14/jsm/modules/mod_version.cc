@@ -165,8 +165,7 @@ static mreturn mod_version_shutdown(mapi m, void *arg) {
  * @param si the session manager instance
  */
 extern "C" void mod_version(jsmi si) {
-    char *from;
-    xmlnode x, config, name, version, os;
+    xmlnode config, name, version, os;
     pool p;
     mod_version_i mi;
     struct utsname un;

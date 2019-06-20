@@ -224,7 +224,6 @@ static void _xhash_to_xml_walker(xht h, const char *key, void *value, void *arg)
  */
 xmlnode xhash_to_xml(xht h) {
     xmlnode result = NULL;
-    char prime[32] = "";
 
     /* sanity check */
     if (h == NULL)

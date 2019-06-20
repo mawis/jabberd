@@ -346,15 +346,16 @@ int xmlnode2file_limited(char const* file, xmlnode node, size_t sizelimit) {
 
     /* is it to big? (23 is the size of the XML declaration and the trailing newline in the file) */
     if (sizelimit > 0 && (doclen + 23) > sizelimit) {
-	close(fd);
 	return 0;
     }
 
     std::ostringstream ftmp;
     ftmp << file << ".t.m.p";
     fd = open(ftmp.str().c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0600);
-    if (fd < 0)
+    if (fd < 0) {
+	close(fd);
         return -1;
+    }
 
     /* write XML declaration, remove temp file on failure */
     i = write(fd, "<?xml version='1.0'?>\n", 22);

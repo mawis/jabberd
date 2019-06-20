@@ -104,9 +104,6 @@ static mreturn mod_auth_digest_yum(mapi m, void *arg) {
  * @return 0 if setting the password succeded, it failed otherwise
  */
 static int mod_auth_digest_reset(mapi m, jid id, xmlnode pass) {
-    int result = 0;
-    xmlnode auth_pass = NULL;
-
     log_debug2(ZONE, LOGT_AUTH, "resetting password");
     return xdb_set(m->si->xc, id, NS_AUTH, pass);
 }

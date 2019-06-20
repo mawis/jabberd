@@ -700,13 +700,13 @@ xmlnode xmlnode_insert_tag_ns(xmlnode parent, const char* name, const char* pref
  * @param size size of the string in CDATA, or -1 for auto-detection on null-terminated strings
  * @return a pointer to the new child node, or NULL if it was unsuccessfull
  */
-xmlnode xmlnode_insert_cdata(xmlnode parent, const char* CDATA, unsigned int size) {
+xmlnode xmlnode_insert_cdata(xmlnode parent, const char* CDATA, ssize_t size) {
     xmlnode result;
 
     if (CDATA == NULL || parent == NULL)
 	return NULL;
 
-    if (size == -1)
+    if (size < 0)
 	size = strlen(CDATA);
 
     result = _xmlnode_insert(parent, NULL, NULL, NULL, NTYPE_CDATA);
@@ -878,7 +878,7 @@ xmlnode_vector xmlnode_get_tags(xmlnode context_node, const char *_path, xht nam
     if (start_predicate == std::string::npos && start_next_step == std::string::npos) {
 	// there is neither a predicate nor a next step in the path
 	this_step = path;
-    } else if (start_predicate == std::string::npos || start_next_step != std::string::npos && start_predicate > start_next_step) {
+    } else if (start_predicate == std::string::npos || (start_next_step != std::string::npos && start_predicate > start_next_step)) {
 	this_step = path.substr(0, start_next_step);
 	next_step = path.substr(start_next_step+1);
     } else {
@@ -953,7 +953,7 @@ xmlnode_vector xmlnode_get_tags(xmlnode context_node, const char *_path, xht nam
 	    continue;
 	}
 
-	if (iter->type != NTYPE_CDATA && (ns_iri == NULL && iter->ns_iri == NULL || j_strcmp(ns_iri, iter->ns_iri) == 0) && j_strcmp(this_step.c_str(), iter->name) == 0) {
+	if (iter->type != NTYPE_CDATA && ((ns_iri == NULL && iter->ns_iri == NULL) || j_strcmp(ns_iri, iter->ns_iri) == 0) && j_strcmp(this_step.c_str(), iter->name) == 0) {
 	    /* matching element or attribute */
 
 	    /* append to the result */

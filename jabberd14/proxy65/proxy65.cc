@@ -44,7 +44,7 @@ namespace xmppd {
 
 	    // open the socket to listen on
 	    // XXX IP and port needs to be configurable, fixed for now
-	    mio m = mio_listen(6565, "::", proxy65::conn_accepted_wrapper, this, MIO_LISTEN_RAW);
+	    mio_listen(6565, "::", proxy65::conn_accepted_wrapper, this, MIO_LISTEN_RAW);
 	}
 
 	void proxy65::conn_accepted_wrapper(mio m, int state, void *arg, xmlnode unused1, char* unused2, int unused3) {
@@ -257,7 +257,7 @@ namespace xmppd {
 	    delete conn;
 	}
 
-	socks5stub::socks5stub(mio m) : m(m), current_state(state_connected) {
+	socks5stub::socks5stub(mio m) : current_state(state_connected), m(m) {
 	    mio_reset(m, socks5stub::mio_event_wrapper, this);
 
 	    log_debug2(ZONE, LOGT_EXECFLOW, "socks5stub created for fd #%i", m->fd);
@@ -317,7 +317,7 @@ namespace xmppd {
 			return;
 
 		    // already full version identifier received?
-		    if (unprocessed_data.length() >= 2 + unprocessed_data[1]) {
+		    if (unprocessed_data.length() >= (size_t) (2 + (uint8_t) unprocessed_data[1])) {
 			// yes we received version and all methods the client proposes
 			
 			// check if client supports 'no authentication'
@@ -389,7 +389,7 @@ namespace xmppd {
 			return;
 
 		    // address and port already available?
-		    if (unprocessed_data.length() < 7 + unprocessed_data[4])
+		    if (unprocessed_data.length() < (size_t) (7 + (uint8_t) unprocessed_data[4]))
 			return;
 
 		    // we do not check the port but consider it to be reserved
@@ -430,7 +430,7 @@ namespace xmppd {
 	    disconnected(this);
 	}
 
-	connected_sockets::connected_sockets(socks5stub* socket1, socks5stub* socket2, const std::string& identifier) : forwarded_traffic(0), identifier(identifier) {
+	connected_sockets::connected_sockets(socks5stub* socket1, socks5stub* socket2, const std::string& identifier) : identifier(identifier), forwarded_traffic(0) {
 	    // sanity checks
 	    if (!socket1 || !socket2)
 		throw std::invalid_argument("NULL socket passed to connected_sockets constructor");
@@ -533,5 +533,5 @@ namespace xmppd {
  * @param x xmlnode of this instances configuration (???)
  */
 extern "C" void proxy65(instance i, xmlnode x) {
-    xmppd::proxy65::proxy65* pi = new xmppd::proxy65::proxy65(i, x);
+    new xmppd::proxy65::proxy65(i, x);
 }

@@ -31,10 +31,11 @@ AC_ARG_ENABLE(developer, AS_HELP_STRING([--enable-developer],[Developer mode]),
 
 if test x-$developer = "x-yes" ; then
     AC_MSG_RESULT(yes)
-    CPPFLAGS="$CPPFLAGS -Wall -g"
+    CPPFLAGS="$CPPFLAGS -g"
 else
     AC_MSG_RESULT(no)
 fi
+CPPFLAGS="$CPPFLAGS -Wall -Werror"
 
 dnl Check for programs
 AC_PROG_CC

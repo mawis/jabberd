@@ -282,7 +282,7 @@ typedef struct xdbcache_struct {
 
 xdbcache xdb_cache(instance i); /**< create a new xdb cache for this instance */
 xmlnode xdb_get(xdbcache xc,  jid owner, const char *ns); /**< blocks until namespace is retrieved, returns xmlnode or NULL if failed */
-int xdb_act(xdbcache xc, jid owner, const char *ns, char *act, char const* match, xmlnode data); /**< sends new xml action, returns non-zero if failure */
+int xdb_act(xdbcache xc, jid owner, char const* ns, char const* act, char const* match, xmlnode data);
 int xdb_act_path(xdbcache xc, jid owner, const char *ns, char const *act, char const* matchpath, xht namespaces, xmlnode data); /**< sends new xml action, returns non-zero if failure */
 int xdb_set(xdbcache xc, jid owner, const char *ns, xmlnode data); /**< sends new xml to replace old, returns non-zero if failure */
 
@@ -467,7 +467,6 @@ ssize_t _mio_ssl_write   (mio m, const void*      buf,       size_t     count);
 int     _mio_ssl_accepted(mio m);
 void	mio_tls_get_characteristics(mio m, char* buffer, size_t len);
 void	mio_tls_get_certtype(mio m, char* buffer, size_t len);
-void	mio_tls_get_compression(mio m, char* buffer, size_t len);
 #define MIO_SSL_READ     _mio_ssl_read
 #define MIO_SSL_WRITE    _mio_ssl_write
 #define MIO_SSL_ACCEPTED _mio_ssl_accepted
@@ -843,7 +842,7 @@ namespace xmppd {
 	    /**
 	     * logging instance that is used by this instance_base
 	     */
-	    pointer<logging> logger;
+            std::shared_ptr<logging> logger;
 
 	    /**
 	     * copy constructor - disabled

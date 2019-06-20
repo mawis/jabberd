@@ -46,8 +46,6 @@ extern xmlnode greymatter__;
 static int acl_check_access_domain(xdbcache xdb, const char* function, const jid user) {
     static xht		namespaces = NULL;
     xmlnode_vector	acl;
-    pool		p = NULL;
-    jid			result = NULL;
 
     /* sanity check */
     if (xdb == NULL || function == NULL || user == NULL)

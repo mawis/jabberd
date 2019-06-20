@@ -106,8 +106,6 @@ static void _xstream_startElement(void* _xs, const char* name, const char** atts
         xmlnode_put_expat_attribs(xs->node, atts, *xs->ns_stanza);
 
         if (xs->status == XSTREAM_ROOT) {
-	    const char *prefix = NULL;
-
             xs->root_lang = pstrdup(xs->p, xmlnode_get_lang(xs->node));
 
             /* move the namespace list to where we look for the root namespace list */

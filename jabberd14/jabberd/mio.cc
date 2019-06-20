@@ -231,6 +231,14 @@ static int _mio_access_check(const char *address, int check_allow) {
     return 0;
 }
 
+static void _wakeup_mio_loop(void) {
+    if (mio__data && mio__data->zzz_active <= 0) {
+        mio__data->zzz_active++;
+        pth_write(mio__data->zzz[1], " ", 1);
+        log_debug2(ZONE, LOGT_EXECFLOW, "notify sent");
+    }
+}
+
 /**
  * callback for Heartbeat, increments karma, and signals the
  * select loop, whenever a socket's punishment is over
@@ -263,11 +271,7 @@ static result _karma_heartbeat(void*arg) {
             /* punishment is over */
             if (was_negative && cur->k.val >= 0)  {
                log_debug2(ZONE, LOGT_IO, "Punishment Over for socket %d: ", cur->fd);
-	       /* we don't have to signal again, if a signal is pending */
-	       if (mio__data->zzz_active <= 0) {
-		   mio__data->zzz_active++;
-		   pth_write(mio__data->zzz[1]," ",1);
-	       }
+               _wakeup_mio_loop();
             }
         }
     }
@@ -533,8 +537,9 @@ static mio _mio_accept(mio m) {
     }
 
     /* call the application callback, that wants to get notified for newly accepted sockets */
-    if(m->cb != NULL);
+    if(m->cb != NULL) {
         (*newm->cb)(newm, MIO_NEW, newm->cb_arg, NULL, NULL, 0);
+    }
 
     /* return the new mio */
     return newm;
@@ -739,13 +744,7 @@ static void* _mio_connect(void *arg) {
     cd->connected = 1; 
 
     /* notify the select loop */
-    if (mio__data != NULL) {
-	/* we don't have to send multiple signals */
-	if (mio__data->zzz_active <= 0) {
-	    mio__data->zzz_active++;
-	    pth_write(mio__data->zzz[1]," ",1);
-	}
-    }
+    _wakeup_mio_loop();
 
     /* notify the client that the socket is born */
     if (newm->cb != NULL)
@@ -761,15 +760,15 @@ static void* _mio_connect(void *arg) {
  */
 static void _mio_read_from_socket(mio m) {
     char buf[8192]; /* max socket read buffer */
-    size_t maxlen = 0;
+    ssize_t maxlen = 0;
     ssize_t len = 0;
 
     do {
 	maxlen = KARMA_READ_MAX(m->k.val);
 
 	/* do not read more than the buffer is big */
-	if (maxlen > sizeof(buf)-1)
-	    maxlen = sizeof(buf)-1;
+	if (maxlen > (ssize_t) sizeof(buf)-1)
+	    maxlen = (ssize_t) sizeof(buf)-1;
 
 	/* read from the socket */
 	len = (*(m->mh->read))(m, buf, maxlen);
@@ -1051,6 +1050,8 @@ static void* _mio_main(void *arg) {
 	    }
 	}
     }
+
+    return NULL;
 }
 
 /***************************************************\
@@ -1094,7 +1095,10 @@ void mio_init(void) {
         mio__data    = static_cast<ios>(pmalloco(p, sizeof(_ios)));
         mio__data->p = p;
         mio__data->k = karma_new(p);
-        pipe(mio__data->zzz);
+        int res = pipe(mio__data->zzz);
+        if (res) {
+            log_error(NULL, "MIO I/O will probably not work correctly. Could not create pipe.");
+        }
 
         /* start main accept/read/write thread */
         attr = pth_attr_new();
@@ -1201,23 +1205,7 @@ mio mio_new(int fd, mio_std_cb cb, void *arg, mio_handlers mh) {
     _mio_link(newm);
 
     /* notify the select loop */
-    if (mio__data != NULL) {
-	log_debug2(ZONE, LOGT_EXECFLOW, "sending zzz notify to the select loop in mio_new()");
-	/* if there has been already sent a signal, that is not yet processed, we don't
-	 * have to send this signal twice. Else we could get blocking here at the write() call
-	 * if we send really many signals, what seems to be possible for large rosters as
-	 * reported by Marco Balmer. I have not really tried to reproduce this, but it seems
-	 * logical and I don't see where it can hurt to send only one signal.
-	 * I have also considered using pth_write() here, but as I remember, there was a reason
-	 * why a real write is used here. It would be really nice, if pth would be documented
-	 * better ... and it would be even nicer not to use pth at all ...
-	 */
-	if (mio__data->zzz_active <= 0) {
-	    mio__data->zzz_active++;
-	    write(mio__data->zzz[1]," ",1);
-	    log_debug2(ZONE, LOGT_EXECFLOW, "notify sent");
-	}
-    }
+    _wakeup_mio_loop();
 
     return newm;
 }
@@ -1247,15 +1235,7 @@ void mio_close(mio m) {
         return;
 
     m->state = state_CLOSE;
-    if (mio__data != NULL) {
-	log_debug2(ZONE, LOGT_EXECFLOW, "sending zzz notify to the select loop in mio_close()");
-	/* there needs to be only one pending signal */
-	if (mio__data->zzz_active <= 0) {
-	    mio__data->zzz_active++;
-	    write(mio__data->zzz[1]," ",1);
-	    log_debug2(ZONE, LOGT_EXECFLOW, "notify sent");
-	}
-    }
+    _wakeup_mio_loop();
 }
 
 /** 
@@ -1341,15 +1321,7 @@ void mio_write(mio m, xmlnode stanza, char const* buffer, int len) {
 
     log_debug2(ZONE, LOGT_IO, "mio_write called on stanza: %X buffer: %.*s", stanza, len, buffer);
     /* notify the select loop that a packet needs writing */
-    if (mio__data != NULL) {
-	log_debug2(ZONE, LOGT_EXECFLOW, "sending zzz notify to the select loop in mio_write()");
-	/* there only needs to be one pending signal */
-	if (mio__data->zzz_active <= 0) {
-	    mio__data->zzz_active++;
-	    write(mio__data->zzz[1]," ",1);
-	    log_debug2(ZONE, LOGT_EXECFLOW, "notify sent");
-	}
-    }
+    _wakeup_mio_loop();
 }
 
 /**
@@ -1372,8 +1344,10 @@ void mio_write_root(mio m, xmlnode root, int stream_type) {
     char const* default_namespace = xmlnode_get_attrib_ns(root, "xmlns", NS_XMLNS);
     if (default_namespace) {
 	// we do handle NS_CLIENT and NS_COMPONENT_ACCEPT as NS_SERVER internally
-	if (default_namespace == NS_CLIENT || default_namespace == NS_COMPONENT_ACCEPT)
+        if (strcmp(default_namespace, NS_CLIENT) == 0
+                || strcmp(default_namespace, NS_COMPONENT_ACCEPT) == 0) {
 	    default_namespace = NS_SERVER;
+        }
 
 	m->out_ns->update("", default_namespace);
     }

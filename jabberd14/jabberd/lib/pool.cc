@@ -122,7 +122,6 @@ inline void *_retried__malloc(size_t size) {
  */
 pool _pool_new(char *zone, int line)
 {
-    int malloc_tries = 0;
 #ifdef POOL_DEBUG
     int old__pool__total;
 #endif

@@ -580,7 +580,7 @@ struct session_struct {
 
 session js_session_new(jsmi si, dpacket p);
 session js_sc_session_new(jsmi si, dpacket p, xmlnode sc_session);
-void js_session_end(session s, char *reason);
+void js_session_end(session s, char const *reason);
 session js_session_get(udata user, char const* res);
 session js_session_primary(udata user);
 void js_session_to(session s, jpacket p);

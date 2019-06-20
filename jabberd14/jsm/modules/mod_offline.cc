@@ -87,7 +87,6 @@ typedef struct modoffline_session_struct {
  * @return M_HANDLED if the message has been stored offline or delivered to a user's session, M_PASS if the message is expired or could not be stored offline
  */
 static mreturn mod_offline_message(mapi m, modoffline_conf conf) {
-    session top;
     xmlnode cur = NULL, cur2;
     char str[11];
     char timestamp[25];
@@ -292,7 +291,6 @@ static int mod_offline_send_messages(mapi m, const char *filter, int offline_ele
 
     /* check for msgs */
     for (cur = xmlnode_get_firstchild(opts); cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
-	xmlnode x = NULL;
 	jpacket read_stanza = NULL;
 
 	/* ignore CDATA between <message/> elements */
@@ -686,6 +684,7 @@ static mreturn mod_offline_deserialize(mapi m, void *arg) {
     if (xmlnode_get_list_item(xmlnode_get_tags(m->serialization_node, "state:xep0013", m->si->std_namespace_prefixes), 0) != NULL) {
 	session_data->xep0013 = 1;
     }
+    return M_PASS;
 }
 
 /**

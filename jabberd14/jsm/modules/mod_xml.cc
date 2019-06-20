@@ -53,7 +53,6 @@ static mreturn mod_xml_set(mapi m, void *arg) {
     xmlnode storedx, inx = m->packet->iq;
     const char *ns = xmlnode_get_namespace(m->packet->iq);
     int got_result = 0;
-    jpacket jp;
     int is_delete = 0;
 
     if (m->packet->type != JPACKET_IQ)
@@ -186,14 +185,15 @@ static mreturn mod_xml_delete(mapi m, void *arg) {
  * @param si the session manager instance
  */
 extern "C" void mod_xml(jsmi si) {
-    int empty_results = 0;
+    static char empty_true = '1';
+    void* empty_results = NULL;
     xmlnode config = js_config(si, "jsm:mod_xml", NULL);
     if (xmlnode_get_tags(config, "jsm:empty_results", si->std_namespace_prefixes).size() > 0) {
-	empty_results = 1;
+	empty_results = &empty_true;
     }
     xmlnode_free(config);
 
-    js_mapi_register(si, e_SESSION, mod_xml_session, (void*)empty_results);
-    js_mapi_register(si, e_DESERIALIZE, mod_xml_session, (void*)empty_results);
+    js_mapi_register(si, e_SESSION, mod_xml_session, empty_results);
+    js_mapi_register(si, e_DESERIALIZE, mod_xml_session, empty_results);
     js_mapi_register(si, e_DELETE, mod_xml_delete, NULL);
 }

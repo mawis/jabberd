@@ -63,7 +63,7 @@ void js_bounce_xmpp(jsmi si, session s, xmlnode x, xterror xterr) {
     }
 
     /* if it's a presence packet, just drop it */
-    if (j_strcmp(xmlnode_get_localname(x), "presence") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_SERVER) == 0 || j_strcmp(xmlnode_get_attrib(x,"type"),"error") == 0) {
+    if ((j_strcmp(xmlnode_get_localname(x), "presence") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_SERVER) == 0) || j_strcmp(xmlnode_get_attrib(x,"type"),"error") == 0) {
         log_debug2(ZONE, LOGT_DELIVER, "dropping %d packet %s",xterr.code,xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
         xmlnode_free(x);
         return;

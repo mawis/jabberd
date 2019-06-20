@@ -291,7 +291,7 @@ namespace xmppd {
 	return result.str();
     }
 
-    jabberid_pool::jabberid_pool(const Glib::ustring& jid, ::pool p) : jabberid(jid), jid_full(NULL), next(NULL) {
+    jabberid_pool::jabberid_pool(const Glib::ustring& jid, ::pool p) : jabberid(jid), next(NULL), jid_full(NULL) {
 	if (p == NULL) {
 	    throw std::invalid_argument("trying to construct jabberid_pool with a NULL pool");
 	}

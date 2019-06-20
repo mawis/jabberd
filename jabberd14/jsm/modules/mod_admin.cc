@@ -50,11 +50,9 @@
  * @param arg the iq result XML node
  */
 static void _mod_admin_disco_online_iter(xht h, const char *key, void *data, void *arg) {
-    xmlnode item = NULL;
     xmlnode query = (xmlnode)arg;
     udata u = (udata)data;
     session session_iter = NULL;
-    char buffer[32];
     time_t t = time(NULL);
     const char* lang = NULL;
 
@@ -183,8 +181,6 @@ static mreturn mod_admin_dispatch(mapi m, void *arg) {
  */
 static mreturn mod_admin_message(mapi m, void *arg) {
     jpacket p;
-    xmlnode cur;
-    const char *element_name;
     static char jidlist[1024] = "";
     jid admins = NULL;
     jid admin_iter = NULL;

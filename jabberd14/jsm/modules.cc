@@ -124,7 +124,7 @@ void js_mapi_create_additional_iq_result(mapi m, const char* name, const char *p
 	return;
 
     /* only generate for iq requests */
-    if (m->packet->type != JPACKET_IQ || jpacket_subtype(m->packet) != JPACKET__GET && jpacket_subtype(m->packet) != JPACKET__SET)
+    if (m->packet->type != JPACKET_IQ || (jpacket_subtype(m->packet) != JPACKET__GET && jpacket_subtype(m->packet) != JPACKET__SET))
 	return;
 
     /* create the new packet */

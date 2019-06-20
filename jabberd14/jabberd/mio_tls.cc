@@ -104,7 +104,6 @@ static void mio_tls_process_credentials(xmlnode x, const std::list<std::string>&
     std::string ciphers;
     std::string certtypes = "X.509";
     std::string mac = "SHA1";
-    std::string compression = "NULL";
 
     // prepare the credentials
     gnutls_certificate_credentials_t current_credentials = NULL;
@@ -301,14 +300,6 @@ static void mio_tls_process_credentials(xmlnode x, const std::list<std::string>&
 		mac = mac_data;
 	    continue;
 	}
-
-	// setup compression algorithms to use
-	if (j_strcmp(xmlnode_get_localname(cur), "compression") == 0) {
-	    char const *const compression_data = xmlnode_get_data(cur);
-	    if (compression_data != NULL)
-		compression = compression_data;
-	    continue;
-	}
     }
 
     /* set the DH params for this certificate */
@@ -380,7 +371,6 @@ static void mio_tls_process_credentials(xmlnode x, const std::list<std::string>&
  */
 static void mio_tls_process_key(xmlnode x, const std::list<std::string>& default_cacertfile_pem, const std::list<std::string>& default_cacertfile_der, gnutls_dh_params_t mio_tls_dh_params) {
     char *file_to_use = xmlnode_get_data(x);
-    char *key_type = xmlnode_get_attrib_ns(x, "type", NULL);
     char const *id = xmlnode_get_attrib_ns(x, "id", NULL);
     char *private_key_file = xmlnode_get_attrib_ns(x, "private-key", NULL);
     char *no_ssl_v2 = xmlnode_get_attrib_ns(x, "no-ssl-v2", NULL);
@@ -871,7 +861,7 @@ int mio_ssl_starttls(mio m, int originator, const char* identity) {
     gnutls_dh_set_prime_bits(session, 1024);
 
     /* associate with the socket */
-    gnutls_transport_set_ptr(session, (gnutls_transport_ptr_t) m->fd);
+    gnutls_transport_set_int(session, m->fd);
 
     /* use new read/write handlers */
     m->mh->read = MIO_SSL_READ;
@@ -991,7 +981,7 @@ static int mio_tls_check_x509(mio m, char const* id_on_xmppAddr, const std::stri
     log_debug2(ZONE, LOGT_AUTH, "We have to verify %i certificates for %s", cert_list_size, id_on_xmppAddr);
 
     /* iterate on the certificates */
-    for (int crt_index = 0; crt_index < cert_list_size; crt_index++) {
+    for (unsigned int crt_index = 0; crt_index < cert_list_size; crt_index++) {
 	gnutls_x509_crt_t cert = NULL;
 	std::string cert_subject;
 
@@ -1001,25 +991,6 @@ static int mio_tls_check_x509(mio m, char const* id_on_xmppAddr, const std::stri
 	    log_warn(log_id.c_str(), "Problem initializing the certificate var. Therefore I cannot verify the certificate.");
 	    return 0;
 	}
-
-	/* XXX begin debugging only
-	 *
-	std::ostringstream tmpfilename;
-	tmpfilename << "/tmp/";
-	if (id_on_xmppAddr != NULL) {
-	    tmpfilename << id_on_xmppAddr;
-	}
-	tmpfilename << "_" << crt_index << ".der";
-
-	std::ofstream tmpfile(tmpfilename.str().c_str());
-
-	for (int c=0; c<cert_list[crt_index].size; c++) {
-	    tmpfile.put(cert_list[crt_index].data[c]);	// write is not working because of libpth's definitions
-	}
-
-	tmpfile.close();
-	 *
-	 * XXX end debugging only */
 
 	/* get this certificate */
 	ret = gnutls_x509_crt_import(cert, &cert_list[crt_index], GNUTLS_X509_FMT_DER);
@@ -1095,7 +1066,7 @@ static int mio_tls_check_x509(mio m, char const* id_on_xmppAddr, const std::stri
 
 		    /* subjectAltName is a sequence we have to iterate ... */
 		    for (cnt = 1; cnt < 1024 && !found_matching_subjectAltName; cnt++) {
-			char cnt_string[6];
+			char cnt_string[12];
 			char address_type[32];
 			int address_type_len = sizeof(address_type);
 
@@ -1133,7 +1104,7 @@ static int mio_tls_check_x509(mio m, char const* id_on_xmppAddr, const std::stri
 				    break;
 				}
 
-				if (dNSName_len >= sizeof(dNSName)) {
+				if ((size_t)dNSName_len >= sizeof(dNSName)) {
 				    log_notice(log_id.c_str(), "got a dNSName which is longer then %i B. Skipping ... (%s)", sizeof(dNSName), cert_subject.c_str());
 				    break;
 				}
@@ -1215,7 +1186,7 @@ static int mio_tls_check_x509(mio m, char const* id_on_xmppAddr, const std::stri
 				    break;
 				}
 
-				if (thisIdOnXMPPaddr_len >= sizeof(thisIdOnXMPPaddr)) {
+				if ((size_t) thisIdOnXMPPaddr_len >= sizeof(thisIdOnXMPPaddr)) {
 				    log_notice(log_id.c_str(), "id-on-xmppAddr is %i B long ... ignoring (%s)", thisIdOnXMPPaddr_len, cert_subject.c_str());
 				    asn1_delete_structure(&directoryString_element);
 				    break;
@@ -1459,17 +1430,4 @@ void mio_tls_get_certtype(mio m, char* buffer, size_t len) {
     }
 
     snprintf(buffer, len, "%s", gnutls_certificate_type_get_name(gnutls_certificate_type_get(static_cast<gnutls_session_t>(m->ssl))));
-}
-
-void mio_tls_get_compression(mio m, char* buffer, size_t len) {
-    /* sanity checks */
-    if (len <= 0) {
-	return;
-    }
-    if (m == NULL || m->ssl == NULL) {
-	snprintf(buffer, len, "no TLS");
-	return;
-    }
-
-    snprintf(buffer, len, "%s", gnutls_compression_get_name(gnutls_compression_get(static_cast<gnutls_session_t>(m->ssl))));
 }

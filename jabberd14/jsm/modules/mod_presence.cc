@@ -384,7 +384,7 @@ static void mod_peerpresence_store(mapi m) {
  * @return M_IGNORE if the stanza is no presence, M_PASS if the presence has a to attribute, is a probe, or is an error presence, M_HANDLED else
  */
 static mreturn mod_presence_out(mapi m, void *arg) {
-    xmlnode pnew, delay;
+    xmlnode delay;
     modpres mp = (modpres)arg;
     session cur = NULL;
     int oldpri, newpri;
@@ -688,7 +688,6 @@ static mreturn mod_presence_deserialize(mapi m, void *arg) {
 	jid_x = xmlnode_get_tags(*iter, "state:visibleTo", m->si->std_namespace_prefixes);
 	xmlnode_vector::iterator jid_iter;
 	for (jid_iter = jid_x.begin(); jid_iter != jid_x.end(); ++jid_iter) {
-	    jid item = NULL;
 	    if (mp->A == NULL)
 		mp->A = jid_new(m->s->p, xmlnode_get_data(*jid_iter));
 	    else
@@ -697,7 +696,6 @@ static mreturn mod_presence_deserialize(mapi m, void *arg) {
 
 	jid_x = xmlnode_get_tags(*iter, "state:knownInvisibleTo", m->si->std_namespace_prefixes);
 	for (jid_iter = jid_x.begin(); jid_iter != jid_x.end(); ++jid_iter) {
-	    jid item = NULL;
 	    if (mp->I == NULL)
 		mp->I = jid_new(m->s->p, xmlnode_get_data(*jid_iter));
 	    else

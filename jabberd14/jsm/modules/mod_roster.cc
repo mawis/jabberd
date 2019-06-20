@@ -211,8 +211,7 @@ static void mod_roster_pforce(udata u, jid to, int uflag) {
  */
 static mreturn mod_roster_out_s10n(mapi m) {
     xmlnode roster, item;
-    int newflag=0, to=0, from=0, p_in=0, p_out=0, route=0, force_sent=0;
-    jid curr;
+    int newflag=0, to=0, from=0, p_in=0, route=0, force_sent=0;
     int rosterchange = 0;
 
     /* the packet needs a destination */
@@ -236,8 +235,6 @@ static mreturn mod_roster_out_s10n(mapi m) {
         from = 1;
     if (j_strcmp(xmlnode_get_attrib_ns(item, "subscription", NULL), "both") == 0)
         to = from = 1;
-    if (j_strcmp(xmlnode_get_attrib_ns(item, "ask", NULL), "subscribe") == 0)
-	p_out = 1;
     if (xmlnode_get_attrib_ns(item, "subscribe", NULL) != NULL)
 	p_in = 1;
 
@@ -331,7 +328,7 @@ static mreturn mod_roster_out_s10n(mapi m) {
 		}
 	    }
 
-	    if ((!route || !from && !p_in && force_sent) && newflag || xmlnode_get_attrib_ns(item, "hidden", NULL)) {
+	    if (((!route || (!from && !p_in && force_sent)) && newflag) || xmlnode_get_attrib_ns(item, "hidden", NULL)) {
 		/* the contact was not on the roster and should not become a roster item */
 		xmlnode_hide(item);
 	    }

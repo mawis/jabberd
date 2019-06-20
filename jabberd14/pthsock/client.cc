@@ -96,7 +96,7 @@ typedef struct edata_st {
 
 
 /* makes a route packet, intelligently */
-static xmlnode pthsock_make_route(xmlnode x, char *to, char *from, char *type) {
+static xmlnode pthsock_make_route(xmlnode x, char *to, char *from, char const *type) {
     xmlnode newx;
     newx = x ? xmlnode_wrap_ns(x, "route", NULL, NS_SERVER) : xmlnode_new_tag_ns("route", NULL, NS_SERVER);
 
@@ -240,7 +240,7 @@ static cdata pthsock_client_cdata(mio m, smi s__i) {
     cd->si           = s__i;
 
     /* HACK to fix race conditon */
-    snprintf(buf, sizeof(buf), "%X", m);
+    snprintf(buf, sizeof(buf), "%p", m);
     cd->res = pstrdup(m->p, buf);
 
     /* we use <fd>@host to identify connetions */
@@ -337,16 +337,12 @@ static void pthsock_client_read(mio m, int flag, void *arg, xmlnode x, char* unu
 		xmlnode features = xmlnode_new_tag_ns("features", "stream", NS_STREAM);
 		/* TLS possible on this connection? */
 		if (mio_ssl_starttls_possible(m, cd->session_id->get_domain().c_str())) {
-		    xmlnode starttls = NULL;
-
-		    starttls = xmlnode_insert_tag_ns(features, "starttls", NULL, NS_XMPP_TLS);
+		    xmlnode_insert_tag_ns(features, "starttls", NULL, NS_XMPP_TLS);
 		}
 
 		/* advertise registration of accounts? */
 		if (cd->si->register_feature != 0) {
-		    xmlnode register_element = NULL;
-
-		    register_element = xmlnode_insert_tag_ns(features, "register", NULL, NS_REGISTER_FEATURE);
+		    xmlnode_insert_tag_ns(features, "register", NULL, NS_REGISTER_FEATURE);
 		}
 
 		/* Non-SASL Authentication XEP-0078 */
@@ -532,11 +528,11 @@ extern "C" void pthsock_client(instance i, xmlnode x) {
     xdbcache xc;
     xmlnode cur;
     int set_rate = 0; /* Default false; did they want to change the rate parameters */
-    int rate_time, rate_points;
+    int rate_time = 0;
+    int rate_points = 0;
     char *host;
     struct karma *k = karma_new(i->p); /* Get new inialized karma */
     int set_karma = 0; /* Default false; Did they want to change the karma parameters */
-    char *tls_config_element_name = "tls";
     xmlnode_vector item;
 
     log_debug2(ZONE, LOGT_INIT, "[%s] pthsock_client loading", ZONE);

@@ -180,10 +180,10 @@ int j_atoi(const char *a, int def)
 }
 
 
-char *strunescape(pool p, char *buf)
-{
-    int i,j=0;
-    char *temp;
+char *strunescape(pool p, char *buf) {
+    size_t i = 0;
+    int j = 0;
+    char *temp = NULL;
 
     if (p == NULL || buf == NULL) return(NULL);
 
@@ -193,10 +193,8 @@ char *strunescape(pool p, char *buf)
 
     if (temp == NULL) return(NULL);
 
-    for(i=0;i<strlen(buf);i++)
-    {
-        if (buf[i]=='&')
-        {
+    for (i = 0; i < strlen(buf); i++) {
+        if (buf[i]=='&') {
             if (strncmp(&buf[i],"&amp;",5)==0)
             {
                 temp[j] = '&';

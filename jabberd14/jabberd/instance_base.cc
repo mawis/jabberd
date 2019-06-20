@@ -37,9 +37,9 @@ namespace xmppd {
 
 	// create our logger
 	try {
-	    logger = new logging(get_instance_id());
+	    logger = std::shared_ptr<logging>(new logging(get_instance_id()));
 	} catch (std::domain_error) {
-	    logger = new logging("-internal.invalid");
+	    logger = std::shared_ptr<logging>(new logging("-internal.invalid"));
 	}
     }
 
@@ -172,11 +172,12 @@ namespace xmppd {
     }
 
     result instance_base::phandler_helper(instance id, dpacket p, void* arg) {
-	static_cast<instance_base*>(arg)->on_packet(p);
+	return static_cast<instance_base*>(arg)->on_packet(p);
     }
 
     result instance_base::beathandler_helper(void* arg) {
 	static_cast<instance_base*>(arg)->on_heartbeat();
+        return r_DONE;
     }
 
     void instance_base::bounce_stanza(xmlnode x, xterror xterr) {

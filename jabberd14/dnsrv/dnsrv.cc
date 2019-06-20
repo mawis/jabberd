@@ -109,6 +109,13 @@ void _dnsrv_signal(int sig) {
     exit(0);
 }
 
+void warning_write(int fd, const void *buf, size_t count) {
+    ssize_t res = write(fd, buf, count);
+    if (res < (ssize_t) count) {
+        log_debug2(ZONE, LOGT_IO, "Couldn't write everything (%i of %i)", res, count);
+    }
+}
+
 /**
  * coprocess functionality
  */
@@ -161,7 +168,7 @@ void dnsrv_child_process_xstream_io(int type, xmlnode x, void* args) {
 		    iternode = iternode->next;
 	       }
                str = xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0);
-	       write(di->out, str, strlen(str));
+	       warning_write(di->out, str, strlen(str));
 #ifdef LIBIDN
 	       if (ascii_hostname != NULL)
 		   free(ascii_hostname);
@@ -180,7 +187,7 @@ int dnsrv_child_main(dns_io di) {
     log_debug2(ZONE, LOGT_INIT, "DNSRV CHILD: starting");
 
     /* Transmit stream header */
-    write(di->out, "<stream>", 8);
+    warning_write(di->out, "<stream>", 8);
 
     /* Loop forever, processing requests and feeding them to the xstream*/     
     while (1) {
@@ -368,7 +375,6 @@ void dnsrv_process_xstream_io(int type, xmlnode x, void* arg) {
     char* resendhost     = NULL;
     dns_packet_list head = NULL;
     dns_packet_list heado = NULL;
-    time_t *ttmp;
 
     /* Node Format: <host ip="201.83.28.2">foo.org</host> */
     if (type == XSTREAM_NODE) {	  

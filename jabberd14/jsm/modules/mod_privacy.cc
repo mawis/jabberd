@@ -1045,7 +1045,7 @@ static mreturn mod_privacy_out_iq_set_default(mapi m, const char* new_default_li
 
     /* update the active list for the current session, if the default list was in use */
     current_active_list = static_cast<char*>(xhash_get(m->s->aux_data, "mod_privacy_active"));
-    if (current_active_list == NULL && old_default_list == NULL || j_strcmp(current_active_list, old_default_list) == 0) {
+    if ((current_active_list == NULL && old_default_list == NULL) || j_strcmp(current_active_list, old_default_list) == 0) {
 	mod_privacy_activate_default(m->si, m->s);
     }
 
@@ -1074,7 +1074,6 @@ static mreturn mod_privacy_out_iq_set_list(mapi m, xmlnode new_list) {
     const char* edited_list = NULL;
     int xdb_result = 0;
     xmlnode previous_lists = NULL;
-    int is_default_update = 0;
     int list_items = 0;
 
     /* sanity check */
@@ -1111,7 +1110,6 @@ static mreturn mod_privacy_out_iq_set_list(mapi m, xmlnode new_list) {
     edited_list_xpath << "privacy:list[@name='" << edited_list << "']";
     xmlnode_vector previous_list = xmlnode_get_tags(previous_lists, edited_list_xpath.str().c_str(), m->si->std_namespace_prefixes);
     if (previous_list.size() > 0 && xmlnode_get_attrib_ns(previous_list[0], "default", NS_JABBERD_WRAPPER) != NULL) {
-	is_default_update = 1;
 	xmlnode_put_attrib_ns(new_list, "default", "jabberd", NS_JABBERD_WRAPPER, "default");
     }
 
@@ -1283,7 +1281,7 @@ static mreturn mod_privacy_out_iq_get(mapi m) {
 		log_debug2(ZONE, LOGT_EXECFLOW, "default list is: %s", default_list);
 	    }
 
-	    while (firstchild = xmlnode_get_firstchild(*list_iter)) {
+	    while ((firstchild = xmlnode_get_firstchild(*list_iter))) {
 		log_debug2(ZONE, LOGT_EXECFLOW, "hiding list content");
 		xmlnode_hide(firstchild);
 	    }
@@ -1491,7 +1489,6 @@ static mreturn mod_privacy_filter(mapi m, void* arg) {
  */
 static mreturn mod_privacy_rosterchange(mapi m, void* arg) {
     session cur = NULL;
-    jid updated_jid = NULL;
 
     /* sanity check */
     if (m == NULL || m->user == NULL)
@@ -1525,6 +1522,7 @@ static mreturn mod_privacy_rosterchange(mapi m, void* arg) {
  */
 static mreturn mod_privacy_end_session(mapi m, void* arg) {
     mod_privacy_free_current_list_definitions(m->s);
+    return M_PASS;
 }
 
 /**

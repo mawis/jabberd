@@ -75,7 +75,7 @@ namespace xmppd {
 	    xmppd::lwresc::lwresult query_result(buffer_stream);
 
 	    // make sure the listener does not get deleted while it is running
-	    xmppd::xhash< xmppd::pointer<resolver_job> > pending_jobs_lock = pending_jobs;
+	    xmppd::xhash< std::shared_ptr<resolver_job> > pending_jobs_lock = pending_jobs;
 
 	    // send the signal for this result
 	    uint32_t serial = query_result.getSerial();
@@ -176,7 +176,7 @@ namespace xmppd {
 	    }
 
 	    // store the packet, so that we can forward it when it has been resolved, and start resolving
-	    pending_jobs[dp->host] = new resolver_job(*this, dp);
+	    pending_jobs[dp->host] = std::shared_ptr<resolver_job>(new resolver_job(*this, dp));
 	    log(xmppd::notice) << "Created new resolver job: " << *(pending_jobs[dp->host]);
 	    pending_jobs[dp->host]->register_result_callback(sigc::mem_fun(*this, &xmppd::resolver::resolver::handle_completed_job));
 	    return r_DONE;
@@ -256,5 +256,5 @@ namespace xmppd {
  * @param x xmlnode of this instances configuration (???)
  */
 extern "C" void resolver(instance i, xmlnode x) {
-    xmppd::resolver::resolver* ri = new xmppd::resolver::resolver(i, x);
+    new xmppd::resolver::resolver(i, x);
 }

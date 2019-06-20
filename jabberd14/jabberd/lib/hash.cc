@@ -43,7 +43,7 @@ namespace xmppd {
 
 	std::ostringstream result;
 	result << std::hex;
-	for (int i=0; i<binary.size(); i++) {
+	for (size_t i=0; i<binary.size(); i++) {
 	    result.width(2);
 	    result.fill('0');
 	    result << static_cast<unsigned int>(binary[i]);
@@ -60,7 +60,7 @@ namespace xmppd {
 
 	// get it byte for byte
 	std::string::size_type characters = data.length();
-	for (int i=0; i<characters; i++) {
+	for (size_t i=0; i<characters; i++) {
 	    uint8_t current_byte = data[i];
 
 	    // move the content of the relevant W[] 8 bits to the left so that we have all at the right bit in this W[] after adding 4 bytes
@@ -89,7 +89,7 @@ namespace xmppd {
 
 	// get it byte for byte
 	std::vector<uint8_t>::size_type characters = data.size();
-	for (int i=0; i<characters; i++) {
+	for (size_t i=0; i<characters; i++) {
 	    uint8_t current_byte = data[i];
 
 	    // move the content of the relevant W[] 8 bits to the left so that we have all at the right bit in this W[] after adding 4 bytes

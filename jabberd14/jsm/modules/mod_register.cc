@@ -345,7 +345,7 @@ static mreturn mod_register_check(mapi m, void *arg) {
  * @return M_IGNORE if stanza is not of type iq, M_PASS if stanza has not been handled, M_HANDLED if stanza has been handled
  */
 static mreturn _mod_register_server_register(mapi m) {
-    xmlnode reg, cur, check;
+    xmlnode reg;
     xht register_namespace = NULL;
     xmlnode register_config = NULL;
 
@@ -402,7 +402,6 @@ static mreturn _mod_register_server_register(mapi m) {
 
 	case JPACKET__SET:
 	    if (xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:remove", m->si->std_namespace_prefixes), 0) != NULL) {
-		xmlnode roster, cur;
 		xmlnode nounregister = NULL;
 
 		/* is deleting accounts forbidden by the configuration? */

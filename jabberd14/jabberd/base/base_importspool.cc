@@ -44,16 +44,6 @@ typedef struct base_importspool_struct {
 } *base_importspool_st, _base_importspool_st;
 
 /**
- * processing outgoing stanzas
- *
- * bounce them
- */
-static result base_importspool_deliver(instance id, dpacket p, void *arg) {
-    deliver_fail(p, messages_get(xmlnode_get_lang(p->x), N_("This is no valid destination.")));
-    return r_DONE;
-}
-
-/**
  * check if a character is a hex digit
  *
  * @param c the character
@@ -300,7 +290,7 @@ static void *base_importspool_worker(void *arg) {
     printf("Checking which directories we have to import ...\n");
 
     /* iterate the directory */
-    while (basedir_entry = readdir(basedir)) {
+    while ((basedir_entry = readdir(basedir))) {
 	DIR* domaindir = NULL;
 	struct dirent* domaindir_entry = NULL;
 	char cur_domaindir[1024];
@@ -316,7 +306,7 @@ static void *base_importspool_worker(void *arg) {
 	    continue;
 
 	/* (roughtly) calculating the number of steps we need for this directory */
-	while (domaindir_entry = readdir(domaindir)) {
+	while ((domaindir_entry = readdir(domaindir))) {
 	    needed_steps++;
 	}
 
@@ -335,7 +325,7 @@ static void *base_importspool_worker(void *arg) {
     rewinddir(basedir);
 
     /* iterate again */
-    while (basedir_entry = readdir(basedir)) {
+    while ((basedir_entry = readdir(basedir))) {
 	DIR* domaindir = NULL;
 	struct dirent* domaindir_entry = NULL;
 	char cur_domaindir[1024];
@@ -351,7 +341,7 @@ static void *base_importspool_worker(void *arg) {
 	    continue;
 
 	/* iterate the files in the domain directory */
-	while (domaindir_entry = readdir(domaindir)) {
+	while ((domaindir_entry = readdir(domaindir))) {
 	    steps_done++;
 
 	    /* hashspool entry? */
@@ -371,7 +361,7 @@ static void *base_importspool_worker(void *arg) {
 		    continue;
 
 		/* iterate the entries in the first subdirectory of a domain directory (should be second level subdirs) */
-		while (domainsubdir1_entry = readdir(domainsubdir1)) {
+		while ((domainsubdir1_entry = readdir(domainsubdir1))) {
 		    DIR* domainsubdir2 = NULL;
 		    struct dirent* domainsubdir2_entry = NULL;
 		    char cur_domainsubdir2[1024];
@@ -387,7 +377,7 @@ static void *base_importspool_worker(void *arg) {
 			continue;
 
 		    /* iterate the entries in the second subdirectory of a domain directory (should contain the spool files) */
-		    while (domainsubdir2_entry = readdir(domainsubdir2)) {
+		    while ((domainsubdir2_entry = readdir(domainsubdir2))) {
 			if (strlen(domainsubdir2_entry->d_name) <= 4)
 			    continue;
 

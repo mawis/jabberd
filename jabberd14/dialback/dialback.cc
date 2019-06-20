@@ -110,19 +110,14 @@ int dialback_check_settings(db d, mio m, const char *server, int is_outgoing, in
 
     /* log the connection */
     if (protection_level < 1) {
-	log_notice(d->i->id, "%s %s (unencrypted, no cert, auth=%s, stream=%s, compression=none)", is_outgoing ? "connected to" : "connection from", server, auth_type ? "sasl" : "db", xmpp_version);
+	log_notice(d->i->id, "%s %s (unencrypted, no cert, auth=%s, stream=%s", is_outgoing ? "connected to" : "connection from", server, auth_type ? "sasl" : "db", xmpp_version);
     } else if (protection_level == 1) {
 	char certtype[32] = "no TLS";
 	if (m->ssl) {
 	    mio_tls_get_certtype(m, certtype, sizeof(certtype));
 	}
 
-	char compression[32] = "no TLS";
-	if (m->ssl) {
-	    mio_tls_get_compression(m, compression, sizeof(compression));
-	}
-
-	log_notice(d->i->id, "%s %s (integrity protected, %s cert is %s, auth=%s, stream=%s, compression=%s)", is_outgoing ? "connected to" : "connection from", server, certtype, mio_ssl_verify(m, server) ? "valid" : "invalid", auth_type ? "sasl" : "db", xmpp_version, compression);
+	log_notice(d->i->id, "%s %s (integrity protected, %s cert is %s, auth=%s, stream=%s)", is_outgoing ? "connected to" : "connection from", server, certtype, mio_ssl_verify(m, server) ? "valid" : "invalid", auth_type ? "sasl" : "db", xmpp_version);
     } else {
 	char sl_characteristics[1024] = "no TLS";
 	if (m->ssl) {
@@ -134,12 +129,7 @@ int dialback_check_settings(db d, mio m, const char *server, int is_outgoing, in
 	    mio_tls_get_certtype(m, certtype, sizeof(certtype));
 	}
 
-	char compression[32] = "no TLS";
-	if (m->ssl) {
-	    mio_tls_get_compression(m, compression, sizeof(compression));
-	}
-
-	log_notice(d->i->id, "%s %s (encrypted: %i b (%s), %s cert is %s, auth=%s, stream=%s, compression=%s)", is_outgoing ? "connected to" : "connection from", server, protection_level, m->ssl ? sl_characteristics : "no TLS", certtype, mio_ssl_verify(m, server) ? "valid" : "invalid", auth_type ? "sasl" : "db", xmpp_version, compression);
+	log_notice(d->i->id, "%s %s (encrypted: %i b (%s), %s cert is %s, auth=%s, stream=%s)", is_outgoing ? "connected to" : "connection from", server, protection_level, m->ssl ? sl_characteristics : "no TLS", certtype, mio_ssl_verify(m, server) ? "valid" : "invalid", auth_type ? "sasl" : "db", xmpp_version);
     }
     return 1;
 }
@@ -448,7 +438,6 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	xmlnode_put_attrib_ns(x, "type", NULL, NULL, "branch");
 	xmlnode_put_attrib_ns(x, "name", NULL, NULL, to->get_resource().c_str());
     } else if (s2s_right && to->get_node() == "out-established" && to->has_resource() && j_strcmp(node, "last") == 0) {
-	char last_time[32];
 	miod md = static_cast<miod>(xhash_get(d->out_ok_db, to->get_resource().c_str()));
 
 	if (md == NULL) {
@@ -714,7 +703,6 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
 	xmlnode_put_attrib_ns(x, "type", NULL, NULL, "leaf");
 	xmlnode_put_attrib_ns(x, "name", NULL, NULL, to->get_resource().c_str());
     } else if (s2s_right && to->get_node() == "in-established" && to->has_resource() && j_strcmp(node, "last") == 0) {
-	char last_time[32];
 	miod md = static_cast<miod>(xhash_get(d->in_ok_db, to->get_resource().c_str()));
 
 	if (md == NULL) {
@@ -1311,9 +1299,11 @@ extern "C" void dialback(instance i, xmlnode x) {
     db d;
     xmlnode cfg, cur;
     struct karma k;
-    int max;
-    int rate_time, rate_points;
-    int set_rate = 0, set_karma=0;
+    int max = 0;
+    int rate_time = 0;
+    int rate_points = 0;
+    int set_rate = 0;
+    int set_karma=0;
 
     log_debug2(ZONE, LOGT_INIT, "dialback loading");
     srand(time(NULL));

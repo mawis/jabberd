@@ -88,7 +88,7 @@ static result base_dir_read(void *arg) {
 	/* process the stanza file */
 	x = xmlnode_file(filename.str().c_str());
 	jp = jpacket_new(x);
-	if (jp != NULL && (jp->type != JPACKET_UNKNOWN || j_strcmp(xmlnode_get_localname(x), "route") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_SERVER) == 0)) {
+	if (jp != NULL && (jp->type != JPACKET_UNKNOWN || (j_strcmp(xmlnode_get_localname(x), "route") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_SERVER) == 0))) {
 	    deliver(dpacket_new(x), conf_data->id);
 	} else {
 	    log_warn(conf_data->id->id, "deleted invalid stanza %s", filename.str().c_str());

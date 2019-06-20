@@ -105,47 +105,6 @@ static mreturn mod_example_server(mapi m, void *arg) {
 }
 
 /**
- * this one isn't used, but is just here to show off what they all have in common
- *
- * every callback is passed the generic mapi data and the optional argument from when they were registered below
- *
- * the mapi data contains pointer to common pieces of data for the callback (each only sent with the relevant events):
- * - m->si	the session instance data, see jsm.h and the jsmi_struct
- * - m->packet	the packet that this callback is processing, see the jpacket_* functions in lib.h,
- *   and m->packet->x is the xmlnode of the actual data (xmlnode_* in lib.h too)
- * - m->e	the e_EVENT that this call is, not usually used unless you're overloading a function
- * - m->user	the udata_struct, containing generic information about the user this packet is related to
- * - m->s	the session_struct, data for the particular session
- *
- * The callbacks can return different signals:
- * - M_PASS	I don't want to process this packet, or didn't do anything to it
- * - M_IGNORE	I never want to see this m->packet->type again, I don't handle those
- * - M_HANDLED  I consumed the m->packet and processed it, it is no longer valid, I've resent it or free'd it
- *
- * @param m the mapi_struct containing the request and other useful data
- * @param arg the pointer you specify while registering your callback gets passed here
- * @return I_IGNORE if you want to ignore stanzas of this type in the future, M_HANDLED if no other modules should handle the request, M_PASS if other modules should get the chance to handle the request
- */
-static mreturn mod_example_generic(mapi m, void *arg) {
-    /* the first thing you can do is filter out just the packet types we care about, ignore the rest */
-    if (m->packet->type != JPACKET_MESSAGE)
-	return M_IGNORE;
-
-    /* second, you usually validate that it is a valid request, or one relevant to what you want to do */
-    if (/* some condition */ 0)
-	return M_PASS;
-
-    /* it's usually useful at this point to add some debugging output, the first argument ZONE includes the mod_example.c:127,
-     * the second argument sepecifies a category of debugging areas, the rest is the same as a printf */
-    log_debug2(ZONE, LOGT_DELIVER, "handling example request from %s", jid_full(m->packet->from));
-
-    /* here you can perform some logic on the packet, modifying it, and free'ing or delivering it elsewhere */
-
-    /* since we processed the packet, signal that back */
-    return M_HANDLED;
-}
-
-/**
  * the main startup/initialization function
  *
  * In here we register our callbacks with the "events" we are interested in.

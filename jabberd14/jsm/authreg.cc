@@ -177,8 +177,6 @@ void _js_authreg_register(jpacket p) {
  */
 void js_authreg(void *arg) {
     jpacket p = (jpacket)arg;
-    udata user;
-    char *ul;
     jsmi si = (jsmi)(p->aux1);
     xmlnode x;
 

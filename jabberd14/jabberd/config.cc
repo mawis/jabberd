@@ -271,7 +271,11 @@ static void show_pid(xmlnode x) {
     }
     pid = getpid();
     snprintf(pidstr, sizeof(pidstr), "%d", pid);
-    write(fd, &pidstr, strlen(pidstr));
+    size_t pid_len = strlen(pidstr);
+    ssize_t written = write(fd, &pidstr, pid_len);
+    if (written < (ssize_t) pid_len) {
+        std::cerr << "PID wasn't written correctly." << std::endl;
+    }
     close(fd);
 
     return;

@@ -48,7 +48,6 @@
  */
 static mreturn mod_vcard_jud(mapi m) {
     xmlnode vcard, reg, regq;
-    char *key;
 
     vcard = xdb_get(m->si->xc, m->user->id, NS_VCARD);
 
@@ -233,7 +232,7 @@ static mreturn mod_vcard_session(mapi m, void *arg) {
  * @return M_IGNORE if not a iq stanza, M_HANDLED if the packet has been handled, M_PASS else
  */
 static mreturn mod_vcard_server(mapi m, void *arg) {   
-    xmlnode vcard, query;
+    xmlnode vcard;
 
     if(m->packet->type != JPACKET_IQ) return M_IGNORE;
     if(jpacket_subtype(m->packet) != JPACKET__GET || !NSCHECK(m->packet->iq,NS_VCARD) || m->packet->to->has_resource()) return M_PASS;
@@ -246,7 +245,7 @@ static mreturn mod_vcard_server(mapi m, void *arg) {
 
     /* build the result IQ */
     jutil_iqresult(m->packet->x);
-    query = xmlnode_insert_tag_node(m->packet->x,vcard);
+    xmlnode_insert_tag_node(m->packet->x,vcard);
     jpacket_reset(m->packet);
     js_deliver(m->si, m->packet, NULL);
 

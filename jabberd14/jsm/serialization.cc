@@ -64,7 +64,7 @@ static void _jsm_serialize_user(xht usershash, const char *user, void *value, vo
 
 	/* serialize all necessary data managed by JSM */
 	xmlnode_insert_tag_node(thissession, session_iter->presence);
-	snprintf(starttime, sizeof(starttime), "%i", session_iter->started);
+	snprintf(starttime, sizeof(starttime), "%li", (long int) session_iter->started);
 	xmlnode_insert_cdata(xmlnode_insert_tag_ns(thissession, "started", NULL, NS_JABBERD_STOREDSTATE), starttime, -1);
 	c2s_routing = xmlnode_insert_tag_ns(thissession, "c2s-routing", NULL, NS_JABBERD_STOREDSTATE);
 	xmlnode_put_attrib_ns(c2s_routing, "sm", NULL, NULL, jid_full(session_iter->route));
@@ -92,12 +92,13 @@ static void _jsm_serialize_user(xht usershash, const char *user, void *value, vo
  * @param domain the domain, that should be serialized
  * @param container the xmlnode where the data should be added
  */
-static xmlnode _jsm_serialize_host(xht users, const char *domain, xmlnode container) {
+static void _jsm_serialize_host(xht users, const char *domain, xmlnode container) {
     xmlnode resulttree = NULL;
 
     /* sanity check */
-    if (users == NULL || domain == NULL)
-	return NULL;
+    if (users == NULL || domain == NULL) {
+	return;
+    }
 
     /* generate the wrapper element */
     resulttree = xmlnode_insert_tag_ns(container, "jsm", NULL, NS_JABBERD_STOREDSTATE);
@@ -276,7 +277,6 @@ static void _jsm_deserialize_xml(jsmi si, const char *host, xmlnode x) {
  */
 void jsm_deserialize(jsmi si, const char *host) {
     xmlnode file = NULL;
-    pool p = NULL;
 
     /* sanity check */
     if (si == NULL || si->statefile == NULL || host == NULL)
@@ -290,7 +290,6 @@ void jsm_deserialize(jsmi si, const char *host) {
     }
 
     /* get the right XML tree fragment */
-    p = xmlnode_pool(file);
     std::ostringstream xpath;
     xpath << "state:jsm[@host='" << host << "']";
     xmlnode_vector jsm_host = xmlnode_get_tags(file, xpath.str().c_str(), si->std_namespace_prefixes);

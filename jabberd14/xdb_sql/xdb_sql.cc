@@ -102,7 +102,7 @@ typedef struct xdbsql_struct {
 } *xdbsql, _xdbsql;
 
 /* forward declaration */
-static int xdb_sql_execute(instance i, xdbsql xq, char *query, xmlnode xmltemplate, xmlnode result);
+static int xdb_sql_execute(instance i, xdbsql xq, char const *query, xmlnode xmltemplate, xmlnode result);
 
 /**
  * connect to the mysql server
@@ -110,18 +110,16 @@ static int xdb_sql_execute(instance i, xdbsql xq, char *query, xmlnode xmltempla
  * @param i the instance we are running in
  * @param xq our internal instance data
  */
-static void xdb_sql_mysql_connect(instance i, xdbsql xq) {
 #ifdef HAVE_MYSQL
+static void xdb_sql_mysql_connect(instance i, xdbsql xq) {
     /* connect to the database */
     if (mysql_real_connect(xq->mysql, xq->mysql_host, xq->mysql_user, xq->mysql_password, xq->mysql_database, xq->mysql_port, xq->mysql_socket, xq->mysql_flag) == NULL) {
 	log_error(i->id, "failed to connect to mysql server: %s", mysql_error(xq->mysql));
     } else if (xq->onconnect) {
 	xdb_sql_execute(i, xq, xq->onconnect, NULL, NULL);
     }
-#else
-    log_debug2(ZONE, LOGT_STRANGE, "xdb_sql_mysql_connect called, but not compiled in.");
-#endif
 }
+#endif
 
 /**
  * add a string to a stringstream while escaping some characters
@@ -261,8 +259,8 @@ static xmlnode xdb_sql_find_node_recursive(xmlnode root, const char *name, const
  * @param result where to add the results
  * @return 0 on success, non zero on failure
  */
-static int xdb_sql_execute_mysql(instance i, xdbsql xq, char *query, xmlnode xmltemplate, xmlnode result) {
 #ifdef HAVE_MYSQL
+static int xdb_sql_execute_mysql(instance i, xdbsql xq, char *query, xmlnode xmltemplate, xmlnode result) {
     int ret = 0;
     MYSQL_RES *res = NULL;
     MYSQL_ROW row = NULL;
@@ -348,11 +346,8 @@ static int xdb_sql_execute_mysql(instance i, xdbsql xq, char *query, xmlnode xml
     }
 
     return 0;
-#else
-    log_debug2(ZONE, LOGT_STRANGE, "xdb_sql_execute_mysql called, but not compiled in.");
-    return 1;
-#endif
 }
+#endif
 
 /**
  * execute a sql query using postgresql
@@ -364,8 +359,8 @@ static int xdb_sql_execute_mysql(instance i, xdbsql xq, char *query, xmlnode xml
  * @param result where to add the results
  * @return 0 on success, non zero on failure
  */
-static int xdb_sql_execute_postgresql(instance i, xdbsql xq, char *query, xmlnode xmltemplate, xmlnode result) {
 #ifdef HAVE_POSTGRESQL
+static int xdb_sql_execute_postgresql(instance i, xdbsql xq, char *query, xmlnode xmltemplate, xmlnode result) {
     PGresult *res = NULL;
     ExecStatusType status = static_cast<ExecStatusType>(0);
     int row = 0;
@@ -448,11 +443,8 @@ static int xdb_sql_execute_postgresql(instance i, xdbsql xq, char *query, xmlnod
 
     PQclear(res);
     return 0;
-#else
-    log_debug2(ZONE, LOGT_STRANGE, "xdb_sql_execute_postgresql called, but not compiled in.");
-    return 1;
-#endif
 }
+#endif
 
 
 /**
@@ -465,7 +457,7 @@ static int xdb_sql_execute_postgresql(instance i, xdbsql xq, char *query, xmlnod
  * @param result where to add the results
  * @return 0 on success, non zero on failure
  */
-static int xdb_sql_execute(instance i, xdbsql xq, char *query, xmlnode xmltemplate, xmlnode result) {
+static int xdb_sql_execute(instance i, xdbsql xq, char const *query, xmlnode xmltemplate, xmlnode result) {
 #ifdef HAVE_MYSQL
     if (xq->use_mysql) {
 	return xdb_sql_execute_mysql(i, xq, query, xmltemplate, result);
@@ -667,8 +659,8 @@ static result xdb_sql_phandler(instance i, dpacket p, void *arg) {
  * @param xq our internal instance data
  * @param config the configuration node of this instance
  */
-static void xdb_sql_mysql_init(instance i, xdbsql xq, xmlnode config) {
 #ifdef HAVE_MYSQL
+static void xdb_sql_mysql_init(instance i, xdbsql xq, xmlnode config) {
     /* create a MYSQL handle */
     if (xq->mysql == NULL) {
 	xq->mysql = mysql_init(NULL);
@@ -685,10 +677,8 @@ static void xdb_sql_mysql_init(instance i, xdbsql xq, xmlnode config) {
 
     /* connect to the database server */
     xdb_sql_mysql_connect(i, xq);
-#else
-    log_debug2(ZONE, LOGT_STRANGE, "xdb_sql_mysql_init called, but not compiled in.");
-#endif
 }
+#endif
 
 /**
  * init the postgresql driver
@@ -697,8 +687,8 @@ static void xdb_sql_mysql_init(instance i, xdbsql xq, xmlnode config) {
  * @param xq our internal instance data
  * @param config the configuration node of this instance
  */
-static void xdb_sql_postgresql_init(instance i, xdbsql xq, xmlnode config) {
 #ifdef HAVE_POSTGRESQL
+static void xdb_sql_postgresql_init(instance i, xdbsql xq, xmlnode config) {
     /* process our own configuration */
     xq->postgresql_conninfo = pstrdup(i->p, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "xdbsql:postgresql/xdbsql:conninfo", xq->std_namespace_prefixes), 0)));
 
@@ -711,10 +701,8 @@ static void xdb_sql_postgresql_init(instance i, xdbsql xq, xmlnode config) {
     } else if (xq->onconnect) {
 	xdb_sql_execute(i, xq, xq->onconnect, NULL, NULL);
     }
-#else
-    log_debug2(ZONE, LOGT_STRANGE, "xdb_sql_postgresql_init called, but not compiled in.");
-#endif
 }
+#endif
 
 /**
  * preprocess a SQL query definition
@@ -808,7 +796,6 @@ static void _xdb_sql_create_preprocessed_sql_list(instance i, xdbsql xq, xmlnode
  */
 static void xdb_sql_handler_process(instance i, xdbsql xq, xmlnode handler) {
     char *handled_ns = NULL;	/* which namespace this definition is for */
-    int count = 0;
     
     log_debug2(ZONE, LOGT_INIT, "processing handler definition: %s", xmlnode_serialize_string(handler, xmppd::ns_decl_list(), 0));
 

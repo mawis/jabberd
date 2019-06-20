@@ -50,7 +50,6 @@ void (*xdb_convert_spool)(const char *spoolroot);
 xmlnode (*xdb_file_load)(char *host, char *fname, xht cache);
 
 int main(int argc, const char **argv) {
-    char *host = NULL;
     char *error = NULL;
     char const* cfgfile = CONFIG_DIR "/jabber.xml";
     char *basedir = NULL;

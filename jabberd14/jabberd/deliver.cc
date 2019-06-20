@@ -429,7 +429,6 @@ static void deliver_instance(instance i, dpacket p);
  */
 static void deliver_internal(dpacket p, instance i) {
     xmlnode x;
-    char *ns = xmlnode_get_attrib_ns(p->x, "ns", NULL);
 
     log_debug2(ZONE, LOGT_DELIVER, "@-internal processing %s", xmlnode_serialize_string(p->x, xmppd::ns_decl_list(), 0));
 

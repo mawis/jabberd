@@ -344,8 +344,6 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x, char* unused1, 
 void dialback_in_read(mio m, int flags, void *arg, xmlnode x, char* unused1, int unused2) {
     db d = (db)arg;
     xmlnode x2;
-    miod md;
-    char strid[10];
     dbic c = NULL;
     int version = 0;
     int dbns_defined = 0;
@@ -359,8 +357,6 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x, char* unused1, int
 
     if(flags != MIO_XML_ROOT)
         return;
-
-    snprintf(strid, sizeof(strid), "%X", m); /* for hashes for later */
 
     /* check stream version and possible features */
     version = j_atoi(xmlnode_get_attrib_ns(x, "version", NULL), 0);
@@ -473,9 +469,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x, char* unused1, int
     if (c->xmpp_version >= 1) {
 	xmlnode features = xmlnode_new_tag_ns("features", "stream", NS_STREAM);
 	if (can_offer_starttls) {
-	    xmlnode starttls = NULL;
-
-	    starttls = xmlnode_insert_tag_ns(features, "starttls", NULL, NS_XMPP_TLS);
+	    xmlnode_insert_tag_ns(features, "starttls", NULL, NS_XMPP_TLS);
 	}
 	if (can_do_sasl_external) {
 	    xmlnode mechanisms = NULL;
