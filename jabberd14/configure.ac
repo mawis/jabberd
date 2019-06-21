@@ -233,6 +233,7 @@ AC_CHECK_HEADER(crypt.h, crypt_header=yes, crypt_header=no)
 if test "$crypt_header" != "no"; then
     AC_DEFINE(INCLUDE_CRYPT_H,,[include the crypt.h header file])
 fi
+AC_CHECK_LIB(crypt, crypt, [libcrypt=yes LIBS="${LIBS} -lcrypt"], libcrypt=no)
 
 dnl check for tr1/unordered_map
 AC_MSG_CHECKING(for tr1/unordered_map)

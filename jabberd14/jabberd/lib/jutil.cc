@@ -89,7 +89,7 @@ xmlnode jutil_presnew(int type, char const* to, char const* status) {
  * @param ns the namespace of the &lt;query/&gt; element
  * @return the created xmlnode
  */
-xmlnode jutil_iqnew(int type, char *ns) {
+xmlnode jutil_iqnew(int type, char const *ns) {
     xmlnode iq;
 
     iq = xmlnode_new_tag_ns("iq", NULL, NS_SERVER);
