@@ -107,25 +107,6 @@ int base64_encode(unsigned char *source, size_t sourcelen, char *target, size_t 
 }
 
 /**
- * decode a base64 string and put the result in the same buffer as the source
- *
- * This function does not handle decoded data that contains the null byte
- * very well as the size of the decoded data is not returned.
- *
- * The result will be zero terminated.
- *
- * @deprecated use base64_decode instead
- *
- * @param str buffer for the source and the result
- */
-void str_b64decode(char* str) {
-    size_t decoded_length;
-
-    decoded_length = base64_decode(str, (unsigned char *)str, strlen(str));
-    str[decoded_length] = '\0';
-}
-
-/**
  * decode base64 encoded data
  *
  * @param source the encoded data (zero terminated)

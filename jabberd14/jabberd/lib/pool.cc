@@ -1,7 +1,7 @@
 /*
  * Copyrights
- * 
- * Portions created by or assigned to Jabber.com, Inc. are 
+ *
+ * Portions created by or assigned to Jabber.com, Inc. are
  * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
  * information for Jabber.com, Inc. is available at http://www.jabber.com/.
  *
@@ -120,14 +120,13 @@ inline void *_retried__malloc(size_t size) {
  * @param line the line in the file in which the pool_new macro is called
  * @return the new allocated memory pool
  */
-pool _pool_new(char *zone, int line)
-{
+pool _pool_new(char const *const zone, int const line) {
 #ifdef POOL_DEBUG
     int old__pool__total;
 #endif
 
     pool p = static_cast<pool>(_retried__malloc(sizeof(_pool)));
-    
+
     p->cleanup = NULL;
     p->heap = NULL;
     p->size = 0;
@@ -257,7 +256,7 @@ struct pheap *_pool_heap(pool p, int size)
  * @param line the line in the file where this function is called
  * @return the new memory pool
  */
-pool _pool_new_heap(int size, char *zone, int line)
+pool _pool_new_heap(int const size, char const *const zone, int const line)
 {
     pool p;
     p = _pool_new(zone, line);
@@ -272,8 +271,7 @@ pool _pool_new_heap(int size, char *zone, int line)
  * @param size how much memory to allocate
  * @return pointer to the allocated memory
  */
-void *pmalloc(pool p, int size)
-{
+void *pmalloc(pool p, int const size) {
     void *block;
 
     if(p == NULL)
@@ -315,29 +313,27 @@ void *pmalloc(pool p, int size)
  * @param c the initialization character
  * @return pointer to the allocated memory
  */
-void *pmalloc_x(pool p, int size, char c)
-{
+void *pmalloc_x(pool p, int const size, char const c) {
    void* result = pmalloc(p, size);
    if (result != NULL)
            memset(result, c, size);
    return result;
-}  
+}
 
 /**
  * allocate memory and initialize the memory with zero bytes
- * 
+ *
  * easy safety utility (for creating blank mem for structs, etc)
  *
  * @param p which pool to use
  * @param size the size of the allocation
  * @return pointer to the allocated memory
  */
-void *pmalloco(pool p, int size)
-{
+void *pmalloco(pool p, int const size) {
     void *block = pmalloc(p, size);
     memset(block, 0, size);
     return block;
-}  
+}
 
 /**
  * duplicate a string and allocate memory for it
@@ -348,8 +344,7 @@ void *pmalloco(pool p, int size)
  * @param src the string that should be duplicated
  * @return the duplicated string
  */
-char *pstrdup(pool p, const char *src)
-{
+char *pstrdup(pool p, char const *const src) {
     char *ret;
 
     if(src == NULL)
@@ -362,20 +357,12 @@ char *pstrdup(pool p, const char *src)
 }
 
 /**
- * when pstrdup() is moved to "const char*", this one would actually return a new block
- */
-char *pstrdupx(pool p, const char *src)
-{
-    return pstrdup(p, src);
-}
-
-/**
  * get the size of a memory pool
  *
  * @param p the pool
  * @return the size
  */
-int pool_size(pool p)
+int pool_size(_pool const *const p)
 {
     if(p == NULL) return 0;
 
@@ -459,8 +446,7 @@ void _pool_stat(xht h, const char *key, void *data, void *arg)
  *
  * @param full make a full report? (0 = no, 1 = yes)
  */
-void pool_stat(int full)
-{
+void pool_stat(int const full) {
     static char own_pid[32] = "";
     _pool_debug_info debug_data;
     debug_data.full = full;
@@ -474,7 +460,7 @@ void pool_stat(int full)
 
     if (pool__disturbed == NULL || pool__disturbed == (xht)1)
 	return;
-    
+
     xhash_walk(pool__disturbed, _pool_stat, &debug_data);
     if(pool__total != pool__ltotal)
         debug_log("pool_debug","%d\ttotal missed mallocs",pool__total);

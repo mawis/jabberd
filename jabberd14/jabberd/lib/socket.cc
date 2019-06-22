@@ -47,7 +47,9 @@
  * @param type type of socket (NETSOCKET_SERVER, NETSOCKET_CLIENT, or NETSOCKET_UDP)
  * @return file handle of the new socket (-1 or error)
  */
-int make_netsocket2(Glib::ustring servname, Glib::ustring nodename, int type) {
+int make_netsocket2(Glib::ustring const servname,
+                    Glib::ustring const nodename,
+                    int const type) {
     std::istringstream servname_stream(servname);
     int port = 0;
 
@@ -67,7 +69,9 @@ int make_netsocket2(Glib::ustring servname, Glib::ustring nodename, int type) {
  * @param type type of socket (NETSOCKET_SERVER, NETSOCKET_CLIENT; or NETSOCKET_UDP)
  * @return file handle of the new socket (-1 or error)
  */
-int make_netsocket(u_short port, char const* host, int type) {
+int make_netsocket(uint16_t const port,
+                   char const* const host,
+                   int const type) {
     int s, flag = 1;
 #ifdef WITH_IPV6
     struct sockaddr_in6 sa;
@@ -171,7 +175,7 @@ int make_netsocket(u_short port, char const* host, int type) {
  * @param host the IPv4 address or hostname to convert, on NULL, the hostname is used
  * @return the in_addr struct that holds the result (pointer to a static structure, overwritten on next call!)
  */
-struct in_addr *make_addr(char const* host) {
+struct in_addr *make_addr(char const *const host) {
     struct hostent *hp;
     static struct in_addr addr;
     char myname[MAXHOSTNAMELEN + 1];
@@ -225,7 +229,7 @@ void _map_addr_to6(const struct in_addr *src, struct in6_addr *dest) {
  * @param host the IPv4 or IPv6 address or hostname to convert, on NULL, the hostname is used
  * @return the in6_addr struct that holds the result (pointer to a static structure, overwritten on next call!)
  */
-struct in6_addr *make_addr_ipv6(char const* host) {
+struct in6_addr *make_addr_ipv6(char const *host) {
     static struct in6_addr addr;
     struct addrinfo hints;
     struct addrinfo *addr_res;
@@ -265,11 +269,11 @@ struct in6_addr *make_addr_ipv6(char const* host) {
 	    strcat(tempname, host);
 	    host = tempname;
 	}
-	
+
 	if (inet_pton(AF_INET6, host, &addr)) {
             return &addr;
         }
-	
+
 	/* give the resolver hints on what we want */
 	bzero(&hints, sizeof(hints));
 	hints.ai_family = PF_UNSPEC;

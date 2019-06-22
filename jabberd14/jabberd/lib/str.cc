@@ -49,8 +49,7 @@
  * @param str the string the should be duplicated
  * @return the duplicated string
  */
-char *j_strdup(const char *str)
-{
+char *j_strdup(char const *const str) {
     if(str == NULL)
         return NULL;
     else
@@ -68,7 +67,7 @@ char *j_strdup(const char *str)
  * @param txt what to append
  * @return dest if txt contains a NULL pointer, pointer to the terminating zero byte of the result else
  */
-char *j_strcat(char *dest, char *txt)
+char *j_strcat(char *dest, char const *txt)
 {
     if(!txt) return(dest);
 
@@ -90,8 +89,7 @@ char *j_strcat(char *dest, char *txt)
  * @param b the other string
  * @return 0 if the strings are equal, -1 if the strings are not equal
  */
-int j_strcmp(const char *a, const char *b)
-{
+int j_strcmp(char const *a, char const *b) {
     if(a == NULL || b == NULL)
         return -1;
 
@@ -111,7 +109,7 @@ int j_strcmp(const char *a, const char *b)
  * @param b the other string
  * @return 0 if the strings are equal, non zero else
  */
-int j_strcasecmp(const char *a, const char *b)
+int j_strcasecmp(char const *const a, char const *const b)
 {
     if(a == NULL || b == NULL)
         return -1;
@@ -129,8 +127,7 @@ int j_strcasecmp(const char *a, const char *b)
  * @param i how many characters to compare at most
  * @return 0 if the strings are equal (within the given length limitation), non zero else
  */
-int j_strncmp(const char *a, const char *b, int i)
-{
+int j_strncmp(char const *const a, char const *const b, int const i) {
     if(a == NULL || b == NULL)
         return -1;
     else
@@ -147,8 +144,7 @@ int j_strncmp(const char *a, const char *b, int i)
  * @param i how many characters to compare at most
  * @return 0 if the strings are equal (within the given length limitation), non zero else
  */
-int j_strncasecmp(const char *a, const char *b, int i)
-{
+int j_strncasecmp(char const *const a, char const *const b, int const i) {
     if(a == NULL || b == NULL)
         return -1;
     else
@@ -163,16 +159,14 @@ int j_strncasecmp(const char *a, const char *b, int i)
  * @param a the string for which the length should be calculated
  * @return 0 if a==NULL, length of the string else
  */
-int j_strlen(const char *a)
-{
+int j_strlen(char const *const a) {
     if(a == NULL)
         return 0;
     else
         return strlen(a);
 }
 
-int j_atoi(const char *a, int def)
-{
+int j_atoi(char const *const a, int const def) {
     if(a == NULL)
         return def;
     else
@@ -324,13 +318,8 @@ char *strescape(pool p, char *buf)
     return temp;
 }
 
-char *zonestr(char const* file, int line)
-{
+char *zonestr(char const* const file, int const line) {
     static char buff[64];
-    int i;
-
-    i = snprintf(buff, sizeof(buff), "%s:%d", file, line);
-    buff[i] = '\0';
-
+    snprintf(buff, sizeof(buff), "%s:%d", file, line);
     return buff;
 }

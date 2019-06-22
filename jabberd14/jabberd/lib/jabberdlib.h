@@ -293,17 +293,16 @@ typedef struct pool_struct
 #define pool_new() _pool_new(NULL, 0) 
 #endif
 
-pool _pool_new(char *zone, int line); /* new pool :) */
-pool _pool_new_heap(int size, char *zone, int line); /* creates a new memory pool with an initial heap size */
-void *pmalloc(pool p, int size); /* wrapper around malloc, takes from the pool, cleaned up automatically */
-void *pmalloc_x(pool p, int size, char c); /* Wrapper around pmalloc which prefils buffer with c */
-void *pmalloco(pool p, int size); /* YAPW for zeroing the block */
-char *pstrdup(pool p, const char *src); /* wrapper around strdup, gains mem from pool */
-void pool_stat(int full); /* print to stderr the changed pools and reset */
-char *pstrdupx(pool p, const char *src); /* temp stub */
-void pool_cleanup(pool p, pool_cleaner f, void *arg); /* calls f(arg) before the pool is freed during cleanup */
-void pool_free(pool p); /* calls the cleanup functions, frees all the data on the pool, and deletes the pool itself */
-int pool_size(pool p); /* returns total bytes allocated in this pool */
+pool _pool_new(char const *zone, int line);
+pool _pool_new_heap(int size, char const *zone, int line);
+void *pmalloc(pool p, int size);
+void *pmalloc_x(pool p, int size, char c);
+void *pmalloco(pool p, int size);
+char *pstrdup(pool p, char const *src);
+void pool_stat(int full);
+void pool_cleanup(pool p, pool_cleaner f, void *arg);
+void pool_free(pool p);
+int pool_size(_pool const *p);
 
 
 
@@ -322,11 +321,13 @@ int pool_size(pool p); /* returns total bytes allocated in this pool */
 #define NETSOCKET_UDP 2    /**< type of a UDP connection socket */
 
 #ifndef WIN32
-int make_netsocket(u_short port, char const* host, int type);
-int make_netsocket2(Glib::ustring servname, Glib::ustring nodename, int type);
-struct in_addr *make_addr(char const* host);
+int make_netsocket(uint16_t const port, char const* host, int type);
+int make_netsocket2(Glib::ustring const servname,
+                    Glib::ustring const nodename,
+                    int type);
+struct in_addr *make_addr(char const *host);
 #ifdef WITH_IPV6
-struct in6_addr *make_addr_ipv6(char const* host);
+struct in6_addr *make_addr_ipv6(char const *host);
 #endif
 #endif
 
@@ -336,15 +337,14 @@ struct in6_addr *make_addr_ipv6(char const* host);
 /* String management routines                                */
 /*                                                           */
 /* --------------------------------------------------------- */
-char *j_strdup(const char *str); /* provides NULL safe strdup wrapper */
-char *j_strcat(char *dest, char *txt); /* strcpy() clone */
-int j_strcmp(const char *a, const char *b); /* provides NULL safe strcmp wrapper */
-int j_strcasecmp(const char *a, const char *b); /* provides NULL safe strcasecmp wrapper */
-int j_strncmp(const char *a, const char *b, int i); /* provides NULL safe strncmp wrapper */
-int j_strncasecmp(const char *a, const char *b, int i); /* provides NULL safe strncasecmp wrapper */
-int j_strlen(const char *a); /* provides NULL safe strlen wrapper */
-int j_atoi(const char *a, int def); /* checks for NULL and uses default instead, convienence */
-void str_b64decode(char *str); /* what it says */
+char *j_strdup(char const *str);
+char *j_strcat(char *dest, char const *txt);
+int j_strcmp(char const *a, char const *b);
+int j_strcasecmp(char const *a, char const *b);
+int j_strncmp(char const *a, char const *b, int i);
+int j_strncasecmp(char const *a, char const *b, int i);
+int j_strlen(char const *a);
+int j_atoi(char const *a, int def);
 
 namespace xmppd {
     class to_lower {
@@ -540,16 +540,16 @@ pool xmlnode_pool(xmlnode node);
 
 /* Node editing */
 void xmlnode_hide(xmlnode child);
-void xmlnode_hide_attrib(xmlnode parent, const char *name);
-void xmlnode_hide_attrib_ns(xmlnode parent, const char *name, const char *ns_iri);
+void xmlnode_hide_attrib(xmlnode parent, char const *name);
+void xmlnode_hide_attrib_ns(xmlnode parent, char const *name, char const *ns_iri);
 
 /* Node deletion routine, also frees the node pool! */
 void xmlnode_free(xmlnode node);
 
 /* Locates a child tag by name and returns it */
-xmlnode  xmlnode_get_tag(xmlnode parent, const char* name);
-char* xmlnode_get_tag_data(xmlnode parent, const char* name);
-xmlnode_vector xmlnode_get_tags(xmlnode context_node, const char *path, xht namespaces);
+xmlnode  xmlnode_get_tag(xmlnode parent, char const *name);
+char* xmlnode_get_tag_data(xmlnode parent, char const *name);
+xmlnode_vector xmlnode_get_tags(xmlnode context_node, char const *path, xht namespaces);
 xmlnode xmlnode_get_list_item(const xmlnode_vector& first, unsigned int i);
 char* xmlnode_get_list_item_data(const xmlnode_vector& first, unsigned int i);
 xmlnode xmlnode_select_by_lang(const xmlnode_vector& nodes, const char* lang);
