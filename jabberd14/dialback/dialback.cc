@@ -487,10 +487,8 @@ static void dialback_handle_discoinfo(db d, dpacket dp, xmlnode query, jid to) {
         xmlnode_put_attrib_ns(x, "var", NULL, NULL,
                               "urn:ietf:params:xml:ns:xmpp-sasl#s2s");
 
-#ifdef WITH_IPV6
         x = xmlnode_insert_tag_ns(result, "feature", NULL, NS_DISCO_INFO);
         xmlnode_put_attrib_ns(x, "var", NULL, NULL, "ipv6");
-#endif
     } else if (s2s_right && to->get_node() == "out-established" &&
                !to->has_resource() && node == NULL) {
         x = xmlnode_insert_tag_ns(result, "identity", NULL, NS_DISCO_INFO);

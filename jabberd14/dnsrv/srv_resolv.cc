@@ -81,7 +81,6 @@ char *srv_inet_ntoa(pool p, unsigned char *addrptr) {
     return pstrdup(p, result);
 }
 
-#ifdef WITH_IPV6
 /**
  * convert an internet address to its textual representation using memory pools
  *
@@ -95,7 +94,6 @@ char *srv_inet_ntop(pool p, const unsigned char *addrptr, int af) {
     inet_ntop(af, addrptr, result, sizeof(result));
     return pstrdup(p, result);
 }
-#endif
 
 /**
  * convert a (numerical) port number to a string using memory pools
@@ -143,21 +141,15 @@ void srv_xhash_join(pool p, xht ht, const char *key, char *value) {
  * @return 0 in case of success, non zero on error
  */
 static int srv_lookup_aaaa_a(std::ostream &result, const char *domain) {
-#ifdef WITH_IPV6
     int first_result = 1;
     int error_code;
     struct addrinfo hints;
     struct addrinfo *addr_res;
     struct addrinfo *addr_iter;
     char addr_str[INET6_ADDRSTRLEN];
-#else
-    struct hostent *hp;
-    char addr_str[16];
-#endif
 
     log_debug2(ZONE, LOGT_IO, "Standard resolution of %s", domain);
 
-#ifdef WITH_IPV6
     /* setup the hints what we want to get */
     bzero(&hints, sizeof(hints));
     hints.ai_family = PF_UNSPEC;
@@ -211,19 +203,6 @@ static int srv_lookup_aaaa_a(std::ostream &result, const char *domain) {
     }
 
     return 0;
-#else
-    hp = gethostbyname(domain);
-    if (!hp) {
-        log_debug2(ZONE, LOGT_IO, "Unable to resolve: %s", domain);
-        return 1;
-    }
-
-    snprintf(addr_str, sizeof(addr_str), "%u.%u.%u.%u",
-             (unsigned char)(hp->h_addr[0]), (unsigned char)hp->h_addr[1],
-             (unsigned char)hp->h_addr[2], (unsigned char)hp->h_addr[3]);
-    result << addr_str;
-    return 0;
-#endif
 }
 
 /**
@@ -329,7 +308,6 @@ char *srv_lookup(pool p, const char *service, const char *domain) {
 
             /* Process the RR */
             switch (rrtype) {
-#ifdef WITH_IPV6
                 /* AAAA records should be hashed for the duration of this lookup
                  */
                 case T_AAAA:
@@ -342,7 +320,6 @@ char *srv_lookup(pool p, const char *service, const char *domain) {
                     srv_xhash_join(p, arr_table, ipname, ipaddr);
 
                     break;
-#endif
                 /* A records should be hashed for the duration of this lookup */
                 case T_A:
                     /* Allocate a new string to hold the IP address */

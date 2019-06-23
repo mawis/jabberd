@@ -76,13 +76,8 @@ int make_netsocket2(Glib::ustring const servname, Glib::ustring const nodename,
 int make_netsocket(uint16_t const port, char const *const host,
                    int const type) {
     int s, flag = 1;
-#ifdef WITH_IPV6
     struct sockaddr_in6 sa;
     struct in6_addr *saddr;
-#else
-    struct sockaddr_in sa;
-    struct in_addr *saddr;
-#endif
     int socket_type;
 
     /* is this a UDP socket or a TCP socket? */
@@ -90,39 +85,22 @@ int make_netsocket(uint16_t const port, char const *const host,
 
     bzero((void *)&sa, sizeof(sa));
 
-#ifdef WITH_IPV6
     if ((s = socket(PF_INET6, socket_type, 0)) < 0)
-#else
-    if ((s = socket(PF_INET, socket_type, 0)) < 0)
-#endif
         return (-1);
     if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char *)&flag, sizeof(flag)) <
         0)
         return (-1);
 
-#ifdef WITH_IPV6
     saddr = make_addr_ipv6(host);
-#else
-    saddr = make_addr(host);
-#endif
     if (saddr == NULL && type != NETSOCKET_UDP)
         return (-1);
-#ifdef WITH_IPV6
     sa.sin6_family = AF_INET6;
     sa.sin6_port = htons(port);
-#else
-    sa.sin_family = AF_INET;
-    sa.sin_port = htons(port);
-#endif
 
     if (type == NETSOCKET_SERVER) {
         /* bind to specific address if specified */
         if (host != NULL)
-#ifdef WITH_IPV6
             sa.sin6_addr = *saddr;
-#else
-            sa.sin_addr.s_addr = saddr->s_addr;
-#endif
 
         if (bind(s, (struct sockaddr *)&sa, sizeof sa) < 0) {
             close(s);
@@ -130,11 +108,7 @@ int make_netsocket(uint16_t const port, char const *const host,
         }
     }
     if (type == NETSOCKET_CLIENT) {
-#ifdef WITH_IPV6
         sa.sin6_addr = *saddr;
-#else
-        sa.sin_addr.s_addr = saddr->s_addr;
-#endif
         if (connect(s, (struct sockaddr *)&sa, sizeof sa) < 0) {
             close(s);
             return (-1);
@@ -149,11 +123,7 @@ int make_netsocket(uint16_t const port, char const *const host,
 
         /* if specified, use a default recipient for read/write */
         if (host != NULL && saddr != NULL) {
-#ifdef WITH_IPV6
             sa.sin6_addr = *saddr;
-#else
-            sa.sin_addr.s_addr = saddr->s_addr;
-#endif
             if (connect(s, (struct sockaddr *)&sa, sizeof sa) < 0) {
                 close(s);
                 return (-1);
@@ -196,7 +166,6 @@ struct in_addr *make_addr(char const *const host) {
     return NULL;
 }
 
-#ifdef WITH_IPV6
 /**
  * map an in_addr struct to a in6_addr struct containing a mapped IPv4 address
  *
@@ -303,4 +272,3 @@ struct in6_addr *make_addr_ipv6(char const *host) {
     }
     return NULL;
 }
-#endif

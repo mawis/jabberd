@@ -327,9 +327,7 @@ int make_netsocket(uint16_t const port, char const *host, int type);
 int make_netsocket2(Glib::ustring const servname, Glib::ustring const nodename,
                     int type);
 struct in_addr *make_addr(char const *host);
-#ifdef WITH_IPV6
 struct in6_addr *make_addr_ipv6(char const *host);
-#endif
 #endif
 
 /* --------------------------------------------------------- */

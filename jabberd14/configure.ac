@@ -162,7 +162,7 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <sys/types.h>
 if test "$has_inet_pton" = yes; then
     AC_MSG_RESULT(yes)
 else
-    AC_MSG_RESULT(no)
+    AC_MSG_ERROR(no)
 fi
 
 AC_MSG_CHECKING(for inet_ntop)
@@ -172,7 +172,7 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <sys/types.h>
 if test "$has_inet_ntop" = yes; then
     AC_MSG_RESULT(yes)
 else
-    AC_MSG_RESULT(no)
+    AC_MSG_ERROR(no)
 fi
 
 AC_MSG_CHECKING(for getaddrinfo)
@@ -182,28 +182,8 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <sys/types.h>
 if test "$has_getaddrinfo" = yes; then
     AC_MSG_RESULT(yes)
 else
-    AC_MSG_RESULT(no)
+    AC_MSG_ERROR(no)
 fi
-
-AC_MSG_CHECKING(if IPv6 is requested)
-AC_ARG_ENABLE(ipv6, AS_HELP_STRING([--enable-ipv6],[Enable IPv6 code]), ipv6=yes)
-if test x-$has_inet_pton = "x-no" ; then
-    AC_MSG_RESULT(disabled: inet_pton missing)
-else if test x-$has_inet_ntop = "x-no" ; then
-    AC_MSG_RESULT(disabled: inet_ntop missing)
-else if test x-$has_getaddrinfo = "x-no" ; then
-    AC_MSG_RESULT(disabled: getaddrinfo missing)
-else if test x-$ipv6 = "x-yes" ; then
-    AC_MSG_RESULT(enabled)
-    AC_DEFINE(WITH_IPV6,,[IPv6 code enabled])
-else
-    AC_MSG_RESULT(disabled)
-fi
-fi
-fi
-fi
-
-AC_SUBST(WITH_IPV6)
 
 dnl ** Check for broken glibc with __ss_family
                                                                                                                              

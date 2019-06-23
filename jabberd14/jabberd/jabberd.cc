@@ -201,13 +201,6 @@ int main(int argc, const char **argv) {
     /* printing version information desired? */
     if (do_version != 0) {
         printf("%s version %s\n", PACKAGE, VERSION);
-        printf("\nThe following optional features have been enabled:\n");
-#ifdef WITH_IPV6
-        printf("- support for IPv6.\n");
-#endif
-        printf("- support for TLS");
-        printf(" using GNU TLS");
-        printf("\n");
 #ifdef HAVE_MYSQL
         printf("- support for MySQL\n");
 #endif

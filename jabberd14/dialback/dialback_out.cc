@@ -90,7 +90,6 @@ void dialback_out_connect(dboc c) {
     }
 
     /* get the ip/port for io_select */
-#ifdef WITH_IPV6
     if (ip[0] == '[') {
         /* format "[ipaddr]:port" or "[ipaddr]" */
         ip++;
@@ -109,9 +108,6 @@ void dialback_out_connect(dboc c) {
             col = NULL;
         }
     }
-#else
-    col = strchr(ip, ':');
-#endif
     if (col != NULL) {
         *col = '\0';
         col++;

@@ -72,7 +72,6 @@ typedef struct mio_connect_st {
 ios mio__data = NULL; /**< global data for mio */
 extern xmlnode greymatter__;
 
-#ifdef WITH_IPV6
 /**
  * compare two IPv6 or IPv4 addresses if they are in the same network
  *
@@ -134,7 +133,6 @@ static int _mio_netmask_to_ipv6(const char *netmask) {
 
     return atoi(netmask);
 }
-#endif
 
 /**
  * check if an IP address (IPv4 or IPv6) is allowed/forbidden to connect
@@ -147,11 +145,9 @@ static int _mio_netmask_to_ipv6(const char *netmask) {
  */
 static int _mio_access_check(const char *address, int check_allow) {
     static xht namespaces = NULL;
-#ifdef WITH_IPV6
     char temp_address[INET6_ADDRSTRLEN];
     char temp_ip[INET6_ADDRSTRLEN];
     static struct in_addr tmpa;
-#endif
 
     if (namespaces == NULL) {
         namespaces = xhash_new(2);
@@ -161,13 +157,11 @@ static int _mio_access_check(const char *address, int check_allow) {
         xmlnode_get_tags(greymatter__, "io", namespaces), 0);
     xmlnode cur;
 
-#ifdef WITH_IPV6
     if (inet_pton(AF_INET, address, &tmpa)) {
         strcpy(temp_address, "::ffff:");
         strcat(temp_address, address);
         address = temp_address;
     }
-#endif
 
     if (xmlnode_get_list_item(
             xmlnode_get_tags(io, check_allow ? "allow" : "deny", namespaces),
@@ -180,12 +174,8 @@ static int _mio_access_check(const char *address, int check_allow) {
     for (cur = xmlnode_get_firstchild(io); cur != NULL;
          cur = xmlnode_get_nextsibling(cur)) {
         char *ip, *netmask;
-#ifdef WITH_IPV6
         struct in6_addr in_address, in_ip;
         int in_netmask;
-#else
-        struct in_addr in_address, in_ip, in_netmask;
-#endif
 
         if (xmlnode_get_type(cur) != NTYPE_TAG)
             continue;
@@ -203,7 +193,6 @@ static int _mio_access_check(const char *address, int check_allow) {
         if (ip == NULL)
             continue;
 
-#ifdef WITH_IPV6
         if (inet_pton(AF_INET, ip, &tmpa)) {
             strcpy(temp_ip, "::ffff:");
             strcat(temp_ip, ip);
@@ -211,36 +200,19 @@ static int _mio_access_check(const char *address, int check_allow) {
         }
 
         inet_pton(AF_INET6, address, &in_address);
-#else
-        inet_aton(address, &in_address);
-#endif
 
         if (ip != NULL)
-#ifdef WITH_IPV6
             inet_pton(AF_INET6, ip, &in_ip);
-#else
-            inet_aton(ip, &in_ip);
-#endif
 
         if (netmask != NULL) {
-#ifdef WITH_IPV6
             in_netmask = _mio_netmask_to_ipv6(netmask);
 
             if (_mio_compare_ipv6(&in_address, &in_ip, in_netmask)) {
-#else
-            inet_aton(netmask, &in_netmask);
-            if ((in_address.s_addr & in_netmask.s_addr) ==
-                (in_ip.s_addr & in_netmask.s_addr)) {
-#endif
                 /* this ip is in the allow/deny network */
                 return 1;
             }
         } else {
-#ifdef WITH_IPV6
             if (_mio_compare_ipv6(&in_ip, &in_address, 128))
-#else
-            if (in_ip.s_addr == in_address.s_addr)
-#endif
                 return 2; /* exact matches hold greater weight */
         }
     }
@@ -467,12 +439,8 @@ static void _mio_close(mio m) {
  * @return the new mio handle for the new connection
  */
 static mio _mio_accept(mio m) {
-#ifdef WITH_IPV6
     struct sockaddr_in6 serv_addr;
     char addr_str[INET6_ADDRSTRLEN];
-#else
-    struct sockaddr_in serv_addr;
-#endif
     size_t addrlen = sizeof(serv_addr);
     int fd;
     int allow, deny;
@@ -502,7 +470,6 @@ static mio _mio_accept(mio m) {
     log_debug2(ZONE, LOGT_IO, "_mio_accept(%X) accepted fd #%d", m, fd);
 
     /* access and rate checks */
-#ifdef WITH_IPV6
     allow = _mio_access_check(
         inet_ntop(AF_INET6, &serv_addr.sin6_addr, addr_str, sizeof(addr_str)),
         1);
@@ -527,42 +494,12 @@ static mio _mio_accept(mio m) {
 
     log_debug2(ZONE, LOGT_IO, "new socket accepted (fd: %d, ip%s, port: %d)",
                fd, addr_str, ntohs(serv_addr.sin6_port));
-#else /* IPv6 not enabled */
-    allow = _mio_access_check(inet_ntoa(serv_addr.sin_addr), 1);
-    deny = _mio_access_check(inet_ntoa(serv_addr.sin_addr), 0);
-
-    if (deny >= allow) {
-        log_warn("mio", "%s was denied access, due to the allow list of IPs",
-                 inet_ntoa(serv_addr.sin_addr));
-        close(fd);
-        return NULL;
-    }
-
-    if (m->flags.rated &&
-        jlimit_check(m->rate, inet_ntoa(serv_addr.sin_addr), 1)) {
-        log_warn(
-            NULL,
-            "%s(%d) is being connection rate limited - the connection attempts "
-            "from this IP exceed the rate limit defined in jabberd config",
-            inet_ntoa(serv_addr.sin_addr), fd);
-        close(fd);
-        return NULL;
-    }
-
-    log_debug2(ZONE, LOGT_IO, "new socket accepted (fd: %d, ip: %s, port: %d)",
-               fd, inet_ntoa(serv_addr.sin_addr), ntohs(serv_addr.sin_port));
-#endif
 
     /* create a new sock object for this connection */
     newm = mio_new(fd, m->cb, m->cb_arg,
                    mio_handlers_new(m->mh->read, m->mh->write, m->mh->parser));
-#ifdef WITH_IPV6
     newm->peer_ip = pstrdup(newm->p, addr_str);
     newm->peer_port = ntohs(serv_addr.sin6_port);
-#else
-    newm->peer_ip = pstrdup(newm->p, inet_ntoa(serv_addr.sin_addr));
-    newm->peer_port = ntohs(serv_addr.sin_port);
-#endif
     newm->our_ip = pstrdup(newm->p, m->our_ip);
 
     /* copy karma settings */
@@ -642,13 +579,8 @@ static int _mio_connect_helper(mio m, struct sockaddr *serv_addr,
  */
 static void *_mio_connect(void *arg) {
     connect_data cd = (connect_data)arg;
-#ifdef WITH_IPV6
     struct sockaddr_in6 sa;
     struct in6_addr *saddr;
-#else
-    struct sockaddr_in sa;
-    struct in_addr *saddr;
-#endif
     int flag = 1, flags;
     mio newm;
     pool p;
@@ -681,11 +613,7 @@ static void *_mio_connect(void *arg) {
     mio_set_handlers(newm, cd->mh);
 
     /* create a socket to connect with */
-#ifdef WITH_IPV6
     newm->fd = socket(PF_INET6, SOCK_STREAM, 0);
-#else
-    newm->fd = socket(PF_INET, SOCK_STREAM, 0);
-#endif
 
     /* set socket options */
     if (newm->fd < 0 || setsockopt(newm->fd, SOL_SOCKET, SO_REUSEADDR,
@@ -708,7 +636,6 @@ static void *_mio_connect(void *arg) {
     if (xmlnode_get_data(xmlnode_get_list_item(
             xmlnode_get_tags(greymatter__, "io/bind", namespaces), 0)) !=
         NULL) {
-#ifdef WITH_IPV6
         struct sockaddr_in6 sa;
         char *addr_str = xmlnode_get_data(xmlnode_get_list_item(
             xmlnode_get_tags(greymatter__, "io/bind", namespaces), 0));
@@ -726,24 +653,11 @@ static void *_mio_connect(void *arg) {
         sa.sin6_flowinfo = 0;
 
         inet_pton(AF_INET6, addr_str, &sa.sin6_addr);
-#else
-        struct sockaddr_in sa;
-        sa.sin_family = AF_INET;
-        sa.sin_port = 0;
-        inet_aton(
-            xmlnode_get_data(xmlnode_get_list_item(
-                xmlnode_get_tags(greymatter__, "io/bind", namespaces), 0)),
-            &sa.sin_addr);
-#endif
         bind(newm->fd, (struct sockaddr *)&sa, sizeof(sa));
     }
 
     /* parse the IP to connect to */
-#ifdef WITH_IPV6
     saddr = make_addr_ipv6(cd->ip);
-#else
-    saddr = make_addr(cd->ip);
-#endif
     if (saddr == NULL) {
         std::ostringstream message;
         message << "Could not resolve hostname or parse IP address: " << cd->ip;
@@ -759,15 +673,9 @@ static void *_mio_connect(void *arg) {
         return NULL;
     }
 
-#ifdef WITH_IPV6
     sa.sin6_family = AF_INET6;
     sa.sin6_port = htons(cd->port);
     sa.sin6_addr = *saddr;
-#else
-    sa.sin_family = AF_INET;
-    sa.sin_port = htons(cd->port);
-    sa.sin_addr.s_addr = saddr->s_addr;
-#endif
 
     log_debug2(ZONE, LOGT_IO, "calling the connect handler for mio object %X",
                newm);
@@ -1639,14 +1547,12 @@ void mio_connect(char *host, int port, mio_std_cb cb, void *cb_arg, int timeout,
     cd->cb_arg = cb_arg;
     cd->mh = mh;
 
-#ifdef WITH_IPV6
     if (!strchr(host, ':')) {
         char *temp = static_cast<char *>(pmalloco(p, strlen(host) + 8));
         strcpy(temp, "::ffff:");
         strcat(temp, host);
         host = temp;
     }
-#endif
 
     attr = pth_attr_new();
     pth_attr_set(attr, PTH_ATTR_JOINABLE, FALSE);
