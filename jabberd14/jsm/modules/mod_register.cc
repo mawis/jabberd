@@ -1,7 +1,7 @@
 /*
  * Copyrights
- * 
- * Portions created by or assigned to Jabber.com, Inc. are 
+ *
+ * Portions created by or assigned to Jabber.com, Inc. are
  * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
  * information for Jabber.com, Inc. is available at http://www.jabber.com/.
  *
@@ -34,21 +34,24 @@
  * @file mod_register.cc
  * @brief handles in-band registrations (XEP-0077)
  *
- * This module implements the functionality used to register and unregister accounts on the Jabber
- * server and to change passwords.
+ * This module implements the functionality used to register and unregister
+ * accounts on the Jabber server and to change passwords.
  *
- * It can be configured to send a welcome message to the user on successful registration.
+ * It can be configured to send a welcome message to the user on successful
+ * registration.
  *
- * @todo allow the admin to change passwords of other users and delete their accounts (XEP-0133?)
+ * @todo allow the admin to change passwords of other users and delete their
+ * accounts (XEP-0133?)
  */
 
 /**
  * this function calls the modules, that registered the e_PASSWORDCHANGE event
- * (i.e. the modules that do authentication and therefore have to store the password
- * as their credentials).
+ * (i.e. the modules that do authentication and therefore have to store the
+ * password as their credentials).
  *
  * @param m the mapi structure holding the original client request
- * @return M_PASS if the modules accepted the new password, M_HANDLED if a module rejected the new password and already returned an error
+ * @return M_PASS if the modules accepted the new password, M_HANDLED if a
+ * module rejected the new password and already returned an error
  */
 static mreturn mod_register_passwordchange(mapi m) {
     xmlnode passwordchange = NULL;
@@ -63,52 +66,57 @@ static mreturn mod_register_passwordchange(mapi m) {
     xmlnode_change_namespace(p->iq, NS_AUTH);
 
     /* remove all but the new password, and the username */
-    xmlnode_vector childs = xmlnode_get_tags(p->iq, "*", m->si->std_namespace_prefixes);
+    xmlnode_vector childs =
+        xmlnode_get_tags(p->iq, "*", m->si->std_namespace_prefixes);
     xmlnode_vector::iterator child;
     for (child = childs.begin(); child != childs.end(); ++child) {
-	if ((*child)->type != NTYPE_TAG) {
-	    xmlnode_hide(*child);
-	    continue;
-	}
+        if ((*child)->type != NTYPE_TAG) {
+            xmlnode_hide(*child);
+            continue;
+        }
 
-	if (!NSCHECK(*child, NS_REGISTER)) {
-	    xmlnode_hide(*child);
-	    continue;
-	}
+        if (!NSCHECK(*child, NS_REGISTER)) {
+            xmlnode_hide(*child);
+            continue;
+        }
 
-	if (j_strcmp(xmlnode_get_localname(*child), "username") == 0) {
-	    jid_set(p->to, xmlnode_get_data(*child), JID_USER);
-	    xmlnode_put_attrib_ns(p->x, "to", NULL, NS_SERVER, jid_full(p->to));
-	    xmlnode_hide(*child);
-	    continue;
-	}
+        if (j_strcmp(xmlnode_get_localname(*child), "username") == 0) {
+            jid_set(p->to, xmlnode_get_data(*child), JID_USER);
+            xmlnode_put_attrib_ns(p->x, "to", NULL, NS_SERVER, jid_full(p->to));
+            xmlnode_hide(*child);
+            continue;
+        }
 
-	if (j_strcmp(xmlnode_get_localname(*child), "password") != 0) {
-	    xmlnode_hide(*child);
-	    continue;
-	}
+        if (j_strcmp(xmlnode_get_localname(*child), "password") != 0) {
+            xmlnode_hide(*child);
+            continue;
+        }
 
-	xmlnode_change_namespace(*child, NS_AUTH);
-	password_present++;
+        xmlnode_change_namespace(*child, NS_AUTH);
+        password_present++;
     }
 
     /* check that there is only one password */
     if (password_present > 1) {
-	xmlnode_free(passwordchange);
-	jutil_error_xmpp(m->packet->x, XTERROR_NOTACCEPTABLE);
-	log_notice(m->user->id->get_domain().c_str(), "Denied password change, password field has been provied %i times (user %s)", password_present, jid_full(m->packet->to));
-	return M_HANDLED;
+        xmlnode_free(passwordchange);
+        jutil_error_xmpp(m->packet->x, XTERROR_NOTACCEPTABLE);
+        log_notice(m->user->id->get_domain().c_str(),
+                   "Denied password change, password field has been provied %i "
+                   "times (user %s)",
+                   password_present, jid_full(m->packet->to));
+        return M_HANDLED;
     }
 
     /* if there is a password, call the modules */
     if (password_present) {
-	if (js_mapi_call(m->si, e_PASSWORDCHANGE, p, NULL, NULL)) {
-	    /* it was replied by one of the modules */
-	    log_debug2(ZONE, LOGT_REGISTER, "one of the e_PASSWORDCHANGE modules did not like the password change");
-	    return M_HANDLED;
-	}
+        if (js_mapi_call(m->si, e_PASSWORDCHANGE, p, NULL, NULL)) {
+            /* it was replied by one of the modules */
+            log_debug2(ZONE, LOGT_REGISTER,
+                       "one of the e_PASSWORDCHANGE modules did not like the "
+                       "password change");
+            return M_HANDLED;
+        }
     }
-
 
     xmlnode_free(passwordchange);
     return M_PASS;
@@ -117,12 +125,13 @@ static mreturn mod_register_passwordchange(mapi m) {
 /**
  * handle new user registration requests
  *
- * Handles new user registration requests and sends a welcome message to the new user,
- * if configured to do so.
+ * Handles new user registration requests and sends a welcome message to the new
+ * user, if configured to do so.
  *
  * @param m the mapi structure
  * @param arg unused/ignored
- * @return M_PASS if registration is not allowed, or iq not of type set or get, M_HANDLED else
+ * @return M_PASS if registration is not allowed, or iq not of type set or get,
+ * M_HANDLED else
  */
 static mreturn mod_register_new(mapi m, void *arg) {
     xmlnode reg, x;
@@ -132,97 +141,122 @@ static mreturn mod_register_new(mapi m, void *arg) {
     xmlnode_vector::iterator iter;
 
     if ((reg = js_config(m->si, "register:register", NULL)) == NULL)
-	return M_PASS;
+        return M_PASS;
 
     log_debug2(ZONE, LOGT_AUTH, "checking");
 
-    switch(jpacket_subtype(m->packet)) {
-	case JPACKET__GET:
+    switch (jpacket_subtype(m->packet)) {
+        case JPACKET__GET:
 
-	    /* copy in the registration fields from the config file */
-	    xmlnode_insert_node(m->packet->iq, xmlnode_get_firstchild(reg));
+            /* copy in the registration fields from the config file */
+            xmlnode_insert_node(m->packet->iq, xmlnode_get_firstchild(reg));
 
-	    /* remove duplicate <instructions/> elements */
-	    all_nodes = xmlnode_get_tags(m->packet->iq, "register:instructions", m->si->std_namespace_prefixes);
-	    prefered_nodes = xmlnode_select_by_lang(all_nodes, xmlnode_get_lang(m->packet->x));
-	    for (iter = all_nodes.begin(); iter != all_nodes.end(); ++iter) {
-		if (*iter != prefered_nodes) {
-		    xmlnode_hide(*iter);
-		}
-	    }
+            /* remove duplicate <instructions/> elements */
+            all_nodes = xmlnode_get_tags(m->packet->iq, "register:instructions",
+                                         m->si->std_namespace_prefixes);
+            prefered_nodes = xmlnode_select_by_lang(
+                all_nodes, xmlnode_get_lang(m->packet->x));
+            for (iter = all_nodes.begin(); iter != all_nodes.end(); ++iter) {
+                if (*iter != prefered_nodes) {
+                    xmlnode_hide(*iter);
+                }
+            }
 
-	    /* remove duplicate <x xmlns='jabber:x:oob'/> elements */
-	    all_nodes = xmlnode_get_tags(m->packet->iq, "xoob:x", m->si->std_namespace_prefixes);
-	    prefered_nodes = xmlnode_select_by_lang(all_nodes, xmlnode_get_lang(m->packet->x));
-	    for (iter = all_nodes.begin(); iter != all_nodes.end(); ++iter) {
-		if (*iter != prefered_nodes) {
-		    xmlnode_hide(*iter);
-		}
-	    }
+            /* remove duplicate <x xmlns='jabber:x:oob'/> elements */
+            all_nodes = xmlnode_get_tags(m->packet->iq, "xoob:x",
+                                         m->si->std_namespace_prefixes);
+            prefered_nodes = xmlnode_select_by_lang(
+                all_nodes, xmlnode_get_lang(m->packet->x));
+            for (iter = all_nodes.begin(); iter != all_nodes.end(); ++iter) {
+                if (*iter != prefered_nodes) {
+                    xmlnode_hide(*iter);
+                }
+            }
 
-	    break;
+            break;
 
-	case JPACKET__SET:
+        case JPACKET__SET:
 
-	    log_debug2(ZONE, LOGT_AUTH, "processing valid registration for %s",jid_full(m->packet->to));
+            log_debug2(ZONE, LOGT_AUTH, "processing valid registration for %s",
+                       jid_full(m->packet->to));
 
-	    /* let the auth modules store the credentials */
-	    if (mod_register_passwordchange(m) == M_HANDLED) {
-		log_notice(m->user->id->get_domain().c_str(), "Could not store password when processing registration request: %s", jid_full(m->user->id));
-		xmlnode_free(reg);
-		return M_HANDLED;
-	    }
+            /* let the auth modules store the credentials */
+            if (mod_register_passwordchange(m) == M_HANDLED) {
+                log_notice(
+                    m->user->id->get_domain().c_str(),
+                    "Could not store password when processing registration "
+                    "request: %s",
+                    jid_full(m->user->id));
+                xmlnode_free(reg);
+                return M_HANDLED;
+            }
 
-	    log_notice(m->packet->to->get_domain().c_str(), "User %s registered", jid_full(m->packet->to));
+            log_notice(m->packet->to->get_domain().c_str(),
+                       "User %s registered", jid_full(m->packet->to));
 
-	    /* stamp the registration data */
-	    jutil_delay(m->packet->iq,"registered");
+            /* stamp the registration data */
+            jutil_delay(m->packet->iq, "registered");
 
-	    log_debug2(ZONE, LOGT_REGISTER, "handled packet is: %s", xmlnode_serialize_string(m->packet->iq, xmppd::ns_decl_list(), 0));
+            log_debug2(ZONE, LOGT_REGISTER, "handled packet is: %s",
+                       xmlnode_serialize_string(m->packet->iq,
+                                                xmppd::ns_decl_list(), 0));
 
-	    /* don't store password in the NS_REGISTER namespace */
-	    xmlnode_hide(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:password", m->si->std_namespace_prefixes), 0));
-	    xdb_set(m->si->xc, jid_user(m->packet->to), NS_REGISTER, m->packet->iq);
+            /* don't store password in the NS_REGISTER namespace */
+            xmlnode_hide(xmlnode_get_list_item(
+                xmlnode_get_tags(m->packet->iq, "register:password",
+                                 m->si->std_namespace_prefixes),
+                0));
+            xdb_set(m->si->xc, jid_user(m->packet->to), NS_REGISTER,
+                    m->packet->iq);
 
-	    /* if configured to, send admins a notice */
-	    if (xmlnode_get_attrib_ns(reg, "notify", NULL) != NULL) {
-		char *email = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:email", m->si->std_namespace_prefixes), 0));
-		std::ostringstream msg_body;
+            /* if configured to, send admins a notice */
+            if (xmlnode_get_attrib_ns(reg, "notify", NULL) != NULL) {
+                char *email = xmlnode_get_data(xmlnode_get_list_item(
+                    xmlnode_get_tags(m->packet->iq, "register:email",
+                                     m->si->std_namespace_prefixes),
+                    0));
+                std::ostringstream msg_body;
 
-		msg_body << "A new user has just been created!" << std::endl;
-		msg_body << "User: " << jid_full(m->packet->to) << std::endl;
-		msg_body << "E-Mail: " << (email ? email : "no address provided");
+                msg_body << "A new user has just been created!" << std::endl;
+                msg_body << "User: " << jid_full(m->packet->to) << std::endl;
+                msg_body << "E-Mail: "
+                         << (email ? email : "no address provided");
 
-		x = jutil_msgnew("chat", m->packet->to->get_domain().c_str(), "Registration Notice", msg_body.str().c_str());
-		xmlnode_put_attrib_ns(x, "from", NULL, NULL, m->packet->to->get_domain().c_str());
-		js_deliver(m->si, jpacket_new(x), m->s);
-	    }
+                x = jutil_msgnew("chat", m->packet->to->get_domain().c_str(),
+                                 "Registration Notice", msg_body.str().c_str());
+                xmlnode_put_attrib_ns(x, "from", NULL, NULL,
+                                      m->packet->to->get_domain().c_str());
+                js_deliver(m->si, jpacket_new(x), m->s);
+            }
 
-	    /* if also configured, send the new user a welcome message */
-	    if ((welcome = js_config(m->si, "welcome", xmlnode_get_lang(m->packet->x))) != NULL) {
-		const char *lang = NULL;
+            /* if also configured, send the new user a welcome message */
+            if ((welcome = js_config(m->si, "welcome",
+                                     xmlnode_get_lang(m->packet->x))) != NULL) {
+                const char *lang = NULL;
 
-		lang = xmlnode_get_lang(welcome);
+                lang = xmlnode_get_lang(welcome);
 
-		x = xmlnode_new_tag_ns("message", NULL, NS_SERVER);
-		xmlnode_put_attrib_ns(x, "from", NULL, NULL, m->packet->to->get_domain().c_str());
-		xmlnode_put_attrib_ns(x, "to", NULL, NULL, jid_full(m->packet->to));
-		if (lang != NULL) {
-		    xmlnode_put_attrib_ns(x, "lang", "xml", NS_XML, lang);
-		}
-		xmlnode_insert_node(x, xmlnode_get_firstchild(welcome));
-		js_deliver(m->si, jpacket_new(x), m->s);
-	    }
-	    xmlnode_free(welcome);
-	    welcome = NULL;
+                x = xmlnode_new_tag_ns("message", NULL, NS_SERVER);
+                xmlnode_put_attrib_ns(x, "from", NULL, NULL,
+                                      m->packet->to->get_domain().c_str());
+                xmlnode_put_attrib_ns(x, "to", NULL, NULL,
+                                      jid_full(m->packet->to));
+                if (lang != NULL) {
+                    xmlnode_put_attrib_ns(x, "lang", "xml", NS_XML, lang);
+                }
+                xmlnode_insert_node(x, xmlnode_get_firstchild(welcome));
+                js_deliver(m->si, jpacket_new(x), m->s);
+            }
+            xmlnode_free(welcome);
+            welcome = NULL;
 
-	    /* clean up and respond */
-	    jutil_iqresult(m->packet->x);
-	    break;
+            /* clean up and respond */
+            jutil_iqresult(m->packet->x);
+            break;
 
-	default:
-	    xmlnode_free(reg);
-	    return M_PASS;
+        default:
+            xmlnode_free(reg);
+            return M_PASS;
     }
 
     xmlnode_free(reg);
@@ -234,7 +268,8 @@ static mreturn mod_register_new(mapi m, void *arg) {
  *
  * @param m the mapi_struct containing the request
  * @param arg unused/ignored
- * @return M_IGNORE if no iq request, M_HANDLED if the request in invalid and a bounce has been sent, M_PASS else
+ * @return M_IGNORE if no iq request, M_HANDLED if the request in invalid and a
+ * bounce has been sent, M_PASS else
  */
 static mreturn mod_register_check(mapi m, void *arg) {
     xmlnode register_config = NULL;
@@ -243,106 +278,138 @@ static mreturn mod_register_check(mapi m, void *arg) {
 
     /* sanity check */
     if (m == NULL || m->packet == NULL) {
-	return M_PASS;
+        return M_PASS;
     }
 
     /* only handle iq packets */
     if (m->packet->type != JPACKET_IQ) {
-	return M_IGNORE;
+        return M_IGNORE;
     }
 
     /* we only verify set queries */
     if (jpacket_subtype(m->packet) != JPACKET__SET) {
-	return M_PASS;
+        return M_PASS;
     }
 
     /* get the fields that we requested */
     register_config = js_config(m->si, "register:register", NULL);
     if (register_config == NULL) {
-	/* there is nothing we have to verify */
-	return M_PASS;
+        /* there is nothing we have to verify */
+        return M_PASS;
     }
 
     /* we never require the client to send <instructions/> back */
     register_namespace = xhash_new(1);
-    xhash_put(register_namespace, "", const_cast<char*>(NS_REGISTER));
-    xmlnode_vector instructions = xmlnode_get_tags(register_config, "instructions", register_namespace);
+    xhash_put(register_namespace, "", const_cast<char *>(NS_REGISTER));
+    xmlnode_vector instructions =
+        xmlnode_get_tags(register_config, "instructions", register_namespace);
     xmlnode_vector::iterator instruction;
-    for (instruction = instructions.begin(); instruction != instructions.end(); ++instruction) {
-	xmlnode_hide(*instruction);
+    for (instruction = instructions.begin(); instruction != instructions.end();
+         ++instruction) {
+        xmlnode_hide(*instruction);
     }
 
     /* check which elements have been sent back */
-    xmlnode_vector request_items = xmlnode_get_tags(m->packet->iq, "register:*", m->si->std_namespace_prefixes);
+    xmlnode_vector request_items = xmlnode_get_tags(
+        m->packet->iq, "register:*", m->si->std_namespace_prefixes);
     xmlnode_vector::iterator request_item;
-    for (request_item = request_items.begin(); request_item != request_items.end(); ++request_item) {
-	log_debug2(ZONE, LOGT_REGISTER, "we got a reply for: %s", xmlnode_get_localname(*request_item));
+    for (request_item = request_items.begin();
+         request_item != request_items.end(); ++request_item) {
+        log_debug2(ZONE, LOGT_REGISTER, "we got a reply for: %s",
+                   xmlnode_get_localname(*request_item));
 
-	xmlnode_vector items = xmlnode_get_tags(register_config, xmlnode_get_localname(*request_item), register_namespace);
-	xmlnode_vector::iterator item;
-	for (item = items.begin(); item != items.end(); ++item) {
-	    returned_elements++;
-	    xmlnode_hide(*item);
-	}
+        xmlnode_vector items = xmlnode_get_tags(
+            register_config, xmlnode_get_localname(*request_item),
+            register_namespace);
+        xmlnode_vector::iterator item;
+        for (item = items.begin(); item != items.end(); ++item) {
+            returned_elements++;
+            xmlnode_hide(*item);
+        }
     }
     xhash_free(register_namespace);
     register_namespace = NULL;
 
     /* check if all elements have been returned */
-    xmlnode_vector item = xmlnode_get_tags(register_config, "register:*", m->si->std_namespace_prefixes);
+    xmlnode_vector item = xmlnode_get_tags(register_config, "register:*",
+                                           m->si->std_namespace_prefixes);
     if (item.size() > 0) {
-	xmlnode_vector xoob_url = xmlnode_get_tags(register_config, "xoob:x/xoob:url", m->si->std_namespace_prefixes);
-	xterror err = {400, "", "modify", "bad-request"};
-	if (xoob_url.size() == 0) {
-	    snprintf(err.msg, sizeof(err.msg), "%s: %s", messages_get(xmlnode_get_lang(m->packet->x), N_("Missing data field")), xmlnode_get_localname(item[0]));
-	} else {
-	    snprintf(err.msg, sizeof(err.msg), "%s: %s - %s %s", messages_get(xmlnode_get_lang(m->packet->x), N_("Missing data field")), xmlnode_get_localname(item[0]), messages_get(xmlnode_get_lang(m->packet->x), N_("you may also register at")), xmlnode_get_data(xoob_url[0]));
-	}
-	log_debug2(ZONE, LOGT_REGISTER, "returned err msg: %s", err.msg);
-	jutil_error_xmpp(m->packet->x, err);
-	log_debug2(ZONE, LOGT_REGISTER, "missing fields: %s", xmlnode_serialize_string(register_config, xmppd::ns_decl_list(), 0));
-	xmlnode_free(register_config);
-	return M_HANDLED;
+        xmlnode_vector xoob_url = xmlnode_get_tags(
+            register_config, "xoob:x/xoob:url", m->si->std_namespace_prefixes);
+        xterror err = {400, "", "modify", "bad-request"};
+        if (xoob_url.size() == 0) {
+            snprintf(err.msg, sizeof(err.msg), "%s: %s",
+                     messages_get(xmlnode_get_lang(m->packet->x),
+                                  N_("Missing data field")),
+                     xmlnode_get_localname(item[0]));
+        } else {
+            snprintf(err.msg, sizeof(err.msg), "%s: %s - %s %s",
+                     messages_get(xmlnode_get_lang(m->packet->x),
+                                  N_("Missing data field")),
+                     xmlnode_get_localname(item[0]),
+                     messages_get(xmlnode_get_lang(m->packet->x),
+                                  N_("you may also register at")),
+                     xmlnode_get_data(xoob_url[0]));
+        }
+        log_debug2(ZONE, LOGT_REGISTER, "returned err msg: %s", err.msg);
+        jutil_error_xmpp(m->packet->x, err);
+        log_debug2(ZONE, LOGT_REGISTER, "missing fields: %s",
+                   xmlnode_serialize_string(register_config,
+                                            xmppd::ns_decl_list(), 0));
+        xmlnode_free(register_config);
+        return M_HANDLED;
     }
 
-    log_debug2(ZONE, LOGT_REGISTER, "%i elements have been replied", returned_elements);
+    log_debug2(ZONE, LOGT_REGISTER, "%i elements have been replied",
+               returned_elements);
 
-    /* have there been any element, that has been replied and that was requested?
-     * if no fields where requested, we don't allow account registration
+    /* have there been any element, that has been replied and that was
+     * requested? if no fields where requested, we don't allow account
+     * registration
      */
     if (returned_elements <= 0) {
-	item = xmlnode_get_tags(register_config, "xoob:x/xoob:url", m->si->std_namespace_prefixes);
-	xterror err = {400, "", "modify", "bad-request"};
-	if (item.size() == 0) {
-	    snprintf(err.msg, sizeof(err.msg), "%s", messages_get(xmlnode_get_lang(m->packet->x), N_("Registration not allowed.")));
-	} else {
-	    snprintf(err.msg, sizeof(err.msg), "%s %s", messages_get(xmlnode_get_lang(m->packet->x), N_("Registration not allowed. See")), xmlnode_get_data(item[0]));
-	}
-	log_debug2(ZONE, LOGT_REGISTER, "returned err msg: %s", err.msg);
-	jutil_error_xmpp(m->packet->x, err);
-	xmlnode_free(register_config);
-	return M_HANDLED;
+        item = xmlnode_get_tags(register_config, "xoob:x/xoob:url",
+                                m->si->std_namespace_prefixes);
+        xterror err = {400, "", "modify", "bad-request"};
+        if (item.size() == 0) {
+            snprintf(err.msg, sizeof(err.msg), "%s",
+                     messages_get(xmlnode_get_lang(m->packet->x),
+                                  N_("Registration not allowed.")));
+        } else {
+            snprintf(err.msg, sizeof(err.msg), "%s %s",
+                     messages_get(xmlnode_get_lang(m->packet->x),
+                                  N_("Registration not allowed. See")),
+                     xmlnode_get_data(item[0]));
+        }
+        log_debug2(ZONE, LOGT_REGISTER, "returned err msg: %s", err.msg);
+        jutil_error_xmpp(m->packet->x, err);
+        xmlnode_free(register_config);
+        return M_HANDLED;
     }
 
-    log_debug2(ZONE, LOGT_REGISTER, "registration set request passed all checks");
+    log_debug2(ZONE, LOGT_REGISTER,
+               "registration set request passed all checks");
 
     xmlnode_free(register_config);
     return M_PASS;
 }
 
 /**
- * handle jabber:iq:register queries from existing users (removing accounts and changing passwords)
+ * handle jabber:iq:register queries from existing users (removing accounts and
+ * changing passwords)
  *
  * This function ignores all stanzas but iq stanzas.
  *
- * This module only handles queries in the jabber:iq:register namespace for existing users. Requests are not
- * handled if the <register/> element does not exist in the session manager configuration.
+ * This module only handles queries in the jabber:iq:register namespace for
+ * existing users. Requests are not handled if the <register/> element does not
+ * exist in the session manager configuration.
  *
- * This handles querying for the existing registration by the user, changing the password and removing
- * the account.
+ * This handles querying for the existing registration by the user, changing the
+ * password and removing the account.
  *
  * @param m the mapi structure
- * @return M_IGNORE if stanza is not of type iq, M_PASS if stanza has not been handled, M_HANDLED if stanza has been handled
+ * @return M_IGNORE if stanza is not of type iq, M_PASS if stanza has not been
+ * handled, M_HANDLED if stanza has been handled
  */
 static mreturn _mod_register_server_register(mapi m) {
     xmlnode reg;
@@ -351,199 +418,269 @@ static mreturn _mod_register_server_register(mapi m) {
 
     /* pre-requisites */
     if (m->user == NULL)
-	return M_PASS;
+        return M_PASS;
 
-    log_debug2(ZONE, LOGT_AUTH, "updating server: %s, user %s", m->user->id->get_domain().c_str(), jid_full(m->user->id));
+    log_debug2(ZONE, LOGT_AUTH, "updating server: %s, user %s",
+               m->user->id->get_domain().c_str(), jid_full(m->user->id));
 
     /* check for their registration */
-    reg =  xdb_get(m->si->xc, m->user->id, NS_REGISTER);
+    reg = xdb_get(m->si->xc, m->user->id, NS_REGISTER);
 
-    log_debug2(ZONE, LOGT_AUTH, "current registration data: %s", xmlnode_serialize_string(reg, xmppd::ns_decl_list(), 0));
+    log_debug2(ZONE, LOGT_AUTH, "current registration data: %s",
+               xmlnode_serialize_string(reg, xmppd::ns_decl_list(), 0));
 
     xmlnode_vector register_items;
     xmlnode_vector::iterator iter;
 
     switch (jpacket_subtype(m->packet)) {
-	case JPACKET__GET:
-	    /* create reply to the get */
-	    xmlnode_put_attrib_ns(m->packet->x, "type", NULL, NULL, "result");
-	    jutil_tofrom(m->packet->x);
+        case JPACKET__GET:
+            /* create reply to the get */
+            xmlnode_put_attrib_ns(m->packet->x, "type", NULL, NULL, "result");
+            jutil_tofrom(m->packet->x);
 
-	    /* copy in the currently known data */
-	    xmlnode_insert_node(m->packet->iq, xmlnode_get_firstchild(reg));
+            /* copy in the currently known data */
+            xmlnode_insert_node(m->packet->iq, xmlnode_get_firstchild(reg));
 
-	    /* add the registered flag */
-	    xmlnode_insert_tag_ns(m->packet->iq, "registered", NULL, NS_REGISTER);
+            /* add the registered flag */
+            xmlnode_insert_tag_ns(m->packet->iq, "registered", NULL,
+                                  NS_REGISTER);
 
-	    /* copy additional required fields from configuration */
-	    register_config = js_config(m->si, "register:register", NULL);
-	    register_namespace = xhash_new(1);
-	    xhash_put(register_namespace, "", const_cast<char*>(NS_REGISTER));
-	    register_items = xmlnode_get_tags(register_config, "register:*", m->si->std_namespace_prefixes);
-	    for (iter = register_items.begin(); iter != register_items.end(); ++iter) {
-		if (j_strcmp(xmlnode_get_localname(*iter), "instructions") == 0)
-		    continue;
+            /* copy additional required fields from configuration */
+            register_config = js_config(m->si, "register:register", NULL);
+            register_namespace = xhash_new(1);
+            xhash_put(register_namespace, "", const_cast<char *>(NS_REGISTER));
+            register_items = xmlnode_get_tags(register_config, "register:*",
+                                              m->si->std_namespace_prefixes);
+            for (iter = register_items.begin(); iter != register_items.end();
+                 ++iter) {
+                if (j_strcmp(xmlnode_get_localname(*iter), "instructions") == 0)
+                    continue;
 
-		/* check if the field is already present */
-		if (xmlnode_get_tags(m->packet->iq, xmlnode_get_localname(*iter), register_namespace).size() > 0)
-		    continue;
+                /* check if the field is already present */
+                if (xmlnode_get_tags(m->packet->iq,
+                                     xmlnode_get_localname(*iter),
+                                     register_namespace)
+                        .size() > 0)
+                    continue;
 
-		/* insert the field */
-		xmlnode_insert_tag_ns(m->packet->iq, xmlnode_get_localname(*iter), NULL, NS_REGISTER);
-	    }
+                /* insert the field */
+                xmlnode_insert_tag_ns(m->packet->iq,
+                                      xmlnode_get_localname(*iter), NULL,
+                                      NS_REGISTER);
+            }
 
-	    /* free temp data */
-	    xhash_free(register_namespace);
-	    register_namespace = NULL;
-	    xmlnode_free(register_config);
-	    register_config = NULL;
+            /* free temp data */
+            xhash_free(register_namespace);
+            register_namespace = NULL;
+            xmlnode_free(register_config);
+            register_config = NULL;
 
-	    break;
+            break;
 
-	case JPACKET__SET:
-	    if (xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:remove", m->si->std_namespace_prefixes), 0) != NULL) {
-		xmlnode nounregister = NULL;
+        case JPACKET__SET:
+            if (xmlnode_get_list_item(
+                    xmlnode_get_tags(m->packet->iq, "register:remove",
+                                     m->si->std_namespace_prefixes),
+                    0) != NULL) {
+                xmlnode nounregister = NULL;
 
-		/* is deleting accounts forbidden by the configuration? */
-		nounregister = js_config(m->si, "jsm:nounregister", xmlnode_get_lang(m->packet->x));
-		if (nounregister != NULL) {
-		    xterror err = {405, N_("Not Allowed"), "cancel", "not-allowed"};
-		    char* nounregister_data = xmlnode_get_data(nounregister);
-		    if (nounregister_data != NULL) {
-			snprintf(err.msg, sizeof(err.msg), "%s", nounregister_data);
-		    }
-		    js_bounce_xmpp(m->si, m->s, m->packet->x, err);
-		    xmlnode_free(nounregister);
-		    xmlnode_free(reg);
-		    log_notice(m->user->id->get_domain().c_str(), "Denied unregistration to user %s", jid_full(m->user->id));
-		    return M_HANDLED;
-		}
-	    
-		log_notice(m->user->id->get_domain().c_str(), "User Unregistered: %s", m->user->id->get_node().c_str());
+                /* is deleting accounts forbidden by the configuration? */
+                nounregister = js_config(m->si, "jsm:nounregister",
+                                         xmlnode_get_lang(m->packet->x));
+                if (nounregister != NULL) {
+                    xterror err = {405, N_("Not Allowed"), "cancel",
+                                   "not-allowed"};
+                    char *nounregister_data = xmlnode_get_data(nounregister);
+                    if (nounregister_data != NULL) {
+                        snprintf(err.msg, sizeof(err.msg), "%s",
+                                 nounregister_data);
+                    }
+                    js_bounce_xmpp(m->si, m->s, m->packet->x, err);
+                    xmlnode_free(nounregister);
+                    xmlnode_free(reg);
+                    log_notice(m->user->id->get_domain().c_str(),
+                               "Denied unregistration to user %s",
+                               jid_full(m->user->id));
+                    return M_HANDLED;
+                }
 
-		/* let the modules remove their data for this user */
-		js_user_delete(m->si, m->user->id);
-	    } else {
-		int only_passwordchange = 1;
-		int is_passwordchange = 0;
-		int has_username = 0;
-		xmlnode noregistrationchange = NULL;
+                log_notice(m->user->id->get_domain().c_str(),
+                           "User Unregistered: %s",
+                           m->user->id->get_node().c_str());
 
-		/* is it a password change, or an update for the registration data? */
-		xmlnode_vector register_items = xmlnode_get_tags(m->packet->iq, "register:*", m->si->std_namespace_prefixes);
-		xmlnode_vector::iterator iter;
-		for (iter = register_items.begin(); iter != register_items.end(); ++iter) {
-		    const char* localname = xmlnode_get_localname(*iter);
+                /* let the modules remove their data for this user */
+                js_user_delete(m->si, m->user->id);
+            } else {
+                int only_passwordchange = 1;
+                int is_passwordchange = 0;
+                int has_username = 0;
+                xmlnode noregistrationchange = NULL;
 
-		    /* the username cannot be changed, if it is present, it has to stay the same */
-		    if (j_strcmp(localname, "username") == 0) {
-			has_username++;
-			jid username_jid = jid_new(m->packet->p, jid_full(m->user->id));
-			jid_set(username_jid, xmlnode_get_data(*iter), JID_USER);
-			if (jid_cmp(m->user->id, username_jid) == 0) {
-			    xmlnode_hide(*iter); /* we'll regenerate using preped version */
-			    continue; /* it's still the same username, everything is perfect */
-			}
+                /* is it a password change, or an update for the registration
+                 * data?
+                 */
+                xmlnode_vector register_items = xmlnode_get_tags(
+                    m->packet->iq, "register:*", m->si->std_namespace_prefixes);
+                xmlnode_vector::iterator iter;
+                for (iter = register_items.begin();
+                     iter != register_items.end(); ++iter) {
+                    const char *localname = xmlnode_get_localname(*iter);
 
-			/* user tries to change his username */
-			js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_NOTACCEPTABLE);
-			xmlnode_free(reg);
-			log_notice(m->user->id->get_domain().c_str(), "Denied update of username for %s to %s", jid_full(m->user->id), xmlnode_get_data(*iter));
-			return M_HANDLED;
-		    }
+                    /* the username cannot be changed, if it is present, it has
+                     * to stay the same */
+                    if (j_strcmp(localname, "username") == 0) {
+                        has_username++;
+                        jid username_jid =
+                            jid_new(m->packet->p, jid_full(m->user->id));
+                        jid_set(username_jid, xmlnode_get_data(*iter),
+                                JID_USER);
+                        if (jid_cmp(m->user->id, username_jid) == 0) {
+                            xmlnode_hide(*iter); /* we'll regenerate using
+                                                    preped version */
+                            continue; /* it's still the same username,
+                                         everything is perfect */
+                        }
 
-		    /* does the request contain a new password? */
-		    if (j_strcmp(localname, "password") == 0) {
-			is_passwordchange = 1;
-			continue;
-		    }
+                        /* user tries to change his username */
+                        js_bounce_xmpp(m->si, m->s, m->packet->x,
+                                       XTERROR_NOTACCEPTABLE);
+                        xmlnode_free(reg);
+                        log_notice(m->user->id->get_domain().c_str(),
+                                   "Denied update of username for %s to %s",
+                                   jid_full(m->user->id),
+                                   xmlnode_get_data(*iter));
+                        return M_HANDLED;
+                    }
 
-		    /* anything else is a change in the registration data */
-		    only_passwordchange = 0;
-		}
+                    /* does the request contain a new password? */
+                    if (j_strcmp(localname, "password") == 0) {
+                        is_passwordchange = 1;
+                        continue;
+                    }
 
-		/* ensure, that there is exactly one username */
-		if (has_username > 1) {
-		    js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_BAD);
-		    xmlnode_free(reg);
-		    log_notice(m->user->id->get_domain().c_str(), "User %s sent registration data set request containing multiple usernames", jid_full(m->user->id));
-		    return M_HANDLED;
-		}
-		xmlnode_insert_cdata(xmlnode_insert_tag_ns(m->packet->iq, "username", NULL, NS_REGISTER), m->user->id->get_node().c_str(), -1);
+                    /* anything else is a change in the registration data */
+                    only_passwordchange = 0;
+                }
 
-		/* did we find anything useful? */
-		if (!is_passwordchange && only_passwordchange) {
-		    js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_BAD);
-		    xmlnode_free(reg);
-		    log_notice(m->user->id->get_domain().c_str(), "User %s sent incomplete registration data set request", jid_full(m->user->id));
-		    return M_HANDLED;
-		}
+                /* ensure, that there is exactly one username */
+                if (has_username > 1) {
+                    js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_BAD);
+                    xmlnode_free(reg);
+                    log_notice(m->user->id->get_domain().c_str(),
+                               "User %s sent registration data set request "
+                               "containing multiple usernames",
+                               jid_full(m->user->id));
+                    return M_HANDLED;
+                }
+                xmlnode_insert_cdata(xmlnode_insert_tag_ns(m->packet->iq,
+                                                           "username", NULL,
+                                                           NS_REGISTER),
+                                     m->user->id->get_node().c_str(), -1);
 
-		/* if it is a real regstration update (not only password-change), check that all required fields have been provided */
-		if (!only_passwordchange) {
-		    log_debug2(ZONE, LOGT_ROSTER, "updating registration for %s",jid_full(m->user->id));
+                /* did we find anything useful? */
+                if (!is_passwordchange && only_passwordchange) {
+                    js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_BAD);
+                    xmlnode_free(reg);
+                    log_notice(
+                        m->user->id->get_domain().c_str(),
+                        "User %s sent incomplete registration data set request",
+                        jid_full(m->user->id));
+                    return M_HANDLED;
+                }
 
-		    if (mod_register_check(m, NULL) == M_HANDLED) {
-			js_deliver(m->si, jpacket_reset(m->packet), m->s);
-			xmlnode_free(reg);
-			return M_HANDLED;
-		    }
+                /* if it is a real regstration update (not only
+                 * password-change), check that all required fields have been
+                 * provided */
+                if (!only_passwordchange) {
+                    log_debug2(ZONE, LOGT_ROSTER,
+                               "updating registration for %s",
+                               jid_full(m->user->id));
 
-		    /* is updating registration data forbidden by the configuration? */
-		    noregistrationchange = js_config(m->si, "jsm:noregistrationchange", xmlnode_get_lang(m->packet->x));
-		    if (noregistrationchange != NULL) {
-			xterror err = {405, N_("Not Allowed"), "cancel", "not-allowed"};
-			char* noregistrationchange_data = xmlnode_get_data(noregistrationchange);
-			if (noregistrationchange_data != NULL) {
-			    snprintf(err.msg, sizeof(err.msg), "%s", noregistrationchange_data);
-			}
-			js_bounce_xmpp(m->si, m->s, m->packet->x, err);
-			xmlnode_free(noregistrationchange);
-			xmlnode_free(reg);
-			log_notice(m->user->id->get_domain().c_str(), "Denied registration data change to user %s", jid_full(m->user->id));
-			return M_HANDLED;
-		    }
-		}
+                    if (mod_register_check(m, NULL) == M_HANDLED) {
+                        js_deliver(m->si, jpacket_reset(m->packet), m->s);
+                        xmlnode_free(reg);
+                        return M_HANDLED;
+                    }
 
-		/* let the authentication modules update the stored password */
-		if (is_passwordchange) {
-		    xmlnode nopasswordchange = js_config(m->si, "jsm:nopasswordchange", xmlnode_get_lang(m->packet->x));
-		    if (nopasswordchange != NULL) {
-			xterror err = {405, N_("Not Allowed"), "cancel", "not-allowed"};
-			char* nopasswordchange_data = xmlnode_get_data(nopasswordchange);
-			if (nopasswordchange_data != NULL) {
-			    snprintf(err.msg, sizeof(err.msg), "%s", nopasswordchange_data);
-			}
-			js_bounce_xmpp(m->si, m->s, m->packet->x, err);
-			xmlnode_free(nopasswordchange);
-			xmlnode_free(reg);
-			log_notice(m->user->id->get_domain().c_str(), "Denied password change to user %s", jid_full(m->user->id));
-			return M_HANDLED;
-		    }
-		    xmlnode_free(nopasswordchange);
+                    /* is updating registration data forbidden by the
+                     * configuration?
+                     */
+                    noregistrationchange =
+                        js_config(m->si, "jsm:noregistrationchange",
+                                  xmlnode_get_lang(m->packet->x));
+                    if (noregistrationchange != NULL) {
+                        xterror err = {405, N_("Not Allowed"), "cancel",
+                                       "not-allowed"};
+                        char *noregistrationchange_data =
+                            xmlnode_get_data(noregistrationchange);
+                        if (noregistrationchange_data != NULL) {
+                            snprintf(err.msg, sizeof(err.msg), "%s",
+                                     noregistrationchange_data);
+                        }
+                        js_bounce_xmpp(m->si, m->s, m->packet->x, err);
+                        xmlnode_free(noregistrationchange);
+                        xmlnode_free(reg);
+                        log_notice(m->user->id->get_domain().c_str(),
+                                   "Denied registration data change to user %s",
+                                   jid_full(m->user->id));
+                        return M_HANDLED;
+                    }
+                }
 
-		    if (mod_register_passwordchange(m) == M_HANDLED) {
-			xmlnode_free(reg);
-			return M_HANDLED;
-		    }
-		    log_notice(m->user->id->get_domain().c_str(), "User %s changed password", jid_full(m->user->id));
-		}
+                /* let the authentication modules update the stored password */
+                if (is_passwordchange) {
+                    xmlnode nopasswordchange =
+                        js_config(m->si, "jsm:nopasswordchange",
+                                  xmlnode_get_lang(m->packet->x));
+                    if (nopasswordchange != NULL) {
+                        xterror err = {405, N_("Not Allowed"), "cancel",
+                                       "not-allowed"};
+                        char *nopasswordchange_data =
+                            xmlnode_get_data(nopasswordchange);
+                        if (nopasswordchange_data != NULL) {
+                            snprintf(err.msg, sizeof(err.msg), "%s",
+                                     nopasswordchange_data);
+                        }
+                        js_bounce_xmpp(m->si, m->s, m->packet->x, err);
+                        xmlnode_free(nopasswordchange);
+                        xmlnode_free(reg);
+                        log_notice(m->user->id->get_domain().c_str(),
+                                   "Denied password change to user %s",
+                                   jid_full(m->user->id));
+                        return M_HANDLED;
+                    }
+                    xmlnode_free(nopasswordchange);
 
-		if (!only_passwordchange) {
-		    /* update the registration data */
-		    xmlnode_hide(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:username", m->si->std_namespace_prefixes), 0)); /* hide the username/password from the reg db */
-		    xmlnode_hide(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "register:password", m->si->std_namespace_prefixes), 0));
-		    jutil_delay(m->packet->iq,"updated");
-		    xdb_set(m->si->xc, m->user->id, NS_REGISTER, m->packet->iq);
-		}
-	    }
-	    /* clean up and respond */
-	    jutil_iqresult(m->packet->x);
-	    break;
+                    if (mod_register_passwordchange(m) == M_HANDLED) {
+                        xmlnode_free(reg);
+                        return M_HANDLED;
+                    }
+                    log_notice(m->user->id->get_domain().c_str(),
+                               "User %s changed password",
+                               jid_full(m->user->id));
+                }
 
-	default:
-	    xmlnode_free(reg);
-	    return M_PASS;
+                if (!only_passwordchange) {
+                    /* update the registration data */
+                    xmlnode_hide(xmlnode_get_list_item(
+                        xmlnode_get_tags(m->packet->iq, "register:username",
+                                         m->si->std_namespace_prefixes),
+                        0)); /* hide the username/password from the reg db */
+                    xmlnode_hide(xmlnode_get_list_item(
+                        xmlnode_get_tags(m->packet->iq, "register:password",
+                                         m->si->std_namespace_prefixes),
+                        0));
+                    jutil_delay(m->packet->iq, "updated");
+                    xdb_set(m->si->xc, m->user->id, NS_REGISTER, m->packet->iq);
+                }
+            }
+            /* clean up and respond */
+            jutil_iqresult(m->packet->x);
+            break;
+
+        default:
+            xmlnode_free(reg);
+            return M_PASS;
     }
 
     xmlnode_free(reg);
@@ -571,17 +708,18 @@ static mreturn _mod_register_disco_info(mapi m) {
 
     /* only no node, only get */
     if (jpacket_subtype(m->packet) != JPACKET__GET)
-	return M_PASS;
+        return M_PASS;
     if (xmlnode_get_attrib_ns(m->packet->iq, "node", NULL) != NULL)
-	return M_PASS;
+        return M_PASS;
 
     /* build the result IQ */
     js_mapi_create_additional_iq_result(m, "query", NULL, NS_DISCO_INFO);
     if (m->additional_result == NULL || m->additional_result->iq == NULL)
-	return M_PASS;
+        return M_PASS;
 
     /* add features */
-    feature = xmlnode_insert_tag_ns(m->additional_result->iq, "feature", NULL, NS_DISCO_INFO);
+    feature = xmlnode_insert_tag_ns(m->additional_result->iq, "feature", NULL,
+                                    NS_DISCO_INFO);
     xmlnode_put_attrib_ns(feature, "var", NULL, NULL, NS_REGISTER);
 
     return M_PASS;
@@ -597,19 +735,19 @@ static mreturn _mod_register_disco_info(mapi m) {
 static mreturn _mod_register_iq_server(mapi m, void *arg) {
     /* sanity check */
     if (m == NULL || m->packet == NULL)
-	return M_PASS;
+        return M_PASS;
 
     /* only handle iq packets */
     if (m->packet->type != JPACKET_IQ)
-	return M_IGNORE;
+        return M_IGNORE;
 
     /* register request? */
     if (NSCHECK(m->packet->iq, NS_REGISTER))
-	return _mod_register_server_register(m);
+        return _mod_register_server_register(m);
 
     /* disco#info query? */
     if (NSCHECK(m->packet->iq, NS_DISCO_INFO))
-	return _mod_register_disco_info(m);
+        return _mod_register_disco_info(m);
 
     return M_PASS;
 }
@@ -617,8 +755,9 @@ static mreturn _mod_register_iq_server(mapi m, void *arg) {
 /**
  * init the module, register callbacks
  *
- * registers mod_register_new() as the callback for new user's registration requests,
- * registers mod_register_server() as the callback for existing user's registration requests (unregister and change password)
+ * registers mod_register_new() as the callback for new user's registration
+ * requests, registers mod_register_server() as the callback for existing user's
+ * registration requests (unregister and change password)
  *
  * @param si the session manager instance
  */

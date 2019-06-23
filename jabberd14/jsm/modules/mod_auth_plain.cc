@@ -1,7 +1,7 @@
 /*
  * Copyrights
- * 
- * Portions created by or assigned to Jabber.com, Inc. are 
+ *
+ * Portions created by or assigned to Jabber.com, Inc. are
  * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
  * information for Jabber.com, Inc. is available at http://www.jabber.com/.
  *
@@ -32,16 +32,18 @@
 
 /**
  * @file mod_auth_plain.cc
- * @brief handles authentication using plaintext password with plaintext passwords in xdb
+ * @brief handles authentication using plaintext password with plaintext
+ * passwords in xdb
  *
  * This module is responsible for handling authentication if the client uses
- * legacy plaintext authentication. It stores and uses plaintext password in xdb.
- * mod_auth_crypt.c is available as a replacement for mod_auth_plain.c, if only hash
- * values of the password should be stored in xdb. But this means that many more advanced
- * authentication methods won't work if you only store hashes.
+ * legacy plaintext authentication. It stores and uses plaintext password in
+ * xdb. mod_auth_crypt.c is available as a replacement for mod_auth_plain.c, if
+ * only hash values of the password should be stored in xdb. But this means that
+ * many more advanced authentication methods won't work if you only store
+ * hashes.
  *
- * Using plaintext password in xdb also will make it much more easy to convert your
- * server to use SASL in the future.
+ * Using plaintext password in xdb also will make it much more easy to convert
+ * your server to use SASL in the future.
  */
 
 /**
@@ -52,7 +54,8 @@
  *
  * @param m the mapi structure, containing the authentication request
  * @param arg unused / ignored
- * @return M_PASS if the next module should be called to handle the request, M_HANDLED if the request has been completely handled
+ * @return M_PASS if the next module should be called to handle the request,
+ * M_HANDLED if the request has been completely handled
  */
 static mreturn mod_auth_plain_jane(mapi m, void *arg) {
     char *pass = NULL;
@@ -62,12 +65,15 @@ static mreturn mod_auth_plain_jane(mapi m, void *arg) {
     log_debug2(ZONE, LOGT_AUTH, "checking");
 
     if (jpacket_subtype(m->packet) == JPACKET__GET) {
-	/* type=get means we flag that the server can do plain-text auth */
+        /* type=get means we flag that the server can do plain-text auth */
         xmlnode_insert_tag_ns(m->packet->iq, "password", NULL, NS_AUTH);
         return M_PASS;
     }
 
-    if ((pass = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:password", m->si->std_namespace_prefixes), 0))) == NULL)
+    if ((pass = xmlnode_get_data(xmlnode_get_list_item(
+             xmlnode_get_tags(m->packet->iq, "auth:password",
+                              m->si->std_namespace_prefixes),
+             0))) == NULL)
         return M_PASS;
 
     xmlpass = xdb_get(m->si->xc, m->user->id, NS_AUTH);
@@ -79,15 +85,20 @@ static mreturn mod_auth_plain_jane(mapi m, void *arg) {
             jutil_error_xmpp(m->packet->x, XTERROR_AUTH);
         else
             jutil_iqresult(m->packet->x);
-	xmlnode_free(xmlpass);
+        xmlnode_free(xmlpass);
         return M_HANDLED;
     }
     xmlnode_free(xmlpass);
 
     log_debug2(ZONE, LOGT_AUTH, "trying xdb act check");
-    /* if the act "check" fails, PASS so that 0k could use the password to try and auth w/ it's data */
+    /* if the act "check" fails, PASS so that 0k could use the password to try
+     * and auth w/ it's data */
     /* XXX see the comment in xdb_file/xdb_file.c for the check action */
-    if (xdb_act_path(m->si->xc, m->user->id, NS_AUTH, "check", NULL, NULL, xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:password", m->si->std_namespace_prefixes), 0)))
+    if (xdb_act_path(m->si->xc, m->user->id, NS_AUTH, "check", NULL, NULL,
+                     xmlnode_get_list_item(
+                         xmlnode_get_tags(m->packet->iq, "auth:password",
+                                          m->si->std_namespace_prefixes),
+                         0)))
         return M_PASS;
 
     jutil_iqresult(m->packet->x);
@@ -99,7 +110,8 @@ static mreturn mod_auth_plain_jane(mapi m, void *arg) {
  *
  * @param m the mapi instance
  * @param id for which user to set the password
- * @param pass the new password (wrapped in a password element of the right namespace)
+ * @param pass the new password (wrapped in a password element of the right
+ * namespace)
  * @return 0 if setting the password succeded, it failed otherwise
  */
 static int mod_auth_plain_reset(mapi m, jid id, xmlnode pass) {
@@ -120,9 +132,11 @@ static int mod_auth_plain_reset(mapi m, jid id, xmlnode pass) {
  */
 static mreturn mod_auth_plain_reg(mapi m, void *arg) {
     if (jpacket_subtype(m->packet) == JPACKET__GET) {
-	/* type=get means we tell what we need */
-	if (xmlnode_get_tags(m->packet->iq, "register:password", m->si->std_namespace_prefixes).size() == 0)
-	    xmlnode_insert_tag_ns(m->packet->iq, "password", NULL, NS_REGISTER);
+        /* type=get means we tell what we need */
+        if (xmlnode_get_tags(m->packet->iq, "register:password",
+                             m->si->std_namespace_prefixes)
+                .size() == 0)
+            xmlnode_insert_tag_ns(m->packet->iq, "password", NULL, NS_REGISTER);
     }
     return M_PASS;
 }
@@ -145,7 +159,10 @@ static mreturn mod_auth_plain_pwchange(mapi m, void *arg) {
     id = jid_user(m->packet->to);
 
     /* get the new password */
-    pass = xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:password", m->si->std_namespace_prefixes), 0);
+    pass =
+        xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:password",
+                                               m->si->std_namespace_prefixes),
+                              0);
 
     /* tuck away for a rainy day */
     if (mod_auth_plain_reset(m, id, pass)) {
@@ -176,8 +193,8 @@ static mreturn mod_auth_plain_delete(mapi m, void *arg) {
  * - mod_auth_plain_jane as authentication handler
  * - mod_auth_plain_server to process packets sent to the server address
  * - mod_auth_plain_reg to process request for required files in a registration
- *   request (only if there is a &lt;register/&gt; element in the session manager
- *   configuration)
+ *   request (only if there is a &lt;register/&gt; element in the session
+ * manager configuration)
  * - mod_auth_plain_pwchange to process changed passwords
  *
  * @param si the session manager instance
@@ -190,7 +207,7 @@ extern "C" void mod_auth_plain(jsmi si) {
     js_mapi_register(si, e_AUTH, mod_auth_plain_jane, NULL);
     js_mapi_register(si, e_PASSWORDCHANGE, mod_auth_plain_pwchange, NULL);
     if (register_config != NULL) {
-	js_mapi_register(si, e_REGISTER, mod_auth_plain_reg, NULL);
+        js_mapi_register(si, e_REGISTER, mod_auth_plain_reg, NULL);
     }
     js_mapi_register(si, e_DELETE, mod_auth_plain_delete, NULL);
     xmlnode_free(register_config);

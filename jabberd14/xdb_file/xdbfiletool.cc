@@ -1,6 +1,6 @@
 /*
  * Copyrights
- * 
+ *
  * Copyright (c) 2006-2007 Matthias Wimmer
  *
  * This file is part of jabberd14.
@@ -22,15 +22,16 @@
  *
  */
 
-#include <jabberd.h>
 #include <dlfcn.h>
+#include <jabberd.h>
 #include <popt.h>
 
 #include <iostream>
 
 /**
  * @file xdbfiletool.cc
- * @brief small utility that prints out the location of a spool file inside the root spool directory
+ * @brief small utility that prints out the location of a spool file inside the
+ * root spool directory
  */
 
 /* XXX very big hack, to be able to link against libjabberd
@@ -45,13 +46,14 @@ xht debug__zones;
 void *so_h = NULL;
 
 /* functions in libjabberdxdbfile.so used */
-char* (*xdb_file_full)(int create, pool p, const char *spl, char const* host, const char *file, char const* ext, int use_subdirs);
+char *(*xdb_file_full)(int create, pool p, const char *spl, char const *host,
+                       const char *file, char const *ext, int use_subdirs);
 void (*xdb_convert_spool)(const char *spoolroot);
 xmlnode (*xdb_file_load)(char *host, char *fname, xht cache);
 
 int main(int argc, const char **argv) {
     char *error = NULL;
-    char const* cfgfile = CONFIG_DIR "/jabber.xml";
+    char const *cfgfile = CONFIG_DIR "/jabber.xml";
     char *basedir = NULL;
     char *do_get = NULL;
     char *do_set = NULL;
@@ -69,21 +71,31 @@ int main(int argc, const char **argv) {
     ::jid parsed_jid = NULL;
 
     struct poptOption options[] = {
-	{ "convert", 0, POPT_ARG_NONE, &convert, 0, "convert from plain spool to hashspool", NULL},
-	{ "getpath", 0, POPT_ARG_STRING, &getpath, 0, "get the path to a file of a user", "JabberID"},
-	{ "get", 'g', POPT_ARG_STRING, &do_get, 0, "get a node in the spool file", "path"},
-	{ "set", 's', POPT_ARG_STRING, &do_set, 0, "set a node in the spool file", "path value"},
-	{ "del", 'd', POPT_ARG_STRING, &do_del, 0, "delete a node in the spool file", "path"},
-	{ "jid", 'j', POPT_ARG_STRING, &jid, 0, "JabberID for get/set/del operation", "JID"},
-	{ "basedir", 'b', POPT_ARG_STRING, &basedir, 0, "base dir of the spool", "path"},
-	{ "hashspool", 'h', POPT_ARG_NONE, &hashspool, 0, "use hashed spool directory", NULL},
-	{ "namespace", 'n', POPT_ARG_STRING, NULL, 1, "define a namespace prefix", "prefix:IRI"},
-        { "config", 'c', POPT_ARG_STRING, &cfgfile, 0, "configuration file to use", "path and filename"},
-        { "version", 'V', POPT_ARG_NONE, &show_version, 0, "print server version", NULL},
-        { NULL, 'v', POPT_ARG_NONE|POPT_ARGFLAG_DOC_HIDDEN, &show_version, 0, "print server version", NULL},
-        POPT_AUTOHELP
-        POPT_TABLEEND
-    };
+        {"convert", 0, POPT_ARG_NONE, &convert, 0,
+         "convert from plain spool to hashspool", NULL},
+        {"getpath", 0, POPT_ARG_STRING, &getpath, 0,
+         "get the path to a file of a user", "JabberID"},
+        {"get", 'g', POPT_ARG_STRING, &do_get, 0,
+         "get a node in the spool file", "path"},
+        {"set", 's', POPT_ARG_STRING, &do_set, 0,
+         "set a node in the spool file", "path value"},
+        {"del", 'd', POPT_ARG_STRING, &do_del, 0,
+         "delete a node in the spool file", "path"},
+        {"jid", 'j', POPT_ARG_STRING, &jid, 0,
+         "JabberID for get/set/del operation", "JID"},
+        {"basedir", 'b', POPT_ARG_STRING, &basedir, 0, "base dir of the spool",
+         "path"},
+        {"hashspool", 'h', POPT_ARG_NONE, &hashspool, 0,
+         "use hashed spool directory", NULL},
+        {"namespace", 'n', POPT_ARG_STRING, NULL, 1,
+         "define a namespace prefix", "prefix:IRI"},
+        {"config", 'c', POPT_ARG_STRING, &cfgfile, 0,
+         "configuration file to use", "path and filename"},
+        {"version", 'V', POPT_ARG_NONE, &show_version, 0,
+         "print server version", NULL},
+        {NULL, 'v', POPT_ARG_NONE | POPT_ARGFLAG_DOC_HIDDEN, &show_version, 0,
+         "print server version", NULL},
+        POPT_AUTOHELP POPT_TABLEEND};
 
     /* init the libraries */
     pth_init();
@@ -94,218 +106,275 @@ int main(int argc, const char **argv) {
     /* parse command line options */
     pCtx = poptGetContext(NULL, argc, argv, options, 0);
     while ((pReturn = poptGetNextOpt(pCtx)) >= 0) {
-	char *prefix = NULL;
-	char *ns_iri = NULL;
+        char *prefix = NULL;
+        char *ns_iri = NULL;
 
-	switch (pReturn) {
-	    case 1:
-		prefix = pstrdup(p, poptGetOptArg(pCtx));
-		if (prefix == NULL) {
-		    std::cerr << "Problem processing namespace prefix declaration ..." << std::endl;
-		    return 1;
-		}
-		ns_iri = strchr(prefix, ':');
-		if (ns_iri == NULL) {
-		    std::cerr << "Invalid namespace prefix declaration ('" << prefix << "'). Required format is prefix:IRI ..." << std::endl;
-		    return 1;
-		}
-		ns_iri[0] = 0;
-		ns_iri++;
-		xhash_put(namespace_prefixes, prefix, ns_iri);
-		break;
-	}
+        switch (pReturn) {
+            case 1:
+                prefix = pstrdup(p, poptGetOptArg(pCtx));
+                if (prefix == NULL) {
+                    std::cerr
+                        << "Problem processing namespace prefix declaration ..."
+                        << std::endl;
+                    return 1;
+                }
+                ns_iri = strchr(prefix, ':');
+                if (ns_iri == NULL) {
+                    std::cerr
+                        << "Invalid namespace prefix declaration ('" << prefix
+                        << "'). Required format is prefix:IRI ..." << std::endl;
+                    return 1;
+                }
+                ns_iri[0] = 0;
+                ns_iri++;
+                xhash_put(namespace_prefixes, prefix, ns_iri);
+                break;
+        }
     }
 
     /* error? */
     if (pReturn < -1) {
-	std::cerr << poptBadOption(pCtx, POPT_BADOPTION_NOALIAS) << ": " << poptStrerror(pReturn) << std::endl;
-	return 1;
+        std::cerr << poptBadOption(pCtx, POPT_BADOPTION_NOALIAS) << ": "
+                  << poptStrerror(pReturn) << std::endl;
+        return 1;
     }
 
     /* show version information? */
     if (show_version != 0) {
-	std::cout << "xdbfiletool out of " PACKAGE " version " VERSION << std::endl;
-	std::cout << "Default config file is: " CONFIG_DIR << "/jabber.xml" << std::endl;
-	std::cout << "For more information please visit http://jabberd.org/" << std::endl;
-	return 0;
+        std::cout << "xdbfiletool out of " PACKAGE " version " VERSION
+                  << std::endl;
+        std::cout << "Default config file is: " CONFIG_DIR << "/jabber.xml"
+                  << std::endl;
+        std::cout << "For more information please visit http://jabberd.org/"
+                  << std::endl;
+        return 0;
     }
 
     std_namespace_prefixes = xhash_new(13);
-    xhash_put(std_namespace_prefixes, "conf", const_cast<void*>(static_cast<const void*>(NS_JABBERD_CONFIGFILE)));
-    xhash_put(std_namespace_prefixes, "xdbfile", const_cast<void*>(static_cast<const void*>(NS_JABBERD_CONFIG_XDBFILE)));
+    xhash_put(
+        std_namespace_prefixes, "conf",
+        const_cast<void *>(static_cast<const void *>(NS_JABBERD_CONFIGFILE)));
+    xhash_put(std_namespace_prefixes, "xdbfile",
+              const_cast<void *>(
+                  static_cast<const void *>(NS_JABBERD_CONFIG_XDBFILE)));
 
     /* open module */
-    /* XXX well using dlopen is not very portable, but jabberd does itself at present
-     * we should change to libltdl for jabberd as well as for this
+    /* XXX well using dlopen is not very portable, but jabberd does itself at
+     * present we should change to libltdl for jabberd as well as for this
      */
     so_h = dlopen("libjabberdxdbfile.so", RTLD_LAZY);
     if (so_h == NULL) {
-	std::cerr << "While loading libjabberdxdbfile.so: " << dlerror() << std::endl;
-	return 3;
+        std::cerr << "While loading libjabberdxdbfile.so: " << dlerror()
+                  << std::endl;
+        return 3;
     }
     dlerror();
 
     /* load the needed functions */
-    *(void **) (&xdb_file_full) = dlsym(so_h, "xdb_file_full");
+    *(void **)(&xdb_file_full) = dlsym(so_h, "xdb_file_full");
     if ((error = dlerror()) != NULL) {
-	std::cerr << "While loading xdb_file_full(): " << dlerror() << std::endl;
-	return 3;
+        std::cerr << "While loading xdb_file_full(): " << dlerror()
+                  << std::endl;
+        return 3;
     }
-    *(void **) (&xdb_convert_spool) = dlsym(so_h, "xdb_convert_spool");
+    *(void **)(&xdb_convert_spool) = dlsym(so_h, "xdb_convert_spool");
     if ((error = dlerror()) != NULL) {
-	std::cerr << "While loading xdb_convert_spool(): " << dlerror() << std::endl;
-	return 3;
+        std::cerr << "While loading xdb_convert_spool(): " << dlerror()
+                  << std::endl;
+        return 3;
     }
-    *(void **) (&xdb_file_load) = dlsym(so_h, "xdb_file_load");
+    *(void **)(&xdb_file_load) = dlsym(so_h, "xdb_file_load");
     if ((error = dlerror()) != NULL) {
-	std::cerr << "While loading xdb_file_load(): " << dlerror() << std::endl;
-	return 3;
+        std::cerr << "While loading xdb_file_load(): " << dlerror()
+                  << std::endl;
+        return 3;
     }
 
     /* get the base directory */
     if (basedir == NULL) {
-	xmlnode configfile = xmlnode_file(cfgfile);
+        xmlnode configfile = xmlnode_file(cfgfile);
 
-	/* load configuration file */
-	if (configfile == NULL) {
-	    std::cerr << "You have not specified a basedir, and config file ('" << cfgfile << "') could not be loaded:" << std::endl;
-	    std::cerr << xmlnode_file_borked(cfgfile) << std::endl;
-	    return 1;
-	}
+        /* load configuration file */
+        if (configfile == NULL) {
+            std::cerr << "You have not specified a basedir, and config file ('"
+                      << cfgfile << "') could not be loaded:" << std::endl;
+            std::cerr << xmlnode_file_borked(cfgfile) << std::endl;
+            return 1;
+        }
 
-	xmlnode_vector hashspool_node = xmlnode_get_tags(configfile, "conf:xdb/xdbfile:xdb_file/xdbfile:use_hierarchical_spool", std_namespace_prefixes);
-	if (hashspool_node.size() > 0)
-	    hashspool = 1;
+        xmlnode_vector hashspool_node = xmlnode_get_tags(
+            configfile,
+            "conf:xdb/xdbfile:xdb_file/xdbfile:use_hierarchical_spool",
+            std_namespace_prefixes);
+        if (hashspool_node.size() > 0)
+            hashspool = 1;
 
-	xmlnode_vector basedir_node = xmlnode_get_tags(configfile, "conf:xdb/xdbfile:xdb_file/xdbfile:spool/*", std_namespace_prefixes);
+        xmlnode_vector basedir_node = xmlnode_get_tags(
+            configfile, "conf:xdb/xdbfile:xdb_file/xdbfile:spool/*",
+            std_namespace_prefixes);
 
-	if (basedir_node.size() == 0) {
-	    std::cerr << "Basedir could not be found in the config file ('" << cfgfile << "'). Please use --basedir to specify base directory." << std::endl;
-	    return 1;
-	}
-	if (basedir_node[0]->type == NTYPE_TAG
-		&& j_strcmp(xmlnode_get_localname(basedir_node[0]), "cmdline") == 0
-		&& j_strcmp(xmlnode_get_namespace(basedir_node[0]), NS_JABBERD_CONFIGFILE_REPLACE) == 0) {
-	    basedir_node[0] = xmlnode_get_firstchild(basedir_node[0]);
-	}
-	if (basedir_node[0] == NULL || basedir_node[0]->type != NTYPE_CDATA) {
-	    std::cerr << "Could not determine base directory for spool using config file ('" << cfgfile << "'). Please use --basedir to specify base directory." << std::endl;
-	    return 1;
-	}
-	basedir = xmlnode_get_data(basedir_node[0]);
-	if (basedir_node.size() > 1) {
-	    std::cerr << "Could not determine base directory, found different possibilities. Plase use --basedir to specify base directory." << std::endl;
-	    return 1;
-	}
-	if (basedir == NULL) {
-	    std::cerr << "Could not automatically determine base directory, plase use --basedir to specify base directory." << std::endl;
-	    return 1;
-	}
+        if (basedir_node.size() == 0) {
+            std::cerr << "Basedir could not be found in the config file ('"
+                      << cfgfile
+                      << "'). Please use --basedir to specify base directory."
+                      << std::endl;
+            return 1;
+        }
+        if (basedir_node[0]->type == NTYPE_TAG &&
+            j_strcmp(xmlnode_get_localname(basedir_node[0]), "cmdline") == 0 &&
+            j_strcmp(xmlnode_get_namespace(basedir_node[0]),
+                     NS_JABBERD_CONFIGFILE_REPLACE) == 0) {
+            basedir_node[0] = xmlnode_get_firstchild(basedir_node[0]);
+        }
+        if (basedir_node[0] == NULL || basedir_node[0]->type != NTYPE_CDATA) {
+            std::cerr << "Could not determine base directory for spool using "
+                         "config file ('"
+                      << cfgfile
+                      << "'). Please use --basedir to specify base directory."
+                      << std::endl;
+            return 1;
+        }
+        basedir = xmlnode_get_data(basedir_node[0]);
+        if (basedir_node.size() > 1) {
+            std::cerr << "Could not determine base directory, found different "
+                         "possibilities. Plase use --basedir to specify base "
+                         "directory."
+                      << std::endl;
+            return 1;
+        }
+        if (basedir == NULL) {
+            std::cerr << "Could not automatically determine base directory, "
+                         "plase use --basedir to specify base directory."
+                      << std::endl;
+            return 1;
+        }
     }
 
     if (convert) {
-	std::cout << "Converting xdb_file's spool directories in " << basedir << " ... this may take some time!" << std::endl;
-	(*xdb_convert_spool)(basedir);
-	std::cout << "Done." << std::endl;
-	return 0;
+        std::cout << "Converting xdb_file's spool directories in " << basedir
+                  << " ... this may take some time!" << std::endl;
+        (*xdb_convert_spool)(basedir);
+        std::cout << "Done." << std::endl;
+        return 0;
     }
 
     if (getpath != NULL) {
-	::jid user = jid_new(p, getpath);
-	
-	if (user == NULL) {
-	    std::cerr << "Problem processing secified JabberID: " << getpath << std::endl;
-	    return 1;
-	}
-	std::cout << (*xdb_file_full)(0, p, basedir, user->get_domain().c_str(), user->get_node().c_str(), "xml", hashspool) << std::endl;
-	pool_free(p);
+        ::jid user = jid_new(p, getpath);
 
-	return 0;
+        if (user == NULL) {
+            std::cerr << "Problem processing secified JabberID: " << getpath
+                      << std::endl;
+            return 1;
+        }
+        std::cout << (*xdb_file_full)(0, p, basedir, user->get_domain().c_str(),
+                                      user->get_node().c_str(), "xml",
+                                      hashspool)
+                  << std::endl;
+        pool_free(p);
+
+        return 0;
     }
 
     if (jid == NULL && (do_get != NULL || do_set != NULL || do_del != NULL)) {
-	std::cerr << "When doing a get/set/del operation, you have to specify the JabberID of the user using --jid" << std::endl;
-	return 1;
+        std::cerr << "When doing a get/set/del operation, you have to specify "
+                     "the JabberID of the user using --jid"
+                  << std::endl;
+        return 1;
     }
 
     if (jid != NULL) {
-	parsed_jid = jid_new(p, jid);
+        parsed_jid = jid_new(p, jid);
 
-	if (parsed_jid == NULL) {
-	    std::cerr << "Could not parse the JID " << jid << std::endl;
-	    return 1;
-	}
+        if (parsed_jid == NULL) {
+            std::cerr << "Could not parse the JID " << jid << std::endl;
+            return 1;
+        }
     }
 
     if (do_get != NULL || do_set != NULL || do_del != NULL) {
-	char *spoolfile = NULL;
-	xmlnode file = NULL;
-	const char *path = do_get ? do_get : do_set ? do_set : do_del;
-	const char *replacement = do_set ? poptGetArg(pCtx) : NULL;
-	int is_updated = 0;
+        char *spoolfile = NULL;
+        xmlnode file = NULL;
+        const char *path = do_get ? do_get : do_set ? do_set : do_del;
+        const char *replacement = do_set ? poptGetArg(pCtx) : NULL;
+        int is_updated = 0;
 
-	if (do_set != NULL && replacement == NULL) {
-	    std::cerr << "You have to specify a replacement for the --set operation." << std::endl;
-	    return 1;
-	}
+        if (do_set != NULL && replacement == NULL) {
+            std::cerr
+                << "You have to specify a replacement for the --set operation."
+                << std::endl;
+            return 1;
+        }
 
-	spoolfile = (*xdb_file_full)(0, p, basedir, parsed_jid->get_domain().c_str(), parsed_jid->get_node().c_str(), "xml", hashspool);
-	file = (*xdb_file_load)(NULL, spoolfile, NULL);
+        spoolfile =
+            (*xdb_file_full)(0, p, basedir, parsed_jid->get_domain().c_str(),
+                             parsed_jid->get_node().c_str(), "xml", hashspool);
+        file = (*xdb_file_load)(NULL, spoolfile, NULL);
 
-	if (file == NULL) {
-	    std::cerr << "Could not load the spool file (" << spoolfile << "). No such user?" << std::endl;
-	    return 1;
-	}
+        if (file == NULL) {
+            std::cerr << "Could not load the spool file (" << spoolfile
+                      << "). No such user?" << std::endl;
+            return 1;
+        }
 
-	xmlnode_vector result_items = xmlnode_get_tags(file, path, namespace_prefixes);
-	for (xmlnode_vector::iterator result_item = result_items.begin(); result_item != result_items.end(); ++result_item) {
-	    if (do_get) {
-		switch ((*result_item)->type) {
-		    case NTYPE_TAG:
-			std::cout << xmlnode_serialize_string(*result_item, xmppd::ns_decl_list(), 0) << std::endl;
-			break;
-		    case NTYPE_CDATA:
-		    case NTYPE_ATTRIB:
-			std::cout << xmlnode_get_data(*result_item) << std::endl;
-			break;
-		}
-	    } else {
-		/* del, or set: hide the old content */
-		xmlnode_hide(*result_item);
-		is_updated=1;
+        xmlnode_vector result_items =
+            xmlnode_get_tags(file, path, namespace_prefixes);
+        for (xmlnode_vector::iterator result_item = result_items.begin();
+             result_item != result_items.end(); ++result_item) {
+            if (do_get) {
+                switch ((*result_item)->type) {
+                    case NTYPE_TAG:
+                        std::cout << xmlnode_serialize_string(
+                                         *result_item, xmppd::ns_decl_list(), 0)
+                                  << std::endl;
+                        break;
+                    case NTYPE_CDATA:
+                    case NTYPE_ATTRIB:
+                        std::cout << xmlnode_get_data(*result_item)
+                                  << std::endl;
+                        break;
+                }
+            } else {
+                /* del, or set: hide the old content */
+                xmlnode_hide(*result_item);
+                is_updated = 1;
 
-		/* if it's a set, place the new content */
-		if (do_set) {
-		    xmlnode parent = xmlnode_get_parent(*result_item);
-		    xmlnode x = NULL;
+                /* if it's a set, place the new content */
+                if (do_set) {
+                    xmlnode parent = xmlnode_get_parent(*result_item);
+                    xmlnode x = NULL;
 
-		    switch ((*result_item)->type) {
-			case NTYPE_CDATA:
-			    xmlnode_insert_cdata(parent, replacement, -1);
-			    break;
-			case NTYPE_ATTRIB:
-			    xmlnode_put_attrib_ns(parent, xmlnode_get_localname(*result_item), xmlnode_get_nsprefix(*result_item), xmlnode_get_namespace(*result_item), replacement);
-			    break;
-			case NTYPE_TAG:
-			    x = xmlnode_str(replacement, j_strlen(replacement));
-			    if (x == NULL) {
-				std::cerr << replacement << " cannot be parsed." << std::endl;
-				return 1;
-			    }
-			    xmlnode_insert_node(parent, x);
-			    xmlnode_free(x);
-			    x = NULL;
-			    break;
-		    }
-		}
-	    }
-	}
+                    switch ((*result_item)->type) {
+                        case NTYPE_CDATA:
+                            xmlnode_insert_cdata(parent, replacement, -1);
+                            break;
+                        case NTYPE_ATTRIB:
+                            xmlnode_put_attrib_ns(
+                                parent, xmlnode_get_localname(*result_item),
+                                xmlnode_get_nsprefix(*result_item),
+                                xmlnode_get_namespace(*result_item),
+                                replacement);
+                            break;
+                        case NTYPE_TAG:
+                            x = xmlnode_str(replacement, j_strlen(replacement));
+                            if (x == NULL) {
+                                std::cerr << replacement << " cannot be parsed."
+                                          << std::endl;
+                                return 1;
+                            }
+                            xmlnode_insert_node(parent, x);
+                            xmlnode_free(x);
+                            x = NULL;
+                            break;
+                    }
+                }
+            }
+        }
 
-	/* write an updated file back to disk */
-	if (is_updated) {
-	    xmlnode2file(spoolfile, file);
-	}
+        /* write an updated file back to disk */
+        if (is_updated) {
+            xmlnode2file(spoolfile, file);
+        }
 
-	return 0;
+        return 0;
     }
 }

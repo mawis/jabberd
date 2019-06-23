@@ -1,7 +1,7 @@
 /*
  * Copyrights
- * 
- * Portions created by or assigned to Jabber.com, Inc. are 
+ *
+ * Portions created by or assigned to Jabber.com, Inc. are
  * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
  * information for Jabber.com, Inc. is available at http://www.jabber.com/.
  *
@@ -32,36 +32,41 @@
 
 /**
  * @file mod_announce.cc
- * @brief This session manager module implements the message of the day and the online user announcement functionality (undocumented)
+ * @brief This session manager module implements the message of the day and the
+ * online user announcement functionality (undocumented)
  *
- * This module implements the 'message of the day' and the 'announcement to online users' functionality.
+ * This module implements the 'message of the day' and the 'announcement to
+ * online users' functionality.
  *
- * message of the day: users with write admin access can send a message to serverdomain/announce/motd which
- * will set the motd. The message is then broadcasted to all online users and to users coming online if the
- * message is not older then their last session (do not deliver a message twice). By sending a message to
- * serverdomain/announce/motd/update the motd is replaced but users that already got the old message won't get
- * the new one. By sending a message to serverdomain/announce/delete a user with write admin access can delete
- * the motd.
+ * message of the day: users with write admin access can send a message to
+ * serverdomain/announce/motd which will set the motd. The message is then
+ * broadcasted to all online users and to users coming online if the message is
+ * not older then their last session (do not deliver a message twice). By
+ * sending a message to serverdomain/announce/motd/update the motd is replaced
+ * but users that already got the old message won't get the new one. By sending
+ * a message to serverdomain/announce/delete a user with write admin access can
+ * delete the motd.
  *
- * announcement to online users: users with write admin access can send a message to serverdomain/announce/online
- * which will be broadcasted to all online users.
+ * announcement to online users: users with write admin access can send a
+ * message to serverdomain/announce/online which will be broadcasted to all
+ * online users.
  */
 
 /**
  * @brief structure that holds the active message of the day
  *
  * There is one instance of motd_struct per mod_announce instance. It is used to
- * hold the active message of the day in the x element. If this is a NULL pointer
- * there is no active motd.
+ * hold the active message of the day in the x element. If this is a NULL
+ * pointer there is no active motd.
  *
  * In the set element the time when the motd has been set is kept. This is used
- * to determine if a user that comes online has to receive the motd or if he already
- * got it.
+ * to determine if a user that comes online has to receive the motd or if he
+ * already got it.
  */
 typedef struct motd_struct {
-    xmlnode x; /**< the motd */
-    time_t set;	/**< when the message has been set */
-} *motd, _motd;
+    xmlnode x;  /**< the motd */
+    time_t set; /**< when the message has been set */
+} * motd, _motd;
 
 /**
  * This is used as an xhash_walker by _mod_announce_avail_hosts to
@@ -79,15 +84,15 @@ static void _mod_announce_avail(xht h, const char *key, void *data, void *arg) {
 
     /* no active session */
     if (s == NULL)
-	return;
-    
+        return;
+
     /* no broadcast to users with a priority below 0 */
     if (s->priority < 0)
-	return;
+        return;
 
     msg = xmlnode_dup(msg);
     xmlnode_put_attrib_ns(msg, "to", NULL, NULL, jid_full(s->id));
-    js_session_to(s,jpacket_new(msg));
+    js_session_to(s, jpacket_new(msg));
 }
 
 /**
@@ -101,10 +106,11 @@ static void _mod_announce_avail(xht h, const char *key, void *data, void *arg) {
  * @param data the hash containing all user sessions of this host
  * @param arg the message that should be broadcasted
  */
-static void _mod_announce_avail_hosts(xht h, const char *key, void *data, void *arg) {
+static void _mod_announce_avail_hosts(xht h, const char *key, void *data,
+                                      void *arg) {
     xht ht = (xht)data;
 
-    xhash_walk(ht,_mod_announce_avail,arg);
+    xhash_walk(ht, _mod_announce_avail, arg);
 }
 
 /**
@@ -115,8 +121,9 @@ static void _mod_announce_avail_hosts(xht h, const char *key, void *data, void *
  * @return always M_HANDLED
  */
 static mreturn mod_announce_avail(jsmi si, jpacket p) {
-    xmlnode_put_attrib_ns(p->x, "from", NULL, NULL, p->to->get_domain().c_str());
-    xhash_walk(si->hosts,_mod_announce_avail_hosts,(void *)(p->x));
+    xmlnode_put_attrib_ns(p->x, "from", NULL, NULL,
+                          p->to->get_domain().c_str());
+    xhash_walk(si->hosts, _mod_announce_avail_hosts, (void *)(p->x));
     xmlnode_free(p->x);
     return M_HANDLED;
 }
@@ -141,10 +148,12 @@ static mreturn mod_announce_motd(jsmi si, jpacket p, motd a) {
     }
 
     /* store new message for all new sessions */
-    xmlnode_put_attrib_ns(p->x, "from", NULL, NULL, p->to->get_domain().c_str());
-    jutil_delay(p->x,"Announced"); /* at a timestamp to the element */
-    a->x = p->x; /* keep the motd message */
-    a->set = time(NULL); /* XXX shouldn't we only update this timestamp if it isn't an update? */
+    xmlnode_put_attrib_ns(p->x, "from", NULL, NULL,
+                          p->to->get_domain().c_str());
+    jutil_delay(p->x, "Announced"); /* at a timestamp to the element */
+    a->x = p->x;                    /* keep the motd message */
+    a->set = time(NULL); /* XXX shouldn't we only update this timestamp if it
+                            isn't an update? */
 
     /* tell current sessions if this wasn't an update */
     if (p->to->get_resource() == "announce/motd/update")
@@ -154,28 +163,31 @@ static mreturn mod_announce_motd(jsmi si, jpacket p, motd a) {
 }
 
 /**
- * Callback that checks messages sent to the server address, if they are configuration
- * messages sent by users with admin privileges. If the sender has no administrative write
- * privileges, the configuration message will be bounced.
+ * Callback that checks messages sent to the server address, if they are
+ * configuration messages sent by users with admin privileges. If the sender has
+ * no administrative write privileges, the configuration message will be
+ * bounced.
  *
  * @param m the mapi
  * @param arg the data structure holding the active motd
- * @return M_IGNORE if the stanza is no message, M_PASS if it's not configuration message, M_HANDLED else.
+ * @return M_IGNORE if the stanza is no message, M_PASS if it's not
+ * configuration message, M_HANDLED else.
  */
 static mreturn mod_announce_dispatch(mapi m, void *arg) {
     if (m->packet->type != JPACKET_MESSAGE)
-	return M_IGNORE; /* ignore everything but messages */
+        return M_IGNORE; /* ignore everything but messages */
     if (m->packet->to->get_resource().substr(0, 9) == "announce/")
-	return M_PASS; /* not a configuration message */
+        return M_PASS; /* not a configuration message */
 
-    log_debug2(ZONE, LOGT_DELIVER, "handling announce message from %s",jid_full(m->packet->from));
+    log_debug2(ZONE, LOGT_DELIVER, "handling announce message from %s",
+               jid_full(m->packet->from));
 
     /* if he is, process the message */
     if (acl_check_access(m->si->xc, ADMIN_MOTD, m->packet->from)) {
-	if (m->packet->to->get_resource().substr(0, 15) == "announce/online")
-	    return mod_announce_avail(m->si, m->packet);
-	if (m->packet->to->get_resource().substr(0, 13) == "announce/motd")
-	    return mod_announce_motd(m->si, m->packet, (motd)arg);
+        if (m->packet->to->get_resource().substr(0, 15) == "announce/online")
+            return mod_announce_avail(m->si, m->packet);
+        if (m->packet->to->get_resource().substr(0, 13) == "announce/motd")
+            return mod_announce_motd(m->si, m->packet, (motd)arg);
     }
 
     /* if he isn't, bounce the message */
@@ -184,15 +196,17 @@ static mreturn mod_announce_dispatch(mapi m, void *arg) {
 }
 
 /**
- * callback that waits for first available presence of a user that just came online
+ * callback that waits for first available presence of a user that just came
+ * online
  *
  * If there is an active motd and the users last session is older then the motd,
- * the motd will be sent to this user. Motd announcement won't be sent if the presence
- * has negative priority.
+ * the motd will be sent to this user. Motd announcement won't be sent if the
+ * presence has negative priority.
  *
  * @param m the mapi structure
  * @param arg the active motd
- * @return M_IGNORE if we don't need to be notified again, M_PASS if we want to get more notifies
+ * @return M_IGNORE if we don't need to be notified again, M_PASS if we want to
+ * get more notifies
  */
 static mreturn mod_announce_sess_avail(mapi m, void *arg) {
     motd a = (motd)arg;
@@ -202,9 +216,9 @@ static mreturn mod_announce_sess_avail(mapi m, void *arg) {
     int lastt;
 
     if (m->packet->type != JPACKET_PRESENCE)
-	return M_IGNORE;
+        return M_IGNORE;
     if (a->x == NULL)
-	return M_IGNORE;
+        return M_IGNORE;
 
     /* as soon as we become available */
     if (!js_online(m)) {
@@ -212,20 +226,26 @@ static mreturn mod_announce_sess_avail(mapi m, void *arg) {
     }
 
     /* no announces to sessions with negative priority */
-    if (j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(m->packet->x, "priority", m->si->std_namespace_prefixes), 0)), 0) < 0) {
-	return M_PASS;
+    if (j_atoi(xmlnode_get_data(xmlnode_get_list_item(
+                   xmlnode_get_tags(m->packet->x, "priority",
+                                    m->si->std_namespace_prefixes),
+                   0)),
+               0) < 0) {
+        return M_PASS;
     }
 
-    /* check the last time we were on to see if we haven't gotten the announcement yet */
+    /* check the last time we were on to see if we haven't gotten the
+     * announcement yet */
     last = xdb_get(m->si->xc, m->user->id, NS_LAST);
-    lastt = j_atoi(xmlnode_get_attrib_ns(last, "last", NULL),0);
+    lastt = j_atoi(xmlnode_get_attrib_ns(last, "last", NULL), 0);
     xmlnode_free(last);
     if (lastt > 0 && lastt > a->set) {
-	/* if there's a last and it's newer than the announcement, ignore us */
+        /* if there's a last and it's newer than the announcement, ignore us */
         return M_IGNORE;
     }
 
-    /* check the primary session, if it's older than the announcement, we'll just assume we've already seen it */
+    /* check the primary session, if it's older than the announcement, we'll
+     * just assume we've already seen it */
     s = js_session_primary(m->user);
     if (s != NULL && s->started > a->set) {
         return M_IGNORE;

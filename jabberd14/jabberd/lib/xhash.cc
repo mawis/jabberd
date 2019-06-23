@@ -1,7 +1,7 @@
 /*
  * Copyrights
- * 
- * Portions created by or assigned to Jabber.com, Inc. are 
+ *
+ * Portions created by or assigned to Jabber.com, Inc. are
  * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
  * information for Jabber.com, Inc. is available at http://www.jabber.com/.
  *
@@ -36,20 +36,23 @@
 #include <jabberdlib.h>
 
 namespace xmppd {
-    template<class value_type> typename xmppd::xhash<value_type>::iterator xhash<value_type>::get_by_domain(std::string domainkey) {
-	while (true) {
-	    typename xmppd::xhash<value_type>::iterator result = xhash<value_type>::find(domainkey);
-	    if (result != xhash<value_type>::end())
-		return result;
+template <class value_type>
+typename xmppd::xhash<value_type>::iterator
+xhash<value_type>::get_by_domain(std::string domainkey) {
+    while (true) {
+        typename xmppd::xhash<value_type>::iterator result =
+            xhash<value_type>::find(domainkey);
+        if (result != xhash<value_type>::end())
+            return result;
 
-	    std::string::size_type dot_pos = domainkey.find(".");
-	    if (dot_pos == std::string::npos)
-		return xhash<value_type>::find("*");
+        std::string::size_type dot_pos = domainkey.find(".");
+        if (dot_pos == std::string::npos)
+            return xhash<value_type>::find("*");
 
-	    domainkey.erase(0, dot_pos+1);
-	}
+        domainkey.erase(0, dot_pos + 1);
     }
 }
+} // namespace xmppd
 
 /**
  * create a new xhash hash collection
@@ -57,9 +60,7 @@ namespace xmppd {
  * @param prime size of the hash (use a prime number!)
  * @return pointer to the new hash
  */
-xht xhash_new(int prima) {
-    return new xmppd::xhash<void*>();
-}
+xht xhash_new(int prima) { return new xmppd::xhash<void *>(); }
 
 /**
  * put an entry in the xhash
@@ -71,7 +72,7 @@ xht xhash_new(int prima) {
 void xhash_put(xht h, const char *key, void *val) {
     // sanity checks
     if (h == NULL || key == NULL) {
-	return;
+        return;
     }
 
     // insert the element
@@ -85,18 +86,18 @@ void xhash_put(xht h, const char *key, void *val) {
  * @param key which value to get
  * @return pointer to the value, NULL if no such key
  */
-void* xhash_get(xht h, const char *key) {
+void *xhash_get(xht h, const char *key) {
     // sanity checks
     if (h == NULL || key == NULL) {
-	return NULL;
+        return NULL;
     }
 
     // check if the element exists
-    xmppd::xhash<void*>::iterator i = h->find(key);
+    xmppd::xhash<void *>::iterator i = h->find(key);
 
     // element does not exist?
     if (i == h->end()) {
-	return NULL;
+        return NULL;
     }
 
     // it exists, return it
@@ -121,15 +122,15 @@ void* xhash_get(xht h, const char *key) {
 void *xhash_get_by_domain(xht h, const char *domain) {
     // sanity checks
     if (h == NULL || domain == NULL) {
-	return NULL;
+        return NULL;
     }
 
     // check if the element exists
-    xmppd::xhash<void*>::iterator i = h->get_by_domain(domain);
+    xmppd::xhash<void *>::iterator i = h->get_by_domain(domain);
 
     // element does not exist?
     if (i == h->end()) {
-	return NULL;
+        return NULL;
     }
 
     // it exists, return it
@@ -145,7 +146,7 @@ void *xhash_get_by_domain(xht h, const char *domain) {
 void xhash_zap(xht h, const char *key) {
     // sanity check
     if (h == NULL || key == NULL) {
-	return;
+        return;
     }
 
     // erase the element from the hashtable
@@ -160,7 +161,7 @@ void xhash_zap(xht h, const char *key) {
 void xhash_free(xht h) {
     // sanity check
     if (h == NULL) {
-	return;
+        return;
     }
 
     // free the instance
@@ -177,29 +178,32 @@ void xhash_free(xht h) {
 void xhash_walk(xht h, xhash_walker w, void *arg) {
     // sanity checks
     if (h == NULL || w == NULL) {
-	return;
+        return;
     }
 
     // iterate the elements
-    xmppd::xhash<void*>::iterator p;
-    xmppd::xhash<void*>::iterator next = h->begin();
+    xmppd::xhash<void *>::iterator p;
+    xmppd::xhash<void *>::iterator next = h->begin();
     for (p = h->begin(); p != h->end(); p = next) {
-	// already get iterator to the next element, the callback might remove this one
-	++next;
+        // already get iterator to the next element, the callback might remove
+        // this one
+        ++next;
 
-	(*w)(h, p->first.c_str(), p->second, arg);
+        (*w)(h, p->first.c_str(), p->second, arg);
     }
 }
 
 /**
- * xhash_walker() function used by xhash_to_xml to put entries in an ::xhash into an ::xmlnode
+ * xhash_walker() function used by xhash_to_xml to put entries in an ::xhash
+ * into an ::xmlnode
  *
  * @param h the hash containing the entires (ignored)
  * @param key the key of the entry
  * @param value the value of the entry
  * @param arg ::xmlnode to insert the entry to
  */
-static void _xhash_to_xml_walker(xht h, const char *key, void *value, void *arg) {
+static void _xhash_to_xml_walker(xht h, const char *key, void *value,
+                                 void *arg) {
     xmlnode rootnode = (xmlnode)arg;
     xmlnode entry = NULL;
     xmlnode keynode = NULL;
@@ -211,7 +215,7 @@ static void _xhash_to_xml_walker(xht h, const char *key, void *value, void *arg)
     xmlnode_insert_cdata(keynode, key, -1);
 
     valuenode = xmlnode_insert_tag_ns(entry, "value", NULL, NS_JABBERD_HASH);
-    xmlnode_insert_cdata(valuenode, static_cast<const char*>(value), -1);
+    xmlnode_insert_cdata(valuenode, static_cast<const char *>(value), -1);
 }
 
 /**
@@ -227,7 +231,7 @@ xmlnode xhash_to_xml(xht h) {
 
     /* sanity check */
     if (h == NULL)
-	return NULL;
+        return NULL;
 
     /* create root node */
     result = xmlnode_new_tag_ns("hash", NULL, NS_JABBERD_HASH);
@@ -252,25 +256,27 @@ xht xhash_from_xml(xmlnode hash, pool p) {
     int prime = j_atoi(xmlnode_get_attrib_ns(hash, "prime", NULL), 101);
 
     if (hash == NULL)
-	return NULL;
+        return NULL;
 
     result = xhash_new(prime);
     ns = xhash_new(2);
-    xhash_put(ns, "", const_cast<char*>(NS_JABBERD_HASH));
+    xhash_put(ns, "", const_cast<char *>(NS_JABBERD_HASH));
 
     xmlnode_vector entry = xmlnode_get_tags(hash, "entry", ns);
     xmlnode_vector::iterator iter;
     for (iter = entry.begin(); iter != entry.end(); ++iter) {
-	char *key = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(*iter, "key", ns), 0));
-	char *value = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(*iter, "value", ns), 0));
+        char *key = xmlnode_get_data(
+            xmlnode_get_list_item(xmlnode_get_tags(*iter, "key", ns), 0));
+        char *value = xmlnode_get_data(
+            xmlnode_get_list_item(xmlnode_get_tags(*iter, "value", ns), 0));
 
-	if (value == NULL)
-	    value = pstrdup(p, "");
+        if (value == NULL)
+            value = pstrdup(p, "");
 
-	if (key == NULL)
-	    key = pstrdup(p, "");
+        if (key == NULL)
+            key = pstrdup(p, "");
 
-	xhash_put(result, key, pstrdup(p, value));
+        xhash_put(result, key, pstrdup(p, value));
     }
 
     xhash_free(ns);

@@ -1,7 +1,7 @@
 /*
  * Copyrights
- * 
- * Portions created by or assigned to Jabber.com, Inc. are 
+ *
+ * Portions created by or assigned to Jabber.com, Inc. are
  * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
  * information for Jabber.com, Inc. is available at http://www.jabber.com/.
  *
@@ -32,7 +32,9 @@
 
 /**
  * @file mod_auth_digest.cc
- * @brief Handle authentication using hashed passwords on the wire (requires plain passwords in storage) and registration. See XEP-0077 and XEP-0078 for the protocol.
+ * @brief Handle authentication using hashed passwords on the wire (requires
+ * plain passwords in storage) and registration. See XEP-0077 and XEP-0078 for
+ * the protocol.
  */
 
 /**
@@ -43,7 +45,8 @@
  *
  * @param m the mapi_struct containing the authentication request
  * @param arg unused/ignored
- * @return M_HANDLED if the request was handled using digest authentication, M_PASS else
+ * @return M_HANDLED if the request was handled using digest authentication,
+ * M_PASS else
  */
 static mreturn mod_auth_digest_yum(mapi m, void *arg) {
     char *sid;
@@ -54,20 +57,27 @@ static mreturn mod_auth_digest_yum(mapi m, void *arg) {
     log_debug2(ZONE, LOGT_AUTH, "checking");
 
     if (jpacket_subtype(m->packet) == JPACKET__GET) {
-	xmlpass = xdb_get(m->si->xc, m->user->id, NS_AUTH);
+        xmlpass = xdb_get(m->si->xc, m->user->id, NS_AUTH);
 
-	/* type=get means we flag that the server can do digest auth */
-	if (xmlnode_get_data(xmlpass) != NULL)
+        /* type=get means we flag that the server can do digest auth */
+        if (xmlnode_get_data(xmlpass) != NULL)
             xmlnode_insert_tag_ns(m->packet->iq, "digest", NULL, NS_AUTH);
 
-	xmlnode_free(xmlpass);
+        xmlnode_free(xmlpass);
         return M_PASS;
     }
 
-    if ((digest = xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:digest", m->si->std_namespace_prefixes), 0))) == NULL)
+    if ((digest = xmlnode_get_data(xmlnode_get_list_item(
+             xmlnode_get_tags(m->packet->iq, "auth:digest",
+                              m->si->std_namespace_prefixes),
+             0))) == NULL)
         return M_PASS;
 
-    sid = xmlnode_get_attrib_ns(xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:digest", m->si->std_namespace_prefixes), 0), "sid", NULL);
+    sid = xmlnode_get_attrib_ns(
+        xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:digest",
+                                               m->si->std_namespace_prefixes),
+                              0),
+        "sid", NULL);
 
     xmlpass = xdb_get(m->si->xc, m->user->id, NS_AUTH);
     pass = xmlnode_get_data(xmlpass);
@@ -78,11 +88,12 @@ static mreturn mod_auth_digest_yum(mapi m, void *arg) {
 
     xmppd::sha1 mydigest;
     if (sid)
-	mydigest.update(sid);
+        mydigest.update(sid);
     if (pass)
-	mydigest.update(pass);
+        mydigest.update(pass);
 
-    log_debug2(ZONE, LOGT_AUTH, "comparing %s %s", digest, mydigest.final_hex().c_str());
+    log_debug2(ZONE, LOGT_AUTH, "comparing %s %s", digest,
+               mydigest.final_hex().c_str());
 
     if (pass == NULL || sid == NULL)
         jutil_error_xmpp(m->packet->x, XTERROR_NOTIMPL);
@@ -100,7 +111,8 @@ static mreturn mod_auth_digest_yum(mapi m, void *arg) {
  *
  * @param m the mapi instance
  * @param id for which user to set the password
- * @param pass the new password (wrapped in a password element of the right namespace)
+ * @param pass the new password (wrapped in a password element of the right
+ * namespace)
  * @return 0 if setting the password succeded, it failed otherwise
  */
 static int mod_auth_digest_reset(mapi m, jid id, xmlnode pass) {
@@ -121,9 +133,11 @@ static int mod_auth_digest_reset(mapi m, jid id, xmlnode pass) {
  */
 static mreturn mod_auth_digest_reg(mapi m, void *arg) {
     if (jpacket_subtype(m->packet) == JPACKET__GET) {
-	/* type=get means we tell what we need */
-	if (xmlnode_get_tags(m->packet->iq, "register:password", m->si->std_namespace_prefixes).size() == 0)
-	    xmlnode_insert_tag_ns(m->packet->iq, "password", NULL, NS_REGISTER);
+        /* type=get means we tell what we need */
+        if (xmlnode_get_tags(m->packet->iq, "register:password",
+                             m->si->std_namespace_prefixes)
+                .size() == 0)
+            xmlnode_insert_tag_ns(m->packet->iq, "password", NULL, NS_REGISTER);
     }
     return M_PASS;
 }
@@ -146,7 +160,10 @@ static mreturn mod_auth_digest_pwchange(mapi m, void *arg) {
     id = jid_user(m->packet->to);
 
     /* get the new password */
-    pass = xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:password", m->si->std_namespace_prefixes), 0);
+    pass =
+        xmlnode_get_list_item(xmlnode_get_tags(m->packet->iq, "auth:password",
+                                               m->si->std_namespace_prefixes),
+                              0);
 
     /* tuck away for a rainy day */
     if (mod_auth_digest_reset(m, id, pass)) {
@@ -162,17 +179,19 @@ static mreturn mod_auth_digest_pwchange(mapi m, void *arg) {
  *
  * registers the mod_auth_digest_yum callback to handle authentication,
  * registers the mod_auth_digest_server callback to handle password changes,
- * if we should support inband registration, we also register mod_auth_digest_reg.
+ * if we should support inband registration, we also register
+ * mod_auth_digest_reg.
  *
- * @param si the jsmi_struct containing instance internal data for the Jabber session manager
+ * @param si the jsmi_struct containing instance internal data for the Jabber
+ * session manager
  */
 extern "C" void mod_auth_digest(jsmi si) {
     xmlnode register_config = js_config(si, "register:register", NULL);
 
     log_debug2(ZONE, LOGT_INIT, "init");
-    js_mapi_register(si,e_AUTH, mod_auth_digest_yum, NULL);
-    js_mapi_register(si,e_PASSWORDCHANGE, mod_auth_digest_pwchange, NULL);
+    js_mapi_register(si, e_AUTH, mod_auth_digest_yum, NULL);
+    js_mapi_register(si, e_PASSWORDCHANGE, mod_auth_digest_pwchange, NULL);
     if (register_config != NULL)
-	js_mapi_register(si, e_REGISTER, mod_auth_digest_reg, NULL);
+        js_mapi_register(si, e_REGISTER, mod_auth_digest_reg, NULL);
     xmlnode_free(register_config);
 }

@@ -1,7 +1,7 @@
 /*
  * Copyrights
- * 
- * Portions created by or assigned to Jabber.com, Inc. are 
+ *
+ * Portions created by or assigned to Jabber.com, Inc. are
  * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
  * information for Jabber.com, Inc. is available at http://www.jabber.com/.
  *
@@ -63,14 +63,13 @@ result jsm_stat(void *arg)
  * @param arg unused/ignored
  */
 void __jsm_shutdown(xht h, const char *key, void *data, void *arg) {
-    udata u = (udata)data;	/* cast the pointer into udata */
+    udata u = (udata)data; /* cast the pointer into udata */
     session cur;
 
     for (cur = u->sessions; cur != NULL; cur = cur->next) {
         js_session_end(cur, N_("sessionmanager shutdown"));
     }
 }
-
 
 /**
  * xhash walker function over all hosts of the session manager,
@@ -84,9 +83,10 @@ void __jsm_shutdown(xht h, const char *key, void *data, void *arg) {
 void _jsm_shutdown(xht h, const char *key, void *data, void *arg) {
     xht ht = (xht)data;
 
-    log_debug2(ZONE, LOGT_CLEANUP, "JSM SHUTDOWN: deleting users for host %s", (char*)key);
+    log_debug2(ZONE, LOGT_CLEANUP, "JSM SHUTDOWN: deleting users for host %s",
+               (char *)key);
 
-    xhash_walk(ht,__jsm_shutdown,NULL);
+    xhash_walk(ht, __jsm_shutdown, NULL);
 
     xhash_free(ht);
 }
@@ -102,7 +102,7 @@ void jsm_shutdown(void *arg) {
     log_debug2(ZONE, LOGT_CLEANUP, "JSM SHUTDOWN: Begining shutdown sequence");
     js_mapi_call(si, e_SHUTDOWN, NULL, NULL, NULL);
 
-    xhash_walk(si->hosts,_jsm_shutdown,arg);
+    xhash_walk(si->hosts, _jsm_shutdown, arg);
     xhash_free(si->hosts);
 }
 
@@ -116,7 +116,7 @@ static result _jsm_serialize_beatwrapper(void *arg) {
     jsmi si = (jsmi)arg;
 
     if (arg == NULL)
-	return r_UNREG;
+        return r_UNREG;
 
     jsm_serialize(si);
 
@@ -124,42 +124,51 @@ static result _jsm_serialize_beatwrapper(void *arg) {
 }
 
 /**
- * callback, that gets called by the XML router, when a new host is routed to this instance, or a host is not routed anymore to this instance
+ * callback, that gets called by the XML router, when a new host is routed to
+ * this instance, or a host is not routed anymore to this instance
  *
  * @param i our instance
- * @param destination the host that has been registered/unregistered from routing to this instance
+ * @param destination the host that has been registered/unregistered from
+ * routing to this instance
  * @param is_register 0 = unregistered routing, 1 = registered routing
  * @param arg our jsmi
  */
-static void _jsm_routing_update(instance i, const char *destination, int is_register, void *arg) {
+static void _jsm_routing_update(instance i, const char *destination,
+                                int is_register, void *arg) {
     jsmi si = (jsmi)arg;
     xht ht = NULL;
 
     /* sanity check */
     if (i == NULL || si == NULL || destination == NULL)
-	return;
+        return;
 
     /* log it ... */
     if (is_register) {
-	log_notice(i->id, "session manager instance '%s' is now responsible for domain '%s'", i->id, destination);
+        log_notice(
+            i->id,
+            "session manager instance '%s' is now responsible for domain '%s'",
+            i->id, destination);
     } else {
-	log_notice(i->id, "session manager instance '%s' is not responsible for domain '%s' anymore", i->id, destination);
+        log_notice(i->id,
+                   "session manager instance '%s' is not responsible for "
+                   "domain '%s' anymore",
+                   i->id, destination);
     }
 
     /* load stored state */
     if (is_register && si->statefile != NULL) {
+        /* make sure this hostname is in the master table */
+        if ((ht = (xht)xhash_get(si->hosts, destination)) == NULL) {
+            xmlnode maxusers = js_config(si, "jsm:maxusers", NULL);
+            ht = xhash_new(j_atoi(xmlnode_get_data(maxusers), USERS_PRIME));
+            xmlnode_free(maxusers);
+            maxusers = NULL;
+            log_debug2(ZONE, LOGT_DELIVER, "creating user hash %X for %s", ht,
+                       destination);
+            xhash_put(si->hosts, pstrdup(si->p, destination), (void *)ht);
+        }
 
-	/* make sure this hostname is in the master table */
-	if ((ht = (xht)xhash_get(si->hosts, destination)) == NULL) {
-	    xmlnode maxusers = js_config(si, "jsm:maxusers", NULL);
-	    ht = xhash_new(j_atoi(xmlnode_get_data(maxusers), USERS_PRIME));
-	    xmlnode_free(maxusers);
-	    maxusers = NULL;
-	    log_debug2(ZONE, LOGT_DELIVER, "creating user hash %X for %s", ht, destination);
-	    xhash_put(si->hosts, pstrdup(si->p, destination), (void *)ht);
-	}
-
-	jsm_deserialize(si, destination);
+        jsm_deserialize(si, destination);
     }
 }
 
@@ -174,88 +183,143 @@ extern "C" void jsm(instance i, xmlnode x) {
     xmlnode cur;
     modcall module;
     int n;
-    xmlnode config=NULL;
+    xmlnode config = NULL;
 
-    log_debug2(ZONE, LOGT_INIT, "jsm initializing for section '%s'",i->id);
+    log_debug2(ZONE, LOGT_INIT, "jsm initializing for section '%s'", i->id);
 
     /* create and init the jsm instance handle */
     si = static_cast<jsmi>(pmalloco(i->p, sizeof(_jsmi)));
     si->i = i;
     si->p = i->p;
     si->std_namespace_prefixes = xhash_new(19);
-    xhash_put(si->std_namespace_prefixes, "", const_cast<char*>(NS_SERVER));
-    xhash_put(si->std_namespace_prefixes, "jsm", const_cast<char*>(NS_JABBERD_CONFIG_JSM));
-    xhash_put(si->std_namespace_prefixes, "auth", const_cast<char*>(NS_AUTH));
-    xhash_put(si->std_namespace_prefixes, "browse", const_cast<char*>(NS_BROWSE));
-    xhash_put(si->std_namespace_prefixes, "delay", const_cast<char*>(NS_DELAY));
-    xhash_put(si->std_namespace_prefixes, "disco-info", const_cast<char*>(NS_DISCO_INFO));
-    xhash_put(si->std_namespace_prefixes, "event", const_cast<char*>(NS_EVENT));
-    xhash_put(si->std_namespace_prefixes, "expire", const_cast<char*>(NS_EXPIRE));
-    xhash_put(si->std_namespace_prefixes, "register", const_cast<char*>(NS_REGISTER));
-    xhash_put(si->std_namespace_prefixes, "roster", const_cast<char*>(NS_ROSTER));
-    xhash_put(si->std_namespace_prefixes, "vcard", const_cast<char*>(NS_VCARD));
-    xhash_put(si->std_namespace_prefixes, "state", const_cast<char*>(NS_JABBERD_STOREDSTATE));
-    xhash_put(si->std_namespace_prefixes, "xoob", const_cast<char*>(NS_XOOB));
-    xhash_put(si->std_namespace_prefixes, "private", const_cast<char*>(NS_PRIVATE));
-    xhash_put(si->std_namespace_prefixes, "privacy", const_cast<char*>(NS_PRIVACY));
-    xhash_put(si->std_namespace_prefixes, "jabberd", const_cast<char*>(NS_JABBERD_WRAPPER));
-    xhash_put(si->std_namespace_prefixes, "cmd", const_cast<char*>(NS_COMMAND));
-    xhash_put(si->std_namespace_prefixes, "data", const_cast<char*>(NS_DATA));
-    xhash_put(si->std_namespace_prefixes, "dhost", const_cast<char*>(NS_JABBERD_CONFIG_DYNAMICHOST));
+    xhash_put(si->std_namespace_prefixes, "", const_cast<char *>(NS_SERVER));
+    xhash_put(si->std_namespace_prefixes, "jsm",
+              const_cast<char *>(NS_JABBERD_CONFIG_JSM));
+    xhash_put(si->std_namespace_prefixes, "auth", const_cast<char *>(NS_AUTH));
+    xhash_put(si->std_namespace_prefixes, "browse",
+              const_cast<char *>(NS_BROWSE));
+    xhash_put(si->std_namespace_prefixes, "delay",
+              const_cast<char *>(NS_DELAY));
+    xhash_put(si->std_namespace_prefixes, "disco-info",
+              const_cast<char *>(NS_DISCO_INFO));
+    xhash_put(si->std_namespace_prefixes, "event",
+              const_cast<char *>(NS_EVENT));
+    xhash_put(si->std_namespace_prefixes, "expire",
+              const_cast<char *>(NS_EXPIRE));
+    xhash_put(si->std_namespace_prefixes, "register",
+              const_cast<char *>(NS_REGISTER));
+    xhash_put(si->std_namespace_prefixes, "roster",
+              const_cast<char *>(NS_ROSTER));
+    xhash_put(si->std_namespace_prefixes, "vcard",
+              const_cast<char *>(NS_VCARD));
+    xhash_put(si->std_namespace_prefixes, "state",
+              const_cast<char *>(NS_JABBERD_STOREDSTATE));
+    xhash_put(si->std_namespace_prefixes, "xoob", const_cast<char *>(NS_XOOB));
+    xhash_put(si->std_namespace_prefixes, "private",
+              const_cast<char *>(NS_PRIVATE));
+    xhash_put(si->std_namespace_prefixes, "privacy",
+              const_cast<char *>(NS_PRIVACY));
+    xhash_put(si->std_namespace_prefixes, "jabberd",
+              const_cast<char *>(NS_JABBERD_WRAPPER));
+    xhash_put(si->std_namespace_prefixes, "cmd",
+              const_cast<char *>(NS_COMMAND));
+    xhash_put(si->std_namespace_prefixes, "data", const_cast<char *>(NS_DATA));
+    xhash_put(si->std_namespace_prefixes, "dhost",
+              const_cast<char *>(NS_JABBERD_CONFIG_DYNAMICHOST));
     si->xc = xdb_cache(i); /* getting xdb_* handle and fetching config */
     config = js_config(si, NULL, NULL);
-    si->hosts = xhash_new(j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:maxhosts", si->std_namespace_prefixes), 0)), HOSTS_PRIME));
-    si->sc_sessions = xhash_new(j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:maxusers", si->std_namespace_prefixes), 0)), USERS_PRIME));
-    for (n=0; n<e_LAST; n++)
+    si->hosts =
+        xhash_new(j_atoi(xmlnode_get_data(xmlnode_get_list_item(
+                             xmlnode_get_tags(config, "jsm:maxhosts",
+                                              si->std_namespace_prefixes),
+                             0)),
+                         HOSTS_PRIME));
+    si->sc_sessions =
+        xhash_new(j_atoi(xmlnode_get_data(xmlnode_get_list_item(
+                             xmlnode_get_tags(config, "jsm:maxusers",
+                                              si->std_namespace_prefixes),
+                             0)),
+                         USERS_PRIME));
+    for (n = 0; n < e_LAST; n++)
         si->events[n] = NULL;
 
     /* using an external authentication component? */
-    si->auth = pstrdup(si->p, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:auth", si->std_namespace_prefixes), 0)));
+    si->auth = pstrdup(si->p, xmlnode_get_data(xmlnode_get_list_item(
+                                  xmlnode_get_tags(config, "jsm:auth",
+                                                   si->std_namespace_prefixes),
+                                  0)));
 
     /* enable serialization? */
-    cur = xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:serialization", si->std_namespace_prefixes), 0);
+    cur = xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:serialization",
+                                                 si->std_namespace_prefixes),
+                                0);
     if (cur != NULL) {
-	int interval = 0;
+        int interval = 0;
 
-	si->statefile = pstrdup(si->p, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(cur, "jsm:file", si->std_namespace_prefixes), 0)));
-	interval = j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(cur, "jsm:interval", si->std_namespace_prefixes), 0)), 0);
+        si->statefile = pstrdup(
+            si->p,
+            xmlnode_get_data(xmlnode_get_list_item(
+                xmlnode_get_tags(cur, "jsm:file", si->std_namespace_prefixes),
+                0)));
+        interval = j_atoi(xmlnode_get_data(xmlnode_get_list_item(
+                              xmlnode_get_tags(cur, "jsm:interval",
+                                               si->std_namespace_prefixes),
+                              0)),
+                          0);
 
-	if (interval > 0) {
-	    register_beat(interval, _jsm_serialize_beatwrapper, (void*)si);
-	}
+        if (interval > 0) {
+            register_beat(interval, _jsm_serialize_beatwrapper, (void *)si);
+        }
     }
 
     /* enable history storage? */
-    cur = xmlnode_get_list_item(xmlnode_get_tags(config, "jsm:history", si->std_namespace_prefixes), 0);
+    cur = xmlnode_get_list_item(
+        xmlnode_get_tags(config, "jsm:history", si->std_namespace_prefixes), 0);
     if (cur != NULL) {
-	xmlnode nodeptr = NULL;
-	nodeptr = xmlnode_get_list_item(xmlnode_get_tags(cur, "jsm:sent", si->std_namespace_prefixes), 0);
-	if (nodeptr != NULL) {
-	    si->history_sent.general = 1;
-	    si->history_sent.special = j_strcmp(xmlnode_get_attrib_ns(nodeptr, "special", NULL), "store") == 0 ? 1 : 0;
-	}
-	nodeptr = xmlnode_get_tag(cur, "recv");
-	if (nodeptr != NULL) {
-	    si->history_recv.general = 1;
-	    si->history_recv.special = j_strcmp(xmlnode_get_attrib_ns(nodeptr, "special", NULL), "store") == 0 ? 1 : 0;
-	    si->history_recv.offline = j_strcmp(xmlnode_get_attrib_ns(nodeptr, "offline", NULL), "store") == 0 ? 1 : 0;
-	}
+        xmlnode nodeptr = NULL;
+        nodeptr = xmlnode_get_list_item(
+            xmlnode_get_tags(cur, "jsm:sent", si->std_namespace_prefixes), 0);
+        if (nodeptr != NULL) {
+            si->history_sent.general = 1;
+            si->history_sent.special =
+                j_strcmp(xmlnode_get_attrib_ns(nodeptr, "special", NULL),
+                         "store") == 0
+                    ? 1
+                    : 0;
+        }
+        nodeptr = xmlnode_get_tag(cur, "recv");
+        if (nodeptr != NULL) {
+            si->history_recv.general = 1;
+            si->history_recv.special =
+                j_strcmp(xmlnode_get_attrib_ns(nodeptr, "special", NULL),
+                         "store") == 0
+                    ? 1
+                    : 0;
+            si->history_recv.offline =
+                j_strcmp(xmlnode_get_attrib_ns(nodeptr, "offline", NULL),
+                         "store") == 0
+                    ? 1
+                    : 0;
+        }
     }
 
     /* fire up the modules by scanning the attribs on the xml we received */
-    for (std::map<std::string, void*>::iterator iter = i->module_init_funcs->begin(); iter != i->module_init_funcs->end(); ++iter) {
-	// do not run our main init method again!
-	if (iter->first == "jsm")
-	    continue;
+    for (std::map<std::string, void *>::iterator iter =
+             i->module_init_funcs->begin();
+         iter != i->module_init_funcs->end(); ++iter) {
+        // do not run our main init method again!
+        if (iter->first == "jsm")
+            continue;
 
-	// get the init function reference
-	module = reinterpret_cast<modcall>(iter->second);
-	if (!module)
-	    continue;
+        // get the init function reference
+        module = reinterpret_cast<modcall>(iter->second);
+        if (!module)
+            continue;
 
-	// call the module init function
-	log_debug2(ZONE, LOGT_INIT, "jsm: loading module %s", iter->first.c_str());
-	(module)(si);
+        // call the module init function
+        log_debug2(ZONE, LOGT_INIT, "jsm: loading module %s",
+                   iter->first.c_str());
+        (module)(si);
     }
 
     /* register us for being notified of the server shutdown */
@@ -271,11 +335,18 @@ extern "C" void jsm(instance i, xmlnode x) {
     /* register js_packet() as the handler for packets to this instance */
     register_phandler(i, o_DELIVER, js_packet, (void *)si);
 
-    /* XXX do we still need this? we have the pool_stat() call in jabberd/jabberd.c now */
+    /* XXX do we still need this? we have the pool_stat() call in
+     * jabberd/jabberd.c now */
     /* register_beat(5,jsm_stat,NULL); */
-   
-    /* register js_users_gc() to be called frequently, once per minute by default */
-    register_beat(j_atoi(xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(config, "usergc", si->std_namespace_prefixes), 0)), 60), js_users_gc, (void *)si);
+
+    /* register js_users_gc() to be called frequently, once per minute by
+     * default */
+    register_beat(j_atoi(xmlnode_get_data(xmlnode_get_list_item(
+                             xmlnode_get_tags(config, "usergc",
+                                              si->std_namespace_prefixes),
+                             0)),
+                         60),
+                  js_users_gc, (void *)si);
 
     /* free the configuration xmlnode */
     xmlnode_free(config);

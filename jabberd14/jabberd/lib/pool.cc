@@ -51,7 +51,7 @@
 #define MAX_MALLOC_TRIES 10 /**< how many seconds we try to allocate memory */
 
 #ifdef POOL_DEBUG
-int pool__total = 0;		/**< how many memory blocks are allocated */
+int pool__total = 0; /**< how many memory blocks are allocated */
 int pool__ltotal = 0;
 xht pool__disturbed = NULL;
 
@@ -63,8 +63,7 @@ xht pool__disturbed = NULL;
  * @param size size of the memory to allocate
  * @return pointer to the allocated memory
  */
-void *_pool__malloc(size_t size)
-{
+void *_pool__malloc(size_t size) {
     pool__total++;
     return malloc(size);
 }
@@ -76,14 +75,17 @@ void *_pool__malloc(size_t size)
  *
  * @param block pointer to the memory allocation that should be freed
  */
-void _pool__free(void *block)
-{
+void _pool__free(void *block) {
     pool__total--;
     free(block);
 }
 #else
-#define _pool__malloc malloc	/**< _pool__malloc updates pool__total counter if POOL_DEBUG is defined */
-#define _pool__free free	/**< _pool__free updates pool__total counter if POOL_DEBUG is defined */
+#define _pool__malloc                                                          \
+    malloc /**< _pool__malloc updates pool__total counter if POOL_DEBUG is     \
+              defined */
+#define _pool__free                                                            \
+    free /**< _pool__free updates pool__total counter if POOL_DEBUG is defined \
+          */
 #endif
 
 /**
@@ -99,12 +101,12 @@ inline void *_retried__malloc(size_t size) {
     void *allocated_memory;
     int malloc_tries = 0;
 
-    while ((allocated_memory=_pool__malloc(size)) == NULL) {
-	if (malloc_tries++ > MAX_MALLOC_TRIES) {
-	    exit(999);
-	}
+    while ((allocated_memory = _pool__malloc(size)) == NULL) {
+        if (malloc_tries++ > MAX_MALLOC_TRIES) {
+            exit(999);
+        }
 
-	pth_sleep(1);
+        pth_sleep(1);
     }
 
     return allocated_memory;
@@ -134,19 +136,19 @@ pool _pool_new(char const *const zone, int const line) {
 #ifdef POOL_DEBUG
     p->lsize = -1;
     p->zone[0] = '\0';
-    strcat(p->zone,zone);
+    strcat(p->zone, zone);
     snprintf(p->zone, sizeof(p->zone), "%s:%i", zone, line);
     snprintf(p->name, sizeof(p->name), "%X", p);
 
-    if(pool__disturbed == NULL)
-    {
+    if (pool__disturbed == NULL) {
         pool__disturbed = (xht)1; /* reentrancy flag! */
-	old__pool__total = pool__total; /* we won't be able to free this xhash */
+        old__pool__total =
+            pool__total; /* we won't be able to free this xhash */
         pool__disturbed = xhash_new(POOL_NUM);
-	pool__total = old__pool__total;
+        pool__total = old__pool__total;
     }
-    if(pool__disturbed != (xht)1)
-        xhash_put(pool__disturbed,p->name,p);
+    if (pool__disturbed != (xht)1)
+        xhash_put(pool__disturbed, p->name, p);
 #endif
 
     return p;
@@ -157,8 +159,7 @@ pool _pool_new(char const *const zone, int const line) {
  *
  * @param arg which heep should be freed
  */
-void _pool_heap_free(void *arg)
-{
+void _pool_heap_free(void *arg) {
     struct pheap *h = (struct pheap *)arg;
 
     _pool__free(h->block);
@@ -174,20 +175,20 @@ void _pool_heap_free(void *arg)
  * This might be used to clean logically subpools.
  *
  * @param p to which pool the pool_cleaner should be added
- * @param pf structure containing the reference to the pool_cleaner and links for the list
+ * @param pf structure containing the reference to the pool_cleaner and links
+ * for the list
  */
-void _pool_cleanup_append(pool p, struct pfree *pf)
-{
+void _pool_cleanup_append(pool p, struct pfree *pf) {
     struct pfree *cur;
 
-    if(p->cleanup == NULL)
-    {
+    if (p->cleanup == NULL) {
         p->cleanup = pf;
         return;
     }
 
     /* fast forward to end of list */
-    for(cur = p->cleanup; cur->next != NULL; cur = cur->next);
+    for (cur = p->cleanup; cur->next != NULL; cur = cur->next)
+        ;
 
     cur->next = pf;
 }
@@ -195,19 +196,19 @@ void _pool_cleanup_append(pool p, struct pfree *pf)
 /**
  * create a cleanup tracker
  *
- * this function is used to create a pfree structure that can be passed to _pool_cleanup_append()
+ * this function is used to create a pfree structure that can be passed to
+ * _pool_cleanup_append()
  *
  * @param p the pool to which the pool_cleaner should be added
  * @param f the function that should be called if the pool is freed
  * @param arg the parameter that should be passed to the pool_cleaner function
  * @return pointer to the new pfree structure
  */
-struct pfree *_pool_free(pool p, pool_cleaner f, void *arg)
-{
+struct pfree *_pool_free(pool p, pool_cleaner f, void *arg) {
     struct pfree *ret;
 
     /* make the storage for the tracker */
-    ret = static_cast<struct pfree*>(_retried__malloc(sizeof(struct pfree)));
+    ret = static_cast<struct pfree *>(_retried__malloc(sizeof(struct pfree)));
     ret->f = f;
     ret->arg = arg;
     ret->next = NULL;
@@ -226,13 +227,12 @@ struct pfree *_pool_free(pool p, pool_cleaner f, void *arg)
  * @param size how big the pool should be
  * @return pointer to the new pheap
  */
-struct pheap *_pool_heap(pool p, int size)
-{
+struct pheap *_pool_heap(pool p, int size) {
     struct pheap *ret;
     struct pfree *clean;
 
     /* make the return heap */
-    ret = static_cast<struct pheap*>(_retried__malloc(sizeof(struct pheap)));
+    ret = static_cast<struct pheap *>(_retried__malloc(sizeof(struct pheap)));
     ret->block = _retried__malloc(size);
     ret->size = size;
     p->size += size;
@@ -249,18 +249,18 @@ struct pheap *_pool_heap(pool p, int size)
 /**
  * create a new memory pool and set the initial heap size
  *
- * @note you should not call this function but use the macro pool_heap instead which fills zone and line automatically
+ * @note you should not call this function but use the macro pool_heap instead
+ * which fills zone and line automatically
  *
  * @param size the initial size of the memory pool
  * @param zone the file where this function is called (for debugging)
  * @param line the line in the file where this function is called
  * @return the new memory pool
  */
-pool _pool_new_heap(int const size, char const *const zone, int const line)
-{
+pool _pool_new_heap(int const size, char const *const zone, int const line) {
     pool p;
     p = _pool_new(zone, line);
-    p->heap = _pool_heap(p,size);
+    p->heap = _pool_heap(p, size);
     return p;
 }
 
@@ -274,27 +274,28 @@ pool _pool_new_heap(int const size, char const *const zone, int const line)
 void *pmalloc(pool p, int const size) {
     void *block;
 
-    if(p == NULL)
-    {
-        fprintf(stderr,"Memory Leak! [pmalloc received NULL pool, unable to track allocation, exiting]\n");
+    if (p == NULL) {
+        fprintf(stderr, "Memory Leak! [pmalloc received NULL pool, unable to "
+                        "track allocation, exiting]\n");
         abort();
     }
 
-    /* if there is no heap for this pool or it's a big request, just raw, I like how we clean this :) */
-    if(p->heap == NULL || size > (p->heap->size / 2))
-    {
-	block = _retried__malloc(size);
+    /* if there is no heap for this pool or it's a big request, just raw, I like
+     * how we clean this :) */
+    if (p->heap == NULL || size > (p->heap->size / 2)) {
+        block = _retried__malloc(size);
         p->size += size;
         _pool_cleanup_append(p, _pool_free(p, _pool__free, block));
         return block;
     }
 
     /* we have to preserve boundaries, long story :) */
-    if(size >= 4)
-        while(p->heap->used&7) p->heap->used++;
+    if (size >= 4)
+        while (p->heap->used & 7)
+            p->heap->used++;
 
     /* if we don't fit in the old heap, replace it */
-    if(size > (p->heap->size - p->heap->used))
+    if (size > (p->heap->size - p->heap->used))
         p->heap = _pool_heap(p, p->heap->size);
 
     /* the current heap has room */
@@ -314,10 +315,10 @@ void *pmalloc(pool p, int const size) {
  * @return pointer to the allocated memory
  */
 void *pmalloc_x(pool p, int const size, char const c) {
-   void* result = pmalloc(p, size);
-   if (result != NULL)
-           memset(result, c, size);
-   return result;
+    void *result = pmalloc(p, size);
+    if (result != NULL)
+        memset(result, c, size);
+    return result;
 }
 
 /**
@@ -338,7 +339,8 @@ void *pmalloco(pool p, int const size) {
 /**
  * duplicate a string and allocate memory for it
  *
- * @todo efficient: move this to const char* and then loop through the existing heaps to see if src is within a block in this pool
+ * @todo efficient: move this to const char* and then loop through the existing
+ * heaps to see if src is within a block in this pool
  *
  * @param p the pool to use
  * @param src the string that should be duplicated
@@ -347,11 +349,11 @@ void *pmalloco(pool p, int const size) {
 char *pstrdup(pool p, char const *const src) {
     char *ret;
 
-    if(src == NULL)
+    if (src == NULL)
         return NULL;
 
-    ret = static_cast<char*>(pmalloc(p,strlen(src) + 1));
-    strcpy(ret,src);
+    ret = static_cast<char *>(pmalloc(p, strlen(src) + 1));
+    strcpy(ret, src);
 
     return ret;
 }
@@ -362,9 +364,9 @@ char *pstrdup(pool p, char const *const src) {
  * @param p the pool
  * @return the size
  */
-int pool_size(_pool const *const p)
-{
-    if(p == NULL) return 0;
+int pool_size(_pool const *const p) {
+    if (p == NULL)
+        return 0;
 
     return p->size;
 }
@@ -374,15 +376,14 @@ int pool_size(_pool const *const p)
  *
  * @param p which pool to free
  */
-void pool_free(pool p)
-{
+void pool_free(pool p) {
     struct pfree *cur, *stub;
 
-    if(p == NULL) return;
+    if (p == NULL)
+        return;
 
     cur = p->cleanup;
-    while(cur != NULL)
-    {
+    while (cur != NULL) {
         (*cur->f)(cur->arg);
         stub = cur->next;
         _pool__free(cur);
@@ -390,18 +391,17 @@ void pool_free(pool p)
     }
 
 #ifdef POOL_DEBUG
-    xhash_zap(pool__disturbed,p->name);
+    xhash_zap(pool__disturbed, p->name);
 #endif
 
     _pool__free(p);
-
 }
 
 /**
- * public cleanup utils, insert in a way that they are run FIFO, before mem frees
+ * public cleanup utils, insert in a way that they are run FIFO, before mem
+ * frees
  */
-void pool_cleanup(pool p, pool_cleaner f, void *arg)
-{
+void pool_cleanup(pool p, pool_cleaner f, void *arg) {
     struct pfree *clean;
 
     clean = _pool_free(p, f, arg);
@@ -412,32 +412,32 @@ void pool_cleanup(pool p, pool_cleaner f, void *arg)
 #ifdef POOL_DEBUG
 
 typedef struct pool_debug_info_st {
-    int full;			/* full report? 0 = no, 1 = yes */
-    size_t used_memory;		/* used to sum up the amount of used memory */
-    size_t biggest_pool;	/* size of the biggest memory pool */
-    unsigned int count;		/* number of memory pools */
-} *pool_debug_info, _pool_debug_info;
+    int full;            /* full report? 0 = no, 1 = yes */
+    size_t used_memory;  /* used to sum up the amount of used memory */
+    size_t biggest_pool; /* size of the biggest memory pool */
+    unsigned int count;  /* number of memory pools */
+} * pool_debug_info, _pool_debug_info;
 
 void debug_log(char *zone, const char *msgfmt, ...);
 void log_notice(const char *host, const char *msgfmt, ...);
 
-void _pool_stat(xht h, const char *key, void *data, void *arg)
-{
+void _pool_stat(xht h, const char *key, void *data, void *arg) {
     pool p = (pool)data;
     pool_debug_info debug_info = (pool_debug_info)arg;
 
     debug_info->count++;
     debug_info->used_memory += p->size;
     if (p->size > debug_info->biggest_pool) {
-	debug_info->biggest_pool = p->size;
+        debug_info->biggest_pool = p->size;
     }
 
-    if(p->lsize == -1)
-        debug_log("pool_debug","%s: %s is a new pool",p->zone, p->name);
-    else if(p->size > p->lsize)
-        debug_log("pool_debug","%s: %s grew %d",p->zone, p->name, p->size - p->lsize);
-    else if(debug_info->full)
-        debug_log("pool_debug","%s: %s exists %d",p->zone,p->name, p->size);
+    if (p->lsize == -1)
+        debug_log("pool_debug", "%s: %s is a new pool", p->zone, p->name);
+    else if (p->size > p->lsize)
+        debug_log("pool_debug", "%s: %s grew %d", p->zone, p->name,
+                  p->size - p->lsize);
+    else if (debug_info->full)
+        debug_log("pool_debug", "%s: %s exists %d", p->zone, p->name, p->size);
     p->lsize = p->size;
 }
 
@@ -455,29 +455,30 @@ void pool_stat(int const full) {
     debug_data.count = 0;
 
     if (own_pid[0] == '\0') {
-	snprintf(own_pid, sizeof(own_pid), "%i pool_debug", getpid());
+        snprintf(own_pid, sizeof(own_pid), "%i pool_debug", getpid());
     }
 
     if (pool__disturbed == NULL || pool__disturbed == (xht)1)
-	return;
+        return;
 
     xhash_walk(pool__disturbed, _pool_stat, &debug_data);
-    if(pool__total != pool__ltotal)
-        debug_log("pool_debug","%d\ttotal missed mallocs",pool__total);
+    if (pool__total != pool__ltotal)
+        debug_log("pool_debug", "%d\ttotal missed mallocs", pool__total);
     pool__ltotal = pool__total;
 
-    log_notice(own_pid, "Used memory by pools: %i / biggest pool: %i / number of pools: %i", debug_data.used_memory, debug_data.biggest_pool, debug_data.count);
+    log_notice(
+        own_pid,
+        "Used memory by pools: %i / biggest pool: %i / number of pools: %i",
+        debug_data.used_memory, debug_data.biggest_pool, debug_data.count);
 
     return;
 }
 #else
 /**
- * dummy implementation: print memory pool statistics (for debugging purposes, real implementation if POOL_DEBUG is defined)
+ * dummy implementation: print memory pool statistics (for debugging purposes,
+ * real implementation if POOL_DEBUG is defined)
  *
  * @param full make a full report? (0 = no, 1 = yes)
  */
-void pool_stat(int full)
-{
-    return;
-}
+void pool_stat(int full) { return; }
 #endif

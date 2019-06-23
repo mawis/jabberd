@@ -1,7 +1,7 @@
 /*
  * Copyrights
- * 
- * Portions created by or assigned to Jabber.com, Inc. are 
+ *
+ * Portions created by or assigned to Jabber.com, Inc. are
  * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
  * information for Jabber.com, Inc. is available at http://www.jabber.com/.
  *
@@ -32,13 +32,15 @@
  * @file xdb_file.cc
  * @brief implements storage in XML files
  *
- * @todo the xdbns attribute in the spool files should be contained in its own namespace
+ * @todo the xdbns attribute in the spool files should be contained in its own
+ * namespace
  *
- * The xdb_file module can be used to store XML in files - one per user. It is the traditional storage module of the jabberd14 server.
+ * The xdb_file module can be used to store XML in files - one per user. It is
+ * the traditional storage module of the jabberd14 server.
  */
- 
-#include <jabberd.h>
+
 #include <dirent.h>
+#include <jabberd.h>
 
 #define FILES_PRIME 509
 
@@ -46,10 +48,11 @@
  * an item in the hash of cached data
  */
 typedef struct cacher_struct {
-    char *fname;	/**< file name of the cached file */
-    xmlnode file;	/**< content of the cached file */
-    int lastset;	/**< when the data has been last accessed (set or get is counted, not just set) */
-} *cacher, _cacher;
+    char *fname;  /**< file name of the cached file */
+    xmlnode file; /**< content of the cached file */
+    int lastset;  /**< when the data has been last accessed (set or get is
+                     counted, not just set) */
+} * cacher, _cacher;
 
 /**
  * xdb_file internal data
@@ -64,10 +67,11 @@ typedef struct xdbf_struct {
     int sizelimit;
     int use_hashspool;
     xht std_ns_prefixes;
-} *xdbf, _xdbf;
+} * xdbf, _xdbf;
 
 /**
- * xhash_walker function. Called for each cached content. Decides if it has to be expired.
+ * xhash_walker function. Called for each cached content. Decides if it has to
+ * be expired.
  *
  * @param h the xhash containing the cached content of xdb_file
  * @param key key in the hash (filename of the cached file)
@@ -80,8 +84,8 @@ void _xdb_file_purge(xht h, const char *key, void *data, void *arg) {
     int now = time(NULL);
 
     if ((now - c->lastset) > xf->timeout) {
-        log_debug2(ZONE, LOGT_STORAGE, "purging %s",c->fname);
-        xhash_zap(xf->cache,c->fname);
+        log_debug2(ZONE, LOGT_STORAGE, "purging %s", c->fname);
+        xhash_zap(xf->cache, c->fname);
         xmlnode_free(c->file);
     }
 }
@@ -89,8 +93,8 @@ void _xdb_file_purge(xht h, const char *key, void *data, void *arg) {
 /**
  * check for cached content, that has expired
  *
- * This function gets called regulary as a function, that is registered with heartbeat.
- * It removes expired content from the caching hash.
+ * This function gets called regulary as a function, that is registered with
+ * heartbeat. It removes expired content from the caching hash.
  *
  * @param arg pointer to xdb_local component instance data (type is ::xdbf)
  * @return always r_DONE
@@ -99,7 +103,7 @@ result xdb_file_purge(void *arg) {
     xdbf xf = (xdbf)arg;
 
     log_debug2(ZONE, LOGT_STORAGE, "purge check");
-    xhash_walk(xf->cache,_xdb_file_purge,(void *)xf);
+    xhash_walk(xf->cache, _xdb_file_purge, (void *)xf);
 
     return r_DONE;
 }
@@ -110,7 +114,8 @@ result xdb_file_purge(void *arg) {
  *
  * @param host the host to load the file for (just for generating log messages)
  * @param fname the filename of the file, that should be loaded
- * @param cache a hash containing the cached files, that do not need to get loaded and parsed again
+ * @param cache a hash containing the cached files, that do not need to get
+ * loaded and parsed again
  * @return the loaded (or cached) ::xmlnode
  */
 xmlnode xdb_file_load(char *host, char *fname, xht cache) {
@@ -118,20 +123,23 @@ xmlnode xdb_file_load(char *host, char *fname, xht cache) {
     cacher c;
     int fd;
 
-    log_debug2(ZONE, LOGT_STORAGE, "loading %s",fname);
+    log_debug2(ZONE, LOGT_STORAGE, "loading %s", fname);
 
     /* first, check the cache */
-    if ((c = static_cast<cacher>(xhash_get(cache,fname))) != NULL)
+    if ((c = static_cast<cacher>(xhash_get(cache, fname))) != NULL)
         return c->file;
 
     /* test the file first, so we can be more descriptive */
-    fd = open(fname,O_RDONLY);
+    fd = open(fname, O_RDONLY);
     if (fd < 0) {
-	if (errno == ENOENT) {
-	    log_debug2(ZONE, LOGT_STORAGE, "xdb_file failed to open file %s: %s", fname, strerror(errno));
-	} else {
-	    log_warn(host,"xdb_file failed to open file %s: %s",fname,strerror(errno));
-	}
+        if (errno == ENOENT) {
+            log_debug2(ZONE, LOGT_STORAGE,
+                       "xdb_file failed to open file %s: %s", fname,
+                       strerror(errno));
+        } else {
+            log_warn(host, "xdb_file failed to open file %s: %s", fname,
+                     strerror(errno));
+        }
     } else {
         close(fd);
         data = xmlnode_file(fname);
@@ -141,20 +149,21 @@ xmlnode xdb_file_load(char *host, char *fname, xht cache) {
     if (data == NULL) {
         data = xmlnode_new_tag_ns("xdb", NULL, NS_JABBERD_XDB);
     } else {
-	/* did we load an old spool file? update the namespace then */
-	const char *root_element_namespace = xmlnode_get_namespace(data);
+        /* did we load an old spool file? update the namespace then */
+        const char *root_element_namespace = xmlnode_get_namespace(data);
 
-	if (root_element_namespace == NULL || j_strcmp(root_element_namespace, NS_SERVER) == 0) {
-	    xmlnode_change_namespace(data, NS_JABBERD_XDB);
-	}
+        if (root_element_namespace == NULL ||
+            j_strcmp(root_element_namespace, NS_SERVER) == 0) {
+            xmlnode_change_namespace(data, NS_JABBERD_XDB);
+        }
     }
 
-    log_debug2(ZONE, LOGT_STORAGE, "caching %s",fname);
-    c = static_cast<cacher>(pmalloco(xmlnode_pool(data),sizeof(_cacher)));
-    c->fname = pstrdup(xmlnode_pool(data),fname);
+    log_debug2(ZONE, LOGT_STORAGE, "caching %s", fname);
+    c = static_cast<cacher>(pmalloco(xmlnode_pool(data), sizeof(_cacher)));
+    c->fname = pstrdup(xmlnode_pool(data), fname);
     c->lastset = time(NULL);
     c->file = data;
-    xhash_put(cache,c->fname,c);
+    xhash_put(cache, c->fname, c);
 
     return data;
 }
@@ -168,15 +177,16 @@ xmlnode xdb_file_load(char *host, char *fname, xht cache) {
  */
 void _xdb_get_hashes(const char *filename, char digit01[3], char digit23[3]) {
     char hashedfilename[9];
-    
+
     /* generate a hash over the filename */
     bzero(hashedfilename, sizeof(hashedfilename));
     bzero(digit01, sizeof(char[3]));
     bzero(digit23, sizeof(char[3]));
     crc32_r(filename, hashedfilename);
-    log_debug2(ZONE, LOGT_STORAGE, "hash of %s is %s", filename, hashedfilename);
-    memcpy(digit01, hashedfilename+1, 2);
-    memcpy(digit23, hashedfilename+4, 2);
+    log_debug2(ZONE, LOGT_STORAGE, "hash of %s is %s", filename,
+               hashedfilename);
+    memcpy(digit01, hashedfilename + 1, 2);
+    memcpy(digit23, hashedfilename + 4, 2);
 
     return;
 }
@@ -192,37 +202,46 @@ void _xdb_get_hashes(const char *filename, char digit01[3], char digit23[3]) {
  * @param use_subdirs true if file should be located in subdirectories
  * @return 1 on success, 0 on failure
  */
-static int _xdb_gen_dirs(const char *spoolroot, char const* host, const char *hash1, const char *hash2, int use_subdirs) {
+static int _xdb_gen_dirs(const char *spoolroot, char const *host,
+                         const char *hash1, const char *hash2,
+                         int use_subdirs) {
     std::ostringstream folder;
     struct stat s;
 
     /* check that the root of the spool structure exists */
     if (stat(spoolroot, &s) < 0) {
-	log_error(host, "the spool root directory %s does not seem to exist", spoolroot);
-	return 0;
+        log_error(host, "the spool root directory %s does not seem to exist",
+                  spoolroot);
+        return 0;
     }
 
     /* check and create the host-named folder */
     folder << spoolroot << "/" << host;
-    if(stat(folder.str().c_str(),&s) < 0 && mkdir(folder.str().c_str(), S_IRWXU) < 0) {
-	log_error(host, "could not create spool folder %s: %s", folder.str().c_str(), strerror(errno));
-	return 0;
+    if (stat(folder.str().c_str(), &s) < 0 &&
+        mkdir(folder.str().c_str(), S_IRWXU) < 0) {
+        log_error(host, "could not create spool folder %s: %s",
+                  folder.str().c_str(), strerror(errno));
+        return 0;
     }
 
     if (use_subdirs) {
-	/* check or create the first level subdirectory */
-	folder << "/" << hash1;
-	if(stat(folder.str().c_str(),&s) < 0 && mkdir(folder.str().c_str(), S_IRWXU) < 0) {
-	    log_error(host, "could not create spool folder %s: %s", folder.str().c_str(), strerror(errno));
-	    return 0;
-	}
+        /* check or create the first level subdirectory */
+        folder << "/" << hash1;
+        if (stat(folder.str().c_str(), &s) < 0 &&
+            mkdir(folder.str().c_str(), S_IRWXU) < 0) {
+            log_error(host, "could not create spool folder %s: %s",
+                      folder.str().c_str(), strerror(errno));
+            return 0;
+        }
 
-	/* check or create the second level subdirectory */
-	folder << "/" << hash2;
-	if(stat(folder.str().c_str(),&s) < 0 && mkdir(folder.str().c_str(), S_IRWXU) < 0) {
-	    log_error(host, "could not create spool folder %s: %s", folder.str().c_str(), strerror(errno));
-	    return 0;
-	}
+        /* check or create the second level subdirectory */
+        folder << "/" << hash2;
+        if (stat(folder.str().c_str(), &s) < 0 &&
+            mkdir(folder.str().c_str(), S_IRWXU) < 0) {
+            log_error(host, "could not create spool folder %s: %s",
+                      folder.str().c_str(), strerror(errno));
+            return 0;
+        }
     }
 
     return 1;
@@ -240,7 +259,8 @@ static int _xdb_gen_dirs(const char *spoolroot, char const* host, const char *ha
  * @param use_subdirs true if file should be located in subdirectories
  * @return concatenated string of the form spl+"/"+somehashes+"/"+file+"."+ext
  */
-char *xdb_file_full(int create, pool p, const char *spl, char const* host, const char *file, char const* ext, int use_subdirs) {
+char *xdb_file_full(int create, pool p, const char *spl, char const *host,
+                    const char *file, char const *ext, int use_subdirs) {
     std::ostringstream filepath;
     std::ostringstream filename;
     char digit01[3], digit23[3];
@@ -250,17 +270,19 @@ char *xdb_file_full(int create, pool p, const char *spl, char const* host, const
     _xdb_get_hashes(filename.str().c_str(), digit01, digit23);
 
     /* is the creation of the folder requested? */
-    if(create) {
-	if (!_xdb_gen_dirs(spl, host, digit01, digit23, use_subdirs)) {
-	    log_error(host, "xdb request failed, necessary directory was not created");
-	    return NULL;
-	}
+    if (create) {
+        if (!_xdb_gen_dirs(spl, host, digit01, digit23, use_subdirs)) {
+            log_error(
+                host,
+                "xdb request failed, necessary directory was not created");
+            return NULL;
+        }
     }
 
     filepath << spl << "/" << host;
 
     if (use_subdirs) {
-	filepath << "/" << digit01 << "/" << digit23;
+        filepath << "/" << digit01 << "/" << digit23;
     }
 
     /* full path to file */
@@ -272,11 +294,13 @@ char *xdb_file_full(int create, pool p, const char *spl, char const* host, const
 /**
  * handle packets (request) we get from the XML router inside of jabberd
  *
- * This function is the heart of xdb_file. It gets the requests of jabberd14, processes them, and sends replies
+ * This function is the heart of xdb_file. It gets the requests of jabberd14,
+ * processes them, and sends replies
  *
  * @param i the ::instance data of this instance of the component
  * @param p the ::dpacket that contains the request
- * @param arg xdb_file internal data of this instance of xdb::file (type is ::xdbf)
+ * @param arg xdb_file internal data of this instance of xdb::file (type is
+ * ::xdbf)
  * @return r_DONE if the request has been handled, r_ERR on failure
  */
 result xdb_file_phandler(instance i, dpacket p, void *arg) {
@@ -287,7 +311,8 @@ result xdb_file_phandler(instance i, dpacket p, void *arg) {
     xmlnode file, top, data;
     int ret = 0, flag_set = 0;
 
-    log_debug2(ZONE, LOGT_STORAGE|LOGT_DELIVER, "handling xdb request %s", xmlnode_serialize_string(p->x, xmppd::ns_decl_list(), 0));
+    log_debug2(ZONE, LOGT_STORAGE | LOGT_DELIVER, "handling xdb request %s",
+               xmlnode_serialize_string(p->x, xmppd::ns_decl_list(), 0));
 
     /* the request needs to have a defined namespace, that it is querying */
     if ((ns = xmlnode_get_attrib_ns(p->x, "ns", NULL)) == NULL)
@@ -300,10 +325,14 @@ result xdb_file_phandler(instance i, dpacket p, void *arg) {
     /* create the filename of the responsible file */
     /* is this request specific to a user or global data? */
     if (p->id->has_node())
-        full = xdb_file_full(flag_set, p->p, xf->spool, p->id->get_domain().c_str(), p->id->get_node().c_str(), "xml", xf->use_hashspool);
+        full = xdb_file_full(
+            flag_set, p->p, xf->spool, p->id->get_domain().c_str(),
+            p->id->get_node().c_str(), "xml", xf->use_hashspool);
     else
-	/* global data, not data for a user: never put it inside the hash directories (use global.xdb file) */
-        full = xdb_file_full(flag_set, p->p, xf->spool, p->id->get_domain().c_str(), "global", "xdb", 0);
+        /* global data, not data for a user: never put it inside the hash
+         * directories (use global.xdb file) */
+        full = xdb_file_full(flag_set, p->p, xf->spool,
+                             p->id->get_domain().c_str(), "global", "xdb", 0);
 
     /* no filename? -> error */
     if (full == NULL)
@@ -312,118 +341,137 @@ result xdb_file_phandler(instance i, dpacket p, void *arg) {
     /* load the data from disk/cache */
     top = file = xdb_file_load(p->host, full, xf->cache);
 
-    /* if we're dealing w/ a resource, just get that element <res id='resource'/> inside <xdb/> */
+    /* if we're dealing w/ a resource, just get that element <res
+     * id='resource'/> inside <xdb/> */
     if (p->id->has_resource()) {
-	std::ostringstream xpath;
-	xpath << "res[@id='" << p->id->get_resource() << "']";
-	top = xmlnode_get_list_item(xmlnode_get_tags(top, xpath.str().c_str(), xf->std_ns_prefixes), 0);
-	if (top == NULL) {
+        std::ostringstream xpath;
+        xpath << "res[@id='" << p->id->get_resource() << "']";
+        top = xmlnode_get_list_item(
+            xmlnode_get_tags(top, xpath.str().c_str(), xf->std_ns_prefixes), 0);
+        if (top == NULL) {
             top = xmlnode_insert_tag_ns(file, "res", NULL, NS_JABBERD_XDB);
-            xmlnode_put_attrib_ns(top, "id", NULL, NULL, p->id->get_resource().c_str());
+            xmlnode_put_attrib_ns(top, "id", NULL, NULL,
+                                  p->id->get_resource().c_str());
         }
     }
 
     /* just query the relevant namespace */
     std::ostringstream xpath;
     xpath << "*[@xdbns='" << ns << "']";
-    data = xmlnode_get_list_item(xmlnode_get_tags(top, xpath.str().c_str(), xf->std_ns_prefixes), 0);
+    data = xmlnode_get_list_item(
+        xmlnode_get_tags(top, xpath.str().c_str(), xf->std_ns_prefixes), 0);
 
     if (flag_set) {
-	act = xmlnode_get_attrib_ns(p->x, "action", NULL);
-	match = xmlnode_get_attrib_ns(p->x, "match", NULL);
-	matchpath = xmlnode_get_attrib_ns(p->x, "matchpath", NULL);
-	matchns = xmlnode_get_attrib_ns(p->x, "matchns", NULL);
+        act = xmlnode_get_attrib_ns(p->x, "action", NULL);
+        match = xmlnode_get_attrib_ns(p->x, "match", NULL);
+        matchpath = xmlnode_get_attrib_ns(p->x, "matchpath", NULL);
+        matchns = xmlnode_get_attrib_ns(p->x, "matchns", NULL);
         if (act != NULL) {
-	    xht namespaces = NULL;
-	    pool value_strings = NULL; // pool for the value strings in the namespaces xhash
+            xht namespaces = NULL;
+            pool value_strings =
+                NULL; // pool for the value strings in the namespaces xhash
 
-	    if (matchns != NULL) {
-		xmlnode namespacesxml = NULL;
-		namespacesxml = xmlnode_str(matchns, j_strlen(matchns));
-		value_strings = pool_new();
-		namespaces = xhash_from_xml(namespacesxml, value_strings);
-		xmlnode_free(namespacesxml);
-	    }
-            switch (*act) {
-		case 'i': /* insert action */
-		    if (data == NULL) {
-			/* we're inserting into something that doesn't exist?!?!? */
-			data = xmlnode_insert_tag_ns(top, "foo", NULL, ns);
-			xmlnode_put_attrib_ns(data, "xdbns", NULL, NULL, ns);
-		    }
-		    if (matchpath != NULL) {
-			xmlnode_vector match_items = xmlnode_get_tags(data, matchpath, namespaces);
-
-			for (xmlnode_vector::iterator match_item = match_items.begin(); match_item != match_items.end(); ++match_item) {
-			    xmlnode_hide(*match_item);
-			}
-		    } else {
-			xmlnode_hide(xmlnode_get_tag(data, match)); /* any match is a goner */
-		    }
-		    /* insert the new chunk into the existing data */
-		    xmlnode_insert_tag_node(data, xmlnode_get_firstchild(p->x));
-		    break;
-		case 'c': /* check action */
-		    if (matchpath != NULL) {
-			data = xmlnode_get_list_item(xmlnode_get_tags(data, matchpath, namespaces), 0);
-		    } else if(match != NULL) {
-			data = xmlnode_get_tag(data, match);
-		    }
-		    if(j_strcmp(xmlnode_get_data(data),xmlnode_get_data(xmlnode_get_firstchild(p->x))) != 0) {
-			log_debug2(ZONE, LOGT_STORAGE|LOGT_DELIVER, "xdb check action returning error to signify unsuccessful check");
-			if (namespaces)
-			    xhash_free(namespaces);
-			if (value_strings)
-			    pool_free(value_strings);
-			return r_ERR;
-		    }
-		    flag_set = 0;
-
-		    /*
-		     * XXX Is there a bug here?
-		     *
-		     * I suspect that the check action will always return r_ERR!
-		     * Up to this point the ret variable has not been changed, and if
-		     * we arrived here I cannot imagine how it should be changed afterwards.
-		     * This means that the function will return r_ERR too.
-		     * I expect this is a bug and something like "ret = 1;" should be inserted
-		     * at this point.
-		     *
-		     * The problem is that I am not completely sure what the check action is
-		     * supposed to do. What I imagine is:
-		     * It is intended to compare the content of xdb with the content of the
-		     * xdb request and return r_ERR if it is different and r_DONE if it
-		     * is the same.
-		     *
-		     * It is only used in jsm/modules/mod_auth_plain.c in the function
-		     * mod_auth_plain_jane(...) function. At this function there is already
-		     * a check if the password is the same some lines above ... so it
-		     * would make no sence to call the check action if it does what I said
-		     * above as it would be always result in being different - in which
-		     * case it is no surprize that we have no problem, that this function
-		     * always returns r_ERR (which would signal that it's different too).
-		     *
-		     * It should be checked if the xdb_act(...) in mod_auth_plain_jane(...)
-		     * is needed. If it isn't, we could remove the check action from
-		     * xdb completely.
-		     *
-		     * Please see also:
-		     * http://web.archive.org/web/20020601233959/http://jabberd.jabberstudio.org/1.4/142changelog.html
-		     * In that case it seems to be a bug here ...
-		     */
-		    break;
-		default:
-		    log_warn(p->host, "unable to handle unknown xdb action '%s'", act);
-		    if (namespaces)
-			xhash_free(namespaces);
-		    if (value_strings)
-			pool_free(value_strings);
-		    return r_ERR;
+            if (matchns != NULL) {
+                xmlnode namespacesxml = NULL;
+                namespacesxml = xmlnode_str(matchns, j_strlen(matchns));
+                value_strings = pool_new();
+                namespaces = xhash_from_xml(namespacesxml, value_strings);
+                xmlnode_free(namespacesxml);
             }
-	    if (namespaces)
-		xhash_free(namespaces);
-	    if (value_strings)
-		pool_free(value_strings);
+            switch (*act) {
+                case 'i': /* insert action */
+                    if (data == NULL) {
+                        /* we're inserting into something that doesn't
+                         * exist?!?!? */
+                        data = xmlnode_insert_tag_ns(top, "foo", NULL, ns);
+                        xmlnode_put_attrib_ns(data, "xdbns", NULL, NULL, ns);
+                    }
+                    if (matchpath != NULL) {
+                        xmlnode_vector match_items =
+                            xmlnode_get_tags(data, matchpath, namespaces);
+
+                        for (xmlnode_vector::iterator match_item =
+                                 match_items.begin();
+                             match_item != match_items.end(); ++match_item) {
+                            xmlnode_hide(*match_item);
+                        }
+                    } else {
+                        xmlnode_hide(xmlnode_get_tag(
+                            data, match)); /* any match is a goner */
+                    }
+                    /* insert the new chunk into the existing data */
+                    xmlnode_insert_tag_node(data, xmlnode_get_firstchild(p->x));
+                    break;
+                case 'c': /* check action */
+                    if (matchpath != NULL) {
+                        data = xmlnode_get_list_item(
+                            xmlnode_get_tags(data, matchpath, namespaces), 0);
+                    } else if (match != NULL) {
+                        data = xmlnode_get_tag(data, match);
+                    }
+                    if (j_strcmp(xmlnode_get_data(data),
+                                 xmlnode_get_data(
+                                     xmlnode_get_firstchild(p->x))) != 0) {
+                        log_debug2(
+                            ZONE, LOGT_STORAGE | LOGT_DELIVER,
+                            "xdb check action returning error to signify "
+                            "unsuccessful check");
+                        if (namespaces)
+                            xhash_free(namespaces);
+                        if (value_strings)
+                            pool_free(value_strings);
+                        return r_ERR;
+                    }
+                    flag_set = 0;
+
+                    /*
+                     * XXX Is there a bug here?
+                     *
+                     * I suspect that the check action will always return r_ERR!
+                     * Up to this point the ret variable has not been changed,
+                     * and if we arrived here I cannot imagine how it should be
+                     * changed afterwards. This means that the function will
+                     * return r_ERR too. I expect this is a bug and something
+                     * like "ret = 1;" should be inserted at this point.
+                     *
+                     * The problem is that I am not completely sure what the
+                     * check action is supposed to do. What I imagine is: It is
+                     * intended to compare the content of xdb with the content
+                     * of the xdb request and return r_ERR if it is different
+                     * and r_DONE if it is the same.
+                     *
+                     * It is only used in jsm/modules/mod_auth_plain.c in the
+                     * function mod_auth_plain_jane(...) function. At this
+                     * function there is already a check if the password is the
+                     * same some lines above ... so it would make no sence to
+                     * call the check action if it does what I said above as it
+                     * would be always result in being different - in which case
+                     * it is no surprize that we have no problem, that this
+                     * function always returns r_ERR (which would signal that
+                     * it's different too).
+                     *
+                     * It should be checked if the xdb_act(...) in
+                     * mod_auth_plain_jane(...) is needed. If it isn't, we could
+                     * remove the check action from xdb completely.
+                     *
+                     * Please see also:
+                     * http://web.archive.org/web/20020601233959/http://jabberd.jabberstudio.org/1.4/142changelog.html
+                     * In that case it seems to be a bug here ...
+                     */
+                    break;
+                default:
+                    log_warn(p->host,
+                             "unable to handle unknown xdb action '%s'", act);
+                    if (namespaces)
+                        xhash_free(namespaces);
+                    if (value_strings)
+                        pool_free(value_strings);
+                    return r_ERR;
+            }
+            if (namespaces)
+                xhash_free(namespaces);
+            if (value_strings)
+                pool_free(value_strings);
         } else {
             if (data != NULL)
                 xmlnode_hide(data);
@@ -434,35 +482,44 @@ result xdb_file_phandler(instance i, dpacket p, void *arg) {
         }
 
         /* save the file if we still want to */
-	if (flag_set) {
-	    int tmp = xmlnode2file_limited(full,file,xf->sizelimit);
-	    if (tmp == 0)
-		log_notice(p->id->get_domain().c_str(), "xdb request failed, due to the size limit of %i to file %s", xf->sizelimit, full);
-	    else if (tmp < 0)
-		log_error(p->id->get_domain().c_str(), "xdb request failed, unable to save to file %s", full);
-	    else
-		ret = 1;
-	}
+        if (flag_set) {
+            int tmp = xmlnode2file_limited(full, file, xf->sizelimit);
+            if (tmp == 0)
+                log_notice(p->id->get_domain().c_str(),
+                           "xdb request failed, due to the size limit of %i to "
+                           "file %s",
+                           xf->sizelimit, full);
+            else if (tmp < 0)
+                log_error(p->id->get_domain().c_str(),
+                          "xdb request failed, unable to save to file %s",
+                          full);
+            else
+                ret = 1;
+        }
     } else {
         /* a get always returns, data or not */
         ret = 1;
 
         if (data != NULL) {
-	    /* cool, send em back a copy of the data */
-            xmlnode_hide_attrib_ns(xmlnode_insert_tag_node(p->x, data), "xdbns", NULL);
+            /* cool, send em back a copy of the data */
+            xmlnode_hide_attrib_ns(xmlnode_insert_tag_node(p->x, data), "xdbns",
+                                   NULL);
         }
     }
 
     if (ret) {
         xmlnode_put_attrib_ns(p->x, "type", NULL, NULL, "result");
-        xmlnode_put_attrib_ns(p->x, "to", NULL, NULL, xmlnode_get_attrib(p->x,"from"));
+        xmlnode_put_attrib_ns(p->x, "to", NULL, NULL,
+                              xmlnode_get_attrib(p->x, "from"));
         xmlnode_put_attrib_ns(p->x, "from", NULL, NULL, jid_full(p->id));
-        deliver(dpacket_new(p->x), NULL); /* dpacket_new() shouldn't ever return NULL */
+        deliver(dpacket_new(p->x),
+                NULL); /* dpacket_new() shouldn't ever return NULL */
 
-        /* remove the cache'd item if it was a set or we're not configured to cache */
+        /* remove the cache'd item if it was a set or we're not configured to
+         * cache */
         if (xf->timeout == 0 || flag_set) {
-            log_debug2(ZONE, LOGT_STORAGE, "decaching %s",full);
-            xhash_zap(xf->cache,full);
+            log_debug2(ZONE, LOGT_STORAGE, "decaching %s", full);
+            xhash_zap(xf->cache, full);
             xmlnode_free(file);
         }
         return r_DONE;
@@ -498,38 +555,46 @@ void _xdb_convert_hostspool(pool p, const char *spoolroot, char *host) {
     std::ostringstream hostspool;
     hostspool << spoolroot << "/" << host;
 
-    log_notice(host, "trying to convert spool %s (this may take some time)", hostspool.str().c_str());
+    log_notice(host, "trying to convert spool %s (this may take some time)",
+               hostspool.str().c_str());
 
     /* we have to convert the spool */
     sdir = opendir(hostspool.str().c_str());
     if (sdir == NULL) {
-	log_error(host, "failed to open directory %s for conversion: %s", hostspool.str().c_str(), strerror(errno));
-	return;
+        log_error(host, "failed to open directory %s for conversion: %s",
+                  hostspool.str().c_str(), strerror(errno));
+        return;
     }
 
-    while ((dent = readdir(sdir))!=NULL) {
-	char *str_ptr;
-	size_t filenamelength = strlen(dent->d_name);
+    while ((dent = readdir(sdir)) != NULL) {
+        char *str_ptr;
+        size_t filenamelength = strlen(dent->d_name);
 
-	if (filenamelength<4)
-	    continue;
+        if (filenamelength < 4)
+            continue;
 
-	str_ptr = (dent->d_name)+filenamelength-4;
+        str_ptr = (dent->d_name) + filenamelength - 4;
 
-	/* do we have to convert this file? */
-	if (j_strcmp(str_ptr, ".xml") == 0) {
-	    _xdb_get_hashes(dent->d_name, digit01, digit23);
+        /* do we have to convert this file? */
+        if (j_strcmp(str_ptr, ".xml") == 0) {
+            _xdb_get_hashes(dent->d_name, digit01, digit23);
 
-	    std::ostringstream oldname;
-	    oldname << hostspool.str() << "/" << dent->d_name;
-	    std::ostringstream newname;
-	    newname << hostspool.str() << "/" << digit01 << "/" << digit23 << "/" << dent->d_name;
+            std::ostringstream oldname;
+            oldname << hostspool.str() << "/" << dent->d_name;
+            std::ostringstream newname;
+            newname << hostspool.str() << "/" << digit01 << "/" << digit23
+                    << "/" << dent->d_name;
 
-	    if (!_xdb_gen_dirs(spoolroot, host, digit01, digit23, 1))
-		log_error(host, "failed to create necessary directory for conversion");
-	    else if (rename(oldname.str().c_str(), newname.str().c_str()) < 0)
-		log_error(host, "failed to move %s to %s while converting spool: %s", oldname.str().c_str(), newname.str().c_str(), strerror(errno));
-	}
+            if (!_xdb_gen_dirs(spoolroot, host, digit01, digit23, 1))
+                log_error(
+                    host,
+                    "failed to create necessary directory for conversion");
+            else if (rename(oldname.str().c_str(), newname.str().c_str()) < 0)
+                log_error(host,
+                          "failed to move %s to %s while converting spool: %s",
+                          oldname.str().c_str(), newname.str().c_str(),
+                          strerror(errno));
+        }
     }
 
     /* close the directory */
@@ -556,41 +621,41 @@ void xdb_convert_spool(const char *spoolroot) {
     std::ostringstream flagfile;
     flagfile << spoolroot << "/.hashspool";
     if (stat(flagfile.str().c_str(), &s) == 0) {
-	log_debug2(ZONE, LOGT_STORAGE, "there is already a new hashspool");
-	pool_free(p);
-	return;
+        log_debug2(ZONE, LOGT_STORAGE, "there is already a new hashspool");
+        pool_free(p);
+        return;
     }
 
     /* what is in this directory? */
     sdir = opendir(spoolroot);
 
     if (sdir == NULL) {
-	pool_free(p);
-	return;
+        pool_free(p);
+        return;
     }
 
     while ((dent = readdir(sdir)) != NULL) {
-	struct stat s;
-	std::ostringstream dirname;
-	dirname << spoolroot << "/" << dent->d_name;
+        struct stat s;
+        std::ostringstream dirname;
+        dirname << spoolroot << "/" << dent->d_name;
 
-	if (stat(dirname.str().c_str(), &s)<0)
-	    continue;
+        if (stat(dirname.str().c_str(), &s) < 0)
+            continue;
 
-	/* we only care about directories */
-	if (!S_ISDIR(s.st_mode))
-	    continue;
+        /* we only care about directories */
+        if (!S_ISDIR(s.st_mode))
+            continue;
 
-	if (dent->d_name[0]!='\0' && dent->d_name[0]!='.')
-	    _xdb_convert_hostspool(p, spoolroot, dent->d_name);
+        if (dent->d_name[0] != '\0' && dent->d_name[0] != '.')
+            _xdb_convert_hostspool(p, spoolroot, dent->d_name);
     }
     closedir(sdir);
 
     /* write the flag that we converted the spool */
     flagfileh = fopen(flagfile.str().c_str(), "w");
     if (flagfileh != NULL) {
-	fwrite("Please do not delete this file.\n", 1, 32, flagfileh);
-	fclose(flagfileh);
+        fwrite("Please do not delete this file.\n", 1, 32, flagfileh);
+        fclose(flagfileh);
     }
 
     /* cleanup */
@@ -600,8 +665,8 @@ void xdb_convert_spool(const char *spoolroot) {
 /**
  * load the xdb_file module
  *
- * This gets called by the component loader of jabberd. It configures the instance,
- * and registers all callbacks with jabberd.
+ * This gets called by the component loader of jabberd. It configures the
+ * instance, and registers all callbacks with jabberd.
  *
  * @param i ::instance data of this component
  * @param x ::xmlnode containing the loading information
@@ -612,53 +677,70 @@ extern "C" void xdb_file(instance i, xmlnode x) {
     xmlnode node_ptr = NULL;
     xdbcache xc = NULL;
     xdbf xf = NULL;
-    int timeout = 3600; /* defaults to timeout in 3600 seconds */
+    int timeout = 3600;     /* defaults to timeout in 3600 seconds */
     int sizelimit = 500000; /* defaults to 500000 bytes */
 
     log_debug2(ZONE, LOGT_INIT, "xdb_file loading");
 
     /* get the configuration of this component */
     xc = xdb_cache(i);
-    config = xdb_get(xc, jid_new(xmlnode_pool(x),"config@-internal"),"jabber:config:xdb_file");
+    config = xdb_get(xc, jid_new(xmlnode_pool(x), "config@-internal"),
+                     "jabber:config:xdb_file");
 
     /* define standard namespace prefixes */
-    xf = static_cast<xdbf>(pmalloco(i->p,sizeof(_xdbf)));
+    xf = static_cast<xdbf>(pmalloco(i->p, sizeof(_xdbf)));
     xf->std_ns_prefixes = xhash_new(7);
-    xhash_put(xf->std_ns_prefixes, "", const_cast<char*>(NS_JABBERD_XDB));
-    xhash_put(xf->std_ns_prefixes, "conf", const_cast<char*>(NS_JABBERD_CONFIG_XDBFILE));
+    xhash_put(xf->std_ns_prefixes, "", const_cast<char *>(NS_JABBERD_XDB));
+    xhash_put(xf->std_ns_prefixes, "conf",
+              const_cast<char *>(NS_JABBERD_CONFIG_XDBFILE));
 
     /* where to store all the files (base directory) */
-    spl = xmlnode_get_list_item_data(xmlnode_get_tags(config, "conf:spool", xf->std_ns_prefixes), 0);
+    spl = xmlnode_get_list_item_data(
+        xmlnode_get_tags(config, "conf:spool", xf->std_ns_prefixes), 0);
     if (spl == NULL) {
-        log_error(i->id,"xdb_file: No filesystem spool location configured: %s", xmlnode_serialize_string(config, xmppd::ns_decl_list(), 0));
+        log_error(i->id,
+                  "xdb_file: No filesystem spool location configured: %s",
+                  xmlnode_serialize_string(config, xmppd::ns_decl_list(), 0));
         return;
     }
 
     /* maximum size of a user file */
-    node_ptr = xmlnode_get_list_item(xmlnode_get_tags(config, "conf:sizelimit", xf->std_ns_prefixes), 0);
+    node_ptr = xmlnode_get_list_item(
+        xmlnode_get_tags(config, "conf:sizelimit", xf->std_ns_prefixes), 0);
     if (node_ptr != NULL) {
-	/* default (0): disable file size limit */
-	sizelimit = j_atoi(xmlnode_get_data(node_ptr), 0);
+        /* default (0): disable file size limit */
+        sizelimit = j_atoi(xmlnode_get_data(node_ptr), 0);
     }
 
     /* is there a caching timeout? */
-    node_ptr = xmlnode_get_list_item(xmlnode_get_tags(config, "conf:timeout", xf->std_ns_prefixes), 0);
+    node_ptr = xmlnode_get_list_item(
+        xmlnode_get_tags(config, "conf:timeout", xf->std_ns_prefixes), 0);
     if (node_ptr != NULL) {
-	/* default (-1): disable timeout */
-	timeout = j_atoi(xmlnode_get_data(node_ptr), -1);
+        /* default (-1): disable timeout */
+        timeout = j_atoi(xmlnode_get_data(node_ptr), -1);
     }
 
     /* keep our configuration in an instance of _xdbf, allocate memory for it */
-    xf->spool = pstrdup(i->p,spl);
+    xf->spool = pstrdup(i->p, spl);
     xf->timeout = timeout;
     xf->sizelimit = sizelimit;
     xf->i = i;
-    xf->cache = xhash_new(j_atoi(xmlnode_get_list_item_data(xmlnode_get_tags(config, "conf:maxfiles", xf->std_ns_prefixes), 0), FILES_PRIME));
-    xf->use_hashspool = xmlnode_get_list_item(xmlnode_get_tags(config, "conf:use_hierarchical_spool", xf->std_ns_prefixes), 0) ? 1 : 0;
+    xf->cache = xhash_new(j_atoi(
+        xmlnode_get_list_item_data(
+            xmlnode_get_tags(config, "conf:maxfiles", xf->std_ns_prefixes), 0),
+        FILES_PRIME));
+    xf->use_hashspool =
+        xmlnode_get_list_item(xmlnode_get_tags(config,
+                                               "conf:use_hierarchical_spool",
+                                               xf->std_ns_prefixes),
+                              0)
+            ? 1
+            : 0;
 
-    /* if we are using the hashed directory layout, we might have to convert an existing spool */
+    /* if we are using the hashed directory layout, we might have to convert an
+     * existing spool */
     if (xf->use_hashspool)
-	xdb_convert_spool(spl);
+        xdb_convert_spool(spl);
 
     /* register our callback, that gets the requests passed to */
     register_phandler(i, o_DELIVER, xdb_file_phandler, (void *)xf);
@@ -671,5 +753,5 @@ extern "C" void xdb_file(instance i, xmlnode x) {
     xmlnode_free(config);
 
     /* register xdb_file_cleanup() to get called on shutdown */
-    pool_cleanup(i->p, xdb_file_cleanup, (void*)xf);
+    pool_cleanup(i->p, xdb_file_cleanup, (void *)xf);
 }

@@ -1,7 +1,7 @@
 /*
  * Copyrights
- * 
- * Portions created by or assigned to Jabber.com, Inc. are 
+ *
+ * Portions created by or assigned to Jabber.com, Inc. are
  * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
  * information for Jabber.com, Inc. is available at http://www.jabber.com/.
  *
@@ -30,16 +30,24 @@
 
 /**
  * @file base_load.cc
- * @brief module loader: handles the loading of components, that are installed as loadable modules - the &lt;load/&gt; configuration element
+ * @brief module loader: handles the loading of components, that are installed
+ * as loadable modules - the &lt;load/&gt; configuration element
  */
 
 #include "jabberd.h"
 /* IN-PROCESS component loader */
 
-typedef void (*base_load_init)(instance id, xmlnode x);	/**< prototype for the initialization function of a component */
-std::map<std::string, void*> base_load__cache;		/**< map pointing from file names of shared objects to their loaded instances */
-std::map<std::string, std::map<std::string, void*> > preloaded_functions; /**< module init functions that have been loaded and not assigned to the instance */
-int base_load_ref__count = 0;				/**< counts loaded components. triggers shutdown if all components are unloaded */
+typedef void (*base_load_init)(
+    instance id,
+    xmlnode x); /**< prototype for the initialization function of a component */
+std::map<std::string, void *>
+    base_load__cache; /**< map pointing from file names of shared objects to
+                         their loaded instances */
+std::map<std::string, std::map<std::string, void *>>
+    preloaded_functions; /**< module init functions that have been loaded and
+                            not assigned to the instance */
+int base_load_ref__count = 0; /**< counts loaded components. triggers shutdown
+                                 if all components are unloaded */
 
 /* use dynamic dlopen/dlsym stuff here! */
 #include <dlfcn.h>
@@ -57,15 +65,16 @@ static void *base_load_loader(char *file) {
 
     // sanity check
     if (!file)
-	return NULL;
+        return NULL;
 
     /* load the dso */
-    so_h = dlopen(file,RTLD_LAZY);
+    so_h = dlopen(file, RTLD_LAZY);
 
     /* check for a load error */
     if (!so_h) {
         dlerr = dlerror();
-        snprintf(message, sizeof(message), "Loading %s failed: '%s'\n",file,dlerr);
+        snprintf(message, sizeof(message), "Loading %s failed: '%s'\n", file,
+                 dlerr);
         fprintf(stderr, "%s\n", message);
         return NULL;
     }
@@ -83,7 +92,7 @@ static void *base_load_loader(char *file) {
  * @return pointer to the loaded function
  */
 static void *base_load_symbol(const char *func, char *file) {
-    void* func_h;
+    void *func_h;
     void *so_h;
     const char *dlerr;
     char *func2;
@@ -93,7 +102,8 @@ static void *base_load_symbol(const char *func, char *file) {
         return NULL;
 
     // load the module if not already loaded
-    if ((so_h = base_load__cache[file]) == NULL && (so_h = base_load_loader(file)) == NULL)
+    if ((so_h = base_load__cache[file]) == NULL &&
+        (so_h = base_load_loader(file)) == NULL)
         return NULL;
 
     /* resolve a reference to the dso's init function */
@@ -103,14 +113,17 @@ static void *base_load_symbol(const char *func, char *file) {
     dlerr = dlerror();
     if (dlerr != NULL) {
         /* pregenerate the error, since our stuff below may overwrite dlerr */
-        snprintf(message, sizeof(message), "Executing %s() in %s failed: '%s'\n",func,file,dlerr);
+        snprintf(message, sizeof(message),
+                 "Executing %s() in %s failed: '%s'\n", func, file, dlerr);
 
-        /* ARG! simple stupid string handling in C sucks, there HAS to be a better way :( */
-        /* AND no less, we're having to check for an underscore symbol?  only evidence of this is http://bugs.php.net/?id=3264 */
-        func2 = static_cast<char*>(malloc(strlen(func) + 2));
+        /* ARG! simple stupid string handling in C sucks, there HAS to be a
+         * better way :( */
+        /* AND no less, we're having to check for an underscore symbol?  only
+         * evidence of this is http://bugs.php.net/?id=3264 */
+        func2 = static_cast<char *>(malloc(strlen(func) + 2));
         func2[0] = '_';
         func2[1] = '\0';
-        strcat(func2,func);
+        strcat(func2, func);
         func_h = dlsym(so_h, func2);
         free(func2);
 
@@ -146,53 +159,64 @@ static result base_load_config(instance id, xmlnode x, void *arg) {
     xmlnode so;
     char *init = xmlnode_get_attrib_ns(x, "main", NULL);
     void *f;
-    char const* instance_id = xmlnode_get_attrib_ns(xmlnode_get_parent(x), "id", NULL);
+    char const *instance_id =
+        xmlnode_get_attrib_ns(xmlnode_get_parent(x), "id", NULL);
     bool something_loaded = false;
 
     if (!instance_id) {
-	log_debug2(ZONE, LOGT_CONFIG, "instance does not have an id");
-	return r_ERR;
+        log_debug2(ZONE, LOGT_CONFIG, "instance does not have an id");
+        return r_ERR;
     }
 
     if (id != NULL) {
-	/* execution phase */
+        /* execution phase */
 
-	// copy preloaded_functions for this module to the instance
-	for (std::map<std::string, void*>::iterator p = preloaded_functions[instance_id].begin(); p != preloaded_functions[instance_id].end(); ++p) {
-	    (*id->module_init_funcs)[p->first] = p->second;
-	}
+        // copy preloaded_functions for this module to the instance
+        for (std::map<std::string, void *>::iterator p =
+                 preloaded_functions[instance_id].begin();
+             p != preloaded_functions[instance_id].end(); ++p) {
+            (*id->module_init_funcs)[p->first] = p->second;
+        }
 
-	// load main function of the instance implementation
+        // load main function of the instance implementation
         base_load_ref__count++;
         pool_cleanup(id->p, base_load_shutdown, NULL);
-	f = (*id->module_init_funcs)[init];
-        ((base_load_init)f)(id, x); /* fire up the main function for this extension */
+        f = (*id->module_init_funcs)[init];
+        ((base_load_init)f)(
+            id, x); /* fire up the main function for this extension */
         return r_PASS;
     }
 
-    
-    log_debug2(ZONE, LOGT_CONFIG|LOGT_DYNAMIC, "dynamic loader processing configuration %s\n", xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
+    log_debug2(ZONE, LOGT_CONFIG | LOGT_DYNAMIC,
+               "dynamic loader processing configuration %s\n",
+               xmlnode_serialize_string(x, xmppd::ns_decl_list(), 0));
 
-    for (so = xmlnode_get_firstchild(x); so != NULL; so = xmlnode_get_nextsibling(so)) {
-        if (xmlnode_get_type(so) != NTYPE_TAG) continue;
+    for (so = xmlnode_get_firstchild(x); so != NULL;
+         so = xmlnode_get_nextsibling(so)) {
+        if (xmlnode_get_type(so) != NTYPE_TAG)
+            continue;
 
         if (init == NULL && something_loaded)
-            return r_ERR; /* you can't have two elements in a load w/o a main attrib */
+            return r_ERR; /* you can't have two elements in a load w/o a main
+                             attrib */
 
         f = base_load_symbol(xmlnode_get_localname(so), xmlnode_get_data(so));
         if (f == NULL)
             return r_ERR;
-	/* XXX do not use xmlnode_put_vattrib(), it's deprecated */
-	preloaded_functions[instance_id][xmlnode_get_localname(so)] = f; // remember module init functions to run
-	something_loaded = true;
+        /* XXX do not use xmlnode_put_vattrib(), it's deprecated */
+        preloaded_functions[instance_id][xmlnode_get_localname(so)] =
+            f; // remember module init functions to run
+        something_loaded = true;
 
-        /* if there's only one .so loaded, it's the default, unless overridden */
+        /* if there's only one .so loaded, it's the default, unless overridden
+         */
         if (init == NULL)
-            xmlnode_put_attrib_ns(x, "main", NULL, NULL, xmlnode_get_localname(so));
+            xmlnode_put_attrib_ns(x, "main", NULL, NULL,
+                                  xmlnode_get_localname(so));
     }
 
     if (!something_loaded)
-	return r_ERR; /* we didn't DO anything, duh */
+        return r_ERR; /* we didn't DO anything, duh */
 
     return r_PASS;
 }
@@ -200,11 +224,14 @@ static result base_load_config(instance id, xmlnode x, void *arg) {
 /**
  * init the module loader
  *
- * register that we want to handle the &lt;load/&gt; element in the configuration
+ * register that we want to handle the &lt;load/&gt; element in the
+ * configuration
  *
- * @param p memory pool used to register memory for the registration of handling the &lt;load/&gt; config element
+ * @param p memory pool used to register memory for the registration of handling
+ * the &lt;load/&gt; config element
  */
 void base_load(pool p) {
-    log_debug2(ZONE, LOGT_DYNAMIC, "dynamic component loader initializing...\n");
+    log_debug2(ZONE, LOGT_DYNAMIC,
+               "dynamic component loader initializing...\n");
     register_config(p, "load", base_load_config, NULL);
 }

@@ -1,7 +1,7 @@
 /*
  * Copyrights
- * 
- * Portions created by or assigned to Jabber.com, Inc. are 
+ *
+ * Portions created by or assigned to Jabber.com, Inc. are
  * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
  * information for Jabber.com, Inc. is available at http://www.jabber.com/.
  *
@@ -38,18 +38,19 @@
 typedef struct beat_struct {
     beathandler f;
     void *arg;
-    int freq;	/**< interval length in seconds */
+    int freq; /**< interval length in seconds */
     int last;
     pool p;
     struct beat_struct *prev;
     struct beat_struct *next;
-} *beat, _beat;
+} * beat, _beat;
 
 /** master hook for the ring */
 beat heartbeat__ring = NULL;
 
 /**
- * this thread continuously checks if a function, that is registered to be called regularly using register_beat() has to be called again
+ * this thread continuously checks if a function, that is registered to be
+ * called regularly using register_beat() has to be called again
  *
  * @param arg unused/ignored
  */
@@ -57,29 +58,28 @@ void *heartbeat(void *arg) {
     beat b, b2;
     result r;
 
-    while(1) {
+    while (1) {
         pth_sleep(1);
-        if(heartbeat__ring==NULL) break;
+        if (heartbeat__ring == NULL)
+            break;
 
-	/* run through the ring */
-	for(b = heartbeat__ring->next; b != heartbeat__ring; b = b->next)
-	{
-	    /* beats can fire on a frequency, just keep a counter */
-	    if(b->last++ == b->freq)
-	    {
-	        b->last = 0;
-	        r = (b->f)(b->arg);
+        /* run through the ring */
+        for (b = heartbeat__ring->next; b != heartbeat__ring; b = b->next) {
+            /* beats can fire on a frequency, just keep a counter */
+            if (b->last++ == b->freq) {
+                b->last = 0;
+                r = (b->f)(b->arg);
 
-	        if(r == r_UNREG)
-	        { /* this beat doesn't want to be fired anymore, unlink and free */
-	            b2 = b->prev;
-		    b->prev->next = b->next;
-		    b->next->prev = b->prev;
-		    pool_free(b->p);
-		    b = b2; /* reset b to accomodate the for loop */
-	        }
-	    }
-	}
+                if (r == r_UNREG) { /* this beat doesn't want to be fired
+                                       anymore, unlink and free */
+                    b2 = b->prev;
+                    b->prev->next = b->next;
+                    b->next->prev = b->prev;
+                    pool_free(b->p);
+                    b = b2; /* reset b to accomodate the for loop */
+                }
+            }
+        }
     }
     return NULL;
 }
@@ -104,7 +104,9 @@ beat _new_beat(void) {
 void register_beat(int freq, beathandler f, void *arg) {
     beat newb;
 
-    if(freq <= 0 || f == NULL || heartbeat__ring == NULL) return; /* uhh, probbably don't want to allow negative heartbeats, since the counter will count infinitly to a core */
+    if (freq <= 0 || f == NULL || heartbeat__ring == NULL)
+        return; /* uhh, probbably don't want to allow negative heartbeats, since
+                   the counter will count infinitly to a core */
 
     /* setup the new beat */
     newb = _new_beat();
@@ -123,8 +125,7 @@ void register_beat(int freq, beathandler f, void *arg) {
 /**
  * start up the heartbeat
  */
-void heartbeat_birth(void)
-{
+void heartbeat_birth(void) {
     /* init the ring */
     heartbeat__ring = _new_beat();
     heartbeat__ring->next = heartbeat__ring->prev = heartbeat__ring;
@@ -138,21 +139,17 @@ void heartbeat_birth(void)
  */
 void heartbeat_death(void) {
     beat cur;
-    while(heartbeat__ring!=NULL)
-    {
-       cur=heartbeat__ring;
-       if(heartbeat__ring->next==heartbeat__ring) 
-       {
-           heartbeat__ring=NULL;
-       }
-       else
-       {
-           if(heartbeat__ring->next!=NULL)
-               heartbeat__ring->next->prev=heartbeat__ring->prev;
-           if(heartbeat__ring->prev!=NULL) 
-               heartbeat__ring->prev->next=heartbeat__ring->next;
-           heartbeat__ring=heartbeat__ring->next;
-       }
-       pool_free(cur->p);
+    while (heartbeat__ring != NULL) {
+        cur = heartbeat__ring;
+        if (heartbeat__ring->next == heartbeat__ring) {
+            heartbeat__ring = NULL;
+        } else {
+            if (heartbeat__ring->next != NULL)
+                heartbeat__ring->next->prev = heartbeat__ring->prev;
+            if (heartbeat__ring->prev != NULL)
+                heartbeat__ring->prev->next = heartbeat__ring->next;
+            heartbeat__ring = heartbeat__ring->next;
+        }
+        pool_free(cur->p);
     }
 }

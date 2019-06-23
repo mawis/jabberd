@@ -1,7 +1,7 @@
 /*
  * Copyrights
- * 
- * Portions created by or assigned to Jabber.com, Inc. are 
+ *
+ * Portions created by or assigned to Jabber.com, Inc. are
  * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
  * information for Jabber.com, Inc. is available at http://www.jabber.com/.
  *
@@ -33,10 +33,10 @@
  * @brief a jpacket is a wrapper around an xmlnode that contains an XMPP stanza
  *
  * A jpacket adds some variables to an xmlnode that contains a stanza, so that
- * jabberd is able to cache information on the stanza type (message, presence, iq)
- * that is contained in this jpacket and to further classify the presence stanzas.
- * It also adds some pointers to important data inside the xmlnode, that has
- * to be accessed often (e.g. sender and receiver of a stanza).
+ * jabberd is able to cache information on the stanza type (message, presence,
+ * iq) that is contained in this jpacket and to further classify the presence
+ * stanzas. It also adds some pointers to important data inside the xmlnode,
+ * that has to be accessed often (e.g. sender and receiver of a stanza).
  */
 
 #include <jabberdlib.h>
@@ -47,14 +47,13 @@
  * @param x the xmlnode that should be wrapped
  * @return the newly created jpacket (NULL on failure)
  */
-jpacket jpacket_new(xmlnode x)
-{
+jpacket jpacket_new(xmlnode x) {
     jpacket p;
 
-    if(x == NULL)
+    if (x == NULL)
         return NULL;
 
-    p = static_cast<jpacket>(pmalloc(xmlnode_pool(x),sizeof(_jpacket)));
+    p = static_cast<jpacket>(pmalloc(xmlnode_pool(x), sizeof(_jpacket)));
     p->x = x;
 
     return jpacket_reset(p);
@@ -66,19 +65,20 @@ jpacket jpacket_new(xmlnode x)
  * @param p the packet that should get its information recalculated
  * @return the jpacket (as given as the p parameter)
  */
-jpacket jpacket_reset(jpacket p)
-{
+jpacket jpacket_reset(jpacket p) {
     char *val;
     xmlnode x;
 
     x = p->x;
-    memset(p,0,sizeof(_jpacket));
+    memset(p, 0, sizeof(_jpacket));
     p->x = x;
     p->p = xmlnode_pool(x);
 
-    if (strcmp(xmlnode_get_localname(x), "message") == 0 && strcmp(xmlnode_get_namespace(x), NS_SERVER) == 0) {
+    if (strcmp(xmlnode_get_localname(x), "message") == 0 &&
+        strcmp(xmlnode_get_namespace(x), NS_SERVER) == 0) {
         p->type = JPACKET_MESSAGE;
-    } else if (strcmp(xmlnode_get_localname(x), "presence") == 0 && strcmp(xmlnode_get_namespace(x), NS_SERVER) == 0) {
+    } else if (strcmp(xmlnode_get_localname(x), "presence") == 0 &&
+               strcmp(xmlnode_get_namespace(x), NS_SERVER) == 0) {
         p->type = JPACKET_PRESENCE;
         val = xmlnode_get_attrib_ns(x, "type", NULL);
         if (val == NULL)
@@ -94,18 +94,19 @@ jpacket jpacket_reset(jpacket p)
         else if (*val == 's' || *val == 'u')
             p->type = JPACKET_S10N;
         else if (strcmp(val, "available") == 0) {
-	    /* someone is using type='available' which is frowned upon */
-	    /* XXX better reject this presence? */
+            /* someone is using type='available' which is frowned upon */
+            /* XXX better reject this presence? */
             xmlnode_hide_attrib_ns(x, "type", NULL);
             p->subtype = JPACKET__AVAILABLE;
         } else
             p->type = JPACKET_UNKNOWN;
-    } else if (strcmp(xmlnode_get_localname(x), "iq") == 0 && strcmp(xmlnode_get_namespace(x), NS_SERVER) == 0) {
+    } else if (strcmp(xmlnode_get_localname(x), "iq") == 0 &&
+               strcmp(xmlnode_get_namespace(x), NS_SERVER) == 0) {
         p->type = JPACKET_IQ;
-	p->iq = xmlnode_get_firstchild(x);
-	while (p->iq != NULL && p->iq->type != NTYPE_TAG)
-	    p->iq = xmlnode_get_nextsibling(p->iq);
-	p->iqns = pstrdup(xmlnode_pool(p->iq), xmlnode_get_namespace(p->iq));
+        p->iq = xmlnode_get_firstchild(x);
+        while (p->iq != NULL && p->iq->type != NTYPE_TAG)
+            p->iq = xmlnode_get_nextsibling(p->iq);
+        p->iqns = pstrdup(xmlnode_pool(p->iq), xmlnode_get_namespace(p->iq));
     }
 
     /* set up the jids if any, flag packet as unknown if they are unparseable */
@@ -139,33 +140,33 @@ int jpacket_subtype(jpacket p) {
     if (j_strcmp(type, "error") == 0) {
         ret = JPACKET__ERROR;
     } else {
-        switch(p->type) {
-	    case JPACKET_MESSAGE:
-		if (j_strcmp(type, "chat") == 0)
-		    ret = JPACKET__CHAT;
-		else if (j_strcmp(type, "groupchat") == 0)
-		    ret = JPACKET__GROUPCHAT;
-		else if (j_strcmp(type, "headline") == 0)
-		    ret = JPACKET__HEADLINE;
-		break;
-	    case JPACKET_S10N:
-		if (j_strcmp(type, "subscribe") == 0)
-		    ret = JPACKET__SUBSCRIBE;
-		else if (j_strcmp(type, "subscribed") == 0)
-		    ret = JPACKET__SUBSCRIBED;
-		else if (j_strcmp(type, "unsubscribe") == 0)
-		    ret = JPACKET__UNSUBSCRIBE;
-		else if (j_strcmp(type, "unsubscribed") == 0)
-		    ret = JPACKET__UNSUBSCRIBED;
-		break;
-	    case JPACKET_IQ:
-		if (j_strcmp(type, "get") == 0)
-		    ret = JPACKET__GET;
-		else if (j_strcmp(type, "set") == 0)
-		    ret = JPACKET__SET;
-		else if (j_strcmp(type, "result") == 0)
-		    ret = JPACKET__RESULT;
-		break;
+        switch (p->type) {
+            case JPACKET_MESSAGE:
+                if (j_strcmp(type, "chat") == 0)
+                    ret = JPACKET__CHAT;
+                else if (j_strcmp(type, "groupchat") == 0)
+                    ret = JPACKET__GROUPCHAT;
+                else if (j_strcmp(type, "headline") == 0)
+                    ret = JPACKET__HEADLINE;
+                break;
+            case JPACKET_S10N:
+                if (j_strcmp(type, "subscribe") == 0)
+                    ret = JPACKET__SUBSCRIBE;
+                else if (j_strcmp(type, "subscribed") == 0)
+                    ret = JPACKET__SUBSCRIBED;
+                else if (j_strcmp(type, "unsubscribe") == 0)
+                    ret = JPACKET__UNSUBSCRIBE;
+                else if (j_strcmp(type, "unsubscribed") == 0)
+                    ret = JPACKET__UNSUBSCRIBED;
+                break;
+            case JPACKET_IQ:
+                if (j_strcmp(type, "get") == 0)
+                    ret = JPACKET__GET;
+                else if (j_strcmp(type, "set") == 0)
+                    ret = JPACKET__SET;
+                else if (j_strcmp(type, "result") == 0)
+                    ret = JPACKET__RESULT;
+                break;
         }
     }
 

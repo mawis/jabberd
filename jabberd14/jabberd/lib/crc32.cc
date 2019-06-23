@@ -1,6 +1,6 @@
 /*
  * Copyrights
- * 
+ *
  * Portions Copyright (c) 2006-2007 Matthias Wimmer
  *
  * This file is part of jabberd14.
@@ -31,7 +31,7 @@
 
 /**
  * precalculated CRC32-Values for 00..255
- * 
+ *
  * c(x) = 1+x+x^2+x^4+x^5+x^7+x^8+x^10+x^11+x^12+x^16+x^22+x^23+x^26+x^32
  */
 static const unsigned int CRC32_TAB[256] = {
@@ -77,9 +77,10 @@ static const unsigned int CRC32_TAB[256] = {
     0x40df0b66, 0x37d83bf0, 0xa9bcae53, 0xdebb9ec5, 0x47b2cf7f, 0x30b5ffe9,
     0xbdbdf21c, 0xcabac28a, 0x53b39330, 0x24b4a3a6, 0xbad03605, 0xcdd70693,
     0x54de5729, 0x23d967bf, 0xb3667a2e, 0xc4614ab8, 0x5d681b02, 0x2a6f2b94,
-    0xb40bbe37, 0xc30c8ea1, 0x5a05df1b, 0x2d02ef8d };
+    0xb40bbe37, 0xc30c8ea1, 0x5a05df1b, 0x2d02ef8d};
 
-#define CRC32_UPDATE(crc, nxt) (crc = CRC32_TAB[(crc^(nxt))&0xff]^(crc >> 8))
+#define CRC32_UPDATE(crc, nxt)                                                 \
+    (crc = CRC32_TAB[(crc ^ (nxt)) & 0xff] ^ (crc >> 8))
 
 /**
  * calculate a 32 bit CRC value with the polynom
@@ -94,15 +95,13 @@ void crc32_r(const char *str, char crc32buf[9]) {
     register uint32_t temp = 0;
     const char *ptr = str;
 
-    if (ptr == NULL)
-    {
-	bzero(crc32buf, 9);
-	return;
+    if (ptr == NULL) {
+        bzero(crc32buf, 9);
+        return;
     }
 
-    while (*ptr != '\0')
-    {
-	CRC32_UPDATE(temp, *ptr++);
+    while (*ptr != '\0') {
+        CRC32_UPDATE(temp, *ptr++);
     }
 
     snprintf(crc32buf, sizeof(char[9]), "%08X", temp);

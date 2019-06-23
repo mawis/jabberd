@@ -1,7 +1,7 @@
 /*
  * Copyrights
- * 
- * Portions created by or assigned to Jabber.com, Inc. are 
+ *
+ * Portions created by or assigned to Jabber.com, Inc. are
  * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
  * information for Jabber.com, Inc. is available at http://www.jabber.com/.
  *
@@ -32,41 +32,49 @@
 
 /**
  * @file mod_echo.cc
- * @brief reflect messages sent to serverdomain/echo back to the sender (undocumented)
+ * @brief reflect messages sent to serverdomain/echo back to the sender
+ * (undocumented)
  *
- * This module implements some functionality useful for testing if a server can be reached. It can
- * either be used to check if the local server is still responding or to check if there
- * is connectivity to a remote server. It is something like a Jabber network ping, but it should
- * not be used automatically as it will generate more load on the servers than an ICMP ping.
+ * This module implements some functionality useful for testing if a server can
+ * be reached. It can either be used to check if the local server is still
+ * responding or to check if there is connectivity to a remote server. It is
+ * something like a Jabber network ping, but it should not be used automatically
+ * as it will generate more load on the servers than an ICMP ping.
  *
- * All messages to a resource starting with "echo" are processed. If you are using this service,
- * please use always the resource "echo" (in small letters) and do not rely on the fact
- * that every resource starting with "echo" (ignoring case) will generate a reflected message.
- * (Resources are case-sensitive in XMPP!)
+ * All messages to a resource starting with "echo" are processed. If you are
+ * using this service, please use always the resource "echo" (in small letters)
+ * and do not rely on the fact that every resource starting with "echo"
+ * (ignoring case) will generate a reflected message. (Resources are
+ * case-sensitive in XMPP!)
  */
 
 /**
  * handle messages sent to the session manager's address
  *
- * Everything but message stanzas are ignored. Only messages to a resource starting with "echo" are
- * processed.
+ * Everything but message stanzas are ignored. Only messages to a resource
+ * starting with "echo" are processed.
  *
  * @param m the mapi structure containing the message
  * @param arg unused/ignored
- * @return M_IGNORE if the stanza is no message, M_PASS if the message has not been processed, M_HANDLED if the message has been handled
+ * @return M_IGNORE if the stanza is no message, M_PASS if the message has not
+ * been processed, M_HANDLED if the message has been handled
  */
 static mreturn mod_echo_reply(mapi m, void *arg) {
     if (m->packet->type != JPACKET_MESSAGE)
-	return M_IGNORE;
+        return M_IGNORE;
 
     /* first, is this a valid request? */
-    if (!m->packet->to->has_resource() || m->packet->to->get_resource() == "echo")
-	return M_PASS;
+    if (!m->packet->to->has_resource() ||
+        m->packet->to->get_resource() == "echo")
+        return M_PASS;
 
-    log_debug2(ZONE, LOGT_DELIVER, "handling echo request from %s", jid_full(m->packet->from));
+    log_debug2(ZONE, LOGT_DELIVER, "handling echo request from %s",
+               jid_full(m->packet->from));
 
-    xmlnode_put_attrib_ns(m->packet->x, "from", NULL, NULL, jid_full(m->packet->to));
-    xmlnode_put_attrib_ns(m->packet->x, "to", NULL, NULL, jid_full(m->packet->from));
+    xmlnode_put_attrib_ns(m->packet->x, "from", NULL, NULL,
+                          jid_full(m->packet->to));
+    xmlnode_put_attrib_ns(m->packet->x, "to", NULL, NULL,
+                          jid_full(m->packet->from));
     jpacket_reset(m->packet);
     js_deliver(m->si, m->packet, NULL);
 
@@ -76,7 +84,8 @@ static mreturn mod_echo_reply(mapi m, void *arg) {
 /**
  * init the mod_echo module in the session manager
  *
- * registers a callback to be called on messages sent to the session manager's address
+ * registers a callback to be called on messages sent to the session manager's
+ * address
  *
  * @param si the session manager instance
  */

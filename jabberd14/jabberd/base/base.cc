@@ -1,7 +1,7 @@
 /*
  * Copyrights
- * 
- * Portions created by or assigned to Jabber.com, Inc. are 
+ *
+ * Portions created by or assigned to Jabber.com, Inc. are
  * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
  * information for Jabber.com, Inc. is available at http://www.jabber.com/.
  *
@@ -37,10 +37,11 @@
  * @dir base
  * @brief Contains the base handlers of jabberd14
  *
- * Jabberd14 is an XML router, that routes XML stanzas between the different base handlers. Some of these
- * base handlers (like the unsubscribe handler implemented in base_unsubscribe.c) handle packets themselves.
- * Other handlers (accept, connect, load, ...) implement interfaces, that can be used by components
- * to use the XML routing functionality.
+ * Jabberd14 is an XML router, that routes XML stanzas between the different
+ * base handlers. Some of these base handlers (like the unsubscribe handler
+ * implemented in base_unsubscribe.c) handle packets themselves. Other handlers
+ * (accept, connect, load, ...) implement interfaces, that can be used by
+ * components to use the XML routing functionality.
  */
 
 #include "jabberd.h"
@@ -62,7 +63,8 @@ void base_importspool(pool p);
 /**
  * load all base modules
  *
- * @param p memory pool, that can be used to register the configuration handlers, must be available for the livetime of jabberd
+ * @param p memory pool, that can be used to register the configuration
+ * handlers, must be available for the livetime of jabberd
  */
 void base_init(pool p) {
     base_accept(p);

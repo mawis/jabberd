@@ -1,6 +1,6 @@
 /*
  * Copyrights
- * 
+ *
  * Copyright (c) 2008 Matthias Wimmer
  *
  * This file is part of jabberd14.
@@ -41,14 +41,14 @@ static void jid_pool_cleaner(void *arg) {
 jid jid_new(pool p, const char *idstr) {
     // sanity check
     if (!p || !idstr)
-	return NULL;
+        return NULL;
 
     try {
-	jid id = new xmppd::jabberid_pool(idstr, p);
-	pool_cleanup(p, jid_pool_cleaner, id);
-	return id;
+        jid id = new xmppd::jabberid_pool(idstr, p);
+        pool_cleanup(p, jid_pool_cleaner, id);
+        return id;
     } catch (std::invalid_argument) {
-	return NULL;
+        return NULL;
     }
 }
 
@@ -58,49 +58,53 @@ jid jid_new(pool p, const char *idstr) {
 void jid_set(jid id, const char *str, int item) {
     // sanity check
     if (!str || !id)
-	return;
+        return;
 
     try {
-	switch (item) {
-	    case JID_RESOURCE:
-		id->set_resource(str);
-		break;
-	    case JID_USER:
-		id->set_node(str);
-		break;
-	    case JID_SERVER:
-		id->set_domain(str);
-		break;
-	}
+        switch (item) {
+            case JID_RESOURCE:
+                id->set_resource(str);
+                break;
+            case JID_USER:
+                id->set_node(str);
+                break;
+            case JID_SERVER:
+                id->set_domain(str);
+                break;
+        }
     } catch (std::invalid_argument) {
     }
 }
 
 char *jid_full(jid id) {
     if (!id)
-	return NULL;
+        return NULL;
 
     return id->full_pooled();
 }
 
 int jid_cmp(jid a, jid b) {
     if (!a || !b)
-	return -1;
+        return -1;
 
     return (*a) == (*b) ? 0 : -1;
 }
 
 int jid_cmpx(jid a, jid b, int parts) {
     if (!a || !b)
-	return -1;
+        return -1;
 
-    return a->compare(*b, parts&JID_RESOURCE, parts&JID_USER, parts&JID_SERVER) ? 0 : -1;
+    return a->compare(*b, parts & JID_RESOURCE, parts & JID_USER,
+                      parts & JID_SERVER)
+               ? 0
+               : -1;
 }
 
 /**
  * Returns the same jid but without the resource.
  *
- * Returns the jid, if it does not contain a resource, else a new jid is created.
+ * Returns the jid, if it does not contain a resource, else a new jid is
+ * created.
  *
  * If memory needs to be allocated, the given memory pool is used.
  *
@@ -111,31 +115,28 @@ int jid_cmpx(jid a, jid b, int parts) {
 jid jid_user_pool(jid a, pool p) {
     // sanity check
     if (!a || !p)
-	return NULL;
+        return NULL;
 
     return jid_new(p, a->get_user().full().c_str());
 }
 
-jid jid_user(jid a) {
-    return jid_user_pool(a, a->get_pool());
-}
+jid jid_user(jid a) { return jid_user_pool(a, a->get_pool()); }
 
 jid jid_append(jid a, jid b) {
     if (!a)
-	return NULL;
+        return NULL;
     if (!b)
-	return a;
+        return a;
 
     jid next = a;
     while (next) {
-	if (jid_cmp(next, b) == 0)
-	    break;
-	if (next->next == NULL) {
-	    next->next = jid_new(a->get_pool(), jid_full(b));
-	    return a;
-	}
-	next = next->next;
+        if (jid_cmp(next, b) == 0)
+            break;
+        if (next->next == NULL) {
+            next->next = jid_new(a->get_pool(), jid_full(b));
+            return a;
+        }
+        next = next->next;
     }
     return a;
 }
-

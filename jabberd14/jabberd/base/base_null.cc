@@ -1,6 +1,6 @@
 /*
  * Copyrights
- * 
+ *
  * Copyright (c) 2006-2007 Matthias Wimmer
  *
  * This file is part of jabberd14.
@@ -24,7 +24,8 @@
 
 /**
  * @file base_null.cc
- * @brief implements a base handler (xml routing target), that drops all messages
+ * @brief implements a base handler (xml routing target), that drops all
+ * messages
  */
 
 #include "jabberd.h"
@@ -39,7 +40,7 @@
  * @param arg unused/ignored
  * @return always r_DONE
  */
-static result base_null_deliver(instance i, dpacket p, void* arg) {
+static result base_null_deliver(instance i, dpacket p, void *arg) {
     pool_free(p->p);
     return r_DONE;
 }
@@ -53,7 +54,7 @@ static result base_null_deliver(instance i, dpacket p, void* arg) {
  * @return r_DONE on success, r_PASS if no instance is given
  */
 static result base_null_config(instance i, xmlnode x, void *arg) {
-    if(i == NULL)
+    if (i == NULL)
         return r_PASS;
 
     register_phandler(i, o_DELIVER, base_null_deliver, NULL);
@@ -63,8 +64,7 @@ static result base_null_config(instance i, xmlnode x, void *arg) {
 /**
  * initialize the XML delivery system
  *
- * @param p memory pool that can be used to register config handlers (must be available for the livetime of jabberd)
+ * @param p memory pool that can be used to register config handlers (must be
+ * available for the livetime of jabberd)
  */
-void base_null(pool p) {
-    register_config(p, "null", base_null_config, NULL);
-}
+void base_null(pool p) { register_config(p, "null", base_null_config, NULL); }

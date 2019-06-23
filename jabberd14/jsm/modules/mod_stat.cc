@@ -1,6 +1,6 @@
 /*
  * Copyrights
- * 
+ *
  * Copyright (c) 2006-2007 Matthias Wimmer
  *
  * This file is part of jabberd14.
@@ -28,26 +28,28 @@
  * @file mod_stat.cc
  * @brief collect statistical information and write it the the log
  *
- * this module collects statistical information and writes them every 5 minutes to
- * the log
+ * this module collects statistical information and writes them every 5 minutes
+ * to the log
  *
- * @todo make the statistical information accessible to the administrator requesting
- * it by a Jabber query.
+ * @todo make the statistical information accessible to the administrator
+ * requesting it by a Jabber query.
  */
 
 /**
  * @brief structure holding statistics data
  *
- * One instance of this structure is used to keep statistical data for a session manager instance.
+ * One instance of this structure is used to keep statistical data for a session
+ * manager instance.
  */
 typedef struct mod_stat_data_st {
     jsmi si;
 
-    int messages_delivered;	/**< how many messages have been delivered */
-    int presences_delivered;	/**< how many presences have been delivered */
-    int iqs_delivered;		/**< how many iqs have been delivered */
-    int subscriptions_delivered;/**< how many subscriptions have been delivered */
-} *mod_stat_data_t;
+    int messages_delivered;      /**< how many messages have been delivered */
+    int presences_delivered;     /**< how many presences have been delivered */
+    int iqs_delivered;           /**< how many iqs have been delivered */
+    int subscriptions_delivered; /**< how many subscriptions have been delivered
+                                  */
+} * mod_stat_data_t;
 
 /**
  * write statistical information to the log
@@ -59,12 +61,16 @@ static result mod_stat_write(void *arg) {
     mod_stat_data_t stat = (mod_stat_data_t)arg;
 
     if (stat == NULL)
-	return r_UNREG;
+        return r_UNREG;
 
-    log_generic("stat", stat->si->i->id, "delivered", "messages", "%i", stat->messages_delivered);
-    log_generic("stat", stat->si->i->id, "delivered", "presences", "%i", stat->presences_delivered);
-    log_generic("stat", stat->si->i->id, "delivered", "iqs", "%i", stat->iqs_delivered);
-    log_generic("stat", stat->si->i->id, "delivered", "subscriptions", "%i", stat->subscriptions_delivered);
+    log_generic("stat", stat->si->i->id, "delivered", "messages", "%i",
+                stat->messages_delivered);
+    log_generic("stat", stat->si->i->id, "delivered", "presences", "%i",
+                stat->presences_delivered);
+    log_generic("stat", stat->si->i->id, "delivered", "iqs", "%i",
+                stat->iqs_delivered);
+    log_generic("stat", stat->si->i->id, "delivered", "subscriptions", "%i",
+                stat->subscriptions_delivered);
 
     return r_DONE;
 }
@@ -80,21 +86,21 @@ static mreturn mod_stat_deliver(mapi m, void *arg) {
     mod_stat_data_t stat = (mod_stat_data_t)arg;
 
     if (stat == NULL)
-	return M_PASS;
+        return M_PASS;
 
     switch (m->packet->type) {
-	case JPACKET_MESSAGE:
-	    stat->messages_delivered++;
-	    break;
-	case JPACKET_PRESENCE:
-	    stat->presences_delivered++;
-	    break;
-	case JPACKET_IQ:
-	    stat->iqs_delivered++;
-	    break;
-	case JPACKET_S10N:
-	    stat->subscriptions_delivered++;
-	    break;
+        case JPACKET_MESSAGE:
+            stat->messages_delivered++;
+            break;
+        case JPACKET_PRESENCE:
+            stat->presences_delivered++;
+            break;
+        case JPACKET_IQ:
+            stat->iqs_delivered++;
+            break;
+        case JPACKET_S10N:
+            stat->subscriptions_delivered++;
+            break;
     }
 
     return M_PASS;
@@ -107,12 +113,13 @@ static mreturn mod_stat_deliver(mapi m, void *arg) {
  * @param si the session manager instance
  */
 extern "C" void mod_stat(jsmi si) {
-    mod_stat_data_t stat_data = (mod_stat_data_t)pmalloco(si->p, sizeof(struct mod_stat_data_st));
+    mod_stat_data_t stat_data =
+        (mod_stat_data_t)pmalloco(si->p, sizeof(struct mod_stat_data_st));
     stat_data->si = si;
 
-    register_beat(300, mod_stat_write, (void*)stat_data);
+    register_beat(300, mod_stat_write, (void *)stat_data);
 
     if (stat_data != NULL) {
-	js_mapi_register(si, e_DELIVER, mod_stat_deliver, (void*)stat_data);
+        js_mapi_register(si, e_DELIVER, mod_stat_deliver, (void *)stat_data);
     }
 }

@@ -1,7 +1,7 @@
 /*
  * Copyrights
- * 
- * Portions created by or assigned to Jabber.com, Inc. are 
+ *
+ * Portions created by or assigned to Jabber.com, Inc. are
  * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
  * information for Jabber.com, Inc. is available at http://www.jabber.com/.
  *
@@ -34,21 +34,21 @@
  * @file users.cc
  * @brief functions for manipulating data for logged in users
  *
- * Contains the garbage collector for user records we don't need in memory anymore and
- * the function to load user records to memory.
+ * Contains the garbage collector for user records we don't need in memory
+ * anymore and the function to load user records to memory.
  */
 
 /**
  * structure used to pass a hashtable and a counter to _js_users_del()
  */
 typedef struct ht_count_struct {
-    xht ht;		/**< hashtable containing the users of a host */
-    int *count;		/**< reference to the counter for the number of online users */
-} *ht_count, _ht_count;
+    xht ht;     /**< hashtable containing the users of a host */
+    int *count; /**< reference to the counter for the number of online users */
+} * ht_count, _ht_count;
 
 /**
  * call-back for deleting user from the hash table
- *  
+ *
  * This function is called periodically by the user data garbage collection
  * thread. It removes users aren't logged in from the global hashtable.
  *
@@ -57,17 +57,16 @@ typedef struct ht_count_struct {
  * @param data the user's data
  * @param arg structure holding the hashtable of hosts and the user counter
  */
-void _js_users_del(xht h, const char *key, void *data, void *arg)
-{
+void _js_users_del(xht h, const char *key, void *data, void *arg) {
     ht_count htc = (ht_count)arg;
-    udata u = (udata)data;	/* cast the pointer into udata */
+    udata u = (udata)data; /* cast the pointer into udata */
 
     /*
      * if the reference count for this user's record
      * is positive, or if there are active sessions
      * we can't free it, so return immediately
      */
-    if(u->ref > 0 || (u->sessions != NULL && ++*(htc->count)))
+    if (u->ref > 0 || (u->sessions != NULL && ++*(htc->count)))
         return;
 
     log_debug2(ZONE, LOGT_SESSION, "freeing %s", u->id->get_node().c_str());
@@ -75,7 +74,6 @@ void _js_users_del(xht h, const char *key, void *data, void *arg)
     xhash_zap(htc->ht, key);
     pool_free(u->p);
 }
-
 
 /**
  * xhash_walker callback for walking the host hash tree
@@ -85,46 +83,45 @@ void _js_users_del(xht h, const char *key, void *data, void *arg)
  * @param data the hashtable containing the users of this host
  * @param arg pointer to the user counter
  */
-void _js_hosts_del(xht h, const char *key, void *data, void *arg)
-{
+void _js_hosts_del(xht h, const char *key, void *data, void *arg) {
     _ht_count htc;
     htc.ht = (xht)data;
-    htc.count = (int*)arg;
+    htc.count = (int *)arg;
 
-    log_debug2(ZONE, LOGT_SESSION, "checking users for host %s",(char*)key);
+    log_debug2(ZONE, LOGT_SESSION, "checking users for host %s", (char *)key);
 
     xhash_walk(htc.ht, _js_users_del, &htc);
 }
 
 #ifdef POOL_DEBUG
 class js_pool_debug_stats {
-    private:
-	int hosts;
+  private:
+    int hosts;
 
-	int users;
-	size_t users_pool_sum;
-	size_t biggest_user_pool;
-	std::string biggest_user;
+    int users;
+    size_t users_pool_sum;
+    size_t biggest_user_pool;
+    std::string biggest_user;
 
-	int sessions;
-	size_t sessions_pool_sum;
-	size_t biggest_session_pool;
-	std::string biggest_session;
+    int sessions;
+    size_t sessions_pool_sum;
+    size_t biggest_session_pool;
+    std::string biggest_session;
 
-	void updateSession(session s);
-    public:
-	js_pool_debug_stats();
-	void hostUpdate();
-	void updateUser(udata user);
-	std::string getSummary();
+    void updateSession(session s);
+
+  public:
+    js_pool_debug_stats();
+    void hostUpdate();
+    void updateUser(udata user);
+    std::string getSummary();
 };
 
-js_pool_debug_stats::js_pool_debug_stats() : hosts(0), users(0), users_pool_sum(0), biggest_user_pool(0), sessions(0), sessions_pool_sum(0), biggest_session_pool(0) {
-}
+js_pool_debug_stats::js_pool_debug_stats()
+    : hosts(0), users(0), users_pool_sum(0), biggest_user_pool(0), sessions(0),
+      sessions_pool_sum(0), biggest_session_pool(0) {}
 
-void js_pool_debug_stats::hostUpdate() {
-    hosts++;
-}
+void js_pool_debug_stats::hostUpdate() { hosts++; }
 
 void js_pool_debug_stats::updateSession(session s) {
     sessions++;
@@ -134,8 +131,8 @@ void js_pool_debug_stats::updateSession(session s) {
     sessions_pool_sum += session_pool_size;
 
     if (session_pool_size > biggest_session_pool) {
-	biggest_session_pool = session_pool_size;
-	biggest_session = jid_full(s->id);
+        biggest_session_pool = session_pool_size;
+        biggest_session = jid_full(s->id);
     }
 }
 
@@ -147,45 +144,51 @@ void js_pool_debug_stats::updateUser(udata user) {
     users_pool_sum += user_pool_size;
 
     if (user_pool_size > biggest_user_pool) {
-	biggest_user_pool = user_pool_size;
-	biggest_user = jid_full(user->id);
+        biggest_user_pool = user_pool_size;
+        biggest_user = jid_full(user->id);
     }
 
     session iter = user->sessions;
     while (iter != NULL) {
-	updateSession(iter);
-	iter = iter->next;
+        updateSession(iter);
+        iter = iter->next;
     }
 }
 
 std::string js_pool_debug_stats::getSummary() {
     std::ostringstream result;
 
-    result << "hosts: " << hosts << " / users: " << users << " " << users_pool_sum << " / biggest user: " << biggest_user << " " << biggest_user_pool;
-    result << " / sessions: " << sessions << " " << sessions_pool_sum << " / biggest session: " << biggest_session << " " << biggest_session_pool;
+    result << "hosts: " << hosts << " / users: " << users << " "
+           << users_pool_sum << " / biggest user: " << biggest_user << " "
+           << biggest_user_pool;
+    result << " / sessions: " << sessions << " " << sessions_pool_sum
+           << " / biggest session: " << biggest_session << " "
+           << biggest_session_pool;
 
     return result.str();
 }
 
-static void js_users_pool_debug_walk(xht hash, const char* key, void* value, void* arg) {
-    js_pool_debug_stats* stats = static_cast<js_pool_debug_stats*>(arg);
+static void js_users_pool_debug_walk(xht hash, const char *key, void *value,
+                                     void *arg) {
+    js_pool_debug_stats *stats = static_cast<js_pool_debug_stats *>(arg);
     udata user = static_cast<udata>(value);
 
     // sanity check
     if (stats == NULL || user == NULL) {
-	return;
+        return;
     }
 
     stats->updateUser(user);
 }
 
-static void js_hosts_pool_debug_walk(xht hash, const char* key, void* value, void* arg) {
-    js_pool_debug_stats* stats = static_cast<js_pool_debug_stats*>(arg);
+static void js_hosts_pool_debug_walk(xht hash, const char *key, void *value,
+                                     void *arg) {
+    js_pool_debug_stats *stats = static_cast<js_pool_debug_stats *>(arg);
     xht users = static_cast<xht>(value);
 
     // sanity check
     if (stats == NULL || users == NULL) {
-	return;
+        return;
     }
 
     stats->hostUpdate();
@@ -195,7 +198,7 @@ static void js_hosts_pool_debug_walk(xht hash, const char* key, void* value, voi
 #endif
 
 /**
- *  js_users_gc is a heartbeat that flushes old users from memory.  
+ *  js_users_gc is a heartbeat that flushes old users from memory.
  *
  *  @param arg the session manager internal data
  *  @return always r_DONE
@@ -205,11 +208,11 @@ result js_users_gc(void *arg) {
 
     /* free user struct if we can */
     int js__usercount = 0;
-    xhash_walk(si->hosts,_js_hosts_del, &js__usercount);
-    log_debug2(ZONE, LOGT_STATUS, "%d\ttotal users",js__usercount);
+    xhash_walk(si->hosts, _js_hosts_del, &js__usercount);
+    log_debug2(ZONE, LOGT_STATUS, "%d\ttotal users", js__usercount);
 
 #ifdef POOL_DEBUG
-    js_pool_debug_stats* stats = new js_pool_debug_stats;
+    js_pool_debug_stats *stats = new js_pool_debug_stats;
     xhash_walk(si->hosts, js_hosts_pool_debug_walk, stats);
     static char own_pid[32] = "";
     if (own_pid[0] == '\0') {
@@ -222,19 +225,18 @@ result js_users_gc(void *arg) {
     return r_DONE;
 }
 
-
 void js_user_free_aux_data(void *arg) {
     xht aux_data = (xht)arg;
 
     if (aux_data == NULL)
-	return;
+        return;
 
     xhash_free(aux_data);
 }
 
 /**
  *  get the udata record for a user
- *  
+ *
  *  js_user attempts to locate the user data record
  *  for the specifed id. First it looks in current list,
  *  if that fails, it looks in xdb and creates new list entry.
@@ -252,15 +254,15 @@ udata js_user(jsmi si, jid id, xht ht) {
     jid uid;
 
     if (si == NULL || id == NULL || !id->has_node())
-	return NULL;
+        return NULL;
 
     /* get the host hash table if it wasn't provided */
     if (ht == NULL)
-        ht = static_cast<xht>(xhash_get(si->hosts,id->get_domain().c_str()));
+        ht = static_cast<xht>(xhash_get(si->hosts, id->get_domain().c_str()));
 
     /* hrm, like, this isn't our user! */
     if (ht == NULL)
-	return NULL;
+        return NULL;
 
     /* copy the id and convert user to lower case (if not done by libidn) */
     uid = jid_new(id->get_pool(), jid_full(jid_user(id)));
@@ -270,10 +272,11 @@ udata js_user(jsmi si, jid id, xht ht) {
 #endif
 
     /* debug message */
-    log_debug2(ZONE, LOGT_SESSION, "js_user(%s,%X)",jid_full(uid),ht);
+    log_debug2(ZONE, LOGT_SESSION, "js_user(%s,%X)", jid_full(uid), ht);
 
     /* try to get the user data from the hash table */
-    if ((cur = static_cast<udata>(xhash_get(ht,uid->get_node().c_str()))) != NULL)
+    if ((cur = static_cast<udata>(xhash_get(ht, uid->get_node().c_str()))) !=
+        NULL)
         return cur;
 
     /* debug message */
@@ -287,7 +290,7 @@ udata js_user(jsmi si, jid id, xht ht) {
 
     /* does the user exist? */
     if (x == NULL && y == NULL)
-	return NULL;
+        return NULL;
 
     /* create a udata struct */
     p = pool_heap(64);
@@ -296,16 +299,16 @@ udata js_user(jsmi si, jid id, xht ht) {
     newu->si = si;
     newu->aux_data = xhash_new(17);
     pool_cleanup(p, js_user_free_aux_data, newu->aux_data);
-    newu->id = jid_new(p,jid_full(uid));
+    newu->id = jid_new(p, jid_full(uid));
     if (x)
-	xmlnode_free(x);
+        xmlnode_free(x);
     if (y)
-	xmlnode_free(y);
-
+        xmlnode_free(y);
 
     /* got the user, add it to the user list */
     xhash_put(ht, newu->id->get_node().c_str(), newu);
-    log_debug2(ZONE, LOGT_SESSION, "js_user debug %X %X", xhash_get(ht, newu->id->get_node().c_str()), newu);
+    log_debug2(ZONE, LOGT_SESSION, "js_user debug %X %X",
+               xhash_get(ht, newu->id->get_node().c_str()), newu);
 
     return newu;
 }
@@ -320,7 +323,7 @@ udata js_user(jsmi si, jid id, xht ht) {
 int js_user_create(jsmi si, jid id) {
     udata u = js_user(si, id, NULL); /* XXX: flag it as unconditional */
     if (u != NULL) {
-	return js_mapi_call(si, e_CREATE, NULL, u, NULL);
+        return js_mapi_call(si, e_CREATE, NULL, u, NULL);
     }
 
     return 0;
@@ -336,7 +339,7 @@ int js_user_create(jsmi si, jid id) {
 int js_user_delete(jsmi si, jid id) {
     udata u = js_user(si, id, NULL);
     if (u != NULL) {
-	return js_mapi_call(si, e_DELETE, NULL, u, NULL);
+        return js_mapi_call(si, e_DELETE, NULL, u, NULL);
     }
 
     return 0;

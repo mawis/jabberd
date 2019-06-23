@@ -1,7 +1,7 @@
 /*
  * Copyrights
- * 
- * Portions created by or assigned to Jabber.com, Inc. are 
+ *
+ * Portions created by or assigned to Jabber.com, Inc. are
  * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
  * information for Jabber.com, Inc. is available at http://www.jabber.com/.
  *
@@ -36,11 +36,14 @@
  */
 
 /**
- * function that handles packets that are sent to a valid user account, that has no online session
+ * function that handles packets that are sent to a valid user account, that has
+ * no online session
  *
- * First try if one of the e_OFFLINE modules handles the packet, if not it is bounced as recipient-unavailable
+ * First try if one of the e_OFFLINE modules handles the packet, if not it is
+ * bounced as recipient-unavailable
  *
- * @param arg the jpq_struct for this packet (contains the session manager instance data and the packet)
+ * @param arg the jpq_struct for this packet (contains the session manager
+ * instance data and the packet)
  */
 void js_offline_main(void *arg) {
     jpq q = (jpq)arg;
@@ -50,14 +53,17 @@ void js_offline_main(void *arg) {
     user = (udata)q->p->aux1;
 
     /* debug message */
-    log_debug2(ZONE, LOGT_DELIVER, "THREAD:OFFLINE received %s's packet: %s", jid_full(user->id), xmlnode_serialize_string(q->p->x, xmppd::ns_decl_list(), 0));
+    log_debug2(ZONE, LOGT_DELIVER, "THREAD:OFFLINE received %s's packet: %s",
+               jid_full(user->id),
+               xmlnode_serialize_string(q->p->x, xmppd::ns_decl_list(), 0));
 
     /* let the filters check the packet */
-    if (q->p->flag == PACKET_PASS_FILTERS_MAGIC || !js_mapi_call(q->si, e_FILTER_IN, q->p, user, NULL)) {
-	/* let the modules handle the packet */
-	if(!js_mapi_call(q->si, e_OFFLINE, q->p, user, NULL)) {
-	    js_bounce_xmpp(q->si, NULL, q->p->x, XTERROR_RECIPIENTUNAVAIL);
-	}
+    if (q->p->flag == PACKET_PASS_FILTERS_MAGIC ||
+        !js_mapi_call(q->si, e_FILTER_IN, q->p, user, NULL)) {
+        /* let the modules handle the packet */
+        if (!js_mapi_call(q->si, e_OFFLINE, q->p, user, NULL)) {
+            js_bounce_xmpp(q->si, NULL, q->p->x, XTERROR_RECIPIENTUNAVAIL);
+        }
     }
 
     /* it can be cleaned up now */

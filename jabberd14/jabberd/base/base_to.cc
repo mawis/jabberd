@@ -1,7 +1,7 @@
 /*
  * Copyrights
- * 
- * Portions created by or assigned to Jabber.com, Inc. are 
+ *
+ * Portions created by or assigned to Jabber.com, Inc. are
  * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
  * information for Jabber.com, Inc. is available at http://www.jabber.com/.
  *
@@ -35,22 +35,28 @@
 
 #include "jabberd.h"
 
-static result base_to_deliver(instance id,dpacket p,void* arg) {
-    char* log_data = xmlnode_get_data(p->x);
+static result base_to_deliver(instance id, dpacket p, void *arg) {
+    char *log_data = xmlnode_get_data(p->x);
     xmlnode message;
 
     if (log_data == NULL)
         return r_ERR;
 
     message = xmlnode_new_tag_ns("message", NULL, NS_SERVER);
-    
-    xmlnode_insert_cdata(xmlnode_insert_tag_ns(message, "body", NULL, NS_SERVER), log_data, -1);
+
+    xmlnode_insert_cdata(
+        xmlnode_insert_tag_ns(message, "body", NULL, NS_SERVER), log_data, -1);
     std::ostringstream subject;
     subject << "Log Packet from " << xmlnode_get_attrib_ns(p->x, "from", NULL);
-    xmlnode_insert_cdata(xmlnode_insert_tag_ns(message, "thread", NULL, NS_SERVER), shahash(subject.str().c_str()), -1);
-    xmlnode_insert_cdata(xmlnode_insert_tag_ns(message, "subject", NULL, NS_SERVER), subject.str().c_str(), subject.str().length());
-    xmlnode_put_attrib_ns(message, "from", NULL, NULL, xmlnode_get_attrib_ns(p->x, "from", NULL));
-    xmlnode_put_attrib_ns(message, "to", NULL, NULL, (char*)arg);
+    xmlnode_insert_cdata(
+        xmlnode_insert_tag_ns(message, "thread", NULL, NS_SERVER),
+        shahash(subject.str().c_str()), -1);
+    xmlnode_insert_cdata(
+        xmlnode_insert_tag_ns(message, "subject", NULL, NS_SERVER),
+        subject.str().c_str(), subject.str().length());
+    xmlnode_put_attrib_ns(message, "from", NULL, NULL,
+                          xmlnode_get_attrib_ns(p->x, "from", NULL));
+    xmlnode_put_attrib_ns(message, "to", NULL, NULL, (char *)arg);
 
     deliver(dpacket_new(message), id);
     pool_free(p->p);
@@ -62,23 +68,32 @@ static result base_to_config(instance id, xmlnode x, void *arg) {
     if (id == NULL) {
         jid j = jid_new(xmlnode_pool(x), xmlnode_get_data(x));
 
-        log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_to_config validating configuration\n");
+        log_debug2(ZONE, LOGT_INIT | LOGT_CONFIG,
+                   "base_to_config validating configuration\n");
         if (j == NULL) {
-            xmlnode_put_attrib_ns(x, "error", NULL, NULL, "'to' tag must contain a jid to send log data to");
-            log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "Invalid Configuration for base_to");
+            xmlnode_put_attrib_ns(
+                x, "error", NULL, NULL,
+                "'to' tag must contain a jid to send log data to");
+            log_debug2(ZONE, LOGT_INIT | LOGT_CONFIG,
+                       "Invalid Configuration for base_to");
             return r_ERR;
         }
         return r_PASS;
     }
 
-    log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_to configuring instance %s", id->id);
+    log_debug2(ZONE, LOGT_INIT | LOGT_CONFIG, "base_to configuring instance %s",
+               id->id);
 
     if (id->type != p_LOG) {
-        log_alert(NULL, "ERROR in instance %s: <to>..</to> element only allowed in log sections", id->id);
+        log_alert(NULL,
+                  "ERROR in instance %s: <to>..</to> element only allowed in "
+                  "log sections",
+                  id->id);
         return r_ERR;
     }
 
-    register_phandler(id, o_DELIVER, base_to_deliver, (void*)xmlnode_get_data(x));
+    register_phandler(id, o_DELIVER, base_to_deliver,
+                      (void *)xmlnode_get_data(x));
 
     return r_DONE;
 }
@@ -86,9 +101,10 @@ static result base_to_config(instance id, xmlnode x, void *arg) {
 /**
  * register the to base handler
  *
- * @param p memory pool used to register the configuration handler, must be available for the livetime of jabberd
+ * @param p memory pool used to register the configuration handler, must be
+ * available for the livetime of jabberd
  */
 void base_to(pool p) {
     log_debug2(ZONE, LOGT_INIT, "base_to loading...");
-    register_config(p, "to",base_to_config,NULL);
+    register_config(p, "to", base_to_config, NULL);
 }

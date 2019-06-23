@@ -1,7 +1,7 @@
 /*
  * Copyrights
- * 
- * Portions created by or assigned to Jabber.com, Inc. are 
+ *
+ * Portions created by or assigned to Jabber.com, Inc. are
  * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
  * information for Jabber.com, Inc. is available at http://www.jabber.com/.
  *
@@ -30,18 +30,19 @@
 
 /**
  * @file base_format.cc
- * @brief reformat stanzas and let them pass to the next base handler (used to format log messages)
+ * @brief reformat stanzas and let them pass to the next base handler (used to
+ * format log messages)
  */
 
 #include "jabberd.h"
 
 static result base_format_modify(instance id, dpacket p, void *arg) {
-    char  *cur, *nxt, *f;
-    pool  sp;
+    char *cur, *nxt, *f;
+    pool sp;
     std::ostringstream log_result;
-    char const* tmp = NULL;
+    char const *tmp = NULL;
 
-    if(id == NULL || p == NULL) 
+    if (id == NULL || p == NULL)
         return r_ERR;
 
     /*  base format params:
@@ -51,53 +52,54 @@ static result base_format_modify(instance id, dpacket p, void *arg) {
         %s: body
     */
 
-    sp=pool_new();
+    sp = pool_new();
 
-    f = pstrdup(sp, (char*)arg);
+    f = pstrdup(sp, (char *)arg);
 
     cur = f;
     nxt = strchr(f, '%');
-    
+
     if (nxt == NULL)
-	log_result << f;
-    
+        log_result << f;
+
     while (nxt != NULL) {
-        nxt[0] = '\0'; 
-        
-        if(cur != nxt)
-	    log_result << cur;
-        
+        nxt[0] = '\0';
+
+        if (cur != nxt)
+            log_result << cur;
+
         nxt++;
-        
-        switch(nxt[0]) {
-	    case 'h':
-		tmp = xmlnode_get_attrib_ns(p->x, "from", NULL);
-		if (tmp)
-		    log_result << tmp;
-		else
-		    log_result << "(null)";
-		break;
-	    case 't':
-		tmp = xmlnode_get_attrib_ns(p->x, "type", NULL);
-		if (tmp)
-		    log_result << tmp;
-		else
-		    log_result << "(null)";
-		break;
-	    case 'd':
-		log_result << jutil_timestamp();
-		break;
-	    case 's':
-		tmp = xmlnode_get_data(p->x);
-		if (tmp)
-		    log_result << tmp;
-		else
-		    log_result << "(null)";
-		break;
-	    default:
-		log_debug2(ZONE, LOGT_CONFIG|LOGT_STRANGE, "Invalid argument: %s", nxt[0]);
+
+        switch (nxt[0]) {
+            case 'h':
+                tmp = xmlnode_get_attrib_ns(p->x, "from", NULL);
+                if (tmp)
+                    log_result << tmp;
+                else
+                    log_result << "(null)";
+                break;
+            case 't':
+                tmp = xmlnode_get_attrib_ns(p->x, "type", NULL);
+                if (tmp)
+                    log_result << tmp;
+                else
+                    log_result << "(null)";
+                break;
+            case 'd':
+                log_result << jutil_timestamp();
+                break;
+            case 's':
+                tmp = xmlnode_get_data(p->x);
+                if (tmp)
+                    log_result << tmp;
+                else
+                    log_result << "(null)";
+                break;
+            default:
+                log_debug2(ZONE, LOGT_CONFIG | LOGT_STRANGE,
+                           "Invalid argument: %s", nxt[0]);
         }
-        
+
         cur = ++nxt;
         nxt = strchr(cur, '%');
     }
@@ -111,23 +113,36 @@ static result base_format_modify(instance id, dpacket p, void *arg) {
 
 static result base_format_config(instance id, xmlnode x, void *arg) {
     if (id == NULL) {
-        log_debug2(ZONE, LOGT_CONFIG|LOGT_INIT, "base_format_config validating configuration");
+        log_debug2(ZONE, LOGT_CONFIG | LOGT_INIT,
+                   "base_format_config validating configuration");
         if (xmlnode_get_data(x) == NULL) {
-            log_debug2(ZONE, LOGT_CONFIG|LOGT_INIT|LOGT_STRANGE, "base_format invald format");
-            xmlnode_put_attrib_ns(x, "error", NULL, NULL, "'format' tag must contain a format string:\nUse %h to insert Hostname\nUse %t to insert Type of Log (notice,warn,alert)\nUse %d to insert Timestamp\nUse %s to insert the body of the message\n\nExample: '[%t] - %h - %d: %s'");
+            log_debug2(ZONE, LOGT_CONFIG | LOGT_INIT | LOGT_STRANGE,
+                       "base_format invald format");
+            xmlnode_put_attrib_ns(
+                x, "error", NULL, NULL,
+                "'format' tag must contain a format string:\nUse %h to insert "
+                "Hostname\nUse %t to insert Type of Log "
+                "(notice,warn,alert)\nUse %d to insert Timestamp\nUse %s to "
+                "insert the body of the message\n\nExample: '[%t] - %h - %d: "
+                "%s'");
             return r_ERR;
         }
         return r_PASS;
     }
-    
-    log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_format configuring instance %s ", id->id);
+
+    log_debug2(ZONE, LOGT_INIT | LOGT_CONFIG,
+               "base_format configuring instance %s ", id->id);
 
     if (id->type != p_LOG) {
-        log_alert(NULL, "ERROR in instance %s: <format>..</format> element only allowed in log sections", id->id);
+        log_alert(NULL,
+                  "ERROR in instance %s: <format>..</format> element only "
+                  "allowed in log sections",
+                  id->id);
         return r_ERR;
     }
 
-    register_phandler(id, o_PREDELIVER, base_format_modify, (void*)xmlnode_get_data(x));
+    register_phandler(id, o_PREDELIVER, base_format_modify,
+                      (void *)xmlnode_get_data(x));
 
     return r_DONE;
 }
@@ -135,9 +150,10 @@ static result base_format_config(instance id, xmlnode x, void *arg) {
 /**
  * register the format base handler
  *
- * @param p memory pool used for the registration of the config handler, must be available for the livetime of jabberd
+ * @param p memory pool used for the registration of the config handler, must be
+ * available for the livetime of jabberd
  */
 void base_format(pool p) {
     log_debug2(ZONE, LOGT_INIT, "base_format loading...");
-    register_config(p, "format",base_format_config,NULL);
+    register_config(p, "format", base_format_config, NULL);
 }

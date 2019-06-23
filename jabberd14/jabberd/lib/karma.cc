@@ -1,7 +1,7 @@
 /*
  * Copyrights
- * 
- * Portions created by or assigned to Jabber.com, Inc. are 
+ *
+ * Portions created by or assigned to Jabber.com, Inc. are
  * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
  * information for Jabber.com, Inc. is available at http://www.jabber.com/.
  *
@@ -83,17 +83,18 @@
 /**
  * make a copy of a karma structure
  *
- * @param new_instance pointer to the destination (the structure must already exist)
+ * @param new_instance pointer to the destination (the structure must already
+ * exist)
  * @param old pointer to the values, that should be copied
  */
 void karma_copy(struct karma *new_instance, struct karma *old) {
-    new_instance->val         = old->val;
-    new_instance->bytes       = old->bytes;
-    new_instance->max         = old->max;
-    new_instance->inc         = old->inc;
-    new_instance->dec         = old->dec;
-    new_instance->penalty     = old->penalty;
-    new_instance->restore     = old->restore;
+    new_instance->val = old->val;
+    new_instance->bytes = old->bytes;
+    new_instance->max = old->max;
+    new_instance->inc = old->inc;
+    new_instance->dec = old->dec;
+    new_instance->penalty = old->penalty;
+    new_instance->restore = old->restore;
     new_instance->last_update = old->last_update;
     new_instance->reset_meter = old->reset_meter;
 }
@@ -106,15 +107,15 @@ void karma_copy(struct karma *new_instance, struct karma *old) {
  */
 struct karma *karma_new(pool p) {
     struct karma *newk;
-    if(p == NULL)
+    if (p == NULL)
         return NULL;
 
-    newk          = static_cast<struct karma*>(pmalloco(p, sizeof(struct karma)));
-    newk->bytes   = 0;
-    newk->val     = KARMA_INIT;
-    newk->max     = KARMA_MAX;
-    newk->inc     = KARMA_INC;
-    newk->dec     = KARMA_DEC;
+    newk = static_cast<struct karma *>(pmalloco(p, sizeof(struct karma)));
+    newk->bytes = 0;
+    newk->val = KARMA_INIT;
+    newk->max = KARMA_MAX;
+    newk->inc = KARMA_INC;
+    newk->dec = KARMA_DEC;
     newk->penalty = KARMA_PENALTY;
     newk->restore = KARMA_RESTORE;
     newk->last_update = 0;
@@ -124,7 +125,8 @@ struct karma *karma_new(pool p) {
 }
 
 /**
- * update karma: if karma is incremented, it means that additional bytes are now possible in the configured bandwidth
+ * update karma: if karma is incremented, it means that additional bytes are now
+ * possible in the configured bandwidth
  *
  * Traffic reduces karma, passed time increments karma
  *
@@ -134,30 +136,34 @@ void karma_increment(struct karma *k) {
     /* set the current time, and check if we can increment */
     time_t cur_time = time(NULL);
     int punishment_over = 0;
-    
+
     /* only increment every KARMA_HEARTBEAT seconds */
-    if( ( k->last_update + KARMA_HEARTBEAT > cur_time ) && k->last_update != 0)
+    if ((k->last_update + KARMA_HEARTBEAT > cur_time) && k->last_update != 0)
         return;
 
     /* if incrementing will raise >= 0 */
-    if( ( k->val < 0 ) && ( k->val + k->inc >= 0 ) )
+    if ((k->val < 0) && (k->val + k->inc >= 0))
         punishment_over = 1;
 
     /* increment the karma value */
     k->val += k->inc;
-    if( k->val > k->max ) k->val = k->max; /* can only be so good */
+    if (k->val > k->max)
+        k->val = k->max; /* can only be so good */
 
     /* lower our byte count, if we have good karma */
-    if( k->val > 0 ) k->bytes -= ( KARMA_READ_MAX(k->val) );
-    if( k->bytes < 0 ) k->bytes = 0;
+    if (k->val > 0)
+        k->bytes -= (KARMA_READ_MAX(k->val));
+    if (k->bytes < 0)
+        k->bytes = 0;
 
     /* our karma has *raised* to 0 */
-    if( punishment_over )
+    if (punishment_over)
     /* Set Restore value and clear byte meter */
     {
         k->val = k->restore;
         /* Total absolution for transgression */
-        if(k->reset_meter) k->bytes = 0;
+        if (k->reset_meter)
+            k->bytes = 0;
     }
 
     /* reset out counter */
@@ -165,27 +171,29 @@ void karma_increment(struct karma *k) {
 }
 
 /**
- * update karma: there was traffic, that has to be considered for karma calculations
+ * update karma: there was traffic, that has to be considered for karma
+ * calculations
  *
  * Traffic reduces karma, passed time increments karma
  *
  * @param k the karma structure to update
- * @param bytes_read the ammount of bytes that have been read on a connection, that is karma controlled
+ * @param bytes_read the ammount of bytes that have been read on a connection,
+ * that is karma controlled
  */
 void karma_decrement(struct karma *k, long bytes_read) {
-
     /* Increment the bytes read since last since last karma_increment */
     k->bytes += bytes_read;
 
-    /* Check if our byte meter has exceeded the Max bytes our meter is allowed. */
+    /* Check if our byte meter has exceeded the Max bytes our meter is allowed.
+     */
 
-    if(k->bytes > KARMA_READ_MAX(k->val))
-    {
+    if (k->bytes > KARMA_READ_MAX(k->val)) {
         /* Our meter has exceeded it's allowable lower our karma */
         k->val -= k->dec;
 
         /* if below zero, set to penalty */
-        if(k->val <= 0) k->val = k->penalty;
+        if (k->val <= 0)
+            k->val = k->penalty;
     }
 }
 
@@ -193,16 +201,17 @@ void karma_decrement(struct karma *k, long bytes_read) {
  * check the karma for a connection
  *
  * @param k the karma that should be checked
- * @param bytes_read the number of bytes, that have been read on a connection, that is karma controlled
+ * @param bytes_read the number of bytes, that have been read on a connection,
+ * that is karma controlled
  * @return 0 on okay check, 1 on bad check
  */
-int karma_check(struct karma *k,long bytes_read) {
+int karma_check(struct karma *k, long bytes_read) {
     /* Check the need to increase or decrease karma */
     karma_increment(k);
     karma_decrement(k, bytes_read);
 
     /* check its karma */
-    if(k->val <= 0)
+    if (k->val <= 0)
         return 1; /* bad */
 
     /* everything is okay */

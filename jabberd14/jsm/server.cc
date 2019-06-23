@@ -1,7 +1,7 @@
 /*
  * Copyrights
- * 
- * Portions created by or assigned to Jabber.com, Inc. are 
+ *
+ * Portions created by or assigned to Jabber.com, Inc. are
  * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
  * information for Jabber.com, Inc. is available at http://www.jabber.com/.
  *
@@ -32,23 +32,26 @@
 
 /**
  * @file server.cc
- * @brief handle packets intended for the server: administration, public IQ (agents, etc)
+ * @brief handle packets intended for the server: administration, public IQ
+ * (agents, etc)
  */
 
 /**
  * handle a packet addressed to the server itself (no node part in the JID)
  *
- * Pass the packet to the modules, that registered for the e_SERVER event. If none
- * of the modules handled the packet, it is bounced as "not-found".
+ * Pass the packet to the modules, that registered for the e_SERVER event. If
+ * none of the modules handled the packet, it is bounced as "not-found".
  *
- * @param arg jpq structure containing the session manager instance data and the packet
+ * @param arg jpq structure containing the session manager instance data and the
+ * packet
  */
 void js_server_main(void *arg) {
-    int incremented=0;
+    int incremented = 0;
     jpq q = (jpq)arg;
     udata u = NULL;
 
-    log_debug2(ZONE, LOGT_DELIVER, "THREAD:SERVER received a packet: %s", xmlnode_serialize_string(q->p->x, xmppd::ns_decl_list(), 0));
+    log_debug2(ZONE, LOGT_DELIVER, "THREAD:SERVER received a packet: %s",
+               xmlnode_serialize_string(q->p->x, xmppd::ns_decl_list(), 0));
 
     /* get the user struct for convience if the sender was local */
     if (js_islocal(q->si, q->p->from))
@@ -56,16 +59,16 @@ void js_server_main(void *arg) {
 
     /* don't free the udata while the mapi call is processed */
     if (u != NULL) {
-	u->ref++;
-	incremented++;
+        u->ref++;
+        incremented++;
     }
 
     /* let the modules have a go at the packet; if nobody handles it... */
-    if(!js_mapi_call(q->si, e_SERVER, q->p, u, NULL))
+    if (!js_mapi_call(q->si, e_SERVER, q->p, u, NULL))
         js_bounce_xmpp(q->si, NULL, q->p->x, XTERROR_NOTFOUND);
 
     /* free our lock */
     if (incremented != 0) {
-	u->ref--;
+        u->ref--;
     }
 }

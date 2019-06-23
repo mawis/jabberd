@@ -1,7 +1,7 @@
 /*
  * Copyrights
- * 
- * Portions created by or assigned to Jabber.com, Inc. are 
+ *
+ * Portions created by or assigned to Jabber.com, Inc. are
  * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
  * information for Jabber.com, Inc. is available at http://www.jabber.com/.
  *
@@ -34,20 +34,23 @@
  * @file mod_xml.cc
  * @brief handling jabber:iq:private (XEP-0049) requests
  *
- * This module implements the storage of private data by a client on the server using the
- * jabber:iq:private namespace documented in XEP-0049.
+ * This module implements the storage of private data by a client on the server
+ * using the jabber:iq:private namespace documented in XEP-0049.
  *
- * The module also used to implement the storage of data, that had been accessible by any entity on
- * the Jabber network and the handling of requests by other users to this data. But this has been
- * dropped with jabberd14 1.6.0.
+ * The module also used to implement the storage of data, that had been
+ * accessible by any entity on the Jabber network and the handling of requests
+ * by other users to this data. But this has been dropped with jabberd14 1.6.0.
  */
 
 /**
- * callback that handles iq stanzas of the user itself (either set and get requests!)
+ * callback that handles iq stanzas of the user itself (either set and get
+ * requests!)
  *
  * @param m the mapi structure
- * @param arg how results for non-existant private data should be handled (NULL = <item-not-found/>, other = empty list)
- * @return M_IGNORE if it is not an iq stanza, M_PASS if the stanza has not been processed, M_HANDLED if the stanza has been handled
+ * @param arg how results for non-existant private data should be handled (NULL
+ * = <item-not-found/>, other = empty list)
+ * @return M_IGNORE if it is not an iq stanza, M_PASS if the stanza has not been
+ * processed, M_HANDLED if the stanza has been handled
  */
 static mreturn mod_xml_set(mapi m, void *arg) {
     xmlnode storedx, inx = m->packet->iq;
@@ -56,95 +59,114 @@ static mreturn mod_xml_set(mapi m, void *arg) {
     int is_delete = 0;
 
     if (m->packet->type != JPACKET_IQ)
-	return M_IGNORE;
+        return M_IGNORE;
 
     /* to someone else? */
     if (m->packet->to != NULL)
-	return M_PASS;
+        return M_PASS;
 
     /* we only handle requests in the jabber:iq:private namespace */
     if (!NSCHECK(m->packet->iq, NS_PRIVATE))
-	return M_PASS;
+        return M_PASS;
 
     inx = xmlnode_get_firstchild(m->packet->iq);
-    while (inx != NULL && (xmlnode_get_type(inx) != NTYPE_TAG || j_strcmp(xmlnode_get_namespace(inx), NS_PRIVATE) == 0 ))
-	inx = xmlnode_get_nextsibling(inx);
+    while (inx != NULL &&
+           (xmlnode_get_type(inx) != NTYPE_TAG ||
+            j_strcmp(xmlnode_get_namespace(inx), NS_PRIVATE) == 0))
+        inx = xmlnode_get_nextsibling(inx);
     if (inx == NULL) {
-	jutil_error_xmpp(m->packet->x, (xterror){406, N_("The query element in the jabber:iq:private namespace needs a child element in another namespace."), "modify", "not-acceptable"});
-	js_session_to(m->s, m->packet);
-	return M_HANDLED;
+        jutil_error_xmpp(
+            m->packet->x,
+            (xterror){406,
+                      N_("The query element in the jabber:iq:private namespace "
+                         "needs a child element in another namespace."),
+                      "modify", "not-acceptable"});
+        js_session_to(m->s, m->packet);
+        return M_HANDLED;
     }
     ns = xmlnode_get_namespace(inx);
 
     xmlnode_vector result_items;
     std::ostringstream xpath;
     switch (jpacket_subtype(m->packet)) {
-	case JPACKET__GET:
-	    log_debug2(ZONE, LOGT_DELIVER|LOGT_STORAGE, "handling get request for %s", ns);
+        case JPACKET__GET:
+            log_debug2(ZONE, LOGT_DELIVER | LOGT_STORAGE,
+                       "handling get request for %s", ns);
 
-	    /* get the stored data */
-	    storedx = xdb_get(m->si->xc, m->user->id, NS_PRIVATE);
+            /* get the stored data */
+            storedx = xdb_get(m->si->xc, m->user->id, NS_PRIVATE);
 
-	    /* get the relevant items */
-	    xpath << "private:query[@jabberd:ns='" << ns << "']";
-	    result_items = xmlnode_get_tags(storedx, xpath.str().c_str(), m->si->std_namespace_prefixes);
-	    for (xmlnode_vector::iterator result_item = result_items.begin(); result_item != result_items.end(); ++result_item) {
-		if (!got_result) {
-		    got_result = 1;
-		    /* prepare result */
-		    jutil_iqresult(m->packet->x);
-		}
-		log_debug2(ZONE, LOGT_STORAGE, "found node: %s", xmlnode_serialize_string(*result_item, xmppd::ns_decl_list(), 0));
-		xmlnode_hide_attrib_ns(*result_item, "ns", NS_JABBERD_WRAPPER);
-		xmlnode_insert_tag_node(m->packet->x, *result_item);
-	    }
+            /* get the relevant items */
+            xpath << "private:query[@jabberd:ns='" << ns << "']";
+            result_items = xmlnode_get_tags(storedx, xpath.str().c_str(),
+                                            m->si->std_namespace_prefixes);
+            for (xmlnode_vector::iterator result_item = result_items.begin();
+                 result_item != result_items.end(); ++result_item) {
+                if (!got_result) {
+                    got_result = 1;
+                    /* prepare result */
+                    jutil_iqresult(m->packet->x);
+                }
+                log_debug2(ZONE, LOGT_STORAGE, "found node: %s",
+                           xmlnode_serialize_string(*result_item,
+                                                    xmppd::ns_decl_list(), 0));
+                xmlnode_hide_attrib_ns(*result_item, "ns", NS_JABBERD_WRAPPER);
+                xmlnode_insert_tag_node(m->packet->x, *result_item);
+            }
 
-	    /* found something? */
-	    if (!got_result) {
-		if (!arg) {
-		    /* no => return error */
-		    js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_NOTFOUND);
-		} else {
-		    /* legacy client improved compatibility */
-		    jutil_iqresult(m->packet->x);
-		    m->packet->iq = xmlnode_insert_tag_ns(m->packet->x, "query", NULL, NS_PRIVATE);
-		    xmlnode_insert_tag_node(m->packet->iq, inx);
-		    jpacket_reset(m->packet);
-		    js_session_to(m->s,m->packet);
-		}
-	    } else {
-		/* yes => return result */
-		jpacket_reset(m->packet);
-		js_session_to(m->s,m->packet);
-	    }
+            /* found something? */
+            if (!got_result) {
+                if (!arg) {
+                    /* no => return error */
+                    js_bounce_xmpp(m->si, m->s, m->packet->x, XTERROR_NOTFOUND);
+                } else {
+                    /* legacy client improved compatibility */
+                    jutil_iqresult(m->packet->x);
+                    m->packet->iq = xmlnode_insert_tag_ns(m->packet->x, "query",
+                                                          NULL, NS_PRIVATE);
+                    xmlnode_insert_tag_node(m->packet->iq, inx);
+                    jpacket_reset(m->packet);
+                    js_session_to(m->s, m->packet);
+                }
+            } else {
+                /* yes => return result */
+                jpacket_reset(m->packet);
+                js_session_to(m->s, m->packet);
+            }
 
-	    /* free the result */
-	    xmlnode_free(storedx);
+            /* free the result */
+            xmlnode_free(storedx);
 
-	    break;
+            break;
 
-	case JPACKET__SET:
-	    log_debug2(ZONE, LOGT_DELIVER|LOGT_STORAGE, "handling set request for %s with data %s", ns, xmlnode_serialize_string(inx, xmppd::ns_decl_list(), 0));
+        case JPACKET__SET:
+            log_debug2(ZONE, LOGT_DELIVER | LOGT_STORAGE,
+                       "handling set request for %s with data %s", ns,
+                       xmlnode_serialize_string(inx, xmppd::ns_decl_list(), 0));
 
-	    is_delete = (xmlnode_get_firstchild(inx) == NULL);
+            is_delete = (xmlnode_get_firstchild(inx) == NULL);
 
-	    log_debug2(ZONE, LOGT_STORAGE, "is_delete=%i, ns=%s", is_delete, ns);
+            log_debug2(ZONE, LOGT_STORAGE, "is_delete=%i, ns=%s", is_delete,
+                       ns);
 
-	    /* save the changes */
-	    xmlnode_put_attrib_ns(m->packet->iq, "ns", "jabberd", NS_JABBERD_WRAPPER, ns);
-	    xpath << "private:query[@jabberd:ns='" << ns << "']";
-	    if (xdb_act_path(m->si->xc, m->user->id, NS_PRIVATE, "insert", xpath.str().c_str(), m->si->std_namespace_prefixes, is_delete ? NULL : m->packet->iq))
-		jutil_error_xmpp(m->packet->x, XTERROR_UNAVAIL);
+            /* save the changes */
+            xmlnode_put_attrib_ns(m->packet->iq, "ns", "jabberd",
+                                  NS_JABBERD_WRAPPER, ns);
+            xpath << "private:query[@jabberd:ns='" << ns << "']";
+            if (xdb_act_path(m->si->xc, m->user->id, NS_PRIVATE, "insert",
+                             xpath.str().c_str(), m->si->std_namespace_prefixes,
+                             is_delete ? NULL : m->packet->iq))
+                jutil_error_xmpp(m->packet->x, XTERROR_UNAVAIL);
 
-	    /* build result and send back */
-	    jutil_iqresult(m->packet->x);
-	    jpacket_reset(m->packet);
-	    js_session_to(m->s,m->packet);
+            /* build result and send back */
+            jutil_iqresult(m->packet->x);
+            jpacket_reset(m->packet);
+            js_session_to(m->s, m->packet);
 
-	    break;
+            break;
 
-	default:
-	    return M_PASS;
+        default:
+            return M_PASS;
     }
 
     return M_HANDLED;
@@ -156,7 +178,8 @@ static mreturn mod_xml_set(mapi m, void *arg) {
  * will register mod_xml_set as callback for stanzas sent by the user itself
  *
  * @param m the mapi structure
- * @param arg how results for non-existant private data should be handled (NULL = <item-not-found/>, other = empty list)
+ * @param arg how results for non-existant private data should be handled (NULL
+ * = <item-not-found/>, other = empty list)
  * @return always M_PASS
  */
 static mreturn mod_xml_session(mapi m, void *arg) {
@@ -186,10 +209,12 @@ static mreturn mod_xml_delete(mapi m, void *arg) {
  */
 extern "C" void mod_xml(jsmi si) {
     static char empty_true = '1';
-    void* empty_results = NULL;
+    void *empty_results = NULL;
     xmlnode config = js_config(si, "jsm:mod_xml", NULL);
-    if (xmlnode_get_tags(config, "jsm:empty_results", si->std_namespace_prefixes).size() > 0) {
-	empty_results = &empty_true;
+    if (xmlnode_get_tags(config, "jsm:empty_results",
+                         si->std_namespace_prefixes)
+            .size() > 0) {
+        empty_results = &empty_true;
     }
     xmlnode_free(config);
 

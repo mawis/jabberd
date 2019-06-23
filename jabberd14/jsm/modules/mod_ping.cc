@@ -1,6 +1,6 @@
 /*
  * Copyrights
- * 
+ *
  * Copyright (c) 2006-2007 Matthias Wimmer
  *
  * This file is part of jabberd14.
@@ -28,8 +28,8 @@
  * @file mod_ping.cc
  * @brief implements XEP-0199 - XMPP Ping
  *
- * This module allows the administrator to block some user-names from being registered
- * by users.
+ * This module allows the administrator to block some user-names from being
+ * registered by users.
  */
 
 /**
@@ -40,17 +40,18 @@ static mreturn mod_ping_server_disco_info(mapi m) {
 
     /* only no node, only get */
     if (jpacket_subtype(m->packet) != JPACKET__GET)
-	return M_PASS;
+        return M_PASS;
     if (xmlnode_get_attrib_ns(m->packet->iq, "node", NULL) != NULL)
-	return M_PASS;
+        return M_PASS;
 
     /* build the result IQ */
     js_mapi_create_additional_iq_result(m, "query", NULL, NS_DISCO_INFO);
     if (m->additional_result == NULL || m->additional_result->iq == NULL)
-	return M_PASS;
+        return M_PASS;
 
     /* add features */
-    feature = xmlnode_insert_tag_ns(m->additional_result->iq, "feature", NULL, NS_DISCO_INFO);
+    feature = xmlnode_insert_tag_ns(m->additional_result->iq, "feature", NULL,
+                                    NS_DISCO_INFO);
     xmlnode_put_attrib_ns(feature, "var", NULL, NULL, NS_XMPP_PING);
 
     return M_PASS;
@@ -62,7 +63,7 @@ static mreturn mod_ping_server_disco_info(mapi m) {
 static mreturn mod_ping_server_ping(mapi m) {
     /* only get */
     if (jpacket_subtype(m->packet) != JPACKET__GET)
-	return M_PASS;
+        return M_PASS;
 
     /* build the result IQ */
     jutil_iqresult(m->packet->x);
@@ -86,17 +87,17 @@ static mreturn mod_ping_server_ping(mapi m) {
 static mreturn mod_ping_server(mapi m, void *arg) {
     /* sanity check */
     if (m == NULL || m->packet == NULL)
-	return M_PASS;
+        return M_PASS;
 
     /* only handle iqs */
     if (m->packet->type != JPACKET_IQ)
-	return M_IGNORE;
+        return M_IGNORE;
 
     if (NSCHECK(m->packet->iq, NS_DISCO_INFO))
-	return mod_ping_server_disco_info(m);
+        return mod_ping_server_disco_info(m);
 
     if (NSCHECK(m->packet->iq, NS_XMPP_PING))
-	return mod_ping_server_ping(m);
+        return mod_ping_server_ping(m);
 
     return M_PASS;
 }
@@ -110,19 +111,19 @@ static mreturn mod_ping_server(mapi m, void *arg) {
  */
 static mreturn mod_ping_out(mapi m, void *arg) {
     if (m == NULL || m->packet == NULL)
-	return M_PASS;
+        return M_PASS;
 
     if (m->packet->type != JPACKET_IQ)
-	return M_IGNORE;
+        return M_IGNORE;
 
     if (m->packet->to != NULL) {
-	return M_PASS;
+        return M_PASS;
     }
     if (!NSCHECK(m->packet->iq, NS_XMPP_PING)) {
-	return M_PASS;
+        return M_PASS;
     }
     if (jpacket_subtype(m->packet) != JPACKET__GET) {
-	return M_PASS;
+        return M_PASS;
     }
 
     jutil_iqresult(m->packet->x);
@@ -146,16 +147,16 @@ static mreturn mod_ping_session(mapi m, void *arg) {
 
 static mreturn mod_ping_deliver(mapi m, void *arg) {
     if (m == NULL || m->packet == NULL)
-	return M_PASS;
+        return M_PASS;
 
     if (m->packet->type != JPACKET_IQ)
-	return M_IGNORE;
+        return M_IGNORE;
 
     if (!NSCHECK(m->packet->iq, NS_XMPP_PING)) {
-	return M_PASS;
+        return M_PASS;
     }
     if (jpacket_subtype(m->packet) != JPACKET__GET) {
-	return M_PASS;
+        return M_PASS;
     }
 
     jutil_iqresult(m->packet->x);

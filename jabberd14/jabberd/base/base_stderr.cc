@@ -1,7 +1,7 @@
 /*
  * Copyrights
- * 
- * Portions created by or assigned to Jabber.com, Inc. are 
+ *
+ * Portions created by or assigned to Jabber.com, Inc. are
  * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
  * information for Jabber.com, Inc. is available at http://www.jabber.com/.
  *
@@ -35,14 +35,15 @@
 
 #include "jabberd.h"
 
-static result base_stderr_display(instance i, dpacket p, void* args) {   
-    char* message = NULL;
-    
+static result base_stderr_display(instance i, dpacket p, void *args) {
+    char *message = NULL;
+
     /* Get the raw data from the packet */
     message = xmlnode_get_data(p->x);
 
     if (message == NULL) {
-        log_debug2(ZONE, LOGT_STRANGE, "base_stderr_deliver: no message available to print.");
+        log_debug2(ZONE, LOGT_STRANGE,
+                   "base_stderr_deliver: no message available to print.");
         return r_ERR;
     }
 
@@ -58,11 +59,15 @@ static result base_stderr_config(instance id, xmlnode x, void *arg) {
         return r_PASS;
 
     if (id->type != p_LOG) {
-        log_alert(NULL, "ERROR in instance %s: <stderr/> element only allowed in log sections", id->id);
+        log_alert(NULL,
+                  "ERROR in instance %s: <stderr/> element only allowed in log "
+                  "sections",
+                  id->id);
         return r_ERR;
     }
 
-    log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_stderr configuring instance %s",id->id);
+    log_debug2(ZONE, LOGT_INIT | LOGT_CONFIG,
+               "base_stderr configuring instance %s", id->id);
 
     /* Register the handler, for this instance */
     register_phandler(id, o_DELIVER, base_stderr_display, NULL);
@@ -73,7 +78,8 @@ static result base_stderr_config(instance id, xmlnode x, void *arg) {
 /**
  * register the stderr base handler
  *
- * @param p memory pool used to register the configuration handler, must be available for the livetime of jabberd
+ * @param p memory pool used to register the configuration handler, must be
+ * available for the livetime of jabberd
  */
 void base_stderr(pool p) {
     log_debug2(ZONE, LOGT_INIT, "base_stderr loading...");

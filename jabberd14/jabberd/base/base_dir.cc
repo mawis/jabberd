@@ -1,6 +1,6 @@
 /*
  * Copyrights
- * 
+ *
  * Copyright (c) 2006-2007 Matthias Wimmer
  *
  * This file is part of jabberd14.
@@ -24,13 +24,15 @@
 
 /**
  * @file base_dir.cc
- * @brief base module base_dir: reads stanzas that are placed in a directory and processes them
+ * @brief base module base_dir: reads stanzas that are placed in a directory and
+ * processes them
  *
- * This module is can be used to periodically read a directory and check if new files
- * are in this directory. If there are, this base module will read these files, parse
- * them and handle them as stanzas.
+ * This module is can be used to periodically read a directory and check if new
+ * files are in this directory. If there are, this base module will read these
+ * files, parse them and handle them as stanzas.
  *
- * This can be used to generate Jabber messages in other programs, e.g. for web integration of jabberd.
+ * This can be used to generate Jabber messages in other programs, e.g. for web
+ * integration of jabberd.
  */
 
 #include "jabberd.h"
@@ -40,11 +42,11 @@
  * hold data this instance of base_dir needs to be passed as void* pointer
  */
 typedef struct base_dir_struct {
-    instance	id;		/**< the instance this base_dir is running in */
-    char*	in_dir;		/**< the directory that is monitored */
-    char*	out_dir;	/**< where stanzas are written */
-    int		serial;		/**< serial number for writing stanzas */
-} *base_dir_st, _base_dir_st;
+    instance id;   /**< the instance this base_dir is running in */
+    char *in_dir;  /**< the directory that is monitored */
+    char *out_dir; /**< where stanzas are written */
+    int serial;    /**< serial number for writing stanzas */
+} * base_dir_st, _base_dir_st;
 
 /**
  * check the directory for new stanzas
@@ -65,40 +67,46 @@ static result base_dir_read(void *arg) {
 
     /* could it be opened? */
     if (dir == NULL) {
-	log_error(conf_data->id->id, "could not open directory %s for reading", conf_data->in_dir);
-	return r_UNREG;
+        log_error(conf_data->id->id, "could not open directory %s for reading",
+                  conf_data->in_dir);
+        return r_UNREG;
     }
 
     p = pool_new();
 
     /* read the files in this directory */
     while ((dir_ent = readdir(dir)) != NULL) {
-	/* we only care for stanzas */
-	if (j_strlen(dir_ent->d_name) < 7) {
-	    continue;
-	}
-	if (j_strcmp(dir_ent->d_name + j_strlen(dir_ent->d_name) - 7, ".stanza") != 0) {
-	    continue;
-	}
+        /* we only care for stanzas */
+        if (j_strlen(dir_ent->d_name) < 7) {
+            continue;
+        }
+        if (j_strcmp(dir_ent->d_name + j_strlen(dir_ent->d_name) - 7,
+                     ".stanza") != 0) {
+            continue;
+        }
 
-	/* get the full filename */
-	std::ostringstream filename;
-	filename << conf_data->in_dir << "/" << dir_ent->d_name;
+        /* get the full filename */
+        std::ostringstream filename;
+        filename << conf_data->in_dir << "/" << dir_ent->d_name;
 
-	/* process the stanza file */
-	x = xmlnode_file(filename.str().c_str());
-	jp = jpacket_new(x);
-	if (jp != NULL && (jp->type != JPACKET_UNKNOWN || (j_strcmp(xmlnode_get_localname(x), "route") == 0 && j_strcmp(xmlnode_get_namespace(x), NS_SERVER) == 0))) {
-	    deliver(dpacket_new(x), conf_data->id);
-	} else {
-	    log_warn(conf_data->id->id, "deleted invalid stanza %s", filename.str().c_str());
-	    xmlnode_free(x);
-	}
+        /* process the stanza file */
+        x = xmlnode_file(filename.str().c_str());
+        jp = jpacket_new(x);
+        if (jp != NULL &&
+            (jp->type != JPACKET_UNKNOWN ||
+             (j_strcmp(xmlnode_get_localname(x), "route") == 0 &&
+              j_strcmp(xmlnode_get_namespace(x), NS_SERVER) == 0))) {
+            deliver(dpacket_new(x), conf_data->id);
+        } else {
+            log_warn(conf_data->id->id, "deleted invalid stanza %s",
+                     filename.str().c_str());
+            xmlnode_free(x);
+        }
 
-	/* delete the file */
-	unlink(filename.str().c_str());
+        /* delete the file */
+        unlink(filename.str().c_str());
 
-	log_debug2(ZONE, LOGT_IO, "found file %s", filename.str().c_str());
+        log_debug2(ZONE, LOGT_IO, "found file %s", filename.str().c_str());
     }
 
     /* close directory, free memory and return */
@@ -120,7 +128,7 @@ static result base_dir_deliver(instance id, dpacket p, void *arg) {
 
     /* check the parameters */
     if (id == NULL || p == NULL || conf_data == NULL) {
-	return r_ERR;
+        return r_ERR;
     }
 
     /* get string for the serial */
@@ -131,12 +139,13 @@ static result base_dir_deliver(instance id, dpacket p, void *arg) {
 
     /* write to file */
     std::ostringstream filename;
-    filename << conf_data->out_dir << "/" << id->id << "-" << jid_hash << "-" << jutil_timestamp_ms(timestamp) << "-" << serial << ".out";
+    filename << conf_data->out_dir << "/" << id->id << "-" << jid_hash << "-"
+             << jutil_timestamp_ms(timestamp) << "-" << serial << ".out";
     int res = xmlnode2file(filename.str().c_str(), p->x) > 0 ? r_DONE : r_ERR;
 
     // if we consumed the dpacket, we have to free the xmlnode now
     if (res) {
-	xmlnode_free(p->x);
+        xmlnode_free(p->x);
     }
 
     return res ? r_DONE : r_ERR;
@@ -145,7 +154,8 @@ static result base_dir_deliver(instance id, dpacket p, void *arg) {
 /**
  * configuration handling
  *
- * @param id the instance to handle the configuration for, NULL for only validating the configuration
+ * @param id the instance to handle the configuration for, NULL for only
+ * validating the configuration
  * @param x the <dir/> element that has to be processed
  * @param arg unused/ignored
  * @return r_ERR on error, r_PASS on success
@@ -153,20 +163,25 @@ static result base_dir_deliver(instance id, dpacket p, void *arg) {
 static result base_dir_config(instance id, xmlnode x, void *arg) {
     base_dir_st conf_data = NULL;
     xht namespaces = NULL;
-    
+
     /* nothing has to be done for configuration validation */
-    if(id == NULL) {
+    if (id == NULL) {
         return r_PASS;
     }
 
-    log_debug2(ZONE, LOGT_INIT|LOGT_CONFIG, "base_dir configuring instance %s", id->id);
+    log_debug2(ZONE, LOGT_INIT | LOGT_CONFIG,
+               "base_dir configuring instance %s", id->id);
 
     /* process configuration */
     namespaces = xhash_new(3);
-    xhash_put(namespaces, "", const_cast<char*>(NS_JABBERD_CONFIGFILE));
+    xhash_put(namespaces, "", const_cast<char *>(NS_JABBERD_CONFIGFILE));
     conf_data = static_cast<base_dir_st>(pmalloc(id->p, sizeof(_base_dir_st)));
-    conf_data->in_dir = pstrdup(id->p, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "in", namespaces), 0)));
-    conf_data->out_dir = pstrdup(id->p, xmlnode_get_data(xmlnode_get_list_item(xmlnode_get_tags(x, "out", namespaces), 0)));
+    conf_data->in_dir =
+        pstrdup(id->p, xmlnode_get_data(xmlnode_get_list_item(
+                           xmlnode_get_tags(x, "in", namespaces), 0)));
+    conf_data->out_dir =
+        pstrdup(id->p, xmlnode_get_data(xmlnode_get_list_item(
+                           xmlnode_get_tags(x, "out", namespaces), 0)));
     conf_data->id = id;
     conf_data->serial = 0;
     xhash_free(namespaces);
@@ -174,34 +189,41 @@ static result base_dir_config(instance id, xmlnode x, void *arg) {
 
     /* read legacy configuration: no subelement of the dir element */
     if (conf_data->in_dir == NULL && conf_data->out_dir == NULL) {
-	conf_data->in_dir = conf_data->out_dir = xmlnode_get_data(x);
+        conf_data->in_dir = conf_data->out_dir = xmlnode_get_data(x);
 
-	/* still no configuration? */
-	if (conf_data->in_dir == NULL) {
-	    log_alert(id->id, "ERROR in instance %s: <dir>...</dir> element needs at least one directory as an argument", id->id);
-	    return r_ERR;
-	} else {
-	    log_notice(id->id, "Better use the elements <in/> and <out/> inside the <dir/> element to configure the base_dir handler");
-	}
+        /* still no configuration? */
+        if (conf_data->in_dir == NULL) {
+            log_alert(id->id,
+                      "ERROR in instance %s: <dir>...</dir> element needs at "
+                      "least one directory as an argument",
+                      id->id);
+            return r_ERR;
+        } else {
+            log_notice(id->id,
+                       "Better use the elements <in/> and <out/> inside the "
+                       "<dir/> element to configure the base_dir handler");
+        }
     }
 
     /* register beat for regular check directory for incoming stanzas */
     if (conf_data->in_dir != NULL) {
-	register_beat(1, base_dir_read, (void*)conf_data);
+        register_beat(1, base_dir_read, (void *)conf_data);
     }
 
     /* register handler for outgoing stanzas */
     if (conf_data->out_dir != NULL) {
-	register_phandler(id, o_DELIVER, base_dir_deliver, (void*)conf_data);
+        register_phandler(id, o_DELIVER, base_dir_deliver, (void *)conf_data);
     }
 
     return r_DONE;
 }
 
 /**
- * load the base_dir base module by registering a configuration handler for &lt;dir/&gt;
+ * load the base_dir base module by registering a configuration handler for
+ * &lt;dir/&gt;
  *
- * @param p memory pool used to register the configuration handler (must be available for the livetime of jabberd)
+ * @param p memory pool used to register the configuration handler (must be
+ * available for the livetime of jabberd)
  */
 void base_dir(pool p) {
     log_debug2(ZONE, LOGT_INIT, "base_dir loading...");
