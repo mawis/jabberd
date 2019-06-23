@@ -175,7 +175,7 @@ static result base_dir_config(instance id, xmlnode x, void *arg) {
     /* process configuration */
     namespaces = xhash_new(3);
     xhash_put(namespaces, "", const_cast<char *>(NS_JABBERD_CONFIGFILE));
-    conf_data = static_cast<base_dir_st>(pmalloc(id->p, sizeof(_base_dir_st)));
+    conf_data = static_cast<base_dir_st>(pmalloco(id->p, sizeof(_base_dir_st)));
     conf_data->in_dir =
         pstrdup(id->p, xmlnode_get_data(xmlnode_get_list_item(
                            xmlnode_get_tags(x, "in", namespaces), 0)));

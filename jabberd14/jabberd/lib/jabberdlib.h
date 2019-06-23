@@ -300,8 +300,6 @@ typedef struct pool_struct {
 
 pool _pool_new(char const *zone, int line);
 pool _pool_new_heap(int size, char const *zone, int line);
-void *pmalloc(pool p, int size);
-void *pmalloc_x(pool p, int size, char c);
 void *pmalloco(pool p, int size);
 char *pstrdup(pool p, char const *src);
 void pool_stat(int full);

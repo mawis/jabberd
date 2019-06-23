@@ -53,7 +53,7 @@ jpacket jpacket_new(xmlnode x) {
     if (x == NULL)
         return NULL;
 
-    p = static_cast<jpacket>(pmalloc(xmlnode_pool(x), sizeof(_jpacket)));
+    p = static_cast<jpacket>(pmalloco(xmlnode_pool(x), sizeof(_jpacket)));
     p->x = x;
 
     return jpacket_reset(p);

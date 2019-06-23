@@ -518,7 +518,7 @@ static result base_importspool_config(instance id, xmlnode x, void *arg) {
 
     /* process configuration */
     conf_data = static_cast<base_importspool_st>(
-        pmalloc(id->p, sizeof(_base_importspool_st)));
+        pmalloco(id->p, sizeof(_base_importspool_st)));
     conf_data->id = id;
     conf_data->importspool = xmlnode_get_data(x);
     conf_data->xc = xdb_cache(id);

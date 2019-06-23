@@ -56,7 +56,7 @@ jlimit jlimit_new(int maxt, int maxp) {
     jlimit r;
 
     p = pool_new();
-    r = static_cast<jlimit>(pmalloc(p, sizeof(_jlimit)));
+    r = static_cast<jlimit>(pmalloco(p, sizeof(_jlimit)));
     r->key = NULL;
     r->start = r->points = 0;
     r->maxt = maxt;

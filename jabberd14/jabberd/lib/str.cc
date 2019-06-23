@@ -196,7 +196,7 @@ char *strunescape(pool p, char *buf) {
     if (strchr(buf, '&') == NULL)
         return (buf);
 
-    temp = static_cast<char *>(pmalloc(p, strlen(buf) + 1));
+    temp = static_cast<char *>(pmalloco(p, strlen(buf) + 1));
 
     if (temp == NULL)
         return (NULL);
@@ -300,7 +300,7 @@ char *strescape(pool p, char *buf) {
     if (oldlen == newlen)
         return buf;
 
-    temp = static_cast<char *>(pmalloc(p, newlen + 1));
+    temp = static_cast<char *>(pmalloco(p, newlen + 1));
 
     if (temp == NULL)
         return (NULL);

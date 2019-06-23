@@ -271,7 +271,7 @@ pool _pool_new_heap(int const size, char const *const zone, int const line) {
  * @param size how much memory to allocate
  * @return pointer to the allocated memory
  */
-void *pmalloc(pool p, int const size) {
+static void *pmalloc(pool p, int const size) {
     void *block;
 
     if (p == NULL) {
@@ -302,23 +302,6 @@ void *pmalloc(pool p, int const size) {
     block = (char *)p->heap->block + p->heap->used;
     p->heap->used += size;
     return block;
-}
-
-/**
- * allocate memory and initialize the memory with the given char c
- *
- * @deprecated jabberd does use pmalloco instead, this function will be removed
- *
- * @param p which pool to use
- * @param size the size of the allocation
- * @param c the initialization character
- * @return pointer to the allocated memory
- */
-void *pmalloc_x(pool p, int const size, char const c) {
-    void *result = pmalloc(p, size);
-    if (result != NULL)
-        memset(result, c, size);
-    return result;
 }
 
 /**

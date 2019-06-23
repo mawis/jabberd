@@ -200,7 +200,7 @@ static void _xmlnode_merge(xmlnode data) {
         imerge += cur->data_sz;
 
     /* copy in current data and then spin through all of them and merge */
-    scur = merge = static_cast<char *>(pmalloc(data->p, imerge + 1));
+    scur = merge = static_cast<char *>(pmalloco(data->p, imerge + 1));
     for (cur = data; cur != NULL && cur->type == NTYPE_CDATA; cur = cur->next) {
         memcpy(scur, cur->data, cur->data_sz);
         scur += cur->data_sz;
@@ -765,7 +765,7 @@ xmlnode xmlnode_insert_cdata(xmlnode parent, const char *CDATA, ssize_t size) {
 
     result = _xmlnode_insert(parent, NULL, NULL, NULL, NTYPE_CDATA);
     if (result != NULL) {
-        result->data = (char *)pmalloc(result->p, size + 1);
+        result->data = (char *)pmalloco(result->p, size + 1);
         memcpy(result->data, CDATA, size);
         result->data[size] = '\0';
         result->data_sz = size;
