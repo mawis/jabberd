@@ -2,6 +2,8 @@
 name = "jabberdlib"
 version = "0.1.0"
 authors = ["Matthias Wimmer <m@tthias.eu>"]
+homepage = "https://jabberd.org/"
+repository = "https://github.com/mawis/jabberd"
 edition = "2018"
 
 [dependencies]
