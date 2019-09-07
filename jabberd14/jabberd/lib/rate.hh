@@ -1,7 +1,13 @@
 /*
  * Copyrights
  *
- * Copyright (c) 2006-2019 Matthias Wimmer
+ * Portions created by or assigned to Jabber.com, Inc. are
+ * Copyright (c) 1999-2002 Jabber.com, Inc.  All Rights Reserved.  Contact
+ * information for Jabber.com, Inc. is available at http://www.jabber.com/.
+ *
+ * Portions Copyright (c) 1998-1999 Jeremie Miller.
+ *
+ * Portions Copyright (c) 2006-2019 Matthias Wimmer
  *
  * This file is part of jabberd14.
  *
@@ -21,11 +27,19 @@
  * 02110-1301, USA.
  *
  */
+#ifndef __RATE_HH
+#define __RATE_HH
 
-#ifndef __MESSAGES_HH
-#define __MESSAGES_HH
+typedef struct jlimit_struct {
+    char *key;
+    int start;
+    int points;
+    int maxt, maxp;
+    pool p;
+} * jlimit, _jlimit;
 
-void messages_set_mapping(const char *lang, const char *locale_name);
-const char *messages_get(const char *lang, const char *message);
+jlimit jlimit_new(int maxt, int maxp);
+void jlimit_free(jlimit r);
+int jlimit_check(jlimit r, char *key, int points);
 
-#endif // __MESSAGES_HH
+#endif // __RATE_HH

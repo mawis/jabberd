@@ -172,7 +172,7 @@ struct in_addr *make_addr(char const *const host) {
  * @param src the in_addr to map
  * @param dest where to place the mapped result address
  */
-void _map_addr_to6(const struct in_addr *src, struct in6_addr *dest) {
+static void _map_addr_to6(const struct in_addr *src, struct in6_addr *dest) {
     uint32_t hip;
 
     bzero(dest, sizeof(struct in6_addr));

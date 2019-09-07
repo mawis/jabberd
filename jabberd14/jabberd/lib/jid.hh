@@ -24,6 +24,14 @@
 #ifndef __JID_H
 #define __JID_H
 
+#include "jabberid.hh"
+
+#define JID_RESOURCE 1
+#define JID_USER 2
+#define JID_SERVER 4
+
+typedef xmppd::jabberid_pool *jid;
+
 jid jid_new(pool p, const char *idstr); /* Creates a jabber id from the idstr */
 void jid_set(jid id, const char *str,
              int item); /* Individually sets jid components */

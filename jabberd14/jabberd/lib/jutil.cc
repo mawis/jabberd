@@ -281,101 +281,6 @@ char *jutil_timestamp_ms(char buffer[25]) {
 }
 
 /**
- * map a terror structure to a xterror structure
- *
- * terror structures have been used in jabberd14 up to version 1.4.3 but
- * are not able to hold XMPP compliant stanza errors. The xterror
- * structure has been introduced to be XMPP compliant. This function
- * is to ease writting wrappers that accept terror structures and call
- * the real functions that require now xterror structures
- *
- * @param old the terror struct that should be converted
- * @param mapped pointer to the xterror struct that should be filled with the
- * converted error
- */
-void jutil_error_map(terror old, xterror *mapped) {
-    mapped->code = old.code;
-    if (old.msg == NULL)
-        mapped->msg[0] = 0;
-    else
-        strncpy(mapped->msg, old.msg, sizeof(mapped->msg));
-
-    switch (old.code) {
-        case 302:
-            strcpy(mapped->type, "modify");
-            strcpy(mapped->condition, "redirect");
-            break;
-        case 400:
-            strcpy(mapped->type, "modify");
-            strcpy(mapped->condition, "bad-request");
-            break;
-        case 401:
-            strcpy(mapped->type, "auth");
-            strcpy(mapped->condition, "not-authorized");
-            break;
-        case 402:
-            strcpy(mapped->type, "auth");
-            strcpy(mapped->condition, "payment-required");
-            break;
-        case 403:
-            strcpy(mapped->type, "auth");
-            strcpy(mapped->condition, "forbidden");
-            break;
-        case 404:
-            strcpy(mapped->type, "cancel");
-            strcpy(mapped->condition, "item-not-found");
-            break;
-        case 405:
-            strcpy(mapped->type, "cancel");
-            strcpy(mapped->condition, "not-allowed");
-            break;
-        case 406:
-            strcpy(mapped->type, "modify");
-            strcpy(mapped->condition, "not-acceptable");
-            break;
-        case 407:
-            strcpy(mapped->type, "auth");
-            strcpy(mapped->condition, "registration-requited");
-            break;
-        case 408:
-            strcpy(mapped->type, "wait");
-            strcpy(mapped->condition, "remote-server-timeout");
-            break;
-        case 409:
-            strcpy(mapped->type, "cancel");
-            strcpy(mapped->condition, "conflict");
-            break;
-        case 500:
-            strcpy(mapped->type, "wait");
-            strcpy(mapped->condition, "internal-server-error");
-            break;
-        case 501:
-            strcpy(mapped->type, "cancel");
-            strcpy(mapped->condition, "feature-not-implemented");
-            break;
-        case 502:
-            strcpy(mapped->type, "wait");
-            strcpy(mapped->condition, "service-unavailable");
-            break;
-        case 503:
-            strcpy(mapped->type, "cancel");
-            strcpy(mapped->condition, "service-unavailable");
-            break;
-        case 504:
-            strcpy(mapped->type, "wait");
-            strcpy(mapped->condition, "remote-server-timeout");
-            break;
-        case 510:
-            strcpy(mapped->type, "cancel");
-            strcpy(mapped->condition, "service-unavailable");
-            break;
-        default:
-            strcpy(mapped->type, "wait");
-            strcpy(mapped->condition, "undefined-condition");
-    }
-}
-
-/**
  * update an xmlnode to be the error stanza for itself
  *
  * @param x the xmlnode that should become an stanza error message
@@ -402,21 +307,6 @@ void jutil_error_xmpp(xmlnode x, xterror E) {
     }
 
     jutil_tofrom(x);
-}
-
-/**
- * wrapper around jutil_error_xmpp for compatibility with modules for jabberd up
- * to version 1.4.3
- *
- * @deprecated use jutil_error_xmpp instead!
- *
- * @param x the xmlnode that should become an stanza error message
- * @param E the strucutre that holds the error information
- */
-void jutil_error(xmlnode x, terror E) {
-    xterror xE;
-    jutil_error_map(E, &xE);
-    jutil_error_xmpp(x, xE);
 }
 
 /**

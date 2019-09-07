@@ -139,4 +139,8 @@ class sha1 : public hash {
 };
 } // namespace xmppd
 
+char *shahash(char const *str);                    /* NOT THREAD SAFE */
+void shahash_r(const char *str, char hashbuf[41]); /* USE ME */
+void shaBlock(unsigned char *dataIn, int len, unsigned char hashout[20]);
+
 #endif // __HASH_HH
