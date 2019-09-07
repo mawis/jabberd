@@ -57,8 +57,8 @@
 #include <config.h>
 #endif
 
-#ifndef INCL_LIB_H
-#define INCL_LIB_H
+#ifndef __JABBERDLIB_H
+#define __JABBERDLIB_H
 
 #include "hash.hh"
 #include "pool.hh"
@@ -81,4 +81,4 @@
 #include "messages.hh"
 #include "lwresc.hh"
 
-#endif /* INCL_LIB_H */
+#endif // __JABBERDLIB_H
