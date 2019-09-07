@@ -30,6 +30,8 @@
 
 #include "jabberd.h"
 
+#include <unistd.h>
+
 /**
  * @file base_stdout.cc
  * @brief this handler will cause all packets to be delivered to standard out

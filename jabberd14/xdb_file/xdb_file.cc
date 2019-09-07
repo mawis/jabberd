@@ -39,8 +39,13 @@
  * the traditional storage module of the jabberd14 server.
  */
 
-#include <dirent.h>
 #include <jabberd.h>
+
+#include <dirent.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #define FILES_PRIME 509
 

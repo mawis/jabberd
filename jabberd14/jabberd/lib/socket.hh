@@ -30,6 +30,8 @@
 #ifndef __SOCKET_H
 #define __SOCKET_H
 
+#include <glibmm.h>
+
 #ifndef MAXHOSTNAMELEN
 #define MAXHOSTNAMELEN 64
 #endif

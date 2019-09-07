@@ -43,6 +43,7 @@
 #include "jabberd.h"
 #include "srv_resolv.h"
 #include <sys/wait.h>
+#include <unistd.h>
 
 #ifdef LIBIDN
 #include <idna.h>

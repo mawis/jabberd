@@ -36,7 +36,9 @@
  */
 
 #include "jabberd.h"
+
 #include <dirent.h>
+#include <unistd.h>
 
 /**
  * hold data this instance of base_dir needs to be passed as void* pointer

@@ -26,6 +26,8 @@
  * in XMPP)
  */
 
+#include <cstring>
+
 #include <jabberdlib.h>
 #include <stringprep.h>
 

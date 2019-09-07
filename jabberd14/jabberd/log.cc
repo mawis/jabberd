@@ -40,6 +40,8 @@
 
 #include "jabberd.h"
 
+#include <syslog.h>
+
 int _debug_facility = -1; /**< facility to use for sending debugging messages to
                              syslog - or -1 for not using syslog but stderr */
 int debug_flag = 0; /**< the active debugging mask (this is a bitmask of ORed

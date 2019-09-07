@@ -48,6 +48,8 @@
 
 #include <jabberdlib.h>
 
+#include <pth.h>
+
 #define MAX_MALLOC_TRIES 10 /**< how many seconds we try to allocate memory */
 
 #ifdef POOL_DEBUG

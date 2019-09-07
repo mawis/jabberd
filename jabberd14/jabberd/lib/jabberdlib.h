@@ -57,48 +57,8 @@
 #include <config.h>
 #endif
 
-#include <arpa/inet.h>
-#include <arpa/nameser.h>
-#include <cstdlib>
-#include <cstring>
-#include <ctime>
-#include <ctype.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <pth.h>
-#include <setjmp.h>
-#include <signal.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <strings.h>
-#include <sys/param.h>
-#include <sys/socket.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <syslog.h>
-#include <unistd.h>
-
-#include <expat.h>
-
-#include <list>
-#include <utility>
-
-#include <unordered_map>
-
-#include <glibmm.h>
-
-
 #ifndef INCL_LIB_H
 #define INCL_LIB_H
-
-#include <set>
-#include <sstream>
-#include <stdexcept>
-#include <string>
-#include <vector>
 
 #include "hash.hh"
 #include "pool.hh"

@@ -34,7 +34,10 @@
  */
 
 #include "jabberd.h"
+
+#include <fcntl.h>
 #include <iostream>
+#include <unistd.h>
 
 #define MAX_INCLUDE_NESTING                                                    \
     20 /**< the maximum number of nexted &lt;jabberd:include/&gt; elements in  \

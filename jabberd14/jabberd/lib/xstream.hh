@@ -39,6 +39,8 @@
 #define XSTREAM_CLOSE 2 /* closed </stream:stream> */
 #define XSTREAM_ERR 4   /* parser error */
 
+#include <expat.h>
+
 typedef void (*xstream_onNode)(int type, xmlnode x,
                                void *arg); /* xstream event handler */
 

@@ -50,6 +50,7 @@
 #include <syslog.h>
 #endif
 
+#include <unistd.h>
 #include <popt.h>
 
 xht debug__zones = NULL; /**< the debugging zones, that are enabled (key = zone

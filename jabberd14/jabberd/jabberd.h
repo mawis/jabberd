@@ -127,6 +127,7 @@
 #include <gnutls/gnutls.h>
 #include <gnutls/x509.h>
 #include <jabberdlib.h>
+#include <pth.h>
 
 /** Packet types */
 typedef enum { p_NONE, p_NORM, p_XDB, p_LOG, p_ROUTE } ptype;

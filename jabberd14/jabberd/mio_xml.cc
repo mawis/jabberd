@@ -38,9 +38,13 @@
  * of the root element (including their child elements).
  */
 
-#include <fstream>
 #include <jabberd.h>
+
+#include <fstream>
 #include <libgen.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 /* defined in mio.c */
 extern ios mio__data;

@@ -35,6 +35,7 @@
  */
 
 #include "jabberd.h"
+#include <fcntl.h>
 #include <gcrypt.h>
 #include <iostream>
 #include <libtasn1.h>
@@ -43,6 +44,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <unistd.h>
 #include <vector>
 
 // Tell gcrypt that we are using libpth - had to move this to a plain C file

@@ -24,6 +24,10 @@
 #ifndef __HASH_HH
 #define __HASH_HH
 
+#include <string>
+#include <set>
+#include <vector>
+
 namespace xmppd {
 /* ******************** Hashing algorithms ****************** */
 

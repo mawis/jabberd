@@ -35,6 +35,8 @@
 
 #include <jabberdlib.h>
 
+#include <sys/time.h>
+
 /**
  * utility for making presence stanzas
  *

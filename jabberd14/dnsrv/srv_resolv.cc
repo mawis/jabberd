@@ -28,12 +28,17 @@
  *
  */
 
+
 #include "jabberd.h"
 
+#include <arpa/inet.h>
+#include <netdb.h>
 #include <netinet/in.h>
 #define BIND_8_COMPAT
 #include <arpa/nameser.h>
 #include <resolv.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 #include "srv_resolv.h"
 

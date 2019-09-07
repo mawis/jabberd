@@ -43,7 +43,11 @@
  * anymore.
  */
 
+
 #include <jabberdlib.h>
+
+#include <fcntl.h>
+#include <unistd.h>
 
 /**
  * structure used to pass information to the expat callbacks

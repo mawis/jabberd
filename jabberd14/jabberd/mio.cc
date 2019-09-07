@@ -44,7 +44,10 @@
 
 #include <jabberd.h>
 
+#include <arpa/inet.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 /********************************************************
  *************  Internal MIO Functions  *****************

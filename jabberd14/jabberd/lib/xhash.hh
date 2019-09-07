@@ -31,6 +31,8 @@
 #ifndef __XHASH_HH
 #define __XHASH_HH
 
+#include <unordered_map>
+
 namespace xmppd {
 
 /**

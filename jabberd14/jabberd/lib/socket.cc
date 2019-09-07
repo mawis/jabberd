@@ -38,6 +38,11 @@
 
 #include <jabberdlib.h>
 
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <unistd.h>
+
+
 /**
  * Simple wrapper to create sockets
  *
