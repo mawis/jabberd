@@ -1,0 +1,13 @@
+[package]
+name = "jabberdlib"
+version = "0.1.0"
+authors = ["Matthias Wimmer <m@tthias.eu>"]
+edition = "2018"
+
+[dependencies]
+
+[build-dependencies]
+cmake = "0.1"
+
+[lib]
+crate-type = ["staticlib"]

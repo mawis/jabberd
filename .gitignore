@@ -30,3 +30,6 @@ Makefile.in
 /jabberd14/man/jabber.xml.5
 /jabberd14/man/jabberd.8
 /jabberd14/xdb_file/xdbfiletool
+
+/jabberd14/jabberdlib/Cargo.lock
+/jabberd14/jabberdlib/target
