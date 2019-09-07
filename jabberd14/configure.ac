@@ -93,8 +93,8 @@ if test "$have_dlopen" = "yes"; then
 else
     AC_CHECK_LIB(dl, dlopen, have_dlopen=yes, have_dlopen=no)
     if test "$have_dlopen" = "yes"; then
-	AC_DEFINE(HAVE_DLOPEN, 1, [Define if dlopen is available.])
-	LIBS="$LIBS -ldl"
+        AC_DEFINE(HAVE_DLOPEN, 1, [Define if dlopen is available.])
+        LIBS="$LIBS -ldl"
     fi
 fi
 if test "$have_dlopen" = "no"; then
@@ -108,22 +108,22 @@ if test "x-$ac_cv_func_res_querydomain" = "x-yes" ; then
 else
     AC_CHECK_LIB(resolv, res_querydomain)
     if test "x-$ac_cv_lib_resolv_res_querydomain" = "x-yes" ; then
-	have_res_querydomain=yes
+        have_res_querydomain=yes
     else
-	AC_CHECK_LIB(bind, res_querydomain)
-	if test "x-$ac_cv_lib_bind_res_querydomain" = "x-yes" ; then
-	    have_res_querydomain=yes
-	else
-	    AC_MSG_CHECKING([for res_querydomain in -lresolv (alternate version)])
-	    save_libs="$LIBS"
-	    LIBS="-lresolv $LIBS"
-	    AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <resolv.h>]],
-					    [[res_querydomain(0,0,0,0,0,0)]])],
-			   [AC_MSG_RESULT(yes)
-			    have_res_querydomain=yes],
-			   [AC_MSG_RESULT(no)
-			    LIBS="$save_libs"])
-	fi
+        AC_CHECK_LIB(bind, res_querydomain)
+        if test "x-$ac_cv_lib_bind_res_querydomain" = "x-yes" ; then
+            have_res_querydomain=yes
+        else
+            AC_MSG_CHECKING([for res_querydomain in -lresolv (alternate version)])
+            save_libs="$LIBS"
+            LIBS="-lresolv $LIBS"
+            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <resolv.h>]],
+                                            [[res_querydomain(0,0,0,0,0,0)]])],
+                           [AC_MSG_RESULT(yes)
+                            have_res_querydomain=yes],
+                           [AC_MSG_RESULT(no)
+                            LIBS="$save_libs"])
+        fi
     fi
 fi
 
@@ -254,7 +254,7 @@ AC_SUBST(POOL_DEBUG)
 dnl check for gcrypt
 AC_CHECK_HEADER(gcrypt.h,
     AC_CHECK_LIB(gcrypt, gcry_control,
-	[libgcrypt=yes LIBS="${LIBS} -lgcrypt"], libgcrypt=no), libgcrypt=no)
+        [libgcrypt=yes LIBS="${LIBS} -lgcrypt"], libgcrypt=no), libgcrypt=no)
 if test "$libgcrypt" = "no"; then
     AC_MSG_ERROR([Couldn't find required libgcrypt installation])
 fi
@@ -280,16 +280,16 @@ fi
 
 dnl check for libidn
 AC_ARG_WITH(libidn, AS_HELP_STRING([--with-libidn=DIR],[Where to find libidn (required)]),
-	    libidn=$withval, libidn=yes)
+            libidn=$withval, libidn=yes)
 if test "$libidn" != "no"; then
     if test "$libidn" != "yes"; then
-	LDFLAGS="${LDFLAGS} -L$libidn/lib"
-	CPPFLAGS="${CPPFLAGS} -I$libidn/include"
+        LDFLAGS="${LDFLAGS} -L$libidn/lib"
+        CPPFLAGS="${CPPFLAGS} -I$libidn/include"
     fi
     AC_CHECK_HEADER(idna.h,
-		    AC_CHECK_LIB(idn, stringprep_check_version,
-				 [libidn=yes LIBS="${LIBS} -lidn"], libidn=no),
-				 libidn=no)
+                    AC_CHECK_LIB(idn, stringprep_check_version,
+                                 [libidn=yes LIBS="${LIBS} -lidn"], libidn=no),
+                                 libidn=no)
 fi
 if test "$libidn" != "no"; then
     AC_DEFINE(LIBIDN, 1, [Define to 1 if you want IDN support.])
@@ -299,16 +299,16 @@ fi
 
 dnl check for pth
 AC_ARG_WITH(libpth, AS_HELP_STRING([--with-libpth=DIR],[Where to find libpth (required)]),
-	    libpth=$withval, libpth=yes)
+            libpth=$withval, libpth=yes)
 if test "$libpth" != "no"; then
     if test "$libpth" != "yes"; then
-	LDFLAGS="${LDFLAGS} -L$libpth/lib"
-	CPPFLAGS="${CPPFLAGS} -I$libpth/include"
+        LDFLAGS="${LDFLAGS} -L$libpth/lib"
+        CPPFLAGS="${CPPFLAGS} -I$libpth/include"
     fi
     AC_CHECK_HEADER(pth.h,
-		    AC_CHECK_LIB(pth, pth_version,
-				 [libpth=yes LIBS="${LIBS} -lpth"], libpth=no),
-				 libpth=no)
+                    AC_CHECK_LIB(pth, pth_version,
+                                 [libpth=yes LIBS="${LIBS} -lpth"], libpth=no),
+                                 libpth=no)
 fi
 if test "$libpth" != "yes"; then
     AC_MSG_ERROR([Couldn't find required libpth installation])
@@ -316,16 +316,16 @@ fi
 
 dnl check for expat
 AC_ARG_WITH(libexpat, AS_HELP_STRING([--with-expat=DIR],[Where to find libexpat (required)]),
-	    libexpat=$withval, libexpat=yes)
+            libexpat=$withval, libexpat=yes)
 if test "$libexpat" != "no"; then
     if test "$libexpat" != "yes"; then
-	LDFLAGS="${LDFLAGS} -L$libexpat/lib"
-	CPPFLAGS="${CPPFLAGS} -I$libexpat/include"
+        LDFLAGS="${LDFLAGS} -L$libexpat/lib"
+        CPPFLAGS="${CPPFLAGS} -I$libexpat/include"
     fi
     AC_CHECK_HEADER(expat.h,
-		    AC_CHECK_LIB(expat, XML_ParserCreate,
-				 [libexpat=yes LIBS="${LIBS} -lexpat"], libexpat=no),
-				 libexpat=no)
+                    AC_CHECK_LIB(expat, XML_ParserCreate,
+                                 [libexpat=yes LIBS="${LIBS} -lexpat"], libexpat=no),
+                                 libexpat=no)
 fi
 if test "$libexpat" != "yes"; then
     AC_MSG_ERROR([Couldn't find required libexpat installation])
@@ -334,16 +334,16 @@ fi
 
 dnl check for mysql
 AC_ARG_WITH(mysql, AS_HELP_STRING([--with-mysql=DIR],[Include mysql support for xdb_sql]),
-	    mysql=$withval, mysql=yes)
+            mysql=$withval, mysql=yes)
 if test "$mysql" != "no"; then
     if test "$mysql" != "yes"; then
-	LDFLAGS="${LDFLAGS} -L$mysql/lib -L$mysql/lib/mysql"
-	CPPFLAGS="${CPPFLAGS} -I$mysql/include"
+        LDFLAGS="${LDFLAGS} -L$mysql/lib -L$mysql/lib/mysql"
+        CPPFLAGS="${CPPFLAGS} -I$mysql/include"
     fi
     AC_CHECK_HEADER(mysql/mysql.h,
-		    AC_CHECK_LIB(mysqlclient, mysql_close,
-				 [mysql=yes LIBS="${LIBS} -lmysqlclient"], mysql=no),
-				 mysql=no)
+                    AC_CHECK_LIB(mysqlclient, mysql_close,
+                                 [mysql=yes LIBS="${LIBS} -lmysqlclient"], mysql=no),
+                                 mysql=no)
 fi
 AC_MSG_CHECKING([for mysql])
 AC_MSG_RESULT($mysql)
@@ -353,16 +353,16 @@ fi
 
 dnl check for postgresql
 AC_ARG_WITH(postgresql, AS_HELP_STRING([--with-postgresql=DIR],[Include postgresql support for xdb_sql]),
-	    postgresql=$withval, postgresql=yes)
+            postgresql=$withval, postgresql=yes)
 if test "$postgresql" != "no"; then
     if test "$postgresql" != "yes"; then
-	LDFLAGS="${LDFLAGS} -L$postgresql/lib"
-	CPPFLAGS="${CPPFLAGS} -I$postgresql/include"
+        LDFLAGS="${LDFLAGS} -L$postgresql/lib"
+        CPPFLAGS="${CPPFLAGS} -I$postgresql/include"
     fi
     AC_CHECK_HEADER(postgresql/libpq-fe.h,
-		    AC_CHECK_LIB(pq, PQconnectdb,
-				 [postgresql=yes LIBS="${LIBS} -lpq"], postgresql=no),
-				 postgresql=no)
+                    AC_CHECK_LIB(pq, PQconnectdb,
+                                 [postgresql=yes LIBS="${LIBS} -lpq"], postgresql=no),
+                                 postgresql=no)
 fi
 AC_MSG_CHECKING([for postgresql])
 AC_MSG_RESULT($postgresql)
@@ -375,20 +375,20 @@ AC_DEFINE_DIR(CONFIG_DIR,sysconfdir,[where the configuration file can be found])
 
 dnl Create the makefiles
 AC_CONFIG_FILES([Makefile \
-	  jabberd/Makefile \
-	  jabberd/base/Makefile \
-	  jabberd/lib/Makefile \
-	  dialback/Makefile \
-	  dnsrv/Makefile \
-	  jsm/Makefile \
-	  jsm/modules/Makefile \
-	  man/Makefile \
-	  proxy65/Makefile \
-	  pthsock/Makefile \
-	  resolver/Makefile \
-	  xdb_file/Makefile \
-	  xdb_sql/Makefile \
-	  po/Makefile])
+          jabberd/Makefile \
+          jabberd/base/Makefile \
+          jabberd/lib/Makefile \
+          dialback/Makefile \
+          dnsrv/Makefile \
+          jsm/Makefile \
+          jsm/modules/Makefile \
+          man/Makefile \
+          proxy65/Makefile \
+          pthsock/Makefile \
+          resolver/Makefile \
+          xdb_file/Makefile \
+          xdb_sql/Makefile \
+          po/Makefile])
 AC_OUTPUT
 
 printf "\nYou may now type 'make' to build your new Jabber system.\nType 'make install' to install then.\n"
