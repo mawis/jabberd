@@ -86,11 +86,7 @@
 #include <list>
 #include <utility>
 
-#ifdef HAS_TR1_UNORDERED_MAP
-#include <tr1/unordered_map>
-#else
-#include <map>
-#endif
+#include <unordered_map>
 
 #include <glibmm.h>
 

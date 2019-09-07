@@ -215,17 +215,6 @@ if test "$crypt_header" != "no"; then
 fi
 AC_CHECK_LIB(crypt, crypt, [libcrypt=yes LIBS="${LIBS} -lcrypt"], libcrypt=no)
 
-dnl check for tr1/unordered_map
-AC_MSG_CHECKING(for tr1/unordered_map)
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <tr1/unordered_map>
-#include <string>]], [[std::tr1::unordered_map<std::string, std::string> m; m["foo"]="bar";]])],[have_tr1_unordered_map=yes],[have_tr1_unordered_map=no])
-if test "$have_tr1_unordered_map" = yes; then
-    AC_MSG_RESULT(yes)
-    AC_DEFINE(HAS_TR1_UNORDERED_MAP,,[support for hashmaps from TR1 has been detected])
-else
-    AC_MSG_RESULT(no)
-fi
-
 dnl debugging
 AC_MSG_CHECKING(if debug messages wanted)
 AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug],[Enable debug messages]),

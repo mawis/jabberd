@@ -45,13 +45,7 @@ namespace xmppd {
  * files we do install. This should be fixed before this code gets released.
  */
 template <class value_type>
-class xhash :
-#ifdef HAS_TR1_UNORDERED_MAP
-    public std::tr1::unordered_map<std::string, value_type>
-#else
-    public std::map<std::string, value_type>
-#endif
-{
+class xhash : public std::unordered_map<std::string, value_type> {
   public:
     /**
      * get an entry from the hash but consider the key to be a domain
