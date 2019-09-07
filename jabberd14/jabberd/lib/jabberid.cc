@@ -26,9 +26,12 @@
  * in XMPP)
  */
 
-#include <cstring>
 
-#include <jabberdlib.h>
+#include "jabberid.hh"
+
+#include "xhash.hh"
+
+#include <cstring>
 #include <stringprep.h>
 
 namespace xmppd {

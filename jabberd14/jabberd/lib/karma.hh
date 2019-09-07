@@ -31,6 +31,11 @@
 #ifndef __KARMA_HH
 #define __KARMA_HH
 
+#include <pool.hh>
+
+#include <cstdlib>
+#include <ctime>
+
 #define KARMA_READ_MAX(k)                                                      \
     (abs(k) * 100)        /* how much you are allowed to read off the sock */
 #define KARMA_INIT 5      /* internal "init" value */

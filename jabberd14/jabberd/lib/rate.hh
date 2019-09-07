@@ -30,6 +30,8 @@
 #ifndef __RATE_HH
 #define __RATE_HH
 
+#include <pool.hh>
+
 typedef struct jlimit_struct {
     char *key;
     int start;

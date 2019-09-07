@@ -30,6 +30,10 @@
 #ifndef __STR_HH
 #define __STR_HH
 
+#include "pool.hh"
+
+#include <locale>
+
 #define ZONE zonestr(__FILE__, __LINE__)
 char *zonestr(char const *file, int line);
 

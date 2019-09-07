@@ -36,7 +36,7 @@
  * register this socket in mio using mio_new().
  */
 
-#include <jabberdlib.h>
+#include <socket.hh>
 
 #include <arpa/inet.h>
 #include <netdb.h>

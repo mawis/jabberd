@@ -78,7 +78,7 @@
  * for their karma to raise to a more normal value.
  */
 
-#include <jabberdlib.h>
+#include <karma.hh>
 
 /**
  * make a copy of a karma structure

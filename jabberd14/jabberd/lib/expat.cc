@@ -44,9 +44,12 @@
  */
 
 
-#include <jabberdlib.h>
+#include "expat.hh"
+#include "namespaces.hh"
 
+#include <expat.h>
 #include <fcntl.h>
+#include <glibmm.h>
 #include <unistd.h>
 
 /**

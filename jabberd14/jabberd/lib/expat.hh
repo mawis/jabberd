@@ -31,6 +31,8 @@
 #ifndef __EXPAT_HH
 #define __EXPAT_HH
 
+#include "xmlnode.hh"
+
 void expat_startElement(void *userdata, const char *name, const char **atts);
 void expat_endElement(void *userdata, const char *name);
 void expat_charData(void *userdata, const char *s, int len);

@@ -38,7 +38,13 @@
  * The events can be weighted.
  */
 
-#include <jabberdlib.h>
+#include <rate.hh>
+
+#include <str.hh>
+
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 
 /**
  * create a new instance of jlimit that is used to limit events

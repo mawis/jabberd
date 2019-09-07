@@ -23,6 +23,10 @@
 #ifndef __JABBERID_HH
 #define __JABBERID_HH
 
+#include "pool.hh"
+
+#include <glibmm.h>
+
 namespace xmppd {
 
 /**

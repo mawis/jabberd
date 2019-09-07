@@ -39,7 +39,9 @@
  * that has to be accessed often (e.g. sender and receiver of a stanza).
  */
 
-#include <jabberdlib.h>
+#include <jpacket.hh>
+
+#include <namespaces.hh>
 
 /**
  * create a new jpacket by wrapping an xmlnode

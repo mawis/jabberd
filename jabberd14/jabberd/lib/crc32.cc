@@ -27,7 +27,11 @@
  * @brief Implementation of CRC32 using precomputed remainders
  */
 
-#include <jabberdlib.h>
+#include <crc32.hh>
+
+#include <cstdint>
+#include <cstdio>
+#include <strings.h>
 
 /**
  * precalculated CRC32-Values for 00..255

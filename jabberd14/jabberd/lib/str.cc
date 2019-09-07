@@ -42,7 +42,9 @@
  * using memory pools.
  */
 
-#include <jabberdlib.h>
+#include <str.hh>
+
+#include <cstring>
 
 /**
  * NULL pointer save version of strdup()

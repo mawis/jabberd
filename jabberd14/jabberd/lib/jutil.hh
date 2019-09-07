@@ -31,6 +31,8 @@
 #ifndef __JUTIL_HH
 #define __JUTIL_HH
 
+#include <xmlnode.hh>
+
 #ifndef N_
 #define N_(n) (n)
 #endif

@@ -31,6 +31,8 @@
 #ifndef __XSTREAM_HH
 #define __XSTREAM_HH
 
+#include <xmlnode.hh>
+
 #define XSTREAM_MAXNODE 1000000
 #define XSTREAM_MAXDEPTH 100
 

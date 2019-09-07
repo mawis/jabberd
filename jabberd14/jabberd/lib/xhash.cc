@@ -33,7 +33,10 @@
  * @brief implements a hashmap using STL containers
  */
 
-#include <jabberdlib.h>
+#include <xhash.hh>
+
+#include <namespaces.hh>
+#include <xmlnode.hh>
 
 namespace xmppd {
 template <class value_type>

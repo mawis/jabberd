@@ -46,8 +46,11 @@
  * pool_free(p);
  */
 
-#include <jabberdlib.h>
+#include <pool.hh>
 
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
 #include <pth.h>
 
 #define MAX_MALLOC_TRIES 10 /**< how many seconds we try to allocate memory */

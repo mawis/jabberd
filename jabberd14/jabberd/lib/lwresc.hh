@@ -26,6 +26,9 @@
 #define __LWRESC_HH
 
 #include <arpa/nameser.h>
+#include <iostream>
+#include <stdexcept>
+#include <vector>
 
 namespace xmppd {
 namespace lwresc {

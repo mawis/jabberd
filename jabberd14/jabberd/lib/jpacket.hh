@@ -31,6 +31,9 @@
 #ifndef __JPACKET_HH
 #define __JPACKET_HH
 
+#include <jid.hh>
+#include <xmlnode.hh>
+
 #define JPACKET_UNKNOWN 0x00
 #define JPACKET_MESSAGE 0x01
 #define JPACKET_PRESENCE 0x02

@@ -27,7 +27,7 @@
  * @brief compatibility functions for old JID handling
  */
 
-#include <jabberdlib.h>
+#include <jid.hh>
 
 static void jid_pool_cleaner(void *arg) {
     jid id = static_cast<jid>(arg);

@@ -33,7 +33,12 @@
  * @brief handling of XML documents in a DOM like way
  */
 
-#include <jabberdlib.h>
+#include <xmlnode.hh>
+
+#include <namespaces.hh>
+
+#include <cstring>
+#include <glibmm.h>
 #include <list>
 #include <map>
 #include <sstream>

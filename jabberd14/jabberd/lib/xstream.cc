@@ -41,8 +41,13 @@
  * ...) use XML streaming implemented in mio_xml.c.
  */
 
-#include <jabberdlib.h>
+#include <xstream.hh>
 
+#include <expat.hh>
+#include <hash.hh>
+#include <namespaces.hh>
+
+#include <cstring>
 #include <iostream>
 
 /* ========== internal expat callbacks =========== */

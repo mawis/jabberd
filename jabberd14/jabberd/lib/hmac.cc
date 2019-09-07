@@ -30,7 +30,12 @@
  * authenticate data. This is used inside jabberd14 to generate dialback keys.
  */
 
-#include "jabberdlib.h"
+#include "hmac.hh"
+
+#include "hash.hh"
+
+#include <cstdint>
+#include <vector>
 
 /**
  * Calculate the HMAC-SHA1 for a given block of data, the result is the binary
@@ -42,7 +47,7 @@
  * @param hmac where to place the result
  */
 static void hmac_sha1_r(char const *secret, unsigned char const *message,
-                        size_t len, unsigned char hmac[20]) {
+                        std::size_t len, unsigned char hmac[20]) {
     std::vector<uint8_t> key;
     xmppd::sha1 innerhash;
     xmppd::sha1 outerhash;
@@ -90,7 +95,7 @@ static void hmac_sha1_r(char const *secret, unsigned char const *message,
  * @param hmac where to place the result
  */
 void hmac_sha1_ascii_r(char const *secret, unsigned char const *message,
-                       size_t len, char hmac[41]) {
+                       std::size_t len, char hmac[41]) {
     unsigned char hmac_bin[20];
     int i = 0;
     char *ptr = hmac;

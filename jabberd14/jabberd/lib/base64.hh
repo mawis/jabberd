@@ -31,9 +31,11 @@
 #ifndef __BASE64_H
 #define __BASE64_H
 
-int base64_encode(unsigned char *source, size_t sourcelen, char *target,
-                  size_t targetlen);
-size_t base64_decode(const char *source, unsigned char *target,
-                     size_t targetlen);
+#include <cstddef>
+
+int base64_encode(unsigned char *source, std::size_t sourcelen, char *target,
+                  std::size_t targetlen);
+std::size_t base64_decode(const char *source, unsigned char *target,
+                          std::size_t targetlen);
 
 #endif // __BASE64_H

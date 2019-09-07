@@ -30,7 +30,8 @@
  * implementation is based on the method 1 in RFC 3174.
  */
 
-#include "jabberdlib.h"
+#include "hash.hh"
+
 #include <sstream>
 #include <stdexcept>
 #include <string>

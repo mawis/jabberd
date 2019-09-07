@@ -29,12 +29,14 @@
  * This implements an interface to access message translation catalogs
  */
 
+#include <messages.hh>
+
+#include <config.h>
+
 #include <locale>
 #include <map>
 #include <stdexcept>
 #include <string>
-
-#include "jabberdlib.h"
 
 /**
  * the messages class is used get access messages in different languages

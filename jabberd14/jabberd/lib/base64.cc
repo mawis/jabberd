@@ -28,7 +28,10 @@
  *
  */
 
-#include <jabberdlib.h>
+#include <base64.hh>
+
+#include <cstddef>
+#include <cstring>
 
 /**
  * @file base64.cc
@@ -77,8 +80,8 @@ static void _base64_encode_triple(unsigned char triple[3], char result[4]) {
  * @param targetlen the length of the target buffer
  * @return 1 on success, 0 otherwise
  */
-int base64_encode(unsigned char *source, size_t sourcelen, char *target,
-                  size_t targetlen) {
+int base64_encode(unsigned char *source, std::size_t sourcelen, char *target,
+                  std::size_t targetlen) {
     /* check if the result will fit in the target buffer */
     if ((sourcelen + 2) / 3 * 4 > targetlen - 1)
         return 0;
@@ -94,8 +97,8 @@ int base64_encode(unsigned char *source, size_t sourcelen, char *target,
     /* encode the last one or two characters */
     if (sourcelen > 0) {
         unsigned char temp[3];
-        memset(temp, 0, sizeof(temp));
-        memcpy(temp, source, sourcelen);
+        std::memset(temp, 0, sizeof(temp));
+        std::memcpy(temp, source, sourcelen);
         _base64_encode_triple(temp, target);
         target[3] = '=';
         if (sourcelen == 1)
@@ -118,8 +121,8 @@ int base64_encode(unsigned char *source, size_t sourcelen, char *target,
  * @param targetlen length of the target buffer
  * @return length of converted data on success, -1 otherwise
  */
-size_t base64_decode(const char *source, unsigned char *target,
-                     size_t targetlen) {
+std::size_t base64_decode(const char *source, unsigned char *target,
+                     std::size_t targetlen) {
     const char *cur;
     unsigned char *dest, *max_dest;
     int d, dlast, phase;

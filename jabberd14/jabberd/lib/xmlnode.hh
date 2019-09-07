@@ -34,6 +34,9 @@
 #include "str.hh"
 #include "xhash.hh"
 
+#include <list>
+#include <vector>
+
 #define NTYPE_TAG 0    /**< xmlnode is an element (tag) */
 #define NTYPE_ATTRIB 1 /**< xmlnode is an attribute node */
 #define NTYPE_CDATA 2  /**< xmlnode is a text node (!) */

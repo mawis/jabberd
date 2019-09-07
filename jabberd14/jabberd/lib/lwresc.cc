@@ -30,7 +30,9 @@
  * daemon) used to do asyncronous DNS resolving)
  */
 
-#include "jabberdlib.h"
+#include <lwresc.hh>
+
+#include <sstream>
 
 namespace xmppd {
 namespace lwresc {

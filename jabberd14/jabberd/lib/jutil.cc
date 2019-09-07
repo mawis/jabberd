@@ -33,7 +33,12 @@
  * @brief various utilities mainly for handling xmlnodes containing stanzas
  */
 
-#include <jabberdlib.h>
+#include <jutil.hh>
+
+#include <hash.hh>
+#include <jpacket.hh>
+#include <messages.hh>
+#include <namespaces.hh>
 
 #include <sys/time.h>
 
