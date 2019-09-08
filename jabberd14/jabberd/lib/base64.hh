@@ -33,8 +33,8 @@
 
 #include <cstddef>
 
-int base64_encode(unsigned char *source, std::size_t sourcelen, char *target,
-                  std::size_t targetlen);
+int base64_encode(unsigned char const *source, std::size_t sourcelen,
+                  char *target, std::size_t targetlen);
 std::size_t base64_decode(const char *source, unsigned char *target,
                           std::size_t targetlen);
 

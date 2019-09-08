@@ -56,7 +56,8 @@ const char *BASE64_CHARS =
  * @param triple three bytes that should be encoded
  * @param result buffer of four characters where the result is stored
  */
-static void _base64_encode_triple(unsigned char triple[3], char result[4]) {
+static void _base64_encode_triple(unsigned char const triple[3],
+                                  char result[4]) {
     int tripleValue, i;
 
     tripleValue = triple[0];
@@ -80,8 +81,8 @@ static void _base64_encode_triple(unsigned char triple[3], char result[4]) {
  * @param targetlen the length of the target buffer
  * @return 1 on success, 0 otherwise
  */
-int base64_encode(unsigned char *source, std::size_t sourcelen, char *target,
-                  std::size_t targetlen) {
+int base64_encode(unsigned char const *source, std::size_t sourcelen,
+                  char *target, std::size_t targetlen) {
     /* check if the result will fit in the target buffer */
     if ((sourcelen + 2) / 3 * 4 > targetlen - 1)
         return 0;
@@ -122,7 +123,7 @@ int base64_encode(unsigned char *source, std::size_t sourcelen, char *target,
  * @return length of converted data on success, -1 otherwise
  */
 std::size_t base64_decode(const char *source, unsigned char *target,
-                     std::size_t targetlen) {
+                          std::size_t targetlen) {
     const char *cur;
     unsigned char *dest, *max_dest;
     int d, dlast, phase;
