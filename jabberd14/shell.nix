@@ -5,6 +5,7 @@ stdenv.mkDerivation {
   buildInputs = [
     autoconf
     automake
+    cmake
     expat
     gettext
     glibmm

@@ -1,0 +1,12 @@
+kind: pipeline
+name: default
+
+steps:
+- name: rust-code
+  image: nixos/nix:latest
+  commands:
+  - nix-channel --add https://nixos.org/channels/nixpkgs-unstable nixpkgs
+  - nix-channel --update
+  - nix-env -iA nixpkgs.cargo
+  - cd jabberd14
+  - nix-shell --command "cd jabberdlib; cargo test ; cargo build --release"
