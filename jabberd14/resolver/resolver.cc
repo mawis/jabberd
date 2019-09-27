@@ -117,7 +117,7 @@ void resolver::configurate() {
          p != resend_elements.end(); ++p) {
         try {
             resend_services.push_back(resend_service(*p));
-        } catch (std::invalid_argument) {
+        } catch (std::invalid_argument&) {
         }
     }
 

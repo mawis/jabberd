@@ -136,11 +136,11 @@ void resolver_job::on_a_query_result(xmppd::lwresc::lwresult const &result) {
 
                     result_buffer << "," << rr->getAddress() << ":"
                                   << current_providing_host->second;
-                } catch (std::bad_cast) {
+                } catch (std::bad_cast&) {
                 }
             }
 
-        } catch (std::bad_cast) {
+        } catch (std::bad_cast&) {
             // we expected to get a lwresult_rrset on successfull resolving of
             // our query
         }
@@ -193,11 +193,11 @@ void resolver_job::on_aaaa_query_result(xmppd::lwresc::lwresult const &result) {
 
                     result_buffer << ",[" << rr->getAddress()
                                   << "]:" << current_providing_host->second;
-                } catch (std::bad_cast) {
+                } catch (std::bad_cast&) {
                 }
             }
 
-        } catch (std::bad_cast) {
+        } catch (std::bad_cast&) {
             // we expected to get a lwresult_rrset on successfull resolving of
             // our query
         }
@@ -288,7 +288,7 @@ void resolver_job::on_srv_query_result(xmppd::lwresc::lwresult const &result) {
                     std::pair<Glib::ustring, Glib::ustring>(rr->getDName(),
                                                             port.str()));
 
-            } catch (std::bad_cast) {
+            } catch (std::bad_cast&) {
                 // it hasn't been a SRV record - we can ignore it
             }
         }
@@ -304,7 +304,7 @@ void resolver_job::on_srv_query_result(xmppd::lwresc::lwresult const &result) {
             start_resolving_service();
         }
 
-    } catch (std::bad_cast) {
+    } catch (std::bad_cast&) {
         // we expected to get a lwresult_rrset on successfull resolving of our
         // query
     }

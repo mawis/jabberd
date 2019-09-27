@@ -272,9 +272,10 @@ static mreturn mod_admin_message(mapi m, void *arg) {
 
         /* tack the jid onto the front of the list, depreciating old ones off
          * the end */
-        char njidlist[1024];
+        char njidlist[1025];
         snprintf(njidlist, sizeof(njidlist), "%s %s",
                  jid_full(jid_user(m->packet->from)), jidlist);
+        njidlist[1023] = 0; // destination is only 1024, njidlist is 1025
         memcpy(jidlist, njidlist, 1024);
 
         /* hide original subject and body */

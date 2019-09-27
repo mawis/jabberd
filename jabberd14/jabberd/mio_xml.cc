@@ -78,7 +78,7 @@ static void _mio_xstream_startElement(void *_m, const char *name,
         try {
             // XXX do we need to care about the prefix at all?
             prefix = m->in_stanza->get_nsprefix(ns_iri);
-        } catch (std::invalid_argument) {
+        } catch (std::invalid_argument&) {
         }
     } else {
         // expat could not expand the prefix, it's not declared
@@ -133,14 +133,14 @@ static void _mio_xstream_startElement(void *_m, const char *name,
                 xmlnode_put_attrib_ns(
                     m->stacknode, prefix == "" ? "xmlns" : prefix.c_str(),
                     prefix == "" ? NULL : "xmlns", NS_XMLNS, NS_SERVER);
-            } catch (std::invalid_argument) {
+            } catch (std::invalid_argument&) {
             }
             try {
                 std::string prefix = m->in_root->get_nsprefix(NS_CLIENT);
                 xmlnode_put_attrib_ns(
                     m->stacknode, prefix == "" ? "xmlns" : prefix.c_str(),
                     prefix == "" ? NULL : "xmlns", NS_XMLNS, NS_CLIENT);
-            } catch (std::invalid_argument) {
+            } catch (std::invalid_argument&) {
             }
             try {
                 std::string prefix =
@@ -149,14 +149,14 @@ static void _mio_xstream_startElement(void *_m, const char *name,
                                       prefix == "" ? "xmlns" : prefix.c_str(),
                                       prefix == "" ? NULL : "xmlns", NS_XMLNS,
                                       NS_COMPONENT_ACCEPT);
-            } catch (std::invalid_argument) {
+            } catch (std::invalid_argument&) {
             }
             try {
                 std::string prefix = m->in_root->get_nsprefix(NS_DIALBACK);
                 xmlnode_put_attrib_ns(
                     m->stacknode, prefix == "" ? "xmlns" : prefix.c_str(),
                     prefix == "" ? NULL : "xmlns", NS_XMLNS, NS_DIALBACK);
-            } catch (std::invalid_argument) {
+            } catch (std::invalid_argument&) {
             }
 
             if (m->cb != NULL)

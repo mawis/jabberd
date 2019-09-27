@@ -657,7 +657,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char *unused1,
             try {
                 m->in_root->get_nsprefix(NS_DIALBACK);
                 c->flags.db = 1;
-            } catch (std::invalid_argument) {
+            } catch (std::invalid_argument&) {
                 c->flags.db = 0;
             }
 

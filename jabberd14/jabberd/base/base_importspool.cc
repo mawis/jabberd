@@ -374,7 +374,7 @@ static void *base_importspool_worker(void *arg) {
             if (strlen(domaindir_entry->d_name) == 2) {
                 DIR *domainsubdir1 = NULL;
                 struct dirent *domainsubdir1_entry = NULL;
-                char cur_domainsubdir1[1024];
+                char cur_domainsubdir1[1280];
 
                 /* only if two hex digits */
                 if (!is_hexdigit(domaindir_entry->d_name[0]) ||
@@ -393,7 +393,7 @@ static void *base_importspool_worker(void *arg) {
                 while ((domainsubdir1_entry = readdir(domainsubdir1))) {
                     DIR *domainsubdir2 = NULL;
                     struct dirent *domainsubdir2_entry = NULL;
-                    char cur_domainsubdir2[1024];
+                    char cur_domainsubdir2[1536];
 
                     /* check if it is a second level subdir */
                     if (!is_hexdigit(domainsubdir1_entry->d_name[0]) ||

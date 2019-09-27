@@ -103,7 +103,7 @@ result proxy65::on_iq_stanza(jpacket p) {
     std::string iq_type;
     try {
         iq_type = xmlnode_get_namespace(p->iq);
-    } catch (std::exception) {
+    } catch (std::exception&) {
         // probably we did not get any content in the iq stanza
         bounce_stanza(p->x, XTERROR_BAD);
         return r_DONE;
