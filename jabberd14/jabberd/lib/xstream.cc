@@ -78,7 +78,7 @@ static void _xstream_startElement(void *_xs, const char *name,
         try {
             // XXX do we need to care about the prefix at all?
             prefix = xs->ns_stanza->get_nsprefix(ns_iri);
-        } catch (std::invalid_argument) {
+        } catch (std::invalid_argument&) {
         }
     } else {
         // expat could not expand the prefix, it's not declared
@@ -135,14 +135,14 @@ static void _xstream_startElement(void *_xs, const char *name,
                 xmlnode_put_attrib_ns(
                     xs->node, prefix == "" ? "xmlns" : prefix.c_str(),
                     prefix == "" ? NULL : "xmlns", NS_XMLNS, NS_SERVER);
-            } catch (std::invalid_argument) {
+            } catch (std::invalid_argument&) {
             }
             try {
                 std::string prefix = xs->ns_root->get_nsprefix(NS_CLIENT);
                 xmlnode_put_attrib_ns(
                     xs->node, prefix == "" ? "xmlns" : prefix.c_str(),
                     prefix == "" ? NULL : "xmlns", NS_XMLNS, NS_CLIENT);
-            } catch (std::invalid_argument) {
+            } catch (std::invalid_argument&) {
             }
             try {
                 std::string prefix =
@@ -151,14 +151,14 @@ static void _xstream_startElement(void *_xs, const char *name,
                                       prefix == "" ? "xmlns" : prefix.c_str(),
                                       prefix == "" ? NULL : "xmlns", NS_XMLNS,
                                       NS_COMPONENT_ACCEPT);
-            } catch (std::invalid_argument) {
+            } catch (std::invalid_argument&) {
             }
             try {
                 std::string prefix = xs->ns_root->get_nsprefix(NS_DIALBACK);
                 xmlnode_put_attrib_ns(
                     xs->node, prefix == "" ? "xmlns" : prefix.c_str(),
                     prefix == "" ? NULL : "xmlns", NS_XMLNS, NS_DIALBACK);
-            } catch (std::invalid_argument) {
+            } catch (std::invalid_argument&) {
             }
 
             xs->status =

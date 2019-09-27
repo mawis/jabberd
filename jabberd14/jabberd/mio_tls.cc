@@ -1329,7 +1329,7 @@ static int mio_tls_check_x509(mio m, char const *id_on_xmppAddr,
                                            "not checking dNSName, as we are "
                                            "not searching for a domain");
                             } else {
-                                char access_string[14];
+                                char access_string[20];
                                 char dNSName[2048];
                                 int dNSName_len = sizeof(dNSName);
                                 pool compare_pool = NULL;
@@ -1381,8 +1381,8 @@ static int mio_tls_check_x509(mio m, char const *id_on_xmppAddr,
                             }
                         } else if (j_strncmp(address_type, "otherName", 10) ==
                                    0) {
-                            char access_string_type[24];
-                            char access_string_value[22];
+                            char access_string_type[30];
+                            char access_string_value[28];
                             char otherNameType[1024];
                             int otherNameType_len = sizeof(otherNameType);
                             unsigned char otherNameValue[1024];

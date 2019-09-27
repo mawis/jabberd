@@ -127,7 +127,7 @@ uint32_t lwresult::read_uint32(std::istream &is) {
     // read the second two bytes
     try {
         second_half = read_uint16(is);
-    } catch (std::runtime_error) {
+    } catch (std::runtime_error&) {
         // not enought data available, try to put back the first two bytes
         is.unget();
         is.unget();
@@ -370,22 +370,22 @@ rrecord::~rrecord() {}
 srv_record::srv_record(std::istream &is) {
     try {
         lwresult::read_uint16(is);
-    } catch (std::runtime_error) {
+    } catch (std::runtime_error&) {
         throw std::runtime_error("Error reading rrlen");
     }
     try {
         prio = lwresult::read_uint16(is);
-    } catch (std::runtime_error) {
+    } catch (std::runtime_error&) {
         throw std::runtime_error("Error reading prio");
     }
     try {
         weight = lwresult::read_uint16(is);
-    } catch (std::runtime_error) {
+    } catch (std::runtime_error&) {
         throw std::runtime_error("Error reading weight");
     }
     try {
         port = lwresult::read_uint16(is);
-    } catch (std::runtime_error) {
+    } catch (std::runtime_error&) {
         throw std::runtime_error("Error reading port");
     }
     try {

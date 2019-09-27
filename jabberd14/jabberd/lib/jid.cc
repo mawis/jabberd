@@ -47,7 +47,7 @@ jid jid_new(pool p, const char *idstr) {
         jid id = new xmppd::jabberid_pool(idstr, p);
         pool_cleanup(p, jid_pool_cleaner, id);
         return id;
-    } catch (std::invalid_argument) {
+    } catch (std::invalid_argument&) {
         return NULL;
     }
 }
@@ -72,7 +72,7 @@ void jid_set(jid id, const char *str, int item) {
                 id->set_domain(str);
                 break;
         }
-    } catch (std::invalid_argument) {
+    } catch (std::invalid_argument&) {
     }
 }
 

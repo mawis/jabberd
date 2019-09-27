@@ -474,7 +474,7 @@ void dialback_in_read(mio m, int flags, void *arg, xmlnode x, char *unused1,
     try {
         m->in_root->get_nsprefix(NS_DIALBACK);
         dbns_defined = 1;
-    } catch (std::invalid_argument) {
+    } catch (std::invalid_argument&) {
     }
     we_domain = xmlnode_get_attrib_ns(x, "to", NULL);
     other_domain = m->authed_other_side

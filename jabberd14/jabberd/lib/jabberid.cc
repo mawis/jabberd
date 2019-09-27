@@ -253,7 +253,7 @@ void jabberid::set_node(const Glib::ustring &node) {
 
     try {
         this->node = preparation_cache::prepare_node(node);
-    } catch (std::invalid_argument) {
+    } catch (std::invalid_argument&) {
         throw std::invalid_argument("Invalid node for JID");
     }
 }
@@ -261,7 +261,7 @@ void jabberid::set_node(const Glib::ustring &node) {
 void jabberid::set_domain(const Glib::ustring &domain) {
     try {
         this->domain = preparation_cache::prepare_domain(domain);
-    } catch (std::invalid_argument) {
+    } catch (std::invalid_argument&) {
         throw std::invalid_argument("Invalid domain for JID");
     }
 }
@@ -275,7 +275,7 @@ void jabberid::set_resource(const Glib::ustring &resource) {
 
     try {
         this->resource = preparation_cache::prepare_resource(resource);
-    } catch (std::invalid_argument) {
+    } catch (std::invalid_argument&) {
         throw std::invalid_argument("Invalid resource for JID");
     }
 }
