@@ -39,7 +39,7 @@ instance_base::instance_base(instance i, xmlnode x)
     // create our logger
     try {
         logger = std::shared_ptr<logging>(new logging(get_instance_id()));
-    } catch (std::domain_error) {
+    } catch (std::domain_error&) {
         logger = std::shared_ptr<logging>(new logging("-internal.invalid"));
     }
 }

@@ -346,7 +346,7 @@ static void _xmlnode_serialize(std::ostream &s, xmlnode_t const *x,
             // check if we need to declare a namespace prefix for this attribute
             try {
                 nslist.get_nsprefix(cur->ns_iri, false);
-            } catch (std::invalid_argument) {
+            } catch (std::invalid_argument&) {
                 // we have to declare a new prefix, create one
                 std::ostringstream ns;
 
@@ -2061,7 +2061,7 @@ bool ns_decl_list::check_prefix(const std::string &prefix,
 
         // what we expect?
         return ns_iri == current_value;
-    } catch (std::invalid_argument) {
+    } catch (std::invalid_argument&) {
         // prefix not declared at all
         return false;
     }

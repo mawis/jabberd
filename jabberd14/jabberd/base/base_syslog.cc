@@ -61,7 +61,7 @@ static result base_syslog_deliver(instance id, dpacket p, void *arg) {
     std::string locale_charset_message;
     try {
         locale_charset_message = Glib::locale_from_utf8(message);
-    } catch (Glib::ConvertError) {
+    } catch (Glib::ConvertError&) {
         locale_charset_message = "<Conversion Error, logging as UTF-8> ";
         locale_charset_message += message;
     }

@@ -72,7 +72,7 @@ resend_service::resend_service(xmlnode resend) : weight_sum(0) {
             resend_hosts.push_back(
                 std::pair<int, xmppd::jabberid>(weight, resend_jid));
             weight_sum += weight;
-        } catch (std::invalid_argument) {
+        } catch (std::invalid_argument&) {
             continue;
         }
     }
@@ -90,7 +90,7 @@ resend_service::resend_service(xmlnode resend) : weight_sum(0) {
                     std::pair<int, xmppd::jabberid>(1, resend_jid));
                 weight_sum++;
             }
-        } catch (std::invalid_argument) {
+        } catch (std::invalid_argument&) {
         }
     }
 
