@@ -147,15 +147,14 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x, char *unused1,
     if (j_strcmp(xmlnode_get_localname(x), "error") == 0 &&
         j_strcmp(xmlnode_get_namespace(x), NS_STREAM) == 0) {
         std::ostringstream errs;
-        streamerr errstruct = static_cast<streamerr>(
-            pmalloco(xmlnode_pool(x), sizeof(_streamerr)));
+        streamerr errstruct = xstream_new_error(xmlnode_pool(x));
         char *errmsg = NULL;
 
         xstream_parse_error(xmlnode_pool(x), x, errstruct);
         xstream_format_error(errs, errstruct);
         errmsg = pstrdup(xmlnode_pool(x), errs.str().c_str());
 
-        switch (errstruct->severity) {
+        switch (xstream_error_severity(errstruct)) {
             case normal:
                 log_debug2(ZONE, LOGT_IO,
                            "stream error on incoming db conn from %s: %s",

@@ -465,15 +465,14 @@ void dialback_out_read_db(mio m, int flags, void *arg, xmlnode x, char *unused1,
     if (j_strcmp(xmlnode_get_localname(x), "error") == 0 &&
         j_strcmp(xmlnode_get_namespace(x), NS_STREAM) == 0) {
         std::ostringstream errmsg;
-        streamerr errstruct = static_cast<streamerr>(
-            pmalloco(xmlnode_pool(x), sizeof(_streamerr)));
+        streamerr errstruct = xstream_new_error(xmlnode_pool(x));
 
         /* generate the error message */
         xstream_parse_error(xmlnode_pool(x), x, errstruct);
         xstream_format_error(errmsg, errstruct);
 
         /* logging */
-        switch (errstruct->severity) {
+        switch (xstream_error_severity(errstruct)) {
             case normal:
                 log_debug2(ZONE, LOGT_IO,
                            "stream error on outgoing db conn to %s: %s",
@@ -756,8 +755,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char *unused1,
             if (j_strcmp(xmlnode_get_localname(x), "error") == 0 &&
                 j_strcmp(xmlnode_get_namespace(x), NS_STREAM) == 0) {
                 std::ostringstream errmsg;
-                streamerr errstruct = static_cast<streamerr>(
-                    pmalloco(xmlnode_pool(x), sizeof(_streamerr)));
+                streamerr errstruct = xstream_new_error(xmlnode_pool(x));
 
                 /* generate error message */
                 xstream_parse_error(xmlnode_pool(x), x, errstruct);
@@ -770,7 +768,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char *unused1,
                 }
 
                 /* logging */
-                switch (errstruct->severity) {
+                switch (xstream_error_severity(errstruct)) {
                     case normal:
                         log_debug2(
                             ZONE, LOGT_IO,
