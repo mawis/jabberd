@@ -65,7 +65,6 @@
 #include "socket.hh"
 #include "str.hh"
 #include "base64.hh"
-#include "crc32.hh"
 #include "xhash.hh"
 #include "xmlnode.hh"
 #include "expat.hh"

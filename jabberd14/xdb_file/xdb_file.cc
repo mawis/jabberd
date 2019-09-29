@@ -47,6 +47,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "crc32.hh"
+
 #define FILES_PRIME 509
 
 /**
