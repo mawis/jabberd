@@ -35,6 +35,10 @@
 
 #include "jabberd.h"
 
+#include <expat.hh>
+#include <messages.hh>
+#include <namespaces.hh>
+
 #include <fcntl.h>
 #include <iostream>
 #include <unistd.h>

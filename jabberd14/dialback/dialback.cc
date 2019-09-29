@@ -56,6 +56,11 @@ A->B
 
 #include "dialback.h"
 
+#include <hash.hh>
+#include <hmac.hh>
+#include <messages.hh>
+#include <namespaces.hh>
+
 /**
  * helper structure used to pass an xmlnode as well as a jid when only one
  * pointer can be passed

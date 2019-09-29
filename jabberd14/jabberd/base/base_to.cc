@@ -35,6 +35,9 @@
 
 #include "jabberd.h"
 
+#include <hash.hh>
+#include <namespaces.hh>
+
 static result base_to_deliver(instance id, dpacket p, void *arg) {
     char *log_data = xmlnode_get_data(p->x);
     xmlnode message;

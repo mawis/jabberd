@@ -30,6 +30,9 @@
 
 #include "jsm.h"
 
+#include <messages.hh>
+#include <namespaces.hh>
+
 /**
  * @file mod_last.cc
  * @brief Implement handling of jabber:iq:last (XEP-0012) in the session manager

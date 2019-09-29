@@ -32,6 +32,9 @@
 
 #include <resolver.h>
 
+#include <namespaces.hh>
+#include <socket.hh>
+
 namespace xmppd {
 namespace resolver {
 resolver::resolver(instance i, xmlnode x)

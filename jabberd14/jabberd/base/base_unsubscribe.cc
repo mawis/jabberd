@@ -37,6 +37,9 @@
 
 #include "jabberd.h"
 
+#include <messages.hh>
+#include <namespaces.hh>
+
 /**
  * generate and send unsubscribe/unsubscribed packets
  *

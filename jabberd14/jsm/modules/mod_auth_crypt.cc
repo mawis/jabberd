@@ -30,6 +30,10 @@
 
 #include "jsm.h"
 
+#include <base64.hh>
+#include <hash.hh>
+#include <namespaces.hh>
+
 /**
  * @file mod_auth_crypt.cc
  * @brief handle (non-SASL) authentication using plain text passwords on the

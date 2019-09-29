@@ -23,6 +23,9 @@
  */
 
 #include <jabberd.h>
+
+#include <namespaces.hh>
+
 #include <list>
 #include <map>
 #include <sstream>

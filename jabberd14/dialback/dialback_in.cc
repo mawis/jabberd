@@ -44,6 +44,9 @@
 
 #include "dialback.h"
 
+#include <base64.hh>
+#include <namespaces.hh>
+
 /*
 On incoming connections, it's our job to validate any packets we receive on this
 server

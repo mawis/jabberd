@@ -30,6 +30,8 @@
 
 #include "jsm.h"
 
+#include <namespaces.hh>
+
 /**
  * @file mod_browse.cc
  * @brief implement handling of the jabber:iq:browse namespace (XEP-0011) in the

@@ -40,6 +40,8 @@
 
 #include "jabberd.h"
 
+#include <namespaces.hh>
+
 #include <syslog.h>
 
 int _debug_facility = -1; /**< facility to use for sending debugging messages to

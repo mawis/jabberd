@@ -32,6 +32,9 @@
 
 #include "jsm.h"
 
+#include <messages.hh>
+#include <namespaces.hh>
+
 /**
  * @file mod_disco.cc
  * @brief implement handling of service discovery (XEP-0030) in the session

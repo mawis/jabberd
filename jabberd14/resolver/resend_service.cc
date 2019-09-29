@@ -32,6 +32,8 @@
 
 #include <resolver.h>
 
+#include <namespaces.hh>
+
 namespace xmppd {
 namespace resolver {
 resend_service::resend_service(xmlnode resend) : weight_sum(0) {

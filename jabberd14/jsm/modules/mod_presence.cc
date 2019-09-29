@@ -30,6 +30,8 @@
 
 #include "jsm.h"
 
+#include <namespaces.hh>
+
 /**
  * @file mod_presence.cc
  * @brief handles presences: send to subscribers, send offline on session end,

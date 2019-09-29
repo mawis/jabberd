@@ -30,6 +30,8 @@
 
 #include "jsm.h"
 
+#include <namespaces.hh>
+
 /**
  * @file mod_example.cc
  * @brief example how to implement your own Jabber session manager (jsm) module

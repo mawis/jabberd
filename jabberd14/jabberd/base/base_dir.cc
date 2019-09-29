@@ -37,6 +37,10 @@
 
 #include "jabberd.h"
 
+#include <expat.hh>
+#include <hash.hh>
+#include <namespaces.hh>
+
 #include <dirent.h>
 #include <unistd.h>
 

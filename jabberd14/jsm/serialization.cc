@@ -24,6 +24,9 @@
 
 #include "jsm.h"
 
+#include <expat.hh>
+#include <namespaces.hh>
+
 /**
  * @file serialization.cc
  * @brief functions for serialization an deserialization of JSM state

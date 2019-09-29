@@ -32,6 +32,10 @@
  */
 
 #include "jabberd.h"
+
+#include <expat.hh>
+#include <namespaces.hh>
+
 #include <dirent.h>
 
 /**

@@ -35,6 +35,9 @@
 
 #include "jsm.h"
 
+#include <messages.hh>
+#include <namespaces.hh>
+
 /* forward declarations */
 void _js_session_start(void *arg);
 void _js_session_to(void *arg);

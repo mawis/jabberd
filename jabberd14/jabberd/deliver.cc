@@ -150,6 +150,10 @@ deliver()
 </jer> */
 
 #include "jabberd.h"
+
+#include <messages.hh>
+#include <namespaces.hh>
+
 #include <set>
 
 extern xmlnode greymatter__;

@@ -124,9 +124,18 @@
 #include <config.h>
 #endif
 
+#include <jid.hh>
+#include <jpacket.hh>
+#include <jutil.hh>
+#include <karma.hh>
+#include <rate.hh>
+#include <xmlnode.hh>
+#include <xstream.hh>
+
+#include <set>
+
 #include <gnutls/gnutls.h>
 #include <gnutls/x509.h>
-#include <jabberdlib.h>
 #include <pth.h>
 
 /** Packet types */

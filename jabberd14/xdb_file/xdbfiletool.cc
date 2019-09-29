@@ -22,8 +22,12 @@
  *
  */
 
-#include <dlfcn.h>
 #include <jabberd.h>
+
+#include <expat.hh>
+#include <namespaces.hh>
+
+#include <dlfcn.h>
 #include <popt.h>
 
 #include <iostream>

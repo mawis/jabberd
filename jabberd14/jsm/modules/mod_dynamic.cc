@@ -24,6 +24,9 @@
 
 #include "jsm.h"
 
+#include <messages.hh>
+#include <namespaces.hh>
+
 /**
  * @file mod_dynamic.cc
  * @brief implements dynamic adding and removing of hosts from the JSM instance

@@ -24,6 +24,8 @@
 
 #include "jsm.h"
 
+#include <namespaces.hh>
+
 /**
  * @file mod_useridpolicy.cc
  * @brief checks new user registrations against a policy for allowed/forbidden

@@ -54,6 +54,10 @@
  */
 #include "dialback.h"
 
+#include <base64.hh>
+#include <messages.hh>
+#include <namespaces.hh>
+
 /* forward declaration */
 void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char *unused1,
                        int unused2);

@@ -30,6 +30,8 @@
 
 #include "jsm.h"
 
+#include <namespaces.hh>
+
 /**
  * @file users.cc
  * @brief functions for manipulating data for logged in users

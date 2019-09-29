@@ -29,6 +29,9 @@
  */
 
 #include "jsm.h"
+
+#include <namespaces.hh>
+
 #include <sys/utsname.h>
 
 /**

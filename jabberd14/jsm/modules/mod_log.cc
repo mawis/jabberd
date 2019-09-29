@@ -30,6 +30,8 @@
 
 #include "jsm.h"
 
+#include <namespaces.hh>
+
 /**
  * @file mod_log.cc
  * @brief write a log entry if a session ends, optionally forward all messages

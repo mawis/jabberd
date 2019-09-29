@@ -64,6 +64,9 @@
 */
 
 #include <jabberd.h>
+
+#include <namespaces.hh>
+
 #define DEFAULT_AUTH_TIMEOUT 120
 #define DEFAULT_HEARTBEAT 60
 

@@ -30,6 +30,8 @@
 
 #include "jsm.h"
 
+#include <namespaces.hh>
+
 /**
  * @file jsm.cc
  * @brief main part of the jsm (Jabberd session manager) module

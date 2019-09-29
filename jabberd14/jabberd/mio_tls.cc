@@ -35,6 +35,8 @@
  */
 
 #include "jabberd.h"
+#include <namespaces.hh>
+
 #include <fcntl.h>
 #include <gcrypt.h>
 #include <iostream>

@@ -42,6 +42,9 @@
 
 #include "jabberd.h"
 #include "srv_resolv.h"
+
+#include <namespaces.hh>
+
 #include <sys/wait.h>
 #include <unistd.h>
 

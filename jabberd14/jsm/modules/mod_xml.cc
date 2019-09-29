@@ -30,6 +30,8 @@
 
 #include "jsm.h"
 
+#include <namespaces.hh>
+
 /**
  * @file mod_xml.cc
  * @brief handling jabber:iq:private (XEP-0049) requests
