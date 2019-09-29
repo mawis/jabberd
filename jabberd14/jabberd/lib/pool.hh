@@ -35,42 +35,19 @@
 #define POOL_NUM 40009
 #endif
 
-/* pheap - singular allocation of memory */
-struct pheap {
-    void *block;
-    int size, used;
-};
+typedef struct pool_struct _pool, *pool;
 
 /* pool_cleaner - callback type which is associated
    with a pool entry; invoked when the pool entry is
    free'd */
 typedef void (*pool_cleaner)(void *arg);
 
-/* pfree - a linked list node which stores an
-   allocation chunk, plus a callback */
-struct pfree {
-    pool_cleaner f;
-    void *arg;
-    struct pheap *heap;
-    struct pfree *next;
-};
-
-/* pool - base node for a pool. Maintains a linked list
-   of pool entries (pfree) */
-typedef struct pool_struct {
-    int size;
-    struct pfree *cleanup;
-    struct pheap *heap;
 #ifdef POOL_DEBUG
-    char name[8], zone[32];
-    int lsize;
-} _pool, *pool;
-#define pool_new() _pool_new(__FILE__, __LINE__)
-#define pool_heap(i) _pool_new_heap(i, __FILE__, __LINE__)
+#  define pool_new() _pool_new(__FILE__, __LINE__)
+#  define pool_heap(i) _pool_new_heap(i, __FILE__, __LINE__)
 #else
-} _pool, *pool;
-#define pool_heap(i) _pool_new_heap(i, NULL, 0)
-#define pool_new() _pool_new(NULL, 0)
+#  define pool_heap(i) _pool_new_heap(i, NULL, 0)
+#  define pool_new() _pool_new(NULL, 0)
 #endif
 
 pool _pool_new(char const *zone, int line);

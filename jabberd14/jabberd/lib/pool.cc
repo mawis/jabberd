@@ -55,6 +55,36 @@
 
 #define MAX_MALLOC_TRIES 10 /**< how many seconds we try to allocate memory */
 
+//----[ internal types ]-------------------------------------------------------
+
+/* pheap - singular allocation of memory */
+struct pheap {
+    void *block;
+    int size, used;
+};
+
+/* pfree - a linked list node which stores an
+   allocation chunk, plus a callback */
+struct pfree {
+    pool_cleaner f;
+    void *arg;
+    struct pheap *heap;
+    struct pfree *next;
+};
+
+/* pool - base node for a pool. Maintains a linked list
+   of pool entries (pfree) */
+struct pool_struct {
+    int size;
+    struct pfree *cleanup;
+    struct pheap *heap;
+#ifdef POOL_DEBUG
+    char name[8], zone[32];
+    int lsize;
+#endif
+};
+//-----------------------------------------------------------------------------
+
 #ifdef POOL_DEBUG
 int pool__total = 0; /**< how many memory blocks are allocated */
 int pool__ltotal = 0;
