@@ -46,6 +46,18 @@
 #include <cstring>
 #include <ctime>
 
+//----[ internal types ]-------------------------------------------------------
+
+struct jlimit_struct {
+    char *key;
+    int start;
+    int points;
+    int maxt, maxp;
+    pool p;
+};
+
+//-----------------------------------------------------------------------------
+
 /**
  * create a new instance of jlimit that is used to limit events
  *
