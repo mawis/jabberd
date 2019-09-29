@@ -220,13 +220,14 @@ int main(int argc, const char **argv) {
                       << std::endl;
             return 1;
         }
-        if (basedir_node[0]->type == NTYPE_TAG &&
+        if (xmlnode_get_type(basedir_node[0]) == NTYPE_TAG &&
             j_strcmp(xmlnode_get_localname(basedir_node[0]), "cmdline") == 0 &&
             j_strcmp(xmlnode_get_namespace(basedir_node[0]),
                      NS_JABBERD_CONFIGFILE_REPLACE) == 0) {
             basedir_node[0] = xmlnode_get_firstchild(basedir_node[0]);
         }
-        if (basedir_node[0] == NULL || basedir_node[0]->type != NTYPE_CDATA) {
+        if (basedir_node[0] == NULL ||
+            xmlnode_get_type(basedir_node[0]) != NTYPE_CDATA) {
             std::cerr << "Could not determine base directory for spool using "
                          "config file ('"
                       << cfgfile
@@ -321,7 +322,7 @@ int main(int argc, const char **argv) {
         for (xmlnode_vector::iterator result_item = result_items.begin();
              result_item != result_items.end(); ++result_item) {
             if (do_get) {
-                switch ((*result_item)->type) {
+                switch (xmlnode_get_type(*result_item)) {
                     case NTYPE_TAG:
                         std::cout << xmlnode_serialize_string(
                                          *result_item, xmppd::ns_decl_list(), 0)
@@ -343,7 +344,7 @@ int main(int argc, const char **argv) {
                     xmlnode parent = xmlnode_get_parent(*result_item);
                     xmlnode x = NULL;
 
-                    switch ((*result_item)->type) {
+                    switch (xmlnode_get_type(*result_item)) {
                         case NTYPE_CDATA:
                             xmlnode_insert_cdata(parent, replacement, -1);
                             break;

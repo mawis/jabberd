@@ -465,11 +465,11 @@ void dialback_out_read_db(mio m, int flags, void *arg, xmlnode x, char *unused1,
     if (j_strcmp(xmlnode_get_localname(x), "error") == 0 &&
         j_strcmp(xmlnode_get_namespace(x), NS_STREAM) == 0) {
         std::ostringstream errmsg;
-        streamerr errstruct =
-            static_cast<streamerr>(pmalloco(x->p, sizeof(_streamerr)));
+        streamerr errstruct = static_cast<streamerr>(
+            pmalloco(xmlnode_pool(x), sizeof(_streamerr)));
 
         /* generate the error message */
-        xstream_parse_error(x->p, x, errstruct);
+        xstream_parse_error(xmlnode_pool(x), x, errstruct);
         xstream_format_error(errmsg, errstruct);
 
         /* logging */
@@ -756,11 +756,11 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char *unused1,
             if (j_strcmp(xmlnode_get_localname(x), "error") == 0 &&
                 j_strcmp(xmlnode_get_namespace(x), NS_STREAM) == 0) {
                 std::ostringstream errmsg;
-                streamerr errstruct =
-                    static_cast<streamerr>(pmalloco(x->p, sizeof(_streamerr)));
+                streamerr errstruct = static_cast<streamerr>(
+                    pmalloco(xmlnode_pool(x), sizeof(_streamerr)));
 
                 /* generate error message */
-                xstream_parse_error(x->p, x, errstruct);
+                xstream_parse_error(xmlnode_pool(x), x, errstruct);
                 xstream_format_error(errmsg, errstruct);
 
                 /* append error message to connect_results */

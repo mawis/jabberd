@@ -155,8 +155,9 @@ static void import_file(instance i, xdbcache xc, xht std_namespace_prefixes,
          data_element = xmlnode_get_nextsibling(data_element)) {
         const char *ns = NULL;
 
-        if (data_element->type != NTYPE_TAG)
+        if (xmlnode_get_type(data_element) != NTYPE_TAG) {
             continue;
+        }
 
         /* handle data dependant on namespace */
         ns = xmlnode_get_namespace(data_element);
@@ -178,8 +179,9 @@ static void import_file(instance i, xdbcache xc, xht std_namespace_prefixes,
             /* insert each request individually */
             for (request = xmlnode_get_firstchild(data_element);
                  request != NULL; request = xmlnode_get_nextsibling(request)) {
-                if (request->type != NTYPE_TAG)
+                if (xmlnode_get_type(request) != NTYPE_TAG) {
                     continue;
+                }
 
                 std::ostringstream xpath;
                 xpath << "presence[@from='"
@@ -198,8 +200,9 @@ static void import_file(instance i, xdbcache xc, xht std_namespace_prefixes,
             /* insert each offline message individually */
             for (message = xmlnode_get_firstchild(data_element);
                  message != NULL; message = xmlnode_get_nextsibling(message)) {
-                if (message->type != NTYPE_TAG)
+                if (xmlnode_get_type(message) != NTYPE_TAG) {
                     continue;
+                }
 
                 xdb_act_path(xc, userid, NS_OFFLINE, "insert", NULL, NULL,
                              message);
@@ -214,8 +217,9 @@ static void import_file(instance i, xdbcache xc, xht std_namespace_prefixes,
             /* insert each offline message individually */
             for (message = xmlnode_get_firstchild(data_element);
                  message != NULL; message = xmlnode_get_nextsibling(message)) {
-                if (message->type != NTYPE_TAG)
+                if (xmlnode_get_type(message) != NTYPE_TAG) {
                     continue;
+                }
 
                 xdb_act_path(xc, userid, NS_JABBERD_HISTORY, "insert", NULL,
                              NULL, message);
@@ -230,8 +234,9 @@ static void import_file(instance i, xdbcache xc, xht std_namespace_prefixes,
             /* insert each offline message individually */
             for (item = xmlnode_get_firstchild(data_element); item != NULL;
                  item = xmlnode_get_nextsibling(item)) {
-                if (item->type != NTYPE_TAG)
+                if (xmlnode_get_type(item) != NTYPE_TAG) {
                     continue;
+                }
 
                 std::ostringstream xpath;
                 xpath << "private:query[@jabberd:ns='"
@@ -249,8 +254,9 @@ static void import_file(instance i, xdbcache xc, xht std_namespace_prefixes,
             /* insert each offline message individually */
             for (list = xmlnode_get_firstchild(data_element); list != NULL;
                  list = xmlnode_get_nextsibling(list)) {
-                if (list->type != NTYPE_TAG)
+                if (xmlnode_get_type(list) != NTYPE_TAG) {
                     continue;
+                }
 
                 std::ostringstream xpath;
                 xpath << "privacy:list[@name='"

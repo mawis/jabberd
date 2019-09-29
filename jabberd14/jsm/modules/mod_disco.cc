@@ -155,7 +155,7 @@ static mreturn mod_disco_server_items(mapi m, void *arg) {
         const char *jid, *name;
         const char *acl = NULL;
 
-        if (cur->type != NTYPE_TAG)
+        if (xmlnode_get_type(cur) != NTYPE_TAG)
             continue;
 
         /* check if this element should be skipped because of ACLs */

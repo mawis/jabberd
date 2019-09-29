@@ -324,7 +324,7 @@ static mreturn _mod_browse_server(mapi m) {
         const char *acl = NULL;
 
         /* only copy tags */
-        if (x->type != NTYPE_TAG)
+        if (xmlnode_get_type(x) != NTYPE_TAG)
             continue;
 
         /* check if this element should be skipped because of ACLs */
