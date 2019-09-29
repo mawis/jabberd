@@ -99,7 +99,7 @@ void messages::set_mapping(const std::string &lang,
         // put catalog and mapping in the map
         catalog_by_lang[lang] = catalog;
         locale_by_lang[lang] = locale_name;
-    } catch (std::runtime_error) {
+    } catch (std::runtime_error&) {
         // propably the requested system locale does not exist ...
     }
 }

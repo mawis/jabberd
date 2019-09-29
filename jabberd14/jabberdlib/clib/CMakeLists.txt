@@ -3,7 +3,7 @@ project (jabberdclib CXX)
 
 include_directories("${PROJECT_SOURCE_DIR}")
 
-set(SOURCE_FILES base64.cc base64.hh crc32.cc crc32.hh expat.cc expat.hh hash.cc hash.hh hmac.cc hmac.hh jabberid.cc jabberid.hh jid.cc jid.hh jpacket.cc jpacket.hh jutil.cc jutil.hh karma.cc karma.hh lwresc.cc lwresc.hh messages.cc messages.hh namespaces.hh pool.cc pool.hh rate.cc rate.hh socket.cc socket.hh str.cc str.hh xhash.cc xhash.hh xmlnode.cc xmlnode.hh xstream.cc xstream.hh)
+set(SOURCE_FILES base64.cc base64.hh expat.cc expat.hh hash.cc hash.hh hmac.cc hmac.hh jabberid.cc jabberid.hh jid.cc jid.hh jpacket.cc jpacket.hh jutil.cc jutil.hh karma.cc karma.hh lwresc.cc lwresc.hh messages.cc messages.hh namespaces.hh pool.cc pool.hh rate.cc rate.hh socket.cc socket.hh str.cc str.hh xhash.cc xhash.hh xmlnode.cc xmlnode.hh xstream.cc xstream.hh)
 
 add_library(jabberdclib STATIC ${SOURCE_FILES})
 
