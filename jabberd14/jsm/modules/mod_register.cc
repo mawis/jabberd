@@ -30,6 +30,9 @@
 
 #include "jsm.h"
 
+#include <messages.hh>
+#include <namespaces.hh>
+
 /**
  * @file mod_register.cc
  * @brief handles in-band registrations (XEP-0077)
@@ -70,7 +73,7 @@ static mreturn mod_register_passwordchange(mapi m) {
         xmlnode_get_tags(p->iq, "*", m->si->std_namespace_prefixes);
     xmlnode_vector::iterator child;
     for (child = childs.begin(); child != childs.end(); ++child) {
-        if ((*child)->type != NTYPE_TAG) {
+        if (xmlnode_get_type(*child) != NTYPE_TAG) {
             xmlnode_hide(*child);
             continue;
         }

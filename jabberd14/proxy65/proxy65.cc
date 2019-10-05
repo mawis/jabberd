@@ -30,8 +30,12 @@
  * bytestreams.
  */
 
-#include <ctime>
 #include <proxy65.h>
+
+#include <hash.hh>
+#include <namespaces.hh>
+
+#include <ctime>
 #include <stdexcept>
 #include <vector>
 

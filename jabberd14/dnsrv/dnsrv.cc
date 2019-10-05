@@ -42,6 +42,9 @@
 
 #include "jabberd.h"
 #include "srv_resolv.h"
+
+#include <namespaces.hh>
+
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -142,7 +145,7 @@ void dnsrv_child_process_xstream_io(int type, xmlnode x, void *args) {
                the specified service and resend it to the specified host */
             iternode = di->svclist;
             while (iternode != NULL) {
-                str = srv_lookup(x->p, iternode->service, hostname);
+                str = srv_lookup(xmlnode_pool(x), iternode->service, hostname);
                 if (str != NULL) {
                     dns_resend_list_host_list iterhost = iternode->hosts;
 

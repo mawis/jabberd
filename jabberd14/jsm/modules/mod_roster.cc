@@ -30,6 +30,9 @@
 
 #include "jsm.h"
 
+#include <messages.hh>
+#include <namespaces.hh>
+
 /**
  * @file mod_roster.cc
  * @brief handle subscription state changes and the user's access to his roster

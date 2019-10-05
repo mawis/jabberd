@@ -35,6 +35,10 @@
 
 #include "jabberd.h"
 
+#include <expat.hh>
+#include <messages.hh>
+#include <namespaces.hh>
+
 #include <fcntl.h>
 #include <iostream>
 #include <unistd.h>
@@ -72,7 +76,7 @@ static void do_include(int nesting_level, xmlnode x) {
 
     cur = xmlnode_get_firstchild(x);
     for (; cur != NULL;) {
-        if (cur->type != NTYPE_TAG) {
+        if (xmlnode_get_type(cur) != NTYPE_TAG) {
             cur = xmlnode_get_nextsibling(cur);
             continue;
         }
@@ -177,7 +181,7 @@ static void cmdline_replace(xmlnode x, xht cmd_line) {
     xmlnode cur = xmlnode_get_firstchild(x);
 
     for (; cur != NULL; cur = xmlnode_get_nextsibling(cur)) {
-        if (cur->type != NTYPE_TAG)
+        if (xmlnode_get_type(cur) != NTYPE_TAG)
             continue;
         if (j_strcmp(xmlnode_get_localname(cur), "cmdline") != 0 ||
             j_strcmp(xmlnode_get_namespace(cur),

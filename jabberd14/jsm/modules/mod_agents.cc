@@ -30,6 +30,8 @@
 
 #include "jsm.h"
 
+#include <namespaces.hh>
+
 /**
  * @file mod_agents.cc
  * @brief handling jabber:iq:agents (XEP-0094) and jabber:iq:agent

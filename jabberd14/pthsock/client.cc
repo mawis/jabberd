@@ -64,6 +64,9 @@
 */
 
 #include <jabberd.h>
+
+#include <namespaces.hh>
+
 #define DEFAULT_AUTH_TIMEOUT 120
 #define DEFAULT_HEARTBEAT 60
 
@@ -717,8 +720,8 @@ extern "C" void pthsock_client(instance i, xmlnode x) {
     s__i->host = host = i->id;
 
     for (cur = xmlnode_get_firstchild(s__i->cfg); cur != NULL;
-         cur = cur->next) {
-        if (cur->type != NTYPE_TAG)
+         cur = xmlnode_get_nextsibling(cur)) {
+        if (xmlnode_get_type(cur) != NTYPE_TAG)
             continue;
         if (j_strcmp(xmlnode_get_namespace(cur), NS_JABBERD_CONFIG_PTHCSOCK) !=
             0)

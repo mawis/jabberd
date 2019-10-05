@@ -44,6 +44,8 @@
  * components to use the XML routing functionality.
  */
 
+#include <pool.hh>
+
 #include "jabberd.h"
 
 void base_accept(pool p);

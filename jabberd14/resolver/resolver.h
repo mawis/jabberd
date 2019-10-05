@@ -24,6 +24,8 @@
 
 #include <jabberd.h>
 
+#include <lwresc.hh>
+
 namespace xmppd {
 namespace resolver {
 

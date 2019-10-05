@@ -32,13 +32,7 @@
 
 #include <pool.hh>
 
-typedef struct jlimit_struct {
-    char *key;
-    int start;
-    int points;
-    int maxt, maxp;
-    pool p;
-} * jlimit, _jlimit;
+typedef struct jlimit_struct *jlimit, _jlimit;
 
 jlimit jlimit_new(int maxt, int maxp);
 void jlimit_free(jlimit r);

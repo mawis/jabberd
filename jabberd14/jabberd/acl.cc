@@ -41,6 +41,8 @@
 
 #include "jabberd.h"
 
+#include <namespaces.hh>
+
 /* I really don't like having this as a global variable */
 extern xmlnode greymatter__;
 

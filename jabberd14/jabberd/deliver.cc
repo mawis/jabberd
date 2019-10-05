@@ -150,6 +150,10 @@ deliver()
 </jer> */
 
 #include "jabberd.h"
+
+#include <messages.hh>
+#include <namespaces.hh>
+
 #include <set>
 
 extern xmlnode greymatter__;
@@ -216,7 +220,7 @@ void deliver_config_filter(xmlnode greymatter) {
             log_debug2(ZONE, LOGT_DELIVER, "adding namespace prefix: %s=%s",
                        prefix, ns_iri);
             xhash_put(filter_namespaces, prefix,
-                      pstrdup(greymatter->p, ns_iri));
+                      pstrdup(xmlnode_pool(greymatter), ns_iri));
         }
     }
 

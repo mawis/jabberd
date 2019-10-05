@@ -30,6 +30,8 @@
 
 #include "jsm.h"
 
+#include <namespaces.hh>
+
 /**
  * @file mod_auth_plain.cc
  * @brief handles authentication using plaintext password with plaintext

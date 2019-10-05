@@ -106,7 +106,7 @@ jpacket jpacket_reset(jpacket p) {
                strcmp(xmlnode_get_namespace(x), NS_SERVER) == 0) {
         p->type = JPACKET_IQ;
         p->iq = xmlnode_get_firstchild(x);
-        while (p->iq != NULL && p->iq->type != NTYPE_TAG)
+        while (p->iq != NULL && xmlnode_get_type(p->iq) != NTYPE_TAG)
             p->iq = xmlnode_get_nextsibling(p->iq);
         p->iqns = pstrdup(xmlnode_pool(p->iq), xmlnode_get_namespace(p->iq));
     }

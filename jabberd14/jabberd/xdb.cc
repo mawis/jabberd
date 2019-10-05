@@ -35,6 +35,8 @@
 
 #include "jabberd.h"
 
+#include <namespaces.hh>
+
 /**
  * ::o_PRECOND packet handler that filters the packets incoming for the instance
  * to look for xdb packets

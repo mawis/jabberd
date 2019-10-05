@@ -30,6 +30,9 @@
 
 #include "jsm.h"
 
+#include <messages.hh>
+#include <namespaces.hh>
+
 /**
  * @file jsm/deliver.cc
  * @brief handle incoming packets and check how they can be delivered

@@ -54,6 +54,10 @@
  */
 #include "dialback.h"
 
+#include <base64.hh>
+#include <messages.hh>
+#include <namespaces.hh>
+
 /* forward declaration */
 void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char *unused1,
                        int unused2);
@@ -465,15 +469,14 @@ void dialback_out_read_db(mio m, int flags, void *arg, xmlnode x, char *unused1,
     if (j_strcmp(xmlnode_get_localname(x), "error") == 0 &&
         j_strcmp(xmlnode_get_namespace(x), NS_STREAM) == 0) {
         std::ostringstream errmsg;
-        streamerr errstruct =
-            static_cast<streamerr>(pmalloco(x->p, sizeof(_streamerr)));
+        streamerr errstruct = xstream_new_error(xmlnode_pool(x));
 
         /* generate the error message */
-        xstream_parse_error(x->p, x, errstruct);
+        xstream_parse_error(xmlnode_pool(x), x, errstruct);
         xstream_format_error(errmsg, errstruct);
 
         /* logging */
-        switch (errstruct->severity) {
+        switch (xstream_error_severity(errstruct)) {
             case normal:
                 log_debug2(ZONE, LOGT_IO,
                            "stream error on outgoing db conn to %s: %s",
@@ -756,11 +759,10 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char *unused1,
             if (j_strcmp(xmlnode_get_localname(x), "error") == 0 &&
                 j_strcmp(xmlnode_get_namespace(x), NS_STREAM) == 0) {
                 std::ostringstream errmsg;
-                streamerr errstruct =
-                    static_cast<streamerr>(pmalloco(x->p, sizeof(_streamerr)));
+                streamerr errstruct = xstream_new_error(xmlnode_pool(x));
 
                 /* generate error message */
-                xstream_parse_error(x->p, x, errstruct);
+                xstream_parse_error(xmlnode_pool(x), x, errstruct);
                 xstream_format_error(errmsg, errstruct);
 
                 /* append error message to connect_results */
@@ -770,7 +772,7 @@ void dialback_out_read(mio m, int flags, void *arg, xmlnode x, char *unused1,
                 }
 
                 /* logging */
-                switch (errstruct->severity) {
+                switch (xstream_error_severity(errstruct)) {
                     case normal:
                         log_debug2(
                             ZONE, LOGT_IO,

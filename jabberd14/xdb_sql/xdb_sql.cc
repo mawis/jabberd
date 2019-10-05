@@ -23,6 +23,9 @@
  */
 
 #include <jabberd.h>
+
+#include <namespaces.hh>
+
 #include <list>
 #include <map>
 #include <sstream>
@@ -235,14 +238,14 @@ xdb_sql_construct_query(const std::vector<std::string> &sqltemplate,
 
             xdb_sql_stream_add_escaped(
                 result_stream,
-                pstrdup(xdb_query->p, subst != NULL ? subst : ""));
+                pstrdup(xmlnode_pool(xdb_query), subst != NULL ? subst : ""));
         }
 
         /* next token */
         index++;
     }
 
-    return pstrdup(xdb_query->p, result_stream.str().c_str());
+    return pstrdup(xmlnode_pool(xdb_query), result_stream.str().c_str());
 }
 
 /**

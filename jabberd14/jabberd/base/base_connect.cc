@@ -30,6 +30,9 @@
 
 #include "jabberd.h"
 
+#include <hash.hh>
+#include <namespaces.hh>
+
 /**
  * @file base_connect.cc
  * @brief connects to another instance using the component protocol

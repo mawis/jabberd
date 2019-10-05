@@ -30,6 +30,9 @@
 
 #include <jsm.h>
 
+#include <hash.hh>
+#include <namespaces.hh>
+
 /**
  * @file mod_auth_digest.cc
  * @brief Handle authentication using hashed passwords on the wire (requires

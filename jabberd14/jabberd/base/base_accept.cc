@@ -36,6 +36,10 @@
 
 #include "jabberd.h"
 
+#include <hash.hh>
+#include <messages.hh>
+#include <namespaces.hh>
+
 #define A_ERROR -1
 #define A_READY 1
 

@@ -50,6 +50,39 @@
 #include <cstring>
 #include <iostream>
 
+//----[ internal types ]-------------------------------------------------------
+
+struct xstream_struct {
+    XML_Parser parser;
+    xmlnode node;
+    char *cdata;
+    int cdata_len;
+    pool p;
+    xstream_onNode f;
+    void *arg;
+    int status;
+    int depth;
+
+    const char *root_lang; /**< declared language on the root element */
+
+    xmppd::ns_decl_list
+        *ns_root; /**< list of declared namespaces for the root element */
+    xmppd::ns_decl_list
+        *ns_stanza; /**< list of declared namespaces for the current stanza */
+};
+
+struct streamerr_struct {
+    char *text;              /**< the error message */
+    char *lang;              /**< language of the error message */
+    streamerr_reason reason; /**< a generic cause type */
+    streamerr_severity
+        severity; /**< something that admin needs to care about? */
+};
+
+//-----------------------------------------------------------------------------
+
+
+
 /* ========== internal expat callbacks =========== */
 
 /**
@@ -686,4 +719,24 @@ streamerr_severity xstream_parse_error(pool p, xmlnode errnode,
     }
 
     return errstruct->severity;
+}
+
+/**
+ * Generate new streamerr instance.
+ *
+ * @param p the memory pool to use
+ * @return the new instance
+ */
+streamerr xstream_new_error(pool p) {
+    return static_cast<streamerr>(pmalloco(p, sizeof(_streamerr)));
+}
+
+/**
+ * Get the severity of a stream error.
+ *
+ * @param e the streamerr to get the severity from
+ * @return the severity
+ */
+streamerr_severity xstream_error_severity(streamerr e) {
+    return e ? e->severity : error;
 }

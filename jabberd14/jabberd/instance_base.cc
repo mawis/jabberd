@@ -28,6 +28,9 @@
  */
 
 #include <jabberd.h>
+
+#include <namespaces.hh>
+
 #include <stdexcept>
 
 namespace xmppd {

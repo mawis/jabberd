@@ -30,6 +30,8 @@
 
 #include "jsm.h"
 
+#include <namespaces.hh>
+
 /**
  * @file mod_offline.cc
  * @brief Handle offline messages to users (including message expiration

@@ -30,6 +30,9 @@
 
 #include "jsm.h"
 
+#include <messages.hh>
+#include <namespaces.hh>
+
 /**
  * @file mod_admin.cc
  * @brief Admin functionallity for the session manager

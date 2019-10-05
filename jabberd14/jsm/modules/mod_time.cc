@@ -30,6 +30,8 @@
 
 #include "jsm.h"
 
+#include <namespaces.hh>
+
 /**
  * @file mod_time.cc
  * @brief implement the Entity Time protocol (XEP-0090)

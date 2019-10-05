@@ -44,6 +44,9 @@
 
 #include <jabberd.h>
 
+#include <namespaces.hh>
+#include <socket.hh>
+
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>

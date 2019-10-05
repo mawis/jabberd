@@ -35,6 +35,8 @@
  */
 
 #include "jabberd.h"
+#include <namespaces.hh>
+
 #include <fcntl.h>
 #include <gcrypt.h>
 #include <iostream>
@@ -599,7 +601,7 @@ void mio_ssl_init(xmlnode x) {
     bool dhparams_der = false;
     for (cur = xmlnode_get_firstchild(x); cur != NULL;
          cur = xmlnode_get_nextsibling(cur)) {
-        if (cur->type != NTYPE_TAG) {
+        if (xmlnode_get_type(cur) != NTYPE_TAG) {
             continue;
         }
 
@@ -705,7 +707,7 @@ void mio_ssl_init(xmlnode x) {
     /* load the certificates */
     for (cur = xmlnode_get_firstchild(x); cur != NULL;
          cur = xmlnode_get_nextsibling(cur)) {
-        if (cur->type != NTYPE_TAG) {
+        if (xmlnode_get_type(cur) != NTYPE_TAG) {
             continue;
         }
 

@@ -44,6 +44,9 @@
 
 #include "dialback.h"
 
+#include <base64.hh>
+#include <namespaces.hh>
+
 /*
 On incoming connections, it's our job to validate any packets we receive on this
 server
@@ -147,15 +150,14 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x, char *unused1,
     if (j_strcmp(xmlnode_get_localname(x), "error") == 0 &&
         j_strcmp(xmlnode_get_namespace(x), NS_STREAM) == 0) {
         std::ostringstream errs;
-        streamerr errstruct =
-            static_cast<streamerr>(pmalloco(x->p, sizeof(_streamerr)));
+        streamerr errstruct = xstream_new_error(xmlnode_pool(x));
         char *errmsg = NULL;
 
-        xstream_parse_error(x->p, x, errstruct);
+        xstream_parse_error(xmlnode_pool(x), x, errstruct);
         xstream_format_error(errs, errstruct);
-        errmsg = pstrdup(x->p, errs.str().c_str());
+        errmsg = pstrdup(xmlnode_pool(x), errs.str().c_str());
 
-        switch (errstruct->severity) {
+        switch (xstream_error_severity(errstruct)) {
             case normal:
                 log_debug2(ZONE, LOGT_IO,
                            "stream error on incoming db conn from %s: %s",
@@ -270,12 +272,12 @@ void dialback_in_read_db(mio m, int flags, void *arg, xmlnode x, char *unused1,
         }
 
         /* decode initial exchange */
-        decoded_initial_exchange = static_cast<char *>(
-            pmalloco(x->p, (j_strlen(initial_exchange) + 3) / 4 * 3 + 1));
+        decoded_initial_exchange = static_cast<char *>(pmalloco(
+            xmlnode_pool(x), (j_strlen(initial_exchange) + 3) / 4 * 3 + 1));
         base64_decode(initial_exchange,
                       (unsigned char *)decoded_initial_exchange,
                       (j_strlen(initial_exchange) + 3) / 4 * 3 + 1);
-        other_side_jid = jid_new(x->p, decoded_initial_exchange);
+        other_side_jid = jid_new(xmlnode_pool(x), decoded_initial_exchange);
 
         /* we only accept servers, no users */
         if (!other_side_jid || other_side_jid->has_node() ||

@@ -30,6 +30,8 @@
 
 #include "jsm.h"
 
+#include <namespaces.hh>
+
 /**
  * @file mod_vcard.cc
  * @brief Implement handling of namespace 'vcard-temp' (XEP-0054)

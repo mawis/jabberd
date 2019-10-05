@@ -24,6 +24,8 @@
 
 #include "jsm.h"
 
+#include <namespaces.hh>
+
 /**
  * @file mod_ping.cc
  * @brief implements XEP-0199 - XMPP Ping

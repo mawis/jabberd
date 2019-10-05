@@ -30,6 +30,8 @@
 
 #include "jsm.h"
 
+#include <namespaces.hh>
+
 /**
  * @file mod_announce.cc
  * @brief This session manager module implements the message of the day and the

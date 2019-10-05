@@ -46,6 +46,8 @@
 
 #include "jabberd.h"
 
+#include <namespaces.hh>
+
 #ifdef HAVE_SYSLOG
 #include <syslog.h>
 #endif

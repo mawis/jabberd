@@ -40,6 +40,10 @@
 
 #include <jabberd.h>
 
+#include <expat.hh>
+#include <namespaces.hh>
+#include <xmlnode.hh>
+
 #include <fstream>
 #include <libgen.h>
 #include <sys/stat.h>
