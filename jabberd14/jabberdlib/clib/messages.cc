@@ -31,7 +31,7 @@
 
 #include <messages.hh>
 
-#include "config.hh"
+#include <config.hh>
 
 #include <locale>
 #include <map>

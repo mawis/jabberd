@@ -46,24 +46,7 @@
 typedef void (*xstream_onNode)(int type, xmlnode x,
                                void *arg); /* xstream event handler */
 
-typedef struct xstream_struct {
-    XML_Parser parser;
-    xmlnode node;
-    char *cdata;
-    int cdata_len;
-    pool p;
-    xstream_onNode f;
-    void *arg;
-    int status;
-    int depth;
-
-    const char *root_lang; /**< declared language on the root element */
-
-    xmppd::ns_decl_list
-        *ns_root; /**< list of declared namespaces for the root element */
-    xmppd::ns_decl_list
-        *ns_stanza; /**< list of declared namespaces for the current stanza */
-} * xstream, _xstream;
+typedef struct xstream_struct * xstream, _xstream;
 
 xstream xstream_new(pool p, xstream_onNode f,
                     void *arg); /* create a new xstream */
@@ -121,16 +104,12 @@ typedef enum {
 } streamerr_severity;
 
 /** structure that contains information about a stream error */
-typedef struct streamerr_struct {
-    char *text;              /**< the error message */
-    char *lang;              /**< language of the error message */
-    streamerr_reason reason; /**< a generic cause type */
-    streamerr_severity
-        severity; /**< something that admin needs to care about? */
-} * streamerr, _streamerr;
+typedef struct streamerr_struct * streamerr, _streamerr;
 
 void xstream_format_error(std::ostream &out, streamerr errstruct);
 streamerr_severity xstream_parse_error(pool p, xmlnode errnode,
                                        streamerr errstruct);
+streamerr xstream_new_error(pool p);
+streamerr_severity xstream_error_severity(streamerr e);
 
 #endif // __XSTREAM_HH
