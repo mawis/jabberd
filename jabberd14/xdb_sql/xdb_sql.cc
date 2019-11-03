@@ -41,7 +41,7 @@
 #endif
 
 #ifdef HAVE_POSTGRESQL
-#include <libpq-fe.h>
+#include <postgresql/libpq-fe.h>
 #endif
 
 /**
